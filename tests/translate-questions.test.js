@@ -5,6 +5,7 @@ const translateFunctions = require('../server/functions/translate-functions')
 const { 
   translateWelcomeScreen,
   translateShortText,
+  translateStatement,
   translateMultipleChoice,
  } = translateFunctions
 
@@ -27,7 +28,7 @@ describe('should translate the welcome screen', () => {
     translated.quick_replies.forEach(reply => {
       reply.should.have.property('content_type', 'text')
       reply.should.have.property('title')
-      reply.should.have.property('payload', 'start')
+      reply.should.have.property('payload', data.properties.button_text)
     })
   })
 })
@@ -41,8 +42,23 @@ describe('should translate short text questions', () => {
   it('should be an object', () => {
     question.should.be.an('object')
   })
-  it ('should have as response title the question title from Typeform', () => {
+  it('should have a text property that is the Typeform question', () => {
     question.should.have.property('text', shortTextQuestion.title)
+  })
+})
+
+describe('should translate statement questions', () => {
+  const statementQuestion = mocks.fields.filter(question => {
+    return question.type === "statement"
+  })[0]
+
+  const question = translateStatement(statementQuestion)
+  it('should be an object', () => {
+    question.should.be.an('object')
+  })
+
+  it('should have a text property that is the Typeform question', () => {
+    question.should.have.property('text', statementQuestion.title)
   })
 })
 
@@ -56,6 +72,9 @@ describe('should translate multiple choice questions', () => {
 
   it('should be an object', () => {
     question.should.be.an('object')
+  })
+  it('should not have a text property', () => {
+    question.should.have.property('text')
   })
   it('should have an attachment property', () => {
     question.should.have.property('attachment')

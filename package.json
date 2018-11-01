@@ -1,11 +1,15 @@
 {
-  "name": "typeform-messenger",
+  "name": "typeform-messenger-server",
   "version": "1.0.0",
-  "description": "",
+  "description": "Using Typeform to create Facebook Bots",
   "main": "index.js",
   "scripts": {
     "test": "mocha tests/*.test.js",
     "start": "nodemon server/index.js"
+  },
+  "engines": {
+    "node": "10.1.0",
+    "npm": "6.0.1"
   },
   "author": "",
   "license": "ISC",
@@ -15,7 +19,8 @@
     "koa": "^2.5.1",
     "koa-bodyparser": "^4.2.1",
     "koa-router": "^7.4.0",
-    "request": "^2.87.0"
+    "request": "^2.87.0",
+    "typeform-to-facebook-messenger": "^1.0.4"
   },
   "devDependencies": {
     "chai": "^4.1.2",
