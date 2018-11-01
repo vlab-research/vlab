@@ -9,8 +9,8 @@ const {
   receiveMessage,
 } = require('./controller')
 
-const conf = require('../private/conf.json')
-const typeformToken = conf.tokens.typeform
+// const conf = require('../private/conf.json')
+// const typeformToken = conf.tokens.typeform
 
 const router = new Router()
 

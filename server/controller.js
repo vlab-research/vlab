@@ -58,7 +58,7 @@ const saveReply = (answer) => {
 }
 
 const handleMessage = (event, translatedForm) => {
-  let sender_psid = event.sender.id  
+  let sender_psid = event.sender.id
   if (counter === 0) {
     sendMessage(sender_psid, translatedForm[counter])
     counter ++
@@ -82,18 +82,18 @@ const startSurvey = async (ctx) => {
   try {
     const body = ctx.request.body
 
-    const form = await getForm()
-  
-    if (!translatedForm) translatedForm = translateForm(form) 
+    // const form = await getForm()
+
+    // if (!translatedForm) translatedForm = translateForm(form)
 
     if (body.object === 'page') {
-      body.entry.forEach((entry) => { 
+      body.entry.forEach((entry) => {
         console.log('ENTRY: ', entry)
         let event
         event = entry.messaging[0]
         if (event.message) {
           console.log('MESSAGE: ', event.message)
-          handleMessage(event, translatedForm)
+          // handleMessage(event, translatedForm)
         } else if (event.postback && event.postback.payload) {
           console.log('POSTBACK: ', event.postback)
           // let payload = received_postback.payload
@@ -109,7 +109,7 @@ const startSurvey = async (ctx) => {
   }
 }
 
-module.exports = { 
+module.exports = {
   verifyToken,
   startSurvey
 }

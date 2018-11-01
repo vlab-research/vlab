@@ -3,8 +3,8 @@ const util = require('util')
 const fetch = require('cross-fetch')
 require('dotenv').config()
 
-const conf = require('../../private/conf.json')
-const typeformToken = conf.tokens.typeform
+// const conf = require('../../private/conf.json')
+// const typeformToken = conf.tokens.typeform
 
 const writeFile = util.promisify(fs.writeFile)
 
