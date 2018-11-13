@@ -63,7 +63,7 @@ function shareMessage(title, url) {
         "buttons": [ shareButton(title, url)]
       }
     },
-    metadata: 'foobarbaz'
+    metadata: '{ "ref": "foobarbaz"}' // Get the ref from the question
   }
 }
 

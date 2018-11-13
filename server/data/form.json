@@ -1,1 +1,593 @@
-{"id":"GtfMi9","title":"Event Registration","theme":{"href":"https://api.typeform.com/themes/JPnxbU"},"workspace":{"href":"https://api.typeform.com/workspaces/12350484"},"settings":{"is_public":true,"is_trial":false,"language":"en","progress_bar":"proportion","show_progress_bar":true,"show_typeform_branding":true,"meta":{"allow_indexing":true}},"welcome_screens":[{"ref":"70d54ea2e68f27ae","title":"Register for the Bangkok street food festival!","properties":{"show_button":true,"button_text":"Start"},"attachment":{"type":"image","href":"https://images.typeform.com/images/krhQXapichpH"}}],"thankyou_screens":[{"ref":"default_tys","title":"Thanks for completing this typeform\nNow *create your own* — it's free, easy, & beautiful","properties":{"show_button":true,"share_icons":false,"button_mode":"redirect","button_text":"Create a *typeform*","redirect_url":"https://admin.typeform.com/powered-by?utm_campaign=GtfMi9&utm_source=typeform.com-12156441-Basic&utm_medium=typeform&utm_content=typeform-thankyoubutton&utm_term=EN"},"attachment":{"type":"image","href":"https://images.typeform.com/images/2dpnUBBkz2VN"}}],"fields":[{"id":"ccSRxhfKXQbS","title":"What's your name?","ref":"4b1e1e426d0a32fa","validations":{"required":true},"type":"short_text"},{"id":"aSq94QQkXhqa","title":"How did you hear about the food festival?","ref":"ef965333c8f24748","properties":{"randomize":false,"allow_multiple_selection":false,"allow_other_choice":true,"vertical_alignment":false,"choices":[{"id":"Xy31nvlyfjUe","ref":"51c76f5fa66c6725","label":"Social media"},{"id":"uVAFXuTRD2tq","ref":"87408191d53179ee","label":"Found your website on Google"},{"id":"Kutu0Qesg8t1","ref":"8bc14882d0521d6a","label":"Local outdoor advertising"}]},"validations":{"required":false},"type":"multiple_choice"},{"id":"YiMopD05Pv1O","title":"{{field:4b1e1e426d0a32fa}}, what's your email address?","ref":"ea039d563cefd7cc","validations":{"required":false},"type":"email"},{"id":"wip3SXIw2fs3","title":"What would you like on the menu?","ref":"6ab2589564fa989e","properties":{"description":"We have a surprise for you!","randomize":false,"allow_multiple_selection":false,"allow_other_choice":false,"supersized":false,"show_labels":true,"choices":[{"id":"OkZoXhsvVJta","ref":"bfcc3fbf608583f7","label":"Noodles","attachment":{"type":"image","href":"https://images.typeform.com/images/zDG4XHmcVpki"}},{"id":"a6CtT0mfgJNz","ref":"5bf390ce5210d38b","label":"Curry","attachment":{"type":"image","href":"https://images.typeform.com/images/JgvPGcs5QD6K"}}]},"validations":{"required":false},"type":"picture_choice"},{"id":"RIumS7PlPwzU","title":"Do you have any comments or suggestions for the event?","ref":"0211cbae4712bed4","validations":{"required":false},"type":"long_text"}],"_links":{"display":"https://isabellachen.typeform.com/to/GtfMi9"}}
+{
+    "id": "ODf5n7",
+    "title": "Messenger Ad 0.1",
+    "theme": {
+        "href": "https://api.typeform.com/themes/6lPNE6"
+    },
+    "workspace": {
+        "href": "https://api.typeform.com/workspaces/sZGZdB"
+    },
+    "settings": {
+        "is_public": true,
+        "is_trial": false,
+        "language": "en",
+        "progress_bar": "percentage",
+        "show_progress_bar": true,
+        "show_typeform_branding": true,
+        "meta": {
+            "allow_indexing": false
+        }
+    },
+    "thankyou_screens": [
+        {
+            "ref": "default_tys",
+            "title": "Done! Your information was sent perfectly.",
+            "properties": {
+                "show_button": false,
+                "share_icons": false
+            }
+        }
+    ],
+    "fields": [
+        {
+            "id": "yKZz36sma0q5",
+            "title": "Welcome! 😀\nWe are a team of researchers conducting a study about life and opinions of young people in India. In the coming weeks, we will share with you some nice and short videoclips that you can watch for free. We will also ask you some questions about them. If you agree to take part to this study and you answer our questions, then you will have the chance of winning up to *10 Samsung Galaxy s8!*\n\nYour answers will always remain confidential.\n\nBy clicking the Accept botton, you confirm you have read and accept the _General Terms and Conditions_ contained in the Consent Form available at the link below.\n",
+            "ref": "4cc5c31b-6d23-4d50-8536-7abf1cdf0782",
+            "properties": {
+                "description": "https://drive.google.com/file/d/1Eovlbbysgdip6cwOfgl6r-r6nkoR1wyT/view?usp=sharing"
+            },
+            "validations": {
+                "required": true
+            },
+            "type": "legal"
+        },
+        {
+            "id": "zGz4q4dPLUiB",
+            "title": "Welcome!\nHow old are you?",
+            "ref": "378caa71-fc4f-4041-8315-02b6f33616b9",
+            "validations": {
+                "required": true
+            },
+            "type": "number"
+        },
+        {
+            "id": "RO4GRuyGIIMP",
+            "title": "We are sorry, but you are either too young or too old to take part to this game.",
+            "ref": "3edb7fcc-748c-461c-bacd-593c043c5518",
+            "properties": {
+                "hide_marks": false,
+                "button_text": "End"
+            },
+            "type": "statement"
+        },
+        {
+            "id": "ePRsqS5Iwb9B",
+            "title": "We are going to ask you 12 questions about you and your everyday life. The survey will take just 5 minutes of your time. Please try to ansewer the questions carefully and truthfully.",
+            "ref": "0ebfe765-0275-48b2-ad2d-3aacb5bc6755",
+            "properties": {
+                "hide_marks": false,
+                "button_text": "Continue"
+            },
+            "type": "statement"
+        },
+        {
+            "id": "Sp1N3RIb4FEO",
+            "title": "What is your gender?",
+            "ref": "44659a5e-3640-460a-9614-bd3ae8311043",
+            "properties": {
+                "randomize": false,
+                "allow_multiple_selection": false,
+                "allow_other_choice": false,
+                "vertical_alignment": true,
+                "choices": [
+                    {
+                        "id": "Hq797lCsF9jY",
+                        "ref": "d3bc0725-4371-42ae-8bb4-0492eff445fb",
+                        "label": "Female"
+                    },
+                    {
+                        "id": "dJnYKKeMQl6r",
+                        "ref": "d5038c98-41bd-4a70-8910-2c09218b2f98",
+                        "label": "Male"
+                    },
+                    {
+                        "id": "EzcIaFrzEPQ2",
+                        "ref": "2f777442-318c-4789-bd8f-aad348176fc3",
+                        "label": "Other"
+                    }
+                ]
+            },
+            "validations": {
+                "required": true
+            },
+            "type": "multiple_choice"
+        },
+        {
+            "id": "kS4P8sJJ0MXH",
+            "title": "What is your current occupation?",
+            "ref": "030322e9-7f13-4a11-8bbc-9ecff2a9e20a",
+            "properties": {
+                "randomize": false,
+                "allow_multiple_selection": false,
+                "allow_other_choice": false,
+                "vertical_alignment": true,
+                "choices": [
+                    {
+                        "id": "OhOT2e9tltCG",
+                        "ref": "c1f10b3f-5d87-4595-b2c3-636668997942",
+                        "label": "Student"
+                    },
+                    {
+                        "id": "mVPgykUy15bX",
+                        "ref": "895133a7-fa97-40bf-aa14-1b7235c2c3f1",
+                        "label": "Employed full-time"
+                    },
+                    {
+                        "id": "mVUSKnIE2Ev5",
+                        "ref": "8fb1663d-f498-4352-84f2-f0e3e28e7a80",
+                        "label": "Emplyed part-time"
+                    },
+                    {
+                        "id": "FRG4ZWIjCRq1",
+                        "ref": "876f51d5-4396-4f98-a84a-1af1e04114f2",
+                        "label": "Self-employed"
+                    },
+                    {
+                        "id": "Uzb1fXY3YRdL",
+                        "ref": "69f15996-d527-45ec-89b0-a0bdf8eb4e6e",
+                        "label": "Unemployed"
+                    }
+                ]
+            },
+            "validations": {
+                "required": true
+            },
+            "type": "multiple_choice"
+        },
+        {
+            "id": "uRT12TZIiAmE",
+            "title": "What is the highest level of school you attended?",
+            "ref": "4ec751ae-44f2-4aea-ba4d-49fc6414efff",
+            "properties": {
+                "randomize": false,
+                "allow_multiple_selection": false,
+                "allow_other_choice": false,
+                "vertical_alignment": true,
+                "choices": [
+                    {
+                        "id": "f0DOk4Yan9du",
+                        "ref": "c1f10b3f-5d87-4595-b2c3-636668997942",
+                        "label": "I never attended school"
+                    },
+                    {
+                        "id": "tlg8NsXcuiFN",
+                        "ref": "cebf85b7-af9f-436b-900a-06eeb9bf0c72",
+                        "label": "Primary"
+                    },
+                    {
+                        "id": "f5PcYu5FAlh5",
+                        "ref": "895133a7-fa97-40bf-aa14-1b7235c2c3f1",
+                        "label": "Secondary"
+                    },
+                    {
+                        "id": "l2wiooZxnqgI",
+                        "ref": "876f51d5-4396-4f98-a84a-1af1e04114f2",
+                        "label": "Higher"
+                    }
+                ]
+            },
+            "validations": {
+                "required": true
+            },
+            "type": "multiple_choice"
+        },
+        {
+            "id": "G18y485SWSx1",
+            "title": "Many young people have boyfriends or girlfriends.  Are you dating someone?",
+            "ref": "c0db02b6-fda4-4b26-82a0-2ef3271c63b8",
+            "properties": {
+                "randomize": false,
+                "allow_multiple_selection": false,
+                "allow_other_choice": false,
+                "vertical_alignment": true,
+                "choices": [
+                    {
+                        "id": "wSdAXlpvQ9ax",
+                        "ref": "c1f10b3f-5d87-4595-b2c3-636668997942",
+                        "label": "Yes"
+                    },
+                    {
+                        "id": "u5jAx7A29CZa",
+                        "ref": "cebf85b7-af9f-436b-900a-06eeb9bf0c72",
+                        "label": "No"
+                    },
+                    {
+                        "id": "duJp6gSlDv1S",
+                        "ref": "895133a7-fa97-40bf-aa14-1b7235c2c3f1",
+                        "label": "I am married"
+                    }
+                ]
+            },
+            "validations": {
+                "required": true
+            },
+            "type": "multiple_choice"
+        },
+        {
+            "id": "ZVO3hIGJw0MT",
+            "title": "How do you rate your level of English?",
+            "ref": "a92d20ea-2e0b-4dc0-ba9a-156d8c0a0bad",
+            "properties": {
+                "steps": 11,
+                "start_at_one": false,
+                "labels": {
+                    "left": "Poor",
+                    "center": "Fair",
+                    "right": "Excellent"
+                }
+            },
+            "validations": {
+                "required": true
+            },
+            "type": "opinion_scale"
+        },
+        {
+            "id": "b1ROJa4jHlWO",
+            "title": "Have you ever heard of/watched a web series called \"Sex-Ki-Adalat\"?",
+            "ref": "7bc4a3c0-f7d1-4bca-b53c-8fb558c4635f",
+            "properties": {
+                "randomize": false,
+                "allow_multiple_selection": false,
+                "allow_other_choice": false,
+                "vertical_alignment": true,
+                "choices": [
+                    {
+                        "id": "fOAWnClESNel",
+                        "ref": "7c009137-6dbd-4711-840a-bb986b2a3e9b",
+                        "label": "Yes, I have heard of it"
+                    },
+                    {
+                        "id": "drbL2phgCh4Q",
+                        "ref": "78358908-48c4-4b01-8ce3-03422cd815ce",
+                        "label": "Yes, I have heard and watched it"
+                    },
+                    {
+                        "id": "lVkYE1mkMzZq",
+                        "ref": "e9f9cbcb-3a51-4659-9133-dab8239ffbeb",
+                        "label": "No, I don't know anythig about it"
+                    }
+                ]
+            },
+            "validations": {
+                "required": true
+            },
+            "type": "multiple_choice"
+        },
+        {
+            "id": "ECRLI557R977",
+            "title": "Which type of Internet connection do you use most?",
+            "ref": "b2854404-6150-4fb6-8a35-043f625c4d84",
+            "properties": {
+                "randomize": false,
+                "allow_multiple_selection": false,
+                "allow_other_choice": false,
+                "vertical_alignment": true,
+                "choices": [
+                    {
+                        "id": "o24vlcNziPtn",
+                        "ref": "110dcf38-5f11-4a14-8b5d-de6264682a17",
+                        "label": "Mobile"
+                    },
+                    {
+                        "id": "nHUvYz3gHEf0",
+                        "ref": "b932f367-26de-4530-9ad1-b59998bddc01",
+                        "label": "Wi-Fi"
+                    }
+                ]
+            },
+            "validations": {
+                "required": true
+            },
+            "type": "multiple_choice"
+        },
+        {
+            "id": "Balu5k5VNcx3",
+            "title": "How often do you watch videos online (e.g., on Facebook, Instagram, YouTube, etc.)?",
+            "ref": "07b3f6e2-0d8e-4fc6-a87b-1f9ba4fbd53e",
+            "properties": {
+                "randomize": false,
+                "allow_multiple_selection": false,
+                "allow_other_choice": false,
+                "vertical_alignment": true,
+                "choices": [
+                    {
+                        "id": "hxmJYm8iq8yx",
+                        "ref": "f4d63939-5e72-4433-a50f-5450c175be71",
+                        "label": "Every day"
+                    },
+                    {
+                        "id": "UzYkNZBnAyaR",
+                        "ref": "b76e6491-3bb3-4213-91e8-35dd1fe9e84d",
+                        "label": "A few times a week"
+                    },
+                    {
+                        "id": "rGvlpSKeblpM",
+                        "ref": "e350f246-a5ab-4ae0-89f6-d2a344b4887a",
+                        "label": "A few times a month"
+                    },
+                    {
+                        "id": "IP5xnN2NgGza",
+                        "ref": "4d5d6fad-7449-44f9-b579-a00037f371ed",
+                        "label": "Never"
+                    }
+                ]
+            },
+            "validations": {
+                "required": true
+            },
+            "type": "multiple_choice"
+        },
+        {
+            "id": "SraxsmxeqkIm",
+            "title": "Thank you for your time.\nOnly 4 questions are left!\n \nNow we would like to know how you and others feel about the role of women in the society. First, we will ask about your own opinion. Then we will ask you about other people’s opinion. \nKeep in mind that your answers will remain confidential.",
+            "ref": "8c45373f-6c10-401d-a2af-fd1ba0cefd8f",
+            "properties": {
+                "hide_marks": false,
+                "button_text": "Continue"
+            },
+            "type": "statement"
+        },
+        {
+            "id": "TsQpRfyk8naN",
+            "title": "In your opinion, should a woman be banned from entering the kitchen or household shrine during her periods? ",
+            "ref": "8fe4e1a5-3b67-49e6-8475-4ff706d61e0d",
+            "properties": {
+                "randomize": false,
+                "allow_multiple_selection": false,
+                "allow_other_choice": false,
+                "vertical_alignment": true,
+                "choices": [
+                    {
+                        "id": "CnTkdGbdYOav",
+                        "ref": "ec2cdf07-86fe-47e3-a856-b680758df57e",
+                        "label": "Yes"
+                    },
+                    {
+                        "id": "NW0EALNgk7xG",
+                        "ref": "c1d48854-6225-4085-a860-10ea27c4ffa6",
+                        "label": "No"
+                    },
+                    {
+                        "id": "q0RnkIFSBO3R",
+                        "ref": "33a9f862-6785-4130-8f43-fe060dbf4a67",
+                        "label": "Don't know"
+                    }
+                ]
+            },
+            "validations": {
+                "required": true
+            },
+            "type": "multiple_choice"
+        },
+        {
+            "id": "uUg9XklTT772",
+            "title": "Now imagine to pick 10 of your Facebook friends.\n \nAccording to you, how many of them think that a woman should be banned from entering the kitchen or household shrine during her periods? ",
+            "ref": "80c3179a-7a7d-470c-91f8-1165020140c0",
+            "properties": {
+                "steps": 10,
+                "shape": "user"
+            },
+            "validations": {
+                "required": true
+            },
+            "type": "rating"
+        },
+        {
+            "id": "KNzG8lPncWoa",
+            "title": "In your opinion, is a husband justified in hitting or beating his wife if he suspects her of being unfaithful?",
+            "ref": "04dd406f-dd7b-458f-8616-e4262f63f7b8",
+            "properties": {
+                "randomize": false,
+                "allow_multiple_selection": false,
+                "allow_other_choice": false,
+                "vertical_alignment": true,
+                "choices": [
+                    {
+                        "id": "uXHGhA03Q54f",
+                        "ref": "ec2cdf07-86fe-47e3-a856-b680758df57e",
+                        "label": "Yes"
+                    },
+                    {
+                        "id": "czULJlPu2ffD",
+                        "ref": "c1d48854-6225-4085-a860-10ea27c4ffa6",
+                        "label": "No"
+                    },
+                    {
+                        "id": "sABVxhuvI7WY",
+                        "ref": "33a9f862-6785-4130-8f43-fe060dbf4a67",
+                        "label": "Don't know"
+                    }
+                ]
+            },
+            "validations": {
+                "required": true
+            },
+            "type": "multiple_choice"
+        },
+        {
+            "id": "KUHfTbYKpRB2",
+            "title": "Now imagine to pick 10 of your Facebook friends.\n \nAccording to you, how many of them think that a husband is justified in hitting or beating his wife if he suspects her of being unfaithful?",
+            "ref": "f581b4dd-fcb4-46e7-b18e-7fe9f6ed2517",
+            "properties": {
+                "steps": 10,
+                "shape": "user"
+            },
+            "validations": {
+                "required": true
+            },
+            "type": "rating"
+        },
+        {
+            "id": "C6RYYF1LHaMA",
+            "title": "Would you like to know what your Facebook friends actually think about the role of women in the society? \n\nYou can share an anonymous poll through your Facebook wall to it find out!",
+            "ref": "d7b4c644-fca7-4761-b0e0-dcf241ad9555",
+            "validations": {
+                "required": true
+            },
+            "type": "legal"
+        },
+        {
+            "id": "AgR9MVYQdP9r",
+            "title": "Thank you for your time! We will get in touch soon! \nIn the coming days we will send you a short video that you can watch for free. ",
+            "ref": "be74090e-2c4d-4f38-aabc-3e1673df7d7c",
+            "properties": {
+                "hide_marks": false,
+                "button_text": "Continue"
+            },
+            "type": "statement"
+        }
+    ],
+    "logic": [
+        {
+            "type": "field",
+            "ref": "378caa71-fc4f-4041-8315-02b6f33616b9",
+            "actions": [
+                {
+                    "action": "jump",
+                    "details": {
+                        "to": {
+                            "type": "field",
+                            "value": "3edb7fcc-748c-461c-bacd-593c043c5518"
+                        }
+                    },
+                    "condition": {
+                        "op": "or",
+                        "vars": [
+                            {
+                                "op": "lower_than",
+                                "vars": [
+                                    {
+                                        "type": "field",
+                                        "value": "378caa71-fc4f-4041-8315-02b6f33616b9"
+                                    },
+                                    {
+                                        "type": "constant",
+                                        "value": 15
+                                    }
+                                ]
+                            },
+                            {
+                                "op": "greater_than",
+                                "vars": [
+                                    {
+                                        "type": "field",
+                                        "value": "378caa71-fc4f-4041-8315-02b6f33616b9"
+                                    },
+                                    {
+                                        "type": "constant",
+                                        "value": 24
+                                    }
+                                ]
+                            }
+                        ]
+                    }
+                },
+                {
+                    "action": "jump",
+                    "details": {
+                        "to": {
+                            "type": "field",
+                            "value": "0ebfe765-0275-48b2-ad2d-3aacb5bc6755"
+                        }
+                    },
+                    "condition": {
+                        "op": "always",
+                        "vars": []
+                    }
+                }
+            ]
+        },
+        {
+            "type": "field",
+            "ref": "4cc5c31b-6d23-4d50-8536-7abf1cdf0782",
+            "actions": [
+                {
+                    "action": "jump",
+                    "details": {
+                        "to": {
+                            "type": "field",
+                            "value": "378caa71-fc4f-4041-8315-02b6f33616b9"
+                        }
+                    },
+                    "condition": {
+                        "op": "is",
+                        "vars": [
+                            {
+                                "type": "field",
+                                "value": "4cc5c31b-6d23-4d50-8536-7abf1cdf0782"
+                            },
+                            {
+                                "type": "constant",
+                                "value": true
+                            }
+                        ]
+                    }
+                },
+                {
+                    "action": "jump",
+                    "details": {
+                        "to": {
+                            "type": "thankyou",
+                            "value": "default_tys"
+                        }
+                    },
+                    "condition": {
+                        "op": "always",
+                        "vars": []
+                    }
+                }
+            ]
+        },
+        {
+            "type": "field",
+            "ref": "3edb7fcc-748c-461c-bacd-593c043c5518",
+            "actions": [
+                {
+                    "action": "jump",
+                    "details": {
+                        "to": {
+                            "type": "thankyou",
+                            "value": "default_tys"
+                        }
+                    },
+                    "condition": {
+                        "op": "always",
+                        "vars": []
+                    }
+                }
+            ]
+        },
+        {
+            "type": "field",
+            "ref": "be74090e-2c4d-4f38-aabc-3e1673df7d7c",
+            "actions": [
+                {
+                    "action": "jump",
+                    "details": {
+                        "to": {
+                            "type": "thankyou",
+                            "value": "default_tys"
+                        }
+                    },
+                    "condition": {
+                        "op": "always",
+                        "vars": []
+                    }
+                }
+            ]
+        }
+    ],
+    "_links": {
+        "display": "https://nandanrao.typeform.com/to/ODf5n7"
+    }
+}

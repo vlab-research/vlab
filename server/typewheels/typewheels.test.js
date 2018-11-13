@@ -5,46 +5,168 @@ const fs = require('fs')
 
 const t = require('./typewheels')
 
-const r = JSON.parse(fs.readFileSync('mocks/sample.json'))
+const form = JSON.parse(fs.readFileSync('mocks/sample.json'))
 
-[
-  { sender: { id: '1800244896727776' },
+
+// if postback --> JSON.parse payload
+// else if message --> get quick reply or text? Ignore quick reply? Mark if quick reply?
+
+const referral =  {
+  recipient: { id: '1051551461692797' },
+  timestamp: 1542123799219,
+  sender: { id: '1800244896727776' },
+  referral:
+   { ref: 'NANDAN.rao.hello.ok',
+     source: 'SHORTLINK',
+     type: 'OPEN_THREAD' } }
+
+// multiple choice response
+const multipleChoice = {
+  recipient: { id: '1051551461692797' },
+  timestamp: 1542116257642,
+  sender: { id: '1800244896727776' },
+  postback:
+   { payload: '{"value":"I Accept","ref":"foo"}',
+     title: 'I Accept' } }
+
+// Continue sent by user...
+const text = {
+  sender: { id: '1800244896727776' },
+  recipient: { id: '1051551461692797' },
+  timestamp: 1542116363617,
+  message: { text: 'foo' } }
+
+// Continue via quick reply...
+const qr = {
+  sender: { id: '1800244896727776' },
+  recipient: { id: '1051551461692797' },
+  timestamp: 20,
+  message:
+   { quick_reply: { payload: 'Continue' },
+     text: 'Continue' } }
+
+  // read
+const read =  {
+  sender: { id: '1800244896727776' },
     recipient: { id: '1051551461692797' },
-    timestamp: 1542108796197,
-    message: { text: 'Yes, Ok' } },
-  { sender: { id: '1800244896727776' },
-    recipient: { id: '1051551461692797' },
-    timestamp: 1542106624151,
-    read: { } },
-  { sender: { id: '1051551461692797' },
-    recipient: { id: '1800244896727776' },
-    timestamp: 1542106597790,
-    message:
-     { is_echo: true,
-       metadata: 'foo',
-       text: 'Do you wish to share this?',
-       attachments: [Array] } },
-  { sender: { id: '1800244896727776' },
-    recipient: { id: '1051551461692797' },
-    timestamp: 1542106596197,
-    message: { text: 'foo' } }
-]
+    timestamp: 15,
+    read: {watermark: 10 } }
+
+const delivery = {
+  sender: { id: '1800244896727776' },
+  recipient: { id: '1051551461692797' },
+  timestamp: 16,
+  delivery:
+   { watermark: 15 }}
+
+
+  // is echo
+const echo = {
+  sender: { id: '1051551461692797' },
+  recipient: { id: '1800244896727776' },
+  timestamp: 5,
+  message:
+  { is_echo: true,
+    metadata: '{ "ref": "foo" }',
+    text: 'Whatsupp welcome you agree or what?' } }
+
+
+describe('getWatermark', () => {
+  it('returns watermarks', () => {
+    const log = [text, read, delivery]
+    t.getWatermark('delivery', log).should.equal(15)
+    t.getWatermark('read', log).should.equal(10)
+  })
+
+  it('returns watermark with multiple', () => {
+    const d2 = {...delivery, delivery: {watermark: 25}}
+    const log = [text, read, delivery, d2]
+    t.getWatermark('delivery', log).should.equal(25)
+    t.getWatermark('read', log).should.equal(10)
+  })
+
+})
+
+describe('getLogState', () => {
+  it('translates simple state', () => {
+    const log = [referral, text]
+    t.getLogState(log).history.should.deep.equal([])
+  })
+
+  it('Gets whole history of complex state', () => {
+    const echo2 = {...echo, message: { ...echo.message, metadata: '{ "ref": "bar"}'}}
+    const log = [referral, text, echo, delivery, read, multipleChoice, text, echo2]
+    const state = t.getLogState(log)
+    // state.history.map(i => i[0]).should.deep.equal(['foo', 'bar'])
+  })
+
+  it('Gets whole history of complex state when postbacks out of order', () => {
+    const echo2 = {...echo, message: { ...echo.message, metadata: '{ "ref": "bar"}'}}
+    // const read2 =
+    const log = [referral, text, echo, delivery, read, echo2, multipleChoice, read, text]
+    const state = t.getLogState(log)
+
+    // correctly assigns multipleChoice to first echo
+    state.history[0][1].length.should.equal(1)
+    JSON.parse(state.history[0][1][0].postback.payload).should.deep.equal({
+      value: 'I Accept',
+      ref: 'foo'
+    })
+
+    // assigns second text to echo2
+    state.history[1][1].length.should.equal(1)
+    state.history[1][1][0].message.text.should.equal('foo')
+  })
+
+})
+
+describe('getState', () => {
+  it('Gets a simple state at the start', () => {
+    const log = [referral, text]
+    const state = t.getState(t.getLogState(log))
+    state.should.deep.equal({ question: undefined,
+                              responses: undefined,
+                              isValid: false})
+  })
+
+  it('Gets a more complex state', () => {
+
+    const log = [referral, text, echo, delivery, read, multipleChoice]
+    const state = t.getState(t.getLogState(log))
+
+    state.isValid.should.be.true // ??
+    JSON.parse(state.question.message.metadata).ref.should.equal('foo')
+    JSON.parse(state.responses[0].postback.payload).ref.should.equal('foo')
+  })
+
+  it('Gets a more complex state when postbacks come out of order', () => {
+
+    // const state = t.getState(t.getLogState(log))
+
+    // state.isRead.should.be.true
+    // state.isDelivered.should.be.true
+    // state.isValid.should.be.true // ??
+    // JSON.parse(state.question.message.metadata).ref.should.equal('foo')
+    // JSON.parse(state.responses[0].postback.payload).ref.should.equal('foo')
+  })
+
+})
 
 
 describe('getField', () => {
-  it('gets the field if it exists', () => {
-    const field = '4cc5c31b-6d23-4d50-8536-7abf1cdf0782'
-    t.getField(r,field).should.deep.equal(r.fields[0])
-  })
-  it('returns undefined otherwise', () => {
-    const field = 'foo'
-    should.not.exist(t.getField(r,field))
-  })
+  // it('gets the field if it exists', () => {
+  //   const field = '4cc5c31b-6d23-4d50-8536-7abf1cdf0782'
+  //   t.getField(r,field).should.deep.equal(r.fields[0])
+  // })
+  // it('returns undefined otherwise', () => {
+  //   const field = 'foo'
+  //   should.not.exist(t.getField(r,field))
+  // })
 })
 
 describe('getCondition', () => {
   it('works with always true', () => {
-    const con = r.logic[2].actions[0].condition
-    t.getCondition(r, con).should.be.true
+    const con = form.logic[2].actions[0].condition
+    t.getCondition(form, con).should.be.true
   })
 })

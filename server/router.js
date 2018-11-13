@@ -2,7 +2,7 @@ const Router = require('koa-router');
 require('dotenv').config();
 
 const { verifyToken } = require('./services');
-const { startSurvey } = require('./controller');
+const { startSurvey } = require('./controllers');
 
 const router = new Router();
 
