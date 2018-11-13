@@ -3,12 +3,21 @@ const { handleMessage } = require('./messageHandler');
 const startSurvey = async ctx => {
   try {
     const body = ctx.request.body;
+    console.log(body)
 
     if (body.object === 'page') {
       body.entry.forEach(entry => {
         let event;
+
+
+
         event = entry.messaging[0];
-        if (event.message || (event.postback && event.postback.payload)) {
+
+        console.log('EVENT: ', event)
+
+        if ((event.message && !event.message.is_echo) ||
+            (event.postback && event.postback.payload)) {
+
           handleMessage(event);
         }
         ctx.status = 200;
