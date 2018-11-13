@@ -4,7 +4,7 @@
   "description": "Using Typeform to create Facebook Bots",
   "main": "index.js",
   "scripts": {
-    "test": "mocha tests/*.test.js",
+    "test": "mocha -w --colors server/**/*.test.js",
     "start": "nodemon server/index.js"
   },
   "engines": {
@@ -16,9 +16,11 @@
   "dependencies": {
     "cross-fetch": "^2.2.0",
     "dotenv": "^5.0.1",
+    "ioredis": "^4.2.0",
     "koa": "^2.5.1",
     "koa-bodyparser": "^4.2.1",
     "koa-router": "^7.4.0",
+    "r2": "^2.0.1",
     "request": "^2.87.0",
     "typeform-to-facebook-messenger": "^1.0.4"
   },
