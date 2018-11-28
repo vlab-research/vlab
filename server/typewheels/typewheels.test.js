@@ -91,6 +91,14 @@ describe('getLogState', () => {
   it('translates simple state', () => {
     const log = [referral, text]
     t.getLogState(log).history.should.deep.equal([])
+    t.getLogState(log).form.should.equal('NANDAN')
+  })
+
+  it('updates to a new form', () => {
+    const referral2 = {...referral, referral: {...referral.referral, ref: 'QUX.baz', }}
+    const log = [referral, text, echo, delivery, read, multipleChoice, referral2]
+    t.getLogState(log).history.should.deep.equal([])
+    t.getLogState(log).form.should.equal('QUX')
   })
 
   it('Gets whole history of complex state', () => {
@@ -124,31 +132,57 @@ describe('getState', () => {
   it('Gets a simple state at the start', () => {
     const log = [referral, text]
     const state = t.getState(t.getLogState(log))
-    state.should.deep.equal({ question: undefined,
-                              responses: undefined,
-                              isValid: false})
+    state.should.deep.equal({ state: 'start'})
   })
 
-  it('Gets a more complex state', () => {
+  it('Gets a question outstanding state delivered', () => {
+    const log = [referral, text, echo, delivery]
+    const state = t.getState(t.getLogState(log))
+    state.state.should.equal('qOut')
+    state.isDelivered.should.be.true
+    state.isRead.should.be.false
+  })
+
+  it('Gets a question outstanding state read', () => {
+    const log = [referral, text, echo, delivery, read]
+    const state = t.getState(t.getLogState(log))
+    state.state.should.equal('qOut')
+    state.isDelivered.should.be.true
+    state.isRead.should.be.true
+  })
+
+  it('Gets a question answreed', () => {
 
     const log = [referral, text, echo, delivery, read, multipleChoice]
     const state = t.getState(t.getLogState(log))
-
+    console.log(state)
     state.isValid.should.be.true // ??
     JSON.parse(state.question.message.metadata).ref.should.equal('foo')
     JSON.parse(state.responses[0].postback.payload).ref.should.equal('foo')
   })
+})
 
-  it('Gets a more complex state when postbacks come out of order', () => {
+// STATES
+const qA = {
+  state: 'qA',
+  question: { sender: { id: 'foo'}, recipient: { id: 'bar'}, timestamp: 5, message: {}},
+  responses: []
+  // isValid????
+}
 
-    // const state = t.getState(t.getLogState(log))
+const qOut = {
+  state: 'qOut',
+  question: 'foo',
+  // is read? is delivered?
+  outstanding: 305040
+}
 
-    // state.isRead.should.be.true
-    // state.isDelivered.should.be.true
-    // state.isValid.should.be.true // ??
-    // JSON.parse(state.question.message.metadata).ref.should.equal('foo')
-    // JSON.parse(state.responses[0].postback.payload).ref.should.equal('foo')
-  })
+const start = {
+  state: 'start'
+}
+
+
+describe('state machine', () => {
 
 })
 

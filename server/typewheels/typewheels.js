@@ -44,9 +44,8 @@ function getWatermark(type, log) {
     .reduce((a,b) => a > b ? a : b, 0)
 }
 
-function getReferral(log) {
-  const ref = log.filter(i => i.referral).map(i => i.referral.ref).pop()
-  return ref.split('.')[0] // TODO: come up with format to get form!
+function getForm(referral) {
+  return referral.ref.split('.')[0] // TODO: come up with format to get form!
 }
 
 function addAnswerToQuestion(state, ref, event) {
@@ -57,6 +56,7 @@ function addAnswerToQuestion(state, ref, event) {
         v.push(event)
       }
     }
+    // quick hack to deal with JSON parsing... remove from here?
     catch(e) {
       console.error(e)
     }
@@ -82,74 +82,78 @@ function getLastSeenQuestion (log) {
 
 }
 
-// should be recursive -- should first do for one, then continue...
-// purpose should be to REORDER! Based on how user experiences it.
-// if answer comes in, and current watermarks are such that question
+// parses all JSON in logs...
+function parseLogJSON() {
 
-
-// put questions aside
-// keep track of watermarks
-// once question delivered/read, allow it
-// { question, responses, watermark, restoflist }
-
+}
 
 function getLogState(log) {
   const readWatermark = getWatermark('read', log)
   const deliveryWatermark = getWatermark('delivery', log)
-  const form = getReferral(log)
 
-  const history = log
+  const state = log
         .reduce((state, nxt, i) => {
+
+          if (nxt.referral) {
+            const form = getForm(nxt.referral)
+
+            // reset history if we've moved to a new form
+            // otherwise, ignore the referral
+            if (form != state.form) {
+              return {form, history: []}
+            }
+          }
 
           // only add questions and postbacks!
           if (!(nxt.message || nxt.postback)) {
             return state
           }
 
-          const [last] = state.slice(-1)
+          const [last] = state.history.slice(-1)
 
           // New question, push to state
           if (nxt.message && nxt.message.is_echo) {
-            return [...state, [nxt, []]]
+            return {...state, history: [...state.history, [nxt, []]]}
           }
 
           // Postbacks need special treatment!
           else if (nxt.postback) {
-            return addPostbackToState(state, nxt)
+            return {...state, history: addPostbackToState(state.history, nxt)}
           }
 
           // Add the response to the last question
           const ref = getLastSeenQuestion(log.slice(0, i+1))
           if (ref) {
-            return addAnswerToQuestion(state, ref, nxt)
+            return {...state, history: addAnswerToQuestion(state.history, ref, nxt)}
           }
 
           // If there is no last question, state isnt updated
           return state
-        }, [])
+        }, { form: undefined, history: []})
 
-  return { readWatermark, deliveryWatermark, form, history }
+  return { ...state, readWatermark, deliveryWatermark}
 }
+
+const isEmpty = a => !a.length
 
 function getState(logstate) {
 
-  // get last seen question??
   const [question, responses] = logstate.history.pop() || []
 
-  // impliment this for reduce above!
-  // if they send a message after I've responded, but before they've read it, count it as the next message...
+
 
   const isRead = !!question && logstate.readWatermark > question.timestamp
   const isDelivered = !!question && logstate.deliveryWatermark > question.timestamp
   const isValid = !!responses // put in validation!
 
-  // helpOutstanding!!??
+  // add help states
 
-  return {
-    question,
-    responses,
-    isValid
-  }
+  if (!question) return { state: 'start'}
+
+  // other start state! Referral??
+  if (isEmpty(responses)) return { state: 'qOut', question, isRead, isDelivered }
+  return { state: 'qA', question, responses, isValid }
+
 }
 
 function stateMachine(form, state) {
