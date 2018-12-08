@@ -24,6 +24,10 @@ describe('splitLogsByForm', () => {
     u.splitLogsByForm(u.parseLogJSON([])).should.deep.equal([])
   })
 
+  it('works with a log with no form', () => {
+    u.splitLogsByForm(u.parseLogJSON([text])).should.deep.equal([])
+  })
+
   it('splits well with different referrals', () => {
     const ref2 = {...referral, referral: {...referral.referral, ref: 'BAR.something'}}
     const log = [referral, text, echo, delivery, read, multipleChoice, ref2, echo]

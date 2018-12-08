@@ -25,13 +25,12 @@ function addPostbackToState(state, event) {
 }
 
 function getLastSeenQuestion (log) {
-
   const readWatermark = getWatermark('read', log)
   const deliveryWatermark = getWatermark('delivery', log)
 
   return log
     .filter(i => i.message && i.message.is_echo)
-    .filter(i => i.timestamp < readWatermark )
+    .filter(i => i.timestamp <= readWatermark )
     .map(i => i.message.metadata.ref)
     .pop()
 
@@ -85,7 +84,6 @@ class Machine {
       'QA': this.qA,
       'QOUT': this.qOut
     }
-
     return fns[state.state](state, ...rest)
   }
 
@@ -157,13 +155,17 @@ function jump(form, log, logic) {
 
 
 function getFieldValue(form, log, ref) {
+
   const logState = getLogState(log)
   const match = logState.find(([q,a]) => q === ref)
 
   // return null if there are no matches,
   // or if there are no answers,
-  const ans = match ? match[1].pop() : null
-  return ans ? ans.message.text : null
+  const ans = match && match[1].pop()
+  if (!ans) return null
+
+  if (ans.message) return ans.message.text
+  if (ans.postback) return ans.postback.payload.value
 }
 
 const funs = {
@@ -199,6 +201,7 @@ module.exports = {
   getWatermark,
   getCondition,
   getLogState,
+  getFieldValue,
   splitLogsByForm,
   jump,
   getNextField,

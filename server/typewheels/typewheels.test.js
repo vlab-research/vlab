@@ -22,8 +22,6 @@ describe('getWatermark', () => {
 })
 
 
-
-
 describe('getState', () => {
 
   it('Throws when given empty log', () => {
@@ -78,7 +76,7 @@ describe('getState', () => {
     state.form.should.equal('FOO')
     state.state.should.equal('QA')
     state.question.should.equal('foo')
-    state.response.should.equal('I Accept')
+    state.response.should.equal(true)
   })
 
   it('Gets an answer via quick reply', () => {

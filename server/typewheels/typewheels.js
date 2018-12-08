@@ -61,7 +61,7 @@ function apply(state, nxt) {
     return state
   }
 
-  if (state.state == 'QOUT' && nxt.message.text) {
+  if (state.state == 'QOUT' && nxt.message && nxt.message.text) {
     return {...state, state: 'QA', response: nxt.message.text }
   }
 
@@ -75,28 +75,11 @@ function getState(log) {
   }
 
   // TODO: remove this from here, get form, currentLog passed in??
-  const [form, currentLog] = splitLogsByForm(parseLogJSON(log)).pop()
+  const current = splitLogsByForm(parseLogJSON(log)).pop()
+
+  // no current form, state undefined!
+  if (!current) return undefined
+
+  const [form, currentLog] = current
   return currentLog.reduce(apply, { form: form, state: 'START' })
 }
-
-function execStart(state, form) {
-
-}
-
-
-
-
-function getAction(state) {
-  const form = get_form(state.form)
-  return exec(state, form)
-  // output action! This is the thi
-}
-
-
-
-
-
-// logic 0...
-
-// 378caa71-fc4f-4041-8315-02b6f33616b9
-// 3edb7fcc-748c-461c-bacd-593c043c5518

@@ -10,10 +10,20 @@ const { echo, delivery, read, qr, text, multipleChoice, referral} = require('./e
 
 
 
-describe('getField', () => {
+describe('getFieldValue', () => {
 
-  it('foo', () => {
+  it('gets the value of a text field', () => {
+    const form = { logic: [], fields: [{ title: 'foo', ref: 'foo'}, {type: 'short_text', title: 'bar', ref: 'bar'}]}
+    const log = [echo, delivery, read, text]
+    const value = f.getFieldValue(form, log, 'foo')
+    value.should.equal('foo')
+  })
 
+  it('gets the value of a payload field', () => {
+    const form = { logic: [], fields: [{ title: 'foo', ref: 'foo', type: 'legal'}, {type: 'short_text', title: 'bar', ref: 'bar'}]}
+    const log = [echo, delivery, read, multipleChoice]
+    const value = f.getFieldValue(form, log, 'foo')
+    value.should.be.true
   })
   // it('gets the field if it exists', () => {
   //   const field = '4cc5c31b-6d23-4d50-8536-7abf1cdf0782'
@@ -53,7 +63,24 @@ describe('getLogState', () => {
     const log = [text, echo, delivery, read, multipleChoice, text, echo2]
     const history = f.getLogState(log)
     history.map(i => i[0]).should.deep.equal(['foo', 'bar'])
-    // console.log(history)
+  })
+
+  it('Gets whole history of complex state when postbacks are in order', () => {
+    const echo2 = {...echo, timestamp: 25, message: { ...echo.message, metadata: '{ "ref": "bar"}'}}
+
+    const delivery2 = {...delivery, delivery: {watermark: 25}}
+    const read2 = {...delivery, read: {watermark: 25}}
+
+    const log = [echo, delivery, read, text, echo2, delivery2, read2, text]
+    const history = f.getLogState(log)
+
+    // correctly assigns first text to first echo
+    history[0][1].length.should.equal(1)
+    history[0][1][0].message.text.should.equal('foo')
+
+    // assigns second text to echo2
+    history[1][1].length.should.equal(1)
+    history[1][1][0].message.text.should.equal('foo')
   })
 
   it('Gets whole history of complex state when postbacks out of order', () => {
@@ -65,7 +92,7 @@ describe('getLogState', () => {
     // correctly assigns multipleChoice to first echo
     history[0][1].length.should.equal(1)
     history[0][1][0].postback.payload.should.deep.equal({
-      value: 'I Accept',
+      value: true,
       ref: 'foo'
     })
 
@@ -166,6 +193,7 @@ describe('Machine', () => {
   beforeEach(() => {
     machine = new f.Machine()
   })
+
   it('gets the correct start text (the first field)', () => {
     const start = machine.exec({ state: 'START', form: 'foo'}, form)
     start.attachment.payload.text.should.equal(form.fields[0].title)
@@ -175,7 +203,7 @@ describe('Machine', () => {
     const form = { logic: [], fields: [{ title: 'foo', ref: 'foo'}, {type: 'short_text', title: 'bar', ref: 'bar'}]}
     const log = [echo, delivery, read, text]
     const nxt = machine.exec({state: 'QA', question: 'foo'}, form, log)
-    nxt.should.deep.equal({ text: 'bar' })
+    nxt.should.deep.equal({ text: 'bar', metadata: '{"ref":"bar"}' })
   })
 
   it('it gets the next question when there is a next', () => {
@@ -185,7 +213,7 @@ describe('Machine', () => {
 
     const log = [echo, delivery, read, text]
     const nxt = machine.exec({state: 'QA', question: 'foo'}, form, log)
-    nxt.should.deep.equal({ text: 'bar' })
+    nxt.should.deep.equal({ text: 'bar', metadata: '{"ref":"bar"}' })
   })
 
 
@@ -207,7 +235,7 @@ describe('Machine', () => {
 
     const log = [echo, delivery, read, text]
     const nxt = machine.exec({state: 'QA', question: 'foo'}, form, log)
-    nxt.should.deep.equal({ text: 'baz' })
+    nxt.should.deep.equal({ text: 'baz', metadata: '{"ref":"baz"}' })
   })
 })
 

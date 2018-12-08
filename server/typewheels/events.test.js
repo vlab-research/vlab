@@ -14,7 +14,7 @@ const multipleChoice = {
   timestamp: 1542116257642,
   sender: { id: '1800244896727776' },
   postback:
-   { payload: '{"value":"I Accept","ref":"foo"}',
+   { payload: '{"value":true,"ref":"foo"}',
      title: 'I Accept' } }
 
 // Continue sent by user...
