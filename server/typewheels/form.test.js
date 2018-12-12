@@ -75,7 +75,7 @@ describe('getLogState', () => {
     const history = f.getLogState(log)
 
     // correctly assigns first text to first echo
-nn    history[0][1].length.should.equal(1)
+    history[0][1].length.should.equal(1)
     history[0][1][0].message.text.should.equal('foo')
 
     // assigns second text to echo2

@@ -71,7 +71,7 @@ async function sendMessage(recipientId, response, redis) {
   // quick hack to avoid double sending!
   const i = farmhash.hash32(JSON.stringify(response))
   if (await redis.exists(`sent:${i}`)) return
-  await redis.set(`sent:${i}`, true, 'EX', 10)
+  await redis.set(`sent:${i}`, true, 'EX', 2)
 
   request({
     url: 'https://graph.facebook.com/v3.2/me/messages',
@@ -114,7 +114,7 @@ async function getForm(form) {
 
 
 function getUser(event) {
-  const PAGE_ID = process.env.FBPAGE_ID
+  const PAGE_ID = process.env.FB_PAGE_ID
 
   if (event.sender.id == PAGE_ID) {
     return event.recipient.id

@@ -104,7 +104,7 @@ class Machine {
   qA ({ question, response, valid }, form, log) {
     // add custom validation here
     // if validation fails...
-    if (valid === false || !validate(question, response, form)) {
+    if (!validate(question, response, form, valid)) {
       return repeatResponse(question)
     }
 
@@ -127,9 +127,10 @@ class Machine {
   }
 }
 
-function validate(question, response, form) {
-  const field = getField(form, question)
+function validate(question, response, form, valid) {
+  if (valid !== undefined) return valid
 
+  const field = getField(form, question)
   return validator(field)(response)
   // translate returns validator?
   // if quick replies, check that it's one of the quick rpelies

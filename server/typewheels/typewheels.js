@@ -58,7 +58,7 @@ function apply(state, nxt) {
 
     // statements should be answered immediately
     if (nxt.message.metadata.type === 'statement') {
-      return {...state, state: 'QA' }
+      return {...state, state: 'QA', valid: true }
     }
 
     // else there is a question waiting to be answered
@@ -70,7 +70,7 @@ function apply(state, nxt) {
 
     // if postback related to current question
     if (state.question === ref) {
-      return { ...state, state: 'QA', response: value }
+      return { ...state, state: 'QA', response: value, valid: true }
     }
 
     // else repeat current question
@@ -79,8 +79,7 @@ function apply(state, nxt) {
   }
 
   if (state.state === 'QOUT' && nxt.message && nxt.message.text) {
-
-    return {...state, state: 'QA', response: nxt.message.text }
+    return {...state, state: 'QA', response: nxt.message.text, valid: undefined }
   }
 
   // else nothing changes
