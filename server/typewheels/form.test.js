@@ -6,7 +6,7 @@ const fs = require('fs')
 const f = require('./form')
 const form = JSON.parse(fs.readFileSync('mocks/sample.json'))
 const { parseLogJSON } = require('./utils')
-const { echo, delivery, read, qr, text, multipleChoice, referral} = require('./events.test')
+const { echo, statementEcho, repeatEcho, delivery, read, qr, text, multipleChoice, referral} = require('./events.test')
 
 
 
@@ -75,7 +75,7 @@ describe('getLogState', () => {
     const history = f.getLogState(log)
 
     // correctly assigns first text to first echo
-    history[0][1].length.should.equal(1)
+nn    history[0][1].length.should.equal(1)
     history[0][1][0].message.text.should.equal('foo')
 
     // assigns second text to echo2
@@ -200,7 +200,7 @@ describe('Machine', () => {
   })
 
   it('it gets the next question when there is a next', () => {
-    const form = { logic: [], fields: [{ title: 'foo', ref: 'foo'}, {type: 'short_text', title: 'bar', ref: 'bar'}]}
+    const form = { logic: [], fields: [{ title: 'foo', ref: 'foo', 'type': 'short_text'}, {type: 'short_text', title: 'bar', ref: 'bar'}]}
     const log = [echo, delivery, read, text]
     const nxt = machine.exec({state: 'QA', question: 'foo'}, form, log)
     nxt.should.deep.equal({ text: 'bar', metadata: '{"ref":"bar"}' })
@@ -208,7 +208,7 @@ describe('Machine', () => {
 
   it('it gets the next question when there is a next', () => {
     const form = { logic: [],
-                   fields: [{ title: 'foo', ref: 'foo'},
+                   fields: [{type: 'short_text', title: 'foo', ref: 'foo'},
                             {type: 'short_text', title: 'bar', ref: 'bar'}]}
 
     const log = [echo, delivery, read, text]
@@ -229,13 +229,46 @@ describe('Machine', () => {
                                            { type: 'constant', value: 'foo' }]}}]}
 
     const form = { logic: [ logic ],
-                   fields: [{ title: 'foo', ref: 'foo'},
+                   fields: [{ type: 'short_text', title: 'foo', ref: 'foo'},
                             {type: 'short_text', title: 'bar', ref: 'bar'},
                             {type: 'number', title: 'baz', ref: 'baz'}]}
 
     const log = [echo, delivery, read, text]
     const nxt = machine.exec({state: 'QA', question: 'foo'}, form, log)
     nxt.should.deep.equal({ text: 'baz', metadata: '{"ref":"baz"}' })
+  })
+
+  it('repeats when it misses validation', () => {
+
+    // TODO: this is not unit test, implicitly testing validation of multiple choice.
+    // fix this by injecting mock!
+    const form = { logic: [],
+                   fields: [{type: 'multiple_choice', title: 'foo', ref: 'foo', properties: {choices: [{label: 'qux'}, {label: 'quux'}]}}]}
+
+    const nxt = machine.exec({state: 'QA', question: 'foo', response: 'foo'}, form, [])
+
+    // repeat ref foo with sorry message...
+    nxt.metadata.should.equal('{"repeat":true,"ref":"foo"}')
+    nxt.text.should.contain('Sorry')
+  })
+
+  it('moves onward when validation succeeds misses validation', () => {
+    const form = { logic: [],
+                   fields: [{type: 'multiple_choice', title: 'foo', ref: 'foo', properties: {choices: [{label: 'foo'}, {label: 'quux'}]}},
+                            {type: 'short_text', title: 'bar', ref: 'bar'}]}
+
+
+    const nxt = machine.exec({state: 'QA', question: 'foo', response: 'foo'}, form, [])
+    nxt.should.deep.equal({ text: 'bar', metadata: '{"ref":"bar"}' })
+  })
+
+  it('repeats the question when given a repeat state', () => {
+    const form = { logic: [],
+                   fields: [{type: 'short_text', title: 'foo', ref: 'foo'},
+                            {type: 'short_text', title: 'bar', ref: 'bar'}]}
+
+    const nxt = machine.exec({state: 'REPEAT', question: 'foo'}, form, [])
+    nxt.should.deep.equal({ text: 'foo', metadata: '{"ref":"foo"}' })
   })
 })
 

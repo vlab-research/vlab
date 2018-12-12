@@ -1,4 +1,5 @@
 const {recursiveJSONParser, parseLogJSON, getForm, splitLogsByForm} = require('./utils')
+const {validator} = require('./validator')
 const {translator}= require('typeform-to-facebook-messenger')
 
 // defaults to returning 0!!!!!
@@ -77,12 +78,20 @@ function formValidator(form){
   }
 }
 
+function repeatResponse(question) {
+  return {
+    text: "Sorry, please answer the question again.",
+    metadata: JSON.stringify({ repeat: true, ref: question })
+  }
+}
+
 class Machine {
   exec (state, ...rest) {
     const fns = {
       'START': this.start,
       'QA': this.qA,
-      'QOUT': this.qOut
+      'QOUT': this.qOut,
+      'REPEAT': this.repeat
     }
     return fns[state.state](state, ...rest)
   }
@@ -92,8 +101,12 @@ class Machine {
     return translator(field)
   }
 
-  qA ({ question }, form, log) {
+  qA ({ question, response, valid }, form, log) {
     // add custom validation here
+    // if validation fails...
+    if (valid === false || !validate(question, response, form)) {
+      return repeatResponse(question)
+    }
 
     const field = getNextField(form, log, question)
 
@@ -101,10 +114,27 @@ class Machine {
     return field ? translator(field) : null
   }
 
+  // repeat, question
+  // send "repeat message" + question
+  repeat({ question }, form, log) {
+    const field = getField(form, question)
+    return translator(field)
+  }
+
   qOut({ question, time}, form, log){
     // do nothing ?
     // send reminder
   }
+}
+
+function validate(question, response, form) {
+  const field = getField(form, question)
+
+  return validator(field)(response)
+  // translate returns validator?
+  // if quick replies, check that it's one of the quick rpelies
+  // if type number, check that it's a number
+  // etc.
 }
 
 function getField(form, field) {
@@ -132,8 +162,9 @@ function getNextField(form, log, currentField) {
     return getField(form, nxt)
   }
 
+  // TODO: work out this ending logic....
+  // this should never be reached??
   if (isLast(form, currentField)) {
-    // do something intelligent here???
     return null
   }
 

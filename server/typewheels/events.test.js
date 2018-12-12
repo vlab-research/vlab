@@ -1,4 +1,3 @@
-
 const referral =  {
   recipient: { id: '1051551461692797' },
   timestamp: 1542123799219,
@@ -58,4 +57,22 @@ const echo = {
     metadata: '{ "ref": "foo" }',
     text: 'Whatsupp welcome you agree or what?' } }
 
-module.exports = { echo, delivery, read, qr, text, multipleChoice, referral}
+const statementEcho = {
+  sender: { id: '1051551461692797' },
+  recipient: { id: '1800244896727776' },
+  timestamp: 5,
+  message:
+  { is_echo: true,
+    metadata: '{ "ref": "bar", "type": "statement" }',
+    text: 'Whatsupp, welcome.' } }
+
+const repeatEcho = {
+  sender: { id: '1051551461692797' },
+  recipient: { id: '1800244896727776' },
+  timestamp: 5,
+  message:
+  { is_echo: true,
+    metadata: '{ "ref": "bar", "repeat": "true" }',
+    text: 'Whatsupp, welcome.' } }
+
+module.exports = { echo, statementEcho, repeatEcho, delivery, read, qr, text, multipleChoice, referral }

@@ -48,20 +48,38 @@ function apply(state, nxt) {
   }
 
   if (nxt.message && nxt.message.is_echo) {
-    return { ...state, state: 'QOUT', question: nxt.message.metadata.ref }
+
+    state = {...state, question: nxt.message.metadata.ref, response: undefined }
+
+    // check for "repeat" state.
+    if (nxt.message.metadata.repeat) {
+      return {...state, state: 'REPEAT' }
+    }
+
+    // statements should be answered immediately
+    if (nxt.message.metadata.type === 'statement') {
+      return {...state, state: 'QA' }
+    }
+
+    // else there is a question waiting to be answered
+    return { ...state, state: 'QOUT' }
   }
 
   else if (nxt.postback && state.state == 'QOUT') {
     const { value, ref } = nxt.postback.payload
 
-    // if postback not related to current question, ignore.
-    if (state.question == ref) {
+    // if postback related to current question
+    if (state.question === ref) {
       return { ...state, state: 'QA', response: value }
     }
-    return state
+
+    // else repeat current question
+    // or create QA/valid=false state?
+    return {...state, state: 'QA', valid: false}
   }
 
-  if (state.state == 'QOUT' && nxt.message && nxt.message.text) {
+  if (state.state === 'QOUT' && nxt.message && nxt.message.text) {
+
     return {...state, state: 'QA', response: nxt.message.text }
   }
 

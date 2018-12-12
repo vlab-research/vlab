@@ -9,7 +9,7 @@ const translator = require('typeform-to-facebook-messenger').translator
 const form = JSON.parse(fs.readFileSync('mocks/sample.json'))
 
 
-const { echo, delivery, read, qr, text, multipleChoice, referral} = require('./events.test')
+const { echo, statementEcho, repeatEcho, delivery, read, qr, text, multipleChoice, referral} = require('./events.test')
 
 describe('getWatermark', () => {
   it('should work with both marks', () => {
@@ -36,6 +36,13 @@ describe('getState', () => {
     state.should.deep.equal({ form: 'FOO', state: 'START'})
   })
 
+
+  it('Gets undefined state if no form or referral', () => {
+    const log = [text]
+    const state = t.getState(log)
+    should.not.exist(state)
+  })
+
   it('Changes form with new referral', () => {
     const ref2 = {...referral, referral: {...referral.referral, ref: 'BAR.something'}}
 
@@ -43,6 +50,7 @@ describe('getState', () => {
     const state = t.getState(log)
     state.form.should.equal('BAR')
     state.state.should.equal('START')
+    should.not.exist(state.response)
   })
 
   it('Ignores additional referrals for the same form ', () => {
@@ -57,6 +65,7 @@ describe('getState', () => {
     const state = t.getState(log)
     state.form.should.equal('FOO')
     state.state.should.equal('QOUT')
+    should.not.exist(state.response)
     // state.isDelivered.should.be.true
     // state.isRead.should.be.true
   })
@@ -66,6 +75,7 @@ describe('getState', () => {
     const state = t.getState(log)
     state.form.should.equal('FOO')
     state.state.should.equal('QOUT')
+    should.not.exist(state.response)
     // state.isDelivered.should.be.true
     // state.isRead.should.be.true
   })
@@ -95,6 +105,36 @@ describe('getState', () => {
     state.state.should.equal('QA')
     state.question.should.equal('foo')
     state.response.should.equal('foo')
+  })
+
+  it('Gets an answer when a statement is sent', () => {
+    const log = [referral, echo, delivery, read, text, statementEcho, delivery, read]
+    const state = t.getState(log)
+    state.form.should.equal('FOO')
+    state.state.should.equal('QA')
+    state.question.should.equal('bar')
+    should.not.exist(state.response)
+  })
+
+
+  it('Gets a repeat state after question repeated', () => {
+    const log = [referral, echo, delivery, read, text, repeatEcho]
+    const state = t.getState(log)
+    state.form.should.equal('FOO')
+    state.state.should.equal('REPEAT')
+    state.question.should.equal('bar')
+    should.not.exist(state.response)
+  })
+
+  it('Gets an invalid state after a postback to a previous question', () => {
+    const echo2 = {...echo, message: { ...echo.message, metadata: '{ "ref": "bar"}'}}
+    const log = [referral, echo2, delivery, read, multipleChoice]
+    const state = t.getState(log)
+    state.form.should.equal('FOO')
+    state.state.should.equal('QA')
+    state.question.should.equal('bar')
+    state.valid.should.be.false
+    should.not.exist(state.response)
   })
 })
 
