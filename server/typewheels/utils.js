@@ -19,7 +19,8 @@ function parseLogJSON(log) {
 
 function getForm(event) {
   try {
-    return event.referral.ref.split('.')[0] // TODO: come up with format to get form!
+    const r = event.referral || event.postback.referral
+    return r.ref.split('.')[0]
   } catch (e) {
     throw new TypeError('getForm can only be called on referral events. Called with: ', event)
   }
@@ -34,7 +35,7 @@ const _addToLastForm = (a,b) => {
 
 function _initialSplit(log) {
   return log.reduce((a,b) => {
-    if (b.referral) return _newForm(a,b)
+    if (b.referral || (b.postback && b.postback.referral)) return _newForm(a,b)
     if (a.length) return _addToLastForm(a,b)
     return a
   }, [])

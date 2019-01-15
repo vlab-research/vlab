@@ -16,6 +16,20 @@ const multipleChoice = {
    { payload: '{"value":true,"ref":"foo"}',
      title: 'I Accept' } }
 
+const getStarted = {
+  recipient: { id: '1051551461692797' },
+  timestamp: 1542116257642,
+  sender: { id: '1800244896727776' },
+  postback: {
+    payload: "get_started",
+    referral: {
+      ref: "FOO.001",
+      source: "SHORTLINK",
+      type: "OPEN_THREAD",
+    },
+    title: 'Get Started'
+  }
+}
 // Continue sent by user...
 const text = {
   sender: { id: '1800244896727776' },
@@ -75,4 +89,4 @@ const repeatEcho = {
     metadata: '{ "ref": "bar", "repeat": "true" }',
     text: 'Whatsupp, welcome.' } }
 
-module.exports = { echo, statementEcho, repeatEcho, delivery, read, qr, text, multipleChoice, referral }
+module.exports = { getStarted, echo, statementEcho, repeatEcho, delivery, read, qr, text, multipleChoice, referral }

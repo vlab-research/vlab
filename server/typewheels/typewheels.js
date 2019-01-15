@@ -65,11 +65,11 @@ function apply(state, nxt) {
     return { ...state, state: 'QOUT' }
   }
 
-  else if (nxt.postback && state.state == 'QOUT') {
+  else if (nxt.postback) {
     const { value, ref } = nxt.postback.payload
 
     // if postback related to current question
-    if (state.question === ref) {
+    if (state.question === ref && state.state == 'QOUT') {
       return { ...state, state: 'QA', response: value, valid: true }
     }
 

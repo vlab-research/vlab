@@ -1,12 +1,12 @@
 {
-  "name": "typeform-messenger-server",
+  "name": "replybot",
   "version": "1.0.0",
   "description": "Using Typeform to create Facebook Bots",
   "main": "index.js",
   "scripts": {
     "_test": "mocha -w --colors server/**/*.test.js",
     "start": "node server/index.js",
-    "dev": "PORT=3000 nodemon server/index.js",
+    "dev": "nodemon server/index.js",
     "test": "nyc npm run _test",
     "report": "nyc report"
   },
@@ -18,19 +18,17 @@
   "license": "ISC",
   "dependencies": {
     "cacheman": "^2.2.1",
+    "bee-queue": "^1.2.2",
     "cross-fetch": "^2.2.0",
-    "dotenv": "^5.0.1",
     "farmhash": "^2.1.0",
     "ioredis": "^4.2.0",
-    "koa": "^2.5.1",
-    "koa-bodyparser": "^4.2.1",
-    "koa-router": "^7.4.0",
     "r2": "^2.0.1",
     "request": "^2.87.0",
     "typeform-to-facebook-messenger": "git+https://github.com/nandanrao/typeform-to-facebook-messenger.git"
   },
   "devDependencies": {
     "chai": "^4.1.2",
+    "dotenv": "^6.2.0",
     "mocha": "^5.2.0",
     "nodemon": "^1.17.5",
     "nyc": "^13.1.0"

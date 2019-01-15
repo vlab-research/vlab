@@ -52,6 +52,11 @@ function getLogState(log) {
 
       // New question, push to state
       if (nxt.message && nxt.message.is_echo) {
+
+        // If there is no metadata, it's not ours.
+        // So we should ignore it.
+        if (!nxt.message.metadata) return state
+
         return [...state, [getQuestion(nxt), []]]
       }
 
