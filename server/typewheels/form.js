@@ -107,7 +107,6 @@ class Machine {
   }
 
   qA ({ question, response, valid }, form, log) {
-    // add custom validation here
     // if validation fails...
     if (!validate(question, response, form, valid)) {
       return repeatResponse(question)
@@ -137,10 +136,6 @@ function validate(question, response, form, valid) {
 
   const field = getField(form, question)
   return validator(field)(response)
-  // translate returns validator?
-  // if quick replies, check that it's one of the quick rpelies
-  // if type number, check that it's a number
-  // etc.
 }
 
 function getField(form, field) {
@@ -160,8 +155,7 @@ function isLast(form, field) {
 
 
 function getNextField(form, log, currentField) {
-
-  const logic = form.logic.find(({ref}) => ref === currentField)
+  const logic = form.logic && form.logic.find(({ref}) => ref === currentField)
 
   if (logic) {
     const nxt = jump(form, log, logic)
