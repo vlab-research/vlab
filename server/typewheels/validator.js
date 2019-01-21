@@ -4,7 +4,7 @@ function validateQR(field) {
   const q = translator(field)
   const titles = q.quick_replies.map(r => r.title)
 
-  return r => titles.indexOf(r) !== -1
+  return r => titles.indexOf(''+r) !== -1
 }
 
 function alwaysTrue(field) {
