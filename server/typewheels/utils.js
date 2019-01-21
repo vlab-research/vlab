@@ -26,7 +26,7 @@ function getForm(event) {
   }
 }
 
-const _newForm = (a,b) => [...a, [getForm(b), []]]
+const _newForm = (prev, nxt) => [...prev, [nxt, []]]
 
 const _addToLastForm = (a,b) => {
   a[a.length - 1][1].push(b)
@@ -35,8 +35,23 @@ const _addToLastForm = (a,b) => {
 
 function _initialSplit(log) {
   return log.reduce((a,b) => {
-    if (b.referral || (b.postback && b.postback.referral)) return _newForm(a,b)
+
+
+
+    if (b.referral || (b.postback && b.postback.referral)) {
+      return _newForm(a,getForm(b))
+    }
+
+    // Add logic for NO FORM FORM!
+    // b.postback get_started no referral...
+    if (b.postback && b.postback.payload === 'get_started' ) {
+      return _newForm(a, process.env.FALLBACK_FORM)
+    }
+
     if (a.length) return _addToLastForm(a,b)
+
+
+
     return a
   }, [])
 }
