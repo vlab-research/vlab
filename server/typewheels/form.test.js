@@ -227,6 +227,17 @@ describe('Machine', () => {
     JSON.parse(nxt.metadata).repeat.should.be.true
   })
 
+  it('it validates a thankyou_screen at the end of the form', () => {
+    const form = { logic: [],
+                   fields: [{type: 'thankyou_screen', title: 'bar', ref: 'bar'}]}
+
+    const log = [echo, delivery, read, text]
+
+    const nxt = machine.exec({state: 'QA', question: 'bar', valid: true}, form, log)
+
+    should.not.exist(nxt)
+  })
+
 
   it('it follows logic jumps when there are some to follow', () => {
     const logic = { type: 'field',

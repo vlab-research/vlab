@@ -106,7 +106,7 @@ class Machine {
     return translator(field)
   }
 
-  qA ({ question, response, prevalid }, form, log) {
+  qA ({ question, response, valid:prevalid }, form, log) {
     // if validation fails...
     const {valid, message} = validate(question, response, form, prevalid)
 

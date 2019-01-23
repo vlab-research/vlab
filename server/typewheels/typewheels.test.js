@@ -130,6 +130,7 @@ describe('getState', () => {
     state.form.should.equal('FOO')
     state.state.should.equal('QA')
     state.question.should.equal('bar')
+    state.valid.should.be.true
     should.not.exist(state.response)
   })
 
