@@ -12,7 +12,7 @@ function alwaysTrue(field) {
 }
 
 function validateStatement(field) {
-  return _ => ({ valid: false, message: 'No response is necessary. Please read my message:' })
+  return _ => ({ valid: false, message: 'No response is necessary.' })
 }
 
 function _isNumber(num) {
