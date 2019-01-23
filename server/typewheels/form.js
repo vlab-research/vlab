@@ -83,9 +83,9 @@ function formValidator(form){
   }
 }
 
-function repeatResponse(question) {
+function repeatResponse(question, text='Sorry, please answer the question again.') {
   return {
-    text: "Sorry, please answer the question again.",
+    text,
     metadata: JSON.stringify({ repeat: true, ref: question })
   }
 }
@@ -106,10 +106,12 @@ class Machine {
     return translator(field)
   }
 
-  qA ({ question, response, valid }, form, log) {
+  qA ({ question, response, prevalid }, form, log) {
     // if validation fails...
-    if (!validate(question, response, form, valid)) {
-      return repeatResponse(question)
+    const {valid, message} = validate(question, response, form, prevalid)
+
+    if (!valid) {
+      return repeatResponse(question, message)
     }
 
     const field = getNextField(form, log, question)
@@ -131,8 +133,9 @@ class Machine {
   }
 }
 
-function validate(question, response, form, valid) {
-  if (valid !== undefined) return valid
+function validate(question, response, form, prevalid) {
+  if (prevalid !== undefined) return { valid: prevalid }
+
 
   const field = getField(form, question)
   return validator(field)(response)

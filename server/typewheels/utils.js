@@ -36,23 +36,14 @@ const _addToLastForm = (a,b) => {
 function _initialSplit(log) {
   return log.reduce((a,b) => {
 
-
-
     if (b.referral || (b.postback && b.postback.referral)) {
       return _newForm(a,getForm(b))
     }
 
-    // Add logic for NO FORM FORM!
-    // b.postback get_started no referral...
-    if (b.postback && b.postback.payload === 'get_started' ) {
-      return _newForm(a, process.env.FALLBACK_FORM)
-    }
-
     if (a.length) return _addToLastForm(a,b)
 
+    return _newForm(a, process.env.FALLBACK_FORM)
 
-
-    return a
   }, [])
 }
 

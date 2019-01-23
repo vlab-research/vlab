@@ -20,12 +20,20 @@ describe('recursiveJSONParser', () => {
 
 
 describe('splitLogsByForm', () => {
+  before(() => {
+    prevFallback = process.env.FALLBACK_FORM
+    process.env.FALLBACK_FORM = 'fallback'
+  })
+  after(() => {
+    process.env.FALLBACK_FORM = prevFallback
+  })
+
   it('works with an empty log', () => {
     u.splitLogsByForm(u.parseLogJSON([])).should.deep.equal([])
   })
 
   it('works with a log with no form', () => {
-    u.splitLogsByForm(u.parseLogJSON([text])).should.deep.equal([])
+    u.splitLogsByForm(u.parseLogJSON([text])).should.deep.equal([['fallback', []]])
   })
 
   it('Works when starting via get started', () => {

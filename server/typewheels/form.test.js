@@ -199,14 +199,14 @@ describe('Machine', () => {
     start.attachment.payload.text.should.equal(form.fields[0].title)
   })
 
-  it('it gets the next question when there is a next', () => {
+  it ('it gets the next question when there is a next', () => {
     const form = { logic: [], fields: [{ title: 'foo', ref: 'foo', 'type': 'short_text'}, {type: 'short_text', title: 'bar', ref: 'bar'}]}
     const log = [echo, delivery, read, text]
     const nxt = machine.exec({state: 'QA', question: 'foo'}, form, log)
     nxt.should.deep.equal({ text: 'bar', metadata: '{"ref":"bar"}' })
   })
 
-  it('it gets the next question when there is a next', () => {
+  it('it gets the next question when there is a next 2', () => {
     const form = { logic: [],
                    fields: [{type: 'short_text', title: 'foo', ref: 'foo'},
                             {type: 'short_text', title: 'bar', ref: 'bar'}]}
@@ -214,6 +214,17 @@ describe('Machine', () => {
     const log = [echo, delivery, read, text]
     const nxt = machine.exec({state: 'QA', question: 'foo'}, form, log)
     nxt.should.deep.equal({ text: 'bar', metadata: '{"ref":"bar"}' })
+  })
+
+  it('it repeats a statement, which is always invalid to answer', () => {
+    const form = { logic: [],
+                   fields: [{type: 'statement', title: 'bar', ref: 'bar'}]}
+
+    const log = [echo, delivery, read, text]
+
+    const nxt = machine.exec({state: 'QA', question: 'bar'}, form, log)
+
+    JSON.parse(nxt.metadata).repeat.should.be.true
   })
 
 

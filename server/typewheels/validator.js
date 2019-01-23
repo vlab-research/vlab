@@ -4,37 +4,41 @@ function validateQR(field) {
   const q = translator(field)
   const titles = q.quick_replies.map(r => r.title)
 
-  return r => titles.indexOf(''+r) !== -1
+  return r => ({ valid: titles.indexOf(''+r) !== -1 })
 }
 
 function alwaysTrue(field) {
-  return _ => true
+  return _ => ({ valid: true })
+}
+
+function validateStatement(field) {
+  return _ => ({ valid: false, message: 'No response is necessary. Please read my message:' })
 }
 
 function _isNumber(num) {
   if (typeof num === 'string') {
     num = num.trim()
-    return !!num && num*0 === 0
+    return { valid: !!num && num*0 === 0 }
   }
-  return true // if it's not a string, it's a number???
+  return {valid: true} // if it's not a string, it's a number???
 }
 
 function validateNumber(field) {
-  return _isNumber
+  return {valid: _isNumber}
 }
 
 function validateButton(field) {
   return r => {
     // TODO: validate potential text responses to the question.
     // return true if the text response is the same as a button
-    return false
+    return { valid: false }
   }
 }
 
 
 const lookup = {
   number: validateNumber,
-  statement: alwaysTrue,
+  statement: validateStatement,
   multiple_choice: validateQR,
   rating: validateQR,
   opinion_scale: validateQR,

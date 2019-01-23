@@ -78,6 +78,7 @@ function apply(state, nxt) {
     return {...state, state: 'QA', valid: false}
   }
 
+  // must be a response to a question
   if (state.state === 'QOUT' && nxt.message && nxt.message.text) {
     return {...state, state: 'QA', response: nxt.message.text, valid: undefined }
   }

@@ -23,6 +23,15 @@ describe('getWatermark', () => {
 
 
 describe('getState', () => {
+  let prevFallback;
+
+  before(() => {
+    prevFallback = process.env.FALLBACK_FORM
+    process.env.FALLBACK_FORM = 'fallback'
+  })
+  after(() => {
+    process.env.FALLBACK_FORM = prevFallback
+  })
 
   it('Throws when given empty log', () => {
     const log = []
@@ -37,10 +46,18 @@ describe('getState', () => {
   })
 
 
-  it('Gets undefined state if no form or referral', () => {
+  it('Gets default form state if no form or referral', () => {
     const log = [text]
     const state = t.getState(log)
-    should.not.exist(state)
+    state.form.should.equal('fallback')
+    state.state.should.equal('START')
+  })
+
+  it('Gets default form state even after repeated messages in history', () => {
+    const log = [text, text, text]
+    const state = t.getState(log)
+    state.form.should.equal('fallback')
+    state.state.should.equal('START')
   })
 
   it('Changes form with new referral', () => {
@@ -124,6 +141,14 @@ describe('getState', () => {
     state.state.should.equal('REPEAT')
     state.question.should.equal('bar')
     should.not.exist(state.response)
+  })
+
+  it('Stays on QA if question is answered multiple times in a row', () => {
+    const log = [referral, echo, delivery, read, text, text, text]
+    const state = t.getState(log)
+    state.form.should.equal('FOO')
+    state.state.should.equal('QA')
+    state.question.should.equal('foo')
   })
 
   it('Gets an invalid state after a postback to a previous question', () => {
