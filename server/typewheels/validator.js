@@ -39,6 +39,7 @@ function validateButton(field) {
 const lookup = {
   number: validateNumber,
   statement: validateStatement,
+  thankyou_screen: validateStatement,
   multiple_choice: validateQR,
   rating: validateQR,
   opinion_scale: validateQR,
