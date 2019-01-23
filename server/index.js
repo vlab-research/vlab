@@ -36,12 +36,15 @@ async function sendMessage(recipientId, response, redis) {
 
 const redis = new Redis(process.env.REDIS_PORT, process.env.REDIS_HOST)
 const cache = new Cacheman()
+
+
+
 const q = new Queue('chat-events', {
   redis: { host: process.env.REDIS_HOST, port: process.env.REDIS_PORT }
 })
 
 q.on('error', (err) => {
-  console.error(`A queue error happened: ${err.message}`)
+  console.error(`A queue error happened: ${err.message}. Connecting to: ${process.env.REDIS_HOST} on port ${process.env.REDIS_PORT}`)
 })
 
 const getFormCached = form => cache.wrap('form', () => getForm(form), '30s')
