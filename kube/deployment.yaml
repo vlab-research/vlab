@@ -1,0 +1,31 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gbv-replybot
+  labels:
+    app: gbv-replybot
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: gbv-replybot
+  template:
+    metadata:
+      labels:
+        app: gbv-replybot
+    spec:
+      containers:
+      - name: gbv-replybot
+        image: nandanrao/gbv-replybot:latest
+        resources:
+          requests:
+            cpu: "100m"
+            memory: "500Mi"
+        ports:
+        - containerPort: 80
+        envFrom:
+        - secretRef:
+            name: gbv-bot-envs
+        env:
+        - name: REDIS_HOST
+          value: "sred-redis-master.default.svc.cluster.local"
