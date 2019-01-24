@@ -83,7 +83,11 @@ function formValidator(form){
   }
 }
 
-function repeatResponse(question, text='Sorry, please answer the question again.') {
+function repeatResponse(question, text) {
+  if (!text) {
+    throw new TypeError(`Repeat response attempted without valid text: ${question}` )
+  }
+
   return {
     text,
     metadata: JSON.stringify({ repeat: true, ref: question })
