@@ -1,4 +1,4 @@
-const {recursiveJSONParser, parseLogJSON, getForm, splitLogsByForm} = require('./utils')
+const {parseLogJSON, getForm, splitLogsByForm} = require('./utils')
 const {validator} = require('./validator')
 const {translator}= require('typeform-to-facebook-messenger')
 
@@ -162,10 +162,12 @@ function isLast(form, field) {
 
 
 function getNextField(form, log, currentField) {
+  const l = parseLogJSON(log)
+
   const logic = form.logic && form.logic.find(({ref}) => ref === currentField)
 
   if (logic) {
-    const nxt = jump(form, log, logic)
+    const nxt = jump(form, l, logic)
     return getField(form, nxt)
   }
 
@@ -182,8 +184,10 @@ function getNextField(form, log, currentField) {
 const util = require('util')
 
 function jump(form, log, logic) {
+  const ref = logic.ref
+
   for (let {condition, details} of logic.actions) {
-    if (getCondition(form, log, condition)) return details.to.value
+    if (getCondition(form, log, ref, condition)) return details.to.value
   }
 
   // TODO: check that Typeform always gives an "always" action,
@@ -214,20 +218,38 @@ const funs = {
   'always': () => true
 }
 
-function getCondition(form, log, {op, vars}){
-   return funs[op](...vars.map(v => getVar(form, log, v)))
+function getCondition(form, log, ref, {op, vars}){
+   return funs[op](...vars.map(v => getVar(form, log, ref, v)))
+}
+
+function getChoiceValue(form, ref, choice) {
+  const val = form.fields
+        .find(f => f.ref === ref)
+        .properties.choices
+        .find(c => c.ref === choice)
+        .label
+
+  if (!val) {
+    throw new TypeError(`Could not find value for choice: ${choice} in question ${ref}`)
+  }
+
+  return val
 }
 
 
-function getVar(form, log, v) {
+function getVar(form, log, ref, v) {
   if (v.op) {
-    return getCondition(form, log, v)
+    return getCondition(form, log, ref, v)
   }
 
   const {type, value} = v
 
   if (type == 'constant') {
     return value
+  }
+
+  if (type == 'choice') {
+    return getChoiceValue(form, ref, value)
   }
 
   if (type == 'field') {

@@ -1,0 +1,1585 @@
+{
+    "id": "ODf5n7",
+    "title": "Game - Messenger Questionnaire",
+    "theme": {
+        "href": "https://api.typeform.com/themes/6lPNE6"
+    },
+    "workspace": {
+        "href": "https://api.typeform.com/workspaces/sZGZdB"
+    },
+    "settings": {
+        "is_public": true,
+        "is_trial": false,
+        "language": "en",
+        "progress_bar": "percentage",
+        "show_progress_bar": true,
+        "show_typeform_branding": true,
+        "meta": {
+            "allow_indexing": false
+        }
+    },
+    "thankyou_screens": [
+        {
+            "ref": "default_tys",
+            "title": "Done! Your information was sent perfectly.",
+            "properties": {
+                "show_button": false,
+                "share_icons": false
+            }
+        }
+    ],
+    "fields": [
+        {
+            "id": "ChCcYg9Vf4nx",
+            "title": "Welcome! 😀\nWe are a team of researchers conducting a study about life and opinions of young people in India. In the coming weeks, we will share with you some nice and short videoclips that you can watch for free. We will also ask you some questions about them.\n\nMeanwhile you have the opportunity to PLAY A QUIZ GAME to find out how much you know about SEX!",
+            "ref": "4cc5c31b-6d23-4d50-8536-7abf1cdf0782",
+            "properties": {
+                "hide_marks": false,
+                "button_text": "Continue"
+            },
+            "type": "statement"
+        },
+        {
+            "id": "DHiCsiDSZOn1",
+            "title": "To start the quiz please click on the Accept button below.\n\nBy clicking the Accept button, you confirm you have read and accept the General Terms and Conditions available at the link below.\nhttps://goo.gl/gTZX7N",
+            "ref": "2ee8f2fc-c2af-4f29-8838-78f6093735d7",
+            "validations": {
+                "required": false
+            },
+            "type": "legal"
+        },
+        {
+            "id": "zGz4q4dPLUiB",
+            "title": "Welcome!\nHow old are you?",
+            "ref": "378caa71-fc4f-4041-8315-02b6f33616b9",
+            "validations": {
+                "required": true
+            },
+            "type": "number"
+        },
+        {
+            "id": "RO4GRuyGIIMP",
+            "title": "We are sorry, but you are either too young or too old to take part to this game.",
+            "ref": "3edb7fcc-748c-461c-bacd-593c043c5518",
+            "properties": {
+                "hide_marks": false,
+                "button_text": "End"
+            },
+            "type": "statement"
+        },
+        {
+            "id": "ePRsqS5Iwb9B",
+            "title": "Before the quiz, we are going to ask you 12 questions about you and your everyday life. The survey will take just 5 minutes of your time. Please try to answer the questions carefully and truthfully.",
+            "ref": "0ebfe765-0275-48b2-ad2d-3aacb5bc6755",
+            "properties": {
+                "hide_marks": false,
+                "button_text": "Continue"
+            },
+            "type": "statement"
+        },
+        {
+            "id": "Sp1N3RIb4FEO",
+            "title": "What is your gender?",
+            "ref": "44659a5e-3640-460a-9614-bd3ae8311043",
+            "properties": {
+                "randomize": false,
+                "allow_multiple_selection": false,
+                "allow_other_choice": false,
+                "vertical_alignment": true,
+                "choices": [
+                    {
+                        "id": "Hq797lCsF9jY",
+                        "ref": "d3bc0725-4371-42ae-8bb4-0492eff445fb",
+                        "label": "Female"
+                    },
+                    {
+                        "id": "dJnYKKeMQl6r",
+                        "ref": "d5038c98-41bd-4a70-8910-2c09218b2f98",
+                        "label": "Male"
+                    },
+                    {
+                        "id": "EzcIaFrzEPQ2",
+                        "ref": "2f777442-318c-4789-bd8f-aad348176fc3",
+                        "label": "Other"
+                    }
+                ]
+            },
+            "validations": {
+                "required": true
+            },
+            "type": "multiple_choice"
+        },
+        {
+            "id": "kS4P8sJJ0MXH",
+            "title": "What is your current occupation?",
+            "ref": "030322e9-7f13-4a11-8bbc-9ecff2a9e20a",
+            "properties": {
+                "randomize": false,
+                "allow_multiple_selection": false,
+                "allow_other_choice": false,
+                "vertical_alignment": true,
+                "choices": [
+                    {
+                        "id": "OhOT2e9tltCG",
+                        "ref": "c1f10b3f-5d87-4595-b2c3-636668997942",
+                        "label": "Student"
+                    },
+                    {
+                        "id": "mVPgykUy15bX",
+                        "ref": "895133a7-fa97-40bf-aa14-1b7235c2c3f1",
+                        "label": "Employed full-time"
+                    },
+                    {
+                        "id": "mVUSKnIE2Ev5",
+                        "ref": "8fb1663d-f498-4352-84f2-f0e3e28e7a80",
+                        "label": "Employed part-time"
+                    },
+                    {
+                        "id": "FRG4ZWIjCRq1",
+                        "ref": "876f51d5-4396-4f98-a84a-1af1e04114f2",
+                        "label": "Self-employed"
+                    },
+                    {
+                        "id": "Uzb1fXY3YRdL",
+                        "ref": "69f15996-d527-45ec-89b0-a0bdf8eb4e6e",
+                        "label": "Unemployed"
+                    }
+                ]
+            },
+            "validations": {
+                "required": true
+            },
+            "type": "multiple_choice"
+        },
+        {
+            "id": "uRT12TZIiAmE",
+            "title": "What is the highest level of school you attended?",
+            "ref": "4ec751ae-44f2-4aea-ba4d-49fc6414efff",
+            "properties": {
+                "randomize": false,
+                "allow_multiple_selection": false,
+                "allow_other_choice": false,
+                "vertical_alignment": true,
+                "choices": [
+                    {
+                        "id": "f0DOk4Yan9du",
+                        "ref": "c1f10b3f-5d87-4595-b2c3-636668997942",
+                        "label": "Never attended"
+                    },
+                    {
+                        "id": "tlg8NsXcuiFN",
+                        "ref": "cebf85b7-af9f-436b-900a-06eeb9bf0c72",
+                        "label": "Primary"
+                    },
+                    {
+                        "id": "f5PcYu5FAlh5",
+                        "ref": "895133a7-fa97-40bf-aa14-1b7235c2c3f1",
+                        "label": "Secondary"
+                    },
+                    {
+                        "id": "l2wiooZxnqgI",
+                        "ref": "876f51d5-4396-4f98-a84a-1af1e04114f2",
+                        "label": "Higher"
+                    }
+                ]
+            },
+            "validations": {
+                "required": true
+            },
+            "type": "multiple_choice"
+        },
+        {
+            "id": "G18y485SWSx1",
+            "title": "Many young people have boyfriends or girlfriends.  Are you dating someone?",
+            "ref": "c0db02b6-fda4-4b26-82a0-2ef3271c63b8",
+            "properties": {
+                "randomize": false,
+                "allow_multiple_selection": false,
+                "allow_other_choice": false,
+                "vertical_alignment": true,
+                "choices": [
+                    {
+                        "id": "wSdAXlpvQ9ax",
+                        "ref": "c1f10b3f-5d87-4595-b2c3-636668997942",
+                        "label": "Yes"
+                    },
+                    {
+                        "id": "u5jAx7A29CZa",
+                        "ref": "cebf85b7-af9f-436b-900a-06eeb9bf0c72",
+                        "label": "No"
+                    },
+                    {
+                        "id": "duJp6gSlDv1S",
+                        "ref": "895133a7-fa97-40bf-aa14-1b7235c2c3f1",
+                        "label": "I am married"
+                    }
+                ]
+            },
+            "validations": {
+                "required": true
+            },
+            "type": "multiple_choice"
+        },
+        {
+            "id": "ZVO3hIGJw0MT",
+            "title": "How do you rate your level of English?",
+            "ref": "a92d20ea-2e0b-4dc0-ba9a-156d8c0a0bad",
+            "properties": {
+                "steps": 11,
+                "start_at_one": false,
+                "labels": {
+                    "left": "Poor",
+                    "center": "Fair",
+                    "right": "Excellent"
+                }
+            },
+            "validations": {
+                "required": true
+            },
+            "type": "opinion_scale"
+        },
+        {
+            "id": "b1ROJa4jHlWO",
+            "title": "Have you ever heard of/watched a web series called \"Sex-Ki-Adalat\"?\n\nA. Yes, I have heard of it\n\nB. Yes, I have heard and watched it\n\nC. No, I don't know anything about it",
+            "ref": "7bc4a3c0-f7d1-4bca-b53c-8fb558c4635f",
+            "properties": {
+                "randomize": false,
+                "allow_multiple_selection": false,
+                "allow_other_choice": false,
+                "vertical_alignment": true,
+                "choices": [
+                    {
+                        "id": "fOAWnClESNel",
+                        "ref": "7c009137-6dbd-4711-840a-bb986b2a3e9b",
+                        "label": "A"
+                    },
+                    {
+                        "id": "drbL2phgCh4Q",
+                        "ref": "78358908-48c4-4b01-8ce3-03422cd815ce",
+                        "label": "B"
+                    },
+                    {
+                        "id": "lVkYE1mkMzZq",
+                        "ref": "e9f9cbcb-3a51-4659-9133-dab8239ffbeb",
+                        "label": "C"
+                    }
+                ]
+            },
+            "validations": {
+                "required": true
+            },
+            "type": "multiple_choice"
+        },
+        {
+            "id": "ECRLI557R977",
+            "title": "Which type of Internet connection do you use most?",
+            "ref": "b2854404-6150-4fb6-8a35-043f625c4d84",
+            "properties": {
+                "randomize": false,
+                "allow_multiple_selection": false,
+                "allow_other_choice": false,
+                "vertical_alignment": true,
+                "choices": [
+                    {
+                        "id": "o24vlcNziPtn",
+                        "ref": "110dcf38-5f11-4a14-8b5d-de6264682a17",
+                        "label": "Mobile"
+                    },
+                    {
+                        "id": "nHUvYz3gHEf0",
+                        "ref": "b932f367-26de-4530-9ad1-b59998bddc01",
+                        "label": "Wi-Fi"
+                    }
+                ]
+            },
+            "validations": {
+                "required": true
+            },
+            "type": "multiple_choice"
+        },
+        {
+            "id": "Balu5k5VNcx3",
+            "title": "How often do you watch videos online (e.g., on Facebook, Instagram, YouTube, etc.)?\n\nA. Every day\n\nB. A few times a week\n\nC. A few times a month\n\nD. Never",
+            "ref": "07b3f6e2-0d8e-4fc6-a87b-1f9ba4fbd53e",
+            "properties": {
+                "randomize": false,
+                "allow_multiple_selection": false,
+                "allow_other_choice": false,
+                "vertical_alignment": true,
+                "choices": [
+                    {
+                        "id": "hxmJYm8iq8yx",
+                        "ref": "f4d63939-5e72-4433-a50f-5450c175be71",
+                        "label": "A"
+                    },
+                    {
+                        "id": "yjRAA1ZlhzaQ",
+                        "ref": "b3e2e020-1ff3-4f2c-bb43-e8cba1c3c47c",
+                        "label": "B"
+                    },
+                    {
+                        "id": "ySHBlTmQFCiE",
+                        "ref": "2104553e-21e8-4c15-b3f5-247211dfe243",
+                        "label": "C"
+                    },
+                    {
+                        "id": "veH74I6URncA",
+                        "ref": "0b78753a-1fd7-4709-8341-f88813372392",
+                        "label": "D"
+                    }
+                ]
+            },
+            "validations": {
+                "required": true
+            },
+            "type": "multiple_choice"
+        },
+        {
+            "id": "SraxsmxeqkIm",
+            "title": "Thank you for your time.\nOnly 4 questions are left!\n \nNow we would like to know how you and others feel about the role of women in the society. First, we will ask about your own opinion. Then we will ask you about other people’s opinion. \nKeep in mind that your answers will remain confidential.",
+            "ref": "8c45373f-6c10-401d-a2af-fd1ba0cefd8f",
+            "properties": {
+                "hide_marks": false,
+                "button_text": "Continue"
+            },
+            "type": "statement"
+        },
+        {
+            "id": "TsQpRfyk8naN",
+            "title": "In your opinion, should a woman be banned from entering the kitchen or household shrine during her period? ",
+            "ref": "8fe4e1a5-3b67-49e6-8475-4ff706d61e0d",
+            "properties": {
+                "randomize": false,
+                "allow_multiple_selection": false,
+                "allow_other_choice": false,
+                "vertical_alignment": true,
+                "choices": [
+                    {
+                        "id": "CnTkdGbdYOav",
+                        "ref": "ec2cdf07-86fe-47e3-a856-b680758df57e",
+                        "label": "Yes"
+                    },
+                    {
+                        "id": "NW0EALNgk7xG",
+                        "ref": "c1d48854-6225-4085-a860-10ea27c4ffa6",
+                        "label": "No"
+                    },
+                    {
+                        "id": "q0RnkIFSBO3R",
+                        "ref": "33a9f862-6785-4130-8f43-fe060dbf4a67",
+                        "label": "Don't know"
+                    }
+                ]
+            },
+            "validations": {
+                "required": true
+            },
+            "type": "multiple_choice"
+        },
+        {
+            "id": "uUg9XklTT772",
+            "title": "Now imagine to pick 10 of your Facebook friends.\n \nAccording to you, how many of them think that a woman should be banned from entering the kitchen or household shrine during her period? ",
+            "ref": "80c3179a-7a7d-470c-91f8-1165020140c0",
+            "properties": {
+                "steps": 10,
+                "shape": "user"
+            },
+            "validations": {
+                "required": true
+            },
+            "type": "rating"
+        },
+        {
+            "id": "KNzG8lPncWoa",
+            "title": "In your opinion, is a husband justified in hitting or beating his wife if he suspects her of being unfaithful?",
+            "ref": "04dd406f-dd7b-458f-8616-e4262f63f7b8",
+            "properties": {
+                "randomize": false,
+                "allow_multiple_selection": false,
+                "allow_other_choice": false,
+                "vertical_alignment": true,
+                "choices": [
+                    {
+                        "id": "uXHGhA03Q54f",
+                        "ref": "ec2cdf07-86fe-47e3-a856-b680758df57e",
+                        "label": "Yes"
+                    },
+                    {
+                        "id": "czULJlPu2ffD",
+                        "ref": "c1d48854-6225-4085-a860-10ea27c4ffa6",
+                        "label": "No"
+                    },
+                    {
+                        "id": "sABVxhuvI7WY",
+                        "ref": "33a9f862-6785-4130-8f43-fe060dbf4a67",
+                        "label": "Don't know"
+                    }
+                ]
+            },
+            "validations": {
+                "required": true
+            },
+            "type": "multiple_choice"
+        },
+        {
+            "id": "KUHfTbYKpRB2",
+            "title": "Now imagine to pick 10 of your Facebook friends.\n \nAccording to you, how many of them think that a husband is justified in hitting or beating his wife if he suspects her of being unfaithful?",
+            "ref": "f581b4dd-fcb4-46e7-b18e-7fe9f6ed2517",
+            "properties": {
+                "steps": 10,
+                "shape": "user"
+            },
+            "validations": {
+                "required": true
+            },
+            "type": "rating"
+        },
+        {
+            "id": "Cxg1cKV1yOnc",
+            "title": "Would you be willing to share an anonymous poll on your Facebook wall to know what your friends actually think about the role of women in the society?",
+            "ref": "d7b4c644-fca7-4761-b0e0-dcf241ad9555",
+            "properties": {
+                "randomize": false,
+                "allow_multiple_selection": false,
+                "allow_other_choice": false,
+                "vertical_alignment": true,
+                "choices": [
+                    {
+                        "id": "OepMyjoGEYRi",
+                        "ref": "df812107-38f1-441a-80a0-2294cc094745",
+                        "label": "Yes"
+                    },
+                    {
+                        "id": "Gx4vZsXvGv1l",
+                        "ref": "8a944cb9-c68d-4402-a35b-ebd332640b9c",
+                        "label": "No"
+                    }
+                ]
+            },
+            "validations": {
+                "required": false
+            },
+            "type": "multiple_choice"
+        },
+        {
+            "id": "FylM5tRyrZy1",
+            "title": "Thank you for your time! \nNow it's time to play the game: are you ready?",
+            "ref": "be74090e-2c4d-4f38-aabc-3e1673df7d7c",
+            "properties": {
+                "randomize": false,
+                "allow_multiple_selection": false,
+                "allow_other_choice": false,
+                "vertical_alignment": true,
+                "choices": [
+                    {
+                        "id": "bsRUE1TUIPJD",
+                        "ref": "6ac335ad-950a-4984-96ae-53c4c0af9202",
+                        "label": "Start the game"
+                    }
+                ]
+            },
+            "validations": {
+                "required": true
+            },
+            "type": "multiple_choice"
+        },
+        {
+            "id": "MkXfVMum9UJr",
+            "title": "What's the average number of sex partners for women?",
+            "ref": "c3432d3d-f786-4a38-8ac7-b50c1dfdb1ba",
+            "properties": {
+                "randomize": false,
+                "allow_multiple_selection": false,
+                "allow_other_choice": false,
+                "vertical_alignment": true,
+                "choices": [
+                    {
+                        "id": "dKABaOLawKUO",
+                        "ref": "99bf2672-09ba-4fac-a1e4-bfd6fb7f8384",
+                        "label": "3.5"
+                    },
+                    {
+                        "id": "yv4JE3z1056C",
+                        "ref": "9a615edf-7c4c-4695-9b68-32d624568a73",
+                        "label": "9"
+                    },
+                    {
+                        "id": "Ym1kRa5oHOiw",
+                        "ref": "75ee457e-b54d-4421-88bc-5fa2d2840982",
+                        "label": "12"
+                    },
+                    {
+                        "id": "LGvX1fC7oW0M",
+                        "ref": "fcd0bf48-8129-4213-b1fe-d26af200a5fc",
+                        "label": "7.5"
+                    }
+                ]
+            },
+            "validations": {
+                "required": true
+            },
+            "type": "multiple_choice"
+        },
+        {
+            "id": "bGvYapkxroOs",
+            "title": "No! Correct answer was 7.5",
+            "ref": "1fac0275-3b85-4037-aed9-f2c106876337",
+            "properties": {
+                "hide_marks": false,
+                "button_text": "Continue"
+            },
+            "type": "statement"
+        },
+        {
+            "id": "Ilr0bfMGkGtV",
+            "title": "Correct!",
+            "ref": "fb74abb2-ed4c-42bb-bc80-b0677f992d01",
+            "properties": {
+                "hide_marks": false,
+                "button_text": "Continue"
+            },
+            "type": "statement"
+        },
+        {
+            "id": "gEMwY1rvDu4D",
+            "title": "What's the average number of sex partners for men?",
+            "ref": "6d6d8e4d-0fd7-4509-a201-60f36f73b481",
+            "properties": {
+                "randomize": false,
+                "allow_multiple_selection": false,
+                "allow_other_choice": false,
+                "vertical_alignment": true,
+                "choices": [
+                    {
+                        "id": "gnH4ULY0xYF3",
+                        "ref": "99bf2672-09ba-4fac-a1e4-bfd6fb7f8384",
+                        "label": "7"
+                    },
+                    {
+                        "id": "De4R4dDr95WB",
+                        "ref": "9a615edf-7c4c-4695-9b68-32d624568a73",
+                        "label": "4"
+                    },
+                    {
+                        "id": "mqKxwHE2eYqO",
+                        "ref": "75ee457e-b54d-4421-88bc-5fa2d2840982",
+                        "label": "9.5"
+                    },
+                    {
+                        "id": "szzhrnyUgd1t",
+                        "ref": "fcd0bf48-8129-4213-b1fe-d26af200a5fc",
+                        "label": "11"
+                    }
+                ]
+            },
+            "validations": {
+                "required": true
+            },
+            "type": "multiple_choice"
+        },
+        {
+            "id": "QRaib959dtLj",
+            "title": "No! Correct answer was 7",
+            "ref": "392fa218-d251-409c-afdc-60752a17afb8",
+            "properties": {
+                "hide_marks": false,
+                "button_text": "Continue"
+            },
+            "type": "statement"
+        },
+        {
+            "id": "OlmTCbF1EEDw",
+            "title": "Correct!",
+            "ref": "6c47d52a-b8cc-494c-aafe-8a9c8b83e22b",
+            "properties": {
+                "hide_marks": false,
+                "button_text": "Continue"
+            },
+            "type": "statement"
+        },
+        {
+            "id": "hRi5qacCz4lK",
+            "title": "How often are people generally recommended to get checked for Sexually Transmitted Infections?",
+            "ref": "34f7c72a-ac19-4b23-80b6-5a4addd09ad2",
+            "properties": {
+                "randomize": false,
+                "allow_multiple_selection": false,
+                "allow_other_choice": false,
+                "vertical_alignment": true,
+                "choices": [
+                    {
+                        "id": "IfIwd40xM7sS",
+                        "ref": "99bf2672-09ba-4fac-a1e4-bfd6fb7f8384",
+                        "label": "Twice a year"
+                    },
+                    {
+                        "id": "ntKRjFMfSPUg",
+                        "ref": "9a615edf-7c4c-4695-9b68-32d624568a73",
+                        "label": "Once a year"
+                    },
+                    {
+                        "id": "M9h22ojihOaI",
+                        "ref": "fcd0bf48-8129-4213-b1fe-d26af200a5fc",
+                        "label": "Once a month"
+                    }
+                ]
+            },
+            "validations": {
+                "required": true
+            },
+            "type": "multiple_choice"
+        },
+        {
+            "id": "Bd96Hgk3xaIG",
+            "title": "No! Correct answer was Once a year",
+            "ref": "eb14ba06-a223-42aa-a14c-3a8d40e87ee2",
+            "properties": {
+                "hide_marks": false,
+                "button_text": "Continue"
+            },
+            "type": "statement"
+        },
+        {
+            "id": "S6gBgUoFdbUP",
+            "title": "Correct!",
+            "ref": "9ec35ee6-418c-4dae-90b1-70a5deeda123",
+            "properties": {
+                "hide_marks": false,
+                "button_text": "Continue"
+            },
+            "type": "statement"
+        },
+        {
+            "id": "BK6iGZ3JlJIv",
+            "title": "True or False: Some Sexually Transmitted Infections have no symptoms.",
+            "ref": "bcd4262d-9b2e-4849-b345-573b207070ab",
+            "properties": {
+                "randomize": false,
+                "allow_multiple_selection": false,
+                "allow_other_choice": false,
+                "vertical_alignment": true,
+                "choices": [
+                    {
+                        "id": "f014RfrIMehv",
+                        "ref": "99bf2672-09ba-4fac-a1e4-bfd6fb7f8384",
+                        "label": "True"
+                    },
+                    {
+                        "id": "HX45XuZ01QrS",
+                        "ref": "9d790c49-4cda-4bac-a3eb-7926315856b3",
+                        "label": "False"
+                    }
+                ]
+            },
+            "validations": {
+                "required": true
+            },
+            "type": "multiple_choice"
+        },
+        {
+            "id": "KCAsihkUaCTG",
+            "title": "No! Correct answer was False",
+            "ref": "8e880a45-0610-48c3-81ea-32265ecc84c5",
+            "properties": {
+                "hide_marks": false,
+                "button_text": "Continue"
+            },
+            "type": "statement"
+        },
+        {
+            "id": "EcrfTCtbctIn",
+            "title": "Correct!",
+            "ref": "ced6a015-567a-459c-8788-3e5fca389fe9",
+            "properties": {
+                "hide_marks": false,
+                "button_text": "Continue"
+            },
+            "type": "statement"
+        },
+        {
+            "id": "wscpLboZXWyS",
+            "title": "What's the country with the highest rate of non-religious circumcisions?",
+            "ref": "c40eff9c-201b-4981-886d-db5d4cdd55f9",
+            "properties": {
+                "randomize": false,
+                "allow_multiple_selection": false,
+                "allow_other_choice": false,
+                "vertical_alignment": true,
+                "choices": [
+                    {
+                        "id": "O5gU7TvsQ3cd",
+                        "ref": "99bf2672-09ba-4fac-a1e4-bfd6fb7f8384",
+                        "label": "Thailand"
+                    },
+                    {
+                        "id": "e8lnuOIkhbvr",
+                        "ref": "d48f289d-c1f7-4381-94c3-eb84615ff9d5",
+                        "label": "France"
+                    },
+                    {
+                        "id": "g0WCOuIDc7JW",
+                        "ref": "9d790c49-4cda-4bac-a3eb-7926315856b3",
+                        "label": "Spain"
+                    },
+                    {
+                        "id": "gJi35Zp1b6u5",
+                        "ref": "f59cca1d-0b11-4153-8a5c-579208b8c1c7",
+                        "label": "United States"
+                    }
+                ]
+            },
+            "validations": {
+                "required": true
+            },
+            "type": "multiple_choice"
+        },
+        {
+            "id": "gXFSsbbukX5T",
+            "title": "No! Correct answer was United States",
+            "ref": "0468e1c7-5956-4d20-abd8-8ff708cbd992",
+            "properties": {
+                "hide_marks": false,
+                "button_text": "Continue"
+            },
+            "type": "statement"
+        },
+        {
+            "id": "jUxPdVeb2wu8",
+            "title": "Correct!",
+            "ref": "0644715f-c527-4aa4-9aac-26325159cb5c",
+            "properties": {
+                "hide_marks": false,
+                "button_text": "Continue"
+            },
+            "type": "statement"
+        },
+        {
+            "id": "EfFgSaPOfseK",
+            "title": "Can women get pregnant while on their period?",
+            "ref": "dbdc82d8-2288-4d47-beaf-3c6dcd52b05a",
+            "properties": {
+                "randomize": false,
+                "allow_multiple_selection": false,
+                "allow_other_choice": false,
+                "vertical_alignment": true,
+                "choices": [
+                    {
+                        "id": "erGGxmE08pyr",
+                        "ref": "99bf2672-09ba-4fac-a1e4-bfd6fb7f8384",
+                        "label": "Yes"
+                    },
+                    {
+                        "id": "xnXpbvOyVusK",
+                        "ref": "0da46832-f5b3-4c65-84e7-0190c42f671c",
+                        "label": "No"
+                    }
+                ]
+            },
+            "validations": {
+                "required": true
+            },
+            "type": "multiple_choice"
+        },
+        {
+            "id": "J8zLfAvzynQn",
+            "title": "No! Correct answer was Yes",
+            "ref": "24f3b66e-030a-4669-88e2-985a57a1d1d7",
+            "properties": {
+                "hide_marks": false,
+                "button_text": "Continue"
+            },
+            "type": "statement"
+        },
+        {
+            "id": "tZKWmhvDCfc8",
+            "title": "Correct!",
+            "ref": "2de11785-e24c-48b2-b5cc-2dce69688424",
+            "properties": {
+                "hide_marks": false,
+                "button_text": "Continue"
+            },
+            "type": "statement"
+        },
+        {
+            "id": "BtWu4y3i5EbV",
+            "title": "Only men have sexual fantasies.",
+            "ref": "f8b02173-ee01-4baf-aca9-842865433779",
+            "properties": {
+                "randomize": false,
+                "allow_multiple_selection": false,
+                "allow_other_choice": false,
+                "vertical_alignment": true,
+                "choices": [
+                    {
+                        "id": "EjYnrCu69JTt",
+                        "ref": "99bf2672-09ba-4fac-a1e4-bfd6fb7f8384",
+                        "label": "True"
+                    },
+                    {
+                        "id": "jXTHfUGZiRwv",
+                        "ref": "0da46832-f5b3-4c65-84e7-0190c42f671c",
+                        "label": "False"
+                    }
+                ]
+            },
+            "validations": {
+                "required": true
+            },
+            "type": "multiple_choice"
+        },
+        {
+            "id": "iZWKB1oD9tsj",
+            "title": "No! Correct answer was False",
+            "ref": "df9ffa38-28b5-47a6-8cd5-66123ec0a348",
+            "properties": {
+                "hide_marks": false,
+                "button_text": "Continue"
+            },
+            "type": "statement"
+        },
+        {
+            "id": "HcXOcQeMK2AY",
+            "title": "Correct!",
+            "ref": "32a8352d-cd8e-42da-b5d4-2c93b60db3cc",
+            "properties": {
+                "hide_marks": false,
+                "button_text": "Continue"
+            },
+            "type": "statement"
+        },
+        {
+            "id": "xLWSxj7oOvwW",
+            "title": "Great! In the coming days we will let you know about your score and your performance relative to other players. You will have the chance to play other games like this!\n\nWe will also send you a short video that you can watch for free.\n\nThank you for your time!\n\n",
+            "ref": "3be62ec4-612e-4b2b-a880-c01422edc47d",
+            "properties": {
+                "hide_marks": false,
+                "button_text": "Continue"
+            },
+            "type": "statement"
+        },
+        {
+            "ref": "default_tys",
+            "title": "Done! Your information was sent perfectly.",
+            "properties": {
+                "show_button": false,
+                "share_icons": false
+            },
+            "type": "thankyou_screen"
+        }
+    ],
+    "logic": [
+        {
+            "type": "field",
+            "ref": "378caa71-fc4f-4041-8315-02b6f33616b9",
+            "actions": [
+                {
+                    "action": "jump",
+                    "details": {
+                        "to": {
+                            "type": "field",
+                            "value": "3edb7fcc-748c-461c-bacd-593c043c5518"
+                        }
+                    },
+                    "condition": {
+                        "op": "or",
+                        "vars": [
+                            {
+                                "op": "lower_than",
+                                "vars": [
+                                    {
+                                        "type": "field",
+                                        "value": "378caa71-fc4f-4041-8315-02b6f33616b9"
+                                    },
+                                    {
+                                        "type": "constant",
+                                        "value": 15
+                                    }
+                                ]
+                            },
+                            {
+                                "op": "greater_than",
+                                "vars": [
+                                    {
+                                        "type": "field",
+                                        "value": "378caa71-fc4f-4041-8315-02b6f33616b9"
+                                    },
+                                    {
+                                        "type": "constant",
+                                        "value": 24
+                                    }
+                                ]
+                            }
+                        ]
+                    }
+                },
+                {
+                    "action": "jump",
+                    "details": {
+                        "to": {
+                            "type": "field",
+                            "value": "0ebfe765-0275-48b2-ad2d-3aacb5bc6755"
+                        }
+                    },
+                    "condition": {
+                        "op": "always",
+                        "vars": []
+                    }
+                }
+            ]
+        },
+        {
+            "type": "field",
+            "ref": "3edb7fcc-748c-461c-bacd-593c043c5518",
+            "actions": [
+                {
+                    "action": "jump",
+                    "details": {
+                        "to": {
+                            "type": "thankyou",
+                            "value": "default_tys"
+                        }
+                    },
+                    "condition": {
+                        "op": "always",
+                        "vars": []
+                    }
+                }
+            ]
+        },
+        {
+            "type": "field",
+            "ref": "1fac0275-3b85-4037-aed9-f2c106876337",
+            "actions": [
+                {
+                    "action": "jump",
+                    "details": {
+                        "to": {
+                            "type": "field",
+                            "value": "6d6d8e4d-0fd7-4509-a201-60f36f73b481"
+                        }
+                    },
+                    "condition": {
+                        "op": "always",
+                        "vars": []
+                    }
+                }
+            ]
+        },
+        {
+            "type": "field",
+            "ref": "392fa218-d251-409c-afdc-60752a17afb8",
+            "actions": [
+                {
+                    "action": "jump",
+                    "details": {
+                        "to": {
+                            "type": "field",
+                            "value": "34f7c72a-ac19-4b23-80b6-5a4addd09ad2"
+                        }
+                    },
+                    "condition": {
+                        "op": "always",
+                        "vars": []
+                    }
+                }
+            ]
+        },
+        {
+            "type": "field",
+            "ref": "eb14ba06-a223-42aa-a14c-3a8d40e87ee2",
+            "actions": [
+                {
+                    "action": "jump",
+                    "details": {
+                        "to": {
+                            "type": "field",
+                            "value": "bcd4262d-9b2e-4849-b345-573b207070ab"
+                        }
+                    },
+                    "condition": {
+                        "op": "always",
+                        "vars": []
+                    }
+                }
+            ]
+        },
+        {
+            "type": "field",
+            "ref": "8e880a45-0610-48c3-81ea-32265ecc84c5",
+            "actions": [
+                {
+                    "action": "jump",
+                    "details": {
+                        "to": {
+                            "type": "field",
+                            "value": "c40eff9c-201b-4981-886d-db5d4cdd55f9"
+                        }
+                    },
+                    "condition": {
+                        "op": "always",
+                        "vars": []
+                    }
+                }
+            ]
+        },
+        {
+            "type": "field",
+            "ref": "0468e1c7-5956-4d20-abd8-8ff708cbd992",
+            "actions": [
+                {
+                    "action": "jump",
+                    "details": {
+                        "to": {
+                            "type": "field",
+                            "value": "dbdc82d8-2288-4d47-beaf-3c6dcd52b05a"
+                        }
+                    },
+                    "condition": {
+                        "op": "always",
+                        "vars": []
+                    }
+                }
+            ]
+        },
+        {
+            "type": "field",
+            "ref": "24f3b66e-030a-4669-88e2-985a57a1d1d7",
+            "actions": [
+                {
+                    "action": "jump",
+                    "details": {
+                        "to": {
+                            "type": "field",
+                            "value": "f8b02173-ee01-4baf-aca9-842865433779"
+                        }
+                    },
+                    "condition": {
+                        "op": "always",
+                        "vars": []
+                    }
+                }
+            ]
+        },
+        {
+            "type": "field",
+            "ref": "df9ffa38-28b5-47a6-8cd5-66123ec0a348",
+            "actions": [
+                {
+                    "action": "jump",
+                    "details": {
+                        "to": {
+                            "type": "field",
+                            "value": "3be62ec4-612e-4b2b-a880-c01422edc47d"
+                        }
+                    },
+                    "condition": {
+                        "op": "always",
+                        "vars": []
+                    }
+                }
+            ]
+        },
+        {
+            "type": "field",
+            "ref": "3be62ec4-612e-4b2b-a880-c01422edc47d",
+            "actions": [
+                {
+                    "action": "jump",
+                    "details": {
+                        "to": {
+                            "type": "thankyou",
+                            "value": "default_tys"
+                        }
+                    },
+                    "condition": {
+                        "op": "always",
+                        "vars": []
+                    }
+                }
+            ]
+        },
+        {
+            "type": "field",
+            "ref": "fb74abb2-ed4c-42bb-bc80-b0677f992d01",
+            "actions": [
+                {
+                    "action": "jump",
+                    "details": {
+                        "to": {
+                            "type": "field",
+                            "value": "6d6d8e4d-0fd7-4509-a201-60f36f73b481"
+                        }
+                    },
+                    "condition": {
+                        "op": "always",
+                        "vars": []
+                    }
+                }
+            ]
+        },
+        {
+            "type": "field",
+            "ref": "6c47d52a-b8cc-494c-aafe-8a9c8b83e22b",
+            "actions": [
+                {
+                    "action": "jump",
+                    "details": {
+                        "to": {
+                            "type": "field",
+                            "value": "34f7c72a-ac19-4b23-80b6-5a4addd09ad2"
+                        }
+                    },
+                    "condition": {
+                        "op": "always",
+                        "vars": []
+                    }
+                }
+            ]
+        },
+        {
+            "type": "field",
+            "ref": "9ec35ee6-418c-4dae-90b1-70a5deeda123",
+            "actions": [
+                {
+                    "action": "jump",
+                    "details": {
+                        "to": {
+                            "type": "field",
+                            "value": "bcd4262d-9b2e-4849-b345-573b207070ab"
+                        }
+                    },
+                    "condition": {
+                        "op": "always",
+                        "vars": []
+                    }
+                }
+            ]
+        },
+        {
+            "type": "field",
+            "ref": "ced6a015-567a-459c-8788-3e5fca389fe9",
+            "actions": [
+                {
+                    "action": "jump",
+                    "details": {
+                        "to": {
+                            "type": "field",
+                            "value": "c40eff9c-201b-4981-886d-db5d4cdd55f9"
+                        }
+                    },
+                    "condition": {
+                        "op": "always",
+                        "vars": []
+                    }
+                }
+            ]
+        },
+        {
+            "type": "field",
+            "ref": "0644715f-c527-4aa4-9aac-26325159cb5c",
+            "actions": [
+                {
+                    "action": "jump",
+                    "details": {
+                        "to": {
+                            "type": "field",
+                            "value": "dbdc82d8-2288-4d47-beaf-3c6dcd52b05a"
+                        }
+                    },
+                    "condition": {
+                        "op": "always",
+                        "vars": []
+                    }
+                }
+            ]
+        },
+        {
+            "type": "field",
+            "ref": "2de11785-e24c-48b2-b5cc-2dce69688424",
+            "actions": [
+                {
+                    "action": "jump",
+                    "details": {
+                        "to": {
+                            "type": "field",
+                            "value": "f8b02173-ee01-4baf-aca9-842865433779"
+                        }
+                    },
+                    "condition": {
+                        "op": "always",
+                        "vars": []
+                    }
+                }
+            ]
+        },
+        {
+            "type": "field",
+            "ref": "4cc5c31b-6d23-4d50-8536-7abf1cdf0782",
+            "actions": [
+                {
+                    "action": "jump",
+                    "details": {
+                        "to": {
+                            "type": "field",
+                            "value": "2ee8f2fc-c2af-4f29-8838-78f6093735d7"
+                        }
+                    },
+                    "condition": {
+                        "op": "always",
+                        "vars": []
+                    }
+                }
+            ]
+        },
+        {
+            "type": "field",
+            "ref": "32a8352d-cd8e-42da-b5d4-2c93b60db3cc",
+            "actions": [
+                {
+                    "action": "jump",
+                    "details": {
+                        "to": {
+                            "type": "field",
+                            "value": "3be62ec4-612e-4b2b-a880-c01422edc47d"
+                        }
+                    },
+                    "condition": {
+                        "op": "always",
+                        "vars": []
+                    }
+                }
+            ]
+        },
+        {
+            "type": "field",
+            "ref": "2ee8f2fc-c2af-4f29-8838-78f6093735d7",
+            "actions": [
+                {
+                    "action": "jump",
+                    "details": {
+                        "to": {
+                            "type": "field",
+                            "value": "378caa71-fc4f-4041-8315-02b6f33616b9"
+                        }
+                    },
+                    "condition": {
+                        "op": "is",
+                        "vars": [
+                            {
+                                "type": "field",
+                                "value": "2ee8f2fc-c2af-4f29-8838-78f6093735d7"
+                            },
+                            {
+                                "type": "constant",
+                                "value": true
+                            }
+                        ]
+                    }
+                },
+                {
+                    "action": "jump",
+                    "details": {
+                        "to": {
+                            "type": "thankyou",
+                            "value": "default_tys"
+                        }
+                    },
+                    "condition": {
+                        "op": "always",
+                        "vars": []
+                    }
+                }
+            ]
+        },
+        {
+            "type": "field",
+            "ref": "6d6d8e4d-0fd7-4509-a201-60f36f73b481",
+            "actions": [
+                {
+                    "action": "jump",
+                    "details": {
+                        "to": {
+                            "type": "field",
+                            "value": "6c47d52a-b8cc-494c-aafe-8a9c8b83e22b"
+                        }
+                    },
+                    "condition": {
+                        "op": "is",
+                        "vars": [
+                            {
+                                "type": "field",
+                                "value": "6d6d8e4d-0fd7-4509-a201-60f36f73b481"
+                            },
+                            {
+                                "type": "choice",
+                                "value": "99bf2672-09ba-4fac-a1e4-bfd6fb7f8384"
+                            }
+                        ]
+                    }
+                },
+                {
+                    "action": "jump",
+                    "details": {
+                        "to": {
+                            "type": "field",
+                            "value": "392fa218-d251-409c-afdc-60752a17afb8"
+                        }
+                    },
+                    "condition": {
+                        "op": "always",
+                        "vars": []
+                    }
+                }
+            ]
+        },
+        {
+            "type": "field",
+            "ref": "c40eff9c-201b-4981-886d-db5d4cdd55f9",
+            "actions": [
+                {
+                    "action": "jump",
+                    "details": {
+                        "to": {
+                            "type": "field",
+                            "value": "0644715f-c527-4aa4-9aac-26325159cb5c"
+                        }
+                    },
+                    "condition": {
+                        "op": "is",
+                        "vars": [
+                            {
+                                "type": "field",
+                                "value": "c40eff9c-201b-4981-886d-db5d4cdd55f9"
+                            },
+                            {
+                                "type": "choice",
+                                "value": "f59cca1d-0b11-4153-8a5c-579208b8c1c7"
+                            }
+                        ]
+                    }
+                },
+                {
+                    "action": "jump",
+                    "details": {
+                        "to": {
+                            "type": "field",
+                            "value": "0468e1c7-5956-4d20-abd8-8ff708cbd992"
+                        }
+                    },
+                    "condition": {
+                        "op": "always",
+                        "vars": []
+                    }
+                }
+            ]
+        },
+        {
+            "type": "field",
+            "ref": "dbdc82d8-2288-4d47-beaf-3c6dcd52b05a",
+            "actions": [
+                {
+                    "action": "jump",
+                    "details": {
+                        "to": {
+                            "type": "field",
+                            "value": "2de11785-e24c-48b2-b5cc-2dce69688424"
+                        }
+                    },
+                    "condition": {
+                        "op": "is",
+                        "vars": [
+                            {
+                                "type": "field",
+                                "value": "dbdc82d8-2288-4d47-beaf-3c6dcd52b05a"
+                            },
+                            {
+                                "type": "choice",
+                                "value": "99bf2672-09ba-4fac-a1e4-bfd6fb7f8384"
+                            }
+                        ]
+                    }
+                },
+                {
+                    "action": "jump",
+                    "details": {
+                        "to": {
+                            "type": "field",
+                            "value": "24f3b66e-030a-4669-88e2-985a57a1d1d7"
+                        }
+                    },
+                    "condition": {
+                        "op": "always",
+                        "vars": []
+                    }
+                }
+            ]
+        },
+        {
+            "type": "field",
+            "ref": "c3432d3d-f786-4a38-8ac7-b50c1dfdb1ba",
+            "actions": [
+                {
+                    "action": "jump",
+                    "details": {
+                        "to": {
+                            "type": "field",
+                            "value": "fb74abb2-ed4c-42bb-bc80-b0677f992d01"
+                        }
+                    },
+                    "condition": {
+                        "op": "is",
+                        "vars": [
+                            {
+                                "type": "field",
+                                "value": "c3432d3d-f786-4a38-8ac7-b50c1dfdb1ba"
+                            },
+                            {
+                                "type": "choice",
+                                "value": "fcd0bf48-8129-4213-b1fe-d26af200a5fc"
+                            }
+                        ]
+                    }
+                },
+                {
+                    "action": "jump",
+                    "details": {
+                        "to": {
+                            "type": "field",
+                            "value": "1fac0275-3b85-4037-aed9-f2c106876337"
+                        }
+                    },
+                    "condition": {
+                        "op": "always",
+                        "vars": []
+                    }
+                }
+            ]
+        },
+        {
+            "type": "field",
+            "ref": "34f7c72a-ac19-4b23-80b6-5a4addd09ad2",
+            "actions": [
+                {
+                    "action": "jump",
+                    "details": {
+                        "to": {
+                            "type": "field",
+                            "value": "9ec35ee6-418c-4dae-90b1-70a5deeda123"
+                        }
+                    },
+                    "condition": {
+                        "op": "is",
+                        "vars": [
+                            {
+                                "type": "field",
+                                "value": "34f7c72a-ac19-4b23-80b6-5a4addd09ad2"
+                            },
+                            {
+                                "type": "choice",
+                                "value": "9a615edf-7c4c-4695-9b68-32d624568a73"
+                            }
+                        ]
+                    }
+                },
+                {
+                    "action": "jump",
+                    "details": {
+                        "to": {
+                            "type": "field",
+                            "value": "eb14ba06-a223-42aa-a14c-3a8d40e87ee2"
+                        }
+                    },
+                    "condition": {
+                        "op": "always",
+                        "vars": []
+                    }
+                }
+            ]
+        },
+        {
+            "type": "field",
+            "ref": "bcd4262d-9b2e-4849-b345-573b207070ab",
+            "actions": [
+                {
+                    "action": "jump",
+                    "details": {
+                        "to": {
+                            "type": "field",
+                            "value": "ced6a015-567a-459c-8788-3e5fca389fe9"
+                        }
+                    },
+                    "condition": {
+                        "op": "is",
+                        "vars": [
+                            {
+                                "type": "field",
+                                "value": "bcd4262d-9b2e-4849-b345-573b207070ab"
+                            },
+                            {
+                                "type": "choice",
+                                "value": "9d790c49-4cda-4bac-a3eb-7926315856b3"
+                            }
+                        ]
+                    }
+                },
+                {
+                    "action": "jump",
+                    "details": {
+                        "to": {
+                            "type": "field",
+                            "value": "8e880a45-0610-48c3-81ea-32265ecc84c5"
+                        }
+                    },
+                    "condition": {
+                        "op": "always",
+                        "vars": []
+                    }
+                }
+            ]
+        },
+        {
+            "type": "field",
+            "ref": "f8b02173-ee01-4baf-aca9-842865433779",
+            "actions": [
+                {
+                    "action": "jump",
+                    "details": {
+                        "to": {
+                            "type": "field",
+                            "value": "32a8352d-cd8e-42da-b5d4-2c93b60db3cc"
+                        }
+                    },
+                    "condition": {
+                        "op": "is",
+                        "vars": [
+                            {
+                                "type": "field",
+                                "value": "f8b02173-ee01-4baf-aca9-842865433779"
+                            },
+                            {
+                                "type": "choice",
+                                "value": "0da46832-f5b3-4c65-84e7-0190c42f671c"
+                            }
+                        ]
+                    }
+                },
+                {
+                    "action": "jump",
+                    "details": {
+                        "to": {
+                            "type": "field",
+                            "value": "df9ffa38-28b5-47a6-8cd5-66123ec0a348"
+                        }
+                    },
+                    "condition": {
+                        "op": "always",
+                        "vars": []
+                    }
+                }
+            ]
+        }
+    ],
+    "_links": {
+        "display": "https://nandanrao.typeform.com/to/ODf5n7"
+    }
+}

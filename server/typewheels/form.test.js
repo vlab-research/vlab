@@ -2,9 +2,10 @@ const mocha = require('mocha')
 const chai = require('chai')
 const should = chai.should()
 const fs = require('fs')
-
+const util = require('util')
 const f = require('./form')
 const form = JSON.parse(fs.readFileSync('mocks/sample.json'))
+const formGame = JSON.parse(fs.readFileSync('mocks/sample-game.json'))
 const { parseLogJSON } = require('./utils')
 const { echo, statementEcho, repeatEcho, delivery, read, qr, text, multipleChoice, referral} = require('./events.test')
 
@@ -103,11 +104,9 @@ describe('getLogState', () => {
 
 })
 
-const util = require('util')
-
 describe('jump', () => {
   it('makes jump when required and not when not', () => {
-    const echo2 = {...echo, message: { ...echo.message, metadata: '{ "ref": "378caa71-fc4f-4041-8315-02b6f33616b9"}'}}
+    const echo2 = {...echo, message: { ...echo.message, metadata: { ref: "378caa71-fc4f-4041-8315-02b6f33616b9"}}}
 
     const numLow = {...text, message: { text: '10' }}
     const numGood = {...text, message: { text: '18' }}
@@ -115,21 +114,33 @@ describe('jump', () => {
     const yes = f.jump(form, [text, echo2, delivery, read, numGood], form.logic[0])
     yes.should.equal('0ebfe765-0275-48b2-ad2d-3aacb5bc6755')
 
+
     const no = f.jump(form, [text, echo2, delivery, read, numLow], form.logic[0])
     no.should.equal('3edb7fcc-748c-461c-bacd-593c043c5518')
   })
 
+  it('makes jump with a correct number answer in a string', () => {
+    const echo2 = {...echo, message: { ...echo.message, metadata: { ref: "c3432d3d-f786-4a38-8ac7-b50c1dfdb1ba"}}}
+
+    const resp = {...text, message: { text: '7.2' }}
+    const no = f.jump(formGame, [text, echo2, delivery, read, resp], formGame.logic[22])
+    no.should.equal('1fac0275-3b85-4037-aed9-f2c106876337')
+
+    const resp2 = {...text, message: { text: '7.5' }}
+    const yes = f.jump(formGame, [text, echo2, delivery, read, resp2], formGame.logic[22])
+    yes.should.equal('fb74abb2-ed4c-42bb-bc80-b0677f992d01')
+  })
+
   it('doesnt make jump if required field is not answered', () => {
-    const echo2 = {...echo, message: { ...echo.message, metadata: '{ "ref": "378caa71-fc4f-4041-8315-02b6f33616b9"}'}}
+    const echo2 = {...echo, message: { ...echo.message, metadata: { ref: "378caa71-fc4f-4041-8315-02b6f33616b9"}}}
 
     const no = f.jump(form, [text, echo2], form.logic[0])
     no.should.equal('3edb7fcc-748c-461c-bacd-593c043c5518')
   })
 
-
   // TODO: should this throw??????
   it('doesnt make jump if required field doesnt exist', () => {
-    const echo2 = {...echo, message: { ...echo.message, metadata: '{ "ref": "378caa71-fc4f-4041-8315-02b6f33616b9"}'}}
+    const echo2 = {...echo, message: { ...echo.message, metadata: { ref: "378caa71-fc4f-4041-8315-02b6f33616b9"}}}
 
     const no = f.jump(form, [text], form.logic[0])
     no.should.equal('3edb7fcc-748c-461c-bacd-593c043c5518')
@@ -139,7 +150,7 @@ describe('jump', () => {
 
 
 
-    const echo2 = {...echo, message: { ...echo.message, metadata: '{ "ref": "baz"}'}}
+    const echo2 = {...echo, message: { ...echo.message, metadata: { ref: "baz"}}}
 
     const logic = { type: 'field',
                     actions:
@@ -160,7 +171,7 @@ describe('jump', () => {
 describe('getCondition', () => {
   it('works with always true', () => {
     const con = form.logic[2].actions[0].condition
-    f.getCondition(form, [], con).should.be.true
+    f.getCondition(form, [], '', con).should.be.true
   })
 
   it('works with number equals - type casting!', () => {
@@ -172,7 +183,7 @@ describe('getCondition', () => {
                      vars: [ { type: 'field', value: 'baz' },
                              { type: 'constant', value: 10 } ] }
 
-    f.getCondition(form, [echoBaz, delivery, read, num], cond).should.be.true
+    f.getCondition(form, [echoBaz, delivery, read, num], '', cond).should.be.true
   })
 
   it('works with number not equals - type casting!', () => {
@@ -183,7 +194,7 @@ describe('getCondition', () => {
                      vars: [ { type: 'field', value: 'baz' },
                              { type: 'constant', value: 10 } ] }
 
-    f.getCondition(form, [echoBaz, delivery, read, num], cond).should.be.false
+    f.getCondition(form, [echoBaz, delivery, read, num], '', cond).should.be.false
   })
 })
 

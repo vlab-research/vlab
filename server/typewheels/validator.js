@@ -6,6 +6,8 @@ function validateQR(field) {
   const q = translator(field)
   const titles = q.quick_replies.map(r => r.title)
 
+  // Messenger will return us numbers in JSON,
+  // so we need to cast them to strings, to compare with QR's
   return r => ({ message, valid: titles.indexOf(''+r) !== -1 })
 }
 
