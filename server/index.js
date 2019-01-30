@@ -7,7 +7,7 @@ const {getState} = require('./typewheels/typewheels')
 const farmhash = require('farmhash')
 const Cacheman = require('cacheman')
 const Redis = require('ioredis')
-const Queue = require('bee-queue')
+const Queue = require('bull')
 
 async function sendMessage(recipientId, response, redis) {
 
@@ -37,10 +37,9 @@ async function sendMessage(recipientId, response, redis) {
 const redis = new Redis(process.env.REDIS_PORT, process.env.REDIS_HOST)
 const cache = new Cacheman()
 
-
-
 const q = new Queue('chat-events', {
-  redis: { host: process.env.REDIS_HOST, port: process.env.REDIS_PORT }
+  redis: { host: process.env.REDIS_HOST, port: process.env.REDIS_PORT },
+  prefix: '{chat-events}'
 })
 
 q.on('error', (err) => {
@@ -49,9 +48,8 @@ q.on('error', (err) => {
 
 const getFormCached = form => cache.wrap('form', () => getForm(form), '30s')
 
-q.process(async (job) => {
+q.process(async (job, event) => {
   try {
-    const event = job.data
     const user = getUser(event)
     await redis.lpush(user, JSON.stringify(event))
 

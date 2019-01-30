@@ -17,8 +17,8 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "bull": "^3.6.0",
     "cacheman": "^2.2.1",
-    "bee-queue": "^1.2.2",
     "cross-fetch": "^2.2.0",
     "farmhash": "^2.1.0",
     "ioredis": "^4.2.0",
