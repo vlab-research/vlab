@@ -48,8 +48,9 @@ q.on('error', (err) => {
 
 const getFormCached = form => cache.wrap('form', () => getForm(form), '30s')
 
-q.process(async (job, event) => {
+q.process(async ({data:event}, done) => {
   try {
+
     const user = getUser(event)
     await redis.lpush(user, JSON.stringify(event))
 
@@ -67,8 +68,11 @@ q.process(async (job, event) => {
     if (action) {
       await sendMessage(user, action, redis)
     }
+
+    done()
+
   } catch (error) {
     console.error('[ERR] processJob: ', error)
-    throw error
+    done(error)
   }
 })
