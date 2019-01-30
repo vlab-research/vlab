@@ -25,13 +25,11 @@ const verifyToken = ctx => {
 }
 
 const handleEvents = (ctx) => {
-  console.log('>>>>>>>>>>>>> REQUEST <<<<<<<<<<<<<<<<<')
-
   for (entry of ctx.request.body.entry) {
     try {
       console.log('+++ ENTRY: ', entry)
       const event = entry.messaging[0]
-      const job = q.add(event, { attempts: 3})
+      const job = q.add(event, { attempts: 10, backoff: {type: 'exponential', delay: 1000}})
     } catch (error) {
       console.error('[ERR] handleEvents: ', error)
     }
