@@ -6,8 +6,8 @@ const Router = require('koa-router')
 const Queue = require('bull')
 
 const q = new Queue('chat-events', {
-  redis: { host: process.env.REDIS_HOST, port: process.env.REDIS_PORT },
-  prefix: '{chat-events}'
+  redis: { sentinels: [{host: process.env.REDIS_HOST }],
+           name: 'kiwi-redis-ha' }
 })
 
 q.on('error', (err) => {
