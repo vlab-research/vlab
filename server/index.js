@@ -38,8 +38,8 @@ const redis = new Redis(process.env.REDIS_PORT, process.env.REDIS_HOST)
 const cache = new Cacheman()
 
 const q = new Queue('chat-events', {
-  redis: { host: process.env.REDIS_HOST, port: process.env.REDIS_PORT },
-  prefix: '{chat-events}'
+  redis: { sentinels: [{host: process.env.REDIS_HOST }],
+           name: 'kiwi-redis-ha' }
 })
 
 q.on('error', (err) => {

@@ -28,4 +28,4 @@ spec:
             name: gbv-bot-envs
         env:
         - name: REDIS_HOST
-          value: "sred-redis-master.default.svc.cluster.local"
+          value: "kiwi-redis-ha.default.svc.cluster.local"
