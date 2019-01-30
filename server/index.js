@@ -2,11 +2,12 @@ const Koa = require('koa')
 const bodyParser = require('koa-bodyparser')
 const http = require('http')
 const Router = require('koa-router')
-const Queue = require('bee-queue')
+
+const Queue = require('bull')
 
 const q = new Queue('chat-events', {
   redis: { host: process.env.REDIS_HOST, port: process.env.REDIS_PORT },
-  isWorker: false
+  prefix: '{chat-events}'
 })
 
 q.on('error', (err) => {
@@ -23,18 +24,14 @@ const verifyToken = ctx => {
   }
 }
 
-const handleEvents = async (ctx) => {
+const handleEvents = (ctx) => {
   console.log('>>>>>>>>>>>>> REQUEST <<<<<<<<<<<<<<<<<')
-
-  await q.ready()
 
   for (entry of ctx.request.body.entry) {
     try {
       console.log('+++ ENTRY: ', entry)
       const event = entry.messaging[0]
-      const job = q.createJob(event)
-      const res = await job.retries(3).save()
-
+      const job = q.add(event, { attempts: 3})
     } catch (error) {
       console.error('[ERR] handleEvents: ', error)
     }
