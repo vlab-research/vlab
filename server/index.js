@@ -2,12 +2,14 @@ const Koa = require('koa')
 const bodyParser = require('koa-bodyparser')
 const http = require('http')
 const Router = require('koa-router')
-
 const Queue = require('bull')
 
+const redisConfig = { sentinels: [{host: process.env.REDIS_HOST,
+                                   port: process.env.REDIS_SENTINEL_PORT }],
+                      name: process.env.REDIS_MASTER }
+
 const q = new Queue('chat-events', {
-  redis: { sentinels: [{host: process.env.REDIS_HOST }],
-           name: 'kiwi-redis-ha' }
+  redis: redisConfig
 })
 
 q.on('error', (err) => {
