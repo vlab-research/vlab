@@ -33,13 +33,13 @@ async function sendMessage(recipientId, response, redis) {
   })
 }
 
-
-const redis = new Redis(process.env.REDIS_PORT, process.env.REDIS_HOST)
+const redisConfig = { sentinels: [{host: process.env.REDIS_HOST,
+                                   port: process.env.REDIS_SENTINEL_PORT }],
+                      name: process.env.REDIS_MASTER }
+const redis = new Redis(redisConfig)
 const cache = new Cacheman()
-
 const q = new Queue('chat-events', {
-  redis: { sentinels: [{host: process.env.REDIS_HOST }],
-           name: 'kiwi-redis-ha' }
+  redis: redisConfig
 })
 
 q.on('error', (err) => {
