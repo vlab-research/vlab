@@ -8,13 +8,14 @@ const farmhash = require('farmhash')
 const Cacheman = require('cacheman')
 const Redis = require('ioredis')
 const Queue = require('bull')
+const Kafka = require('node-rdkafka')
 
-async function sendMessage(recipientId, response, redis) {
+async function sendMessage(recipientId, response, cache) {
 
   // quick hack to avoid double sending!
-  const i = farmhash.hash32(JSON.stringify(response))
-  if (await redis.exists(`sent:${i}`)) return
-  await redis.set(`sent:${i}`, true, 'EX', 2)
+  // const i = farmhash.hash32(JSON.stringify(response))
+  // if (await cache.get(`sent:${i}`)) return
+  // await cache.set(`sent:${i}`, true, 5)
 
   request({
     url: 'https://graph.facebook.com/v3.2/me/messages',
@@ -33,46 +34,75 @@ async function sendMessage(recipientId, response, redis) {
   })
 }
 
-const redisConfig = { sentinels: [{host: process.env.REDIS_HOST,
-                                   port: process.env.REDIS_SENTINEL_PORT }],
-                      name: process.env.REDIS_MASTER }
-const redis = new Redis(redisConfig)
 const cache = new Cacheman()
-const q = new Queue('chat-events', {
-  redis: redisConfig
-})
+const kafkaOpts = {
+  'group.id': 'replybot',
+  'metadata.broker.list': 'spinaltap-kafka:9092'
+}
 
-q.on('error', (err) => {
-  console.error(`A queue error happened: ${err.message}. Connecting to: ${process.env.REDIS_HOST} on port ${process.env.REDIS_PORT}`)
-})
+// var consumer = new Kafka.KafkaConsumer(kafkaOpts, {})
 
-const getFormCached = form => cache.wrap('form', () => getForm(form), '30s')
+// consumer.connect();
 
-q.process(async ({data:event}, done) => {
+// consumer
+//   .on('ready', () => {
+//     consumer.subscribe(['chat-events'])
+//     consumer.consume()
+//   })
+//   .on('data', data => {
+//     console.log(data)
+//     console.log(JSON.parse(data.value.toString()));
+//   });
+
+const db = {}
+
+const stream = new Kafka.createReadStream(kafkaOpts, {}, { topics: ['chat-events']})
+
+stream.on('data', async (message) => {
+
   try {
 
-    const user = getUser(event)
-    await redis.lpush(user, JSON.stringify(event))
+    const user = message.key.toString()
+    const event = message.value.toString()
 
-    const machine = new Machine()
-    const r = await redis.lrange(user, 0, -1)
-    r.reverse()
-    const log = r.map(JSON.parse)
+    console.log(`message recieved from ${user}`)
+
+    if (db[user]) {
+      db[user] = [...db[user], event]
+    } else {
+
+      // if not, get from db (filestore!)
+
+      db[user] = [event]
+    }
+
+    const log = db[user].map(JSON.parse)
+
     const state = getState(log)
+    const machine = new Machine()
 
+    // TODO
     if (!state) throw new Error('User does not have any current form!')
 
     const form = await getFormCached(state.form)
     const action = machine.exec(state, form, log)
 
     if (action) {
-      await sendMessage(user, action, redis)
+      await sendMessage(user, action, cache)
     }
 
-    done()
+    stream.consumer.commitMessage(message)
 
   } catch (error) {
     console.error('[ERR] processJob: ', error)
-    done(error)
   }
+}).on('error', err => {
+  console.error(err)
 })
+
+
+const getFormCached = form => cache.wrap('form', () => getForm(form), '30s')
+
+// q.process(async ({data:event}, done) => {
+
+// })
