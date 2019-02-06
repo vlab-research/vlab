@@ -2,19 +2,50 @@ const Koa = require('koa')
 const bodyParser = require('koa-bodyparser')
 const http = require('http')
 const Router = require('koa-router')
-const Queue = require('bull')
+const Kafka = require('node-rdkafka')
 
-const redisConfig = { sentinels: [{host: process.env.REDIS_HOST,
-                                   port: process.env.REDIS_SENTINEL_PORT }],
-                      name: process.env.REDIS_MASTER }
+function getUser(event) {
+  const PAGE_ID = process.env.FB_PAGE_ID
 
-const q = new Queue('chat-events', {
-  redis: redisConfig
+  if (event.sender.id === PAGE_ID) {
+    return event.recipient.id
+  }
+  else if (event.recipient.id === PAGE_ID){
+    return event.sender.id
+  }
+  else {
+    throw new Error('Non Existent User!')
+  }
+}
+
+
+const producer = new Kafka.Producer({
+  'metadata.broker.list': 'spinaltap-kafka:9092',
+  'retry.backoff.ms': 200,
+  'message.send.max.retries': 10,
+  'socket.keepalive.enable': true,
+  'queue.buffering.max.messages': 100000,
+  'queue.buffering.max.ms': 1000,
+  'batch.num.messages': 1000000
+}, {}, {
+  topic: 'chat-events'
+});
+
+producer.connect()
+
+producer.on('event.error', err => {
+  console.error('Error from producer');
+  console.error(err);
 })
 
-q.on('error', (err) => {
-  console.error(`A queue error happened: ${err.message}`)
+const producerReady = new Promise((resolve, reject) => {
+  producer.on('ready', () => {
+    console.log('producer ready')
+    resolve()
+  })
 })
+
+
 
 const verifyToken = ctx => {
   if (ctx.query['hub.verify_token'] === process.env.VERIFY_TOKEN) {
@@ -26,12 +57,16 @@ const verifyToken = ctx => {
   }
 }
 
-const handleEvents = (ctx) => {
+const handleEvents = async (ctx) => {
+  await producerReady
+
   for (entry of ctx.request.body.entry) {
     try {
       console.log('+++ ENTRY: ', entry)
       const event = entry.messaging[0]
-      const job = q.add(event, { attempts: 10, backoff: {type: 'exponential', delay: 1000}})
+      const data = Buffer.from(JSON.stringify(event))
+      producer.produce('chat-events', null, data, getUser(event))
+
     } catch (error) {
       console.error('[ERR] handleEvents: ', error)
     }
@@ -41,6 +76,12 @@ const handleEvents = (ctx) => {
 
 const router = new Router()
 router.get('/webhooks', verifyToken)
+
+router.get('/hello', ctx => {
+  ctx.body = 'not a world'
+  ctx.status = 200
+
+})
 router.post('/webhooks', handleEvents)
 
 const app = new Koa()
@@ -49,4 +90,4 @@ app
   .use(router.routes())
   .use(router.allowedMethods())
 
-http.createServer(app.callback()).listen(process.env.PORT)
+http.createServer(app.callback()).listen(process.env.PORT || 8080)
