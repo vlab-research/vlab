@@ -17,14 +17,11 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "bull": "^3.6.0",
+    "@google-cloud/storage": "^2.4.2",
     "cacheman": "^2.2.1",
     "cross-fetch": "^2.2.0",
-    "farmhash": "^2.1.0",
-    "ioredis": "^4.2.0",
     "node-rdkafka": "^2.5.1",
     "r2": "^2.0.1",
-    "request": "^2.87.0",
     "typeform-to-facebook-messenger": "git+https://github.com/nandanrao/typeform-to-facebook-messenger.git"
   },
   "devDependencies": {

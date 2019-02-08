@@ -13,6 +13,23 @@ async function getForm(form) {
   return translateForm(f)
 }
 
+async function sendMessage(recipientId, response) {
+  const headers = { Authorization: `Bearer ${process.env.PAGE_ACCESS_TOKEN}`}
+  const json = {
+    recipient: { id: recipientId },
+    message: response
+  }
+
+  const url = 'https://graph.facebook.com/v3.2/me/messages'
+  const res = await r2.post(url, { headers, json })
+
+  if (res.body.error) {
+    throw new Error(res.body.error)
+  }
+
+  return res
+}
+
 // Gets user by assuming page ID to be constant.
 function getUser(event) {
   const PAGE_ID = process.env.FB_PAGE_ID
@@ -28,4 +45,18 @@ function getUser(event) {
   }
 }
 
-module.exports = { getForm, getUser };
+
+const db = {}
+
+async function getEvents(user, event) {
+  if (db[user]) {
+    db[user].push(event)
+    return db[user]
+  }
+  // get from filestore !
+  // check if event is duplicate - race from other consumer
+  db[user] = [event]
+  return db[user]
+}
+
+module.exports = { getForm, getUser, getEvents, sendMessage };
