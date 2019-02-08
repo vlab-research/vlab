@@ -1,4 +1,5 @@
 const r2 = require('r2')
+const gcs = require('./db')
 
 function translateForm(form) {
   const f = {...form}
@@ -23,7 +24,7 @@ async function sendMessage(recipientId, response) {
   const url = 'https://graph.facebook.com/v3.2/me/messages'
   const res = await r2.post(url, { headers, json })
 
-  if (res.body.error) {
+  if (res.body && res.body.error) {
     throw new Error(res.body.error)
   }
 
@@ -46,17 +47,33 @@ function getUser(event) {
 }
 
 
-const db = {}
+function _resolve(li, e) {
+  if (!li) return [e]
 
-async function getEvents(user, event) {
-  if (db[user]) {
-    db[user].push(event)
-    return db[user]
-  }
-  // get from filestore !
-  // check if event is duplicate - race from other consumer
-  db[user] = [event]
-  return db[user]
+  const i = li.indexOf(e)
+  return i === -1 ? [...li, e] : li.slice(0,i+1)
+
 }
 
-module.exports = { getForm, getUser, getEvents, sendMessage };
+class EventStore {
+  constructor(db) {
+    this.db = db
+    this.cache = {}
+  }
+
+  async getEvents(user, event) {
+    if (this.cache[user]) {
+      this.cache[user].push(event)
+      return this.cache[user]
+    }
+
+    const res = await this.db.get(user)
+    const events = _resolve(res, event)
+    this.cache[user] = events
+
+    return this.cache[user]
+  }
+}
+
+
+module.exports = { getForm, getUser, EventStore, sendMessage, _resolve, gcs };

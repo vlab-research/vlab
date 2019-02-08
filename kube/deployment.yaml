@@ -23,13 +23,17 @@ spec:
             memory: "500Mi"
         ports:
         - containerPort: 80
+        volumeMounts:
+          - name: keys
+            mountPath: /usr/src/app/keys
+            readOnly: true
         envFrom:
         - secretRef:
             name: gbv-bot-envs
         env:
-        - name: REDIS_HOST
-          value: "kiwi-redis-ha.default.svc.cluster.local"
-        - name: REDIS_SENTINEL_PORT
-          value: "26379"
-        - name: REDIS_MASTER
-          value: "mymaster"
+        - name: GOOGLE_APPLICATION_CREDENTIALS
+          value: "keys/key.json"
+      volumes:
+        - name: keys
+          secret:
+            secretName: gbv-replybot-keys

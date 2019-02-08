@@ -5,7 +5,7 @@ class PromiseStream extends stream.Writable {
     super({ objectMode: true, ...opts})
     this.fn = fn
   }
-  write (d, e, c) {
+  _write (d, e, c) {
     this.fn(d)
       .then(_ => c(null))
       .catch(c)
@@ -23,14 +23,14 @@ class KeyedStreamer extends stream.Writable {
     this.streams = {}
   }
 
-  write (message, enc, cb) {
-    const key = this.getkey(message)
+  _write (message, enc, cb) {
+    const key = this.getKey(message)
 
     this.streams[key] = this.streams[key] ||
-      this.makeSubstream().on('error', e => this.emit('error', e))
+      this.makeSubStream().on('error', e => this.emit('error', e))
 
     const s = this.streams[key]
-    s.write(message) ? cb(null) : s.once('drain', cb)
+    s.write(message, null, () => null) ? cb(null) : s.once('drain', () => cb(null))
   }
 }
 
