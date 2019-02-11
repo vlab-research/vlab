@@ -3,6 +3,7 @@ const bodyParser = require('koa-bodyparser')
 const http = require('http')
 const Router = require('koa-router')
 const Kafka = require('node-rdkafka')
+const util = require('util')
 
 function getUser(event) {
   const PAGE_ID = process.env.FB_PAGE_ID
@@ -62,7 +63,7 @@ const handleEvents = async (ctx) => {
 
   for (entry of ctx.request.body.entry) {
     try {
-      console.log('+++ ENTRY: ', entry)
+      console.log('+++ EVENT: ', util.inspect(entry, null, 8))
       const event = entry.messaging[0]
       const data = Buffer.from(JSON.stringify(event))
       producer.produce('chat-events', null, data, getUser(event))
