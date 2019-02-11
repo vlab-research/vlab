@@ -1,56 +1,68 @@
-# Typeform to Facebook Messenger Server
+# Replybot
 
-A project demonstrating how Typeform forms can be used to create Facebook Messenger Bots. Lots of people, small business owners, NGO field workers, researchers etc. would like to do data collection via Facebook Messenger. Unfortunately, it is not easy to create a Facebook Messenger Bot without some programming knowledge. However, anyone can create a Typeform form. Typeform to Facebook Messenger Server is a starting point for how this can be done.
+Make sure you have a folder called keys at the root of this project, with a single file: "key.json" -- which is the google application credentials keys. 
 
-|                Screen One                |                Screen Two                |
-| :--------------------------------------: | :--------------------------------------: |
-| ![](./assets/typeform-screenshot-01.png) | ![](./assets/typeform-screenshot-02.png) |
+Also make sure you have the .env file at the root of the project. This is currently the SAME for both botserver and replybot, so symlink one to the other!
 
-### Dependencies
+## Setup local kubernetes
 
-```
-cd typeform-messenger-server
-brew install node
-brew cask install ngrok
-npm install
-```
+Make sure you install the following on your machine:
 
-### Starting Up
+* minikube 
+* kubectl
+* helm
 
-```
-npm start
-ngrok http 3000
+Now setup minikube and kubectl:
+
+``` shell
+minikube start
+kubectl --use-context minikube
 ```
 
-### Typeform to Facebook Library
+Now, initialize helm in you minikube cluster and install Kafka using helm:
 
-The server makes use of the [Typeform To Facebook Messenger](https://www.npmjs.com/package/typeform-to-facebook-messenger) library.
-
-### Facebook Configurations
-
-Ngrok changes the baseUrl on each startup, so you'll have to update your facebook messenger webhooks callback url for your messenger app whenever you restart Ngrok. This can be done via 'edit subscriptions' [on this page](https://developers.facebook.com/apps/1839348233033683/webhooks/)
-
-[Facebook messenger quickstart](https://developers.facebook.com/docs/messenger-platform/getting-started/quick-start)
-
-If the page messenger is not pinging the server try this [SO thread](https://stackoverflow.com/questions/36803570/facebook-messenger-webhook-setup-but-not-triggered?utm_medium=organic&utm_source=google_rich_qa&utm_campaign=google_rich_qa)
-
-Especially, make sure the app is connected to the page, do this with a curl request `curl -X POST "https://graph.facebook.com/v2.6/me/subscribed_apps?access_token=PAGE_ACCESS_TOKEN"`. Looks like this has to be done everytime the server restarts or the Ngrok url is changed.
-
-Make sure in [facebook developer dashboard](https://developers.facebook.com/apps/1839348233033683/messenger/settings/), under webhooks, messages_echos is deselected, otherwise there will be a reciepient ID error when a messages_echos webhook is sent.
-
-Set up a .env file with the following:
-
-```
-PAGE_ACCESS_TOKEN=
-VERIFY_TOKEN=
-FORM_ID=
-TYPEFORM_TOKEN=
+``` shell
+helm --kube-context minikube init
+helm --kube-context minikube install --name spinaltap incubator/kafka
 ```
 
-Page access token you get from [facebook developer](https://developers.facebook.com/apps/1839348233033683/messenger/settings/) under token generation. Select a page and a random token will be generated. You then need to subscribe with the curl request above.
+Run this in the shell you will be using
 
-Verify token is something you create. Can be anything, 'i love cupcakes' or some uuid, whatever. You set this in the facebook developer dashboard. [Products> webhooks> edit subscription](https://developers.facebook.com/apps/1839348233033683/webhooks/) where you can update the ngrok host and the verify token.
+``` shell
+eval $(minikube docker-env)
+```
 
-### Way Forward
+To reload or start an app (both botserver and replybot), inside the folder run:
 
-The server still isn't very useful to non devs with setting up a Facebook bot. Ideally there would be a client where anyone can create their own server, input their access tokens for Typeform and Facebook and set their Facebook webhook urls and deploy with one click. The app is also not scalable at the moment since it write data to json files created on the fly.
+NOTE: You will receive warnings the first time due to the fact that the script tries to delete the deployment, which will error if the deployment does not exist. That's ok. 
+
+``` shell
+./dev.sh
+```
+
+You should now see the pods running at: 
+
+``` shell
+kubectl get po
+```
+
+And you can get logs for an individual pod via: 
+
+``` shell
+kubectl logs [POD_NAME]
+```
+
+Or, handily, you can setup the following script (as kube-logs.sh, for example) and alias it to something useful on your computer: 
+
+``` shell
+NAME=$1
+NUM=$2
+kubectl logs $(kubectl get pods -l "app=${NAME}" -o jsonpath="{.items[${NUM}].metadata.name}")
+```
+
+Which you can then run:
+
+``` shell
+alias kubelog=kube-logs.sh
+kubelog gbv-replybot 1
+```
