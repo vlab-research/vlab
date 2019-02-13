@@ -8,21 +8,23 @@ Also make sure you have the .env file at the root of the project. This is curren
 
 Make sure you install the following on your machine:
 
-* minikube 
-* kubectl
-* helm
+* [Virtual Box](https://www.virtualbox.org/wiki/Downloads)
+* [kubectl](https://kubernetes.io/docs/tasks/tools/install-kubectl/)
+* [minikube](https://kubernetes.io/docs/tasks/tools/install-minikube/)
+* [helm](https://docs.helm.sh/using_helm/#installing-helm)
 
 Now setup minikube and kubectl:
 
 ``` shell
 minikube start
-kubectl --use-context minikube
+kubectl use-context minikube
 ```
 
 Now, initialize helm in you minikube cluster and install Kafka using helm:
 
 ``` shell
 helm --kube-context minikube init
+helm repo add incubator http://storage.googleapis.com/kubernetes-charts-incubator
 helm --kube-context minikube install --name spinaltap incubator/kafka
 ```
 
