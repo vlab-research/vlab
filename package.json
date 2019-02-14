@@ -4,9 +4,9 @@
   "description": "Using Typeform to create Facebook Bots",
   "main": "index.js",
   "scripts": {
-    "_test": "mocha -w --colors server/**/*.test.js",
-    "start": "node server/index.js",
-    "dev": "nodemon server/index.js",
+    "_test": "mocha -w --colors lib/**/*.test.js",
+    "start": "node lib/index.js",
+    "dev": "nodemon lib/index.js",
     "test": "nyc npm run _test",
     "report": "nyc report"
   },
@@ -21,8 +21,7 @@
     "cacheman": "^2.2.1",
     "cross-fetch": "^2.2.0",
     "node-rdkafka": "^2.5.1",
-    "r2": "^2.0.1",
-    "typeform-to-facebook-messenger": "git+https://github.com/nandanrao/typeform-to-facebook-messenger.git"
+    "r2": "^2.0.1"
   },
   "devDependencies": {
     "chai": "^4.1.2",

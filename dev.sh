@@ -1,3 +1,5 @@
+#!/bin/sh
+
 eval $(minikube docker-env)
 
 # Secrets
@@ -8,5 +10,5 @@ kubectl create secret generic gbv-bot-envs --from-env-file .env
 
 # App
 kubectl delete -f kube
-docker build -t nandanrao/gbv-replybot:0.0.2 .
+microk8s.docker build -t nandanrao/gbv-replybot:0.0.2 .
 kubectl apply -f kube
