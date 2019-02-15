@@ -47,7 +47,6 @@ const producerReady = new Promise((resolve, reject) => {
 })
 
 
-
 const verifyToken = ctx => {
   if (ctx.query['hub.verify_token'] === process.env.VERIFY_TOKEN) {
     ctx.body = ctx.query['hub.challenge']
@@ -63,7 +62,7 @@ const handleEvents = async (ctx) => {
 
   for (entry of ctx.request.body.entry) {
     try {
-      console.log('+++ EVENT: ', util.inspect(entry, null, 8))
+      console.log(util.inspect(entry, null, 8))
       const event = entry.messaging[0]
       const data = Buffer.from(JSON.stringify(event))
       producer.produce('chat-events', null, data, getUser(event))
