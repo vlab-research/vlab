@@ -1,0 +1,266 @@
+{
+  "id": "icsypX",
+  "title": "Mars Mission",
+  "theme": {
+    "href": "https://api.typeform.com/themes/6lPNE6"
+  },
+  "workspace": {
+    "href": "https://api.typeform.com/workspaces/12350484"
+  },
+  "settings": {
+    "is_public": false,
+    "is_trial": true,
+    "language": "en",
+    "progress_bar": "proportion",
+    "show_progress_bar": true,
+    "show_typeform_branding": true,
+    "meta": {
+      "allow_indexing": false
+    }
+  },
+  "welcome_screens": [
+    {
+      "ref": "111e9906-af75-498f-846c-2a1752245696",
+      "title": "Come aboard the Dragon!",
+      "properties": {
+        "show_button": true,
+        "description": "Ready for take-off?",
+        "button_text": "Begin Mission"
+      }
+    }
+  ],
+  "thankyou_screens": [
+    {
+      "ref": "76fce4b1-df4d-4fbd-977e-8b5532c7ebf2",
+      "title": "Thank you for joining us aboard the Dragon!",
+      "properties": {
+        "show_button": true,
+        "share_icons": true,
+        "button_mode": "reload",
+        "button_text": "again"
+      },
+      "attachment": {
+        "type": "image",
+        "href": "https://images.typeform.com/images/Arg988sr7vsk"
+      }
+    },
+    {
+      "ref": "default_tys",
+      "title": "Thanks for completing this typeform\nNow *create your own* — it's free, easy, & beautiful",
+      "properties": {
+        "show_button": true,
+        "share_icons": false,
+        "button_mode": "redirect",
+        "button_text": "Create a *typeform*",
+        "redirect_url": "https://admin.typeform.com/signup?utm_campaign=icsypX&utm_source=typeform.com-12156441-Basic&utm_medium=typeform&utm_content=typeform-thankyoubutton&utm_term=EN"
+      },
+      "attachment": {
+        "type": "image",
+        "href": "https://images.typeform.com/images/2dpnUBBkz2VN"
+      }
+    }
+  ],
+  "fields": [
+    {
+      "id": "FGJ9jh3V44dP",
+      "title": "What is your name?",
+      "ref": "3cfbaea4-63a2-48d2-80a9-c118ba8db29e",
+      "properties": {
+        "description": "Introduce yourself to the rest of the crew."
+      },
+      "validations": {
+        "required": false
+      },
+      "type": "short_text"
+    },
+    {
+      "id": "YKFT4dpCJHFI",
+      "title": "What is your role on this mission?",
+      "ref": "35264c8f-cd38-4462-a72f-c5d631d27ea1",
+      "properties": {
+        "randomize": false,
+        "allow_multiple_selection": false,
+        "allow_other_choice": false,
+        "vertical_alignment": true,
+        "choices": [
+          {
+            "id": "bixmIioFKzV4",
+            "ref": "c90e50f4-c85b-4b14-b411-9e28b516a19e",
+            "label": "Commander"
+          },
+          {
+            "id": "ZSGfclxtfwUl",
+            "ref": "80388022-5266-4e50-93bf-5ceecd90739b",
+            "label": "Astro-biologist"
+          },
+          {
+            "id": "v9ib9QwXJsO8",
+            "ref": "dc08f579-33ec-4e8c-8141-1d28e02ee85e",
+            "label": "Engineer"
+          }
+        ]
+      },
+      "validations": {
+        "required": false
+      },
+      "type": "multiple_choice"
+    },
+    {
+      "id": "LKD98rD0U27S",
+      "title": "You have a really important part to play in this mission!",
+      "ref": "e488e865-e7d7-4f15-bf13-0b512d45f7c7",
+      "properties": {
+        "hide_marks": false,
+        "button_text": "Continue"
+      },
+      "type": "statement"
+    },
+    {
+      "id": "WMFQyMw8uW3i",
+      "title": "Why did you volunteer for the mission?",
+      "ref": "1b95dc5a-049e-4434-8437-3b84a34371c5",
+      "validations": {
+        "required": false
+      },
+      "type": "long_text"
+    },
+    {
+      "id": "R5UnajLL5Okk",
+      "title": "Do you care about returning to Earth?",
+      "ref": "bf030ba7-0b5d-420e-8918-ee961b938e13",
+      "validations": {
+        "required": false
+      },
+      "type": "yes_no"
+    },
+    {
+      "id": "z4ojtuFhbof8",
+      "title": "How easy are you to get along with?",
+      "ref": "ade99de9-00e2-43e7-a656-e9f1a839cfd9",
+      "properties": {
+        "steps": 11,
+        "start_at_one": false
+      },
+      "validations": {
+        "required": false
+      },
+      "type": "opinion_scale"
+    },
+    {
+      "id": "b0O5dYOU8Wus",
+      "title": "How was the training programme?",
+      "ref": "6b38ef69-6018-481f-80e4-5e8aad7140de",
+      "properties": {
+        "description": "Do you feel you've been adequately prepared to face the challenges of space?",
+        "steps": 3,
+        "shape": "star"
+      },
+      "validations": {
+        "required": false
+      },
+      "type": "rating"
+    },
+    {
+      "id": "NPOAK0ucmhhF",
+      "title": "Pick an avatar",
+      "ref": "30749c65-4b81-4f7c-a919-3f04bb1ccfbd",
+      "properties": {
+        "randomize": false,
+        "allow_multiple_selection": false,
+        "allow_other_choice": false,
+        "supersized": false,
+        "show_labels": true,
+        "choices": [
+          {
+            "id": "FcYYSNNEwAcE",
+            "ref": "832eea67-ee20-406c-9231-dad8833fc2b7",
+            "label": "Neil",
+            "attachment": {
+              "type": "image",
+              "href": "https://images.typeform.com/images/Mu9P8egzpvPM"
+            }
+          },
+          {
+            "id": "nIaZuG7elv52",
+            "ref": "574fc8d2-9f49-4808-8048-6b1c438bb7cb",
+            "label": "Vlad",
+            "attachment": {
+              "type": "image",
+              "href": "https://images.typeform.com/images/5jEwRwJgBkAc"
+            }
+          }
+        ]
+      },
+      "validations": {
+        "required": false
+      },
+      "type": "picture_choice"
+    },
+    {
+      "id": "NoBRRDuPngvB",
+      "title": "When do you want to take-off?",
+      "ref": "2f52e3a5-d9b7-4ff9-9d0d-3ab95f226a54",
+      "properties": {
+        "structure": "MMDDYYYY",
+        "separator": "/"
+      },
+      "validations": {
+        "required": false
+      },
+      "type": "date"
+    },
+    {
+      "id": "NB9aYn0CYYXS",
+      "title": "How many star jumps can you do?",
+      "ref": "70cbcc93-ed54-40b1-a823-f22dd254c9dd",
+      "validations": {
+        "required": false
+      },
+      "type": "number"
+    },
+    {
+      "id": "QLQycZJS80nt",
+      "title": "Which country are you from?",
+      "ref": "c61dcc32-8026-4f5a-8731-5e6f0a41e10d",
+      "properties": {
+        "alphabetical_order": false,
+        "choices": [
+          {
+            "label": "USA"
+          },
+          {
+            "label": "Russia"
+          },
+          {
+            "label": "China"
+          }
+        ]
+      },
+      "validations": {
+        "required": false
+      },
+      "type": "dropdown"
+    },
+    {
+      "id": "WPKseOC6o43G",
+      "title": "In case of sudden death, who should we contact?",
+      "ref": "b71b203e-41da-45f3-b7fe-2104b4cd0cd9",
+      "validations": {
+        "required": false
+      },
+      "type": "email"
+    },
+    {
+      "id": "R0jzUhVjRNut",
+      "title": "Do you accept our terms and conditions?",
+      "ref": "33270b9d-0677-4297-8e2a-804eaeef55a5",
+      "validations": {
+        "required": false
+      },
+      "type": "legal"
+    }
+  ],
+  "_links": {
+    "display": "https://isabellachen.typeform.com/to/icsypX"
+  }
+}
