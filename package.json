@@ -1,0 +1,23 @@
+{
+  "name": "moviehouse",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "dependencies": {
+    "@vimeo/player": "^2.7.0"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "start": "open src/index.html"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/vlab-research/moviehouse.git"
+  },
+  "author": "V-Lab",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/vlab-research/moviehouse/issues"
+  },
+  "homepage": "https://github.com/vlab-research/moviehouse#readme"
+}
