@@ -1,7 +1,15 @@
 'use strict';
 
+const SERVER_URL = 'http://localhost:3001/events';
+
 function handleEvent (data, type) {
-  console.log(type, data);
+  $.ajax({
+    url: SERVER_URL,
+    type : 'POST',
+    data: JSON.stringify({ data, type }),
+    dataType: 'json',
+    contentType: 'application/json' 
+  });
 }
 
 $(() => {
