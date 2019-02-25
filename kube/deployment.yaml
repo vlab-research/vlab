@@ -16,10 +16,10 @@ spec:
     spec:
       containers:
       - name: gbv-replybot
-        image: nandanrao/gbv-replybot:0.0.3
+        image: nandanrao/gbv-replybot:0.0.4
         resources:
           requests:
-            cpu: "100m"
+            cpu: "50m"
             memory: "100Mi"
         ports:
         - containerPort: 80
