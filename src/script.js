@@ -15,13 +15,17 @@ document.addEventListener('DOMContentLoaded', () => {
   };
   const player = new Vimeo.Player('vimeoVideo', options);
 
-  player.on('error', data => handleEvent(data, 'error'));
-
-  player.on('loaded', data => handleEvent(data, 'loaded'));
-
-  player.on('play', data => handleEvent(data, 'play'));
-
-  player.on('pause', data => handleEvent(data, 'pause'));
-
   player.on('ended', data => handleEvent(data, 'ended'));
+
+  player.on('error', data => handleEvent(data, 'error'));
+  
+  player.on('pause', data => handleEvent(data, 'pause'));
+  
+  player.on('play', data => handleEvent(data, 'play'));
+  
+  player.on('playbackratechange', data => handleEvent(data, 'playbackratechange'));
+  
+  player.on('seeked', data => handleEvent(data, 'seeked'));
+
+  player.on('volumechange', data => handleEvent(data, 'volumechange'));
 });
