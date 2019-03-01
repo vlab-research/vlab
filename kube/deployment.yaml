@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
       - name: gbv-replybot
-        image: nandanrao/gbv-replybot:0.0.8
+        image: nandanrao/gbv-replybot:0.0.9
         resources:
           requests:
             cpu: "50m"
