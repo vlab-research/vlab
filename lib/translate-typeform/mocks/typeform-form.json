@@ -139,7 +139,7 @@
       "ref": "ade99de9-00e2-43e7-a656-e9f1a839cfd9",
       "properties": {
         "steps": 11,
-        "start_at_one": false
+        "start_at_one": true
       },
       "validations": {
         "required": false
