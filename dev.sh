@@ -6,7 +6,7 @@ kubectl create secret generic gbv-bot-envs --from-env-file .env
 
 # App
 kubectl delete -f kube
-docker build -t nandanrao/gbv-botserver:0.0.2 .
+docker build -t vlabresearch/gbv-botserver:0.0.3 .
 kubectl apply -f kube
 
 # Port forwarding

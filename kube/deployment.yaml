@@ -16,14 +16,13 @@ spec:
     spec:
       containers:
       - name: gbv-botserver
-        image: nandanrao/gbv-botserver:0.0.2
+        image: vlabresearch/gbv-botserver:0.0.3
         resources:
           requests:
-            cpu: "100m"
-            memory: "500Mi"
+            cpu: "50m"
+            memory: "100Mi"
         ports:
         - containerPort: 80
         envFrom:
         - secretRef:
             name: gbv-bot-envs
-

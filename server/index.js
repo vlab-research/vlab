@@ -19,7 +19,6 @@ function getUser(event) {
   }
 }
 
-
 const producer = new Kafka.Producer({
   'metadata.broker.list': 'spinaltap-kafka:9092',
   'retry.backoff.ms': 200,
@@ -40,10 +39,20 @@ producer.on('event.error', err => {
 })
 
 const producerReady = new Promise((resolve, reject) => {
+
+  const timeout = setTimeout(() => {
+    reject(new Error('Unable to connect to kafka producer'))
+  }, process.env.KAFKA_CONNECTION_TIMEOUT || 30000)
+
+
   producer.on('ready', () => {
     console.log('producer ready')
+    clearTimeout(timeout)
     resolve()
   })
+
+}).catch(err => {
+  setTimeout(() => { throw err })
 })
 
 
@@ -63,10 +72,10 @@ const handleEvents = async (ctx) => {
   for (entry of ctx.request.body.entry) {
     try {
       console.log(util.inspect(entry, null, 8))
-      const event = entry.messaging[0]
-      const data = Buffer.from(JSON.stringify(event))
-      producer.produce('chat-events', null, data, getUser(event))
 
+      const data = Buffer.from(JSON.stringify(entry))
+      const user = getUser(entry.messaging[0])
+      producer.produce('chat-events', null, data, user)
     } catch (error) {
       console.error('[ERR] handleEvents: ', error)
     }
