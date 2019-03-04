@@ -18,6 +18,8 @@
   "license": "ISC",
   "dependencies": {
     "@google-cloud/storage": "^2.4.2",
+    "@vlab-research/chatbase-gcs": "0.0.5",
+    "@vlab-research/steez": "0.0.1",
     "cacheman": "^2.2.1",
     "cross-fetch": "^2.2.0",
     "js-yaml": "^3.12.1",
@@ -31,7 +33,7 @@
     "dotenv": "^6.2.0",
     "mocha": "^5.2.0",
     "nodemon": "^1.17.5",
-    "nyc": "^13.1.0",
+    "nyc": "^13.3.0",
     "sinon": "^7.2.3"
   }
 }

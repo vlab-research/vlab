@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
       - name: gbv-replybot
-        image: nandanrao/gbv-replybot:0.0.13
+        image: nandanrao/gbv-replybot:0.0.14
         resources:
           requests:
             cpu: "50m"
@@ -31,6 +31,10 @@ spec:
         - secretRef:
             name: gbv-bot-envs
         env:
+        - name: CHATBASE_BACKEND
+          value: "@vlab-research/chatbase-gcs"
+        - name: CHATBASE_BUCKET
+          value: "gbv-chatbase-test"
         - name: GOOGLE_APPLICATION_CREDENTIALS
           value: "keys/key.json"
       volumes:
