@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
       - name: gbv-replybot
-        image: vlabresearch/gbv-replybot:0.0.14
+        image: vlabresearch/replybot:0.0.15
         resources:
           requests:
             cpu: "50m"
@@ -34,7 +34,7 @@ spec:
         - name: CHATBASE_BACKEND
           value: "@vlab-research/chatbase-gcs"
         - name: CHATBASE_BUCKET
-          value: "gbv-chatbase-test"
+          value: "gbv-chatbase"
         - name: GOOGLE_APPLICATION_CREDENTIALS
           value: "keys/key.json"
       volumes:
