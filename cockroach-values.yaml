@@ -1,0 +1,17 @@
+Secure:
+  Enabled: true
+  RequestCertsImage: "cockroachdb/cockroach-k8s-request-cert"
+  RequestCertsImageTag: "0.4"
+  ServiceAccount:
+    # Specifies whether a service account should be created.
+    Create: true
+    # The name of the service account to use.
+    # If not set and create is true, a name is generated.
+    Name:
+
+Storage: "20Gi"
+StorageClass: europe-ssd-bcd
+
+# chatroach-public.default.svc.cluster.local
+# port: 26257
+# admin at kubectl port-forward chatroach-cockroachdb-0 8080
