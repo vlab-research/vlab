@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
       - name: gbv-replybot
-        image: vlabresearch/replybot:0.0.16
+        image: vlabresearch/replybot:0.0.17
         resources:
           requests:
             cpu: "50m"
@@ -43,6 +43,8 @@ spec:
           value: "chatroach-cockroachdb-public.default"
         - name: CHATBASE_PORT
           value: "26257"
+        - name: REPLYBOT_EVENT_TOPIC
+          value: "chat-events"
       volumes:
         - name: keys
           secret:
