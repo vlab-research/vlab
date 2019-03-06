@@ -19,6 +19,7 @@
   "dependencies": {
     "@google-cloud/storage": "^2.4.2",
     "@vlab-research/chatbase-gcs": "0.0.5",
+    "@vlab-research/chatbase-postgres": "0.0.3",
     "@vlab-research/steez": "0.0.1",
     "cacheman": "^2.2.1",
     "cross-fetch": "^2.2.0",
