@@ -5,7 +5,7 @@ configurationOverrides:
 
 topics:
   - name: chat-events
-    partitions: 2
+    partitions: 6
     replicationFactor: 2
 
 affinity:
