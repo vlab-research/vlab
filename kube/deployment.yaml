@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
       - name: gbv-botserver
-        image: vlabresearch/gbv-botserver:0.0.3
+        image: vlabresearch/botserver:0.0.3
         resources:
           requests:
             cpu: "50m"
