@@ -4,11 +4,14 @@
   "description": "",
   "main": "index.js",
   "dependencies": {
-    "@vimeo/player": "^2.7.0"
+    "@vimeo/player": "^2.7.0",
+    "gulp-replace": "^1.0.0"
   },
-  "devDependencies": {},
+  "devDependencies": {
+    "gulp": "^4.0.0"
+  },
   "scripts": {
-    "start": "open src/index.html"
+    "start": "gulp replace && open dist/index.html"
   },
   "repository": {
     "type": "git",

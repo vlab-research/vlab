@@ -1,6 +1,6 @@
 'use strict';
 
-const SERVER_URL = 'http://localhost:3001/events';
+const SERVER_URL = '{{SERVER_URL}}';
 
 function handleEvent(data, eventType) {
   const xhr = new XMLHttpRequest();
@@ -8,9 +8,10 @@ function handleEvent(data, eventType) {
   xhr.setRequestHeader('Content-Type', 'application/json');
   xhr.send(JSON.stringify({ data, eventType }));
 }
+
 document.addEventListener('DOMContentLoaded', () => {
   const options = {
-    id: 280815263,
+    id: '280815268',
     width: 800
   };
   const player = new Vimeo.Player('vimeoVideo', options);
