@@ -11,22 +11,28 @@ function handleEvent(data, eventType) {
 
 document.addEventListener('DOMContentLoaded', () => {
   const options = {
-    id: '280815268',
+    id: '89559469',
     width: 800
   };
   const player = new Vimeo.Player('vimeoVideo', options);
 
-  player.on('ended', data => handleEvent(data, 'ended'));
+  player.ready().then(() => {
+    player.on('ended', data => handleEvent(data, 'ended'));
+  
+    player.on('error', data => handleEvent(data, 'error'));
+    
+    player.on('pause', data => handleEvent(data, 'pause'));
+    
+    player.on('play', data => handleEvent(data, 'play'));
+    
+    player.on('playbackratechange', data => handleEvent(data, 'playbackratechange'));
+    
+    player.on('seeked', data => handleEvent(data, 'seeked'));
+  
+    player.on('volumechange', data => handleEvent(data, 'volumechange'));
+  }).catch((err) => {
+    console.error(err);
+    document.querySelector('body').innerHTML = `<p>Video not found</p>`;
+  });
 
-  player.on('error', data => handleEvent(data, 'error'));
-  
-  player.on('pause', data => handleEvent(data, 'pause'));
-  
-  player.on('play', data => handleEvent(data, 'play'));
-  
-  player.on('playbackratechange', data => handleEvent(data, 'playbackratechange'));
-  
-  player.on('seeked', data => handleEvent(data, 'seeked'));
-
-  player.on('volumechange', data => handleEvent(data, 'volumechange'));
 });
