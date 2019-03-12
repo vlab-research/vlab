@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
       - name: gbv-scratchbot
-        image: vlabresearch/replybot:latest
+        image: vlabresearch/replybot:0.0.28
         args:
         - node
         - lib/scratch.js
