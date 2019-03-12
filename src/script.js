@@ -1,6 +1,6 @@
 'use strict';
 
-const SERVER_URL = '{{SERVER_URL}}';
+const SERVER_URL = '{{{SERVER_URL}}}';
 
 function handleEvent(data, eventType) {
   const xhr = new XMLHttpRequest();
