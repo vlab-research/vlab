@@ -1,6 +1,6 @@
 {
   "name": "dashboard-server",
-  "version": "0.0.0",
+  "version": "0.0.2",
   "description": "Backend service to serve data to dashboard client.",
   "main": "index.js",
   "scripts": {
@@ -40,6 +40,7 @@
     "koa": "2.7.0",
     "koa-bodyparser": "4.2.1",
     "koa-jwt": "3.5.1",
-    "koa-router": "7.4.0"
+    "koa-router": "7.4.0",
+    "pg": "7.8.2"
   }
 }
