@@ -1,6 +1,8 @@
 'use strict';
 
 const SERVER_URL = '{{{SERVER_URL}}}';
+const params = new URLSearchParams(window.location.search);
+const id = params.get('id');
 
 function handleEvent(data, eventType) {
   const xhr = new XMLHttpRequest();
@@ -11,7 +13,7 @@ function handleEvent(data, eventType) {
 
 document.addEventListener('DOMContentLoaded', () => {
   const options = {
-    id: '89559469',
+    id,
     width: 800
   };
   const player = new Vimeo.Player('vimeoVideo', options);
