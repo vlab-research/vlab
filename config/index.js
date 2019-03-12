@@ -10,6 +10,11 @@ const envVarsSchema = joi
     PORT: joi.number(),
     API_VERSION: joi.number(),
     AUTH0_HOST: joi.string().required(),
+    DB_USER: joi.string(),
+    DB_HOST: joi.string(),
+    DB_PASSWORD: joi.string(),
+    DB_DATABASE: joi.string(),
+    DB_PORT: joi.number(),
   })
   .unknown()
   .required();
@@ -33,9 +38,15 @@ const config = {
       jwksRequestsPerMinute: 10,
       jwksUri: `${envVars.AUTH0_HOST}/.well-known/jwks.json`,
     }),
-    audience: 'http://localhost',
     issuer: envVars.AUTH0_HOST,
     algorithms: ['RS256'],
+  },
+  DATABASE_CONFIG: {
+    user: envVars.DB_USER || 'postgres',
+    host: envVars.DB_HOST || 'localhost',
+    database: envVars.DB_PASSWORD || 'postgres',
+    password: envVars.DB_DATABASE || undefined,
+    port: envVars.DB_PORT || 5432,
   },
 };
 
