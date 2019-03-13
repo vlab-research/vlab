@@ -1,6 +1,6 @@
 const { Pool } = require('pg');
-const chai = require('chai'); 
-const mocha = require('mocha'); // eslint-disable-line no-unused-vars 
+const chai = require('chai');
+const mocha = require('mocha'); // eslint-disable-line no-unused-vars
 const should = chai.should(); // eslint-disable-line no-unused-vars
 
 const model = require('./users.queries');
@@ -48,9 +48,9 @@ describe('User queries', () => {
     it('should get all list of messages', async () => {
       const mockMessage = '{ "foo": "bar" }';
       await vlabPool.query(
-      'INSERT INTO messages(id, userid, content, timestamp) values($1, $2, $3, $4)',
-      [100000, '123', mockMessage, new Date()]
-    )
+        'INSERT INTO messages(id, userid, content, timestamp) values($1, $2, $3, $4)',
+        [100000, '123', mockMessage, new Date()],
+      );
       const messages = await User.all();
       messages[0].content.should.equal('{ "foo": "bar" }');
     });
@@ -58,9 +58,9 @@ describe('User queries', () => {
     it('should return the user as a string', async () => {
       const mockMessage = '{ "foo": "bar" }';
       await vlabPool.query(
-      'INSERT INTO messages(id, userid, content, timestamp) values($1, $2, $3, $4)',
-      [100000, '123', mockMessage, new Date()]
-    )
+        'INSERT INTO messages(id, userid, content, timestamp) values($1, $2, $3, $4)',
+        [100000, '123', mockMessage, new Date()],
+      );
       const messages = await User.all();
       messages[0].userid.should.equal('123');
     });
@@ -69,9 +69,9 @@ describe('User queries', () => {
       const mockMessages = ['{ "foo": "bar" }', '{ "baz": "qux" }'];
       for (let msg of mockMessages) {
         await vlabPool.query(
-      'INSERT INTO messages(id, userid, content, timestamp) values($1, $2, $3, $4)',
-      [Math.floor(Math.random() * 1000000), '123', msg, new Date()]
-    )
+          'INSERT INTO messages(id, userid, content, timestamp) values($1, $2, $3, $4)',
+          [Math.floor(Math.random() * 1000000), '123', msg, new Date()],
+        );
       }
       const messages = await User.all();
       messages[0].content.should.equal('{ "foo": "bar" }');
