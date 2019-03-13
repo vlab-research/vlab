@@ -10,5 +10,5 @@ kubectl create secret generic gbv-bot-envs --from-env-file .env
 
 # App
 kubectl delete -f kube
-docker build -t vlabresearch/replybot:0.0.27 .
+docker build -t vlabresearch/replybot:0.0.28 .
 kubectl apply -f kube
