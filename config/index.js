@@ -24,9 +24,12 @@ if (error) {
   throw new Error(`Config validation error: ${error.message}`);
 }
 
+const isTest = () => envVars.NODE_ENV === 'test';
+
 const config = {
   ENV: envVars.NODE_ENV,
   IS_DEVELOPMENT: envVars.NODE_ENV === 'development',
+  IS_TEST: isTest(),
   SERVER: {
     PORT: envVars.PORT || 3000,
     API_VERSION: envVars.API_VERSION || '1',
@@ -42,11 +45,11 @@ const config = {
     algorithms: ['RS256'],
   },
   DATABASE_CONFIG: {
-    user: envVars.DB_USER || 'postgres',
-    host: envVars.DB_HOST || 'localhost',
-    database: envVars.DB_PASSWORD || 'postgres',
-    password: envVars.DB_DATABASE || undefined,
-    port: envVars.DB_PORT || 5432,
+    user: isTest() ? 'postgres' : envVars.DB_USER || 'postgres',
+    host: isTest() ? 'localhost' : envVars.DB_HOST || 'localhost',
+    database: isTest() ? 'vlab_dashboard' : envVars.DB_DATABASE || 'postgres',
+    password: isTest() ? undefined : envVars.DB_PASSWORD || undefined,
+    port: isTest() ? 5432 : envVars.DB_PORT || 5432,
   },
 };
 
