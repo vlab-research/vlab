@@ -1,0 +1,28 @@
+{
+  "name": "facebot",
+  "version": "1.0.0",
+  "description": "fake facebook bot",
+  "main": "index.js",
+  "scripts": {
+    "test": "mocha --colors --watch test/test.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/vlab-research/facebot.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/vlab-research/facebot/issues"
+  },
+  "homepage": "https://github.com/vlab-research/facebot#readme",
+  "devDependencies": {
+    "chai": "^4.2.0",
+    "dotenv": "^7.0.0",
+    "mocha": "^6.0.2"
+  },
+  "dependencies": {
+    "express": "^4.16.4",
+    "r2": "^2.0.1"
+  }
+}
