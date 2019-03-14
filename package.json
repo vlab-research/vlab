@@ -1,0 +1,28 @@
+{
+  "name": "moviehouse",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "dependencies": {
+    "@vimeo/player": "^2.7.0",
+    "dotenv": "^6.2.0",
+    "gulp-replace": "^1.0.0"
+  },
+  "devDependencies": {
+    "gulp": "^4.0.0",
+    "gulp-mustache": "^4.1.1"
+  },
+  "scripts": {
+    "start": "gulp replace && open dist/index.html"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/vlab-research/moviehouse.git"
+  },
+  "author": "V-Lab",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/vlab-research/moviehouse/issues"
+  },
+  "homepage": "https://github.com/vlab-research/moviehouse#readme"
+}
