@@ -1,0 +1,19 @@
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  annotations:
+    certmanager.k8s.io/cluster-issuer: letsencrypt-prod
+  name: gbv-dashboard
+spec:
+  tls:
+    - hosts:
+        - gbvbot.nandan.cloud
+      secretName: gbv-dashboard-cert
+  rules:
+    - host: gbvbot.nandan.cloud
+      http:
+        paths:
+          - path: /
+            backend:
+              serviceName: gbv-dashboard
+              servicePort: 80
