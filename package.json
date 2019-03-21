@@ -1,0 +1,34 @@
+{
+  "name": "dashboard-client",
+  "version": "0.0.1",
+  "dependencies": {
+    "react": "^16.8.4",
+    "react-dom": "^16.8.4",
+    "react-scripts": "2.1.8"
+  },
+  "scripts": {
+    "start": "react-scripts start",
+    "build": "react-scripts build",
+    "test": "react-scripts test",
+    "eject": "react-scripts eject"
+  },
+  "author": "Virtual Lab",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/vlab-research/dashboard-client.git"
+  },
+  "homepage": "https://github.com/vlab-research/dashboard-client#readme",
+  "bugs": {
+    "url": "https://github.com/vlab-research/dashboard-client/issues"
+  },
+  "eslintConfig": {
+    "extends": "react-app"
+  },
+  "browserslist": [
+    ">0.2%",
+    "not dead",
+    "not ie <= 11",
+    "not op_mini all"
+  ]
+}
