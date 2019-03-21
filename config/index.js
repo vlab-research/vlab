@@ -45,7 +45,7 @@ const config = {
     algorithms: ['RS256'],
   },
   DATABASE_CONFIG: {
-    user: isTest() ? 'postgres' : envVars.DB_USER || 'postgres',
+    user: isTest() ? 'chatroach' : envVars.DB_USER || 'postgres',
     host: isTest() ? 'localhost' : envVars.DB_HOST || 'localhost',
     database: isTest() ? 'vlab_dashboard' : envVars.DB_DATABASE || 'postgres',
     password: isTest() ? undefined : envVars.DB_PASSWORD || undefined,
