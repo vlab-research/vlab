@@ -5,7 +5,7 @@ metadata:
   labels:
     app: gbv-facebot
 spec:
-  replicas: 2
+  replicas: 1
   selector:
     matchLabels:
       app: gbv-facebot
@@ -22,7 +22,7 @@ spec:
             cpu: "50m"
             memory: "100Mi"
         ports:
-        - containerPort: 80
+        - containerPort: 88
         envFrom:
         - secretRef:
             name: gbv-bot-envs

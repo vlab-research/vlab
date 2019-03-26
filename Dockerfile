@@ -7,4 +7,6 @@ RUN npm i
 
 COPY . /usr/src/app
 
+EXPOSE 88
+
 CMD [ "npm", "test"]
