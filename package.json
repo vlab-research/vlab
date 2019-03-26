@@ -4,7 +4,7 @@
   "description": "fake facebook bot",
   "main": "index.js",
   "scripts": {
-    "test": "mocha --colors --watch test/test.js"
+    "test": "mocha --watch --colors test/test.js"
   },
   "repository": {
     "type": "git",
