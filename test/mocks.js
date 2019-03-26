@@ -1,4 +1,4 @@
-// form.LDfNCy
+// https://m.me/testvirtuallab?ref=form.LDfNCy
 
 const user = { 
     id: '2036910886400628',
@@ -17,7 +17,7 @@ const referral = {
       ref: 'form.LDfNCy', 
       source: 'SHORTLINK', 
       type: 'OPEN_THREAD' } } ] };
-
+      
       
 const getStarted = {
   id: '935593143497601',

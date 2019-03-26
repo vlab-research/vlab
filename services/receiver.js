@@ -6,7 +6,7 @@ app.get('/:id', (_, res) => res.send(mocks.user));
 
 app.post('/me/messages', express.json(), (req, res) => {
   app.emit('message', req.body);
-  res.send('response');
+  res.send({res: 'response'});
 });
 
 module.exports = app;
