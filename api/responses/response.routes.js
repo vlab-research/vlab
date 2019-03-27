@@ -1,7 +1,5 @@
-const Router = require('koa-router');
+const router = require('express').Router();
 const controller = require('./response.controller');
-
-const router = new Router();
 
 router.get('/', controller.getAll);
 

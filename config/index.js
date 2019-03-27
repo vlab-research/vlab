@@ -35,7 +35,7 @@ const config = {
     API_VERSION: envVars.API_VERSION || '1',
   },
   JWT: {
-    secret: jwks.koaJwtSecret({
+    secret: jwks.expressJwtSecret({
       cache: true,
       rateLimit: true,
       jwksRequestsPerMinute: 10,
