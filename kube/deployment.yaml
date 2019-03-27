@@ -26,3 +26,6 @@ spec:
         envFrom:
         - secretRef:
             name: gbv-bot-envs
+        env:
+        - name: BOTSERVER_URL
+          value: "http://gbv-botserver.default.svc.cluster.local"
