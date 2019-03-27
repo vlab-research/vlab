@@ -19,7 +19,7 @@ export default class Auth {
       clientID: AUTH_CONFIG.clientId,
       redirectUri: AUTH_CONFIG.callbackUrl,
       responseType: 'token id_token',
-      scope: 'openid',
+      scope: 'openid email',
     });
   }
 
@@ -29,6 +29,7 @@ export default class Auth {
 
   handleAuthentication = () => {
     this.auth0.parseHash((err, authResult) => {
+      console.log('auth',authResult);
       if (authResult && authResult.accessToken && authResult.idToken) {
         this.setSession(authResult);
       } else if (err) {
