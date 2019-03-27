@@ -2,12 +2,12 @@
 
 const { Response } = require('../../queries');
 
-exports.getAll = async ctx => {
+exports.getAll = async (req, res) => {
   try {
-    ctx.body = await Response.all();
-    ctx.status = 200;
+    const responses = await Response.all();
+    res.status(200).send(responses);
   } catch (err) {
     console.error(err);
-    ctx.body = 500;
+    res.status(500).end();
   }
 };
