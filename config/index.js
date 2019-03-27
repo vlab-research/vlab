@@ -41,7 +41,6 @@ const config = {
       jwksRequestsPerMinute: 10,
       jwksUri: `${envVars.AUTH0_HOST}/.well-known/jwks.json`,
     }),
-    issuer: envVars.AUTH0_HOST,
     algorithms: ['RS256'],
   },
   DATABASE_CONFIG: {

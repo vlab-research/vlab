@@ -4,6 +4,7 @@ const bodyparser = express.json();
 
 const router = require('./api');
 const auth = require('./middleware/auth');
+const { API_VERSION } = require('./config').SERVER;
 
 const app = express();
 
@@ -11,6 +12,6 @@ app
   .use(cors)
   .use(auth)
   .use(bodyparser)
-  .use(router);
+  .use(`/api/v${API_VERSION}`, router);
 
 module.exports = app;
