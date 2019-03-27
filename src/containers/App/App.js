@@ -19,7 +19,7 @@ const App = ({ auth }) => {
 };
 
 App.propTypes = {
-  auth: PropTypes.objectOf(PropTypes.object).isRequired,
+  auth: PropTypes.objectOf(PropTypes.any).isRequired,
 };
 
 export default App;
