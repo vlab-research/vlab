@@ -4,7 +4,6 @@ const fs = require('fs');
 const path = require('path');
 const { Pool } = require('pg');
 
-const basename = path.basename(__filename);
 const { DATABASE_CONFIG } = require('../config');
 
 const db = {};
@@ -22,21 +21,10 @@ const isDirectory = path => fs.lstatSync(path).isDirectory();
 fs.readdirSync(__dirname)
   .map(name => path.join(__dirname, name))
   .filter(isDirectory)
-  .forEach(dir =>
-    fs
-      .readdirSync(dir)
-      .filter(
-        file =>
-          file.indexOf('.') !== 0 &&
-          file !== basename &&
-          file.slice(-3) === '.js' &&
-          !file.includes('test'),
-      )
-      .forEach(file => {
-        const model = require(path.join(dir, file));
-        db[model.name] = model.queries(pool);
-      }),
-  );
+  .forEach(dir => {
+    const model = require(dir);
+    db[model.name] = model.queries(pool);
+  });
 
 db.pool = pool;
 
