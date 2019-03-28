@@ -6,7 +6,7 @@ const sendMessage = async function (message) {
   const json = {
     entry: [message]
   }
-  console.log('BOTSERVER_URL', BOTSERVER_URL);
+
   const url = `${BOTSERVER_URL}/webhooks`;
   const res = await r2.post(url, { json }).response;
 
