@@ -1,0 +1,28 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gbv-dashboard
+  labels:
+    app: gbv-dashboard
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: gbv-dashboard
+  template:
+    metadata:
+      labels:
+        app: gbv-dashboard
+    spec:
+      containers:
+        - name: gbv-dashboard
+          image: vlabresearch/dashboard:0.0.1
+          resources:
+            requests:
+              cpu: '50m'
+              memory: '100Mi'
+          ports:
+            - containerPort: 80
+          envFrom:
+            - secretRef:
+                name: gbv-bot-envs

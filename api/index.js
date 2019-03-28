@@ -1,12 +1,6 @@
-const Router = require('koa-router');
-const user = require('./users/user.routes');
+const router = require('express').Router();
+const responses = require('./responses/response.routes');
 
-const { API_VERSION } = require('../config').SERVER;
-
-const router = new Router({
-  prefix: `/api/v${API_VERSION}`,
-});
-
-router.use('/users', user.routes());
+router.use('/responses', responses);
 
 module.exports = router;

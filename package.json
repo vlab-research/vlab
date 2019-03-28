@@ -1,6 +1,6 @@
 {
   "name": "dashboard-server",
-  "version": "0.0.0",
+  "version": "0.0.1",
   "description": "Backend service to serve data to dashboard client.",
   "main": "index.js",
   "scripts": {
@@ -8,7 +8,8 @@
     "format": "prettier --write \"**/*.+(js|css|sass|yml|yaml|scss|json)\"",
     "lint": "eslint .",
     "precommit": "npm run format && npm run lint",
-    "start": "node index.js"
+    "start": "node index.js",
+    "test": "NODE_ENV=test mocha --colors --timeout 5000 './{,!(node_modules)/**}/*.test.js'"
   },
   "repository": {
     "type": "git",
@@ -21,6 +22,7 @@
   },
   "homepage": "https://github.com/vlab-research/dashboard-server#readme",
   "devDependencies": {
+    "chai": "4.2.0",
     "eslint": "5.15.1",
     "eslint-config-prettier": "4.1.0",
     "eslint-config-standard": "12.0.0",
@@ -30,16 +32,16 @@
     "eslint-plugin-promise": "4.0.1",
     "eslint-plugin-standard": "4.0.0",
     "husky": "1.3.1",
+    "mocha": "6.0.2",
     "prettier": "1.16.4"
   },
   "dependencies": {
-    "@koa/cors": "2.2.3",
+    "cors": "2.8.5",
     "dotenv": "6.2.0",
+    "express": "4.16.4",
+    "express-jwt": "5.3.1",
     "joi": "14.3.1",
     "jwks-rsa": "1.4.0",
-    "koa": "2.7.0",
-    "koa-bodyparser": "4.2.1",
-    "koa-jwt": "3.5.1",
-    "koa-router": "7.4.0"
+    "pg": "7.8.2"
   }
 }

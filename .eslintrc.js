@@ -3,13 +3,10 @@ module.exports = {
     browser: true,
     commonjs: true,
     es6: true,
+    mocha: true,
   },
   extends: ['standard', 'plugin:prettier/recommended'],
   plugins: ['prettier'],
-  globals: {
-    Atomics: 'readonly',
-    SharedArrayBuffer: 'readonly',
-  },
   parserOptions: {
     ecmaVersion: 2018,
   },
