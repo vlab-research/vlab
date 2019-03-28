@@ -18,7 +18,6 @@ const referral = {
       source: 'SHORTLINK', 
       type: 'OPEN_THREAD' } } ] };
       
-      
 const getStarted = {
   id: '935593143497601',
   time: 1551887299307,
@@ -35,27 +34,22 @@ const getStarted = {
       },
       title: 'Get Started' } } ] };
 
-const delivery = {
-  id: '935593143497601',
-  time: 1551887302071,
-  messaging: [
-  { sender: { id: '2036910886400628' },
-    recipient: { id: '935593143497601' },
-    timestamp: 1551887302059,
-    delivery: { watermark: 1551887299229, seq: 0 } } ] };
+const acceptMessage =  { 
+  attachment: { 
+    type: 'template',
+    payload:
+      { template_type: 'button',
+        text: 'Hello, do you agree to take this survey?',
+        buttons: [{ 
+          type: 'postback',
+          title: 'I Accept',
+          payload: '{"value":true,"ref":"f37a882b-8cd3-4d13-9457-1ee17448f4b5"}' },
+        { type: 'postback',
+          title: 'I don\'t Accept',
+          payload: '{"value":false,"ref":"f37a882b-8cd3-4d13-9457-1ee17448f4b5"}' } ] } },
+  metadata: '{"ref":"f37a882b-8cd3-4d13-9457-1ee17448f4b5"}' }
 
-const read = { 
-  id: '935593143497601',
-  time: 1551887302265,
-  messaging: [
-  { sender: { id: '2036910886400628' },
-    recipient: { id: '935593143497601' },
-    timestamp: 1551887302260,
-    read: { watermark: 1551887299229, seq: 0 } } ] }
-
-// same read message with different timestamp
-
-const accept = {
+const acceptEcho = {
   id: '935593143497601',
   time: 1551887303666,
   messaging: [
@@ -75,22 +69,15 @@ const accept = {
         type: 'template',
         payload:{ 
           template_type: 'button',
-          buttons:[ 
+          buttons:[
           { type: 'postback',
             title: 'I Accept',
             payload: '{"value":true,"ref":"f37a882b-8cd3-4d13-9457-1ee17448f4b5"}' },
           { type: 'postback',
             title: 'I don\'t Accept',
-            payload: '{"value":false,"ref":"f37a882b-8cd3-4d13-9457-1ee17448f4b5"}' } ] } } ] } } ] }
+            payload: '{"value":false,"ref":"f37a882b-8cd3-4d13-9457-1ee17448f4b5"}' } ] } } ] } } ] };
 
-// delivery message with different timestamp x3
-// mids: [ 'iahSu_Be1nwB0pi0T7BGm8XudRc1e6dWdtHiSuxSf8AiV4vXTAKae7XxYUu4MJLRGzMzuEno4WzjjFU3GjbgbQ' ]
-// watermark: 1551887302933
-
-// read message 
-// watermark: 1551887302933
-
-const postback = { 
+const acceptPostback = { 
   id: '935593143497601',
   time: 1551887308298,
   messaging:[
@@ -101,8 +88,23 @@ const postback = {
       payload: '{"value":true,"ref":"f37a882b-8cd3-4d13-9457-1ee17448f4b5"}',
       title: 'I Accept' } } ] };
 
+const questionMessage = { 
+  attachment: {
+    type: 'template',
+    payload:
+      { template_type: 'button',
+        text: 'Are you fun?',
+        buttons: [
+          { type: 'postback',
+          title: 'Yes',
+          payload:
+            '{"value":true,"ref":"a072e75f-0f04-4e9c-91d2-ffd15aa3e82d"}' },
+        { type: 'postback',
+          title: 'No',
+          payload: '{"value":false,"ref":"a072e75f-0f04-4e9c-91d2-ffd15aa3e82d"}' }] } },
+  metadata: '{"ref":"a072e75f-0f04-4e9c-91d2-ffd15aa3e82d"}' }
 
-const message = { 
+const questionEcho = { 
   id: '935593143497601',
   time: 1551887310912,
   messaging: [
@@ -132,14 +134,7 @@ const message = {
           title: 'No',
           payload: '{"value":false,"ref":"a072e75f-0f04-4e9c-91d2-ffd15aa3e82d"}' } ] } } ] } } ] };
 
-// delivery message with different timestamp x3
-// mids: [ 'eFG8cGL4KY_3EJHEafc8DcXudRc1e6dWdtHiSuxSf8BnO50lky7UUKwZ0xLTLqtSrmz7zpGuV0HNcZ2TNKPy_w' ]
-// watermark: 1551887310252
-  
-// read message 
-// watermark: 1551887310252
-
-const postback2 = { 
+const questionPostback = { 
   id: '935593143497601',
   time: 1551887313699,
   messaging:[
@@ -150,8 +145,11 @@ const postback2 = {
       payload: '{"value":true,"ref":"a072e75f-0f04-4e9c-91d2-ffd15aa3e82d"}',
       title: 'Yes' } } ] };
 
+const thanksMessage = { 
+  text: 'Thanks',
+  metadata:'{"type":"statement","ref":"acc2f381-405f-4c84-9cd0-889312b8b64c"}' }
 
-const message2 = {
+const thanksEcho = {
   id: '935593143497601',
   time: 1551887315982,
   messaging:[
@@ -165,16 +163,12 @@ const message2 = {
       mid: '54VnGmA899_StdKwELhSRsXudRc1e6dWdtHiSuxSf8A53BI_onuS6V3H3UJVCMrZHj5ErDE5J1EsiEZPxG_E9w',
       seq: 89475,
       text: 'Thanks' } } ] };
-        
+       
+const endMessage = { 
+  text: 'Done! Your information was sent perfectly.',
+  metadata: '{"type":"thankyou_screen","ref":"default_tys"}' }
 
-// delivery message with different timestamp x3
-// mids: [ '54VnGmA899_StdKwELhSRsXudRc1e6dWdtHiSuxSf8A53BI_onuS6V3H3UJVCMrZHj5ErDE5J1EsiEZPxG_E9w' ]
-// watermark: 1551887315422
-  
-// read message 
-// watermark: 1551887315422
-
-const message3 = { 
+const endEcho = { 
   id: '935593143497601',
   time: 1551887317961,
   messaging:[
@@ -189,12 +183,18 @@ const message3 = {
       seq: 89478,
       text: 'Done! Your information was sent perfectly.' } } ] };
 
-
-// delivery message with different timestamp x3
-// mids: [ 'LGNLwciAQy9xOqw9AZ4uTsXudRc1e6dWdtHiSuxSf8D6kjfLuomB' ]
-// watermark: 1551887317359
-  
-// read message 
-// watermark: 1551887317359
-
-module.exports = { user, referral, getStarted, delivery, read, accept, postback, message, postback2, message2, message3}
+module.exports = { 
+  user, 
+  referral,
+  getStarted,
+  acceptMessage,
+  acceptEcho,
+  acceptPostback, 
+  questionMessage, 
+  questionEcho, 
+  questionPostback,
+  thanksMessage,
+  thanksEcho,
+  endMessage,
+  endEcho
+}

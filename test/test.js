@@ -3,7 +3,7 @@ const mocks = require('./mocks');
 const sender = require('../services/sender.js');
 const app = require('../services/receiver.js');
 
-describe('Should send&receive ', () => {
+describe('Test Bot flow Survey1', () => {
   
   const server = app.listen(process.env.PORT || 88);
 
@@ -16,11 +16,35 @@ describe('Should send&receive ', () => {
     console.log('Server closed!');
   });
   
-  it('Sender should send a POST request to Botserver',  (done) => {
+  it('Start the conversation and should receive Accept Message',  (done) => {
+    let state = 1;
     sender(mocks.referral);
-    app.on('message', (message) => {
-      console.log('message', message);
-      done()
+    app.on('message', async ({message}) => {
+      switch (state) {
+        case 1:
+          message.should.eql(mocks.acceptMessage)
+          await sender(mocks.acceptEcho);
+          await sender(mocks.acceptPostback);
+          break;
+        case 2:
+          message.should.eql(mocks.questionMessage)
+          await sender(mocks.questionEcho);
+          await sender(mocks.questionPostback);
+          break;
+        case 3:
+          message.should.eql(mocks.thanksMessage)
+          sender(mocks.thanksEcho);
+          break;
+        case 4:
+          message.should.eql(mocks.endMessage)
+          sender(mocks.endEcho);
+          done();
+          break;
+        default:
+          break;
+      }
+        state++;
     })
-  }).timeout(5000);
+  }).timeout(10000);
+
 });
