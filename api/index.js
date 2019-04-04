@@ -1,7 +1,7 @@
 const router = require('express').Router();
 const responses = require('./responses');
-const typeforms = require('./typeforms');
+const surveys = require('./surveys');
 
-router.use('/responses', responses).use('/typeforms', typeforms);
+router.use('/responses', responses).use('/surveys', surveys);
 
 module.exports = router;

@@ -1,5 +1,5 @@
 const router = require('express').Router();
-const controller = require('./typeform.controller');
+const controller = require('./survey.controller');
 
 router.post('/', controller.postOne);
 
