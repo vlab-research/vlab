@@ -16,9 +16,16 @@ async function all() {
   return rows;
 }
 
+async function formResponses(formid) {
+  const GET_FORM_RESPONSES = `SELECT * FROM responses WHERE formid=$1 ORDER BY timestamp DESC`;
+  const { rows } = await this.query(GET_FORM_RESPONSES, [formid]);
+  return rows;
+}
+
 module.exports = {
   name: 'Response',
   queries: pool => ({
     all: all.bind(pool),
+    formResponses: formResponses.bind(pool),
   }),
 };

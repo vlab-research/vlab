@@ -1,7 +1,7 @@
 'use strict';
 
 const { Survey } = require('../../queries');
-const { validate } = require('../../utils/survey.util');
+const { SurveyUtil } = require('../../utils');
 
 exports.postOne = async (req, res) => {
   try {
@@ -13,7 +13,7 @@ exports.postOne = async (req, res) => {
       userid: req.user.email,
     };
 
-    validate(survey);
+    SurveyUtil.validate(survey);
     const createdSurvey = await Survey.create(survey);
 
     res.status(201).send(createdSurvey);
