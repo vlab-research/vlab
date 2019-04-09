@@ -13,7 +13,14 @@ function handleEvent(data, eventType) {
 }
 
 window.extAsyncInit = function () {
-
+  MessengerExtensions.getUserID('{{{APP_ID}}}',
+    function success(thread_context) {
+      psid = thread_context.psid;
+    },
+    function error(err) {
+      console.error(err);
+    }
+  );
 };
 
 document.addEventListener('DOMContentLoaded', () => {
