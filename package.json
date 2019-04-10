@@ -4,7 +4,7 @@
   "description": "fake facebook bot",
   "main": "index.js",
   "scripts": {
-    "test": "mocha --watch --colors test/test.js"
+    "test": "mocha --colors test/test.js"
   },
   "repository": {
     "type": "git",
@@ -23,6 +23,7 @@
   },
   "dependencies": {
     "express": "^4.16.4",
-    "r2": "^2.0.1"
+    "r2": "^2.0.1",
+    "uuid": "^3.3.2"
   }
 }
