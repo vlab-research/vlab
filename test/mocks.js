@@ -1,7 +1,9 @@
 // https://m.me/testvirtuallab?ref=form.LDfNCy
+const uuid = require('uuid')
+const userId = uuid()
 
 const user = { 
-    id: '2036910886400628',
+    id: uuid(),
     name : 'Leonardo Di Vittorio',
     first_name : 'Leonardo',
     last_name : 'Di Vittorio' };
@@ -12,7 +14,7 @@ const referral = {
   messaging:[ 
   { recipient: { id: '935593143497601' },
     timestamp: Date.now(),
-    sender: { id: '2036910886400628' },
+    sender: { id: user.id },
     referral: { 
       ref: 'form.LDfNCy', 
       source: 'SHORTLINK', 
@@ -54,7 +56,7 @@ const acceptEcho = {
   time: 1551887303666,
   messaging: [
   { sender: { id: '935593143497601' },
-    recipient: { id: '2036910886400628' },
+    recipient: { id: user.id },
     timestamp: 1551887302933,
     message:{ 
       is_echo: true,
@@ -83,7 +85,7 @@ const acceptPostback = {
   messaging:[
   { recipient: { id: '935593143497601' },
     timestamp: 1551887308298,
-    sender: { id: '2036910886400628' },
+    sender: { id: user.id },
     postback: { 
       payload: '{"value":true,"ref":"f37a882b-8cd3-4d13-9457-1ee17448f4b5"}',
       title: 'I Accept' } } ] };
@@ -109,7 +111,7 @@ const questionEcho = {
   time: 1551887310912,
   messaging: [
   { sender: { id: '935593143497601' },
-    recipient: { id: '2036910886400628' },
+    recipient: { id: user.id },
     timestamp: 1551887310252,
     message: { 
       is_echo: true,
@@ -134,16 +136,76 @@ const questionEcho = {
           title: 'No',
           payload: '{"value":false,"ref":"a072e75f-0f04-4e9c-91d2-ffd15aa3e82d"}' } ] } } ] } } ] };
 
-const questionPostback = { 
+const questionPostbackNo = { 
   id: '935593143497601',
   time: 1551887313699,
   messaging:[
   { recipient: { id: '935593143497601' },
     timestamp: 1551887313699,
-    sender: { id: '2036910886400628' },
+    sender: { id: user.id },
+    postback: { 
+      payload: '{"value":true,"ref":"a072e75f-0f04-4e9c-91d2-ffd15aa3e82d"}',
+      title: 'No' } } ] };
+
+const questionPostbackYes = { 
+  id: '935593143497601',
+  time: 1551887313699,
+  messaging:[
+  { recipient: { id: '935593143497601' },
+    timestamp: 1551887313699,
+    sender: { id: user.id },
     postback: { 
       payload: '{"value":true,"ref":"a072e75f-0f04-4e9c-91d2-ffd15aa3e82d"}',
       title: 'Yes' } } ] };
+
+const funMessage = { 
+  text: "You are fun! Why?",
+  metadata:'{"ref":"51f08eef-5455-43af-87c6-a34983e2b0a6"}' }
+
+const funEcho = {
+  id: '935593143497601',
+  time: 1551887315982,
+  messaging:[
+  { sender: { id: '935593143497601' },
+    recipient: { id: user.id },
+    timestamp: 1551887315422,
+    message: {
+      is_echo: true,
+      app_id: 790352681363186,
+      metadata: '{"ref":"51f08eef-5455-43af-87c6-a34983e2b0a6"}',
+      mid: '54VnGmA899_StdKwELhSRsXudRc1e6dWdtHiSuxSf8A53BI_onuS6V3H3UJVCMrZHj5ErDE5J1EsiEZPxG_E9w',
+      seq: 89475,
+      text: "You are fun! Why?" } } ] };
+
+const funPostback = { 
+  id: '935593143497601',
+  time: 1551887313699,
+  messaging:[
+  { recipient: { id: '935593143497601' },
+    timestamp: 1551887313699,
+    sender: { id: user.id },
+    postback: { 
+      payload: '{"value":true,"ref":"51f08eef-5455-43af-87c6-a34983e2b0a6"}',
+      title: 'LOL' } } ] };
+
+const boringMessage = { 
+  text: "You are boring! Sorry, you can't play.",
+  metadata:'{"type":"statement","ref":"acc2f381-405f-4c84-9cd0-889312b8b64c"}' }
+
+const boringEcho = {
+  id: '935593143497601',
+  time: 1551887315982,
+  messaging:[
+  { sender: { id: '935593143497601' },
+    recipient: { id: user.id },
+    timestamp: 1551887315422,
+    message: {
+      is_echo: true,
+      app_id: 790352681363186,
+      metadata: '{"type":"statement","ref":"acc2f381-405f-4c84-9cd0-889312b8b64c"}',
+      mid: '54VnGmA899_StdKwELhSRsXudRc1e6dWdtHiSuxSf8A53BI_onuS6V3H3UJVCMrZHj5ErDE5J1EsiEZPxG_E9w',
+      seq: 89475,
+      text: "You are boring! Sorry, you can't play." } } ] };
 
 const thanksMessage = { 
   text: 'Thanks',
@@ -154,7 +216,7 @@ const thanksEcho = {
   time: 1551887315982,
   messaging:[
   { sender: { id: '935593143497601' },
-    recipient: { id: '2036910886400628' },
+    recipient: { id: user.id },
     timestamp: 1551887315422,
     message: {
       is_echo: true,
@@ -173,7 +235,7 @@ const endEcho = {
   time: 1551887317961,
   messaging:[
   { sender: { id: '935593143497601' },
-    recipient: { id: '2036910886400628' },
+    recipient: { id: user.id },
     timestamp: 1551887317359,
     message:{ 
       is_echo: true,
@@ -192,7 +254,13 @@ module.exports = {
   acceptPostback, 
   questionMessage, 
   questionEcho, 
-  questionPostback,
+  questionPostbackNo,
+  questionPostbackYes,
+  funMessage,
+  funEcho,
+  funPostback,
+  boringMessage,
+  boringEcho,
   thanksMessage,
   thanksEcho,
   endMessage,

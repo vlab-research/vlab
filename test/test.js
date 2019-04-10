@@ -1,13 +1,17 @@
 require('chai').should();
-const mocks = require('./mocks');
 const sender = require('../services/sender.js');
 const app = require('../services/receiver.js');
+const mocks = require('./mocks');
 
-describe('Test Bot flow Survey1', () => {
+describe('Test Bot flow Survey Integration Testing', () => {
   
-  const server = app.listen(process.env.PORT || 88);
-
+  let server;
+  let testFlow = [];
+  let state = 0;
+  let bindedDone;
+  
   before(() => {
+    server = app.listen(process.env.PORT || 88);
     console.log('Test starting!');
   });
 
@@ -16,35 +20,45 @@ describe('Test Bot flow Survey1', () => {
     console.log('Server closed!');
   });
   
-  it('Start the conversation and should receive Accept Message',  (done) => {
-    let state = 1;
+  it('Test chat flow with logic jump "Yes"',  (done) => {
+    bindedDone = done.bind(this)
+    testFlow = [
+      [mocks.acceptMessage, [mocks.acceptEcho, mocks.acceptPostback]],
+      [mocks.questionMessage, [mocks.questionEcho, mocks.questionPostbackYes]],
+      [mocks.funMessage, [mocks.funEcho, mocks.funPostback]],
+      [mocks.thanksMessage, [mocks.thanksEcho]],
+      [mocks.endMessage, [mocks.endEcho]],
+    ]; 
+
     sender(mocks.referral);
-    app.on('message', async ({message}) => {
-      switch (state) {
-        case 1:
-          message.should.eql(mocks.acceptMessage)
-          await sender(mocks.acceptEcho);
-          await sender(mocks.acceptPostback);
-          break;
-        case 2:
-          message.should.eql(mocks.questionMessage)
-          await sender(mocks.questionEcho);
-          await sender(mocks.questionPostback);
-          break;
-        case 3:
-          message.should.eql(mocks.thanksMessage)
-          sender(mocks.thanksEcho);
-          break;
-        case 4:
-          message.should.eql(mocks.endMessage)
-          sender(mocks.endEcho);
-          done();
-          break;
-        default:
-          break;
-      }
-        state++;
-    })
+
   }).timeout(10000);
+
+  it('Test chat flow with logic jump "No"',  (done) => {
+    bindedDone = done.bind(this)
+    testFlow = [
+      [mocks.acceptMessage, [mocks.acceptEcho, mocks.acceptPostback]],
+      [mocks.questionMessage, [mocks.questionEcho, mocks.questionPostbackYes]],
+      [mocks.funMessage, [mocks.funEcho, mocks.funPostback]],
+      [mocks.thanksMessage, [mocks.thanksEcho]],
+      [mocks.endMessage, [mocks.endEcho]],
+    ];
+
+    sender(mocks.referral);
+
+  }).timeout(10000);
+
+  app.on('message', async ({message}) => {
+    const [get, gives] = testFlow[state]
+    message.should.eql(get);
+    for (let giv of gives) {
+      await sender(giv);
+    }
+    state++
+    if (state == testFlow.length) {
+      state = 0;
+      bindedDone();
+    }
+  })
 
 });
