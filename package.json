@@ -13,7 +13,7 @@
   "scripts": {
     "format": "prettier --write \"**/*.+(js|css|yml|yaml|scss|json)\"",
     "lint": "eslint ./src",
-    "precommit": "npm run format && npm run lint",
+    "precommit": "npm run lint",
     "start": "react-scripts start",
     "build": "react-scripts build",
     "test": "react-scripts test",

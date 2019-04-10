@@ -23,8 +23,9 @@ module.exports = {
     },
   },
   rules: {
-    indent: ['error', 2, { SwitchCase: 1 }],
     'keyword-spacing': 'error',
+    'import/named': 0,
+    indent: ['error', 2, { SwitchCase: 1 }],
     'linebreak-style': ['error', 'unix'],
     'no-undef': 0,
     'no-unsued-vars': 0,
