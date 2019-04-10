@@ -38,9 +38,8 @@ describe('Test Bot flow Survey Integration Testing', () => {
     bindedDone = done.bind(this)
     testFlow = [
       [mocks.acceptMessage, [mocks.acceptEcho, mocks.acceptPostback]],
-      [mocks.questionMessage, [mocks.questionEcho, mocks.questionPostbackYes]],
-      [mocks.funMessage, [mocks.funEcho, mocks.funPostback]],
-      [mocks.thanksMessage, [mocks.thanksEcho]],
+      [mocks.questionMessage, [mocks.questionEcho, mocks.questionPostbackNo]],
+      [mocks.boringMessage, [mocks.boringEcho]],
       [mocks.endMessage, [mocks.endEcho]],
     ];
 

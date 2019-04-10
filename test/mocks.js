@@ -129,8 +129,7 @@ const questionEcho = {
         buttons:[
         { type: 'postback',
           title: 'Yes',
-          payload:
-            '{"value":true,"ref":"a072e75f-0f04-4e9c-91d2-ffd15aa3e82d"}' },
+          payload: '{"value":true,"ref":"a072e75f-0f04-4e9c-91d2-ffd15aa3e82d"}' },
         { type: 'postback',
           title: 'No',
           payload: '{"value":false,"ref":"a072e75f-0f04-4e9c-91d2-ffd15aa3e82d"}' } ] } } ] } } ] };
@@ -143,7 +142,7 @@ const questionPostbackNo = {
     timestamp: 1551887313699,
     sender: { id: user.id },
     postback: { 
-      payload: '{"value":true,"ref":"a072e75f-0f04-4e9c-91d2-ffd15aa3e82d"}',
+      payload: '{"value":false,"ref":"a072e75f-0f04-4e9c-91d2-ffd15aa3e82d"}',
       title: 'No' } } ] };
 
 const questionPostbackYes = { 
@@ -189,7 +188,7 @@ const funPostback = {
 
 const boringMessage = { 
   text: "You are boring! Sorry, you can't play.",
-  metadata:'{"type":"statement","ref":"acc2f381-405f-4c84-9cd0-889312b8b64c"}' }
+  metadata:'{"type":"statement","ref":"8b67d18c-cda5-4936-83ea-bda055cf20dc"}' }
 
 const boringEcho = {
   id: '935593143497601',
@@ -201,7 +200,7 @@ const boringEcho = {
     message: {
       is_echo: true,
       app_id: 790352681363186,
-      metadata: '{"type":"statement","ref":"acc2f381-405f-4c84-9cd0-889312b8b64c"}',
+      metadata: '{"type":"statement","ref":"8b67d18c-cda5-4936-83ea-bda055cf20dc"}',
       mid: '54VnGmA899_StdKwELhSRsXudRc1e6dWdtHiSuxSf8A53BI_onuS6V3H3UJVCMrZHj5ErDE5J1EsiEZPxG_E9w',
       seq: 89475,
       text: "You are boring! Sorry, you can't play." } } ] };
