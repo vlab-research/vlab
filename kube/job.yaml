@@ -1,19 +1,16 @@
-apiVersion: apps/v1
-kind: Deployment
+apiVersion: batch/v1
+kind: Job
 metadata:
   name: gbv-facebot
   labels:
     app: gbv-facebot
 spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: gbv-facebot
   template:
     metadata:
       labels:
         app: gbv-facebot
     spec:
+      restartPolicy: "Never"
       containers:
       - name: gbv-facebot
         image: vlabresearch/facebot:0.0.1
