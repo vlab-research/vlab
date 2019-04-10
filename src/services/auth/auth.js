@@ -1,7 +1,6 @@
 /* eslint-disable no-console */
 import auth0 from 'auth0-js';
 
-import history from '../history';
 import AUTH_CONFIG from './auth0-variables';
 
 export default class Auth {
@@ -27,11 +26,10 @@ export default class Auth {
     this.auth0.authorize();
   };
 
-  handleAuthentication = () => {
+  handleAuthentication = history => {
     this.auth0.parseHash((err, authResult) => {
-      console.log('auth',authResult);
       if (authResult && authResult.accessToken && authResult.idToken) {
-        this.setSession(authResult);
+        this.setSession(authResult, history);
       } else if (err) {
         console.error(err);
       }
@@ -42,7 +40,7 @@ export default class Auth {
 
   getIdToken = () => this.idToken;
 
-  setSession = ({ expiresIn, accessToken, idToken }) => {
+  setSession = ({ expiresIn, accessToken, idToken }, history) => {
     // Set isLoggedIn flag in localStorage
     localStorage.setItem('isLoggedIn', 'true');
 
@@ -58,9 +56,7 @@ export default class Auth {
     };
 
     localStorage.setItem('auth', JSON.stringify(auth));
-
-    // navigate to the home route
-    history.replace('/');
+    history.push('/');
   };
 
   renewSession = () => {
@@ -85,7 +81,6 @@ export default class Auth {
     localStorage.removeItem('auth');
 
     // navigate to the home route
-    history.replace('/');
   };
 
   isAuthenticated = () => {
