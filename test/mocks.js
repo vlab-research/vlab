@@ -1,6 +1,5 @@
 // https://m.me/testvirtuallab?ref=form.LDfNCy
 const uuid = require('uuid')
-const userId = uuid()
 
 const user = { 
     id: uuid(),
