@@ -12,7 +12,10 @@ const envVarsSchema = joi
     AUTH0_HOST: joi.string().required(),
     DB_USER: joi.string(),
     DB_HOST: joi.string(),
-    DB_PASSWORD: joi.string(),
+    DB_PASSWORD: joi
+      .string()
+      .optional()
+      .empty(''),
     DB_DATABASE: joi.string(),
     DB_PORT: joi.number(),
   })

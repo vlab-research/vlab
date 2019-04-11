@@ -58,15 +58,17 @@ describe('Response queries', () => {
       VALUES
         ('form1', 100001, '124', 'ref', 10, 'text', '{ "text": "last" }', current_date + interval '14 hour')
        ,('form2', 100003, '123', 'ref', 10, 'text', '{ "text": "last" }', current_date + interval '12 hour')
-       ,('form3', 100004, '124', 'ref', 10, 'text', '{ "text": "first" }', current_date + interval '10 hour')
-       ,('form4', 100005, '123', 'ref', 10, 'text', '{ "text": "first" }', current_date + interval '8 hour')
-       ,('form5', 100006, '124', 'ref', 10, 'text', '{ "text": "middle" }', current_date + interval '12 hour')`;
+       ,('form1', 100004, '124', 'ref', 10, 'text', '{ "text": "first" }', current_date + interval '10 hour')
+       ,('form2', 100005, '123', 'ref', 10, 'text', '{ "text": "first" }', current_date + interval '8 hour')
+       ,('form1', 100006, '124', 'ref', 10, 'text', '{ "text": "middle" }', current_date + interval '12 hour')`;
       await vlabPool.query(MOCK_QUERY);
       const responses = await Response.all();
       responses[0].first_response.should.equal('{ "text": "first" }');
       responses[0].second_response.should.equal('{ "text": "last" }');
+      responses[0].formid.should.equal('form2');
       responses[1].first_response.should.equal('{ "text": "first" }');
       responses[1].second_response.should.equal('{ "text": "last" }');
+      responses[1].formid.should.equal('form1');
     });
   });
 
