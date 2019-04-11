@@ -4,7 +4,7 @@ import { App, LoginScreen, ResponseScreen } from './containers';
 import { PrivateRoute, Spinner } from './components';
 import Auth from './services/auth';
 
-const auth = new Auth();
+export const auth = new Auth();
 
 const handleAuthentication = ({ location, history }) => {
   if (/access_token|id_token|error/.test(location.hash)) {
