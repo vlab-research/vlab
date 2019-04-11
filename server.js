@@ -1,5 +1,5 @@
 const express = require('express');
-const cors = require('cors')();
+const cors = require('cors')({ exposedHeaders: ['Content-Disposition'] });
 const bodyparser = express.json();
 
 const router = require('./api');
