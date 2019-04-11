@@ -1,3 +1,3 @@
 import useMountFetch from './useMountFetch';
 
-export { useMountFetch };
+export default { useMountFetch };

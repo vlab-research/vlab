@@ -1,11 +1,10 @@
 import React from 'react';
-import { useMountFetch } from '../../services/hooks';
-import ApiClient from '../../services/api';
+import { ApiClient, Hook } from '../../services';
 
 import './ResponseScreen.css';
 
 const ResponseScreen = () => {
-  const responses = useMountFetch({ path: '/responses' }, []);
+  const responses = Hook.useMountFetch({ path: '/responses' }, []);
 
   return (
     <div>

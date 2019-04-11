@@ -2,7 +2,7 @@ import React from 'react';
 import { BrowserRouter as Router, Route } from 'react-router-dom';
 import { App, LoginScreen, ResponseScreen } from './containers';
 import { PrivateRoute, Spinner } from './components';
-import Auth from './services/auth';
+import { Auth } from './services';
 
 export const auth = new Auth();
 
