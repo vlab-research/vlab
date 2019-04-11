@@ -25,6 +25,7 @@ module.exports = {
   rules: {
     'keyword-spacing': 'error',
     'import/named': 0,
+    'import/prefer-default-export': 0,
     indent: ['error', 2, { SwitchCase: 1 }],
     'linebreak-style': ['error', 'unix'],
     'no-undef': 0,
@@ -34,7 +35,6 @@ module.exports = {
     'react/prop-types': 2,
     'react/jsx-filename-extension': 0,
     'react-hooks/rules-of-hooks': 'error',
-    'react-hooks/exhaustive-deps': 'warn',
     semi: ['error', 'always'],
     'space-before-blocks': 'error',
   },
