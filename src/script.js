@@ -1,6 +1,7 @@
 'use strict';
 
 const SERVER_URL = '{{{SERVER_URL}}}';
+const bodyHtml = document.querySelector('body');
 const params = new URLSearchParams(window.location.search);
 const videoId = params.get('id');
 let psid;
@@ -12,18 +13,7 @@ function handleEvent(data, eventType) {
   xhr.send(JSON.stringify({ data, eventType, psid }));
 }
 
-window.extAsyncInit = function () {
-  MessengerExtensions.getContext('{{{APP_ID}}}',
-    function success(thread_context) {
-      psid = thread_context.psid;
-    },
-    function error(err) {
-      console.error(err);
-    }
-  );
-};
-
-document.addEventListener('DOMContentLoaded', () => {
+function setPlayer() {
   const options = {
     id: videoId,
     width: 800
@@ -45,8 +35,22 @@ document.addEventListener('DOMContentLoaded', () => {
 
     player.on('volumechange', data => handleEvent(data, 'volumechange'));
   }).catch((err) => {
+    bodyHtml.innerHTML = `<p>Video not found</p>`;
     console.error(err);
-    document.querySelector('body').innerHTML = `<p>Video not found</p>`;
   });
+}
 
+document.addEventListener('DOMContentLoaded', () => {
+  window.extAsyncInit = function () {
+    MessengerExtensions.getContext('{{{APP_ID}}}',
+      function success(thread_context) {
+        psid = thread_context.psid;
+        setPlayer();
+      },
+      function error(err) {
+        bodyHtml.innerHTML = `<p>Not authorized</p>`
+        console.error(err);
+      }
+    );
+  };
 });
