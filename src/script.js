@@ -13,7 +13,7 @@ function handleEvent(data, eventType) {
 }
 
 window.extAsyncInit = function () {
-  MessengerExtensions.getUserID('{{{APP_ID}}}',
+  MessengerExtensions.getContext('{{{APP_ID}}}',
     function success(thread_context) {
       psid = thread_context.psid;
     },
