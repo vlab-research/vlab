@@ -1,7 +1,6 @@
 'use strict';
 
 const SERVER_URL = '{{{SERVER_URL}}}';
-const bodyHtml = document.querySelector('body');
 const params = new URLSearchParams(window.location.search);
 const videoId = params.get('id');
 let psid;
@@ -35,7 +34,7 @@ function setPlayer() {
 
     player.on('volumechange', data => handleEvent(data, 'volumechange'));
   }).catch((err) => {
-    bodyHtml.innerHTML = `<p>Video not found</p>`;
+    document.querySelector('body').innerHTML = `<p>Video not found</p>`;
     console.error(err);
   });
 }
@@ -48,7 +47,7 @@ document.addEventListener('DOMContentLoaded', () => {
         setPlayer();
       },
       function error(err) {
-        bodyHtml.innerHTML = `<p>Not authorized</p>`
+        document.querySelector('body').innerHTML = `<p>Not authorized</p>`
         console.error(err);
       }
     );
