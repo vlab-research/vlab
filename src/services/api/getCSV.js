@@ -10,12 +10,9 @@ export default function getCsv(formid) {
       blob: await res.blob(),
     }))
     .then(obj => {
-      const url = URL.createObjectURL(obj.blob);
       const a = document.createElement('a');
-      a.href = url;
+      a.href = URL.createObjectURL(obj.blob);
       a.download = obj.filename;
-      document.body.appendChild(a);
       a.click();
-      a.remove();
     });
 }
