@@ -14,9 +14,10 @@ function handleEvent(data, eventType) {
 
 function setPlayer() {
   const options = {
-    id: videoId,
-    width: 800
+    id: 164118668,
+    responsive: true
   };
+  
   const player = new Vimeo.Player('vimeoVideo', options);
 
   player.ready().then(() => {
