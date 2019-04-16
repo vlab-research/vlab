@@ -44,8 +44,8 @@ function setPlayer() {
 
     player.on('volumechange', data => handleEvent(data, 'volumechange'));
   }).catch((err) => {
-    const title = '❌Sorry, we couldn’t find that page';
-    const message = 'Make sure you’ve typed the URL correctly'
+    const title = '❌ Not found';
+    const message = 'Sorry, we couldn’t find that video'
     handleError(err, title, message);    
   });
 }
