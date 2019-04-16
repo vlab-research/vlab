@@ -12,12 +12,21 @@ function handleEvent(data, eventType) {
   xhr.send(JSON.stringify({ data, eventType, psid }));
 }
 
+function handleError(err, title, message) {
+  const div = document.createElement('div');
+  div.classList.add("error-container");
+  div.innerHTML = `<h1>${title}</h1><p>${message}</p>`;
+  document.querySelector('.container').innerHTML = ``
+  document.querySelector('.container').appendChild(div);
+  console.error(err);
+}
+
 function setPlayer() {
   const options = {
     id: 164118668,
     responsive: true
   };
-  
+
   const player = new Vimeo.Player('vimeoVideo', options);
 
   player.ready().then(() => {
@@ -35,8 +44,9 @@ function setPlayer() {
 
     player.on('volumechange', data => handleEvent(data, 'volumechange'));
   }).catch((err) => {
-    document.querySelector('body').innerHTML = `<p>Video not found</p>`;
-    console.error(err);
+    const title = '❌Sorry, we couldn’t find that page';
+    const message = 'Make sure you’ve typed the URL correctly'
+    handleError(err, title, message);    
   });
 }
 
@@ -48,8 +58,9 @@ document.addEventListener('DOMContentLoaded', () => {
         setPlayer();
       },
       function error(err) {
-        document.querySelector('body').innerHTML = `<p>Not authorized</p>`
-        console.error(err);
+        const title = '🔒Forbidden';
+        const message = 'It seems you are not logged in with facebook'
+        handleError(err, title, message);
       }
     );
   };
