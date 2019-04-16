@@ -8,7 +8,7 @@ async function all() {
        ORDER  BY 1,2
        ) f
     JOIN (
-       SELECT DISTINCT ON (1) userid, timestamp AS last_timestamp, response AS second_response, formid
+       SELECT DISTINCT ON (1) userid, timestamp AS last_timestamp, response AS last_response, formid
        FROM   responses
        ORDER  BY 1,2 DESC
        ) l USING (userid)`;

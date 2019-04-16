@@ -64,10 +64,10 @@ describe('Response queries', () => {
       await vlabPool.query(MOCK_QUERY);
       const responses = await Response.all();
       responses[0].first_response.should.equal('{ "text": "first" }');
-      responses[0].second_response.should.equal('{ "text": "last" }');
+      responses[0].last_response.should.equal('{ "text": "last" }');
       responses[0].formid.should.equal('form2');
       responses[1].first_response.should.equal('{ "text": "first" }');
-      responses[1].second_response.should.equal('{ "text": "last" }');
+      responses[1].last_response.should.equal('{ "text": "last" }');
       responses[1].formid.should.equal('form1');
     });
   });
