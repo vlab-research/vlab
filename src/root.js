@@ -1,6 +1,6 @@
 import React from 'react';
 import { BrowserRouter as Router, Route } from 'react-router-dom';
-import { App, LoginScreen, ResponseScreen } from './containers';
+import { App, LoginScreen, ResponseScreen, Surveys } from './containers';
 import { PrivateRoute, Spinner } from './components';
 import { Auth } from './services';
 
@@ -16,6 +16,7 @@ const Root = () => {
   return (
     <Router>
       <PrivateRoute exact path="/" component={App} auth={auth} />
+      <PrivateRoute path="/surveys" component={Surveys} auth={auth} />
       <PrivateRoute exact path="/responses" component={ResponseScreen} auth={auth} />
       <Route exact path="/login" render={props => <LoginScreen {...props} auth={auth} />} />
       <Route
