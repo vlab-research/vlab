@@ -1,4 +1,5 @@
 const express = require('express');
+const CubejsServerCore = require('@cubejs-backend/server-core');
 const cors = require('cors')({ exposedHeaders: ['Content-Disposition'] });
 const bodyparser = express.json();
 
@@ -13,5 +14,7 @@ app
   .use(auth)
   .use(bodyparser)
   .use(`/api/v${API_VERSION}`, router);
+
+CubejsServerCore.create().initApp(app);
 
 module.exports = app;
