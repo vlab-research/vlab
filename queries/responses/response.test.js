@@ -57,9 +57,12 @@ describe('Response queries', () => {
       const MOCK_QUERY = `INSERT INTO responses(formid, flowid, userid, question_ref, question_idx, question_text, response, timestamp) 
       VALUES
         ('form1', 100001, '124', 'ref', 10, 'text', '{ "text": "last" }', current_date + interval '14 hour')
-       ,('form2', 100003, '123', 'ref', 10, 'text', '{ "text": "last" }', current_date + interval '12 hour')
+       ,('form2', 100003, '123', 'ref', 10, 'text', '{ "text": "last" }', date '2019-04-18' + interval '12 hour')
        ,('form1', 100004, '124', 'ref', 10, 'text', '{ "text": "first" }', current_date + interval '10 hour')
-       ,('form2', 100005, '123', 'ref', 10, 'text', '{ "text": "first" }', current_date + interval '8 hour')
+       ,('form2', 100005, '123', 'ref', 10, 'text', '{ "text": "first" }', date '2019-04-18' + interval '8 hour')
+       ,('form2', 100003, '125', 'ref', 10, 'text', '{ "text": "last" }', date '2019-04-18' + interval '12 hour')
+       ,('form1', 100004, '125', 'ref', 10, 'text', '{ "text": "first" }', date '2019-04-18' + interval '10 hour')
+       ,('form2', 100005, '125', 'ref', 10, 'text', '{ "text": "first" }', date '2019-04-18' + interval '8 hour')
        ,('form1', 100006, '124', 'ref', 10, 'text', '{ "text": "middle" }', current_date + interval '12 hour')`;
       await vlabPool.query(MOCK_QUERY);
       const responses = await Response.all();

@@ -21,9 +21,7 @@ exports.getResponsesCSV = async (req, res) => {
     res.setHeader('Content-Type', 'text/csv');
     res.setHeader(
       'Content-Disposition',
-      `attachment; filename="report_${formid}_${new Date()
-        .toISOString()
-        .slice(0, 10)}.csv"`,
+      `attachment; filename="report_${formid}_${new Date().toISOString()}.csv"`,
     );
     res.status(200);
     ResponseUtil.toCSV(responses).pipe(res);
