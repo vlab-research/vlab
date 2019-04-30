@@ -1,0 +1,28 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: gbv-facebot
+  labels:
+    app: gbv-facebot
+spec:
+  template:
+    metadata:
+      labels:
+        app: gbv-facebot
+    spec:
+      restartPolicy: "Never"
+      containers:
+      - name: gbv-facebot
+        image: vlabresearch/facebot:0.0.1
+        resources:
+          requests:
+            cpu: "50m"
+            memory: "100Mi"
+        ports:
+        - containerPort: 88
+        envFrom:
+        - secretRef:
+            name: gbv-bot-envs
+        env:
+        - name: BOTSERVER_URL
+          value: "http://gbv-botserver.default.svc.cluster.local"
