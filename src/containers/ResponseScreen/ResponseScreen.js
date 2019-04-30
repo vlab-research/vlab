@@ -1,13 +1,9 @@
 import React from 'react';
 
-import cubejs from '@cubejs-client/core';
 import { QueryRenderer } from '@cubejs-client/react';
 
+import { Cube } from '../../services';
 import './ResponseScreen.css';
-
-const cubejsApi = cubejs(process.env.REACT_APP_CUBEJS_API_TOKEN, {
-  apiUrl: `${process.env.REACT_APP_SERVER_URL}/cubejs-api/v1`,
-});
 
 const histogram = ({ resultSet }) => <div>Histogram</div>;
 
@@ -30,7 +26,7 @@ const ResponseScreen = () => {
           measures: ['Responses.uniqueUserCount'],
           filters: [],
         }}
-        cubejsApi={cubejsApi}
+        cubejsApi={Cube}
         render={renderHistogram(histogram)}
       />
     </div>

@@ -3,7 +3,7 @@ import auth0 from 'auth0-js';
 
 import AUTH_CONFIG from './auth0-variables';
 
-export default class Auth {
+class Auth {
   constructor() {
     const auth = localStorage.getItem('auth');
     if (auth) {
@@ -89,3 +89,5 @@ export default class Auth {
     return new Date().getTime() < this.expiresAt;
   };
 }
+
+export default new Auth();

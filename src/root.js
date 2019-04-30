@@ -4,20 +4,18 @@ import { App, LoginScreen, ResponseScreen } from './containers';
 import { PrivateRoute, Spinner } from './components';
 import { Auth } from './services';
 
-export const auth = new Auth();
-
 const handleAuthentication = ({ location, history }) => {
   if (/access_token|id_token|error/.test(location.hash)) {
-    auth.handleAuthentication(history);
+    Auth.handleAuthentication(history);
   }
 };
 
 const Root = () => {
   return (
     <Router>
-      <PrivateRoute exact path="/" component={App} auth={auth} />
-      <PrivateRoute exact path="/responses" component={ResponseScreen} auth={auth} />
-      <Route exact path="/login" render={props => <LoginScreen {...props} auth={auth} />} />
+      <PrivateRoute exact path="/" component={App} auth={Auth} />
+      <PrivateRoute exact path="/responses" component={ResponseScreen} auth={Auth} />
+      <Route exact path="/login" render={props => <LoginScreen {...props} auth={Auth} />} />
       <Route
         path="/auth"
         render={props => {
