@@ -22,7 +22,7 @@ const histogram = ({ data }) => {
 
 const renderHistogram = Component => ({ resultSet, error }) => {
   return (
-    (resultSet && <Component data={getData(resultSet)} />) ||
+    (resultSet && <Component data={getData(resultSet, 60)} />) ||
     (error && error.toString()) || <div>Loading...</div>
   );
 };
