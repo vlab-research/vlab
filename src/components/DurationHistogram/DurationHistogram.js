@@ -27,14 +27,20 @@ const renderHistogram = Component => ({ resultSet, error }) => {
   );
 };
 
-const HistorgramContainer = () => {
+const HistorgramContainer = ({ formid }) => {
   return (
     <div style={{ height: '100vh', width: '100vw' }}>
       <QueryRenderer
         query={{
           measures: ['Responses.startTime', 'Responses.endTime'],
           dimensions: ['Responses.userid', 'Responses.formid'],
-          filters: [],
+          filters: [
+            {
+              dimension: 'Responses.formid',
+              operator: 'equals',
+              values: [formid],
+            },
+          ],
         }}
         cubejsApi={cubejsApi}
         render={renderHistogram(histogram)}

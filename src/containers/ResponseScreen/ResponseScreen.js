@@ -6,7 +6,7 @@ const ResponseScreen = () => {
   return (
     <div style={{ height: '100vh', width: '100vw' }}>
       <StartTimeHistogram formid="form1" />
-      <DurationHistogram />
+      <DurationHistogram formid="form1" />
     </div>
   );
 };
