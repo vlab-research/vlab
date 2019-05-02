@@ -1,24 +1,19 @@
 import moment from 'moment';
 
 export const getData = resultSet => {
-  const data = resultSet
-    .rawData()
-    .filter(response => response['Responses.formid'] === 'form1')
-    .map(response => {
-      const start = moment(response['Responses.startTime']);
-      const end = moment(response['Responses.endTime']);
-      return {
-        duration: moment.duration(end.diff(start)).asMinutes(),
-        userid: response['Responses.userid'],
-      };
-    });
   const range = 60;
   const freqData = {};
-  data.forEach(el => {
-    let max = Math.ceil(el.duration / range) * range;
-    if (!max) max = range;
-    freqData[max] = freqData[max] ? freqData[max] + 1 : 1;
-  });
+  resultSet
+    .rawData()
+    .filter(response => response['Responses.formid'] === 'form1')
+    .forEach(response => {
+      const start = moment(response['Responses.startTime']);
+      const end = moment(response['Responses.endTime']);
+      const duration = moment.duration(end.diff(start)).asMinutes();
+      let max = Math.ceil(duration / range) * range;
+      if (!max) max = range;
+      freqData[max] = freqData[max] ? freqData[max] + 1 : 1;
+    });
 
   const maxDuration = Math.max(...Object.keys(freqData));
   const stackedData = [];
