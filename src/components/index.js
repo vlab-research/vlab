@@ -1,6 +1,6 @@
+import Histogram from './Histogram';
 import PrivateRoute from './PrivateRoute';
-import ResponseList from './ResponseList';
-import ResponseListItem from './ResponseListItem';
+import StartTimeHistogram from './StartTimeHistogram';
 import Spinner from './Spinner';
 
-export { PrivateRoute, ResponseList, ResponseListItem, Spinner };
+export { Histogram, PrivateRoute, StartTimeHistogram, Spinner };
