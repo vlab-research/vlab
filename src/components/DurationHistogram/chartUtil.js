@@ -1,6 +1,6 @@
 import moment from 'moment';
 
-export const getData = (resultSet, interval) => {
+export const computeData = (resultSet, interval) => {
   const freqData = {};
   resultSet.rawData().forEach(response => {
     const start = moment(response['Responses.startTime']);
@@ -16,7 +16,7 @@ export const getData = (resultSet, interval) => {
   for (let i = 0; i < maxDuration; i += interval) {
     let freq = freqData[i + interval];
     if (!freq) freq = 0;
-    stackedData.push({ interval: `${i} - ${i + interval}`, freq });
+    stackedData.push({ interval: `${i} - ${i + interval}`, Users: freq });
   }
   return stackedData;
 };

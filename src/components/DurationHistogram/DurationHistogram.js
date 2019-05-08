@@ -1,35 +1,27 @@
 import React from 'react';
-
-import { ResponsiveContainer, BarChart, XAxis, YAxis, Bar } from 'recharts';
+import PropTypes from 'prop-types';
 import { QueryRenderer } from '@cubejs-client/react';
-import cubejs from '../../services/cube';
 
-import { getData } from './chartUtil';
-
-const cubejsApi = cubejs;
-
-const histogram = ({ data }) => {
-  return (
-    <ResponsiveContainer width={700} height="80%">
-      <BarChart width={730} height={250} data={data}>
-        <XAxis dataKey="interval" />
-        <YAxis />
-        <Bar dataKey="freq" fill="#82ca9d" />
-      </BarChart>
-    </ResponsiveContainer>
-  );
-};
+import { Spinner, Histogram } from '..';
+import { Cube } from '../../services';
+import { computeData } from './chartUtil';
+import './DurationHistogram.css';
 
 const renderHistogram = Component => ({ resultSet, error }) => {
   return (
-    (resultSet && <Component data={getData(resultSet, 60)} />) ||
-    (error && error.toString()) || <div>Loading...</div>
+    (resultSet && (
+      <Component resultSet={computeData(resultSet, 60)} barKey="Users" xAxisKey="interval" />
+    )) ||
+    (error && error.toString()) || <Spinner />
   );
 };
 
-const HistorgramContainer = ({ formid }) => {
+const DurationHistogram = ({ formid }) => {
   return (
-    <div style={{ height: '100vh', width: '100vw' }}>
+    <div className="report-container">
+      <div className="info-container">
+        <h3>Duration per user</h3>
+      </div>
       <QueryRenderer
         query={{
           measures: ['Responses.startTime', 'Responses.endTime'],
@@ -42,11 +34,15 @@ const HistorgramContainer = ({ formid }) => {
             },
           ],
         }}
-        cubejsApi={cubejsApi}
-        render={renderHistogram(histogram)}
+        cubejsApi={Cube}
+        render={renderHistogram(Histogram)}
       />
     </div>
   );
 };
 
-export default HistorgramContainer;
+DurationHistogram.propTypes = {
+  formid: PropTypes.string.isRequired,
+};
+
+export default DurationHistogram;
