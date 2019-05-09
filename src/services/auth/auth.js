@@ -70,7 +70,7 @@ class Auth {
     });
   };
 
-  logout = () => {
+  logout = history => {
     // Remove tokens and expiry time
     this.accessToken = null;
     this.idToken = null;
@@ -80,7 +80,7 @@ class Auth {
     localStorage.removeItem('isLoggedIn');
     localStorage.removeItem('auth');
 
-    // navigate to the home route
+    history.push('/login');
   };
 
   isAuthenticated = () => {

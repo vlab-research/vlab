@@ -1,5 +1,5 @@
 import App from './App';
 import LoginScreen from './LoginScreen';
-import ResponseScreen from './ResponseScreen';
+import SurveyScreen from './SurveyScreen';
 
-export { App, LoginScreen, ResponseScreen };
+export { App, LoginScreen, SurveyScreen };

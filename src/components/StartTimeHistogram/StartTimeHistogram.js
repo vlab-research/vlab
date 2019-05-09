@@ -31,7 +31,7 @@ const StartTimeHistogram = ({ formid }) => {
 
   const renderSelector = () => {
     return (
-      <select onChange={e => setIntervalStep(e.target.value)}>
+      <select className="interval-selector" onChange={e => setIntervalStep(e.target.value)}>
         {Object.keys(stepIntervals).map(interval => (
           <option key={interval} value={interval}>
             {interval}
@@ -42,9 +42,9 @@ const StartTimeHistogram = ({ formid }) => {
   };
 
   return (
-    <div className="report-container">
+    <div className="chart-container">
       <div className="info-container">
-        <h3>Users count chat start time</h3>
+        <h3 className="chart-title">Users count chat start time</h3>
         {renderSelector()}
       </div>
       <QueryRenderer

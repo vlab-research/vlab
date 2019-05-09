@@ -12,7 +12,9 @@ const LoginScreen = ({ auth }) => {
           Login!
         </button>
       ) : (
-        'LOGGED!'
+        <button type="button" onClick={auth.logout}>
+          Logout!
+        </button>
       )}
     </div>
   );

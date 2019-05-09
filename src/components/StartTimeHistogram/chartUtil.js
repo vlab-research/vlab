@@ -4,6 +4,7 @@ export function computeHistogramData(resultSet, interval) {
   const FORMAT = 'HH:mm';
   const timeline = {};
   const dayStart = moment('00:00', FORMAT);
+  const dayStartFormat = dayStart.format(FORMAT);
   const current = moment(dayStart);
 
   const data = resultSet.rawData();
@@ -12,26 +13,25 @@ export function computeHistogramData(resultSet, interval) {
   do {
     timeline[current.format(FORMAT)] = 0;
     current.add(interval, 'm');
-  } while (dayStart.format(FORMAT) !== current.format(FORMAT));
+  } while (dayStartFormat !== current.format(FORMAT));
 
-  const timelineArray = Object.keys(timeline);
+  const timeArr = Object.keys(timeline);
+  const timeArrFormat = timeArr.map(step => moment(step, FORMAT));
 
   data.forEach(response => {
     const time = moment(response['Responses.startTime'].slice(11), FORMAT);
-    timelineArray.forEach((step, i) => {
-      const start = moment(step, FORMAT);
-      const end = moment(timelineArray[i + 1], FORMAT);
-      if (time.isBetween(start, end, null, '[)')) timeline[step]++;
+    timeArrFormat.forEach((step, i) => {
+      if (time.isBetween(step, timeArrFormat[i + 1], null, '[)')) {
+        timeline[timeArr[i]]++;
+      }
     });
   });
 
-  const result = timelineArray.reduce((acc, time, idx) => {
+  return timeArr.reduce((acc, time, idx) => {
     acc.push({
-      time: `${time} - ${timelineArray[idx + 1] || timelineArray[0]}`,
+      time: `${time} - ${timeArr[idx + 1] || timeArr[0]}`,
       Users: timeline[time],
     });
     return acc;
   }, []);
-
-  return result;
 }

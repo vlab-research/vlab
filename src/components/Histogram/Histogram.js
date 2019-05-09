@@ -7,7 +7,12 @@ import './Histogram.css';
 const Histogram = ({ resultSet, xAxisKey, barKey }) => {
   return resultSet.length ? (
     <ResponsiveContainer>
-      <BarChart data={resultSet}>
+      <BarChart
+        data={resultSet}
+        margin={{
+          left: -10,
+        }}
+      >
         <XAxis dataKey={xAxisKey} />
         <YAxis />
         <Tooltip />

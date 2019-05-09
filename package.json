@@ -7,11 +7,13 @@
     "auth0-js": "9.10.1",
     "core-js": "^2.5.7",
     "history": "4.9.0",
+    "moment": "2.24.0",
     "prop-types": "15.7.2",
     "react": "^16.8.4",
     "react-dom": "^16.8.4",
     "react-router-dom": "5.0.0",
-    "react-scripts": "2.1.8"
+    "react-scripts": "2.1.8",
+    "recharts": "1.5.0"
   },
   "scripts": {
     "format": "prettier --write \"**/*.+(js|css|yml|yaml|scss|json)\"",
