@@ -1,6 +1,6 @@
 import React from 'react';
 import PropTypes from 'prop-types';
-import { BarChart, Bar, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 
 import './Histogram.css';
 
@@ -13,10 +13,12 @@ const Histogram = ({ resultSet, xAxisKey, barKey }) => {
           left: -10,
         }}
       >
-        <XAxis dataKey={xAxisKey} />
-        <YAxis />
+        <XAxis
+          dataKey={xAxisKey}
+          label={{ value: 'Minutes', position: 'insideBottomRight', offset: 0 }}
+        />
+        <YAxis label={{ value: barKey, angle: -90, position: 'insideLeft' }} />
         <Tooltip />
-        <Legend />
         <Bar dataKey={barKey} fill="#82ca9d" />
       </BarChart>
     </ResponsiveContainer>
