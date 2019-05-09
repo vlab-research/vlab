@@ -1,6 +1,5 @@
-.report-container-b {
+.chart-container-b {
   font-family: Avenir, sans-serif;
-  width: 80%;
   height: 300px;
   display: flex;
   flex-direction: column;
@@ -21,6 +20,10 @@
   margin-bottom: 10px;
 }
 
+.info-container-b h3 {
+  padding: 0 8px;
+}
+
 .selector-container {
   display: flex;
   align-items: center;
@@ -37,4 +40,10 @@
 
 .selector-container .ant-select-selection:focus {
   box-shadow: 0 0 0 2px rgba(24, 144, 255, 0);
+}
+
+.histogram-container {
+  height: 80%;
+  width: 90%;
+  align-self: center;
 }

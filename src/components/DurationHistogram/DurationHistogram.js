@@ -21,7 +21,7 @@ const renderHistogram = Component => ({ resultSet, error }) => {
 
 const DurationHistogram = ({ formid }) => {
   return (
-    <div className="report-container-b">
+    <div className="chart-container-b">
       <div className="info-container-b">
         <h3>Duration per user</h3>
         <div className="selector-container">
@@ -32,21 +32,23 @@ const DurationHistogram = ({ formid }) => {
           </Select>
         </div>
       </div>
-      <QueryRenderer
-        query={{
-          measures: ['Responses.startTime', 'Responses.endTime'],
-          dimensions: ['Responses.userid', 'Responses.formid'],
-          filters: [
-            {
-              dimension: 'Responses.formid',
-              operator: 'equals',
-              values: [formid],
-            },
-          ],
-        }}
-        cubejsApi={Cube}
-        render={renderHistogram(Histogram)}
-      />
+      <div className="histogram-container">
+        <QueryRenderer
+          query={{
+            measures: ['Responses.startTime', 'Responses.endTime'],
+            dimensions: ['Responses.userid', 'Responses.formid'],
+            filters: [
+              {
+                dimension: 'Responses.formid',
+                operator: 'equals',
+                values: [formid],
+              },
+            ],
+          }}
+          cubejsApi={Cube}
+          render={renderHistogram(Histogram)}
+        />
+      </div>
     </div>
   );
 };

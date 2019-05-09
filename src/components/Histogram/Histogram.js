@@ -5,6 +5,21 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recha
 import './Histogram.css';
 
 const Histogram = ({ resultSet, xAxisKey, barKey }) => {
+  const renderTooltip = props => {
+    const name = props.active ? props.payload[0].name : null;
+    return (
+      props.active && (
+        <div className="custom_tooltip">
+          <p className="custom_tooltip_label">{props.label}</p>
+          <p className="custom_tooltip_name">
+            {`${name} : `}
+            <span className="custom_tooltip_value">{props.payload[0].payload[name]}</span>
+          </p>
+        </div>
+      )
+    );
+  };
+
   return resultSet.length ? (
     <ResponsiveContainer>
       <BarChart
@@ -15,10 +30,14 @@ const Histogram = ({ resultSet, xAxisKey, barKey }) => {
       >
         <XAxis
           dataKey={xAxisKey}
-          label={{ value: 'Minutes', position: 'insideBottomRight', offset: 0 }}
+          // label={{ value: 'Minutes', position: 'insideBottomRight', offset: 0 }}
         />
-        <YAxis label={{ value: barKey, angle: -90, position: 'insideLeft' }} />
-        <Tooltip />
+        <YAxis
+          allowDecimals={false}
+          domain={['dataMin', 'dataMax']}
+          // label={{ value: barKey, angle: -90, position: 'insideLeft' }}
+        />
+        <Tooltip content={renderTooltip} />
         <Bar dataKey={barKey} fill="#82ca9d" />
       </BarChart>
     </ResponsiveContainer>
