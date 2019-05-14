@@ -4,6 +4,7 @@
   "dependencies": {
     "@cubejs-client/core": "^0.7.10",
     "@cubejs-client/react": "^0.7.10",
+    "antd": "3.18.1",
     "auth0-js": "9.10.1",
     "core-js": "^2.5.7",
     "history": "4.9.0",
@@ -16,6 +17,7 @@
     "recharts": "1.5.0"
   },
   "scripts": {
+    "check": "npm run format && npm run lint",
     "format": "prettier --write \"**/*.+(js|css|yml|yaml|scss|json)\"",
     "lint": "eslint ./src",
     "precommit": "npm run lint",

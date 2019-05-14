@@ -1,16 +1,17 @@
 import React from 'react';
 import PropTypes from 'prop-types';
+import { Row, Col } from 'antd';
 
 import './SurveyScreen.css';
 import { StartTimeHistogram } from '../../components';
 
 const SurveyScreen = ({ match }) => {
   return (
-    <div className="surveys-container">
-      <div className="col-6">
+    <Row>
+      <Col span={12}>
         <StartTimeHistogram formid={match.params.formid} />
-      </div>
-    </div>
+      </Col>
+    </Row>
   );
 };
 

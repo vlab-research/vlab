@@ -1,31 +1,39 @@
 import React from 'react';
-import { BrowserRouter as Router, Route } from 'react-router-dom';
+import { Router, Route } from 'react-router-dom';
+import { Layout } from 'antd';
 import { App, LoginScreen, SurveyScreen } from './containers';
-import { PrivateRoute, Spinner } from './components';
-import { Auth } from './services';
+import { Navbar, PrivateRoute, Spinner } from './components';
+import { Auth, History } from './services';
 
-const handleAuthentication = ({ location, history }) => {
+const { Header, Content } = Layout;
+
+const handleAuthentication = ({ location }) => {
   if (/access_token|id_token|error/.test(location.hash)) {
-    Auth.handleAuthentication(history);
+    Auth.handleAuthentication();
   }
 };
 
 const Root = () => {
   return (
-    <div>
-      <Router>
-        <PrivateRoute exact path="/" component={App} auth={Auth} />
-        <PrivateRoute exact path="/surveys/:formid" component={SurveyScreen} auth={Auth} />
-        <Route exact path="/login" render={props => <LoginScreen {...props} auth={Auth} />} />
-        <Route
-          path="/auth"
-          render={props => {
-            handleAuthentication(props);
-            return <Spinner {...props} />;
-          }}
-        />
-      </Router>
-    </div>
+    <Router history={History}>
+      <Layout>
+        <Header style={{ background: '#fff' }}>
+          <Navbar auth={Auth} />
+        </Header>
+        <Content style={{ padding: '0 50px', marginTop: 30 }}>
+          <PrivateRoute exact path="/" component={App} auth={Auth} />
+          <PrivateRoute exact path="/surveys/:formid" component={SurveyScreen} auth={Auth} />
+          <Route exact path="/login" render={props => <LoginScreen {...props} auth={Auth} />} />
+          <Route
+            path="/auth"
+            render={props => {
+              handleAuthentication(props);
+              return <Spinner {...props} />;
+            }}
+          />
+        </Content>
+      </Layout>
+    </Router>
   );
 };
 
