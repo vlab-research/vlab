@@ -1,6 +1,6 @@
 import moment from 'moment';
 
-export const computeData = (resultSet, interval) => {
+export const computeHistogramData = (resultSet, interval) => {
   const freqData = {};
   resultSet.rawData().forEach(response => {
     const start = moment(response['Responses.startTime']);
