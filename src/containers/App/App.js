@@ -3,7 +3,7 @@ import React from 'react';
 import './App.css';
 
 const App = () => {
-  return <div>Landing page</div>;
+  return <h1>Landing page</h1>;
 };
 
 export default App;

@@ -1,5 +1,6 @@
 /* eslint-disable no-console */
 import auth0 from 'auth0-js';
+import history from '../history';
 
 import AUTH_CONFIG from './auth0-variables';
 
@@ -26,12 +27,13 @@ class Auth {
     this.auth0.authorize();
   };
 
-  handleAuthentication = history => {
+  handleAuthentication = () => {
     this.auth0.parseHash((err, authResult) => {
       if (authResult && authResult.accessToken && authResult.idToken) {
-        this.setSession(authResult, history);
+        this.setSession(authResult);
       } else if (err) {
         console.error(err);
+        history.push('/login');
       }
     });
   };
@@ -40,7 +42,7 @@ class Auth {
 
   getIdToken = () => this.idToken;
 
-  setSession = ({ expiresIn, accessToken, idToken }, history) => {
+  setSession = ({ expiresIn, accessToken, idToken }) => {
     // Set isLoggedIn flag in localStorage
     localStorage.setItem('isLoggedIn', 'true');
 
@@ -70,7 +72,7 @@ class Auth {
     });
   };
 
-  logout = history => {
+  logout = () => {
     // Remove tokens and expiry time
     this.accessToken = null;
     this.idToken = null;
