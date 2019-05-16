@@ -8,7 +8,7 @@ class Auth {
   constructor() {
     const auth = localStorage.getItem('auth');
     if (auth) {
-      const { accessToken, idToken, expiresAt } = JSON.parse(localStorage.getItem('auth'));
+      const { accessToken, idToken, expiresAt } = JSON.parse(auth);
       this.accessToken = accessToken;
       this.idToken = idToken;
       this.expiresAt = expiresAt;
@@ -58,7 +58,7 @@ class Auth {
     };
 
     localStorage.setItem('auth', JSON.stringify(auth));
-    history.push('/');
+    history.replace('/');
   };
 
   renewSession = () => {
@@ -82,7 +82,7 @@ class Auth {
     localStorage.removeItem('isLoggedIn');
     localStorage.removeItem('auth');
 
-    history.push('/login');
+    history.replace('/login');
   };
 
   isAuthenticated = () => {

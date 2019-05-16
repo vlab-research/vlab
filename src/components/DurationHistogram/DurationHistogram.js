@@ -4,7 +4,6 @@ import { QueryRenderer } from '@cubejs-client/react';
 
 import { Select } from 'antd';
 import { Spinner, Histogram } from '..';
-import { Cube } from '../../services';
 import { computeHistogramData } from './chartUtil';
 import './DurationHistogram.css';
 
@@ -21,7 +20,7 @@ const renderHistogram = (Component, interval) => ({ resultSet, error }) => {
   );
 };
 
-const DurationHistogram = ({ formid }) => {
+const DurationHistogram = ({ formid, cubejs }) => {
   const stepIntervals = {
     '30 mins': 30,
     '1 hour': 60,
@@ -68,7 +67,7 @@ const DurationHistogram = ({ formid }) => {
               },
             ],
           }}
-          cubejsApi={Cube}
+          cubejsApi={cubejs}
           render={renderHistogram(Histogram, stepIntervals[intervalStep])}
         />
       </div>
@@ -78,6 +77,7 @@ const DurationHistogram = ({ formid }) => {
 
 DurationHistogram.propTypes = {
   formid: PropTypes.string.isRequired,
+  cubejs: PropTypes.objectOf(PropTypes.any).isRequired,
 };
 
 export default DurationHistogram;
