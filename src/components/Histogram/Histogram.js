@@ -1,18 +1,18 @@
 import React from 'react';
 import PropTypes from 'prop-types';
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
+import { ResponsiveContainer, BarChart, CartesianGrid, Bar, XAxis, YAxis, Tooltip } from 'recharts';
 
 import './Histogram.css';
 
-const renderTooltip = props => {
-  const name = props.active ? props.payload[0].name : null;
+const renderTooltip = ({ active, label, payload }) => {
+  const { name } = active && payload[0];
   return (
-    props.active && (
+    active && (
       <div className="custom_tooltip">
-        <p className="custom_tooltip_label">{props.label}</p>
+        <p className="custom_tooltip_label">{label}</p>
         <p className="custom_tooltip_name">
           {`${name} : `}
-          <span className="custom_tooltip_value">{props.payload[0].payload[name]}</span>
+          <span className="custom_tooltip_value">{payload[0].payload[name]}</span>
         </p>
       </div>
     )
@@ -22,21 +22,14 @@ const renderTooltip = props => {
 const Histogram = ({ resultSet, xAxisKey, barKey }) => {
   return resultSet.length ? (
     <ResponsiveContainer>
-      <BarChart
-        data={resultSet}
-        margin={{
-          left: -10,
-        }}
-      >
-        <XAxis
-          dataKey={xAxisKey}
-          // label={{ value: 'Minutes', position: 'insideBottomRight', offset: 0 }}
-        />
+      <BarChart data={resultSet}>
+        <CartesianGrid vertical={false} stroke="#f5f5f5" />
         <YAxis
           allowDecimals={false}
           domain={[0, 'dataMax']}
-          // label={{ value: barKey, angle: -90, position: 'insideLeft' }}
+          label={{ value: barKey, angle: -90, position: 'insideLeft' }}
         />
+        <XAxis dataKey={xAxisKey} />
         <Tooltip content={renderTooltip} />
         <Bar dataKey={barKey} fill="#82ca9d" />
       </BarChart>
