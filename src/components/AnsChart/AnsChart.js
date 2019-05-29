@@ -22,10 +22,10 @@ const renderTooltip = ({ active, label, payload }) => {
 const AnsChart = ({ resultSet, xAxisKey, barKey }) => {
   return resultSet.length ? (
     <ResponsiveContainer>
-      <BarChart data={resultSet}>
+      <BarChart data={resultSet} layout="vertical">
         <CartesianGrid vertical={false} stroke="#f5f5f5" />
-        <YAxis allowDecimals={false} domain={[0, 'dataMax']} />
-        <XAxis dataKey={xAxisKey} />
+        <YAxis type="category" dataKey={xAxisKey} />
+        <XAxis type="number" domain={[0, 'dataMax']} />
         <Tooltip content={renderTooltip} />
         <Bar dataKey={barKey} fill="#82ca9d" />
       </BarChart>
