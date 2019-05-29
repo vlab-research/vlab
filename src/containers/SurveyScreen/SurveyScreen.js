@@ -5,18 +5,26 @@ import { Row, Col } from 'antd';
 import './SurveyScreen.css';
 import { Cube, Auth } from '../../services';
 import { StartTimeReport, DurationReport } from '..';
+import { AnswersChart } from '../../components';
 
 const SurveyScreen = ({ match }) => {
   const cubeInstance = Cube(Auth.getIdToken());
   return (
-    <Row>
-      <Col span={12}>
-        <StartTimeReport cubejs={cubeInstance} formid={match.params.formid} />
-      </Col>
-      <Col span={12}>
-        <DurationReport cubejs={cubeInstance} formid={match.params.formid} />
-      </Col>
-    </Row>
+    <div>
+      <Row>
+        <Col span={12}>
+          <StartTimeReport cubejs={cubeInstance} formid={match.params.formid} />
+        </Col>
+        <Col span={12}>
+          <DurationReport cubejs={cubeInstance} formid={match.params.formid} />
+        </Col>
+      </Row>
+      <Row>
+        <Col span={24}>
+          <AnswersChart cubejs={cubeInstance} formid={match.params.formid} />
+        </Col>
+      </Row>
+    </div>
   );
 };
 
