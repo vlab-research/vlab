@@ -2,7 +2,7 @@ import React from 'react';
 import PropTypes from 'prop-types';
 import { ResponsiveContainer, BarChart, CartesianGrid, Bar, XAxis, YAxis, Tooltip } from 'recharts';
 
-import './AnsChart.css';
+import './HorizontalChart.css';
 
 const renderTooltip = ({ active, label, payload }) => {
   const { name } = active && payload[0];
@@ -19,7 +19,7 @@ const renderTooltip = ({ active, label, payload }) => {
   );
 };
 
-const AnsChart = ({ resultSet, xAxisKey, barKey }) => {
+const HorizontalChart = ({ resultSet, xAxisKey, barKey }) => {
   return resultSet.length ? (
     <ResponsiveContainer>
       <BarChart data={resultSet} layout="vertical">
@@ -35,10 +35,10 @@ const AnsChart = ({ resultSet, xAxisKey, barKey }) => {
   );
 };
 
-AnsChart.propTypes = {
+HorizontalChart.propTypes = {
   barKey: PropTypes.string.isRequired,
   xAxisKey: PropTypes.string.isRequired,
   resultSet: PropTypes.arrayOf(PropTypes.object).isRequired,
 };
 
-export default AnsChart;
+export default HorizontalChart;

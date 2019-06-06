@@ -5,7 +5,7 @@ import { Row, Col } from 'antd';
 import './SurveyScreen.css';
 import { Cube, Auth } from '../../services';
 import { StartTimeReport, DurationReport } from '..';
-import { AnswersChart } from '../../components';
+import { TopQuestionsChart } from '../../components';
 
 const SurveyScreen = ({ match }) => {
   const cubeInstance = Cube(Auth.getIdToken());
@@ -21,7 +21,7 @@ const SurveyScreen = ({ match }) => {
       </Row>
       <Row>
         <Col span={24}>
-          <AnswersChart cubejs={cubeInstance} formid={match.params.formid} />
+          <TopQuestionsChart cubejs={cubeInstance} formid={match.params.formid} />
         </Col>
       </Row>
     </div>
