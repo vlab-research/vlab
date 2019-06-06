@@ -24,25 +24,6 @@
   padding: 0 8px;
 }
 
-.selector-container {
-  display: flex;
-  align-items: center;
-}
-
-.selector-title {
-  color: rgb(181, 181, 181);
-  font-size: 0.9rem;
-}
-
-.selector-container .ant-select-selection {
-  border: none;
-  height: 100%;
-}
-
-.selector-container .ant-select-selection:focus {
-  box-shadow: 0 0 0 2px rgba(24, 144, 255, 0);
-}
-
 .histogram-container {
   height: 80%;
   width: 100%;
