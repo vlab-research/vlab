@@ -29,23 +29,17 @@ const DurationHistogram = ({ formid }) => {
 
   const [activeInterval, setActiveInterval] = useState('1 hour');
 
-  const renderSelector = () => {
-    return (
-      <IntervalSelector
-        stepIntervals={stepIntervals}
-        activeInterval={activeInterval}
-        handleChange={setActiveInterval}
-      />
-    );
-  };
-
   return (
     <div className="chart-container-b">
       <div className="info-container-b">
         <h3>Duration per user</h3>
         <div className="selector-container">
           <div className="selector-title">Interval</div>
-          {renderSelector()}
+          <IntervalSelector
+            stepIntervals={stepIntervals}
+            activeInterval={activeInterval}
+            handleChange={setActiveInterval}
+          />
         </div>
       </div>
       <div className="histogram-container">
