@@ -2,8 +2,7 @@ import React, { useState } from 'react';
 import PropTypes from 'prop-types';
 import { QueryRenderer } from '@cubejs-client/react';
 
-import { Select } from 'antd';
-import { HorizontalChart, Spinner } from '..';
+import { HorizontalChart, Spinner, IntervalSelector } from '..';
 import { computeChartData } from './chartUtil';
 import './TopQuestionsChart.css';
 
@@ -19,40 +18,29 @@ const ChartBox = ({ resultSet }) => {
     return [lower, middle, max];
   };
   const stepIntervals = getIntervals();
-  const initialInterval = stepIntervals[1] ? stepIntervals[1] : stepIntervals[0];
 
-  const [intervalStep, setIntervalStep] = useState(initialInterval);
-
-  const renderSelector = () => {
-    return (
-      <Select
-        defaultValue={intervalStep}
-        onSelect={value => setIntervalStep(value)}
-        dropdownRender={menu => <div>{menu}</div>}
-      >
-        {stepIntervals.map(interval => (
-          <Select.Option key={interval} value={interval}>
-            {interval}
-          </Select.Option>
-        ))}
-      </Select>
-    );
-  };
+  const [activeInterval, setActiveInterval] = useState(
+    stepIntervals[1] ? stepIntervals[1] : stepIntervals[0],
+  );
 
   return (
     <div className="chart-container">
       <div className="info-container">
-        <h3>{`Top ${intervalStep} Questions`}</h3>
+        <h3>{`Top ${activeInterval} Questions`}</h3>
         <div className="selector-container">
           <div className="selector-title">nº questions</div>
-          {renderSelector()}
+          <IntervalSelector
+            stepIntervals={stepIntervals}
+            activeInterval={activeInterval}
+            handleChange={setActiveInterval}
+          />
         </div>
       </div>
       <div className="histogram-container">
         <HorizontalChart
           xAxisKey="question"
           barKey="answers"
-          resultSet={computeChartData(resultSet, intervalStep)}
+          resultSet={computeChartData(resultSet, activeInterval)}
         />
       </div>
     </div>
