@@ -4,17 +4,17 @@ import { Row, Col } from 'antd';
 
 import './SurveyScreen.css';
 import { Cube, Auth } from '../../services';
-import { StartTimeHistogram, DurationHistogram } from '../../components';
+import { StartTimeReport, DurationReport } from '..';
 
 const SurveyScreen = ({ match }) => {
   const cubeInstance = Cube(Auth.getIdToken());
   return (
     <Row>
       <Col span={12}>
-        <StartTimeHistogram cubejs={cubeInstance} formid={match.params.formid} />
+        <StartTimeReport cubejs={cubeInstance} formid={match.params.formid} />
       </Col>
       <Col span={12}>
-        <DurationHistogram cubejs={cubeInstance} formid={match.params.formid} />
+        <DurationReport cubejs={cubeInstance} formid={match.params.formid} />
       </Col>
     </Row>
   );

@@ -9,7 +9,7 @@ const LoginScreen = ({ auth }) => {
   return (
     <div className="login-container">
       <Card className="card-container">
-        <p style={{ 'fontSize': '120px' }}>VL</p>
+        <p style={{ fontSize: '120px' }}>VL</p>
         <Button onClick={isAuthenticated ? auth.logout : auth.login} type="normal" size="large">
           {isAuthenticated ? 'Logout' : 'Login'}
         </Button>
