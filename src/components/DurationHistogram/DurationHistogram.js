@@ -2,8 +2,7 @@ import React, { useState } from 'react';
 import PropTypes from 'prop-types';
 import { QueryRenderer } from '@cubejs-client/react';
 
-import { Select } from 'antd';
-import { Spinner, Histogram } from '..';
+import { Spinner, Histogram, IntervalSelector } from '..';
 import { computeHistogramData } from './chartUtil';
 import './DurationHistogram.css';
 
@@ -27,23 +26,7 @@ const DurationHistogram = ({ formid, cubejs }) => {
     '3 hours': 180,
   };
 
-  const [intervalStep, setIntervalStep] = useState('1 hour');
-
-  const renderSelector = () => {
-    return (
-      <Select
-        defaultValue={intervalStep}
-        onSelect={value => setIntervalStep(value)}
-        dropdownRender={menu => <div>{menu}</div>}
-      >
-        {Object.keys(stepIntervals).map(interval => (
-          <Select.Option key={interval} value={interval}>
-            {interval}
-          </Select.Option>
-        ))}
-      </Select>
-    );
-  };
+  const [activeInterval, setActiveInterval] = useState('1 hour');
 
   return (
     <div className="chart-container-b">
@@ -51,7 +34,11 @@ const DurationHistogram = ({ formid, cubejs }) => {
         <h3>Duration per user</h3>
         <div className="selector-container">
           <div className="selector-title">Interval</div>
-          {renderSelector()}
+          <IntervalSelector
+            stepIntervals={stepIntervals}
+            activeInterval={activeInterval}
+            handleChange={setActiveInterval}
+          />
         </div>
       </div>
       <div className="histogram-container">
@@ -68,7 +55,7 @@ const DurationHistogram = ({ formid, cubejs }) => {
             ],
           }}
           cubejsApi={cubejs}
-          render={renderHistogram(Histogram, stepIntervals[intervalStep])}
+          render={renderHistogram(Histogram, stepIntervals[activeInterval])}
         />
       </div>
     </div>

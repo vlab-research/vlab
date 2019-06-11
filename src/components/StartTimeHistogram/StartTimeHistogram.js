@@ -1,9 +1,8 @@
 import React, { useState } from 'react';
 import PropTypes from 'prop-types';
 import { QueryRenderer } from '@cubejs-client/react';
-import { Select } from 'antd';
 
-import { Spinner, Histogram } from '..';
+import { Spinner, Histogram, IntervalSelector } from '..';
 import { computeHistogramData } from './chartUtil';
 import './StartTimeHistogram.css';
 
@@ -27,23 +26,7 @@ const StartTimeHistogram = ({ formid, cubejs }) => {
     '3 hours': 180,
   };
 
-  const [intervalStep, setIntervalStep] = useState('30 mins');
-
-  const renderSelector = () => {
-    return (
-      <Select
-        defaultValue={intervalStep}
-        onSelect={value => setIntervalStep(value)}
-        dropdownRender={menu => <div>{menu}</div>}
-      >
-        {Object.keys(stepIntervals).map(interval => (
-          <Select.Option key={interval} value={interval}>
-            {interval}
-          </Select.Option>
-        ))}
-      </Select>
-    );
-  };
+  const [activeInterval, setActiveInterval] = useState('30 mins');
 
   return (
     <div className="chart-container">
@@ -51,7 +34,11 @@ const StartTimeHistogram = ({ formid, cubejs }) => {
         <h3 className="chart-title">Users count chat start time</h3>
         <div className="selector-container">
           <div className="selector-title">Interval</div>
-          {renderSelector()}
+          <IntervalSelector
+            stepIntervals={stepIntervals}
+            activeInterval={activeInterval}
+            handleChange={setActiveInterval}
+          />
         </div>
       </div>
       <div className="histogram-container">
@@ -73,7 +60,7 @@ const StartTimeHistogram = ({ formid, cubejs }) => {
             ],
           }}
           cubejsApi={cubejs}
-          render={renderHistogram(Histogram, stepIntervals[intervalStep])}
+          render={renderHistogram(Histogram, stepIntervals[activeInterval])}
         />
       </div>
     </div>
