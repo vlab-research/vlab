@@ -3,7 +3,6 @@ import PropTypes from 'prop-types';
 import { QueryRenderer } from '@cubejs-client/react';
 
 import { Spinner, Histogram, IntervalSelector } from '..';
-import { Cube } from '../../services';
 import { computeHistogramData } from './chartUtil';
 import './StartTimeHistogram.css';
 
@@ -20,7 +19,7 @@ const renderHistogram = (Component, interval) => ({ resultSet, error }) => {
   );
 };
 
-const StartTimeHistogram = ({ formid }) => {
+const StartTimeHistogram = ({ formid, cubejs }) => {
   const stepIntervals = {
     '30 mins': 30,
     '1 hour': 60,
@@ -60,7 +59,7 @@ const StartTimeHistogram = ({ formid }) => {
               },
             ],
           }}
-          cubejsApi={Cube}
+          cubejsApi={cubejs}
           render={renderHistogram(Histogram, stepIntervals[activeInterval])}
         />
       </div>
@@ -70,6 +69,7 @@ const StartTimeHistogram = ({ formid }) => {
 
 StartTimeHistogram.propTypes = {
   formid: PropTypes.string.isRequired,
+  cubejs: PropTypes.objectOf(PropTypes.any).isRequired,
 };
 
 export default StartTimeHistogram;
