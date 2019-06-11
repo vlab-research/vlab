@@ -1,1 +1,3 @@
-export { default } from './auth';
+import AuthOrCreate from './authOrCreate';
+
+export default AuthOrCreate;

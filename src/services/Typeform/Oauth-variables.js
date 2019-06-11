@@ -1,6 +1,6 @@
 export default {
   clientID: process.env.REACT_APP_TYEPFORM_CLIENT_ID,
-  clientSecret: process.env.REACT_APP_TYEPFORM_CLIENT_SECRET,
-  redirect_uri: 'http://localhost:3000/surveys/auth',
+  typeformUrl: process.env.REACT_APP_TYEPFORM_AUTH_URL,
+  redirect_uri: process.env.REACT_APP_TYPEFORM_REDIRECT_URL,
   scope: ['accounts:read', 'forms:read'],
 };

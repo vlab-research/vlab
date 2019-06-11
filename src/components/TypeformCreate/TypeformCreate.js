@@ -1,36 +1,38 @@
 import React from 'react';
-import { Route } from 'react-router-dom';
+import { Route, Redirect } from 'react-router-dom';
 import PropTypes from 'prop-types';
-import Typeform from '../../services/Typeform';
+import typeformAuth from '../../services/typeform';
 import { TypeformBtn } from './style';
+import TypeformCreateForm from './TypeformCreateForm';
 
-const { createOrAuthorize, handleAuthorization } = new Typeform();
+const { handleAuthorization } = typeformAuth;
 
-const TypeformCreate = ({ match, history }) => {
+const TypeformCreate = ({ match }) => {
   return (
     <div>
-      <TypeformBtn onClick={() => createOrAuthorize(history)}>CREATE</TypeformBtn>
-      <Route
-        path={`${match.path}/auth`}
-        render={({ location }) => {
-          const code = location.search.match(/([A-Z,0-9])\w+/)[0];
-          handleAuthorization(code, history);
-          return <div> LOADING PAGE AUTH </div>;
-        }}
-      />
-      <Route
-        path={`${match.path}/create`}
-        render={() => {
-          return <div> CREATE NEW SURVEY </div>;
-        }}
-      />
+      <TypeformBtn to={`${match.path}/create`}>CREATE</TypeformBtn>
+      <Route path={`${match.path}/auth`} render={props => <TypeformCreateAuth {...props} />} />
+      <Route path={`${match.path}/create`} render={props => <TypeformCreateForm {...props} />} />
     </div>
   );
+};
+
+const TypeformCreateAuth = ({ location, match, history }) => {
+  const code = location.search && location.search.match(/([A-Z,0-9])\w+/)[0];
+  if (!code) return <Redirect to={`/${match.path.split('/')[0]}`} />;
+  handleAuthorization({ code, history, match });
+  return <div> LOADING PAGE AUTH </div>;
 };
 
 TypeformCreate.propTypes = {
   match: PropTypes.objectOf(PropTypes.any).isRequired,
   history: PropTypes.objectOf(PropTypes.any).isRequired,
+};
+
+TypeformCreateAuth.propTypes = {
+  match: PropTypes.objectOf(PropTypes.any).isRequired,
+  history: PropTypes.objectOf(PropTypes.any).isRequired,
+  location: PropTypes.objectOf(PropTypes.any).isRequired,
 };
 
 export default TypeformCreate;
