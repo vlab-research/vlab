@@ -2,9 +2,9 @@ import React, { useState } from 'react';
 import PropTypes from 'prop-types';
 import { QueryRenderer } from '@cubejs-client/react';
 
-import { HorizontalChart, Spinner, IntervalSelector } from '..';
+import { HorizontalChart, Spinner, IntervalSelector } from '../../components';
 import { computeChartData } from './chartUtil';
-import './TopQuestionsChart.css';
+import './TopQuestionsReport.css';
 
 const ChartBox = ({ resultSet }) => {
   const getIntervals = () => {
