@@ -1,11 +1,11 @@
 import React from 'react';
 import { Route, Redirect } from 'react-router-dom';
 import PropTypes from 'prop-types';
-import typeformAuth from '../../services/typeform';
+import { Typeform } from '../../services';
 import { TypeformBtn } from './style';
 import TypeformCreateForm from './TypeformCreateForm';
 
-const { handleAuthorization } = typeformAuth;
+const { handleAuthorization } = Typeform;
 
 const TypeformCreate = ({ match }) => {
   return (
