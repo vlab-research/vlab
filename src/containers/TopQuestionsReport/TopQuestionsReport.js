@@ -3,24 +3,18 @@ import PropTypes from 'prop-types';
 import { QueryRenderer } from '@cubejs-client/react';
 
 import { HorizontalChart, Spinner, IntervalSelector } from '../../components';
-import { computeChartData } from './chartUtil';
+import { computeChartData, getIntervals } from './chartUtil';
 import './TopQuestionsReport.css';
 
 const ChartBox = ({ resultSet }) => {
-  const getIntervals = () => {
-    let max = resultSet.rawData().length;
-    max = 10;
-    if (max >= 10) max = 10;
-    const lower = Math.floor(max / 3);
-    const middle = Math.floor(max / 2);
-    if (max <= 1) return [max];
-    if (lower === middle || lower <= 1) return [middle, max];
-    return [lower, middle, max];
-  };
-  const stepIntervals = getIntervals();
+  const intervals = getIntervals(resultSet);
+  const stepIntervals = {};
+  intervals.forEach(interval => {
+    stepIntervals[interval] = interval;
+  });
 
   const [activeInterval, setActiveInterval] = useState(
-    stepIntervals[1] ? stepIntervals[1] : stepIntervals[0],
+    intervals[1].toString() || intervals[0].toString(),
   );
 
   return (
@@ -81,7 +75,7 @@ const TopQuestionsChart = ({ formid, cubejs }) => {
 };
 
 ChartBox.propTypes = {
-  resultSet: PropTypes.arrayOf(PropTypes.object).isRequired,
+  resultSet: PropTypes.objectOf(PropTypes.object).isRequired,
 };
 
 TopQuestionsChart.propTypes = {

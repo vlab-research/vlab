@@ -13,6 +13,17 @@ const mockResultSet = {
   ],
 };
 
+export const getIntervals = resultSet => {
+  let max = resultSet.rawData().length;
+  max = 10;
+  if (max >= 10) max = 10;
+  const lower = Math.floor(max / 3);
+  const middle = Math.floor(max / 2);
+  if (max <= 1) return [max];
+  if (lower === middle || lower <= 1) return [middle, max];
+  return [lower, middle, max];
+};
+
 export const computeChartData = (resultSet, interval) => {
   return mockResultSet
     .rawData()
