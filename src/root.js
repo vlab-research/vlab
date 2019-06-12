@@ -1,31 +1,40 @@
 import React from 'react';
-import { BrowserRouter as Router, Route } from 'react-router-dom';
-import { App, LoginScreen, ResponseScreen, Surveys } from './containers';
-import { PrivateRoute, Spinner } from './components';
-import { Auth } from './services';
 
-export const auth = new Auth();
+import { Router, Route } from 'react-router-dom';
+import { Layout } from 'antd';
+import { App, LoginScreen, SurveyScreen, Surveys } from './containers';
+import { Navbar, PrivateRoute, Spinner } from './components';
+import { Auth, History } from './services';
 
-const handleAuthentication = ({ location, history }) => {
+const { Header, Content } = Layout;
+
+const handleAuthentication = ({ location }) => {
   if (/access_token|id_token|error/.test(location.hash)) {
-    auth.handleAuthentication(history);
+    Auth.handleAuthentication();
   }
 };
 
 const Root = () => {
   return (
-    <Router>
-      <PrivateRoute exact path="/" component={App} auth={auth} />
-      <PrivateRoute path="/surveys" component={Surveys} auth={auth} />
-      <PrivateRoute exact path="/responses" component={ResponseScreen} auth={auth} />
-      <Route exact path="/login" render={props => <LoginScreen {...props} auth={auth} />} />
-      <Route
-        path="/auth"
-        render={props => {
-          handleAuthentication(props);
-          return <Spinner {...props} />;
-        }}
-      />
+    <Router history={History}>
+      <Layout>
+        <Header style={{ background: '#fff' }}>
+          <Navbar auth={Auth} />
+        </Header>
+        <Content style={{ padding: '0 50px', marginTop: 30 }}>
+          <PrivateRoute exact path="/" component={App} auth={Auth} />
+          <PrivateRoute path="/surveys" component={Surveys} auth={Auth} />
+          <PrivateRoute exact path="/surveys/:formid" component={SurveyScreen} auth={Auth} />
+          <Route exact path="/login" render={props => <LoginScreen {...props} auth={Auth} />} />
+          <Route
+            path="/auth"
+            render={props => {
+              handleAuthentication(props);
+              return <Spinner {...props} />;
+            }}
+          />
+        </Content>
+      </Layout>
     </Router>
   );
 };

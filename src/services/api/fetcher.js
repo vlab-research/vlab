@@ -1,4 +1,4 @@
-import { auth } from '../../root';
+import auth from '../auth';
 import { Validator } from '../../helpers';
 
 export default function fetcher({
@@ -7,7 +7,7 @@ export default function fetcher({
   headers = {},
   body,
 }) {
-  const URL = `${process.env.REACT_APP_SERVER_URL}${path}`;
+  const URL = `${process.env.REACT_APP_SERVER_URL}/api/v1${path}`;
   const TOKEN = auth.getIdToken();
 
   const opts = { method, headers, body };

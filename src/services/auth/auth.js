@@ -1,13 +1,14 @@
 /* eslint-disable no-console */
 import auth0 from 'auth0-js';
+import history from '../history';
 
 import AUTH_CONFIG from './auth0-variables';
 
-export default class Auth {
+class Auth {
   constructor() {
     const auth = localStorage.getItem('auth');
     if (auth) {
-      const { accessToken, idToken, expiresAt } = JSON.parse(localStorage.getItem('auth'));
+      const { accessToken, idToken, expiresAt } = JSON.parse(auth);
       this.accessToken = accessToken;
       this.idToken = idToken;
       this.expiresAt = expiresAt;
@@ -26,12 +27,13 @@ export default class Auth {
     this.auth0.authorize();
   };
 
-  handleAuthentication = history => {
+  handleAuthentication = () => {
     this.auth0.parseHash((err, authResult) => {
       if (authResult && authResult.accessToken && authResult.idToken) {
-        this.setSession(authResult, history);
+        this.setSession(authResult);
       } else if (err) {
         console.error(err);
+        history.push('/login');
       }
     });
   };
@@ -40,7 +42,7 @@ export default class Auth {
 
   getIdToken = () => this.idToken;
 
-  setSession = ({ expiresIn, accessToken, idToken }, history) => {
+  setSession = ({ expiresIn, accessToken, idToken }) => {
     // Set isLoggedIn flag in localStorage
     localStorage.setItem('isLoggedIn', 'true');
 
@@ -56,7 +58,7 @@ export default class Auth {
     };
 
     localStorage.setItem('auth', JSON.stringify(auth));
-    history.push('/');
+    history.replace('/');
   };
 
   renewSession = () => {
@@ -80,7 +82,7 @@ export default class Auth {
     localStorage.removeItem('isLoggedIn');
     localStorage.removeItem('auth');
 
-    // navigate to the home route
+    history.replace('/login');
   };
 
   isAuthenticated = () => {
@@ -89,3 +91,5 @@ export default class Auth {
     return new Date().getTime() < this.expiresAt;
   };
 }
+
+export default new Auth();
