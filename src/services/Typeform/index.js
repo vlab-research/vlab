@@ -1,3 +1,1 @@
-import AuthOrCreate from './authOrCreate';
-
-export default AuthOrCreate;
+export { default } from './authOrCreate';

@@ -1,4 +1,5 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 import TypeformCreate from '../../components/TypeformCreate';
 import { Hook } from '../../services';
 
@@ -13,9 +14,9 @@ const SurveysScreen = props => {
         <TypeformCreate {...props} />
       </Survey.Provider>
       {surveys.map(survey => (
-        <div key={survey.id} className="title">
-          {survey.title}
-        </div>
+        <Link key={survey.id} to={`/surveys/details/${survey.shortcode}`}>
+          <div className="title">{survey.title}</div>
+        </Link>
       ))}
     </div>
   );

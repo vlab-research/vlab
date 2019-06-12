@@ -24,7 +24,7 @@ const Root = () => {
         <Content style={{ padding: '0 50px', marginTop: 30 }}>
           <PrivateRoute exact path="/" component={App} auth={Auth} />
           <PrivateRoute path="/surveys" component={Surveys} auth={Auth} />
-          <PrivateRoute exact path="/surveys/:formid" component={SurveyScreen} auth={Auth} />
+          <PrivateRoute path="/surveys/details/:formid" component={SurveyScreen} auth={Auth} />
           <Route exact path="/login" render={props => <LoginScreen {...props} auth={Auth} />} />
           <Route
             path="/auth"
