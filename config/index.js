@@ -37,6 +37,12 @@ const config = {
     PORT: envVars.PORT || 3000,
     API_VERSION: envVars.API_VERSION || '1',
   },
+  TYPEFORM: {
+    typeformUrl: envVars.TYEPFORM_URL || '',
+    secret: envVars.TYEPFORM_CLIENT_SECRET || '',
+    clientId: envVars.TYEPFORM_CLIENT_ID || '',
+    redirectUri: envVars.TYPEFORM_REDIRECT_URL || '',
+  },
   JWT: {
     secret: jwks.expressJwtSecret({
       cache: true,
@@ -49,7 +55,7 @@ const config = {
   DATABASE_CONFIG: {
     user: isTest() ? 'postgres' : envVars.DB_USER || 'postgres',
     host: isTest() ? 'localhost' : envVars.DB_HOST || 'localhost',
-    database: isTest() ? 'vlab_dashboard' : envVars.DB_DATABASE || 'postgres',
+    database: isTest() ? 'vlab_dashboard_test' : envVars.DB_DATABASE || 'postgres',
     password: isTest() ? undefined : envVars.DB_PASSWORD || undefined,
     port: isTest() ? 5432 : envVars.DB_PORT || 5432,
   },

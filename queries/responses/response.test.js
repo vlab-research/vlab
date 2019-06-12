@@ -1,7 +1,6 @@
 const { Pool } = require('pg');
-const chai = require('chai');
-const mocha = require('mocha'); // eslint-disable-line no-unused-vars
-const should = chai.should(); // eslint-disable-line no-unused-vars
+require('chai').should();
+require('mocha');
 
 const model = require('./response.queries');
 
@@ -21,7 +20,7 @@ describe('Response queries', () => {
     });
 
     try {
-      await pool.query('CREATE DATABASE vlab_dashboard');
+      await pool.query('CREATE DATABASE vlab_dashboard_test');
     } catch (e) {}
 
     vlabPool = new Pool(DATABASE_CONFIG);

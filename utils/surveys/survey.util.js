@@ -1,5 +1,6 @@
 'use strict';
 
+const { Survey } = require('../../queries');
 const joi = require('joi');
 
 function validate(reqData) {
@@ -15,9 +16,10 @@ function validate(reqData) {
         .required(),
       shortcode: joi
         .string()
-        .length(4, 'utf8')
+        .length(3, 'utf8')
         .regex(/^[0-9]+$/)
         .required(),
+      title: joi.string().required(),
       form: joi.string().required(),
     })
     .unknown()
@@ -29,6 +31,13 @@ function validate(reqData) {
   }
 }
 
+async function shortcode (userid) {
+  const code = Math.floor(Math.random() * 999)
+  const included = await Survey.includes({ userid, code })
+  return  included ? shortcode() : code.toString();
+}
+
 module.exports = {
+  shortcode,
   validate,
 };
