@@ -7,8 +7,9 @@ export default function useMountFetch(fetchOpts, initialState) {
   useEffect(() => {
     ApiClient.fetcher(fetchOpts)
       .then(res => res.json())
-      .then(data => setState(data));
+      .then(data => setState(data))
+      .catch(e => console.error(e)); //eslint-disable-line
   }, []);
 
-  return state;
+  return [state, setState];
 }

@@ -1,7 +1,8 @@
 import React from 'react';
+
 import { Router, Route } from 'react-router-dom';
 import { Layout } from 'antd';
-import { App, LoginScreen, SurveyScreen } from './containers';
+import { App, LoginScreen, SurveyScreen, Surveys } from './containers';
 import { Navbar, PrivateRoute, Spinner } from './components';
 import { Auth, History } from './services';
 
@@ -22,6 +23,7 @@ const Root = () => {
         </Header>
         <Content style={{ padding: '0 50px', marginTop: 30 }}>
           <PrivateRoute exact path="/" component={App} auth={Auth} />
+          <PrivateRoute path="/surveys" component={Surveys} auth={Auth} />
           <PrivateRoute exact path="/surveys/:formid" component={SurveyScreen} auth={Auth} />
           <Route exact path="/login" render={props => <LoginScreen {...props} auth={Auth} />} />
           <Route
