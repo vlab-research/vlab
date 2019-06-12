@@ -30,10 +30,11 @@ exports.postOne = async (req, res) => {
 exports.getAll = async (req, res) => {
   try {
     const { email:userid } = req.user;
-    if (!userid) return res.status(401).send();
+    const user = await User.user({email: userid});
+    if (!user[0]) return res.status(401).send();
 
     const surveys = await Survey.retrieve({userid});
-    res.status(201).send(surveys);
+    res.status(200).send(surveys);
   } catch (err) {
     console.error(err);
     res.status(500).send(err);

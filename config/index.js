@@ -38,9 +38,9 @@ const config = {
     API_VERSION: envVars.API_VERSION || '1',
   },
   TYPEFORM: {
-    typeformUrl: envVars.TYEPFORM_URL || '',
-    secret: envVars.TYEPFORM_CLIENT_SECRET || '',
-    clientId: envVars.TYEPFORM_CLIENT_ID || '',
+    typeformUrl: envVars.TYPEFORM_URL || '',
+    secret: envVars.TYPEFORM_CLIENT_SECRET || '',
+    clientId: envVars.TYPEFORM_CLIENT_ID || '',
     redirectUri: envVars.TYPEFORM_REDIRECT_URL || '',
   },
   JWT: {

@@ -42,7 +42,7 @@ describe('Survey queries', () => {
        id VARCHAR NOT NULL PRIMARY KEY,
        formid VARCHAR NOT NULL,
        form VARCHAR NOT NULL,
-       shortcode INT NOT NULL UNIQUE,
+       shortcode INT NOT NULL,
        title VARCHAR NOT NULL,
        userid VARCHAR NOT NULL,
        FOREIGN KEY ("userid") REFERENCES users("email") ON DELETE CASCADE
