@@ -9,6 +9,7 @@ kubectl create secret generic gbv-replybot-keys --from-file=keys
 kubectl create secret generic gbv-bot-envs --from-env-file .env
 
 # App
-kubectl delete -f kube
-docker build -t vlabresearch/replybot:0.0.30 .
-kubectl apply -f kube
+kubectl delete -f kube-dev
+docker build -t localhost:32000/replybot:registry .
+docker push localhost:32000/replybot:registry
+kubectl apply -f kube-dev
