@@ -16,7 +16,7 @@ const handleAuthentication = ({ location }) => {
 const Root = () => {
   return (
     <Router history={History}>
-      <Layout style={{ height: '100vh' }}>
+      <Layout style={{ height: '100%' }}>
         <Header style={{ background: '#fff' }}>
           <Navbar auth={Auth} />
         </Header>

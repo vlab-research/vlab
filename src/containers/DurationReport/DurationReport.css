@@ -1,6 +1,6 @@
 .chart-container-b {
   font-family: Avenir, sans-serif;
-  height: 300px;
+  height: 50vh;
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -16,12 +16,12 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  width: auto;
   margin-bottom: 10px;
 }
 
 .info-container-b h3 {
   padding: 0 8px;
+  margin: 0;
 }
 
 .histogram-container {

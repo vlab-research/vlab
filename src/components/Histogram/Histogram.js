@@ -25,6 +25,7 @@ const Histogram = ({ resultSet, xAxisKey, barKey }) => {
       <BarChart data={resultSet}>
         <CartesianGrid vertical={false} stroke="#f5f5f5" />
         <YAxis
+          width={40}
           allowDecimals={false}
           domain={[0, 'dataMax']}
           label={{ value: barKey, angle: -90, position: 'insideLeft' }}

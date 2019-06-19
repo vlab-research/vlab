@@ -24,10 +24,15 @@ const HorizontalChart = ({ resultSet, xAxisKey, barKey }) => {
     <ResponsiveContainer>
       <BarChart data={resultSet} layout="vertical">
         <CartesianGrid vertical={false} stroke="#f5f5f5" />
-        <YAxis type="category" dataKey={xAxisKey} />
-        <XAxis type="number" domain={[0, 'dataMax']} />
+        <YAxis width={5} type="category" dataKey={xAxisKey} tick={false} />
+        <XAxis
+          height={40}
+          type="number"
+          domain={[0, 'dataMax']}
+          label={{ value: 'nº answers', position: 'insideBottom' }}
+        />
         <Tooltip content={renderTooltip} />
-        <Bar dataKey={barKey} fill="#82ca9d" />
+        <Bar dataKey={barKey} fill="#82ca9d" barSize="10px" />
       </BarChart>
     </ResponsiveContainer>
   ) : (
