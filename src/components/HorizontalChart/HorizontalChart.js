@@ -32,7 +32,7 @@ const HorizontalChart = ({ resultSet, xAxisKey, barKey }) => {
           label={{ value: 'nº answers', position: 'insideBottom' }}
         />
         <Tooltip content={renderTooltip} />
-        <Bar dataKey={barKey} fill="#82ca9d" barSize="10px" />
+        <Bar dataKey={barKey} fill="#82ca9d" />
       </BarChart>
     </ResponsiveContainer>
   ) : (
