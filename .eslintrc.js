@@ -36,6 +36,7 @@ module.exports = {
     'react/prop-types': 2,
     'react/require-default-props': 0,
     'react/jsx-filename-extension': 0,
+    'react/no-array-index-key': 0,
     'react-hooks/rules-of-hooks': 'error',
     semi: ['error', 'always'],
     'space-before-blocks': 'error',

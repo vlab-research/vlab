@@ -4,7 +4,7 @@ import moment from 'moment';
 import { Survey } from '../../containers/Surveys/Surveys';
 
 import * as s from './style';
-import typeformAuth from '../../services/Typeform';
+import typeformAuth from '../../services/typeform';
 
 const { createOrAuthorize, createSurvey } = typeformAuth;
 
