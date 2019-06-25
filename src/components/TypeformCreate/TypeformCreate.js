@@ -2,18 +2,18 @@ import React from 'react';
 import { Route, Redirect } from 'react-router-dom';
 import PropTypes from 'prop-types';
 import { Typeform } from '../../services';
-import { TypeformBtn } from './style';
+import { TypeformBtn, Container } from './style';
 import TypeformCreateForm from './TypeformCreateForm';
 
 const { handleAuthorization } = Typeform;
 
 const TypeformCreate = ({ match }) => {
   return (
-    <div>
+    <Container>
       <TypeformBtn to={`${match.path}/create`}>CREATE</TypeformBtn>
       <Route path={`${match.path}/auth`} render={props => <TypeformCreateAuth {...props} />} />
       <Route path={`${match.path}/create`} render={props => <TypeformCreateForm {...props} />} />
-    </div>
+    </Container>
   );
 };
 
