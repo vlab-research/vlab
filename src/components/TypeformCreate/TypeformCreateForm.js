@@ -4,7 +4,7 @@ import moment from 'moment';
 import { Survey } from '../../containers/Surveys/Surveys';
 
 import * as s from './style';
-import typeformAuth from '../../services/typeform';
+import typeformAuth from '../../services/Typeform';
 
 const { createOrAuthorize, createSurvey } = typeformAuth;
 
@@ -16,7 +16,7 @@ const TypeformCreateForm = ({ history, match }) => {
 
   useEffect(() => {
     createOrAuthorize()
-      .then(({ items }) => setForms(items))
+      .then(({ items }) => items && setForms(items))
       .catch(e => console.error(e)); //eslint-disable-line
   }, []);
 
@@ -68,7 +68,7 @@ const ChooseFormId = ({ forms, selectedForm, setSelectedForm }) => {
               <s.ListItemTitle>
                 {item.title}
                 <s.ListItemDate>
-                  {`- ${moment(item.last_updated_at).format('Do MMM YY')}`}
+                  {`${moment(item.last_updated_at).format('Do MMM YY')}`}
                 </s.ListItemDate>
               </s.ListItemTitle>
               <s.ListItemId>{item.id}</s.ListItemId>
@@ -88,8 +88,10 @@ const SetFormTitle = ({ selectedForm, setSelectedForm }) => {
       <s.TitleInput
         value={title}
         onChange={({ target }) => {
-          setTitle(target.value);
-          setSelectedForm(state => ({ ...state, title: target.value }));
+          if (target.value.length < 50) {
+            setTitle(target.value);
+            setSelectedForm(state => ({ ...state, title: target.value }));
+          }
         }}
       />
     </>

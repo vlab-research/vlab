@@ -1,13 +1,16 @@
 import styled from 'styled-components/macro';
 import { Link } from 'react-router-dom';
 
+export const Container = styled.div`
+  display: inline-block;
+`;
+
 export const TypeformBtn = styled(Link)`
   margin: 10px;
   text-decoration: none;
   background-color: #262627;
   border: 0;
   border-radius: 2px;
-  color: #fff;
   display: inline-block;
   font-size: 0.7rem;
   font-weight: 600;
@@ -17,6 +20,10 @@ export const TypeformBtn = styled(Link)`
   padding: 8px 16px;
   transition: 0.2s;
   white-space: nowrap;
+  color: #fff;
+  &:hover {
+    color: #fff;
+  }
 `;
 
 export const Button = styled.button`
@@ -68,8 +75,9 @@ export const ModalBox = styled.div`
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  min-width: 365px;
-  width: 45vw;
+  max-width: 600px;
+  width: 100vw;
+  min-width: 45vw;
   height: ${({ state }) => (state === 1 ? '70vh' : '50vh')};
   background: white;
   border-radius: 5px;
@@ -113,8 +121,10 @@ export const ListItem = styled.div`
 export const ListItemTitle = styled.div`
   font-weight: 800;
   margin-right: 10px;
-  display: flex;
   align-items: baseline;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 `;
 
 export const ListItemId = styled.div`
@@ -133,24 +143,24 @@ export const ModalFooter = styled.div`
   justify-content: space-between;
   align-items: center;
   border-top: 2px solid #eee;
-  padding: 10px 30px;
+  padding: 10px 20px;
 `;
 
 export const ActionsBtns = styled.div`
-  flex: 2;
   display: flex;
   align-items: center;
 `;
 
 export const Selected = styled.div`
-  flex: 3;
   display: flex;
   flex-direction: column;
+  max-width: 45vw;
+  width: 60%;
+  min-width: 50%;
 `;
 
 export const SelectedInfo = styled.div`
   font-weight: 800;
-  display: flex;
   margin: 0 10px;
   font-size: 1.2rem;
   white-space: nowrap;
