@@ -8,7 +8,7 @@ export const computeHistogramData = resultSet => {
   let keyDate = minDate.clone();
   while (keyDate.isSameOrBefore(maxDate)) {
     intervalDates.push({
-      timestamp: keyDate.toString(),
+      timestamp: keyDate.format(),
       date: keyDate.format('ll'),
       users: 0,
     });
