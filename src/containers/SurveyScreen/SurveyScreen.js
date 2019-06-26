@@ -6,6 +6,7 @@ import './SurveyScreen.css';
 import { Cube, Auth } from '../../services';
 import { StartTimeReport, DurationReport, TopQuestionsReport } from '..';
 import AnswersReport from '../AnswersReport';
+import JoinTimeReport from '../JoinTimeReport';
 
 const SurveyScreen = ({ match }) => {
   const cubeInstance = Cube(Auth.getIdToken());
@@ -25,6 +26,11 @@ const SurveyScreen = ({ match }) => {
         </Col>
         <Col span={12}>
           <AnswersReport cubejs={cubeInstance} formid={match.params.formid} />
+        </Col>
+      </Row>
+      <Row>
+        <Col span={12}>
+          <JoinTimeReport cubejs={cubeInstance} formid={match.params.formid} />
         </Col>
       </Row>
     </div>

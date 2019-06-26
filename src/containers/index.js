@@ -5,6 +5,7 @@ import StartTimeReport from './StartTimeReport';
 import DurationReport from './DurationReport';
 import TopQuestionsReport from './TopQuestionsReport';
 import AnswersReport from './AnswersReport';
+import JoinTimeReport from './JoinTimeReport';
 
 export {
   App,
@@ -14,4 +15,5 @@ export {
   DurationReport,
   TopQuestionsReport,
   AnswersReport,
+  JoinTimeReport,
 };
