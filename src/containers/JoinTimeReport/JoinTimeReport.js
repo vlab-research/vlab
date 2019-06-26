@@ -21,10 +21,11 @@ const renderHistogram = (Component, interval) => ({ resultSet, error }) => {
 
 const JoinTimeReport = ({ formid, cubejs }) => {
   const stepIntervals = {
-    '30 mins': 30,
+    days: 0,
+    months: 1,
   };
 
-  const [activeInterval, setActiveInterval] = useState('30 mins');
+  const [activeInterval, setActiveInterval] = useState('days');
 
   return (
     <div className="chart-container">
