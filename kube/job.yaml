@@ -13,7 +13,7 @@ spec:
       restartPolicy: "Never"
       containers:
       - name: gbv-facebot
-        image: vlabresearch/facebot:0.0.1
+        image: localhost:32000/facebot:0.0.1
         resources:
           requests:
             cpu: "50m"
@@ -25,4 +25,4 @@ spec:
             name: gbv-bot-envs
         env:
         - name: BOTSERVER_URL
-          value: "http://gbv-botserver.default.svc.cluster.local"
+          value: "http://gbv-botserver"
