@@ -7,6 +7,8 @@ const sendMessage = async function (message) {
     entry: [message]
   }
 
+  // check for synthetic and send to synthetic!
+
   const url = `${BOTSERVER_URL}/webhooks`;
   const res = await r2.post(url, { json }).response;
 

@@ -1,19 +1,22 @@
-apiVersion: batch/v1
-kind: Job
+apiVersion: apps/v1
+kind: Deployment
 metadata:
-  name: gbv-testrunner
+  name: gbv-facebot
   labels:
-    app: gbv-testrunner
+    app: gbv-facebot
 spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: gbv-facebot
   template:
     metadata:
       labels:
-        app: gbv-testrunner
+        app: gbv-facebot
     spec:
-      restartPolicy: "Never"
       containers:
-      - name: gbv-testrunner
-        image: localhost:32000/testrunner:registry
+      - name: gbv-facebot
+        image: localhost:32000/facebot:registry
         imagePullPolicy: Always
         resources:
           requests:
@@ -25,7 +28,5 @@ spec:
         - secretRef:
             name: gbv-bot-envs
         env:
-        - name: BOTSERVER_URL
-          value: "http://gbv-botserver"
         - name: KAFKA_BROKERS
           value: "spinaltap-kafka:9092"

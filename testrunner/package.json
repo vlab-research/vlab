@@ -1,0 +1,20 @@
+{
+  "name": "testrunner",
+  "version": "1.0.0",
+  "description": "",
+  "directories": {
+    "test": "test"
+  },
+  "scripts": {
+    "test": "mocha --colors test/test.js"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "chai": "^4.2.0",
+    "mocha": "^6.2.0",
+    "node-rdkafka": "^2.7.1-2",
+    "r2": "^2.0.1",
+    "uuid": "^3.3.3"
+  }
+}
