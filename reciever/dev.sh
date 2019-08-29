@@ -7,7 +7,7 @@ eval $(minikube docker-env)
 # App
 kubectl delete -f kube
 
-docker build -t localhost:32000/facebot:registry reciever/
+docker build -t localhost:32000/facebot:registry .
 docker push localhost:32000/facebot:registry
 
 kubectl apply -f kube/deployment.yaml

@@ -1,8 +1,10 @@
 require('chai').should()
 const sender = require('../sender.js')
-const {makeMocks, makeEcho, makePostback, makeTextResponse} = require('./mocks')
+const {makeMocks, makeEcho, makePostback, makeTextResponse, makeReferral, getFields} = require('./mocks')
 const Kafka = require('node-rdkafka')
 const uuid = require('uuid');
+
+
 
 describe('Test Bot flow Survey Integration Testing', () => {
   const kafkaOpts = {
@@ -34,44 +36,78 @@ describe('Test Bot flow Survey Integration Testing', () => {
     console.log('Test finished!');
   });
 
-  it('Test chat flow with logic jump "Yes"',  (done) => {
+  it('Waits for external event when there is no event',  (done) => {
     bindedDone = done.bind(this)
+    const fields = getFields('forms/Ep5wnS.json')
 
-    const mocks = makeMocks(userId)
+    testFlow = []
 
     testFlow = [
-      [mocks.acceptMessage, [makePostback(mocks.acceptMessage, userId, 0)]],
-      [mocks.questionMessage, [makePostback(mocks.questionMessage, userId, 0)]],
-      [mocks.funMessage, [makeTextResponse(userId, 'LOL')]],
-      [mocks.thanksMessage, []],
-      [mocks.endMessage, []],
-    ];
+      [fields[0], [makePostback(fields[0], userId, 0)]],
+      [fields[1], []]
+    ]
 
-    sender(mocks.referral);
+    sender(makeReferral(userId, 'Ep5wnS'))
+
+  }).timeout(20000);
+
+  // it('Waits for external event and continues after event',  (done) => {
+  //   bindedDone = done.bind(this)
+  //   const fields = getFields('forms/Ep5wnS.json')
+
+  //   testFlow = []
+
+  //   testFlow = [
+  //     [fields[0], [makePostback(fields[0], userId, 0)]],
+  //     [fields[1], []], // add external event
+  //     [fields[2], [makePostback(fields[0], userId, 0)]]
+  //     [fields[3], []]
+  //   ]
+
+  //   sender(makeReferral(userId, 'Ep5wnS'))
+
+  // }).timeout(20000);
+
+  it('Test chat flow with logic jump "Yes"',  (done) => {
+    bindedDone = done.bind(this)
+    const fields = getFields('forms/LDfNCy.json')
+
+    testFlow = [
+      [fields[0], [makePostback(fields[0], userId, 0)]],
+      [fields[1], [makePostback(fields[1], userId, 0)]],
+      [fields[2], [makeTextResponse(userId, 'LOL')]],
+      [fields[4], []],
+      [fields[5], []],
+    ]
+
+    sender(makeReferral(userId, 'LDfNCy'))
 
   }).timeout(20000);
 
   it('Test chat flow with logic jump "No"',  (done) => {
     bindedDone = done.bind(this)
-    const mocks = makeMocks(userId)
+    const fields = getFields('forms/LDfNCy.json')
 
     testFlow = [
-      [mocks.acceptMessage, [makePostback(mocks.acceptMessage, userId, 0)]],
-      [mocks.questionMessage, [makePostback(mocks.questionMessage, userId, 1)]],
-      [mocks.boringMessage, []],
-      [mocks.endMessage, []],
+      [fields[0], [makePostback(fields[0], userId, 0)]],
+      [fields[1], [makePostback(fields[1], userId, 1)]],
+      [fields[3], []],
+      [fields[5], []],
     ];
 
-    sender(mocks.referral);
+    sender(makeReferral(userId, 'LDfNCy'));
 
   }).timeout(20000);
-
 
   stream.on('data', async (message) => {
     const msg = JSON.parse(message.value.toString()).message
     const [get, gives] = testFlow[messages.length]
-
     messages.push(msg)
+
+    // console.log('FIELD ------', messages.length)
+    // console.log(msg)
+    // console.log(get)
+
     msg.should.eql(get);
 
     await sender(makeEcho(get, userId))
