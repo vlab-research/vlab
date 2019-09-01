@@ -1,5 +1,6 @@
 const Koa = require('koa')
 const bodyParser = require('koa-bodyparser')
+const cors = require('@koa/cors')
 const http = require('http')
 const Router = require('koa-router')
 const Kafka = require('node-rdkafka')
@@ -121,6 +122,7 @@ router.post('/synthetic', handleSyntheticEvents)
 const app = new Koa()
 app
   .use(bodyParser())
+  .use(cors())
   .use(router.routes())
   .use(router.allowedMethods())
 

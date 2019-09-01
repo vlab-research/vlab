@@ -12,4 +12,4 @@ kubectl apply -f kube-dev
 
 # Port forwarding
 sleep 5
-kubectl port-forward $(kubectl get pods -l "app=gbv-botserver" -o jsonpath="{.items[0].metadata.name}") 3000:80
+kubectl port-forward $(kubectl get pods -l "app=gbv-botserver" -o jsonpath="{.items[0].metadata.name}") 5000:80
