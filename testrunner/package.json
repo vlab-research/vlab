@@ -6,17 +6,19 @@
     "test": "test"
   },
   "scripts": {
-    "test": "mocha --colors test/test.js"
+    "test": "mocha --colors test.js"
   },
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@vlab-research/mox": "0.0.1",
     "@vlab-research/translate-typeform": "0.0.3",
+    "@vlab-research/utils": "0.0.3",
     "chai": "^4.2.0",
     "dotenv": "^8.1.0",
     "mocha": "^6.2.0",
-    "node-rdkafka": "^2.7.1-2",
     "r2": "^2.0.1",
-    "uuid": "^3.3.3"
+    "uuid": "^3.3.3",
+    "zeromq": "^5.1.0"
   }
 }

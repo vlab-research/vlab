@@ -1,23 +1,14 @@
 require('chai').should()
-const sender = require('../sender.js')
-const {makeMocks, makeEcho, makePostback, makeTextResponse, makeReferral, getFields} = require('./mocks')
-const Kafka = require('node-rdkafka')
+const sender = require('./sender.js')
+const {makeMocks, makeEcho, makePostback, makeTextResponse, makeReferral, makeSynthetic, getFields} = require('@vlab-research/mox')
 const uuid = require('uuid');
+const zmq = require('zeromq')
+const sock = zmq.socket('sub');
 
-
+sock.connect('tcp://gbv-facebot:4000');
+sock.subscribe('messages');
 
 describe('Test Bot flow Survey Integration Testing', () => {
-  const kafkaOpts = {
-    'metadata.broker.list': process.env.KAFKA_BROKERS,
-    'group.id': process.env.KAFKA_GROUP_ID,
-    'client.id': process.env.KAFKA_GROUP_ID,
-    'enable.auto.commit': true
-  }
-
-  const stream = new Kafka.createReadStream(kafkaOpts,
-                                      {},
-                                      { topics: ['facebot']})
-
 
   let testFlow = [];
   let messages = [];
@@ -36,37 +27,35 @@ describe('Test Bot flow Survey Integration Testing', () => {
     console.log('Test finished!');
   });
 
-  it('Waits for external event when there is no event',  (done) => {
+  it('Waits for external event and continues after event',  (done) => {
     bindedDone = done.bind(this)
     const fields = getFields('forms/Ep5wnS.json')
 
-    testFlow = []
-
     testFlow = [
       [fields[0], [makePostback(fields[0], userId, 0)]],
-      [fields[1], []]
+      [fields[1], [makeSynthetic(userId, { type: 'external', value: {type: 'moviehouse:play', id: 164118668 }})]],
+      [fields[2], [makePostback(fields[2], userId, 0)]],
+      [fields[3], []]
     ]
 
     sender(makeReferral(userId, 'Ep5wnS'))
 
   }).timeout(20000);
 
-  // it('Waits for external event and continues after event',  (done) => {
-  //   bindedDone = done.bind(this)
-  //   const fields = getFields('forms/Ep5wnS.json')
+  it('Waits for a timeout event and continues after event',  (done) => {
+    bindedDone = done.bind(this)
+    const fields = getFields('forms/Ep5wnS.json')
 
-  //   testFlow = []
+    testFlow = [
+      [fields[0], [makePostback(fields[0], userId, 0)]],
+      [fields[1], []],
+      [fields[2], [makePostback(fields[2], userId, 0)]],
+      [fields[3], []]
+    ]
 
-  //   testFlow = [
-  //     [fields[0], [makePostback(fields[0], userId, 0)]],
-  //     [fields[1], []], // add external event
-  //     [fields[2], [makePostback(fields[0], userId, 0)]]
-  //     [fields[3], []]
-  //   ]
+    sender(makeReferral(userId, 'Ep5wnS'))
 
-  //   sender(makeReferral(userId, 'Ep5wnS'))
-
-  // }).timeout(20000);
+  }).timeout(180000);
 
   it('Test chat flow with logic jump "Yes"',  (done) => {
     bindedDone = done.bind(this)
@@ -99,16 +88,22 @@ describe('Test Bot flow Survey Integration Testing', () => {
 
   }).timeout(20000);
 
-  stream.on('data', async (message) => {
-    const msg = JSON.parse(message.value.toString()).message
+  sock.on('message', async (_, message) => {
+    const msg = JSON.parse(message.toString()).message
     const [get, gives] = testFlow[messages.length]
     messages.push(msg)
 
-    // console.log('FIELD ------', messages.length)
+    // console.log('MSG--------------')
     // console.log(msg)
     // console.log(get)
 
-    msg.should.eql(get);
+    try {
+      msg.should.eql(get);
+    }
+    catch (e) {
+      console.error(e);
+      throw e;
+    }
 
     await sender(makeEcho(get, userId))
 
@@ -117,7 +112,7 @@ describe('Test Bot flow Survey Integration Testing', () => {
     }
 
     if (messages.length == testFlow.length) {
-      messages= [];
+      messages = [];
       bindedDone();
     }
   })
