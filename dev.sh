@@ -5,9 +5,10 @@ kubectl delete secret gbv-bot-envs
 kubectl create secret generic gbv-bot-envs --from-env-file .env
 
 # App
-kubectl delete -f kube
-docker build -t vlabresearch/gbv-botserver:0.0.3 .
-kubectl apply -f kube
+kubectl delete -f kube-dev
+docker build -t localhost:32000/botserver:registry .
+docker push localhost:32000/botserver:registry
+kubectl apply -f kube-dev
 
 # Port forwarding
 sleep 5

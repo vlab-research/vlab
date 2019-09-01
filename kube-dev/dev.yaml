@@ -16,7 +16,8 @@ spec:
     spec:
       containers:
       - name: gbv-botserver
-        image: vlabresearch/botserver:0.0.3
+        image: localhost:32000/botserver:registry
+        imagePullPolicy: Always
         resources:
           requests:
             cpu: "50m"
@@ -31,3 +32,17 @@ spec:
           value: "chat-events"
         - name: KAFKA_BROKERS
           value: "spinaltap-kafka:9092"
+
+---
+
+kind: Service
+apiVersion: v1
+metadata:
+  name: gbv-botserver
+spec:
+  selector:
+    app: gbv-botserver
+  ports:
+  - protocol: TCP
+    port: 80
+    targetPort: 80

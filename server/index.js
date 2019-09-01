@@ -19,8 +19,10 @@ function getUser(event) {
   }
 }
 
+const EVENT_TOPIC = process.env.BOTSERVER_EVENT_TOPIC
+
 const producer = new Kafka.Producer({
-  'metadata.broker.list': 'spinaltap-kafka:9092',
+  'metadata.broker.list': process.env.KAFKA_BROKERS,
   'retry.backoff.ms': 200,
   'message.send.max.retries': 10,
   'socket.keepalive.enable': true,
@@ -28,7 +30,7 @@ const producer = new Kafka.Producer({
   'queue.buffering.max.ms': 1000,
   'batch.num.messages': 1000000
 }, {}, {
-  topic: 'chat-events'
+  topic: EVENT_TOPIC
 });
 
 producer.connect()
@@ -66,16 +68,20 @@ const verifyToken = ctx => {
   }
 }
 
-const handleEvents = async (ctx) => {
+// TODO: Add validation with APP SECRET!!!
+const handleMessengerEvents = async (ctx) => {
   await producerReady
 
   for (entry of ctx.request.body.entry) {
     try {
       console.log(util.inspect(entry, null, 8))
 
-      const data = Buffer.from(JSON.stringify(entry))
-      const user = getUser(entry.messaging[0])
-      producer.produce('chat-events', null, data, user)
+      // abstraction layer??
+      const message = {...entry.messaging[0], source: 'messenger'}
+      const user = getUser(message)
+      const data = Buffer.from(JSON.stringify(message))
+
+      producer.produce(EVENT_TOPIC, null, data, user)
     } catch (error) {
       console.error('[ERR] handleEvents: ', error)
     }
@@ -83,15 +89,34 @@ const handleEvents = async (ctx) => {
   ctx.status = 200
 }
 
+
+// TODO: move into another service?
+const handleSyntheticEvents = async (ctx) => {
+  await producerReady
+
+  try {
+    const {body} = ctx.request
+
+    const message = {...body, source: 'synthetic', timestamp: Date.now()}
+    const data = Buffer.from(JSON.stringify(message))
+
+    if (!message.user) {
+      console.log(body)
+      throw new Error('No user!')
+    }
+
+    producer.produce(EVENT_TOPIC, null, data, message.user)
+    ctx.status = 200
+  } catch (error) {
+    console.error(error)
+    ctx.status = 500
+  }
+}
+
 const router = new Router()
 router.get('/webhooks', verifyToken)
-
-router.get('/hello', ctx => {
-  ctx.body = 'not a world'
-  ctx.status = 200
-
-})
-router.post('/webhooks', handleEvents)
+router.post('/webhooks', handleMessengerEvents)
+router.post('/synthetic', handleSyntheticEvents)
 
 const app = new Koa()
 app
