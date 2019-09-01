@@ -2,39 +2,69 @@
 
 const SERVER_URL = '{{{SERVER_URL}}}';
 const params = new URLSearchParams(window.location.search);
-const id = params.get('id');
+const videoId = params.get('id');
 
-function handleEvent(data, eventType) {
-  const xhr = new XMLHttpRequest();
-  xhr.open('POST', SERVER_URL);
-  xhr.setRequestHeader('Content-Type', 'application/json');
-  xhr.send(JSON.stringify({ data, eventType }));
+function handleEvent(psid, eventType) {
+  return function sendEvent(data) {
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', SERVER_URL);
+    xhr.setRequestHeader('Content-Type', 'application/json');
+
+    // add ID of video to event...
+    xhr.send(JSON.stringify({ event: { type: `moviehouse:${eventType}`, id: videoId }, data, user:psid }));
+  }
 }
 
-document.addEventListener('DOMContentLoaded', () => {
+function handleError(err, title, message) {
+  const div = document.createElement('div');
+  div.classList.add("error-container");
+  div.innerHTML = `<h1>${title}</h1><p>${message}</p>`;
+  document.querySelector('.container').innerHTML = ``
+  document.querySelector('.container').appendChild(div);
+  console.error(err);
+}
+
+function setPlayer(psid) {
   const options = {
-    id,
-    width: 800
+    id: videoId,
+    responsive: true
   };
+
   const player = new Vimeo.Player('vimeoVideo', options);
 
   player.ready().then(() => {
-    player.on('ended', data => handleEvent(data, 'ended'));
-  
-    player.on('error', data => handleEvent(data, 'error'));
-    
-    player.on('pause', data => handleEvent(data, 'pause'));
-    
-    player.on('play', data => handleEvent(data, 'play'));
-    
-    player.on('playbackratechange', data => handleEvent(data, 'playbackratechange'));
-    
-    player.on('seeked', data => handleEvent(data, 'seeked'));
-  
-    player.on('volumechange', data => handleEvent(data, 'volumechange'));
-  }).catch((err) => {
-    console.error(err);
-    document.querySelector('body').innerHTML = `<p>Video not found</p>`;
-  });
+    player.on('ended', handleEvent(psid, 'ended'));
 
+    player.on('error', handleEvent(psid, 'error'));
+
+    player.on('pause', handleEvent(psid, 'pause'));
+
+    player.on('play', handleEvent(psid, 'play'));
+
+    player.on('playbackratechange', handleEvent(psid, 'playbackratechange'));
+
+    player.on('seeked', handleEvent(psid, 'seeked'));
+
+    player.on('volumechange', handleEvent(psid, 'volumechange'));
+
+  }).catch((err) => {
+    const title = '❌ Not found';
+    const message = 'Sorry, we couldn’t find that video'
+    handleError(err, title, message);
+  });
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  window.extAsyncInit = function () {
+    MessengerExtensions.getContext('{{{APP_ID}}}',
+      function success(thread_context) {
+        setPlayer(thread_context.psid);
+      },
+      function error(err) {
+        const title = '🔒Forbidden';
+        const message = 'It seems you are not logged in with facebook'
+        handleError(err, title, message);
+      }
+    );
+  };
 });
