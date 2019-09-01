@@ -45,6 +45,10 @@ spec:
           value: "26257"
         - name: REPLYBOT_EVENT_TOPIC
           value: "chat-events"
+        - name: BOTSPINE_KAFKA_BROKERS
+          value: "spinaltap-kafka:9092"
+        - name: BOTSPINE_MESSAGE_TOPIC
+          value: "chat-events"
       volumes:
         - name: keys
           secret:
