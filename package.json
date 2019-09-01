@@ -13,7 +13,7 @@
     "gulp-mustache": "^4.1.1"
   },
   "scripts": {
-    "start": "gulp replace && open dist/index.html"
+    "start": "gulp replace"
   },
   "repository": {
     "type": "git",

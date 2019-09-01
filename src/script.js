@@ -3,13 +3,16 @@
 const SERVER_URL = '{{{SERVER_URL}}}';
 const params = new URLSearchParams(window.location.search);
 const videoId = params.get('id');
-let psid;
 
-function handleEvent(data, eventType) {
-  const xhr = new XMLHttpRequest();
-  xhr.open('POST', SERVER_URL);
-  xhr.setRequestHeader('Content-Type', 'application/json');
-  xhr.send(JSON.stringify({ data, eventType, psid }));
+function handleEvent(psid, eventType) {
+  return function sendEvent(data) {
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', SERVER_URL);
+    xhr.setRequestHeader('Content-Type', 'application/json');
+
+    // add ID of video to event...
+    xhr.send(JSON.stringify({ event: { type: `moviehouse:${eventType}`, id: videoId }, data, user:psid }));
+  }
 }
 
 function handleError(err, title, message) {
@@ -21,7 +24,7 @@ function handleError(err, title, message) {
   console.error(err);
 }
 
-function setPlayer() {
+function setPlayer(psid) {
   const options = {
     id: videoId,
     responsive: true
@@ -30,23 +33,24 @@ function setPlayer() {
   const player = new Vimeo.Player('vimeoVideo', options);
 
   player.ready().then(() => {
-    player.on('ended', data => handleEvent(data, 'ended'));
+    player.on('ended', handleEvent(psid, 'ended'));
 
-    player.on('error', data => handleEvent(data, 'error'));
+    player.on('error', handleEvent(psid, 'error'));
 
-    player.on('pause', data => handleEvent(data, 'pause'));
+    player.on('pause', handleEvent(psid, 'pause'));
 
-    player.on('play', data => handleEvent(data, 'play'));
+    player.on('play', handleEvent(psid, 'play'));
 
-    player.on('playbackratechange', data => handleEvent(data, 'playbackratechange'));
+    player.on('playbackratechange', handleEvent(psid, 'playbackratechange'));
 
-    player.on('seeked', data => handleEvent(data, 'seeked'));
+    player.on('seeked', handleEvent(psid, 'seeked'));
 
-    player.on('volumechange', data => handleEvent(data, 'volumechange'));
+    player.on('volumechange', handleEvent(psid, 'volumechange'));
+
   }).catch((err) => {
     const title = '❌ Not found';
     const message = 'Sorry, we couldn’t find that video'
-    handleError(err, title, message);    
+    handleError(err, title, message);
   });
 }
 
@@ -54,8 +58,7 @@ document.addEventListener('DOMContentLoaded', () => {
   window.extAsyncInit = function () {
     MessengerExtensions.getContext('{{{APP_ID}}}',
       function success(thread_context) {
-        psid = thread_context.psid;
-        setPlayer();
+        setPlayer(thread_context.psid);
       },
       function error(err) {
         const title = '🔒Forbidden';
