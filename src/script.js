@@ -11,7 +11,7 @@ function handleEvent(psid, eventType) {
     xhr.setRequestHeader('Content-Type', 'application/json');
 
     // add ID of video to event...
-    xhr.send(JSON.stringify({ user:psid, data, event: { type: 'event', value: { type: `moviehouse:${eventType}`, id: videoId } }}));
+    xhr.send(JSON.stringify({ user:psid, data, event: { type: 'external', value: { type: `moviehouse:${eventType}`, id: videoId } }}));
   }
 }
 
