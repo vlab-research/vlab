@@ -44,8 +44,8 @@ spec:
           value: "chatroach-cockroachdb-public.default"
         - name: CHATBASE_PORT
           value: "26257"
-        # - name: FACEBOOK_GRAPH_URL
-        #   value: "http://gbv-facebot"
+        - name: FACEBOOK_GRAPH_URL
+          value: "http://gbv-facebot"
         - name: BOTSPINE_KAFKA_BROKERS
           value: "spinaltap-kafka:9092"
         - name: BOTSPINE_MESSAGE_TOPIC
