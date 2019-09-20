@@ -11,8 +11,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@vlab-research/mox": "0.0.1",
-    "@vlab-research/translate-typeform": "0.0.3",
+    "@vlab-research/mox": "0.0.3",
     "@vlab-research/utils": "0.0.3",
     "chai": "^4.2.0",
     "dotenv": "^8.1.0",
