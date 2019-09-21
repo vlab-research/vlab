@@ -7,7 +7,6 @@ const jwks = require('jwks-rsa');
 const envVarsSchema = joi
   .object({
     NODE_ENV: joi.string().allow(['development', 'production', 'test']),
-    PORT: joi.number(),
     API_VERSION: joi.number(),
     AUTH0_HOST: joi.string().required(),
     DB_USER: joi.string(),
@@ -18,6 +17,7 @@ const envVarsSchema = joi
       .empty(''),
     DB_DATABASE: joi.string(),
     DB_PORT: joi.number(),
+    AUTH0_CLIENT_ID: joi.string().required()
   })
   .unknown()
   .required();
@@ -34,7 +34,6 @@ const config = {
   IS_DEVELOPMENT: envVars.NODE_ENV === 'development',
   IS_TEST: isTest(),
   SERVER: {
-    PORT: envVars.PORT || 3000,
     API_VERSION: envVars.API_VERSION || '1',
   },
   TYPEFORM: {
@@ -50,6 +49,8 @@ const config = {
       jwksRequestsPerMinute: 10,
       jwksUri: `${envVars.AUTH0_HOST}/.well-known/jwks.json`,
     }),
+    audience: envVars.AUTH0_CLIENT_ID,
+    issuer: `${envVars.AUTH0_HOST}/`,
     algorithms: ['RS256'],
   },
   DATABASE_CONFIG: {
