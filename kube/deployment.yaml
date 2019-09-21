@@ -22,7 +22,7 @@ spec:
               cpu: '50m'
               memory: '100Mi'
           ports:
-            - containerPort: 80
+            - containerPort: 3000
           envFrom:
             - secretRef:
                 name: gbv-bot-envs
