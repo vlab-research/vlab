@@ -10,9 +10,11 @@ export default function useMountFetch(fetchOpts, initialState) {
         try {
           const r = res.json();
           if (r.error) throw new Error(r.error);
+          return r;
         } catch (e) {
           console.error(`Error in fetch. RAW RESPONSE: ${res}`); //eslint-disable-line
           console.error(e); //eslint-disable-line
+          return null;
         }
       })
       .then(data => setState(data))
