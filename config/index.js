@@ -17,7 +17,7 @@ const envVarsSchema = joi
       .empty(''),
     DB_DATABASE: joi.string(),
     DB_PORT: joi.number(),
-    AUTH0_CLIENT_ID: joi.string().required()
+    AUTH0_CLIENT_ID: joi.string().required(),
   })
   .unknown()
   .required();
@@ -56,7 +56,9 @@ const config = {
   DATABASE_CONFIG: {
     user: isTest() ? 'postgres' : envVars.DB_USER || 'postgres',
     host: isTest() ? 'localhost' : envVars.DB_HOST || 'localhost',
-    database: isTest() ? 'vlab_dashboard_test' : envVars.DB_DATABASE || 'postgres',
+    database: isTest()
+      ? 'vlab_dashboard_test'
+      : envVars.DB_DATABASE || 'postgres',
     password: isTest() ? undefined : envVars.DB_PASSWORD || undefined,
     port: isTest() ? 5432 : envVars.DB_PORT || 5432,
   },

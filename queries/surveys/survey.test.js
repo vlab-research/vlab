@@ -92,7 +92,7 @@ describe('Survey queries', () => {
         email: 'test2@vlab.com',
       };
       await User.create(user2);
-      
+
       const survey = {
         formid: 'biy23',
         form: '{"form": "form detail"}',
@@ -111,21 +111,21 @@ describe('Survey queries', () => {
       };
       await Survey.create(survey2);
 
-      const userid =  'test@vlab.com';
-      const rows = await Survey.retrieve({userid});
+      const userid = 'test@vlab.com';
+      const rows = await Survey.retrieve({ userid });
       rows.length.should.be.equal(2);
     });
   });
 
   describe('.includes()', () => {
     it('should return true on existing code', async () => {
-      const [ userid, code ] = [ 'test@vlab.com', 123 ]
+      const [userid, code] = ['test@vlab.com', 123];
       const include = await Survey.includes({ userid, code });
       include.should.be.equal(true);
     });
 
     it('should return false if code don t exists', async () => {
-      const [ userid, code ] = [ 'test@vlab.com', 321 ]
+      const [userid, code] = ['test@vlab.com', 321];
       const include = await Survey.includes({ userid, code });
       include.should.be.equal(false);
     });

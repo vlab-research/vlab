@@ -63,12 +63,13 @@ describe('User queries', () => {
         token: '8eQ9ZYXw2Vsb16aC7aKzXFqzE7oamzKQttaHnCNHoRu8',
         email: 'test@vlab.com',
       };
-      const newUser = await User.update(user) || await User.create(user);
+      const newUser = (await User.update(user)) || (await User.create(user));
       newUser[0].token.should.equal(user.token);
       newUser[0].email.should.equal(user.email);
 
-      user.token = 'HxpnYoykme73Jz1c9DdAxPws77GzH9jLqE1wu1piSqJj'
-      const userUpdated = await User.update(user) || await User.create(user);
+      user.token = 'HxpnYoykme73Jz1c9DdAxPws77GzH9jLqE1wu1piSqJj';
+      const userUpdated =
+        (await User.update(user)) || (await User.create(user));
       userUpdated[0].token.should.equal(user.token);
       userUpdated[0].email.should.equal(user.email);
     });
@@ -80,7 +81,7 @@ describe('User queries', () => {
         token: '8eQ9ZYXw2Vsb16aC7aKzXFqzE7oamzKQttaHnCNHoRu8',
         email: 'test@vlab.com',
       };
-      await User.create(user)
+      await User.create(user);
       const userFromDb = await User.user(user);
       userFromDb[0].token.should.equal(user.token);
       userFromDb[0].email.should.equal(user.email);
