@@ -13,7 +13,7 @@ const Surveys = props => {
   const [surveys, setSurveys] = Hook.useMountFetch({ path: '/surveys' }, []);
   const [selected, setSelected] = useState('0');
 
-  return surveys.length ? (
+  return (
     <Layout style={{ height: '100%' }}>
       <Sider style={{ background: '#fff' }}>
         <Survey.Provider value={{ setSurveys }}>
@@ -30,9 +30,11 @@ const Surveys = props => {
           ))}
         </Menu>
       </Sider>
-      <Content style={{ padding: '30px' }}>
-        <SurveyScreen userid={surveys[selected].userid} formid={surveys[selected].formid} />
-      </Content>
+      {surveys.length > 0 ? (
+        <Content style={{ padding: '30px' }}>
+          <SurveyScreen userid={surveys[selected].userid} formid={surveys[selected].formid} />
+        </Content>
+      ) : null}
       {/* <div>
         <Survey.Provider value={{ setSurveys }}>
           <TypeformCreate {...props} />
@@ -55,7 +57,7 @@ const Surveys = props => {
         ) : null}
       </div> */}
     </Layout>
-  ) : null;
+  );
 };
 
 export default Surveys;

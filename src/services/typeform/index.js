@@ -11,7 +11,7 @@ class Typeform {
   };
 
   typeformAuthorization = () => {
-    window.location = `${AUTH_CONFIG.typeformUrl}/authorize?client_id=${
+    window.location = `${AUTH_CONFIG.typeformUrl}/oauth/authorize?client_id=${
       AUTH_CONFIG.clientID
     }&scope=${AUTH_CONFIG.scope.join(' ')}&redirect_uri=${encodeURIComponent(
       AUTH_CONFIG.redirect_uri,
