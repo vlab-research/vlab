@@ -2,12 +2,12 @@
 
 const uuid = require('uuid/v4');
 
-async function create ({ formid, form, shortcode, userid, title }) {
-  const CREATE_ONE = `INSERT INTO surveys(id, formid, form, shortcode, userid, title)
-       values($1, $2, $3, $4, $5, $6)
+async function create ({ formid, messages, form, shortcode, userid, title }) {
+  const CREATE_ONE = `INSERT INTO surveys(id, formid, form, messages, shortcode, userid, title)
+       values($1, $2, $3, $4, $5, $6, $7)
        ON CONFLICT(id) DO NOTHING
        RETURNING *`;
-  const values = [uuid(), formid, form, shortcode, userid, title];
+  const values = [uuid(), formid, form, messages, shortcode, userid, title];
   const { rows } = await this.query(CREATE_ONE, values);
   return rows;
 }

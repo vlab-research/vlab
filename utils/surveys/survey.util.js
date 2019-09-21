@@ -14,6 +14,8 @@ function validate(reqData) {
         .string()
         .email()
         .required(),
+      messages: joi
+        .string(),
       shortcode: joi
         .string()
         .length(3, 'utf8')
@@ -27,14 +29,14 @@ function validate(reqData) {
 
   const { error } = joi.validate(reqData, formSchema);
   if (error) {
-    throw new Error(`Config validation error: ${error.message}`);
+    throw new Error(`Config validation error: ${error.message}. Data: ${JSON.stringify(reqData, null, 2)}`);
   }
 }
 
 async function shortcode (userid) {
   const code = Math.floor(Math.random() * 999)
   const included = await Survey.includes({ userid, code })
-  return  included ? shortcode() : code.toString();
+  return included ? shortcode() : code.toString();
 }
 
 module.exports = {
