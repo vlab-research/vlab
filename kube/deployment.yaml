@@ -5,7 +5,7 @@ metadata:
   labels:
     app: gbv-botserver
 spec:
-  replicas: 1
+  replicas: 2
   selector:
     matchLabels:
       app: gbv-botserver
@@ -14,13 +14,23 @@ spec:
       labels:
         app: gbv-botserver
     spec:
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchExpressions:
+              - key: app
+                operator: In
+                values:
+                - gbv-botserver
+            topologyKey: "kubernetes.io/hostname"
       containers:
       - name: gbv-botserver
-        image: vlabresearch/botserver:0.0.3
+        image: vlabresearch/botserver:0.0.4
         resources:
           requests:
-            cpu: "50m"
-            memory: "100Mi"
+            cpu: "25m"
+            memory: "50Mi"
         ports:
         - containerPort: 80
         envFrom:

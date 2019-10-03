@@ -97,6 +97,7 @@ const handleSyntheticEvents = async (ctx) => {
 
   try {
     const {body} = ctx.request
+    console.log(util.inspect(body, null, 8))
 
     const message = {...body, source: 'synthetic', timestamp: Date.now()}
     const data = Buffer.from(JSON.stringify(message))
