@@ -14,9 +14,19 @@ spec:
       labels:
         app: gbv-replybot
     spec:
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchExpressions:
+              - key: app
+                operator: In
+                values:
+                - gbv-replybot
+            topologyKey: "kubernetes.io/hostname"
       containers:
       - name: gbv-replybot
-        image: vlabresearch/replybot:0.0.35
+        image: vlabresearch/replybot:0.0.36
         resources:
           requests:
             cpu: "10m"
