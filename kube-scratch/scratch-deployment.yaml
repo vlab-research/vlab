@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
       - name: gbv-scratchbot
-        image: vlabresearch/replybot:0.0.28
+        image: localhost:32000/replybot:registry
         args:
         - node
         - lib/scratch.js
@@ -46,7 +46,9 @@ spec:
           value: "chatroach-cockroachdb-public.default"
         - name: CHATBASE_PORT
           value: "26257"
-        - name: REPLYBOT_EVENT_TOPIC
+        - name: BOTSPINE_KAFKA_BROKERS
+          value: "spinaltap-kafka:9092"
+        - name: BOTSPINE_MESSAGE_TOPIC
           value: "chat-events"
       volumes:
         - name: keys
