@@ -2,6 +2,7 @@ import moment from 'moment';
 
 export const computeHistogramData = (resultSet, interval) => {
   const dates = resultSet.rawData().map(response => moment(response['Responses.startTime']));
+  if (!dates.length) return [];
   const maxDate = moment.max(dates);
   const minDate = moment.min(dates);
   const intervalDates = [];

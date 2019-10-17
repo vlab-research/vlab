@@ -13,8 +13,9 @@ const mockResultSet = {
   ],
 };
 
+// eslint-disable-next-line no-unused-vars
 export const getIntervals = resultSet => {
-  let max = resultSet.rawData().length;
+  let max = mockResultSet.rawData().length;
   max = 10;
   if (max >= 10) max = 10;
   const lower = Math.floor(max / 3);
