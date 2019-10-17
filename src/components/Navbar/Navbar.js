@@ -12,7 +12,7 @@ const Navbar = ({ auth }) => {
         <Link to="/">Home</Link>
       </Menu.Item>
       <Menu.Item>
-        <Link to="/surveys/form1">Surveys</Link>
+        <Link to="/surveys">Surveys</Link>
       </Menu.Item>
       <Menu.Item style={{ float: 'right' }}>
         <Button onClick={isAuth ? auth.logout : auth.login} type="normal" size="large">
