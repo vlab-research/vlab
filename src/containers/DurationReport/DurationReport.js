@@ -29,8 +29,8 @@ const DurationHistogram = ({ formid, cubejs }) => {
   const [activeInterval, setActiveInterval] = useState('1 hour');
 
   return (
-    <div className="chart-container-b">
-      <div className="info-container-b">
+    <div className="chart-container">
+      <div className="info-container">
         <h3>Duration per user</h3>
         <div className="selector-container">
           <div className="selector-title">Interval</div>

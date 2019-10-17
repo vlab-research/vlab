@@ -18,8 +18,8 @@ const ChartBox = ({ resultSet }) => {
   );
 
   return (
-    <div className="chart-container-b">
-      <div className="info-container-b">
+    <div className="chart-container">
+      <div className="info-container">
         <h3>{`Top ${activeInterval} Questions`}</h3>
         <div className="selector-container">
           <div className="selector-title">nº questions</div>
