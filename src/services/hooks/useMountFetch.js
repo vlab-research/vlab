@@ -14,7 +14,7 @@ export default function useMountFetch(fetchOpts, initialState) {
         } catch (e) {
           console.error(`Error in fetch. RAW RESPONSE: ${res}`); //eslint-disable-line
           console.error(e); //eslint-disable-line
-          return null;
+          return null; // what???
         }
       })
       .then(data => setState(data))

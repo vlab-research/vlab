@@ -26,7 +26,11 @@ const Surveys = props => {
           style={{ borderRight: 0 }}
         >
           {surveys.map((survey, id) => (
-            <Menu.Item key={id}>{survey.title}</Menu.Item>
+            <Menu.Item key={id}>
+              {survey.shortcode}
+              {'-'}
+              {survey.title}
+            </Menu.Item>
           ))}
         </Menu>
       </Sider>

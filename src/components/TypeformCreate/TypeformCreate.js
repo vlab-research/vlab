@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Route, Redirect } from 'react-router-dom';
 import PropTypes from 'prop-types';
 import { Typeform } from '../../services';
@@ -19,8 +19,13 @@ const TypeformCreate = ({ match }) => {
 
 const TypeformCreateAuth = ({ location, match, history }) => {
   const code = location.search && location.search.match(/([A-Z,0-9])\w+/)[0];
+
+  useEffect(() => {
+    if (code) handleAuthorization({ code, history, match });
+  }, [code]);
+
   if (!code) return <Redirect to={`/${match.path.split('/')[0]}`} />;
-  handleAuthorization({ code, history, match });
+
   return <div> LOADING PAGE AUTH </div>;
 };
 

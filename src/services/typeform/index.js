@@ -19,9 +19,9 @@ class Typeform {
   };
 
   handleAuthorization = ({ code, history, match }) => {
-    return ApiClient.fetcher({ path: `/typeform/auth/${code}` }).then(() =>
-      history.push(`/${match.path.split('/')[1]}/create`),
-    );
+    return ApiClient.fetcher({ path: `/typeform/auth/${code}` }).then(() => {
+      history.push(`/${match.path.split('/')[1]}/create`);
+    });
   };
 
   createSurvey = ({ id, title, history, match }) => {
