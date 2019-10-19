@@ -53,6 +53,17 @@ const config = {
     issuer: `${envVars.AUTH0_HOST}/`,
     algorithms: ['RS256'],
   },
+  SERVER_JWT: {
+    secret: jwks.expressJwtSecret({
+      cache: true,
+      rateLimit: true,
+      jwksRequestsPerMinute: 10,
+      jwksUri: `${envVars.AUTH0_HOST}/.well-known/jwks.json`,
+    }),
+    audience: envVars.AUTH0_SERVER_ID,
+    issuer: `${envVars.AUTH0_HOST}/`,
+    algorithms: ['RS256'],
+  },
   DATABASE_CONFIG: {
     user: isTest() ? 'postgres' : envVars.DB_USER || 'postgres',
     host: isTest() ? 'localhost' : envVars.DB_HOST || 'localhost',

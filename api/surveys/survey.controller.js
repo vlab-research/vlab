@@ -8,17 +8,20 @@ const { TypeformUtil } = require('../../utils');
 exports.postOne = async (req, res) => {
   try {
     const { formid, title } = req.body;
-    const { email: userid } = req.user;
+    const { email } = req.user;
 
-    const user = await User.user({ email: userid });
-    if (!user[0])
-      return res.status(404).json({ error: `User ${userid} does not exist!` });
+    const user = await User.user({email});
+    if (!user[0]) return res.status(404).json({ error: `User ${email} does not exist!`});
 
-    const form = await TypeformUtil.TypeformForm(user[0].token, formid);
-    const messages = await TypeformUtil.TypeformMessages(user[0].token, formid);
 
+    const { id:userid, token } = user[0]
+
+    const form = await TypeformUtil.TypeformForm(token, formid);
+    const messages = await TypeformUtil.TypeformMessages(token, formid);
+
+    // userid should be actual id...
     const shortcode = await SurveyUtil.shortcode(userid);
-    const survey = { formid, messages, title, userid, form, shortcode };
+    const survey = {formid, messages, title, userid, form, shortcode};
 
     SurveyUtil.validate(survey);
     const createdSurvey = await Survey.create(survey);
@@ -30,16 +33,36 @@ exports.postOne = async (req, res) => {
   }
 };
 
+exports.getBy = async(req, res, next) => {
+  try {
+    const {pageid, userid, shortcode} = req.query
+
+    if (pageid && shortcode) {
+      const surveys = await Survey.retrieveByPage({pageid, code:shortcode})
+      if (surveys.length > 1) {
+        // TODO: remove once shit actually works
+        throw new Error('WTF? More than one survey??? ')
+      }
+      res.status(200).send(surveys[0]);
+    }
+    else {
+      next()
+    }
+  } catch (err) {
+    console.error(err);
+    res.status(500).send(err);
+  }
+}
+
 exports.getAll = async (req, res) => {
   try {
-    const { email: userid } = req.user;
-    const user = await User.user({ email: userid });
+    const { email } = req.user;
 
-    // Users don't exist before they make a survey.
-    // So if the user doesn't exist, send no surveys!
-    if (!user[0]) return res.status(200).json([]);
+    if (!email) {
+      return res.status(404).send('No user, no survey!')
+    }
 
-    const surveys = await Survey.retrieve({ userid });
+    const surveys = await Survey.retrieve({email});
     res.status(200).send(surveys);
   } catch (err) {
     console.error(err);

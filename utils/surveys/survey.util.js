@@ -12,12 +12,10 @@ function validate(reqData) {
         .required(),
       userid: joi
         .string()
-        .email()
         .required(),
       messages: joi.string(),
       shortcode: joi
         .string()
-        .length(3, 'utf8')
         .regex(/^[0-9]+$/)
         .required(),
       title: joi.string().required(),

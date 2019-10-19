@@ -26,7 +26,7 @@ cube(`Responses`, {
   dimensions: {
     formid: {
       type: `string`,
-      sql: `formid`,
+      sql: `surveyid`,
     },
 
     userid: {

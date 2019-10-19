@@ -3,11 +3,11 @@
 const uuid = require('uuid/v4');
 
 async function create({ token, email }) {
-  const CREATE_ONE = `INSERT INTO users(id, token, email)
-       values($1, $2, $3)
+  const CREATE_ONE = `INSERT INTO users(token, email)
+       values($1, $2)
        ON CONFLICT(id) DO NOTHING
        RETURNING *`;
-  const values = [uuid(), token, email];
+  const values = [token, email];
   const { rows } = await this.query(CREATE_ONE, values);
   return rows;
 }
