@@ -7,4 +7,13 @@ import TypeformCreate from './TypeformCreate';
 import HorizontalChart from './HorizontalChart';
 import LineChart from './LineChart';
 
-export { Histogram, Navbar, PrivateRoute, Spinner, IntervalSelector, TypeformCreate, HorizontalChart, LineChart };
+export {
+  Histogram,
+  Navbar,
+  PrivateRoute,
+  Spinner,
+  IntervalSelector,
+  TypeformCreate,
+  HorizontalChart,
+  LineChart,
+};

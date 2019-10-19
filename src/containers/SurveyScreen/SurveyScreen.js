@@ -14,23 +14,23 @@ const SurveyScreen = ({ formid }) => {
     <div>
       <Row>
         <Col span={12}>
-          <StartTimeReport cubejs={cubeInstance} formid={match.params.formid} />
+          <StartTimeReport cubejs={cubeInstance} formid={formid} />
         </Col>
         <Col span={12}>
-          <DurationReport cubejs={cubeInstance} formid={match.params.formid} />
-        </Col>
-      </Row>
-      <Row>
-        <Col span={12}>
-          <TopQuestionsReport cubejs={cubeInstance} formid={match.params.formid} />
-        </Col>
-        <Col span={12}>
-          <AnswersReport cubejs={cubeInstance} formid={match.params.formid} />
+          <DurationReport cubejs={cubeInstance} formid={formid} />
         </Col>
       </Row>
       <Row>
         <Col span={12}>
-          <JoinTimeReport cubejs={cubeInstance} formid={match.params.formid} />
+          <TopQuestionsReport cubejs={cubeInstance} formid={formid} />
+        </Col>
+        <Col span={12}>
+          <AnswersReport cubejs={cubeInstance} formid={formid} />
+        </Col>
+      </Row>
+      <Row>
+        <Col span={12}>
+          <JoinTimeReport cubejs={cubeInstance} formid={formid} />
         </Col>
       </Row>
     </div>
