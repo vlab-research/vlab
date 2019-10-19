@@ -12,6 +12,6 @@ docker push localhost:32000/testrunner:registry
 
 kubectl apply -f ../kube/job.yaml
 
-sleep 1
+sleep 5
 
 ~/scripts/kube-logs.sh gbv-testrunner 0 --follow

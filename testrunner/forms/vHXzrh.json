@@ -20,6 +20,16 @@
   },
   "thankyou_screens": [
     {
+      "ref": "8a4c9940-6f5b-410f-b76c-b63cba6b018f",
+      "title": "bla",
+      "properties": {
+        "show_button": true,
+        "share_icons": true,
+        "button_mode": "reload",
+        "button_text": "again"
+      }
+    },
+    {
       "ref": "default_tys",
       "title": "Done! Your information was sent perfectly.",
       "properties": {
@@ -30,15 +40,15 @@
   ],
   "fields": [
     {
-      "id": "wQ3ezadMi3V7",
+      "id": "aJh44z5CchiU",
       "title": "Hey, I'll write you again in a bit.",
       "ref": "bd2b2376-d722-4b51-8e1e-c2000ce6ec55",
       "properties": {
-        "description": "wait:\n    type: timeout\n    value: 1 minute",
+        "description": "type: wait\nresponseMessage: Please wait!\nwait:\n    type: timeout\n    value: 1 minute",
         "hide_marks": false,
         "button_text": "Continue"
       },
-      "type": "short_text"
+      "type": "statement"
     },
     {
       "id": "VezG1vWt5vhI",
@@ -48,6 +58,17 @@
         "required": false
       },
       "type": "short_text"
+    },
+    {
+      "ref": "8a4c9940-6f5b-410f-b76c-b63cba6b018f",
+      "title": "bla",
+      "properties": {
+        "show_button": true,
+        "share_icons": true,
+        "button_mode": "reload",
+        "button_text": "again"
+      },
+      "type": "thankyou_screen"
     },
     {
       "ref": "default_tys",
