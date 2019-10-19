@@ -21,17 +21,18 @@ const SurveyScreen = ({ formid }) => {
         </Col>
       </Row>
       <Row>
-        <Col span={12}>
-          <TopQuestionsReport cubejs={cubeInstance} formid={formid} />
-        </Col>
+        {/* <Col span={12}> */}
+        {/*   <TopQuestionsReport cubejs={cubeInstance} formid={formid} /> */}
+        {/* </Col> */}
         <Col span={12}>
           <AnswersReport cubejs={cubeInstance} formid={formid} />
         </Col>
-      </Row>
-      <Row>
         <Col span={12}>
           <JoinTimeReport cubejs={cubeInstance} formid={formid} />
         </Col>
+      </Row>
+      <Row>
+        <button>download csv</button>
       </Row>
     </div>
   );

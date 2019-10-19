@@ -36,7 +36,7 @@ const Surveys = props => {
       </Sider>
       {surveys.length > 0 ? (
         <Content style={{ padding: '30px' }}>
-          <SurveyScreen userid={surveys[selected].userid} formid={surveys[selected].formid} />
+          <SurveyScreen userid={surveys[selected].userid} formid={surveys[selected].id} />
         </Content>
       ) : null}
       {/* <div>
