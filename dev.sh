@@ -1,14 +1,11 @@
 eval $(minikube docker-env)
 
-# Secrets
-kubectl delete secret gbv-bot-envs
-kubectl create secret generic gbv-bot-envs --from-env-file .env
-
 # App
-kubectl delete -f kube
-docker build -t vlabresearch/gbv-dashboard:0.0.1 .
-kubectl apply -f kube
+kubectl delete -f kube-dev
+docker build -t localhost:32000/gbv-dashboard:registry .
+docker push localhost:32000/gbv-dashboard:registry
+kubectl apply -f kube-dev
 
 # Port forwarding
-sleep 5
-kubectl port-forward $(kubectl get pods -l "app=gbv-dashboard" -o jsonpath="{.items[0].metadata.name}") 4000:80
+sleep 8
+kubectl port-forward $(kubectl get pods -l "app=gbv-dashboard" -o jsonpath="{.items[0].metadata.name}") 4000:3000
