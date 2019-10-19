@@ -27,9 +27,11 @@ function TypeformToken(code) {
 }
 
 async function TypeformFormList(token) {
-  const PAGE_SIZE = 200
+  const PAGE_SIZE = 200;
   const headers = { Authorization: `Bearer ${token}` };
-  const res = await r2(`${typeformUrl}/forms?page_size=${PAGE_SIZE}`, { headers }).json;
+  const res = await r2(`${typeformUrl}/forms?page_size=${PAGE_SIZE}`, {
+    headers,
+  }).json;
   return res;
 }
 

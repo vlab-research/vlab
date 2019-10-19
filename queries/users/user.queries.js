@@ -1,7 +1,5 @@
 'use strict';
 
-const uuid = require('uuid/v4');
-
 async function create({ token, email }) {
   const CREATE_ONE = `INSERT INTO users(token, email)
        values($1, $2)

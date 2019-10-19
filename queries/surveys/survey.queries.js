@@ -10,7 +10,7 @@ async function create({ formid, messages, form, shortcode, userid, title }) {
   return rows;
 }
 
-async function retrieveByPage({pageid, code}) {
+async function retrieveByPage({ pageid, code }) {
   const RETRIEVE = `SELECT surveys.*
                     FROM surveys
                     LEFT JOIN facebook_pages as face
@@ -23,7 +23,6 @@ async function retrieveByPage({pageid, code}) {
 }
 
 async function retrieve({ email }) {
-
   const RETRIEVE_ALL = `SELECT surveys.* FROM surveys
                         LEFT JOIN users on surveys.userid = users.id
                         WHERE email=$1`;

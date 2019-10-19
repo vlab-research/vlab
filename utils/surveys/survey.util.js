@@ -10,9 +10,7 @@ function validate(reqData) {
         .string()
         .alphanum()
         .required(),
-      userid: joi
-        .string()
-        .required(),
+      userid: joi.string().required(),
       messages: joi.string(),
       shortcode: joi
         .string()
