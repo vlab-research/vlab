@@ -1,6 +1,5 @@
 'use strict';
 
-require('dotenv').config();
 const joi = require('joi');
 const jwks = require('jwks-rsa');
 
@@ -60,7 +59,7 @@ const config = {
       jwksRequestsPerMinute: 10,
       jwksUri: `${envVars.AUTH0_HOST}/.well-known/jwks.json`,
     }),
-    audience: envVars.AUTH0_SERVER_ID,
+    audience: envVars.AUTH0_DASHBOARD_ID,
     issuer: `${envVars.AUTH0_HOST}/`,
     algorithms: ['RS256'],
   },
