@@ -6,7 +6,7 @@ module.exports = {
     es6: true,
     amd: true,
   },
-  extends: ['airbnb', 'plugin:react/recommended', 'plugin:prettier/recommended'],
+  extends: ['airbnb', 'plugin:react/recommended'],
   parserOptions: {
     ecmaVersion: 8,
     ecmaFeatures: {
@@ -31,7 +31,6 @@ module.exports = {
     'no-plusplus': 0,
     'no-undef': 0,
     'no-unsued-vars': 0,
-    'prettier/prettier': 'error',
     quotes: ['error', 'single'],
     'react/prop-types': 2,
     'react/require-default-props': 0,

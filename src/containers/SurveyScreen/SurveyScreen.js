@@ -1,14 +1,11 @@
 import React from 'react';
 import PropTypes from 'prop-types';
-import { Row, Col } from 'antd';
-
+import { Row, Col, Button } from 'antd';
 import './SurveyScreen.css';
 import { Cube, Auth } from '../../services';
 import { StartTimeReport, DurationReport } from '..';
 import AnswersReport from '../AnswersReport';
 import JoinTimeReport from '../JoinTimeReport';
-
-import { Button } from 'antd';
 import getCsv from '../../services/api/getCSV';
 
 const SurveyScreen = ({ formid }) => {
@@ -32,9 +29,7 @@ const SurveyScreen = ({ formid }) => {
         </Col>
       </Row>
       <Row style={{ marginTop: '2em', textAlign: 'center' }}>
-
-        <Button size='large' onClick={ () => getCsv(formid) }> DOWNLOAD CSV </Button>
-
+        <Button size='large' onClick={() => getCsv(formid)}> DOWNLOAD CSV </Button>
       </Row>
     </div>
   );
