@@ -1,0 +1,52 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: gbv-batchscratch
+  labels:
+    app: gbv-batchscratch
+spec:
+  template:
+    spec:
+      restartPolicy: OnFailure
+      containers:
+      - name: gbv-batchscratch
+        image: localhost:32000/replybot:registry
+        args:
+        - node
+        - lib/responses/batch.js
+        resources:
+          requests:
+            cpu: "50m"
+            memory: "100Mi"
+        ports:
+        - containerPort: 80
+        volumeMounts:
+          - name: keys
+            mountPath: /usr/src/app/keys
+            readOnly: true
+        envFrom:
+        - secretRef:
+            name: gbv-bot-envs
+        env:
+        - name: CHATBASE_BACKEND
+          value: "@vlab-research/chatbase-postgres"
+        - name: CHATBASE_DATABASE
+          value: "chatroach"
+        - name: CHATBASE_USER
+          value: "chatroach"
+        - name: CHATBASE_PASSWORD
+          value: ""
+        - name: CHATBASE_HOST
+          value: "chatroach-cockroachdb-public.default"
+        - name: CHATBASE_PORT
+          value: "26257"
+        - name: BOTSPINE_KAFKA_BROKERS
+          value: "spinaltap-kafka:9092"
+        - name: BOTSPINE_MESSAGE_TOPIC
+          value: "chat-events"
+        - name: DASHBOARD_API
+          value: "http://gbv-dashboard/api/v1"
+      volumes:
+        - name: keys
+          secret:
+            secretName: gbv-replybot-keys
