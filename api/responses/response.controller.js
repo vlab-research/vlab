@@ -18,12 +18,13 @@ exports.getResponsesCSV = async (req, res) => {
   try {
     const responses = await Response.formResponses(formid);
 
-    res.setHeader('Content-Type', 'text/csv');
-    res.setHeader(
+    res.header('Content-Type', 'text/csv');
+    res.header(
       'Content-Disposition',
       `attachment; filename="report_${formid}_${new Date().toISOString()}.csv"`,
     );
     res.status(200);
+
     ResponseUtil.toCSV(responses).pipe(res);
   } catch (err) {
     console.error(err);

@@ -7,7 +7,6 @@ function auth(req, res, next) {
   jwt(clientConfig)(req, res, (err, res) => {
     if (!err) return next();
     if (err && err.name === 'UnauthorizedError') {
-      console.log('AUTH0 CLIENT AUTH FAILED -- TRYING SERVER AUTH');
       return jwt(serverConfig)(req, res, next);
     } else {
       return next(err);

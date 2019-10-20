@@ -1,6 +1,6 @@
 const express = require('express');
 const CubejsServerCore = require('@cubejs-backend/server-core');
-const cors = require('cors')();
+const cors = require('cors');
 const bodyparser = express.json();
 
 const router = require('./api');
@@ -11,7 +11,7 @@ const morgan = require('morgan');
 
 app
   .use(morgan('tiny'))
-  .use(cors)
+  .use(cors({ exposedHeaders: ['Content-Disposition'] }))
   .use(auth)
   .use(bodyparser)
   .use(function(err, req, res, next) {

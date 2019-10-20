@@ -7,10 +7,10 @@ metadata:
 spec:
   tls:
     - hosts:
-        - gbvdash.nandan.cloud
+        - gbv-dashboard.nandan.cloud
       secretName: gbv-dashboard-cert
   rules:
-    - host: gbvdash.nandan.cloud
+    - host: gbv-dashboard.nandan.cloud
       http:
         paths:
           - path: /
