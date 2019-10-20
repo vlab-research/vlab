@@ -1,17 +1,11 @@
-export const computeHistogramData = (resultSet, interval) => {
-  const ansFreq = {};
-  const stackedData = [];
-  resultSet.rawData().forEach(response => {
-    const key = response['Responses.uniqueUserCount'];
-    const max = Math.ceil(key / interval) * interval;
-    if (ansFreq[max]) ansFreq[max]++;
-    else ansFreq[max] = 1;
-  });
-  const maxInterval = Math.max(...Object.keys(ansFreq));
-  for (let i = 0; i < maxInterval; i += interval) {
-    let freq = ansFreq[i + interval];
-    if (!freq) freq = 0;
-    stackedData.push({ interval: `${i} - ${i + interval}`, Users: freq });
-  }
-  return stackedData;
-};
+import {bin} from 'd3-array';
+
+export const computeHistogramData = (resultSet, interval, key) => {
+  const d = resultSet.rawData().map(r => r[key])
+  const max = d.reduce((a,b) => Math.max(a,b))
+  const min = d.reduce((a,b) => Math.min(a,b))
+
+  const b = bin().thresholds(Math.ceil((max - min)/interval))
+
+  return b(d).map(r => ({ interval: `${r.x0} - ${r.x1}`, Users: r.length}))
+}

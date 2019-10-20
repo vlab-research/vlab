@@ -21,12 +21,12 @@ const renderHistogram = (Component, interval) => ({ resultSet, error }) => {
 
 const DurationHistogram = ({ formid, cubejs }) => {
   const stepIntervals = {
-    '30 mins': 30,
-    '1 hour': 60,
-    '3 hours': 180,
+    '30 mins': 0.5,
+    '1 hour': 1,
+    '3 hours': 3,
   };
 
-  const [activeInterval, setActiveInterval] = useState('1 hour');
+  const [activeInterval, setActiveInterval] = useState('3 hours');
 
   return (
     <div className="chart-container">
@@ -45,7 +45,7 @@ const DurationHistogram = ({ formid, cubejs }) => {
         <QueryRenderer
           query={{
             measures: ['Responses.startTime', 'Responses.endTime'],
-            dimensions: ['Responses.userid', 'Responses.formid'],
+            dimensions: ['Responses.userid'],
             filters: [
               {
                 dimension: 'Responses.formid',

@@ -26,7 +26,7 @@ const StartTimeHistogram = ({ formid, cubejs }) => {
     '3 hours': 180,
   };
 
-  const [activeInterval, setActiveInterval] = useState('30 mins');
+  const [activeInterval, setActiveInterval] = useState('1 hour');
 
   return (
     <div className="chart-container">

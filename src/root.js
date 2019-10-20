@@ -15,7 +15,7 @@ const handleAuthentication = ({ location }) => {
 const Root = () => {
   return (
     <Router history={History}>
-      <Layout style={{ height: '90vh' }}>
+      <Layout style={{ height: '100vh' }}>
         <PrivateRoute exact path="/" component={App} auth={Auth} />
         <PrivateRoute path="/surveys" component={Surveys} auth={Auth} />
         <PrivateRoute path="/surveys/details/:formid" component={SurveyScreen} auth={Auth} />

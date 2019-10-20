@@ -8,6 +8,7 @@
     "auth0-js": "9.10.1",
     "babel-plugin-macros": "^2.6.1",
     "core-js": "^2.6.10",
+    "d3-array": "^2.3.3",
     "history": "4.9.0",
     "moment": "2.24.0",
     "prop-types": "15.7.2",

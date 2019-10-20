@@ -5,7 +5,7 @@ export const computeHistogramData = (resultSet, interval) => {
   resultSet.rawData().forEach(response => {
     const start = moment(response['Responses.startTime']);
     const end = moment(response['Responses.endTime']);
-    const duration = moment.duration(end.diff(start)).asMinutes();
+    const duration = moment.duration(end.diff(start)).asHours();
     let max = Math.ceil(duration / interval) * interval;
     if (!max) max = interval;
     freqData[max] = freqData[max] ? freqData[max] + 1 : 1;
