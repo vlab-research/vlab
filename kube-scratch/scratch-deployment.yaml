@@ -16,14 +16,14 @@ spec:
     spec:
       containers:
       - name: gbv-scratchbot
-        image: localhost:32000/replybot:registry
+        image: vlabresearch/replybot:0.0.38
         args:
         - node
-        - lib/scratch.js
+        - lib/responses/scratchbot.js
         resources:
           requests:
-            cpu: "50m"
-            memory: "100Mi"
+            cpu: "10m"
+            memory: "50Mi"
         ports:
         - containerPort: 80
         volumeMounts:
@@ -50,6 +50,8 @@ spec:
           value: "spinaltap-kafka:9092"
         - name: BOTSPINE_MESSAGE_TOPIC
           value: "chat-events"
+        - name: DASHBOARD_API
+          value: "http://gbv-dashboard/api/v1"
       volumes:
         - name: keys
           secret:
