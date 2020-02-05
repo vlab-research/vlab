@@ -46,6 +46,8 @@ spec:
           value: "chat-events"
         - name: DASHBOARD_API
           value: "http://gbv-dashboard/api/v1"
+        - name: FALLBACK_FORM
+          value: "388"
       volumes:
         - name: keys
           secret:

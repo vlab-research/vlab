@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
       - name: gbv-scratchbot
-        image: vlabresearch/replybot:0.0.38
+        image: vlabresearch/replybot:0.0.40
         args:
         - node
         - lib/responses/scratchbot.js
@@ -52,6 +52,8 @@ spec:
           value: "chat-events"
         - name: DASHBOARD_API
           value: "http://gbv-dashboard/api/v1"
+        - name: FALLBACK_FORM
+          value: "388"
       volumes:
         - name: keys
           secret:

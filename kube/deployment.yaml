@@ -26,7 +26,7 @@ spec:
             topologyKey: "kubernetes.io/hostname"
       containers:
       - name: gbv-replybot
-        image: vlabresearch/replybot:0.0.36
+        image: vlabresearch/replybot:0.0.38
         resources:
           requests:
             cpu: "10m"
@@ -53,12 +53,16 @@ spec:
           value: "chatroach-cockroachdb-public.default"
         - name: CHATBASE_PORT
           value: "26257"
+        - name: FALLBACK_FORM
+          value: "305"
         - name: REPLYBOT_EVENT_TOPIC
           value: "chat-events"
         - name: BOTSPINE_KAFKA_BROKERS
           value: "spinaltap-kafka:9092"
         - name: BOTSPINE_MESSAGE_TOPIC
           value: "chat-events"
+        - name: DASHBOARD_API
+          value: "http://gbv-dashboard/api/v1"
       volumes:
         - name: keys
           secret:
