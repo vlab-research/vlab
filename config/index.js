@@ -7,7 +7,7 @@ const envVarsSchema = joi
   .object({
     NODE_ENV: joi.string().allow(['development', 'production', 'test']),
     API_VERSION: joi.number(),
-    AUTH0_HOST: joi.string().required(),
+    AUTH0_HOST: joi.string(),
     DB_USER: joi.string(),
     DB_HOST: joi.string(),
     DB_PASSWORD: joi
@@ -16,7 +16,7 @@ const envVarsSchema = joi
       .empty(''),
     DB_DATABASE: joi.string(),
     DB_PORT: joi.number(),
-    AUTH0_CLIENT_ID: joi.string().required(),
+    AUTH0_CLIENT_ID: joi.string(),
   })
   .unknown()
   .required();
@@ -64,10 +64,10 @@ const config = {
     algorithms: ['RS256'],
   },
   DATABASE_CONFIG: {
-    user: isTest() ? 'postgres' : envVars.DB_USER || 'postgres',
+    user: isTest() ? 'root' : envVars.DB_USER || 'postgres',
     host: isTest() ? 'localhost' : envVars.DB_HOST || 'localhost',
     database: isTest()
-      ? 'vlab_dashboard_test'
+      ? 'chatroach'
       : envVars.DB_DATABASE || 'postgres',
     password: isTest() ? undefined : envVars.DB_PASSWORD || undefined,
     port: isTest() ? 5432 : envVars.DB_PORT || 5432,

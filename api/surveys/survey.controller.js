@@ -7,21 +7,20 @@ const { TypeformUtil } = require('../../utils');
 
 exports.postOne = async (req, res) => {
   try {
-    const { formid, title } = req.body;
+    const { formid, title, shortcode } = req.body;
     const { email } = req.user;
 
     const user = await User.user({ email });
-    if (!user[0])
+    if (!user)
       return res.status(404).json({ error: `User ${email} does not exist!` });
 
-    const { id: userid, token } = user[0];
+    const { id: userid, token } = user;
 
     const form = await TypeformUtil.TypeformForm(token, formid);
     const messages = await TypeformUtil.TypeformMessages(token, formid);
 
-    // userid should be actual id...
-    const shortcode = await SurveyUtil.shortcode(userid);
-    const survey = { formid, messages, title, userid, form, shortcode };
+    const created = new Date()
+    const survey = { formid, created, messages, title, userid, form, shortcode };
 
     SurveyUtil.validate(survey);
     const createdSurvey = await Survey.create(survey);
@@ -35,14 +34,12 @@ exports.postOne = async (req, res) => {
 
 exports.getBy = async (req, res, next) => {
   try {
-    const { pageid, shortcode } = req.query;
+    const { pageid, shortcode, timestamp } = req.query;
 
-    if (pageid && shortcode) {
-      const surveys = await Survey.retrieveByPage({ pageid, code: shortcode });
-      if (surveys.length > 1) {
-        // TODO: remove once shit actually works
-        throw new Error('WTF? More than one survey??? ');
-      }
+    if (pageid && shortcode && timestamp) {
+      const surveys = await Survey.retrieveByPage({ pageid, code: shortcode, timestamp });
+
+      // send only latest survey...
       res.status(200).send(surveys[0]);
     } else {
       next();

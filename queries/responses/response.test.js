@@ -27,13 +27,17 @@ describe('Response queries', () => {
 
     await vlabPool.query(
       `CREATE TABLE responses(
-       formid VARCHAR NOT NULL,
+       parent_surveyid UUID NOT NULL,
+       parent_shortcode INT NOT NULL,
+       surveyid UUID NOT NULL,
+       shortcode INT NOT NULL,
        flowid INT NOT NULL,
        userid VARCHAR NOT NULL,
        question_ref VARCHAR NOT NULL,
        question_idx INT NOT NULL,
        question_text VARCHAR NOT NULL,
        response VARCHAR NOT NULL,
+       seed INT NOT NULL,
        timestamp TIMESTAMPTZ NOT NULL,
        PRIMARY KEY (userid, timestamp)
       )`,
@@ -53,44 +57,26 @@ describe('Response queries', () => {
 
   describe('.all()', () => {
     it('should get the list of the first and last responses for each user', async () => {
-      const MOCK_QUERY = `INSERT INTO responses(formid, flowid, userid, question_ref, question_idx, question_text, response, timestamp) 
+      const MOCK_QUERY = `INSERT INTO responses(parent_surveyid, parent_shortcode, surveyid, shortcode, flowid, userid, question_ref, question_idx, question_text, response, seed, timestamp)
       VALUES
-        ('form1', 100001, '124', 'ref', 10, 'text', '{ "text": "last" }', current_date + interval '14 hour')
-       ,('form2', 100003, '123', 'ref', 10, 'text', '{ "text": "last" }', date '2019-04-18' + interval '12 hour')
-       ,('form1', 100004, '124', 'ref', 10, 'text', '{ "text": "first" }', current_date + interval '10 hour')
-       ,('form2', 100005, '123', 'ref', 10, 'text', '{ "text": "first" }', date '2019-04-18' + interval '8 hour')
-       ,('form2', 100003, '125', 'ref', 10, 'text', '{ "text": "last" }', date '2019-04-18' + interval '12 hour')
-       ,('form1', 100004, '125', 'ref', 10, 'text', '{ "text": "first" }', date '2019-04-18' + interval '10 hour')
-       ,('form2', 100005, '125', 'ref', 10, 'text', '{ "text": "first" }', date '2019-04-18' + interval '8 hour')
-       ,('form1', 100006, '124', 'ref', 10, 'text', '{ "text": "middle" }', current_date + interval '12 hour')`;
+        ('b8b960ca-3c0d-4a64-a058-2140ee89596b', '101', 'b8b960ca-3c0d-4a64-a058-2140ee89596b', '101', 100001, '124', 'ref', 10, 'text', '{ "text": "last" }', '6789', current_date + interval '14 hour')
+       ,('f5de09c8-f2c3-49ac-847d-33c8bf5be427', '202', 'f5de09c8-f2c3-49ac-847d-33c8bf5be427', '202', 100003, '123', 'ref', 10, 'text', '{ "text": "last" }', '6789', date '2019-04-18' + interval '12 hour')
+       ,('b8b960ca-3c0d-4a64-a058-2140ee89596b', '101', 'b8b960ca-3c0d-4a64-a058-2140ee89596b', '101', 100004, '124', 'ref', 10, 'text', '{ "text": "first" }', '6789', current_date + interval '10 hour')
+       ,('f5de09c8-f2c3-49ac-847d-33c8bf5be427', '202', 'f5de09c8-f2c3-49ac-847d-33c8bf5be427', '202', 100005, '123', 'ref', 10, 'text', '{ "text": "first" }', '6789', date '2019-04-18' + interval '8 hour')
+       ,('f5de09c8-f2c3-49ac-847d-33c8bf5be427', '202', 'f5de09c8-f2c3-49ac-847d-33c8bf5be427', '202', 100003, '125', 'ref', 10, 'text', '{ "text": "last" }', '6789', date '2019-04-18' + interval '12 hour')
+       ,('b8b960ca-3c0d-4a64-a058-2140ee89596b', '101', 'b8b960ca-3c0d-4a64-a058-2140ee89596b', '101', 100004, '125', 'ref', 10, 'text', '{ "text": "first" }', '6789', date '2019-04-18' + interval '10 hour')
+       ,('f5de09c8-f2c3-49ac-847d-33c8bf5be427', '202', 'f5de09c8-f2c3-49ac-847d-33c8bf5be427', '202', 100005, '125', 'ref', 10, 'text', '{ "text": "first" }', '6789', date '2019-04-18' + interval '8 hour')
+       ,('b8b960ca-3c0d-4a64-a058-2140ee89596b', '101', 'b8b960ca-3c0d-4a64-a058-2140ee89596b', '101', 100006, '124', 'ref', 10, 'text', '{ "text": "middle" }', '6789', current_date + interval '12 hour')`;
+
       await vlabPool.query(MOCK_QUERY);
       const responses = await Response.all();
+
       responses[0].first_response.should.equal('{ "text": "first" }');
       responses[0].last_response.should.equal('{ "text": "last" }');
-      responses[0].formid.should.equal('form2');
+      responses[0].surveyid.should.equal('f5de09c8-f2c3-49ac-847d-33c8bf5be427');
       responses[1].first_response.should.equal('{ "text": "first" }');
       responses[1].last_response.should.equal('{ "text": "last" }');
-      responses[1].formid.should.equal('form1');
-    });
-  });
-
-  describe('.formResponses()', () => {
-    it('should return all the responses by formid', async () => {
-      const MOCK_QUERY = `INSERT INTO responses(formid, flowid, userid, question_ref, question_idx, question_text, response, timestamp) 
-      VALUES
-        ('form1', 100001, '124', 'ref', 10, 'text', '{ "text": "last" }', current_date + interval '14 hour')
-       ,('form2', 100003, '123', 'ref', 10, 'text', '{ "text": "last" }', current_date + interval '12 hour')
-       ,('form3', 100004, '124', 'ref', 10, 'text', '{ "text": "first" }', current_date + interval '10 hour')
-       ,('form1', 100005, '123', 'ref', 10, 'text', '{ "text": "first" }', current_date + interval '8 hour')
-       ,('form1', 100006, '124', 'ref', 10, 'text', '{ "text": "middle" }', current_date + interval '12 hour')`;
-      await vlabPool.query(MOCK_QUERY);
-      const responses = await Response.formResponses('form1');
-      responses[0].response.should.equal('{ "text": "last" }');
-      responses[0].flowid.should.equal(100001);
-      responses[1].response.should.equal('{ "text": "middle" }');
-      responses[1].flowid.should.equal(100006);
-      responses[2].response.should.equal('{ "text": "first" }');
-      responses[2].flowid.should.equal(100005);
+      responses[1].surveyid.should.equal('b8b960ca-3c0d-4a64-a058-2140ee89596b');
     });
   });
 });

@@ -34,13 +34,6 @@ function validate(reqData) {
   }
 }
 
-async function shortcode(userid) {
-  const code = Math.floor(Math.random() * 999);
-  const included = await Survey.includes({ userid, code });
-  return included ? shortcode() : code.toString();
-}
-
 module.exports = {
-  shortcode,
   validate,
 };

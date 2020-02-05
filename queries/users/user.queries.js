@@ -7,7 +7,7 @@ async function create({ token, email }) {
        RETURNING *`;
   const values = [token, email];
   const { rows } = await this.query(CREATE_ONE, values);
-  return rows;
+  return rows[0];
 }
 
 async function update({ token, email }) {
@@ -16,13 +16,14 @@ async function update({ token, email }) {
     RETURNING *`;
   const values = [token, email];
   const { rows } = await this.query(UPDATE_OR_CREATE, values);
-  return rows.length && rows;
+
+  return !!rows.length ? rows[0] : create.bind(this)({ token, email})
 }
 
 async function user({ email }) {
   const UPDATE_OR_CREATE = `SELECT * FROM users WHERE email=$1`;
   const { rows } = await this.query(UPDATE_OR_CREATE, [email]);
-  return rows.length && rows;
+  return !!rows.length && rows[0];
 }
 
 module.exports = {

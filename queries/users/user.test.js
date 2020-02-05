@@ -12,25 +12,25 @@ describe('User queries', () => {
 
   before(async () => {
     let pool = new Pool({
-      user: 'postgres',
+      user: 'root',
       host: 'localhost',
-      database: 'postgres',
+      database: 'default',
       password: undefined,
       port: 5432,
     });
 
     try {
-      await pool.query('CREATE DATABASE vlab_dashboard_test');
+      await pool.query('CREATE DATABASE chatroach');
     } catch (e) {}
 
     vlabPool = new Pool(DATABASE_CONFIG);
 
     await vlabPool.query(
-      `CREATE TABLE users(
-       id VARCHAR NOT NULL PRIMARY KEY,
+      `CREATE TABLE chatroach.users(
+       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
        token VARCHAR NOT NULL,
        email VARCHAR NOT NULL UNIQUE
-      )`,
+       );`,
     );
     await vlabPool.query('DELETE FROM users');
 
@@ -52,8 +52,8 @@ describe('User queries', () => {
         email: 'test@vlab.com',
       };
       const newUser = await User.create(user);
-      newUser[0].token.should.equal(user.token);
-      newUser[0].email.should.equal(user.email);
+      newUser.token.should.equal(user.token);
+      newUser.email.should.equal(user.email);
     });
   });
 
@@ -63,15 +63,14 @@ describe('User queries', () => {
         token: '8eQ9ZYXw2Vsb16aC7aKzXFqzE7oamzKQttaHnCNHoRu8',
         email: 'test@vlab.com',
       };
-      const newUser = (await User.update(user)) || (await User.create(user));
-      newUser[0].token.should.equal(user.token);
-      newUser[0].email.should.equal(user.email);
+      const newUser = await User.update(user);
+      newUser.token.should.equal(user.token);
+      newUser.email.should.equal(user.email);
 
       user.token = 'HxpnYoykme73Jz1c9DdAxPws77GzH9jLqE1wu1piSqJj';
-      const userUpdated =
-        (await User.update(user)) || (await User.create(user));
-      userUpdated[0].token.should.equal(user.token);
-      userUpdated[0].email.should.equal(user.email);
+      const userUpdated = await User.update(user);
+      userUpdated.token.should.equal(user.token);
+      userUpdated.email.should.equal(user.email);
     });
   });
 
@@ -83,8 +82,8 @@ describe('User queries', () => {
       };
       await User.create(user);
       const userFromDb = await User.user(user);
-      userFromDb[0].token.should.equal(user.token);
-      userFromDb[0].email.should.equal(user.email);
+      userFromDb.token.should.equal(user.token);
+      userFromDb.email.should.equal(user.email);
     });
   });
 });
