@@ -8,7 +8,7 @@ exports.authorize = async (req, res) => {
     const token = await TypeformUtil.TypeformToken(req.params.code);
     console.log('TOKEN: ', token);
     const user = { token: token.access_token, email: req.user.email };
-    await User.update(user)
+    await User.update(user);
     res.status(200).send();
   } catch (err) {
     console.error(err);

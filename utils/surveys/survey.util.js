@@ -1,6 +1,5 @@
 'use strict';
 
-const { Survey } = require('../../queries');
 const joi = require('joi');
 
 function validate(reqData) {

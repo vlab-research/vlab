@@ -66,9 +66,7 @@ const config = {
   DATABASE_CONFIG: {
     user: isTest() ? 'root' : envVars.DB_USER || 'postgres',
     host: isTest() ? 'localhost' : envVars.DB_HOST || 'localhost',
-    database: isTest()
-      ? 'chatroach'
-      : envVars.DB_DATABASE || 'postgres',
+    database: isTest() ? 'chatroach' : envVars.DB_DATABASE || 'postgres',
     password: isTest() ? undefined : envVars.DB_PASSWORD || undefined,
     port: isTest() ? 5432 : envVars.DB_PORT || 5432,
   },

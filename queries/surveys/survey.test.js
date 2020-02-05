@@ -26,7 +26,7 @@ describe('Survey queries', () => {
 
     try {
       await pool.query('CREATE DATABASE chatroach;');
-    } catch (e) { }
+    } catch (e) {}
 
     vlabPool = new Pool(DATABASE_CONFIG);
 
@@ -65,7 +65,7 @@ describe('Survey queries', () => {
   afterEach(async () => {
     await vlabPool.query('DELETE FROM users');
     await vlabPool.query('DELETE FROM surveys');
-  })
+  });
 
   after(async () => {
     await vlabPool.query('DROP TABLE users CASCADE');
@@ -141,20 +141,23 @@ describe('Survey queries', () => {
     let dates, user, newUser, survey, survey2;
 
     beforeEach(async () => {
-      dates = [new Date(1580010000000),
-               new Date(1580020000000),
-               new Date(1580030000000),
-               new Date(1580040000000)]
+      dates = [
+        new Date(1580010000000),
+        new Date(1580020000000),
+        new Date(1580030000000),
+        new Date(1580040000000),
+      ];
       user = {
         token: 'dasfYoykme73Jz1c93d1xPws77GzuhNU0f1wu1pHeh91',
         email: 'test3@vlab.com',
       };
 
-
       newUser = await User.create(user);
 
-      await vlabPool.query(`INSERT INTO facebook_pages(pageid, userid) VALUES ($1, $2)`,
-                     ['foo', newUser.id])
+      await vlabPool.query(
+        `INSERT INTO facebook_pages(pageid, userid) VALUES ($1, $2)`,
+        ['foo', newUser.id],
+      );
 
       survey = {
         created: dates[0],
@@ -178,29 +181,36 @@ describe('Survey queries', () => {
       };
 
       await Survey.create(survey2);
-    })
-
+    });
 
     it('should get the surveys before a certain date in the proper order', async () => {
-      const res = await Survey.retrieveByPage({ pageid: 'foo',
-                                                code: 123,
-                                                timestamp: dates[3] })
-      res.length.should.equal(2)
-      res[0].created.should.eql(dates[2])
+      const res = await Survey.retrieveByPage({
+        pageid: 'foo',
+        code: 123,
+        timestamp: dates[3],
+      });
+      res.length.should.equal(2);
+      res[0].created.should.eql(dates[2]);
     });
 
     it('should not return later surveys than the given date', async () => {
-      const res = await Survey.retrieveByPage({ pageid: 'foo',
-                                                code: 123,
-                                                timestamp: dates[1] })
-      res.length.should.equal(1)
-      res[0].created.should.eql(dates[0])
+      const res = await Survey.retrieveByPage({
+        pageid: 'foo',
+        code: 123,
+        timestamp: dates[1],
+      });
+      res.length.should.equal(1);
+      res[0].created.should.eql(dates[0]);
     });
 
     it('should return nothing when nothing exists', async () => {
       const [userid, code] = [newUser.id, 234];
-      const res = await Survey.retrieveByPage({userid, code, timestamp: dates[2] })
-      res.length.should.equal(0)
+      const res = await Survey.retrieveByPage({
+        userid,
+        code,
+        timestamp: dates[2],
+      });
+      res.length.should.equal(0);
     });
   });
 });

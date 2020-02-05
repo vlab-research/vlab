@@ -17,7 +17,7 @@ async function update({ token, email }) {
   const values = [token, email];
   const { rows } = await this.query(UPDATE_OR_CREATE, values);
 
-  return !!rows.length ? rows[0] : create.bind(this)({ token, email})
+  return rows.length ? rows[0] : create.bind(this)({ token, email });
 }
 
 async function user({ email }) {

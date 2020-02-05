@@ -73,10 +73,14 @@ describe('Response queries', () => {
 
       responses[0].first_response.should.equal('{ "text": "first" }');
       responses[0].last_response.should.equal('{ "text": "last" }');
-      responses[0].surveyid.should.equal('f5de09c8-f2c3-49ac-847d-33c8bf5be427');
+      responses[0].surveyid.should.equal(
+        'f5de09c8-f2c3-49ac-847d-33c8bf5be427',
+      );
       responses[1].first_response.should.equal('{ "text": "first" }');
       responses[1].last_response.should.equal('{ "text": "last" }');
-      responses[1].surveyid.should.equal('b8b960ca-3c0d-4a64-a058-2140ee89596b');
+      responses[1].surveyid.should.equal(
+        'b8b960ca-3c0d-4a64-a058-2140ee89596b',
+      );
     });
   });
 });

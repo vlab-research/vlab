@@ -1,13 +1,21 @@
 'use strict';
 
-async function create({ created, formid, form, messages, shortcode, userid, title }) {
+async function create({
+  created,
+  formid,
+  form,
+  messages,
+  shortcode,
+  userid,
+  title,
+}) {
   const CREATE_ONE = `INSERT INTO surveys(created, formid, form, messages, shortcode, userid, title)
        values($1, $2, $3, $4, $5, $6, $7)
        ON CONFLICT(id) DO NOTHING
        RETURNING *`;
   const values = [created, formid, form, messages, shortcode, userid, title];
   const { rows } = await this.query(CREATE_ONE, values);
-  return rows[0]
+  return rows[0];
 }
 
 async function retrieveByPage({ pageid, code, timestamp }) {
@@ -33,12 +41,11 @@ async function retrieve({ email }) {
   return rows;
 }
 
-
 module.exports = {
   name: 'Survey',
   queries: pool => ({
     create: create.bind(pool),
     retrieve: retrieve.bind(pool),
-    retrieveByPage: retrieveByPage.bind(pool)
+    retrieveByPage: retrieveByPage.bind(pool),
   }),
 };

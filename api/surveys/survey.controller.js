@@ -19,8 +19,16 @@ exports.postOne = async (req, res) => {
     const form = await TypeformUtil.TypeformForm(token, formid);
     const messages = await TypeformUtil.TypeformMessages(token, formid);
 
-    const created = new Date()
-    const survey = { formid, created, messages, title, userid, form, shortcode };
+    const created = new Date();
+    const survey = {
+      formid,
+      created,
+      messages,
+      title,
+      userid,
+      form,
+      shortcode,
+    };
 
     SurveyUtil.validate(survey);
     const createdSurvey = await Survey.create(survey);
@@ -37,7 +45,11 @@ exports.getBy = async (req, res, next) => {
     const { pageid, shortcode, timestamp } = req.query;
 
     if (pageid && shortcode && timestamp) {
-      const surveys = await Survey.retrieveByPage({ pageid, code: shortcode, timestamp });
+      const surveys = await Survey.retrieveByPage({
+        pageid,
+        code: shortcode,
+        timestamp,
+      });
 
       // send only latest survey...
       res.status(200).send(surveys[0]);
