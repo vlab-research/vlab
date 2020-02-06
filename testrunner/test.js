@@ -8,8 +8,21 @@ const farmhash = require('farmhash');
 const util = require('util');
 const {seed} = require('./seed-db');
 
+
+// SETUP -----------------------------------
 sock.connect('tcp://gbv-facebot:4000');
 sock.subscribe('messages');
+
+const Chatbase = require(process.env.CHATBASE_BACKEND)
+const chatbase = new Chatbase()
+
+async function getResponses(userid) {
+  const {rows} = await chatbase.pool.query('SELECT * FROM responses WHERE userid=$1 ORDER BY timestamp ASC', [userid])
+  return rows
+}
+
+const snooze = ms => new Promise(resolve => setTimeout(resolve, ms));
+
 
 describe('Test Bot flow Survey Integration Testing', () => {
 
@@ -19,7 +32,7 @@ describe('Test Bot flow Survey Integration Testing', () => {
   let bindedDone;
 
   before(async () => {
-    await seed();
+    await seed(chatbase);
     console.log('Test starting!');
   });
 
@@ -99,6 +112,42 @@ describe('Test Bot flow Survey Integration Testing', () => {
     ]
 
     sender(makeReferral(userId, 'nFgfNE'))
+
+  }).timeout(20000);
+
+  it('Test chat flow with stitched forms: stitches and maintains seed"',  (done) => {
+
+    const makeId = () => {
+      const uid = uuid()
+      const suitable = farmhash.fingerprint32('Llu24B' + uid) % 5 === 0;
+      return suitable ? uid : makeId();
+    }
+
+    userId = makeId()
+
+
+    const fieldsA = getFields('forms/Llu24B.json')
+    const fieldsB = getFields('forms/tKG55U.json')
+
+    testFlow = [
+      [fieldsA[0], [makeTextResponse(userId, 'LOL')]],
+      [fieldsA[1], []],
+      [fieldsB[0], [makePostback(fieldsB[0], userId, 0)]],
+      [fieldsB[2], []],
+    ]
+
+    sender(makeReferral(userId, 'Llu24B'))
+
+    bindedDone = async () => {
+      await snooze(1000) // Give scratchbot a second to write
+
+      const res = await getResponses(userId)
+      res.length.should.equal(2)
+      res.map(r => r['response']).should.include('LOL')
+      res.map(r => r['response']).should.include('true')
+      res.map(r => r['parent_shortcode']).should.eql(['Llu24B', 'Llu24B'])
+      done()
+    }
 
   }).timeout(20000);
 

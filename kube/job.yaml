@@ -29,11 +29,15 @@ spec:
           value: "http://gbv-botserver"
         - name: KAFKA_BROKERS
           value: "spinaltap-kafka:9092"
-        - name: DB_HOST
-          value: 'chatroach-cockroachdb-public.default'
-        - name: DB_USER
-          value: 'chatroach'
-        - name: DB_DATABASE
-          value: 'chatroach'
-        - name: DB_PORT
-          value: '26257'
+        - name: CHATBASE_BACKEND
+          value: "@vlab-research/chatbase-postgres"
+        - name: CHATBASE_DATABASE
+          value: "chatroach"
+        - name: CHATBASE_USER
+          value: "chatroach"
+        - name: CHATBASE_PASSWORD
+          value: ""
+        - name: CHATBASE_HOST
+          value: "chatroach-cockroachdb-public.default"
+        - name: CHATBASE_PORT
+          value: "26257"
