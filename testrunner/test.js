@@ -6,6 +6,7 @@ const zmq = require('zeromq')
 const sock = zmq.socket('sub');
 const farmhash = require('farmhash');
 const util = require('util');
+const {seed} = require('./seed-db');
 
 sock.connect('tcp://gbv-facebot:4000');
 sock.subscribe('messages');
@@ -17,7 +18,8 @@ describe('Test Bot flow Survey Integration Testing', () => {
   let userId = null;
   let bindedDone;
 
-  before(() => {
+  before(async () => {
+    await seed();
     console.log('Test starting!');
   });
 
@@ -42,7 +44,7 @@ describe('Test Bot flow Survey Integration Testing', () => {
       [fields[5], []],
     ]
 
-    sender(makeReferral(userId, '23'))
+    sender(makeReferral(userId, 'LDfNCy'))
 
   }).timeout(20000);
 
@@ -57,7 +59,7 @@ describe('Test Bot flow Survey Integration Testing', () => {
       [fields[5], []],
     ];
 
-    sender(makeReferral(userId, '23'));
+    sender(makeReferral(userId, 'LDfNCy'));
 
   }).timeout(20000);
 
@@ -74,7 +76,7 @@ describe('Test Bot flow Survey Integration Testing', () => {
       [fields[5], []],
     ]
 
-    sender(makeReferral(userId, '175'))
+    sender(makeReferral(userId, 'jISElk'))
 
   }).timeout(20000);
 
@@ -84,7 +86,7 @@ describe('Test Bot flow Survey Integration Testing', () => {
 
     const makeId = () => {
       const uid = uuid()
-      const suitable = farmhash.fingerprint32('128' + uid) % 2 === 0;
+      const suitable = farmhash.fingerprint32('nFgfNE' + uid) % 2 === 0;
       return suitable ? uid : makeId();
     }
 
@@ -96,7 +98,7 @@ describe('Test Bot flow Survey Integration Testing', () => {
       [fields[3], []],
     ]
 
-    sender(makeReferral(userId, '128'))
+    sender(makeReferral(userId, 'nFgfNE'))
 
   }).timeout(20000);
 
@@ -112,7 +114,7 @@ describe('Test Bot flow Survey Integration Testing', () => {
       [fields[3], []]
     ]
 
-    sender(makeReferral(userId, '463'))
+    sender(makeReferral(userId, 'Ep5wnS'))
 
   }).timeout(20000);
 
@@ -129,7 +131,7 @@ describe('Test Bot flow Survey Integration Testing', () => {
       [fields[2], []],
     ]
 
-    sender(makeReferral(userId, '519'))
+    sender(makeReferral(userId, 'vHXzrh'))
 
   }).timeout(180000);
 
