@@ -12,6 +12,13 @@ async function pages(pool, userid) {
   return pool.query(query, [pageid, userid])
 }
 
+async function surveyExists(pool, shortcode) {
+  const userid = await getUserId(pool)
+  const query = `SELECT id from surveys where userid = $1 and shortcode = $2;`
+  const {rows} = await pool.query(query, [userid, shortcode])
+  return !!rows && !!rows.length
+}
+
 async function insertSurvey(pool, filename, body) {
   const query = `INSERT INTO surveys(created, formid, form, messages, shortcode, userid, title)
        values($1, $2, $3, $4, $5, $6, $7)
@@ -22,6 +29,10 @@ async function insertSurvey(pool, filename, body) {
   await pages(pool, userid)
   const created = new Date()
   const formid = filename.split('.')[0]
+
+  const exists = await surveyExists(pool, formid)
+  if (exists) return
+
   const values = [created, formid, body, '', formid, userid, ''];
   await pool.query(query, values)
 }

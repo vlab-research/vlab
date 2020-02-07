@@ -11,7 +11,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@vlab-research/mox": "0.0.9",
+    "@vlab-research/mox": "0.0.10",
     "@vlab-research/utils": "0.0.3",
     "@vlab-research/chatbase-postgres": "0.0.3",
     "chai": "^4.2.0",
