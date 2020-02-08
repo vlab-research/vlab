@@ -13,7 +13,6 @@ function validate(reqData) {
       messages: joi.string(),
       shortcode: joi
         .string()
-        .regex(/^[0-9]+$/)
         .required(),
       title: joi.string().required(),
       form: joi.string().required(),

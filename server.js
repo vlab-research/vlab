@@ -19,7 +19,11 @@ app
       res.status(401).send('Invalid Token.');
     }
   })
-  .use(`/api/v${API_VERSION}`, router);
+  .use(`/api/v${API_VERSION}`, router)
+  .use('/health', (req, res) => {
+    // TODO: check connection to DB
+    return res.status(200).send('OK')
+  });
 
 const options = {
   devServer: false,
