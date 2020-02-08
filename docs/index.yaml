@@ -1,0 +1,33 @@
+apiVersion: v1
+entries:
+  botscribe:
+  - apiVersion: v2
+    created: "2020-02-08T22:24:17.500992105+01:00"
+    description: A Helm chart for Kubernetes
+    digest: a1dd0f8199fb4121bcc66ded73ae560118c4568e9141ac9aa57d7306d7834cb8
+    name: botscribe
+    type: application
+    urls:
+    - botscribe-0.0.1.tgz
+    version: 0.0.1
+  botserver:
+  - apiVersion: v2
+    created: "2020-02-08T22:24:17.501413621+01:00"
+    description: A Helm chart for Kubernetes
+    digest: 585e8eebb456f0a8cfc5fe266c6512f36350d8d2cf5e2c76dca49ec813d81f0b
+    name: botserver
+    type: application
+    urls:
+    - botserver-0.0.1.tgz
+    version: 0.0.1
+  replybot:
+  - apiVersion: v2
+    created: "2020-02-08T22:24:17.501650501+01:00"
+    description: A Helm chart for Kubernetes
+    digest: 3022f7daf35e0ecbb8cfc09a61ac5292178eec01e0dc4220db74d90bab916caf
+    name: replybot
+    type: application
+    urls:
+    - replybot-0.0.1.tgz
+    version: 0.0.1
+generated: "2020-02-08T22:24:17.500596036+01:00"
