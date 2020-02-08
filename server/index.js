@@ -38,7 +38,7 @@ producer.connect()
 
 producer.on('event.error', err => {
   console.error('Error from producer');
-  console.error(err);
+  throw err;
 })
 
 const producerReady = new Promise((resolve, reject) => {
@@ -92,6 +92,7 @@ const handleMessengerEvents = async (ctx) => {
 
 
 // TODO: move into another service?
+// TODO: secure!
 const handleSyntheticEvents = async (ctx) => {
   await producerReady
 
@@ -119,6 +120,10 @@ const router = new Router()
 router.get('/webhooks', verifyToken)
 router.post('/webhooks', handleMessengerEvents)
 router.post('/synthetic', handleSyntheticEvents)
+router.get('/health', async ctx => {
+  await producerReady
+  ctx.status = 200
+})
 
 const app = new Koa()
 app
