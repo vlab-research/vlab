@@ -2,7 +2,7 @@ apiVersion: v1
 entries:
   botscribe:
   - apiVersion: v2
-    created: "2020-02-08T23:28:11.606160785+01:00"
+    created: "2020-02-09T02:42:56.52170533+01:00"
     description: A Helm chart for Kubernetes
     digest: a1dd0f8199fb4121bcc66ded73ae560118c4568e9141ac9aa57d7306d7834cb8
     name: botscribe
@@ -12,7 +12,7 @@ entries:
     version: 0.0.1
   botserver:
   - apiVersion: v2
-    created: "2020-02-08T23:28:11.606606775+01:00"
+    created: "2020-02-09T02:42:56.522556401+01:00"
     description: A Helm chart for Kubernetes
     digest: 585e8eebb456f0a8cfc5fe266c6512f36350d8d2cf5e2c76dca49ec813d81f0b
     name: botserver
@@ -22,7 +22,7 @@ entries:
     version: 0.0.1
   dashboard:
   - apiVersion: v2
-    created: "2020-02-08T23:28:11.606880471+01:00"
+    created: "2020-02-09T02:42:56.523071613+01:00"
     description: A Helm chart for Kubernetes
     digest: edec85b5f5b67496bf09eca15a575f4d57e215ae7e7bbdd19114e1e2ebbd8e1d
     name: dashboard
@@ -32,7 +32,7 @@ entries:
     version: 0.0.1
   linksniffer:
   - apiVersion: v2
-    created: "2020-02-08T23:28:11.607139834+01:00"
+    created: "2020-02-09T02:42:56.523590019+01:00"
     description: A Helm chart for Kubernetes
     digest: 937d5396dd86b6486c82b957f0af6dc64bcbd3ce1ff553bc8e8e18d73254d136
     name: linksniffer
@@ -42,7 +42,7 @@ entries:
     version: 0.0.1
   naughtybot:
   - apiVersion: v2
-    created: "2020-02-08T23:28:11.607372255+01:00"
+    created: "2020-02-09T02:42:56.524020812+01:00"
     description: A Helm chart for Kubernetes
     digest: 91e9933cf9a65359a2bfcff9f80628ff4ceae85d9fa86f56aad1c9e918e946f3
     name: naughtybot
@@ -52,7 +52,7 @@ entries:
     version: 0.0.1
   replybot:
   - apiVersion: v2
-    created: "2020-02-08T23:28:11.607578147+01:00"
+    created: "2020-02-09T02:42:56.524844055+01:00"
     description: A Helm chart for Kubernetes
     digest: 3022f7daf35e0ecbb8cfc09a61ac5292178eec01e0dc4220db74d90bab916caf
     name: replybot
@@ -62,12 +62,12 @@ entries:
     version: 0.0.1
   scratchbot:
   - apiVersion: v2
-    created: "2020-02-08T23:28:11.607763763+01:00"
+    created: "2020-02-09T02:42:56.525277955+01:00"
     description: A Helm chart for Kubernetes
-    digest: 2a23ff91169844224f618812f4cef8ba5133d6e53d5407008bf1590a7d6deb31
+    digest: 0c773b4d5d524d7731356d8957712ec7990d13086cb2826b596130e73283f7a0
     name: scratchbot
     type: application
     urls:
     - scratchbot-0.0.1.tgz
     version: 0.0.1
-generated: "2020-02-08T23:28:11.605798234+01:00"
+generated: "2020-02-09T02:42:56.52033585+01:00"
