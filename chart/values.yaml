@@ -1,0 +1,42 @@
+replicaCount: 1
+
+image:
+  repository: vlabresearch/botserver
+  tag: 0.0.4
+  pullPolicy: IfNotPresent
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+service:
+  type: ClusterIP
+  port: 80
+
+ingress:
+  enabled: false
+  annotations: {}
+    # cert-manager.io/cluster-issuer: letsencrypt-prod
+  hosts:
+    - host: chart-example.local
+      paths: []
+
+  tls: []
+  #  - secretName: gbv-botserver-cert
+  #    hosts:
+  #      - gbvbot.nandan.cloud
+
+env: {}
+resources: {}
+  # limits:
+  #   cpu: 100m
+  #   memory: 128Mi
+  # requests:
+  #   cpu: 100m
+  #   memory: 128Mi
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}
