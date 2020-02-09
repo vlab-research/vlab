@@ -10,8 +10,9 @@ function handleEvent(psid, eventType) {
     xhr.open('POST', SERVER_URL);
     xhr.setRequestHeader('Content-Type', 'application/json');
 
+    const pageId = '{{{ FB_PAGE_ID }}}'
     // add ID of video to event...
-    xhr.send(JSON.stringify({ user:psid, data, event: { type: 'external', value: { type: `moviehouse:${eventType}`, id: videoId } }}));
+    xhr.send(JSON.stringify({ user:psid, page:pageId, data, event: { type: 'external', value: { type: `moviehouse:${eventType}`, id: videoId } }}));
   }
 }
 
@@ -56,6 +57,8 @@ function setPlayer(psid) {
 
 document.addEventListener('DOMContentLoaded', () => {
   window.extAsyncInit = function () {
+
+    // add surveyId or something of the like to be useful for multiple pages
     MessengerExtensions.getContext('{{{APP_ID}}}',
       function success(thread_context) {
         setPlayer(thread_context.psid);
