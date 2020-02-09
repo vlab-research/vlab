@@ -20,18 +20,20 @@ type LinkClickEvent struct {
 
 type ExternalEvent struct {
 	User string `json:"user"`
+	Page string `json:"page"`
 	Event LinkClickEvent `json:"event"`
 }
 
 type Eventer struct {
 	client *http.Client
 	botserver string
+	page string
 }
 
 func (e *Eventer) Send(user string, url string) error {
 	event := Event{"linksniffer:click", url}
 	lc := LinkClickEvent{"external", event}
-	ee := ExternalEvent{user, lc}
+	ee := ExternalEvent{user, e.page, lc}
 
 	body, err := json.Marshal(ee)
 	if err != nil {
@@ -46,7 +48,8 @@ func (e *Eventer) Send(user string, url string) error {
 	code := resp.StatusCode
 	if code != 200 {
 		err := fmt.Errorf("Non 200 response from Botserver: %v", code)
-		log.Printf("Response code from Botserver: %v", err)
+		log.Print(err)
+		return err
 	}
 
 	return nil

@@ -11,18 +11,25 @@ import (
 
 func main() {
 	botserverUrl := os.Getenv("BOTSERVER_URL")
+	page := os.Getenv("FB_PAGE_ID")
+
 	client := &http.Client{}
-	eventer := &Eventer{client, botserverUrl}
+	eventer := &Eventer{client, botserverUrl, page}
 	server := &Server{eventer}
 
 	e := echo.New()
 	e.GET("/", server.forward)
+	e.GET("/health", server.health)
 
 	e.Logger.Fatal(e.Start(":1323"))
 }
 
 type Server struct {
 	Eventer *Eventer
+}
+
+func (s *Server) health(c echo.Context) error {
+	return c.String(http.StatusOK, "pong")
 }
 
 func (s *Server) forward(c echo.Context) error {

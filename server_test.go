@@ -23,7 +23,7 @@ func (m *MockEventer) Send (id string, url string) error {
 func TestGetEvent(t *testing.T) {
 	e := echo.New()
 
-	expectedEvent := `{"user":"123","event":{"type":"external","value":{"type":"linksniffer:click","url":"https://redcross.org"}}}`
+	expectedEvent := `{"user":"123","page":"789","event":{"type":"external","value":{"type":"linksniffer:click","url":"https://redcross.org"}}}`
 
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		data, err := ioutil.ReadAll(r.Body)
@@ -39,7 +39,7 @@ func TestGetEvent(t *testing.T) {
 	c := e.NewContext(req, rec)
 
 	client := &http.Client{}
-	s := &Server{&Eventer{client, ts.URL}}
+	s := &Server{&Eventer{client, ts.URL, "789"}}
 
 	s.forward(c)
 	assert.Equal(t, http.StatusFound, rec.Code)
