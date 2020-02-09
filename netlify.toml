@@ -1,7 +1,9 @@
 [context.production.environment]
 APP_ID="699455733740842"
+FB_PAGE_ID="1855355231229529"
 SERVER_URL="https://gbvbot.nandan.cloud/synthetic"
 
 [context.staging.environment]
 APP_ID="790352681363186"
+FB_PAGE_ID="935593143497601"
 SERVER_URL="https://gbvbot-staging.nandan.cloud/synthetic"
