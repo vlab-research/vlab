@@ -1,0 +1,33 @@
+apiVersion: v2
+name: vlab
+description: A Helm chart for Kubernetes
+type: application
+version: 0.0.1
+dependencies:
+  - name: linksniffer
+    version: 0.0.1
+    repository: https://vlab-research.github.io/devops
+  - name: dashboard
+    version: 0.0.1
+    repository: https://vlab-research.github.io/devops
+  - name: naughtybot
+    version: 0.0.1
+    repository: https://vlab-research.github.io/devops
+  - name: botscribe
+    version: 0.0.1
+    repository: https://vlab-research.github.io/devops
+  - name: botserver
+    version: 0.0.1
+    repository: https://vlab-research.github.io/devops
+  - name: scratchbot
+    version: 0.0.1
+    repository: https://vlab-research.github.io/devops
+  - name: replybot
+    version: 0.0.1
+    repository: https://vlab-research.github.io/devops
+  - name: cockroachdb
+    version: 3.0.4
+    repository: https://kubernetes-charts.storage.googleapis.com
+  - name: kafka
+    version: 0.20.8
+    repository: https://storage.googleapis.com/kubernetes-charts-incubator

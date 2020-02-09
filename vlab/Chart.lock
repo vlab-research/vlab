@@ -1,0 +1,30 @@
+dependencies:
+- name: linksniffer
+  repository: https://vlab-research.github.io/devops
+  version: 0.0.1
+- name: dashboard
+  repository: https://vlab-research.github.io/devops
+  version: 0.0.1
+- name: naughtybot
+  repository: https://vlab-research.github.io/devops
+  version: 0.0.1
+- name: botscribe
+  repository: https://vlab-research.github.io/devops
+  version: 0.0.1
+- name: botserver
+  repository: https://vlab-research.github.io/devops
+  version: 0.0.1
+- name: scratchbot
+  repository: https://vlab-research.github.io/devops
+  version: 0.0.1
+- name: replybot
+  repository: https://vlab-research.github.io/devops
+  version: 0.0.1
+- name: cockroachdb
+  repository: https://kubernetes-charts.storage.googleapis.com
+  version: 3.0.4
+- name: kafka
+  repository: https://storage.googleapis.com/kubernetes-charts-incubator
+  version: 0.20.8
+digest: sha256:baf6af5d53f366c00f264c02ff50b57da3022bcebe9aec4569928d874ecdd9ba
+generated: "2020-02-08T23:29:08.919042447+01:00"
