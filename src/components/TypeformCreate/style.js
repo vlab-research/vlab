@@ -179,6 +179,13 @@ export const TitleInput = styled.input`
   font-weight: 800;
 `;
 
+export const ShortCodeInput = styled.input`
+  margin: 40px 40px;
+  padding: 10px 10px;
+  font-size: 1.2rem;
+  font-weight: 800;
+`;
+
 // TODO: fix the title length with '...' at the end
 // TODO: styled components structure
 // TODO: Set basic Style

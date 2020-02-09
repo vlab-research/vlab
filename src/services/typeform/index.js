@@ -24,8 +24,8 @@ class Typeform {
     });
   };
 
-  createSurvey = ({ id, title, history, match }) => {
-    return ApiClient.fetcher({ method: 'POST', path: '/surveys', body: { formid: id, title } })
+  createSurvey = ({ id, title, shortcode, history, match }) => {
+    return ApiClient.fetcher({ method: 'POST', path: '/surveys', body: { formid: id, title, shortcode } })
       .then(res => res.json())
       .then(survey => {
         history.push(`/${match.path.split('/')[1]}`);

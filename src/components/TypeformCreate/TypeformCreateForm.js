@@ -11,7 +11,7 @@ const { createOrAuthorize, createSurvey } = typeformAuth;
 const TypeformCreateForm = ({ history, match }) => {
   const { setSurveys } = useContext(Survey);
   const [forms, setForms] = useState([]);
-  const [selectedForm, setSelectedForm] = useState({ title: '', id: '' });
+  const [selectedForm, setSelectedForm] = useState({ title: '', id: '', shortcode: '' });
   const [state, setState] = useState(1);
 
   useEffect(() => {
@@ -43,11 +43,16 @@ const TypeformCreateForm = ({ history, match }) => {
 };
 
 const Main = ({ forms, selectedForm, setSelectedForm, state }) => {
+
   switch (state) {
     case 1:
       return <ChooseFormId {...{ forms, selectedForm, setSelectedForm }} />;
     case 2:
       return <SetFormTitle {...{ forms, selectedForm, setSelectedForm }} />;
+    case 3:
+      return <SetShortCode {...{ forms, selectedForm, setSelectedForm }} />;
+
+    // Add case 3, choose shortcode
     default:
       return null;
   }
@@ -62,7 +67,7 @@ const ChooseFormId = ({ forms, selectedForm, setSelectedForm }) => {
           {forms.map(item => (
             <s.ListItem
               active={item.id === selectedForm.id}
-              onClick={() => setSelectedForm(item)}
+              onClick={() => setSelectedForm(state => ({...state, ...item}))}
               key={item.id}
             >
               <s.ListItemTitle>
@@ -80,8 +85,25 @@ const ChooseFormId = ({ forms, selectedForm, setSelectedForm }) => {
   );
 };
 
-const SetFormTitle = ({ selectedForm, setSelectedForm }) => {
-  const [title, setTitle] = useState(selectedForm.title);
+
+const SetShortCode = ({ selectedForm: {shortcode}, setSelectedForm }) => {
+  return (
+    <>
+      <s.ModalTitle> Choose a shortcode (No spaces, short, numbers or characters) </s.ModalTitle>
+      <s.ShortCodeInput
+        value={shortcode}
+        onChange={({ target }) => {
+          const val = target.value.trim();
+          if (val.split(' ').length <= 1) {
+            setSelectedForm(state => ({ ...state, shortcode: val }));
+          }
+        }}
+      />
+    </>
+  );
+};
+
+const SetFormTitle = ({ selectedForm: {title}, setSelectedForm }) => {
   return (
     <>
       <s.ModalTitle> Select your title </s.ModalTitle>
@@ -89,7 +111,6 @@ const SetFormTitle = ({ selectedForm, setSelectedForm }) => {
         value={title}
         onChange={({ target }) => {
           if (target.value.length < 50) {
-            setTitle(target.value);
             setSelectedForm(state => ({ ...state, title: target.value }));
           }
         }}
@@ -98,30 +119,38 @@ const SetFormTitle = ({ selectedForm, setSelectedForm }) => {
   );
 };
 
-const Actions = ({ selectedForm: { id, title }, state, setState, history, match, setSurveys }) => {
+const Actions = ({ selectedForm, state, setState, history, match, setSurveys }) => {
+  const {id, title} = selectedForm
   const handleSubmit = async () => {
-    const survey = id && (await createSurvey({ id, title, history, match }));
-    setSurveys(surveys => [...survey, ...surveys]);
+    const survey = id && (await createSurvey({ ...selectedForm, history, match }));
+    setSurveys(surveys => [survey, ...surveys]);
   };
   switch (state) {
-    case 1:
-      return (
-        <s.ActionsBtns>
-          <s.SecondaryBtn onClick={() => history.push(`/${match.path.split('/')[1]}`)}>
-            Cancel
-          </s.SecondaryBtn>
-          <s.PrimaryBtn onClick={() => id && setState(2)}>Choose</s.PrimaryBtn>
-        </s.ActionsBtns>
-      );
-    case 2:
-      return (
-        <s.ActionsBtns>
-          <s.SecondaryBtn onClick={() => setState(1)}>Back</s.SecondaryBtn>
-          <s.PrimaryBtn onClick={handleSubmit}>Create</s.PrimaryBtn>
-        </s.ActionsBtns>
-      );
-    default:
-      return null;
+  case 1:
+    return (
+      <s.ActionsBtns>
+        <s.SecondaryBtn onClick={() => history.push(`/${match.path.split('/')[1]}`)}>
+          Cancel
+        </s.SecondaryBtn>
+        <s.PrimaryBtn onClick={() => id && setState(2)}>Choose</s.PrimaryBtn>
+      </s.ActionsBtns>
+    );
+  case 2:
+    return (
+      <s.ActionsBtns>
+        <s.SecondaryBtn onClick={() => setState(1)}>Back</s.SecondaryBtn>
+        <s.PrimaryBtn onClick={() => title && setState(3)}>Choose</s.PrimaryBtn>
+      </s.ActionsBtns>
+    );
+  case 3:
+    return (
+      <s.ActionsBtns>
+        <s.SecondaryBtn onClick={() => setState(2)}>Back</s.SecondaryBtn>
+        <s.PrimaryBtn onClick={handleSubmit}>Create</s.PrimaryBtn>
+      </s.ActionsBtns>
+    );
+  default:
+    return null;
   }
 };
 
@@ -142,6 +171,12 @@ SetFormTitle.propTypes = {
   selectedForm: PropTypes.objectOf(PropTypes.any).isRequired,
   setSelectedForm: PropTypes.func.isRequired,
 };
+
+SetShortCode.propTypes = {
+  selectedForm: PropTypes.objectOf(PropTypes.any).isRequired,
+  setSelectedForm: PropTypes.func.isRequired,
+};
+
 
 Actions.propTypes = {
   state: PropTypes.number.isRequired,

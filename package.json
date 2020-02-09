@@ -31,7 +31,7 @@
     "type": "git",
     "url": "git+https://github.com/vlab-research/dashboard-client.git"
   },
-   "bugs": {
+  "bugs": {
     "url": "https://github.com/vlab-research/dashboard-client/issues"
   },
   "browserslist": [
