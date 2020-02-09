@@ -1,0 +1,7 @@
+[context.production.environment]
+APP_ID="699455733740842"
+SERVER_URL="https://gbvbot.nandan.cloud/synthetic"
+
+[context.staging.environment]
+APP_ID="790352681363186"
+SERVER_URL="https://gbvbot-staging.nandan.cloud/synthetic"
