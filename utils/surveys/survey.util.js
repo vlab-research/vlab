@@ -11,9 +11,7 @@ function validate(reqData) {
         .required(),
       userid: joi.string().required(),
       messages: joi.string(),
-      shortcode: joi
-        .string()
-        .required(),
+      shortcode: joi.string().required(),
       title: joi.string().required(),
       form: joi.string().required(),
     })

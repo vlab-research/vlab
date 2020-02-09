@@ -10,6 +10,14 @@ exports.postOne = async (req, res) => {
     const { formid, title, shortcode } = req.body;
     const { email } = req.user;
 
+    if (!(email && formid && title && shortcode)) {
+      return res
+        .status(400)
+        .send(
+          `Missing shit!: formid: ${formid}, title: ${title}, shortcode: ${shortcode}`,
+        );
+    }
+
     const user = await User.user({ email });
     if (!user)
       return res.status(404).json({ error: `User ${email} does not exist!` });

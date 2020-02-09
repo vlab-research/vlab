@@ -26,7 +26,7 @@ async function retrieveByPage({ pageid, code, timestamp }) {
                     WHERE pageid=$1 AND shortcode=$2 AND created<=$3
                     ORDER BY created DESC`;
 
-  const created = new Date(+timestamp)
+  const created = new Date(+timestamp);
   const values = [pageid, code, created];
   const { rows } = await this.query(RETRIEVE, values);
   return rows;
