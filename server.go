@@ -35,6 +35,13 @@ func (s *Server) health(c echo.Context) error {
 func (s *Server) forward(c echo.Context) error {
 	id := c.QueryParam("id")
 	u := c.QueryParam("url")
+	p := c.QueryParam("p")
+
+	if p == "" {
+		p = "https"
+	}
+
+	u = p + "://" + u
 
 	u, err := url.PathUnescape(u)
 	if err != nil {
