@@ -28,7 +28,7 @@ spec:
         - name: BOTSERVER_URL
           value: "http://gbv-botserver"
         - name: KAFKA_BROKERS
-          value: "spinaltap-kafka:9092"
+          value: "gbv-kafka:9092"
         - name: CHATBASE_BACKEND
           value: "@vlab-research/chatbase-postgres"
         - name: CHATBASE_DATABASE
@@ -38,6 +38,6 @@ spec:
         - name: CHATBASE_PASSWORD
           value: ""
         - name: CHATBASE_HOST
-          value: "chatroach-cockroachdb-public.default"
+          value: "gbv-cockroachdb-public.default"
         - name: CHATBASE_PORT
           value: "26257"

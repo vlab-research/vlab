@@ -28,6 +28,3 @@ spec:
         envFrom:
         - secretRef:
             name: gbv-bot-envs
-        env:
-        - name: KAFKA_BROKERS
-          value: "spinaltap-kafka:9092"

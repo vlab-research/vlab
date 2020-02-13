@@ -50,7 +50,6 @@ describe('Test Bot flow Survey Integration Testing', () => {
     console.log('Test finished!');
   });
 
-
   it('Test chat flow with logic jump "Yes"',  (done) => {
     bindedDone = done.bind(this)
     const fields = getFields('forms/LDfNCy.json')
@@ -178,6 +177,20 @@ describe('Test Bot flow Survey Integration Testing', () => {
       // res.map(r => r['parent_shortcode']).should.eql(['Llu24B', 'Llu24B'])
       done()
     }
+
+  }).timeout(20000);
+
+  it('Test chat flow with multiple links and keepMoving tag',  (done) => {
+    bindedDone = done.bind(this)
+    const fields = getFields('forms/B6cIAn.json')
+
+    testFlow = [
+      [fields[0], []],
+      [fields[1], []],
+      [fields[2], []]
+    ]
+
+    sender(makeReferral(userId, 'B6cIAn'))
 
   }).timeout(20000);
 
