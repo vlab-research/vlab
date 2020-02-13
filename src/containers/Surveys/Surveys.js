@@ -15,7 +15,7 @@ const Surveys = props => {
 
   return (
     <Layout style={{ height: '100%' }}>
-      <Sider width='300' style={{ background: '#fff'}}>
+      <Sider width='300' style={{ background: '#fff', overflowX: 'hidden', overflowY: 'scroll'}}>
         <Survey.Provider value={{ setSurveys }}>
           <TypeformCreate {...props} />
         </Survey.Provider>
