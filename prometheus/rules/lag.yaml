@@ -1,0 +1,24 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: prometheus-kafka-offsets
+  labels:
+    heritage: Helm
+    release: prometheus
+  namespace: monitoring
+spec:
+  groups:
+  - name: Kafka consumer group has high lag
+    interval: 1m
+    rules:
+      - alert: KafkaConsumerGroupLagging
+        expr: |
+          max(kafka_consumergroup_lag) > 20
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: |
+            Kafka consumer lag...
+          description: |
+            Kafka consumer lag...
