@@ -1,4 +1,7 @@
 dependencies:
+- name: dumper
+  repository: https://vlab-research.github.io/devops
+  version: 0.0.1
 - name: linksniffer
   repository: https://vlab-research.github.io/devops
   version: 0.0.1
@@ -26,5 +29,5 @@ dependencies:
 - name: kafka
   repository: https://storage.googleapis.com/kubernetes-charts-incubator
   version: 0.20.8
-digest: sha256:baf6af5d53f366c00f264c02ff50b57da3022bcebe9aec4569928d874ecdd9ba
-generated: "2020-02-08T23:29:08.919042447+01:00"
+digest: sha256:264e7a6eaab003bde4c95b95d9e70acf8ad5f2efbd33dfc6cbe2ab173308fa31
+generated: "2020-02-14T11:10:51.402714722+01:00"
