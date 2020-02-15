@@ -11,9 +11,15 @@ spec:
   - name: Kafka consumer group has high lag
     interval: 1m
     rules:
+      - record: kafka:consumer_rate
+        expr: sum(rate(kafka_consumergroup_current_offset[5m])) by (consumergroup, topic)
+      - record: kafka:consumer_lag
+        expr: sum(kafka_consumergroup_lag) by (consumergroup, topic)
+      - record: kafka:consumer_lag_seconds
+        expr: kafka:consumer_lag / kafka:consumer_rate
       - alert: KafkaConsumerGroupLagging
         expr: |
-          max(kafka_consumergroup_lag) > 20
+          kafka:consumer_lag_seconds > 4
         for: 1m
         labels:
           severity: warning
