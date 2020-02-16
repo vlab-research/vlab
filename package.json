@@ -9,6 +9,7 @@
     "gulp-replace": "^1.0.0"
   },
   "devDependencies": {
+    "eslint": "^6.8.0",
     "gulp": "^4.0.0",
     "gulp-mustache": "^4.1.1"
   },
