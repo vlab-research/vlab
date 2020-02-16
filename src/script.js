@@ -1,8 +1,11 @@
 'use strict';
+/* global Sentry, MessengerExtensions, Vimeo */
 
 const SERVER_URL = '{{{SERVER_URL}}}';
 const params = new URLSearchParams(window.location.search);
 const videoId = params.get('id');
+
+Sentry.init({ dsn: 'https://17c9ad73343d4a15b8e155a722224374@sentry.io/2581797' });
 
 function handleEvent(psid, eventType) {
   return function sendEvent(data) {
@@ -23,6 +26,7 @@ function handleError(err, title, message) {
   document.querySelector('.container').innerHTML = ``
   document.querySelector('.container').appendChild(div);
   console.error(err);
+  throw err;
 }
 
 function setPlayer(psid) {
@@ -64,9 +68,23 @@ document.addEventListener('DOMContentLoaded', () => {
         setPlayer(thread_context.psid);
       },
       function error(err) {
-        const title = '🔒Forbidden';
-        const message = 'It seems you are not logged in with facebook'
-        handleError(err, title, message);
+        let title, message;
+
+        switch (err) {
+        case 2071010:
+          title = '❌ Browser version error';
+          message = 'Your browser or version of Messenger does not support this page';
+          break;
+        case 2071011:
+          title = '🔒Forbidden';
+          message = 'You must view this page within a Messenger Conversation';
+          break;
+        default:
+          title = '❌ Unknown browser error';
+          message = 'We could not display this page in your browser. Please try again in a few hours or days.';
+        }
+
+        handleError(new Error(err), title, message);
       }
     );
   };
