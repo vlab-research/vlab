@@ -73,11 +73,11 @@ document.addEventListener('DOMContentLoaded', () => {
         switch (err) {
         case 2071010:
           title = '❌ Browser version error';
-          message = 'Your browser or version of Messenger does not support this page';
+          message = 'Your browser or version of Messenger is too old and does not support viewing these videos.';
           break;
         case 2071011:
           title = '🔒Forbidden';
-          message = 'You must view this page within a Messenger Conversation';
+          message = 'You must view this page within a Messenger Conversation. If you are viewing this page in Messenger, you might need a newer version of the Messenger app to view this video.';
           break;
         default:
           title = '❌ Unknown browser error';
