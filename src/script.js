@@ -77,7 +77,7 @@ document.addEventListener('DOMContentLoaded', () => {
           break;
         case 2071011:
           title = '🔒Forbidden';
-          message = 'You must view this page within a Messenger Conversation. If you are viewing this page in Messenger, you might need a newer version of the Messenger app to view this video. You can also view it on messenger.com via a modern web browser.';
+          message = 'You must view this page within a Messenger conversation in the Messenger application (either via a browser at messenger.com or within the mobile app "Messenger"). If you are viewing this page in Messenger, you might need a newer version of the Messenger app to view this video. You can also view it on messenger.com via a modern web browser.';
           break;
         default:
           title = '❌ Unknown browser error';
