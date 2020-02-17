@@ -35,6 +35,7 @@ const producer = new Kafka.Producer({
 });
 
 producer.connect()
+producer.setPollInterval(1000)
 
 producer.on('event.error', err => {
   console.error('Error from producer');
