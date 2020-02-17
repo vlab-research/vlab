@@ -1,0 +1,24 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: prometheus-replybot-crashing
+  labels:
+    heritage: Helm
+    release: prometheus
+  namespace: monitoring
+spec:
+  groups:
+  - name: Replybot is crashing
+    interval: 1m
+    rules:
+      - alert: ReplyBotCrashing
+        expr: |
+          sum_over_time(kube_pod_container_status_restarts_total{job="kube-state-metrics", container="replybot"}[5m]) > 5
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: |
+            Kafka consumer lag...
+          description: |
+            Kafka consumer lag...
