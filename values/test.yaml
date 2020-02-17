@@ -123,7 +123,7 @@ scratchbot:
 
   image:
     repository: vlabresearch/replybot
-    tag: 0.0.48
+    tag: 0.0.55
     pullPolicy: IfNotPresent
 
   envFrom: gbv-bot-envs
@@ -199,7 +199,7 @@ replybot:
   replicaCount: 1
   image:
     repository: vlabresearch/replybot
-    tag: 0.0.48
+    tag: 0.0.55
     pullPolicy: IfNotPresent
 
   envFrom: gbv-bot-envs
@@ -224,6 +224,8 @@ replybot:
     value: "305"
   - name: REPLYBOT_EVENT_TOPIC
     value: "chat-events"
+  - name: FACEBOOK_GRAPH_URL
+    value: "http://gbv-facebot"
   - name: BOTSPINE_KAFKA_BROKERS
     value: "gbv-kafka:9092"
   - name: BOTSPINE_MESSAGE_TOPIC
@@ -237,7 +239,7 @@ botserver:
 
   image:
     repository: vlabresearch/botserver
-    tag: 0.0.5
+    tag: 0.0.6
     pullPolicy: IfNotPresent
 
   envFrom: gbv-bot-envs

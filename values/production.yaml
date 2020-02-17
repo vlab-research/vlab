@@ -6,9 +6,9 @@ dumper:
 
   completions: 1
   parallelism: 1
-  backoffLimit: 3
+  backoffLimit: 8
 
-  schedule: "0 */4 * * *"
+  schedule: "0 */2 * * *"
   resources:
     requests:
       cpu: 100m
@@ -19,7 +19,7 @@ dumper:
   - name: CHATBASE_HOST
     value: "gbv-cockroachdb-public.default"
   - name: DUMPER_LOCATION
-    value: "gs://vlab-research-backups/gbv-india"
+    value: "gs://vlab-research-backups/gbv-india/"
 
 
 naughtybot:
@@ -49,7 +49,7 @@ naughtybot:
     value: "http://gbv-botserver"
 
   writer:
-    replicaCount: 3
+    replicaCount: 6
     resources:
       requests:
         cpu: 10m
@@ -166,7 +166,7 @@ scratchbot:
 
   image:
     repository: vlabresearch/replybot
-    tag: 0.0.52
+    tag: 0.0.55
     pullPolicy: IfNotPresent
 
   envFrom: gbv-bot-envs
@@ -241,7 +241,7 @@ replybot:
   replicaCount: 12
   image:
     repository: vlabresearch/replybot
-    tag: 0.0.52
+    tag: 0.0.55
     pullPolicy: IfNotPresent
 
   envFrom: gbv-bot-envs
@@ -279,7 +279,7 @@ botserver:
 
   image:
     repository: vlabresearch/botserver
-    tag: 0.0.5
+    tag: 0.0.6
     pullPolicy: IfNotPresent
 
   envFrom: gbv-bot-envs

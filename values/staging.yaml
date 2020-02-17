@@ -280,7 +280,7 @@ botserver:
 
   image:
     repository: vlabresearch/botserver
-    tag: 0.0.5
+    tag: 0.0.6
     pullPolicy: IfNotPresent
 
   envFrom: gbv-bot-envs
