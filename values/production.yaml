@@ -25,7 +25,7 @@ dumper:
 naughtybot:
   image:
     repository: vlabresearch/naughtybot
-    tag: 0.0.7
+    tag: 0.0.12
     pullPolicy: IfNotPresent
 
   env:
@@ -48,15 +48,16 @@ naughtybot:
   - name: BOTSERVER_URL
     value: "http://gbv-botserver"
 
+
   writer:
-    replicaCount: 6
+    replicaCount: 3
     resources:
       requests:
         cpu: 10m
         memory: 64Mi
 
   dean:
-    schedule: "*/1 * * * *"
+    schedule: "0 * * * *"
     resources:
       requests:
         cpu: 10m
@@ -321,8 +322,9 @@ cockroachdb:
         cpu: 100m
         memory: 6Gi
   conf:
-    cache: 4GiB
-    max-sql-memory: 4GiB
+    cache: 8GiB
+    max-sql-memory: 8GiB
+    max-disk-temp-storage: 24GiB
     budget:
       maxUnavailable: 1
   tls:
