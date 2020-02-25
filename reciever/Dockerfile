@@ -10,5 +10,6 @@ COPY . /usr/src/app
 
 EXPOSE 3000
 EXPOSE 4000
+EXPOSE 4001
 
 CMD [ "npm", "start"]

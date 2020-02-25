@@ -1,17 +1,19 @@
 require('chai').should()
 const sender = require('./sender.js')
-const {makeMocks, makeEcho, makeQR, makePostback, makeTextResponse, makeReferral, makeSynthetic, getFields} = require('@vlab-research/mox')
+const {makeMocks, makeEcho, makeQR, makePostback, makeTextResponse, makeReferral, makeSynthetic, getFields, makeNotify} = require('@vlab-research/mox')
 const uuid = require('uuid');
+
 const zmq = require('zeromq')
-const sock = zmq.socket('sub');
+const sock = zmq.socket('rep')
+
+
 const farmhash = require('farmhash');
 const util = require('util');
 const {seed} = require('./seed-db');
 
 
 // SETUP -----------------------------------
-sock.connect('tcp://gbv-facebot:4000');
-sock.subscribe('messages');
+sock.connect('tcp://gbv-facebroker:4001')
 
 const Chatbase = require(process.env.CHATBASE_BACKEND)
 const chatbase = new Chatbase()
@@ -21,7 +23,7 @@ async function getResponses(userid) {
   return rows
 }
 
-const snooze = ms => new Promise(resolve => setTimeout(resolve, ms));
+const snooze = ms => new Promise(resolve => setTimeout(resolve, ms))
 
 function makeRepeat(field, text) {
   const ref = JSON.parse(field.metadata).ref
@@ -29,6 +31,8 @@ function makeRepeat(field, text) {
            metadata: JSON.stringify({ repeat: true, ref  }) }
 }
 
+// BASIC OK RESPONSE
+const ok = { res: 'success' }
 
 describe('Test Bot flow Survey Integration Testing', () => {
 
@@ -50,16 +54,35 @@ describe('Test Bot flow Survey Integration Testing', () => {
     console.log('Test finished!');
   });
 
+
+
+  it('Recieves bailout event and switches forms',  (done) => {
+    bindedDone = done.bind(this)
+
+    const fieldsA = getFields('forms/v7R942.json')
+    const fieldsB = getFields('forms/BhaV5G.json')
+    const err = { error: { code: 555 }}
+
+    testFlow = [
+      [err, fieldsA[0], [makeSynthetic(userId, { type: 'bailout', value: { form: 'BhaV5G'}})]],
+      [ok, fieldsB[0], []],
+      [ok, fieldsB[1], []],
+    ]
+
+    sender(makeReferral(userId, 'v7R942'))
+  }).timeout(20000);
+
+
   it('Test chat flow with logic jump "Yes"',  (done) => {
     bindedDone = done.bind(this)
     const fields = getFields('forms/LDfNCy.json')
 
     testFlow = [
-      [fields[0], [makePostback(fields[0], userId, 0)]],
-      [fields[1], [makePostback(fields[1], userId, 0)]],
-      [fields[2], [makeTextResponse(userId, 'LOL')]],
-      [fields[4], []],
-      [fields[5], []],
+      [ok, fields[0], [makePostback(fields[0], userId, 0)]],
+      [ok, fields[1], [makePostback(fields[1], userId, 0)]],
+      [ok, fields[2], [makeTextResponse(userId, 'LOL')]],
+      [ok, fields[4], []],
+      [ok, fields[5], []],
     ]
 
     sender(makeReferral(userId, 'LDfNCy'))
@@ -71,10 +94,10 @@ describe('Test Bot flow Survey Integration Testing', () => {
     const fields = getFields('forms/LDfNCy.json')
 
     testFlow = [
-      [fields[0], [makePostback(fields[0], userId, 0)]],
-      [fields[1], [makePostback(fields[1], userId, 1)]],
-      [fields[3], []],
-      [fields[5], []],
+      [ok, fields[0], [makePostback(fields[0], userId, 0)]],
+      [ok, fields[1], [makePostback(fields[1], userId, 1)]],
+      [ok, fields[3], []],
+      [ok, fields[5], []],
     ];
 
     sender(makeReferral(userId, 'LDfNCy'));
@@ -87,11 +110,11 @@ describe('Test Bot flow Survey Integration Testing', () => {
     const fields = getFields('forms/jISElk.json')
 
     testFlow = [
-      [fields[0], [makeQR(fields[0], userId, 1)]],
-      [fields[1], [makeQR(fields[1], userId, 5)]],
-      [fields[2], [makeTextResponse(userId, 'LOL')]],
-      [fields[4], []],
-      [fields[5], []],
+      [ok, fields[0], [makeQR(fields[0], userId, 1)]],
+      [ok, fields[1], [makeQR(fields[1], userId, 5)]],
+      [ok, fields[2], [makeTextResponse(userId, 'LOL')]],
+      [ok, fields[4], []],
+      [ok, fields[5], []],
     ]
 
     sender(makeReferral(userId, 'jISElk'))
@@ -111,9 +134,9 @@ describe('Test Bot flow Survey Integration Testing', () => {
     userId = makeId()
 
     testFlow = [
-      [fields[0], [makeQR(fields[0], userId, 1)]],
-      [fields[1], [makePostback(fields[1], userId, 0)]],
-      [fields[3], []],
+      [ok, fields[0], [makeQR(fields[0], userId, 1)]],
+      [ok, fields[1], [makePostback(fields[1], userId, 0)]],
+      [ok, fields[3], []],
     ]
 
     sender(makeReferral(userId, 'nFgfNE'))
@@ -128,13 +151,13 @@ describe('Test Bot flow Survey Integration Testing', () => {
     const repeatEmail = makeRepeat(fields[1], 'Sorry, please enter a valid email address.')
 
     testFlow = [
-      [fields[0], [makeTextResponse(userId, '23345')]],
-      [repeatPhone, []],
-      [fields[0], [makeTextResponse(userId, '+918888000000')]],
-      [fields[1], [makeTextResponse(userId, 'foo')]],
-      [repeatEmail, []],
-      [fields[1], [makeTextResponse(userId, 'foo@gmail.com')]],
-      [fields[2], []]
+      [ok, fields[0], [makeTextResponse(userId, '23345')]],
+      [ok, repeatPhone, []],
+      [ok, fields[0], [makeTextResponse(userId, '+918888000000')]],
+      [ok, fields[1], [makeTextResponse(userId, 'foo')]],
+      [ok, repeatEmail, []],
+      [ok, fields[1], [makeTextResponse(userId, 'foo@gmail.com')]],
+      [ok, fields[2], []]
     ];
 
     sender(makeReferral(userId, 'ciX4qo'));
@@ -156,10 +179,10 @@ describe('Test Bot flow Survey Integration Testing', () => {
     const fieldsB = getFields('forms/tKG55U.json')
 
     testFlow = [
-      [fieldsA[0], [makeTextResponse(userId, 'LOL')]],
-      [fieldsA[1], []],
-      [fieldsB[0], [makePostback(fieldsB[0], userId, 0)]],
-      [fieldsB[2], []],
+      [ok, fieldsA[0], [makeTextResponse(userId, 'LOL')]],
+      [ok, fieldsA[1], []],
+      [ok, fieldsB[0], [makePostback(fieldsB[0], userId, 0)]],
+      [ok, fieldsB[2], []],
     ]
 
     sender(makeReferral(userId, 'Llu24B'))
@@ -180,14 +203,15 @@ describe('Test Bot flow Survey Integration Testing', () => {
 
   }).timeout(20000);
 
+
   it('Test chat flow with multiple links and keepMoving tag',  (done) => {
     bindedDone = done.bind(this)
     const fields = getFields('forms/B6cIAn.json')
 
     testFlow = [
-      [fields[0], []],
-      [fields[1], []],
-      [fields[2], []]
+      [ok, fields[0], []],
+      [ok, fields[1], []],
+      [ok, fields[2], []]
     ]
 
     sender(makeReferral(userId, 'B6cIAn'))
@@ -200,10 +224,10 @@ describe('Test Bot flow Survey Integration Testing', () => {
     const fields = getFields('forms/Ep5wnS.json')
 
     testFlow = [
-      [fields[0], [makePostback(fields[0], userId, 0)]],
-      [fields[1], [makeSynthetic(userId, { type: 'external', value: {type: 'moviehouse:play', id: 164118668 }})]],
-      [fields[2], [makePostback(fields[2], userId, 0)]],
-      [fields[3], []]
+      [ok, fields[0], [makePostback(fields[0], userId, 0)]],
+      [ok, fields[1], [makeSynthetic(userId, { type: 'external', value: {type: 'moviehouse:play', id: 164118668 }})]],
+      [ok, fields[2], [makePostback(fields[2], userId, 0)]],
+      [ok, fields[3], []]
     ]
 
     sender(makeReferral(userId, 'Ep5wnS'))
@@ -216,11 +240,11 @@ describe('Test Bot flow Survey Integration Testing', () => {
     const fields = getFields('forms/vHXzrh.json')
 
     testFlow = [
-      [fields[0], [makeTextResponse(userId, 'LOL')]],
-      [{ text: 'Please wait!', metadata: '{"repeat":true,"ref":"bd2b2376-d722-4b51-8e1e-c2000ce6ec55"}'}, []],
-      [fields[0], []],
-      [fields[1], [makeTextResponse(userId, 'LOL')]],
-      [fields[2], []],
+      [ok, fields[0], [makeTextResponse(userId, 'LOL')]],
+      [ok, { text: 'Please wait!', metadata: '{"repeat":true,"ref":"bd2b2376-d722-4b51-8e1e-c2000ce6ec55"}'}, []],
+      [ok, fields[0], []],
+      [ok, fields[1], [makeTextResponse(userId, 'LOL')]],
+      [ok, fields[2], []],
     ]
 
     sender(makeReferral(userId, 'vHXzrh'))
@@ -228,9 +252,37 @@ describe('Test Bot flow Survey Integration Testing', () => {
   }).timeout(180000);
 
 
-  sock.on('message', async (_, message) => {
-    const msg = JSON.parse(message.toString()).message
-    const [get, gives] = testFlow[messages.length]
+
+  it('Sends messages with notify token after timeout',  (done) => {
+    bindedDone = done.bind(this)
+
+    // TODO: test recipient!!!!
+
+    const fields = getFields('forms/dbFwhd.json')
+
+    testFlow = [
+      [ok, fields[0], [makeNotify(userId, 'bah')]],
+      [ok, fields[1], []],
+      [ok, fields[2], [makePostback(fields[2], userId, 1)]],
+      [ok, fields[3], []],
+      [ok, fields[4], [makeQR(fields[4], userId, 1)]],
+      [ok, fields[5], []],
+    ]
+
+    sender(makeReferral(userId, 'dbFwhd'))
+  }).timeout(180000);
+
+
+  sock.on('message', async (message) => {
+
+    const dat = JSON.parse(message.toString())
+    const msg = dat.message
+    const recipient = dat.recipient
+
+    // TODO: recipient = one_time_notif_req in case of notify
+    const [res, get, gives] = testFlow[messages.length]
+    sock.send(JSON.stringify(res))
+
     messages.push(msg)
 
     try {

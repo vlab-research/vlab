@@ -1,0 +1,120 @@
+{
+  "id": "dbFwhd",
+  "title": "test notify",
+  "theme": {
+    "href": "https://api.typeform.com/themes/TSYAuE"
+  },
+  "workspace": {
+    "href": "https://api.typeform.com/workspaces/WA44hg"
+  },
+  "settings": {
+    "is_public": true,
+    "is_trial": false,
+    "language": "en",
+    "progress_bar": "proportion",
+    "show_progress_bar": true,
+    "show_typeform_branding": true,
+    "meta": {
+      "allow_indexing": false
+    }
+  },
+  "thankyou_screens": [
+    {
+      "ref": "default_tys",
+      "title": "Done! Your information was sent perfectly.",
+      "properties": {
+        "show_button": false,
+        "share_icons": false
+      }
+    }
+  ],
+  "fields": [
+    {
+      "id": "GDhGxrxdok4M",
+      "title": "Hey, we'd like to get in touch with you again in a few days. Click below to authorize us to write to you again!",
+      "ref": "908088b3-5e9e-4b53-b746-799ac51bc758",
+      "properties": {
+        "description": "type: notify\n"
+      },
+      "validations": {
+        "required": false
+      },
+      "type": "short_text"
+    },
+    {
+      "id": "qHCBcIYi487O",
+      "title": "Thanks for that! ",
+      "ref": "21967a5f-0abd-4d63-b6a7-9093be49d7de",
+      "properties": {
+        "hide_marks": false,
+        "button_text": "Continue"
+      },
+      "type": "statement"
+    },
+    {
+      "id": "u1B11YN4RTm3",
+      "title": "Do you tango? ",
+      "ref": "52dc6ea7-c211-48bb-9ee7-1a3d10e5e891",
+      "validations": {
+        "required": false
+      },
+      "type": "yes_no"
+    },
+    {
+      "id": "JZEa1LuoWBI4",
+      "title": "Ok, we'll ask you more questions in a few days",
+      "ref": "b66022cd-f896-4053-8c14-cc225b504bdc",
+      "properties": {
+        "description": "type: wait\nwait:\n    notifyPermission: true\n    type: timeout\n    value: 1m",
+        "hide_marks": false,
+        "button_text": "Continue"
+      },
+      "type": "statement"
+    },
+    {
+      "id": "EUmexc31dRs4",
+      "title": "How was the wait? ",
+      "ref": "646b47e5-399e-4d1c-b9bb-50b3036ef568",
+      "properties": {
+        "randomize": false,
+        "allow_multiple_selection": false,
+        "allow_other_choice": false,
+        "vertical_alignment": true,
+        "choices": [
+          {
+            "id": "O4PLRI05kVJM",
+            "ref": "e3486723-412b-4938-9cc9-cdfe70fbcf5a",
+            "label": "fun"
+          },
+          {
+            "id": "I1aBIF9dc9x2",
+            "ref": "e06b3260-f689-448b-ae00-73f77b819bc5",
+            "label": "cool"
+          },
+          {
+            "id": "ZqhThBSvbZI2",
+            "ref": "3f20223f-b2a0-4fac-a17d-9ad7ea18047a",
+            "label": "dumb"
+          }
+        ]
+      },
+      "validations": {
+        "required": false
+      },
+      "type": "multiple_choice"
+    },
+    {
+      "ref": "default_tys",
+      "title": "Done! Your information was sent perfectly.",
+      "properties": {
+        "show_button": false,
+        "share_icons": false
+      },
+      "type": "thankyou_screen"
+    }
+  ],
+  "_links": {
+    "display": "https://nandanrao.typeform.com/to/dbFwhd"
+  },
+  "custom_messages": {}
+}

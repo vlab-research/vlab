@@ -1,0 +1,78 @@
+{
+  "id": "v7R942",
+  "title": "bail test - A",
+  "theme": {
+    "href": "https://api.typeform.com/themes/TSYAuE"
+  },
+  "workspace": {
+    "href": "https://api.typeform.com/workspaces/WA44hg"
+  },
+  "settings": {
+    "is_public": true,
+    "is_trial": false,
+    "language": "en",
+    "progress_bar": "proportion",
+    "show_progress_bar": true,
+    "show_typeform_branding": true,
+    "meta": {
+      "allow_indexing": false
+    }
+  },
+  "thankyou_screens": [
+    {
+      "ref": "default_tys",
+      "title": "Done! Your information was sent perfectly.",
+      "properties": {
+        "show_button": false,
+        "share_icons": false
+      }
+    }
+  ],
+  "fields": [
+    {
+      "id": "LRMQkalSFhFO",
+      "title": "What do you think? ",
+      "ref": "2f3ecbaf-444b-48ac-98ba-f30886b3e874",
+      "properties": {
+        "randomize": false,
+        "allow_multiple_selection": false,
+        "allow_other_choice": false,
+        "vertical_alignment": true,
+        "choices": [
+          {
+            "id": "sVDIBBLCRU8f",
+            "ref": "d1fce990-ba69-42c0-80d6-cbf3888026c9",
+            "label": "A"
+          },
+          {
+            "id": "av25at1DpGDj",
+            "ref": "61361b1a-a6f9-4123-843c-f3f5cd0543b1",
+            "label": "B"
+          },
+          {
+            "id": "VJ10K2ObY086",
+            "ref": "30afb0b8-995c-4971-94cb-d05a83661f39",
+            "label": "C"
+          }
+        ]
+      },
+      "validations": {
+        "required": false
+      },
+      "type": "multiple_choice"
+    },
+    {
+      "ref": "default_tys",
+      "title": "Done! Your information was sent perfectly.",
+      "properties": {
+        "show_button": false,
+        "share_icons": false
+      },
+      "type": "thankyou_screen"
+    }
+  ],
+  "_links": {
+    "display": "https://nandanrao.typeform.com/to/v7R942"
+  },
+  "custom_messages": {}
+}

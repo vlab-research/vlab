@@ -1,0 +1,33 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gbv-facebroker
+  labels:
+    app: gbv-facebroker
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: gbv-facebroker
+  template:
+    metadata:
+      labels:
+        app: gbv-facebroker
+    spec:
+      containers:
+      - name: gbv-facebroker
+        image: localhost:32000/facebot:registry
+        args:
+        - node
+        - broker.js
+        imagePullPolicy: Always
+        resources:
+          requests:
+            cpu: "50m"
+            memory: "100Mi"
+        ports:
+        - containerPort: 4000
+        - containerPort: 4001
+        envFrom:
+        - secretRef:
+            name: gbv-bot-envs
