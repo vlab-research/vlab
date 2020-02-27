@@ -261,7 +261,7 @@ describe('Test Bot flow Survey Integration Testing', () => {
     const fields = getFields('forms/dbFwhd.json')
 
     testFlow = [
-      [ok, fields[0], [makeNotify(userId, 'bah')]],
+      [ok, fields[0], [makeNotify(userId, '{ "ref": "908088b3-5e9e-4b53-b746-799ac51bc758"}')]],
       [ok, fields[1], []],
       [ok, fields[2], [makePostback(fields[2], userId, 1)]],
       [ok, fields[3], []],
