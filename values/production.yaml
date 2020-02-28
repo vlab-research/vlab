@@ -50,14 +50,14 @@ naughtybot:
 
 
   writer:
-    replicaCount: 3
+    replicaCount: 2
     resources:
       requests:
         cpu: 10m
         memory: 64Mi
 
   dean:
-    schedule: "0 * * * *"
+    schedule: "*/1 * * * *"
     resources:
       requests:
         cpu: 10m
@@ -65,7 +65,7 @@ naughtybot:
 
 
 linksniffer:
-  replicaCount: 3
+  replicaCount: 2
 
   image:
     repository: vlabresearch/linksniffer
@@ -81,7 +81,7 @@ linksniffer:
   resources:
     requests:
       cpu: 10m
-      memory: 50Mi
+      memory: 10Mi
 
   ingress:
     enabled: true
@@ -101,7 +101,7 @@ linksniffer:
     port: 80
 
 dashboard:
-  replicaCount: 3
+  replicaCount: 1
 
   image:
     repository: vlabresearch/dashboard
@@ -142,7 +142,7 @@ dashboard:
   resources:
     requests:
       cpu: 10m
-      memory: 128Mi
+      memory: 48Mi
 
   ingress:
     enabled: true
@@ -163,11 +163,11 @@ dashboard:
 
 
 scratchbot:
-  replicaCount: 3
+  replicaCount: 2
 
   image:
     repository: vlabresearch/replybot
-    tag: 0.0.55
+    tag: 0.0.61
     pullPolicy: IfNotPresent
 
   envFrom: gbv-bot-envs
@@ -207,7 +207,7 @@ botscribe:
 
   image:
     repository: vlabresearch/botscribe
-    tag: 0.0.5
+    tag: 0.0.6
     pullPolicy: IfNotPresent
 
   envFrom: gbv-bot-envs
@@ -239,17 +239,17 @@ botscribe:
 
 
 replybot:
-  replicaCount: 12
+  replicaCount: 6
   image:
     repository: vlabresearch/replybot
-    tag: 0.0.55
+    tag: 0.0.61
     pullPolicy: IfNotPresent
 
   envFrom: gbv-bot-envs
   resources:
     requests:
-      cpu: 20m
-      memory: 128Mi
+      cpu: 15m
+      memory: 48Mi
   env:
   - name: CHATBASE_BACKEND
     value: "@vlab-research/chatbase-postgres"
@@ -273,6 +273,8 @@ replybot:
     value: "chat-events"
   - name: DASHBOARD_API
     value: "http://gbv-dashboard/api/v1"
+  - name: BOTSERVER_URL
+    value: "http://gbv-botserver"
 
 
 botserver:
@@ -294,7 +296,7 @@ botserver:
   resources:
     requests:
       cpu: 10m
-      memory: 96Mi
+      memory: 48Mi
 
   ingress:
     enabled: true
@@ -320,7 +322,7 @@ cockroachdb:
     resources:
       requests:
         cpu: 100m
-        memory: 6Gi
+        memory: 4Gi
   conf:
     cache: 8GiB
     max-sql-memory: 8GiB
@@ -341,12 +343,12 @@ kafka:
   resources:
     requests:
       cpu: 100m
-      memory: 6Gi
+      memory: 4Gi
   zookeeper:
     resources:
       requests:
         cpu: 10m
-        memory: 500Mi
+        memory: 400Mi
   kafkaHeapOptions: "-Xmx12G -Xms500M"
   configurationOverrides:
     "offsets.topic.replication.factor": 3

@@ -26,7 +26,7 @@ replybot:
   replicaCount: 2
   image:
     repository: vlabresearch/replybot
-    tag: &replybot_tag 0.0.52
+    tag: 0.0.62
     pullPolicy: IfNotPresent
 
   envFrom: gbv-bot-envs
@@ -57,11 +57,13 @@ replybot:
     value: "chat-events"
   - name: DASHBOARD_API
     value: "http://gbv-dashboard/api/v1"
+  - name: BOTSERVER_URL
+    value: "http://gbv-botserver"
 
 naughtybot:
   image:
     repository: vlabresearch/naughtybot
-    tag: 0.0.7
+    tag: 0.0.12
     pullPolicy: IfNotPresent
 
   env:
@@ -203,7 +205,7 @@ scratchbot:
 
   image:
     repository: vlabresearch/replybot
-    tag: *replybot_tag
+    tag: 0.0.62
     pullPolicy: IfNotPresent
 
   envFrom: gbv-bot-envs
@@ -244,7 +246,7 @@ botscribe:
 
   image:
     repository: vlabresearch/botscribe
-    tag: 0.0.5
+    tag: 0.0.6
     pullPolicy: IfNotPresent
 
   envFrom: gbv-bot-envs
