@@ -13,12 +13,12 @@ spec:
     rules:
       - alert: ReplyBotCrashing
         expr: |
-          sum_over_time(kube_pod_container_status_restarts_total{job="kube-state-metrics", container="replybot"}[5m]) > 5
+          delta(kube_pod_container_status_restarts_total{container="replybot",job="kube-state-metrics"}[10m]) > 2
         for: 1m
         labels:
           severity: warning
         annotations:
           summary: |
-            Kafka consumer lag...
+            Replybot restarts
           description: |
-            Kafka consumer lag...
+            Replybot restarts
