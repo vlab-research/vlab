@@ -1,3 +1,18 @@
+tags:
+  kafka: false
+
+kafkabrokers: &kb "kafka-headless.default.svc.cluster.local:29092"
+chatTopic: &topic "vlab-staging-chat-events"
+botEnvs: &botenvs gbv-bot-envs
+chatbaseHost: &host "gbv-cockroachdb-public"
+
+kafkaTopics:
+  - name: *topic
+    partitions: 8
+    replicationFactor: 3
+    config:
+      "retention.ms": "2678400000" # 31 days
+
 dumper:
   image:
     repository: vlabresearch/dumper
@@ -8,7 +23,7 @@ dumper:
   parallelism: 1
   backoffLimit: 3
 
-  schedule: "0 */4 * * *"
+  schedule: "10 11 * * *"
   resources:
     requests:
       cpu: 100m
@@ -17,9 +32,9 @@ dumper:
   keySecret: gbv-dumper-keys
   env:
   - name: CHATBASE_HOST
-    value: "gbv-cockroachdb-public.default"
+    value: *host
   - name: DUMPER_LOCATION
-    value: "gs://vlab-research-backups/gbv-india-staging"
+    value: "gs://vlab-research-backups/gbv-india-staging/"
 
 
 replybot:
@@ -29,7 +44,7 @@ replybot:
     tag: 0.0.62
     pullPolicy: IfNotPresent
 
-  envFrom: gbv-bot-envs
+  envFrom: *botenvs
   resources:
     requests:
       cpu: 10m
@@ -44,17 +59,17 @@ replybot:
   - name: CHATBASE_PASSWORD
     value: ""
   - name: CHATBASE_HOST
-    value: "gbv-cockroachdb-public.default"
+    value: *host
   - name: CHATBASE_PORT
     value: "26257"
   - name: FALLBACK_FORM
     value: "305"
   - name: REPLYBOT_EVENT_TOPIC
-    value: "chat-events"
+    value: *topic
   - name: BOTSPINE_KAFKA_BROKERS
-    value: "gbv-kafka:9092"
+    value: *kb
   - name: BOTSPINE_MESSAGE_TOPIC
-    value: "chat-events"
+    value: *topic
   - name: DASHBOARD_API
     value: "http://gbv-dashboard/api/v1"
   - name: BOTSERVER_URL
@@ -76,13 +91,13 @@ naughtybot:
   - name: CHATBASE_PASSWORD
     value: ""
   - name: CHATBASE_HOST
-    value: "gbv-cockroachdb-public.default"
+    value: *host
   - name: CHATBASE_PORT
     value: "26257"
   - name: BOTSPINE_KAFKA_BROKERS
-    value: "gbv-kafka:9092"
+    value: *kb
   - name: BOTSPINE_MESSAGE_TOPIC
-    value: "chat-events"
+    value: *topic
   - name: BOTSERVER_URL
     value: "http://gbv-botserver"
 
@@ -145,7 +160,7 @@ dashboard:
     tag: 0.0.4
     pullPolicy: IfNotPresent
 
-  envFrom: gbv-bot-envs
+  envFrom: *botenvs
   env:
     - name: TYPEFORM_URL
       value: 'https://api.typeform.com'
@@ -166,9 +181,9 @@ dashboard:
     - name: CUBEJS_DB_PASS
       value: ''
     - name: DB_HOST
-      value: 'gbv-cockroachdb-public.default'
+      value: *host
     - name: CUBEJS_DB_HOST
-      value: 'gbv-cockroachdb-public.default'
+      value: *host
     - name: DB_PORT
       value: '26257'
     - name: CUBEJS_DB_PORT
@@ -208,7 +223,7 @@ scratchbot:
     tag: 0.0.62
     pullPolicy: IfNotPresent
 
-  envFrom: gbv-bot-envs
+  envFrom: *botenvs
 
   env:
   - name: CHATBASE_BACKEND
@@ -220,17 +235,17 @@ scratchbot:
   - name: CHATBASE_PASSWORD
     value: ""
   - name: CHATBASE_HOST
-    value: "gbv-cockroachdb-public.default"
+    value: *host
   - name: CHATBASE_PORT
     value: "26257"
   - name: FALLBACK_FORM
     value: "305"
   - name: REPLYBOT_EVENT_TOPIC
-    value: "chat-events"
+    value: *topic
   - name: BOTSPINE_KAFKA_BROKERS
-    value: "gbv-kafka:9092"
+    value: *kb
   - name: BOTSPINE_MESSAGE_TOPIC
-    value: "chat-events"
+    value: *topic
   - name: DASHBOARD_API
     value: "http://gbv-dashboard/api/v1"
 
@@ -249,7 +264,7 @@ botscribe:
     tag: 0.0.6
     pullPolicy: IfNotPresent
 
-  envFrom: gbv-bot-envs
+  envFrom: *botenvs
 
   env:
   - name: CHATBASE_BACKEND
@@ -261,15 +276,15 @@ botscribe:
   - name: CHATBASE_PASSWORD
     value: ""
   - name: CHATBASE_HOST
-    value: "gbv-cockroachdb-public.default"
+    value: *host
   - name: CHATBASE_PORT
     value: "26257"
   - name: BOTSCRIBE_HIGHWATER
     value: "500"
   - name: BOTSPINE_KAFKA_BROKERS
-    value: "gbv-kafka:9092"
+    value: *kb
   - name: BOTSPINE_MESSAGE_TOPIC
-    value: "chat-events"
+    value: *topic
 
   resources:
     requests:
@@ -285,13 +300,13 @@ botserver:
     tag: 0.0.6
     pullPolicy: IfNotPresent
 
-  envFrom: gbv-bot-envs
+  envFrom: *botenvs
 
   env:
   - name: BOTSERVER_EVENT_TOPIC
-    value: "chat-events"
+    value: *topic
   - name: KAFKA_BROKERS
-    value: "gbv-kafka:9092"
+    value: *kb
 
   resources:
     requests:
@@ -318,66 +333,20 @@ botserver:
 
 cockroachdb:
   statefulset:
-    replicas: 3
+    replicas: 1
+    resources:
+      requests:
+        cpu: 100m
+        memory: 500Mi
   conf:
-    cache: 1GiB
-    max-sql-memory: 1GiB
+    cache: 250MiB
+    max-sql-memory: 250MiB
+    max-disk-temp-storage: 4GiB
     budget:
-      maxUnavailable: 1
+      maxUnavailable: 0
   tls:
     enabled: no
-  resources:
-    requests:
-      cpu: 25m
-      memory: 4Gi
   storage:
     persistentVolume:
       size: 5Gi
       storageClass: "pd-ssd"
-
-
-kafka:
-  replicas: 3
-  imageTag: 5.4.0
-  resources:
-    requests:
-      cpu: 25m
-      memory: 500Mi
-  zookeeper:
-    resources:
-      requests:
-        cpu: 5m
-        memory: 100Mi
-  kafkaHeapOptions: "-Xmx500M -Xms500M"
-  configurationOverrides:
-    "offsets.topic.replication.factor": 3
-    "auto.create.topics.enable": false
-  topics:
-    - name: "chat-events"
-      config: "retention.ms=1209600000" # 14 days
-      partitions: 6
-      replicationFactor: 2
-  persistence:
-    size: 5Gi
-    storageClass: "pd-ssd"
-  affinity:
-    podAntiAffinity:
-      requiredDuringSchedulingIgnoredDuringExecution:
-      - labelSelector:
-          matchExpressions:
-          - key: app
-            operator: In
-            values:
-            - kafka
-        topologyKey: "kubernetes.io/hostname"
-    podAffinity:
-      preferredDuringSchedulingIgnoredDuringExecution:
-       - weight: 50
-         podAffinityTerm:
-           labelSelector:
-             matchExpressions:
-             - key: app
-               operator: In
-               values:
-                 - zookeeper
-           topologyKey: "kubernetes.io/hostname"

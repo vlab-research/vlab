@@ -31,6 +31,10 @@ dependencies:
   - name: cockroachdb
     version: 3.0.4
     repository: https://kubernetes-charts.storage.googleapis.com
+    tags:
+      - cockroach
   - name: kafka
     version: 0.20.8
     repository: https://storage.googleapis.com/kubernetes-charts-incubator
+    tags:
+      - kafka

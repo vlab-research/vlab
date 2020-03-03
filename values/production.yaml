@@ -1,3 +1,7 @@
+tags:
+  kafka: true
+  cockroach: true
+
 dumper:
   image:
     repository: vlabresearch/dumper
