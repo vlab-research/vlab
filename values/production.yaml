@@ -1,6 +1,19 @@
 tags:
-  kafka: true
+  kafka: false
   cockroach: true
+
+kafkabrokers: &kb "kafka-headless.default.svc.cluster.local:29092"
+chatTopic: &topic "vlab-prod-chat-events"
+botEnvs: &botenvs gbv-bot-envs
+chatbaseHost: &host "gbv-cockroachdb-public"
+
+
+kafkaTopics:
+  - name: *topic
+    partitions: 48
+    replicationFactor: 3
+    config:
+      "retention.ms": "2678400000" # 31 days
 
 dumper:
   image:
@@ -12,7 +25,7 @@ dumper:
   parallelism: 1
   backoffLimit: 8
 
-  schedule: "0 */2 * * *"
+  schedule: "15 * * * *"
   resources:
     requests:
       cpu: 100m
@@ -21,7 +34,7 @@ dumper:
   keySecret: gbv-dumper-keys
   env:
   - name: CHATBASE_HOST
-    value: "gbv-cockroachdb-public.default"
+    value: *host
   - name: DUMPER_LOCATION
     value: "gs://vlab-research-backups/gbv-india/"
 
@@ -42,13 +55,13 @@ naughtybot:
   - name: CHATBASE_PASSWORD
     value: ""
   - name: CHATBASE_HOST
-    value: "gbv-cockroachdb-public.default"
+    value: *host
   - name: CHATBASE_PORT
     value: "26257"
   - name: BOTSPINE_KAFKA_BROKERS
-    value: "gbv-kafka:9092"
+    value: *kb
   - name: BOTSPINE_MESSAGE_TOPIC
-    value: "chat-events"
+    value: *topic
   - name: BOTSERVER_URL
     value: "http://gbv-botserver"
 
@@ -57,7 +70,7 @@ naughtybot:
     replicaCount: 2
     resources:
       requests:
-        cpu: 10m
+        cpu: 5m
         memory: 64Mi
 
   dean:
@@ -84,7 +97,7 @@ linksniffer:
 
   resources:
     requests:
-      cpu: 10m
+      cpu: 5m
       memory: 10Mi
 
   ingress:
@@ -112,7 +125,7 @@ dashboard:
     tag: 0.0.4
     pullPolicy: IfNotPresent
 
-  envFrom: gbv-bot-envs
+  envFrom: *botenvs
   env:
     - name: TYPEFORM_URL
       value: 'https://api.typeform.com'
@@ -133,9 +146,9 @@ dashboard:
     - name: CUBEJS_DB_PASS
       value: ''
     - name: DB_HOST
-      value: 'gbv-cockroachdb-public.default'
+      value: *host
     - name: CUBEJS_DB_HOST
-      value: 'gbv-cockroachdb-public.default'
+      value: *host
     - name: DB_PORT
       value: '26257'
     - name: CUBEJS_DB_PORT
@@ -145,7 +158,7 @@ dashboard:
 
   resources:
     requests:
-      cpu: 10m
+      cpu: 5m
       memory: 48Mi
 
   ingress:
@@ -174,7 +187,7 @@ scratchbot:
     tag: 0.0.61
     pullPolicy: IfNotPresent
 
-  envFrom: gbv-bot-envs
+  envFrom: *botenvs
 
   env:
   - name: CHATBASE_BACKEND
@@ -186,23 +199,23 @@ scratchbot:
   - name: CHATBASE_PASSWORD
     value: ""
   - name: CHATBASE_HOST
-    value: "gbv-cockroachdb-public.default"
+    value: *host
   - name: CHATBASE_PORT
     value: "26257"
   - name: FALLBACK_FORM
     value: "305"
   - name: REPLYBOT_EVENT_TOPIC
-    value: "chat-events"
+    value: *topic
   - name: BOTSPINE_KAFKA_BROKERS
-    value: "gbv-kafka:9092"
+    value: *kb
   - name: BOTSPINE_MESSAGE_TOPIC
-    value: "chat-events"
+    value: *topic
   - name: DASHBOARD_API
     value: "http://gbv-dashboard/api/v1"
 
   resources:
     requests:
-      cpu: 10m
+      cpu: 5m
       memory: 64Mi
 
 
@@ -214,7 +227,7 @@ botscribe:
     tag: 0.0.6
     pullPolicy: IfNotPresent
 
-  envFrom: gbv-bot-envs
+  envFrom: *botenvs
 
   env:
   - name: CHATBASE_BACKEND
@@ -226,33 +239,33 @@ botscribe:
   - name: CHATBASE_PASSWORD
     value: ""
   - name: CHATBASE_HOST
-    value: "gbv-cockroachdb-public.default"
+    value: *host
   - name: CHATBASE_PORT
     value: "26257"
   - name: BOTSCRIBE_HIGHWATER
     value: "500"
   - name: BOTSPINE_KAFKA_BROKERS
-    value: "gbv-kafka:9092"
+    value: *kb
   - name: BOTSPINE_MESSAGE_TOPIC
-    value: "chat-events"
+    value: *topic
 
   resources:
     requests:
-      cpu: 10m
+      cpu: 5m
       memory: 64Mi
 
 
 replybot:
-  replicaCount: 6
+  replicaCount: 3
   image:
     repository: vlabresearch/replybot
     tag: 0.0.61
     pullPolicy: IfNotPresent
 
-  envFrom: gbv-bot-envs
+  envFrom: *botenvs
   resources:
     requests:
-      cpu: 15m
+      cpu: 5m
       memory: 48Mi
   env:
   - name: CHATBASE_BACKEND
@@ -264,17 +277,17 @@ replybot:
   - name: CHATBASE_PASSWORD
     value: ""
   - name: CHATBASE_HOST
-    value: "gbv-cockroachdb-public.default"
+    value: *host
   - name: CHATBASE_PORT
     value: "26257"
   - name: FALLBACK_FORM
     value: "305"
   - name: REPLYBOT_EVENT_TOPIC
-    value: "chat-events"
+    value: *topic
   - name: BOTSPINE_KAFKA_BROKERS
-    value: "gbv-kafka:9092"
+    value: *kb
   - name: BOTSPINE_MESSAGE_TOPIC
-    value: "chat-events"
+    value: *topic
   - name: DASHBOARD_API
     value: "http://gbv-dashboard/api/v1"
   - name: BOTSERVER_URL
@@ -282,20 +295,20 @@ replybot:
 
 
 botserver:
-  replicaCount: 3
+  replicaCount: 2
 
   image:
     repository: vlabresearch/botserver
     tag: 0.0.6
     pullPolicy: IfNotPresent
 
-  envFrom: gbv-bot-envs
+  envFrom: *botenvs
 
   env:
   - name: BOTSERVER_EVENT_TOPIC
-    value: "chat-events"
+    value: *topic
   - name: KAFKA_BROKERS
-    value: "gbv-kafka:9092"
+    value: *kb
 
   resources:
     requests:
@@ -322,14 +335,14 @@ botserver:
 
 cockroachdb:
   statefulset:
-    replicas: 5
+    replicas: 3
     resources:
       requests:
-        cpu: 100m
-        memory: 4Gi
+        cpu: 50m
+        memory: 1Gi
   conf:
-    cache: 8GiB
-    max-sql-memory: 8GiB
+    cache: 1GiB
+    max-sql-memory: 1GiB
     max-disk-temp-storage: 24GiB
     budget:
       maxUnavailable: 1
@@ -337,106 +350,5 @@ cockroachdb:
     enabled: no
   storage:
     persistentVolume:
-      size: 100Gi
+      size: 50Gi
       storageClass: "pd-ssd"
-
-
-kafka:
-  replicas: 5
-  imageTag: 5.4.0
-  resources:
-    requests:
-      cpu: 100m
-      memory: 4Gi
-  zookeeper:
-    resources:
-      requests:
-        cpu: 10m
-        memory: 400Mi
-  kafkaHeapOptions: "-Xmx12G -Xms500M"
-  configurationOverrides:
-    "offsets.topic.replication.factor": 3
-    "auto.create.topics.enable": false
-  topics:
-    - name: "chat-events"
-      config: "retention.ms=2678400000" # 31 days
-      partitions: 96
-      replicationFactor: 3
-  persistence:
-    size: 100Gi
-    storageClass: "pd-ssd"
-  affinity:
-    podAntiAffinity:
-      requiredDuringSchedulingIgnoredDuringExecution:
-      - labelSelector:
-          matchExpressions:
-          - key: app
-            operator: In
-            values:
-            - kafka
-        topologyKey: "kubernetes.io/hostname"
-    podAffinity:
-      preferredDuringSchedulingIgnoredDuringExecution:
-       - weight: 50
-         podAffinityTerm:
-           labelSelector:
-             matchExpressions:
-             - key: app
-               operator: In
-               values:
-                 - zookeeper
-           topologyKey: "kubernetes.io/hostname"
-  prometheus:
-    ## Prometheus JMX Exporter: exposes the majority of Kafkas metrics
-    jmx:
-      enabled: true
-      ## Port jmx-exporter exposes Prometheus format metrics to scrape
-      port: 5556
-
-    kafka:
-      enabled: true
-      ## Port kafka-exporter exposes for Prometheus to scrape metrics
-      port: 9308
-
-    operator:
-      ## Are you using Prometheus Operator?
-      enabled: true
-      serviceMonitor:
-        namespace: monitoring
-        selector:
-          heritage: Helm
-          release: prometheus
-
-      prometheusRule:
-        ## Add Prometheus Rules?
-        enabled: true
-        ## Namespace in which to install the PrometheusRule resource.
-        namespace: monitoring
-        # Use release namespace instead
-        releaseNamespace: false
-
-        ## Defaults to whats used if you follow CoreOS [Prometheus Install Instructions](https://github.com/coreos/prometheus-operator/tree/master/helm#tldr)
-        ## [Prometheus Selector Label](https://github.com/coreos/prometheus-operator/blob/master/helm/prometheus/templates/prometheus.yaml#L65)
-        ## [Kube Prometheus Selector Label](https://github.com/coreos/prometheus-operator/blob/master/helm/kube-prometheus/values.yaml#L298)
-        selector:
-          heritage: Helm
-          release: prometheus
-          prometheus: null
-
-        ## Some example rules.
-        ## e.g. max(kafka_controller_kafkacontroller_activecontrollercount_value{service="my-kafka-release"}) by (service) < 1
-        rules:
-        - alert: KafkaNoActiveControllers
-          annotations:
-            message: The number of active controllers in {{ "{{" }} $labels.namespace {{ "}}" }} is less than 1. This usually means that some of the Kafka nodes aren't communicating properly. If it doesn't resolve itself you can try killing the pods (one by one whilst monitoring the under-replicated partitions graph).
-          expr: max(kafka_controller_kafkacontroller_activecontrollercount_value) by (namespace) < 1
-          for: 5m
-          labels:
-            severity: critical
-        - alert: KafkaMultipleActiveControllers
-          annotations:
-            message: The number of active controllers in {{ "{{" }} $labels.namespace {{ "}}" }} is greater than 1. This usually means that some of the Kafka nodes aren't communicating properly. If it doesn't resolve itself you can try killing the pods (one by one whilst monitoring the under-replicated partitions graph).
-          expr: max(kafka_controller_kafkacontroller_activecontrollercount_value) by (namespace) > 1
-          for: 5m
-          labels:
-            severity: critical
