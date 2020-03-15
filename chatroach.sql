@@ -11,7 +11,8 @@ CREATE TABLE chatroach.messages(
        id BIGINT PRIMARY KEY,
        content VARCHAR NOT NULL,
        userid VARCHAR NOT NULL,
-       timestamp TIMESTAMPTZ NOT NULL
+       timestamp TIMESTAMPTZ NOT NULL,
+       INDEX (userid) STORING (content, timestamp)
 );
 
 CREATE TABLE chatroach.users(
@@ -57,7 +58,8 @@ CREATE TABLE chatroach.timeouts(
        pageid VARCHAR NOT NULL REFERENCES chatroach.facebook_pages(pageid),
        timeout_date TIMESTAMPTZ,
        fulfilled BOOLEAN,
-       PRIMARY KEY (userid, timeout_date)
+       PRIMARY KEY (userid, timeout_date),
+       INDEX (fulfilled, timeout_date) STORING (pageid)
 );
 
 
