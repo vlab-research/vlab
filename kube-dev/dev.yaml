@@ -31,7 +31,7 @@ spec:
         - name: BOTSERVER_EVENT_TOPIC
           value: "chat-events"
         - name: KAFKA_BROKERS
-          value: "spinaltap-kafka:9092"
+          value: "gbv-kafka:9092"
 
 ---
 
