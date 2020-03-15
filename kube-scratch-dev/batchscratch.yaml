@@ -46,6 +46,8 @@ spec:
           value: "chat-events"
         - name: DASHBOARD_API
           value: "http://gbv-dashboard/api/v1"
+        - name: FACEBOOK_GRAPH_URL
+          value: "http://gbv-facebot"
       volumes:
         - name: keys
           secret:

@@ -10,17 +10,15 @@ spec:
       restartPolicy: OnFailure
       containers:
       - name: gbv-state-debugger
-        image: localhost:32000/replybot:registry
+        image: vlabresearch/replybot:0.0.62
         args:
         - node
         - lib/responses/debugger.js
-        - "2432286700218654"
+        - "2672166766232015"
         resources:
           requests:
             cpu: "50m"
             memory: "100Mi"
-        ports:
-        - containerPort: 80
         volumeMounts:
           - name: keys
             mountPath: /usr/src/app/keys
@@ -38,15 +36,18 @@ spec:
         - name: CHATBASE_PASSWORD
           value: ""
         - name: CHATBASE_HOST
-          value: "chatroach-cockroachdb-public.default"
+          value: "gbv-cockroachdb-public.default"
         - name: CHATBASE_PORT
           value: "26257"
         - name: BOTSPINE_KAFKA_BROKERS
-          value: "spinaltap-kafka:9092"
+          value: "gbv-kafka:9092"
         - name: BOTSPINE_MESSAGE_TOPIC
           value: "chat-events"
         - name: DASHBOARD_API
           value: "http://gbv-dashboard/api/v1"
+        - name: FALLBACK_FORM
+          value: "305"
+
       volumes:
         - name: keys
           secret:
