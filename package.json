@@ -7,7 +7,7 @@
     "dev": "npx nodemon index.js",
     "format": "prettier --write \"**/*.+(js|css|sass|yml|yaml|scss|json)\"",
     "lint": "eslint .",
-    "precommit": "npm run format && npm run lint",
+    "precommit": "npm run lint",
     "start": "node index.js",
     "test": "NODE_ENV=test mocha --colors --timeout 5000 './{,!(node_modules)/**}/*.test.js'"
   },
