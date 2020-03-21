@@ -28,6 +28,8 @@ dependencies:
   - name: replybot
     version: 0.0.1
     repository: https://vlab-research.github.io/devops
+# TODO: move database out of here (treat as provider)
+# add init job to create database and users
   - name: cockroachdb
     version: 3.0.4
     repository: https://kubernetes-charts.storage.googleapis.com

@@ -38,17 +38,17 @@ dumper:
 
 
 replybot:
-  replicaCount: 2
+  replicaCount: 1
   image:
     repository: vlabresearch/replybot
-    tag: 0.0.62
+    tag: 0.0.63
     pullPolicy: IfNotPresent
 
   envFrom: *botenvs
   resources:
     requests:
       cpu: 10m
-      memory: 128Mi
+      memory: 64Mi
   env:
   - name: CHATBASE_BACKEND
     value: "@vlab-research/chatbase-postgres"
@@ -220,7 +220,7 @@ scratchbot:
 
   image:
     repository: vlabresearch/replybot
-    tag: 0.0.62
+    tag: 0.0.63
     pullPolicy: IfNotPresent
 
   envFrom: *botenvs
