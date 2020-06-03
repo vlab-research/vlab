@@ -3,10 +3,21 @@ tags:
 
 kafkaTopics: []
 
+# kafkabrokers: &kb "kafka-headless.default.svc.cluster.local:29092"
+# chatTopic: &topic "vlab-test-chat-events"
+# botEnvs: &botenvs gbv-bot-envs
+# chatbaseHost: &host "gbv-cockroachdb-public"
+
+versionDashboard: &vdashboard 0.0.4
+versionNaughtybot: &vnaughtybot 0.0.12
+versionBotserver: &vbotserver 0.0.6
+versionReplybot: &vreplybot 0.0.64
+versionBotscribe: &vbotscribe 0.0.6
+
 naughtybot:
   image:
     repository: vlabresearch/naughtybot
-    tag: 0.0.12
+    tag: *vnaughtybot
     pullPolicy: IfNotPresent
 
   env:
@@ -75,7 +86,7 @@ dashboard:
 
   image:
     repository: vlabresearch/dashboard
-    tag: 0.0.4
+    tag: *vdashboard
     pullPolicy: IfNotPresent
 
   envFrom: gbv-bot-envs
@@ -128,7 +139,7 @@ scratchbot:
 
   image:
     repository: vlabresearch/replybot
-    tag: 0.0.62
+    tag: *vreplybot
     pullPolicy: IfNotPresent
 
   envFrom: gbv-bot-envs
@@ -169,7 +180,7 @@ botscribe:
 
   image:
     repository: vlabresearch/botscribe
-    tag: 0.0.6
+    tag: *vbotscribe
     pullPolicy: IfNotPresent
 
   envFrom: gbv-bot-envs
@@ -204,7 +215,7 @@ replybot:
   replicaCount: 1
   image:
     repository: vlabresearch/replybot
-    tag: 0.0.63
+    tag: *vreplybot
     pullPolicy: IfNotPresent
 
   envFrom: gbv-bot-envs
@@ -246,7 +257,7 @@ botserver:
 
   image:
     repository: vlabresearch/botserver
-    tag: 0.0.6
+    tag: *vbotserver
     pullPolicy: IfNotPresent
 
   envFrom: gbv-bot-envs

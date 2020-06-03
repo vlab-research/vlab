@@ -184,7 +184,7 @@ scratchbot:
 
   image:
     repository: vlabresearch/replybot
-    tag: 0.0.63
+    tag: 0.0.65
     pullPolicy: IfNotPresent
 
   envFrom: *botenvs
@@ -259,7 +259,7 @@ replybot:
   replicaCount: 6
   image:
     repository: vlabresearch/replybot
-    tag: 0.0.63
+    tag: 0.0.64
     pullPolicy: IfNotPresent
 
   envFrom: *botenvs
