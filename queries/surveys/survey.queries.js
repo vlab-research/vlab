@@ -9,6 +9,7 @@ async function create({
   userid,
   title,
 }) {
+  // TODO: add teamid, remove userid
   const CREATE_ONE = `INSERT INTO surveys(created, formid, form, messages, shortcode, userid, title)
        values($1, $2, $3, $4, $5, $6, $7)
        ON CONFLICT(id) DO NOTHING
@@ -18,6 +19,7 @@ async function create({
   return rows[0];
 }
 
+// TODO switch userid for teamid
 async function retrieveByPage({ pageid, code, timestamp }) {
   const RETRIEVE = `SELECT surveys.*
                     FROM surveys
@@ -32,6 +34,7 @@ async function retrieveByPage({ pageid, code, timestamp }) {
   return rows;
 }
 
+// TODO switch email for teamid
 async function retrieve({ email }) {
   const RETRIEVE_ALL = `SELECT surveys.* FROM surveys
                         LEFT JOIN users on surveys.userid = users.id

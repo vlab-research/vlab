@@ -7,6 +7,7 @@ const { TypeformUtil } = require('../../utils');
 
 exports.postOne = async (req, res) => {
   try {
+    // Get teamid
     const { formid, title, shortcode } = req.body;
     const { email } = req.user;
 
@@ -33,7 +34,7 @@ exports.postOne = async (req, res) => {
       created,
       messages,
       title,
-      userid,
+      userid, // TODO: change userid for teamid
       form,
       shortcode,
     };
