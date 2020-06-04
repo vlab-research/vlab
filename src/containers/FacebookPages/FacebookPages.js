@@ -32,10 +32,13 @@ const loadSDK = () => {
 const fb = (cb) => {
 
   window.FB.login(res => {
+
+    const userToken = res.authResponse.accessToken;
     window.FB.api('/me/accounts', res => {
 
-      // TODO: implement paging incase user has many FB pages!
-      cb(res.data);
+      // TODO: implement paging incase user has many FB pages! 
+     const response = { pages: res.data, userToken };
+     cb(response);
     });
 
   }, {scopes: 'public_profile,email,pages_show_list', return_scopes: true});
