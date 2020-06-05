@@ -1,5 +1,7 @@
 tags:
   kafka: false
+  cockroach: true
+  backup: false
 
 kafkabrokers: &kb "kafka-headless.default.svc.cluster.local:29092"
 chatTopic: &topic "vlab-test-chat-events"
@@ -18,29 +20,6 @@ kafkaTopics:
     replicationFactor: 1
     config:
       "retention.ms": "86400000" # 1 day
-
-dumper:
-  image:
-    repository: vlabresearch/dumper
-    tag: 0.0.1
-    pullPolicy: IfNotPresent
-
-  completions: 1
-  parallelism: 1
-  backoffLimit: 3
-
-  schedule: "10 11 * * *"
-  resources:
-    requests:
-      cpu: 100m
-      memory: 256Mi
-
-  keySecret: gbv-dumper-keys
-  env:
-  - name: CHATBASE_HOST
-    value: *host
-  - name: DUMPER_LOCATION
-    value: "gs://vlab-research-backups/gbv-india-staging/"
 
 
 replybot:

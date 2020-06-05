@@ -1,5 +1,7 @@
 tags:
   kafka: false
+  backup: true
+  cockroach: true
 
 kafkabrokers: &kb "kafka-headless.default.svc.cluster.local:29092"
 chatTopic: &topic "vlab-staging-chat-events"

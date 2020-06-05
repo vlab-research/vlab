@@ -1,5 +1,7 @@
 tags:
   kafka: true
+  cockroach: true
+  backup: false
 
 kafkaTopics: []
 

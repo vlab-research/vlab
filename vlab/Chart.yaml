@@ -7,6 +7,8 @@ dependencies:
   - name: dumper
     version: 0.0.1
     repository: https://vlab-research.github.io/devops
+    tags:
+      - backup
   - name: linksniffer
     version: 0.0.1
     repository: https://vlab-research.github.io/devops
