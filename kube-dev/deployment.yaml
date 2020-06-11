@@ -47,9 +47,9 @@ spec:
             - name: CUBEJS_DB_PASS
               value: ''
             - name: DB_HOST
-              value: 'chatroach-cockroachdb-public.default'
+              value: 'gbv-cockroachdb-public.default'
             - name: CUBEJS_DB_HOST
-              value: 'chatroach-cockroachdb-public.default'
+              value: 'gbv-cockroachdb-public.default'
             - name: DB_PORT
               value: '26257'
             - name: CUBEJS_DB_PORT

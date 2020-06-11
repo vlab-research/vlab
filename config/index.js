@@ -17,6 +17,7 @@ const envVarsSchema = joi
     DB_DATABASE: joi.string(),
     DB_PORT: joi.number(),
     AUTH0_CLIENT_ID: joi.string(),
+    AUTH0_DASHBOARD_SECRET: joi.string()
   })
   .unknown()
   .required();
@@ -53,15 +54,7 @@ const config = {
     algorithms: ['RS256'],
   },
   SERVER_JWT: {
-    secret: jwks.expressJwtSecret({
-      cache: true,
-      rateLimit: true,
-      jwksRequestsPerMinute: 10,
-      jwksUri: `${envVars.AUTH0_HOST}/.well-known/jwks.json`,
-    }),
-    audience: envVars.AUTH0_DASHBOARD_ID,
-    issuer: `${envVars.AUTH0_HOST}/`,
-    algorithms: ['RS256'],
+    secret: envVars.AUTH0_DASHBOARD_SECRET
   },
   DATABASE_CONFIG: {
     user: isTest() ? 'root' : envVars.DB_USER || 'postgres',
