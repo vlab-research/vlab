@@ -8,11 +8,6 @@ function auth(req, res, next) {
     if (!err) return next();
     if (err && err.name === 'UnauthorizedError') {
 
-      // TODO: change this to simple symmetric
-      // jwt auth and use shared secret hmac
-      
-      // TODO: extract this and use it on some
-      // routes and not others!
       return jwt(serverConfig)(req, res, next);
     } else {
       return next(err);
