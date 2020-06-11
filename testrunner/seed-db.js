@@ -1,7 +1,7 @@
 const fs = require('fs')
 
 async function getUserId(pool) {
-  const {rows} = await pool.query('select * from users;')
+  const {rows} = await pool.query(`INSERT INTO users(token, email) VALUES($1, $2) ON CONFLICT(email) DO UPDATE SET token = $1 RETURNING id;`, ['test', 'test@test.com'])
   return rows[0].id
 }
 
@@ -12,8 +12,7 @@ async function pages(pool, userid) {
   return pool.query(query, [pageid, userid])
 }
 
-async function surveyExists(pool, shortcode) {
-  const userid = await getUserId(pool)
+async function surveyExists(pool, userid, shortcode) {
   const query = `SELECT id from surveys where userid = $1 and shortcode = $2;`
   const {rows} = await pool.query(query, [userid, shortcode])
   return !!rows && !!rows.length
@@ -30,7 +29,7 @@ async function insertSurvey(pool, filename, body) {
   const created = new Date()
   const formid = filename.split('.')[0]
 
-  const exists = await surveyExists(pool, formid)
+  const exists = await surveyExists(pool, userid, formid)
   if (exists) return
 
   const values = [created, formid, body, '', formid, userid, ''];

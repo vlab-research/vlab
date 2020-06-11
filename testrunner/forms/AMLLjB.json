@@ -1,0 +1,730 @@
+{
+  "id": "AMLLjB",
+  "title": "CV_follow4",
+  "theme": {
+    "href": "https://api.typeform.com/themes/TSYAuE"
+  },
+  "workspace": {
+    "href": "https://api.typeform.com/workspaces/pZnraJ"
+  },
+  "settings": {
+    "is_public": true,
+    "is_trial": false,
+    "language": "en",
+    "progress_bar": "percentage",
+    "show_progress_bar": true,
+    "show_typeform_branding": true,
+    "meta": {
+      "allow_indexing": false
+    }
+  },
+  "thankyou_screens": [
+    {
+      "ref": "default_tys",
+      "title": "Done! Your information was sent perfectly.",
+      "properties": {
+        "show_button": false,
+        "share_icons": false
+      }
+    }
+  ],
+  "fields": [
+    {
+      "id": "XVuLvn3D4C0H",
+      "title": "Ti ringraziamo per aver partecipato allo studio fino ad ora. Questa è la penultima intervista. Ti faremo solamente 7 domande.\n\nTi garantiamo l'assoluta riservatezza delle tue risposte. Niente di ciò che scriverai verrà divulgato a terzi.",
+      "ref": "80d162ec-223f-46da-8c91-7d0e50a4e4c9",
+      "properties": {
+        "hide_marks": false,
+        "button_text": "Continue"
+      },
+      "type": "statement"
+    },
+    {
+      "id": "fMS6luesa4JC",
+      "title": "Vorremmo sapere la tua opinione su vari argomenti.\n\nRISPONDI ONESTAMENTE. Le tue risposte sono molto importanti.",
+      "ref": "3733f78f-fcfd-463a-93a8-fc71f716d94b",
+      "properties": {
+        "randomize": false,
+        "allow_multiple_selection": false,
+        "allow_other_choice": false,
+        "vertical_alignment": true,
+        "choices": [
+          {
+            "id": "LBhRDdPj1EfR",
+            "ref": "ab94ecba-7512-4af1-aea0-46391913218b",
+            "label": "Prosegui"
+          }
+        ]
+      },
+      "validations": {
+        "required": false
+      },
+      "type": "multiple_choice"
+    },
+    {
+      "id": "V9Vj9GXB3C2a",
+      "title": "Sei in accordo o in disaccordo con le seguenti affermazioni:",
+      "ref": "a890ee32-db95-4540-96b0-ef28ad05a17f",
+      "properties": {
+        "hide_marks": false,
+        "button_text": "Continue"
+      },
+      "type": "statement"
+    },
+    {
+      "id": "DUUOF1piKAEu",
+      "title": "Le leggi europee sul plagio e sulla concorrenza sleale dovrebbero essere più severe nei confronti delle aziende cinesi\n\n- A. Molto in accordo\n- B. In accordo\n- C. Indifferente\n- D. In disaccordo\n- E. Molto in disaccordo",
+      "ref": "d6464297-cd4b-45f5-8201-990a78533a04",
+      "properties": {
+        "randomize": false,
+        "allow_multiple_selection": false,
+        "allow_other_choice": false,
+        "vertical_alignment": true,
+        "choices": [
+          {
+            "id": "koLBNDe43a2m",
+            "ref": "9bc8ec18-c64d-48c4-95c2-c0cb4d6e6a1f",
+            "label": "A"
+          },
+          {
+            "id": "qmbiHTNezwvx",
+            "ref": "3ab9d2ad-848f-4141-a097-cf7cf4cb8982",
+            "label": "B"
+          },
+          {
+            "id": "BYTZkUDEIZAc",
+            "ref": "205e6317-6f81-4272-9154-c95e7f858a1f",
+            "label": "C"
+          },
+          {
+            "id": "GsUvU0m9n9dE",
+            "ref": "e3b3b9bc-04bd-4dca-877c-dc2577a43a07",
+            "label": "D"
+          },
+          {
+            "id": "rBD5YwVOSedh",
+            "ref": "c6f00d0d-4c54-4639-99aa-0733da2572cf",
+            "label": "E"
+          }
+        ]
+      },
+      "validations": {
+        "required": false
+      },
+      "type": "multiple_choice"
+    },
+    {
+      "id": "mNIumwwlz3jf",
+      "title": "L'Europa dovrebbe impedire alla Cina di usufruire delle risorse naturali del continente Africano\n\n- A. Molto in accordo\n- B. In accordo\n- C. Indifferente\n- D. In disaccordo\n- E. Molto in disaccordo",
+      "ref": "49728452-a9b5-4f53-aac1-788534903796",
+      "properties": {
+        "randomize": false,
+        "allow_multiple_selection": false,
+        "allow_other_choice": false,
+        "vertical_alignment": true,
+        "choices": [
+          {
+            "id": "z2WVxRMyNtW1",
+            "ref": "9bc8ec18-c64d-48c4-95c2-c0cb4d6e6a1f",
+            "label": "A"
+          },
+          {
+            "id": "Y2UGls5qo9U5",
+            "ref": "3ab9d2ad-848f-4141-a097-cf7cf4cb8982",
+            "label": "B"
+          },
+          {
+            "id": "yKV5NJRtZP3g",
+            "ref": "205e6317-6f81-4272-9154-c95e7f858a1f",
+            "label": "C"
+          },
+          {
+            "id": "DSsBLIYe9H2y",
+            "ref": "e3b3b9bc-04bd-4dca-877c-dc2577a43a07",
+            "label": "D"
+          },
+          {
+            "id": "XgXXjuLojXsE",
+            "ref": "c6f00d0d-4c54-4639-99aa-0733da2572cf",
+            "label": "E"
+          }
+        ]
+      },
+      "validations": {
+        "required": false
+      },
+      "type": "multiple_choice"
+    },
+    {
+      "id": "JcCvjqwNSSDo",
+      "title": "L'Europa dovrebbe interrompere le sue attività commerciali con la Cina\n\n- A. Molto in accordo\n- B. In accordo\n- C. Indifferente\n- D. In disaccordo\n- E. Molto in disaccordo",
+      "ref": "034a6e9f-8d83-4e43-84eb-356c9c8c3bd7",
+      "properties": {
+        "randomize": false,
+        "allow_multiple_selection": false,
+        "allow_other_choice": false,
+        "vertical_alignment": true,
+        "choices": [
+          {
+            "id": "JsJDfeCzVjf8",
+            "ref": "c2ae539d-5f88-4621-9198-5844063283a9",
+            "label": "A"
+          },
+          {
+            "id": "POqeMGm2Unpm",
+            "ref": "ca65f6fb-4257-495f-8fff-ddfcb0d0b856",
+            "label": "B"
+          },
+          {
+            "id": "sT7zd0ac1he9",
+            "ref": "7909c0a1-21ef-4b5a-97d6-e6039fdade25",
+            "label": "C"
+          },
+          {
+            "id": "xb0uGJw3o5iZ",
+            "ref": "04252517-192b-42bb-a2a0-8f58464d026c",
+            "label": "D"
+          },
+          {
+            "id": "HuooS5ajxKu1",
+            "ref": "81c5dc22-a6eb-4abd-8d22-dfe7953978a3",
+            "label": "E"
+          }
+        ]
+      },
+      "validations": {
+        "required": false
+      },
+      "type": "multiple_choice"
+    },
+    {
+      "id": "CmCqnPSK7w7h",
+      "title": "L'Europa dovrebbe chiudere le sue frontiere per salvaguardare l'identità dei suoi popoli\n\n- A. Molto in accordo\n- B. In accordo\n- C. Indifferente\n- D. In disaccordo\n- E. Molto in disaccordo",
+      "ref": "1efe56d5-c3c6-4062-bf1a-6b96b71ccbbd",
+      "properties": {
+        "randomize": false,
+        "allow_multiple_selection": false,
+        "allow_other_choice": false,
+        "vertical_alignment": true,
+        "choices": [
+          {
+            "id": "nmu6sK1ns8Ml",
+            "ref": "c2ae539d-5f88-4621-9198-5844063283a9",
+            "label": "A"
+          },
+          {
+            "id": "FXvqBOK1V5C0",
+            "ref": "ca65f6fb-4257-495f-8fff-ddfcb0d0b856",
+            "label": "B"
+          },
+          {
+            "id": "DGIfEp2CImuf",
+            "ref": "7909c0a1-21ef-4b5a-97d6-e6039fdade25",
+            "label": "C"
+          },
+          {
+            "id": "bklXWiERlktJ",
+            "ref": "04252517-192b-42bb-a2a0-8f58464d026c",
+            "label": "D"
+          },
+          {
+            "id": "sfvKAsCet4GJ",
+            "ref": "81c5dc22-a6eb-4abd-8d22-dfe7953978a3",
+            "label": "E"
+          }
+        ]
+      },
+      "validations": {
+        "required": false
+      },
+      "type": "multiple_choice"
+    },
+    {
+      "id": "WJu1v4oPlqXN",
+      "title": "L'Italia dovrebbe abbandonare l'Unione Europea\n\n- A. Molto in accordo\n- B. In accordo\n- C. Indifferente\n- D. In disaccordo\n- E. Molto in disaccordo",
+      "ref": "26531976-2b2f-4a19-b563-8fae0372279f",
+      "properties": {
+        "randomize": false,
+        "allow_multiple_selection": false,
+        "allow_other_choice": false,
+        "vertical_alignment": true,
+        "choices": [
+          {
+            "id": "zkNe3qSH3jOa",
+            "ref": "20b99323-42c0-4cb5-a1c8-4950c796ee01",
+            "label": "A"
+          },
+          {
+            "id": "zKpTcamNGr25",
+            "ref": "ccc51d4f-22a7-4d19-8d48-e46f47c7caf6",
+            "label": "B"
+          },
+          {
+            "id": "CJWW8Y4bt13E",
+            "ref": "3b9672b9-507b-4a2b-a190-fd5eb8339b47",
+            "label": "C"
+          },
+          {
+            "id": "RJEjqkUdNcWz",
+            "ref": "cca010f4-d081-4669-9839-295f28095823",
+            "label": "D"
+          },
+          {
+            "id": "nC7WOTRsgdkf",
+            "ref": "dde913fd-de2d-45b9-a435-41779a954b59",
+            "label": "E"
+          }
+        ]
+      },
+      "validations": {
+        "required": false
+      },
+      "type": "multiple_choice"
+    },
+    {
+      "id": "FTCHnmnczxF8",
+      "title": "Negli ultimi 20 anni, la FRANCIA si è mostrata solidale verso gli altri Paesi membri dell'Unione Europea\n\n- A. Molto in accordo\n- B. In accordo\n- C. Indifferente\n- D. In disaccordo\n- E. Molto in disaccordo",
+      "ref": "c0e5a950-a7fa-435c-acb0-af756d8acdfb",
+      "properties": {
+        "randomize": false,
+        "allow_multiple_selection": false,
+        "allow_other_choice": false,
+        "vertical_alignment": true,
+        "choices": [
+          {
+            "id": "K39lSeMvqJxg",
+            "ref": "9f429c8f-4d26-46b1-b848-3432690cf8ce",
+            "label": "A"
+          },
+          {
+            "id": "T56TnRjDmtgj",
+            "ref": "2e11124d-b53d-47c9-a09b-9334dc4a9a4a",
+            "label": "B"
+          },
+          {
+            "id": "GlYV441rL0rb",
+            "ref": "4c7d64d0-7587-4ea2-9b4e-38a41766aa91",
+            "label": "C"
+          },
+          {
+            "id": "LdDByLgEjV2a",
+            "ref": "9692f31c-0fcc-4e22-b576-ba2f9c8606da",
+            "label": "D"
+          },
+          {
+            "id": "z0pWfwWEKA42",
+            "ref": "41b9204f-61dc-4f98-9177-4278e14c6703",
+            "label": "E"
+          }
+        ]
+      },
+      "validations": {
+        "required": false
+      },
+      "type": "multiple_choice"
+    },
+    {
+      "id": "ucVdkv1KtUry",
+      "title": "Negli ultimi 20 anni, la GERMANIA si è mostrata solidale verso gli altri Paesi membri dell'Unione Europea\n\n- A. Molto in accordo\n- B. In accordo\n- C. Indifferente\n- D. In disaccordo\n- E. Molto in disaccordo",
+      "ref": "76b239c6-7e6c-49db-878f-736847915791",
+      "properties": {
+        "randomize": false,
+        "allow_multiple_selection": false,
+        "allow_other_choice": false,
+        "vertical_alignment": true,
+        "choices": [
+          {
+            "id": "SCvKZEE49stv",
+            "ref": "a4464fe2-806e-4107-9c4f-b9f2d11b661a",
+            "label": "A"
+          },
+          {
+            "id": "EdO5iz0XQfZz",
+            "ref": "e7930543-cd9e-4750-8ed9-ca94d62539f7",
+            "label": "B"
+          },
+          {
+            "id": "TptJjrRfwc5w",
+            "ref": "4743a749-1222-4aa8-a366-b8a90224104f",
+            "label": "C"
+          },
+          {
+            "id": "h2dxdAv4cmmA",
+            "ref": "25b02534-1eec-4f1f-90a7-3eb26fd7b573",
+            "label": "D"
+          },
+          {
+            "id": "ueHhnMWompGf",
+            "ref": "645185c7-b7cc-4cda-90af-d28524868b4c",
+            "label": "E"
+          }
+        ]
+      },
+      "validations": {
+        "required": false
+      },
+      "type": "multiple_choice"
+    },
+    {
+      "id": "xQwVoUDiNjuU",
+      "title": "Ecco come alcuni Paesi dell'Unione Europea stanno aiutando l'Italia in questo periodo di emergenza (fonte Commissione Europea):",
+      "ref": "2832570b-c364-41bf-b223-cdd0f5b91e1c",
+      "properties": {
+        "hide_marks": false,
+        "button_text": "Continue"
+      },
+      "type": "statement"
+    },
+    {
+      "id": "Vnv3Jv8UMUCH",
+      "title": "aus",
+      "ref": "146cf3fa-f446-4b3f-a877-58538a294138",
+      "properties": {
+        "description": "type: attachment\nkeepMoving: true\nattachment:\n    type: image\n    url: https://i.imgur.com/ZSHauqq.png",
+        "hide_marks": false,
+        "button_text": "Continue"
+      },
+      "type": "statement"
+    },
+    {
+      "id": "XEA1niRpk1rV",
+      "title": "ger",
+      "ref": "eb906308-0868-4366-9560-7ce459989cd8",
+      "properties": {
+        "description": "type: attachment\nkeepMoving: true\nattachment:\n    type: image\n    url: https://i.imgur.com/W8LlgsX.png",
+        "hide_marks": false,
+        "button_text": "Continue"
+      },
+      "type": "statement"
+    },
+    {
+      "id": "tn7YpKHcood3",
+      "title": "Ecco come alcuni Paesi dell'Unione Europea stanno aiutando l'Italia in questo periodo di emergenza (fonte Commissione Europea):",
+      "ref": "d06f55ef-ea84-47ec-b0ca-7bec84010277",
+      "properties": {
+        "hide_marks": false,
+        "button_text": "Continue"
+      },
+      "type": "statement"
+    },
+    {
+      "id": "cBe2mhmRa6o9",
+      "title": "cze",
+      "ref": "a4d9d2b0-b502-43e4-b93d-35580b1e861d",
+      "properties": {
+        "description": "type: attachment\nkeepMoving: true\nattachment:\n    type: image\n    url: https://i.imgur.com/FsJ7p4k.png",
+        "hide_marks": false,
+        "button_text": "Continue"
+      },
+      "type": "statement"
+    },
+    {
+      "id": "lyw9g2WfmJGf",
+      "title": "fra",
+      "ref": "a9484693-d3a4-4b33-941b-54fe6677afd4",
+      "properties": {
+        "description": "type: attachment\nkeepMoving: true\nattachment:\n    type: image\n    url: https://i.imgur.com/dRHktR1.png",
+        "hide_marks": false,
+        "button_text": "Continue"
+      },
+      "type": "statement"
+    },
+    {
+      "id": "ayazbK32dZ8Z",
+      "title": "Cosa ne pensi?",
+      "ref": "92d3e9d9-ddf6-4d59-9475-7dc4447e8ec5",
+      "validations": {
+        "required": false
+      },
+      "type": "short_text"
+    },
+    {
+      "id": "Q1Nu10h25DYe",
+      "title": "Grazie per il tuo tempo!\nLe tue risposte sono importanti.\n\nTi contatteremo tra circa 1 mese per completare lo studio e consegnarti il buono Amazon di 10€.\n\nPermettici di contattarti: clicca su \"Avvisami\"!",
+      "ref": "15830383-7362-4564-b1c9-8d828d1f1d84",
+      "properties": {
+        "hide_marks": false,
+        "button_text": "Continue"
+      },
+      "type": "statement"
+    },
+    {
+      "id": "IREHFgI1iIXV",
+      "title": "Clicca sul pulsante sotto per autorizzarci a scriverti di nuovo.",
+      "ref": "9f10e770-f9de-426e-95ce-1a1b5aa5f9ee",
+      "properties": {
+        "description": "type: notify",
+        "hide_marks": false,
+        "button_text": "Continue"
+      },
+      "type": "statement"
+    },
+    {
+      "id": "kLF2XHNpm57E",
+      "title": "Grazie! A presto!",
+      "ref": "a5a7c366-c76e-4820-a2d4-7a7d19df613e",
+      "properties": {
+        "description": "type: wait\nwait:\n    notifyPermission: true\n    type: timeout\n    value: 45 days",
+        "hide_marks": false,
+        "button_text": "Continue"
+      },
+      "type": "statement"
+    },
+    {
+      "id": "Kioz9eDIKSRw",
+      "title": "Ciao {{hidden:name}}! 😃\nTi scriviamo perché vorremmo concludere l'intervista facendoti delle ultime domande.\n\nQueste richiederanno solo 3 minuti del tuo tempo.\n\nFinite le domande riceverai il buono Amazon del valore di 10€.",
+      "ref": "90e94d47-547c-4f48-afb8-af0101289353",
+      "properties": {
+        "randomize": false,
+        "allow_multiple_selection": false,
+        "allow_other_choice": false,
+        "vertical_alignment": true,
+        "choices": [
+          {
+            "id": "qzONBxIHsRFp",
+            "ref": "05386621-9831-4f8b-9aa2-7e0d89bc517b",
+            "label": "OK"
+          }
+        ]
+      },
+      "validations": {
+        "required": false
+      },
+      "type": "multiple_choice"
+    },
+    {
+      "id": "paXx4oEMYPhx",
+      "title": "Grazie!",
+      "ref": "338091c2-6ba0-408d-bf2f-f37e29bcd654",
+      "properties": {
+        "description": "type: stitch\nstitch:\n    form: cvfollow5",
+        "hide_marks": false,
+        "button_text": "Continue"
+      },
+      "type": "statement"
+    },
+    {
+      "ref": "default_tys",
+      "title": "Done! Your information was sent perfectly.",
+      "properties": {
+        "show_button": false,
+        "share_icons": false
+      },
+      "type": "thankyou_screen"
+    }
+  ],
+  "hidden": [
+    "id",
+    "name",
+    "seed_9"
+  ],
+  "logic": [
+    {
+      "type": "field",
+      "ref": "76b239c6-7e6c-49db-878f-736847915791",
+      "actions": [
+        {
+          "action": "jump",
+          "details": {
+            "to": {
+              "type": "field",
+              "value": "2832570b-c364-41bf-b223-cdd0f5b91e1c"
+            }
+          },
+          "condition": {
+            "op": "or",
+            "vars": [
+              {
+                "op": "equal",
+                "vars": [
+                  {
+                    "type": "hidden",
+                    "value": "seed_9"
+                  },
+                  {
+                    "type": "constant",
+                    "value": "1"
+                  }
+                ]
+              },
+              {
+                "op": "equal",
+                "vars": [
+                  {
+                    "type": "hidden",
+                    "value": "seed_9"
+                  },
+                  {
+                    "type": "constant",
+                    "value": "2"
+                  }
+                ]
+              },
+              {
+                "op": "equal",
+                "vars": [
+                  {
+                    "type": "hidden",
+                    "value": "seed_9"
+                  },
+                  {
+                    "type": "constant",
+                    "value": "3"
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "action": "jump",
+          "details": {
+            "to": {
+              "type": "field",
+              "value": "d06f55ef-ea84-47ec-b0ca-7bec84010277"
+            }
+          },
+          "condition": {
+            "op": "or",
+            "vars": [
+              {
+                "op": "equal",
+                "vars": [
+                  {
+                    "type": "hidden",
+                    "value": "seed_9"
+                  },
+                  {
+                    "type": "constant",
+                    "value": "4"
+                  }
+                ]
+              },
+              {
+                "op": "equal",
+                "vars": [
+                  {
+                    "type": "hidden",
+                    "value": "seed_9"
+                  },
+                  {
+                    "type": "constant",
+                    "value": "5"
+                  }
+                ]
+              },
+              {
+                "op": "equal",
+                "vars": [
+                  {
+                    "type": "hidden",
+                    "value": "seed_9"
+                  },
+                  {
+                    "type": "constant",
+                    "value": "6"
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "action": "jump",
+          "details": {
+            "to": {
+              "type": "field",
+              "value": "15830383-7362-4564-b1c9-8d828d1f1d84"
+            }
+          },
+          "condition": {
+            "op": "or",
+            "vars": [
+              {
+                "op": "equal",
+                "vars": [
+                  {
+                    "type": "hidden",
+                    "value": "seed_9"
+                  },
+                  {
+                    "type": "constant",
+                    "value": "7"
+                  }
+                ]
+              },
+              {
+                "op": "equal",
+                "vars": [
+                  {
+                    "type": "hidden",
+                    "value": "seed_9"
+                  },
+                  {
+                    "type": "constant",
+                    "value": "8"
+                  }
+                ]
+              },
+              {
+                "op": "equal",
+                "vars": [
+                  {
+                    "type": "hidden",
+                    "value": "seed_9"
+                  },
+                  {
+                    "type": "constant",
+                    "value": "9"
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "type": "field",
+      "ref": "eb906308-0868-4366-9560-7ce459989cd8",
+      "actions": [
+        {
+          "action": "jump",
+          "details": {
+            "to": {
+              "type": "field",
+              "value": "92d3e9d9-ddf6-4d59-9475-7dc4447e8ec5"
+            }
+          },
+          "condition": {
+            "op": "always",
+            "vars": []
+          }
+        }
+      ]
+    },
+    {
+      "type": "field",
+      "ref": "a9484693-d3a4-4b33-941b-54fe6677afd4",
+      "actions": [
+        {
+          "action": "jump",
+          "details": {
+            "to": {
+              "type": "field",
+              "value": "92d3e9d9-ddf6-4d59-9475-7dc4447e8ec5"
+            }
+          },
+          "condition": {
+            "op": "always",
+            "vars": []
+          }
+        }
+      ]
+    }
+  ],
+  "_links": {
+    "display": "https://nandanrao.typeform.com/to/AMLLjB"
+  },
+  "custom_messages": {}
+}

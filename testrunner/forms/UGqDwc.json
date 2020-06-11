@@ -1,0 +1,680 @@
+{
+  "id": "UGqDwc",
+  "title": "endline_bug",
+  "theme": {
+    "href": "https://api.typeform.com/themes/6lPNE6"
+  },
+  "workspace": {
+    "href": "https://api.typeform.com/workspaces/WA44hg"
+  },
+  "settings": {
+    "is_public": true,
+    "is_trial": false,
+    "language": "en",
+    "progress_bar": "percentage",
+    "show_progress_bar": true,
+    "show_typeform_branding": true,
+    "meta": {
+      "allow_indexing": false
+    }
+  },
+  "thankyou_screens": [
+    {
+      "ref": "4ee6e9ed-b5db-4863-906d-baf73a9ee57d",
+      "title": "Thank you!",
+      "properties": {
+        "show_button": true,
+        "share_icons": true,
+        "button_mode": "reload",
+        "button_text": "again"
+      }
+    },
+    {
+      "ref": "default_tys",
+      "title": "Done! Your information was sent perfectly.",
+      "properties": {
+        "show_button": false,
+        "share_icons": false
+      }
+    }
+  ],
+  "fields": [
+    {
+      "id": "bP8AYxR9iJtz",
+      "title": "Did you update your profile picture?",
+      "ref": "af1efb63-8086-4917-9998-b2120d900013",
+      "properties": {
+        "randomize": false,
+        "allow_multiple_selection": false,
+        "allow_other_choice": false,
+        "vertical_alignment": true,
+        "choices": [
+          {
+            "id": "iLD8whSLze5E",
+            "ref": "7c3158d0-92dd-4214-b0e0-93ec267c5cf9",
+            "label": "Yes"
+          },
+          {
+            "id": "FknBuPQ2tCNC",
+            "ref": "41e4e887-e08c-4737-99f0-d8ca6816421b",
+            "label": "No"
+          },
+          {
+            "id": "ZKdJuYc84aZ8",
+            "ref": "5ef809df-6eb8-4888-b75f-45da29609883",
+            "label": "Will update later"
+          }
+        ]
+      },
+      "validations": {
+        "required": false
+      },
+      "type": "multiple_choice"
+    },
+    {
+      "id": "DWj8shN0xUyS",
+      "title": "Thank you for your time! \nYou are eligible to take part to the lottery.\n  \nWe will contact you soon to let you know if you are one of the winner of the SAMSUNG GALAXY S9. ",
+      "ref": "971e9278-1e09-4164-9be1-ddc2241c71be",
+      "properties": {
+        "hide_marks": false,
+        "button_text": "Continue"
+      },
+      "type": "statement"
+    },
+    {
+      "id": "HXDVE0AnI7qm",
+      "title": "Meanwhile, if you want to learn more and engage in various issues facing India today, please visit the below websites:",
+      "ref": "e46db498-6f2b-4300-9cc3-622fa7fa828b",
+      "properties": {
+        "hide_marks": false,
+        "button_text": "Continue"
+      },
+      "type": "statement"
+    },
+    {
+      "id": "lGKWdQ91IthB",
+      "title": "Fight discrimination against women: visit \"Population Foundation of India\"",
+      "ref": "8720a234-cf7e-4c41-8e1c-d8fe945c7deb",
+      "properties": {
+        "description": "type: webview\nurl: https://gbvlinks.nandan.cloud?url=populationfoundation.in&id=\nbuttonText: Visit Population Foundation\nresponseMessage: Click on the button to visit the website\nextensions: false\nkeepMoving: true",
+        "hide_marks": false,
+        "button_text": "Continue"
+      },
+      "type": "statement"
+    },
+    {
+      "id": "mulhTLOkReTk",
+      "title": "Protect the environment: visit \"Delhi Greens\"",
+      "ref": "6a89bb22-2648-4e88-83a4-552dd010726f",
+      "properties": {
+        "description": "type: webview\nurl: https://gbvlinks.nandan.cloud/?url=delhigreens.org&p=http&id=\nbuttonText: Visit Delhi Greens\nresponseMessage: Click on the button to visit the website\nextensions: false\nkeepMoving: true",
+        "hide_marks": false,
+        "button_text": "Continue"
+      },
+      "type": "statement"
+    },
+    {
+      "id": "NQDqFuYm7xNf",
+      "title": "End violence against women: visit \"UN Women India\"",
+      "ref": "6c821a4c-daab-416f-8dba-ec799c25ed4f",
+      "properties": {
+        "description": "type: webview\nurl: https://gbvlinks.nandan.cloud?url=asiapacific.unwomen.org%2Fen%2Fcountries%2Findia&id=\nbuttonText: Visit UN Women\nresponseMessage: Click on the button to visit the website\nextensions: false\nkeepMoving: true",
+        "hide_marks": false,
+        "button_text": "Continue"
+      },
+      "type": "statement"
+    },
+    {
+      "id": "Dw6TblMXenGm",
+      "title": "Fight climate change: visit \"UN Environment Program India\"",
+      "ref": "050bd2c1-57eb-440b-92e2-54ca62b6c23f",
+      "properties": {
+        "description": "type: webview\nurl: https://gbvlinks.nandan.cloud?url=in.one.un.org%2Fwho-we-are%2Funep-india%2F&id=\nbuttonText: Visit UN Environment\nresponseMessage: Click on the button to visit the website\nextensions: false\nkeepMoving: true",
+        "hide_marks": false,
+        "button_text": "Continue"
+      },
+      "type": "statement"
+    },
+    {
+      "id": "QQrptSkbYlQc",
+      "title": "Meanwhile, if you want to learn more and engage in various issues facing India today, please visit the below websites:",
+      "ref": "c81fb7f3-e4f2-4b80-9175-309acc1a7993",
+      "properties": {
+        "hide_marks": false,
+        "button_text": "Continue"
+      },
+      "type": "statement"
+    },
+    {
+      "id": "DG45LgAFgbad",
+      "title": "Fight climate change: visit \"UN Environment Program India\"",
+      "ref": "1f37e45e-bc32-4bd2-9817-bab7da93db73",
+      "properties": {
+        "description": "type: webview\nurl: https://gbvlinks.nandan.cloud?url=in.one.un.org%2Fwho-we-are%2Funep-india%2F&id=\nbuttonText: Visit UN Environment\nresponseMessage: Click on the button to visit the website\nextensions: false\nkeepMoving: true",
+        "hide_marks": false,
+        "button_text": "Continue"
+      },
+      "type": "statement"
+    },
+    {
+      "id": "vrtLdw0FfPYA",
+      "title": "End violence against women: visit \"UN Women India\"",
+      "ref": "18389b5e-afc5-4a0a-a6c3-c1448d1f7124",
+      "properties": {
+        "description": "type: webview\nurl: https://gbvlinks.nandan.cloud?url=asiapacific.unwomen.org%2Fen%2Fcountries%2Findia&id=\nbuttonText: Visit UN Women\nresponseMessage: Click on the button to visit the website\nextensions: false\nkeepMoving: true",
+        "hide_marks": false,
+        "button_text": "Continue"
+      },
+      "type": "statement"
+    },
+    {
+      "id": "yHtdeQ1FWo0s",
+      "title": "Protect the environment: visit \"Delhi Greens\"",
+      "ref": "610f9fab-c23d-400c-8195-f21580427067",
+      "properties": {
+        "description": "type: webview\nurl: https://gbvlinks.nandan.cloud/?url=delhigreens.org&p=http&id=\nbuttonText: Visit Delhi Greens\nresponseMessage: Click on the button to visit the website\nextensions: false\nkeepMoving: true",
+        "hide_marks": false,
+        "button_text": "Continue"
+      },
+      "type": "statement"
+    },
+    {
+      "id": "WmlkBjVpXQ3C",
+      "title": "Fight discrimination against women: visit \"Population Foundation of India\"",
+      "ref": "f6e877f5-61dd-4b4f-9201-197b92e2e310",
+      "properties": {
+        "description": "type: webview\nurl: https://gbvlinks.nandan.cloud?url=populationfoundation.in&id=\nbuttonText: Visit Population Foundation\nresponseMessage: Click on the button to visit the website\nextensions: false\nkeepMoving: true",
+        "hide_marks": false,
+        "button_text": "Continue"
+      },
+      "type": "statement"
+    },
+    {
+      "id": "L8hFLPeVN9z9",
+      "title": "Meanwhile, if you want to learn more and engage in various issues facing India today, please visit the below websites:",
+      "ref": "10309d35-56e7-410a-a295-d68f06beb97f",
+      "properties": {
+        "hide_marks": false,
+        "button_text": "Continue"
+      },
+      "type": "statement"
+    },
+    {
+      "id": "dkXEUasnbVCz",
+      "title": "End violence against women: visit \"UN Women India\"",
+      "ref": "d73895d0-51ce-4d3d-b8f9-291b7835986f",
+      "properties": {
+        "description": "type: webview\nurl: https://gbvlinks.nandan.cloud?url=asiapacific.unwomen.org%2Fen%2Fcountries%2Findia&id=\nbuttonText: Visit UN Women\nresponseMessage: Click on the button to visit the website\nextensions: false\nkeepMoving: true",
+        "hide_marks": false,
+        "button_text": "Continue"
+      },
+      "type": "statement"
+    },
+    {
+      "id": "SUcyzxCPewBa",
+      "title": "Fight climate change: visit \"UN Environment Program India\"",
+      "ref": "9f750c92-de97-4a4a-947d-de1dcbf5241c",
+      "properties": {
+        "description": "type: webview\nurl: https://gbvlinks.nandan.cloud?url=in.one.un.org%2Fwho-we-are%2Funep-india%2F&id=\nbuttonText: Visit UN Environment\nresponseMessage: Click on the button to visit the website\nextensions: false\nkeepMoving: true",
+        "hide_marks": false,
+        "button_text": "Continue"
+      },
+      "type": "statement"
+    },
+    {
+      "id": "cGrCHh2ev6xN",
+      "title": "Fight discrimination against women: visit \"Population Foundation of India\"",
+      "ref": "e550a114-e089-491b-9568-8e2d56acaada",
+      "properties": {
+        "description": "type: webview\nurl: https://gbvlinks.nandan.cloud?url=populationfoundation.in&id=\nbuttonText: Visit Population Foundation\nresponseMessage: Click on the button to visit the website\nextensions: false\nkeepMoving: true",
+        "hide_marks": false,
+        "button_text": "Continue"
+      },
+      "type": "statement"
+    },
+    {
+      "id": "UUz14FJwAYTy",
+      "title": "Protect the environment: visit \"Delhi Greens\"",
+      "ref": "26ba0f68-e7df-4ae1-b230-85a024d22f2c",
+      "properties": {
+        "description": "type: webview\nurl: https://gbvlinks.nandan.cloud/?url=delhigreens.org&p=http&id=\nbuttonText: Visit Delhi Greens\nresponseMessage: Click on the button to visit the website\nextensions: false\nkeepMoving: true",
+        "hide_marks": false,
+        "button_text": "Continue"
+      },
+      "type": "statement"
+    },
+    {
+      "id": "NKHRwDGW6MrW",
+      "title": "Meanwhile, if you want to learn more and engage in various issues facing India today, please visit the below websites:",
+      "ref": "338ea41e-fe09-44ac-bd74-510cc0965f24",
+      "properties": {
+        "hide_marks": false,
+        "button_text": "Continue"
+      },
+      "type": "statement"
+    },
+    {
+      "id": "ZrDSO1m0HKuC",
+      "title": "Protect the environment: visit \"Delhi Greens\"",
+      "ref": "0d3118fe-ae36-42e3-8b19-429b9ae12be2",
+      "properties": {
+        "description": "type: webview\nurl: https://gbvlinks.nandan.cloud/?url=delhigreens.org&p=http&id=\nbuttonText: Visit Delhi Greens\nresponseMessage: Click on the button to visit the website\nextensions: false\nkeepMoving: true",
+        "hide_marks": false,
+        "button_text": "Continue"
+      },
+      "type": "statement"
+    },
+    {
+      "id": "ZvFTkHHkwz1m",
+      "title": "Fight discrimination against women: visit \"Population Foundation of India\"",
+      "ref": "52f7308d-adb7-420f-a2de-e32f1031989d",
+      "properties": {
+        "description": "type: webview\nurl: https://gbvlinks.nandan.cloud?url=populationfoundation.in&id=\nbuttonText: Visit Population Foundation\nresponseMessage: Click on the button to visit the website\nextensions: false\nkeepMoving: true",
+        "hide_marks": false,
+        "button_text": "Continue"
+      },
+      "type": "statement"
+    },
+    {
+      "id": "BZzHQOeduG3j",
+      "title": "Fight climate change: visit \"UN Environment Program India\"",
+      "ref": "c0a249a4-5ded-48ce-bb23-893ee23c3b8c",
+      "properties": {
+        "description": "type: webview\nurl: https://gbvlinks.nandan.cloud?url=in.one.un.org%2Fwho-we-are%2Funep-india%2F&id=\nbuttonText: Visit UN Environment\nresponseMessage: Click on the button to visit the website\nextensions: false\nkeepMoving: true",
+        "hide_marks": false,
+        "button_text": "Continue"
+      },
+      "type": "statement"
+    },
+    {
+      "id": "IEq6wGpaR19s",
+      "title": "End violence against women: visit \"UN Women India\"",
+      "ref": "46aa0072-3b33-48e2-a655-12a830da2709",
+      "properties": {
+        "description": "type: webview\nurl: https://gbvlinks.nandan.cloud?url=asiapacific.unwomen.org%2Fen%2Fcountries%2Findia&id=\nbuttonText: Visit UN Women\nresponseMessage: Click on the button to visit the website\nextensions: false\nkeepMoving: true",
+        "hide_marks": false,
+        "button_text": "Continue"
+      },
+      "type": "statement"
+    },
+    {
+      "id": "BPwOj8Lq29sZ",
+      "title": "Fight corruption: visit \"Transparency International India\"",
+      "ref": "d85fc8f5-d4ec-447c-b72d-912d7a99b801",
+      "properties": {
+        "description": "type: webview\nurl: https://gbvlinks.nandan.cloud?url=transparencyindia.org%2F&id=\nbuttonText: Visit Transparency International\nresponseMessage: Click on the button to visit the website\nextensions: false\nkeepMoving: true",
+        "hide_marks": false,
+        "button_text": "Continue"
+      },
+      "type": "statement"
+    },
+    {
+      "id": "pGCxooBPqMve",
+      "title": "Click on the buttons to visit the websites.\n\nWe will contact you soon to let you know if you are one of the winner of the lottery!",
+      "ref": "b748487d-311f-4846-b27d-e05ef60419e6",
+      "properties": {
+        "hide_marks": false,
+        "button_text": "Continue"
+      },
+      "type": "statement"
+    },
+    {
+      "ref": "4ee6e9ed-b5db-4863-906d-baf73a9ee57d",
+      "title": "Thank you!",
+      "properties": {
+        "show_button": true,
+        "share_icons": true,
+        "button_mode": "reload",
+        "button_text": "again"
+      },
+      "type": "thankyou_screen"
+    },
+    {
+      "ref": "default_tys",
+      "title": "Done! Your information was sent perfectly.",
+      "properties": {
+        "show_button": false,
+        "share_icons": false
+      },
+      "type": "thankyou_screen"
+    }
+  ],
+  "hidden": [
+    "name",
+    "id",
+    "seed_16"
+  ],
+  "logic": [
+    {
+      "type": "field",
+      "ref": "971e9278-1e09-4164-9be1-ddc2241c71be",
+      "actions": [
+        {
+          "action": "jump",
+          "details": {
+            "to": {
+              "type": "field",
+              "value": "e46db498-6f2b-4300-9cc3-622fa7fa828b"
+            }
+          },
+          "condition": {
+            "op": "or",
+            "vars": [
+              {
+                "op": "equal",
+                "vars": [
+                  {
+                    "type": "hidden",
+                    "value": "seed_16"
+                  },
+                  {
+                    "type": "constant",
+                    "value": "1"
+                  }
+                ]
+              },
+              {
+                "op": "equal",
+                "vars": [
+                  {
+                    "type": "hidden",
+                    "value": "seed_16"
+                  },
+                  {
+                    "type": "constant",
+                    "value": "2"
+                  }
+                ]
+              },
+              {
+                "op": "equal",
+                "vars": [
+                  {
+                    "type": "hidden",
+                    "value": "seed_16"
+                  },
+                  {
+                    "type": "constant",
+                    "value": "3"
+                  }
+                ]
+              },
+              {
+                "op": "equal",
+                "vars": [
+                  {
+                    "type": "hidden",
+                    "value": "seed_16"
+                  },
+                  {
+                    "type": "constant",
+                    "value": "4"
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "action": "jump",
+          "details": {
+            "to": {
+              "type": "field",
+              "value": "c81fb7f3-e4f2-4b80-9175-309acc1a7993"
+            }
+          },
+          "condition": {
+            "op": "or",
+            "vars": [
+              {
+                "op": "equal",
+                "vars": [
+                  {
+                    "type": "hidden",
+                    "value": "seed_16"
+                  },
+                  {
+                    "type": "constant",
+                    "value": "5"
+                  }
+                ]
+              },
+              {
+                "op": "equal",
+                "vars": [
+                  {
+                    "type": "hidden",
+                    "value": "seed_16"
+                  },
+                  {
+                    "type": "constant",
+                    "value": "6"
+                  }
+                ]
+              },
+              {
+                "op": "equal",
+                "vars": [
+                  {
+                    "type": "hidden",
+                    "value": "seed_16"
+                  },
+                  {
+                    "type": "constant",
+                    "value": "7"
+                  }
+                ]
+              },
+              {
+                "op": "equal",
+                "vars": [
+                  {
+                    "type": "hidden",
+                    "value": "seed_16"
+                  },
+                  {
+                    "type": "constant",
+                    "value": "8"
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "action": "jump",
+          "details": {
+            "to": {
+              "type": "field",
+              "value": "10309d35-56e7-410a-a295-d68f06beb97f"
+            }
+          },
+          "condition": {
+            "op": "or",
+            "vars": [
+              {
+                "op": "equal",
+                "vars": [
+                  {
+                    "type": "hidden",
+                    "value": "seed_16"
+                  },
+                  {
+                    "type": "constant",
+                    "value": "9"
+                  }
+                ]
+              },
+              {
+                "op": "equal",
+                "vars": [
+                  {
+                    "type": "hidden",
+                    "value": "seed_16"
+                  },
+                  {
+                    "type": "constant",
+                    "value": "10"
+                  }
+                ]
+              },
+              {
+                "op": "equal",
+                "vars": [
+                  {
+                    "type": "hidden",
+                    "value": "seed_16"
+                  },
+                  {
+                    "type": "constant",
+                    "value": "11"
+                  }
+                ]
+              },
+              {
+                "op": "equal",
+                "vars": [
+                  {
+                    "type": "hidden",
+                    "value": "seed_16"
+                  },
+                  {
+                    "type": "constant",
+                    "value": "12"
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "action": "jump",
+          "details": {
+            "to": {
+              "type": "field",
+              "value": "338ea41e-fe09-44ac-bd74-510cc0965f24"
+            }
+          },
+          "condition": {
+            "op": "or",
+            "vars": [
+              {
+                "op": "equal",
+                "vars": [
+                  {
+                    "type": "hidden",
+                    "value": "seed_16"
+                  },
+                  {
+                    "type": "constant",
+                    "value": "13"
+                  }
+                ]
+              },
+              {
+                "op": "equal",
+                "vars": [
+                  {
+                    "type": "hidden",
+                    "value": "seed_16"
+                  },
+                  {
+                    "type": "constant",
+                    "value": "14"
+                  }
+                ]
+              },
+              {
+                "op": "equal",
+                "vars": [
+                  {
+                    "type": "hidden",
+                    "value": "seed_16"
+                  },
+                  {
+                    "type": "constant",
+                    "value": "15"
+                  }
+                ]
+              },
+              {
+                "op": "equal",
+                "vars": [
+                  {
+                    "type": "hidden",
+                    "value": "seed_16"
+                  },
+                  {
+                    "type": "constant",
+                    "value": "16"
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "type": "field",
+      "ref": "050bd2c1-57eb-440b-92e2-54ca62b6c23f",
+      "actions": [
+        {
+          "action": "jump",
+          "details": {
+            "to": {
+              "type": "field",
+              "value": "d85fc8f5-d4ec-447c-b72d-912d7a99b801"
+            }
+          },
+          "condition": {
+            "op": "always",
+            "vars": []
+          }
+        }
+      ]
+    },
+    {
+      "type": "field",
+      "ref": "f6e877f5-61dd-4b4f-9201-197b92e2e310",
+      "actions": [
+        {
+          "action": "jump",
+          "details": {
+            "to": {
+              "type": "field",
+              "value": "d85fc8f5-d4ec-447c-b72d-912d7a99b801"
+            }
+          },
+          "condition": {
+            "op": "always",
+            "vars": []
+          }
+        }
+      ]
+    },
+    {
+      "type": "field",
+      "ref": "26ba0f68-e7df-4ae1-b230-85a024d22f2c",
+      "actions": [
+        {
+          "action": "jump",
+          "details": {
+            "to": {
+              "type": "field",
+              "value": "d85fc8f5-d4ec-447c-b72d-912d7a99b801"
+            }
+          },
+          "condition": {
+            "op": "always",
+            "vars": []
+          }
+        }
+      ]
+    }
+  ],
+  "_links": {
+    "display": "https://nandanrao.typeform.com/to/UGqDwc"
+  },
+  "custom_messages": {}
+}

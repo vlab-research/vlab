@@ -55,7 +55,6 @@ describe('Test Bot flow Survey Integration Testing', () => {
   });
 
 
-
   it('Recieves bailout event and switches forms',  (done) => {
     bindedDone = done.bind(this)
 
@@ -234,6 +233,35 @@ describe('Test Bot flow Survey Integration Testing', () => {
 
   }).timeout(20000);
 
+  it('Works with multiple or clauses - india endline seed_16 bug',  (done) => {
+    bindedDone = done.bind(this)
+    const fields = getFields('forms/UGqDwc.json')
+
+    const makeId = () => {
+      const uid = uuid()
+      const suitable = farmhash.fingerprint32('UGqDwc' + uid) % 16 === 3;
+      return suitable ? uid : makeId();
+    }
+
+    userId = makeId()
+
+    testFlow = [
+      [ok, fields[0], [makeQR(fields[0], userId, 0)]],
+      [ok, fields[1], []],
+      [ok, fields[2], []],
+      [ok, fields[3], []],
+      [ok, fields[4], []],
+      [ok, fields[5], []],
+      [ok, fields[6], []],
+      [ok, fields[22], []],
+      [ok, fields[23], []],
+      [ok, fields[24], []]
+    ]
+
+    sender(makeReferral(userId, 'UGqDwc'))
+
+  }).timeout(20000);
+
 
   it('Sends timeout message response when interrupted in a timeout, then waits',  (done) => {
     bindedDone = done.bind(this)
@@ -286,24 +314,25 @@ describe('Test Bot flow Survey Integration Testing', () => {
     messages.push(msg)
 
     try {
-      msg.should.eql(get);
+      msg.should.eql(get)
     }
     catch (e) {
       console.log(util.inspect(msg, null, 8))
       console.log(util.inspect(get, null, 8))
-      console.error(e);
-      throw e;
+      console.error(e)
+      sock.close()
+      throw e
     }
 
     await sender(makeEcho(get, userId))
 
     for (let giv of gives) {
-      await sender(giv);
+      await sender(giv)
     }
 
     if (messages.length == testFlow.length) {
-      messages = [];
-      bindedDone();
+      messages = []
+      bindedDone()
     }
   })
 
