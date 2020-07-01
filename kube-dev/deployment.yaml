@@ -55,4 +55,4 @@ spec:
             - name: CUBEJS_DB_PORT
               value: '26257'
             - name: TYPEFORM_REDIRECT_URL
-              value: 'http://localhost:3000/surveys/auth'
+              value: 'https://localhost:3000/surveys/auth'
