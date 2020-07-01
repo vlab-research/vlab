@@ -6,7 +6,7 @@ exports.setGetStarted = async (token) => {
 
   // TODO: this is term should be in config somewhere!
   // (here and in replybot)
-  const json = {get_started:{ payload: 'get_started'}};
+  const json = { get_started: { payload: 'get_started' } };
   const r = await r2.post(url, { json });
   if (r.error) {
     throw new Error(JSON.stringify(r.error))
