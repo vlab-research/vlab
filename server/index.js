@@ -5,20 +5,9 @@ const http = require('http')
 const Router = require('koa-router')
 const Kafka = require('node-rdkafka')
 const util = require('util')
+const {getUserFromEvent} = require('@vlab-research/utils')
 
-function getUser(event) {
-  const PAGE_ID = process.env.FB_PAGE_ID
 
-  if (event.sender.id === PAGE_ID) {
-    return event.recipient.id
-  }
-  else if (event.recipient.id === PAGE_ID){
-    return event.sender.id
-  }
-  else {
-    throw new Error('Non Existent User!')
-  }
-}
 
 const EVENT_TOPIC = process.env.BOTSERVER_EVENT_TOPIC
 
@@ -80,7 +69,7 @@ const handleMessengerEvents = async (ctx) => {
 
       // abstraction layer??
       const message = {...entry.messaging[0], source: 'messenger'}
-      const user = getUser(message)
+      const user = getUserFromEvent(message)
       const data = Buffer.from(JSON.stringify(message))
 
       producer.produce(EVENT_TOPIC, null, data, user)

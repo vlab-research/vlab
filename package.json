@@ -5,6 +5,7 @@
   "main": "index.js",
   "dependencies": {
     "@koa/cors": "^2.2.3",
+    "@vlab-research/utils": "0.0.11",
     "koa": "^2.6.2",
     "koa-bodyparser": "^4.2.1",
     "koa-router": "^7.4.0",
