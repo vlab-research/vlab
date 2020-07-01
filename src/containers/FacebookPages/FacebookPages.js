@@ -1,5 +1,6 @@
 import React, {useEffect} from 'react';
 import PropTypes from 'prop-types';
+import api from '../../services/api';
 
 const initFB = () => {
   const appId = process.env.REACT_APP_FACEBOOK_APP_ID;
@@ -17,7 +18,7 @@ const initFB = () => {
 const loadSDK = () => {
   // code from example: https://developers.facebook.com/docs/facebook-login/web
 
-  function load (d, s, id) { 
+  function load (d, s, id) {
     var js, fjs = d.getElementsByTagName(s)[0];
     if (d.getElementById(id)) return;
     js = d.createElement(s); js.id = id;
@@ -33,15 +34,25 @@ const fb = (cb) => {
 
   window.FB.login(res => {
 
-    const userToken = res.authResponse.accessToken;
-    window.FB.api('/me/accounts', res => {
+    const token = res.authResponse.accessToken;
+    const body = { token };
 
-      // TODO: implement paging incase user has many FB pages! 
-     const response = { pages: res.data, userToken };
-     cb(response);
-    });
+    api.fetcher({path: '/facebook/exchange-token', method: 'POST', body })
+      .then(res => res.json())
+      .then(res => {
+        if (res.error) throw new Error(res.error);
 
-  }, {scopes: 'public_profile,email,pages_show_list', return_scopes: true});
+        const {access_token} = res;
+
+        window.FB.api('/me/accounts', {access_token}, res => {
+          // TODO: implement paging incase user has many FB pages!
+          const response = { pages: res.data, userToken: access_token };
+          cb(response);
+        });
+      })
+      .catch(err => console.error(err)); //eslint-disable-line
+
+  }, {scopes: 'public_profile,email,pages_show_list,pages_messaging,pages_manage_metadata', return_scopes: true});
 };
 
 
@@ -55,7 +66,7 @@ const FacebookPages = ({ callback }) => {
 
   // TODO style button
   return (
-    <div>      
+    <div>
       <button onClick={() => fb(callback)}>Connect Facebook</button>
     </div>
   );
