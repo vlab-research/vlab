@@ -19,7 +19,8 @@ const envVarsSchema = joi
     AUTH0_CLIENT_ID: joi.string(),
     AUTH0_DASHBOARD_SECRET: joi.string(),
     FACEBOOK_APP_ID: joi.string(),
-    FACEBOOK_APP_SECRET: joi.string()
+    FACEBOOK_APP_SECRET: joi.string(),
+    FACEBOOK_GRAPH_URL: joi.string()
   })
   .unknown()
   .required();
@@ -46,7 +47,8 @@ const config = {
   },
   FACEBOOK: {
     id: envVars.FACEBOOK_APP_ID,
-    secret: envVars.FACEBOOK_APP_SECRET
+    secret: envVars.FACEBOOK_APP_SECRET,
+    url: envVars.FACEBOOK_GRAPH_URL
   },
   JWT: {
     secret: jwks.expressJwtSecret({
