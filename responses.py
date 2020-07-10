@@ -1,11 +1,15 @@
-import psycopg2
-import pandas as pd
 from datetime import datetime
+import psycopg2
 
-def query(dbname, user, query, vals = (), as_dict=False):
-    with psycopg2.connect(dbname=dbname, user=user, host='localhost', port='5432') as conn:
+def query(cnf, q, vals = (), as_dict=False):
+    with psycopg2.connect(dbname=cnf['db'],
+                          user=cnf['user'],
+                          host=cnf['host'],
+                          port=cnf['port'],
+                          password=cnf['password']) as conn:
+
         with conn.cursor() as cur:
-            cur.execute(query, vals)
+            cur.execute(q, vals)
             column_names = [desc[0] for desc in cur.description]
             for record in cur:
                 if as_dict:
@@ -13,21 +17,35 @@ def query(dbname, user, query, vals = (), as_dict=False):
                 else:
                     yield record
 
-def last_responses(surveyid, questions, dbname, user):
+def get_surveyids(shortcodes, userid, cnf):
+    q = """
+      SELECT id
+      FROM surveys
+      WHERE shortcode in %s
+      AND userid = %s
+    """
+
+    shortcodes = tuple(shortcodes)
+    res = query(cnf, q, (shortcodes, userid), as_dict=True)
+    return [r['id'] for r in res]
+
+
+def last_responses(surveyids, questions, cnf):
     q = """
     WITH t AS (
       SELECT
         *,
-        ROW_NUMBER() OVER (PARTITION BY question_ref, userid ORDER BY timestamp DESC) as n
+        ROW_NUMBER() OVER (PARTITION BY question_ref, userid, surveyid ORDER BY timestamp DESC) as n
       FROM responses
       WHERE question_ref in %s
-      AND surveyid = %s
+      AND surveyid in %s
     )
     SELECT * FROM t WHERE n = 1 LIMIT 200
     """
 
+    surveyids = tuple(surveyids)
     questions = tuple(questions)
-    res = query(dbname, user, q, (questions, surveyid), as_dict=True)
+    res = query(cnf, q, (questions, surveyids), as_dict=True)
     return res
 
 

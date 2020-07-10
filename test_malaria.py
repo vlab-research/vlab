@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 import pandas as pd
 import pytest
-from test.dbfix import db
+from test.dbfix import db, cnf as chatbase
 from malaria import *
 
 
@@ -11,7 +11,7 @@ def _d(ref, response, userid):
 
     return {**default, 'question_ref': ref, 'response': response, 'userid': userid}
 
-def test_get_unsaturated_clusters_with_saturation_function():
+def test_synthetic_district():
     df = pd.DataFrame([
         _d('dist', 1234, 1),
         _d('dist', 3456, 2),
@@ -20,7 +20,7 @@ def test_get_unsaturated_clusters_with_saturation_function():
         _d('dist', 495809, 5)
     ])
 
-    res = list(synthetic_district('dist', df))
+    res = list(synthetic_district('dist', 'foo', df))
 
     assert len(res) == 5
     assert [r['response'] for r in res] == ['123', '345', '234', '789', '495']
@@ -33,31 +33,55 @@ def test_get_unsaturated_clusters_with_saturation_function():
     assert alls.shape[0] == 10
 
 
+@pytest.fixture()
+def surveys(db):
+    conn, cur = db
+
+    q = """
+    INSERT INTO surveys(id, shortcode, userid)
+    VALUES (%s, %s, %s)
+    """
+
+    rows = [
+        ('1', 'foo', '111'),
+        ('2', 'bar', '111'),
+        ('3', 'baz', '111')
+    ]
+
+    for r in rows:
+        cur.execute(q, r)
+
+    conn.commit()
+
+    yield True
+
+    cur.execute('DELETE FROM surveys;')
+    conn.commit()
 
 @pytest.fixture()
 def dat(db):
     conn, cur = db
 
     q = """
-    INSERT INTO responses(surveyid, userid, question_ref, response, timestamp)
-    VALUES (%s, %s, %s, %s, %s)
+    INSERT INTO responses(shortcode, surveyid, userid, question_ref, response, timestamp)
+    VALUES (%s, %s, %s, %s, %s, %s)
     """
 
     rows = [
-        ('1', '1', '1', '1234', datetime(2020, 5, 1, tzinfo=timezone.utc)),
-        ('1', '2', '1', '1245', datetime(2020, 5, 2, tzinfo=timezone.utc)),
-        ('1', '2', '2', 'foo', datetime(2020, 5, 2, tzinfo=timezone.utc)),
+        ('foo', '1', '1', '1', '1234', datetime(2020, 5, 1, tzinfo=timezone.utc)),
+        ('foo', '1', '2', '1', '1245', datetime(2020, 5, 2, tzinfo=timezone.utc)),
+        ('foo', '1', '2', '2', 'foo', datetime(2020, 5, 2, tzinfo=timezone.utc)),
 
-        ('2', '1', '1', '1234', datetime(2020, 5, 2, tzinfo=timezone.utc)),
-        ('2', '1', '2', 'yes', datetime(2020, 5, 2, tzinfo=timezone.utc)),
-        ('2', '2', '1', '1245', datetime(2020, 5, 1, tzinfo=timezone.utc)),
-        ('2', '2', '2', 'no', datetime(2020, 5, 2, tzinfo=timezone.utc)),
-        ('2', '3', '1', '1245', datetime(2020, 5, 1, tzinfo=timezone.utc)),
+        ('bar', '2', '1', '1', '1234', datetime(2020, 5, 2, tzinfo=timezone.utc)),
+        ('bar', '2', '1', '2', 'yes', datetime(2020, 5, 2, tzinfo=timezone.utc)),
+        ('bar', '2', '2', '1', '1245', datetime(2020, 5, 1, tzinfo=timezone.utc)),
+        ('bar', '2', '2', '2', 'no', datetime(2020, 5, 2, tzinfo=timezone.utc)),
+        ('bar', '2', '3', '1', '1245', datetime(2020, 5, 1, tzinfo=timezone.utc)),
 
-        ('3', '1', '1', '1234', datetime(2020, 5, 2, tzinfo=timezone.utc)),
-        ('3', '1', '2', 'yes', datetime(2020, 5, 2, tzinfo=timezone.utc)),
-        ('3', '2', '1', '1245', datetime(2020, 5, 1, tzinfo=timezone.utc)),
-        ('3', '2', '2', 'yes', datetime(2020, 5, 2, tzinfo=timezone.utc)),
+        ('baz', '3', '1', '1', '1234', datetime(2020, 5, 2, tzinfo=timezone.utc)),
+        ('baz', '3', '1', '2', 'yes', datetime(2020, 5, 2, tzinfo=timezone.utc)),
+        ('baz', '3', '2', '1', '1245', datetime(2020, 5, 1, tzinfo=timezone.utc)),
+        ('baz', '3', '2', '2', 'yes', datetime(2020, 5, 2, tzinfo=timezone.utc)),
     ]
 
     for r in rows:
@@ -70,73 +94,98 @@ def dat(db):
     cur.execute('DELETE FROM responses;')
     conn.commit()
 
-def test_malaria_opt_nothing_filled(db, dat):
-    cnf = {
-        'target_value': 'yes',
-        'q_district': '1',
-        'q_target': '2',
-        'surveyid': '1',
-        'cluster_size': 2,
-        'dbname': 'test',
-        'dbuser': 'test',
-        'lookup_loc': './test/district-lookup.csv'
-    }
 
+
+cnf = {
+    'lookup_loc': './test/district-lookup.csv',
+    'chatbase': chatbase,
+    'survey_user': '111',
+    'stratum':
+    {'per_cluster_pop': 2,
+     'surveys': [
+         {'shortcode': 'foo',
+          'cluster_question': {
+              'ref': '1'
+          },
+          'target_questions': [
+              {'ref': '2',
+               'op': 'equal',
+               'value': 'yes'}]},
+        ]}}
+
+
+def test_malaria_opt_nothing_filled(surveys, db, dat):
     clusters, users = opt(cnf)
 
     assert len(clusters) == 3
     assert users == []
 
 
-def test_malaria_opt_user_fulfilled(db, dat):
-    cnf = {
-        'target_value': 'yes',
-        'q_district': '1',
-        'q_target': '2',
-        'surveyid': '2',
-        'cluster_size': 2,
-        'dbname': 'test',
-        'dbuser': 'test',
-        'lookup_loc': './test/district-lookup.csv'
+def test_malaria_opt_user_fulfilled(surveys, db, dat):
+    c = {
+        **cnf,
+        'stratum':
+        {'per_cluster_pop': 2,
+         'surveys': [
+             {'shortcode': 'bar',
+              'cluster_question': {
+                  'ref': '1'
+              },
+              'target_questions': [
+                  {'ref': '2',
+                   'op': 'equal',
+                   'value': 'yes'}]},
+         ]}
     }
 
-    clusters, users = opt(cnf)
-
+    clusters, users = opt(c)
     assert len(clusters) == 3
     assert users == ['1']
 
 
-def test_malaria_opt_clusters_partially_fulfilled(db, dat):
-    cnf = {
-        'target_value': 'yes',
-        'q_district': '1',
-        'q_target': '2',
-        'surveyid': '2',
-        'cluster_size': 1,
-        'dbname': 'test',
-        'dbuser': 'test',
-        'lookup_loc': './test/district-lookup.csv'
+def test_malaria_opt_clusters_partially_fulfilled(surveys, db, dat):
+
+    c = {
+        **cnf,
+        'stratum':
+        {'per_cluster_pop': 1,
+         'surveys': [
+             {'shortcode': 'bar',
+              'cluster_question': {
+                  'ref': '1'
+              },
+              'target_questions': [
+                  {'ref': '2',
+                   'op': 'equal',
+                   'value': 'yes'}]},
+         ]}
     }
 
-    clusters, users = opt(cnf)
+    clusters, users = opt(c)
 
     assert len(clusters) == 1
     assert users == ['1']
 
 
-def test_malaria_opt_clusters_all_fulfilled(db, dat):
-    cnf = {
-        'target_value': 'yes',
-        'q_district': '1',
-        'q_target': '2',
-        'surveyid': '3',
-        'cluster_size': 1,
-        'dbname': 'test',
-        'dbuser': 'test',
-        'lookup_loc': './test/district-lookup.csv'
+def test_malaria_opt_clusters_all_fulfilled(surveys, db, dat):
+
+    c = {
+        **cnf,
+        'stratum':
+        {'per_cluster_pop': 1,
+         'surveys': [
+             {'shortcode': 'baz',
+              'cluster_question': {
+                  'ref': '1'
+              },
+              'target_questions': [
+                  {'ref': '2',
+                   'op': 'equal',
+                   'value': 'yes'}]},
+         ]}
     }
 
-    clusters, users = opt(cnf)
+    clusters, users = opt(c)
 
     assert len(clusters) == 0
     assert users == ['1', '2']

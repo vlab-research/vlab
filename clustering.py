@@ -34,13 +34,31 @@ def users_fulfilling(reqs, df):
             return []
     return users.tolist()
 
+def make_pred(q):
+    fns = {
+        'equal': lambda a, b: a == b,
+        'greater_than': lambda a, b: a > b,
+        'less_than': lambda a, b: a < b
+    }
+
+    try:
+        fn = fns[q['op']]
+    except KeyError:
+        raise TypeError(f'op function: {q["op"]} is not supported!')
+
+    return lambda x: fn(x, q['value'])
+
+def make_reqs(target_questions):
+    return [(q['ref'], make_pred(q))
+            for q in target_questions]
+
+def all_users_fulfilling(surveys, df):
+    return [u for s in surveys
+            for u in users_fulfilling(make_reqs(s['target_questions']),
+                                      df[df.shortcode == s['shortcode']])]
+
 @curry
-def is_saturated(reqs, lim, df):
-    users = users_fulfilling(reqs, df)
-    return len(users) >= lim
-
-
-# IDEATION: distribution target
-# get histogram of responses to Y.
-# compare to target
-# create lookalike that makes up difference (only response which is most underrepresented)
+def is_saturated(cnf, df):
+    s = cnf['stratum']
+    users = all_users_fulfilling(s['surveys'], df)
+    return len(users) >= s['per_cluster_pop']
