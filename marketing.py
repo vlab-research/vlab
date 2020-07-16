@@ -1,0 +1,438 @@
+import json
+import logging
+from urllib.parse import quote
+from datetime import datetime, timedelta
+from typing import List, NamedTuple, Tuple, Optional, Union, Any, Dict
+import requests
+import backoff
+from facebook_business.api import FacebookAdsApi
+from facebook_business.adobjects.adaccount import AdAccount
+from facebook_business.adobjects.targeting import Targeting
+from facebook_business.adobjects.customaudience import CustomAudience
+from facebook_business.adobjects.campaign import Campaign
+from facebook_business.adobjects.adset import AdSet
+from facebook_business.adobjects.ad import Ad
+from facebook_business.adobjects.adcreative import AdCreative
+from facebook_business.adobjects.adimage import AdImage
+from facebook_business.exceptions import FacebookRequestError
+from facebook_business.adobjects.targetinggeolocationcustomlocation \
+    import TargetingGeoLocationCustomLocation
+from facebook_business.adobjects.targetinggeolocation import TargetingGeoLocation
+from cyksuid import ksuid
+from toolz import get_in
+import xxhash
+
+
+# 5 minute constant backoff
+BACKOFF = 5*60
+
+
+class Cluster(NamedTuple):
+    id: str
+    name: str
+
+
+class CreativeConfig(NamedTuple):
+    name: str
+    image_hash: str
+    image: str
+    body: str
+    welcome_message: str
+    link_text: str
+    button_text: str
+    form: str
+
+class CreativeGroup(NamedTuple):
+    name: str
+    creatives: List[CreativeConfig]
+
+class Location(NamedTuple):
+    lat: float
+    lng: float
+    rad: float
+
+
+class AdsetConf(NamedTuple):
+    campaign: Campaign
+    cluster: Cluster
+    locs: List[Location]
+    creatives: List[AdCreative]
+    budget: float
+    status: str
+    instagram_id: str
+    hours: int
+    audience: Optional[CustomAudience]
+
+
+class MarketingNameError(BaseException):
+    pass
+
+# Setup backoff logging
+logging.getLogger('backoff').addHandler(logging.StreamHandler())
+
+def check_code(e):
+    # only continue on code 80004
+    code = e.api_error_code()
+    print(f'Facebook error code: {code}')
+    return False
+    # return code not in [80004]
+
+def split(li, N):
+    while li:
+        head, li = li[:N], li[N:]
+        yield head
+
+
+def get_campaign(account, name):
+    campaigns = account.get_campaigns(fields=['name'])
+    c = next((c for c in campaigns if c['name'] == name), None)
+    if not c:
+        raise Exception(f'Could not find campaign: {name}')
+    return c
+
+def create_location(lat, lng, rad):
+    return {
+        TargetingGeoLocationCustomLocation.Field.latitude: lat,
+        TargetingGeoLocationCustomLocation.Field.longitude: lng,
+        TargetingGeoLocationCustomLocation.Field.radius: rad,
+        TargetingGeoLocationCustomLocation.Field.distance_unit: 'kilometer',
+    }
+
+
+
+def get_all_audiences(account):
+    fields = [CustomAudience.Field.name,
+              CustomAudience.Field.description,
+              CustomAudience.Field.subtype,
+              CustomAudience.Field.time_created]
+
+
+    audiences = account.get_custom_audiences(fields=fields)
+
+    audiences = [aud for aud in audiences
+                 if aud['subtype'] == CustomAudience.Subtype.custom]
+
+    audiences = sorted(audiences, key=lambda x: -x['time_created'])
+    return audiences
+
+@backoff.on_exception(backoff.constant, FacebookRequestError, giveup=check_code, interval=BACKOFF)
+def create_adset(account, name, custom_locs, c: AdsetConf):
+
+    # type hinting hack to please mypy
+    T = Dict[str, Union[Any, List[Any]]]
+    targeting: T = {
+        Targeting.Field.geo_locations: {
+            TargetingGeoLocation.Field.location_types: ['home'],
+            TargetingGeoLocation.Field.custom_locations: custom_locs
+        }
+    }
+
+    if c.audience:
+        targeting[Targeting.Field.custom_audiences] = [{'id': c.audience['id']}]
+
+
+    params = {
+        AdSet.Field.name: name,
+        AdSet.Field.instagram_actor_id: c.instagram_id,
+        AdSet.Field.lifetime_budget: c.budget,
+        AdSet.Field.start_time: datetime.utcnow() + timedelta(minutes=5),
+        AdSet.Field.end_time: datetime.utcnow() + timedelta(hours=c.hours),
+        AdSet.Field.campaign_id: c.campaign['id'],
+        AdSet.Field.optimization_goal: AdSet.OptimizationGoal.replies,
+        AdSet.Field.billing_event: AdSet.BillingEvent.impressions,
+        AdSet.Field.bid_strategy: AdSet.BidStrategy.lowest_cost_without_cap,
+        AdSet.Field.targeting: targeting,
+        AdSet.Field.status: c.status
+    }
+
+    adset = account.create_ad_set(params=params)
+
+    return adset
+
+@backoff.on_exception(backoff.constant, FacebookRequestError, giveup=check_code, interval=BACKOFF)
+def create_ad(account, adset, creative, name, status) -> Ad:
+    return account.create_ad(params={
+        'name': name,
+        'status': status,
+        'adset_id': adset['id'],
+        'creative': {'creative_id': creative['id']}
+    })
+
+def create_ads(account, adset, creatives, status):
+    ads = [create_ad(account, adset, c, c['name'], status)
+           for c in creatives]
+
+    return ads
+
+
+@backoff.on_exception(backoff.constant, FacebookRequestError, giveup=check_code, interval=BACKOFF)
+def get_creatives(account: AdAccount):
+    # loads ALL creatives for account...
+    # how many API requests does that count as???
+    fields = ['name', 'url_tags', 'actor_id', 'object_story_spec']
+    creatives = account.get_ad_creatives(fields=fields)
+    return {c['id']: c for c in creatives}
+
+
+def hash_creative(creative):
+    keys = [['actor_id'],
+            ['url_tags'],
+            ['object_story_spec', 'instagram_actor_id'],
+            ['object_story_spec', 'link_data', 'image_hash'],
+            ['object_story_spec', 'link_data', 'message'],
+            ['object_story_spec', 'link_data', 'name'],
+            ['object_story_spec', 'link_data', 'page_welcome_message']]
+
+    s = ' '.join([get_in(k, creative) for k in keys])
+    return xxhash.xxh64(s).hexdigest()
+
+# get_adsets
+# get all adsets
+# name should have hash (split::)
+# put hash into list (running ads)
+# only launch if hash no in running
+
+@backoff.on_exception(backoff.constant, FacebookRequestError, giveup=check_code, interval=BACKOFF)
+def get_running_ads(campaign):
+    sets = campaign.get_ad_sets(fields=['name'])
+    return {s['name']:s for s in sets}
+
+
+@backoff.on_exception(backoff.constant, FacebookRequestError, giveup=check_code, interval=BACKOFF)
+def should_not_run(name, sets, creatives):
+    if name in sets:
+        adset = sets[name]
+        ads = adset.get_ads()
+        if len(ads) == len(creatives):
+            return True
+
+        # else this adset is corrupted
+        adset.api_delete()
+
+    return False
+
+def hash_adset(c: AdsetConf) -> str:
+    objs = [
+        c.campaign['id'],
+        c.instagram_id,
+        str(hash(c.cluster)),
+        ' '.join([str(hash(l)) for l in c.locs]),
+        ' '.join([c['id'] for c in c.creatives]),
+        c.audience['id'] if c.audience else '',
+    ]
+
+    s = ' '.join(objs)
+    return xxhash.xxh64(s).hexdigest()
+
+
+def launch_adset(name: str, account: AdAccount, c: AdsetConf) -> Tuple[AdSet, List[Ad]]:
+    custom_locs = [create_location(lat, lng, rad)
+                   for lat, lng, rad in c.locs]
+
+    adset = create_adset(account, name, custom_locs, c)
+    ads = create_ads(account, adset, c.creatives, c.status)
+    return adset, ads
+
+
+def get_images(account):
+    return account.get_ad_images(fields=[AdImage.Field.hash,
+                                         AdImage.Field.name,
+                                         AdImage.Field.created_time,
+                                         AdImage.Field.filename])
+
+
+def get_image_hash(account, name):
+    images = get_images(account)
+    img = next((img for img in images if img['name'] == name), None)
+    if not img:
+        raise Exception(f'Could not find image with name: {name}')
+
+    return img['hash']
+
+def make_welcome_message(text, button_text, ref):
+    payload = json.dumps({'referral': {'ref': ref}}, sort_keys=True)
+
+    message = {
+        "message": {
+            "attachment": {
+                "type": "template",
+                "payload": {
+                    "template_type": "button",
+                    "text": text,
+                    "buttons": [
+                        {
+                            "type": "postback",
+                            "title": button_text,
+                            "payload": payload
+                        }
+                    ]
+                }
+            }
+        }
+    }
+
+    return json.dumps(message)
+
+def make_ref(form, id_, name) -> str:
+    name = quote(name)
+    id_ = quote(id_)
+    return f'form.{form}.clusterid.{id_}.clustername.{name}'
+
+
+class Marketing():
+    def __init__(self, env):
+        cnf = {
+            'APP_ID': env('FACEBOOK_APP_ID'),
+            'APP_SECRET': env('FACEBOOK_APP_SECRET'),
+            'PAGE_ID': env('FACEBOOK_PAGE_ID'),
+            'INSTA_ID': env('FACEBOOK_INSTA_ID'),
+            'USER_TOKEN': env('FACEBOOK_USER_TOKEN'),
+            'AD_ACCOUNT': f'act_{env("FACEBOOK_AD_ACCOUNT")}',
+            'CAMPAIGN': env("FACEBOOK_AD_CAMPAIGN"),
+            'ADSET_HOURS': env.int('FACEBOOK_ADSET_HOURS')
+        }
+
+        FacebookAdsApi.init(cnf['APP_ID'], cnf['APP_SECRET'], cnf['USER_TOKEN'])
+        self.account = AdAccount(cnf['AD_ACCOUNT'])
+        self.campaign = get_campaign(self.account, cnf['CAMPAIGN'])
+
+        # get running_ads
+        # get creatives
+        self.running_ads = get_running_ads(self.campaign)
+        self.creatives = get_creatives(self.account)
+        self.cnf = cnf
+
+    def create_custom_audience(self, name, desc, users) -> CustomAudience:
+        params = {
+            'name': name,
+            'subtype': 'CUSTOM',
+            'description': desc,
+            'customer_file_source': 'USER_PROVIDED_ONLY',
+        }
+
+        aud = self.account.create_custom_audience(fields=[], params=params)
+        self.add_users(aud.get_id(), users)
+        return aud
+
+    def add_users(self, aud_id, users):
+        pageid = self.cnf['PAGEID']
+        token = self.cnf['USER_TOKEN']
+        url = f'https://graph.facebook.com/v7.0/{aud_id}/users?access_token={token}'
+
+        body = {
+            'payload': {
+                'schema': ['PAGEUID'],
+                'is_raw': True,
+                'page_ids': [pageid],
+                'data': [[u] for u in users]
+            }
+        }
+
+        res = requests.post(url, json=body)
+        return res.json()
+
+    def get_audience(self, name):
+        fields = [CustomAudience.Field.name,
+                  CustomAudience.Field.description,
+                  CustomAudience.Field.subtype,
+                  CustomAudience.Field.time_created]
+
+        audiences = self.account.get_custom_audiences(fields=fields)
+        aud = next((a for a in audiences if a == name), None)
+
+        if not aud:
+            raise MarketingNameError(f'Audience not found with name: {name}')
+
+        return aud
+
+
+    def launch_adsets(self,
+                      cluster: Cluster,
+                      cg: CreativeGroup,
+                      locs: List[Location],
+                      budget: float,
+                      status: str,
+                      audience: Optional[CustomAudience]) -> None:
+
+
+        creatives = [self.create_creative(cluster, c) for c in cg.creatives]
+
+        for i, ls in enumerate(split(locs, 200)):
+
+            adset_conf = AdsetConf(self.campaign,
+                                   cluster,
+                                   ls,
+                                   creatives,
+                                   budget,
+                                   status,
+                                   self.cnf['INSTA_ID'],
+                                   self.cnf['ADSET_HOURS'],
+                                   audience)
+
+            fingerprint = hash_adset(adset_conf)
+            name = f'vlab-{cluster.id}-{cg.name}-{i}-{fingerprint}'
+
+            if should_not_run(name, self.running_ads, creatives):
+                print(f'Ad already running: {name}')
+                continue
+
+            launch_adset(name, self.account, adset_conf)
+
+
+    def create_lookalike(self,
+                         name: str,
+                         country: str,
+                         custom_audience: CustomAudience) -> CustomAudience:
+        spec = {
+            'starting_ratio': 0.01,
+            'ratio': 0.10,
+            'country': country
+        }
+        params = {
+            CustomAudience.Field.name: name,
+            CustomAudience.Field.subtype: CustomAudience.Subtype.lookalike,
+            CustomAudience.Field.origin_audience_id: custom_audience.get_id(),
+            CustomAudience.Field.lookalike_spec:json.dumps(spec),
+        }
+        return self.account.create_custom_audience(params=params)
+
+    @backoff.on_exception(backoff.constant,
+                          FacebookRequestError,
+                          giveup=check_code,
+                          interval=BACKOFF)
+    def create_creative(self, cluster: Cluster, config: CreativeConfig) -> AdCreative:
+        ref = make_ref(config.form, cluster.id, cluster.name)
+        msg = make_welcome_message(config.welcome_message, config.button_text, ref)
+
+        oss = {
+            "instagram_actor_id": self.cnf['INSTA_ID'],
+            "link_data": {
+                "call_to_action": {
+                    "type": "MESSAGE_PAGE",
+                    "value": {
+                        "app_destination": "MESSENGER"
+                    }
+                },
+                "image_hash": config.image_hash,
+                "message": config.body,
+                "name": config.link_text,
+                "page_welcome_message": msg
+            },
+            "page_id": self.cnf['PAGE_ID'],
+        }
+
+        params = {
+            "name": config.name,
+            "url_tags": f"ref={ref}",
+            "actor_id": self.cnf['PAGE_ID'],
+            "object_story_spec": oss,
+            "adlabels": [{'name': 'vlab'}], # create extra labels???
+        }
+
+        fingerprint = hash_creative(params)
+
+        try:
+            return self.creatives[fingerprint]
+        except KeyError:
+            fields = ['name', 'object_story_spec']
+            return self.account.create_ad_creative(fields=fields, params=params)
