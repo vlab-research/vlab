@@ -1,1 +1,6 @@
-.env
+.env*
+.Dockerfile
+venv
+India_MNM
+config
+output
