@@ -1,0 +1,24 @@
+{
+  "strata": [
+    {
+      "name": "atrisk-malaria",
+      "per_cluster_pop": 50,
+      "surveys": [
+        {
+          "shortcode": "baselineeng",
+          "cluster_question": {
+            "name": "district",
+            "ref": "md:clusterid"
+          },
+          "target_questions": [
+            {
+              "name": "at-risk",
+              "ref": "foo",
+              "op": "equal",
+              "value": "Yes"
+            }
+          ]
+        }
+      ]}
+  ]
+}
