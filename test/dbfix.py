@@ -22,6 +22,7 @@ def db():
             userid VARCHAR NOT NULL,
             question_ref VARCHAR NOT NULL,
             response VARCHAR NOT NULL,
+            metadata JSONB,
             timestamp TIMESTAMPTZ NOT NULL
             );
 
@@ -32,8 +33,8 @@ def db():
             );
 
             CREATE USER IF NOT EXISTS test;
-            GRANT INSERT,SELECT,UPDATE ON TABLE test.responses to test;
-            GRANT INSERT,SELECT,UPDATE ON TABLE test.surveys to test;
+            GRANT INSERT,SELECT,UPDATE ON TABLE responses to test;
+            GRANT INSERT,SELECT,UPDATE ON TABLE surveys to test;
             """
             cur.execute(q)
             conn.commit()
@@ -42,6 +43,7 @@ def db():
 
             q = """
             DROP TABLE test.responses;
+            DROP TABLE test.surveys;
             """
             cur.execute(q)
             conn.commit()

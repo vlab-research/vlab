@@ -8,20 +8,20 @@ def dat(db):
     conn, cur = db
 
     q = """
-    INSERT INTO responses(surveyid, userid, question_ref, response, timestamp)
-    VALUES (%s, %s, %s, %s, %s)
+    INSERT INTO responses(surveyid, userid, question_ref, response, metadata, timestamp)
+    VALUES (%s, %s, %s, %s, %s, %s)
     """
 
     rows = [
-        ('1', '1', '1', 'foo', datetime(2020, 5, 1, tzinfo=timezone.utc)),
-        ('1', '1', '1', 'bar', datetime(2020, 5, 2, tzinfo=timezone.utc)),
-        ('1', '1', '2', 'bar', datetime(2020, 5, 2, tzinfo=timezone.utc)),
-        ('1', '1', '2', 'foo', datetime(2020, 5, 1, tzinfo=timezone.utc)),
-        ('1', '1', '3', 'foo', datetime(2020, 5, 1, tzinfo=timezone.utc)),
+        ('1', '1', '1', 'foo', '{"mykey": "foo"}', datetime(2020, 5, 1, tzinfo=timezone.utc)),
+        ('1', '1', '1', 'bar', '{"mykey": "bar"}', datetime(2020, 5, 2, tzinfo=timezone.utc)),
+        ('1', '1', '2', 'bar', '{"mykey": "bar"}', datetime(2020, 5, 2, tzinfo=timezone.utc)),
+        ('1', '1', '2', 'foo', '{"mykey": "foo"}', datetime(2020, 5, 1, tzinfo=timezone.utc)),
+        ('1', '1', '3', 'foo', '{"mykey": "foo"}', datetime(2020, 5, 1, tzinfo=timezone.utc)),
 
-        ('2', '2', '1', 'foo', datetime(2020, 5, 1, tzinfo=timezone.utc)),
-        ('2', '2', '1', 'bar', datetime(2020, 5, 2, tzinfo=timezone.utc)),
-        ('2', '2', '2', 'bar', datetime(2020, 5, 1, tzinfo=timezone.utc))
+        ('2', '2', '1', 'foo', '{"mykey": "foo"}', datetime(2020, 5, 1, tzinfo=timezone.utc)),
+        ('2', '2', '1', 'bar', '{"mykey": "baz"}', datetime(2020, 5, 2, tzinfo=timezone.utc)),
+        ('2', '2', '2', 'bar', '{"mykey": "bar"}', datetime(2020, 5, 1, tzinfo=timezone.utc))
     ]
 
     for r in rows:
@@ -65,3 +65,16 @@ def test_last_responses_works_with_multiple_questions_and_surveys(db, dat):
 
     assert {r['question_ref'] for r in res} == set(['1', '2'])
     assert {r['response'] for r in res} == set(['bar'])
+
+def test_get_metadata_gets_latest_single_key(db, dat):
+    res = list(get_metadata(['2'], chatbase))
+    assert res[0]['question_ref'] == 'md:mykey'
+    assert res[0]['response'] == 'baz'
+
+def test_get_metadata_gets_latest_single_key(db, dat):
+    res = list(get_metadata(['1', '2'], chatbase))
+    assert res[0]['question_ref'] == 'md:mykey'
+    assert res[0]['response'] == 'bar'
+    assert res[1]['question_ref'] == 'md:mykey'
+    assert res[1]['response'] == 'baz'
+    assert len(res) == 2

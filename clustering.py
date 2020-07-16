@@ -1,4 +1,5 @@
 from toolz import curry
+import pandas as pd
 
 def res_col(ref, df):
     try:
@@ -12,27 +13,21 @@ def _res_col(ref, col_name, df):
     df[col_name] = res_col(ref, df)
     return df
 
-def get_unsaturated_clusters(df, cluster_ref, is_saturated):
-    clusters = df \
+def users_fulfilling(treqs, cluster_ref, df):
+    df = df \
         .groupby('userid') \
-        .apply(lambda df: _res_col(cluster_ref, 'cluster', df)) \
-        .groupby('cluster') \
-        .filter(lambda df: not is_saturated(df)) \
-        ['cluster'] \
-        .unique()
+        .apply(lambda df: _res_col(cluster_ref, 'cluster', df))
 
-    return clusters
-
-def users_fulfilling(reqs, df):
-    for ref, pred in reqs:
+    for ref, pred in treqs:
         try:
             d = df[df.question_ref == ref]
             d = d[d.response.map(pred)]
             users = d.userid.unique()
             df = df[df.userid.isin(users)]
         except AttributeError:
-            return []
-    return users.tolist()
+            return None
+
+    return df
 
 def make_pred(q):
     fns = {
@@ -52,13 +47,34 @@ def make_reqs(target_questions):
     return [(q['ref'], make_pred(q))
             for q in target_questions]
 
-def all_users_fulfilling(surveys, df):
-    return [u for s in surveys
-            for u in users_fulfilling(make_reqs(s['target_questions']),
-                                      df[df.shortcode == s['shortcode']])]
+def only_target_users(df, surveys):
+    reqs = [(s['shortcode'], s['cluster_question']['ref'], make_reqs(s['target_questions']))
+            for s in surveys]
 
-@curry
-def is_saturated(cnf, df):
-    s = cnf['stratum']
-    users = all_users_fulfilling(s['surveys'], df)
-    return len(users) >= s['per_cluster_pop']
+    users = [users_fulfilling(tqs, cq, df[df.shortcode == sc])
+             for sc, cq, tqs in reqs]
+
+    users = [u for u in users if u is not None]
+
+    if len(users) == 0:
+        return None
+
+    return pd.concat(users)
+
+def get_saturated_clusters(df, stratum):
+    surveys = stratum['surveys']
+    is_saturated = lambda df: df.userid.unique().shape[0] >= stratum['per_cluster_pop']
+
+    df = only_target_users(df, surveys)
+
+    if df is None:
+        return []
+
+    clusters = df \
+                 .groupby('cluster') \
+                 .filter(is_saturated) \
+                 ['cluster'] \
+                 .unique() \
+                 .tolist()
+
+    return clusters

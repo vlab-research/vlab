@@ -11,26 +11,26 @@ def _d(ref, response, userid):
 
     return {**default, 'question_ref': ref, 'response': response, 'userid': userid}
 
-def test_synthetic_district():
-    df = pd.DataFrame([
-        _d('dist', 1234, 1),
-        _d('dist', 3456, 2),
-        _d('dist', 234, 3),
-        _d('dist', 7890, 4),
-        _d('dist', 495809, 5)
-    ])
+# def test_synthetic_district():
+#     df = pd.DataFrame([
+#         _d('dist', 1234, 1),
+#         _d('dist', 3456, 2),
+#         _d('dist', 234, 3),
+#         _d('dist', 7890, 4),
+#         _d('dist', 495809, 5)
+#     ])
 
-    res = list(synthetic_district('dist', 'foo', df))
+#     res = list(synthetic_district('dist', 'foo', df))
 
-    assert len(res) == 5
-    assert [r['response'] for r in res] == ['123', '345', '234', '789', '495']
-    assert [r['question_ref'] for r in res] == ['synth-district']*5
-    assert [r['question_text'] for r in res] == ['district']*5
-    assert [isinstance(r['timestamp'], datetime) for r in res] == [True]*5
+#     assert len(res) == 5
+#     assert [r['response'] for r in res] == ['123', '345', '234', '789', '495']
+#     assert [r['question_ref'] for r in res] == ['synth-district']*5
+#     assert [r['question_text'] for r in res] == ['district']*5
+#     assert [isinstance(r['timestamp'], datetime) for r in res] == [True]*5
 
-    # just assure it concats to original without problem
-    alls = pd.concat([df, pd.DataFrame(res)])
-    assert alls.shape[0] == 10
+#     # just assure it concats to original without problem
+#     alls = pd.concat([df, pd.DataFrame(res)])
+#     assert alls.shape[0] == 10
 
 
 @pytest.fixture()
@@ -63,25 +63,25 @@ def dat(db):
     conn, cur = db
 
     q = """
-    INSERT INTO responses(shortcode, surveyid, userid, question_ref, response, timestamp)
-    VALUES (%s, %s, %s, %s, %s, %s)
+    INSERT INTO responses(shortcode, surveyid, userid, question_ref, response, metadata, timestamp)
+    VALUES (%s, %s, %s, %s, %s, %s, %s)
     """
 
     rows = [
-        ('foo', '1', '1', '1', '1234', datetime(2020, 5, 1, tzinfo=timezone.utc)),
-        ('foo', '1', '2', '1', '1245', datetime(2020, 5, 2, tzinfo=timezone.utc)),
-        ('foo', '1', '2', '2', 'foo', datetime(2020, 5, 2, tzinfo=timezone.utc)),
+        ('foo', '1', '1', '1', '1234', '{"cid": "0f1"}', datetime(2020, 5, 1, tzinfo=timezone.utc)),
+        ('foo', '1', '2', '1', '1245', '{"cid": "0f2"}', datetime(2020, 5, 2, tzinfo=timezone.utc)),
+        ('foo', '1', '2', '2', 'foo', '{"cid": "0f2"}', datetime(2020, 5, 2, tzinfo=timezone.utc)),
 
-        ('bar', '2', '1', '1', '1234', datetime(2020, 5, 2, tzinfo=timezone.utc)),
-        ('bar', '2', '1', '2', 'yes', datetime(2020, 5, 2, tzinfo=timezone.utc)),
-        ('bar', '2', '2', '1', '1245', datetime(2020, 5, 1, tzinfo=timezone.utc)),
-        ('bar', '2', '2', '2', 'no', datetime(2020, 5, 2, tzinfo=timezone.utc)),
-        ('bar', '2', '3', '1', '1245', datetime(2020, 5, 1, tzinfo=timezone.utc)),
+        ('bar', '2', '1', '1', '1234', '{"cid": "0f1"}', datetime(2020, 5, 2, tzinfo=timezone.utc)),
+        ('bar', '2', '1', '2', 'yes', '{"cid": "0f1"}', datetime(2020, 5, 2, tzinfo=timezone.utc)),
+        ('bar', '2', '2', '1', '1245', '{"cid": "0f2"}', datetime(2020, 5, 1, tzinfo=timezone.utc)),
+        ('bar', '2', '2', '2', 'no', '{"cid": "0f2"}', datetime(2020, 5, 2, tzinfo=timezone.utc)),
+        ('bar', '2', '3', '1', '1245', '{"cid": "0f2"}', datetime(2020, 5, 1, tzinfo=timezone.utc)),
 
-        ('baz', '3', '1', '1', '1234', datetime(2020, 5, 2, tzinfo=timezone.utc)),
-        ('baz', '3', '1', '2', 'yes', datetime(2020, 5, 2, tzinfo=timezone.utc)),
-        ('baz', '3', '2', '1', '1245', datetime(2020, 5, 1, tzinfo=timezone.utc)),
-        ('baz', '3', '2', '2', 'yes', datetime(2020, 5, 2, tzinfo=timezone.utc)),
+        ('baz', '3', '1', '1', '1234', '{"cid": "0f1"}', datetime(2020, 5, 2, tzinfo=timezone.utc)),
+        ('baz', '3', '1', '2', 'yes', '{"cid": "0f1"}', datetime(2020, 5, 2, tzinfo=timezone.utc)),
+        ('baz', '3', '2', '1', '1245', '{"cid": "0f2"}', datetime(2020, 5, 1, tzinfo=timezone.utc)),
+        ('baz', '3', '2', '2', 'yes', '{"cid": "0f2"}', datetime(2020, 5, 2, tzinfo=timezone.utc)),
     ]
 
     for r in rows:
@@ -97,7 +97,7 @@ def dat(db):
 
 
 cnf = {
-    'lookup_loc': './test/district-lookup.csv',
+    'lookup_loc': 'test/district-lookup.csv',
     'chatbase': chatbase,
     'survey_user': '111',
     'stratum':
@@ -105,7 +105,7 @@ cnf = {
      'surveys': [
          {'shortcode': 'foo',
           'cluster_question': {
-              'ref': '1'
+              'ref': 'md:cid'
           },
           'target_questions': [
               {'ref': '2',
@@ -116,9 +116,50 @@ cnf = {
 
 def test_malaria_opt_nothing_filled(surveys, db, dat):
     clusters, users = opt(cnf)
-
     assert len(clusters) == 3
     assert users == []
+
+
+def test_malaria_opt_no_survey_filled(surveys, db, dat):
+    c = {
+        **cnf,
+        'stratum':
+        {'per_cluster_pop': 2,
+         'surveys': [
+             {'shortcode': 'qux',
+              'cluster_question': {
+                  'ref': 'md:cid'
+              },
+              'target_questions': [
+                  {'ref': '2',
+                   'op': 'equal',
+                   'value': 'yes'}]},
+         ]}
+    }
+    clusters, users = opt(cnf)
+    assert len(clusters) == 3
+    assert users == []
+
+def test_malaria_opt_no_questions_filled(surveys, db, dat):
+    c = {
+        **cnf,
+        'stratum':
+        {'per_cluster_pop': 2,
+         'surveys': [
+             {'shortcode': 'bar',
+              'cluster_question': {
+                  'ref': 'md:cid'
+              },
+              'target_questions': [
+                  {'ref': '10',
+                   'op': 'equal',
+                   'value': 'yes'}]},
+         ]}
+    }
+    clusters, users = opt(cnf)
+    assert len(clusters) == 3
+    assert users == []
+
 
 
 def test_malaria_opt_user_fulfilled(surveys, db, dat):
@@ -129,7 +170,7 @@ def test_malaria_opt_user_fulfilled(surveys, db, dat):
          'surveys': [
              {'shortcode': 'bar',
               'cluster_question': {
-                  'ref': '1'
+                  'ref': 'md:cid'
               },
               'target_questions': [
                   {'ref': '2',
@@ -152,7 +193,7 @@ def test_malaria_opt_clusters_partially_fulfilled(surveys, db, dat):
          'surveys': [
              {'shortcode': 'bar',
               'cluster_question': {
-                  'ref': '1'
+                  'ref': 'md:cid'
               },
               'target_questions': [
                   {'ref': '2',
@@ -163,7 +204,7 @@ def test_malaria_opt_clusters_partially_fulfilled(surveys, db, dat):
 
     clusters, users = opt(c)
 
-    assert len(clusters) == 1
+    assert len(clusters) == 2
     assert users == ['1']
 
 
@@ -176,7 +217,7 @@ def test_malaria_opt_clusters_all_fulfilled(surveys, db, dat):
          'surveys': [
              {'shortcode': 'baz',
               'cluster_question': {
-                  'ref': '1'
+                  'ref': 'md:cid'
               },
               'target_questions': [
                   {'ref': '2',
@@ -187,5 +228,6 @@ def test_malaria_opt_clusters_all_fulfilled(surveys, db, dat):
 
     clusters, users = opt(c)
 
-    assert len(clusters) == 0
+    assert len(clusters) == 1
+    assert clusters == ['0f3']
     assert users == ['1', '2']
