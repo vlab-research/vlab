@@ -1,0 +1,76 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: gbv-adopt-update-ads
+  labels:
+    app: gbv-adopt-update-ads
+spec:
+  template:
+    spec:
+      restartPolicy: OnFailure
+      containers:
+      - name: gbv-adopt-update-ads
+        image: vlabresearch/adopt:0.0.2
+        args:
+        - python
+        - malaria_ads.py
+        resources:
+          requests:
+            cpu: "50m"
+            memory: "100Mi"
+        volumeMounts:
+          - name: config
+            mountPath: /usr/src/app/config
+            readOnly: true
+          - name: output
+            mountPath: /usr/src/app/output
+            readOnly: true
+        envFrom:
+        - secretRef:
+            name: gbv-adopt-envs
+        env:
+        - name: CHATBASE_BACKEND
+          value: "@vlab-research/chatbase-postgres"
+        - name: CHATBASE_DATABASE
+          value: "chatroach"
+        - name: CHATBASE_USER
+          value: "chatreader"
+        - name: CHATBASE_PASSWORD
+          value: ""
+        - name: CHATBASE_HOST
+          value: "gbv-cockroachdb-public"
+        - name: CHATBASE_PORT
+          value: "26257"
+        - name: FACEBOOK_PAGE_ID
+          value: "100450211748271"
+        - name: FACEBOOK_INSTA_ID
+          value: "3922044794536181"
+        - name: FACEBOOK_AD_ACCOUNT
+          value: "2240415876083895"
+        - name: FACEBOOK_AD_CAMPAIGN
+          value: "impact-evaluation-3"
+        - name: FACEBOOK_ADSET_HOURS
+          value: "24"
+        - name: MALARIA_SURVEY_USER
+          value: "fe95d978-f988-4ff4-b064-8df3ba4c4a3b"
+        - name: MALARIA_COUNTRY
+          value: "IN"
+        - name: MALARIA_BUDGET
+          value: "50000"
+        - name: MALARIA_DISTRICT_LOOKUP
+          value: "output/cities.csv"
+      volumes:
+        - name: config
+          configMap:
+            name: gbv-adopt-config
+            items:
+            - key: "creatives.json"
+              path: "creatives.json"
+            - key: "strata.json"
+              path: "strata.json"
+        - name: output
+          configMap:
+            name: gbv-adopt-output
+            items:
+            - key: "cities.csv"
+              path: "cities.csv"
