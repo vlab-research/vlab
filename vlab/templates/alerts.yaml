@@ -1,0 +1,26 @@
+{{- range .Values.consumerAlerts }}
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: prometheus-consumer-offset-{{ .consumergroup }}
+  labels:
+    heritage: Helm
+    release: prometheus
+spec:
+  groups:
+  - name: {{ .consumergroup }} stopped processing chat events
+    interval: 1m
+    rules:
+      - alert: StoppedProcessing{{ .consumergroup }}
+        expr: |
+          sum(delta(kafka_consumergroup_current_offset{consumergroup="{{ .consumergroup }}", topic="{{ .topic }}"}[{{ .window }}])) < {{ .limit }}
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: |
+            {{ .consumergroup }} has not changed offset for 10 minutes.
+          description: |
+            {{ .consumergroup }} has not changed offset for 10 minutes.
+---
+{{ end }}

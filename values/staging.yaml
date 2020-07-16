@@ -10,10 +10,12 @@ chatbaseHost: &host "gbv-cockroachdb-public"
 
 versionDashboard: &vdashboard 0.0.5
 versionNaughtybot: &vnaughtybot 0.0.12
-versionBotserver: &vbotserver 0.0.6
-versionReplybot: &vreplybot 0.0.66
+versionBotserver: &vbotserver 0.0.7
+versionReplybot: &vreplybot 0.0.69
 versionBotscribe: &vbotscribe 0.0.6
 versionLinksniffer: &vlinksniffer 0.0.3
+
+consumerAlerts: []
 
 kafkaTopics:
   - name: *topic
@@ -199,6 +201,8 @@ dashboard:
       value: '26257'
     - name: TYPEFORM_REDIRECT_URL
       value: 'https://staging--vlab-research.netlify.com/surveys/auth'
+    - name: FACEBOOK_GRAPH_URL
+      value: 'https://graph.facebook.com/v7.0'
 
   resources:
     requests:

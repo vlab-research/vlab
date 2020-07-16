@@ -36,6 +36,14 @@ alertmanager:
   alertmanagerSpec:
     useExistingSecret: true
     configSecret: "alertmanager"
+    storage:
+      volumeClaimTemplate:
+        spec:
+          accessModes:
+          - ReadWriteOnce
+          resources:
+            requests:
+              storage: 2Gi
 
 prometheus:
   prometheusSpec:
@@ -46,3 +54,11 @@ prometheus:
     ruleSelector: {}
     serviceMonitorSelector: {}
     podMonitorSelector: {}
+    storage:
+      volumeClaimTemplate:
+        spec:
+          accessModes:
+          - ReadWriteOnce
+          resources:
+            requests:
+              storage: 20Gi

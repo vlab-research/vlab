@@ -14,6 +14,8 @@ versionBotserver: &vbotserver 0.0.6
 versionReplybot: &vreplybot 0.0.64
 versionBotscribe: &vbotscribe 0.0.6
 
+consumerAlerts: []
+
 kafkaTopics:
   - name: *topic
     partitions: 1
@@ -175,6 +177,8 @@ dashboard:
       value: '26257'
     - name: TYPEFORM_REDIRECT_URL
       value: 'https://staging--vlab-research.netlify.com/surveys/auth'
+    - name: FACEBOOK_GRAPH_URL
+      value: 'https://graph.facebook.com/v7.0'
 
   resources:
     requests:
