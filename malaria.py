@@ -111,13 +111,12 @@ def uniqueness(clusters: List[Cluster]):
         raise Exception('Cluster IDs combinations are not unique')
 
 def new_ads(m: Marketing,
-            budget: float,
+            cnf,
             status: str,
             clusters: List[str],
             lookalike_aud: Optional[CustomAudience]) -> None:
 
     # TODO: get this dynamically somehow
-    cities = load_cities('output/cities.csv')
     cluster_vars = ['disthash', 'distname']
     creative_config = 'config/creatives.json'
     creative_group = 'hindi'
@@ -126,6 +125,7 @@ def new_ads(m: Marketing,
     cg = load_creatives(creative_config, creative_group)
 
     # groupby cluster
+    cities = load_cities(cnf['lookup_loc'])
     locs = [(Cluster(i, n), [Location(r.lat, r.lng, r.rad) for _, r in df.iterrows()])
             for (i, n), df in cities.groupby(cluster_vars)]
 
@@ -136,7 +136,7 @@ def new_ads(m: Marketing,
     uniqueness([cl for cl, _ in locs])
 
     for cl, ls in locs:
-        m.launch_adsets(cl, cg, ls, budget, status, lookalike_aud)
+        m.launch_adsets(cl, cg, ls, cnf['budget'], status, lookalike_aud)
 
 
 def get_aud(m: Marketing, cnf, create: bool) -> Optional[CustomAudience]:
@@ -173,7 +173,10 @@ def update_ads():
 
     aud = get_aud(m, cnf, False)
     if aud:
+
+        # TODO: handle case when too few users in the aud
+        # which should throw a facebook error...
         uid = ksuid.ksuid().encoded.decode('utf-8')
         aud = m.create_lookalike(f'vlab-{uid}', cnf['country'], aud)
 
-    new_ads(m, cnf['budget'], 'ACTIVE', clusters, aud)
+    new_ads(m, cnf, 'ACTIVE', clusters, aud)

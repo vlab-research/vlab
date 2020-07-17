@@ -72,7 +72,7 @@ logging.getLogger('backoff').addHandler(logging.StreamHandler())
 def check_code(e):
     # only continue on code 80004
     code = e.api_error_code()
-    print(f'Facebook error code: {code}')
+    logging.info(f'Facebook error code: {code}')
     return False
     # return code not in [80004]
 
@@ -299,7 +299,7 @@ class Marketing():
         self.running_ads = get_running_ads(self.campaign)
         self.creatives = get_creatives(self.account, cnf['AD_LABEL'])
 
-        print(f'Intiailized Marketing with {len(self.creatives)} creatives, {len(self.running_ads)} running ads and campaign {self.campaign["name"]}')
+        logging.info(f'Intiailized Marketing with {len(self.creatives)} creatives, {len(self.running_ads)} running ads and campaign {self.campaign["name"]}')
 
         self.cnf = cnf
 
@@ -374,7 +374,7 @@ class Marketing():
             name = f'vlab-{cluster.id}-{cg.name}-{i}-{fingerprint}'
 
             if should_not_run(name, self.running_ads, creatives):
-                print(f'Ad already running: {name}')
+                logging.info(f'Ad already running: {name}')
                 continue
 
             launch_adset(name, self.account, adset_conf)
@@ -434,7 +434,7 @@ class Marketing():
 
         try:
             creative = self.creatives[fingerprint]
-            print(f'Found creative with fingerprint: {fingerprint}')
+            logging.info(f'Found creative with fingerprint: {fingerprint}')
             return creative
         except KeyError:
             fields = ['name', 'object_story_spec']
