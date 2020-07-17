@@ -10,7 +10,7 @@ spec:
       restartPolicy: OnFailure
       containers:
       - name: gbv-adopt-update-ads
-        image: vlabresearch/adopt:0.0.2
+        image: vlabresearch/adopt:0.0.10
         args:
         - python
         - malaria_ads.py
@@ -49,6 +49,8 @@ spec:
           value: "2240415876083895"
         - name: FACEBOOK_AD_CAMPAIGN
           value: "impact-evaluation-3"
+        - name: FACEBOOK_AD_LABEL
+          value: "23845036050710518"
         - name: FACEBOOK_ADSET_HOURS
           value: "24"
         - name: MALARIA_SURVEY_USER
