@@ -11,11 +11,13 @@ chatbaseHost: &host "gbv-cockroachdb-public"
 versionDashboard: &vdashboard 0.0.5
 versionNaughtybot: &vnaughtybot 0.0.12
 versionBotserver: &vbotserver 0.0.7
-versionReplybot: &vreplybot 0.0.69
+versionReplybot: &vreplybot 0.0.71
 versionBotscribe: &vbotscribe 0.0.6
 versionLinksniffer: &vlinksniffer 0.0.3
 
 consumerAlerts: []
+laggingAlerts: []
+
 
 kafkaTopics:
   - name: *topic

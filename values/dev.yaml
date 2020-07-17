@@ -4,6 +4,7 @@ tags:
   backup: false
 
 consumerAlerts: []
+laggingAlerts: []
 kafkaTopics: []
 
 # kafkabrokers: &kb "kafka-headless.default.svc.cluster.local:29092"

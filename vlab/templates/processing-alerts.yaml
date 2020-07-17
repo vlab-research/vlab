@@ -1,4 +1,4 @@
-{{- range .Values.consumerAlerts }}
+{{- range .Values.processingAlerts }}
 apiVersion: monitoring.coreos.com/v1
 kind: PrometheusRule
 metadata:
@@ -11,7 +11,7 @@ spec:
   - name: {{ .consumergroup }} stopped processing chat events
     interval: 1m
     rules:
-      - alert: StoppedProcessing{{ .consumergroup }}
+      - alert: Vlab{{ .alertname }}
         expr: |
           sum(delta(kafka_consumergroup_current_offset{consumergroup="{{ .consumergroup }}", topic="{{ .topic }}"}[{{ .window }}])) < {{ .limit }}
         for: 1m

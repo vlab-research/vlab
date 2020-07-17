@@ -15,6 +15,7 @@ versionReplybot: &vreplybot 0.0.64
 versionBotscribe: &vbotscribe 0.0.6
 
 consumerAlerts: []
+laggingAlerts: []
 
 kafkaTopics:
   - name: *topic
