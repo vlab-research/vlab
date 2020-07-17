@@ -2,7 +2,7 @@
   "strata": [
     {
       "name": "atrisk-malaria",
-      "per_cluster_pop": 50,
+      "per_cluster_pop": 100,
       "surveys": [
         {
           "shortcode": "baselineeng",
@@ -13,9 +13,39 @@
           "target_questions": [
             {
               "name": "at-risk",
-              "ref": "foo",
+              "ref": "f6e69027-97cc-494e-8d52-318b75047e23",
               "op": "equal",
               "value": "Yes"
+            }
+          ]
+        },
+        {
+          "shortcode": "baselinehin",
+          "cluster_question": {
+            "name": "district",
+            "ref": "md:clusterid"
+          },
+          "target_questions": [
+            {
+              "name": "at-risk",
+              "ref": "f6e69027-97cc-494e-8d52-318b75047e23",
+              "op": "equal",
+              "value": "हाँ"
+            }
+          ]
+        },
+        {
+          "shortcode": "baselineodi",
+          "cluster_question": {
+            "name": "district",
+            "ref": "md:clusterid"
+          },
+          "target_questions": [
+            {
+              "name": "at-risk",
+              "ref": "f6e69027-97cc-494e-8d52-318b75047e23",
+              "op": "equal",
+              "value": "ହଁ"
             }
           ]
         }
