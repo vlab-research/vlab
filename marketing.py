@@ -18,7 +18,6 @@ from facebook_business.exceptions import FacebookRequestError
 from facebook_business.adobjects.targetinggeolocationcustomlocation \
     import TargetingGeoLocationCustomLocation
 from facebook_business.adobjects.targetinggeolocation import TargetingGeoLocation
-from cyksuid import ksuid
 from toolz import get_in
 import xxhash
 
@@ -82,7 +81,7 @@ def split(li, N):
         head, li = li[:N], li[N:]
         yield head
 
-
+@backoff.on_exception(backoff.constant, FacebookRequestError, giveup=check_code, interval=BACKOFF)
 def get_campaign(account, name):
     campaigns = account.get_campaigns(fields=['name'])
     c = next((c for c in campaigns if c['name'] == name), None)
@@ -164,16 +163,6 @@ def create_ads(account, adset, creatives, status):
 
     return ads
 
-
-@backoff.on_exception(backoff.constant, FacebookRequestError, giveup=check_code, interval=BACKOFF)
-def get_creatives(account: AdAccount):
-    # loads ALL creatives for account...
-    # how many API requests does that count as???
-    fields = ['name', 'url_tags', 'actor_id', 'object_story_spec']
-    creatives = account.get_ad_creatives(fields=fields)
-    return {c['id']: c for c in creatives}
-
-
 def hash_creative(creative):
     keys = [['actor_id'],
             ['url_tags'],
@@ -183,14 +172,22 @@ def hash_creative(creative):
             ['object_story_spec', 'link_data', 'name'],
             ['object_story_spec', 'link_data', 'page_welcome_message']]
 
-    s = ' '.join([get_in(k, creative) for k in keys])
+    vals = [get_in(k, creative) for k in keys]
+    vals = [v for v in vals if v]
+    s = ' '.join(vals)
     return xxhash.xxh64(s).hexdigest()
 
-# get_adsets
-# get all adsets
-# name should have hash (split::)
-# put hash into list (running ads)
-# only launch if hash no in running
+@backoff.on_exception(backoff.constant, FacebookRequestError, giveup=check_code, interval=BACKOFF)
+def get_creatives(account: AdAccount, ad_label_id: str):
+    # loads ALL creatives for account...
+    # how many API requests does that count as???
+    fields = ['name', 'url_tags', 'actor_id', 'object_story_spec']
+    params = {'ad_label_ids': [ad_label_id]}
+
+    creatives = account.get_ad_creatives_by_labels(fields=fields,
+                                                   params=params)
+    return {hash_creative(c): c for c in creatives}
+
 
 @backoff.on_exception(backoff.constant, FacebookRequestError, giveup=check_code, interval=BACKOFF)
 def get_running_ads(campaign):
@@ -212,12 +209,15 @@ def should_not_run(name, sets, creatives):
     return False
 
 def hash_adset(c: AdsetConf) -> str:
+    locs = sorted(c.locs, key=lambda x: x.lat)
+    creatives = sorted(c.creatives, key=lambda x: x['id'])
+
     objs = [
         c.campaign['id'],
         c.instagram_id,
-        str(hash(c.cluster)),
-        ' '.join([str(hash(l)) for l in c.locs]),
-        ' '.join([c['id'] for c in c.creatives]),
+        f'{c.cluster.id}',
+        ' '.join([f'{l.lat}{l.lng}{l.rad}' for l in locs]),
+        ' '.join([c['id'] for c in creatives]),
         c.audience['id'] if c.audience else '',
     ]
 
@@ -250,7 +250,7 @@ def get_image_hash(account, name):
     return img['hash']
 
 def make_welcome_message(text, button_text, ref):
-    payload = json.dumps({'referral': {'ref': ref}}, sort_keys=True)
+    payload = json.dumps({'referral': {'ref': ref}})
 
     message = {
         "message": {
@@ -271,7 +271,7 @@ def make_welcome_message(text, button_text, ref):
         }
     }
 
-    return json.dumps(message)
+    return json.dumps(message, sort_keys=True)
 
 def make_ref(form, id_, name) -> str:
     name = quote(name)
@@ -289,17 +289,18 @@ class Marketing():
             'USER_TOKEN': env('FACEBOOK_USER_TOKEN'),
             'AD_ACCOUNT': f'act_{env("FACEBOOK_AD_ACCOUNT")}',
             'CAMPAIGN': env("FACEBOOK_AD_CAMPAIGN"),
-            'ADSET_HOURS': env.int('FACEBOOK_ADSET_HOURS')
+            'AD_LABEL': env('FACEBOOK_AD_LABEL'),
+            'ADSET_HOURS': env.int('FACEBOOK_ADSET_HOURS'),
         }
 
         FacebookAdsApi.init(cnf['APP_ID'], cnf['APP_SECRET'], cnf['USER_TOKEN'])
         self.account = AdAccount(cnf['AD_ACCOUNT'])
         self.campaign = get_campaign(self.account, cnf['CAMPAIGN'])
-
-        # get running_ads
-        # get creatives
         self.running_ads = get_running_ads(self.campaign)
-        self.creatives = get_creatives(self.account)
+        self.creatives = get_creatives(self.account, cnf['AD_LABEL'])
+
+        print(f'Intiailized Marketing with {len(self.creatives)} creatives, {len(self.running_ads)} running ads and campaign {self.campaign["name"]}')
+
         self.cnf = cnf
 
     def create_custom_audience(self, name, desc, users) -> CustomAudience:
@@ -432,7 +433,9 @@ class Marketing():
         fingerprint = hash_creative(params)
 
         try:
-            return self.creatives[fingerprint]
+            creative = self.creatives[fingerprint]
+            print(f'Found creative with fingerprint: {fingerprint}')
+            return creative
         except KeyError:
             fields = ['name', 'object_story_spec']
             return self.account.create_ad_creative(fields=fields, params=params)

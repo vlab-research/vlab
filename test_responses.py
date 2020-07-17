@@ -66,12 +66,12 @@ def test_last_responses_works_with_multiple_questions_and_surveys(db, dat):
     assert {r['question_ref'] for r in res} == set(['1', '2'])
     assert {r['response'] for r in res} == set(['bar'])
 
-def test_get_metadata_gets_latest_single_key(db, dat):
+def test_get_metadata_creates_question(db, dat):
     res = list(get_metadata(['2'], chatbase))
     assert res[0]['question_ref'] == 'md:mykey'
     assert res[0]['response'] == 'baz'
 
-def test_get_metadata_gets_latest_single_key(db, dat):
+def test_get_metadata_creates_question_many_surveys(db, dat):
     res = list(get_metadata(['1', '2'], chatbase))
     assert res[0]['question_ref'] == 'md:mykey'
     assert res[0]['response'] == 'bar'

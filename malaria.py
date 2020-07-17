@@ -5,8 +5,8 @@ import typing_json
 from environs import Env
 from cyksuid import ksuid
 from facebook_business.adobjects.customaudience import CustomAudience
-from clustering import get_saturated_clusters, res_col, only_target_users
-from responses import last_responses, format_synthetic, get_surveyids, get_metadata
+from clustering import get_saturated_clusters, only_target_users
+from responses import last_responses, get_surveyids, get_metadata
 from marketing import Marketing, MarketingNameError, CreativeGroup, Location, Cluster
 
 
@@ -31,7 +31,9 @@ def get_df(cnf):
     df = pd.DataFrame(list(responses))
 
     if df.shape[0] == 0:
-        raise Exception('No responses were found in the database!')
+        print(f'Warning: no responses were found in the database for shortcodes: {shortcodes} and questions: {questions}')
+        return None
+
 
     # add synthetic district responses
     md = get_metadata(surveyids, cnf['chatbase'])
@@ -49,11 +51,16 @@ def lookup_clusters(saturated, lookup_loc):
             if d not in saturated]
 
 def unsaturated(df, cnf):
+    if df is None:
+        return lookup_clusters([], cnf['lookup_loc'])
+
     stratum = cnf['stratum']
     saturated = get_saturated_clusters(df, stratum)
     return lookup_clusters(saturated, cnf['lookup_loc'])
 
 def lookalike(df, cnf):
+    if df is None:
+        return []
     df = only_target_users(df, cnf['stratum']['surveys'])
     return df.userid.unique().tolist()
 
@@ -106,6 +113,7 @@ def uniqueness(clusters: List[Cluster]):
 def new_ads(m: Marketing,
             budget: float,
             status: str,
+            clusters: List[str],
             lookalike_aud: Optional[CustomAudience]) -> None:
 
     # TODO: get this dynamically somehow
@@ -114,19 +122,15 @@ def new_ads(m: Marketing,
     creative_config = 'config/creatives.json'
     creative_group = 'hindi'
 
-
-    # TODO: clusters tells me which ones are NOT saturated
-    # but only from those found in or database,
-    # doesn't tell us which codes have 0 values!!!!!!!
-
-    # cities
-
     # different creative group per cluster?
     cg = load_creatives(creative_config, creative_group)
 
     # groupby cluster
     locs = [(Cluster(i, n), [Location(r.lat, r.lng, r.rad) for _, r in df.iterrows()])
             for (i, n), df in cities.groupby(cluster_vars)]
+
+    # filter for only clusters of interest
+    locs = [(cl, ls) for cl, ls in locs if cl.id in clusters]
 
     # check uniqueness of clusterids
     uniqueness([cl for cl, _ in locs])
@@ -164,12 +168,12 @@ def update_ads():
     cnf = get_conf(env)
     m = Marketing(env)
 
-    # df = get_df(cnf)
-    # clusters = unsaturated(df, cnf)
+    df = get_df(cnf)
+    clusters = unsaturated(df, cnf)
 
     aud = get_aud(m, cnf, False)
     if aud:
         uid = ksuid.ksuid().encoded.decode('utf-8')
         aud = m.create_lookalike(f'vlab-{uid}', cnf['country'], aud)
 
-    new_ads(m, cnf['budget'], 'ACTIVE', aud)
+    new_ads(m, cnf['budget'], 'ACTIVE', clusters, aud)

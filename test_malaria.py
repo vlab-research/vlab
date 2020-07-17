@@ -45,7 +45,8 @@ def surveys(db):
     rows = [
         ('1', 'foo', '111'),
         ('2', 'bar', '111'),
-        ('3', 'baz', '111')
+        ('3', 'baz', '111'),
+        ('4', 'qux', '111')
     ]
 
     for r in rows:
@@ -136,7 +137,7 @@ def test_malaria_opt_no_survey_filled(surveys, db, dat):
                    'value': 'yes'}]},
          ]}
     }
-    clusters, users = opt(cnf)
+    clusters, users = opt(c)
     assert len(clusters) == 3
     assert users == []
 
