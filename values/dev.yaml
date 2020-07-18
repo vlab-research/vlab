@@ -12,7 +12,7 @@ kafkaTopics: []
 # botEnvs: &botenvs gbv-bot-envs
 # chatbaseHost: &host "gbv-cockroachdb-public"
 
-versionDashboard: &vdashboard 0.0.4
+versionDashboard: &vdashboard 0.0.5
 versionNaughtybot: &vnaughtybot 0.0.12
 versionBotserver: &vbotserver 0.0.7
 versionReplybot: &vreplybot 0.0.70
