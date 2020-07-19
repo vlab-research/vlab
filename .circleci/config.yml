@@ -4,11 +4,11 @@ jobs:
     machine:
       image: ubuntu-1604:202007-01
     steps:
-    - checkout
-    - run:
-      name: Install kind
-      command: |
-         GO111MODULE="on" go get sigs.k8s.io/kind@v0.8.1
-    - run:
-      name: Run tests
-      command: ./integration-test.sh
+      - checkout
+      - run:
+          name: Install kind
+          command: |
+              GO111MODULE="on" go get sigs.k8s.io/kind@v0.8.1
+      - run:
+          name: Run tests
+          command: ./integration-test.sh
