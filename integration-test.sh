@@ -4,7 +4,7 @@
 # setup cluster
 ######################
 
-kind create cluster --name test
+kind create cluster --name test --wait 5m
 kubectl config use-context kind-test
 
 ######################
@@ -24,7 +24,7 @@ kubectl apply -f testing/facebot.yaml
 # create database
 ######################
 
-sleep 10
+sleep 20
 kubectl wait --for=condition=Ready pod/gbv-cockroachdb-0 --timeout 20m
 sleep 20
 
