@@ -38,7 +38,7 @@ cat migrate-2.sql | kubectl run -i --rm cockroach-client --image=cockroachdb/coc
 # wait for everything
 ######################
 
-kubectl wait --for=condition=Ready pod/gbv-kafka-0
+kubectl wait --for=condition=Ready pod/gbv-kafka-0 --timeout 5m
 kubectl wait --for=condition=available \
         deployment/gbv-replybot \
         deployment/gbv-botserver \
