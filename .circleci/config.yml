@@ -6,6 +6,12 @@ jobs:
     steps:
       - checkout
       - run:
+          name: Install Snap/Kubectl/Helm
+          command: |
+               sudo apt update && sudo apt install -y snapd
+               sudo snap install kubectl --classic
+               sudo snap install helm --classic
+      - run:
           name: Install kind
           command: |
               GO111MODULE="on" go get sigs.k8s.io/kind@v0.8.1
