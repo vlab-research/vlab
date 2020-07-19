@@ -1,25 +1,27 @@
 {
   "id": "AMLLjB",
   "title": "CV_follow4",
-  "theme": {
-    "href": "https://api.typeform.com/themes/TSYAuE"
-  },
   "workspace": {
     "href": "https://api.typeform.com/workspaces/pZnraJ"
   },
+  "theme": {
+    "href": "https://api.typeform.com/themes/TSYAuE"
+  },
   "settings": {
-    "is_public": true,
-    "is_trial": false,
     "language": "en",
     "progress_bar": "percentage",
-    "show_progress_bar": true,
-    "show_typeform_branding": true,
     "meta": {
       "allow_indexing": false
-    }
+    },
+    "is_public": true,
+    "is_trial": false,
+    "show_progress_bar": true,
+    "show_typeform_branding": true,
+    "are_uploads_public": false
   },
   "thankyou_screens": [
     {
+      "id": "DefaultTyScreen",
       "ref": "default_tys",
       "title": "Done! Your information was sent perfectly.",
       "properties": {
@@ -34,8 +36,8 @@
       "title": "Ti ringraziamo per aver partecipato allo studio fino ad ora. Questa è la penultima intervista. Ti faremo solamente 7 domande.\n\nTi garantiamo l'assoluta riservatezza delle tue risposte. Niente di ciò che scriverai verrà divulgato a terzi.",
       "ref": "80d162ec-223f-46da-8c91-7d0e50a4e4c9",
       "properties": {
-        "hide_marks": false,
-        "button_text": "Continue"
+        "button_text": "Continue",
+        "hide_marks": false
       },
       "type": "statement"
     },
@@ -66,8 +68,8 @@
       "title": "Sei in accordo o in disaccordo con le seguenti affermazioni:",
       "ref": "a890ee32-db95-4540-96b0-ef28ad05a17f",
       "properties": {
-        "hide_marks": false,
-        "button_text": "Continue"
+        "button_text": "Continue",
+        "hide_marks": false
       },
       "type": "statement"
     },
@@ -370,8 +372,8 @@
       "title": "Ecco come alcuni Paesi dell'Unione Europea stanno aiutando l'Italia in questo periodo di emergenza (fonte Commissione Europea):",
       "ref": "2832570b-c364-41bf-b223-cdd0f5b91e1c",
       "properties": {
-        "hide_marks": false,
-        "button_text": "Continue"
+        "button_text": "Continue",
+        "hide_marks": false
       },
       "type": "statement"
     },
@@ -381,8 +383,8 @@
       "ref": "146cf3fa-f446-4b3f-a877-58538a294138",
       "properties": {
         "description": "type: attachment\nkeepMoving: true\nattachment:\n    type: image\n    url: https://i.imgur.com/ZSHauqq.png",
-        "hide_marks": false,
-        "button_text": "Continue"
+        "button_text": "Continue",
+        "hide_marks": false
       },
       "type": "statement"
     },
@@ -392,8 +394,8 @@
       "ref": "eb906308-0868-4366-9560-7ce459989cd8",
       "properties": {
         "description": "type: attachment\nkeepMoving: true\nattachment:\n    type: image\n    url: https://i.imgur.com/W8LlgsX.png",
-        "hide_marks": false,
-        "button_text": "Continue"
+        "button_text": "Continue",
+        "hide_marks": false
       },
       "type": "statement"
     },
@@ -402,8 +404,8 @@
       "title": "Ecco come alcuni Paesi dell'Unione Europea stanno aiutando l'Italia in questo periodo di emergenza (fonte Commissione Europea):",
       "ref": "d06f55ef-ea84-47ec-b0ca-7bec84010277",
       "properties": {
-        "hide_marks": false,
-        "button_text": "Continue"
+        "button_text": "Continue",
+        "hide_marks": false
       },
       "type": "statement"
     },
@@ -413,8 +415,8 @@
       "ref": "a4d9d2b0-b502-43e4-b93d-35580b1e861d",
       "properties": {
         "description": "type: attachment\nkeepMoving: true\nattachment:\n    type: image\n    url: https://i.imgur.com/FsJ7p4k.png",
-        "hide_marks": false,
-        "button_text": "Continue"
+        "button_text": "Continue",
+        "hide_marks": false
       },
       "type": "statement"
     },
@@ -424,8 +426,8 @@
       "ref": "a9484693-d3a4-4b33-941b-54fe6677afd4",
       "properties": {
         "description": "type: attachment\nkeepMoving: true\nattachment:\n    type: image\n    url: https://i.imgur.com/dRHktR1.png",
-        "hide_marks": false,
-        "button_text": "Continue"
+        "button_text": "Continue",
+        "hide_marks": false
       },
       "type": "statement"
     },
@@ -443,8 +445,8 @@
       "title": "Grazie per il tuo tempo!\nLe tue risposte sono importanti.\n\nTi contatteremo tra circa 1 mese per completare lo studio e consegnarti il buono Amazon di 10€.\n\nPermettici di contattarti: clicca su \"Avvisami\"!",
       "ref": "15830383-7362-4564-b1c9-8d828d1f1d84",
       "properties": {
-        "hide_marks": false,
-        "button_text": "Continue"
+        "button_text": "Continue",
+        "hide_marks": false
       },
       "type": "statement"
     },
@@ -454,8 +456,8 @@
       "ref": "9f10e770-f9de-426e-95ce-1a1b5aa5f9ee",
       "properties": {
         "description": "type: notify",
-        "hide_marks": false,
-        "button_text": "Continue"
+        "button_text": "Continue",
+        "hide_marks": false
       },
       "type": "statement"
     },
@@ -465,8 +467,8 @@
       "ref": "a5a7c366-c76e-4820-a2d4-7a7d19df613e",
       "properties": {
         "description": "type: wait\nwait:\n    notifyPermission: true\n    type: timeout\n    value: 45 days",
-        "hide_marks": false,
-        "button_text": "Continue"
+        "button_text": "Continue",
+        "hide_marks": false
       },
       "type": "statement"
     },
@@ -498,12 +500,13 @@
       "ref": "338091c2-6ba0-408d-bf2f-f37e29bcd654",
       "properties": {
         "description": "type: stitch\nstitch:\n    form: cvfollow5",
-        "hide_marks": false,
-        "button_text": "Continue"
+        "button_text": "Continue",
+        "hide_marks": false
       },
       "type": "statement"
     },
     {
+      "id": "DefaultTyScreen",
       "ref": "default_tys",
       "title": "Done! Your information was sent perfectly.",
       "properties": {
@@ -532,46 +535,59 @@
             }
           },
           "condition": {
-            "op": "or",
+            "op": "equal",
             "vars": [
               {
-                "op": "equal",
-                "vars": [
-                  {
-                    "type": "hidden",
-                    "value": "seed_9"
-                  },
-                  {
-                    "type": "constant",
-                    "value": "1"
-                  }
-                ]
+                "type": "hidden",
+                "value": "seed_9"
               },
               {
-                "op": "equal",
-                "vars": [
-                  {
-                    "type": "hidden",
-                    "value": "seed_9"
-                  },
-                  {
-                    "type": "constant",
-                    "value": "2"
-                  }
-                ]
+                "type": "constant",
+                "value": "1"
+              }
+            ]
+          }
+        },
+        {
+          "action": "jump",
+          "details": {
+            "to": {
+              "type": "field",
+              "value": "2832570b-c364-41bf-b223-cdd0f5b91e1c"
+            }
+          },
+          "condition": {
+            "op": "equal",
+            "vars": [
+              {
+                "type": "hidden",
+                "value": "seed_9"
               },
               {
-                "op": "equal",
-                "vars": [
-                  {
-                    "type": "hidden",
-                    "value": "seed_9"
-                  },
-                  {
-                    "type": "constant",
-                    "value": "3"
-                  }
-                ]
+                "type": "constant",
+                "value": "2"
+              }
+            ]
+          }
+        },
+        {
+          "action": "jump",
+          "details": {
+            "to": {
+              "type": "field",
+              "value": "2832570b-c364-41bf-b223-cdd0f5b91e1c"
+            }
+          },
+          "condition": {
+            "op": "equal",
+            "vars": [
+              {
+                "type": "hidden",
+                "value": "seed_9"
+              },
+              {
+                "type": "constant",
+                "value": "3"
               }
             ]
           }
@@ -585,46 +601,59 @@
             }
           },
           "condition": {
-            "op": "or",
+            "op": "equal",
             "vars": [
               {
-                "op": "equal",
-                "vars": [
-                  {
-                    "type": "hidden",
-                    "value": "seed_9"
-                  },
-                  {
-                    "type": "constant",
-                    "value": "4"
-                  }
-                ]
+                "type": "hidden",
+                "value": "seed_9"
               },
               {
-                "op": "equal",
-                "vars": [
-                  {
-                    "type": "hidden",
-                    "value": "seed_9"
-                  },
-                  {
-                    "type": "constant",
-                    "value": "5"
-                  }
-                ]
+                "type": "constant",
+                "value": "4"
+              }
+            ]
+          }
+        },
+        {
+          "action": "jump",
+          "details": {
+            "to": {
+              "type": "field",
+              "value": "d06f55ef-ea84-47ec-b0ca-7bec84010277"
+            }
+          },
+          "condition": {
+            "op": "equal",
+            "vars": [
+              {
+                "type": "hidden",
+                "value": "seed_9"
               },
               {
-                "op": "equal",
-                "vars": [
-                  {
-                    "type": "hidden",
-                    "value": "seed_9"
-                  },
-                  {
-                    "type": "constant",
-                    "value": "6"
-                  }
-                ]
+                "type": "constant",
+                "value": "5"
+              }
+            ]
+          }
+        },
+        {
+          "action": "jump",
+          "details": {
+            "to": {
+              "type": "field",
+              "value": "d06f55ef-ea84-47ec-b0ca-7bec84010277"
+            }
+          },
+          "condition": {
+            "op": "equal",
+            "vars": [
+              {
+                "type": "hidden",
+                "value": "seed_9"
+              },
+              {
+                "type": "constant",
+                "value": "6"
               }
             ]
           }
@@ -638,46 +667,59 @@
             }
           },
           "condition": {
-            "op": "or",
+            "op": "equal",
             "vars": [
               {
-                "op": "equal",
-                "vars": [
-                  {
-                    "type": "hidden",
-                    "value": "seed_9"
-                  },
-                  {
-                    "type": "constant",
-                    "value": "7"
-                  }
-                ]
+                "type": "hidden",
+                "value": "seed_9"
               },
               {
-                "op": "equal",
-                "vars": [
-                  {
-                    "type": "hidden",
-                    "value": "seed_9"
-                  },
-                  {
-                    "type": "constant",
-                    "value": "8"
-                  }
-                ]
+                "type": "constant",
+                "value": "7"
+              }
+            ]
+          }
+        },
+        {
+          "action": "jump",
+          "details": {
+            "to": {
+              "type": "field",
+              "value": "15830383-7362-4564-b1c9-8d828d1f1d84"
+            }
+          },
+          "condition": {
+            "op": "equal",
+            "vars": [
+              {
+                "type": "hidden",
+                "value": "seed_9"
               },
               {
-                "op": "equal",
-                "vars": [
-                  {
-                    "type": "hidden",
-                    "value": "seed_9"
-                  },
-                  {
-                    "type": "constant",
-                    "value": "9"
-                  }
-                ]
+                "type": "constant",
+                "value": "8"
+              }
+            ]
+          }
+        },
+        {
+          "action": "jump",
+          "details": {
+            "to": {
+              "type": "field",
+              "value": "15830383-7362-4564-b1c9-8d828d1f1d84"
+            }
+          },
+          "condition": {
+            "op": "equal",
+            "vars": [
+              {
+                "type": "hidden",
+                "value": "seed_9"
+              },
+              {
+                "type": "constant",
+                "value": "9"
               }
             ]
           }

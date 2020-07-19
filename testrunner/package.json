@@ -6,7 +6,7 @@
     "test": "test"
   },
   "scripts": {
-    "test": "mocha --colors test.js"
+    "test": "mocha --colors test.js --exit"
   },
   "author": "",
   "license": "ISC",

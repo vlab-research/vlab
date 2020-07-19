@@ -1,0 +1,192 @@
+{
+  "id": "v5C48Byi",
+  "title": "lang_choice",
+  "workspace": {
+    "href": "https://api.typeform.com/workspaces/p7LWDc"
+  },
+  "theme": {
+    "href": "https://api.typeform.com/themes/6lPNE6"
+  },
+  "settings": {
+    "language": "en",
+    "progress_bar": "percentage",
+    "meta": {
+      "allow_indexing": false
+    },
+    "is_public": true,
+    "is_trial": false,
+    "show_progress_bar": true,
+    "show_typeform_branding": true,
+    "are_uploads_public": false
+  },
+  "thankyou_screens": [
+    {
+      "id": "DefaultTyScreen",
+      "ref": "default_tys",
+      "title": "Done! Your information was sent perfectly.",
+      "properties": {
+        "show_button": false,
+        "share_icons": false
+      }
+    }
+  ],
+  "fields": [
+    {
+      "id": "l6MBvAlW2Sya",
+      "title": "Hi {{hidden:name}}, in which language would you like me to write to you?\n\nआप हमें किस भाषा में जवाब देना पसंद करेंगे?\n\nବେଉେଁ ଭାଷାବର ଆପଣ ଆମ୍େୁ ବଲଖିୋେୁ ଚା େଁୁଛନ୍ତି ?",
+      "ref": "09a14047-26f1-46b6-9c5f-cb7b1330cbad",
+      "properties": {
+        "randomize": false,
+        "allow_multiple_selection": false,
+        "allow_other_choice": false,
+        "vertical_alignment": true,
+        "choices": [
+          {
+            "id": "YYo97jDcOfJk",
+            "ref": "9d91b813-6bf4-46d4-915a-40087b81e8ab",
+            "label": "English"
+          },
+          {
+            "id": "taNUnyX6mznK",
+            "ref": "7423ce93-ac5d-4930-ba53-1bf5bb54811f",
+            "label": "हिंदी"
+          },
+          {
+            "id": "ucqB8uRl0s5R",
+            "ref": "0312870d-02b6-46b2-947b-9bb103491943",
+            "label": "ଓଡିଆ"
+          }
+        ]
+      },
+      "validations": {
+        "required": false
+      },
+      "type": "multiple_choice"
+    },
+    {
+      "id": "lUECOMNFToRR",
+      "title": "Thanks!",
+      "ref": "2e53ebd0-b85d-4343-ae7a-1713895ae0db",
+      "properties": {
+        "description": "type: stitch\nstitch:\n    form: baseline\\_eng",
+        "button_text": "Continue",
+        "hide_marks": false
+      },
+      "type": "statement"
+    },
+    {
+      "id": "9gX8GoRGOznN",
+      "title": "धन्यवाद।",
+      "ref": "f761c804-0a8e-4328-a29d-b9dec849f284",
+      "properties": {
+        "description": "type: stitch\nstitch:\n    form: baseline\\_hin",
+        "button_text": "Continue",
+        "hide_marks": false
+      },
+      "type": "statement"
+    },
+    {
+      "id": "RSfniHreXKMC",
+      "title": "ଧନ୍ୟବାଦ",
+      "ref": "755c26ff-ccc4-4ae0-a44a-29461858b41c",
+      "properties": {
+        "description": "type: stitch\nstitch:\n    form: baseline\\_odi",
+        "button_text": "Continue",
+        "hide_marks": false
+      },
+      "type": "statement"
+    },
+    {
+      "id": "DefaultTyScreen",
+      "ref": "default_tys",
+      "title": "Done! Your information was sent perfectly.",
+      "properties": {
+        "show_button": false,
+        "share_icons": false
+      },
+      "type": "thankyou_screen"
+    }
+  ],
+  "hidden": [
+    "id",
+    "name"
+  ],
+  "logic": [
+    {
+      "type": "field",
+      "ref": "09a14047-26f1-46b6-9c5f-cb7b1330cbad",
+      "actions": [
+        {
+          "action": "jump",
+          "details": {
+            "to": {
+              "type": "field",
+              "value": "2e53ebd0-b85d-4343-ae7a-1713895ae0db"
+            }
+          },
+          "condition": {
+            "op": "is",
+            "vars": [
+              {
+                "type": "field",
+                "value": "09a14047-26f1-46b6-9c5f-cb7b1330cbad"
+              },
+              {
+                "type": "choice",
+                "value": "9d91b813-6bf4-46d4-915a-40087b81e8ab"
+              }
+            ]
+          }
+        },
+        {
+          "action": "jump",
+          "details": {
+            "to": {
+              "type": "field",
+              "value": "f761c804-0a8e-4328-a29d-b9dec849f284"
+            }
+          },
+          "condition": {
+            "op": "is",
+            "vars": [
+              {
+                "type": "field",
+                "value": "09a14047-26f1-46b6-9c5f-cb7b1330cbad"
+              },
+              {
+                "type": "choice",
+                "value": "7423ce93-ac5d-4930-ba53-1bf5bb54811f"
+              }
+            ]
+          }
+        },
+        {
+          "action": "jump",
+          "details": {
+            "to": {
+              "type": "field",
+              "value": "755c26ff-ccc4-4ae0-a44a-29461858b41c"
+            }
+          },
+          "condition": {
+            "op": "is",
+            "vars": [
+              {
+                "type": "field",
+                "value": "09a14047-26f1-46b6-9c5f-cb7b1330cbad"
+              },
+              {
+                "type": "choice",
+                "value": "0312870d-02b6-46b2-947b-9bb103491943"
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ],
+  "_links": {
+    "display": "https://nandanrao.typeform.com/to/v5C48Byi"
+  },
+  "custom_messages": {}
+}
