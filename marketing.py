@@ -309,6 +309,8 @@ class Marketing():
             'CAMPAIGN': env("FACEBOOK_AD_CAMPAIGN"),
             'AD_LABEL': env('FACEBOOK_AD_LABEL'),
             'ADSET_HOURS': env.int('FACEBOOK_ADSET_HOURS'),
+            'LOOKALIKE_STARTING_RATIO': env.float('FACEBOOK_LOOKALIKE_STARTING_RATIO'),
+            'LOOKALIKE_RATIO': env.float('FACEBOOK_LOOKALIKE_RATIO'),
         }
 
         FacebookAdsApi.init(cnf['APP_ID'], cnf['APP_SECRET'], cnf['USER_TOKEN'])
@@ -403,8 +405,8 @@ class Marketing():
                          country: str,
                          custom_audience: CustomAudience) -> CustomAudience:
         spec = {
-            'starting_ratio': 0.01,
-            'ratio': 0.10,
+            'starting_ratio': self.cnf['LOOKALIKE_STARTING_RATIO'],
+            'ratio': self.cnf['LOOKALIKE_RATIO'],
             'country': country
         }
         params = {
