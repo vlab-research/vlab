@@ -86,8 +86,26 @@ def get_campaign(account, name):
     campaigns = account.get_campaigns(fields=['name'])
     c = next((c for c in campaigns if c['name'] == name), None)
     if not c:
-        raise Exception(f'Could not find campaign: {name}')
+        raise MarketingNameError(f'Could not find campaign: {name}')
     return c
+
+@backoff.on_exception(backoff.constant, FacebookRequestError, giveup=check_code, interval=BACKOFF)
+def create_campaign(account, name):
+    params = {
+        Campaign.Field.name: name,
+        Campaign.Field.status: Campaign.Status.active,
+        Campaign.Field.objective: Campaign.Objective.messages,
+        Campaign.Field.special_ad_categories: []
+    }
+
+    return account.create_campaign(params=params, fields=['name'])
+
+def get_or_create_campaign(account, name):
+    try:
+        campaign = get_campaign(account, name)
+    except MarketingNameError:
+        campaign = create_campaign(account, name)
+    return campaign
 
 def create_location(lat, lng, rad):
     return {
@@ -295,7 +313,7 @@ class Marketing():
 
         FacebookAdsApi.init(cnf['APP_ID'], cnf['APP_SECRET'], cnf['USER_TOKEN'])
         self.account = AdAccount(cnf['AD_ACCOUNT'])
-        self.campaign = get_campaign(self.account, cnf['CAMPAIGN'])
+        self.campaign = get_or_create_campaign(self.account, cnf['CAMPAIGN'])
         self.running_ads = get_running_ads(self.campaign)
         self.creatives = get_creatives(self.account, cnf['AD_LABEL'])
 
