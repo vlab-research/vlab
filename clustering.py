@@ -1,5 +1,6 @@
 from toolz import curry
 import pandas as pd
+import logging
 
 def res_col(ref, df):
     try:
@@ -10,8 +11,13 @@ def res_col(ref, df):
     return response
 
 def _res_col(ref, col_name, df):
-    df[col_name] = res_col(ref, df)
-    return df
+    try:
+        df[col_name] = res_col(ref, df)
+        return df
+    except:
+        logging.warning(f'User without district: {df.userid.unique()[0]}')
+        return None
+
 
 def users_fulfilling(treqs, cluster_ref, df):
     df = df \

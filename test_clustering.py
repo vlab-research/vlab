@@ -90,6 +90,25 @@ def test_get_saturated_clusters_with_no_fulfilled():
     assert res == []
 
 
+def test_get_saturated_clusters_with_some_users_no_cluster():
+    cols = ['question_ref', 'response', 'userid', 'shortcode']
+    df = pd.DataFrame([
+        ('dist', 'foo', 1, 'foo'),
+        ('rand', 50, 1, 'foo'),
+        ('rand', 55, 2, 'foo'),
+        ('rand', 60, 3, 'foo'),
+        ('dist', 'bar', 4, 'bar'),
+        ('rand', 105, 4, 'bar'),
+        ('dist', 'baz', 5, 'bar'),
+        ('rand', 99, 5, 'bar'),
+    ], columns=cols)
+
+
+    res = get_saturated_clusters(df, cnf['stratum'])
+
+    assert res == []
+
+
 def test_get_saturated_clusters_with_various_cluster_refs():
 
     cnf = {'stratum':
