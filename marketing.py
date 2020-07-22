@@ -226,6 +226,12 @@ def should_not_run(name, sets, creatives):
 
     return False
 
+@backoff.on_exception(backoff.constant, FacebookRequestError, giveup=check_code, interval=BACKOFF)
+def get_label(account, name):
+    label = account.create_ad_label(params={'name': name})
+    return label
+
+
 def hash_adset(c: AdsetConf) -> str:
     locs = sorted(c.locs, key=lambda x: x.lat)
     creatives = sorted(c.creatives, key=lambda x: x['id'])
@@ -316,8 +322,12 @@ class Marketing():
         FacebookAdsApi.init(cnf['APP_ID'], cnf['APP_SECRET'], cnf['USER_TOKEN'])
         self.account = AdAccount(cnf['AD_ACCOUNT'])
         self.campaign = get_or_create_campaign(self.account, cnf['CAMPAIGN'])
+
+        self.label = get_label(self.account, cnf['AD_LABEL'])
         self.running_ads = get_running_ads(self.campaign)
-        self.creatives = get_creatives(self.account, cnf['AD_LABEL'])
+
+        # make multiple labels... or something?
+        self.creatives = get_creatives(self.account, self.label['id'])
 
         logging.info(f'Intiailized Marketing with {len(self.creatives)} creatives, {len(self.running_ads)} running ads and campaign {self.campaign["name"]}')
 
@@ -447,7 +457,7 @@ class Marketing():
             "url_tags": f"ref={ref}",
             "actor_id": self.cnf['PAGE_ID'],
             "object_story_spec": oss,
-            "adlabels": [{'name': 'vlab'}], # create extra labels???
+            "adlabels": [self.label],
         }
 
         fingerprint = hash_creative(params)
