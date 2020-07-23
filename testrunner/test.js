@@ -146,7 +146,7 @@ describe('Test Bot flow Survey Integration Testing', () => {
     bindedDone = done.bind(this)
     const fields = getFields('forms/ciX4qo.json')
 
-    const repeatPhone = makeRepeat(fields[0], 'Sorry, please enter a valid mobile number.')
+    const repeatPhone = makeRepeat(fields[0], 'Sorry, please enter a valid phone number.')
     const repeatEmail = makeRepeat(fields[1], 'Sorry, please enter a valid email address.')
 
     testFlow = [
@@ -160,6 +160,28 @@ describe('Test Bot flow Survey Integration Testing', () => {
     ];
 
     sender(makeReferral(userId, 'ciX4qo'));
+
+  }).timeout(20000);
+
+  it('Test chat flow with custom validation error messages',  (done) => {
+    bindedDone = done.bind(this)
+
+    const fields = getFields('forms/KAvzEUWn.json')
+
+    const repeatNumber = makeRepeat(fields[0], 'foo number bar')
+    const repeatSelect = makeRepeat(fields[1], '*foo selection bar*')
+
+    testFlow = [
+      [ok, fields[0], [makeTextResponse(userId, 'haha not number')]],
+      [ok, repeatNumber, []],
+      [ok, fields[0], [makeTextResponse(userId, '590')]],
+      [ok, fields[1], [makeTextResponse(userId, 'foozzzz')]],
+      [ok, repeatSelect, []],
+      [ok, fields[1], [makeQR(fields[1], userId, 0)]],
+      [ok, fields[2], []]
+    ];
+
+    sender(makeReferral(userId, 'KAvzEUWn'));
 
   }).timeout(20000);
 

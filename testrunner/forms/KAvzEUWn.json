@@ -1,0 +1,91 @@
+{
+  "id": "KAvzEUWn",
+  "title": "custom error messages test",
+  "workspace": {
+    "href": "https://api.typeform.com/workspaces/WA44hg"
+  },
+  "theme": {
+    "href": "https://api.typeform.com/themes/qHWOQ7"
+  },
+  "settings": {
+    "language": "en",
+    "progress_bar": "proportion",
+    "meta": {
+      "allow_indexing": false
+    },
+    "is_public": true,
+    "is_trial": false,
+    "show_progress_bar": true,
+    "show_typeform_branding": true,
+    "are_uploads_public": false
+  },
+  "thankyou_screens": [
+    {
+      "id": "DefaultTyScreen",
+      "ref": "default_tys",
+      "title": "Done! Your information was sent perfectly.",
+      "properties": {
+        "show_button": false,
+        "share_icons": false
+      }
+    }
+  ],
+  "fields": [
+    {
+      "id": "i1JGdCin2RVt",
+      "title": "Hey - enter a number",
+      "ref": "9d40efc7-a522-4380-9b5f-101dfcb6c24c",
+      "properties": {},
+      "validations": {
+        "required": false
+      },
+      "type": "number"
+    },
+    {
+      "id": "nZi5Dxk0RWuc",
+      "title": "Great, now pick between:",
+      "ref": "80e04c73-122e-413d-89bc-8d3c1d98f31c",
+      "properties": {
+        "randomize": false,
+        "allow_multiple_selection": false,
+        "allow_other_choice": false,
+        "vertical_alignment": true,
+        "choices": [
+          {
+            "id": "71igji2cbF4B",
+            "ref": "ec59b983-253f-4f22-9ff8-07fbb37a6e5d",
+            "label": "red pill"
+          },
+          {
+            "id": "5FkW5fF6Kwtl",
+            "ref": "8f9a456d-4869-4b06-a89d-2db61d128ee1",
+            "label": "blue pill"
+          }
+        ]
+      },
+      "validations": {
+        "required": false
+      },
+      "type": "multiple_choice"
+    },
+    {
+      "id": "DefaultTyScreen",
+      "ref": "default_tys",
+      "title": "Done! Your information was sent perfectly.",
+      "properties": {
+        "show_button": false,
+        "share_icons": false
+      },
+      "type": "thankyou_screen"
+    }
+  ],
+  "_links": {
+    "display": "https://nandanrao.typeform.com/to/KAvzEUWn"
+  },
+  "custom_messages": {
+    "label.error.emailAddress": "foo email bar",
+    "label.error.mustSelect": "*foo selection bar*",
+    "label.error.phoneNumber": "foo phone bar",
+    "label.error.range": "foo number bar"
+  }
+}

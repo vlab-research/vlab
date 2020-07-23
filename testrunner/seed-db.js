@@ -24,6 +24,10 @@ async function insertSurvey(pool, filename, body) {
        ON CONFLICT(id) DO NOTHING
        RETURNING *`;
 
+  const form = JSON.parse(body)
+
+  const messages = form.custom_messages || {}
+
   const userid = await getUserId(pool)
   await pages(pool, userid)
   const created = new Date()
@@ -32,7 +36,7 @@ async function insertSurvey(pool, filename, body) {
   const exists = await surveyExists(pool, userid, formid)
   if (exists) return
 
-  const values = [created, formid, body, '', formid, userid, ''];
+  const values = [created, formid, JSON.stringify(form), JSON.stringify(messages), formid, userid, ''];
   await pool.query(query, values)
 }
 

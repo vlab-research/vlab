@@ -33,7 +33,7 @@
   "fields": [
     {
       "id": "0urmFpT3hBxK",
-      "title": "Welcome {{hidden:name}}! 😀\nWe are a team of researchers conducting a study about life and opinions of Indian people. We would like to ask you to answer a few questions today and only five questions every two weeks over the following six months.\n \nIf you complete the whole study, you will receive 300 INR in mobile credit. In particular, you will get 100 INR in 1 month, and the remaining 200 INR at the end of the six months.\n\nThe survey will only take 10 minutes of your time. This survey is important for policymakers, so your accurate answers would be greatly appreciated.",
+      "title": "Welcome {{hidden:name}}! 😀\nWe are a team of researchers conducting a study about life and opinions of Indian people. We would like to ask you a few questions today and only five questions every two weeks over the following six months.\n \nIf you complete the whole study, you will receive 300 INR in mobile credit. In particular, you will get 100 INR in 1 month, and the remaining 200 INR at the end of the six months.\n\nThe survey will only take 10 minutes of your time. This survey is important for policymakers, so your accurate answers would be greatly appreciated.",
       "ref": "036d231e-ec3d-45f1-b479-4ff5fa3db78e",
       "properties": {
         "button_text": "Continue",
@@ -63,7 +63,7 @@
     },
     {
       "id": "UORJU3vUXkpA",
-      "title": "If you consent to be part of this study click on the Accept button below.",
+      "title": "If you consent to be part of this study, click on the Accept button below.",
       "ref": "9476f55c-1d51-4af5-aa54-cf39a9db7c23",
       "properties": {
         "randomize": false,
@@ -183,16 +183,6 @@
       "type": "number"
     },
     {
-      "id": "g9js4BtDmKsZ",
-      "title": "The PIN code you entered is invalid.",
-      "ref": "3b18db4d-4791-4b37-ada2-8758882507eb",
-      "properties": {
-        "button_text": "Continue",
-        "hide_marks": false
-      },
-      "type": "statement"
-    },
-    {
       "id": "2VNOEhjc9Hgf",
       "title": "What is the name of the District you currently live in?",
       "ref": "d5f05f39-0f08-4415-8cef-5c786dbef004",
@@ -204,7 +194,7 @@
     },
     {
       "id": "P8b8b0dXEcAO",
-      "title": "How many family members live in your house? [Enter number]",
+      "title": "How many family members (including yourself) live in your house? [Enter number]",
       "ref": "254fe756-eab6-4989-8c80-acb0bb6ec52b",
       "properties": {},
       "validations": {
@@ -241,7 +231,7 @@
     },
     {
       "id": "GFlA944Vcac4",
-      "title": "If you walk, how long does it take you to go to the closest medical center from your house?\n\n- A. Less than 15 minutes\n- B. Between 15 and 30 minutes\n- C. Between 30 and 60 minutes\n- D. More than 60 minutes",
+      "title": "If you walk, how long does it take to get to the closest medical center from your house?\n\n- A. Less than 15 minutes\n- B. Between 15 and 30 minutes\n- C. Between 30 and 60 minutes\n- D. More than 60 minutes",
       "ref": "d7573919-8a7e-457f-9a1d-1f8c389127a7",
       "properties": {
         "randomize": false,
@@ -458,7 +448,7 @@
     },
     {
       "id": "YRqVZm8GNKCn",
-      "title": "Did you, someone in your house, or any of your neighbors have malaria in the last 5 years?",
+      "title": "Have you, someone in your house, or any of your neighbors had malaria in the last 5 years?",
       "ref": "f6e69027-97cc-494e-8d52-318b75047e23",
       "properties": {
         "randomize": false,
@@ -616,7 +606,7 @@
     },
     {
       "id": "eFN4vrDsU2fW",
-      "title": "What would you do if tomorrow you or a family member got a fever (100.4°F / 38°C or above) and there is a doctor or a healthcare facility near your home?\n\n- A. I would seek treatment right away\n- B. I would seek treatment if the fever didn’t subside within 24 hours\n- C. I would wait and see how the fever develops over the next 3 days\n- D. I don’t think it is necessary to seek treatment for a fever",
+      "title": "What would you do if tomorrow you or a family member got a fever (100.4°F / 38°C or above) and there was a doctor or a healthcare facility near your home?\n\n- A. I would seek treatment right away\n- B. I would seek treatment if the fever didn’t subside within 24 hours\n- C. I would wait and see how the fever develops over the next 3 days\n- D. I don’t think it is necessary to seek treatment for a fever",
       "ref": "f526f205-7aa9-4e3a-9acc-c39766e1bc8c",
       "properties": {
         "randomize": false,
@@ -680,7 +670,7 @@
     },
     {
       "id": "gGoKa3gyrFlr",
-      "title": "How many family members that live in your house slept under a mosquito net last night? [Enter number]",
+      "title": "How many family members that live in your house (including yourself) slept under a mosquito net last night? [Enter number]",
       "ref": "8065d101-7995-4471-9ca6-54e9ce6d4310",
       "properties": {},
       "validations": {
@@ -1257,65 +1247,6 @@
   "logic": [
     {
       "type": "field",
-      "ref": "e498f47e-50d7-43b4-8916-95968d4a0fd8",
-      "actions": [
-        {
-          "action": "jump",
-          "details": {
-            "to": {
-              "type": "field",
-              "value": "3b18db4d-4791-4b37-ada2-8758882507eb"
-            }
-          },
-          "condition": {
-            "op": "or",
-            "vars": [
-              {
-                "op": "greater_than",
-                "vars": [
-                  {
-                    "type": "field",
-                    "value": "e498f47e-50d7-43b4-8916-95968d4a0fd8"
-                  },
-                  {
-                    "type": "constant",
-                    "value": 999999
-                  }
-                ]
-              },
-              {
-                "op": "lower_than",
-                "vars": [
-                  {
-                    "type": "field",
-                    "value": "e498f47e-50d7-43b4-8916-95968d4a0fd8"
-                  },
-                  {
-                    "type": "constant",
-                    "value": 100000
-                  }
-                ]
-              }
-            ]
-          }
-        },
-        {
-          "action": "jump",
-          "details": {
-            "to": {
-              "type": "field",
-              "value": "d5f05f39-0f08-4415-8cef-5c786dbef004"
-            }
-          },
-          "condition": {
-            "op": "always",
-            "vars": []
-          }
-        }
-      ]
-    },
-    {
-      "type": "field",
       "ref": "bd4802c6-7bdb-40f0-aac1-18cc6df7da6e",
       "actions": [
         {
@@ -1590,25 +1521,6 @@
     },
     {
       "type": "field",
-      "ref": "3b18db4d-4791-4b37-ada2-8758882507eb",
-      "actions": [
-        {
-          "action": "jump",
-          "details": {
-            "to": {
-              "type": "field",
-              "value": "e498f47e-50d7-43b4-8916-95968d4a0fd8"
-            }
-          },
-          "condition": {
-            "op": "always",
-            "vars": []
-          }
-        }
-      ]
-    },
-    {
-      "type": "field",
       "ref": "d245e8ad-5c5f-4c60-afe2-3ba3f0615cc3",
       "actions": [
         {
@@ -1630,5 +1542,10 @@
   "_links": {
     "display": "https://nandanrao.typeform.com/to/Yym3bbfC"
   },
-  "custom_messages": {}
+  "custom_messages": {
+    "label.error.emailAddress": "Sorry, please enter a valid email address.",
+    "label.error.mustSelect": "*Sorry, please use the buttons provided to answer the question.*",
+    "label.error.range": "Sorry, please enter a number and only a number.",
+    "label.error.required": "Sorry, that answer is not valid."
+  }
 }
