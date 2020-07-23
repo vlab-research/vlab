@@ -360,7 +360,7 @@ class Marketing():
         return aud
 
     def add_users(self, aud_id, users):
-        pageid = self.cnf['PAGEID']
+        pageid = self.cnf['PAGE_ID']
         token = self.cnf['USER_TOKEN']
         url = f'https://graph.facebook.com/v7.0/{aud_id}/users?access_token={token}'
 
@@ -383,7 +383,7 @@ class Marketing():
                   CustomAudience.Field.time_created]
 
         audiences = self.account.get_custom_audiences(fields=fields)
-        aud = next((a for a in audiences if a == name), None)
+        aud = next((a for a in audiences if a['name'] == name), None)
 
         if not aud:
             raise MarketingNameError(f'Audience not found with name: {name}')
