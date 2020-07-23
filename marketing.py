@@ -60,6 +60,7 @@ class AdsetConf(NamedTuple):
     status: str
     instagram_id: str
     hours: int
+    targeting: Optional[Dict[str, Any]]
     audience: Optional[CustomAudience]
 
 
@@ -132,6 +133,14 @@ def get_all_audiences(account):
     audiences = sorted(audiences, key=lambda x: -x['time_created'])
     return audiences
 
+
+def validate_targeting(targeting):
+    valid_targets = set(dir(Targeting.Field))
+    for k, _ in targeting.items():
+        if k not in valid_targets:
+            raise Exception(f'Targeting config invalid, key: {k} does not exist!')
+
+
 @backoff.on_exception(backoff.constant, FacebookRequestError, giveup=check_code, interval=BACKOFF)
 def create_adset(account, name, custom_locs, c: AdsetConf):
 
@@ -146,6 +155,10 @@ def create_adset(account, name, custom_locs, c: AdsetConf):
 
     if c.audience:
         targeting[Targeting.Field.custom_audiences] = [{'id': c.audience['id']}]
+
+    if c.targeting:
+        for k, v in c.targeting.items():
+            targeting[k] = v
 
 
     params = {
@@ -329,7 +342,8 @@ class Marketing():
         # make multiple labels... or something?
         self.creatives = get_creatives(self.account, self.label['id'])
 
-        logging.info(f'Intiailized Marketing with {len(self.creatives)} creatives, {len(self.running_ads)} running ads and campaign {self.campaign["name"]}')
+        logging.info(f'Intiailized Marketing with {len(self.creatives)} creatives, \
+        {len(self.running_ads)} running ads and campaign {self.campaign["name"]}')
 
         self.cnf = cnf
 
@@ -382,6 +396,7 @@ class Marketing():
                       cg: CreativeGroup,
                       locs: List[Location],
                       budget: float,
+                      targeting: Dict[str, Any],
                       status: str,
                       audience: Optional[CustomAudience]) -> None:
 
@@ -398,6 +413,7 @@ class Marketing():
                                    status,
                                    self.cnf['INSTA_ID'],
                                    self.cnf['ADSET_HOURS'],
+                                   targeting,
                                    audience)
 
             fingerprint = hash_adset(adset_conf)

@@ -7,7 +7,8 @@ from cyksuid import ksuid
 from facebook_business.adobjects.customaudience import CustomAudience
 from clustering import get_saturated_clusters, only_target_users
 from responses import last_responses, get_surveyids, get_metadata
-from marketing import Marketing, MarketingNameError, CreativeGroup, Location, Cluster
+from marketing import Marketing, MarketingNameError, CreativeGroup, \
+    Location, Cluster, validate_targeting
 
 
 def get_df(cnf):
@@ -31,7 +32,8 @@ def get_df(cnf):
     df = pd.DataFrame(list(responses))
 
     if df.shape[0] == 0:
-        print(f'Warning: no responses were found in the database for shortcodes: {shortcodes} and questions: {questions}')
+        print(f'Warning: no responses were found in the database \
+        for shortcodes: {shortcodes} and questions: {questions}')
         return None
 
 
@@ -120,6 +122,7 @@ def new_ads(m: Marketing,
     cluster_vars = ['disthash', 'distname']
     creative_config = 'config/creatives.json'
     creative_group = 'hindi'
+    targeting = cnf['stratum'].get('targeting')
 
     # different creative group per cluster?
     cg = load_creatives(creative_config, creative_group)
@@ -135,8 +138,13 @@ def new_ads(m: Marketing,
     # check uniqueness of clusterids
     uniqueness([cl for cl, _ in locs])
 
+    # validate targeting keys
+    if targeting:
+        validate_targeting(targeting)
+
+
     for cl, ls in locs:
-        m.launch_adsets(cl, cg, ls, cnf['budget'], status, lookalike_aud)
+        m.launch_adsets(cl, cg, ls, cnf['budget'], targeting, status, lookalike_aud)
 
 
 def get_aud(m: Marketing, cnf, create: bool) -> Optional[CustomAudience]:

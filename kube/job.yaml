@@ -1,23 +1,23 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: gbv-adopt-update-ads
+  name: gbv-adopt-update-ads-vlab-1
   labels:
-    app: gbv-adopt-update-ads
+    app: gbv-adopt-update-ads-vlab-1
 spec:
   template:
     spec:
       restartPolicy: OnFailure
       containers:
       - name: gbv-adopt-update-ads
-        image: vlabresearch/adopt:0.0.10
+        image: vlabresearch/adopt:0.0.15
         args:
         - python
         - malaria_ads.py
         resources:
           requests:
-            cpu: "50m"
-            memory: "100Mi"
+            cpu: "10m"
+            memory: "50Mi"
         volumeMounts:
           - name: config
             mountPath: /usr/src/app/config
@@ -42,23 +42,27 @@ spec:
         - name: CHATBASE_PORT
           value: "26257"
         - name: FACEBOOK_PAGE_ID
-          value: "100450211748271"
+          value: "1855355231229529"
         - name: FACEBOOK_INSTA_ID
-          value: "3922044794536181"
+          value: "2118306904924018"
         - name: FACEBOOK_AD_ACCOUNT
           value: "2240415876083895"
         - name: FACEBOOK_AD_CAMPAIGN
-          value: "impact-evaluation-3"
+          value: "impact-evaluation-vlab-1"
         - name: FACEBOOK_AD_LABEL
-          value: "23845036050710518"
+          value: "virtuallab-1"
         - name: FACEBOOK_ADSET_HOURS
-          value: "24"
+          value: "18"
+        - name: FACEBOOK_LOOKALIKE_STARTING_RATIO
+          value: "0.10"
+        - name: FACEBOOK_LOOKALIKE_RATIO
+          value: "0.20"
         - name: MALARIA_SURVEY_USER
-          value: "fe95d978-f988-4ff4-b064-8df3ba4c4a3b"
+          value: "10383123-9fb1-429b-8312-447c1b54b17a"
         - name: MALARIA_COUNTRY
           value: "IN"
         - name: MALARIA_BUDGET
-          value: "50000"
+          value: "100000"
         - name: MALARIA_DISTRICT_LOOKUP
           value: "output/cities.csv"
       volumes:

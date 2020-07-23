@@ -13,20 +13,20 @@
         "form": "langchoice"
       },
       {
-        "name": "vlab-mnm-hindi-dad-son",
-        "image_hash": "b085d4ff8667279582926776179470f7",
-        "image": "Dad and son mobile.png",
-        "body": "Aapki rai ke lie 300 INR ke mobile credit!",
+        "name": "vlab-mnm-hindi-mom-baby",
+        "image_hash": "ed2f547536c10ff4ecce3a8854b142e5",
+        "image": "Mom and baby 1.png",
+        "body": "Hum yeh jaankar jeette hain ki aap kaise swasth rehte hain, aap 300 INR ke mobile credit prapt karake jeette hain!",
         "welcome_message": "Hum yeh jaankar jeette hain ki aap kaise swasth rehte hain, aap 300 INR ke mobile credit prapt karake jeette hain!",
         "link_text": "Messenger main survey shuroo karen!",
         "button_text": "Start!",
         "form": "langchoice"
       },
       {
-        "name": "vlab-mnm-hindi-mobile-credit",
-        "image_hash": "dd8fd1497663d46fb64cb37d6f69f5fd",
-        "image": "Mobile Credit.png",
-        "body": "Aapki rai ke lie 300 INR ke mobile credit!",
+        "name": "vlab-mnm-hindi-just-hands",
+        "image_hash": "f030f399b77baf192780984cd17a6920",
+        "image": "Just Hands.png",
+        "body": "Hum yeh jaankar jeette hain ki aap kaise swasth rehte hain, aap 300 INR ke mobile credit prapt karake jeette hain!",
         "welcome_message": "Hum yeh jaankar jeette hain ki aap kaise swasth rehte hain, aap 300 INR ke mobile credit prapt karake jeette hain!",
         "link_text": "Messenger main survey shuroo karen!",
         "button_text": "Start!",
