@@ -426,21 +426,33 @@ class Marketing():
             launch_adset(name, self.account, adset_conf)
 
 
-    def create_lookalike(self,
-                         name: str,
-                         country: str,
-                         custom_audience: CustomAudience) -> CustomAudience:
+    def get_lookalike(self,
+                      custom_audience: CustomAudience,
+                      country: str) -> CustomAudience:
+
+        slr, lr = self.cnf['LOOKALIKE_STARTING_RATIO'], self.cnf['LOOKALIKE_RATIO']
+
         spec = {
-            'starting_ratio': self.cnf['LOOKALIKE_STARTING_RATIO'],
-            'ratio': self.cnf['LOOKALIKE_RATIO'],
+            'starting_ratio': slr,
+            'ratio': lr,
             'country': country
         }
+
+        name = f'vlab-lookalike-{custom_audience["name"]}-{slr}-{lr}'
+
+        # Get lookalike if already exists
+        try:
+            return self.get_audience(name)
+        except MarketingNameError:
+            pass
+
         params = {
             CustomAudience.Field.name: name,
             CustomAudience.Field.subtype: CustomAudience.Subtype.lookalike,
             CustomAudience.Field.origin_audience_id: custom_audience.get_id(),
             CustomAudience.Field.lookalike_spec:json.dumps(spec),
         }
+
         return self.account.create_custom_audience(params=params, fields=['name'])
 
     @backoff.on_exception(backoff.constant,

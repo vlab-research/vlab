@@ -4,9 +4,7 @@ from typing import Dict, Optional, List
 import pandas as pd
 import typing_json
 from environs import Env
-from cyksuid import ksuid
 from facebook_business.adobjects.customaudience import CustomAudience
-from facebook_business.exceptions import FacebookRequestError
 from clustering import get_saturated_clusters, only_target_users
 from responses import last_responses, get_surveyids, get_metadata
 from marketing import Marketing, MarketingNameError, CreativeGroup, \
@@ -186,10 +184,6 @@ def update_ads():
 
     aud = get_aud(m, cnf, False)
     if aud:
-
-        # TODO: handle case when too few users in the aud
-        # which should throw a facebook error...
-        uid = ksuid.ksuid().encoded.decode('utf-8')
-        aud = m.create_lookalike(f'vlab-{uid}', cnf['country'], aud)
+        aud = m.get_lookalike(aud, cnf['country'])
 
     new_ads(m, cnf, 'ACTIVE', clusters, aud)

@@ -1,4 +1,5 @@
 from datetime import datetime
+from toolz import dissoc
 import psycopg2
 
 def query(cnf, q, vals=(), as_dict=False):
@@ -55,8 +56,6 @@ def last_responses(surveyids, questions, cnf):
     questions = tuple(questions)
     res = query(cnf, q, (questions, surveyids), as_dict=True)
     return res
-
-from toolz import dissoc
 
 def get_metadata(surveyids, cnf):
     q = """

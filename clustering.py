@@ -1,4 +1,3 @@
-from toolz import curry
 import pandas as pd
 import logging
 
