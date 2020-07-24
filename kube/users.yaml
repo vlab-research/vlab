@@ -1,0 +1,82 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: gbv-adopt-update-users
+  labels:
+    app: gbv-adopt-update-users
+spec:
+  template:
+    spec:
+      restartPolicy: OnFailure
+      containers:
+      - name: gbv-adopt-update-users
+        image: vlabresearch/adopt:0.0.19
+        args:
+        - python
+        - malaria_audience.py
+        resources:
+          requests:
+            cpu: "10m"
+            memory: "50Mi"
+        volumeMounts:
+          - name: config
+            mountPath: /usr/src/app/config
+            readOnly: true
+          - name: output
+            mountPath: /usr/src/app/output
+            readOnly: true
+        envFrom:
+        - secretRef:
+            name: gbv-adopt-envs
+        env:
+        - name: CHATBASE_BACKEND
+          value: "@vlab-research/chatbase-postgres"
+        - name: CHATBASE_DATABASE
+          value: "chatroach"
+        - name: CHATBASE_USER
+          value: "chatreader"
+        - name: CHATBASE_PASSWORD
+          value: ""
+        - name: CHATBASE_HOST
+          value: "gbv-cockroachdb-public"
+        - name: CHATBASE_PORT
+          value: "26257"
+        - name: FACEBOOK_PAGE_ID
+          value: "1855355231229529"
+        - name: FACEBOOK_INSTA_ID
+          value: "2118306904924018"
+        - name: FACEBOOK_AD_ACCOUNT
+          value: "2240415876083895"
+        - name: FACEBOOK_AD_CAMPAIGN
+          value: "impact-evaluation-vlab-2"
+        - name: FACEBOOK_AD_LABEL
+          value: "virtuallab-1"
+        - name: FACEBOOK_ADSET_HOURS
+          value: "18"
+        - name: FACEBOOK_LOOKALIKE_STARTING_RATIO
+          value: "0.0"
+        - name: FACEBOOK_LOOKALIKE_RATIO
+          value: "0.20"
+        - name: MALARIA_SURVEY_USER
+          value: "10383123-9fb1-429b-8312-447c1b54b17a"
+        - name: MALARIA_COUNTRY
+          value: "IN"
+        - name: MALARIA_BUDGET
+          value: "50000"
+        - name: MALARIA_DISTRICT_LOOKUP
+          value: "output/cities.csv"
+      volumes:
+        - name: config
+          configMap:
+            name: gbv-adopt-config
+            items:
+            - key: "creatives.json"
+              path: "creatives.json"
+            - key: "strata.json"
+              path: "strata.json"
+        - name: output
+          configMap:
+            name: gbv-adopt-output
+            items:
+            - key: "cities.csv"
+              path: "cities.csv"
