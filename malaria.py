@@ -171,6 +171,8 @@ def update_audience():
     users = lookalike(df, cnf)
     aud = get_aud(m, cnf, True)
 
+    logging.info(f'Adding {len(users)} users to audience {aud.get("name")}.')
+
     m.add_users(aud['id'], users)
 
 

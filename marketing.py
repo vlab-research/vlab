@@ -355,7 +355,7 @@ class Marketing():
             'customer_file_source': 'USER_PROVIDED_ONLY',
         }
 
-        aud = self.account.create_custom_audience(fields=[], params=params)
+        aud = self.account.create_custom_audience(fields=['name'], params=params)
         self.add_users(aud.get_id(), users)
         return aud
 
@@ -441,7 +441,7 @@ class Marketing():
             CustomAudience.Field.origin_audience_id: custom_audience.get_id(),
             CustomAudience.Field.lookalike_spec:json.dumps(spec),
         }
-        return self.account.create_custom_audience(params=params)
+        return self.account.create_custom_audience(params=params, fields=['name'])
 
     @backoff.on_exception(backoff.constant,
                           FacebookRequestError,
