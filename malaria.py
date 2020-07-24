@@ -6,10 +6,12 @@ import typing_json
 from environs import Env
 from cyksuid import ksuid
 from facebook_business.adobjects.customaudience import CustomAudience
+from facebook_business.exceptions import FacebookRequestError
 from clustering import get_saturated_clusters, only_target_users
 from responses import last_responses, get_surveyids, get_metadata
 from marketing import Marketing, MarketingNameError, CreativeGroup, \
     Location, Cluster, validate_targeting
+
 
 
 def get_df(cnf):
@@ -188,7 +190,8 @@ def update_ads():
         try:
             uid = ksuid.ksuid().encoded.decode('utf-8')
             aud = m.create_lookalike(f'vlab-{uid}', cnf['country'], aud)
-        except:
+        except FacebookRequestError as e:
+            logging.warning(e)
             logging.warning('COULD NOT CREATE LOOKALIKE AUDIENCE! Reverting to no audience')
             aud = None
 
