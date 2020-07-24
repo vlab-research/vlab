@@ -189,12 +189,7 @@ def update_ads():
 
         # TODO: handle case when too few users in the aud
         # which should throw a facebook error...
-        try:
-            uid = ksuid.ksuid().encoded.decode('utf-8')
-            aud = m.create_lookalike(f'vlab-{uid}', cnf['country'], aud)
-        except FacebookRequestError as e:
-            logging.warning(e)
-            logging.warning('COULD NOT CREATE LOOKALIKE AUDIENCE! Reverting to no audience')
-            aud = None
+        uid = ksuid.ksuid().encoded.decode('utf-8')
+        aud = m.create_lookalike(f'vlab-{uid}', cnf['country'], aud)
 
     new_ads(m, cnf, 'ACTIVE', clusters, aud)
