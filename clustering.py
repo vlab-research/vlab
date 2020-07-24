@@ -18,11 +18,16 @@ def _res_col(ref, col_name, df):
         logging.warning(f'User without district: {df.userid.unique()[0]}')
         return None
 
+def add_res_col(ref, col_name, groupby, df):
+    df = df \
+        .groupby(groupby) \
+        .apply(lambda df: _res_col(ref, col_name, df))
+
+    return df
+
 
 def users_fulfilling(treqs, cluster_ref, df):
-    df = df \
-        .groupby('userid') \
-        .apply(lambda df: _res_col(cluster_ref, 'cluster', df))
+    df = add_res_col(cluster_ref, 'cluster', 'userid', df)
 
     for ref, pred in treqs:
         try:
