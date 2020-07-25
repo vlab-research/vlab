@@ -317,7 +317,7 @@ def make_ref(form, id_, name) -> str:
 
 
 class Marketing():
-    def __init__(self, env):
+    def __init__(self, env, load_ads=True):
         cnf = {
             'APP_ID': env('FACEBOOK_APP_ID'),
             'APP_SECRET': env('FACEBOOK_APP_SECRET'),
@@ -337,12 +337,12 @@ class Marketing():
         self.campaign = get_or_create_campaign(self.account, cnf['CAMPAIGN'])
 
         self.label = get_label(self.account, cnf['AD_LABEL'])
-        self.running_ads = get_running_ads(self.campaign)
 
-        # make multiple labels... or something?
-        self.creatives = get_creatives(self.account, self.label['id'])
+        if load_ads:
+            self.running_ads = get_running_ads(self.campaign)
+            self.creatives = get_creatives(self.account, self.label['id'])
 
-        logging.info(f'Intiailized Marketing with {len(self.creatives)} creatives, \
+            logging.info(f'Intiailized Marketing with {len(self.creatives)} creatives, \
         {len(self.running_ads)} running ads and campaign {self.campaign["name"]}')
 
         self.cnf = cnf
@@ -368,13 +368,18 @@ class Marketing():
             'payload': {
                 'schema': ['PAGEUID'],
                 'is_raw': True,
-                'page_ids': [pageid],
-                'data': [[u] for u in users]
+                'page_ids': [pageid]
             }
         }
 
-        res = requests.post(url, json=body)
-        return res.json()
+        results = []
+
+        for chunk in split(users, 1000):
+            body['payload']['data'] = [[u] for u in chunk]
+            res = requests.post(url, json=body)
+            results.append(res.json())
+
+        return results
 
     def get_audience(self, name):
         fields = [CustomAudience.Field.name,
@@ -439,6 +444,8 @@ class Marketing():
         }
 
         name = f'vlab-lookalike-{custom_audience["name"]}-{slr}-{lr}'
+
+        print(name)
 
         # Get lookalike if already exists
         try:

@@ -101,18 +101,20 @@ cnf = {
     'lookup_loc': 'test/district-lookup.csv',
     'chatbase': chatbase,
     'survey_user': '111',
-    'stratum':
-    {'per_cluster_pop': 2,
-     'surveys': [
-         {'shortcode': 'foo',
-          'cluster_question': {
-              'ref': 'md:cid'
-          },
-          'target_questions': [
-              {'ref': '2',
-               'op': 'equal',
-               'value': 'yes'}]},
-        ]}}
+    'strata': [
+        {'per_cluster_pop': 2,
+         'surveys': [
+             {'shortcode': 'foo',
+              'cluster_question': {
+                  'ref': 'md:cid'
+              },
+              'target_questions': [
+                  {'ref': '2',
+                   'op': 'equal',
+                   'value': 'yes'}]},
+         ]}
+    ]
+}
 
 
 def test_malaria_opt_nothing_filled(surveys, db, dat):
@@ -124,18 +126,19 @@ def test_malaria_opt_nothing_filled(surveys, db, dat):
 def test_malaria_opt_no_survey_filled(surveys, db, dat):
     c = {
         **cnf,
-        'stratum':
-        {'per_cluster_pop': 2,
-         'surveys': [
-             {'shortcode': 'qux',
-              'cluster_question': {
-                  'ref': 'md:cid'
-              },
-              'target_questions': [
-                  {'ref': '2',
-                   'op': 'equal',
-                   'value': 'yes'}]},
-         ]}
+        'strata': [
+            {'per_cluster_pop': 2,
+             'surveys': [
+                 {'shortcode': 'qux',
+                  'cluster_question': {
+                      'ref': 'md:cid'
+                  },
+                  'target_questions': [
+                      {'ref': '2',
+                       'op': 'equal',
+                       'value': 'yes'}]},
+             ]}
+        ]
     }
     clusters, users = opt(c)
     assert len(clusters) == 3
@@ -144,18 +147,19 @@ def test_malaria_opt_no_survey_filled(surveys, db, dat):
 def test_malaria_opt_no_questions_filled(surveys, db, dat):
     c = {
         **cnf,
-        'stratum':
-        {'per_cluster_pop': 2,
-         'surveys': [
-             {'shortcode': 'bar',
-              'cluster_question': {
-                  'ref': 'md:cid'
-              },
-              'target_questions': [
-                  {'ref': '10',
-                   'op': 'equal',
-                   'value': 'yes'}]},
-         ]}
+        'strata': [
+            {'per_cluster_pop': 2,
+             'surveys': [
+                 {'shortcode': 'bar',
+                  'cluster_question': {
+                      'ref': 'md:cid'
+                  },
+                  'target_questions': [
+                      {'ref': '10',
+                       'op': 'equal',
+                       'value': 'yes'}]},
+             ]}
+        ]
     }
     clusters, users = opt(cnf)
     assert len(clusters) == 3
@@ -166,18 +170,19 @@ def test_malaria_opt_no_questions_filled(surveys, db, dat):
 def test_malaria_opt_user_fulfilled(surveys, db, dat):
     c = {
         **cnf,
-        'stratum':
-        {'per_cluster_pop': 2,
-         'surveys': [
-             {'shortcode': 'bar',
-              'cluster_question': {
-                  'ref': 'md:cid'
-              },
-              'target_questions': [
-                  {'ref': '2',
-                   'op': 'equal',
-                   'value': 'yes'}]},
-         ]}
+        'strata': [
+            {'per_cluster_pop': 2,
+             'surveys': [
+                 {'shortcode': 'bar',
+                  'cluster_question': {
+                      'ref': 'md:cid'
+                  },
+                  'target_questions': [
+                      {'ref': '2',
+                       'op': 'equal',
+                       'value': 'yes'}]},
+             ]}
+        ]
     }
 
     clusters, users = opt(c)
@@ -189,18 +194,19 @@ def test_malaria_opt_clusters_partially_fulfilled(surveys, db, dat):
 
     c = {
         **cnf,
-        'stratum':
-        {'per_cluster_pop': 1,
-         'surveys': [
-             {'shortcode': 'bar',
-              'cluster_question': {
-                  'ref': 'md:cid'
-              },
-              'target_questions': [
-                  {'ref': '2',
-                   'op': 'equal',
-                   'value': 'yes'}]},
-         ]}
+        'strata': [
+            {'per_cluster_pop': 1,
+             'surveys': [
+                 {'shortcode': 'bar',
+                  'cluster_question': {
+                      'ref': 'md:cid'
+                  },
+                  'target_questions': [
+                      {'ref': '2',
+                       'op': 'equal',
+                       'value': 'yes'}]},
+             ]}
+        ]
     }
 
     clusters, users = opt(c)
@@ -213,18 +219,19 @@ def test_malaria_opt_clusters_all_fulfilled(surveys, db, dat):
 
     c = {
         **cnf,
-        'stratum':
-        {'per_cluster_pop': 1,
-         'surveys': [
-             {'shortcode': 'baz',
-              'cluster_question': {
-                  'ref': 'md:cid'
-              },
-              'target_questions': [
-                  {'ref': '2',
-                   'op': 'equal',
-                   'value': 'yes'}]},
-         ]}
+        'strata': [
+            {'per_cluster_pop': 1,
+             'surveys': [
+                 {'shortcode': 'baz',
+                  'cluster_question': {
+                      'ref': 'md:cid'
+                  },
+                  'target_questions': [
+                      {'ref': '2',
+                       'op': 'equal',
+                       'value': 'yes'}]},
+             ]}
+        ]
     }
 
     clusters, users = opt(c)

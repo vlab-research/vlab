@@ -10,19 +10,22 @@ from responses import last_responses, get_surveyids, get_metadata
 from marketing import Marketing, MarketingNameError, CreativeGroup, \
     Location, Cluster, validate_targeting
 
+logging.basicConfig(level=logging.INFO)
 
 
 def get_df(cnf):
-    surveys = cnf['stratum']['surveys']
+    surveys = [survey for stratum in cnf['strata']
+               for survey in stratum['surveys']]
 
-    questions = [q['ref']
+
+    questions = {q['ref']
                  for s in surveys
-                 for q in s['target_questions']]
+                 for q in s['target_questions']}
 
-    questions += [s['cluster_question']['ref'] for s in surveys]
+    questions |= {s['cluster_question']['ref'] for s in surveys}
 
     uid = cnf['survey_user']
-    shortcodes = [s['shortcode'] for s in surveys]
+    shortcodes = {s['shortcode'] for s in surveys}
 
     surveyids = get_surveyids(shortcodes, uid, cnf['chatbase'])
 
@@ -53,24 +56,31 @@ def lookup_clusters(saturated, lookup_loc):
     return [d for d in lookup.disthash.unique()
             if d not in saturated]
 
-def unsaturated(df, cnf):
+def unsaturated(df, cnf, stratum):
     if df is None:
         return lookup_clusters([], cnf['lookup_loc'])
 
-    stratum = cnf['stratum']
     saturated = get_saturated_clusters(df, stratum)
     return lookup_clusters(saturated, cnf['lookup_loc'])
 
-def lookalike(df, cnf):
+def lookalike(df, stratum):
     if df is None:
-        return []
-    df = only_target_users(df, cnf['stratum']['surveys'])
-    return df.userid.unique().tolist()
+        return [], []
+
+    target = only_target_users(df, stratum['surveys'])
+    target_users = target.userid.unique()
+    anti_users = df[~df.userid.isin(target_users)].userid.unique()
+
+    return target_users.tolist(), anti_users.tolist()
 
 def opt(cnf):
+    # opt is used in tests and nothing else
+    # pick first stratum
+    stratum = cnf['strata'][0]
+
     df = get_df(cnf)
-    clusters = unsaturated(df, cnf)
-    users = lookalike(df, cnf)
+    clusters = unsaturated(df, cnf, stratum)
+    users, _ = lookalike(df, stratum)
     return clusters, users
 
 def get_conf(env):
@@ -90,7 +100,7 @@ def get_conf(env):
 
     with open('config/strata.json') as f:
         s = f.read()
-        c['stratum'] = json.loads(s)['strata'][0]
+        c['strata'] = json.loads(s)['strata']
 
     return c
 
@@ -148,8 +158,7 @@ def new_ads(m: Marketing,
         m.launch_adsets(cl, cg, ls, cnf['budget'], targeting, status, lookalike_aud)
 
 
-def get_aud(m: Marketing, cnf, create: bool) -> Optional[CustomAudience]:
-    name = cnf['stratum']['name']
+def get_aud(m: Marketing, name, create: bool) -> Optional[CustomAudience]:
     try:
         aud = m.get_audience(name)
     except MarketingNameError:
@@ -163,15 +172,18 @@ def get_aud(m: Marketing, cnf, create: bool) -> Optional[CustomAudience]:
 def update_audience():
     env = Env()
     cnf = get_conf(env)
-    m = Marketing(env)
-
+    m = Marketing(env, load_ads=False)
     df = get_df(cnf)
-    users = lookalike(df, cnf)
-    aud = get_aud(m, cnf, True)
 
-    logging.info(f'Adding {len(users)} users to audience {aud.get("name")}.')
-
-    m.add_users(aud['id'], users)
+    for stratum in cnf['strata']:
+        users, anti_users = lookalike(df, stratum)
+        name = stratum['name']
+        for u, n in [(users, name), (anti_users, f'anti-{name}')]:
+            aud = get_aud(m, n, True)
+            logging.info(f'Adding {len(u)} users to audience {aud.get("name")}.')
+            res = m.add_users(aud['id'], u)
+            for r in res:
+                logging.info(r)
 
 
 def update_ads():
@@ -180,9 +192,16 @@ def update_ads():
     m = Marketing(env)
 
     df = get_df(cnf)
-    clusters = unsaturated(df, cnf)
 
-    aud = get_aud(m, cnf, False)
+    # TODO: make a separate campaign per strata
+    # this will requre dif instances of Marketing.
+    # change label for creatives, make it linked to
+    # campaign somehow?
+    # or just cache get_creatives...
+    stratum = cnf['strata'][0]
+
+    clusters = unsaturated(df, cnf, stratum)
+    aud = get_aud(m, stratum['name'], False)
     if aud:
         aud = m.get_lookalike(aud, cnf['country'])
 
