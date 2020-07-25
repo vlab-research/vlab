@@ -1,5 +1,6 @@
-import pandas as pd
 import logging
+import pandas as pd
+
 
 def res_col(ref, df):
     try:

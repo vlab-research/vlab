@@ -445,8 +445,6 @@ class Marketing():
 
         name = f'vlab-lookalike-{custom_audience["name"]}-{slr}-{lr}'
 
-        print(name)
-
         # Get lookalike if already exists
         try:
             return self.get_audience(name)

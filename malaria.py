@@ -1,6 +1,6 @@
 import json
 import logging
-from typing import Dict, Optional, List
+from typing import Dict, Optional, List, Any
 import pandas as pd
 import typing_json
 from environs import Env
@@ -124,7 +124,8 @@ def uniqueness(clusters: List[Cluster]):
         raise Exception('Cluster IDs combinations are not unique')
 
 def new_ads(m: Marketing,
-            cnf,
+            cnf: Dict[str, Any],
+            stratum: Dict[str, Any],
             status: str,
             clusters: List[str],
             lookalike_aud: Optional[CustomAudience]) -> None:
@@ -133,7 +134,7 @@ def new_ads(m: Marketing,
     cluster_vars = ['disthash', 'distname']
     creative_config = 'config/creatives.json'
     creative_group = 'hindi'
-    targeting = cnf['stratum'].get('targeting')
+    targeting = stratum.get('targeting')
 
     # different creative group per cluster?
     cg = load_creatives(creative_config, creative_group)
@@ -205,4 +206,4 @@ def update_ads():
     if aud:
         aud = m.get_lookalike(aud, cnf['country'])
 
-    new_ads(m, cnf, 'ACTIVE', clusters, aud)
+    new_ads(m, cnf, stratum, 'ACTIVE', clusters, aud)
