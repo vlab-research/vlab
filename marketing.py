@@ -62,6 +62,7 @@ class AdsetConf(NamedTuple):
     hours: int
     targeting: Optional[Dict[str, Any]]
     audience: Optional[CustomAudience]
+    excluded_audience: Optional[CustomAudience]
 
 
 class MarketingNameError(BaseException):
@@ -155,6 +156,10 @@ def create_adset(account, name, custom_locs, c: AdsetConf):
 
     if c.audience:
         targeting[Targeting.Field.custom_audiences] = [{'id': c.audience['id']}]
+
+    if c.excluded_audience:
+        targeting[Targeting.Field.excluded_custom_audiences] = \
+            [{'id': c.excluded_audience['id']}]
 
     if c.targeting:
         for k, v in c.targeting.items():
@@ -342,8 +347,9 @@ class Marketing():
             self.running_ads = get_running_ads(self.campaign)
             self.creatives = get_creatives(self.account, self.label['id'])
 
-            logging.info(f'Intiailized Marketing with {len(self.creatives)} creatives, \
-        {len(self.running_ads)} running ads and campaign {self.campaign["name"]}')
+            logging.info(f'Intiailized Marketing with {len(self.creatives)} creatives, '
+                         f'{len(self.running_ads)} running ads and '
+                         f'campaign {self.campaign["name"]}')
 
         self.cnf = cnf
 
@@ -403,7 +409,8 @@ class Marketing():
                       budget: float,
                       targeting: Dict[str, Any],
                       status: str,
-                      audience: Optional[CustomAudience]) -> None:
+                      audience: Optional[CustomAudience],
+                      anti_audience: Optional[CustomAudience]) -> None:
 
 
         creatives = [self.create_creative(cluster, c) for c in cg.creatives]
@@ -419,7 +426,8 @@ class Marketing():
                                    self.cnf['INSTA_ID'],
                                    self.cnf['ADSET_HOURS'],
                                    targeting,
-                                   audience)
+                                   audience,
+                                   anti_audience)
 
             fingerprint = hash_adset(adset_conf)
             name = f'vlab-{cluster.id}-{cg.name}-{i}-{fingerprint}'
@@ -497,7 +505,7 @@ class Marketing():
 
         try:
             creative = self.creatives[fingerprint]
-            logging.info(f'Found creative with fingerprint: {fingerprint}')
+            logging.debug(f'Found creative with fingerprint: {fingerprint}')
             return creative
         except KeyError:
             fields = ['name', 'object_story_spec']

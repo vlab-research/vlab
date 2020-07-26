@@ -128,7 +128,8 @@ def new_ads(m: Marketing,
             stratum: Dict[str, Any],
             status: str,
             clusters: List[str],
-            lookalike_aud: Optional[CustomAudience]) -> None:
+            aud: Optional[CustomAudience],
+            anti_aud: Optional[CustomAudience]) -> None:
 
     # TODO: get this dynamically somehow
     cluster_vars = ['disthash', 'distname']
@@ -156,7 +157,7 @@ def new_ads(m: Marketing,
 
 
     for cl, ls in locs:
-        m.launch_adsets(cl, cg, ls, cnf['budget'], targeting, status, lookalike_aud)
+        m.launch_adsets(cl, cg, ls, cnf['budget'], targeting, status, aud, anti_aud)
 
 
 def get_aud(m: Marketing, name, create: bool) -> Optional[CustomAudience]:
@@ -202,8 +203,15 @@ def update_ads():
     stratum = cnf['strata'][0]
 
     clusters = unsaturated(df, cnf, stratum)
-    aud = get_aud(m, stratum['name'], False)
+
+
+    aud, anti_aud = get_aud(m, stratum['name'], False), \
+        get_aud(m, f'anti-{stratum["name"]}', False)
+
     if aud:
         aud = m.get_lookalike(aud, cnf['country'])
 
-    new_ads(m, cnf, stratum, 'ACTIVE', clusters, aud)
+    if anti_aud:
+        anti_aud = m.get_lookalike(anti_aud, cnf['country'])
+
+    new_ads(m, cnf, stratum, 'ACTIVE', clusters, aud, anti_aud)
