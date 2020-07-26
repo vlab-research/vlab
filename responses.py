@@ -49,7 +49,7 @@ def last_responses(surveyids, questions, cnf):
       WHERE question_ref in %s
       AND surveyid in %s
     )
-    SELECT userid, surveyid, shortcode, question_ref, response FROM t WHERE n = 1
+    SELECT userid, surveyid, shortcode, question_ref, response, timestamp FROM t WHERE n = 1
     """
 
     surveyids = tuple(surveyids)
