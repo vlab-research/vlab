@@ -1,4 +1,6 @@
+import json
 from datetime import datetime
+import pandas as pd
 from toolz import dissoc
 import psycopg2
 
@@ -77,6 +79,54 @@ def get_metadata(surveyids, cnf):
            if r.get('metadata'))
 
     return (dissoc(d, 'metadata') for d in res)
+
+
+def get_forms(survey_user, shortcodes, timestamp, cnf):
+    q = """
+    WITH t AS (
+      SELECT
+        *,
+        ROW_NUMBER() OVER (PARTITION BY shortcode) as n
+      FROM surveys
+      WHERE userid = %s
+      AND shortcode in %s
+      AND created <= %s
+      ORDER BY created DESC
+    )
+    SELECT form
+    FROM t
+    WHERE n = 1
+    """
+
+    shortcodes = tuple(shortcodes)
+    res = query(cnf, q, (survey_user, shortcodes, timestamp), as_dict=True)
+    res = (r['form'] for r in res)
+    return (json.loads(r) for r in res)
+
+
+def get_response_df(survey_user, shortcodes, questions, database_cnf):
+
+    surveyids = get_surveyids(shortcodes, survey_user, database_cnf)
+
+    responses = last_responses(surveyids,
+                               questions,
+                               database_cnf)
+
+    df = pd.DataFrame(list(responses))
+
+    if df.shape[0] == 0:
+        print(f'Warning: no responses were found in the database \
+        for shortcodes: {shortcodes} and questions: {questions}')
+        return None
+
+    # add synthetic district responses
+    md = get_metadata(surveyids, database_cnf)
+    md = pd.DataFrame(md)
+
+    # could remove original district questions...
+    df = pd.concat([md, df]).reset_index(drop=True)
+
+    return df
 
 
 def format_synthetic(responses, ref, description):

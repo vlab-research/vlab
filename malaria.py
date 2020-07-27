@@ -6,7 +6,7 @@ import typing_json
 from environs import Env
 from facebook_business.adobjects.customaudience import CustomAudience
 from clustering import get_saturated_clusters, only_target_users
-from responses import last_responses, get_surveyids, get_metadata
+from responses import get_response_df
 from marketing import Marketing, MarketingNameError, CreativeGroup, \
     Location, Cluster, validate_targeting
 
@@ -17,38 +17,17 @@ def get_df(cnf):
     surveys = [survey for stratum in cnf['strata']
                for survey in stratum['surveys']]
 
-
     questions = {q['ref']
                  for s in surveys
                  for q in s['target_questions']}
 
     questions |= {s['cluster_question']['ref'] for s in surveys}
 
-    uid = cnf['survey_user']
+    survey_user = cnf['survey_user']
     shortcodes = {s['shortcode'] for s in surveys}
 
-    surveyids = get_surveyids(shortcodes, uid, cnf['chatbase'])
+    return get_response_df(survey_user, shortcodes, questions, cnf['chatbase'])
 
-    responses = last_responses(surveyids,
-                               questions,
-                               cnf['chatbase'])
-
-    df = pd.DataFrame(list(responses))
-
-    if df.shape[0] == 0:
-        print(f'Warning: no responses were found in the database \
-        for shortcodes: {shortcodes} and questions: {questions}')
-        return None
-
-
-    # add synthetic district responses
-    md = get_metadata(surveyids, cnf['chatbase'])
-    md = pd.DataFrame(md)
-
-    # could remove original district questions...
-    df = pd.concat([md, df]).reset_index(drop=True)
-
-    return df
 
 
 def lookup_clusters(saturated, lookup_loc):
@@ -67,21 +46,26 @@ def lookalike(df, stratum):
     if df is None:
         return [], []
 
-    target = only_target_users(df, stratum['surveys'])
+    target = only_target_users(df, stratum['surveys'], 'target_questions')
     target_users = target.userid.unique()
-    anti_users = df[~df.userid.isin(target_users)].userid.unique()
+
+    anti = only_target_users(df, stratum['surveys'], 'exclude_questions')
+    anti_users = anti.userid.unique()
 
     return target_users.tolist(), anti_users.tolist()
 
-def opt(cnf):
+def opt(cnf, anti=False):
     # opt is used in tests and nothing else
     # pick first stratum
     stratum = cnf['strata'][0]
 
     df = get_df(cnf)
     clusters = unsaturated(df, cnf, stratum)
-    users, _ = lookalike(df, stratum)
+    users, antis = lookalike(df, stratum)
+    if anti:
+        return clusters, users, antis
     return clusters, users
+
 
 def get_conf(env):
     c = {
@@ -203,7 +187,6 @@ def update_ads():
     stratum = cnf['strata'][0]
 
     clusters = unsaturated(df, cnf, stratum)
-
 
     aud, anti_aud = get_aud(m, stratum['name'], False), \
         get_aud(m, f'anti-{stratum["name"]}', False)

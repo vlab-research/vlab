@@ -83,6 +83,8 @@ def dat(db):
         ('baz', '3', '1', '2', 'yes', '{"cid": "0f1"}', datetime(2020, 5, 2, tzinfo=timezone.utc)),
         ('baz', '3', '2', '1', '1245', '{"cid": "0f2"}', datetime(2020, 5, 1, tzinfo=timezone.utc)),
         ('baz', '3', '2', '2', 'yes', '{"cid": "0f2"}', datetime(2020, 5, 2, tzinfo=timezone.utc)),
+        ('baz', '3', '3', '1', '1245', '{"cid": "0f2"}', datetime(2020, 5, 1, tzinfo=timezone.utc)),
+        ('baz', '3', '3', '2', 'no', '{"cid": "0f2"}', datetime(2020, 5, 2, tzinfo=timezone.utc)),
     ]
 
     for r in rows:
@@ -111,7 +113,8 @@ cnf = {
               'target_questions': [
                   {'ref': '2',
                    'op': 'equal',
-                   'value': 'yes'}]},
+                   'value': 'yes'}],
+              'exclude_questions': []},
          ]}
     ]
 }
@@ -133,10 +136,11 @@ def test_malaria_opt_no_survey_filled(surveys, db, dat):
                   'cluster_question': {
                       'ref': 'md:cid'
                   },
-                  'target_questions': [
-                      {'ref': '2',
-                       'op': 'equal',
-                       'value': 'yes'}]},
+              'target_questions': [
+                  {'ref': '2',
+                   'op': 'equal',
+                   'value': 'yes'}],
+              'exclude_questions': []}
              ]}
         ]
     }
@@ -154,10 +158,11 @@ def test_malaria_opt_no_questions_filled(surveys, db, dat):
                   'cluster_question': {
                       'ref': 'md:cid'
                   },
-                  'target_questions': [
-                      {'ref': '10',
-                       'op': 'equal',
-                       'value': 'yes'}]},
+              'target_questions': [
+                  {'ref': '2',
+                   'op': 'equal',
+                   'value': 'yes'}],
+              'exclude_questions': []},
              ]}
         ]
     }
@@ -178,9 +183,10 @@ def test_malaria_opt_user_fulfilled(surveys, db, dat):
                       'ref': 'md:cid'
                   },
                   'target_questions': [
-                      {'ref': '2',
-                       'op': 'equal',
-                       'value': 'yes'}]},
+                  {'ref': '2',
+                   'op': 'equal',
+                   'value': 'yes'}],
+                  'exclude_questions': []},
              ]}
         ]
     }
@@ -204,7 +210,8 @@ def test_malaria_opt_clusters_partially_fulfilled(surveys, db, dat):
                   'target_questions': [
                       {'ref': '2',
                        'op': 'equal',
-                       'value': 'yes'}]},
+                       'value': 'yes'}],
+                  'exclude_questions': []},
              ]}
         ]
     }
@@ -227,9 +234,10 @@ def test_malaria_opt_clusters_all_fulfilled(surveys, db, dat):
                       'ref': 'md:cid'
                   },
                   'target_questions': [
-                      {'ref': '2',
-                       'op': 'equal',
-                       'value': 'yes'}]},
+                  {'ref': '2',
+                   'op': 'equal',
+                   'value': 'yes'}],
+                  'exclude_questions': []},
              ]}
         ]
     }
@@ -239,3 +247,35 @@ def test_malaria_opt_clusters_all_fulfilled(surveys, db, dat):
     assert len(clusters) == 1
     assert clusters == ['0f3']
     assert users == ['1', '2']
+
+
+
+def test_malaria_lookalike_users_and_anti_users(surveys, db, dat):
+    c = {
+        **cnf,
+        'strata': [
+            {'per_cluster_pop': 1,
+             'surveys': [
+                 {'shortcode': 'baz',
+                  'cluster_question': {
+                      'ref': 'md:cid'
+                  },
+                  'target_questions': [
+                  {'ref': '2',
+                   'op': 'equal',
+                   'value': 'yes'}],
+                  'exclude_questions': [
+                  {'ref': '2',
+                   'op': 'equal',
+                   'value': 'no'}
+                  ]},
+             ]}
+        ]
+    }
+
+    clusters, users, antis = opt(c, True)
+
+    assert len(clusters) == 1
+    assert clusters == ['0f3']
+    assert users == ['1', '2']
+    assert antis == ['3']
