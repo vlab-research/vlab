@@ -1,6 +1,6 @@
 import json
 import logging
-from typing import Dict, Optional, List, Any
+from typing import Dict, Optional, List, Any, Tuple
 import pandas as pd
 import typing_json
 from environs import Env
@@ -89,12 +89,12 @@ def get_conf(env):
     return c
 
 
-def load_creatives(path: str, group: str) -> CreativeGroup:
+def load_creatives(path: str) -> Dict[str, CreativeGroup]:
     with open(path) as f:
         s = f.read()
 
     d = typing_json.loads(s, Dict[str, CreativeGroup])
-    return d[group]
+    return d
 
 def load_cities(path):
     cities = pd.read_csv(path)
@@ -116,31 +116,34 @@ def new_ads(m: Marketing,
             anti_aud: Optional[CustomAudience]) -> None:
 
     # TODO: get this dynamically somehow
-    cluster_vars = ['disthash', 'distname']
+    cluster_vars = ['disthash', 'distname', 'creative_group']
     creative_config = 'config/creatives.json'
-    creative_group = 'hindi'
-    targeting = stratum.get('targeting')
 
-    # different creative group per cluster?
-    cg = load_creatives(creative_config, creative_group)
-
-    # groupby cluster
+    cg_lookup = load_creatives(creative_config)
     cities = load_cities(cnf['lookup_loc'])
-    locs = [(Cluster(i, n), [Location(r.lat, r.lng, r.rad) for _, r in df.iterrows()])
-            for (i, n), df in cities.groupby(cluster_vars)]
+
+    # In principle all the groupby vars should be the same,
+    # so grouping by clusterid, clustername, and creative group
+    # should return the same groups!! Important data assumption!
+    LocsType = List[Tuple[Cluster, CreativeGroup, List[Location]]]
+    locs: LocsType = [(Cluster(i, n),
+                       cg_lookup[cg],
+                       [Location(r.lat, r.lng, r.rad) for _, r in df.iterrows()])
+                      for (i, n, cg), df in cities.groupby(cluster_vars)]
 
     # filter for only clusters of interest
-    locs = [(cl, ls) for cl, ls in locs if cl.id in clusters]
+    locs = [(cl, cg, ls) for cl, cg, ls in locs if cl.id in clusters]
 
     # check uniqueness of clusterids
-    uniqueness([cl for cl, _ in locs])
+    uniqueness([cl for cl, _, _ in locs])
 
     # validate targeting keys
+    targeting = stratum.get('targeting')
     if targeting:
         validate_targeting(targeting)
 
 
-    for cl, ls in locs:
+    for cl, cg, ls in locs:
         m.launch_adsets(cl, cg, ls, cnf['budget'], targeting, status, aud, anti_aud)
 
 
