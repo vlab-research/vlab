@@ -57,12 +57,12 @@ def test_response_translator_translate_when_other():
          'type': 'multiple_choice'}
 
     qt = {'title': 'What is your gender? ',
-         'ref': '20218ad0-96c8-4799-bdfe-90c689c5c206',
-         'properties': {
-                        'choices': [{'label': 'Male'},
-                                    {'label': 'Female'},
-                                    {'label': 'Other'}]},
-         'type': 'multiple_choice'}
+          'ref': '20218ad0-96c8-4799-bdfe-90c689c5c206',
+          'properties': {
+              'choices': [{'label': 'Male'},
+                          {'label': 'Female'},
+                          {'label': 'Other'}]},
+          'type': 'multiple_choice'}
 
     t = response_translator(q, qt)
     assert t('महिला') == 'Female'
@@ -83,22 +83,21 @@ def test_response_translator_works_when_no_other():
 
 def test_response_translator_works_when_other_and_label():
     hin = {'id': 'mdUpJMSY8Lct',
-         'title': 'वर्तमान में आप किस राज्य में रहते हैं?\n- A. छत्तीसगढ़\n- B. झारखंड\n- C. ओडिशा\n- D. उत्तर प्रदेश',
-         'ref': 'e959559b-092a-434f-b67f-dca329fab50a',
-         'properties': {'choices': [{'label': 'A'},
-                                    {'label': 'B'},
-                                    {'label': 'C'},
-                                    {'label': 'D'}]},
-         'type': 'multiple_choice'}
+           'title': 'वर्तमान में आप किस राज्य में रहते हैं?\n- A. छत्तीसगढ़\n- B. झारखंड\n- C. ओडिशा\n- D. उत्तर प्रदेश',
+           'ref': 'e959559b-092a-434f-b67f-dca329fab50a',
+           'properties': {'choices': [{'label': 'A'},
+                                      {'label': 'B'},
+                                      {'label': 'C'},
+                                      {'label': 'D'}]},
+           'type': 'multiple_choice'}
 
     eng = {'title': 'Which state do you currently live in?\n- A. foo 91  bar\n- B. Jharkhand\n- C. Odisha\n- D. Uttar Pradesh',
-         'ref': '20218ad0-96c8-4799-bdfe-90c689c5c206',
-         'properties': {
-             'choices': [{'label': 'A'},
-                         {'label': 'B'},
-                         {'label': 'C'},
-                         {'label': 'D'}]},
-         'type': 'multiple_choice'}
+           'ref': '20218ad0-96c8-4799-bdfe-90c689c5c206',
+           'properties': {'choices': [{'label': 'A'},
+                                      {'label': 'B'},
+                                      {'label': 'C'},
+                                      {'label': 'D'}]},
+           'type': 'multiple_choice'}
 
 
     t = response_translator(hin, eng)
