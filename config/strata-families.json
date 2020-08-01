@@ -1,0 +1,75 @@
+{
+  "strata": [
+    {
+      "name": "only-malaria",
+      "targeting": {
+        "age_min": 21
+      },
+      "per_cluster_pop": 100,
+      "surveys": [
+        {
+          "shortcode": "baselineeng",
+          "cluster_question": {
+            "name": "district",
+            "ref": "md:clusterid"
+          },
+          "target_questions": [
+            {
+              "name": "at-risk",
+              "ref": "f6e69027-97cc-494e-8d52-318b75047e23",
+              "op": "equal",
+              "value": "Yes"
+            },
+            {
+              "name": "lives-with-family",
+              "ref": "254fe756-eab6-4989-8c80-acb0bb6ec52b",
+              "op": "greater_than",
+              "value": "1"
+            }
+          ]
+        },
+        {
+          "shortcode": "baselinehin",
+          "cluster_question": {
+            "name": "district",
+            "ref": "md:clusterid"
+          },
+          "target_questions": [
+            {
+              "name": "at-risk",
+              "ref": "f6e69027-97cc-494e-8d52-318b75047e23",
+              "op": "equal",
+              "value": "हाँ"
+            },
+            {
+              "name": "lives-with-family",
+              "ref": "254fe756-eab6-4989-8c80-acb0bb6ec52b",
+              "op": "greater_than",
+              "value": "1"
+            }
+          ]
+        },
+        {
+          "shortcode": "baselineodi",
+          "cluster_question": {
+            "name": "district",
+            "ref": "md:clusterid"
+          },
+          "target_questions": [
+            {
+              "name": "at-risk",
+              "ref": "f6e69027-97cc-494e-8d52-318b75047e23",
+              "op": "equal",
+              "value": "ହଁ"
+            },
+            {
+              "name": "lives-with-family",
+              "ref": "254fe756-eab6-4989-8c80-acb0bb6ec52b",
+              "op": "greater_than",
+              "value": "1"
+            }
+          ]
+        }
+      ]}
+  ]
+}

@@ -1,16 +1,16 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: gbv-adopt-update-ads-vlab-2
+  name: gbv-adopt-update-ads-vlab-8
   labels:
-    app: gbv-adopt-update-ads-vlab-2
+    app: gbv-adopt-update-ads-vlab-8
 spec:
   template:
     spec:
       restartPolicy: OnFailure
       containers:
       - name: gbv-adopt-update-ads
-        image: vlabresearch/adopt:0.0.19
+        image: vlabresearch/adopt:0.0.27
         args:
         - python
         - malaria_ads.py
@@ -48,21 +48,21 @@ spec:
         - name: FACEBOOK_AD_ACCOUNT
           value: "2240415876083895"
         - name: FACEBOOK_AD_CAMPAIGN
-          value: "impact-evaluation-vlab-2"
+          value: "impact-evaluation-vlab-8"
         - name: FACEBOOK_AD_LABEL
-          value: "virtuallab-1"
+          value: "virtuallab-2"
         - name: FACEBOOK_ADSET_HOURS
-          value: "18"
+          value: "26"
         - name: FACEBOOK_LOOKALIKE_STARTING_RATIO
           value: "0.0"
         - name: FACEBOOK_LOOKALIKE_RATIO
-          value: "0.20"
+          value: "0.2"
         - name: MALARIA_SURVEY_USER
           value: "10383123-9fb1-429b-8312-447c1b54b17a"
         - name: MALARIA_COUNTRY
           value: "IN"
         - name: MALARIA_BUDGET
-          value: "50000"
+          value: "150000"
         - name: MALARIA_DISTRICT_LOOKUP
           value: "output/cities.csv"
       volumes:

@@ -321,6 +321,7 @@ def make_ref(form, id_, name) -> str:
     return f'form.{form}.clusterid.{id_}.clustername.{name}'
 
 
+
 class Marketing():
     def __init__(self, env, load_ads=True):
         cnf = {

@@ -1,11 +1,11 @@
 {
   "strata": [
     {
-      "name": "kutchas",
+      "name": "only-malaria",
       "targeting": {
         "age_min": 20
       },
-      "per_cluster_pop": 125,
+      "per_cluster_pop": 100,
       "surveys": [
         {
           "shortcode": "baselineeng",
@@ -15,18 +15,10 @@
           },
           "target_questions": [
             {
-              "name": "home",
-              "ref": "4d0ae478-3893-4b46-ab39-d6848c69245d",
+              "name": "at-risk",
+              "ref": "f6e69027-97cc-494e-8d52-318b75047e23",
               "op": "equal",
-              "value": "A"
-            }
-          ],
-          "exclude_questions": [
-            {
-              "name": "home",
-              "ref": "4d0ae478-3893-4b46-ab39-d6848c69245d",
-              "op": "equal",
-              "value": "B"
+              "value": "Yes"
             }
           ]
         },
@@ -38,18 +30,25 @@
           },
           "target_questions": [
             {
-              "name": "home",
-              "ref": "4d0ae478-3893-4b46-ab39-d6848c69245d",
+              "name": "at-risk",
+              "ref": "f6e69027-97cc-494e-8d52-318b75047e23",
               "op": "equal",
-              "value": "A"
+              "value": "हाँ"
             }
-          ],
-          "exclude_questions": [
+          ]
+        },
+        {
+          "shortcode": "baselineodi",
+          "cluster_question": {
+            "name": "district",
+            "ref": "md:clusterid"
+          },
+          "target_questions": [
             {
-              "name": "home",
-              "ref": "4d0ae478-3893-4b46-ab39-d6848c69245d",
+              "name": "at-risk",
+              "ref": "f6e69027-97cc-494e-8d52-318b75047e23",
               "op": "equal",
-              "value": "B"
+              "value": "ହଁ"
             }
           ]
         }
