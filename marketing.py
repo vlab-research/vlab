@@ -141,11 +141,29 @@ def validate_targeting(targeting):
         if k not in valid_targets:
             raise Exception(f'Targeting config invalid, key: {k} does not exist!')
 
+def create_targeting(c: AdsetConf) -> Dict[str, Union[Any, List[Any]]]:
+    custom_locs = [create_location(lat, lng, rad)
+                   for lat, lng, rad in c.locs]
+
+    T = Dict[str, Union[Any, List[Any]]]
+
+    targeting: T = {
+        Targeting.Field.geo_locations: {
+            TargetingGeoLocation.Field.location_types: ['home'],
+            TargetingGeoLocation.Field.custom_locations: custom_locs
+        }
+    }
+
+    if c.targeting:
+        for k, v in c.targeting.items():
+            targeting[k] = v
+
+    return targeting
+
 
 @backoff.on_exception(backoff.constant, FacebookRequestError, giveup=check_code, interval=BACKOFF)
 def update_adset(adset: AdSet, c: AdsetConf) -> AdSet:
-    T = Dict[str, Union[Any, List[Any]]]
-    targeting: T = {}
+    targeting = create_targeting(c)
 
     if c.audience:
         targeting[Targeting.Field.custom_audiences] = [{'id': c.audience['id']}]
@@ -166,16 +184,8 @@ def update_adset(adset: AdSet, c: AdsetConf) -> AdSet:
 
 
 @backoff.on_exception(backoff.constant, FacebookRequestError, giveup=check_code, interval=BACKOFF)
-def create_adset(account, name, custom_locs, c: AdsetConf):
-
-    # type hinting hack to please mypy
-    T = Dict[str, Union[Any, List[Any]]]
-    targeting: T = {
-        Targeting.Field.geo_locations: {
-            TargetingGeoLocation.Field.location_types: ['home'],
-            TargetingGeoLocation.Field.custom_locations: custom_locs
-        }
-    }
+def create_adset(account, name, c: AdsetConf):
+    targeting = create_targeting(c)
 
     if c.audience:
         targeting[Targeting.Field.custom_audiences] = [{'id': c.audience['id']}]
@@ -184,15 +194,10 @@ def create_adset(account, name, custom_locs, c: AdsetConf):
         targeting[Targeting.Field.excluded_custom_audiences] = \
             [{'id': c.excluded_audience['id']}]
 
-    if c.targeting:
-        for k, v in c.targeting.items():
-            targeting[k] = v
-
-
     params = {
         AdSet.Field.name: name,
         AdSet.Field.instagram_actor_id: c.instagram_id,
-        AdSet.Field.lifetime_budget: c.budget,
+        AdSet.Field.daily_budget: c.budget,
         AdSet.Field.start_time: datetime.utcnow() + timedelta(minutes=5),
         AdSet.Field.end_time: datetime.utcnow() + timedelta(hours=c.hours),
         AdSet.Field.campaign_id: c.campaign['id'],
@@ -273,28 +278,9 @@ def get_label(account, name):
     return label
 
 
-def hash_adset(c: AdsetConf) -> str:
-    locs = sorted(c.locs, key=lambda x: x.lat)
-    creatives = sorted(c.creatives, key=lambda x: x['id'])
-
-    objs = [
-        c.campaign['id'],
-        c.instagram_id,
-        f'{c.cluster.id}',
-        ' '.join([f'{l.lat}{l.lng}{l.rad}' for l in locs]),
-        ' '.join([c['id'] for c in creatives]),
-        c.audience['id'] if c.audience else '',
-    ]
-
-    s = ' '.join(objs)
-    return xxhash.xxh64(s).hexdigest()
-
-
 def launch_adset(name: str, account: AdAccount, c: AdsetConf) -> Tuple[AdSet, List[Ad]]:
-    custom_locs = [create_location(lat, lng, rad)
-                   for lat, lng, rad in c.locs]
 
-    adset = create_adset(account, name, custom_locs, c)
+    adset = create_adset(account, name, c)
     ads = create_ads(account, adset, c.creatives, c.status)
     return adset, ads
 
@@ -454,8 +440,7 @@ class Marketing():
                                    audience,
                                    anti_audience)
 
-            fingerprint = hash_adset(adset_conf)
-            name = f'vlab-{cluster.id}-{cg.name}-{i}-{fingerprint}'
+            name = f'vlab-{cluster.id}-{cg.name}-{i}'
 
             adset = get_running_ad(name, self.running_ads, creatives)
 

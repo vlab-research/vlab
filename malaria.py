@@ -5,7 +5,7 @@ import pandas as pd
 import typing_json
 from environs import Env
 from facebook_business.adobjects.customaudience import CustomAudience
-from clustering import get_saturated_clusters, only_target_users
+from clustering import get_saturated_clusters, only_target_users, get_weight_lookup
 from responses import get_response_df
 from marketing import Marketing, MarketingNameError, CreativeGroup, \
     Location, Cluster, validate_targeting
@@ -70,7 +70,7 @@ def opt(cnf, anti=False):
 def get_conf(env):
     c = {
         'country': env('MALARIA_COUNTRY'),
-        'budget': env('MALARIA_BUDGET'),
+        'budget': env.float('MALARIA_BUDGET'),
         'survey_user': env('MALARIA_SURVEY_USER'),
         'lookup_loc': env('MALARIA_DISTRICT_LOOKUP'),
         'chatbase': {
@@ -109,33 +109,41 @@ def uniqueness(clusters: List[Cluster]):
 
 def new_ads(m: Marketing,
             cnf: Dict[str, Any],
+            df: pd.DataFrame,
             stratum: Dict[str, Any],
             status: str,
-            clusters: List[str],
+            saturated_clusters: List[str],
             aud: Optional[CustomAudience],
             anti_aud: Optional[CustomAudience]) -> None:
 
     # TODO: get this dynamically somehow
-    cluster_vars = ['disthash', 'distname', 'creative_group']
+    # aud
+    cluster_vars = ['disthash', 'distname', 'creative_group', 'include_audience']
     creative_config = 'config/creatives.json'
 
     cg_lookup = load_creatives(creative_config)
     cities = load_cities(cnf['lookup_loc'])
 
+    all_clusters = cities[cluster_vars[0]].unique()
+    weight_lookup = get_weight_lookup(df, stratum, all_clusters)
+    total_budget = cnf['budget']
+    budget_lookup = {k:int(w*total_budget) for k, w in weight_lookup.items()}
+
+
     # In principle all the groupby vars should be the same,
     # so grouping by clusterid, clustername, and creative group
     # should return the same groups!! Important data assumption!
-    LocsType = List[Tuple[Cluster, CreativeGroup, List[Location]]]
+    LocsType = List[Tuple[Cluster, CreativeGroup, List[Location], int, bool]]
     locs: LocsType = [(Cluster(i, n),
                        cg_lookup[cg],
-                       [Location(r.lat, r.lng, r.rad) for _, r in df.iterrows()])
-                      for (i, n, cg), df in cities.groupby(cluster_vars)]
-
-    # filter for only clusters of interest
-    locs = [(cl, cg, ls) for cl, cg, ls in locs if cl.id in clusters]
+                       [Location(r.lat, r.lng, r.rad) for _, r in df.iterrows()],
+                       budget_lookup[i],
+                       bool(au))
+                      for (i, n, cg, au), df in cities.groupby(cluster_vars)
+                      if i not in saturated_clusters]
 
     # check uniqueness of clusterids
-    uniqueness([cl for cl, _, _ in locs])
+    uniqueness([cl for cl, _, _, _, _ in locs])
 
     # validate targeting keys
     targeting = stratum.get('targeting')
@@ -143,8 +151,11 @@ def new_ads(m: Marketing,
         validate_targeting(targeting)
 
 
-    for cl, cg, ls in locs:
-        m.launch_adsets(cl, cg, ls, cnf['budget'], targeting, status, aud, anti_aud)
+    for cl, cg, ls, bu, au in locs:
+        if au:
+            m.launch_adsets(cl, cg, ls, bu, targeting, status, aud, anti_aud)
+        else:
+            m.launch_adsets(cl, cg, ls, bu, targeting, status, None, None)
 
 
 def get_aud(m: Marketing, name, create: bool) -> Optional[CustomAudience]:
@@ -189,7 +200,7 @@ def update_ads():
     # or just cache get_creatives...
     stratum = cnf['strata'][0]
 
-    clusters = unsaturated(df, cnf, stratum)
+    saturated = get_saturated_clusters(df, stratum)
 
     aud, anti_aud = get_aud(m, stratum['name'], False), \
         get_aud(m, f'anti-{stratum["name"]}', False)
@@ -200,4 +211,4 @@ def update_ads():
     if anti_aud:
         anti_aud = m.get_lookalike(anti_aud, cnf['country'])
 
-    new_ads(m, cnf, stratum, 'ACTIVE', clusters, aud, anti_aud)
+    new_ads(m, cnf, df, stratum, 'ACTIVE', saturated, aud, anti_aud)

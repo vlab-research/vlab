@@ -1,6 +1,6 @@
 import logging
+from typing import Dict
 import pandas as pd
-
 
 def res_col(ref, df, t):
     try:
@@ -31,9 +31,16 @@ def add_res_cols(new_cols, groupby, df):
 
     return df
 
-def users_fulfilling(treqs, cluster_ref, df):
-    df = add_res_cols([('cluster', cluster_ref, lambda x: x)], 'userid', df)
+def add_cluster(reqs, df):
+    dfs = [add_res_cols([('cluster', cq, lambda x: x)],
+                        'userid',
+                        df[df.shortcode == sc])
+           for sc, cq, _ in reqs]
 
+    return pd.concat(dfs)
+
+
+def users_fulfilling(treqs, df):
     for ref, pred in treqs:
         try:
             d = df[df.question_ref == ref]
@@ -59,15 +66,20 @@ def make_pred(q):
 
     return lambda x: fn(x, q['value'])
 
-def make_reqs(target_questions):
+def _make_reqs(target_questions):
     return [(q['ref'], make_pred(q))
             for q in target_questions]
 
-def only_target_users(df, surveys, target_key):
-    reqs = [(s['shortcode'], s['cluster_question']['ref'], make_reqs(s[target_key]))
+def make_reqs(target_key, surveys):
+    return [(s['shortcode'], s['cluster_question']['ref'], _make_reqs(s[target_key]))
             for s in surveys]
 
-    users = [users_fulfilling(tqs, cq, df[df.shortcode == sc])
+def only_target_users(df, surveys, target_key):
+    reqs = make_reqs(target_key, surveys)
+
+    df = add_cluster(reqs, df)
+
+    users = [users_fulfilling(tqs, df[df.shortcode == sc])
              for sc, cq, tqs in reqs]
 
     users = [u for u in users if u is not None]
@@ -77,16 +89,13 @@ def only_target_users(df, surveys, target_key):
 
     return pd.concat(users)
 
-def get_saturated_clusters(df, stratum):
-    surveys = stratum['surveys']
+def _saturated_clusters(stratum, targets):
     is_saturated = lambda df: df.userid.unique().shape[0] >= stratum['per_cluster_pop']
 
-    df = only_target_users(df, surveys, 'target_questions')
-
-    if df is None:
+    if targets is None:
         return []
 
-    clusters = df \
+    clusters = targets \
                  .groupby('cluster') \
                  .filter(is_saturated) \
                  ['cluster'] \
@@ -94,3 +103,60 @@ def get_saturated_clusters(df, stratum):
                  .tolist()
 
     return clusters
+
+
+def get_saturated_clusters(df, stratum):
+    surveys = stratum['surveys']
+    targets = only_target_users(df, surveys, 'target_questions')
+    return _saturated_clusters(stratum, targets)
+
+
+def get_weight_lookup(df, stratum, all_clusters) -> Dict[str, float]:
+    surveys = stratum['surveys']
+
+    reqs = make_reqs('target_questions', surveys)
+    df = add_cluster(reqs, df)
+
+    targets = only_target_users(df, surveys, 'target_questions')
+    target_users = targets.userid.unique()
+    df['target'] = df.userid.isin(target_users)
+
+    saturated = _saturated_clusters(stratum, targets)
+    df = df[~df.cluster.isin(saturated)].reset_index(drop=True)
+
+    recorded_clusters = df.cluster.unique()
+    extra_df = pd.DataFrame([{'cluster': c, 'perc': 0.0, 'tot': 0}
+                             for c in all_clusters
+                             if c not in recorded_clusters])
+
+    lookup = df \
+        .groupby('cluster') \
+        .apply(lambda df: pd.Series([df.target.mean(), df.shape[0]], index=['perc', 'tot'])) \
+        .reset_index() \
+        .pipe(lambda df: pd.concat([df, extra_df])) \
+        .pipe(lambda df: df.assign(weight=cluster_value(df.perc, df.tot))) \
+        .set_index('cluster') \
+        .to_dict(orient='index')
+
+    lookup = {k: v['weight'] for k, v in lookup.items()}
+    N = len(all_clusters)
+    lookup = {**lookup, **{k:1/N for k in all_clusters if k not in lookup}}
+    tot = sum(lookup.values())
+    lookup = {k: v/tot for k, v in lookup.items()}
+
+    return lookup
+
+def cluster_value(perc, tot):
+    tot += 1
+    m = tot.mean()
+    w = (m / tot)
+
+    pm = perc.mean()
+    if pm > 0:
+        p = perc / pm
+    else:
+        p = 0.
+
+    weights = w + p
+
+    return weights

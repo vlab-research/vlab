@@ -42,10 +42,9 @@ def test_user_fulfilling_multiple():
     users = users_fulfilling([('rand', lambda x: x > 100),
                               ('rand', lambda x: x < 103),
                               ('dist', lambda x: x == 'bar')],
-                             'dist',
                              df)
 
-    df.userid.unique().tolist == [3]
+    assert users.userid.unique().tolist() == [3]
 
 
 def test_get_saturated_clusters_with_some_fulfilled():
@@ -192,3 +191,165 @@ def test_get_saturated_clusters_with_various_cluster_refs_and_target_refs():
 
     res = get_saturated_clusters(df, cnf['stratum'])
     assert res == ['foo', 'bar']
+
+
+def test_get_weight_lookup():
+
+    cnf = {'stratum':
+       {'per_cluster_pop': 5,
+        'surveys': [
+            {'shortcode': 'foo',
+             'cluster_question': {
+                 'ref': 'dist'
+             },
+             'target_questions': [
+                 {'ref': 'rand',
+                  'op': 'greater_than',
+                  'value': 100}]},
+            {'shortcode': 'bar',
+             'cluster_question': {
+                 'ref': 'dood'
+             },
+             'target_questions': [
+                 {'ref': 'rook',
+                  'op': 'greater_than',
+                  'value': 100}]}
+        ]}}
+
+    cols = ['question_ref', 'response', 'userid', 'shortcode']
+    df = pd.DataFrame([
+        ('dist', 'foo', 1, 'foo'),
+        ('rand', 105, 1, 'foo'),
+        ('dist', 'bar', 2, 'foo'),
+        ('rand', 55, 2, 'foo'),
+        ('dist', 'bar', 3, 'foo'),
+        ('rand', 60, 3, 'foo'),
+        ('dood', 'bar', 4, 'bar'),
+        ('rook', 90, 4, 'bar'),
+        ('dood', 'baz', 5, 'bar'),
+        ('rand', 105, 5, 'bar'),
+        ('rook', 99, 5, 'bar'),
+        ('dood', 'baz', 5, 'bar'),
+        ('rook', 105, 5, 'bar')
+    ], columns=cols)
+
+    res = get_weight_lookup(df, cnf['stratum'], ['bar', 'baz', 'foo'])
+    assert sum(res.values()) == 1
+    assert list(res.keys()) == ['bar', 'baz', 'foo']
+
+    assert res['foo'] > res['baz']
+    assert res['baz'] > res['bar']
+
+
+def test_get_weight_lookup_ignores_saturated_clusters():
+
+    cnf = {'stratum':
+       {'per_cluster_pop': 1,
+        'surveys': [
+            {'shortcode': 'foo',
+             'cluster_question': {
+                 'ref': 'dist'
+             },
+             'target_questions': [
+                 {'ref': 'rand',
+                  'op': 'greater_than',
+                  'value': 100}]},
+            {'shortcode': 'bar',
+             'cluster_question': {
+                 'ref': 'dood'
+             },
+             'target_questions': [
+                 {'ref': 'rook',
+                  'op': 'greater_than',
+                  'value': 100}]}
+        ]}}
+
+    cols = ['question_ref', 'response', 'userid', 'shortcode']
+    df = pd.DataFrame([
+        ('dist', 'foo', 1, 'foo'),
+        ('rand', 105, 1, 'foo'),
+        ('dist', 'bar', 2, 'foo'),
+        ('rand', 55, 2, 'foo'),
+        ('dist', 'bar', 3, 'foo'),
+        ('rand', 60, 3, 'foo'),
+        ('dood', 'bar', 4, 'bar'),
+        ('rook', 90, 4, 'bar'),
+        ('dood', 'baz', 5, 'bar'),
+        ('rand', 105, 5, 'bar'),
+        ('rook', 99, 5, 'bar'),
+        ('dood', 'baz', 5, 'bar'),
+        ('rook', 105, 5, 'bar')
+    ], columns=cols)
+
+    res = get_weight_lookup(df, cnf['stratum'], ['bar', 'baz', 'foo'])
+    assert res == { 'bar': 1.0 }
+
+
+
+def test_get_weight_lookup_ignores_saturated_clusters():
+    cnf = {'stratum':
+       {'per_cluster_pop': 1,
+        'surveys': [
+            {'shortcode': 'foo',
+             'cluster_question': {
+                 'ref': 'dist'
+             },
+             'target_questions': [
+                 {'ref': 'rand',
+                  'op': 'greater_than',
+                  'value': 100}]},
+            {'shortcode': 'bar',
+             'cluster_question': {
+                 'ref': 'dood'
+             },
+             'target_questions': [
+                 {'ref': 'rook',
+                  'op': 'greater_than',
+                  'value': 100}]}
+        ]}}
+
+    cols = ['question_ref', 'response', 'userid', 'shortcode']
+    df = pd.DataFrame([
+        ('dist', 'bar', 2, 'foo'),
+        ('rand', 55, 2, 'foo'),
+        ('dist', 'bar', 3, 'foo'),
+        ('rand', 60, 3, 'foo'),
+        ('dood', 'bar', 4, 'bar'),
+        ('rook', 90, 4, 'bar')
+    ], columns=cols)
+
+    res = get_weight_lookup(df, cnf['stratum'], ['bar', 'qux'])
+    assert res == { 'bar': 1/8, 'qux': 7/8 }
+
+
+# def test_get_weight_lookup_does_something_with_empty_data():
+
+#     cnf = {'stratum':
+#        {'per_cluster_pop': 1,
+#         'surveys': [
+#             {'shortcode': 'foo',
+#              'cluster_question': {
+#                  'ref': 'dist'
+#              },
+#              'target_questions': [
+#                  {'ref': 'rand',
+#                   'op': 'greater_than',
+#                   'value': 100}]},
+#             {'shortcode': 'bar',
+#              'cluster_question': {
+#                  'ref': 'dood'
+#              },
+#              'target_questions': [
+#                  {'ref': 'rook',
+#                   'op': 'greater_than',
+#                   'value': 100}]}
+#         ]}}
+
+#     cols = ['question_ref', 'response', 'userid', 'shortcode']
+#     df = pd.DataFrame([
+#         ('dist', 'foo', 1, 'foo'),
+#         ('rook', 105, 5, 'bar')
+#     ], columns=cols)
+
+#     res = get_weight_lookup(df, cnf['stratum'])
+#     assert res == { 'bar': 1.0 }
