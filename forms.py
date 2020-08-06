@@ -1,4 +1,5 @@
 import re
+import yaml
 
 def grep_label(text, label):
     r = '\n-? ?' + label + r'.? ([^\n]+)'
@@ -7,15 +8,38 @@ def grep_label(text, label):
         raise Exception('Could not create label from paragraph!')
     return finds[0]
 
-
-def make_answers(q):
-    if q['type'] != 'multiple_choice':
-        raise Exception(f'I dunno what to do with this type yet! {q["type"]}')
-
+def multiple_choice(q):
     labels = [c['label'] for c in q['properties']['choices']]
     if labels[0] == 'A':
         return [(l, grep_label(q['title'], l)) for l in labels]
     return [(l,l) for l in labels]
+
+
+def notify(q):
+    # TODO: this is language-specific and comes from FB!
+    labels = [('Notify Me', 'Notify Me')]
+    return labels
+
+
+def get_type(q):
+    try:
+        parsed = yaml.safe_load(q['properties'].get('description'))
+        return parsed['type']
+    except AttributeError:
+        return q['type']
+
+
+def make_answers(q):
+    types = {
+        'multiple_choice': multiple_choice,
+        'notify': notify
+    }
+
+    type_ = get_type(q)
+    try:
+        return types[type_](q)
+    except KeyError:
+        raise Exception(f'I dunno what to do with this type yet! {type_}')
 
 
 def response_translator(q, qt=None):
