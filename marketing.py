@@ -143,6 +143,29 @@ def validate_targeting(targeting):
 
 
 @backoff.on_exception(backoff.constant, FacebookRequestError, giveup=check_code, interval=BACKOFF)
+def update_adset(adset: AdSet, c: AdsetConf) -> AdSet:
+    T = Dict[str, Union[Any, List[Any]]]
+    targeting: T = {}
+
+    if c.audience:
+        targeting[Targeting.Field.custom_audiences] = [{'id': c.audience['id']}]
+
+    if c.excluded_audience:
+        targeting[Targeting.Field.excluded_custom_audiences] = \
+            [{'id': c.excluded_audience['id']}]
+
+    params = {
+        AdSet.Field.daily_budget: c.budget,
+        AdSet.Field.end_time: datetime.utcnow() + timedelta(hours=c.hours),
+        AdSet.Field.targeting: targeting,
+        AdSet.Field.status: c.status
+    }
+
+    adset = adset.api_update(params=params)
+    return adset
+
+
+@backoff.on_exception(backoff.constant, FacebookRequestError, giveup=check_code, interval=BACKOFF)
 def create_adset(account, name, custom_locs, c: AdsetConf):
 
     # type hinting hack to please mypy
@@ -232,17 +255,17 @@ def get_running_ads(campaign):
 
 
 @backoff.on_exception(backoff.constant, FacebookRequestError, giveup=check_code, interval=BACKOFF)
-def should_not_run(name, sets, creatives):
+def get_running_ad(name, sets, creatives):
     if name in sets:
         adset = sets[name]
         ads = adset.get_ads()
         if len(ads) == len(creatives):
-            return True
+            return adset
 
         # else this adset is corrupted
         adset.api_delete()
 
-    return False
+    return None
 
 @backoff.on_exception(backoff.constant, FacebookRequestError, giveup=check_code, interval=BACKOFF)
 def get_label(account, name):
@@ -274,6 +297,7 @@ def launch_adset(name: str, account: AdAccount, c: AdsetConf) -> Tuple[AdSet, Li
     adset = create_adset(account, name, custom_locs, c)
     ads = create_ads(account, adset, c.creatives, c.status)
     return adset, ads
+
 
 
 def get_images(account):
@@ -433,11 +457,14 @@ class Marketing():
             fingerprint = hash_adset(adset_conf)
             name = f'vlab-{cluster.id}-{cg.name}-{i}-{fingerprint}'
 
-            if should_not_run(name, self.running_ads, creatives):
-                logging.info(f'Ad already running: {name}')
-                continue
+            adset = get_running_ad(name, self.running_ads, creatives)
 
-            launch_adset(name, self.account, adset_conf)
+            if adset:
+                logging.info(f'Updating already running Ad: {name}')
+                update_adset(adset, adset_conf)
+            else:
+                logging.info(f'Launching new Ad: {name}')
+                launch_adset(name, self.account, adset_conf)
 
 
     def get_lookalike(self,
