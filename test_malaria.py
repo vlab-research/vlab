@@ -69,22 +69,22 @@ def dat(db):
     """
 
     rows = [
-        ('foo', '1', '1', '1', '1234', '{"cid": "0f1"}', datetime(2020, 5, 1, tzinfo=timezone.utc)),
-        ('foo', '1', '2', '1', '1245', '{"cid": "0f2"}', datetime(2020, 5, 2, tzinfo=timezone.utc)),
-        ('foo', '1', '2', '2', 'foo', '{"cid": "0f2"}', datetime(2020, 5, 2, tzinfo=timezone.utc)),
+        ('foo', '1', '1', '1', '1234', '{"startTime": 123456, "cid": "0f1"}', datetime(2020, 5, 1, tzinfo=timezone.utc)),
+        ('foo', '1', '2', '1', '1245', '{"startTime": 123456, "cid": "0f2"}', datetime(2020, 5, 2, tzinfo=timezone.utc)),
+        ('foo', '1', '2', '2', 'foo', '{"startTime": 123456, "cid": "0f2"}', datetime(2020, 5, 2, tzinfo=timezone.utc)),
 
-        ('bar', '2', '1', '1', '1234', '{"cid": "0f1"}', datetime(2020, 5, 2, tzinfo=timezone.utc)),
-        ('bar', '2', '1', '2', 'yes', '{"cid": "0f1"}', datetime(2020, 5, 2, tzinfo=timezone.utc)),
-        ('bar', '2', '2', '1', '1245', '{"cid": "0f2"}', datetime(2020, 5, 1, tzinfo=timezone.utc)),
-        ('bar', '2', '2', '2', 'no', '{"cid": "0f2"}', datetime(2020, 5, 2, tzinfo=timezone.utc)),
-        ('bar', '2', '3', '1', '1245', '{"cid": "0f2"}', datetime(2020, 5, 1, tzinfo=timezone.utc)),
+        ('bar', '2', '1', '1', '1234', '{"startTime": 123456, "cid": "0f1"}', datetime(2020, 5, 2, tzinfo=timezone.utc)),
+        ('bar', '2', '1', '2', 'yes', '{"startTime": 123456, "cid": "0f1"}', datetime(2020, 5, 2, tzinfo=timezone.utc)),
+        ('bar', '2', '2', '1', '1245', '{"startTime": 123456, "cid": "0f2"}', datetime(2020, 5, 1, tzinfo=timezone.utc)),
+        ('bar', '2', '2', '2', 'no', '{"startTime": 123456, "cid": "0f2"}', datetime(2020, 5, 2, tzinfo=timezone.utc)),
+        ('bar', '2', '3', '1', '1245', '{"startTime": 123456, "cid": "0f2"}', datetime(2020, 5, 1, tzinfo=timezone.utc)),
 
-        ('baz', '3', '1', '1', '1234', '{"cid": "0f1"}', datetime(2020, 5, 2, tzinfo=timezone.utc)),
-        ('baz', '3', '1', '2', 'yes', '{"cid": "0f1"}', datetime(2020, 5, 2, tzinfo=timezone.utc)),
-        ('baz', '3', '2', '1', '1245', '{"cid": "0f2"}', datetime(2020, 5, 1, tzinfo=timezone.utc)),
-        ('baz', '3', '2', '2', 'yes', '{"cid": "0f2"}', datetime(2020, 5, 2, tzinfo=timezone.utc)),
-        ('baz', '3', '3', '1', '1245', '{"cid": "0f2"}', datetime(2020, 5, 1, tzinfo=timezone.utc)),
-        ('baz', '3', '3', '2', 'no', '{"cid": "0f2"}', datetime(2020, 5, 2, tzinfo=timezone.utc)),
+        ('baz', '3', '1', '1', '1234', '{"startTime": 123456, "cid": "0f1"}', datetime(2020, 5, 2, tzinfo=timezone.utc)),
+        ('baz', '3', '1', '2', 'yes', '{"startTime": 123456, "cid": "0f1"}', datetime(2020, 5, 2, tzinfo=timezone.utc)),
+        ('baz', '3', '2', '1', '1245', '{"startTime": 123456, "cid": "0f2"}', datetime(2020, 5, 1, tzinfo=timezone.utc)),
+        ('baz', '3', '2', '2', 'yes', '{"startTime": 123456, "cid": "0f2"}', datetime(2020, 5, 2, tzinfo=timezone.utc)),
+        ('baz', '3', '3', '1', '1245', '{"startTime": 123456, "cid": "0f2"}', datetime(2020, 5, 1, tzinfo=timezone.utc)),
+        ('baz', '3', '3', '2', 'no', '{"startTime": 123456, "cid": "0f2"}', datetime(2020, 5, 2, tzinfo=timezone.utc)),
     ]
 
     for r in rows:

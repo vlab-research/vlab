@@ -5,7 +5,7 @@ import pandas as pd
 import typing_json
 from environs import Env
 from facebook_business.adobjects.customaudience import CustomAudience
-from clustering import get_saturated_clusters, only_target_users, get_weight_lookup
+from clustering import get_saturated_clusters, only_target_users, get_weight_lookup, shape_df
 from responses import get_response_df
 from marketing import Marketing, MarketingNameError, CreativeGroup, \
     Location, Cluster, validate_targeting
@@ -26,8 +26,10 @@ def get_df(cnf):
     survey_user = cnf['survey_user']
     shortcodes = {s['shortcode'] for s in surveys}
 
-    return get_response_df(survey_user, shortcodes, questions, cnf['chatbase'])
+    df = get_response_df(survey_user, shortcodes, questions, cnf['chatbase'])
 
+    if df is not None:
+        return shape_df(df)
 
 
 def lookup_clusters(saturated, lookup_loc):

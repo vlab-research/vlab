@@ -1,10 +1,12 @@
 import logging
-from typing import Dict
+from typing import Dict, List, Tuple
+from marketing import Marketing
 import pandas as pd
+
 
 def res_col(ref, df, t):
     try:
-        response = df[df.question_ref == ref].response.iloc[0]
+        response = df[ref].iloc[0]
     except IndexError:
         raise Exception(f'Could not find question with ref {ref}')
 
@@ -31,20 +33,54 @@ def add_res_cols(new_cols, groupby, df):
 
     return df
 
-def add_cluster(reqs, df):
-    dfs = [add_res_cols([('cluster', cq, lambda x: x)],
-                        'userid',
-                        df[df.shortcode == sc])
-           for sc, cq, _ in reqs]
+def _make_reqs(target_questions):
+    return [(q['ref'], make_pred(q))
+            for q in target_questions]
 
-    return pd.concat(dfs)
+def make_reqs(target_key, surveys):
+    return [(s['shortcode'], s['cluster_question']['ref'], _make_reqs(s[target_key]))
+            for s in surveys]
+
+def add_cluster(surveys, df):
+    reqs = [(s['shortcode'], s['cluster_question']['ref']) for s in surveys]
+    reqs = dict(reqs)
+
+    return df \
+        .groupby('shortcode') \
+        .apply(lambda df: add_res_cols([('cluster', reqs[df.shortcode.iloc[0]], lambda x: x)],
+                                       'userid',
+                                       df)) \
+        .reset_index(drop=True)
+
+def shape_df(df):
+    df = df \
+        .groupby(['surveyid', 'shortcode']) \
+        .apply(lambda df: df.pivot('userid', 'question_ref', 'response')) \
+        .reset_index()
+
+    # Clean anyone who answered multiple surveys in this group of shortcodes
+    # in theory should only be testers.
+    # Keep the lastest survey they took.
+    return df \
+        .sort_values('md:startTime') \
+        .drop_duplicates(['userid'], keep='last')
 
 
 def users_fulfilling(treqs, df):
     for ref, pred in treqs:
         try:
-            d = df[df.question_ref == ref]
-            d = d[d.response.map(pred)]
+            d = df[df[ref].map(pred)]
+            users = d.userid.unique()
+            df = df[df.userid.isin(users)]
+        except KeyError:
+            return None
+
+    return df
+
+def users_answering(treqs, df):
+    for ref, _ in treqs:
+        try:
+            d = df[~df[ref].isna()]
             users = d.userid.unique()
             df = df[df.userid.isin(users)]
         except AttributeError:
@@ -66,20 +102,13 @@ def make_pred(q):
 
     return lambda x: fn(x, q['value'])
 
-def _make_reqs(target_questions):
-    return [(q['ref'], make_pred(q))
-            for q in target_questions]
 
-def make_reqs(target_key, surveys):
-    return [(s['shortcode'], s['cluster_question']['ref'], _make_reqs(s[target_key]))
-            for s in surveys]
 
-def only_target_users(df, surveys, target_key):
+
+def only_target_users(df, surveys, target_key, fn=users_fulfilling):
     reqs = make_reqs(target_key, surveys)
 
-    df = add_cluster(reqs, df)
-
-    users = [users_fulfilling(tqs, df[df.shortcode == sc])
+    users = [fn(tqs, df[df.shortcode == sc])
              for sc, cq, tqs in reqs]
 
     users = [u for u in users if u is not None]
@@ -107,6 +136,7 @@ def _saturated_clusters(stratum, targets):
 
 def get_saturated_clusters(df, stratum):
     surveys = stratum['surveys']
+    df = add_cluster(surveys, df)
     targets = only_target_users(df, surveys, 'target_questions')
     return _saturated_clusters(stratum, targets)
 
@@ -114,8 +144,8 @@ def get_saturated_clusters(df, stratum):
 def get_weight_lookup(df, stratum, all_clusters) -> Dict[str, float]:
     surveys = stratum['surveys']
 
-    reqs = make_reqs('target_questions', surveys)
-    df = add_cluster(reqs, df)
+    # reqs = make_reqs('target_questions', surveys)
+    df = add_cluster(surveys, df)
 
     targets = only_target_users(df, surveys, 'target_questions')
     target_users = targets.userid.unique()
@@ -123,6 +153,8 @@ def get_weight_lookup(df, stratum, all_clusters) -> Dict[str, float]:
 
     saturated = _saturated_clusters(stratum, targets)
     df = df[~df.cluster.isin(saturated)].reset_index(drop=True)
+    df = only_target_users(df, surveys, 'target_questions', users_answering)
+    df = df.drop_duplicates('userid')
 
     recorded_clusters = df.cluster.unique()
     extra_df = pd.DataFrame([{'cluster': c, 'perc': 0.0, 'tot': 0}
@@ -146,8 +178,59 @@ def get_weight_lookup(df, stratum, all_clusters) -> Dict[str, float]:
 
     return lookup
 
+
+from dataclasses import dataclass
+from datetime import datetime
+
+@dataclass
+class BudgetWindow:
+    start: str
+    until: str
+
+    @property
+    def start_date(self):
+        return datetime.strptime(self.start, '%Y-%m-%d')
+
+    @property
+    def until_date(self):
+        return datetime.strptime(self.until, '%Y-%m-%d')
+
+
+def get_budget_lookup(df, stratum, max_budget, days_left, window: BudgetWindow, spend: Dict[str, float]):
+    surveys = stratum['surveys']
+
+    # Get only target users and add cluster
+    df = add_cluster(surveys, df)
+    df = only_target_users(df, surveys, 'target_questions')
+
+    # filter by time
+    windowed = df[(df['md:startTime'] >= window.start_date) & (df['md:startTime'] <= window.until_date)]
+
+
+    # see how many remaining in each cluster (don't add one)
+    tot = df.groupby('cluster').userid.count().to_dict()
+    tot = {**{k:0 for k in spend.keys()}, **tot}
+    goal = stratum['per_cluster_pop']
+    remain = {k: goal - v for k, v in tot.items()}
+
+    # pretend to have found one in each cluster
+    counts = windowed.groupby('cluster').userid.count().to_dict()
+    counts = {**{k:1 for k in spend.keys()}, **counts}
+    price = {k: spend[k] / v for k, v in counts.items()}
+    budget = {k: v*remain[k] / days_left for k, v in price.items()}
+    tot_price = sum(budget.values())
+
+    if tot_price > max_budget:
+        weighted = {k:v/tot_price for k, v in budget.items()}
+        weighted = {k:v*max_budget for k, v in budget.items()}
+        return weighted
+
+    return budget
+
+
+
 def cluster_value(perc, tot):
-    tot += 1
+    tot = tot + 1
     m = tot.mean()
     w = (m / tot)
 
