@@ -1,14 +1,15 @@
 import json
 import logging
+from datetime import datetime, timedelta
 from typing import Dict, Optional, List, Any, Tuple
 import pandas as pd
 import typing_json
 from environs import Env
 from facebook_business.adobjects.customaudience import CustomAudience
-from clustering import get_saturated_clusters, only_target_users, get_weight_lookup, shape_df
+from clustering import get_saturated_clusters, only_target_users, shape_df, get_budget_lookup
 from responses import get_response_df
 from marketing import Marketing, MarketingNameError, CreativeGroup, \
-    Location, Cluster, validate_targeting
+    Location, Cluster, validate_targeting, BudgetWindow
 
 logging.basicConfig(level=logging.INFO)
 
@@ -30,6 +31,7 @@ def get_df(cnf):
 
     if df is not None:
         return shape_df(df)
+    return None
 
 
 def lookup_clusters(saturated, lookup_loc):
@@ -75,6 +77,7 @@ def get_conf(env):
         'budget': env.float('MALARIA_BUDGET'),
         'survey_user': env('MALARIA_SURVEY_USER'),
         'lookup_loc': env('MALARIA_DISTRICT_LOOKUP'),
+        'end_date': env('MALARIA_END_DATE'),
         'chatbase': {
             'db': env('CHATBASE_DATABASE'),
             'user': env('CHATBASE_USER'),
@@ -111,26 +114,19 @@ def uniqueness(clusters: List[Cluster]):
 
 def new_ads(m: Marketing,
             cnf: Dict[str, Any],
-            df: pd.DataFrame,
             stratum: Dict[str, Any],
             status: str,
+            budget_lookup: Dict[str, int],
             saturated_clusters: List[str],
             aud: Optional[CustomAudience],
             anti_aud: Optional[CustomAudience]) -> None:
 
     # TODO: get this dynamically somehow
-    # aud
     cluster_vars = ['disthash', 'distname', 'creative_group', 'include_audience']
     creative_config = 'config/creatives.json'
 
     cg_lookup = load_creatives(creative_config)
     cities = load_cities(cnf['lookup_loc'])
-
-    all_clusters = cities[cluster_vars[0]].unique()
-    weight_lookup = get_weight_lookup(df, stratum, all_clusters)
-    total_budget = cnf['budget']
-    budget_lookup = {k:int(w*total_budget) for k, w in weight_lookup.items()}
-
 
     # In principle all the groupby vars should be the same,
     # so grouping by clusterid, clustername, and creative group
@@ -188,6 +184,20 @@ def update_audience():
                 logging.info(r)
 
 
+def window():
+    floor = lambda d: d.replace(hour=0, minute=0, second=0, microsecond=0)
+    yesterday = datetime.now() - timedelta(hours=16)
+    yesterday = floor(yesterday)
+    today = datetime.now()
+    return BudgetWindow(yesterday, today)
+
+
+def days_left(cnf):
+    dt = datetime.strptime(cnf['end_date'], '%Y-%m-%d')
+    td = dt - datetime.now()
+    days = td.days
+    return days
+
 def update_ads():
     env = Env()
     cnf = get_conf(env)
@@ -202,6 +212,15 @@ def update_ads():
     # or just cache get_creatives...
     stratum = cnf['strata'][0]
 
+    # make budget
+    spend = m.get_spend(window())
+    budget_lookup = get_budget_lookup(df,
+                                      stratum,
+                                      cnf['budget'],
+                                      days_left(cnf),
+                                      window(),
+                                      spend)
+
     saturated = get_saturated_clusters(df, stratum)
 
     aud, anti_aud = get_aud(m, stratum['name'], False), \
@@ -213,4 +232,4 @@ def update_ads():
     if anti_aud:
         anti_aud = m.get_lookalike(anti_aud, cnf['country'])
 
-    new_ads(m, cnf, df, stratum, 'ACTIVE', saturated, aud, anti_aud)
+    new_ads(m, cnf, stratum, 'ACTIVE', budget_lookup, saturated, aud, anti_aud)

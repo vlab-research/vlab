@@ -1,6 +1,7 @@
 from datetime import datetime
 import pandas as pd
 from clustering import *
+from marketing import unix_time_millis
 
 DATE = datetime(2020, 1, 1)
 
@@ -32,7 +33,7 @@ def _format_df(df):
            .apply(lambda df: df.append([{
                **df.iloc[0].to_dict(),
                'question_ref': 'md:startTime',
-               'response': DATE,
+               'response': unix_time_millis(DATE),
            }])) \
            .reset_index(drop=True)
 
@@ -262,7 +263,7 @@ def test_get_budget_lookup():
 
     df = _format_df(df)
 
-    window = BudgetWindow('2020-1-1', '2020-1-1')
+    window = BudgetWindow(DATE, DATE)
 
     spend = {'bar': 10.0, 'baz': 10.0, 'foo': 10.0}
 
@@ -271,6 +272,56 @@ def test_get_budget_lookup():
     assert list(res.keys()) == ['bar', 'baz', 'foo']
 
     assert res == {'bar': 10., 'baz': 10., 'foo': 8.}
+
+
+def test_get_budget_lookup_respects_maximum_budget():
+
+    cnf = {'stratum':
+       {'per_cluster_pop': 5,
+        'surveys': [
+            {'shortcode': 'foo',
+             'cluster_question': {
+                 'ref': 'dist'
+             },
+             'target_questions': [
+                 {'ref': 'rand',
+                  'op': 'greater_than',
+                  'value': 100}]},
+            {'shortcode': 'bar',
+             'cluster_question': {
+                 'ref': 'dood'
+             },
+             'target_questions': [
+                 {'ref': 'rook',
+                  'op': 'greater_than',
+                  'value': 100}]}
+        ]}}
+
+    cols = ['question_ref', 'response', 'userid', 'shortcode']
+    df = pd.DataFrame([
+        ('dist', 'foo', 1, 'foo'),
+        ('rand', 105, 1, 'foo'),
+        ('dist', 'bar', 2, 'foo'),
+        ('rand', 55, 2, 'foo'),
+        ('dist', 'bar', 3, 'foo'),
+        ('rand', 60, 3, 'foo'),
+        ('dood', 'bar', 4, 'bar'),
+        ('rook', 90, 4, 'bar'),
+        ('dood', 'baz', 5, 'bar'),
+        ('rand', 105, 5, 'bar'),
+        ('rook', 99, 5, 'bar')
+    ], columns=cols)
+
+    df = _format_df(df)
+
+    window = BudgetWindow(DATE, DATE)
+
+    spend = {'bar': 10.0, 'baz': 10.0, 'foo': 10.0}
+
+    res = get_budget_lookup(df, cnf['stratum'], 20, 2, window, spend)
+    assert sum(res.values()) <= 20
+    assert list(res.keys()) == ['bar', 'baz', 'foo']
+
 
 def test_get_budget_lookup_ignores_saturated_clusters():
 
@@ -315,7 +366,7 @@ def test_get_budget_lookup_ignores_saturated_clusters():
     df = _format_df(df)
 
     spend = {'bar': 10.0, 'baz': 10.0, 'foo': 10.0}
-    window = BudgetWindow('2020-1-1', '2020-1-1')
+    window = BudgetWindow(DATE, DATE)
     res = get_budget_lookup(df, cnf['stratum'], 1000, 5, window, spend)
 
     assert res == { 'bar': 2.0, 'foo': 0.0, 'baz': 0.0 }
@@ -355,7 +406,7 @@ def test_get_budget_lookup_works_with_missing_data_from_clusters():
     df = _format_df(df)
 
     spend = {'bar': 10.0, 'qux': 10.0}
-    window = BudgetWindow('2020-1-1', '2020-1-1')
+    window = BudgetWindow(DATE, DATE)
     res = get_budget_lookup(df, cnf['stratum'], 1000, 5, window, spend)
 
     assert res == { 'bar': 2.0, 'qux': 2.0 }

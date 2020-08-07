@@ -1,7 +1,9 @@
 import json
 import logging
+import re
 from urllib.parse import quote
 from datetime import datetime, timedelta
+from dataclasses import dataclass
 from typing import List, NamedTuple, Tuple, Optional, Union, Any, Dict
 import requests
 import backoff
@@ -24,6 +26,32 @@ import xxhash
 
 # 5 minute constant backoff
 BACKOFF = 5*60
+
+epoch = datetime.utcfromtimestamp(0)
+
+def unix_time_millis(dt):
+    return (dt - epoch).total_seconds() * 1000.0
+
+@dataclass
+class BudgetWindow:
+    start_date: datetime
+    until_date: datetime
+
+    @property
+    def start(self):
+        return self.start_date.strftime('%Y-%m-%d')
+
+    @property
+    def until(self):
+        return self.until_date.strftime('%Y-%m-%d')
+
+    @property
+    def start_unix(self):
+        return unix_time_millis(self.start_date)
+
+    @property
+    def until_unix(self):
+        return unix_time_millis(self.until_date)
 
 
 class Cluster(NamedTuple):
@@ -331,6 +359,26 @@ def make_ref(form, id_, name) -> str:
     return f'form.{form}.clusterid.{id_}.clustername.{name}'
 
 
+def get_cluster_from_adset(adset_name: str) -> str:
+    pat = r'(?<=vlab-)\w+'
+    matches = re.search(pat, adset_name)
+    if not matches:
+        raise Exception('Cannot extract cluster id from adset: ${adset_name}')
+
+    return matches[0]
+
+
+@backoff.on_exception(backoff.constant, FacebookRequestError, giveup=check_code, interval=BACKOFF)
+def _get_spend(adset, window):
+    params = {
+        'time_range': {
+            'since': window.start,
+            'until': window.until
+        }
+    }
+
+    return adset.get_insights(params=params)[0]
+
 
 class Marketing():
     def __init__(self, env, load_ads=True):
@@ -363,6 +411,17 @@ class Marketing():
                          f'campaign {self.campaign["name"]}')
 
         self.cnf = cnf
+
+
+    def get_spend(self, window: BudgetWindow) -> Dict[str, float]:
+
+        spend = {a['name']: _get_spend(a, window)
+                 for a in self.running_ads.values()}
+        spend = {get_cluster_from_adset(n): i['spend']
+                 for n, i in spend.items()}
+        spend = {k: float(v)*100 for k, v in spend.items()}
+        return spend
+
 
     def create_custom_audience(self, name, desc, users) -> CustomAudience:
         params = {

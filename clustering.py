@@ -1,6 +1,7 @@
 import logging
+from math import floor
 from typing import Dict, List, Tuple
-from marketing import Marketing
+from marketing import Marketing, BudgetWindow
 import pandas as pd
 
 
@@ -141,61 +142,6 @@ def get_saturated_clusters(df, stratum):
     return _saturated_clusters(stratum, targets)
 
 
-def get_weight_lookup(df, stratum, all_clusters) -> Dict[str, float]:
-    surveys = stratum['surveys']
-
-    # reqs = make_reqs('target_questions', surveys)
-    df = add_cluster(surveys, df)
-
-    targets = only_target_users(df, surveys, 'target_questions')
-    target_users = targets.userid.unique()
-    df['target'] = df.userid.isin(target_users)
-
-    saturated = _saturated_clusters(stratum, targets)
-    df = df[~df.cluster.isin(saturated)].reset_index(drop=True)
-    df = only_target_users(df, surveys, 'target_questions', users_answering)
-    df = df.drop_duplicates('userid')
-
-    recorded_clusters = df.cluster.unique()
-    extra_df = pd.DataFrame([{'cluster': c, 'perc': 0.0, 'tot': 0}
-                             for c in all_clusters
-                             if c not in recorded_clusters])
-
-    lookup = df \
-        .groupby('cluster') \
-        .apply(lambda df: pd.Series([df.target.mean(), df.shape[0]], index=['perc', 'tot'])) \
-        .reset_index() \
-        .pipe(lambda df: pd.concat([df, extra_df])) \
-        .pipe(lambda df: df.assign(weight=cluster_value(df.perc, df.tot))) \
-        .set_index('cluster') \
-        .to_dict(orient='index')
-
-    lookup = {k: v['weight'] for k, v in lookup.items()}
-    N = len(all_clusters)
-    lookup = {**lookup, **{k:1/N for k in all_clusters if k not in lookup}}
-    tot = sum(lookup.values())
-    lookup = {k: v/tot for k, v in lookup.items()}
-
-    return lookup
-
-
-from dataclasses import dataclass
-from datetime import datetime
-
-@dataclass
-class BudgetWindow:
-    start: str
-    until: str
-
-    @property
-    def start_date(self):
-        return datetime.strptime(self.start, '%Y-%m-%d')
-
-    @property
-    def until_date(self):
-        return datetime.strptime(self.until, '%Y-%m-%d')
-
-
 def get_budget_lookup(df, stratum, max_budget, days_left, window: BudgetWindow, spend: Dict[str, float]):
     surveys = stratum['surveys']
 
@@ -204,10 +150,9 @@ def get_budget_lookup(df, stratum, max_budget, days_left, window: BudgetWindow, 
     df = only_target_users(df, surveys, 'target_questions')
 
     # filter by time
-    windowed = df[(df['md:startTime'] >= window.start_date) & (df['md:startTime'] <= window.until_date)]
+    windowed = df[(df['md:startTime'] >= window.start_unix) & (df['md:startTime'] <= window.until_unix)]
 
-
-    # see how many remaining in each cluster (don't add one)
+    # see how many remaining in each cluster (all time)
     tot = df.groupby('cluster').userid.count().to_dict()
     tot = {**{k:0 for k in spend.keys()}, **tot}
     goal = stratum['per_cluster_pop']
@@ -216,30 +161,17 @@ def get_budget_lookup(df, stratum, max_budget, days_left, window: BudgetWindow, 
     # pretend to have found one in each cluster
     counts = windowed.groupby('cluster').userid.count().to_dict()
     counts = {**{k:1 for k in spend.keys()}, **counts}
-    price = {k: spend[k] / v for k, v in counts.items()}
+
+    # filter out anything that hasn't been spent in the last day
+    # TODO: Make this constraint explicit or get rid of it.
+    # it means you can never increase the number of clusters
+    price = {k: spend[k] / v for k, v in counts.items() if k in spend}
     budget = {k: v*remain[k] / days_left for k, v in price.items()}
+
     tot_price = sum(budget.values())
-
     if tot_price > max_budget:
-        weighted = {k:v/tot_price for k, v in budget.items()}
-        weighted = {k:v*max_budget for k, v in budget.items()}
-        return weighted
+        budget = {k:v/tot_price for k, v in budget.items()}
+        budget = {k:v*max_budget for k, v in budget.items()}
 
+    budget = {k: floor(v) for k, v in budget.items()}
     return budget
-
-
-
-def cluster_value(perc, tot):
-    tot = tot + 1
-    m = tot.mean()
-    w = (m / tot)
-
-    pm = perc.mean()
-    if pm > 0:
-        p = perc / pm
-    else:
-        p = 0.
-
-    weights = w + p
-
-    return weights
