@@ -438,7 +438,7 @@ class Marketing():
     def add_users(self, aud_id, users):
         pageid = self.cnf['PAGE_ID']
         token = self.cnf['USER_TOKEN']
-        url = f'https://graph.facebook.com/v7.0/{aud_id}/users?access_token={token}'
+        url = f'https://graph.facebook.com/v8.0/{aud_id}/users?access_token={token}'
 
         body = {
             'payload': {
