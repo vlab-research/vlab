@@ -1,38 +1,40 @@
 import logging
 from math import floor
+from datetime import datetime, timezone
 from typing import Dict, List, Tuple
 from marketing import Marketing, BudgetWindow
+from forms import BadResponseError
 import pandas as pd
 
 
-def res_col(ref, df, t):
-    try:
-        response = df[ref].iloc[0]
-    except IndexError:
-        raise Exception(f'Could not find question with ref {ref}')
+class MissingResponseError(BaseException):
+    pass
+
+def res_col(ref, row, t):
+    response = row[ref]
+
+    if pd.isna(response):
+        raise MissingResponseError(f'user missing response')
 
     return t(response)
 
-def _res_col(ref, col_name, df, t):
+def _res_col(ref, col_name, t, row):
     try:
-        df[col_name] = res_col(ref, df, t)
-        return df
-    except:
-        logging.warning(f'User without {col_name}: {df.userid.unique()[0]}')
-        return None
+        row[col_name] = res_col(ref, row, t)
+    except MissingResponseError:
+        logging.warning(f'User without {col_name}: {row.userid}')
+        row[col_name] = None
+    except BadResponseError:
+        row[col_name] = None
 
-def _res_cols(new_cols, df):
+    return row
+
+
+def add_res_cols(new_cols, df):
     for col, ref, t in new_cols:
-        df = _res_col(ref, col, df, t)
+        df = df.apply(lambda r: _res_col(ref, col, t, r), axis=1)
     return df
 
-
-def add_res_cols(new_cols, groupby, df):
-    df = df \
-        .groupby(groupby) \
-        .apply(lambda df: _res_cols(new_cols, df))
-
-    return df
 
 def _make_reqs(target_questions):
     return [(q['ref'], make_pred(q))
@@ -48,8 +50,9 @@ def add_cluster(surveys, df):
 
     return df \
         .groupby('shortcode') \
-        .apply(lambda df: add_res_cols([('cluster', reqs[df.shortcode.iloc[0]], lambda x: x)],
-                                       'userid',
+        .apply(lambda df: add_res_cols([('cluster',
+                                         reqs[df.shortcode.iloc[0]],
+                                         lambda x: x)],
                                        df)) \
         .reset_index(drop=True)
 
@@ -59,11 +62,13 @@ def shape_df(df):
         .apply(lambda df: df.pivot('userid', 'question_ref', 'response')) \
         .reset_index()
 
+    df['timestamp'] = df['md:startTime'].map(lambda x: datetime.fromtimestamp(x/1000, tz=timezone.utc))
+
     # Clean anyone who answered multiple surveys in this group of shortcodes
     # in theory should only be testers.
     # Keep the lastest survey they took.
     return df \
-        .sort_values('md:startTime') \
+        .sort_values('timestamp') \
         .drop_duplicates(['userid'], keep='last')
 
 
