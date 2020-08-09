@@ -267,9 +267,9 @@ def test_get_budget_lookup():
 
     spend = {'bar': 10.0, 'baz': 10.0, 'foo': 10.0}
 
-    res = get_budget_lookup(df, cnf['stratum'], 30, 5, window, spend)
+    res = get_budget_lookup(df, cnf['stratum'], 30, 10, 5, window, spend)
     assert sum(res.values()) <= 30
-    assert list(res.keys()) == ['bar', 'baz', 'foo']
+    assert set(res.keys()) == {'bar', 'baz', 'foo'}
 
     assert res == {'bar': 10., 'baz': 10., 'foo': 8.}
 
@@ -318,9 +318,9 @@ def test_get_budget_lookup_respects_maximum_budget():
 
     spend = {'bar': 10.0, 'baz': 10.0, 'foo': 10.0}
 
-    res = get_budget_lookup(df, cnf['stratum'], 20, 2, window, spend)
+    res = get_budget_lookup(df, cnf['stratum'], 20, 10, 2, window, spend)
     assert sum(res.values()) <= 20
-    assert list(res.keys()) == ['bar', 'baz', 'foo']
+    assert set(res.keys()) == {'bar', 'baz', 'foo'}
 
 
 def test_get_budget_lookup_ignores_saturated_clusters():
@@ -367,7 +367,7 @@ def test_get_budget_lookup_ignores_saturated_clusters():
 
     spend = {'bar': 10.0, 'baz': 10.0, 'foo': 10.0}
     window = BudgetWindow(DATE, DATE)
-    res = get_budget_lookup(df, cnf['stratum'], 1000, 5, window, spend)
+    res = get_budget_lookup(df, cnf['stratum'], 1000, 10, 5, window, spend)
 
     assert res == { 'bar': 2.0, 'foo': 0.0, 'baz': 0.0 }
 
@@ -407,7 +407,7 @@ def test_get_budget_lookup_works_with_missing_data_from_clusters():
 
     spend = {'bar': 10.0, 'qux': 10.0}
     window = BudgetWindow(DATE, DATE)
-    res = get_budget_lookup(df, cnf['stratum'], 1000, 5, window, spend)
+    res = get_budget_lookup(df, cnf['stratum'], 1000, 10, 5, window, spend)
 
     assert res == { 'bar': 2.0, 'qux': 2.0 }
 
@@ -449,22 +449,22 @@ def test_get_budget_lookup_handles_zero_spend():
 
     spend = {'bar': 10.0, 'qux': 0.0}
     window = BudgetWindow(DATE, DATE)
-    res = get_budget_lookup(df, cnf['stratum'], 1000, 5, window, spend)
+    res = get_budget_lookup(df, cnf['stratum'], 1000, 10, 5, window, spend)
 
     # TODO: 0 spend on qux means we continue to spend
     # 0... This is weird implicit behavior...
-    assert res == { 'bar': 2.0, 'qux': 0. }
+    assert res == {'bar': 2.0, 'qux': 0.}
 
 
 def test_budget_trimming():
     budget = {'foo': 100, 'bar': 25}
-    assert budget_trimming(budget, 100) == {'foo': 75, 'bar': 25}
+    assert budget_trimming(budget, 100, 1) == {'foo': 75, 'bar': 25}
 
     budget = {'foo': 100, 'bar': 75, 'baz': 25}
-    assert budget_trimming(budget, 75) == {'foo': 25, 'bar': 25, 'baz': 25}
+    assert budget_trimming(budget, 75, 1) == {'foo': 25, 'bar': 25, 'baz': 25}
 
     budget = {'foo': 100, 'bar': 75, 'baz': 25}
-    assert budget_trimming(budget, 50) == {'foo': 16, 'bar': 16, 'baz': 16}
+    assert budget_trimming(budget, 50, 1) == {'foo': 16, 'bar': 16, 'baz': 16}
 
 
 

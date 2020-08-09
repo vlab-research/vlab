@@ -6,7 +6,7 @@ import pandas as pd
 import typing_json
 from environs import Env
 from facebook_business.adobjects.customaudience import CustomAudience
-from clustering import get_saturated_clusters, only_target_users, shape_df, get_budget_lookup, top_clusters
+from clustering import get_saturated_clusters, only_target_users, shape_df, get_budget_lookup, top_clusters, budget_trimming
 from responses import get_response_df
 from marketing import Marketing, MarketingNameError, CreativeGroup, \
     Location, Cluster, validate_targeting, BudgetWindow
@@ -225,11 +225,10 @@ def update_ads():
     budget_lookup = get_budget_lookup(df,
                                       stratum,
                                       cnf['budget'],
+                                      cnf['n_clusters'],
                                       days_left(cnf),
                                       window(),
                                       spend)
-
-    budget_lookup = top_clusters(budget_lookup, cnf['n_clusters'])
 
     saturated = get_saturated_clusters(df, stratum)
 

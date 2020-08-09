@@ -146,11 +146,11 @@ def get_saturated_clusters(df, stratum):
 
 from copy import deepcopy
 
-def budget_trimming(budget, lim):
+def budget_trimming(budget, lim, step=100):
     budg = deepcopy(budget)
     mx = max(budg.values())
     while sum(budg.values()) > lim:
-        mx = mx - 1
+        mx = mx - step
         budg = {k: min(v, mx) for k, v in budg.items()}
     return budg
 
@@ -160,6 +160,7 @@ def top_clusters(lookup, N):
 def get_budget_lookup(df,
                       stratum,
                       max_budget,
+                      n_clusters,
                       days_left,
                       window: BudgetWindow,
                       spend: Dict[str, float]):
@@ -188,8 +189,10 @@ def get_budget_lookup(df,
     # it means you can never increase the number of clusters
     price = {k: spend[k] / v for k, v in counts.items() if k in spend}
     budget = {k: v*remain[k] / days_left for k, v in price.items()}
-
     budget = {k: floor(v) for k, v in budget.items()}
+
+    # trim and trim!
+    budget = top_clusters(budget, n_clusters)
     budget = budget_trimming(budget, max_budget)
 
     return budget
