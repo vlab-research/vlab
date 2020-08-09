@@ -6,7 +6,7 @@ import pandas as pd
 import typing_json
 from environs import Env
 from facebook_business.adobjects.customaudience import CustomAudience
-from clustering import get_saturated_clusters, only_target_users, shape_df, get_budget_lookup
+from clustering import get_saturated_clusters, only_target_users, shape_df, get_budget_lookup, top_clusters
 from responses import get_response_df
 from marketing import Marketing, MarketingNameError, CreativeGroup, \
     Location, Cluster, validate_targeting, BudgetWindow
@@ -20,7 +20,7 @@ def get_df(cnf):
 
     questions = {q['ref']
                  for s in surveys
-                 for q in s['target_questions']}
+                 for q in s.get('target_questions', []) + s.get('exclude_questions', [])}
 
     questions |= {s['cluster_question']['ref'] for s in surveys}
 
@@ -78,6 +78,7 @@ def get_conf(env):
         'survey_user': env('MALARIA_SURVEY_USER'),
         'lookup_loc': env('MALARIA_DISTRICT_LOOKUP'),
         'end_date': env('MALARIA_END_DATE'),
+        'n_clusters': env.int('MALARIA_NUM_CLUSTERS'),
         'chatbase': {
             'db': env('CHATBASE_DATABASE'),
             'user': env('CHATBASE_USER'),
@@ -115,7 +116,6 @@ def uniqueness(clusters: List[Cluster]):
 def new_ads(m: Marketing,
             cnf: Dict[str, Any],
             stratum: Dict[str, Any],
-            status: str,
             budget_lookup: Dict[str, int],
             saturated_clusters: List[str],
             aud: Optional[CustomAudience],
@@ -135,8 +135,9 @@ def new_ads(m: Marketing,
     locs: LocsType = [(Cluster(i, n),
                        cg_lookup[cg],
                        [Location(r.lat, r.lng, r.rad) for _, r in df.iterrows()],
-                       budget_lookup[i],
+                       budget_lookup.get(i, 0),
                        bool(au))
+
                       for (i, n, cg, au), df in cities.groupby(cluster_vars)
                       if i not in saturated_clusters]
 
@@ -150,6 +151,7 @@ def new_ads(m: Marketing,
 
 
     for cl, cg, ls, bu, au in locs:
+        status = 'ACTIVE' if bu else 'PAUSED'
         if au:
             m.launch_adsets(cl, cg, ls, bu, targeting, status, aud, anti_aud)
         else:
@@ -184,9 +186,9 @@ def update_audience():
                 logging.info(r)
 
 
-def window():
+def window(hours=16):
     floor = lambda d: d.replace(hour=0, minute=0, second=0, microsecond=0)
-    yesterday = datetime.now() - timedelta(hours=16)
+    yesterday = datetime.now() - timedelta(hours=hours)
     yesterday = floor(yesterday)
     today = datetime.now()
     return BudgetWindow(yesterday, today)
@@ -213,13 +215,21 @@ def update_ads():
     stratum = cnf['strata'][0]
 
     # make budget
+    # TODO: this doesn't work from cold start
+    # -- it should generally have some other way
+    # of getting clusters, if no spend.
     spend = m.get_spend(window())
+
+    # filter out
+
     budget_lookup = get_budget_lookup(df,
                                       stratum,
                                       cnf['budget'],
                                       days_left(cnf),
                                       window(),
                                       spend)
+
+    budget_lookup = top_clusters(budget_lookup, cnf['n_clusters'])
 
     saturated = get_saturated_clusters(df, stratum)
 
@@ -232,4 +242,4 @@ def update_ads():
     if anti_aud:
         anti_aud = m.get_lookalike(anti_aud, cnf['country'])
 
-    new_ads(m, cnf, stratum, 'ACTIVE', budget_lookup, saturated, aud, anti_aud)
+    new_ads(m, cnf, stratum, budget_lookup, saturated, aud, anti_aud)

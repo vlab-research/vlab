@@ -84,7 +84,7 @@ class AdsetConf(NamedTuple):
     cluster: Cluster
     locs: List[Location]
     creatives: List[AdCreative]
-    budget: float
+    budget: Optional[float]
     status: str
     instagram_id: str
     hours: int
@@ -201,11 +201,13 @@ def update_adset(adset: AdSet, c: AdsetConf) -> AdSet:
             [{'id': c.excluded_audience['id']}]
 
     params = {
-        AdSet.Field.daily_budget: c.budget,
         AdSet.Field.end_time: datetime.utcnow() + timedelta(hours=c.hours),
         AdSet.Field.targeting: targeting,
         AdSet.Field.status: c.status
     }
+
+    if c.budget:
+        params[AdSet.Field.daily_budget] = c.budget
 
     adset = adset.api_update(params=params)
     return adset
@@ -283,7 +285,7 @@ def get_creatives(account: AdAccount, ad_label_id: str):
 
 @backoff.on_exception(backoff.constant, FacebookRequestError, giveup=check_code, interval=BACKOFF)
 def get_running_ads(campaign):
-    sets = campaign.get_ad_sets(fields=['name'])
+    sets = campaign.get_ad_sets(fields=['name', 'targeting'])
     return {s['name']:s for s in sets}
 
 
@@ -292,6 +294,10 @@ def get_running_ad(name, sets, creatives):
     if name in sets:
         adset = sets[name]
         ads = adset.get_ads()
+
+        # TODO: not just length, if the creatives aren't right,
+        # then delete (pause?) them and create new ads with the
+        # right creatives.
         if len(ads) == len(creatives):
             return adset
 
@@ -377,7 +383,10 @@ def _get_spend(adset, window):
         }
     }
 
-    return adset.get_insights(params=params)[0]
+    try:
+        return adset.get_insights(params=params)[0]
+    except IndexError:
+        return None
 
 
 class Marketing():
@@ -417,8 +426,12 @@ class Marketing():
 
         spend = {a['name']: _get_spend(a, window)
                  for a in self.running_ads.values()}
-        spend = {get_cluster_from_adset(n): i['spend']
+
+        spending = lambda i: 0 if i is None else i['spend']
+
+        spend = {get_cluster_from_adset(n): spending(i)
                  for n, i in spend.items()}
+
         spend = {k: float(v)*100 for k, v in spend.items()}
         return spend
 

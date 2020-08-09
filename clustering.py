@@ -109,8 +109,6 @@ def make_pred(q):
     return lambda x: fn(x, q['value'])
 
 
-
-
 def only_target_users(df, surveys, target_key, fn=users_fulfilling):
     reqs = make_reqs(target_key, surveys)
 
@@ -146,8 +144,26 @@ def get_saturated_clusters(df, stratum):
     targets = only_target_users(df, surveys, 'target_questions')
     return _saturated_clusters(stratum, targets)
 
+from copy import deepcopy
 
-def get_budget_lookup(df, stratum, max_budget, days_left, window: BudgetWindow, spend: Dict[str, float]):
+def budget_trimming(budget, lim):
+    budg = deepcopy(budget)
+    mx = max(budg.values())
+    while sum(budg.values()) > lim:
+        mx = mx - 1
+        budg = {k: min(v, mx) for k, v in budg.items()}
+    return budg
+
+def top_clusters(lookup, N):
+    return dict(sorted(lookup.items(), key=lambda x: x[1])[:N])
+
+def get_budget_lookup(df,
+                      stratum,
+                      max_budget,
+                      days_left,
+                      window: BudgetWindow,
+                      spend: Dict[str, float]):
+
     surveys = stratum['surveys']
 
     # Get only target users and add cluster
@@ -173,10 +189,7 @@ def get_budget_lookup(df, stratum, max_budget, days_left, window: BudgetWindow, 
     price = {k: spend[k] / v for k, v in counts.items() if k in spend}
     budget = {k: v*remain[k] / days_left for k, v in price.items()}
 
-    tot_price = sum(budget.values())
-    if tot_price > max_budget:
-        budget = {k:v/tot_price for k, v in budget.items()}
-        budget = {k:v*max_budget for k, v in budget.items()}
-
     budget = {k: floor(v) for k, v in budget.items()}
+    budget = budget_trimming(budget, max_budget)
+
     return budget

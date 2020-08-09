@@ -41,6 +41,8 @@ def make_answers(q):
     except KeyError:
         raise Exception(f'I dunno what to do with this type yet! {type_}')
 
+class BadResponseError(BaseException):
+    pass
 
 def response_translator(q, qt=None):
     if not qt:
@@ -53,6 +55,6 @@ def response_translator(q, qt=None):
         try:
             return lookup[r]
         except KeyError:
-            raise Exception(f'Response not mapped to label: {r}')
+            raise BadResponseError(f'Response not mapped to label: {r}')
 
     return _translator

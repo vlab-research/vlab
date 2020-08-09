@@ -412,6 +412,62 @@ def test_get_budget_lookup_works_with_missing_data_from_clusters():
     assert res == { 'bar': 2.0, 'qux': 2.0 }
 
 
+def test_get_budget_lookup_handles_zero_spend():
+
+    cnf = {'stratum':
+       {'per_cluster_pop': 1,
+        'surveys': [
+            {'shortcode': 'foo',
+             'cluster_question': {
+                 'ref': 'dist'
+             },
+             'target_questions': [
+                 {'ref': 'rand',
+                  'op': 'greater_than',
+                  'value': 100}]},
+            {'shortcode': 'bar',
+             'cluster_question': {
+                 'ref': 'dood'
+             },
+             'target_questions': [
+                 {'ref': 'rook',
+                  'op': 'greater_than',
+                  'value': 100}]}
+        ]}}
+
+    cols = ['question_ref', 'response', 'userid', 'shortcode']
+    df = pd.DataFrame([
+        ('dist', 'bar', 2, 'foo'),
+        ('rand', 55, 2, 'foo'),
+        ('dist', 'bar', 3, 'foo'),
+        ('rand', 60, 3, 'foo'),
+        ('dood', 'bar', 4, 'bar'),
+        ('rook', 90, 4, 'bar')
+    ], columns=cols)
+
+    df = _format_df(df)
+
+    spend = {'bar': 10.0, 'qux': 0.0}
+    window = BudgetWindow(DATE, DATE)
+    res = get_budget_lookup(df, cnf['stratum'], 1000, 5, window, spend)
+
+    # TODO: 0 spend on qux means we continue to spend
+    # 0... This is weird implicit behavior...
+    assert res == { 'bar': 2.0, 'qux': 0. }
+
+
+def test_budget_trimming():
+    budget = {'foo': 100, 'bar': 25}
+    assert budget_trimming(budget, 100) == {'foo': 75, 'bar': 25}
+
+    budget = {'foo': 100, 'bar': 75, 'baz': 25}
+    assert budget_trimming(budget, 75) == {'foo': 25, 'bar': 25, 'baz': 25}
+
+    budget = {'foo': 100, 'bar': 75, 'baz': 25}
+    assert budget_trimming(budget, 50) == {'foo': 16, 'bar': 16, 'baz': 16}
+
+
+
 # def test_get_budget_lookup_does_something_with_empty_data():
 
 #     cnf = {'stratum':
