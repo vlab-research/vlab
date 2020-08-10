@@ -1,3 +1,3 @@
-from malaria import update_audience
+from adopt.malaria import update_audience
 
 update_audience()
