@@ -1,18 +1,20 @@
 import json
+import re
 import logging
 from datetime import datetime, timedelta
-from typing import Dict, Optional, List, Any, Tuple
+from typing import Dict, Optional, List, Any, Tuple, NamedTuple
 import pandas as pd
 import typing_json
 from environs import Env
 from facebook_business.adobjects.customaudience import CustomAudience
-from clustering import get_saturated_clusters, only_target_users, shape_df, get_budget_lookup, top_clusters, budget_trimming
-from responses import get_response_df
-from marketing import Marketing, MarketingNameError, CreativeGroup, \
+from .facebook.update import Instruction, GraphUpdater
+from .facebook.state import CampaignState
+from .clustering import get_saturated_clusters, only_target_users, shape_df, get_budget_lookup
+from .responses import get_response_df
+from .marketing import Marketing, CreativeGroup, \
     Location, Cluster, validate_targeting, BudgetWindow
 
 logging.basicConfig(level=logging.INFO)
-
 
 def get_df(cnf):
     surveys = [survey for stratum in cnf['strata']
@@ -113,49 +115,34 @@ def uniqueness(clusters: List[Cluster]):
     if len(set(ids)) != len(ids):
         raise Exception('Cluster IDs combinations are not unique')
 
-def new_ads(m: Marketing,
-            cnf: Dict[str, Any],
-            stratum: Dict[str, Any],
-            budget_lookup: Dict[str, int],
-            saturated_clusters: List[str],
-            aud: Optional[CustomAudience],
-            anti_aud: Optional[CustomAudience]) -> None:
+class ClusterConf(NamedTuple):
+    cluster: Cluster
+    cg: CreativeGroup
+    locs: List[Location]
+    include_audience: bool
+
+def base_cluster_conf(cnf) -> List[ClusterConf]:
 
     # TODO: get this dynamically somehow
     cluster_vars = ['disthash', 'distname', 'creative_group', 'include_audience']
-    creative_config = 'config/creatives.json'
-
-    cg_lookup = load_creatives(creative_config)
     cities = load_cities(cnf['lookup_loc'])
 
-    # In principle all the groupby vars should be the same,
-    # so grouping by clusterid, clustername, and creative group
-    # should return the same groups!! Important data assumption!
-    LocsType = List[Tuple[Cluster, CreativeGroup, List[Location], int, bool]]
-    locs: LocsType = [(Cluster(i, n),
-                       cg_lookup[cg],
-                       [Location(r.lat, r.lng, r.rad) for _, r in df.iterrows()],
-                       budget_lookup.get(i, 0),
-                       bool(au))
+    creative_config = 'config/creatives.json'
+    cg_lookup = load_creatives(creative_config)
 
-                      for (i, n, cg, au), df in cities.groupby(cluster_vars)
-                      if i not in saturated_clusters]
+    locs = [ClusterConf(Cluster(i, n),
+                        cg_lookup[cg],
+                        [Location(r.lat, r.lng, r.rad) for _, r in df.iterrows()],
+                        bool(au))
 
-    # check uniqueness of clusterids
-    uniqueness([cl for cl, _, _, _, _ in locs])
+            # In principle all the groupby vars should be the same,
+            # so grouping by clusterid, clustername, and creative group
+            # should return the same groups!! Important data assumption!
+            for (i, n, cg, au), df in cities.groupby(cluster_vars)]
 
-    # validate targeting keys
-    targeting = stratum.get('targeting')
-    if targeting:
-        validate_targeting(targeting)
+    return locs
 
 
-    for cl, cg, ls, bu, au in locs:
-        status = 'ACTIVE' if bu else 'PAUSED'
-        if au:
-            m.launch_adsets(cl, cg, ls, bu, targeting, status, aud, anti_aud)
-        else:
-            m.launch_adsets(cl, cg, ls, bu, targeting, status, None, None)
 
 
 def get_aud(m: Marketing, name, create: bool) -> Optional[CustomAudience]:
@@ -200,12 +187,56 @@ def days_left(cnf):
     days = td.days
     return days
 
-def update_ads():
-    env = Env()
-    cnf = get_conf(env)
-    m = Marketing(env)
 
-    df = get_df(cnf)
+def get_cluster_from_adset(adset_name: str) -> str:
+    pat = r'(?<=vlab-)\w+'
+    matches = re.search(pat, adset_name)
+    if not matches:
+        raise Exception('Cannot extract cluster id from adset: ${adset_name}')
+
+    return matches[0]
+
+def new_ads(m: Marketing,
+            cluster_confs: List[ClusterConf],
+            stratum: Dict[str, Any],
+            budget_lookup: Dict[str, int],
+            saturated_clusters: List[str],
+            aud: Optional[CustomAudience],
+            anti_aud: Optional[CustomAudience]) -> List[Instruction]:
+
+    locs = [cc for cc in cluster_confs
+            if cc.cluster.id not in saturated_clusters]
+
+    # check uniqueness of clusterids
+    uniqueness([cl for cl, _, _, _ in locs])
+
+    # validate targeting keys
+    targeting = stratum.get('targeting')
+    if targeting:
+        validate_targeting(targeting)
+
+    def adsetter(cl, cg, ls, au):
+        bu = budget_lookup.get(cl.id, 0)
+        if au:
+            return m.adset_instructions(cl, cg, ls, bu, targeting, aud, anti_aud)
+        return m.adset_instructions(cl, cg, ls, bu, targeting, None, None)
+
+    instructions = [adsetter(*t) for t in locs]
+    return [x for y in instructions for x in y]
+
+
+def run_update_ads(cnf, df, state, m):
+
+
+
+    # check if campaign,
+    # if not, make campaign and recurse
+
+    # check if all adsets,
+    # if not, make adsets and quit
+    # come up with some way to allocate spend to adsets....
+
+    # continue
 
     # TODO: make a separate campaign per strata
     # this will requre dif instances of Marketing.
@@ -214,13 +245,8 @@ def update_ads():
     # or just cache get_creatives...
     stratum = cnf['strata'][0]
 
-    # make budget
-    # TODO: this doesn't work from cold start
-    # -- it should generally have some other way
-    # of getting clusters, if no spend.
-    spend = m.get_spend(window())
-
-    # filter out
+    spend = {get_cluster_from_adset(n): i
+             for n, i in state.spend.items()}
 
     budget_lookup = get_budget_lookup(df,
                                       stratum,
@@ -232,13 +258,30 @@ def update_ads():
 
     saturated = get_saturated_clusters(df, stratum)
 
-    aud, anti_aud = get_aud(m, stratum['name'], False), \
-        get_aud(m, f'anti-{stratum["name"]}', False)
+    # TODO: do something with audiences
+    aud, anti_aud = None, None
 
-    if aud:
-        aud = m.get_lookalike(aud, cnf['country'])
+    cluster_confs = base_cluster_conf(cnf)
+    instructions = new_ads(m, cluster_confs, stratum, budget_lookup,
+                           saturated, aud, anti_aud)
 
-    if anti_aud:
-        anti_aud = m.get_lookalike(anti_aud, cnf['country'])
+    updater = GraphUpdater(state)
 
-    new_ads(m, cnf, stratum, budget_lookup, saturated, aud, anti_aud)
+    for i in instructions:
+        report = updater.execute(i)
+        logging.info(report)
+
+
+def update_ads():
+    env = Env()
+    cnf = get_conf(env)
+    df = get_df(cnf)
+
+    # make budget
+    # TODO: this doesn't work from cold start
+    # -- it should generally have some other way
+    # of getting clusters, if no spend.
+    state = CampaignState(env, window())
+    m = Marketing(env, state)
+
+    run_update_ads(cnf, df, state, m)

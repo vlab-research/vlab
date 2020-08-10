@@ -1,5 +1,4 @@
-from forms import *
-
+from .forms import *
 
 def test_make_answers_labelled():
     q = {'title': 'What is your gender? ',

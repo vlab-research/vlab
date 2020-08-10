@@ -145,9 +145,11 @@ disable=print-statement,
         invalid-name,
         trailing-whitespace,
         too-many-arguments,
+        too-few-public-methods,
         too-many-locals,
         c-extension-no-member,
-        logging-fstring-interpolation
+        logging-fstring-interpolation,
+        relative-beyond-top-level
 
 # Enable the message, report, category or checker with the given id(s). You can
 # either give multiple identifier separated by comma (,) or put this option

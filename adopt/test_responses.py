@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 import pytest
 from test.dbfix import db, cnf as chatbase
-from responses import *
+from .responses import *
 
 @pytest.fixture()
 def dat(db):

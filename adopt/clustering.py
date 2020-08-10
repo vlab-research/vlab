@@ -2,8 +2,8 @@ import logging
 from math import floor
 from datetime import datetime, timezone
 from typing import Dict, List, Tuple
-from marketing import Marketing, BudgetWindow
-from forms import BadResponseError
+from .marketing import Marketing, BudgetWindow
+from .forms import BadResponseError
 import pandas as pd
 
 
@@ -96,6 +96,8 @@ def users_answering(treqs, df):
 
 def make_pred(q):
     fns = {
+        'answered': lambda a, _: pd.notna(a),
+        'not_equal': lambda a, b: a != b,
         'equal': lambda a, b: a == b,
         'greater_than': lambda a, b: a > b,
         'less_than': lambda a, b: a < b

@@ -2,7 +2,7 @@ from datetime import datetime, timezone
 import pandas as pd
 import pytest
 from test.dbfix import db, cnf as chatbase
-from malaria import *
+from .malaria import *
 
 
 def _d(ref, response, userid):

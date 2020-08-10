@@ -1,7 +1,7 @@
 from datetime import datetime
 import pandas as pd
-from clustering import *
-from marketing import unix_time_millis
+from .clustering import *
+from .facebook.state import unix_time_millis
 
 DATE = datetime(2020, 1, 1)
 
