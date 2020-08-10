@@ -165,6 +165,9 @@ def get_budget_lookup(df,
                       window: BudgetWindow,
                       spend: Dict[str, float]):
 
+    # only calculate budget for those with previous spend
+    spend = {k:v for k, v in spend.items() if v > 0}
+
     surveys = stratum['surveys']
 
     # Get only target users and add cluster

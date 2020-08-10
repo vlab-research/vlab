@@ -451,9 +451,7 @@ def test_get_budget_lookup_handles_zero_spend():
     window = BudgetWindow(DATE, DATE)
     res = get_budget_lookup(df, cnf['stratum'], 1000, 10, 5, window, spend)
 
-    # TODO: 0 spend on qux means we continue to spend
-    # 0... This is weird implicit behavior...
-    assert res == {'bar': 2.0, 'qux': 0.}
+    assert res == {'bar': 2.0}
 
 
 def test_budget_trimming():
