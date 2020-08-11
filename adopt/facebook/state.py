@@ -60,7 +60,7 @@ def get_creatives(account: AdAccount, ad_label_id: str) -> List[AdCreative]:
     return call(account.get_ad_creatives_by_labels, params, fields)
 
 def get_adsets(campaign: Campaign) -> List[AdSet]:
-    return call(campaign.get_ad_sets, {}, ['name', 'targeting'])
+    return call(campaign.get_ad_sets, {}, ['name', 'status', 'targeting'])
 
 def get_ads(adset: AdSet) -> List[Ad]:
     return call(adset.get_ads, {}, ['creative', 'adset_id'])
@@ -117,6 +117,7 @@ class CampaignState():
             'LOOKALIKE_RATIO': env.float('FACEBOOK_LOOKALIKE_RATIO'),
         }
 
+        self.window = window
         self.account = get_account(env)
         self.campaign = get_campaign(self.account, cnf['CAMPAIGN'])
         self.label = get_label(self.account, cnf['AD_LABEL'])

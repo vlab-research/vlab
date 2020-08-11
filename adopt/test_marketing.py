@@ -18,6 +18,7 @@ def test_ad_diff_creates_and_pauses():
 
 
 def test_ad_diff_leaves_alone_with_active_update():
+    # TODO: get status in adset, then you can leave alone and save on api calls
     adset = {'id': 'ad'}
     running_ads = [{'id': 'foo', 'creative': {'id': 'bar'}}]
     current_creatives = [{ 'name': 'hindi', 'id': 'bar', 'actor_id': '111', 'url_tags': '111'}]

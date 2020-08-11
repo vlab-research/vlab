@@ -79,6 +79,7 @@ def get_conf(env):
         'budget': env.float('MALARIA_BUDGET'),
         'survey_user': env('MALARIA_SURVEY_USER'),
         'lookup_loc': env('MALARIA_DISTRICT_LOOKUP'),
+        'opt_window': env.int('MALARIA_OPT_WINDOW'),
         'end_date': env('MALARIA_END_DATE'),
         'n_clusters': env.int('MALARIA_NUM_CLUSTERS'),
         'chatbase': {
@@ -253,7 +254,7 @@ def run_update_ads(cnf, df, state, m):
                                       cnf['budget'],
                                       cnf['n_clusters'],
                                       days_left(cnf),
-                                      window(),
+                                      state.window,
                                       spend)
 
     saturated = get_saturated_clusters(df, stratum)
@@ -281,7 +282,8 @@ def update_ads():
     # TODO: this doesn't work from cold start
     # -- it should generally have some other way
     # of getting clusters, if no spend.
-    state = CampaignState(env, window())
+    w = window(hours=cnf['opt_window'])
+    state = CampaignState(env, w)
     m = Marketing(env, state)
 
     run_update_ads(cnf, df, state, m)
