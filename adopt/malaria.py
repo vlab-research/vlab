@@ -77,6 +77,7 @@ def get_conf(env):
     c = {
         'country': env('MALARIA_COUNTRY'),
         'budget': env.float('MALARIA_BUDGET'),
+        'min_budget': env.float('MALARIA_MIN_BUDGET'),
         'survey_user': env('MALARIA_SURVEY_USER'),
         'lookup_loc': env('MALARIA_DISTRICT_LOOKUP'),
         'opt_window': env.int('MALARIA_OPT_WINDOW'),
@@ -252,6 +253,7 @@ def run_update_ads(cnf, df, state, m):
     budget_lookup = get_budget_lookup(df,
                                       stratum,
                                       cnf['budget'],
+                                      cnf['min_budget'],
                                       cnf['n_clusters'],
                                       days_left(cnf),
                                       state.window,

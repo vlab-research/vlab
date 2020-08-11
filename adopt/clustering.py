@@ -1,4 +1,5 @@
 import logging
+from copy import deepcopy
 from math import floor
 from datetime import datetime, timezone
 from typing import Dict, List, Tuple
@@ -142,17 +143,20 @@ def _saturated_clusters(stratum, targets):
 
 def get_saturated_clusters(df, stratum):
     surveys = stratum['surveys']
+
     df = add_cluster(surveys, df)
     targets = only_target_users(df, surveys, 'target_questions')
     return _saturated_clusters(stratum, targets)
 
-from copy import deepcopy
 
-def budget_trimming(budget, lim, step=100):
+
+def budget_trimming(budget, max_budget, min_budget, step=100):
     budg = deepcopy(budget)
     mx = max(budg.values())
-    while sum(budg.values()) > lim:
+    while sum(budg.values()) > max_budget:
         mx = mx - step
+        if mx < min_budget:
+            raise Exception(f'Cant make the budget work, minimum under 0! Reduce step size?')
         budg = {k: min(v, mx) for k, v in budg.items()}
     return budg
 
@@ -162,6 +166,7 @@ def top_clusters(lookup, N):
 def get_budget_lookup(df,
                       stratum,
                       max_budget,
+                      min_budget,
                       n_clusters,
                       days_left,
                       window: BudgetWindow,
@@ -197,7 +202,9 @@ def get_budget_lookup(df,
     budget = {k: floor(v) for k, v in budget.items()}
 
     # trim and trim!
+    budget = {k:v for k, v in budget.items() if v > 0.}
+    budget = {k: max(min_budget, v) for k, v in budget.items()}
     budget = top_clusters(budget, n_clusters)
-    budget = budget_trimming(budget, max_budget)
+    budget = budget_trimming(budget, max_budget, min_budget)
 
     return budget
