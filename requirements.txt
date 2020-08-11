@@ -8,7 +8,6 @@ curlify==2.2.1
 cyksuid==0.2.0
 environs==8.0.0
 execnet==1.7.1
-facebook-business==7.0.3
 idna==2.10
 isort==4.3.21
 lazy-object-proxy==1.4.3
@@ -33,6 +32,7 @@ pytest-xdist==1.32.0
 python-dateutil==2.8.1
 python-dotenv==0.14.0
 pytz==2020.1
+PyYAML==5.3.1
 requests==2.24.0
 six==1.15.0
 toml==0.10.1
