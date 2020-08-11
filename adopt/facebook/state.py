@@ -63,7 +63,7 @@ def get_adsets(campaign: Campaign) -> List[AdSet]:
     return call(campaign.get_ad_sets, {}, ['name', 'status', 'targeting'])
 
 def get_ads(adset: AdSet) -> List[Ad]:
-    return call(adset.get_ads, {}, ['creative', 'adset_id'])
+    return call(adset.get_ads, {}, ['creative', 'adset_id', 'status'])
 
 def get_all_ads(adsets: List[AdSet]) -> List[Ad]:
     return [a for s in adsets for a in get_ads(s)]
