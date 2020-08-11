@@ -223,7 +223,8 @@ def ad_diff(adset,
                     if h not in new_hashes.keys()]
 
     instructions += [run(a) for a, h, c in olds
-                     if h in new_hashes.keys()]
+                     if h in new_hashes.keys()
+                     and a['status'] != 'ACTIVE']
 
     instructions += [create(c) for h, c in new_hashes.items()
                      if h not in old_hashes]
