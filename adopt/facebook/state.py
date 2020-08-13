@@ -71,27 +71,28 @@ def get_all_ads(adsets: List[AdSet]) -> List[Ad]:
 def get_label(account: AdAccount, name: str):
     return call(account.create_ad_label, {'name': name}, [])
 
-def _get_spend(adset, window):
+def _get_insights(adset, window):
     params = {
         'time_range': {
             'since': window.start,
             'until': window.until
         }
     }
+    fields = ['unique_link_clicks_ctr', 'unique_ctr', 'ctr', 'cpp', 'cpm', 'cpc', 'unique_clicks', 'reach', 'spend', 'actions']
 
     try:
-        return call(adset.get_insights, params=params, fields=[])[0]
+        return call(adset.get_insights, params=params, fields=fields)[0]
     except IndexError:
         return None
 
-def get_spend(adsets, window: BudgetWindow) -> Dict[str, float]:
-    spend = {a['name']: _get_spend(a, window)
+def get_insights(adsets, window: BudgetWindow) -> Dict[str, float]:
+    insights = {a['name']: _get_insights(a, window)
              for a in adsets}
 
     spending = lambda i: 0 if i is None else i['spend']
-    spend = {n: spending(i) for n, i in spend.items()}
+    spend = {n: spending(i) for n, i in insights.items()}
     spend = {n: float(v)*100 for n, v in spend.items()}
-    return spend
+    return spend, insights
 
 def get_account(env):
     cnf = {
@@ -126,7 +127,7 @@ class CampaignState():
         if self.campaign:
             self.adsets = get_adsets(self.campaign)
             self.ads = get_all_ads(self.adsets)
-            self.spend = get_spend(self.adsets, window)
+            self.spend, self.insights = get_insights(self.adsets, window)
 
         logging.info(f'Campaign {self.campaign["name"]} has {len(self.creatives)} creatives, '
                      f'and {len(self.adsets)} running ads')

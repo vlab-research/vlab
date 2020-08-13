@@ -206,11 +206,8 @@ def new_ads(m: Marketing,
             aud: Optional[CustomAudience],
             anti_aud: Optional[CustomAudience]) -> List[Instruction]:
 
-    locs = [cc for cc in cluster_confs
-            if cc.cluster.id not in saturated_clusters]
-
     # check uniqueness of clusterids
-    uniqueness([cl for cl, _, _, _ in locs])
+    uniqueness([cl for cl, _, _, _ in cluster_confs])
 
     # validate targeting keys
     targeting = stratum.get('targeting')
@@ -218,18 +215,22 @@ def new_ads(m: Marketing,
         validate_targeting(targeting)
 
     def adsetter(cl, cg, ls, au):
+
+        # Get budget (0 will pause adset)
         bu = budget_lookup.get(cl.id, 0)
+        if cl.id in saturated_clusters:
+            bu = 0
+
+        # create adset (with audience if aud is specified)
         if au:
             return m.adset_instructions(cl, cg, ls, bu, targeting, aud, anti_aud)
         return m.adset_instructions(cl, cg, ls, bu, targeting, None, None)
 
-    instructions = [adsetter(*t) for t in locs]
+    instructions = [adsetter(*t) for t in cluster_confs]
     return [x for y in instructions for x in y]
 
 
 def run_update_ads(cnf, df, state, m):
-
-
 
     # check if campaign,
     # if not, make campaign and recurse
