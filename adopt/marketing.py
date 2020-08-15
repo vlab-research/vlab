@@ -1,29 +1,23 @@
 import json
 import logging
-import re
 from urllib.parse import quote
 from datetime import datetime, timedelta
-from dataclasses import dataclass
-from typing import List, NamedTuple, Tuple, Optional, Union, Any, Dict
-import requests
-import backoff
-from facebook_business.api import FacebookAdsApi
-from facebook_business.adobjects.adaccount import AdAccount
+from typing import List, NamedTuple, Optional, Union, Any, Dict
 from facebook_business.adobjects.targeting import Targeting
 from facebook_business.adobjects.customaudience import CustomAudience
 from facebook_business.adobjects.campaign import Campaign
 from facebook_business.adobjects.adset import AdSet
 from facebook_business.adobjects.ad import Ad
 from facebook_business.adobjects.adcreative import AdCreative
-from facebook_business.adobjects.adimage import AdImage
-from facebook_business.exceptions import FacebookRequestError
 from facebook_business.adobjects.targetinggeolocationcustomlocation \
     import TargetingGeoLocationCustomLocation
 from facebook_business.adobjects.targetinggeolocation import TargetingGeoLocation
 from toolz import get_in
-from .facebook.state import BudgetWindow
-from .facebook.update import Instruction
 import xxhash
+from .facebook.update import Instruction
+
+
+Params = Dict[str, Any]
 
 class Cluster(NamedTuple):
     id: str
@@ -53,7 +47,7 @@ class AdsetConf(NamedTuple):
     campaign: Campaign
     cluster: Cluster
     locs: List[Location]
-    creatives: List[AdCreative]
+    creatives: List[Params]
     budget: Optional[float]
     status: str
     instagram_id: str
@@ -201,6 +195,35 @@ def create_ad(adset, creative, status) -> Dict[str, Any]:
         'creative': creative
     }
 
+def create_custom_audience(name: str, desc: str) -> Instruction:
+    params = {
+        'name': name,
+        'subtype': 'CUSTOM',
+        'description': desc,
+        'customer_file_source': 'USER_PROVIDED_ONLY',
+    }
+
+    return Instruction('custom_audience', 'create', params, None)
+
+def split(li, N):
+    while li:
+        head, li = li[:N], li[N:]
+        yield head
+
+def add_users_to_audience(pageid, aud_id, users) -> List[Instruction]:
+    params = {
+        'schema': ['PAGEUID'],
+        'is_raw': True,
+        'page_ids': [pageid]
+    }
+
+    return [Instruction('custom_audience',
+                        'add_users',
+                        {**params, 'data': [[u] for u in chunk]},
+                        aud_id)
+            for chunk in split(users, 1000)]
+
+
 def ad_diff(adset,
             running_ads: List[Ad],
             current_creatives: List[AdCreative],
@@ -306,6 +329,9 @@ class Marketing():
             return instructions
 
         return [create_adset(name, adset_conf)]
+
+    def add_users(self, audience, users):
+        return add_users_to_audience(self.cnf['PAGE_ID'], audience.get_id(), users)
 
 
     def create_creative(self, cluster: Cluster, config: CreativeConfig) -> Dict[str, Any]:

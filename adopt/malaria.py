@@ -8,11 +8,11 @@ import typing_json
 from environs import Env
 from facebook_business.adobjects.customaudience import CustomAudience
 from .facebook.update import Instruction, GraphUpdater
-from .facebook.state import CampaignState
+from .facebook.state import CampaignState, BudgetWindow
 from .clustering import get_saturated_clusters, only_target_users, shape_df, get_budget_lookup
 from .responses import get_response_df
 from .marketing import Marketing, CreativeGroup, \
-    Location, Cluster, validate_targeting, BudgetWindow
+    Location, Cluster, validate_targeting
 
 logging.basicConfig(level=logging.INFO)
 
@@ -144,35 +144,29 @@ def base_cluster_conf(cnf) -> List[ClusterConf]:
 
     return locs
 
-
-
-
-def get_aud(m: Marketing, name, create: bool) -> Optional[CustomAudience]:
-    try:
-        aud = m.get_audience(name)
-    except MarketingNameError:
-        if create:
-            aud = m.create_custom_audience(name, 'Virtual Lab auto-generated audience', [])
-        else:
-            aud = None
-    return aud
-
-
 def update_audience():
     env = Env()
     cnf = get_conf(env)
-    m = Marketing(env, load_ads=False)
+    state = CampaignState(env)
+    state.load_audience_state()
+
+    m = Marketing(env, state)
     df = get_df(cnf)
+    updater = GraphUpdater(state)
 
     for stratum in cnf['strata']:
         users, anti_users = lookalike(df, stratum)
         name = stratum['name']
         for u, n in [(users, name), (anti_users, f'anti-{name}')]:
-            aud = get_aud(m, n, True)
+            # TOOD: deal with create and quit (iterate)
+            aud = state.get_audience(n)
             logging.info(f'Adding {len(u)} users to audience {aud.get("name")}.')
-            res = m.add_users(aud['id'], u)
-            for r in res:
-                logging.info(r)
+            instructions = m.add_users(aud, u)
+
+            for i in instructions:
+                report = updater.execute(i)
+                logging.info(report)
+
 
 
 def window(hours=16):
@@ -287,6 +281,7 @@ def update_ads():
     # of getting clusters, if no spend.
     w = window(hours=cnf['opt_window'])
     state = CampaignState(env, w)
+    state.load_ad_state()
     m = Marketing(env, state)
 
     run_update_ads(cnf, df, state, m)

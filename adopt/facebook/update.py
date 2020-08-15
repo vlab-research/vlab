@@ -1,5 +1,6 @@
 from datetime import datetime, timezone
 from typing import Optional, Dict, Any, NamedTuple
+import requests
 from .state import CampaignState, call
 
 
@@ -23,15 +24,35 @@ def report(i: Instruction):
         }
     }
 
+def add_users_to_custom_audience(token, aud_id, params):
+    url = f'https://graph.facebook.com/v8.0/{aud_id}/users?access_token={token}'
+    return requests.post(url, json={'payload': params})
+
 class GraphUpdater():
     def __init__(self, state: CampaignState):
+        self.state = state
         self.account = state.account
         self.objects = {
             'adset': {a['id']: a for a in state.adsets},
             'ad': {a['id']: a for a in state.ads},
             'creative': {c['id']: c for c in state.creatives},
-            # custom_audience??
+            'custom_audience': {c['id']: c for c in state.custom_audiences}
         }
+
+        self.creates = {
+            'adset': self.account.create_ad_set,
+            'adcreative': self.account.create_ad_creative,
+            'ad': self.account.create_ad,
+            'custom_audience': self.account.create_custom_audience,
+            'campaign': self.account.create_campaign
+        }
+
+
+    def get_create(self, node):
+        try:
+            return self.creates[node]
+        except KeyError:
+            raise InstructionError(f'Could not find create instruction for node of type {node}')
 
     def get_object(self, type_, id_):
         try:
@@ -40,24 +61,23 @@ class GraphUpdater():
             raise InstructionError(f'Could not find id {id_} of type {type_}')
 
     def execute(self, instruction: Instruction):
-        creates = {
-            'adset': self.account.create_ad_set,
-            'adcreative': self.account.create_ad_creative,
-            'ad': self.account.create_ad,
-            'custom_audience': self.account.create_custom_audience,
-            'campaign': self.account.create_campaign
-        }
-
-        # how to update add users...??? Fail.
-
         if instruction.action == 'update':
             obj = self.get_object(instruction.node, instruction.id)
             call(obj.api_update, instruction.params, [])
             return report(instruction)
 
         if instruction.action == 'create':
-            create = creates[instruction.node]
+            create = self.get_create(instruction.node)
             call(create, instruction.params, [])
+            return report(instruction)
+
+        if instruction.action == 'add_users':
+
+            # special case, node-edge, but also rest api directly!
+            # can be removed when sdk supports this action
+            add_users_to_custom_audience(self.state.cnf['USER_TOKEN'],
+                                         instruction.id,
+                                         instruction.params)
             return report(instruction)
 
         raise InstructionError(f'action: {instruction.action} not a valid instruction action')

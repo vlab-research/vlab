@@ -1,9 +1,11 @@
 import logging
 from dataclasses import dataclass
 from datetime import datetime
-from typing import List, Optional, Dict
+from typing import List, Optional, Dict, Tuple, Any
 from facebook_business.api import FacebookAdsApi
 from facebook_business.adobjects.adaccount import AdAccount
+from facebook_business.adobjects.adaccount import AdAccount
+from facebook_business.adobjects.customaudience import CustomAudience
 from facebook_business.adobjects.campaign import Campaign
 from facebook_business.adobjects.adset import AdSet
 from facebook_business.adobjects.ad import Ad
@@ -78,16 +80,18 @@ def _get_insights(adset, window):
             'until': window.until
         }
     }
-    fields = ['unique_link_clicks_ctr', 'unique_ctr', 'ctr', 'cpp', 'cpm', 'cpc', 'unique_clicks', 'reach', 'spend', 'actions']
+    fields = ['unique_link_clicks_ctr', 'unique_ctr', 'ctr',
+              'cpp', 'cpm', 'cpc', 'unique_clicks', 'reach',
+              'spend', 'actions']
 
     try:
         return call(adset.get_insights, params=params, fields=fields)[0]
     except IndexError:
         return None
 
-def get_insights(adsets, window: BudgetWindow) -> Dict[str, float]:
+def get_insights(adsets, window: BudgetWindow) -> Tuple[Dict[str, float], Dict[str, Any]]:
     insights = {a['name']: _get_insights(a, window)
-             for a in adsets}
+                for a in adsets}
 
     spending = lambda i: 0 if i is None else i['spend']
     spend = {n: spending(i) for n, i in insights.items()}
@@ -105,45 +109,67 @@ def get_account(env):
     FacebookAdsApi.init(cnf['APP_ID'], cnf['APP_SECRET'], cnf['USER_TOKEN'])
     return AdAccount(cnf['AD_ACCOUNT'])
 
+def get_custom_audiences(account):
+    fields = [CustomAudience.Field.name,
+              CustomAudience.Field.description,
+              CustomAudience.Field.subtype,
+              CustomAudience.Field.time_created]
+
+    return call(account.get_custom_audiences, {}, fields)
+
 
 class CampaignState():
-    def __init__(self, env, window):
+    def __init__(self, env, window=None):
         cnf = {
             'PAGE_ID': env('FACEBOOK_PAGE_ID'),
             'INSTA_ID': env('FACEBOOK_INSTA_ID'),
             'CAMPAIGN': env("FACEBOOK_AD_CAMPAIGN"),
             'AD_LABEL': env('FACEBOOK_AD_LABEL'),
+            'USER_TOKEN': env('FACEBOOK_USER_TOKEN'),
             'ADSET_HOURS': env.int('FACEBOOK_ADSET_HOURS'),
             'LOOKALIKE_STARTING_RATIO': env.float('FACEBOOK_LOOKALIKE_STARTING_RATIO'),
             'LOOKALIKE_RATIO': env.float('FACEBOOK_LOOKALIKE_RATIO'),
         }
 
+        self.cnf = cnf
         self.window = window
         self.account = get_account(env)
         self.campaign = get_campaign(self.account, cnf['CAMPAIGN'])
         self.label = get_label(self.account, cnf['AD_LABEL'])
-        self.creatives = get_creatives(self.account, self.label['id'])
 
+        # TODO: this is a nest for bugs, it's not explicit that the data was
+        # loaded or not.
+        self.creatives = []
+        self.adsets = []
+        self.ads = []
+        self.spend = []
+        self.insights = []
+        self.custom_audiences = []
+
+    def load_ad_state(self):
+        if not self.window:
+            raise Exception('Cannot load_ad_state without a window')
+
+        self.creatives = get_creatives(self.account, self.label['id'])
         if self.campaign:
             self.adsets = get_adsets(self.campaign)
             self.ads = get_all_ads(self.adsets)
-            self.spend, self.insights = get_insights(self.adsets, window)
+            self.spend, self.insights = get_insights(self.adsets, self.window)
+            logging.info(f'Campaign {self.campaign["name"]} has {len(self.creatives)} creatives, '
+                         f'and {len(self.adsets)} running ads')
 
-        logging.info(f'Campaign {self.campaign["name"]} has {len(self.creatives)} creatives, '
-                     f'and {len(self.adsets)} running ads')
+        else:
+            raise Exception('No campaign! Must create first...')
 
+    def load_audience_state(self):
+        self.custom_audiences = get_custom_audiences(self.account) # add label???
 
-    # def get_audience(self, name):
-    #     fields = [CustomAudience.Field.name,
-    #               CustomAudience.Field.description,
-    #               CustomAudience.Field.subtype,
-    #               CustomAudience.Field.time_created]
+    def get_audience(self, name):
+        if not self.custom_audiences:
+            raise Exception('Must load_audience_state before getting an audience')
 
-    #     audiences = self.account.get_custom_audiences(fields=fields)
-
-    #     aud = next((a for a in audiences if a['name'] == name), None)
-
-    #     if not aud:
-    #         raise MarketingNameError(f'Audience not found with name: {name}')
-
-    #     return aud
+        aud = next((a for a in self.custom_audiences
+                    if a['name'] == name), None)
+        if not aud:
+            raise Exception(f'Audience not found with name: {name}')
+        return aud

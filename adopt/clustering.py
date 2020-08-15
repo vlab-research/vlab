@@ -3,7 +3,8 @@ from copy import deepcopy
 from math import floor
 from datetime import datetime, timezone
 from typing import Dict, List, Tuple
-from .marketing import Marketing, BudgetWindow
+from .marketing import Marketing
+from .facebook.state import BudgetWindow
 from .forms import BadResponseError
 import pandas as pd
 
@@ -15,7 +16,7 @@ def res_col(ref, row, t):
     response = row[ref]
 
     if pd.isna(response):
-        raise MissingResponseError(f'user missing response')
+        raise MissingResponseError('user missing response')
 
     return t(response)
 
@@ -63,7 +64,8 @@ def shape_df(df):
         .apply(lambda df: df.pivot('userid', 'question_ref', 'response')) \
         .reset_index()
 
-    df['timestamp'] = df['md:startTime'].map(lambda x: datetime.fromtimestamp(x/1000, tz=timezone.utc))
+    df['timestamp'] = df['md:startTime'].map(lambda x: datetime.fromtimestamp(x/1000,
+                                                                              tz=timezone.utc))
 
     # Clean anyone who answered multiple surveys in this group of shortcodes
     # in theory should only be testers.
@@ -156,7 +158,7 @@ def budget_trimming(budget, max_budget, min_budget, step=100):
     while sum(budg.values()) > max_budget:
         mx = mx - step
         if mx < min_budget:
-            raise Exception(f'Cant make the budget work, minimum under 0! Reduce step size?')
+            raise Exception('Cant make the budget work, minimum under 0! Reduce step size?')
         budg = {k: min(v, mx) for k, v in budg.items()}
     return budg
 
@@ -170,7 +172,8 @@ def get_budget_lookup(df,
                       n_clusters,
                       days_left,
                       window: BudgetWindow,
-                      spend: Dict[str, float]):
+                      spend: Dict[str, float],
+                      return_price=False):
 
     # only calculate budget for those with previous spend
     spend = {k:v for k, v in spend.items() if v > 0}
@@ -207,4 +210,6 @@ def get_budget_lookup(df,
     budget = top_clusters(budget, n_clusters)
     budget = budget_trimming(budget, max_budget, min_budget)
 
+    if return_price:
+        return budget, price
     return budget
