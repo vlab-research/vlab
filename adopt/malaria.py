@@ -8,11 +8,11 @@ import typing_json
 from environs import Env
 from facebook_business.adobjects.customaudience import CustomAudience
 from .facebook.update import Instruction, GraphUpdater
-from .facebook.state import CampaignState, BudgetWindow
+from .facebook.state import CampaignState, BudgetWindow, StateNameError
 from .clustering import get_saturated_clusters, only_target_users, shape_df, get_budget_lookup
 from .responses import get_response_df
 from .marketing import Marketing, CreativeGroup, \
-    Location, Cluster, validate_targeting
+    Location, Cluster, validate_targeting, create_custom_audience
 
 logging.basicConfig(level=logging.INFO)
 
@@ -82,6 +82,7 @@ def get_conf(env):
         'lookup_loc': env('MALARIA_DISTRICT_LOOKUP'),
         'opt_window': env.int('MALARIA_OPT_WINDOW'),
         'end_date': env('MALARIA_END_DATE'),
+        'respondent_audience': env('MALARIA_RESPONDENT_AUDIENCE'),
         'n_clusters': env.int('MALARIA_NUM_CLUSTERS'),
         'chatbase': {
             'db': env('CHATBASE_DATABASE'),
@@ -144,6 +145,29 @@ def base_cluster_conf(cnf) -> List[ClusterConf]:
 
     return locs
 
+def add_users(state: CampaignState, m: Marketing, name: str, users: List[str]):
+    updater = GraphUpdater(state)
+    aud = state.get_audience(name)
+    logging.info(f'Adding {len(users)} users to audience {aud.get("name")}.')
+    instructions = m.add_users(aud, users)
+    for i in instructions:
+        report = updater.execute(i)
+        logging.info(report)
+
+def create_respondent_audience(cnf, state: CampaignState):
+    name = cnf['respondent_audience']
+    updater = GraphUpdater(state)
+    i = create_custom_audience(name, 'virtual lab auto-generated audience')
+    report = updater.execute(i)
+    logging.info(report)
+
+def update_respondent_audience(cnf, df, m: Marketing):
+    users = df.userid.unique().tolist()
+    name = cnf['respondent_audience']
+    m.state.load_audience_state()
+    add_users(m.state, m, name, users)
+
+
 def update_audience():
     env = Env()
     cnf = get_conf(env)
@@ -152,21 +176,12 @@ def update_audience():
 
     m = Marketing(env, state)
     df = get_df(cnf)
-    updater = GraphUpdater(state)
 
     for stratum in cnf['strata']:
         users, anti_users = lookalike(df, stratum)
         name = stratum['name']
         for u, n in [(users, name), (anti_users, f'anti-{name}')]:
-            # TOOD: deal with create and quit (iterate)
-            aud = state.get_audience(n)
-            logging.info(f'Adding {len(u)} users to audience {aud.get("name")}.')
-            instructions = m.add_users(aud, u)
-
-            for i in instructions:
-                report = updater.execute(i)
-                logging.info(report)
-
+            add_users(state, m, n, u)
 
 
 def window(hours=16):
@@ -218,10 +233,19 @@ def new_ads(m: Marketing,
         # create adset (with audience if aud is specified)
         if au:
             return m.adset_instructions(cl, cg, ls, bu, targeting, aud, anti_aud)
-        return m.adset_instructions(cl, cg, ls, bu, targeting, None, None)
+        return m.adset_instructions(cl, cg, ls, bu, targeting, None, anti_aud)
 
     instructions = [adsetter(*t) for t in cluster_confs]
     return [x for y in instructions for x in y]
+
+
+def create_lookalike(cnf, m: Marketing):
+    stratum = cnf['strata'][0]
+    name = stratum['name']
+    i = m.create_lookalike(name, cnf['country'])
+    updater = GraphUpdater(m.state)
+    report = updater.execute(i)
+    logging.info(report)
 
 
 def run_update_ads(cnf, df, state, m):
@@ -235,11 +259,7 @@ def run_update_ads(cnf, df, state, m):
 
     # continue
 
-    # TODO: make a separate campaign per strata
-    # this will requre dif instances of Marketing.
-    # change label for creatives, make it linked to
-    # campaign somehow?
-    # or just cache get_creatives...
+    # TODO: How to support multiple strata???
     stratum = cnf['strata'][0]
 
     spend = {get_cluster_from_adset(n): i
@@ -256,8 +276,8 @@ def run_update_ads(cnf, df, state, m):
 
     saturated = get_saturated_clusters(df, stratum)
 
-    # TODO: do something with audiences
-    aud, anti_aud = None, None
+    aud, anti_aud = m.get_lookalike(stratum['name']), \
+        state.get_audience(cnf['respondent_audience'])
 
     cluster_confs = base_cluster_conf(cnf)
     instructions = new_ads(m, cluster_confs, stratum, budget_lookup,
@@ -282,6 +302,7 @@ def update_ads():
     w = window(hours=cnf['opt_window'])
     state = CampaignState(env, w)
     state.load_ad_state()
+    state.load_audience_state()
     m = Marketing(env, state)
 
     run_update_ads(cnf, df, state, m)

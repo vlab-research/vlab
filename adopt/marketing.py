@@ -15,6 +15,7 @@ from facebook_business.adobjects.targetinggeolocation import TargetingGeoLocatio
 from toolz import get_in
 import xxhash
 from .facebook.update import Instruction
+from .facebook.state import StateNameError
 
 
 Params = Dict[str, Any]
@@ -224,6 +225,7 @@ def add_users_to_audience(pageid, aud_id, users) -> List[Instruction]:
             for chunk in split(users, 1000)]
 
 
+
 def ad_diff(adset,
             running_ads: List[Ad],
             current_creatives: List[AdCreative],
@@ -332,6 +334,35 @@ class Marketing():
 
     def add_users(self, audience, users):
         return add_users_to_audience(self.cnf['PAGE_ID'], audience.get_id(), users)
+
+    def lookalike_settings(self, aud_name):
+        slr, lr = self.cnf['LOOKALIKE_STARTING_RATIO'], self.cnf['LOOKALIKE_RATIO']
+        name = f'vlab-lookalike-{aud_name}-{slr}-{lr}'
+        return name, slr, lr
+
+    def create_lookalike(self, audience_name: str, country: str) -> Instruction:
+        custom_audience = self.state.get_audience(audience_name)
+        name, slr, lr = self.lookalike_settings(custom_audience['name'])
+
+        spec = {
+            'starting_ratio': slr,
+            'ratio': lr,
+            'country': country
+        }
+
+        params = {
+            CustomAudience.Field.name: name,
+            CustomAudience.Field.subtype: CustomAudience.Subtype.lookalike,
+            CustomAudience.Field.origin_audience_id: custom_audience.get_id(),
+            CustomAudience.Field.lookalike_spec:json.dumps(spec),
+        }
+
+        return Instruction('custom_audience', 'create', params, None)
+
+    def get_lookalike(self, audience_name: str) -> CustomAudience:
+        custom_audience = self.state.get_audience(audience_name)
+        name, _, _ = self.lookalike_settings(custom_audience['name'])
+        return self.state.get_audience(name)
 
 
     def create_creative(self, cluster: Cluster, config: CreativeConfig) -> Dict[str, Any]:

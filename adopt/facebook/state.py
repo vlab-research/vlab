@@ -4,13 +4,21 @@ from datetime import datetime
 from typing import List, Optional, Dict, Tuple, Any
 from facebook_business.api import FacebookAdsApi
 from facebook_business.adobjects.adaccount import AdAccount
-from facebook_business.adobjects.adaccount import AdAccount
+from facebook_business.adobjects.adlabel import AdLabel
 from facebook_business.adobjects.customaudience import CustomAudience
 from facebook_business.adobjects.campaign import Campaign
 from facebook_business.adobjects.adset import AdSet
 from facebook_business.adobjects.ad import Ad
 from facebook_business.adobjects.adcreative import AdCreative
 from .api import call
+
+
+class StateNameError(BaseException):
+    pass
+
+
+class StateInitializationError(BaseException):
+    pass
 
 
 #############################
@@ -109,7 +117,7 @@ def get_account(env):
     FacebookAdsApi.init(cnf['APP_ID'], cnf['APP_SECRET'], cnf['USER_TOKEN'])
     return AdAccount(cnf['AD_ACCOUNT'])
 
-def get_custom_audiences(account):
+def get_custom_audiences(account: AdAccount) -> List[CustomAudience]:
     fields = [CustomAudience.Field.name,
               CustomAudience.Field.description,
               CustomAudience.Field.subtype,
@@ -132,23 +140,23 @@ class CampaignState():
         }
 
         self.cnf = cnf
-        self.window = window
-        self.account = get_account(env)
-        self.campaign = get_campaign(self.account, cnf['CAMPAIGN'])
-        self.label = get_label(self.account, cnf['AD_LABEL'])
+        self.window: BudgetWindow = window
+        self.account: AdAccount = get_account(env)
+        self.campaign: Campaign = get_campaign(self.account, cnf['CAMPAIGN'])
+        self.label: AdLabel = get_label(self.account, cnf['AD_LABEL'])
 
         # TODO: this is a nest for bugs, it's not explicit that the data was
         # loaded or not.
-        self.creatives = []
-        self.adsets = []
-        self.ads = []
-        self.spend = []
-        self.insights = []
-        self.custom_audiences = []
+        self.creatives: List[AdCreative] = []
+        self.adsets: List[AdSet] = []
+        self.ads: List[Ad] = []
+        self.custom_audiences: List[CustomAudience] = []
+        self.spend: Dict[str, float] = {}
+        self.insights: Dict[str, Any] = {}
 
     def load_ad_state(self):
         if not self.window:
-            raise Exception('Cannot load_ad_state without a window')
+            raise StateInitializationError('Cannot load_ad_state without a window')
 
         self.creatives = get_creatives(self.account, self.label['id'])
         if self.campaign:
@@ -159,17 +167,17 @@ class CampaignState():
                          f'and {len(self.adsets)} running ads')
 
         else:
-            raise Exception('No campaign! Must create first...')
+            raise StateInitializationError('No campaign! Must create first...')
 
     def load_audience_state(self):
         self.custom_audiences = get_custom_audiences(self.account) # add label???
 
-    def get_audience(self, name):
+    def get_audience(self, name: str) -> CustomAudience:
         if not self.custom_audiences:
-            raise Exception('Must load_audience_state before getting an audience')
+            raise StateInitializationError('Must load_audience_state before getting an audience')
 
         aud = next((a for a in self.custom_audiences
                     if a['name'] == name), None)
         if not aud:
-            raise Exception(f'Audience not found with name: {name}')
+            raise StateNameError(f'Audience not found with name: {name}')
         return aud

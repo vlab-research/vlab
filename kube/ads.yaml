@@ -10,7 +10,7 @@ spec:
       restartPolicy: OnFailure
       containers:
       - name: gbv-adopt-update-ads
-        image: vlabresearch/adopt:0.0.40
+        image: vlabresearch/adopt:0.0.42
         args:
         - python
         - malaria_ads.py
@@ -59,18 +59,20 @@ spec:
           value: "0.17"
         - name: MALARIA_SURVEY_USER
           value: "10383123-9fb1-429b-8312-447c1b54b17a"
+        - name: MALARIA_RESPONDENT_AUDIENCE
+          value: "vlab-mnm-respondents"
         - name: MALARIA_COUNTRY
           value: "IN"
         - name: MALARIA_END_DATE
-          value: "2020-08-21"
+          value: "2020-08-18"
         - name: MALARIA_NUM_CLUSTERS
-          value: "86"
+          value: "90"
         - name: MALARIA_OPT_WINDOW
-          value: "4"
+          value: "12"
         - name: MALARIA_BUDGET
-          value: "50000000"
+          value: "40000000"
         - name: MALARIA_MIN_BUDGET
-          value: "100000"
+          value: "10000"
         - name: MALARIA_DISTRICT_LOOKUP
           value: "output/cities.csv"
       volumes:
