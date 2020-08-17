@@ -205,9 +205,9 @@ def get_budget_lookup(df,
     budget = {k: floor(v) for k, v in budget.items()}
 
     # trim and trim!
+    budget = top_clusters(budget, n_clusters)
     budget = {k:v for k, v in budget.items() if v > 0.}
     budget = {k: max(min_budget, v) for k, v in budget.items()}
-    budget = top_clusters(budget, n_clusters)
     budget = budget_trimming(budget, max_budget, min_budget)
 
     if return_price:

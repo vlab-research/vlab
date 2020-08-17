@@ -291,6 +291,21 @@ def test_get_budget_lookup_ignores_saturated_clusters(cnf, df):
     assert res == { 'foo': 2.0 }
 
 
+def test_get_budget_lookup_ignores_saturated_clusters_but_they_still_count_towards_total(cnf, df):
+    cnf = {
+        'stratum': {
+            'per_cluster_pop': 1,
+            'surveys': cnf['stratum']['surveys']
+        }
+    }
+
+    spend = {'bar': 10.0, 'baz': 10.0, 'foo': 10.0, 'qux': 15.0, 'quux': 20.0}
+    window = BudgetWindow(DATE, DATE)
+    res = get_budget_lookup(df, cnf['stratum'], 1000, 1, 3, 5, window, spend)
+
+    assert res == { 'foo': 2.0 }
+
+
 def test_get_budget_lookup_handles_zero_spend(cnf, df):
 
     spend = {'bar': 10.0, 'qux': 0.0}
@@ -298,6 +313,13 @@ def test_get_budget_lookup_handles_zero_spend(cnf, df):
     res = get_budget_lookup(df, cnf['stratum'], 1000, 1, 10, 5, window, spend)
 
     assert res == {'bar': 2.0}
+
+
+def test_get_budget_lookup_handles_zero_spend_doesnt_affect_trimming(cnf, df):
+    spend = {'foo': 10.0, 'bar': 15.0, 'baz': 20.0, 'qux': 0.0}
+    window = BudgetWindow(DATE, DATE)
+    res = get_budget_lookup(df, cnf['stratum'], 1000, 1, 2, 5, window, spend)
+    assert res == {'bar': 3, 'foo': 4}
 
 
 def test_get_budget_lookup_works_with_missing_data_from_clusters():
