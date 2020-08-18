@@ -4,12 +4,12 @@ import psycopg2
 cnf = {'db': 'test',
        'user': 'test',
        'host': 'localhost',
-       'port': '5432',
+       'port': '5433',
        'password': ''}
 
 @pytest.fixture(scope='module')
 def db():
-    with psycopg2.connect(dbname='defaultdb', user='root', host='localhost', port='5432') as conn:
+    with psycopg2.connect(dbname='defaultdb', user='root', host='localhost', port='5433') as conn:
         with conn.cursor() as cur:
             q = """
             CREATE DATABASE IF NOT EXISTS test;
