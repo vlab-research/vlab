@@ -2,11 +2,11 @@ import logging
 from copy import deepcopy
 from math import floor
 from datetime import datetime, timezone
-from typing import Dict, List, Tuple
-from .marketing import Marketing
+from typing import Dict
+import pandas as pd
 from .facebook.state import BudgetWindow
 from .forms import BadResponseError
-import pandas as pd
+
 
 
 class MissingResponseError(BaseException):
@@ -192,6 +192,7 @@ def get_budget_lookup(df,
     tot = {**{k:0 for k in spend.keys()}, **tot}
     goal = stratum['per_cluster_pop']
     remain = {k: goal - v for k, v in tot.items()}
+    saturated = [k for k, v in remain.items() if v <= 0]
 
     # pretend to have found one in each cluster
     counts = windowed.groupby('cluster').userid.count().to_dict()
@@ -203,6 +204,7 @@ def get_budget_lookup(df,
     price = {k: spend[k] / v for k, v in counts.items() if k in spend}
     budget = {k: v*remain[k] / days_left for k, v in price.items()}
     budget = {k: floor(v) for k, v in budget.items()}
+    budget = {**budget, **{k: 0 for k in saturated}}
 
     # trim and trim!
     budget = top_clusters(budget, n_clusters)

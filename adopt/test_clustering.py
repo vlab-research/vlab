@@ -306,6 +306,22 @@ def test_get_budget_lookup_ignores_saturated_clusters_but_they_still_count_towar
     assert res == { 'foo': 2.0 }
 
 
+
+def test_get_budget_lookup_ignores_saturated_clusters_even_if_no_spend(cnf, df):
+    cnf = {
+        'stratum': {
+            'per_cluster_pop': 1,
+            'surveys': cnf['stratum']['surveys']
+        }
+    }
+
+    spend = {'foo': 10.0, 'qux': 15.0, 'quux': 20.0}
+    window = BudgetWindow(DATE, DATE)
+    res = get_budget_lookup(df, cnf['stratum'], 1000, 1, 3, 5, window, spend)
+
+    assert res == { 'foo': 2.0 }
+
+
 def test_get_budget_lookup_handles_zero_spend(cnf, df):
 
     spend = {'bar': 10.0, 'qux': 0.0}
