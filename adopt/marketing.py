@@ -1,5 +1,4 @@
 import json
-import logging
 from urllib.parse import quote
 from datetime import datetime, timedelta
 from typing import List, NamedTuple, Optional, Union, Any, Dict
@@ -15,7 +14,6 @@ from facebook_business.adobjects.targetinggeolocation import TargetingGeoLocatio
 from toolz import get_in
 import xxhash
 from .facebook.update import Instruction
-from .facebook.state import StateNameError
 
 
 Params = Dict[str, Any]
@@ -47,7 +45,8 @@ class Location(NamedTuple):
 class AdsetConf(NamedTuple):
     campaign: Campaign
     cluster: Cluster
-    locs: List[Location]
+    locs: Optional[List[Location]]
+    excluded_locs: Optional[List[Location]]
     creatives: List[Params]
     budget: Optional[float]
     status: str
@@ -73,17 +72,25 @@ def validate_targeting(targeting):
             raise Exception(f'Targeting config invalid, key: {k} does not exist!')
 
 def create_targeting(c: AdsetConf) -> Dict[str, Union[Any, List[Any]]]:
-    custom_locs = [create_location(lat, lng, rad)
-                   for lat, lng, rad in c.locs]
+    targeting: Dict[str, Union[Any, List[Any]]] = {}
 
-    T = Dict[str, Union[Any, List[Any]]]
+    if c.locs:
+        custom_locs = [create_location(lat, lng, rad)
+                       for lat, lng, rad in c.locs]
 
-    targeting: T = {
-        Targeting.Field.geo_locations: {
+        targeting[Targeting.Field.geo_locations] = {
             TargetingGeoLocation.Field.location_types: ['home'],
             TargetingGeoLocation.Field.custom_locations: custom_locs
         }
-    }
+
+    if c.excluded_locs:
+        excluded_locs = [create_location(lat, lng, rad)
+                         for lat, lng, rad in c.excluded_locs]
+
+        targeting[Targeting.Field.excluded_geo_locations] = {
+            TargetingGeoLocation.Field.location_types: ['home'],
+            TargetingGeoLocation.Field.custom_locations: excluded_locs
+        }
 
     if c.targeting:
         for k, v in c.targeting.items():
@@ -113,8 +120,9 @@ def update_adset(adset: AdSet, c: AdsetConf) -> Instruction:
     return Instruction('adset', 'update', params, adset['id'])
 
 
-def create_adset(name, c: AdsetConf) -> Instruction:
-    targeting = create_targeting(c)
+def create_adset(name, c: AdsetConf, targeting=None) -> Instruction:
+    if targeting is None:
+        targeting = create_targeting(c)
 
     if c.audience:
         targeting[Targeting.Field.custom_audiences] = [{'id': c.audience['id']}]
@@ -245,7 +253,8 @@ def ad_diff(adset,
     create = lambda c: Instruction('ad', 'create', create_ad(adset, c, 'ACTIVE'), None)
 
     instructions = [pause(a) for a, h, c in olds
-                    if h not in new_hashes.keys()]
+                    if h not in new_hashes.keys()
+                    and a['status'] != 'PAUSED']
 
     instructions += [run(a) for a, h, c in olds
                      if h in new_hashes.keys()
@@ -307,6 +316,7 @@ class Marketing():
         ac = AdsetConf(self.state.campaign,
                        cluster,
                        locs,
+                       None,
                        creatives,
                        budget,
                        status,

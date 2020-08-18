@@ -59,3 +59,18 @@ def test_ad_diff_handles_many():
                                         'create',
                                         {'adset_id': 'ad', 'name': 'newfoo', 'creative': creatives[1], 'status': 'ACTIVE'},
                                         None)]
+
+
+def test_ad_diff_leaves_many_alone_if_nothing_to_be_done():
+    adset = {'id': 'ad'}
+    running_ads = [{'id': 'foo', 'status': 'ACTIVE', 'creative': {'id': 'bar'}},
+                   {'id': 'baz', 'status': 'PAUSED', 'creative': {'id': 'qux'}}]
+
+    current_creatives = [{'name': 'hindi', 'id': 'bar', 'actor_id': '111', 'url_tags': '111'},
+                         {'name': 'odia',  'id': 'qux', 'actor_id': '111', 'url_tags': '123'}]
+
+    creatives = [{'name': 'hindi', 'actor_id': '111', 'url_tags': '111'}]
+
+    instructions = ad_diff(adset, running_ads, current_creatives, creatives)
+
+    assert instructions == []
