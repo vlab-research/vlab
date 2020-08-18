@@ -5,7 +5,7 @@
       "targeting": {
         "age_min": 20
       },
-      "per_cluster_pop": 125,
+      "per_cluster_pop": 250,
       "surveys": [
         {
           "shortcode": "baselineeng",
@@ -15,20 +15,13 @@
           },
           "target_questions": [
             {
-              "name": "home",
-              "ref": "4d0ae478-3893-4b46-ab39-d6848c69245d",
-              "op": "equal",
-              "value": "A"
+              "name": "occupation",
+              "ref": "4fc929c7-132d-49b1-a164-515e5cc9064f",
+              "op": "answered",
+              "value": null
             }
           ],
-          "exclude_questions": [
-            {
-              "name": "home",
-              "ref": "4d0ae478-3893-4b46-ab39-d6848c69245d",
-              "op": "equal",
-              "value": "B"
-            }
-          ]
+          "exclude_questions": []
         },
         {
           "shortcode": "baselinehin",
@@ -38,20 +31,45 @@
           },
           "target_questions": [
             {
-              "name": "home",
-              "ref": "4d0ae478-3893-4b46-ab39-d6848c69245d",
-              "op": "equal",
-              "value": "A"
+              "name": "occupation",
+              "ref": "4fc929c7-132d-49b1-a164-515e5cc9064f",
+              "op": "answered",
+              "value": null
             }
           ],
-          "exclude_questions": [
+          "exclude_questions": []
+        },
+        {
+          "shortcode": "baselinehinexc",
+          "cluster_question": {
+            "name": "district",
+            "ref": "md:clusterid"
+          },
+          "target_questions": [
             {
-              "name": "home",
-              "ref": "4d0ae478-3893-4b46-ab39-d6848c69245d",
-              "op": "equal",
-              "value": "B"
+              "name": "occupation",
+              "ref": "4fc929c7-132d-49b1-a164-515e5cc9064f",
+              "op": "answered",
+              "value": null
             }
-          ]
+          ],
+          "exclude_questions": []
+        },
+        {
+          "shortcode": "baselineodi",
+          "cluster_question": {
+            "name": "district",
+            "ref": "md:clusterid"
+          },
+          "target_questions": [
+            {
+              "name": "occupation",
+              "ref": "4fc929c7-132d-49b1-a164-515e5cc9064f",
+              "op": "answered",
+              "value": null
+            }
+          ],
+          "exclude_questions": []
         }
       ]}
   ]
