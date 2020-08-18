@@ -1,6 +1,7 @@
 import logging
 from dataclasses import dataclass
 from datetime import datetime
+from functools import cached_property
 from typing import List, Optional, Dict, Tuple, Any
 from facebook_business.api import FacebookAdsApi
 from facebook_business.adobjects.adaccount import AdAccount
@@ -97,14 +98,19 @@ def _get_insights(adset, window):
     except IndexError:
         return None
 
-def get_insights(adsets, window: BudgetWindow) -> Tuple[Dict[str, float], Dict[str, Any]]:
+Insights = Dict[str, Any]
+
+def get_insights(adsets, window: BudgetWindow) -> Insights:
     insights = {a['name']: _get_insights(a, window)
                 for a in adsets}
 
+    return insights
+
+def get_spending(insights: Insights) -> Dict[str, float]:
     spending = lambda i: 0 if i is None else i['spend']
     spend = {n: spending(i) for n, i in insights.items()}
     spend = {n: float(v)*100 for n, v in spend.items()}
-    return spend, insights
+    return spend
 
 def get_account(env):
     cnf = {
@@ -142,40 +148,50 @@ class CampaignState():
         self.cnf = cnf
         self.window: BudgetWindow = window
         self.account: AdAccount = get_account(env)
-        self.campaign: Campaign = get_campaign(self.account, cnf['CAMPAIGN'])
-        self.label: AdLabel = get_label(self.account, cnf['AD_LABEL'])
 
-        # TODO: this is a nest for bugs, it's not explicit that the data was
-        # loaded or not.
-        self.creatives: List[AdCreative] = []
-        self.adsets: List[AdSet] = []
-        self.ads: List[Ad] = []
-        self.custom_audiences: List[CustomAudience] = []
-        self.spend: Dict[str, float] = {}
-        self.insights: Dict[str, Any] = {}
+    @cached_property
+    def label(self) -> AdLabel:
+        return get_label(self.account, self.cnf['AD_LABEL'])
 
-    def load_ad_state(self):
+    @cached_property
+    def campaign(self) -> Campaign:
+        name = self.cnf['CAMPAIGN']
+        campaign = get_campaign(self.account, name)
+        if campaign is None:
+            raise StateNameError(f'Could not find a campaign with name: {name}')
+        return campaign
+
+    @cached_property
+    def creatives(self) -> List[AdCreative]:
+        creatives = get_creatives(self.account, self.label['id'])
+        logging.info(f'Loaded {len(creatives)} creatives with label {self.label["id"]}')
+        return creatives
+
+    @cached_property
+    def adsets(self) -> List[AdSet]:
+        adsets = get_adsets(self.campaign)
+        logging.info(f'Loaded {len(adsets)} adsets from campaign {self.campaign["name"]}')
+        return adsets
+
+    @cached_property
+    def ads(self) -> List[Ad]:
+        return get_all_ads(self.adsets)
+
+    @cached_property
+    def insights(self) -> Insights:
         if not self.window:
-            raise StateInitializationError('Cannot load_ad_state without a window')
+            raise StateInitializationError('Cannot get insights without a window')
+        return get_insights(self.adsets, self.window)
 
-        self.creatives = get_creatives(self.account, self.label['id'])
-        if self.campaign:
-            self.adsets = get_adsets(self.campaign)
-            self.ads = get_all_ads(self.adsets)
-            self.spend, self.insights = get_insights(self.adsets, self.window)
-            logging.info(f'Campaign {self.campaign["name"]} has {len(self.creatives)} creatives, '
-                         f'and {len(self.adsets)} running ads')
+    @cached_property
+    def spend(self) -> Dict[str, float]:
+        return get_spending(self.insights)
 
-        else:
-            raise StateInitializationError('No campaign! Must create first...')
-
-    def load_audience_state(self):
-        self.custom_audiences = get_custom_audiences(self.account) # add label???
+    @cached_property
+    def custom_audiences(self) -> List[CustomAudience]:
+        return get_custom_audiences(self.account) # add label???
 
     def get_audience(self, name: str) -> CustomAudience:
-        if not self.custom_audiences:
-            raise StateInitializationError('Must load_audience_state before getting an audience')
-
         aud = next((a for a in self.custom_audiences
                     if a['name'] == name), None)
         if not aud:

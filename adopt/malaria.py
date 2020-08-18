@@ -2,13 +2,13 @@ import json
 import re
 import logging
 from datetime import datetime, timedelta
-from typing import Dict, Optional, List, Any, Tuple, NamedTuple
+from typing import Dict, Optional, List, Any, NamedTuple
 import pandas as pd
 import typing_json
 from environs import Env
 from facebook_business.adobjects.customaudience import CustomAudience
 from .facebook.update import Instruction, GraphUpdater
-from .facebook.state import CampaignState, BudgetWindow, StateNameError
+from .facebook.state import CampaignState, BudgetWindow
 from .clustering import get_saturated_clusters, only_target_users, shape_df, get_budget_lookup
 from .responses import get_response_df
 from .marketing import Marketing, CreativeGroup, \
@@ -164,7 +164,6 @@ def create_respondent_audience(cnf, state: CampaignState):
 def update_respondent_audience(cnf, df, m: Marketing):
     users = df.userid.unique().tolist()
     name = cnf['respondent_audience']
-    m.state.load_audience_state()
     add_users(m.state, m, name, users)
 
 
@@ -172,8 +171,6 @@ def update_audience():
     env = Env()
     cnf = get_conf(env)
     state = CampaignState(env)
-    state.load_audience_state()
-
     m = Marketing(env, state)
     df = get_df(cnf)
 
@@ -203,7 +200,7 @@ def get_cluster_from_adset(adset_name: str) -> str:
     pat = r'(?<=vlab-)\w+'
     matches = re.search(pat, adset_name)
     if not matches:
-        raise Exception('Cannot extract cluster id from adset: ${adset_name}')
+        raise Exception(f'Cannot extract cluster id from adset: {adset_name}')
 
     return matches[0]
 
@@ -301,8 +298,6 @@ def update_ads():
     # of getting clusters, if no spend.
     w = window(hours=cnf['opt_window'])
     state = CampaignState(env, w)
-    state.load_ad_state()
-    state.load_audience_state()
     m = Marketing(env, state)
 
     run_update_ads(cnf, df, state, m)

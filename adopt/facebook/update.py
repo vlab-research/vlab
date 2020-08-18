@@ -28,15 +28,28 @@ def add_users_to_custom_audience(token, aud_id, params):
     url = f'https://graph.facebook.com/v8.0/{aud_id}/users?access_token={token}'
     return requests.post(url, json={'payload': params})
 
+
+def getter(type_, prop):
+    """ Lazy so that nothing more gets loaded than needed """
+    def _getter(i):
+        val = next((a for a in prop if a['id'] == i), None)
+        if val is None:
+            raise InstructionError(f'Could not find id {i} of type {type_}')
+        return val
+    return _getter
+
+
 class GraphUpdater():
     def __init__(self, state: CampaignState):
         self.state = state
         self.account = state.account
+
+
         self.objects = {
-            'adset': {a['id']: a for a in state.adsets},
-            'ad': {a['id']: a for a in state.ads},
-            'creative': {c['id']: c for c in state.creatives},
-            'custom_audience': {c['id']: c for c in state.custom_audiences}
+            'adset': getter('adset', state.adsets),
+            'ad': getter('ad', state.ads),
+            'creative': getter('creative', state.creatives),
+            'custom_audience': getter('custom_audience', state.custom_audiences)
         }
 
         self.creates = {
