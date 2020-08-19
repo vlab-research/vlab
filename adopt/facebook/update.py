@@ -68,10 +68,7 @@ class GraphUpdater():
             raise InstructionError(f'Could not find create instruction for node of type {node}')
 
     def get_object(self, type_, id_):
-        try:
-            return self.objects[type_][id_]
-        except KeyError:
-            raise InstructionError(f'Could not find id {id_} of type {type_}')
+        return self.objects[type_](id_)
 
     def execute(self, instruction: Instruction):
         if instruction.action == 'update':
