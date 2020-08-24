@@ -119,3 +119,24 @@ def test_response_translator_works_when_other_and_label():
 
     t = response_translator(eng, hin)
     assert t('B') == 'झारखंड'
+
+
+
+def test_response_translator_works_with_numbers():
+    hin = {'id': 'mdUpJMSY8Lct',
+           'title': 'वर्तमान में आप किस राज्य में रहते हैं?',
+           'ref': 'e959559b-092a-434f-b67f-dca329fab50a',
+           'properties': {},
+           'type': 'number'}
+
+    eng = {'title': 'How old are you?',
+           'ref': '20218ad0-96c8-4799-bdfe-90c689c5c206',
+           'properties': {},
+           'type': 'number'}
+
+
+    t = response_translator(hin, eng)
+    assert t(12) == 12
+
+    t = response_translator(eng, hin)
+    assert t(12) == 12
