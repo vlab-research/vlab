@@ -11,7 +11,7 @@ chatbaseHost: &host "gbv-cockroachdb-public"
 versionDashboard: &vdashboard 0.0.5
 versionNaughtybot: &vnaughtybot 0.0.12
 versionBotserver: &vbotserver 0.0.7
-versionReplybot: &vreplybot 0.0.75
+versionReplybot: &vreplybot 0.0.80
 versionBotscribe: &vbotscribe 0.0.6
 versionLinksniffer: &vlinksniffer 0.0.3
 
@@ -149,7 +149,7 @@ linksniffer:
     port: 80
 
 dashboard:
-  replicaCount: 1
+  replicaCount: 3
 
   image:
     repository: vlabresearch/dashboard
@@ -191,8 +191,8 @@ dashboard:
 
   resources:
     requests:
-      cpu: 5m
-      memory: 48Mi
+      cpu: 10m
+      memory: 80Mi
 
   ingress:
     enabled: true
@@ -285,11 +285,11 @@ botscribe:
   resources:
     requests:
       cpu: 5m
-      memory: 64Mi
+      memory: 50Mi
 
 
 replybot:
-  replicaCount: 6
+  replicaCount: 12
   image:
     repository: vlabresearch/replybot
     tag: *vreplybot
@@ -299,8 +299,10 @@ replybot:
   resources:
     requests:
       cpu: 5m
-      memory: 48Mi
+      memory: 60Mi
   env:
+  - name: FAKE
+    value: "NOTHING"
   - name: CHATBASE_BACKEND
     value: "@vlab-research/chatbase-postgres"
   - name: CHATBASE_DATABASE
@@ -328,7 +330,7 @@ replybot:
 
 
 botserver:
-  replicaCount: 2
+  replicaCount: 3
 
   image:
     repository: vlabresearch/botserver
@@ -345,7 +347,7 @@ botserver:
 
   resources:
     requests:
-      cpu: 10m
+      cpu: 5m
       memory: 48Mi
 
   ingress:
@@ -372,10 +374,10 @@ cockroachdb:
     resources:
       requests:
         cpu: 50m
-        memory: 1Gi
+        memory: 1536Mi
   conf:
-    cache: 1GiB
-    max-sql-memory: 1GiB
+    cache: 1536Mi
+    max-sql-memory: 1536Mi
     max-disk-temp-storage: 24GiB
     budget:
       maxUnavailable: 1

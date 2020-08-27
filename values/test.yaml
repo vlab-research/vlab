@@ -1,67 +1,23 @@
 tags:
-  kafka: false
+  kafka: true
   cockroach: true
   backup: false
 
-kafkabrokers: &kb "kafka-headless.default.svc.cluster.local:29092"
-chatTopic: &topic "vlab-test-chat-events"
-botEnvs: &botenvs gbv-bot-envs
-chatbaseHost: &host "gbv-cockroachdb-public"
-
-versionDashboard: &vdashboard 0.0.4
-versionNaughtybot: &vnaughtybot 0.0.12
-versionBotserver: &vbotserver 0.0.6
-versionReplybot: &vreplybot 0.0.64
-versionBotscribe: &vbotscribe 0.0.6
-
 consumerAlerts: []
 laggingAlerts: []
+kafkaTopics: []
 
-kafkaTopics:
-  - name: *topic
-    partitions: 1
-    replicationFactor: 1
-    config:
-      "retention.ms": "86400000" # 1 day
+# kafkabrokers: &kb "kafka-headless.default.svc.cluster.local:29092"
+# chatTopic: &topic "vlab-test-chat-events"
+# botEnvs: &botenvs gbv-bot-envs
+# chatbaseHost: &host "gbv-cockroachdb-public"
 
+versionDashboard: &vdashboard 0.0.5
+versionNaughtybot: &vnaughtybot 0.0.12
+versionBotserver: &vbotserver 0.0.7
+versionReplybot: &vreplybot 0.0.76
+versionBotscribe: &vbotscribe 0.0.6
 
-replybot:
-  replicaCount: 1
-  image:
-    repository: vlabresearch/replybot
-    tag: *vreplybot
-    pullPolicy: IfNotPresent
-
-  envFrom: *botenvs
-  resources:
-    requests:
-      cpu: 10m
-      memory: 128Mi
-  env:
-  - name: CHATBASE_BACKEND
-    value: "@vlab-research/chatbase-postgres"
-  - name: CHATBASE_DATABASE
-    value: "chatroach"
-  - name: CHATBASE_USER
-    value: "chatroach"
-  - name: CHATBASE_PASSWORD
-    value: ""
-  - name: CHATBASE_HOST
-    value: *host
-  - name: CHATBASE_PORT
-    value: "26257"
-  - name: FALLBACK_FORM
-    value: "305"
-  - name: REPLYBOT_EVENT_TOPIC
-    value: *topic
-  - name: BOTSPINE_KAFKA_BROKERS
-    value: *kb
-  - name: BOTSPINE_MESSAGE_TOPIC
-    value: *topic
-  - name: DASHBOARD_API
-    value: "http://gbv-dashboard/api/v1"
-  - name: BOTSERVER_URL
-    value: "http://gbv-botserver"
 
 naughtybot:
   image:
@@ -79,13 +35,13 @@ naughtybot:
   - name: CHATBASE_PASSWORD
     value: ""
   - name: CHATBASE_HOST
-    value: *host
+    value: "gbv-cockroachdb-public.default"
   - name: CHATBASE_PORT
     value: "26257"
   - name: BOTSPINE_KAFKA_BROKERS
-    value: *kb
+    value: "gbv-kafka:9092"
   - name: BOTSPINE_MESSAGE_TOPIC
-    value: *topic
+    value: "chat-events"
   - name: BOTSERVER_URL
     value: "http://gbv-botserver"
 
@@ -109,12 +65,12 @@ linksniffer:
 
   image:
     repository: vlabresearch/linksniffer
-    tag: 0.0.3
+    tag: 0.0.2
     pullPolicy: IfNotPresent
 
   env:
   - name: BOTSERVER_URL
-    value: "http://gbv-botserver/synthetic"
+    value: "http://gbv-botserver"
   - name: FB_PAGE_ID
     value: "935593143497601"
 
@@ -124,17 +80,7 @@ linksniffer:
       memory: 50Mi
 
   ingress:
-    enabled: true
-    annotations:
-      cert-manager.io/cluster-issuer: letsencrypt-prod
-    hosts:
-      - host: gbvlinks-staging.nandan.cloud
-        paths:
-          - "/"
-    tls:
-      - secretName: gbv-linksniffer-cert
-        hosts:
-          - gbvlinks-staging.nandan.cloud
+    enabled: false
 
   service:
     type: ClusterIP
@@ -148,7 +94,7 @@ dashboard:
     tag: *vdashboard
     pullPolicy: IfNotPresent
 
-  envFrom: *botenvs
+  envFrom: gbv-bot-envs
   env:
     - name: TYPEFORM_URL
       value: 'https://api.typeform.com'
@@ -169,35 +115,24 @@ dashboard:
     - name: CUBEJS_DB_PASS
       value: ''
     - name: DB_HOST
-      value: *host
+      value: 'gbv-cockroachdb-public.default'
     - name: CUBEJS_DB_HOST
-      value: *host
+      value: 'gbv-cockroachdb-public.default'
     - name: DB_PORT
       value: '26257'
     - name: CUBEJS_DB_PORT
       value: '26257'
     - name: TYPEFORM_REDIRECT_URL
-      value: 'https://staging--vlab-research.netlify.com/surveys/auth'
+      value: 'http://localhost:3000/surveys/auth'
     - name: FACEBOOK_GRAPH_URL
       value: 'https://graph.facebook.com/v7.0'
-
   resources:
     requests:
       cpu: 10m
       memory: 64Mi
 
   ingress:
-    enabled: true
-    annotations:
-      cert-manager.io/cluster-issuer: letsencrypt-prod
-    hosts:
-      - host: gbv-dashboard-staging.nandan.cloud
-        paths:
-          - '/'
-    tls:
-      - secretName: gbv-dashboard-cert
-        hosts:
-          - gbv-dashboard-staging.nandan.cloud
+    enabled: false
 
   service:
     type: ClusterIP
@@ -213,7 +148,7 @@ scratchbot:
     tag: *vreplybot
     pullPolicy: IfNotPresent
 
-  envFrom: *botenvs
+  envFrom: gbv-bot-envs
 
   env:
   - name: CHATBASE_BACKEND
@@ -225,17 +160,17 @@ scratchbot:
   - name: CHATBASE_PASSWORD
     value: ""
   - name: CHATBASE_HOST
-    value: *host
+    value: "gbv-cockroachdb-public.default"
   - name: CHATBASE_PORT
     value: "26257"
   - name: FALLBACK_FORM
     value: "305"
-  - name: REPLYBOT_nnEVENT_TOPIC
-    value: *topic
+  - name: REPLYBOT_EVENT_TOPIC
+    value: "chat-events"
   - name: BOTSPINE_KAFKA_BROKERS
-    value: *kb
+    value: "gbv-kafka:9092"
   - name: BOTSPINE_MESSAGE_TOPIC
-    value: *topic
+    value: "chat-events"
   - name: DASHBOARD_API
     value: "http://gbv-dashboard/api/v1"
 
@@ -254,7 +189,7 @@ botscribe:
     tag: *vbotscribe
     pullPolicy: IfNotPresent
 
-  envFrom: *botenvs
+  envFrom: gbv-bot-envs
 
   env:
   - name: CHATBASE_BACKEND
@@ -266,20 +201,61 @@ botscribe:
   - name: CHATBASE_PASSWORD
     value: ""
   - name: CHATBASE_HOST
-    value: *host
+    value: "gbv-cockroachdb-public.default"
   - name: CHATBASE_PORT
     value: "26257"
   - name: BOTSCRIBE_HIGHWATER
     value: "500"
   - name: BOTSPINE_KAFKA_BROKERS
-    value: *kb
+    value: "gbv-kafka:9092"
   - name: BOTSPINE_MESSAGE_TOPIC
-    value: *topic
+    value: "chat-events"
 
   resources:
     requests:
       cpu: 10m
       memory: 64Mi
+
+
+replybot:
+  replicaCount: 1
+  image:
+    repository: vlabresearch/replybot
+    tag: *vreplybot
+    pullPolicy: IfNotPresent
+
+  envFrom: gbv-bot-envs
+  resources:
+    requests:
+      cpu: 10m
+      memory: 64Mi
+  env:
+  - name: CHATBASE_BACKEND
+    value: "@vlab-research/chatbase-postgres"
+  - name: CHATBASE_DATABASE
+    value: "chatroach"
+  - name: CHATBASE_USER
+    value: "chatroach"
+  - name: CHATBASE_PASSWORD
+    value: ""
+  - name: CHATBASE_HOST
+    value: "gbv-cockroachdb-public.default"
+  - name: CHATBASE_PORT
+    value: "26257"
+  - name: FALLBACK_FORM
+    value: "305"
+  - name: REPLYBOT_EVENT_TOPIC
+    value: "chat-events"
+  - name: FACEBOOK_GRAPH_URL
+    value: "http://gbv-facebot"
+  - name: BOTSPINE_KAFKA_BROKERS
+    value: "gbv-kafka:9092"
+  - name: BOTSPINE_MESSAGE_TOPIC
+    value: "chat-events"
+  - name: DASHBOARD_API
+    value: "http://gbv-dashboard/api/v1"
+  - name: BOTSERVER_URL
+    value: "http://gbv-botserver"
 
 
 botserver:
@@ -290,31 +266,22 @@ botserver:
     tag: *vbotserver
     pullPolicy: IfNotPresent
 
-  envFrom: *botenvs
+  envFrom: gbv-bot-envs
 
   env:
   - name: BOTSERVER_EVENT_TOPIC
-    value: *topic
+    value: "chat-events"
   - name: KAFKA_BROKERS
-    value: *kb
+    value: "gbv-kafka:9092"
 
   resources:
     requests:
       cpu: 10m
-      memory: 128Mi
+      memory: 64Mi
 
   ingress:
-    enabled: true
-    annotations:
-      cert-manager.io/cluster-issuer: letsencrypt-prod
-    hosts:
-      - host: gbvbot-staging.nandan.cloud
-        paths:
-          - "/"
-    tls:
-      - secretName: gbv-botserver-cert
-        hosts:
-          - gbvbot-staging.nandan.cloud
+    enabled: false
+
 
   service:
     type: ClusterIP
@@ -324,19 +291,40 @@ botserver:
 cockroachdb:
   statefulset:
     replicas: 1
-    resources:
-      requests:
-        cpu: 100m
-        memory: 500Mi
   conf:
-    cache: 250MiB
-    max-sql-memory: 250MiB
-    max-disk-temp-storage: 4GiB
     budget:
       maxUnavailable: 0
   tls:
     enabled: no
+  resources:
+    requests:
+      cpu: 25m
+      memory: 256Mi
   storage:
     persistentVolume:
-      size: 5Gi
-      storageClass: "pd-ssd"
+      size: 1Gi
+
+
+kafka:
+  replicas: 1
+  imageTag: 5.4.0
+  resources:
+    requests:
+      cpu: 25m
+      memory: 200Mi
+  zookeeper:
+    resources:
+      requests:
+        cpu: 5m
+        memory: 50Mi
+  kafkaHeapOptions: "-Xmx500M -Xms500M"
+  configurationOverrides:
+    "offsets.topic.replication.factor": 1
+    "auto.create.topics.enable": false
+  topics:
+    - name: "chat-events"
+      config: "retention.ms=1209600000" # 14 days
+      partitions: 6
+      replicationFactor: 1
+  persistence:
+    size: 1Gi

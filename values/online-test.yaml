@@ -1,53 +1,28 @@
 tags:
   kafka: false
-  backup: true
   cockroach: true
+  backup: false
 
 kafkabrokers: &kb "kafka-headless.default.svc.cluster.local:29092"
-chatTopic: &topic "vlab-staging-chat-events"
+chatTopic: &topic "vlab-test-chat-events"
 botEnvs: &botenvs gbv-bot-envs
 chatbaseHost: &host "gbv-cockroachdb-public"
 
-versionDashboard: &vdashboard 0.0.5
+versionDashboard: &vdashboard 0.0.4
 versionNaughtybot: &vnaughtybot 0.0.12
-versionBotserver: &vbotserver 0.0.7
-versionReplybot: &vreplybot 0.0.76
+versionBotserver: &vbotserver 0.0.6
+versionReplybot: &vreplybot 0.0.64
 versionBotscribe: &vbotscribe 0.0.6
-versionLinksniffer: &vlinksniffer 0.0.3
 
 consumerAlerts: []
 laggingAlerts: []
 
-
 kafkaTopics:
   - name: *topic
-    partitions: 8
-    replicationFactor: 3
+    partitions: 1
+    replicationFactor: 1
     config:
-      "retention.ms": "2678400000" # 31 days
-
-dumper:
-  image:
-    repository: vlabresearch/dumper
-    tag: 0.0.1
-    pullPolicy: IfNotPresent
-
-  completions: 1
-  parallelism: 1
-  backoffLimit: 3
-
-  schedule: "10 11 * * *"
-  resources:
-    requests:
-      cpu: 100m
-      memory: 256Mi
-
-  keySecret: gbv-dumper-keys
-  env:
-  - name: CHATBASE_HOST
-    value: *host
-  - name: DUMPER_LOCATION
-    value: "gs://vlab-research-backups/gbv-india-staging/"
+      "retention.ms": "86400000" # 1 day
 
 
 replybot:
@@ -61,7 +36,7 @@ replybot:
   resources:
     requests:
       cpu: 10m
-      memory: 64Mi
+      memory: 128Mi
   env:
   - name: CHATBASE_BACKEND
     value: "@vlab-research/chatbase-postgres"
@@ -134,7 +109,7 @@ linksniffer:
 
   image:
     repository: vlabresearch/linksniffer
-    tag: *vlinksniffer
+    tag: 0.0.3
     pullPolicy: IfNotPresent
 
   env:
@@ -255,7 +230,7 @@ scratchbot:
     value: "26257"
   - name: FALLBACK_FORM
     value: "305"
-  - name: REPLYBOT_EVENT_TOPIC
+  - name: REPLYBOT_nnEVENT_TOPIC
     value: *topic
   - name: BOTSPINE_KAFKA_BROKERS
     value: *kb

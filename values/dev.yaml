@@ -15,7 +15,7 @@ kafkaTopics: []
 versionDashboard: &vdashboard 0.0.5
 versionNaughtybot: &vnaughtybot 0.0.12
 versionBotserver: &vbotserver 0.0.7
-versionReplybot: &vreplybot 0.0.75
+versionReplybot: &vreplybot 0.0.76
 versionBotscribe: &vbotscribe 0.0.6
 
 
@@ -328,4 +328,3 @@ kafka:
       replicationFactor: 1
   persistence:
     size: 1Gi
-    storageClass: standard
