@@ -10,12 +10,12 @@ CREATE DATABASE chatroach;
 -- TODO: add userid that's not the end user, but the survey owner...
 -- OR JUST THE PAGEID, FOR EXAMPLE!
 -- TODO: Make primary key id + userid!
+-- PRIMARY KEY (userid, timestamp, question_ref), -- bit hacky, remove timestamp?
 CREATE TABLE chatroach.messages(
        id BIGINT PRIMARY KEY,
        content VARCHAR NOT NULL,
        userid VARCHAR NOT NULL,
        timestamp TIMESTAMPTZ NOT NULL,
-       PRIMARY KEY (userid, timestamp, question_ref) -- bit hacky, remove timestamp?
        INDEX (userid) STORING (content, timestamp)
 );
 
@@ -63,7 +63,7 @@ CREATE TABLE chatroach.timeouts(
        timeout_date TIMESTAMPTZ,
        fulfilled BOOLEAN,
        PRIMARY KEY (userid, timeout_date),
-       INDEX (fulfilled, timeout_date) STORING (pageid) -- should add userid!
+       INDEX (fulfilled, timeout_date) STORING (pageid)
 );
 
 
