@@ -8,11 +8,14 @@ cat chatroach.sql | kubectl run -i --rm cockroach-client --image=cockroachdb/coc
 CREATE DATABASE chatroach;
 
 -- TODO: add userid that's not the end user, but the survey owner...
+-- OR JUST THE PAGEID, FOR EXAMPLE!
+-- TODO: Make primary key id + userid!
 CREATE TABLE chatroach.messages(
        id BIGINT PRIMARY KEY,
        content VARCHAR NOT NULL,
        userid VARCHAR NOT NULL,
        timestamp TIMESTAMPTZ NOT NULL,
+       PRIMARY KEY (userid, timestamp, question_ref) -- bit hacky, remove timestamp?
        INDEX (userid) STORING (content, timestamp)
 );
 
@@ -60,15 +63,7 @@ CREATE TABLE chatroach.timeouts(
        timeout_date TIMESTAMPTZ,
        fulfilled BOOLEAN,
        PRIMARY KEY (userid, timeout_date),
-       INDEX (fulfilled, timeout_date) STORING (pageid)
-);
-
-
-CREATE TABLE chatroach.states(
-       userid VARCHAR NOT NULL,
-       timestamp TIMESTAMPTZ NOT NULL,
-       state JSON NOT NULL,
-       PRIMARY KEY (userid)
+       INDEX (fulfilled, timeout_date) STORING (pageid) -- should add userid!
 );
 
 
@@ -79,4 +74,3 @@ GRANT INSERT,SELECT,UPDATE ON TABLE chatroach.timeouts to chatroach;
 GRANT INSERT,SELECT,UPDATE ON TABLE chatroach.users to chatroach;
 GRANT INSERT,SELECT,UPDATE ON TABLE chatroach.surveys to chatroach;
 GRANT INSERT,SELECT,UPDATE ON TABLE chatroach.facebook_pages to chatroach;
-GRANT INSERT,SELECT,UPDATE ON TABLE chatroach.states to chatroach;

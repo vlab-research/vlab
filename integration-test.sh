@@ -17,7 +17,7 @@ kubectl create secret generic gbv-bot-envs --from-env-file=./testing/.test-env
 # install
 ######################
 
-helm install gbv vlab -f values/dev.yaml
+helm install gbv vlab -f values/test.yaml
 kubectl apply -f testing/facebot.yaml
 
 ######################
@@ -33,6 +33,8 @@ cat chatroach.sql | kubectl run -i --rm cockroach-client --image=cockroachdb/coc
 cat migrate-1.sql | kubectl run -i --rm cockroach-client --image=cockroachdb/cockroach:v19.2.3 --restart=Never --command -- ./cockroach sql --insecure --host gbv-cockroachdb-public
 
 cat migrate-2.sql | kubectl run -i --rm cockroach-client --image=cockroachdb/cockroach:v19.2.3 --restart=Never --command -- ./cockroach sql --insecure --host gbv-cockroachdb-public
+
+cat migrate-3.sql | kubectl run -i --rm cockroach-client --image=cockroachdb/cockroach:v19.2.3 --restart=Never --command -- ./cockroach sql --insecure --host gbv-cockroachdb-public
 
 ######################
 # wait for everything

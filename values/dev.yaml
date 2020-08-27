@@ -3,7 +3,7 @@ tags:
   cockroach: true
   backup: false
 
-consumerAlerts: []
+processingAlerts: []
 laggingAlerts: []
 kafkaTopics: []
 
