@@ -105,7 +105,7 @@ func blocked(cfg *Config, conn *pgxpool.Pool) chan *ExternalEvent {
 	query := `SELECT userid, pageid 
               FROM states 
               WHERE state_json->'error'->>'code' = ANY($1)
-              AND updated > now() - interval '$2'`
+              AND updated > now() - ($2)::INTERVAL`
 
 	get(conn, ch, query, redoCodes(cfg), cfg.BlockedInterval)
 	return ch

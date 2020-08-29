@@ -1,9 +1,9 @@
 image:
   repository: vlabresearch/redobot
-  tag: 0.0.4
+  tag: 0.0.5
   pullPolicy: IfNotPresent
 
-schedule: "40 21 * * *"
+schedule: "30 * * * *"
 resources:
   requests:
     cpu: 20m
