@@ -3,51 +3,12 @@ const bodyParser = require('koa-bodyparser')
 const cors = require('@koa/cors')
 const http = require('http')
 const Router = require('koa-router')
-const Kafka = require('node-rdkafka')
 const util = require('util')
 const {getUserFromEvent} = require('@vlab-research/utils')
 
-
+const {producer, producerReady} = require('./producer')
 
 const EVENT_TOPIC = process.env.BOTSERVER_EVENT_TOPIC
-
-const producer = new Kafka.Producer({
-  'metadata.broker.list': process.env.KAFKA_BROKERS,
-  'retry.backoff.ms': 200,
-  'message.send.max.retries': 10,
-  'socket.keepalive.enable': true,
-  'queue.buffering.max.messages': 100000,
-  'queue.buffering.max.ms': 1000,
-  'batch.num.messages': 1000000
-}, {}, {
-  topic: EVENT_TOPIC
-});
-
-producer.connect()
-producer.setPollInterval(1000)
-
-producer.on('event.error', err => {
-  console.error('Error from producer');
-  throw err;
-})
-
-const producerReady = new Promise((resolve, reject) => {
-
-  const timeout = setTimeout(() => {
-    reject(new Error('Unable to connect to kafka producer'))
-  }, process.env.KAFKA_CONNECTION_TIMEOUT || 30000)
-
-
-  producer.on('ready', () => {
-    console.log('producer ready')
-    clearTimeout(timeout)
-    resolve()
-  })
-
-}).catch(err => {
-  setTimeout(() => { throw err })
-})
-
 
 const verifyToken = ctx => {
   if (ctx.query['hub.verify_token'] === process.env.VERIFY_TOKEN) {
@@ -63,7 +24,7 @@ const verifyToken = ctx => {
 const handleMessengerEvents = async (ctx) => {
   await producerReady
 
-  for (entry of ctx.request.body.entry) {
+  for (const entry of ctx.request.body.entry) {
     try {
       console.log(util.inspect(entry, null, 8))
 
