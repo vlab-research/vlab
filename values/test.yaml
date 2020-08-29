@@ -15,7 +15,7 @@ kafkaTopics: []
 versionDashboard: &vdashboard 0.0.5
 versionNaughtybot: &vnaughtybot 0.0.12
 versionBotserver: &vbotserver 0.0.8
-versionReplybot: &vreplybot 0.0.83
+versionReplybot: &vreplybot 0.0.85
 versionBotscribe: &vbotscribe 0.0.6
 
 
