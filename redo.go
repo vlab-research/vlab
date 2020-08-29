@@ -1,16 +1,17 @@
 package main
 
 import (
-    "context"
-    "fmt"
-    "log"
-	"strings"
-    "github.com/jackc/pgx/v4/pgxpool"
-	"github.com/caarlos0/env/v6"
-
-	"encoding/json"
-	"net/http"
 	"bytes"
+	"context"
+	"encoding/json"
+	"fmt"
+	"log"
+	"net/http"
+	"strings"
+	"sync"
+
+	"github.com/caarlos0/env/v6"
+	"github.com/jackc/pgx/v4/pgxpool"
 )
 
 func merge(cs ...<-chan *ExternalEvent) <-chan *ExternalEvent {

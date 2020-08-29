@@ -3,7 +3,7 @@ image:
   tag: 0.0.4
   pullPolicy: IfNotPresent
 
-schedule: "0 6 * * *"
+schedule: "40 21 * * *"
 resources:
   requests:
     cpu: 20m
