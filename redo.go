@@ -7,7 +7,7 @@ import (
 	"strings"
     "github.com/jackc/pgx/v4/pgxpool"
 	"github.com/caarlos0/env/v6"
-	"sync"
+
 	"encoding/json"
 	"net/http"
 	"bytes"
@@ -53,6 +53,7 @@ type Config struct {
 	Port string `env:"CHATBASE_PORT,required"`
 	Botserver string `env:"BOTSERVER_URL,required"`
 	Codes string `env:"REDO_FB_CODES,required"`
+	BlockedInterval string `env:"REDO_BLOCKED_INTERVAL,required"`
 }
 
 func redoCodes(cfg *Config) []string {
@@ -102,9 +103,10 @@ func blocked(cfg *Config, conn *pgxpool.Pool) chan *ExternalEvent {
 	ch := make(chan *ExternalEvent)
 	query := `SELECT userid, pageid 
               FROM states 
-              WHERE state_json->'error'->>'code' = ANY($1)`
+              WHERE state_json->'error'->>'code' = ANY($1)
+              AND updated > now() - interval '$2'`
 
-	get(conn, ch, query, redoCodes(cfg))
+	get(conn, ch, query, redoCodes(cfg), cfg.BlockedInterval)
 	return ch
 }
 
