@@ -1,9 +1,9 @@
 image:
   repository: vlabresearch/redobot
-  tag: 0.0.5
+  tag: 0.0.6
   pullPolicy: IfNotPresent
 
-schedule: "30 * * * *"
+schedule: "0 20 * * *"
 resources:
   requests:
     cpu: 20m
@@ -25,3 +25,5 @@ env:
   value: "2022,-1"
 - name: REDO_BLOCKED_INTERVAL
   value: "24 hour"
+- name: REDO_RESPONDING_INTERVAL
+  value: "30 days"

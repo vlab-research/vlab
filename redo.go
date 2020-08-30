@@ -55,6 +55,7 @@ type Config struct {
 	Botserver string `env:"BOTSERVER_URL,required"`
 	Codes string `env:"REDO_FB_CODES,required"`
 	BlockedInterval string `env:"REDO_BLOCKED_INTERVAL,required"`
+	RespondingInterval string `env:"REDO_RESPONDING_INTERVAL,required"`
 }
 
 func redoCodes(cfg *Config) []string {
@@ -88,15 +89,15 @@ func get(conn *pgxpool.Pool, ch chan *ExternalEvent, query string, args ...inter
 	}()
 }
 
-func respondings(conn *pgxpool.Pool) chan *ExternalEvent {
+func respondings(cfg *Config, conn *pgxpool.Pool) chan *ExternalEvent {
 	ch := make(chan *ExternalEvent)
 	query := `SELECT userid, pageid
               FROM states
               WHERE current_state = 'RESPONDING'
-              AND updated > now() - interval '23 hour'
+              AND updated > now() - ($1)::INTERVAL
               AND now() - updated > interval '1 hour'`
 
-	get(conn, ch, query)
+	get(conn, ch, query, cfg.RespondingInterval)
 	return ch
 }
 
@@ -160,13 +161,13 @@ func getConn(cfg *Config) *pgxpool.Pool {
 }
 
 func main() {
-	cfg := Config{}
-	err := env.Parse(&cfg)
+	cfg := &Config{}
+	err := env.Parse(cfg)
 	handle(err)
 
-	conn := getConn(&cfg)
+	conn := getConn(cfg)
 	defer conn.Close()
 	
-	ch := merge(respondings(conn), blocked(&cfg, conn))
-	process(&cfg, ch)
+	ch := merge(respondings(cfg, conn), blocked(cfg, conn))
+	process(cfg, ch)
 }
