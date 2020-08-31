@@ -1,4 +1,4 @@
-module github.com/vlab-research/redobot
+module github.com/vlab-research/dean
 
 go 1.15
 

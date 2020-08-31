@@ -1,9 +1,9 @@
 apiVersion: batch/v1beta1
 kind: CronJob
 metadata:
-  name: {{ include "redobot.fullname" . }}
+  name: {{ include "dean.fullname" . }}
   labels:
-    {{- include "redobot.labels" . | nindent 4 }}
+    {{- include "dean.labels" . | nindent 4 }}
 spec:
   schedule: "{{ .Values.schedule }}"
   jobTemplate:
