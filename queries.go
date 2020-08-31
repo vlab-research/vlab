@@ -65,31 +65,22 @@ func respondings(cfg *Config, conn *pgxpool.Pool) chan *ExternalEvent {
 }
 
 func blocked(cfg *Config, conn *pgxpool.Pool) chan *ExternalEvent {
+
 	query := `SELECT userid, pageid
               FROM states
-              WHERE state_json->'error'->>'code' = ANY($1)
+              WHERE current_state = 'BLOCKED'
+              AND fb_error_code = ANY($1)
               AND updated > $3 - ($2)::INTERVAL`
 
 	return get(conn, getRedo, query, redoCodes(cfg), cfg.BlockedInterval, time.Now())
 }
 
 func timeouts(cfg *Config, conn *pgxpool.Pool) chan *ExternalEvent {
-	query := `WITH s AS
-                (WITH t AS
-                  (SELECT
-                     CEILING((state_json->>'waitStart')::INT/1000)::INT::TIMESTAMPTZ as wait_start,
-                     (state_json->'wait'->>'value')::INTERVAL AS wait_time,
-                     userid,
-                     pageid
-                   FROM states
-                   WHERE current_state = 'WAIT_EXTERNAL_EVENT')
-                 SELECT
-                   wait_start + wait_time as timeout_date,
-                   *
-                 FROM t)
-              SELECT timeout_date, userid, pageid
-              FROM s
-              WHERE timeout_date < $1`
+
+	query := `SELECT timeout_date, userid, pageid 
+              FROM states 
+              WHERE current_state = 'WAIT_EXTERNAL_EVENT' 
+              AND timeout_date < $1`
 
 	return get(conn, getTimeout, query, time.Now())
 }
