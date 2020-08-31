@@ -1,8 +1,8 @@
 package main
 
 import (
-	"time"
 	"context"
+	"log"
 
 	"github.com/jackc/pgx/v4"
 	"github.com/jackc/pgx/v4/pgxpool"
@@ -58,10 +58,10 @@ func respondings(cfg *Config, conn *pgxpool.Pool) chan *ExternalEvent {
 	query := `SELECT userid, pageid
               FROM states
               WHERE current_state = 'RESPONDING'
-              AND updated > $2 - ($1)::INTERVAL
-              AND now() - updated > interval '1 hour'`
+              AND updated > (NOW() - ($1)::INTERVAL)
+              AND (NOW() - updated) > interval '1 hour'`
 
-	return get(conn, getRedo, query, cfg.RespondingInterval, time.Now())
+	return get(conn, getRedo, query, cfg.RespondingInterval)
 }
 
 func blocked(cfg *Config, conn *pgxpool.Pool) chan *ExternalEvent {
@@ -70,9 +70,9 @@ func blocked(cfg *Config, conn *pgxpool.Pool) chan *ExternalEvent {
               FROM states
               WHERE current_state = 'BLOCKED'
               AND fb_error_code = ANY($1)
-              AND updated > $3 - ($2)::INTERVAL`
+              AND updated > (NOW() - ($2)::INTERVAL)`
 
-	return get(conn, getRedo, query, redoCodes(cfg), cfg.BlockedInterval, time.Now())
+	return get(conn, getRedo, query, redoCodes(cfg), cfg.BlockedInterval)
 }
 
 func timeouts(cfg *Config, conn *pgxpool.Pool) chan *ExternalEvent {
@@ -80,7 +80,7 @@ func timeouts(cfg *Config, conn *pgxpool.Pool) chan *ExternalEvent {
 	query := `SELECT timeout_date, userid, pageid 
               FROM states 
               WHERE current_state = 'WAIT_EXTERNAL_EVENT' 
-              AND timeout_date < $1`
+              AND timeout_date < NOW()`
 
-	return get(conn, getTimeout, query, time.Now())
+	return get(conn, getTimeout, query)
 }
