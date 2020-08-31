@@ -2,50 +2,49 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ include "scribble.fullname" . }}-{{ .destination }}
+  name: {{ include "scribble.fullname" $ }}-{{ .destination }}
   labels:
-    {{- include "scribble.labels" . | nindent 4 }}
+    {{- include "scribble.labels" $ | nindent 4 }}
 spec:
   replicas: {{ .replicaCount }}
   selector:
     matchLabels:
-      {{- include "scribble.selectorLabels" . | nindent 6 }}
+      {{- include "scribble.selectorLabels" $ | nindent 6 }}
   template:
     metadata:
       labels:
-        {{- include "scribble.selectorLabels" . | nindent 8 }}
+        {{- include "scribble.selectorLabels" $ | nindent 8 }}
     spec:
-    {{- with .Values.imagePullSecrets }}
+    {{- with $.Values.imagePullSecrets }}
       imagePullSecrets:
-        {{- toYaml . | nindent 8 }}
+        {{- toYaml $ | nindent 8 }}
     {{- end }}
-      serviceAccountName: {{ include "scribble.serviceAccountName" . }}
       securityContext:
-        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+        {{- toYaml $.Values.podSecurityContext | nindent 8 }}
       containers:
-        - name: {{ .Chart.Name }}
+        - name: {{ $.Chart.Name }}
           securityContext:
-            {{- toYaml .Values.securityContext | nindent 12 }}
-          image: "{{ .Values.image.repository }}:{{ .Chart.AppVersion }}"
-          imagePullPolicy: {{ .Values.image.pullPolicy }}
+            {{- toYaml $.Values.securityContext | nindent 12 }}
+          image: "{{ $.Values.image.repository }}:{{ $.Values.image.tag }}"
+          imagePullPolicy: {{ $.Values.image.pullPolicy }}
           env:
-            {{- toYaml .Values.env | nindent 12 }}
-          - name: SCRIBBLE_DESTINATION
-            value: .destination
+            {{- toYaml $.Values.env | nindent 12 }}
+            - name: SCRIBBLE_DESTINATION
+              value: .destination
             {{- toYaml .env | nindent 12 }}
           resources:
-            {{- toYaml .Values.resources | nindent 12 }}
-      {{- with .Values.nodeSelector }}
+            {{- toYaml $.Values.resources | nindent 12 }}
+      {{- with $.Values.nodeSelector }}
       nodeSelector:
-        {{- toYaml . | nindent 8 }}
+        {{- toYaml $ | nindent 8 }}
       {{- end }}
-    {{- with .Values.affinity }}
+    {{- with $.Values.affinity }}
       affinity:
-        {{- toYaml . | nindent 8 }}
+        {{- toYaml $ | nindent 8 }}
     {{- end }}
-    {{- with .Values.tolerations }}
+    {{- with $.Values.tolerations }}
       tolerations:
-        {{- toYaml . | nindent 8 }}
+        {{- toYaml $ | nindent 8 }}
     {{- end }}
 ---
 {{- end }}

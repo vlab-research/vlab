@@ -22,7 +22,7 @@ env:
 - name: KAFKA_BROKERS
   value: "gbv-kafka:9092"
 - name: KAFKA_POLL_TIMEOUT
-  value: "180000" # 3 minutes? 
+  value: "30m"
 - name: KAFKA_GROUP
   value: "scribble"
 - name: SCRIBBLE_CHUNK_SIZE
