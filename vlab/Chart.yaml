@@ -18,15 +18,21 @@ dependencies:
   - name: naughtybot
     version: 0.0.1
     repository: https://vlab-research.github.io/devops
+    tags:
+      - naughtybot
   - name: botscribe
     version: 0.0.1
     repository: https://vlab-research.github.io/devops
+    tags:
+      - botscribe
   - name: botserver
     version: 0.0.1
     repository: https://vlab-research.github.io/devops
   - name: scratchbot
     version: 0.0.1
     repository: https://vlab-research.github.io/devops
+    tags:
+      - scratchbot
   - name: replybot
     version: 0.0.1
     repository: https://vlab-research.github.io/devops

@@ -12,7 +12,7 @@ versionDashboard: &vdashboard 0.0.5
 versionNaughtybot: &vnaughtybot 0.0.12
 versionBotserver: &vbotserver 0.0.7
 versionReplybot: &vreplybot 0.0.83
-versionBotscribe: &vbotscribe 0.0.6
+versionBotscribe: &vbotscribe 0.0.7
 versionLinksniffer: &vlinksniffer 0.0.3
 
 processingAlerts:
@@ -289,7 +289,7 @@ botscribe:
 
 
 replybot:
-  replicaCount: 12
+  replicaCount: 24
   image:
     repository: vlabresearch/replybot
     tag: *vreplybot
@@ -301,8 +301,6 @@ replybot:
       cpu: 5m
       memory: 60Mi
   env:
-  - name: FAKE
-    value: "NOTHING"
   - name: CHATBASE_BACKEND
     value: "@vlab-research/chatbase-postgres"
   - name: CHATBASE_DATABASE
@@ -369,6 +367,8 @@ botserver:
 
 
 cockroachdb:
+  image:
+    tag: v20.1.4
   statefulset:
     replicas: 3
     resources:

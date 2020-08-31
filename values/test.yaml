@@ -2,6 +2,9 @@ tags:
   kafka: true
   cockroach: true
   backup: false
+  naughtybot: false
+  botscribe: false
+  scratchbot: false
 
 processingAlerts: []
 laggingAlerts: []
@@ -15,50 +18,8 @@ kafkaTopics: []
 versionDashboard: &vdashboard 0.0.5
 versionNaughtybot: &vnaughtybot 0.0.12
 versionBotserver: &vbotserver 0.0.8
-versionReplybot: &vreplybot 0.0.85
-versionBotscribe: &vbotscribe 0.0.6
-
-
-naughtybot:
-  image:
-    repository: vlabresearch/naughtybot
-    tag: *vnaughtybot
-    pullPolicy: IfNotPresent
-
-  env:
-  - name: CHATBASE_BACKEND
-    value: "@vlab-research/chatbase-postgres"
-  - name: CHATBASE_DATABASE
-    value: "chatroach"
-  - name: CHATBASE_USER
-    value: "chatroach"
-  - name: CHATBASE_PASSWORD
-    value: ""
-  - name: CHATBASE_HOST
-    value: "gbv-cockroachdb-public.default"
-  - name: CHATBASE_PORT
-    value: "26257"
-  - name: BOTSPINE_KAFKA_BROKERS
-    value: "gbv-kafka:9092"
-  - name: BOTSPINE_MESSAGE_TOPIC
-    value: "chat-events"
-  - name: BOTSERVER_URL
-    value: "http://gbv-botserver"
-
-  writer:
-    replicaCount: 1
-    resources:
-      requests:
-        cpu: 10m
-        memory: 64Mi
-
-  dean:
-    schedule: "*/1 * * * *"
-    resources:
-      requests:
-        cpu: 10m
-        memory: 64Mi
-
+versionReplybot: &vreplybot 0.0.89
+versionBotscribe: &vbotscribe 0.0.7
 
 linksniffer:
   replicaCount: 1
@@ -250,8 +211,14 @@ replybot:
     value: "http://gbv-facebot"
   - name: BOTSPINE_KAFKA_BROKERS
     value: "gbv-kafka:9092"
+  - name: KAFKA_BROKERS
+    value: "gbv-kafka:9092"
   - name: BOTSPINE_MESSAGE_TOPIC
     value: "chat-events"
+  - name: VLAB_STATE_TOPIC
+    value: "vlab-state"
+  - name: VLAB_RESPONSE_TOPIC
+    value: "vlab-response"
   - name: DASHBOARD_API
     value: "http://gbv-dashboard/api/v1"
   - name: BOTSERVER_URL
@@ -289,6 +256,8 @@ botserver:
 
 
 cockroachdb:
+  image:
+    tag: v20.1.4
   statefulset:
     replicas: 1
   conf:
@@ -323,6 +292,14 @@ kafka:
     "auto.create.topics.enable": false
   topics:
     - name: "chat-events"
+      config: "retention.ms=1209600000" # 14 days
+      partitions: 6
+      replicationFactor: 1
+    - name: "vlab-state"
+      config: "retention.ms=1209600000" # 14 days
+      partitions: 6
+      replicationFactor: 1
+    - name: "vlab-response"
       config: "retention.ms=1209600000" # 14 days
       partitions: 6
       replicationFactor: 1
