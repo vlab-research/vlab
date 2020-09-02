@@ -20,8 +20,8 @@ type Config struct {
 	KafkaPollTimeout time.Duration `env:"KAFKA_POLL_TIMEOUT,required"`
 	Topic string `env:"KAFKA_TOPIC,required"`
 	Group string `env:"KAFKA_GROUP,required"`
-	BatchSize int `env:"SCRIBBLE_CHUNK_SIZE,required"`
-	ChunkSize int `env:"SCRIBBLE_BATCH_SIZE,required"`
+	BatchSize int `env:"SCRIBBLE_BATCH_SIZE,required"`
+	ChunkSize int `env:"SCRIBBLE_CHUNK_SIZE,required"`
 	Destination string `env:"SCRIBBLE_DESTINATION,required"`
 }
 
