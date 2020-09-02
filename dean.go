@@ -47,9 +47,11 @@ type Config struct {
 	Host string `env:"CHATBASE_HOST,required"`
 	Port string `env:"CHATBASE_PORT,required"`
 	Botserver string `env:"BOTSERVER_URL,required"`
-	Codes string `env:"REDO_FB_CODES,required"`
-	BlockedInterval string `env:"REDO_BLOCKED_INTERVAL,required"`
-	RespondingInterval string `env:"REDO_RESPONDING_INTERVAL,required"`
+	Codes string `env:"DEAN_FB_CODES,required"`
+	BlockedInterval string `env:"DEAN_BLOCKED_INTERVAL,required"`
+	RespondingInterval string `env:"DEAN_RESPONDING_INTERVAL,required"`
+	RespondingGrace string `env:"DEAN_RESPONDING_GRACE,required"`
+	Queries string `env:"DEAN_QUERIES,required"`
 }
 
 func redoCodes(cfg *Config) []string {
@@ -87,7 +89,7 @@ func process(cfg *Config, ch <-chan *ExternalEvent) {
 		handle(err)
 		counter += 1
 	}
-	log.Printf("Successfully sent %v new redo events", counter)
+	log.Printf("Dean successfully sent %v new events", counter)
 }
 
 func getConn(cfg *Config) *pgxpool.Pool {
@@ -102,14 +104,28 @@ func getConn(cfg *Config) *pgxpool.Pool {
 	return pool
 }
 
+func getQueries(cfg *Config, pool *pgxpool.Pool) []<- chan *ExternalEvent {
+	lookup := map[string]Query{
+		"respondings": Respondings,
+		"blocked": Blocked,
+		"timeouts": Timeouts,
+	}
+	queries := strings.Split(cfg.Queries, ",")
+	chans := []<-chan *ExternalEvent{}
+	for _, q := range queries {
+		chans = append(chans, lookup[q](cfg, pool))
+	}
+	return chans
+}
+
 func main() {
 	cfg := &Config{}
 	err := env.Parse(cfg)
 	handle(err)
 
-	conn := getConn(cfg)
-	defer conn.Close()
+	pool := getConn(cfg)
+	defer pool.Close()
 
-	ch := merge(respondings(cfg, conn), blocked(cfg, conn), timeouts(cfg, conn))
+	ch := merge(getQueries(cfg, pool)...)
 	process(cfg, ch)
 }

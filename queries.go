@@ -1,7 +1,9 @@
+
 package main
 
 import (
 	"context"
+	"time"
 
 	"github.com/jackc/pgx/v4"
 	"github.com/jackc/pgx/v4/pgxpool"
@@ -20,8 +22,9 @@ type ExternalEvent struct {
 }
 
 type EventMaker func (pgx.Rows) *ExternalEvent
+type Query func (*Config, *pgxpool.Pool) <-chan *ExternalEvent
 
-func get(conn *pgxpool.Pool, fn EventMaker, query string, args ...interface{}) chan *ExternalEvent {
+func get(conn *pgxpool.Pool, fn EventMaker, query string, args ...interface{}) <-chan *ExternalEvent {
 	ch := make(chan *ExternalEvent)
 
     rows, err := conn.Query(context.Background(), query, args...)
@@ -47,23 +50,26 @@ func getRedo(rows pgx.Rows) *ExternalEvent {
 }
 
 func getTimeout(rows pgx.Rows) *ExternalEvent {
-	var timeoutDate, userid, pageid string
+	var timeoutDate time.Time
+	var userid, pageid string
 	err := rows.Scan(&timeoutDate, &userid, &pageid)
 	handle(err)
-	return &ExternalEvent{userid, pageid, &Event{"redo", timeoutDate}}
+
+	ts := timeoutDate.UTC().Format(time.RFC3339)
+	return &ExternalEvent{userid, pageid, &Event{"timeout", ts}}
 }
 
-func respondings(cfg *Config, conn *pgxpool.Pool) chan *ExternalEvent {
+func Respondings(cfg *Config, conn *pgxpool.Pool) <-chan *ExternalEvent {
 	query := `SELECT userid, pageid
               FROM states
               WHERE current_state = 'RESPONDING'
               AND updated > (NOW() - ($1)::INTERVAL)
-              AND (NOW() - updated) > interval '1 hour'`
+              AND (NOW() - updated) > ($2)::INTERVAL`
 
-	return get(conn, getRedo, query, cfg.RespondingInterval)
+	return get(conn, getRedo, query, cfg.RespondingInterval, cfg.RespondingGrace)
 }
 
-func blocked(cfg *Config, conn *pgxpool.Pool) chan *ExternalEvent {
+func Blocked(cfg *Config, conn *pgxpool.Pool) <-chan *ExternalEvent {
 
 	query := `SELECT userid, pageid
               FROM states
@@ -74,8 +80,7 @@ func blocked(cfg *Config, conn *pgxpool.Pool) chan *ExternalEvent {
 	return get(conn, getRedo, query, redoCodes(cfg), cfg.BlockedInterval)
 }
 
-func timeouts(cfg *Config, conn *pgxpool.Pool) chan *ExternalEvent {
-
+func Timeouts(cfg *Config, conn *pgxpool.Pool) <-chan *ExternalEvent {
 	query := `SELECT timeout_date, userid, pageid 
               FROM states 
               WHERE current_state = 'WAIT_EXTERNAL_EVENT' 

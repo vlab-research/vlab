@@ -1,13 +1,8 @@
 image:
-  repository: vlabresearch/redobot
-  tag: 0.0.7
-  pullPolicy: IfNotPresent
+  repository: localhost:5000/dean
+  tag: registry
+  pullPolicy: Always
 
-schedule: "30 8,14,15,20 * * *"
-resources:
-  requests:
-    cpu: 20m
-    memory: 64Mi
 env:
 - name: CHATBASE_DATABASE
   value: "chatroach"
@@ -21,9 +16,28 @@ env:
   value: "26257"
 - name: BOTSERVER_URL
   value: "http://gbv-botserver/synthetic"
-- name: REDO_FB_CODES
+- name: DEAN_FB_CODES
   value: "2022,-1"
-- name: REDO_BLOCKED_INTERVAL
+- name: DEAN_BLOCKED_INTERVAL
   value: "24 hours"
-- name: REDO_RESPONDING_INTERVAL
+- name: DEAN_RESPONDING_INTERVAL
   value: "23 hours"
+- name: DEAN_RESPONDING_GRACE
+  value: "1 hour"
+
+queries:
+  # - name: respondings
+  #   queries: "respondings,blocked"
+  #   schedule: "*/1 * * * *"
+  #   resources:
+  #     requests:
+  #       cpu: 10m
+  #       memory: 10Mi
+
+  - name: timeouts
+    queries: "timeouts"
+    schedule: "*/1 * * * *"
+    resources:
+      requests:
+        cpu: 10m
+        memory: 10Mi
