@@ -2,7 +2,7 @@ apiVersion: v1
 entries:
   botscribe:
   - apiVersion: v2
-    created: "2020-02-14T11:09:43.039192884+01:00"
+    created: "2020-09-02T16:30:10.665916277+02:00"
     description: A Helm chart for Kubernetes
     digest: a1dd0f8199fb4121bcc66ded73ae560118c4568e9141ac9aa57d7306d7834cb8
     name: botscribe
@@ -12,7 +12,7 @@ entries:
     version: 0.0.1
   botserver:
   - apiVersion: v2
-    created: "2020-02-14T11:09:43.039839003+01:00"
+    created: "2020-09-02T16:30:10.666502658+02:00"
     description: A Helm chart for Kubernetes
     digest: 585e8eebb456f0a8cfc5fe266c6512f36350d8d2cf5e2c76dca49ec813d81f0b
     name: botserver
@@ -22,7 +22,7 @@ entries:
     version: 0.0.1
   dashboard:
   - apiVersion: v2
-    created: "2020-02-14T11:09:43.040414657+01:00"
+    created: "2020-09-02T16:30:10.666969256+02:00"
     description: A Helm chart for Kubernetes
     digest: edec85b5f5b67496bf09eca15a575f4d57e215ae7e7bbdd19114e1e2ebbd8e1d
     name: dashboard
@@ -30,9 +30,19 @@ entries:
     urls:
     - dashboard-0.0.1.tgz
     version: 0.0.1
+  dean:
+  - apiVersion: v2
+    created: "2020-09-02T16:30:10.66714852+02:00"
+    description: A Helm chart for Kubernetes
+    digest: a2a40eb659f884e02232aa1f4250adb807800c2648de747416108e494850d6b9
+    name: dean
+    type: application
+    urls:
+    - dean-0.0.1.tgz
+    version: 0.0.1
   dumper:
   - apiVersion: v2
-    created: "2020-02-14T11:09:43.040786824+01:00"
+    created: "2020-09-02T16:30:10.667578546+02:00"
     description: A Helm chart for Kubernetes
     digest: 3bb15876fb3918d843b83fb9b1dcbe4cbf1ae85e31d122ca4a8a19c6b46e106b
     name: dumper
@@ -42,7 +52,7 @@ entries:
     version: 0.0.1
   linksniffer:
   - apiVersion: v2
-    created: "2020-02-14T11:09:43.041433964+01:00"
+    created: "2020-09-02T16:30:10.667979121+02:00"
     description: A Helm chart for Kubernetes
     digest: 937d5396dd86b6486c82b957f0af6dc64bcbd3ce1ff553bc8e8e18d73254d136
     name: linksniffer
@@ -52,7 +62,7 @@ entries:
     version: 0.0.1
   naughtybot:
   - apiVersion: v2
-    created: "2020-02-14T11:09:43.04226882+01:00"
+    created: "2020-09-02T16:30:10.668388817+02:00"
     description: A Helm chart for Kubernetes
     digest: 91e9933cf9a65359a2bfcff9f80628ff4ceae85d9fa86f56aad1c9e918e946f3
     name: naughtybot
@@ -62,7 +72,7 @@ entries:
     version: 0.0.1
   replybot:
   - apiVersion: v2
-    created: "2020-02-14T11:09:43.042662903+01:00"
+    created: "2020-09-02T16:30:10.668784999+02:00"
     description: A Helm chart for Kubernetes
     digest: 3022f7daf35e0ecbb8cfc09a61ac5292178eec01e0dc4220db74d90bab916caf
     name: replybot
@@ -72,7 +82,7 @@ entries:
     version: 0.0.1
   scratchbot:
   - apiVersion: v2
-    created: "2020-02-14T11:09:43.043125036+01:00"
+    created: "2020-09-02T16:30:10.669124214+02:00"
     description: A Helm chart for Kubernetes
     digest: 0c773b4d5d524d7731356d8957712ec7990d13086cb2826b596130e73283f7a0
     name: scratchbot
@@ -80,4 +90,14 @@ entries:
     urls:
     - scratchbot-0.0.1.tgz
     version: 0.0.1
-generated: "2020-02-14T11:09:43.037875317+01:00"
+  scribble:
+  - apiVersion: v2
+    created: "2020-09-02T16:30:10.66930715+02:00"
+    description: A Helm chart for Kubernetes
+    digest: 47fa0bad4b7e0d0c04daa5f387b0d31894c32a48c8e6f0968e61ee3f3de99d48
+    name: scribble
+    type: application
+    urls:
+    - scribble-0.0.1.tgz
+    version: 0.0.1
+generated: "2020-09-02T16:30:10.664685556+02:00"
