@@ -164,7 +164,7 @@ botserver:
 
 dean:
   image:
-    repository: vlab-research/dean
+    repository: vlabresearch/dean
     tag: *vdean
     pullPolicy: IfNotPresent
   env:
@@ -206,7 +206,7 @@ dean:
 
 scribble:
   image:
-    repository: vlab-research/scribble
+    repository: vlabresearch/scribble
     tag: *vscribble
     pullPolicy: IfNotPresent
   resources:
