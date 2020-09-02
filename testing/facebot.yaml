@@ -31,42 +31,6 @@ spec:
 
 ---
 
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: gbv-facebroker
-  labels:
-    app: gbv-facebroker
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: gbv-facebroker
-  template:
-    metadata:
-      labels:
-        app: gbv-facebroker
-    spec:
-      containers:
-      - name: gbv-facebroker
-        image: vlabresearch/facebot:latest
-        args:
-        - node
-        - broker.js
-        imagePullPolicy: Always
-        resources:
-          requests:
-            cpu: "10m"
-            memory: "30Mi"
-        ports:
-        - containerPort: 4000
-        - containerPort: 4001
-        envFrom:
-        - secretRef:
-            name: gbv-bot-envs
-
----
-
 kind: Service
 apiVersion: v1
 metadata:
@@ -79,22 +43,3 @@ spec:
     port: 80
     targetPort: 3000
     name: http
-  - protocol: TCP
-    port: 4000
-    name: zmq
----
-
-kind: Service
-apiVersion: v1
-metadata:
-  name: gbv-facebroker
-spec:
-  selector:
-    app: gbv-facebroker
-  ports:
-  - protocol: TCP
-    port: 4000
-    name: zmq-frontend
-  - protocol: TCP
-    port: 4001
-    name: zmq-backend

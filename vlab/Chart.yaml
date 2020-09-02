@@ -4,17 +4,33 @@ description: A Helm chart for Kubernetes
 type: application
 version: 0.0.1
 dependencies:
-  - name: dumper
+  - name: replybot
     version: 0.0.1
     repository: https://vlab-research.github.io/devops
-    tags:
-      - backup
+  - name: botserver
+    version: 0.0.1
+    repository: https://vlab-research.github.io/devops
   - name: linksniffer
     version: 0.0.1
     repository: https://vlab-research.github.io/devops
   - name: dashboard
     version: 0.0.1
     repository: https://vlab-research.github.io/devops
+  - name: dumper
+    version: 0.0.1
+    repository: https://vlab-research.github.io/devops
+    tags:
+      - backup
+  - name: dean
+    version: 0.0.1
+    repository: https://vlab-research.github.io/devops
+    tags:
+      - dean
+  - name: scribble
+    version: 0.0.1
+    repository: https://vlab-research.github.io/devops
+    tags:
+      - scribble
   - name: naughtybot
     version: 0.0.1
     repository: https://vlab-research.github.io/devops
@@ -25,17 +41,12 @@ dependencies:
     repository: https://vlab-research.github.io/devops
     tags:
       - botscribe
-  - name: botserver
-    version: 0.0.1
-    repository: https://vlab-research.github.io/devops
   - name: scratchbot
     version: 0.0.1
     repository: https://vlab-research.github.io/devops
     tags:
       - scratchbot
-  - name: replybot
-    version: 0.0.1
-    repository: https://vlab-research.github.io/devops
+
 # TODO: move database out of here (treat as provider)
 # add init job to create database and users
   - name: cockroachdb
