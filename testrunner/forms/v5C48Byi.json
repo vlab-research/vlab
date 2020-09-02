@@ -1,6 +1,7 @@
 {
   "id": "v5C48Byi",
-  "title": "lang_choice",
+  "type": "form",
+  "title": "langchoice",
   "workspace": {
     "href": "https://api.typeform.com/workspaces/p7LWDc"
   },
@@ -33,7 +34,7 @@
   "fields": [
     {
       "id": "l6MBvAlW2Sya",
-      "title": "Hi {{hidden:name}}, in which language would you like me to write to you?\n\nआप हमें किस भाषा में जवाब देना पसंद करेंगे?\n\nବେଉେଁ ଭାଷାବର ଆପଣ ଆମ୍େୁ ବଲଖିୋେୁ ଚା େଁୁଛନ୍ତି ?",
+      "title": "नमस्ते {{hidden:name}} आप हमें किस भाषा में जवाब देना पसंद करेंगे?\n\nକେଉଁ {{hidden:name}} ଭାଷାରେ ଆପଣ ଆମକୁ ଲେଖିବାକୁ ଚାହୁଁଛନ୍ତି ?",
       "ref": "09a14047-26f1-46b6-9c5f-cb7b1330cbad",
       "properties": {
         "randomize": false,
@@ -44,16 +45,11 @@
           {
             "id": "YYo97jDcOfJk",
             "ref": "9d91b813-6bf4-46d4-915a-40087b81e8ab",
-            "label": "English"
-          },
-          {
-            "id": "taNUnyX6mznK",
-            "ref": "7423ce93-ac5d-4930-ba53-1bf5bb54811f",
             "label": "हिंदी"
           },
           {
-            "id": "ucqB8uRl0s5R",
-            "ref": "0312870d-02b6-46b2-947b-9bb103491943",
+            "id": "aHSwLYDwJEwl",
+            "ref": "73392686-1b36-4c69-9eb9-9e6e3e6a95be",
             "label": "ଓଡିଆ"
           }
         ]
@@ -64,22 +60,11 @@
       "type": "multiple_choice"
     },
     {
-      "id": "lUECOMNFToRR",
-      "title": "Thanks!",
-      "ref": "2e53ebd0-b85d-4343-ae7a-1713895ae0db",
-      "properties": {
-        "description": "type: stitch\nstitch:\n    form: baseline\\_eng",
-        "button_text": "Continue",
-        "hide_marks": false
-      },
-      "type": "statement"
-    },
-    {
       "id": "9gX8GoRGOznN",
       "title": "धन्यवाद।",
       "ref": "f761c804-0a8e-4328-a29d-b9dec849f284",
       "properties": {
-        "description": "type: stitch\nstitch:\n    form: baseline\\_hin",
+        "description": "type: stitch\nstitch:\n    form: baselinehin",
         "button_text": "Continue",
         "hide_marks": false
       },
@@ -90,7 +75,7 @@
       "title": "ଧନ୍ୟବାଦ",
       "ref": "755c26ff-ccc4-4ae0-a44a-29461858b41c",
       "properties": {
-        "description": "type: stitch\nstitch:\n    form: baseline\\_odi",
+        "description": "type: stitch\nstitch:\n    form: baselineodi",
         "button_text": "Continue",
         "hide_marks": false
       },
@@ -121,7 +106,7 @@
           "details": {
             "to": {
               "type": "field",
-              "value": "2e53ebd0-b85d-4343-ae7a-1713895ae0db"
+              "value": "f761c804-0a8e-4328-a29d-b9dec849f284"
             }
           },
           "condition": {
@@ -143,28 +128,6 @@
           "details": {
             "to": {
               "type": "field",
-              "value": "f761c804-0a8e-4328-a29d-b9dec849f284"
-            }
-          },
-          "condition": {
-            "op": "is",
-            "vars": [
-              {
-                "type": "field",
-                "value": "09a14047-26f1-46b6-9c5f-cb7b1330cbad"
-              },
-              {
-                "type": "choice",
-                "value": "7423ce93-ac5d-4930-ba53-1bf5bb54811f"
-              }
-            ]
-          }
-        },
-        {
-          "action": "jump",
-          "details": {
-            "to": {
-              "type": "field",
               "value": "755c26ff-ccc4-4ae0-a44a-29461858b41c"
             }
           },
@@ -177,7 +140,7 @@
               },
               {
                 "type": "choice",
-                "value": "0312870d-02b6-46b2-947b-9bb103491943"
+                "value": "73392686-1b36-4c69-9eb9-9e6e3e6a95be"
               }
             ]
           }
@@ -188,5 +151,8 @@
   "_links": {
     "display": "https://nandanrao.typeform.com/to/v5C48Byi"
   },
-  "custom_messages": {}
+  "custom_messages": {
+    "label.error.mustSelect": "क्षमा करें, कृपया प्रश्न का उत्तर देने के लिए प्रदान किए गए बटनों का उपयोग करें।",
+    "label.error.required": "क्षमा करें, यह उत्तर मान्य नहीं है।"
+  }
 }
