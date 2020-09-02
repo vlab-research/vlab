@@ -48,7 +48,6 @@ func testPool() *pgxpool.Pool {
 }
 
 
-
 func makeMessages(vals []string) []*kafka.Message {
 	msgs := []*kafka.Message{}
 	for _, v := range vals {

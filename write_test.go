@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 
+	"github.com/confluentinc/confluent-kafka-go/kafka"
 	"github.com/jackc/pgx/v4"
 	"github.com/stretchr/testify/assert"
 )
@@ -32,13 +33,13 @@ func (e *TestError) Error() string {
     return e.msg
 }
 
-func GoodStringMarshaller(b []byte) (Writeable, error){
+func GoodStringMarshaller(msg *kafka.Message) (Writeable, error){
 	return &StringData{"hey"}, nil
 }
 
 
-func ErrorStringMarshaller(b []byte) (Writeable, error){
-	if string(b) == "bad" {
+func ErrorStringMarshaller(msg *kafka.Message) (Writeable, error){
+	if string(msg.Value) == "bad" {
 		return nil, &TestError{"test"}
 	}
 	return &StringData{"hey"}, nil

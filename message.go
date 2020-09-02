@@ -1,16 +1,16 @@
 package main 
 
 import (
-	"encoding/json"
+	"time"
 
+	"github.com/confluentinc/confluent-kafka-go/kafka"
 	"github.com/jackc/pgx/v4"
 )
 
-
 type Message struct {
-	Userid string `json:"userid"  validate:"required"`
-	Timestamp int64 `json:"timestamp"  validate:"required"`
-	Content json.RawMessage `json:"content"  validate:"required"`
+	Userid string `validate:"required"`
+	Timestamp time.Time `validate:"required"`
+	Content []byte `validate:"required"`
 }
 
 func (message *Message) Queue(batch *pgx.Batch) {
@@ -20,17 +20,10 @@ func (message *Message) Queue(batch *pgx.Batch) {
 
 	batch.Queue(query,
 		message.Userid,
-		ParseTimestamp(message.Timestamp),
+		message.Timestamp,
 		string(message.Content))
 }
 
-
-func MessageMarshaller(b []byte) (Writeable, error) {
-	marshalled := new(Message)
-	err := json.Unmarshal(b, marshalled)
-	if err != nil {
-		return nil, err
-	}
-
-	return marshalled, nil
+func MessageMarshaller(msg *kafka.Message) (Writeable, error) {
+	return &Message{string(msg.Key), msg.Timestamp, msg.Value}, nil
 }

@@ -2,6 +2,7 @@ package main
 
 import (
 	"time"
+	"log"
 	"sync"
 	"github.com/confluentinc/confluent-kafka-go/kafka"
 )
@@ -21,7 +22,7 @@ func NewKafkaConsumer(topic string, brokers string, group string, timeout time.D
 		"group.id":          group,
 		"auto.offset.reset": "earliest",
 		"enable.auto.commit": "false",
-		"max.poll.interval.ms": "960000",
+		"max.poll.interval.ms": "300000",
 	})
 
 	if err != nil {
@@ -122,7 +123,11 @@ func (consumer KafkaConsumer) SideEffect (fn SideEffectFn, errs chan error) {
 	// commit!
 	_, err := consumer.Consumer.Commit()
 	if err != nil {
-		errs <- err
+		if e, ok := err.(kafka.Error); ok && e.Code() == kafka.ErrNoOffset {
+			log.Print("Finished batch but committing 0 messages")
+		} else {
+			errs <- err
+		}
 	}
 }
 
@@ -138,6 +143,7 @@ func (consumer KafkaConsumer) consumeStream (errs chan error) chan *kafka.Messag
 	// runs until n messages consumed
 	go func() {
 		defer close(messages)
+		count := 0
 		for i := 1; i <= consumer.batchSize; i++ {
 
 			msg, err := c.ReadMessage(consumer.timeout)
@@ -151,7 +157,9 @@ func (consumer KafkaConsumer) consumeStream (errs chan error) chan *kafka.Messag
 			}
 
 			messages <- msg
+			count += 1
 		}
+		log.Printf("Consumed %v messages as batch from Kafka", count)
 	}()
 
 	return messages

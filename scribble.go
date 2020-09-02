@@ -76,7 +76,7 @@ func main() {
 		cfg.KafkaPollTimeout, cfg.BatchSize, cfg.ChunkSize)
 
 	errs := make(chan error)
-	monitor(errs)
+	go monitor(errs)
 
 	writer := GetWriter(pool, getMarshaller(&cfg))
 

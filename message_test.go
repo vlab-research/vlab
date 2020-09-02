@@ -2,7 +2,9 @@ package main
 
 import (
 	"testing"
+	"time"
 
+	"github.com/confluentinc/confluent-kafka-go/kafka"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -21,14 +23,10 @@ func TestMessageWriterWritesGoodData(t *testing.T) {
 
 	mustExec(t, pool, sql)
 
-	msgs := makeMessages([]string{
-		`{"userid": "bar",
-          "timestamp": 1598706047838,
-          "content": { "token": "bar", "tokens": ["foo"]}}`,
-		`{"userid": "baz",
-          "timestamp": 1598706047838,
-          "content": { "token": "bar", "tokens": ["foo"]}}`,
-	})
+	msgs := []*kafka.Message{
+		&kafka.Message{Value: []byte(`{ "foo": "bar "}`), Key: []byte("foo"), Timestamp: time.Now()},
+		&kafka.Message{Value: []byte(`{ "bar": "baz "}`), Key: []byte("foo"), Timestamp: time.Now()},
+	}
 
 	writer := GetWriter(pool, MessageMarshaller)
 	err := writer.Write(msgs)
@@ -55,14 +53,10 @@ func TestMessageWriterDoesNotThrowOnDuplicateMessage(t *testing.T) {
 
 	mustExec(t, pool, sql)
 
-	msgs := makeMessages([]string{
-		`{"userid": "bar",
-          "timestamp": 1598706047838,
-          "content": { "token": "bar", "tokens": ["foo"]}}`,
-		`{"userid": "bar",
-          "timestamp": 1598706047838,
-          "content": { "token": "bar", "tokens": ["foo"]}}`,
-	})
+	msgs := []*kafka.Message{
+		&kafka.Message{Value: []byte(`{ "foo": "bar "}`), Key: []byte("foo"), Timestamp: time.Now()},
+		&kafka.Message{Value: []byte(`{ "foo": "bar "}`), Key: []byte("foo"), Timestamp: time.Now()},
+	}
 
 	writer := GetWriter(pool, MessageMarshaller)
 	err := writer.Write(msgs)

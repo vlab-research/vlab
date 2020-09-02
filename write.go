@@ -12,7 +12,7 @@ import (
 type Writeable interface {
 	Queue(*pgx.Batch)
 }
-type MarshalWriteable func([]byte) (Writeable, error)
+type MarshalWriteable func(*kafka.Message) (Writeable, error)
 
 func Write(v *validator.Validate, pool *pgxpool.Pool, fn MarshalWriteable, messages []*kafka.Message) error {
 	data, err := Prep(fn, messages)
@@ -33,7 +33,7 @@ func Write(v *validator.Validate, pool *pgxpool.Pool, fn MarshalWriteable, messa
 func Prep(fn MarshalWriteable, messages []*kafka.Message) ([]Writeable, error) {
 	data := []Writeable{}
 	for _, msg := range messages {
-		w, err := fn(msg.Value)
+		w, err := fn(msg)
 
 		if err != nil {
 			// NOTE: will throw at any marhaling problem. Good for now!

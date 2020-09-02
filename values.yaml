@@ -1,7 +1,7 @@
 image:
-  repository: vlabresearch/scribble
-  tag: 0.0.1
-  pullPolicy: IfNotPresent
+  repository: localhost:5000/scribble
+  tag: registry
+  pullPolicy: Always
 
 resources:
   requests:
@@ -22,13 +22,11 @@ env:
 - name: KAFKA_BROKERS
   value: "gbv-kafka:9092"
 - name: KAFKA_POLL_TIMEOUT
-  value: "30m"
-- name: KAFKA_GROUP
-  value: "scribble"
+  value: "20s"
 - name: SCRIBBLE_CHUNK_SIZE
-  value: "12"
+  value: "2"
 - name: SCRIBBLE_BATCH_SIZE
-  value: "12"
+  value: "4"
 
 sinks:
   - destination: "states"
@@ -36,13 +34,19 @@ sinks:
     env: 
     - name: KAFKA_TOPIC
       value: "vlab-state"
+    - name: KAFKA_GROUP
+      value: "scribble-states"
   - destination: "responses"
     replicaCount: 1
     env:
     - name: KAFKA_TOPIC
       value: "vlab-response"
+    - name: KAFKA_GROUP
+      value: "scribble-responses"
   - destination: "messages"
     replicaCount: 1
     env:
     - name: KAFKA_TOPIC
       value: "chat-events"
+    - name: KAFKA_GROUP
+      value: "scribble-messages"

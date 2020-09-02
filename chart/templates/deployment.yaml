@@ -30,7 +30,7 @@ spec:
           env:
             {{- toYaml $.Values.env | nindent 12 }}
             - name: SCRIBBLE_DESTINATION
-              value: .destination
+              value: {{ .destination }}
             {{- toYaml .env | nindent 12 }}
           resources:
             {{- toYaml $.Values.resources | nindent 12 }}
