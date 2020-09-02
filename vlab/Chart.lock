@@ -1,5 +1,8 @@
 dependencies:
-- name: dumper
+- name: replybot
+  repository: https://vlab-research.github.io/devops
+  version: 0.0.1
+- name: botserver
   repository: https://vlab-research.github.io/devops
   version: 0.0.1
 - name: linksniffer
@@ -8,19 +11,22 @@ dependencies:
 - name: dashboard
   repository: https://vlab-research.github.io/devops
   version: 0.0.1
+- name: dumper
+  repository: https://vlab-research.github.io/devops
+  version: 0.0.1
+- name: dean
+  repository: https://vlab-research.github.io/devops
+  version: 0.0.1
+- name: scribble
+  repository: https://vlab-research.github.io/devops
+  version: 0.0.1
 - name: naughtybot
   repository: https://vlab-research.github.io/devops
   version: 0.0.1
 - name: botscribe
   repository: https://vlab-research.github.io/devops
   version: 0.0.1
-- name: botserver
-  repository: https://vlab-research.github.io/devops
-  version: 0.0.1
 - name: scratchbot
-  repository: https://vlab-research.github.io/devops
-  version: 0.0.1
-- name: replybot
   repository: https://vlab-research.github.io/devops
   version: 0.0.1
 - name: cockroachdb
@@ -29,5 +35,5 @@ dependencies:
 - name: kafka
   repository: https://storage.googleapis.com/kubernetes-charts-incubator
   version: 0.20.8
-digest: sha256:264e7a6eaab003bde4c95b95d9e70acf8ad5f2efbd33dfc6cbe2ab173308fa31
-generated: "2020-02-14T11:10:51.402714722+01:00"
+digest: sha256:43e9b2a2c62f58dfa9e77eb3c693d85152387f0ccfc33d87c350689c882f2eab
+generated: "2020-09-02T21:25:24.158652126+02:00"
