@@ -11,16 +11,17 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@vlab-research/chatbase-postgres": "0.0.3",
     "@vlab-research/mox": "0.0.17",
     "@vlab-research/utils": "0.0.10",
-    "@vlab-research/chatbase-postgres": "0.0.3",
     "chai": "^4.2.0",
     "dotenv": "^8.1.0",
     "farmhash": "^3.0.0",
     "mocha": "^6.2.0",
+    "mocha.parallel": "^0.15.6",
     "pg": "^7.18.1",
     "r2": "^2.0.1",
     "uuid": "^3.3.3",
-    "zeromq": "^5.1.0"
+    "zeromq": "^6.0.0-beta.6"
   }
 }

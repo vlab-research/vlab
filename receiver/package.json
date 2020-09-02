@@ -12,6 +12,7 @@
     "express": "^4.17.1",
     "js-xxhash": "^1.0.4",
     "morgan": "^1.9.1",
-    "zeromq": "^5.2.0"
+    "shortid": "^2.2.15",
+    "zeromq": "^6.0.0-beta.6"
   }
 }

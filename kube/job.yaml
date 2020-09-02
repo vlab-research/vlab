@@ -13,7 +13,7 @@ spec:
       restartPolicy: "Never"
       containers:
       - name: gbv-testrunner
-        image: localhost:32000/testrunner:registry
+        image: localhost:5000/testrunner:registry
         imagePullPolicy: Always
         resources:
           requests:
