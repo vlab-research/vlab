@@ -15,9 +15,9 @@ import (
 // B) Just validate the fields exist in the JSON (rawmessage, check all fields)
 type Response struct {
 	ParentSurveyid string `json:"parent_surveyid" validate:"required"`
-	ParentShortcode string `json:"parent_shortcode" validate:"required"`
+	ParentShortcode *CastString `json:"parent_shortcode" validate:"required"`
 	Surveyid string `json:"surveyid" validate:"required"`
-	Shortcode string `json:"shortcode" validate:"required"`
+	Shortcode *CastString `json:"shortcode" validate:"required"`
 	Flowid int32 `json:"flowid" validate:"required"`
 	Userid string `json:"userid" validate:"required"`
 	QuestionRef string `json:"question_ref" validate:"required"`
@@ -49,9 +49,9 @@ func (r *Response) Queue(batch *pgx.Batch) {
 
 	batch.Queue(query,
 		r.ParentSurveyid,
-		r.ParentShortcode,
+		r.ParentShortcode.String,
 		r.Surveyid,
-		r.Shortcode,
+		r.Shortcode.String,
 		r.Flowid,
 		r.Userid,
 		r.QuestionRef,

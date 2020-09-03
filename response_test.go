@@ -83,7 +83,7 @@ func TestResponseWriterWritesGoodData(t *testing.T) {
 
 
 
-func TestResponseWriterHandlesMixedResponsesTypes(t *testing.T) {
+func TestResponseWriterHandlesMixedResponseAndShortCodeTypes(t *testing.T) {
 	pool := testPool()
 	defer pool.Close()
 
@@ -117,9 +117,9 @@ func TestResponseWriterHandlesMixedResponsesTypes(t *testing.T) {
           "metadata": {"foo":"bar","seed": 8978437},
           "timestamp":1599039840517}`,
 		`{"parent_surveyid":"d6c21c81-fcd0-4aa4-8975-8584d8bdb820",
-          "parent_shortcode":"baz",
+          "parent_shortcode":123,
           "surveyid":"d6c21c81-fcd0-4aa4-8975-8584d8bdb820",
-          "shortcode":"baz",
+          "shortcode":123,
           "flowid":1,
           "userid":"foo",
           "question_ref":"qux",
@@ -140,6 +140,11 @@ func TestResponseWriterHandlesMixedResponsesTypes(t *testing.T) {
 	assert.Equal(t, "true", res[0])
 	assert.Equal(t, "yes", res[1])
 	assert.Equal(t, "25", res[2])
+
+	res = getCol(pool, "responses", "shortcode")
+	assert.Equal(t, 3, len(res))
+	assert.Equal(t, "baz", res[0])
+	assert.Equal(t, "123", res[2])
 
 	mustExec(t, pool, "drop table responses")
 }
