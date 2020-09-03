@@ -2,21 +2,17 @@ package main
 
 import (
 	"context"
-	"testing"
 	"fmt"
+	"testing"
 
 	"github.com/confluentinc/confluent-kafka-go/kafka"
 	"github.com/jackc/pgconn"
+	"github.com/jackc/pgx/v4"
 	"github.com/jackc/pgx/v4/pgxpool"
 )
 
 
-func getCol(pool *pgxpool.Pool, table string, col string) []string {
-	rows, err := pool.Query(context.Background(), fmt.Sprintf("select %v from %v", col, table))
-	if err != nil {
-		panic(err)
-	}
-
+func rowStrings(rows pgx.Rows) []string{
 	res := []string{}
 	for rows.Next() {
 		var col string
@@ -24,6 +20,15 @@ func getCol(pool *pgxpool.Pool, table string, col string) []string {
 		res = append(res, col)
 	}
 	return res
+}
+
+func getCol(pool *pgxpool.Pool, table string, col string) []string {
+	rows, err := pool.Query(context.Background(), fmt.Sprintf("select %v from %v", col, table))
+	if err != nil {
+		panic(err)
+	}
+
+	return rowStrings(rows)
 }
 
 

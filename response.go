@@ -8,18 +8,26 @@ import (
 )
 
 
+// quick hack to keep nulls in db
+func nullify(s string) *string {
+	if s == "" {
+		return nil
+	}
+	return &s
+}
+
 
 // TODO: 
 // A) JSON Schema validation if you want validation... 
 // OR
 // B) Just validate the fields exist in the JSON (rawmessage, check all fields)
 type Response struct {
-	ParentSurveyid string `json:"parent_surveyid" validate:"required"`
 	ParentShortcode *CastString `json:"parent_shortcode" validate:"required"`
 	Surveyid string `json:"surveyid" validate:"required"`
 	Shortcode *CastString `json:"shortcode" validate:"required"`
 	Flowid int32 `json:"flowid" validate:"required"`
 	Userid string `json:"userid" validate:"required"`
+	Pageid string `json:"pageid"`
 	QuestionRef string `json:"question_ref" validate:"required"`
 	QuestionIdx int32 `json:"question_idx"` // no validate because 0 is valid...mierda
 	QuestionText string `json:"question_text" validate:"required"`
@@ -31,12 +39,12 @@ type Response struct {
 
 func (r *Response) Queue(batch *pgx.Batch) {
 	query := SertQuery("INSERT", "responses", []string{
-		"parent_surveyid",
 		"parent_shortcode",
 		"surveyid",
 		"shortcode",
 		"flowid",
 		"userid",
+		"pageid",
 		"question_ref",
 		"question_idx",
 		"question_text",
@@ -48,12 +56,12 @@ func (r *Response) Queue(batch *pgx.Batch) {
 	query += " ON CONFLICT(userid, timestamp, question_ref) DO NOTHING"
 
 	batch.Queue(query,
-		r.ParentSurveyid,
 		r.ParentShortcode.String,
 		r.Surveyid,
 		r.Shortcode.String,
 		r.Flowid,
 		r.Userid,
+		nullify(r.Pageid),
 		r.QuestionRef,
 		r.QuestionIdx,
 		r.QuestionText,

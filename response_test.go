@@ -2,6 +2,7 @@ package main
 
 import (
 	"testing"
+	"context"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -9,12 +10,12 @@ import (
 const (
 	responseSql = `drop table if exists responses;
             create table if not exists responses(
-			  parent_surveyid UUID NOT NULL,
 			  parent_shortcode VARCHAR NOT NULL,
 			  surveyid UUID NOT NULL,
 			  shortcode VARCHAR NOT NULL,
 			  flowid INT NOT NULL,
 			  userid VARCHAR NOT NULL,
+			  pageid VARCHAR,
 			  question_ref VARCHAR NOT NULL,
 			  question_idx INT NOT NULL,
 			  question_text VARCHAR NOT NULL,
@@ -40,6 +41,7 @@ func TestResponseWriterWritesGoodData(t *testing.T) {
           "shortcode":"baz",
           "flowid":1,
           "userid":"foo",
+          "pageid": "baz",
           "question_ref":"bar",
           "question_idx":1,
           "question_text":"foobar",
@@ -53,6 +55,7 @@ func TestResponseWriterWritesGoodData(t *testing.T) {
           "shortcode":"baz",
           "flowid":1,
           "userid":"bar",
+          "pageid": "baz",
           "question_ref":"bar",
           "question_idx":1,
           "question_text":"foobar",
@@ -68,7 +71,6 @@ func TestResponseWriterWritesGoodData(t *testing.T) {
 
 	res := getCol(pool, "responses", "userid")
 	assert.Equal(t, 2, len(res))
-
 	assert.Equal(t, "bar", res[0])
 	assert.Equal(t, "foo", res[1])
 
@@ -77,6 +79,75 @@ func TestResponseWriterWritesGoodData(t *testing.T) {
 	assert.Equal(t, "bar", res[0])
 	assert.Equal(t, "bar", res[1])
 
+
+	mustExec(t, pool, "drop table responses")
+}
+
+
+func TestResponseWriterWritesNullPageIdIfNone(t *testing.T) {
+	pool := testPool()
+	defer pool.Close()
+
+	mustExec(t, pool, responseSql)
+
+	msgs := makeMessages([]string{
+		`{"parent_surveyid":"d6c21c81-fcd0-4aa4-8975-8584d8bdb820",
+          "parent_shortcode":"baz",
+          "surveyid":"d6c21c81-fcd0-4aa4-8975-8584d8bdb820",
+          "shortcode":"baz",
+          "flowid":1,
+          "userid":"foo",
+          "question_ref":"bar",
+          "question_idx":1,
+          "question_text":"foobar",
+          "response":"LOL",
+          "seed":858044518,
+          "metadata": {"foo":"bar","seed": 8978437},
+          "timestamp":1599039840517}`,
+	})
+
+	writer := GetWriter(pool, ResponseMarshaller)
+	err := writer.Write(msgs)
+	assert.Nil(t, err)
+
+	rows, err := pool.Query(context.Background(), "select pageid from responses where pageid is null")
+	res := rowStrings(rows)
+	assert.Equal(t, 1, len(res))
+
+	mustExec(t, pool, "drop table responses")
+}
+
+
+func TestResponseWriterWritesPageIdIfExists(t *testing.T) {
+	pool := testPool()
+	defer pool.Close()
+
+	mustExec(t, pool, responseSql)
+
+	msgs := makeMessages([]string{
+		`{"parent_surveyid":"d6c21c81-fcd0-4aa4-8975-8584d8bdb820",
+          "parent_shortcode":"baz",
+          "surveyid":"d6c21c81-fcd0-4aa4-8975-8584d8bdb820",
+          "shortcode":"baz",
+          "flowid":1,
+          "userid":"foo",
+          "pageid": "baz",
+          "question_ref":"bar",
+          "question_idx":1,
+          "question_text":"foobar",
+          "response":"LOL",
+          "seed":858044518,
+          "metadata": {"foo":"bar","seed": 8978437},
+          "timestamp":1599039840517}`,
+	})
+
+	writer := GetWriter(pool, ResponseMarshaller)
+	err := writer.Write(msgs)
+	assert.Nil(t, err)
+
+	res := getCol(pool, "responses", "pageid")
+	assert.Equal(t, 1, len(res))
+	assert.Equal(t, "baz", res[0])
 
 	mustExec(t, pool, "drop table responses")
 }
@@ -96,6 +167,7 @@ func TestResponseWriterHandlesMixedResponseAndShortCodeTypes(t *testing.T) {
           "shortcode":"baz",
           "flowid":1,
           "userid":"foo",
+          "pageid": "baz",
           "question_ref":"bar",
           "question_idx":1,
           "question_text":"foobar",
@@ -109,6 +181,7 @@ func TestResponseWriterHandlesMixedResponseAndShortCodeTypes(t *testing.T) {
           "shortcode":"baz",
           "flowid":1,
           "userid":"foo",
+          "pageid": "baz",
           "question_ref":"baz",
           "question_idx":1,
           "question_text":"foobar",
@@ -122,6 +195,7 @@ func TestResponseWriterHandlesMixedResponseAndShortCodeTypes(t *testing.T) {
           "shortcode":123,
           "flowid":1,
           "userid":"foo",
+          "pageid": "baz",
           "question_ref":"qux",
           "question_idx":1,
           "question_text":"foobar",
@@ -162,6 +236,7 @@ func TestResponseWriterFailsOnMissingData(t *testing.T) {
           "shortcode":"baz",
           "flowid":1,
           "userid":"foo",
+"pageid": "baz",
           "question_ref":"bar",
           "question_idx":1,
           "question_text":"foobar",
@@ -176,7 +251,6 @@ func TestResponseWriterFailsOnMissingData(t *testing.T) {
 
 	res := getCol(pool, "responses", "userid")
 	assert.Equal(t, 0, len(res))
-
 	mustExec(t, pool, "drop table responses")
 }
 
@@ -194,6 +268,7 @@ func TestResponseWriterFailsOnMissingMetadata(t *testing.T) {
           "shortcode":"baz",
           "flowid":1,
           "userid":"foo",
+          "pageid": "baz",
           "question_ref":"bar",
           "question_idx":1,
           "question_text":"foobar",
@@ -208,7 +283,6 @@ func TestResponseWriterFailsOnMissingMetadata(t *testing.T) {
 
 	res := getCol(pool, "responses", "userid")
 	assert.Equal(t, 0, len(res))
-
 	mustExec(t, pool, "drop table responses")
 }
 
@@ -226,6 +300,7 @@ func TestResponseWriterFailsIfMetadataFormatedPoorly(t *testing.T) {
           "shortcode":"baz",
           "flowid":1,
           "userid":"foo",
+          "pageid": "baz",
           "question_ref":"bar",
           "question_idx":1,
           "question_text":"foobar",
@@ -259,6 +334,7 @@ func TestResponseWriterSucceedsIfMetadataEmpty(t *testing.T) {
           "shortcode":"baz",
           "flowid":1,
           "userid":"foo",
+          "pageid": "baz",
           "question_ref":"bar",
           "question_idx":1,
           "question_text":"foobar",
@@ -291,6 +367,7 @@ func TestResponseWriterIgnoresRepeatMessages(t *testing.T) {
           "shortcode":"baz",
           "flowid":1,
           "userid":"foo",
+          "pageid": "baz",
           "question_ref":"bar",
           "question_idx":1,
           "question_text":"foobar",
@@ -304,6 +381,7 @@ func TestResponseWriterIgnoresRepeatMessages(t *testing.T) {
           "shortcode":"baz",
           "flowid":1,
           "userid":"foo",
+          "pageid": "baz",
           "question_ref":"bar",
           "question_idx":1,
           "question_text":"foobar",
@@ -319,7 +397,6 @@ func TestResponseWriterIgnoresRepeatMessages(t *testing.T) {
 
 	res := getCol(pool, "responses", "userid")
 	assert.Equal(t, 1, len(res))
-
 	assert.Equal(t, "foo", res[0])
 
 	mustExec(t, pool, "drop table responses")
