@@ -2,6 +2,11 @@ tags:
   kafka: false
   backup: true
   cockroach: true
+  naughtybot: false
+  botscribe: false
+  scratchbot: false
+  scribble: true
+  dean: true
 
 kafkabrokers: &kb "kafka-headless.default.svc.cluster.local:29092"
 chatTopic: &topic "vlab-staging-chat-events"
@@ -13,9 +18,11 @@ chatbaseHost: &host "gbv-cockroachdb-public"
 versionDashboard: &vdashboard 0.0.5
 versionNaughtybot: &vnaughtybot 0.0.12
 versionBotserver: &vbotserver 0.0.8
-versionReplybot: &vreplybot 0.0.87
+versionReplybot: &vreplybot 0.0.90
 versionBotscribe: &vbotscribe 0.0.6
 versionLinksniffer: &vlinksniffer 0.0.3
+versionDean: &vdean 0.0.12
+versionScribble: &vscribble 0.0.3
 
 processingAlerts: []
 laggingAlerts: []
@@ -37,6 +44,101 @@ kafkaTopics:
     replicationFactor: 2
     config:
       "retention.ms": "2678400000" # 31 days
+
+dean:
+  image:
+    repository: vlabresearch/dean
+    tag: *vdean
+    pullPolicy: IfNotPresent
+  env:
+  - name: CHATBASE_DATABASE
+    value: "chatroach"
+  - name: CHATBASE_USER
+    value: "chatroach"
+  - name: CHATBASE_PASSWORD
+    value: ""
+  - name: CHATBASE_HOST
+    value: *host
+  - name: CHATBASE_PORT
+    value: "26257"
+  - name: BOTSERVER_URL
+    value: "http://gbv-botserver/synthetic"
+  - name: DEAN_FB_CODES
+    value: "2022,-1"
+  - name: DEAN_BLOCKED_INTERVAL
+    value: "24 hours"
+  - name: DEAN_RESPONDING_INTERVAL
+    value: "23 hours"
+  - name: DEAN_RESPONDING_GRACE
+    value: "1 hour"
+  queries:
+    - name: respondings
+      queries: "respondings,blocked"
+      schedule: "0 8,12,13,14,18 * * *"
+      resources:
+        requests:
+          cpu: 10m
+          memory: 10Mi
+    - name: timeouts
+      queries: "timeouts"
+      schedule: "*/1 * * * *"
+      resources:
+        requests:
+          cpu: 10m
+          memory: 10Mi
+
+scribble:
+  image:
+    repository: vlabresearch/scribble
+    tag: *vscribble
+    pullPolicy: IfNotPresent
+  resources:
+    requests:
+      cpu: 40m
+      memory: 64Mi
+  env:
+  - name: CHATBASE_DATABASE
+    value: "chatroach"
+  - name: CHATBASE_USER
+    value: "chatroach"
+  - name: CHATBASE_PASSWORD
+    value: ""
+  - name: CHATBASE_HOST
+    value: *host
+  - name: CHATBASE_PORT
+    value: "26257"
+  - name: KAFKA_BROKERS
+    value: *kb
+  - name: KAFKA_POLL_TIMEOUT
+    value: "20s"
+  - name: SCRIBBLE_CHUNK_SIZE
+    value: "16"
+  - name: SCRIBBLE_BATCH_SIZE
+    value: "128"
+
+  sinks:
+    - destination: "states"
+      replicaCount: 1
+      env:
+      - name: KAFKA_TOPIC
+        value: *statetopic
+      - name: KAFKA_GROUP
+        value: "scribble-states"
+    - destination: "responses"
+      replicaCount: 1
+      env:
+      - name: KAFKA_TOPIC
+        value: *responsetopic
+      - name: KAFKA_GROUP
+        value: "scribble-responses"
+    - destination: "messages"
+      replicaCount: 1
+      env:
+      - name: KAFKA_TOPIC
+        value: *topic
+      - name: KAFKA_GROUP
+        value: "scribble-messages"
+
 
 dumper:
   image:
