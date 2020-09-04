@@ -16,18 +16,12 @@ spec:
     spec:
       containers:
       - name: gbv-replybot
-        image: localhost:32000/replybot:registry
+        image: localhost:5000/replybot:registry
         imagePullPolicy: Always
         resources:
           requests:
             cpu: "50m"
             memory: "100Mi"
-        ports:
-        - containerPort: 80
-        volumeMounts:
-          - name: keys
-            mountPath: /usr/src/app/keys
-            readOnly: true
         envFrom:
         - secretRef:
             name: gbv-bot-envs
@@ -45,18 +39,22 @@ spec:
         - name: CHATBASE_PORT
           value: "26257"
         - name: FALLBACK_FORM
-          value: "CwU4bp"
+          value: "305"
+        - name: REPLYBOT_EVENT_TOPIC
+          value: "chat-events"
         - name: FACEBOOK_GRAPH_URL
           value: "http://gbv-facebot"
         - name: BOTSPINE_KAFKA_BROKERS
           value: "gbv-kafka:9092"
+        - name: KAFKA_BROKERS
+          value: "gbv-kafka:9092"
         - name: BOTSPINE_MESSAGE_TOPIC
           value: "chat-events"
+        - name: VLAB_STATE_TOPIC
+          value: "vlab-state"
+        - name: VLAB_RESPONSE_TOPIC
+          value: "vlab-response"
         - name: DASHBOARD_API
           value: "http://gbv-dashboard/api/v1"
         - name: BOTSERVER_URL
           value: "http://gbv-botserver"
-      volumes:
-        - name: keys
-          secret:
-            secretName: gbv-replybot-keys
