@@ -50,7 +50,10 @@ async function flowMaster(userId, testFlow) {
       throw e
     }
 
-    await sender(makeEcho(get, userId))
+    if (!res.error) {
+      await sender(makeEcho(get, userId))
+    }
+    
     for (let giv of gives) {
       await sender(giv)
     }

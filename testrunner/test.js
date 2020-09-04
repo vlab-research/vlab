@@ -8,7 +8,7 @@ const util = require('util');
 const {seed} = require('./seed-db');
 const {flowMaster} = require('./socket');
 const {snooze} = require('./utils')
-const {getResponses} = require('./responses')
+const {getResponses, getState} = require('./responses')
 
 ///////////////////////////////////////////////
 // SETUP -----------------------------------
@@ -70,7 +70,6 @@ describe('Test Bot flow Survey Integration Testing', () => {
 
       sender(makeReferral(userId, 'LDfNCy'))
       await flowMaster(userId, testFlow)
-
     })
 
     it('Test chat flow with logic jump "No"',  async () => {
@@ -86,6 +85,26 @@ describe('Test Bot flow Survey Integration Testing', () => {
 
       sender(makeReferral(userId, 'LDfNCy'));
       await flowMaster(userId, testFlow)
+    })
+
+
+    it('Puts user into blocked state when given facebook error',  async () => {
+      const userId = uuid()
+      const fields = getFields('forms/LDfNCy.json')
+      const err = { error: { code: 555 }}
+
+      const testFlow = [
+        [err, fields[0], []]
+      ]
+
+      sender(makeReferral(userId, 'LDfNCy'))
+      await flowMaster(userId, testFlow)
+
+      // wait for scribble to catch up
+      await snooze(8000)
+      const state = await getState(chatbase, userId)
+      state.current_state.should.equal('BLOCKED')
+      state.fb_error_code.should.equal('555')
     })
 
 
@@ -172,7 +191,6 @@ describe('Test Bot flow Survey Integration Testing', () => {
     })
 
     it('Test chat flow with stitched forms: stitches and maintains seed"',  async () => {
-
       const makeId = () => {
         const uid = uuid()
         const suitable = farmhash.fingerprint32('Llu24B' + uid) % 5 === 0;
@@ -194,15 +212,14 @@ describe('Test Bot flow Survey Integration Testing', () => {
 
       sender(makeReferral(userId, 'Llu24B'))
       await flowMaster(userId, testFlow)
-      // await snooze(1000) // Give scribble a second to write
 
-      // const res = await getResponses(chatbase, userId)
-      // res.length.should.equal(2)
-      // res.map(r => r['response']).should.include('LOL')
-      // res.map(r => r['response']).should.include('true')
-      // res.map(r => r['parent_shortcode']).should.eql(['Llu24B', 'Llu24B'])
+      await snooze(8000)
+      const res = await getResponses(chatbase, userId)
+      res.length.should.equal(2)
+      res.map(r => r['response']).should.include('LOL')
+      res.map(r => r['response']).should.include('true')
+      res.map(r => r['parent_shortcode']).should.eql(['Llu24B', 'Llu24B'])
     })
-
 
     it('Test chat flow with multiple links and keepMoving tag',  async () => {
       const userId = uuid()
