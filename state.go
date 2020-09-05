@@ -25,6 +25,7 @@ func (state *State) Queue(batch *pgx.Batch) {
 	}
 	query := SertQuery("UPSERT", "states", fields)
 
+
 	batch.Queue(query,
 		state.UserID,
 		state.PageID,

@@ -7,14 +7,17 @@ import (
 	"github.com/confluentinc/confluent-kafka-go/kafka"
 )
 
+type ConsumerInterface interface {
+	ReadMessage (time.Duration) (*kafka.Message, error)
+	Commit () ([]kafka.TopicPartition, error)
+}
+
 type KafkaConsumer struct {
-	Consumer *kafka.Consumer
+	Consumer ConsumerInterface
 	timeout time.Duration
 	batchSize int
 	chunkSize int
 }
-
-
 
 func NewKafkaConsumer(topic string, brokers string, group string, timeout time.Duration, batchSize int, chunkSize int) KafkaConsumer {
 	c, err := kafka.NewConsumer(&kafka.ConfigMap{
@@ -103,8 +106,7 @@ func process (messages chan []*kafka.Message, fn SideEffectFn) <-chan error {
 	}
 	return merge(chans...)
 }
-
-
+ 
 func (consumer KafkaConsumer) SideEffect (fn SideEffectFn, errs chan error) {
 	messages := consumer.Consume(errs)
 
@@ -114,11 +116,6 @@ func (consumer KafkaConsumer) SideEffect (fn SideEffectFn, errs chan error) {
 	for err := range perrs {
 		errs <- err
 	}
-
-	// race conditions with error handling,
-	// should only commit if all errors were ignored
-	// but that is handles elsewhere now...
-	time.Sleep(time.Second)
 
 	// commit!
 	_, err := consumer.Consumer.Commit()
@@ -130,6 +127,7 @@ func (consumer KafkaConsumer) SideEffect (fn SideEffectFn, errs chan error) {
 		}
 	}
 }
+
 
 func (consumer KafkaConsumer) Consume (errs chan error) chan []*kafka.Message {
 	return chunk(consumer.consumeStream(errs), consumer.chunkSize)

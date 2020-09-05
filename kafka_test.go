@@ -67,3 +67,146 @@ func TestProcessReturnsChannelWithAllErrors(t *testing.T) {
 	m.AssertNumberOfCalls(t, "FnError", 3)
 	m.AssertExpectations(t)
 }
+
+type TestConsumer struct {
+	Messages []*kafka.Message
+	Commits int
+	commitError bool
+}
+
+func (c *TestConsumer) ReadMessage(d time.Duration) (*kafka.Message, error) {
+	if len(c.Messages) == 0 {
+		return nil, kafka.NewError(kafka.ErrTimedOut, "test", false)
+	}
+
+	head := c.Messages[0]
+	c.Messages = c.Messages[1:]
+	return head, nil
+}
+
+func (c *TestConsumer) Commit() ([]kafka.TopicPartition, error) {
+	c.Commits += 1
+	if c.commitError {
+		return nil, &TestError{"foo"}
+	}
+	return []kafka.TopicPartition{}, nil
+}
+
+func TestSideEffectReadPartial(t *testing.T) {
+	msgs := makeMessages([]string{
+		`{"userid": "bar",
+          "pageid": "foo",
+          "updated": 1598706047838,
+          "current_state": "QOUT",
+          "state_json": { "token": "bar", "state": "QOUT", "tokens": ["foo"]}}`,
+		`{"userid": "baz",
+          "pageid": "foo",
+          "updated": 1598706047838,
+          "current_state": "RESPONDING",
+          "state_json": { "token": "bar", "state": "QOUT", "tokens": ["foo"]}}`,
+	})
+
+	c := &TestConsumer{Messages: msgs, Commits: 0}
+	consumer := KafkaConsumer{c, time.Second, 1, 1}
+	count := 0
+	fn := func([]*kafka.Message) error { 
+		count += 1
+		return nil 
+	}
+
+	errs := make(chan error)
+	consumer.SideEffect(fn, errs)
+	assert.Equal(t, c.Commits, 1)
+	assert.Equal(t, len(c.Messages), 1)
+}
+
+func TestSideEffectErrorsDoesntCommitBeforeHandlingError(t *testing.T) {
+	msgs := makeMessages([]string{
+		`{"userid": "bar",
+          "pageid": "foo",
+          "updated": 1598706047838,
+          "current_state": "QOUT",
+          "state_json": { "token": "bar", "state": "QOUT", "tokens": ["foo"]}}`,
+	})
+
+	c := &TestConsumer{Messages: msgs, Commits: 0}
+	consumer := KafkaConsumer{c, time.Second, 1, 1}
+	count := 0
+	fn := func([]*kafka.Message) error { 
+		count += 1
+		return errors.New("test")
+	}
+
+	done := make(chan bool)
+	errs := make(chan error)
+	go func(){
+		for _ = range errs {
+			assert.Equal(t, 0, c.Commits)
+			close(done)
+		}
+	}()
+	consumer.SideEffect(fn, errs)
+
+	<- done
+}
+
+
+func TestSideEffectOutputsCommitErrorOnErrorChannel(t *testing.T) {
+	msgs := makeMessages([]string{
+		`{"userid": "bar",
+          "pageid": "foo",
+          "updated": 1598706047838,
+          "current_state": "QOUT",
+          "state_json": { "token": "bar", "state": "QOUT", "tokens": ["foo"]}}`,
+	})
+
+	c := &TestConsumer{Messages: msgs, Commits: 0, commitError: true}
+	consumer := KafkaConsumer{c, time.Second, 1, 1}
+	count := 0
+	fn := func([]*kafka.Message) error { 
+		count += 1
+		return nil
+	}
+
+	done := make(chan bool)
+	errs := make(chan error)
+	go func(){
+		for e := range errs {
+			t.Log(e)
+			_, ok := e.(*TestError)
+			assert.Equal(t, true, ok)
+			close(done)
+		}
+	}()
+	consumer.SideEffect(fn, errs)
+
+	<- done
+}
+
+func TestSideEffectReadAllOutstanding(t *testing.T) {
+	msgs := makeMessages([]string{
+		`{"userid": "bar",
+          "pageid": "foo",
+          "updated": 1598706047838,
+          "current_state": "QOUT",
+          "state_json": { "token": "bar", "state": "QOUT", "tokens": ["foo"]}}`,
+		`{"userid": "baz",
+          "pageid": "foo",
+          "updated": 1598706047838,
+          "current_state": "RESPONDING",
+          "state_json": { "token": "bar", "state": "QOUT", "tokens": ["foo"]}}`,
+	})
+
+	c := &TestConsumer{Messages: msgs, Commits: 0}
+	consumer := KafkaConsumer{c, time.Second, 3, 3}
+	count := 0
+	fn := func([]*kafka.Message) error { 
+		count += 1
+		return nil 
+	}
+
+	errs := make(chan error)
+	consumer.SideEffect(fn, errs)
+	assert.Equal(t, 1, c.Commits)
+	assert.Equal(t, 0, len(c.Messages))
+}

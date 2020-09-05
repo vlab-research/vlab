@@ -23,6 +23,7 @@ type Config struct {
 	BatchSize int `env:"SCRIBBLE_BATCH_SIZE,required"`
 	ChunkSize int `env:"SCRIBBLE_CHUNK_SIZE,required"`
 	Destination string `env:"SCRIBBLE_DESTINATION,required"`
+	Handlers string `env:"SCRIBBLE_ERROR_HANDLERS,required"`
 }
 
 func monitor(errs <-chan error) {
@@ -65,21 +66,31 @@ func getMarshaller(cfg *Config) MarshalWriteable {
 	return m
 }
 
-func main() {
+func getConfig() Config {
 	cfg := Config{}
 	err := env.Parse(&cfg)
 	handle(err)
+	if cfg.Handlers != "" && cfg.ChunkSize != 1 {
+		log.Fatalf("Scribble can only pass on errors with a chunk size of 1. Passed chunk size: %v", 
+			cfg.ChunkSize)
+	}
+	return cfg
+}
+
+func main() {
+	cfg := getConfig()
 
 	pool := getPool(&cfg)
 
 	c := NewKafkaConsumer(cfg.Topic, cfg.KafkaBrokers, cfg.Group,
 		cfg.KafkaPollTimeout, cfg.BatchSize, cfg.ChunkSize)
 
+	// monitor errors, with handling as per config
 	errs := make(chan error)
-	go monitor(errs)
+	go monitor(HandleErrors(errs, getHandlers(&cfg)))
 
+	// Write forever
 	writer := GetWriter(pool, getMarshaller(&cfg))
-
 	for {
 		c.SideEffect(writer.Write, errs)
 	}
