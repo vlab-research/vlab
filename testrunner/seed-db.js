@@ -40,12 +40,19 @@ async function insertSurvey(pool, filename, body) {
   await pool.query(query, values)
 }
 
+function readForm(form) {
+  return [form, fs.readFileSync(`forms/${form}`, 'utf8')]
+}
+
 async function seed(chatbase) {
   const pool = chatbase.pool
-  for (let form of fs.readdirSync('forms')) {
-    const body = fs.readFileSync(`forms/${form}`, 'utf8')
-    insertSurvey(pool, form, body)
-  }
+  const inserts = fs.readdirSync('forms')
+    .map(readForm)
+    .map(([form, body]) => insertSurvey(pool, form, body))
+
+  return Promise.all(inserts).catch(err => {
+    console.error(err)
+  })
 }
 
 module.exports = { seed }

@@ -101,10 +101,23 @@ describe('Test Bot flow Survey Integration Testing', () => {
       await flowMaster(userId, testFlow)
 
       // wait for scribble to catch up
-      await snooze(8000)
+      await snooze(5000)
       const state = await getState(chatbase, userId)
       state.current_state.should.equal('BLOCKED')
       state.fb_error_code.should.equal('555')
+    })
+
+    it('Puts user into error state when given a bad form',  async () => {
+      const userId = uuid()
+      sender(makeReferral(userId, 'DOESNTEXIST'))
+
+      // wait for scribble to catch up
+      await snooze(5000)
+      const state = await getState(chatbase, userId)
+      state.current_state.should.equal('ERROR')
+      state.state_json.error.tag.should.equal('INTERNAL')
+      state.state_json.error.message.should.equal('getForm')
+      state.state_json.error.status.should.equal(404)
     })
 
 

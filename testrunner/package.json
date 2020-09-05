@@ -12,7 +12,7 @@
   "license": "ISC",
   "dependencies": {
     "@vlab-research/chatbase-postgres": "0.0.3",
-    "@vlab-research/mox": "0.0.17",
+    "@vlab-research/mox": "0.0.18",
     "@vlab-research/utils": "0.0.10",
     "chai": "^4.2.0",
     "dotenv": "^8.1.0",
