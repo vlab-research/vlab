@@ -1,4 +1,4 @@
-package main 
+package main
 
 import (
 	"fmt"
@@ -36,9 +36,15 @@ func getHandlers(cfg *Config) []Handler {
 		"checkconstraint": CheckConstraintHandler,
 	}
 
-	names := strings.Split(cfg.Handlers, ",")
+
 	handlers := []Handler{}
+	if cfg.Handlers == "" {
+		return handlers
+	}
+
+	names := strings.Split(cfg.Handlers, ",")
 	for _, n := range names {
+		n = strings.TrimSpace(n)
 		handler, ok := lookup[n]
 		if !ok {
 			log.Fatalf("Scribble could not find handler named: %v", n)

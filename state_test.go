@@ -2,7 +2,7 @@ package main
 
 import (
 	"testing"
-	"time" 
+	"time"
 
 	"github.com/go-playground/validator/v10"
 	"github.com/stretchr/testify/assert"

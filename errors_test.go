@@ -1,4 +1,4 @@
-package main 
+package main
 
 import (
 	"testing"
@@ -20,12 +20,12 @@ func TestHandleErrorsCatchesEverything(t *testing.T) {
 
 	e := HandleErrors(errs, handlers)
 
-	go func() {		
+	go func() {
 		errs <- errors.New("hi")
 		close(errs)
 	}()
 
-	go func() {		
+	go func() {
 		defer close(done)
 		for _ = range e {
 			t.Error("shouldnt have had anything in this channel")
@@ -42,13 +42,13 @@ func TestHandleErrorsWorksWithNoHandlers(t *testing.T) {
 	errs := make(chan error)
 	e := HandleErrors(errs, handlers)
 
-	go func() {		
+	go func() {
 		errs <- &TestError{"bar"}
 		errs <- errors.New("foo")
 		close(errs)
 	}()
 
-	go func() {		
+	go func() {
 		count := 0
 		defer close(done)
 		for err := range e {
@@ -76,13 +76,13 @@ func TestHandleErrorsPassesSomeErrors(t *testing.T) {
 	errs := make(chan error)
 	e := HandleErrors(errs, handlers)
 
-	go func() {		
+	go func() {
 		errs <- &TestError{"bar"}
 		errs <- errors.New("foo")
 		close(errs)
 	}()
 
-	go func() {		
+	go func() {
 		count := 0
 		defer close(done)
 		for err := range e {
@@ -94,4 +94,22 @@ func TestHandleErrorsPassesSomeErrors(t *testing.T) {
 	}()
 
 	<- done
+}
+
+
+func TestGetHandlers(t *testing.T) {
+	res := getHandlers(&Config{Handlers: ""})
+	assert.Equal(t, 0, len(res))
+
+	res = getHandlers(&Config{Handlers: "foreignkey"})
+	assert.Equal(t, 1, len(res))
+
+	res = getHandlers(&Config{Handlers: "foreignkey,validation"})
+	assert.Equal(t, 2, len(res))
+
+	res = getHandlers(&Config{Handlers: "foreignkey, validation"})
+	assert.Equal(t, 2, len(res))
+
+	res = getHandlers(&Config{Handlers: " foreignkey "})
+	assert.Equal(t, 1, len(res))
 }
