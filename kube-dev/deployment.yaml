@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
         - name: gbv-dashboard
-          image: localhost:32000/gbv-dashboard:registry
+          image: localhost:5000/gbv-dashboard:registry
           imagePullPolicy: Always
           resources:
             requests:

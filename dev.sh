@@ -1,9 +1,7 @@
-eval $(minikube docker-env)
-
 # App
 kubectl delete -f kube-dev
-docker build -t localhost:32000/gbv-dashboard:registry .
-docker push localhost:32000/gbv-dashboard:registry
+docker build -t localhost:5000/gbv-dashboard:registry .
+docker push localhost:5000/gbv-dashboard:registry
 kubectl apply -f kube-dev
 
 # Port forwarding
