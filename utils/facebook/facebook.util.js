@@ -13,8 +13,9 @@ exports.setGetStarted = async (token) => {
   }
 }
 
-exports.subscribe = async (page, token)  => {
-  const url = `${fb.url}/${page}/subscribed_apps?access_token=${token}`;
+exports.subscribe = async (page)  => {
+  const pseudotoken = `${fb.id}|${fb.secret}`;
+  const url = `${fb.url}/${page}/subscribed_apps?access_token=${pseudotoken}`;
   const json = { subscribed_fields: ['messages', 
                                      'message_echoes',
                                      'messaging_account_linking', 
