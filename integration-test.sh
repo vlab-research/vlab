@@ -51,7 +51,6 @@ kubectl wait --for=condition=available \
         deployment/gbv-replybot \
         deployment/gbv-botserver \
         deployment/gbv-linksniffer \
-        deployment/gbv-scribble \
         --timeout 5m
 
 
