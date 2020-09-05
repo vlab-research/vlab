@@ -60,7 +60,12 @@ exports.getBy = async (req, res, next) => {
       });
 
       // send only latest survey...
-      res.status(200).send(surveys[0]);
+      const survey = surveys[0]
+      if (survey) {
+        return res.status(200).send(survey);
+      }
+      return res.status(404).json({error: {message: 'survey not found'}})
+
     } else {
       next();
     }
