@@ -34,6 +34,7 @@ cat sql/migrate-3.sql | kubectl run -i --rm cockroach-client --image=cockroachdb
 cat sql/migrate-4.sql | kubectl run -i --rm cockroach-client --image=cockroachdb/cockroach:v20.1.4 --restart=Never --command -- ./cockroach sql --insecure --host gbv-cockroachdb-public
 cat sql/migrate-5.sql | kubectl run -i --rm cockroach-client --image=cockroachdb/cockroach:v20.1.4 --restart=Never --command -- ./cockroach sql --insecure --host gbv-cockroachdb-public
 cat ./sql/migrate-6.sql | kubectl run -i --rm cockroach-client --image=cockroachdb/cockroach:v20.1.4 --restart=Never --command -- ./cockroach sql --insecure --host gbv-cockroachdb-public
+cat ./sql/migrate-7.sql | kubectl run -i --rm cockroach-client --image=cockroachdb/cockroach:v20.1.4 --restart=Never --command -- ./cockroach sql --insecure --host gbv-cockroachdb-public
 
 ######################
 # wait for everything
@@ -44,4 +45,7 @@ kubectl wait --for=condition=available \
         deployment/gbv-replybot \
         deployment/gbv-botserver \
         deployment/gbv-linksniffer \
+        deployment/gbv-scribble-messages \
+        deployment/gbv-scribble-responses \
+        deployment/gbv-scribble-states \
         --timeout 5m

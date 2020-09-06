@@ -16,36 +16,34 @@ responseTopic: &responsetopic "vlab-prod-response"
 botEnvs: &botenvs gbv-bot-envs
 chatbaseHost: &host "gbv-cockroachdb-public"
 
-versionDashboard: &vdashboard 0.0.5
-versionNaughtybot: &vnaughtybot 0.0.12
+versionDashboard: &vdashboard 0.0.6
 versionBotserver: &vbotserver 0.0.8
-versionReplybot: &vreplybot 0.0.90
-versionBotscribe: &vbotscribe 0.0.7
+versionReplybot: &vreplybot 0.0.93
 versionLinksniffer: &vlinksniffer 0.0.3
 versionDean: &vdean 0.0.12
-versionScribble: &vscribble 0.0.5
+versionScribble: &vscribble 0.0.8
 
 processingAlerts:
   - consumergroup: replybot
-
     topic: *topic
     window: "8h"
     limit: "1"
+
 laggingAlerts:
   - consumergroup: replybot
     alertname: LaggingConsumerReplybot
     window: "5m"
     limit: "20"
-  - consumergroup: botscribe
-    alertname: LaggingConsumerBotscribe
+  - consumergroup: scribble-responses
+    alertname: LaggingConsumerScribbleMessages
     window: "5m"
     limit: "20"
-  - consumergroup: scratchbot
-    alertname: LaggingConsumerScratchbot
+  - consumergroup: scribble-states
+    alertname: LaggingConsumerScribbleMessages
     window: "5m"
     limit: "20"
-  - consumergroup: naughtybot
-    alertname: LaggingConsumerNaughtybot
+  - consumergroup: scribble-messages
+    alertname: LaggingConsumerScribbleMessages
     window: "5m"
     limit: "20"
 
@@ -95,14 +93,14 @@ dean:
   queries:
     - name: respondings
       queries: "respondings,blocked"
-      schedule: "0 8,12,13,14,18,22 * * *"
+      schedule: "40 8,12,13,14,18,22 * * *"
       resources:
         requests:
           cpu: 10m
           memory: 10Mi
     - name: timeouts
       queries: "timeouts"
-      schedule: "* */2 * * *"
+      schedule: "40 18 * * *"
       resources:
         requests:
           cpu: 10m
@@ -132,6 +130,8 @@ scribble:
     value: *kb
   - name: KAFKA_POLL_TIMEOUT
     value: "2s"
+  - name: SCRIBBLE_ERROR_HANDLERS
+    value: ""
 
   sinks:
     - destination: "states"
@@ -191,48 +191,6 @@ dumper:
     value: *host
   - name: DUMPER_LOCATION
     value: "gs://vlab-research-backups/gbv-india/"
-
-
-naughtybot:
-  image:
-    repository: vlabresearch/naughtybot
-    tag: *vnaughtybot
-    pullPolicy: IfNotPresent
-
-  env:
-  - name: CHATBASE_BACKEND
-    value: "@vlab-research/chatbase-postgres"
-  - name: CHATBASE_DATABASE
-    value: "chatroach"
-  - name: CHATBASE_USER
-    value: "chatroach"
-  - name: CHATBASE_PASSWORD
-    value: ""
-  - name: CHATBASE_HOST
-    value: *host
-  - name: CHATBASE_PORT
-    value: "26257"
-  - name: BOTSPINE_KAFKA_BROKERS
-    value: *kb
-  - name: BOTSPINE_MESSAGE_TOPIC
-    value: *topic
-  - name: BOTSERVER_URL
-    value: "http://gbv-botserver"
-
-
-  writer:
-    replicaCount: 2
-    resources:
-      requests:
-        cpu: 5m
-        memory: 64Mi
-
-  dean:
-    schedule: "*/1 * * * *"
-    resources:
-      requests:
-        cpu: 10m
-        memory: 64Mi
 
 
 linksniffer:
@@ -374,41 +332,6 @@ scratchbot:
       cpu: 5m
       memory: 64Mi
 
-
-botscribe:
-  replicaCount: 3
-
-  image:
-    repository: vlabresearch/botscribe
-    tag: *vbotscribe
-    pullPolicy: IfNotPresent
-
-  envFrom: *botenvs
-
-  env:
-  - name: CHATBASE_BACKEND
-    value: "@vlab-research/chatbase-postgres"
-  - name: CHATBASE_DATABASE
-    value: "chatroach"
-  - name: CHATBASE_USER
-    value: "chatroach"
-  - name: CHATBASE_PASSWORD
-    value: ""
-  - name: CHATBASE_HOST
-    value: *host
-  - name: CHATBASE_PORT
-    value: "26257"
-  - name: BOTSCRIBE_HIGHWATER
-    value: "500"
-  - name: BOTSPINE_KAFKA_BROKERS
-    value: *kb
-  - name: BOTSPINE_MESSAGE_TOPIC
-    value: *topic
-
-  resources:
-    requests:
-      cpu: 5m
-      memory: 50Mi
 
 
 replybot:
