@@ -6,7 +6,8 @@
     "test": "test"
   },
   "scripts": {
-    "test": "mocha --colors test.js --exit"
+    "test": "mocha --colors test.js --exit",
+    "lint": "eslint ."
   },
   "author": "",
   "license": "ISC",
@@ -23,5 +24,8 @@
     "r2": "^2.0.1",
     "uuid": "^3.3.3",
     "zeromq": "^6.0.0-beta.6"
+  },
+  "devDependencies": {
+    "eslint": "^7.8.1"
   }
 }

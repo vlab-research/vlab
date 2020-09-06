@@ -8,8 +8,9 @@ async function getUserId(pool) {
 async function pages(pool, userid) {
   // require('@vlab-research/mox').PAGE_ID
   const pageid = '935593143497601';
-  const query = `INSERT INTO facebook_pages(pageid, userid) VALUES($1, $2) ON CONFLICT DO NOTHING`
-  return pool.query(query, [pageid, userid])
+  const token = 'test'
+  const query = `INSERT INTO facebook_pages(pageid, userid, token) VALUES($1, $2, $3) ON CONFLICT(pageid) DO NOTHING`
+  return pool.query(query, [pageid, userid, token])
 }
 
 async function surveyExists(pool, userid, shortcode) {
@@ -18,18 +19,13 @@ async function surveyExists(pool, userid, shortcode) {
   return !!rows && !!rows.length
 }
 
-async function insertSurvey(pool, filename, body) {
+async function insertSurvey(pool, filename, body, userid) {
   const query = `INSERT INTO surveys(created, formid, form, messages, shortcode, userid, title)
        values($1, $2, $3, $4, $5, $6, $7)
-       ON CONFLICT(id) DO NOTHING
        RETURNING *`;
 
   const form = JSON.parse(body)
-
   const messages = form.custom_messages || {}
-
-  const userid = await getUserId(pool)
-  await pages(pool, userid)
   const created = new Date()
   const formid = filename.split('.')[0]
 
@@ -46,9 +42,13 @@ function readForm(form) {
 
 async function seed(chatbase) {
   const pool = chatbase.pool
+
+  const userId = await getUserId(pool)
+  await pages(pool, userId)
+
   const inserts = fs.readdirSync('forms')
     .map(readForm)
-    .map(([form, body]) => insertSurvey(pool, form, body))
+    .map(([form, body]) => insertSurvey(pool, form, body, userId))
 
   return Promise.all(inserts).catch(err => {
     console.error(err)

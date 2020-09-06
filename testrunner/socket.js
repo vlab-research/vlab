@@ -35,7 +35,6 @@ async function flowMaster(userId, testFlow) {
     const {data, token} = sent
 
     const msg = data.message
-    const recipient = data.recipient
 
     try {
       msg.should.eql(get)
@@ -53,7 +52,7 @@ async function flowMaster(userId, testFlow) {
     if (!res.error) {
       await sender(makeEcho(get, userId))
     }
-    
+
     for (let giv of gives) {
       await sender(giv)
     }

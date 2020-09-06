@@ -1,10 +1,9 @@
 require('chai').should()
 var parallel = require('mocha.parallel');
 const sender = require('./sender.js')
-const {makeMocks, makeEcho, makeQR, makePostback, makeTextResponse, makeReferral, makeSynthetic, getFields, makeNotify} = require('@vlab-research/mox')
+const {makeQR, makePostback, makeTextResponse, makeReferral, makeSynthetic, getFields, makeNotify} = require('@vlab-research/mox')
 const uuid = require('uuid');
 const farmhash = require('farmhash');
-const util = require('util');
 const {seed} = require('./seed-db');
 const {flowMaster} = require('./socket');
 const {snooze} = require('./utils')
