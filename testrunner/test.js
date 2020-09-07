@@ -100,7 +100,7 @@ describe('Test Bot flow Survey Integration Testing', () => {
       await flowMaster(userId, testFlow)
 
       // wait for scribble to catch up
-      await snooze(5000)
+      await snooze(8000)
       const state = await getState(chatbase, userId)
       state.current_state.should.equal('BLOCKED')
       state.fb_error_code.should.equal('555')
@@ -111,7 +111,7 @@ describe('Test Bot flow Survey Integration Testing', () => {
       sender(makeReferral(userId, 'DOESNTEXIST'))
 
       // wait for scribble to catch up
-      await snooze(5000)
+      await snooze(8000)
       const state = await getState(chatbase, userId)
       state.current_state.should.equal('ERROR')
       state.state_json.error.tag.should.equal('INTERNAL')
