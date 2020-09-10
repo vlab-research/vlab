@@ -18,7 +18,7 @@ chatbaseHost: &host "gbv-cockroachdb-public"
 
 versionDashboard: &vdashboard 0.0.6
 versionBotserver: &vbotserver 0.0.8
-versionReplybot: &vreplybot 0.0.96
+versionReplybot: &vreplybot 0.0.101
 versionLinksniffer: &vlinksniffer 0.0.3
 versionDean: &vdean 0.0.12
 versionScribble: &vscribble 0.0.8
@@ -85,22 +85,22 @@ dean:
   - name: DEAN_FB_CODES
     value: "2022,613,-1"
   - name: DEAN_BLOCKED_INTERVAL
-    value: "24 hours"
+    value: "999999999 years"
   - name: DEAN_RESPONDING_INTERVAL
-    value: "23 hours"
+    value: "999999999 years"
   - name: DEAN_RESPONDING_GRACE
-    value: "1 hour"
+    value: "40 minutes"
   queries:
     - name: respondings
       queries: "respondings,blocked"
-      schedule: "5 */2 * * *"
+      schedule: "47 * * * *"
       resources:
         requests:
           cpu: 10m
           memory: 10Mi
     - name: timeouts
       queries: "timeouts"
-      schedule: "57 11 * * *"
+      schedule: "*/15 * * * *"
       resources:
         requests:
           cpu: 10m
@@ -142,9 +142,9 @@ scribble:
       - name: KAFKA_GROUP
         value: "scribble-states"
       - name: SCRIBBLE_CHUNK_SIZE
-        value: "16"
+        value: "8"
       - name: SCRIBBLE_BATCH_SIZE
-        value: "32"
+        value: "16"
     - destination: "responses"
       replicaCount: 1
       env:
@@ -153,9 +153,9 @@ scribble:
       - name: KAFKA_GROUP
         value: "scribble-responses"
       - name: SCRIBBLE_CHUNK_SIZE
-        value: "16"
+        value: "8"
       - name: SCRIBBLE_BATCH_SIZE
-        value: "32"
+        value: "16"
     - destination: "messages"
       replicaCount: 1
       env:
