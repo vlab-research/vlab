@@ -19,9 +19,9 @@ chatbaseHost: &host "gbv-cockroachdb-public"
 
 versionDashboard: &vdashboard 0.0.6
 versionBotserver: &vbotserver 0.0.8
-versionReplybot: &vreplybot 0.0.103
+versionReplybot: &vreplybot 0.0.104
 versionLinksniffer: &vlinksniffer 0.0.3
-versionDean: &vdean 0.0.13
+versionDean: &vdean 0.0.14
 versionScribble: &vscribble 0.0.8
 
 
@@ -191,6 +191,10 @@ dean:
     value: "1 hour"
   - name: DEAN_SEND_DELAY
     value: "1ms"
+  - name: DEAN_FOLLOWUP_MIN
+    value: "1 minute"
+  - name: DEAN_FOLLOWUP_MAX
+    value: "1 hour"
   queries:
     - name: respondings
       queries: "respondings,blocked"
@@ -200,7 +204,7 @@ dean:
           cpu: 10m
           memory: 10Mi
     - name: timeouts
-      queries: "timeouts"
+      queries: "timeouts,followups"
       schedule: "*/1 * * * *"
       resources:
         requests:
