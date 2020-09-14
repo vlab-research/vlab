@@ -1,5 +1,7 @@
 CREATE INVERTED INDEX ON chatroach.states(state_json);
 
+CREATE INVERTED INDEX ON chatroach.responses(metadata);
+
 ALTER TABLE chatroach.states ADD COLUMN current_form varchar AS (state_json->'forms'->>-1) STORED;
 CREATE INDEX ON chatroach.states (current_state, current_form, updated);
 
