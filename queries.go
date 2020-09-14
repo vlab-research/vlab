@@ -3,7 +3,7 @@ package main
 
 import (
 	"context"
-	"time"
+	"encoding/json"
 
 	"github.com/jackc/pgx/v4"
 	"github.com/jackc/pgx/v4/pgxpool"
@@ -12,7 +12,7 @@ import (
 
 type Event struct {
 	Type string `json:"type"`
-	Value string `json:"value,omitempty"` // rawmesssage??
+	Value *json.RawMessage `json:"value,omitempty"` // rawmesssage??
 }
 
 type ExternalEvent struct {
@@ -46,17 +46,22 @@ func getRedo(rows pgx.Rows) *ExternalEvent {
 	var userid, pageid string
 	err := rows.Scan(&userid, &pageid)
 	handle(err)
-	return &ExternalEvent{userid, pageid, &Event{"redo", ""}}
+
+	b, _ := json.Marshal(nil)
+	value := json.RawMessage(b)
+	return &ExternalEvent{userid, pageid, &Event{"redo", &value}}
 }
 
 func getTimeout(rows pgx.Rows) *ExternalEvent {
-	var timeoutDate time.Time
+	var waitStart int64
 	var userid, pageid string
-	err := rows.Scan(&timeoutDate, &userid, &pageid)
+	err := rows.Scan(&waitStart, &userid, &pageid)
 	handle(err)
 
-	ts := timeoutDate.UTC().Format(time.RFC3339)
-	return &ExternalEvent{userid, pageid, &Event{"timeout", ts}}
+	b, _ := json.Marshal(waitStart)
+	value := json.RawMessage(b)
+
+	return &ExternalEvent{userid, pageid, &Event{"timeout", &value}}
 }
 
 func Respondings(cfg *Config, conn *pgxpool.Pool) <-chan *ExternalEvent {
@@ -81,7 +86,7 @@ func Blocked(cfg *Config, conn *pgxpool.Pool) <-chan *ExternalEvent {
 }
 
 func Timeouts(cfg *Config, conn *pgxpool.Pool) <-chan *ExternalEvent {
-	query := `SELECT timeout_date, userid, pageid 
+	query := `SELECT (state_json->>'waitStart')::int, userid, pageid 
               FROM states 
               WHERE current_state = 'WAIT_EXTERNAL_EVENT' 
               AND timeout_date < NOW()`

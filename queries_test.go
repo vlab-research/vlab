@@ -1,9 +1,10 @@
 package main
 
 import (
+	"encoding/json"
+	"fmt"
 	"testing"
 	"time"
-	"fmt"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -164,8 +165,9 @@ func TestGetTimeoutsGetsOnlyExpiredTimeouts(t *testing.T) {
 
 	assert.Equal(t, "timeout", events[0].Event.Type)
 
-	ti := ts.Add(20*time.Minute).Format(time.RFC3339)
-	assert.Equal(t, ti, events[0].Event.Value)
+	
+	ev, _ := json.Marshal(events[0].Event)
+	assert.Equal(t, string(ev), fmt.Sprintf(`{"type":"timeout","value":%v}`, ms))
 
 	mustExec(t, pool, "drop table states")
 }
