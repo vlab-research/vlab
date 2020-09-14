@@ -1,0 +1,1228 @@
+{
+  "annotations": {
+    "list": [
+      {
+        "$$hashKey": "object:3167",
+        "builtIn": 1,
+        "datasource": "-- Grafana --",
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      }
+    ]
+  },
+  "editable": true,
+  "gnetId": null,
+  "graphTooltip": 0,
+  "id": 24,
+  "iteration": 1599846919243,
+  "links": [],
+  "panels": [
+    {
+      "datasource": "PostgreSQL",
+      "gridPos": {
+        "h": 7,
+        "w": 6,
+        "x": 0,
+        "y": 0
+      },
+      "id": 2,
+      "maxPerRow": 6,
+      "options": {
+        "colorMode": "value",
+        "fieldOptions": {
+          "calcs": [
+            "mean"
+          ],
+          "defaults": {
+            "mappings": [],
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {
+                  "color": "green",
+                  "value": null
+                }
+              ]
+            },
+            "title": "$form"
+          },
+          "overrides": [],
+          "values": false
+        },
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto"
+      },
+      "pluginVersion": "6.7.3",
+      "repeat": "form",
+      "repeatDirection": "h",
+      "scopedVars": {
+        "form": {
+          "$$hashKey": "object:3586",
+          "selected": true,
+          "text": "baselinehin",
+          "value": "baselinehin"
+        }
+      },
+      "targets": [
+        {
+          "format": "table",
+          "group": [],
+          "metricColumn": "none",
+          "rawQuery": true,
+          "rawSql": "SELECT\n  count(*)\nFROM states\nWHERE\n  $__timeFilter(updated) AND\n  current_state = 'WAIT_EXTERNAL_EVENT' AND\n  current_form = $form\nORDER BY 1",
+          "refId": "A",
+          "select": [
+            [
+              {
+                "params": [
+                  "value"
+                ],
+                "type": "column"
+              }
+            ]
+          ],
+          "table": "states",
+          "timeColumn": "updated",
+          "timeColumnType": "timestamptz",
+          "where": [
+            {
+              "name": "$__timeFilter",
+              "params": [],
+              "type": "macro"
+            }
+          ]
+        }
+      ],
+      "timeFrom": null,
+      "timeShift": null,
+      "title": "Waiting Timeout",
+      "type": "stat"
+    },
+    {
+      "datasource": "PostgreSQL",
+      "gridPos": {
+        "h": 7,
+        "w": 6,
+        "x": 6,
+        "y": 0
+      },
+      "id": 8,
+      "maxPerRow": 6,
+      "options": {
+        "colorMode": "value",
+        "fieldOptions": {
+          "calcs": [
+            "mean"
+          ],
+          "defaults": {
+            "mappings": [],
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {
+                  "color": "green",
+                  "value": null
+                }
+              ]
+            },
+            "title": "$form"
+          },
+          "overrides": [],
+          "values": false
+        },
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto"
+      },
+      "pluginVersion": "6.7.3",
+      "repeat": null,
+      "repeatDirection": "h",
+      "repeatIteration": 1599846919243,
+      "repeatPanelId": 2,
+      "scopedVars": {
+        "form": {
+          "$$hashKey": "object:3587",
+          "selected": true,
+          "text": "baselinehinexc",
+          "value": "baselinehinexc"
+        }
+      },
+      "targets": [
+        {
+          "format": "table",
+          "group": [],
+          "metricColumn": "none",
+          "rawQuery": true,
+          "rawSql": "SELECT\n  count(*)\nFROM states\nWHERE\n  $__timeFilter(updated) AND\n  current_state = 'WAIT_EXTERNAL_EVENT' AND\n  current_form = $form\nORDER BY 1",
+          "refId": "A",
+          "select": [
+            [
+              {
+                "params": [
+                  "value"
+                ],
+                "type": "column"
+              }
+            ]
+          ],
+          "table": "states",
+          "timeColumn": "updated",
+          "timeColumnType": "timestamptz",
+          "where": [
+            {
+              "name": "$__timeFilter",
+              "params": [],
+              "type": "macro"
+            }
+          ]
+        }
+      ],
+      "timeFrom": null,
+      "timeShift": null,
+      "title": "Waiting Timeout",
+      "type": "stat"
+    },
+    {
+      "datasource": "PostgreSQL",
+      "gridPos": {
+        "h": 7,
+        "w": 6,
+        "x": 12,
+        "y": 0
+      },
+      "id": 9,
+      "maxPerRow": 6,
+      "options": {
+        "colorMode": "value",
+        "fieldOptions": {
+          "calcs": [
+            "mean"
+          ],
+          "defaults": {
+            "mappings": [],
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {
+                  "color": "green",
+                  "value": null
+                }
+              ]
+            },
+            "title": "$form"
+          },
+          "overrides": [],
+          "values": false
+        },
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto"
+      },
+      "pluginVersion": "6.7.3",
+      "repeat": null,
+      "repeatDirection": "h",
+      "repeatIteration": 1599846919243,
+      "repeatPanelId": 2,
+      "scopedVars": {
+        "form": {
+          "$$hashKey": "object:3595",
+          "selected": true,
+          "text": "follow1hin",
+          "value": "follow1hin"
+        }
+      },
+      "targets": [
+        {
+          "format": "table",
+          "group": [],
+          "metricColumn": "none",
+          "rawQuery": true,
+          "rawSql": "SELECT\n  count(*)\nFROM states\nWHERE\n  $__timeFilter(updated) AND\n  current_state = 'WAIT_EXTERNAL_EVENT' AND\n  current_form = $form\nORDER BY 1",
+          "refId": "A",
+          "select": [
+            [
+              {
+                "params": [
+                  "value"
+                ],
+                "type": "column"
+              }
+            ]
+          ],
+          "table": "states",
+          "timeColumn": "updated",
+          "timeColumnType": "timestamptz",
+          "where": [
+            {
+              "name": "$__timeFilter",
+              "params": [],
+              "type": "macro"
+            }
+          ]
+        }
+      ],
+      "timeFrom": null,
+      "timeShift": null,
+      "title": "Waiting Timeout",
+      "type": "stat"
+    },
+    {
+      "datasource": "PostgreSQL",
+      "gridPos": {
+        "h": 7,
+        "w": 6,
+        "x": 18,
+        "y": 0
+      },
+      "id": 10,
+      "maxPerRow": 6,
+      "options": {
+        "colorMode": "value",
+        "fieldOptions": {
+          "calcs": [
+            "mean"
+          ],
+          "defaults": {
+            "mappings": [],
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {
+                  "color": "green",
+                  "value": null
+                }
+              ]
+            },
+            "title": "$form"
+          },
+          "overrides": [],
+          "values": false
+        },
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto"
+      },
+      "pluginVersion": "6.7.3",
+      "repeat": null,
+      "repeatDirection": "h",
+      "repeatIteration": 1599846919243,
+      "repeatPanelId": 2,
+      "scopedVars": {
+        "form": {
+          "$$hashKey": "object:3597",
+          "selected": true,
+          "text": "follow2hin",
+          "value": "follow2hin"
+        }
+      },
+      "targets": [
+        {
+          "format": "table",
+          "group": [],
+          "metricColumn": "none",
+          "rawQuery": true,
+          "rawSql": "SELECT\n  count(*)\nFROM states\nWHERE\n  $__timeFilter(updated) AND\n  current_state = 'WAIT_EXTERNAL_EVENT' AND\n  current_form = $form\nORDER BY 1",
+          "refId": "A",
+          "select": [
+            [
+              {
+                "params": [
+                  "value"
+                ],
+                "type": "column"
+              }
+            ]
+          ],
+          "table": "states",
+          "timeColumn": "updated",
+          "timeColumnType": "timestamptz",
+          "where": [
+            {
+              "name": "$__timeFilter",
+              "params": [],
+              "type": "macro"
+            }
+          ]
+        }
+      ],
+      "timeFrom": null,
+      "timeShift": null,
+      "title": "Waiting Timeout",
+      "type": "stat"
+    },
+    {
+      "datasource": "PostgreSQL",
+      "gridPos": {
+        "h": 7,
+        "w": 6,
+        "x": 0,
+        "y": 7
+      },
+      "id": 6,
+      "maxPerRow": 6,
+      "options": {
+        "colorMode": "value",
+        "fieldOptions": {
+          "calcs": [
+            "mean"
+          ],
+          "defaults": {
+            "mappings": [],
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {
+                  "color": "yellow",
+                  "value": null
+                }
+              ]
+            },
+            "title": "$form"
+          },
+          "overrides": [],
+          "values": false
+        },
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto"
+      },
+      "pluginVersion": "6.7.3",
+      "repeat": "form",
+      "repeatDirection": "h",
+      "scopedVars": {
+        "form": {
+          "$$hashKey": "object:3586",
+          "selected": true,
+          "text": "baselinehin",
+          "value": "baselinehin"
+        }
+      },
+      "targets": [
+        {
+          "format": "table",
+          "group": [],
+          "metricColumn": "none",
+          "rawQuery": true,
+          "rawSql": "SELECT\n  count(*)\nFROM states\nWHERE\n  $__timeFilter(updated) AND\n  current_state = 'QOUT' AND\n  current_form = $form\nORDER BY 1",
+          "refId": "A",
+          "select": [
+            [
+              {
+                "params": [
+                  "value"
+                ],
+                "type": "column"
+              }
+            ]
+          ],
+          "table": "states",
+          "timeColumn": "updated",
+          "timeColumnType": "timestamptz",
+          "where": [
+            {
+              "name": "$__timeFilter",
+              "params": [],
+              "type": "macro"
+            }
+          ]
+        }
+      ],
+      "timeFrom": null,
+      "timeShift": null,
+      "title": "Not Responding",
+      "type": "stat"
+    },
+    {
+      "datasource": "PostgreSQL",
+      "gridPos": {
+        "h": 7,
+        "w": 6,
+        "x": 6,
+        "y": 7
+      },
+      "id": 11,
+      "maxPerRow": 6,
+      "options": {
+        "colorMode": "value",
+        "fieldOptions": {
+          "calcs": [
+            "mean"
+          ],
+          "defaults": {
+            "mappings": [],
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {
+                  "color": "yellow",
+                  "value": null
+                }
+              ]
+            },
+            "title": "$form"
+          },
+          "overrides": [],
+          "values": false
+        },
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto"
+      },
+      "pluginVersion": "6.7.3",
+      "repeat": null,
+      "repeatDirection": "h",
+      "repeatIteration": 1599846919243,
+      "repeatPanelId": 6,
+      "scopedVars": {
+        "form": {
+          "$$hashKey": "object:3587",
+          "selected": true,
+          "text": "baselinehinexc",
+          "value": "baselinehinexc"
+        }
+      },
+      "targets": [
+        {
+          "format": "table",
+          "group": [],
+          "metricColumn": "none",
+          "rawQuery": true,
+          "rawSql": "SELECT\n  count(*)\nFROM states\nWHERE\n  $__timeFilter(updated) AND\n  current_state = 'QOUT' AND\n  current_form = $form\nORDER BY 1",
+          "refId": "A",
+          "select": [
+            [
+              {
+                "params": [
+                  "value"
+                ],
+                "type": "column"
+              }
+            ]
+          ],
+          "table": "states",
+          "timeColumn": "updated",
+          "timeColumnType": "timestamptz",
+          "where": [
+            {
+              "name": "$__timeFilter",
+              "params": [],
+              "type": "macro"
+            }
+          ]
+        }
+      ],
+      "timeFrom": null,
+      "timeShift": null,
+      "title": "Not Responding",
+      "type": "stat"
+    },
+    {
+      "datasource": "PostgreSQL",
+      "gridPos": {
+        "h": 7,
+        "w": 6,
+        "x": 12,
+        "y": 7
+      },
+      "id": 12,
+      "maxPerRow": 6,
+      "options": {
+        "colorMode": "value",
+        "fieldOptions": {
+          "calcs": [
+            "mean"
+          ],
+          "defaults": {
+            "mappings": [],
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {
+                  "color": "yellow",
+                  "value": null
+                }
+              ]
+            },
+            "title": "$form"
+          },
+          "overrides": [],
+          "values": false
+        },
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto"
+      },
+      "pluginVersion": "6.7.3",
+      "repeat": null,
+      "repeatDirection": "h",
+      "repeatIteration": 1599846919243,
+      "repeatPanelId": 6,
+      "scopedVars": {
+        "form": {
+          "$$hashKey": "object:3595",
+          "selected": true,
+          "text": "follow1hin",
+          "value": "follow1hin"
+        }
+      },
+      "targets": [
+        {
+          "format": "table",
+          "group": [],
+          "metricColumn": "none",
+          "rawQuery": true,
+          "rawSql": "SELECT\n  count(*)\nFROM states\nWHERE\n  $__timeFilter(updated) AND\n  current_state = 'QOUT' AND\n  current_form = $form\nORDER BY 1",
+          "refId": "A",
+          "select": [
+            [
+              {
+                "params": [
+                  "value"
+                ],
+                "type": "column"
+              }
+            ]
+          ],
+          "table": "states",
+          "timeColumn": "updated",
+          "timeColumnType": "timestamptz",
+          "where": [
+            {
+              "name": "$__timeFilter",
+              "params": [],
+              "type": "macro"
+            }
+          ]
+        }
+      ],
+      "timeFrom": null,
+      "timeShift": null,
+      "title": "Not Responding",
+      "type": "stat"
+    },
+    {
+      "datasource": "PostgreSQL",
+      "gridPos": {
+        "h": 7,
+        "w": 6,
+        "x": 18,
+        "y": 7
+      },
+      "id": 13,
+      "maxPerRow": 6,
+      "options": {
+        "colorMode": "value",
+        "fieldOptions": {
+          "calcs": [
+            "mean"
+          ],
+          "defaults": {
+            "mappings": [],
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {
+                  "color": "yellow",
+                  "value": null
+                }
+              ]
+            },
+            "title": "$form"
+          },
+          "overrides": [],
+          "values": false
+        },
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto"
+      },
+      "pluginVersion": "6.7.3",
+      "repeat": null,
+      "repeatDirection": "h",
+      "repeatIteration": 1599846919243,
+      "repeatPanelId": 6,
+      "scopedVars": {
+        "form": {
+          "$$hashKey": "object:3597",
+          "selected": true,
+          "text": "follow2hin",
+          "value": "follow2hin"
+        }
+      },
+      "targets": [
+        {
+          "format": "table",
+          "group": [],
+          "metricColumn": "none",
+          "rawQuery": true,
+          "rawSql": "SELECT\n  count(*)\nFROM states\nWHERE\n  $__timeFilter(updated) AND\n  current_state = 'QOUT' AND\n  current_form = $form\nORDER BY 1",
+          "refId": "A",
+          "select": [
+            [
+              {
+                "params": [
+                  "value"
+                ],
+                "type": "column"
+              }
+            ]
+          ],
+          "table": "states",
+          "timeColumn": "updated",
+          "timeColumnType": "timestamptz",
+          "where": [
+            {
+              "name": "$__timeFilter",
+              "params": [],
+              "type": "macro"
+            }
+          ]
+        }
+      ],
+      "timeFrom": null,
+      "timeShift": null,
+      "title": "Not Responding",
+      "type": "stat"
+    },
+    {
+      "datasource": "PostgreSQL",
+      "gridPos": {
+        "h": 7,
+        "w": 6,
+        "x": 0,
+        "y": 14
+      },
+      "id": 7,
+      "maxPerRow": 6,
+      "options": {
+        "colorMode": "value",
+        "fieldOptions": {
+          "calcs": [
+            "mean"
+          ],
+          "defaults": {
+            "mappings": [],
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {
+                  "color": "red",
+                  "value": null
+                }
+              ]
+            },
+            "title": "$form"
+          },
+          "overrides": [],
+          "values": false
+        },
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto"
+      },
+      "pluginVersion": "6.7.3",
+      "repeat": "form",
+      "repeatDirection": "h",
+      "scopedVars": {
+        "form": {
+          "$$hashKey": "object:3586",
+          "selected": true,
+          "text": "baselinehin",
+          "value": "baselinehin"
+        }
+      },
+      "targets": [
+        {
+          "format": "table",
+          "group": [],
+          "metricColumn": "none",
+          "rawQuery": true,
+          "rawSql": "SELECT\n  count(*)\nFROM states\nWHERE\n  $__timeFilter(updated) AND\n  current_state = 'BLOCKED' AND\n  current_form = $form\nORDER BY 1",
+          "refId": "A",
+          "select": [
+            [
+              {
+                "params": [
+                  "value"
+                ],
+                "type": "column"
+              }
+            ]
+          ],
+          "table": "states",
+          "timeColumn": "updated",
+          "timeColumnType": "timestamptz",
+          "where": [
+            {
+              "name": "$__timeFilter",
+              "params": [],
+              "type": "macro"
+            }
+          ]
+        }
+      ],
+      "timeFrom": null,
+      "timeShift": null,
+      "title": "Blocked",
+      "type": "stat"
+    },
+    {
+      "datasource": "PostgreSQL",
+      "gridPos": {
+        "h": 7,
+        "w": 6,
+        "x": 6,
+        "y": 14
+      },
+      "id": 14,
+      "maxPerRow": 6,
+      "options": {
+        "colorMode": "value",
+        "fieldOptions": {
+          "calcs": [
+            "mean"
+          ],
+          "defaults": {
+            "mappings": [],
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {
+                  "color": "red",
+                  "value": null
+                }
+              ]
+            },
+            "title": "$form"
+          },
+          "overrides": [],
+          "values": false
+        },
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto"
+      },
+      "pluginVersion": "6.7.3",
+      "repeat": null,
+      "repeatDirection": "h",
+      "repeatIteration": 1599846919243,
+      "repeatPanelId": 7,
+      "scopedVars": {
+        "form": {
+          "$$hashKey": "object:3587",
+          "selected": true,
+          "text": "baselinehinexc",
+          "value": "baselinehinexc"
+        }
+      },
+      "targets": [
+        {
+          "format": "table",
+          "group": [],
+          "metricColumn": "none",
+          "rawQuery": true,
+          "rawSql": "SELECT\n  count(*)\nFROM states\nWHERE\n  $__timeFilter(updated) AND\n  current_state = 'BLOCKED' AND\n  current_form = $form\nORDER BY 1",
+          "refId": "A",
+          "select": [
+            [
+              {
+                "params": [
+                  "value"
+                ],
+                "type": "column"
+              }
+            ]
+          ],
+          "table": "states",
+          "timeColumn": "updated",
+          "timeColumnType": "timestamptz",
+          "where": [
+            {
+              "name": "$__timeFilter",
+              "params": [],
+              "type": "macro"
+            }
+          ]
+        }
+      ],
+      "timeFrom": null,
+      "timeShift": null,
+      "title": "Blocked",
+      "type": "stat"
+    },
+    {
+      "datasource": "PostgreSQL",
+      "gridPos": {
+        "h": 7,
+        "w": 6,
+        "x": 12,
+        "y": 14
+      },
+      "id": 15,
+      "maxPerRow": 6,
+      "options": {
+        "colorMode": "value",
+        "fieldOptions": {
+          "calcs": [
+            "mean"
+          ],
+          "defaults": {
+            "mappings": [],
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {
+                  "color": "red",
+                  "value": null
+                }
+              ]
+            },
+            "title": "$form"
+          },
+          "overrides": [],
+          "values": false
+        },
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto"
+      },
+      "pluginVersion": "6.7.3",
+      "repeat": null,
+      "repeatDirection": "h",
+      "repeatIteration": 1599846919243,
+      "repeatPanelId": 7,
+      "scopedVars": {
+        "form": {
+          "$$hashKey": "object:3595",
+          "selected": true,
+          "text": "follow1hin",
+          "value": "follow1hin"
+        }
+      },
+      "targets": [
+        {
+          "format": "table",
+          "group": [],
+          "metricColumn": "none",
+          "rawQuery": true,
+          "rawSql": "SELECT\n  count(*)\nFROM states\nWHERE\n  $__timeFilter(updated) AND\n  current_state = 'BLOCKED' AND\n  current_form = $form\nORDER BY 1",
+          "refId": "A",
+          "select": [
+            [
+              {
+                "params": [
+                  "value"
+                ],
+                "type": "column"
+              }
+            ]
+          ],
+          "table": "states",
+          "timeColumn": "updated",
+          "timeColumnType": "timestamptz",
+          "where": [
+            {
+              "name": "$__timeFilter",
+              "params": [],
+              "type": "macro"
+            }
+          ]
+        }
+      ],
+      "timeFrom": null,
+      "timeShift": null,
+      "title": "Blocked",
+      "type": "stat"
+    },
+    {
+      "datasource": "PostgreSQL",
+      "gridPos": {
+        "h": 7,
+        "w": 6,
+        "x": 18,
+        "y": 14
+      },
+      "id": 16,
+      "maxPerRow": 6,
+      "options": {
+        "colorMode": "value",
+        "fieldOptions": {
+          "calcs": [
+            "mean"
+          ],
+          "defaults": {
+            "mappings": [],
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {
+                  "color": "red",
+                  "value": null
+                }
+              ]
+            },
+            "title": "$form"
+          },
+          "overrides": [],
+          "values": false
+        },
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto"
+      },
+      "pluginVersion": "6.7.3",
+      "repeat": null,
+      "repeatDirection": "h",
+      "repeatIteration": 1599846919243,
+      "repeatPanelId": 7,
+      "scopedVars": {
+        "form": {
+          "$$hashKey": "object:3597",
+          "selected": true,
+          "text": "follow2hin",
+          "value": "follow2hin"
+        }
+      },
+      "targets": [
+        {
+          "format": "table",
+          "group": [],
+          "metricColumn": "none",
+          "rawQuery": true,
+          "rawSql": "SELECT\n  count(*)\nFROM states\nWHERE\n  $__timeFilter(updated) AND\n  current_state = 'BLOCKED' AND\n  current_form = $form\nORDER BY 1",
+          "refId": "A",
+          "select": [
+            [
+              {
+                "params": [
+                  "value"
+                ],
+                "type": "column"
+              }
+            ]
+          ],
+          "table": "states",
+          "timeColumn": "updated",
+          "timeColumnType": "timestamptz",
+          "where": [
+            {
+              "name": "$__timeFilter",
+              "params": [],
+              "type": "macro"
+            }
+          ]
+        }
+      ],
+      "timeFrom": null,
+      "timeShift": null,
+      "title": "Blocked",
+      "type": "stat"
+    }
+  ],
+  "schemaVersion": 22,
+  "style": "dark",
+  "tags": [],
+  "templating": {
+    "list": [
+      {
+        "allValue": null,
+        "current": {
+          "text": "baselinehin + baselinehinexc + follow1hin + follow2hin",
+          "value": [
+            "baselinehin",
+            "baselinehinexc",
+            "follow1hin",
+            "follow2hin"
+          ]
+        },
+        "datasource": "PostgreSQL",
+        "definition": "select distinct(current_form) as form from states where updated > NOW() - interval '7 days' order by form",
+        "hide": 0,
+        "includeAll": false,
+        "index": -1,
+        "label": null,
+        "multi": true,
+        "name": "form",
+        "options": [
+          {
+            "$$hashKey": "object:3579",
+            "selected": false,
+            "text": "301",
+            "value": "301"
+          },
+          {
+            "$$hashKey": "object:3580",
+            "selected": false,
+            "text": "305",
+            "value": "305"
+          },
+          {
+            "$$hashKey": "object:3581",
+            "selected": false,
+            "text": "401",
+            "value": "401"
+          },
+          {
+            "$$hashKey": "object:3582",
+            "selected": false,
+            "text": "402",
+            "value": "402"
+          },
+          {
+            "$$hashKey": "object:3583",
+            "selected": false,
+            "text": "507",
+            "value": "507"
+          },
+          {
+            "$$hashKey": "object:3584",
+            "selected": false,
+            "text": "508",
+            "value": "508"
+          },
+          {
+            "$$hashKey": "object:3585",
+            "selected": false,
+            "text": "baselineeng",
+            "value": "baselineeng"
+          },
+          {
+            "$$hashKey": "object:3586",
+            "selected": true,
+            "text": "baselinehin",
+            "value": "baselinehin"
+          },
+          {
+            "$$hashKey": "object:3587",
+            "selected": true,
+            "text": "baselinehinexc",
+            "value": "baselinehinexc"
+          },
+          {
+            "$$hashKey": "object:3588",
+            "selected": false,
+            "text": "baselineodi",
+            "value": "baselineodi"
+          },
+          {
+            "$$hashKey": "object:3589",
+            "selected": false,
+            "text": "cvfollow1b",
+            "value": "cvfollow1b"
+          },
+          {
+            "$$hashKey": "object:3590",
+            "selected": false,
+            "text": "cvfollow5",
+            "value": "cvfollow5"
+          },
+          {
+            "$$hashKey": "object:3591",
+            "selected": false,
+            "text": "cvfollow5b",
+            "value": "cvfollow5b"
+          },
+          {
+            "$$hashKey": "object:3592",
+            "selected": false,
+            "text": "endline_eng",
+            "value": "endline_eng"
+          },
+          {
+            "$$hashKey": "object:3593",
+            "selected": false,
+            "text": "endline_hin",
+            "value": "endline_hin"
+          },
+          {
+            "$$hashKey": "object:3594",
+            "selected": false,
+            "text": "follow1eng",
+            "value": "follow1eng"
+          },
+          {
+            "$$hashKey": "object:3595",
+            "selected": true,
+            "text": "follow1hin",
+            "value": "follow1hin"
+          },
+          {
+            "$$hashKey": "object:3596",
+            "selected": false,
+            "text": "follow1odi",
+            "value": "follow1odi"
+          },
+          {
+            "$$hashKey": "object:3597",
+            "selected": true,
+            "text": "follow2hin",
+            "value": "follow2hin"
+          },
+          {
+            "$$hashKey": "object:3598",
+            "selected": false,
+            "text": "follow2odi",
+            "value": "follow2odi"
+          },
+          {
+            "$$hashKey": "object:3625",
+            "selected": false,
+            "text": "follow3odi",
+            "value": "follow3odi"
+          },
+          {
+            "$$hashKey": "object:3626",
+            "selected": false,
+            "text": "langchoice",
+            "value": "langchoice"
+          },
+          {
+            "$$hashKey": "object:3627",
+            "selected": false,
+            "text": "lm",
+            "value": "lm"
+          }
+        ],
+        "query": "select distinct(current_form) as form from states where updated > NOW() - interval '7 days' order by form",
+        "refresh": 0,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 0,
+        "tagValuesQuery": "",
+        "tags": [],
+        "tagsQuery": "",
+        "type": "query",
+        "useTags": false
+      }
+    ]
+  },
+  "time": {
+    "from": "now-31d",
+    "to": "now"
+  },
+  "timepicker": {
+    "refresh_intervals": [
+      "5s",
+      "10s",
+      "30s",
+      "1m",
+      "5m",
+      "15m",
+      "30m",
+      "1h",
+      "2h",
+      "1d"
+    ]
+  },
+  "timezone": "",
+  "title": "Form Status",
+  "uid": "rsokjkOMk",
+  "variables": {
+    "list": []
+  },
+  "version": 3
+}
