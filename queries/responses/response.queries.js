@@ -16,9 +16,9 @@ async function all() {
   return rows;
 }
 
-async function formResponses(surveyid) {
-  const GET_FORM_RESPONSES = `SELECT * FROM responses WHERE surveyid=$1 ORDER BY timestamp DESC`;
-  const { rows } = await this.query(GET_FORM_RESPONSES, [surveyid]);
+async function formResponses(surveyids) {
+  const GET_FORM_RESPONSES = `SELECT * FROM responses WHERE surveyid=ANY($1) ORDER BY timestamp DESC`;
+  const { rows } = await this.query(GET_FORM_RESPONSES, [surveyids]);
   return rows;
 }
 

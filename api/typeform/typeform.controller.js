@@ -4,9 +4,7 @@ const { TypeformUtil } = require('../../utils');
 
 exports.authorize = async (req, res) => {
   try {
-    console.log('CODE: ', req.params.code);
     const token = await TypeformUtil.TypeformToken(req.params.code);
-    console.log('TOKEN: ', token);
     const user = { token: token.access_token, email: req.user.email };
     await User.update(user);
     res.status(200).send();

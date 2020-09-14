@@ -14,14 +14,15 @@ exports.getAll = async (req, res) => {
 };
 
 exports.getResponsesCSV = async (req, res) => {
-  const { formid } = req.params;
+  const { formids } = req.query;
   try {
-    const responses = await Response.formResponses(formid);
+    const ids = formids.split(',')
+    const responses = await Response.formResponses(ids);
 
     res.header('Content-Type', 'text/csv');
     res.header(
       'Content-Disposition',
-      `attachment; filename="report_${formid}_${new Date().toISOString()}.csv"`,
+      `attachment; filename="responses_${new Date().toISOString()}.csv"`,
     );
     res.status(200);
 
