@@ -322,14 +322,31 @@ describe('Test Bot flow Survey Integration Testing', () => {
         [ok, fields[1], []],
         [ok, fields[2], [makePostback(fields[2], userId, 1)]],
         [ok, fields[3], []],
-        [ok, fields[4], [makeQR(fields[4], userId, 1)], 'FOOBAR'], // checks recipinet is token
+        [ok, fields[4], [makeQR(fields[4], userId, 1)], 'FOOBAR'], // checks recipient is token
         [ok, fields[5], []],
       ]
 
       sender(makeReferral(userId, 'dbFwhd'))
       await flowMaster(userId, testFlow)
     })
-  })
 
+
+    it('Sends follow ups when the user does not respond',  async () => {
+      const userId = uuid()
+      const fields = getFields('forms/ulrtpfSQ.json')
+
+      const followUp = makeRepeat(fields[0], 'this is a follow up')
+
+      const testFlow = [
+        [ok, fields[0], []],
+        [ok, followUp, []],
+        [ok, fields[0], [makeQR(fields[0], userId, 0)]],
+        [ok, fields[1], []],
+      ]
+
+      sender(makeReferral(userId, 'ulrtpfSQ'))
+      await flowMaster(userId, testFlow)
+    })
+  })
 
 });
