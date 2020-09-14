@@ -18,9 +18,9 @@ chatbaseHost: &host "gbv-cockroachdb-public"
 
 versionDashboard: &vdashboard 0.0.6
 versionBotserver: &vbotserver 0.0.8
-versionReplybot: &vreplybot 0.0.101
+versionReplybot: &vreplybot 0.0.105
 versionLinksniffer: &vlinksniffer 0.0.3
-versionDean: &vdean 0.0.12
+versionDean: &vdean 0.0.14
 versionScribble: &vscribble 0.0.8
 
 processingAlerts:
@@ -35,11 +35,11 @@ laggingAlerts:
     window: "5m"
     limit: "20"
   - consumergroup: scribble-responses
-    alertname: LaggingConsumerScribbleMessages
+    alertname: LaggingConsumerScribbleResponses
     window: "5m"
     limit: "20"
   - consumergroup: scribble-states
-    alertname: LaggingConsumerScribbleMessages
+    alertname: LaggingConsumerScribbleStates
     window: "5m"
     limit: "20"
   - consumergroup: scribble-messages
@@ -90,21 +90,34 @@ dean:
     value: "999999999 years"
   - name: DEAN_RESPONDING_GRACE
     value: "40 minutes"
+  - name: DEAN_SEND_DELAY
+    value: "2s"
+  - name: DEAN_FOLLOWUP_MIN
+    value: "2 hours"
+  - name: DEAN_FOLLOWUP_MAX
+    value: "24 hours"
   queries:
     - name: respondings
       queries: "respondings,blocked"
-      schedule: "47 * * * *"
+      schedule: "20 * * * *"
       resources:
         requests:
           cpu: 10m
           memory: 10Mi
-    - name: timeouts
-      queries: "timeouts"
-      schedule: "*/15 * * * *"
-      resources:
-        requests:
-          cpu: 10m
-          memory: 10Mi
+    # - name: followups
+    #   queries: "followups"
+    #   schedule: "24 * * * *"
+    #   resources:
+    #     requests:
+    #       cpu: 10m
+    #       memory: 10Mi
+    # - name: timeouts
+    #   queries: "timeouts"
+    #   schedule: "*/15 * * * *"
+    #   resources:
+    #     requests:
+    #       cpu: 10m
+    #       memory: 10Mi
 
 scribble:
   image:
