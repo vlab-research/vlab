@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import _ from 'lodash';
 import { Layout, Menu } from 'antd';
 import TypeformCreate from '../../components/TypeformCreate';
 import { Hook } from '../../services';
@@ -9,11 +8,20 @@ import './Surveys.css';
 const { Content, Sider } = Layout;
 export const Survey = React.createContext(null);
 
+function groupBy(arr, fn) {
+  const m = new Map()
+  arr.forEach(el => {
+    const k = fn(el)
+    m.set(k, m.has(k) ? [...m.get(k), el] : [el])
+  })
+  return Array.from(m.entries())
+}
+
 const Surveys = props => {
   const [survs, setSurveys] = Hook.useMountFetch({ path: '/surveys' }, []);
   const [selected, setSelected] = useState('0');
   
-  const surveys = _(survs).groupBy('shortcode').toPairs().value()
+  const surveys = groupBy(survs, e => e['shortcode'])
 
   return (
     <Layout style={{ height: '100%' }}>
