@@ -20,7 +20,7 @@ const renderHistogram = (Component, interval) => ({ resultSet, error }) => {
   );
 };
 
-const AnswersReport = ({ formid, cubejs }) => {
+const AnswersReport = ({ formids, cubejs }) => {
   const stepIntervals = {
     '2': 2,
     '4': 4,
@@ -51,7 +51,7 @@ const AnswersReport = ({ formid, cubejs }) => {
               {
                 dimension: 'Responses.formid',
                 operator: 'equals',
-                values: [formid],
+                values: formids, 
               },
             ],
           }}
@@ -64,7 +64,7 @@ const AnswersReport = ({ formid, cubejs }) => {
 };
 
 AnswersReport.propTypes = {
-  formid: PropTypes.string.isRequired,
+  formids: PropTypes.arrayOf(PropTypes.string).isRequired,
   cubejs: PropTypes.objectOf(PropTypes.any).isRequired,
 };
 

@@ -15,7 +15,7 @@ const mockResultSet = {
 
 // eslint-disable-next-line no-unused-vars
 export const getIntervals = resultSet => {
-  let max = mockResultSet.rawData().length;
+  let max = resultSet.rawData().length;
   max = 10;
   if (max >= 10) max = 10;
   const lower = Math.floor(max / 3);
@@ -26,12 +26,12 @@ export const getIntervals = resultSet => {
 };
 
 export const computeChartData = (resultSet, interval) => {
-  return mockResultSet
+  return resultSet
     .rawData()
     .map(question => ({
-      question: question['Responses.questionId'],
-      answers: question['Responses.count'],
+      question: question['Responses.questionText'],
+      count: question['Responses.count'],
     }))
-    .sort((a, b) => b.answers - a.answers)
+    .sort((a, b) => b.count - a.count)
     .slice(0, interval);
 };

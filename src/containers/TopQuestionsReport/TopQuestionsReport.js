@@ -20,7 +20,7 @@ const ChartBox = ({ resultSet }) => {
   return (
     <div className="chart-container">
       <div className="info-container">
-        <h3>{`Top ${activeInterval} Questions`}</h3>
+        <h3>{`Top ${activeInterval} Final Questions`}</h3>
         <div className="selector-container">
           <div className="selector-title">nº questions</div>
           <IntervalSelector
@@ -33,7 +33,7 @@ const ChartBox = ({ resultSet }) => {
       <div className="histogram-container">
         <HorizontalChart
           xAxisKey="question"
-          barKey="answers"
+          barKey="count"
           resultSet={computeChartData(resultSet, activeInterval)}
         />
       </div>
@@ -52,20 +52,15 @@ const TopQuestionsChart = ({ formid, cubejs }) => {
     <>
       <QueryRenderer
         query={{
-          dimensions: ['Responses.questionId'],
-          timeDimensions: [
-            {
-              dimension: 'Responses.timestamp',
-            },
-          ],
+          dimensions: ['LastQuestions.questionText', 'LastQuestions.questionRef'],
           filters: [
             {
-              dimension: 'Responses.formid',
+              dimension: 'LastQuestions.formid',
               operator: 'equals',
               values: [formid],
             },
           ],
-          measures: ['Responses.count'],
+          measures: ['LastQuestions.count'],
         }}
         cubejsApi={cubejs}
         render={renderChart(ChartBox, null)}

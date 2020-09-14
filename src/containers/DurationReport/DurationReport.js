@@ -19,7 +19,7 @@ const renderHistogram = (Component, interval) => ({ resultSet, error }) => {
   );
 };
 
-const DurationHistogram = ({ formid, cubejs }) => {
+const DurationHistogram = ({ formids, cubejs }) => {
   const stepIntervals = {
     '30 mins': 0.5,
     '1 hour': 1,
@@ -50,7 +50,7 @@ const DurationHistogram = ({ formid, cubejs }) => {
               {
                 dimension: 'Responses.formid',
                 operator: 'equals',
-                values: [formid],
+                values: formids,
               },
             ],
           }}
@@ -63,7 +63,7 @@ const DurationHistogram = ({ formid, cubejs }) => {
 };
 
 DurationHistogram.propTypes = {
-  formid: PropTypes.string.isRequired,
+  formids: PropTypes.arrayOf(PropTypes.string).isRequired,
   cubejs: PropTypes.objectOf(PropTypes.any).isRequired,
 };
 

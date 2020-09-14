@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import _ from 'lodash';
 import { Layout, Menu } from 'antd';
 import TypeformCreate from '../../components/TypeformCreate';
 import { Hook } from '../../services';
@@ -6,12 +7,13 @@ import { SurveyScreen } from '..';
 import './Surveys.css';
 
 const { Content, Sider } = Layout;
-
 export const Survey = React.createContext(null);
 
 const Surveys = props => {
-  const [surveys, setSurveys] = Hook.useMountFetch({ path: '/surveys' }, []);
+  const [survs, setSurveys] = Hook.useMountFetch({ path: '/surveys' }, []);
   const [selected, setSelected] = useState('0');
+  
+  const surveys = _(survs).groupBy('shortcode').toPairs().value()
 
   return (
     <Layout style={{ height: '100%' }}>
@@ -25,18 +27,16 @@ const Surveys = props => {
           onClick={e => setSelected(e.key)}
           style={{ borderRight: 0 }}
         >
-          {surveys.map((survey, id) => (
-            <Menu.Item key={id}>
-              {survey.shortcode}
-              {'-'}
-              {survey.title}
+          {surveys.map(([code, s], idx) => (
+            <Menu.Item key={idx}>
+              {`${code} - v${s.length}`}
             </Menu.Item>
           ))}
         </Menu>
       </Sider>
       {surveys.length > 0 ? (
         <Content style={{ padding: '30px' }}>
-          <SurveyScreen userid={surveys[selected].userid} formid={surveys[selected].id} />
+          <SurveyScreen formids={surveys[selected][1].map(s => s.id)} />
         </Content>
       ) : null}
       {/* <div>

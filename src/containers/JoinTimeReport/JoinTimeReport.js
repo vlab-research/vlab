@@ -19,7 +19,7 @@ const renderHistogram = (Component, interval) => ({ resultSet, error }) => {
   );
 };
 
-const JoinTimeReport = ({ formid, cubejs }) => {
+const JoinTimeReport = ({ formids, cubejs }) => {
   const stepIntervals = {
     days: 0,
     months: 1,
@@ -54,7 +54,7 @@ const JoinTimeReport = ({ formid, cubejs }) => {
               {
                 dimension: 'Responses.formid',
                 operator: 'equals',
-                values: [formid],
+                values: formids,
               },
             ],
           }}
@@ -67,7 +67,7 @@ const JoinTimeReport = ({ formid, cubejs }) => {
 };
 
 JoinTimeReport.propTypes = {
-  formid: PropTypes.string.isRequired,
+  formids: PropTypes.arrayOf(PropTypes.string).isRequired,
   cubejs: PropTypes.objectOf(PropTypes.any).isRequired,
 };
 
