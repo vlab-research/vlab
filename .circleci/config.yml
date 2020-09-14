@@ -6,7 +6,7 @@ jobs:
     steps:
       - checkout
       - run:
-          name: Install Snap/Kubectl/Helm
+          name: Install Kubectl/Helm
           command: |
               curl -LO https://storage.googleapis.com/kubernetes-release/release/v1.18.0/bin/linux/amd64/kubectl
               chmod +x ./kubectl
@@ -14,11 +14,15 @@ jobs:
               curl https://raw.githubusercontent.com/helm/helm/master/scripts/get-helm-3 | bash
               kubectl version --client
               helm version
-
       - run:
           name: Install kind
           command: |
               GO111MODULE="on" go get sigs.k8s.io/kind@v0.8.1
+      - run:
+          name: Setup kind cluster
+          command: |
+              kind create cluster --name test --wait 5m
+              kubectl config use-context kind-test
       - run:
           name: Run tests
           command: ./integration-test.sh
