@@ -24,15 +24,17 @@ env:
   value: "23 hours"
 - name: DEAN_RESPONDING_GRACE
   value: "1 hour"
+- name: DEAN_SEND_DELAY
+  value: "2s"
 
 queries:
-  # - name: respondings
-  #   queries: "respondings,blocked"
-  #   schedule: "*/1 * * * *"
-  #   resources:
-  #     requests:
-  #       cpu: 10m
-  #       memory: 10Mi
+  - name: redos
+    queries: "respondings,blocked"
+    schedule: "*/1 * * * *"
+    resources:
+      requests:
+        cpu: 10m
+        memory: 10Mi
 
   - name: timeouts
     queries: "timeouts"

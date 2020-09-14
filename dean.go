@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/caarlos0/env/v6"
 	"github.com/jackc/pgx/v4/pgxpool"
@@ -52,6 +53,7 @@ type Config struct {
 	RespondingInterval string `env:"DEAN_RESPONDING_INTERVAL,required"`
 	RespondingGrace string `env:"DEAN_RESPONDING_GRACE,required"`
 	Queries string `env:"DEAN_QUERIES,required"`
+	SendDelay time.Duration `env:"DEAN_SEND_DELAY,required"`
 }
 
 func redoCodes(cfg *Config) []string {
@@ -88,6 +90,7 @@ func process(cfg *Config, ch <-chan *ExternalEvent) {
 		err := send(cfg, client, e)
 		handle(err)
 		counter += 1
+		time.Sleep(cfg.SendDelay)
 	}
 	log.Printf("Dean successfully sent %v new events", counter)
 }
