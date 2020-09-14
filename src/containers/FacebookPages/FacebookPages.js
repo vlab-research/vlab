@@ -35,6 +35,7 @@ const fb = (cb) => {
   window.FB.login(res => {
 
     const token = res.authResponse.accessToken;
+
     const body = { token };
 
     api.fetcher({path: '/facebook/exchange-token', method: 'POST', body })
@@ -52,7 +53,7 @@ const fb = (cb) => {
       })
       .catch(err => console.error(err)); //eslint-disable-line
 
-  }, {scopes: 'public_profile,email,pages_show_list,pages_messaging,pages_manage_metadata', return_scopes: true});
+  }, {scopes: 'public_profile,email,pages_show_list,pages_messaging,pages_manage_metadata,ads_management', return_scopes: true});
 };
 
 
