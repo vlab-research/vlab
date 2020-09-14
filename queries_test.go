@@ -172,3 +172,43 @@ func TestGetTimeoutsGetsOnlyExpiredTimeouts(t *testing.T) {
 	mustExec(t, pool, "drop table states")
 }
 
+
+func TestFollowUpsGetsOnlyThoseBetweenMinAndMaxAndNotFollowedUp(t *testing.T) {
+	pool := testPool()
+	defer pool.Close()
+
+	mustExec(t, pool, stateSql)
+	mustExec(t, pool, insertQuery, 
+		"foo", 
+		"bar", 
+		time.Now().UTC().Add(-30*time.Minute),
+		"QOUT", 
+		`{"state": "QOUT", "question": "foo", "previousOutput": {"followUp": null}}`)
+
+	mustExec(t, pool, insertQuery, 
+		"bar", 
+		"qux", 
+		time.Now().UTC().Add(-30*time.Minute),
+		"QOUT", 
+		`{"state": "QOUT", "question": "foo", "previousOutput": {"followUp": true}}`)
+
+	mustExec(t, pool, insertQuery, 
+		"baz", 
+		"bar", 
+		time.Now().UTC().Add(-90*time.Minute),
+		"QOUT", 
+		`{"state": "QOUT", "question": "foo"}`)
+
+	cfg := &Config{FollowUpMin: "20 minutes", FollowUpMax: "60 minutes"}
+	ch := FollowUps(cfg, pool)
+	events := getEvents(ch)
+
+	assert.Equal(t, 1, len(events))
+	assert.Equal(t, "foo", events[0].User)
+	assert.Equal(t, "follow_up", events[0].Event.Type)
+
+	ev, _ := json.Marshal(events[0].Event)
+	assert.Equal(t, string(ev), `{"type":"follow_up","value":"foo"}`)
+
+	mustExec(t, pool, "drop table states")
+}

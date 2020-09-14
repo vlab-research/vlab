@@ -12,7 +12,7 @@ import (
 
 type Event struct {
 	Type string `json:"type"`
-	Value *json.RawMessage `json:"value,omitempty"` // rawmesssage??
+	Value *json.RawMessage `json:"value,omitempty"`
 }
 
 type ExternalEvent struct {
@@ -47,9 +47,7 @@ func getRedo(rows pgx.Rows) *ExternalEvent {
 	err := rows.Scan(&userid, &pageid)
 	handle(err)
 
-	b, _ := json.Marshal(nil)
-	value := json.RawMessage(b)
-	return &ExternalEvent{userid, pageid, &Event{"redo", &value}}
+	return &ExternalEvent{userid, pageid, &Event{"redo", nil}}
 }
 
 func getTimeout(rows pgx.Rows) *ExternalEvent {
@@ -62,6 +60,19 @@ func getTimeout(rows pgx.Rows) *ExternalEvent {
 	value := json.RawMessage(b)
 
 	return &ExternalEvent{userid, pageid, &Event{"timeout", &value}}
+}
+
+
+func getFollowUp(rows pgx.Rows) *ExternalEvent {
+	var question string
+	var userid, pageid string
+	err := rows.Scan(&question, &userid, &pageid)
+	handle(err)
+
+	b, _ := json.Marshal(question)
+	value := json.RawMessage(b)
+
+	return &ExternalEvent{userid, pageid, &Event{"follow_up", &value}}
 }
 
 func Respondings(cfg *Config, conn *pgxpool.Pool) <-chan *ExternalEvent {
@@ -92,4 +103,18 @@ func Timeouts(cfg *Config, conn *pgxpool.Pool) <-chan *ExternalEvent {
               AND timeout_date < NOW()`
 
 	return get(conn, getTimeout, query)
+}
+
+// TODO: test cockroach perf and index
+func FollowUps(cfg *Config, conn *pgxpool.Pool) <-chan *ExternalEvent {
+	query := `SELECT state_json->>'question', userid, pageid 
+              FROM states 
+              WHERE current_state = 'QOUT' 
+              AND (state_json->'previousOutput'->>'followUp') IS NULL
+              AND (NOW() - updated) > ($1)::INTERVAL 
+              AND (NOW() - updated) < ($2)::INTERVAL`
+
+	// add something to state so we know whether or not we already sent one follow up
+
+	return get(conn, getFollowUp, query, cfg.FollowUpMin, cfg.FollowUpMax)
 }

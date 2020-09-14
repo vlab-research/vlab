@@ -26,6 +26,10 @@ env:
   value: "1 hour"
 - name: DEAN_SEND_DELAY
   value: "2s"
+- name: DEAN_FOLLOWUP_MIN
+  value: "1 minute"
+- name: DEAN_FOLLOWUP_MAX
+  value: "1 hour"
 
 queries:
   - name: redos
@@ -37,7 +41,7 @@ queries:
         memory: 10Mi
 
   - name: timeouts
-    queries: "timeouts"
+    queries: "timeouts,followups"
     schedule: "*/1 * * * *"
     resources:
       requests:

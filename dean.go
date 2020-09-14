@@ -54,6 +54,8 @@ type Config struct {
 	RespondingGrace string `env:"DEAN_RESPONDING_GRACE,required"`
 	Queries string `env:"DEAN_QUERIES,required"`
 	SendDelay time.Duration `env:"DEAN_SEND_DELAY,required"`
+	FollowUpMin string `env:"DEAN_FOLLOWUP_MIN,required"`
+	FollowUpMax string `env:"DEAN_FOLLOWUP_MAX,required"`
 }
 
 func redoCodes(cfg *Config) []string {
@@ -112,6 +114,7 @@ func getQueries(cfg *Config, pool *pgxpool.Pool) []<- chan *ExternalEvent {
 		"respondings": Respondings,
 		"blocked": Blocked,
 		"timeouts": Timeouts,
+		"followups": FollowUps,
 	}
 	queries := strings.Split(cfg.Queries, ",")
 	chans := []<-chan *ExternalEvent{}
