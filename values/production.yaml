@@ -16,7 +16,7 @@ responseTopic: &responsetopic "vlab-prod-response"
 botEnvs: &botenvs gbv-bot-envs
 chatbaseHost: &host "gbv-cockroachdb-public"
 
-versionDashboard: &vdashboard 0.0.6
+versionDashboard: &vdashboard 0.0.7
 versionBotserver: &vbotserver 0.0.8
 versionReplybot: &vreplybot 0.0.105
 versionLinksniffer: &vlinksniffer 0.0.3
@@ -91,9 +91,9 @@ dean:
   - name: DEAN_RESPONDING_GRACE
     value: "40 minutes"
   - name: DEAN_SEND_DELAY
-    value: "2s"
+    value: "4s"
   - name: DEAN_FOLLOWUP_MIN
-    value: "2 hours"
+    value: "8 hours"
   - name: DEAN_FOLLOWUP_MAX
     value: "24 hours"
   queries:
@@ -104,20 +104,20 @@ dean:
         requests:
           cpu: 10m
           memory: 10Mi
-    # - name: followups
-    #   queries: "followups"
-    #   schedule: "24 * * * *"
-    #   resources:
-    #     requests:
-    #       cpu: 10m
-    #       memory: 10Mi
-    # - name: timeouts
-    #   queries: "timeouts"
-    #   schedule: "*/15 * * * *"
-    #   resources:
-    #     requests:
-    #       cpu: 10m
-    #       memory: 10Mi
+    - name: followups
+      queries: "followups"
+      schedule: "0 16 * * *"
+      resources:
+        requests:
+          cpu: 10m
+          memory: 10Mi
+    - name: timeouts
+      queries: "timeouts"
+      schedule: "0 6 * * *"
+      resources:
+        requests:
+          cpu: 10m
+          memory: 10Mi
 
 scribble:
   image:

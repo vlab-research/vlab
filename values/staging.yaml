@@ -12,15 +12,16 @@ kafkabrokers: &kb "kafka-headless.default.svc.cluster.local:29092"
 chatTopic: &topic "vlab-staging-chat-events"
 stateTopic: &statetopic "vlab-staging-state"
 responseTopic: &responsetopic "vlab-staging-response"
+paymentTopic: &paymenttopic "vlab-staging-payment"
 botEnvs: &botenvs gbv-bot-envs
 chatbaseHost: &host "gbv-cockroachdb-public"
 
-versionDashboard: &vdashboard 0.0.6
+versionDashboard: &vdashboard 0.0.7
 versionBotserver: &vbotserver 0.0.8
 versionReplybot: &vreplybot 0.0.105
 versionLinksniffer: &vlinksniffer 0.0.3
 versionDean: &vdean 0.0.14
-versionScribble: &vscribble 0.0.8
+versionScribble: &vscribble 0.0.10
 
 processingAlerts: []
 laggingAlerts: []
@@ -38,6 +39,11 @@ kafkaTopics:
     config:
       "retention.ms": "2678400000" # 31 days
   - name: *responsetopic
+    partitions: 2
+    replicationFactor: 2
+    config:
+      "retention.ms": "2678400000" # 31 days
+  - name: *paymenttopic
     partitions: 2
     replicationFactor: 2
     config:
@@ -146,6 +152,14 @@ scribble:
         value: *topic
       - name: KAFKA_GROUP
         value: "scribble-messages"
+
+    - destination: "payments"
+      replicaCount: 1
+      env:
+      - name: KAFKA_TOPIC
+        value: *paymenttopic
+      - name: KAFKA_GROUP
+        value: "scribble-payments"
 
 
 dumper:

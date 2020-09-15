@@ -13,6 +13,7 @@ kafkaTopics: []
 chatTopic: &topic "chat-events"
 stateTopic: &statetopic "vlab-state"
 responseTopic: &responsetopic "vlab-response"
+paymentTopic: &paymenttopic "vlab-payment"
 kafkabrokers: &kb "gbv-kafka:9092"
 botEnvs: &botenvs gbv-bot-envs
 chatbaseHost: &host "gbv-cockroachdb-public"
@@ -22,7 +23,7 @@ versionBotserver: &vbotserver 0.0.8
 versionReplybot: &vreplybot 0.0.105
 versionLinksniffer: &vlinksniffer 0.0.3
 versionDean: &vdean 0.0.14
-versionScribble: &vscribble 0.0.8
+versionScribble: &vscribble 0.0.10
 
 
 linksniffer:
@@ -313,6 +314,10 @@ kafka:
     - name: *responsetopic
       config: "retention.ms=1209600000" # 14 days
       partitions: 6
+      replicationFactor: 1
+    - name: *paymenttopic
+      config: "retention.ms=1209600000" # 14 days
+      partitions: 2
       replicationFactor: 1
   persistence:
     size: 1Gi
