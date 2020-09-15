@@ -15,8 +15,9 @@ const (
 			  timestamp TIMESTAMPTZ NOT NULL,
 			  provider VARCHAR NOT NULL,
 			  details JSON NOT NULL,
-              results JSON,
-			  PRIMARY KEY (userid, pageid, timestamp)
+			  results JSON,
+			  id INT AS (fnv64a(userid || pageid || timestamp::string)) STORED PRIMARY KEY,
+			  has_results BOOLEAN AS (CASE WHEN results IS NULL THEN FALSE ELSE TRUE END) STORED
            );`
 )
 
@@ -47,8 +48,9 @@ func TestPaymentWriterWritesGoodData(t *testing.T) {
 
 	res := getCol(pool, "payments", "userid")
 	assert.Equal(t, 2, len(res))
-	assert.Equal(t, "bar", res[0])
-	assert.Equal(t, "foo", res[1])
+	assert.Equal(t, "foo", res[0])
+	assert.Equal(t, "bar", res[1])
+
 
 	mustExec(t, pool, "drop table payments")
 }
@@ -87,8 +89,8 @@ func TestPaymentIgnoresRepeatedData(t *testing.T) {
 
 	res := getCol(pool, "payments", "userid")
 	assert.Equal(t, 2, len(res))
-	assert.Equal(t, "bar", res[0])
-	assert.Equal(t, "foo", res[1])
+	assert.Equal(t, "foo", res[0])
+	assert.Equal(t, "bar", res[1])
 
 	mustExec(t, pool, "drop table payments")
 }

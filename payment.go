@@ -23,7 +23,7 @@ func (p *Payment) Queue(batch *pgx.Batch) {
 		"provider",
 		"details",
 	})
-	query += " ON CONFLICT(userid, pageid, timestamp) DO NOTHING"
+	query += " ON CONFLICT(id) DO NOTHING"
 
 	batch.Queue(query,
 		p.Userid,
