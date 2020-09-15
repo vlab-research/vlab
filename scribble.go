@@ -57,6 +57,7 @@ func getMarshaller(cfg *Config) MarshalWriteable {
 		"states": StateMarshaller,
 		"responses": ResponseMarshaller,
 		"messages": MessageMarshaller,
+		"payments": PaymentMarshaller,
 	}
 
 	m, ok := marshallers[name]
@@ -71,7 +72,7 @@ func getConfig() Config {
 	err := env.Parse(&cfg)
 	handle(err)
 	if cfg.Handlers != "" && cfg.ChunkSize != 1 {
-		log.Fatalf("Scribble can only pass on errors with a chunk size of 1. Passed chunk size: %v", 
+		log.Fatalf("Scribble can only pass on errors with a chunk size of 1. Passed chunk size: %v",
 			cfg.ChunkSize)
 	}
 	return cfg
