@@ -14,8 +14,8 @@ const (
 			  pageid VARCHAR NOT NULL,
 			  timestamp TIMESTAMPTZ NOT NULL,
 			  provider VARCHAR NOT NULL,
-			  fulfilled BOOLEAN DEFAULT FALSE,
 			  details JSON NOT NULL,
+              results JSON,
 			  PRIMARY KEY (userid, pageid, timestamp)
            );`
 )
