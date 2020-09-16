@@ -11,6 +11,25 @@ import (
 
 
 const (
+
+	surveySql = `drop table if exists surveys;
+                 create table if not exists surveys(
+                   userid VARCHAR NOT NULL,
+                   shortcode VARCHAR NOT NULL,
+                   messages_json JSON,
+                   created TIMESTAMPTZ NOT NULL,
+                   has_followup BOOL AS (messages_json->>'label.buttonHint.default' IS NOT NULL) STORED
+                 );
+                 drop table if exists facebook_pages;
+                 create table if not exists facebook_pages(
+                   userid VARCHAR NOT NULL,
+                   pageid VARCHAR NOT NULL
+                 );`
+
+
+	pageInsertSql = `INSERT INTO facebook_pages(userid, pageid) VALUES ('owner', $1)`
+	surveyInsertSql = `INSERT INTO surveys(userid, shortcode, created, messages_json) VALUES ('owner', $1, $2, $3);`
+
 	stateSql = `drop table if exists states;
                 create table if not exists states(
      			  userid VARCHAR NOT NULL,
@@ -18,6 +37,10 @@ const (
 				  updated TIMESTAMPTZ NOT NULL,
 				  current_state VARCHAR NOT NULL,
 				  state_json JSON NOT NULL,
+                  current_form VARCHAR AS (state_json->'forms'->>-1) STORED,
+                  form_start_time TIMESTAMPTZ AS (CEILING((state_json->'md'->>'startTime')::INT/1000)::INT::TIMESTAMPTZ) STORED,
+                  previous_with_token BOOL AS (state_json->'previousOutput'->>'token' IS NOT NULL) STORED,
+                  previous_is_followup BOOL AS (state_json->'previousOutput'->>'followUp' IS NOT NULL) STORED,
                   timeout_date TIMESTAMPTZ AS (CEILING((state_json->>'waitStart')::INT/1000)::INT::TIMESTAMPTZ + (state_json->'wait'->>'value')::INTERVAL) STORED,
                   fb_error_code varchar AS (state_json->'error'->>'code') STORED,
                   CONSTRAINT "valid_state_json" CHECK (state_json ? 'state'),
@@ -173,24 +196,55 @@ func TestGetTimeoutsGetsOnlyExpiredTimeouts(t *testing.T) {
 }
 
 
-func TestFollowUpsGetsOnlyThoseBetweenMinAndMaxAndNotFollowedUpAndNotToken(t *testing.T) {
+func makeStateJson(startTime time.Time, form, previousOutput string) string {
+	base := `{"state": "QOUT", "md": { "startTime": %v }, "forms": ["%v"], "question": "foo", "previousOutput": %v }`
+
+	return fmt.Sprintf(base, startTime.Unix()*1000, form, previousOutput)
+}
+
+func TestFollowUpsGetsOnlyThoseBetweenMinAndMaxAndIgnoresAllSortsOfThings(t *testing.T) {
 	pool := testPool()
 	defer pool.Close()
 
 	mustExec(t, pool, stateSql)
+	mustExec(t, pool, surveySql)
+
+	mustExec(t, pool, pageInsertSql, "bar")
+	mustExec(t, pool, pageInsertSql, "qux")
+	mustExec(t, pool, pageInsertSql, "quux")
+	mustExec(t, pool, surveyInsertSql, "with_followup", time.Now().UTC().Add(-50*time.Hour), `{"label.buttonHint.default": "this is follow up"}`)
+	mustExec(t, pool, surveyInsertSql, "with_followup", time.Now().UTC().Add(-40*time.Hour), `{"label.buttonHint.default": "this is follow up"}`)
+	mustExec(t, pool, surveyInsertSql, "with_followup", time.Now().UTC().Add(-20*time.Hour), `{"label.other": "not a follow up"}`)
+	mustExec(t, pool, surveyInsertSql, "without_followup",  time.Now().UTC().Add(-20*time.Hour), `{"label.other": "not a follow up"}`)
+
+
 	mustExec(t, pool, insertQuery,
 		"foo",
 		"bar",
 		time.Now().UTC().Add(-30*time.Minute),
 		"QOUT",
-		`{"state": "QOUT", "question": "foo", "previousOutput": {"followUp": null}}`)
+		makeStateJson(time.Now().UTC().Add(-30*time.Hour), "with_followup", `{"followUp": null}`))
+
+	mustExec(t, pool, insertQuery,
+		"quux",
+		"bar",
+		time.Now().UTC().Add(-30*time.Minute),
+		"QOUT",
+		makeStateJson(time.Now().UTC().Add(-10*time.Hour), "with_followup", `{"followUp": null}`))
+
+	mustExec(t, pool, insertQuery,
+		"baz",
+		"bar",
+		time.Now().UTC().Add(-30*time.Minute),
+		"QOUT",
+		makeStateJson(time.Now().UTC().Add(-60*time.Hour), "without_followup", `{"followUp": null}`))
 
 	mustExec(t, pool, insertQuery,
 		"bar",
 		"qux",
 		time.Now().UTC().Add(-30*time.Minute),
 		"QOUT",
-		`{"state": "QOUT", "question": "foo", "previousOutput": {"followUp": true}}`)
+		makeStateJson(time.Now().UTC().Add(-60*time.Hour), "with_followup", `{"followUp": true}`))
 
 
 	mustExec(t, pool, insertQuery,
@@ -198,14 +252,14 @@ func TestFollowUpsGetsOnlyThoseBetweenMinAndMaxAndNotFollowedUpAndNotToken(t *te
 		"quux",
 		time.Now().UTC().Add(-30*time.Minute),
 		"QOUT",
-		`{"state": "QOUT", "question": "foo", "previousOutput": {"token": "token"}}`)
+		makeStateJson(time.Now().UTC().Add(-60*time.Hour), "with_followup", `{"token": "token"}`))
 
 	mustExec(t, pool, insertQuery,
-		"baz",
+		"qux",
 		"bar",
 		time.Now().UTC().Add(-90*time.Minute),
 		"QOUT",
-		`{"state": "QOUT", "question": "foo"}`)
+		makeStateJson(time.Now().UTC().Add(-60*time.Hour), "with_followup", `{}`))
 
 	cfg := &Config{FollowUpMin: "20 minutes", FollowUpMax: "60 minutes"}
 	ch := FollowUps(cfg, pool)

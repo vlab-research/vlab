@@ -109,14 +109,33 @@ func Timeouts(cfg *Config, conn *pgxpool.Pool) <-chan *ExternalEvent {
 
 // TODO: test cockroach perf and index
 func FollowUps(cfg *Config, conn *pgxpool.Pool) <-chan *ExternalEvent {
-	query := `SELECT state_json->>'question', userid, pageid
-              FROM states
+	query := `WITH x AS
+                (WITH t AS
+                  (SELECT state_json->>'question' as question, states.userid, states.pageid, surveys.shortcode, has_followup, created
+				  FROM states
+				  LEFT JOIN
+					(SELECT shortcode, pageid, has_followup, created
+					 FROM surveys
+					 INNER JOIN facebook_pages
+					 USING (userid)) AS surveys
+				  ON states.current_form = surveys.shortcode
+				  AND states.pageid = surveys.pageid
+				  WHERE
+					created <= form_start_time AND
+					current_state = 'QOUT'  AND
+					previous_is_followup = FALSE AND
+					previous_with_token = FALSE AND
+					(NOW() - updated) > ($1)::INTERVAL AND
+					(NOW() - updated) < ($2)::INTERVAL
+                  )
+                SELECT *, ROW_NUMBER() OVER (PARTITION BY userid, pageid, shortcode ORDER BY created DESC)
+                FROM t
+              )
+              SELECT question, userid, pageid
+              FROM x
               WHERE
-                current_state = 'QOUT'  AND
-                (state_json->'previousOutput'->>'followUp') IS NULL AND
-                (state_json->'previousOutput'->>'token') IS NULL AND
-                (NOW() - updated) > ($1)::INTERVAL AND
-                (NOW() - updated) < ($2)::INTERVAL`
+                row_number = 1 AND
+                has_followup = TRUE`
 
 	return get(conn, getFollowUp, query, cfg.FollowUpMin, cfg.FollowUpMax)
 }
