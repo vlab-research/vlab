@@ -153,6 +153,35 @@ func TestGetBlockedOnlyGetsThoseWithCodesInsideWindow(t *testing.T) {
 	mustExec(t, pool, "drop table states")
 }
 
+
+func TestGetBlockedWorksWithError(t *testing.T) {
+	pool := testPool()
+	defer pool.Close()
+
+	mustExec(t, pool, stateSql)
+	mustExec(t, pool, insertQuery,
+		"foo",
+		"bar",
+		time.Now().Add(-30*time.Minute),
+		"BLOCKED",
+		`{"state": "ERROR", "error": {"code": "NET"}}`)
+	mustExec(t, pool, insertQuery,
+		"baz",
+		"bar",
+		time.Now().Add(-30*time.Minute),
+		"BLOCKED",
+		`{"state": "ERROR", "error": {"code": "NOTNET"}}`)
+
+	cfg := &Config{BlockedInterval: "1 hour", Codes: "2020,-1,NET"}
+	ch := Blocked(cfg, pool)
+	events := getEvents(ch)
+
+	assert.Equal(t, 1, len(events))
+	assert.Equal(t, "foo", events[0].User)
+
+	mustExec(t, pool, "drop table states")
+}
+
 func TestGetTimeoutsGetsOnlyExpiredTimeouts(t *testing.T) {
 	pool := testPool()
 	defer pool.Close()

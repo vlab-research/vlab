@@ -91,7 +91,7 @@ func Blocked(cfg *Config, conn *pgxpool.Pool) <-chan *ExternalEvent {
 	query := `SELECT userid, pageid
               FROM states
               WHERE
-                current_state = 'BLOCKED' AND
+                current_state = ANY('BLOCKED','ERROR') AND
                 fb_error_code = ANY($1) AND
                 updated > (NOW() - ($2)::INTERVAL)`
 
@@ -101,7 +101,8 @@ func Blocked(cfg *Config, conn *pgxpool.Pool) <-chan *ExternalEvent {
 func Timeouts(cfg *Config, conn *pgxpool.Pool) <-chan *ExternalEvent {
 	query := `SELECT (state_json->>'waitStart')::int, userid, pageid
               FROM states
-              WHERE current_state = 'WAIT_EXTERNAL_EVENT' AND
+              WHERE
+                current_state = 'WAIT_EXTERNAL_EVENT' AND
                 timeout_date < NOW()`
 
 	return get(conn, getTimeout, query)
