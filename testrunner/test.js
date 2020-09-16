@@ -8,6 +8,8 @@ const {seed} = require('./seed-db');
 const {flowMaster} = require('./socket');
 const {snooze} = require('./utils')
 const {getResponses, getState} = require('./responses')
+const mustache = require('mustache')
+const fs = require('fs')
 
 ///////////////////////////////////////////////
 // SETUP -----------------------------------
@@ -20,6 +22,12 @@ function makeRepeat(field, text) {
            metadata: JSON.stringify({ repeat: true, ref  }) }
 }
 const ok = { res: 'success' }
+
+function interpolate(str, values) {
+  return mustache.parse(str)
+    .map(t => t[0] === 'name' ? values[t[1]] : t[1])
+    .join('')
+}
 
 
 ///////////////////////////////////////////////
@@ -178,6 +186,36 @@ describe('Test Bot flow Survey Integration Testing', () => {
 
       sender(makeReferral(userId, 'ciX4qo'));
       await flowMaster(userId, testFlow)
+    })
+
+    it('Creates payment in datbase with field information',  async () => {
+      const userId = uuid()
+      const vals = {'field:ref_num': '+34666108208', 'field:ref_op': 'Foodafone'}
+      const form = fs.readFileSync('forms/lrTauhrb.json', 'utf-8')
+      const f = interpolate(form, vals)
+      fs.writeFileSync('forms/temp.json', f)
+      const fields = getFields('forms/temp.json')
+
+   const repeatPhone = makeRepeat(fields[0], 'Sorry, please enter a valid phone number.')
+
+      const testFlow = [
+        [ok, fields[0], [makeTextResponse(userId, '23345')]],
+        [ok, repeatPhone, []],
+        [ok, fields[0], [makeTextResponse(userId, '+34666108208')]],
+        [ok, fields[1], [makeQR(fields[1], userId, 0)]],
+        [ok, fields[2], []],
+        [ok, fields[3], []],
+      ];
+
+      sender(makeReferral(userId, 'lrTauhrb'));
+      await flowMaster(userId, testFlow)
+
+      await snooze(8000)
+      const {rows} = await chatbase.pool.query('select * from payments where userid = $1', [userId])
+      rows.length.should.equal(1)
+      rows[0].provider.should.equal('reloadly')
+      rows[0].details.operator.should.equal('Foodafone')
+      rows[0].details.amount.should.equal(100)
     })
 
     it('Test chat flow with custom validation error messages',  async () => {
