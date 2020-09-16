@@ -78,9 +78,10 @@ func getFollowUp(rows pgx.Rows) *ExternalEvent {
 func Respondings(cfg *Config, conn *pgxpool.Pool) <-chan *ExternalEvent {
 	query := `SELECT userid, pageid
               FROM states
-              WHERE current_state = 'RESPONDING'
-              AND updated > (NOW() - ($1)::INTERVAL)
-              AND (NOW() - updated) > ($2)::INTERVAL`
+              WHERE
+                current_state = 'RESPONDING' AND
+                updated > (NOW() - ($1)::INTERVAL) AND
+                (NOW() - updated) > ($2)::INTERVAL`
 
 	return get(conn, getRedo, query, cfg.RespondingInterval, cfg.RespondingGrace)
 }
@@ -89,32 +90,33 @@ func Blocked(cfg *Config, conn *pgxpool.Pool) <-chan *ExternalEvent {
 
 	query := `SELECT userid, pageid
               FROM states
-              WHERE current_state = 'BLOCKED'
-              AND fb_error_code = ANY($1)
-              AND updated > (NOW() - ($2)::INTERVAL)`
+              WHERE
+                current_state = 'BLOCKED' AND
+                fb_error_code = ANY($1) AND
+                updated > (NOW() - ($2)::INTERVAL)`
 
 	return get(conn, getRedo, query, redoCodes(cfg), cfg.BlockedInterval)
 }
 
 func Timeouts(cfg *Config, conn *pgxpool.Pool) <-chan *ExternalEvent {
-	query := `SELECT (state_json->>'waitStart')::int, userid, pageid 
-              FROM states 
-              WHERE current_state = 'WAIT_EXTERNAL_EVENT' 
-              AND timeout_date < NOW()`
+	query := `SELECT (state_json->>'waitStart')::int, userid, pageid
+              FROM states
+              WHERE current_state = 'WAIT_EXTERNAL_EVENT' AND
+                timeout_date < NOW()`
 
 	return get(conn, getTimeout, query)
 }
 
 // TODO: test cockroach perf and index
 func FollowUps(cfg *Config, conn *pgxpool.Pool) <-chan *ExternalEvent {
-	query := `SELECT state_json->>'question', userid, pageid 
-              FROM states 
-              WHERE current_state = 'QOUT' 
-              AND (state_json->'previousOutput'->>'followUp') IS NULL
-              AND (NOW() - updated) > ($1)::INTERVAL 
-              AND (NOW() - updated) < ($2)::INTERVAL`
-
-	// add something to state so we know whether or not we already sent one follow up
+	query := `SELECT state_json->>'question', userid, pageid
+              FROM states
+              WHERE
+                current_state = 'QOUT'  AND
+                (state_json->'previousOutput'->>'followUp') IS NULL AND
+                (state_json->'previousOutput'->>'token') IS NULL AND
+                (NOW() - updated) > ($1)::INTERVAL AND
+                (NOW() - updated) < ($2)::INTERVAL`
 
 	return get(conn, getFollowUp, query, cfg.FollowUpMin, cfg.FollowUpMax)
 }

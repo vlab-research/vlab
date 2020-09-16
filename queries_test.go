@@ -24,9 +24,9 @@ const (
 				  PRIMARY KEY (userid, pageid)
            );`
 
-	insertQuery = `INSERT INTO 
-                   states(userid, pageid, updated, current_state, state_json) 
-                   VALUES ($1, $2, $3, $4, $5)`	
+	insertQuery = `INSERT INTO
+                   states(userid, pageid, updated, current_state, state_json)
+                   VALUES ($1, $2, $3, $4, $5)`
 )
 
 func getEvents(ch <-chan *ExternalEvent) []*ExternalEvent {
@@ -42,17 +42,17 @@ func TestGetRespondingsGetsOnlyThoseInGivenInterval(t *testing.T) {
 	defer pool.Close()
 
 	mustExec(t, pool, stateSql)
-	mustExec(t, pool, insertQuery, 
-		"foo", 
-		"bar", 
-		time.Now().Add(-2*time.Hour), 
-		"RESPONDING", 
+	mustExec(t, pool, insertQuery,
+		"foo",
+		"bar",
+		time.Now().Add(-2*time.Hour),
+		"RESPONDING",
 		`{"state": "RESPONDING"}`)
 
-	mustExec(t, pool, insertQuery, 
-		"baz", 
-		"bar", 
-		time.Now().Add(-6*time.Hour), 
+	mustExec(t, pool, insertQuery,
+		"baz",
+		"bar",
+		time.Now().Add(-6*time.Hour),
 		"RESPONDING",
 		`{"state": "RESPONDING"}`)
 
@@ -72,18 +72,18 @@ func TestGetRespondingsOnlyGetsThoseOutsideOfGracePeriod(t *testing.T) {
 	defer pool.Close()
 
 	mustExec(t, pool, stateSql)
-	mustExec(t, pool, insertQuery, 
-		"foo", 
-		"bar", 
-		time.Now().Add(-30*time.Minute), 
-		"RESPONDING", 
+	mustExec(t, pool, insertQuery,
+		"foo",
+		"bar",
+		time.Now().Add(-30*time.Minute),
+		"RESPONDING",
 		`{"state": "RESPONDING"}`)
 
-	mustExec(t, pool, insertQuery, 
-		"baz", 
-		"bar", 
-		time.Now().Add(-90*time.Minute), 
-		"RESPONDING", 
+	mustExec(t, pool, insertQuery,
+		"baz",
+		"bar",
+		time.Now().Add(-90*time.Minute),
+		"RESPONDING",
 		`{"state": "RESPONDING"}`)
 
 	cfg := &Config{RespondingInterval: "4 hours", RespondingGrace: "1 hour"}
@@ -101,23 +101,23 @@ func TestGetBlockedOnlyGetsThoseWithCodesInsideWindow(t *testing.T) {
 	defer pool.Close()
 
 	mustExec(t, pool, stateSql)
-	mustExec(t, pool, insertQuery, 
-		"foo", 
-		"bar", 
-		time.Now().Add(-30*time.Minute), 
-		"BLOCKED", 
+	mustExec(t, pool, insertQuery,
+		"foo",
+		"bar",
+		time.Now().Add(-30*time.Minute),
+		"BLOCKED",
 		`{"state": "BLOCKED", "error": {"code": 2020}}`)
-	mustExec(t, pool, insertQuery, 
-		"baz", 
-		"bar", 
-		time.Now().Add(-30*time.Minute), 
-		"BLOCKED", 
+	mustExec(t, pool, insertQuery,
+		"baz",
+		"bar",
+		time.Now().Add(-30*time.Minute),
+		"BLOCKED",
 		`{"state": "BLOCKED", "error": {"code": 9999}}`)
-	mustExec(t, pool, insertQuery, 
-		"qux", 
-		"bar", 
-		time.Now().Add(-90*time.Minute), 
-		"BLOCKED", 
+	mustExec(t, pool, insertQuery,
+		"qux",
+		"bar",
+		time.Now().Add(-90*time.Minute),
+		"BLOCKED",
 		`{"state": "BLOCKED", "error": {"code": 2020}}`)
 
 	cfg := &Config{BlockedInterval: "1 hour", Codes: "2020,-1"}
@@ -138,22 +138,22 @@ func TestGetTimeoutsGetsOnlyExpiredTimeouts(t *testing.T) {
 	ms := ts.Unix()*1000
 
 	mustExec(t, pool, stateSql)
-	mustExec(t, pool, insertQuery, 
-		"foo", 
-		"bar", 
-		ts, 
-		"WAIT_EXTERNAL_EVENT", 
-		fmt.Sprintf(`{"state": "WAIT_EXTERNAL_EVENT", 
-                      "waitStart": %v, 
+	mustExec(t, pool, insertQuery,
+		"foo",
+		"bar",
+		ts,
+		"WAIT_EXTERNAL_EVENT",
+		fmt.Sprintf(`{"state": "WAIT_EXTERNAL_EVENT",
+                      "waitStart": %v,
                       "wait": { "value": "20 minutes"}}`, ms))
 
-	mustExec(t, pool, insertQuery, 
-		"baz", 
-		"bar", 
-		ts, 
-		"WAIT_EXTERNAL_EVENT", 
-		fmt.Sprintf(`{"state": "WAIT_EXTERNAL_EVENT", 
-                      "waitStart": %v, 
+	mustExec(t, pool, insertQuery,
+		"baz",
+		"bar",
+		ts,
+		"WAIT_EXTERNAL_EVENT",
+		fmt.Sprintf(`{"state": "WAIT_EXTERNAL_EVENT",
+                      "waitStart": %v,
                       "wait": { "value": "40 minutes"}}`, ms))
 
 	cfg := &Config{}
@@ -165,7 +165,7 @@ func TestGetTimeoutsGetsOnlyExpiredTimeouts(t *testing.T) {
 
 	assert.Equal(t, "timeout", events[0].Event.Type)
 
-	
+
 	ev, _ := json.Marshal(events[0].Event)
 	assert.Equal(t, string(ev), fmt.Sprintf(`{"type":"timeout","value":%v}`, ms))
 
@@ -173,30 +173,38 @@ func TestGetTimeoutsGetsOnlyExpiredTimeouts(t *testing.T) {
 }
 
 
-func TestFollowUpsGetsOnlyThoseBetweenMinAndMaxAndNotFollowedUp(t *testing.T) {
+func TestFollowUpsGetsOnlyThoseBetweenMinAndMaxAndNotFollowedUpAndNotToken(t *testing.T) {
 	pool := testPool()
 	defer pool.Close()
 
 	mustExec(t, pool, stateSql)
-	mustExec(t, pool, insertQuery, 
-		"foo", 
-		"bar", 
+	mustExec(t, pool, insertQuery,
+		"foo",
+		"bar",
 		time.Now().UTC().Add(-30*time.Minute),
-		"QOUT", 
+		"QOUT",
 		`{"state": "QOUT", "question": "foo", "previousOutput": {"followUp": null}}`)
 
-	mustExec(t, pool, insertQuery, 
-		"bar", 
-		"qux", 
+	mustExec(t, pool, insertQuery,
+		"bar",
+		"qux",
 		time.Now().UTC().Add(-30*time.Minute),
-		"QOUT", 
+		"QOUT",
 		`{"state": "QOUT", "question": "foo", "previousOutput": {"followUp": true}}`)
 
-	mustExec(t, pool, insertQuery, 
-		"baz", 
-		"bar", 
+
+	mustExec(t, pool, insertQuery,
+		"bar",
+		"quux",
+		time.Now().UTC().Add(-30*time.Minute),
+		"QOUT",
+		`{"state": "QOUT", "question": "foo", "previousOutput": {"token": "token"}}`)
+
+	mustExec(t, pool, insertQuery,
+		"baz",
+		"bar",
 		time.Now().UTC().Add(-90*time.Minute),
-		"QOUT", 
+		"QOUT",
 		`{"state": "QOUT", "question": "foo"}`)
 
 	cfg := &Config{FollowUpMin: "20 minutes", FollowUpMax: "60 minutes"}
