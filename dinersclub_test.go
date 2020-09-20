@@ -102,7 +102,14 @@ func TestDinersClubErrorsOnMalformedJSONMessages(t *testing.T) {
 
 func TestDinersClubErrorsOnNonExistentProvider(t *testing.T) {
 
-	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		data, _ := ioutil.ReadAll(r.Body)
+		dat := strings.TrimSpace(string(data))
+		assert.Contains(t, dat, `"code":"INVALID_PROVIDER"`)
+		assert.Contains(t, dat, "baz")
+		assert.Equal(t, "/", r.URL.Path)
+		w.WriteHeader(200)
+	}))
 
 	cfg := &Config{Providers: []string{"fake"}}
 	providers, _ := getProviders(cfg)
@@ -117,8 +124,7 @@ func TestDinersClubErrorsOnNonExistentProvider(t *testing.T) {
 	})
 
 	err := dc.Process(msgs)
-	assert.NotNil(t, err)
-	assert.Contains(t, err.Error(), "baz")
+	assert.Nil(t, err)
 }
 
 func TestDinersClubRepeatsOnServerErrorFromBotserver(t *testing.T) {
@@ -131,7 +137,7 @@ func TestDinersClubRepeatsOnServerErrorFromBotserver(t *testing.T) {
 		w.WriteHeader(500)
 	}))
 
-	cfg := &Config{Providers: []string{"fake"}, RetryBotserver: 1*time.Second}
+	cfg := &Config{Providers: []string{"fake"}, RetryBotserver: 1 * time.Second}
 
 	providers, _ := getProviders(cfg)
 	dc := DC{cfg, providers, &botparty.BotParty{Client: http.DefaultClient, Botserver: ts.URL}}

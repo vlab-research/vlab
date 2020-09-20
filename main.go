@@ -17,7 +17,6 @@ import (
 
 type Config struct {
 	Botserver        string        `env:"BOTSERVER_URL,required"`
-	Provider         string        `env:"DINERSCLUB_PROVIDER,required"`
 	KafkaBrokers     string        `env:"KAFKA_BROKERS,required"`
 	KafkaPollTimeout time.Duration `env:"KAFKA_POLL_TIMEOUT,required"`
 	Topic            string        `env:"KAFKA_TOPIC,required"`
@@ -70,6 +69,29 @@ func backoffTime(d time.Duration) *backoff.ExponentialBackOff {
 	return ebo
 }
 
+func (dc *DC) sendResult(pe *PaymentEvent, res *Result) error {
+	b, err := json.Marshal(res)
+	jm := json.RawMessage(b)
+	if err != nil {
+		return err
+	}
+
+	op := func() error {
+		ee := botparty.NewExternalEvent(pe.Userid, pe.Pageid, "external", &jm)
+		return dc.botparty.Send(ee)
+	}
+
+	return backoff.Retry(op, backoffTime(dc.cfg.RetryBotserver))
+}
+
+func invalidProviderResult(pe *PaymentEvent) *Result {
+	message := fmt.Sprintf("You requested payment by provider: %v but no provider with that name is configured", pe.Provider)
+	err := &PaymentError{message, "INVALID_PROVIDER"}
+	t := fmt.Sprintf("payment:%v", pe.Provider)
+	res := &Result{Type: t, Success: false, Timestamp: time.Now().UTC(), Error: err}
+	return res
+}
+
 func (dc *DC) Job(pe *PaymentEvent) error {
 	validate := validator.New()
 	err := validate.Struct(pe)
@@ -79,7 +101,7 @@ func (dc *DC) Job(pe *PaymentEvent) error {
 
 	provider, ok := dc.providers[pe.Provider]
 	if !ok {
-		return fmt.Errorf("Cannot find provider named: %v", pe.Provider)
+		return dc.sendResult(pe, invalidProviderResult(pe))
 	}
 
 	res := new(Result)
@@ -97,18 +119,7 @@ func (dc *DC) Job(pe *PaymentEvent) error {
 		return err
 	}
 
-	b, err := json.Marshal(res)
-	jm := json.RawMessage(b)
-	if err != nil {
-		return err
-	}
-
-	op = func() error {
-		ee := botparty.NewExternalEvent(pe.Userid, pe.Pageid, "external", &jm)
-		return dc.botparty.Send(ee)
-	}
-
-	return backoff.Retry(op, backoffTime(dc.cfg.RetryBotserver))
+	return dc.sendResult(pe, res)
 }
 
 func (dc *DC) Work(i interface{}) interface{} {
