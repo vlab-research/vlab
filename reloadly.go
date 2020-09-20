@@ -2,27 +2,25 @@ package main
 
 import (
 	"encoding/json"
-	"net/http"
-
 	"time"
 
 	"github.com/caarlos0/env/v6"
+	"github.com/go-playground/validator/v10"
 	"github.com/nandanrao/go-reloadly/reloadly"
 )
 
-
 type ReloadlyConfig struct {
-	Sandbox bool `env:"RELOADLY_SANDBOX,required"`
-	ID string `env:"RELOADLY_ID,required"`
-	Secret string `env:"RELOADLY_SECRET,required"`
+	Sandbox bool   `env:"RELOADLY_SANDBOX,required"`
+	ID      string `env:"RELOADLY_ID,required"`
+	Secret  string `env:"RELOADLY_SECRET,required"`
 }
 
 type ReloadlyProvider struct {
 	config *ReloadlyConfig
-	svc *reloadly.Service
+	svc    *reloadly.Service
 }
 
-func NewReloadlyProvider() (Provider, error){
+func NewReloadlyProvider() (Provider, error) {
 	cfg := new(ReloadlyConfig)
 	err := env.Parse(cfg)
 	if err != nil {
@@ -43,14 +41,18 @@ func NewReloadlyProvider() (Provider, error){
 	return rp, nil
 }
 
-func errorResult(res *Result, err error) (*Result, error) {
+func reloadlyErrorResult(res *Result, err error) (*Result, error) {
 	res.Success = false
 	if e, ok := err.(reloadly.APIError); ok {
-		res.Error = &PaymentError{ e.Message, e.ErrorCode }
+		res.Error = &PaymentError{e.Message, e.ErrorCode}
 		return res, nil
 	}
 	if e, ok := err.(reloadly.ReloadlyError); ok {
-		res.Error = &PaymentError{ e.Message, e.ErrorCode }
+		res.Error = &PaymentError{e.Message, e.ErrorCode}
+		return res, nil
+	}
+	if e, ok := err.(validator.ValidationErrors); ok {
+		res.Error = &PaymentError{e.Error(), "INVALID_PAYMENT_DETAILS"}
 		return res, nil
 	}
 
@@ -61,20 +63,26 @@ func errorResult(res *Result, err error) (*Result, error) {
 
 func (p *ReloadlyProvider) Payout(event *PaymentEvent) (*Result, error) {
 	job := new(reloadly.TopupJob)
-	err := json.Unmarshal(event.Details, job)
+	err := json.Unmarshal(*event.Details, job)
 	if err != nil {
 		return nil, err
 	}
 
 	result := &Result{}
-	result.ID = job.ID
 	result.Type = "payment:reloadly"
+	result.ID = job.ID
+
+	validate := validator.New()
+	err = validate.Struct(job)
+	if err != nil {
+		return reloadlyErrorResult(result, err)
+	}
 
 	worker := reloadly.TopupWorker(*p.svc)
 	r, err := worker.DoJob(job)
 
 	if err != nil {
-		return errorResult(result, err)
+		return reloadlyErrorResult(result, err)
 	}
 
 	result.Success = true

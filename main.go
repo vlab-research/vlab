@@ -9,27 +9,30 @@ import (
 	"github.com/caarlos0/env/v6"
 	"github.com/cenkalti/backoff"
 	"github.com/confluentinc/confluent-kafka-go/kafka"
+	"github.com/go-playground/validator/v10"
 	"github.com/nandanrao/chance"
 	"github.com/vlab-research/botparty"
 	"github.com/vlab-research/spine"
 )
 
-
 type Config struct {
-	Botserver string `env:"BOTSERVER_URL,required"`
-	Provider string `env:"DINERSCLUB_PROVIDER,required"`
-	KafkaBrokers string `env:"KAFKA_BROKERS,required"`
+	Botserver        string        `env:"BOTSERVER_URL,required"`
+	Provider         string        `env:"DINERSCLUB_PROVIDER,required"`
+	KafkaBrokers     string        `env:"KAFKA_BROKERS,required"`
 	KafkaPollTimeout time.Duration `env:"KAFKA_POLL_TIMEOUT,required"`
-	Topic string `env:"KAFKA_TOPIC,required"`
-	Group string `env:"KAFKA_GROUP,required"`
-	BatchSize int `env:"SCRIBBLE_BATCH_SIZE,required"`
-	ChunkSize int `env:"SCRIBBLE_CHUNK_SIZE,required"`
+	Topic            string        `env:"KAFKA_TOPIC,required"`
+	Group            string        `env:"KAFKA_GROUP,required"`
+	BatchSize        int           `env:"DINERSCLUB_BATCH_SIZE,required"`
+	ChunkSize        int           `env:"DINERSCLUB_CHUNK_SIZE,required"`
+	RetryBotserver   time.Duration `env:"DINERSCLUB_RETRY_BOTSERVER,required"`
+	RetryProvider    time.Duration `env:"DINERSCLUB_RETRY_PROVIDER,required"`
+	Providers        []string      `env:"DINERSCLUB_PROVIDERS" envSeparator:","`
 }
 
 type DC struct {
-	providerType string
-	provider Provider
-	botparty *botparty.BotParty
+	cfg       *Config
+	providers map[string]Provider
+	botparty  *botparty.BotParty
 }
 
 func handle(err error) {
@@ -51,9 +54,10 @@ func (dc *DC) Process(messages []*kafka.Message) error {
 
 	outch := chance.Pool(len(tasks), chance.Flatten(tasks), dc.Work)
 	for x := range outch {
-		err := x.(error)
-		if err != nil {
-			return err
+		switch x.(type) {
+		case error:
+			return x.(error)
+		default:
 		}
 	}
 
@@ -67,9 +71,20 @@ func backoffTime(d time.Duration) *backoff.ExponentialBackOff {
 }
 
 func (dc *DC) Job(pe *PaymentEvent) error {
+	validate := validator.New()
+	err := validate.Struct(pe)
+	if err != nil {
+		return err
+	}
+
+	provider, ok := dc.providers[pe.Provider]
+	if !ok {
+		return fmt.Errorf("Cannot find provider named: %v", pe.Provider)
+	}
+
 	res := new(Result)
 	op := func() error {
-		r, e := dc.provider.Payout(pe)
+		r, e := provider.Payout(pe)
 		if e != nil {
 			return e
 		}
@@ -77,7 +92,7 @@ func (dc *DC) Job(pe *PaymentEvent) error {
 		return nil
 	}
 
-	err := backoff.Retry(op, backoffTime(15*time.Minute))
+	err = backoff.Retry(op, backoffTime(dc.cfg.RetryProvider))
 	if err != nil {
 		return err
 	}
@@ -93,7 +108,7 @@ func (dc *DC) Job(pe *PaymentEvent) error {
 		return dc.botparty.Send(ee)
 	}
 
-	return backoff.Retry(op, backoffTime(60*time.Minute))
+	return backoff.Retry(op, backoffTime(dc.cfg.RetryBotserver))
 }
 
 func (dc *DC) Work(i interface{}) interface{} {
@@ -101,37 +116,50 @@ func (dc *DC) Work(i interface{}) interface{} {
 	return dc.Job(pe)
 }
 
+func contains(s []string, target string) bool {
+	for _, x := range s {
+		if x == target {
+			return true
+		}
+	}
+	return false
+}
 
-func getProvider(cfg *Config) (Provider, error) {
-	lookup := map[string]func()(Provider, error){
-		"fake": NewFakeProvider,
+func getProviders(cfg *Config) (map[string]Provider, error) {
+	lookup := map[string]func() (Provider, error){
+		"fake":     NewFakeProvider,
 		"reloadly": NewReloadlyProvider,
 	}
 
-	providerFn, ok := lookup[cfg.Provider]
-	if !ok {
-		log.Fatalf("Cannot find provider with name: %v", cfg.Provider)
+	providers := map[string]Provider{}
+	for name, fn := range lookup {
+		if contains(cfg.Providers, name) {
+			p, err := fn()
+			if err != nil {
+				return nil, err
+			}
+			providers[name] = p
+		}
 	}
 
-	return providerFn()
-
+	return providers, nil
 }
 
 func monitor(errs <-chan error) {
-	e := <- errs
+	e := <-errs
 	log.Fatalf("DinersClub failed with error: %v", e)
 }
 
 func main() {
-	cfg := Config{}
-	err := env.Parse(&cfg)
+	cfg := new(Config)
+	err := env.Parse(cfg)
 	handle(err)
 
-	provider, err := getProvider(&cfg)
+	providers, err := getProviders(cfg)
 	handle(err)
 
 	bp := botparty.NewBotParty(cfg.Botserver)
-	dc := &DC{cfg.Provider, provider, bp}
+	dc := &DC{cfg, providers, bp}
 
 	c := spine.NewKafkaConsumer(cfg.Topic, cfg.KafkaBrokers, cfg.Group,
 		cfg.KafkaPollTimeout, cfg.BatchSize, cfg.ChunkSize)
