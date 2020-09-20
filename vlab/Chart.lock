@@ -14,6 +14,9 @@ dependencies:
 - name: dumper
   repository: https://vlab-research.github.io/devops
   version: 0.0.1
+- name: dinersclub
+  repository: https://vlab-research.github.io/devops
+  version: 0.0.1
 - name: dean
   repository: https://vlab-research.github.io/devops
   version: 0.0.1
@@ -35,5 +38,5 @@ dependencies:
 - name: kafka
   repository: https://storage.googleapis.com/kubernetes-charts-incubator
   version: 0.20.8
-digest: sha256:43e9b2a2c62f58dfa9e77eb3c693d85152387f0ccfc33d87c350689c882f2eab
-generated: "2020-09-02T21:25:24.158652126+02:00"
+digest: sha256:549d10b3d991543858d3cede993c469c65aa0c873e62ceed12b3a35d2456e3b7
+generated: "2020-09-20T17:02:16.579953474+02:00"

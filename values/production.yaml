@@ -13,15 +13,16 @@ kafkabrokers: &kb "kafka-headless.default.svc.cluster.local:29092"
 chatTopic: &topic "vlab-prod-chat-events"
 stateTopic: &statetopic "vlab-prod-state"
 responseTopic: &responsetopic "vlab-prod-response"
+paymentTopic: &paymenttopic "vlab-prod-payment"
 botEnvs: &botenvs gbv-bot-envs
 chatbaseHost: &host "gbv-cockroachdb-public"
 
 versionDashboard: &vdashboard 0.0.7
 versionBotserver: &vbotserver 0.0.8
-versionReplybot: &vreplybot 0.0.105
+versionReplybot: &vreplybot 0.0.106
 versionLinksniffer: &vlinksniffer 0.0.3
-versionDean: &vdean 0.0.14
-versionScribble: &vscribble 0.0.8
+versionDean: &vdean 0.0.17
+versionScribble: &vscribble 0.0.10
 
 processingAlerts:
   - consumergroup: replybot
@@ -63,6 +64,11 @@ kafkaTopics:
     replicationFactor: 3
     config:
       "retention.ms": "2678400000" # 31 days
+  - name: *paymenttopic
+    partitions: 2
+    replicationFactor: 3
+    config:
+      "retention.ms": "2678400000" # 31 days
 
 dean:
   image:
@@ -91,9 +97,9 @@ dean:
   - name: DEAN_RESPONDING_GRACE
     value: "40 minutes"
   - name: DEAN_SEND_DELAY
-    value: "4s"
+    value: "3s"
   - name: DEAN_FOLLOWUP_MIN
-    value: "8 hours"
+    value: "6 hours"
   - name: DEAN_FOLLOWUP_MAX
     value: "24 hours"
   queries:
@@ -106,14 +112,14 @@ dean:
           memory: 10Mi
     - name: followups
       queries: "followups"
-      schedule: "0 16 * * *"
+      schedule: "0 4,10,15,16,17 * * *"
       resources:
         requests:
           cpu: 10m
           memory: 10Mi
     - name: timeouts
       queries: "timeouts"
-      schedule: "0 6 * * *"
+      schedule: "0 9,15,17 * * *"
       resources:
         requests:
           cpu: 10m
@@ -180,6 +186,17 @@ scribble:
         value: "16"
       - name: SCRIBBLE_BATCH_SIZE
         value: "32"
+    - destination: "payments"
+      replicaCount: 1
+      env:
+      - name: KAFKA_TOPIC
+        value: *paymenttopic
+      - name: KAFKA_GROUP
+        value: "scribble-payments"
+      - name: SCRIBBLE_CHUNK_SIZE
+        value: "8"
+      - name: SCRIBBLE_BATCH_SIZE
+        value: "16"
 
 
 dumper:
@@ -388,6 +405,8 @@ replybot:
     value: *statetopic
   - name: VLAB_RESPONSE_TOPIC
     value: *responsetopic
+  - name: VLAB_PAYMENT_TOPIC
+    value: *paymenttopic
   - name: DASHBOARD_API
     value: "http://gbv-dashboard/api/v1"
   - name: BOTSERVER_URL
@@ -409,6 +428,8 @@ botserver:
     value: *topic
   - name: KAFKA_BROKERS
     value: *kb
+  - name: PORT
+    value: "80"
 
   resources:
     requests:

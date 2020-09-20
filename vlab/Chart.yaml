@@ -21,6 +21,11 @@ dependencies:
     repository: https://vlab-research.github.io/devops
     tags:
       - backup
+  - name: dinersclub
+    version: 0.0.1
+    repository: https://vlab-research.github.io/devops
+    tags:
+      - payments
   - name: dean
     version: 0.0.1
     repository: https://vlab-research.github.io/devops
