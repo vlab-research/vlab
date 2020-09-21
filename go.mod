@@ -8,7 +8,7 @@ require (
 	github.com/confluentinc/confluent-kafka-go v1.4.2
 	github.com/go-playground/validator/v10 v10.3.0
 	github.com/nandanrao/chance v0.0.2
-	github.com/nandanrao/go-reloadly v0.0.8
+	github.com/nandanrao/go-reloadly v0.0.9
 	github.com/stretchr/testify v1.6.1
 	github.com/vlab-research/botparty v0.0.0-20200917171250-abbbd36eb095
 	github.com/vlab-research/spine v0.0.3
