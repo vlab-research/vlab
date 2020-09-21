@@ -1,0 +1,186 @@
+{
+  "id": "gk3gt9ag",
+  "type": "form",
+  "title": "payment test - fake - failure",
+  "workspace": {
+    "href": "https://api.typeform.com/workspaces/WA44hg"
+  },
+  "theme": {
+    "href": "https://api.typeform.com/themes/qHWOQ7"
+  },
+  "settings": {
+    "language": "en",
+    "progress_bar": "percentage",
+    "meta": {
+      "allow_indexing": false
+    },
+    "is_public": true,
+    "is_trial": false,
+    "show_progress_bar": true,
+    "show_typeform_branding": true,
+    "are_uploads_public": false
+  },
+  "thankyou_screens": [
+    {
+      "id": "DefaultTyScreen",
+      "ref": "default_tys",
+      "title": "Done! Your information was sent perfectly.",
+      "properties": {
+        "show_button": false,
+        "share_icons": false
+      }
+    }
+  ],
+  "fields": [
+    {
+      "id": "Zf3MwzJBEmHz",
+      "title": "Hey what's your number?",
+      "ref": "ref_num",
+      "properties": {
+        "default_country_code": "us"
+      },
+      "validations": {
+        "required": false
+      },
+      "type": "phone_number"
+    },
+    {
+      "id": "oyvYcOP4LE3T",
+      "title": "And what's your operator?",
+      "ref": "ref_op",
+      "properties": {
+        "randomize": false,
+        "allow_multiple_selection": false,
+        "allow_other_choice": false,
+        "vertical_alignment": true,
+        "choices": [
+          {
+            "id": "imClR1kHooMk",
+            "ref": "4127a919-c337-46d0-8021-3216b2f9d259",
+            "label": "Foodafone"
+          },
+          {
+            "id": "TAUsmm4cbpwo",
+            "ref": "1c2dc360-ed98-4a3a-94a6-595d41a354ca",
+            "label": "Bardafone"
+          }
+        ]
+      },
+      "validations": {
+        "required": false
+      },
+      "type": "multiple_choice"
+    },
+    {
+      "id": "hHTfxBDfssJc",
+      "title": "Thank you, we'll send money there!!",
+      "ref": "b69e2638-5999-44b6-b44d-5931578b1956",
+      "properties": {
+        "description": "type: wait\nwait: \n    type: external\n    value:\n        type: payment:fake\n        id: foobaz\n\npayment: \n    provider: fake\n    details:\n        result:\n            type: payment:fake\n            id: foobaz\n            success: false\n            error: \n                code: FAKE\n                message: you fake",
+        "button_text": "Continue",
+        "hide_marks": false
+      },
+      "type": "statement"
+    },
+    {
+      "id": "pBMCSIAhLdAz",
+      "title": "We're sorry. The mobile payment had the following problem: {{hidden:event__payment_fake_error_message}}",
+      "ref": "edde703e-d1d2-47b9-9028-a5e0e5ff7f9a",
+      "properties": {
+        "button_text": "Continue",
+        "hide_marks": false
+      },
+      "type": "statement"
+    },
+    {
+      "id": "xJhu1AnTOnC3",
+      "title": "Please try again with another number. ",
+      "ref": "9b47b29a-31b4-48ed-8ad9-1fb899e241c5",
+      "properties": {
+        "button_text": "Continue",
+        "hide_marks": false
+      },
+      "type": "statement"
+    },
+    {
+      "id": "DefaultTyScreen",
+      "ref": "default_tys",
+      "title": "Done! Your information was sent perfectly.",
+      "properties": {
+        "show_button": false,
+        "share_icons": false
+      },
+      "type": "thankyou_screen"
+    }
+  ],
+  "hidden": [
+    "event__payment_fake_success",
+    "event__payment_fake_error_message"
+  ],
+  "logic": [
+    {
+      "type": "field",
+      "ref": "b69e2638-5999-44b6-b44d-5931578b1956",
+      "actions": [
+        {
+          "action": "jump",
+          "details": {
+            "to": {
+              "type": "thankyou",
+              "value": "default_tys"
+            }
+          },
+          "condition": {
+            "op": "equal",
+            "vars": [
+              {
+                "type": "hidden",
+                "value": "event__payment_fake_success"
+              },
+              {
+                "type": "constant",
+                "value": "true"
+              }
+            ]
+          }
+        },
+        {
+          "action": "jump",
+          "details": {
+            "to": {
+              "type": "field",
+              "value": "edde703e-d1d2-47b9-9028-a5e0e5ff7f9a"
+            }
+          },
+          "condition": {
+            "op": "always",
+            "vars": []
+          }
+        }
+      ]
+    },
+    {
+      "type": "field",
+      "ref": "9b47b29a-31b4-48ed-8ad9-1fb899e241c5",
+      "actions": [
+        {
+          "action": "jump",
+          "details": {
+            "to": {
+              "type": "field",
+              "value": "ref_num"
+            }
+          },
+          "condition": {
+            "op": "always",
+            "vars": []
+          }
+        }
+      ]
+    }
+  ],
+  "_links": {
+    "display": "https://nandanrao.typeform.com/to/gk3gt9ag"
+  },
+  "custom_messages": {}
+}
