@@ -25,7 +25,7 @@ versionReplybot: &vreplybot 0.0.107
 versionLinksniffer: &vlinksniffer 0.0.3
 versionDean: &vdean 0.0.17
 versionScribble: &vscribble 0.0.10
-versionDinersclub: &vdinersclub 0.0.2
+versionDinersclub: &vdinersclub 0.0.3
 
 linksniffer:
   replicaCount: 1

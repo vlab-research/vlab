@@ -19,10 +19,11 @@ chatbaseHost: &host "gbv-cockroachdb-public"
 
 versionDashboard: &vdashboard 0.0.7
 versionBotserver: &vbotserver 0.0.8
-versionReplybot: &vreplybot 0.0.106
+versionReplybot: &vreplybot 0.0.107
 versionLinksniffer: &vlinksniffer 0.0.3
 versionDean: &vdean 0.0.17
 versionScribble: &vscribble 0.0.10
+versionDinersclub: &vdinersclub 0.0.3
 
 processingAlerts:
   - consumergroup: replybot
@@ -70,6 +71,42 @@ kafkaTopics:
     config:
       "retention.ms": "2678400000" # 31 days
 
+
+dinersclub:
+  image:
+    repository: vlabresearch/dinersclub
+    tag: *vdinersclub
+    pullPolicy: IfNotPresent
+  resources:
+    requests:
+      cpu: 5m
+      memory: 16Mi
+  envFrom: gbv-bot-envs
+  env:
+    - name: BOTSERVER_URL
+      value: "http://gbv-botserver/synthetic"
+    - name: KAFKA_BROKERS
+      value: *kb
+    - name: KAFKA_TOPIC
+      value: *paymenttopic
+    - name: KAFKA_GROUP
+      value: "dinersclub"
+    - name: KAFKA_POLL_TIMEOUT
+      value: "10s"
+    - name: DINERSCLUB_RETRY_BOTSERVER
+      value: "2m"
+    - name: DINERSCLUB_RETRY_PROVIDER
+      value: "2m"
+    - name: DINERSCLUB_PROVIDERS
+      value: "fake,reloadly"
+    - name: DINERSCLUB_CHUNK_SIZE
+      value: "1"
+    - name: DINERSCLUB_BATCH_SIZE
+      value: "1"
+    - name: RELOADLY_SANDBOX
+      value: "false"
+
+
 dean:
   image:
     repository: vlabresearch/dean
@@ -89,13 +126,13 @@ dean:
   - name: BOTSERVER_URL
     value: "http://gbv-botserver/synthetic"
   - name: DEAN_FB_CODES
-    value: "2022,613,-1"
+    value: "2022,613,-1,ECONNREFUSED,ECONNRESET"
   - name: DEAN_BLOCKED_INTERVAL
-    value: "999999999 years"
+    value: "24 hours"
   - name: DEAN_RESPONDING_INTERVAL
-    value: "999999999 years"
+    value: "24 hours"
   - name: DEAN_RESPONDING_GRACE
-    value: "40 minutes"
+    value: "20 minutes"
   - name: DEAN_SEND_DELAY
     value: "3s"
   - name: DEAN_FOLLOWUP_MIN
@@ -105,7 +142,7 @@ dean:
   queries:
     - name: respondings
       queries: "respondings,blocked"
-      schedule: "20 * * * *"
+      schedule: "*/10 * * * *"
       resources:
         requests:
           cpu: 10m
@@ -186,18 +223,6 @@ scribble:
         value: "16"
       - name: SCRIBBLE_BATCH_SIZE
         value: "32"
-    - destination: "payments"
-      replicaCount: 1
-      env:
-      - name: KAFKA_TOPIC
-        value: *paymenttopic
-      - name: KAFKA_GROUP
-        value: "scribble-payments"
-      - name: SCRIBBLE_CHUNK_SIZE
-        value: "8"
-      - name: SCRIBBLE_BATCH_SIZE
-        value: "16"
-
 
 dumper:
   image:
@@ -378,7 +403,7 @@ replybot:
       memory: 60Mi
   env:
   - name: FAKE
-    value: "NOTHING"
+    value: "NOTHIN"
   - name: CHATBASE_BACKEND
     value: "@vlab-research/chatbase-postgres"
   - name: CHATBASE_DATABASE
