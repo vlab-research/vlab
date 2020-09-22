@@ -104,6 +104,10 @@ dean:
     value: "26257"
   - name: BOTSERVER_URL
     value: "http://gbv-botserver/synthetic"
+  - name: DEAN_ERROR_TAGS
+    value: "NETWORK,INTERNAL"
+  - name: DEAN_ERROR_INTERVAL
+    value: "24 hours"
   - name: DEAN_FB_CODES
     value: "2022,-1"
   - name: DEAN_BLOCKED_INTERVAL
@@ -120,7 +124,7 @@ dean:
     value: "24 hours"
   queries:
     - name: respondings
-      queries: "respondings,blocked"
+      queries: "respondings,blocked,errored"
       schedule: "0 8,12,13,14,18 * * *"
       resources:
         requests:

@@ -23,7 +23,7 @@ versionDashboard: &vdashboard 0.0.7
 versionBotserver: &vbotserver 0.0.8
 versionReplybot: &vreplybot 0.0.107
 versionLinksniffer: &vlinksniffer 0.0.3
-versionDean: &vdean 0.0.17
+versionDean: &vdean 0.0.19
 versionScribble: &vscribble 0.0.10
 versionDinersclub: &vdinersclub 0.0.3
 
@@ -222,6 +222,10 @@ dean:
     value: "http://gbv-botserver/synthetic"
   - name: DEAN_FB_CODES
     value: "2022,-1"
+  - name: DEAN_ERROR_TAGS
+    value: "NETWORK,INTERNAL"
+  - name: DEAN_ERROR_INTERVAL
+    value: "24 hours"
   - name: DEAN_BLOCKED_INTERVAL
     value: "24 hours"
   - name: DEAN_RESPONDING_INTERVAL
@@ -236,7 +240,7 @@ dean:
     value: "1 hour"
   queries:
     - name: respondings
-      queries: "respondings,blocked"
+      queries: "respondings,blocked,errored"
       schedule: "*/1 * * * *"
       resources:
         requests:
