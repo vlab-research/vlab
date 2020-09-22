@@ -111,6 +111,7 @@ func getQueries(cfg *Config, pool *pgxpool.Pool) []<-chan *ExternalEvent {
 	lookup := map[string]Query{
 		"respondings": Respondings,
 		"blocked":     Blocked,
+		"errored":     Errored,
 		"timeouts":    Timeouts,
 		"followups":   FollowUps,
 	}
