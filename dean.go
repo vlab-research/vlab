@@ -16,23 +16,23 @@ import (
 )
 
 func merge(cs ...<-chan *ExternalEvent) <-chan *ExternalEvent {
-    var wg sync.WaitGroup
-    out := make(chan *ExternalEvent)
-    output := func(c <-chan *ExternalEvent) {
-        for n := range c {
-            out <- n
-        }
-        wg.Done()
-    }
-    wg.Add(len(cs))
-    for _, c := range cs {
-        go output(c)
-    }
-    go func() {
-        wg.Wait()
-        close(out)
-    }()
-    return out
+	var wg sync.WaitGroup
+	out := make(chan *ExternalEvent)
+	output := func(c <-chan *ExternalEvent) {
+		for n := range c {
+			out <- n
+		}
+		wg.Done()
+	}
+	wg.Add(len(cs))
+	for _, c := range cs {
+		go output(c)
+	}
+	go func() {
+		wg.Wait()
+		close(out)
+	}()
+	return out
 }
 
 func handle(err error) {
@@ -42,24 +42,22 @@ func handle(err error) {
 }
 
 type Config struct {
-	Db string `env:"CHATBASE_DATABASE,required"`
-	User string `env:"CHATBASE_USER,required"`
-	Password string `env:"CHATBASE_PASSWORD,required"`
-	Host string `env:"CHATBASE_HOST,required"`
-	Port string `env:"CHATBASE_PORT,required"`
-	Botserver string `env:"BOTSERVER_URL,required"`
-	Codes string `env:"DEAN_FB_CODES,required"`
-	BlockedInterval string `env:"DEAN_BLOCKED_INTERVAL,required"`
-	RespondingInterval string `env:"DEAN_RESPONDING_INTERVAL,required"`
-	RespondingGrace string `env:"DEAN_RESPONDING_GRACE,required"`
-	Queries string `env:"DEAN_QUERIES,required"`
-	SendDelay time.Duration `env:"DEAN_SEND_DELAY,required"`
-	FollowUpMin string `env:"DEAN_FOLLOWUP_MIN,required"`
-	FollowUpMax string `env:"DEAN_FOLLOWUP_MAX,required"`
-}
-
-func redoCodes(cfg *Config) []string {
-	return strings.Split(cfg.Codes, ",")
+	Db                 string        `env:"CHATBASE_DATABASE,required"`
+	User               string        `env:"CHATBASE_USER,required"`
+	Password           string        `env:"CHATBASE_PASSWORD,required"`
+	Host               string        `env:"CHATBASE_HOST,required"`
+	Port               string        `env:"CHATBASE_PORT,required"`
+	Botserver          string        `env:"BOTSERVER_URL,required"`
+	Codes              []string      `env:"DEAN_FB_CODES,required" envSeparator:","`
+	ErrorTags          []string      `env:"DEAN_ERROR_TAGS,required" envSeparator:","`
+	ErrorInterval      string        `env:"DEAN_ERROR_INTERVAL,required"`
+	BlockedInterval    string        `env:"DEAN_BLOCKED_INTERVAL,required"`
+	RespondingInterval string        `env:"DEAN_RESPONDING_INTERVAL,required"`
+	RespondingGrace    string        `env:"DEAN_RESPONDING_GRACE,required"`
+	Queries            string        `env:"DEAN_QUERIES,required"`
+	SendDelay          time.Duration `env:"DEAN_SEND_DELAY,required"`
+	FollowUpMin        string        `env:"DEAN_FOLLOWUP_MIN,required"`
+	FollowUpMax        string        `env:"DEAN_FOLLOWUP_MAX,required"`
 }
 
 func send(cfg *Config, client *http.Client, e *ExternalEvent) error {
@@ -99,22 +97,22 @@ func process(cfg *Config, ch <-chan *ExternalEvent) {
 
 func getConn(cfg *Config) *pgxpool.Pool {
 	conString := fmt.Sprintf("postgresql://%s@%s:%s/%s?sslmode=disable", cfg.User, cfg.Host, cfg.Port, cfg.Db)
-    config, err := pgxpool.ParseConfig(conString)
+	config, err := pgxpool.ParseConfig(conString)
 	handle(err)
 
 	ctx := context.Background()
-    pool, err := pgxpool.ConnectConfig(ctx, config)
+	pool, err := pgxpool.ConnectConfig(ctx, config)
 	handle(err)
 
 	return pool
 }
 
-func getQueries(cfg *Config, pool *pgxpool.Pool) []<- chan *ExternalEvent {
+func getQueries(cfg *Config, pool *pgxpool.Pool) []<-chan *ExternalEvent {
 	lookup := map[string]Query{
 		"respondings": Respondings,
-		"blocked": Blocked,
-		"timeouts": Timeouts,
-		"followups": FollowUps,
+		"blocked":     Blocked,
+		"timeouts":    Timeouts,
+		"followups":   FollowUps,
 	}
 	queries := strings.Split(cfg.Queries, ",")
 	chans := []<-chan *ExternalEvent{}

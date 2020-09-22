@@ -9,9 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-
 const (
-
 	surveySql = `drop table if exists surveys;
                  create table if not exists surveys(
                    userid VARCHAR NOT NULL,
@@ -26,8 +24,7 @@ const (
                    pageid VARCHAR NOT NULL
                  );`
 
-
-	pageInsertSql = `INSERT INTO facebook_pages(userid, pageid) VALUES ('owner', $1)`
+	pageInsertSql   = `INSERT INTO facebook_pages(userid, pageid) VALUES ('owner', $1)`
 	surveyInsertSql = `INSERT INTO surveys(userid, shortcode, created, messages_json) VALUES ('owner', $1, $2, $3);`
 
 	stateSql = `drop table if exists states;
@@ -43,6 +40,7 @@ const (
                   previous_is_followup BOOL AS (state_json->'previousOutput'->>'followUp' IS NOT NULL) STORED,
                   timeout_date TIMESTAMPTZ AS (CEILING((state_json->>'waitStart')::INT/1000)::INT::TIMESTAMPTZ + (state_json->'wait'->>'value')::INTERVAL) STORED,
                   fb_error_code varchar AS (state_json->'error'->>'code') STORED,
+                  error_tag VARCHAR AS (state_json->'error'->>'tag') STORED,
                   CONSTRAINT "valid_state_json" CHECK (state_json ? 'state'),
 				  PRIMARY KEY (userid, pageid)
            );`
@@ -82,7 +80,6 @@ func TestGetRespondingsGetsOnlyThoseInGivenInterval(t *testing.T) {
 	cfg := &Config{RespondingInterval: "4 hours", RespondingGrace: "1 hour"}
 	ch := Respondings(cfg, pool)
 	events := getEvents(ch)
-
 
 	assert.Equal(t, 1, len(events))
 	assert.Equal(t, "foo", events[0].User)
@@ -143,7 +140,7 @@ func TestGetBlockedOnlyGetsThoseWithCodesInsideWindow(t *testing.T) {
 		"BLOCKED",
 		`{"state": "BLOCKED", "error": {"code": 2020}}`)
 
-	cfg := &Config{BlockedInterval: "1 hour", Codes: "2020,-1"}
+	cfg := &Config{BlockedInterval: "1 hour", Codes: []string{"2020", "-1"}}
 	ch := Blocked(cfg, pool)
 	events := getEvents(ch)
 
@@ -153,8 +150,7 @@ func TestGetBlockedOnlyGetsThoseWithCodesInsideWindow(t *testing.T) {
 	mustExec(t, pool, "drop table states")
 }
 
-
-func TestGetBlockedWorksWithError(t *testing.T) {
+func TestGetErroredGetsByTag(t *testing.T) {
 	pool := testPool()
 	defer pool.Close()
 
@@ -163,17 +159,17 @@ func TestGetBlockedWorksWithError(t *testing.T) {
 		"foo",
 		"bar",
 		time.Now().Add(-30*time.Minute),
-		"BLOCKED",
-		`{"state": "ERROR", "error": {"code": "NET"}}`)
+		"ERROR",
+		`{"state": "ERROR", "error": {"tag": "NETWORK"}}`)
 	mustExec(t, pool, insertQuery,
 		"baz",
 		"bar",
 		time.Now().Add(-30*time.Minute),
-		"BLOCKED",
-		`{"state": "ERROR", "error": {"code": "NOTNET"}}`)
+		"ERROR",
+		`{"state": "ERROR", "error": {"tag": "NOTNET"}}`)
 
-	cfg := &Config{BlockedInterval: "1 hour", Codes: "2020,-1,NET"}
-	ch := Blocked(cfg, pool)
+	cfg := &Config{ErrorInterval: "1 hour", ErrorTags: []string{"NETWORK"}}
+	ch := Errored(cfg, pool)
 	events := getEvents(ch)
 
 	assert.Equal(t, 1, len(events))
@@ -186,8 +182,8 @@ func TestGetTimeoutsGetsOnlyExpiredTimeouts(t *testing.T) {
 	pool := testPool()
 	defer pool.Close()
 
-	ts := time.Now().UTC().Add(-30*time.Minute)
-	ms := ts.Unix()*1000
+	ts := time.Now().UTC().Add(-30 * time.Minute)
+	ms := ts.Unix() * 1000
 
 	mustExec(t, pool, stateSql)
 	mustExec(t, pool, insertQuery,
@@ -217,13 +213,11 @@ func TestGetTimeoutsGetsOnlyExpiredTimeouts(t *testing.T) {
 
 	assert.Equal(t, "timeout", events[0].Event.Type)
 
-
 	ev, _ := json.Marshal(events[0].Event)
 	assert.Equal(t, string(ev), fmt.Sprintf(`{"type":"timeout","value":%v}`, ms))
 
 	mustExec(t, pool, "drop table states")
 }
-
 
 func makeStateJson(startTime time.Time, form, previousOutput string) string {
 	base := `{"state": "QOUT", "md": { "startTime": %v }, "forms": ["%v"], "question": "foo", "previousOutput": %v }`
@@ -244,8 +238,7 @@ func TestFollowUpsGetsOnlyThoseBetweenMinAndMaxAndIgnoresAllSortsOfThings(t *tes
 	mustExec(t, pool, surveyInsertSql, "with_followup", time.Now().UTC().Add(-50*time.Hour), `{"label.buttonHint.default": "this is follow up"}`)
 	mustExec(t, pool, surveyInsertSql, "with_followup", time.Now().UTC().Add(-40*time.Hour), `{"label.buttonHint.default": "this is follow up"}`)
 	mustExec(t, pool, surveyInsertSql, "with_followup", time.Now().UTC().Add(-20*time.Hour), `{"label.other": "not a follow up"}`)
-	mustExec(t, pool, surveyInsertSql, "without_followup",  time.Now().UTC().Add(-20*time.Hour), `{"label.other": "not a follow up"}`)
-
+	mustExec(t, pool, surveyInsertSql, "without_followup", time.Now().UTC().Add(-20*time.Hour), `{"label.other": "not a follow up"}`)
 
 	mustExec(t, pool, insertQuery,
 		"foo",
@@ -274,7 +267,6 @@ func TestFollowUpsGetsOnlyThoseBetweenMinAndMaxAndIgnoresAllSortsOfThings(t *tes
 		time.Now().UTC().Add(-30*time.Minute),
 		"QOUT",
 		makeStateJson(time.Now().UTC().Add(-60*time.Hour), "with_followup", `{"followUp": true}`))
-
 
 	mustExec(t, pool, insertQuery,
 		"bar",

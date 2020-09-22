@@ -1,4 +1,3 @@
-
 package main
 
 import (
@@ -9,28 +8,27 @@ import (
 	"github.com/jackc/pgx/v4/pgxpool"
 )
 
-
 type Event struct {
-	Type string `json:"type"`
+	Type  string           `json:"type"`
 	Value *json.RawMessage `json:"value,omitempty"`
 }
 
 type ExternalEvent struct {
-	User string `json:"user"`
-	Page string `json:"page"`
+	User  string `json:"user"`
+	Page  string `json:"page"`
 	Event *Event `json:"event"`
 }
 
-type EventMaker func (pgx.Rows) *ExternalEvent
-type Query func (*Config, *pgxpool.Pool) <-chan *ExternalEvent
+type EventMaker func(pgx.Rows) *ExternalEvent
+type Query func(*Config, *pgxpool.Pool) <-chan *ExternalEvent
 
 func get(conn *pgxpool.Pool, fn EventMaker, query string, args ...interface{}) <-chan *ExternalEvent {
 	ch := make(chan *ExternalEvent)
 
-    rows, err := conn.Query(context.Background(), query, args...)
+	rows, err := conn.Query(context.Background(), query, args...)
 	handle(err)
 
-	go func () {
+	go func() {
 		defer rows.Close()
 		defer close(ch)
 
@@ -62,7 +60,6 @@ func getTimeout(rows pgx.Rows) *ExternalEvent {
 	return &ExternalEvent{userid, pageid, &Event{"timeout", &value}}
 }
 
-
 func getFollowUp(rows pgx.Rows) *ExternalEvent {
 	var question string
 	var userid, pageid string
@@ -86,16 +83,28 @@ func Respondings(cfg *Config, conn *pgxpool.Pool) <-chan *ExternalEvent {
 	return get(conn, getRedo, query, cfg.RespondingInterval, cfg.RespondingGrace)
 }
 
+func Errored(cfg *Config, conn *pgxpool.Pool) <-chan *ExternalEvent {
+
+	query := `SELECT userid, pageid
+              FROM states
+              WHERE
+                current_state = 'ERROR' AND
+                error_tag = ANY($1) AND
+                updated > (NOW() - ($2)::INTERVAL)`
+
+	return get(conn, getRedo, query, cfg.ErrorTags, cfg.ErrorInterval)
+}
+
 func Blocked(cfg *Config, conn *pgxpool.Pool) <-chan *ExternalEvent {
 
 	query := `SELECT userid, pageid
               FROM states
               WHERE
-                current_state = ANY('BLOCKED','ERROR') AND
+                current_state = 'BLOCKED' AND
                 fb_error_code = ANY($1) AND
                 updated > (NOW() - ($2)::INTERVAL)`
 
-	return get(conn, getRedo, query, redoCodes(cfg), cfg.BlockedInterval)
+	return get(conn, getRedo, query, cfg.Codes, cfg.BlockedInterval)
 }
 
 func Timeouts(cfg *Config, conn *pgxpool.Pool) <-chan *ExternalEvent {
