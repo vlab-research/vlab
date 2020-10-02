@@ -8,7 +8,6 @@ tags:
   scribble: true
   dean: true
 
-
 kafkabrokers: &kb "kafka-headless.default.svc.cluster.local:29092"
 chatTopic: &topic "vlab-prod-chat-events"
 stateTopic: &statetopic "vlab-prod-state"
@@ -105,7 +104,6 @@ dinersclub:
       value: "1"
     - name: RELOADLY_SANDBOX
       value: "false"
-
 
 dean:
   image:
@@ -352,49 +350,8 @@ dashboard:
     port: 80
 
 
-scratchbot:
-  replicaCount: 2
-
-  image:
-    repository: vlabresearch/replybot
-    tag: *vreplybot
-    pullPolicy: IfNotPresent
-
-  envFrom: *botenvs
-
-  env:
-  - name: CHATBASE_BACKEND
-    value: "@vlab-research/chatbase-postgres"
-  - name: CHATBASE_DATABASE
-    value: "chatroach"
-  - name: CHATBASE_USER
-    value: "chatroach"
-  - name: CHATBASE_PASSWORD
-    value: ""
-  - name: CHATBASE_HOST
-    value: *host
-  - name: CHATBASE_PORT
-    value: "26257"
-  - name: FALLBACK_FORM
-    value: "305"
-  - name: REPLYBOT_EVENT_TOPIC
-    value: *topic
-  - name: BOTSPINE_KAFKA_BROKERS
-    value: *kb
-  - name: BOTSPINE_MESSAGE_TOPIC
-    value: *topic
-  - name: DASHBOARD_API
-    value: "http://gbv-dashboard/api/v1"
-
-  resources:
-    requests:
-      cpu: 5m
-      memory: 64Mi
-
-
-
 replybot:
-  replicaCount: 24
+  replicaCount: 12
   image:
     repository: vlabresearch/replybot
     tag: *vreplybot
