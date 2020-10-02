@@ -14,7 +14,6 @@ def multiple_choice(q):
         return [(l, grep_label(q['title'], l)) for l in labels]
     return [(l,l) for l in labels]
 
-
 def notify(q):
     # TODO: this is language-specific and comes from FB!
     labels = [('Notify Me', 'Notify Me')]

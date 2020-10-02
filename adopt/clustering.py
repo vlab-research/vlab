@@ -165,6 +165,26 @@ def budget_trimming(budget, max_budget, min_budget, step=100):
 def top_clusters(lookup, N):
     return dict(sorted(lookup.items(), key=lambda x: x[1])[:N])
 
+def calc_price(df, window, spend):
+    # filter out anything that hasn't been spent in the last day
+    # TODO: Make this constraint explicit or get rid of it.
+    # it means you can never increase the number of clusters
+    spend = {k:v for k, v in spend.items() if v > 0}
+
+    # filter by time
+    windowed = df[(df['md:startTime'] >= window.start_unix) & (df['md:startTime'] <= window.until_unix)]
+    counts = windowed.groupby('cluster').userid.count().to_dict()
+    counts = {**{k:1 for k in spend.keys()}, **counts}
+    price = {k: spend[k] / v for k, v in counts.items() if k in spend}
+
+    return price
+
+def prep_df_for_budget(df, stratum):
+    surveys = stratum['surveys']
+    df = add_cluster(surveys, df)
+    df = only_target_users(df, surveys, 'target_questions')
+    return df
+
 def get_budget_lookup(df,
                       stratum,
                       max_budget,
@@ -175,17 +195,7 @@ def get_budget_lookup(df,
                       spend: Dict[str, float],
                       return_price=False):
 
-    # only calculate budget for those with previous spend
-    spend = {k:v for k, v in spend.items() if v > 0}
-
-    surveys = stratum['surveys']
-
-    # Get only target users and add cluster
-    df = add_cluster(surveys, df)
-    df = only_target_users(df, surveys, 'target_questions')
-
-    # filter by time
-    windowed = df[(df['md:startTime'] >= window.start_unix) & (df['md:startTime'] <= window.until_unix)]
+    df = prep_df_for_budget(df, stratum)
 
     # see how many remaining in each cluster (all time)
     tot = df.groupby('cluster').userid.count().to_dict()
@@ -194,14 +204,7 @@ def get_budget_lookup(df,
     remain = {k: goal - v for k, v in tot.items()}
     saturated = [k for k, v in remain.items() if v <= 0]
 
-    # pretend to have found one in each cluster
-    counts = windowed.groupby('cluster').userid.count().to_dict()
-    counts = {**{k:1 for k in spend.keys()}, **counts}
-
-    # filter out anything that hasn't been spent in the last day
-    # TODO: Make this constraint explicit or get rid of it.
-    # it means you can never increase the number of clusters
-    price = {k: spend[k] / v for k, v in counts.items() if k in spend}
+    price = calc_price(df, window, spend)
     budget = {k: v*remain[k] / days_left for k, v in price.items()}
     budget = {k: floor(v) for k, v in budget.items()}
     budget = {**budget, **{k: 0 for k in saturated}}

@@ -283,8 +283,6 @@ class Marketing():
         }
 
         self.state = state
-
-        self.creative_by_hash = {hash_creative(c):c for c in state.creatives}
         self.cnf = cnf
 
         # if not campaign

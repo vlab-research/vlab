@@ -1,3 +1,7 @@
+library(readr)
+library(dplyr)
+library(Matching)
+
 pairup <- function (a) {
     N <- length(a)
     if (N %% 2 != 0) {
@@ -61,7 +65,7 @@ choose <- function(pairs) {
 
 get_balance <- function(dat, labels, print.level=0) {
     dat <- mutate(dat, a = labels)
-    MatchBalance(a ~ kutchas + university + unemployed + malaria + malaria_now + population + cost_per_completion + cost_per_message + CTR + CPM + I(malaria**2) + I(malaria_now**2) + I(kutchas*population) + I(malaria*kutchas),
+    MatchBalance(a ~ kutchas + university + unemployed + malaria + malaria_now + population + cost_per_completion + saturated + under_net + exclusion + audienced + current_total + cost_per_message + CTR + CPM + I(malaria**2) + I(malaria_now**2) + log(population) + I(kutchas*population) + I(malaria*kutchas),
                  data=dat,
                  print.level=print.level)
 }
@@ -79,7 +83,7 @@ above_threshes <- function (balance, threshes) {
 }
 
 find_best_balance <- function (ma, iters, threshes) {
-    selected_ma <- select(raw_ma, kutchas, university, malaria, malaria_now, population, cost_per_completion)
+    selected_ma <- select(raw_ma, kutchas, university, malaria, malaria_now, population, cost_per_completion, saturated)
     or <- get_order(selected_ma)
     labels <- choose(pairem(selected_ma, or))
 
@@ -107,7 +111,12 @@ find_best_balance <- function (ma, iters, threshes) {
     best_labels
 }
 
-## raw_ma <- read_csv('outs/ma.csv')
-## ma <- select(raw_ma, -disthash)
-## bl5 <- find_best_balance(ma, 50, c(.6, .3, .3, .6, .75, .75, .3))
-## write_csv(mutate(raw_ma, treatment=bl5), 'outs/ma-with-treatment.csv')
+raw_ma <- read_csv('outs/ma-3.csv')
+ma <- dplyr::select(raw_ma, -disthash)
+## bl5 <- find_best_balance(ma, 100, c(.6, .3, .3, .6, .75, .75, .3))
+## write_csv(mutate(raw_ma, treatment=bl6), 'outs/ma-with-treatment.csv')
+
+get_balance(ma, ma$treatment, 1)
+
+individual <- read_csv('outs/individual-with-treatment.csv')
+MatchBalance(treatment ~ kutcha + university + unemployed + malaria + malaria_now + under_net, data=individual)
