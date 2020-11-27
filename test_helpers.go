@@ -5,11 +5,23 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/confluentinc/confluent-kafka-go/kafka"
 	"github.com/jackc/pgconn"
 	"github.com/jackc/pgx/v4"
 	"github.com/jackc/pgx/v4/pgxpool"
+	"github.com/confluentinc/confluent-kafka-go/kafka"
 )
+
+
+func makeMessages(vals []string) []*kafka.Message {
+	msgs := []*kafka.Message{}
+	for _, v := range vals {
+		msg := &kafka.Message{}
+		msg.Value = []byte(v)
+		msgs = append(msgs, msg)
+	}
+
+	return msgs
+}
 
 
 func rowStrings(rows pgx.Rows) []string{
@@ -50,16 +62,4 @@ func testPool() *pgxpool.Pool {
 	handle(err)
 
 	return pool
-}
-
-
-func makeMessages(vals []string) []*kafka.Message {
-	msgs := []*kafka.Message{}
-	for _, v := range vals {
-		msg := &kafka.Message{}
-		msg.Value = []byte(v)
-		msgs = append(msgs, msg)
-	}
-
-	return msgs
 }
