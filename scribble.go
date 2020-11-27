@@ -6,6 +6,7 @@ import (
 	"log"
 	"time"
 
+	"github.com/vlab-research/spine"
 	"github.com/caarlos0/env/v6"
 	"github.com/jackc/pgx/v4/pgxpool"
 )
@@ -83,7 +84,7 @@ func main() {
 
 	pool := getPool(&cfg)
 
-	c := NewKafkaConsumer(cfg.Topic, cfg.KafkaBrokers, cfg.Group,
+	c := spine.NewKafkaConsumer(cfg.Topic, cfg.KafkaBrokers, cfg.Group,
 		cfg.KafkaPollTimeout, cfg.BatchSize, cfg.ChunkSize)
 
 	// monitor errors, with handling as per config

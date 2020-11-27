@@ -4,6 +4,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/vlab-research/spine"
 	"github.com/go-playground/validator/v10"
 	"github.com/stretchr/testify/assert"
 )
@@ -180,9 +181,9 @@ func TestStateWriterWithHandlersIntegration(t *testing.T) {
 	})
 
 	writer := GetWriter(pool, StateMarshaller)
-	c := &TestConsumer{Messages: msgs, Commits: 0}
+	c := &spine.TestConsumer{Messages: msgs, Commits: 0}
 
-	consumer := KafkaConsumer{c, time.Second, 3, 1}
+	consumer := spine.KafkaConsumer{c, time.Second, 3, 1}
 
 	errs := make(chan error)
 

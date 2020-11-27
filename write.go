@@ -66,8 +66,7 @@ type Writer struct {
 }
 
 func GetWriter(pool *pgxpool.Pool, fn MarshalWriteable) *Writer {
-	var validate *validator.Validate
-	validate = validator.New()
+	validate := validator.New()
 	return &Writer{pool, validate, fn}
 }
 
