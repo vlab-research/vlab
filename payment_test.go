@@ -16,7 +16,7 @@ const (
 			  provider VARCHAR NOT NULL,
 			  details JSON NOT NULL,
 			  results JSON,
-			  id INT AS (fnv64a(userid || pageid || timestamp::string)) STORED PRIMARY KEY,
+			  id INT AS (fnv64a(userid || pageid || (timestamp AT TIME ZONE 'UTC')::string)) STORED PRIMARY KEY,
 			  has_results BOOLEAN AS (CASE WHEN results IS NULL THEN FALSE ELSE TRUE END) STORED
            );`
 )
@@ -51,10 +51,8 @@ func TestPaymentWriterWritesGoodData(t *testing.T) {
 	assert.Equal(t, "foo", res[0])
 	assert.Equal(t, "bar", res[1])
 
-
 	mustExec(t, pool, "drop table payments")
 }
-
 
 func TestPaymentIgnoresRepeatedData(t *testing.T) {
 	pool := testPool()
@@ -94,8 +92,6 @@ func TestPaymentIgnoresRepeatedData(t *testing.T) {
 
 	mustExec(t, pool, "drop table payments")
 }
-
-
 
 func TestPaymentDoesNotWriteAnythingOnBadData(t *testing.T) {
 	pool := testPool()
