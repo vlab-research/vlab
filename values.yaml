@@ -16,37 +16,47 @@ env:
 - name: CHATBASE_PASSWORD
   value: ""
 - name: CHATBASE_HOST
-  value: "gbv-cockroachdb-public"
+  value: *host
 - name: CHATBASE_PORT
   value: "26257"
 - name: KAFKA_BROKERS
-  value: "gbv-kafka:9092"
+  value: *kb
 - name: KAFKA_POLL_TIMEOUT
-  value: "20s"
+  value: "1s"
 - name: SCRIBBLE_CHUNK_SIZE
-  value: "2"
+  value: "32"
 - name: SCRIBBLE_BATCH_SIZE
-  value: "4"
+  value: "32"
+- name: SCRIBBLE_ERROR_HANDLERS
+  value: ""
 
 sinks:
   - destination: "states"
     replicaCount: 1
-    env: 
+    env:
     - name: KAFKA_TOPIC
-      value: "vlab-state"
+      value: *statetopic
     - name: KAFKA_GROUP
       value: "scribble-states"
+    - name: SCRIBBLE_CHUNK_SIZE
+      value: "1"
+    - name: SCRIBBLE_BATCH_SIZE
+      value: "16"
+    - name: SCRIBBLE_ERROR_HANDLERS
+      value: "foreignkey"
+
   - destination: "responses"
     replicaCount: 1
     env:
     - name: KAFKA_TOPIC
-      value: "vlab-response"
+      value: *responsetopic
     - name: KAFKA_GROUP
       value: "scribble-responses"
+
   - destination: "messages"
     replicaCount: 1
     env:
     - name: KAFKA_TOPIC
-      value: "chat-events"
+      value: *topic
     - name: KAFKA_GROUP
       value: "scribble-messages"
