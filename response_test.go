@@ -1,8 +1,8 @@
 package main
 
 import (
-	"testing"
 	"context"
+	"testing"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -20,6 +20,7 @@ const (
 			  question_idx INT NOT NULL,
 			  question_text VARCHAR NOT NULL,
 			  response VARCHAR NOT NULL,
+			  translated_response VARCHAR,
 			  seed INT NOT NULL,
 			  timestamp TIMESTAMPTZ NOT NULL,
               metadata JSONB,
@@ -79,10 +80,8 @@ func TestResponseWriterWritesGoodData(t *testing.T) {
 	assert.Equal(t, "bar", res[0])
 	assert.Equal(t, "bar", res[1])
 
-
 	mustExec(t, pool, "drop table responses")
 }
-
 
 func TestResponseWriterWritesNullPageIdIfNone(t *testing.T) {
 	pool := testPool()
@@ -117,7 +116,6 @@ func TestResponseWriterWritesNullPageIdIfNone(t *testing.T) {
 	mustExec(t, pool, "drop table responses")
 }
 
-
 func TestResponseWriterWritesPageIdIfExists(t *testing.T) {
 	pool := testPool()
 	defer pool.Close()
@@ -151,8 +149,6 @@ func TestResponseWriterWritesPageIdIfExists(t *testing.T) {
 
 	mustExec(t, pool, "drop table responses")
 }
-
-
 
 func TestResponseWriterHandlesMixedResponseAndShortCodeTypes(t *testing.T) {
 	pool := testPool()
@@ -254,7 +250,6 @@ func TestResponseWriterFailsOnMissingData(t *testing.T) {
 	mustExec(t, pool, "drop table responses")
 }
 
-
 func TestResponseWriterFailsOnMissingMetadata(t *testing.T) {
 	pool := testPool()
 	defer pool.Close()
@@ -285,7 +280,6 @@ func TestResponseWriterFailsOnMissingMetadata(t *testing.T) {
 	assert.Equal(t, 0, len(res))
 	mustExec(t, pool, "drop table responses")
 }
-
 
 func TestResponseWriterFailsIfMetadataFormatedPoorly(t *testing.T) {
 	pool := testPool()
@@ -319,7 +313,6 @@ func TestResponseWriterFailsIfMetadataFormatedPoorly(t *testing.T) {
 
 	mustExec(t, pool, "drop table responses")
 }
-
 
 func TestResponseWriterSucceedsIfMetadataEmpty(t *testing.T) {
 	pool := testPool()
