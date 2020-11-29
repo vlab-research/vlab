@@ -2,7 +2,7 @@ import moment from 'moment';
 
 export const computeHistogramData = (resultSet, interval) => {
   const freqData = {};
-  resultSet.rawData().forEach(response => {
+  resultSet.rawData().forEach((response) => {
     const start = moment(response['Responses.startTime']);
     const end = moment(response['Responses.endTime']);
     const duration = moment.duration(end.diff(start)).asHours();

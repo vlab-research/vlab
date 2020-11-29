@@ -87,11 +87,9 @@ class Auth {
     history.replace('/login');
   };
 
-  isAuthenticated = () => {
-    // Check whether the current time is past the
-    // access token's expiry time
-    return new Date().getTime() < this.expiresAt;
-  };
+  // Check whether the current time is past the
+  // access token's expiry time
+  isAuthenticated = () => new Date().getTime() < this.expiresAt;
 }
 
 export default new Auth();

@@ -2,8 +2,11 @@ import React from 'react';
 
 import { Router, Route } from 'react-router-dom';
 import { Layout } from 'antd';
-import { App, LoginScreen, SurveyScreen, Surveys } from './containers';
+import {
+  App, LoginScreen, Surveys,
+} from './containers';
 import { PrivateRoute, Spinner } from './components';
+import { TypeformCreateAuth } from './components/TypeformCreate/TypeformCreate';
 import { Auth, History } from './services';
 
 const handleAuthentication = ({ location }) => {
@@ -12,24 +15,22 @@ const handleAuthentication = ({ location }) => {
   }
 };
 
-const Root = () => {
-  return (
+const Root = () => (
+  <Layout style={{ height: '100vh' }}>
     <Router history={History}>
-      <Layout style={{ height: '100vh' }}>
-        <PrivateRoute exact path="/" component={App} auth={Auth} />
-        <PrivateRoute path="/surveys" component={Surveys} auth={Auth} />
-        <PrivateRoute path="/surveys/details/:formid" component={SurveyScreen} auth={Auth} />
-        <Route exact path="/login" render={props => <LoginScreen {...props} auth={Auth} />} />
-        <Route
-          path="/auth"
-          render={props => {
-            handleAuthentication(props);
-            return <Spinner {...props} />;
-          }}
-        />
-      </Layout>
+      <PrivateRoute exact path="/" component={App} auth={Auth} />
+      <PrivateRoute exact path="/surveys/auth" component={TypeformCreateAuth} auth={Auth} />
+      <PrivateRoute path="/surveys/:survey?" component={Surveys} auth={Auth} />
+      <Route exact path="/login" render={props => <LoginScreen {...props} auth={Auth} />} />
+      <Route
+        path="/auth"
+        render={(props) => {
+          handleAuthentication(props);
+          return <Spinner {...props} />;
+        }}
+      />
     </Router>
-  );
-};
+  </Layout>
+);
 
 export default Root;

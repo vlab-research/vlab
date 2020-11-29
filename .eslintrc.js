@@ -23,6 +23,8 @@ module.exports = {
     },
   },
   rules: {
+    'no-unused-vars': ['error', { varsIgnorePattern: "__", argsIgnorePattern: "__" }],
+    'no-shadow': 0,
     'keyword-spacing': 'error',
     'import/named': 0,
     'import/prefer-default-export': 0,
@@ -30,7 +32,6 @@ module.exports = {
     'linebreak-style': ['error', 'unix'],
     'no-plusplus': 0,
     'no-undef': 0,
-    'no-unsued-vars': 0,
     quotes: ['error', 'single'],
     'react/prop-types': 2,
     'react/require-default-props': 0,

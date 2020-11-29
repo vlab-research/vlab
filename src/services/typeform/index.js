@@ -3,12 +3,10 @@ import AUTH_CONFIG from './Oauth-variables';
 import ApiClient from '../api';
 
 class Typeform {
-  createOrAuthorize = () => {
-    return ApiClient.fetcher({ path: '/typeform/form' }).then(res => {
-      if (res.status === 401) return this.typeformAuthorization();
-      return res.json();
-    });
-  };
+  createOrAuthorize = () => ApiClient.fetcher({ path: '/typeform/form' }).then((res) => {
+    if (res.status === 401) return this.typeformAuthorization();
+    return res.json();
+  });
 
   typeformAuthorization = () => {
     window.location = `${AUTH_CONFIG.typeformUrl}/oauth/authorize?client_id=${
@@ -18,20 +16,19 @@ class Typeform {
     )}`;
   };
 
-  handleAuthorization = ({ code, history, match }) => {
-    return ApiClient.fetcher({ path: `/typeform/auth/${code}` }).then(() => {
-      history.push(`/${match.path.split('/')[1]}/create`);
-    });
-  };
+  handleAuthorization = ({ code, history, match }) => ApiClient.fetcher({ path: `/typeform/auth/${code}` }).then(() => {
+    history.push(`/${match.path.split('/')[1]}/create`); // TODO: ???
+  });
 
-  createSurvey = ({ id, title, shortcode, history, match }) => {
-    return ApiClient.fetcher({ method: 'POST', path: '/surveys', body: { formid: id, title, shortcode } })
-      .then(res => res.json())
-      .then(survey => {
-        history.push(`/${match.path.split('/')[1]}`);
-        return survey;
-      });
-  };
+  createSurvey = body => ApiClient.fetcher({ method: 'POST', path: '/surveys', body })
+    .then(async (res) => {
+      if (res.status === 201) {
+        return res.json();
+      }
+      const t = await res.text();
+      throw new Error(t);
+    })
+    .then(survey => survey);
 }
 
 export default new Typeform();

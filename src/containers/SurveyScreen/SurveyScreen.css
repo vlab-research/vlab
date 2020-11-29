@@ -3,3 +3,13 @@
   height: auto;
   margin: 20px auto;
 }
+
+.survey-table a {
+  /* color: #333; */
+  font-weight: 700;
+}
+
+.survey-table .ant-table-expanded-row .ant-table-cell{
+  background-color: #EEE;
+  border-bottom: 1px solid #DDD;
+}

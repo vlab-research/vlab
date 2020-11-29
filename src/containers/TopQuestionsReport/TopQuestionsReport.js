@@ -9,7 +9,7 @@ import './TopQuestionsReport.css';
 const ChartBox = ({ resultSet }) => {
   const intervals = getIntervals(resultSet);
   const stepIntervals = {};
-  intervals.forEach(interval => {
+  intervals.forEach((interval) => {
     stepIntervals[interval] = interval;
   });
 
@@ -47,27 +47,25 @@ const renderChart = Component => ({ resultSet, error }) => {
   return (resultSet && <Component resultSet={resultSet} />) || <Spinner />;
 };
 
-const TopQuestionsChart = ({ formid, cubejs }) => {
-  return (
-    <>
-      <QueryRenderer
-        query={{
-          dimensions: ['LastQuestions.questionText', 'LastQuestions.questionRef'],
-          filters: [
-            {
-              dimension: 'LastQuestions.formid',
-              operator: 'equals',
-              values: [formid],
-            },
-          ],
-          measures: ['LastQuestions.count'],
-        }}
-        cubejsApi={cubejs}
-        render={renderChart(ChartBox, null)}
-      />
-    </>
-  );
-};
+const TopQuestionsChart = ({ formid, cubejs }) => (
+  <>
+    <QueryRenderer
+      query={{
+        dimensions: ['LastQuestions.questionText', 'LastQuestions.questionRef'],
+        filters: [
+          {
+            dimension: 'LastQuestions.formid',
+            operator: 'equals',
+            values: [formid],
+          },
+        ],
+        measures: ['LastQuestions.count'],
+      }}
+      cubejsApi={cubejs}
+      render={renderChart(ChartBox, null)}
+    />
+  </>
+);
 
 ChartBox.propTypes = {
   resultSet: PropTypes.objectOf(PropTypes.object).isRequired,

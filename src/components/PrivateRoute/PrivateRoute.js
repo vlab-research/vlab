@@ -9,23 +9,22 @@ const { Header, Content } = Layout;
 const PrivateRoute = ({ component: Component, auth, ...rest }) => (
   <Route
     {...rest}
-    render={props =>
-      auth.isAuthenticated() ? (
-        <>
-          <Header style={{ background: '#fff' }}>
-            <Navbar auth={auth} />
-          </Header>
-          <Content>
-            <Component {...props} />
-          </Content>
-        </>
-      ) : (
-        <Redirect
-          to={{
-            pathname: '/login',
-          }}
-        />
-      )
+    render={props => (auth.isAuthenticated() ? (
+      <>
+        <Header style={{ background: '#fff' }}>
+          <Navbar auth={auth} />
+        </Header>
+        <Content>
+          <Component {...props} />
+        </Content>
+      </>
+    ) : (
+      <Redirect
+        to={{
+          pathname: '/login',
+        }}
+      />
+    ))
     }
   />
 );

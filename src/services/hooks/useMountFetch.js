@@ -6,7 +6,7 @@ export default function useMountFetch(fetchOpts, initialState) {
 
   useEffect(() => {
     ApiClient.fetcher(fetchOpts)
-      .then(res => {
+      .then((res) => {
         try {
           const r = res.json();
           if (r.error) throw new Error(r.error);

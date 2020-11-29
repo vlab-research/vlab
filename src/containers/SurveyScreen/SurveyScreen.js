@@ -1,42 +1,124 @@
 import React from 'react';
 import PropTypes from 'prop-types';
-import { Row, Col, Button } from 'antd';
+import {
+  Switch, Route, useRouteMatch, useParams, Link,
+} from 'react-router-dom';
+import { Table } from 'antd';
 import './SurveyScreen.css';
-import { Cube, Auth } from '../../services';
-import { StartTimeReport, DurationReport } from '..';
-import AnswersReport from '../AnswersReport';
-import JoinTimeReport from '../JoinTimeReport';
-import getCsv from '../../services/api/getCSV';
+import { FormConfig } from '..';
+import { groupBy } from '../../helpers';
+import { CreateBtn } from '../../components/UI';
 
-const SurveyScreen = ({ formids }) => {
-  const cubeInstance = Cube(Auth.getIdToken());
+const Survey = ({ forms, selected }) => {
+  const nameLookup = Object.fromEntries(forms.map(f => [f.id, f.prettyName]));
+
+  const getTranslationInfo = (record) => {
+    if (record.translation_conf.self) {
+      return 'self';
+    }
+    const dest = record.translation_conf.destination;
+    if (dest && nameLookup[dest]) {
+      return nameLookup[dest];
+    }
+
+    return null;
+  };
+
+  const grouped = groupBy(forms, f => f.shortcode);
+  const data = [...grouped].map(([__, forms]) => forms[0]);
+  const metadataFields = forms
+    .map(f => f.metadata)
+    .filter(md => md)
+    .reduce((a, b) => [...a, ...Object.keys(b).filter(k => !a.includes(k))], []);
+
+  let columns = ['shortcode', 'version', 'created', ...metadataFields]
+    .map(f => ({ title: f, dataIndex: f, sorter: { compare: (a, b) => (a[f] > b[f] ? 1 : -1) } }));
+
+  columns[0] = {
+    ...columns[0],
+    render: (text, record) => (
+      <Link to={`data?shortcode=${record.shortcode}`}>
+        {' '}
+        {text}
+        {' '}
+      </Link>
+    ),
+  };
+
+  columns[2] = {
+    ...columns[2],
+    render: text => (`${text.toLocaleDateString()} - ${text.toLocaleTimeString()}`),
+  };
+
+  columns = [...columns,
+    { title: 'translation', dataIndex: 'translation_conf', render: (text, record) => getTranslationInfo(record) },
+    { title: 'actions', dataIndex: 'id', render: (text, record) => (<Link to={`create?from=${record.id}`}> new version </Link>) },
+  ];
+
+  const expandedRowRender = (row) => {
+    const expanded = grouped.get(row.shortcode);
+    return (<Table columns={columns} dataSource={expanded} pagination={false} showHeader />);
+  };
+
   return (
-    <div>
-      <Row>
-        <Col span={12}>
-          <StartTimeReport cubejs={cubeInstance} formids={formids} />
-        </Col>
-        <Col span={12}>
-          <DurationReport cubejs={cubeInstance} formids={formids} />
-        </Col>
-      </Row>
-      <Row>
-        <Col span={12}>
-          <AnswersReport cubejs={cubeInstance} formids={formids} />
-        </Col>
-        <Col span={12}>
-          <JoinTimeReport cubejs={cubeInstance} formids={formids} />
-        </Col>
-      </Row>
-      <Row style={{ marginTop: '2em', textAlign: 'center' }}>
-        <Button size='large' onClick={() => getCsv(formids)}> DOWNLOAD CSV </Button>
-      </Row>
+    <div className="survey-table">
+      <CreateBtn to={`/surveys/create?survey_name=${encodeURIComponent(selected)}`}> NEW FORM </CreateBtn>
+      <Table
+        columns={columns}
+        dataSource={data}
+        pagination={{ pageSize: 20 }}
+        expandable={{ expandedRowRender, indentSize: 100 }}
+      />
     </div>
   );
 };
 
+
+const FormScreen = ({ forms }) => {
+  const { surveyid } = useParams();
+  const form = forms.find(s => s.id === surveyid);
+
+  if (!form) {
+    // redirect to 404 page
+    return ('404!');
+  }
+
+  return (<FormConfig form={form} />);
+};
+
+
+const SurveyScreen = ({ forms, selected }) => {
+  const match = useRouteMatch();
+
+  return (
+    <div>
+      <Switch>
+        <Route exact path={match.path}>
+          <Survey forms={forms} selected={selected} />
+        </Route>
+        <Route exact path={`${match.path}/form/:surveyid`}>
+          <FormScreen forms={forms} />
+        </Route>
+        <Route exact path={`${match.path}/form/:surveyid/data`}>
+          data
+        </Route>
+      </Switch>
+    </div>
+  );
+};
+
+Survey.propTypes = {
+  forms: PropTypes.arrayOf(PropTypes.object).isRequired,
+  selected: PropTypes.string.isRequired,
+};
+
+FormScreen.propTypes = {
+  forms: PropTypes.arrayOf(PropTypes.object).isRequired,
+};
+
 SurveyScreen.propTypes = {
-  formids: PropTypes.arrayOf(PropTypes.string).isRequired,
+  forms: PropTypes.arrayOf(PropTypes.object).isRequired,
+  selected: PropTypes.string.isRequired,
 };
 
 export default SurveyScreen;

@@ -7,7 +7,6 @@ import { computeHistogramData } from './chartUtil';
 import './AnswersReport.css';
 
 const renderHistogram = (Component, interval) => ({ resultSet, error }) => {
-
   if (error) console.error(error); // eslint-disable-line no-console
   return (
     (resultSet && (
@@ -22,9 +21,9 @@ const renderHistogram = (Component, interval) => ({ resultSet, error }) => {
 
 const AnswersReport = ({ formids, cubejs }) => {
   const stepIntervals = {
-    '2': 2,
-    '4': 4,
-    '8': 8,
+    2: 2,
+    4: 4,
+    8: 8,
   };
 
   const [activeInterval, setActiveInterval] = useState('4');
@@ -51,7 +50,7 @@ const AnswersReport = ({ formids, cubejs }) => {
               {
                 dimension: 'Responses.formid',
                 operator: 'equals',
-                values: formids, 
+                values: formids,
               },
             ],
           }}

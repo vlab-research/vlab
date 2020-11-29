@@ -1,37 +1,40 @@
 import React, { useEffect } from 'react';
-import { Route, Redirect } from 'react-router-dom';
+import { Route, Redirect, useRouteMatch } from 'react-router-dom';
 import PropTypes from 'prop-types';
 import { Typeform } from '../../services';
-import { TypeformBtn, Container } from './style';
+import { CreateBtn, Container } from '../UI';
 import TypeformCreateForm from './TypeformCreateForm';
 
 const { handleAuthorization } = Typeform;
 
-const TypeformCreate = ({ match }) => {
+const TypeformCreate = ({ cb, children }) => {
+  const match = useRouteMatch();
+
   return (
     <Container>
-      <TypeformBtn to={`${match.path}/create`}>CREATE</TypeformBtn>
-      <Route path={`${match.path}/auth`} render={props => <TypeformCreateAuth {...props} />} />
-      <Route path={`${match.path}/create`} render={props => <TypeformCreateForm {...props} />} />
+      <CreateBtn to={`${match.url}/from-typeform`}>{children}</CreateBtn>
+      <Route path={`${match.path}/from-typeform`}>
+        <TypeformCreateForm cb={cb} />
+      </Route>
     </Container>
   );
 };
 
-const TypeformCreateAuth = ({ location, match, history }) => {
+export const TypeformCreateAuth = ({ location, match, history }) => {
   const code = location.search && location.search.match(/([A-Z,0-9])\w+/)[0];
 
   useEffect(() => {
     if (code) handleAuthorization({ code, history, match });
   }, [code]);
 
-  if (!code) return <Redirect to={`/${match.path.split('/')[0]}`} />;
+  if (!code) return <Redirect to="/surveys/create" />;
 
-  return <div> LOADING PAGE AUTH </div>;
+  return null;
 };
 
 TypeformCreate.propTypes = {
-  match: PropTypes.objectOf(PropTypes.any).isRequired,
-  history: PropTypes.objectOf(PropTypes.any).isRequired,
+  cb: PropTypes.func.isRequired,
+  children: PropTypes.node.isRequired,
 };
 
 TypeformCreateAuth.propTypes = {

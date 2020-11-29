@@ -14,7 +14,7 @@
 // };
 
 // eslint-disable-next-line no-unused-vars
-export const getIntervals = resultSet => {
+export const getIntervals = (resultSet) => {
   let max = resultSet.rawData().length;
   max = 10;
   if (max >= 10) max = 10;
@@ -25,13 +25,11 @@ export const getIntervals = resultSet => {
   return [lower, middle, max];
 };
 
-export const computeChartData = (resultSet, interval) => {
-  return resultSet
-    .rawData()
-    .map(question => ({
-      question: question['Responses.questionText'],
-      count: question['Responses.count'],
-    }))
-    .sort((a, b) => b.count - a.count)
-    .slice(0, interval);
-};
+export const computeChartData = (resultSet, interval) => resultSet
+  .rawData()
+  .map(question => ({
+    question: question['Responses.questionText'],
+    count: question['Responses.count'],
+  }))
+  .sort((a, b) => b.count - a.count)
+  .slice(0, interval);

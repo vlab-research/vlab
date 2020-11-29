@@ -17,7 +17,7 @@ export const computeHistogramData = (resultSet, interval) => {
     });
     keyDate = keyDate.add(1, intervalKey);
   }
-  dates.forEach(date => {
+  dates.forEach((date) => {
     for (let i = 0; i < intervalDates.length; i++) {
       const topDate = intervalDates[i].timestamp;
       if (date.isSameOrBefore(topDate)) {

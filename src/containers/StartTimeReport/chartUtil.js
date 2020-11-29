@@ -18,7 +18,7 @@ export function computeHistogramData(resultSet, interval) {
   const timeArr = Object.keys(timeline);
   const timeArrFormat = timeArr.map(step => moment(step, FORMAT));
 
-  data.forEach(response => {
+  data.forEach((response) => {
     const time = moment(response['Responses.startTime'].slice(11), FORMAT);
     timeArrFormat.forEach((step, i) => {
       if (time.isBetween(step, timeArrFormat[i + 1], null, '[)')) {

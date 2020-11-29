@@ -5,4 +5,6 @@ import History from './history';
 import Hook from './hooks';
 import Typeform from './typeform';
 
-export { ApiClient, Auth, Cube, History, Hook, Typeform };
+export {
+  ApiClient, Auth, Cube, History, Hook, Typeform,
+};

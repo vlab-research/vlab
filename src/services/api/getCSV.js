@@ -4,9 +4,9 @@ export default function getCsv(formids) {
   const ids = formids.join(',');
 
   ApiClient.fetcher({ path: `/responses/csv?formids=${ids}` })
-    .then(async res => {
+    .then(async (res) => {
       if (res.status !== 200) {
-        throw new Error(`Error fetching CSV Form: ${formids} Error: ${res.statusText}` );
+        throw new Error(`Error fetching CSV Form: ${formids} Error: ${res.statusText}`);
       }
       return {
         filename: res.headers
@@ -16,13 +16,13 @@ export default function getCsv(formids) {
         blob: await res.blob(),
       };
     })
-    .then(obj => {
+    .then((obj) => {
       const a = document.createElement('a');
       a.href = URL.createObjectURL(obj.blob);
       a.download = obj.filename;
       a.click();
     })
-    .catch(err => {
-      console.error(err);
+    .catch((err) => {
+      console.error(err); // eslint-disable-line no-console
     });
 }

@@ -1,18 +1,18 @@
-import React, { useState, useEffect, useContext } from 'react';
+import React, { useState, useEffect } from 'react';
 import PropTypes from 'prop-types';
 import moment from 'moment';
-import { Survey } from '../../containers/Surveys/Surveys';
+import { useHistory } from 'react-router-dom';
 
 import * as s from './style';
 import typeformAuth from '../../services/typeform';
+import { PrimaryBtn, SecondaryBtn } from '../UI';
 
-const { createOrAuthorize, createSurvey } = typeformAuth;
+const { createOrAuthorize } = typeformAuth;
 
-const TypeformCreateForm = ({ history, match }) => {
-  const { setSurveys } = useContext(Survey);
+const TypeformCreateForm = ({ cb }) => {
+  const history = useHistory();
   const [forms, setForms] = useState([]);
-  const [selectedForm, setSelectedForm] = useState({ title: '', id: '', shortcode: '' });
-  const [state, setState] = useState(1);
+  const [selectedForm, setSelectedForm] = useState({ title: '', id: '' });
 
   useEffect(() => {
     createOrAuthorize()
@@ -20,21 +20,26 @@ const TypeformCreateForm = ({ history, match }) => {
       .catch(e => console.error(e)); //eslint-disable-line
   }, []);
 
-  const closeModal = ({ target, currentTarget }) =>
-    target === currentTarget && history.push(`/${match.path.split('/')[1]}`);
+  const closeModal = ({ target, currentTarget }) => target === currentTarget && history.go(-1);
 
   return (
     !!forms.length && (
       <s.Modal onClick={closeModal}>
-        <s.ModalBox {...{ state }}>
+        <s.ModalBox>
           <s.ModalHeader />
-          <Main {...{ forms, selectedForm, setSelectedForm, state }} />
+          <Main {...{
+            forms, selectedForm, setSelectedForm,
+          }}
+          />
           <s.ModalFooter>
             <s.Selected>
               <s.SelectedInfo>{`selected: ${selectedForm.id}`}</s.SelectedInfo>
               <s.SelectedInfo>{`title: ${selectedForm.title}`}</s.SelectedInfo>
             </s.Selected>
-            <Actions {...{ selectedForm, state, setState, history, match, setSurveys }} />
+            <Actions {...{
+              cb, selectedForm, history,
+            }}
+            />
           </s.ModalFooter>
         </s.ModalBox>
       </s.Modal>
@@ -42,123 +47,58 @@ const TypeformCreateForm = ({ history, match }) => {
   );
 };
 
-const Main = ({ forms, selectedForm, setSelectedForm, state }) => {
+const Main = ({
+  forms, selectedForm, setSelectedForm,
+}) => <ChooseFormId {...{ forms, selectedForm, setSelectedForm }} />;
 
-  switch (state) {
-    case 1:
-      return <ChooseFormId {...{ forms, selectedForm, setSelectedForm }} />;
-    case 2:
-      return <SetFormTitle {...{ forms, selectedForm, setSelectedForm }} />;
-    case 3:
-      return <SetShortCode {...{ forms, selectedForm, setSelectedForm }} />;
+const ChooseFormId = ({ forms, selectedForm, setSelectedForm }) => (
+  forms.length && (
+  <>
+    <s.ModalTitle> Choose Your Form </s.ModalTitle>
+    <s.List>
+      {forms.map(item => (
+        <s.ListItem
+          active={item.id === selectedForm.id}
+          onClick={() => setSelectedForm(state => ({ ...state, ...item }))}
+          key={item.id}
+        >
+          <s.ListItemTitle>
+            {item.title}
+            <s.ListItemDate>
+              {`${moment(item.last_updated_at).format('Do MMM YY')}`}
+            </s.ListItemDate>
+          </s.ListItemTitle>
+          <s.ListItemId>{item.id}</s.ListItemId>
+        </s.ListItem>
+      ))}
+    </s.List>
+  </>
+  )
+);
 
-    // Add case 3, choose shortcode
-    default:
-      return null;
-  }
-};
-
-const ChooseFormId = ({ forms, selectedForm, setSelectedForm }) => {
-  return (
-    forms.length && (
-      <>
-        <s.ModalTitle> Choose Your Form </s.ModalTitle>
-        <s.List>
-          {forms.map(item => (
-            <s.ListItem
-              active={item.id === selectedForm.id}
-              onClick={() => setSelectedForm(state => ({...state, ...item}))}
-              key={item.id}
-            >
-              <s.ListItemTitle>
-                {item.title}
-                <s.ListItemDate>
-                  {`${moment(item.last_updated_at).format('Do MMM YY')}`}
-                </s.ListItemDate>
-              </s.ListItemTitle>
-              <s.ListItemId>{item.id}</s.ListItemId>
-            </s.ListItem>
-          ))}
-        </s.List>
-      </>
-    )
-  );
-};
-
-
-const SetShortCode = ({ selectedForm: {shortcode}, setSelectedForm }) => {
-  return (
-    <>
-      <s.ModalTitle> Choose a shortcode (No spaces, short, numbers or characters) </s.ModalTitle>
-      <s.ShortCodeInput
-        value={shortcode}
-        onChange={({ target }) => {
-          const val = target.value.trim();
-          if (val.split(' ').length <= 1) {
-            setSelectedForm(state => ({ ...state, shortcode: val }));
-          }
-        }}
-      />
-    </>
-  );
-};
-
-const SetFormTitle = ({ selectedForm: {title}, setSelectedForm }) => {
-  return (
-    <>
-      <s.ModalTitle> Select your title </s.ModalTitle>
-      <s.TitleInput
-        value={title}
-        onChange={({ target }) => {
-          if (target.value.length < 50) {
-            setSelectedForm(state => ({ ...state, title: target.value }));
-          }
-        }}
-      />
-    </>
-  );
-};
-
-const Actions = ({ selectedForm, state, setState, history, match, setSurveys }) => {
-  const {id, title} = selectedForm
-  const handleSubmit = async () => {
-    const survey = id && (await createSurvey({ ...selectedForm, history, match }));
-    setSurveys(surveys => [survey, ...surveys]);
+const Actions = ({
+  cb, selectedForm, history,
+}) => {
+  const handleClick = (e) => {
+    e.preventDefault();
+    cb({ formid: selectedForm.id, title: selectedForm.title });
+    history.go(-1);
   };
-  switch (state) {
-  case 1:
-    return (
-      <s.ActionsBtns>
-        <s.SecondaryBtn onClick={() => history.push(`/${match.path.split('/')[1]}`)}>
-          Cancel
-        </s.SecondaryBtn>
-        <s.PrimaryBtn onClick={() => id && setState(2)}>Choose</s.PrimaryBtn>
-      </s.ActionsBtns>
-    );
-  case 2:
-    return (
-      <s.ActionsBtns>
-        <s.SecondaryBtn onClick={() => setState(1)}>Back</s.SecondaryBtn>
-        <s.PrimaryBtn onClick={() => title && setState(3)}>Choose</s.PrimaryBtn>
-      </s.ActionsBtns>
-    );
-  case 3:
-    return (
-      <s.ActionsBtns>
-        <s.SecondaryBtn onClick={() => setState(2)}>Back</s.SecondaryBtn>
-        <s.PrimaryBtn onClick={handleSubmit}>Create</s.PrimaryBtn>
-      </s.ActionsBtns>
-    );
-  default:
-    return null;
-  }
+
+  return (
+    <s.ActionsBtns>
+      <SecondaryBtn onClick={() => history.go(-1)} type="text">
+        Cancel
+      </SecondaryBtn>
+      <PrimaryBtn onClick={handleClick} type="text">Create</PrimaryBtn>
+    </s.ActionsBtns>
+  );
 };
 
 Main.propTypes = {
   selectedForm: PropTypes.objectOf(PropTypes.any).isRequired,
   setSelectedForm: PropTypes.func.isRequired,
   forms: PropTypes.arrayOf(PropTypes.object).isRequired,
-  state: PropTypes.number.isRequired,
 };
 
 ChooseFormId.propTypes = {
@@ -167,24 +107,16 @@ ChooseFormId.propTypes = {
   setSelectedForm: PropTypes.func.isRequired,
 };
 
-SetFormTitle.propTypes = {
-  selectedForm: PropTypes.objectOf(PropTypes.any).isRequired,
-  setSelectedForm: PropTypes.func.isRequired,
-};
-
-SetShortCode.propTypes = {
-  selectedForm: PropTypes.objectOf(PropTypes.any).isRequired,
-  setSelectedForm: PropTypes.func.isRequired,
-};
-
 
 Actions.propTypes = {
-  state: PropTypes.number.isRequired,
-  setState: PropTypes.func.isRequired,
-  setSurveys: PropTypes.func.isRequired,
-  match: PropTypes.objectOf(PropTypes.any).isRequired,
+  cb: PropTypes.func.isRequired,
   history: PropTypes.objectOf(PropTypes.any).isRequired,
   selectedForm: PropTypes.objectOf(PropTypes.any).isRequired,
+};
+
+
+TypeformCreateForm.propTypes = {
+  cb: PropTypes.func.isRequired,
 };
 
 export default TypeformCreateForm;

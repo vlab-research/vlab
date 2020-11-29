@@ -27,21 +27,19 @@ const renderTooltip = ({ active, label, payload }) => {
   );
 };
 
-const LinesChart = ({ resultSet, xAxisKey, barKey }) => {
-  return resultSet.length ? (
-    <ResponsiveContainer>
-      <LineChart data={resultSet}>
-        <CartesianGrid vertical={false} stroke="#f5f5f5" />
-        <YAxis allowDecimals={false} domain={[0, 'dataMax']} />
-        <XAxis dataKey={xAxisKey} />
-        <Tooltip content={renderTooltip} />
-        <Line type="monotone" dataKey={barKey} stroke="#82ca9d" dot={false} />
-      </LineChart>
-    </ResponsiveContainer>
-  ) : (
-    <h1>No data available for this form!</h1>
-  );
-};
+const LinesChart = ({ resultSet, xAxisKey, barKey }) => (resultSet.length ? (
+  <ResponsiveContainer>
+    <LineChart data={resultSet}>
+      <CartesianGrid vertical={false} stroke="#f5f5f5" />
+      <YAxis allowDecimals={false} domain={[0, 'dataMax']} />
+      <XAxis dataKey={xAxisKey} />
+      <Tooltip content={renderTooltip} />
+      <Line type="monotone" dataKey={barKey} stroke="#82ca9d" dot={false} />
+    </LineChart>
+  </ResponsiveContainer>
+) : (
+  <h1>No data available for this form!</h1>
+));
 
 LinesChart.propTypes = {
   barKey: PropTypes.string.isRequired,
