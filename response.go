@@ -79,7 +79,12 @@ func (r *Response) Queue(batch *pgx.Batch) {
 func getTranslationForms(pool *pgxpool.Pool, surveyid string) (*trans.FormJson, *trans.FormJson, error) {
 	query := `
         WITH t AS
-           (SELECT form_json, translation_conf->>'destination' as dest
+           (SELECT
+              form_json,
+              (CASE WHEN (translation_conf->>'self')::BOOL = true
+                    THEN id
+                    ELSE translation_conf->>'destination'
+                    END) as dest
             FROM surveys
             WHERE id = $1)
         SELECT t.form_json, surveys.form_json

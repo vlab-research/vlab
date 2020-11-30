@@ -458,14 +458,14 @@ func TestResponseWriterIgnoresRepeatMessages(t *testing.T) {
 	mustExec(t, pool, "drop table responses")
 }
 
-func TestResponseWriterTranslatesSuccesfully(t *testing.T) {
+func TestResponseWriterTranslatesSuccesfullyToOtherForm(t *testing.T) {
 	pool := testPool()
 	defer pool.Close()
 
 	mustExec(t, pool, responseSql)
 	mustExec(t, pool, surveySql)
-	// mustExec(t, pool, insertSurveySql, "barbaz", formA, `{}`)
-	mustExec(t, pool, insertSurveySql, "d6c21c81-fcd0-4aa4-8975-8584d8bdb820", formA, `{"destination": "d6c21c81-fcd0-4aa4-8975-8584d8bdb820"}`)
+	mustExec(t, pool, insertSurveySql, "aaaa1c81-fcd0-4aa4-8975-8584d8bdxxxx", formA, `{}`)
+	mustExec(t, pool, insertSurveySql, "d6c21c81-fcd0-4aa4-8975-8584d8bdb820", formB, `{"destination": "aaaa1c81-fcd0-4aa4-8975-8584d8bdxxxx"}`)
 
 	msgs := makeMessages([]string{
 		`{"parent_surveyid":"d6c21c81-fcd0-4aa4-8975-8584d8bdb820",
@@ -475,7 +475,7 @@ func TestResponseWriterTranslatesSuccesfully(t *testing.T) {
           "flowid":1,
           "userid":"foo",
           "pageid": "baz",
-          "question_ref":"eng_bar",
+          "question_ref":"bar",
           "question_idx":1,
           "question_text":"foobar",
           "response":"LOL",
@@ -489,7 +489,7 @@ func TestResponseWriterTranslatesSuccesfully(t *testing.T) {
           "flowid":1,
           "userid":"bar",
           "pageid": "baz",
-          "question_ref":"eng_bar",
+          "question_ref":"bar",
           "question_idx":1,
           "question_text":"foobar",
           "response":"A",
