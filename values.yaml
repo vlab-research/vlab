@@ -1,0 +1,28 @@
+image:
+  repository: vlabresearch/formcentral
+  tag: 0.0.1
+  pullPolicy: IfNotPresent
+
+replicaCount: 1
+autoscaling: {}
+
+resources:
+  requests:
+    cpu: 10m
+    memory: 10Mi
+
+service:
+  type: ClusterIP
+  port: 80
+
+env:
+  - name: CHATBASE_DATABASE
+    value: "chatroach"
+  - name: CHATBASE_USER
+    value: "chatroach"
+  - name: CHATBASE_PASSWORD
+    value: ""
+  - name: CHATBASE_HOST
+    value: "gbv-cockroachdb-public.default"
+  - name: CHATBASE_PORT
+    value: "26257"
