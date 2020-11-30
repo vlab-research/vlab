@@ -1,26 +1,68 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"net/http"
 
 	"github.com/caarlos0/env/v6"
+	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/labstack/echo/v4"
+	"github.com/vlab-research/trans"
 )
 
 type Server struct {
+	pool *pgxpool.Pool
 }
 
-func (s *Server) health(c echo.Context) error {
+func (s *Server) Health(c echo.Context) error {
 	return c.String(http.StatusOK, "pong")
 }
 
-func (s *Server) survey(c echo.Context) error {
-	return c.String(http.StatusOK, "a survey")
+func (s *Server) GetTranslator(c echo.Context) error {
+	surveyid := c.Param("surveyid")
+
+	src, dest, err := getTranslationForms(s.pool, surveyid)
+	if err != nil {
+		msg := fmt.Sprintf("Could not get translation form for survey: %v. Error: %v", surveyid, err.Error())
+		return echo.NewHTTPError(http.StatusNotFound, msg)
+	}
+
+	translator, err := trans.MakeTranslatorByShape(src, dest)
+	fmt.Print(translator)
+	if err != nil {
+		msg := err.Error()
+		return echo.NewHTTPError(http.StatusInternalServerError, fmt.Sprintf("Could not create translation mapping. Failed with the following error: %v", msg))
+	}
+
+	return c.JSON(http.StatusOK, translator)
 }
 
-func (s *Server) translate(c echo.Context) error {
-	return c.String(http.StatusOK, "foo")
+type TranslatorRequest struct {
+	Form        *trans.FormJson `json:"form"`
+	Destination string          `json:"destination"`
+}
+
+func (s *Server) CreateTranslator(c echo.Context) error {
+	req := new(TranslatorRequest)
+
+	if err := c.Bind(req); err != nil {
+		return err
+	}
+
+	dest, err := getForm(s.pool, req.Destination)
+	if err != nil {
+		msg := fmt.Sprintf("Could not find destination form: %v", req.Destination)
+		return echo.NewHTTPError(http.StatusNotFound, msg)
+	}
+
+	translator, err := trans.MakeTranslatorByShape(req.Form, dest)
+	if err != nil {
+		msg := fmt.Sprintf("Could not create translation mapping. Failed with the following error: %v", err.Error())
+		return echo.NewHTTPError(http.StatusBadRequest, msg)
+	}
+
+	return c.JSON(http.StatusOK, translator)
 }
 
 type Config struct {
@@ -45,14 +87,15 @@ func handle(err error) {
 }
 
 func main() {
+	cfg := getConfig()
+	pool := getPool(&cfg)
 
-	server := &Server{}
+	server := &Server{pool}
 
 	e := echo.New()
-	e.GET("/health", server.health)
-	e.GET("/surveys", server.health)
-
-	e.GET("/translate", server.translate)
+	e.GET("/health", server.Health)
+	e.GET("/translators/:surveyid", server.GetTranslator)
+	e.POST("/translators", server.CreateTranslator)
 
 	e.Logger.Fatal(e.Start(":1323"))
 }
