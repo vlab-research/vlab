@@ -144,8 +144,8 @@ func (r Responser) Translate(response *Response) (*string, error) {
 
 func NewResponser(pool *pgxpool.Pool) *Responser {
 	cache, err := ristretto.NewCache(&ristretto.Config{
-		NumCounters: 1e7,
-		MaxCost:     1e7,
+		NumCounters: 1e4,
+		MaxCost:     1e4,
 		BufferItems: 64,
 	})
 	if err != nil {
