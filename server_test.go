@@ -146,6 +146,31 @@ func TestTranslatorReturnsTranslator(t *testing.T) {
 	assert.True(t, ft.Fields["eng_foo"].Translate)
 }
 
+func TestTranslatorWorksWithSelf(t *testing.T) {
+	pool := testPool()
+	defer pool.Close()
+
+	mustExec(t, pool, surveySql)
+
+	request := fmt.Sprintf(`{"self": true,"form": %v}`, formA)
+	body := bytes.NewReader([]byte(request))
+
+	req := httptest.NewRequest(http.MethodPost, "/translator", body)
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	c := echo.New().NewContext(req, rec)
+	s := &Server{pool}
+
+	err := s.CreateTranslator(c)
+	assert.Nil(t, err)
+
+	assert.Equal(t, http.StatusOK, rec.Code)
+
+	ft := new(trans.FormTranslator)
+	json.Unmarshal([]byte(rec.Body.String()), ft)
+	assert.Equal(t, "Jharkhand", ft.Fields["eng_bar"].Mapping["B"])
+}
+
 func TestGetTranslatorGetsFromID(t *testing.T) {
 	pool := testPool()
 	defer pool.Close()
