@@ -8,7 +8,61 @@ import (
 )
 
 const (
-	responseSql = `drop table if exists responses;
+	surveySql = `drop table if exists surveys;
+                 create table if not exists surveys(
+                   userid VARCHAR NOT NULL,
+                   id VARCHAR NOT NULL UNIQUE,
+                   form_json JSON,
+                   created TIMESTAMPTZ NOT NULL,
+                   translation_conf JSON
+                 );`
+
+	insertSurveySql = `INSERT INTO surveys(userid, created, id, form_json, translation_conf) VALUES ('owner', NOW(), $1, $2, $3);`
+
+	formA = `{"fields": [
+          {"title": "What is your gender? ",
+           "ref": "eng_foo",
+           "properties": {
+              "choices": [{"label": "Male"},
+                          {"label": "Female"},
+                          {"label": "Other"}]},
+           "type": "multiple_choice"},
+          {"title": "Which state do you currently live in?\n- A. foo 91  bar\n- B. Jharkhand\n- C. Odisha\n- D. Uttar Pradesh",
+           "ref": "eng_bar",
+           "properties": {"choices": [{"label": "A"},
+                                      {"label": "B"},
+                                      {"label": "C"},
+                                      {"label": "D"}]},
+           "type": "multiple_choice"},
+           {"title": "How old are you?",
+           "ref": "eng_baz",
+           "properties": {},
+           "type": "number"}]}`
+
+	formB = `{"title": "mytitle", "fields": [
+          {"id": "vjl6LihKMtcX",
+          "title": "आपका लिंग क्या है? ",
+          "ref": "foo",
+          "properties": {"choices": [{"label": "पुरुष"},
+                                    {"label": "महिला"},
+                                    {"label": "अन्य"}]},
+          "type": "multiple_choice"},
+          {"id": "mdUpJMSY8Lct",
+           "title": "वर्तमान में आप किस राज्य में रहते हैं?\n- A. छत्तीसगढ़\n- B. झारखंड\n- C. ओडिशा\n- D. उत्तर प्रदेश",
+           "ref": "bar",
+           "properties": {"choices": [{"label": "A"},
+                                      {"label": "B"},
+                                      {"label": "C"},
+                                      {"label": "D"}]},
+           "type": "multiple_choice"},
+          {"id": "mdUpJMSY8Lct",
+           "title": "वर्तमान में आप किस राज्य में रहते हैं?",
+           "ref": "baz",
+           "properties": {},
+           "type": "number"}]}`
+
+	responseSql = `drop table if exists surveys;
+                   drop table if exists responses;
             create table if not exists responses(
 			  parent_shortcode VARCHAR NOT NULL,
 			  surveyid UUID NOT NULL,
@@ -66,7 +120,8 @@ func TestResponseWriterWritesGoodData(t *testing.T) {
           "timestamp":1599039840517}`,
 	})
 
-	writer := GetWriter(pool, ResponseMarshaller)
+	r := NewResponser(pool)
+	writer := GetWriter(pool, r.ResponseMarshaller)
 	err := writer.Write(msgs)
 	assert.Nil(t, err)
 
@@ -105,7 +160,8 @@ func TestResponseWriterWritesNullPageIdIfNone(t *testing.T) {
           "timestamp":1599039840517}`,
 	})
 
-	writer := GetWriter(pool, ResponseMarshaller)
+	r := NewResponser(pool)
+	writer := GetWriter(pool, r.ResponseMarshaller)
 	err := writer.Write(msgs)
 	assert.Nil(t, err)
 
@@ -139,7 +195,8 @@ func TestResponseWriterWritesPageIdIfExists(t *testing.T) {
           "timestamp":1599039840517}`,
 	})
 
-	writer := GetWriter(pool, ResponseMarshaller)
+	r := NewResponser(pool)
+	writer := GetWriter(pool, r.ResponseMarshaller)
 	err := writer.Write(msgs)
 	assert.Nil(t, err)
 
@@ -201,7 +258,8 @@ func TestResponseWriterHandlesMixedResponseAndShortCodeTypes(t *testing.T) {
           "timestamp":1599039840517}`,
 	})
 
-	writer := GetWriter(pool, ResponseMarshaller)
+	r := NewResponser(pool)
+	writer := GetWriter(pool, r.ResponseMarshaller)
 	err := writer.Write(msgs)
 	assert.Nil(t, err)
 
@@ -241,7 +299,8 @@ func TestResponseWriterFailsOnMissingData(t *testing.T) {
           "timestamp":1599039840517}`,
 	})
 
-	writer := GetWriter(pool, ResponseMarshaller)
+	r := NewResponser(pool)
+	writer := GetWriter(pool, r.ResponseMarshaller)
 	err := writer.Write(msgs)
 	assert.NotNil(t, err)
 
@@ -272,7 +331,8 @@ func TestResponseWriterFailsOnMissingMetadata(t *testing.T) {
           "timestamp":1599039840517}`,
 	})
 
-	writer := GetWriter(pool, ResponseMarshaller)
+	r := NewResponser(pool)
+	writer := GetWriter(pool, r.ResponseMarshaller)
 	err := writer.Write(msgs)
 	assert.NotNil(t, err)
 
@@ -304,7 +364,8 @@ func TestResponseWriterFailsIfMetadataFormatedPoorly(t *testing.T) {
           "timestamp":1599039840517}`,
 	})
 
-	writer := GetWriter(pool, ResponseMarshaller)
+	r := NewResponser(pool)
+	writer := GetWriter(pool, r.ResponseMarshaller)
 	err := writer.Write(msgs)
 	assert.NotNil(t, err)
 
@@ -337,7 +398,8 @@ func TestResponseWriterSucceedsIfMetadataEmpty(t *testing.T) {
           "timestamp":1599039840517}`,
 	})
 
-	writer := GetWriter(pool, ResponseMarshaller)
+	r := NewResponser(pool)
+	writer := GetWriter(pool, r.ResponseMarshaller)
 	err := writer.Write(msgs)
 	assert.Nil(t, err)
 
@@ -384,13 +446,76 @@ func TestResponseWriterIgnoresRepeatMessages(t *testing.T) {
           "timestamp":1599039840517}`,
 	})
 
-	writer := GetWriter(pool, ResponseMarshaller)
+	r := NewResponser(pool)
+	writer := GetWriter(pool, r.ResponseMarshaller)
 	err := writer.Write(msgs)
 	assert.Nil(t, err)
 
 	res := getCol(pool, "responses", "userid")
 	assert.Equal(t, 1, len(res))
 	assert.Equal(t, "foo", res[0])
+
+	mustExec(t, pool, "drop table responses")
+}
+
+func TestResponseWriterTranslatesSuccesfully(t *testing.T) {
+	pool := testPool()
+	defer pool.Close()
+
+	mustExec(t, pool, responseSql)
+	mustExec(t, pool, surveySql)
+	// mustExec(t, pool, insertSurveySql, "barbaz", formA, `{}`)
+	mustExec(t, pool, insertSurveySql, "d6c21c81-fcd0-4aa4-8975-8584d8bdb820", formA, `{"destination": "d6c21c81-fcd0-4aa4-8975-8584d8bdb820"}`)
+
+	msgs := makeMessages([]string{
+		`{"parent_surveyid":"d6c21c81-fcd0-4aa4-8975-8584d8bdb820",
+          "parent_shortcode":"baz",
+          "surveyid":"d6c21c81-fcd0-4aa4-8975-8584d8bdb820",
+          "shortcode":"baz",
+          "flowid":1,
+          "userid":"foo",
+          "pageid": "baz",
+          "question_ref":"eng_bar",
+          "question_idx":1,
+          "question_text":"foobar",
+          "response":"LOL",
+          "seed":858044518,
+          "metadata":{},
+          "timestamp":1599039840517}`,
+		`{"parent_surveyid":"d6c21c81-fcd0-4aa4-8975-8584d8bdb820",
+          "parent_shortcode":"baz",
+          "surveyid":"d6c21c81-fcd0-4aa4-8975-8584d8bdb820",
+          "shortcode":"baz",
+          "flowid":1,
+          "userid":"bar",
+          "pageid": "baz",
+          "question_ref":"eng_bar",
+          "question_idx":1,
+          "question_text":"foobar",
+          "response":"A",
+          "seed":858044518,
+          "metadata":{},
+          "timestamp":1999099840999}`,
+	})
+
+	r := NewResponser(pool)
+	writer := GetWriter(pool, r.ResponseMarshaller)
+	err := writer.Write(msgs[:1])
+	assert.Nil(t, err)
+
+	err = writer.Write(msgs[1:])
+	assert.Nil(t, err)
+
+	res := getCol(pool, "responses", "response")
+	assert.Equal(t, 2, len(res))
+	assert.Equal(t, "A", res[0])
+	assert.Equal(t, "LOL", res[1])
+
+	res = getCol(pool, "responses", "translated_response")
+	assert.Equal(t, 2, len(res))
+
+	assert.Equal(t, "foo 91  bar", res[0])
+	assert.Equal(t, "", res[1])
 
 	mustExec(t, pool, "drop table responses")
 }

@@ -5,12 +5,11 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/confluentinc/confluent-kafka-go/kafka"
 	"github.com/jackc/pgconn"
 	"github.com/jackc/pgx/v4"
 	"github.com/jackc/pgx/v4/pgxpool"
-	"github.com/confluentinc/confluent-kafka-go/kafka"
 )
-
 
 func makeMessages(vals []string) []*kafka.Message {
 	msgs := []*kafka.Message{}
@@ -23,13 +22,12 @@ func makeMessages(vals []string) []*kafka.Message {
 	return msgs
 }
 
-
-func rowStrings(rows pgx.Rows) []string{
+func rowStrings(rows pgx.Rows) []string {
 	res := []string{}
 	for rows.Next() {
-		var col string
-		_ = rows.Scan(&col)
-		res = append(res, col)
+		col := new(string)
+		_ = rows.Scan(col)
+		res = append(res, *col)
 	}
 	return res
 }
@@ -43,7 +41,6 @@ func getCol(pool *pgxpool.Pool, table string, col string) []string {
 	return rowStrings(rows)
 }
 
-
 func mustExec(t testing.TB, conn *pgxpool.Pool, sql string, arguments ...interface{}) (commandTag pgconn.CommandTag) {
 	var err error
 	if commandTag, err = conn.Exec(context.Background(), sql, arguments...); err != nil {
@@ -52,13 +49,12 @@ func mustExec(t testing.TB, conn *pgxpool.Pool, sql string, arguments ...interfa
 	return
 }
 
-
 func testPool() *pgxpool.Pool {
-    config, err := pgxpool.ParseConfig("postgres://root@localhost:5433/test")
+	config, err := pgxpool.ParseConfig("postgres://root@localhost:5433/test")
 	handle(err)
 
 	ctx := context.Background()
-    pool, err := pgxpool.ConnectConfig(ctx, config)
+	pool, err := pgxpool.ConnectConfig(ctx, config)
 	handle(err)
 
 	return pool

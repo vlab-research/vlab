@@ -6,29 +6,29 @@ import (
 	"log"
 	"time"
 
-	"github.com/vlab-research/spine"
 	"github.com/caarlos0/env/v6"
 	"github.com/jackc/pgx/v4/pgxpool"
+	"github.com/vlab-research/spine"
 )
 
 type Config struct {
-	Db string `env:"CHATBASE_DATABASE,required"`
-	User string `env:"CHATBASE_USER,required"`
-	Password string `env:"CHATBASE_PASSWORD,required"`
-	Host string `env:"CHATBASE_HOST,required"`
-	Port string `env:"CHATBASE_PORT,required"`
-	KafkaBrokers string `env:"KAFKA_BROKERS,required"`
+	Db               string        `env:"CHATBASE_DATABASE,required"`
+	User             string        `env:"CHATBASE_USER,required"`
+	Password         string        `env:"CHATBASE_PASSWORD,required"`
+	Host             string        `env:"CHATBASE_HOST,required"`
+	Port             string        `env:"CHATBASE_PORT,required"`
+	KafkaBrokers     string        `env:"KAFKA_BROKERS,required"`
 	KafkaPollTimeout time.Duration `env:"KAFKA_POLL_TIMEOUT,required"`
-	Topic string `env:"KAFKA_TOPIC,required"`
-	Group string `env:"KAFKA_GROUP,required"`
-	BatchSize int `env:"SCRIBBLE_BATCH_SIZE,required"`
-	ChunkSize int `env:"SCRIBBLE_CHUNK_SIZE,required"`
-	Destination string `env:"SCRIBBLE_DESTINATION,required"`
-	Handlers string `env:"SCRIBBLE_ERROR_HANDLERS,required"`
+	Topic            string        `env:"KAFKA_TOPIC,required"`
+	Group            string        `env:"KAFKA_GROUP,required"`
+	BatchSize        int           `env:"SCRIBBLE_BATCH_SIZE,required"`
+	ChunkSize        int           `env:"SCRIBBLE_CHUNK_SIZE,required"`
+	Destination      string        `env:"SCRIBBLE_DESTINATION,required"`
+	Handlers         string        `env:"SCRIBBLE_ERROR_HANDLERS,required"`
 }
 
 func monitor(errs <-chan error) {
-	e := <- errs
+	e := <-errs
 	log.Fatalf("Scribble failed with error: %v", e)
 }
 
@@ -40,25 +40,27 @@ func handle(err error) {
 
 func getPool(cfg *Config) *pgxpool.Pool {
 	conString := fmt.Sprintf("postgresql://%s@%s:%s/%s?sslmode=disable", cfg.User, cfg.Host, cfg.Port, cfg.Db)
-    config, err := pgxpool.ParseConfig(conString)
+	config, err := pgxpool.ParseConfig(conString)
 	handle(err)
 
 	config.MaxConns = int32(32)
 
 	ctx := context.Background()
-    pool, err := pgxpool.ConnectConfig(ctx, config)
+	pool, err := pgxpool.ConnectConfig(ctx, config)
 	handle(err)
 
 	return pool
 }
 
-func getMarshaller(cfg *Config) MarshalWriteable {
+func getMarshaller(cfg *Config, pool *pgxpool.Pool) MarshalWriteable {
 	name := cfg.Destination
+
+	responser := NewResponser(pool)
+
 	marshallers := map[string]MarshalWriteable{
-		"states": StateMarshaller,
-		"responses": ResponseMarshaller,
-		"messages": MessageMarshaller,
-		"payments": PaymentMarshaller,
+		"states":    StateMarshaller,
+		"responses": responser.ResponseMarshaller,
+		"messages":  MessageMarshaller,
 	}
 
 	m, ok := marshallers[name]
@@ -92,7 +94,7 @@ func main() {
 	go monitor(HandleErrors(errs, getHandlers(&cfg)))
 
 	// Write forever
-	writer := GetWriter(pool, getMarshaller(&cfg))
+	writer := GetWriter(pool, getMarshaller(&cfg, pool))
 	for {
 		c.SideEffect(writer.Write, errs)
 	}
