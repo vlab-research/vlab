@@ -1,4 +1,9 @@
 import styled from 'styled-components/macro';
+import { Spin } from 'antd';
+
+export const Spinner = styled(Spin)`
+  margin: 30vh auto;
+`;
 
 export const Modal = styled.div`
   position: fixed;
@@ -20,7 +25,7 @@ export const ModalBox = styled.div`
   max-width: 600px;
   width: 100vw;
   min-width: 45vw;
-  height: ${({ state }) => (state === 1 ? '70vh' : '50vh')};
+  height: 70vh;
   background: white;
   border-radius: 5px;
   box-shadow: 0 0 15px -5px #0005;

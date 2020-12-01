@@ -2,7 +2,7 @@ import React, { useState, useContext } from 'react';
 import PropTypes from 'prop-types';
 import { useLocation, useHistory } from 'react-router-dom';
 import {
-  Form, Select, Input, Button, Checkbox, Space,
+  Form, Select, Input, Button, Checkbox, Space, Spin,
 } from 'antd';
 import { MinusCircleOutlined, PlusOutlined } from '@ant-design/icons';
 import { Survey } from '../Surveys/Surveys';
@@ -48,8 +48,10 @@ const CreateForm = ({ surveys }) => {
   const found = from && surveys.find(s => s.id === from);
   const formData = found ? reverseFormat(found) : { survey_name: query.get('survey_name') };
 
+  const [loading, setLoading] = useState(false);
   // Get available typeform forms or authorize with Typeform
   const onFinish = async (values) => {
+    setLoading(true);
     const dat = formatData(values);
 
     try {
@@ -57,6 +59,7 @@ const CreateForm = ({ surveys }) => {
       setSurveys(surveys => [survey, ...surveys]);
       history.go(-1);
     } catch (e) {
+      setLoading(false);
       alert(`An error occurred while creating the form: ${e}`); // eslint-disable-line no-alert
       console.error(e); // eslint-disable-line no-console
     }
@@ -81,7 +84,7 @@ const CreateForm = ({ surveys }) => {
 
 
   return (
-    <>
+    <Spin spinning={loading}>
       <Form
         labelCol={{ span: 4 }}
         wrapperCol={{ span: 14 }}
@@ -209,7 +212,7 @@ const CreateForm = ({ surveys }) => {
           <PrimaryBtn> CREATE </PrimaryBtn>
         </Form.Item>
       </Form>
-    </>
+    </Spin>
   );
 };
 

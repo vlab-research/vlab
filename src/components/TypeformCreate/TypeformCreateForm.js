@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import PropTypes from 'prop-types';
 import moment from 'moment';
 import { useHistory } from 'react-router-dom';
-
 import * as s from './style';
 import typeformAuth from '../../services/typeform';
 import { PrimaryBtn, SecondaryBtn } from '../UI';
@@ -23,27 +22,30 @@ const TypeformCreateForm = ({ cb }) => {
   const closeModal = ({ target, currentTarget }) => target === currentTarget && history.go(-1);
 
   return (
-    !!forms.length && (
-      <s.Modal onClick={closeModal}>
-        <s.ModalBox>
-          <s.ModalHeader />
-          <Main {...{
-            forms, selectedForm, setSelectedForm,
-          }}
-          />
-          <s.ModalFooter>
-            <s.Selected>
-              <s.SelectedInfo>{`selected: ${selectedForm.id}`}</s.SelectedInfo>
-              <s.SelectedInfo>{`title: ${selectedForm.title}`}</s.SelectedInfo>
-            </s.Selected>
-            <Actions {...{
-              cb, selectedForm, history,
+    <s.Modal onClick={closeModal}>
+      <s.ModalBox>
+        { forms.length ? (
+          <>
+            <s.ModalHeader />
+            <Main {...{
+              forms, selectedForm, setSelectedForm,
             }}
             />
-          </s.ModalFooter>
-        </s.ModalBox>
-      </s.Modal>
-    )
+            <s.ModalFooter>
+              <s.Selected>
+                <s.SelectedInfo>{`selected: ${selectedForm.id}`}</s.SelectedInfo>
+                <s.SelectedInfo>{`title: ${selectedForm.title}`}</s.SelectedInfo>
+              </s.Selected>
+              <Actions {...{
+                cb, selectedForm, history,
+              }}
+              />
+            </s.ModalFooter>
+          </>
+        )
+          : (<s.Spinner />)}
+      </s.ModalBox>
+    </s.Modal>
   );
 };
 
@@ -87,7 +89,7 @@ const Actions = ({
 
   return (
     <s.ActionsBtns>
-      <SecondaryBtn onClick={() => history.go(-1)} type="text">
+      <SecondaryBtn onClick={e => {e.preventDefault(); history.go(-1)}} type="text">
         Cancel
       </SecondaryBtn>
       <PrimaryBtn onClick={handleClick} type="text">Create</PrimaryBtn>
