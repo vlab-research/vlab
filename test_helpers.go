@@ -22,17 +22,17 @@ func makeMessages(vals []string) []*kafka.Message {
 	return msgs
 }
 
-func rowStrings(rows pgx.Rows) []string {
-	res := []string{}
+func rowStrings(rows pgx.Rows) []*string {
+	res := []*string{}
 	for rows.Next() {
 		col := new(string)
-		_ = rows.Scan(col)
-		res = append(res, *col)
+		_ = rows.Scan(&col)
+		res = append(res, col)
 	}
 	return res
 }
 
-func getCol(pool *pgxpool.Pool, table string, col string) []string {
+func getCol(pool *pgxpool.Pool, table string, col string) []*string {
 	rows, err := pool.Query(context.Background(), fmt.Sprintf("select %v from %v", col, table))
 	if err != nil {
 		panic(err)

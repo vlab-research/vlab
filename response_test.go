@@ -11,7 +11,7 @@ const (
 	surveySql = `drop table if exists surveys;
                  create table if not exists surveys(
                    userid VARCHAR NOT NULL,
-                   id VARCHAR NOT NULL UNIQUE,
+                   id UUID NOT NULL UNIQUE,
                    form_json JSON,
                    created TIMESTAMPTZ NOT NULL,
                    translation_conf JSON
@@ -127,13 +127,13 @@ func TestResponseWriterWritesGoodData(t *testing.T) {
 
 	res := getCol(pool, "responses", "userid")
 	assert.Equal(t, 2, len(res))
-	assert.Equal(t, "bar", res[0])
-	assert.Equal(t, "foo", res[1])
+	assert.Equal(t, "bar", *res[0])
+	assert.Equal(t, "foo", *res[1])
 
 	res = getCol(pool, "responses", "metadata->>'foo'")
 	assert.Equal(t, 2, len(res))
-	assert.Equal(t, "bar", res[0])
-	assert.Equal(t, "bar", res[1])
+	assert.Equal(t, "bar", *res[0])
+	assert.Equal(t, "bar", *res[1])
 
 	mustExec(t, pool, "drop table responses")
 }
@@ -166,9 +166,9 @@ func TestResponseWriterWritesNullPageIdIfNone(t *testing.T) {
 	assert.Nil(t, err)
 
 	rows, err := pool.Query(context.Background(), "select pageid from responses where pageid is null")
+
 	res := rowStrings(rows)
 	assert.Equal(t, 1, len(res))
-
 	mustExec(t, pool, "drop table responses")
 }
 
@@ -202,7 +202,7 @@ func TestResponseWriterWritesPageIdIfExists(t *testing.T) {
 
 	res := getCol(pool, "responses", "pageid")
 	assert.Equal(t, 1, len(res))
-	assert.Equal(t, "baz", res[0])
+	assert.Equal(t, "baz", *res[0])
 
 	mustExec(t, pool, "drop table responses")
 }
@@ -265,14 +265,14 @@ func TestResponseWriterHandlesMixedResponseAndShortCodeTypes(t *testing.T) {
 
 	res := getCol(pool, "responses", "response")
 	assert.Equal(t, 3, len(res))
-	assert.Equal(t, "true", res[0])
-	assert.Equal(t, "yes", res[1])
-	assert.Equal(t, "25", res[2])
+	assert.Equal(t, "true", *res[0])
+	assert.Equal(t, "yes", *res[1])
+	assert.Equal(t, "25", *res[2])
 
 	res = getCol(pool, "responses", "shortcode")
 	assert.Equal(t, 3, len(res))
-	assert.Equal(t, "baz", res[0])
-	assert.Equal(t, "123", res[2])
+	assert.Equal(t, "baz", *res[0])
+	assert.Equal(t, "123", *res[2])
 
 	mustExec(t, pool, "drop table responses")
 }
@@ -453,7 +453,7 @@ func TestResponseWriterIgnoresRepeatMessages(t *testing.T) {
 
 	res := getCol(pool, "responses", "userid")
 	assert.Equal(t, 1, len(res))
-	assert.Equal(t, "foo", res[0])
+	assert.Equal(t, "foo", *res[0])
 
 	mustExec(t, pool, "drop table responses")
 }
@@ -464,8 +464,8 @@ func TestResponseWriterTranslatesSuccesfullyToOtherForm(t *testing.T) {
 
 	mustExec(t, pool, responseSql)
 	mustExec(t, pool, surveySql)
-	mustExec(t, pool, insertSurveySql, "aaaa1c81-fcd0-4aa4-8975-8584d8bdxxxx", formA, `{}`)
-	mustExec(t, pool, insertSurveySql, "d6c21c81-fcd0-4aa4-8975-8584d8bdb820", formB, `{"destination": "aaaa1c81-fcd0-4aa4-8975-8584d8bdxxxx"}`)
+	mustExec(t, pool, insertSurveySql, "25d88630-8b7b-4f2b-8630-4e5f9085e888", formA, `{}`)
+	mustExec(t, pool, insertSurveySql, "d6c21c81-fcd0-4aa4-8975-8584d8bdb820", formB, `{"destination": "25d88630-8b7b-4f2b-8630-4e5f9085e888"}`)
 
 	msgs := makeMessages([]string{
 		`{"parent_surveyid":"d6c21c81-fcd0-4aa4-8975-8584d8bdb820",
@@ -473,7 +473,7 @@ func TestResponseWriterTranslatesSuccesfullyToOtherForm(t *testing.T) {
           "surveyid":"d6c21c81-fcd0-4aa4-8975-8584d8bdb820",
           "shortcode":"baz",
           "flowid":1,
-          "userid":"foo",
+          "userid":"bar",
           "pageid": "baz",
           "question_ref":"bar",
           "question_idx":1,
@@ -496,6 +496,20 @@ func TestResponseWriterTranslatesSuccesfullyToOtherForm(t *testing.T) {
           "seed":858044518,
           "metadata":{},
           "timestamp":1999099840999}`,
+		`{"parent_surveyid":"d6c21c81-fcd0-4aa4-8975-8584d8bdb820",
+          "parent_shortcode":"baz",
+          "surveyid":"d6c21c81-fcd0-4aa4-8975-8584d8bdb820",
+          "shortcode":"baz",
+          "flowid":1,
+          "userid":"bar",
+          "pageid": "baz",
+          "question_ref":"foo",
+          "question_idx":1,
+          "question_text":"foobar",
+          "response":"अन्य",
+          "seed":858044518,
+          "metadata":{},
+          "timestamp":1999099840999}`,
 	})
 
 	r := NewResponser(pool)
@@ -507,15 +521,17 @@ func TestResponseWriterTranslatesSuccesfullyToOtherForm(t *testing.T) {
 	assert.Nil(t, err)
 
 	res := getCol(pool, "responses", "response")
-	assert.Equal(t, 2, len(res))
-	assert.Equal(t, "A", res[0])
-	assert.Equal(t, "LOL", res[1])
+	assert.Equal(t, 3, len(res))
+	assert.Equal(t, "LOL", *res[0])
+	assert.Equal(t, "A", *res[1])
+	assert.Equal(t, "अन्य", *res[2])
 
 	res = getCol(pool, "responses", "translated_response")
-	assert.Equal(t, 2, len(res))
+	assert.Equal(t, 3, len(res))
 
-	assert.Equal(t, "foo 91  bar", res[0])
-	assert.Equal(t, "", res[1])
+	assert.Nil(t, res[0])
+	assert.Equal(t, "foo 91  bar", *res[1])
+	assert.Equal(t, "Other", *res[2])
 
 	mustExec(t, pool, "drop table responses")
 }

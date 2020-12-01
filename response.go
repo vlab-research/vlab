@@ -83,7 +83,7 @@ func getTranslationForms(pool *pgxpool.Pool, surveyid string) (*trans.FormJson, 
               form_json,
               (CASE WHEN (translation_conf->>'self')::BOOL = true
                     THEN id
-                    ELSE translation_conf->>'destination'
+                    ELSE (translation_conf->>'destination')::UUID
                     END) as dest
             FROM surveys
             WHERE id = $1)

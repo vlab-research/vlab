@@ -4,11 +4,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/vlab-research/spine"
 	"github.com/go-playground/validator/v10"
 	"github.com/stretchr/testify/assert"
+	"github.com/vlab-research/spine"
 )
-
 
 const (
 	stateSql = `
@@ -58,9 +57,8 @@ func TestStateWriterWritesGoodData(t *testing.T) {
 	res := getCol(pool, "states", "state_json->>'token'")
 	assert.Equal(t, len(res), 2)
 
-	assert.Equal(t, res[0], "bar")
-	assert.Equal(t, res[1], "bar")
-
+	assert.Equal(t, "bar", *res[0])
+	assert.Equal(t, "bar", *res[1])
 
 	mustExec(t, pool, "drop table states")
 }
@@ -155,7 +153,6 @@ func TestStateWriterFailsStateViolatesFacebookPageConstraintHandledByForeignKeyH
 
 	mustExec(t, pool, "drop table states")
 }
-
 
 func TestStateWriterWithHandlersIntegration(t *testing.T) {
 	pool := testPool()
