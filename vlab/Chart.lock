@@ -11,6 +11,9 @@ dependencies:
 - name: dashboard
   repository: https://vlab-research.github.io/devops
   version: 0.0.1
+- name: formcentral
+  repository: https://vlab-research.github.io/devops
+  version: 0.0.1
 - name: dumper
   repository: https://vlab-research.github.io/devops
   version: 0.0.1
@@ -33,10 +36,10 @@ dependencies:
   repository: https://vlab-research.github.io/devops
   version: 0.0.1
 - name: cockroachdb
-  repository: https://kubernetes-charts.storage.googleapis.com
-  version: 3.0.4
+  repository: https://charts.cockroachdb.com/
+  version: 5.0.1
 - name: kafka
   repository: https://storage.googleapis.com/kubernetes-charts-incubator
   version: 0.20.8
-digest: sha256:549d10b3d991543858d3cede993c469c65aa0c873e62ceed12b3a35d2456e3b7
-generated: "2020-09-20T17:02:16.579953474+02:00"
+digest: sha256:eb606b65d86d5fe7d5de04022c777bfb46d3c76db7cf06aa3786a0dc46e17cfa
+generated: "2020-12-01T09:08:27.152313332+01:00"

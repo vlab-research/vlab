@@ -19,13 +19,14 @@ kafkabrokers: &kb gbv-kafka:9092
 botEnvs: &botenvs gbv-bot-envs
 chatbaseHost: &host gbv-cockroachdb-public
 
-versionDashboard: &vdashboard 0.0.7
+versionDashboard: &vdashboard 0.0.8
 versionBotserver: &vbotserver 0.0.8
 versionReplybot: &vreplybot 0.0.109
 versionLinksniffer: &vlinksniffer 0.0.3
 versionDean: &vdean 0.0.19
-versionScribble: &vscribble 0.0.10
+versionScribble: &vscribble 0.0.14
 versionDinersclub: &vdinersclub 0.0.3
+versionFormcentral: &vformcentral 0.0.3
 
 linksniffer:
   replicaCount: 1
@@ -41,12 +42,32 @@ linksniffer:
   resources:
     requests:
       cpu: 10m
-      memory: 50Mi
+      memory: 10Mi
   ingress:
     enabled: false
   service:
     type: ClusterIP
     port: 80
+
+formcentral:
+  replicaCount: 1
+  image:
+    tag: *vformcentral
+  env:
+  - name: CHATBASE_DATABASE
+    value: "chatroach"
+  - name: CHATBASE_USER
+    value: "chatroach"
+  - name: CHATBASE_PASSWORD
+    value: ""
+  - name: CHATBASE_HOST
+    value: *host
+  - name: CHATBASE_PORT
+    value: "26257"
+  resources:
+    requests:
+      cpu: 10m
+      memory: 10Mi
 
 dinersclub:
   image:

@@ -16,6 +16,9 @@ dependencies:
   - name: dashboard
     version: 0.0.1
     repository: https://vlab-research.github.io/devops
+  - name: formcentral
+    version: 0.0.1
+    repository: https://vlab-research.github.io/devops
   - name: dumper
     version: 0.0.1
     repository: https://vlab-research.github.io/devops
@@ -55,8 +58,8 @@ dependencies:
 # TODO: move database out of here (treat as provider)
 # add init job to create database and users
   - name: cockroachdb
-    version: 3.0.4
-    repository: https://kubernetes-charts.storage.googleapis.com
+    version: 5.0.1
+    repository: https://charts.cockroachdb.com/
     tags:
       - cockroach
   - name: kafka
