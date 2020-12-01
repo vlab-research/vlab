@@ -8,12 +8,15 @@ async function create({
   shortcode,
   userid,
   title,
+  survey_name,
+  metadata,
+  translation_conf
 }) {
-  const CREATE_ONE = `INSERT INTO surveys(created, formid, form, messages, shortcode, userid, title)
-       values($1, $2, $3, $4, $5, $6, $7)
+  const CREATE_ONE = `INSERT INTO surveys(created, formid, form, messages, shortcode, userid, title, survey_name, metadata, translation_conf)
+       values($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
        ON CONFLICT(id) DO NOTHING
        RETURNING *`;
-  const values = [created, formid, form, messages, shortcode, userid, title];
+  const values = [created, formid, form, messages, shortcode, userid, title, survey_name, metadata, translation_conf];
   const { rows } = await this.query(CREATE_ONE, values);
   return rows[0];
 }
@@ -33,8 +36,9 @@ async function retrieveByPage({ pageid, code, timestamp }) {
 }
 
 async function retrieve({ email }) {
-  const RETRIEVE_ALL = `SELECT surveys.* FROM surveys
-                        LEFT JOIN users on surveys.userid = users.id
+  const RETRIEVE_ALL = `SELECT s.created, s.shortcode, s.id, s.title, s.survey_name, s.metadata, s.translation_conf, s.formid
+                        FROM surveys s
+                        LEFT JOIN users on s.userid = users.id
                         WHERE email=$1
                         ORDER BY created DESC`;
   const values = [email];

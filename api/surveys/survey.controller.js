@@ -7,14 +7,16 @@ const { TypeformUtil } = require('../../utils');
 
 exports.postOne = async (req, res) => {
   try {
-    const { formid, title, shortcode } = req.body;
+
+    // add more keys
+    const { survey_name, formid, title, shortcode, metadata, translation_conf } = req.body;
     const { email } = req.user;
 
-    if (!(email && formid && title && shortcode)) {
+    if (!(email && formid && shortcode && survey_name)) {
       return res
         .status(400)
         .send(
-          `Missing shit!: formid: ${formid}, title: ${title}, shortcode: ${shortcode}`,
+          `Missing shit!: formid: ${formid}, shortcode: ${shortcode}`,
         );
     }
 
@@ -27,7 +29,15 @@ exports.postOne = async (req, res) => {
     const form = await TypeformUtil.TypeformForm(token, formid);
     const messages = await TypeformUtil.TypeformMessages(token, formid);
 
+    // check if translation is possible with formcentral
+    const err = await SurveyUtil.validateTranslation({form, translation_conf})
+    if (err) {
+      return res.status(400).send('Translation config not valid. Error: ' + err)
+    }
+
     const created = new Date();
+
+    // add good stuff here
     const survey = {
       formid,
       created,
@@ -36,6 +46,9 @@ exports.postOne = async (req, res) => {
       userid,
       form,
       shortcode,
+      survey_name,
+      metadata,
+      translation_conf,
     };
 
     SurveyUtil.validate(survey);

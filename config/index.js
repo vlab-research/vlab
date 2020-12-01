@@ -16,6 +16,7 @@ const envVarsSchema = joi
       .empty(''),
     DB_DATABASE: joi.string(),
     DB_PORT: joi.number(),
+    FORMCENTRAL_URL: joi.string(),
     AUTH0_CLIENT_ID: joi.string(),
     AUTH0_DASHBOARD_SECRET: joi.string()
   })
@@ -33,6 +34,9 @@ const config = {
   ENV: envVars.NODE_ENV,
   IS_DEVELOPMENT: envVars.NODE_ENV === 'development',
   IS_TEST: isTest(),
+  FORMCENTRAL: {
+    url: envVars.FORMCENTRAL_URL,
+  },
   SERVER: {
     API_VERSION: envVars.API_VERSION || '1',
   },
@@ -61,7 +65,7 @@ const config = {
     host: isTest() ? 'localhost' : envVars.DB_HOST || 'localhost',
     database: isTest() ? 'chatroach' : envVars.DB_DATABASE || 'postgres',
     password: isTest() ? undefined : envVars.DB_PASSWORD || undefined,
-    port: isTest() ? 5432 : envVars.DB_PORT || 5432,
+    port: isTest() ? 5433 : envVars.DB_PORT || 5432,
   },
 };
 

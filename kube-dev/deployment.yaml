@@ -30,6 +30,8 @@ spec:
           env:
             - name: TYPEFORM_URL
               value: 'https://api.typeform.com'
+            - name: FORMCENTRAL_URL
+              value: 'http://gbv-formcentral'
             - name: CUBEJS_API_SECRET
               value: 'notasecret'
             - name: CUBEJS_DB_TYPE
@@ -55,4 +57,4 @@ spec:
             - name: CUBEJS_DB_PORT
               value: '26257'
             - name: TYPEFORM_REDIRECT_URL
-              value: 'http://localhost:3000/surveys/auth'
+              value: 'https://localhost:3000/surveys/auth'
