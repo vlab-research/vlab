@@ -1,0 +1,89 @@
+{
+  "id": "hc2slBXH",
+  "type": "form",
+  "title": "translation - destination",
+  "workspace": {
+    "href": "https://api.typeform.com/workspaces/WA44hg"
+  },
+  "theme": {
+    "href": "https://api.typeform.com/themes/qHWOQ7"
+  },
+  "settings": {
+    "language": "en",
+    "progress_bar": "proportion",
+    "meta": {
+      "allow_indexing": false
+    },
+    "hide_navigation": false,
+    "is_public": true,
+    "is_trial": false,
+    "show_progress_bar": true,
+    "show_typeform_branding": true,
+    "are_uploads_public": false,
+    "show_time_to_complete": true
+  },
+  "thankyou_screens": [
+    {
+      "id": "DefaultTyScreen",
+      "ref": "default_tys",
+      "title": "Done! Your information was sent perfectly.",
+      "properties": {
+        "show_button": false,
+        "share_icons": false
+      }
+    }
+  ],
+  "fields": [
+    {
+      "id": "iHWP8mD4K3qj",
+      "title": "Hey, how are you?",
+      "ref": "6ce49ffc-dbf6-4910-8b2d-17f16b0cf456",
+      "properties": {
+        "randomize": false,
+        "allow_multiple_selection": false,
+        "allow_other_choice": false,
+        "vertical_alignment": true,
+        "choices": [
+          {
+            "id": "l0foVKNqdwKg",
+            "ref": "36a565d2-e0d2-472c-9e7a-9270833b3a14",
+            "label": "Good"
+          },
+          {
+            "id": "ggwBlv17FjZs",
+            "ref": "10d460ac-dca8-48b4-b5a0-4c64df3fa51a",
+            "label": "Bad"
+          }
+        ]
+      },
+      "validations": {
+        "required": false
+      },
+      "type": "multiple_choice"
+    },
+    {
+      "id": "6jwUKWwNiPEv",
+      "title": "And why?",
+      "ref": "03f65958-685f-4391-957d-6e7f2a16a7d5",
+      "properties": {},
+      "validations": {
+        "required": false
+      },
+      "type": "short_text"
+    },
+    {
+      "id": "DefaultTyScreen",
+      "ref": "default_tys",
+      "title": "Done! Your information was sent perfectly.",
+      "properties": {
+        "show_button": false,
+        "share_icons": false
+      },
+      "type": "thankyou_screen"
+    }
+  ],
+  "_links": {
+    "display": "https://nandanrao.typeform.com/to/hc2slBXH"
+  },
+  "custom_messages": {}
+}

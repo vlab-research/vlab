@@ -20,8 +20,8 @@ async function surveyExists(pool, userid, shortcode) {
 }
 
 async function insertSurvey(pool, filename, body, userid) {
-  const query = `INSERT INTO surveys(created, formid, form, messages, shortcode, userid, title)
-       values($1, $2, $3, $4, $5, $6, $7)
+  const query = `INSERT INTO surveys(created, formid, form, messages, shortcode, userid, title, translation_conf)
+       values($1, $2, $3, $4, $5, $6, $7, $8)
        RETURNING *`;
 
   const form = JSON.parse(body)
@@ -32,7 +32,7 @@ async function insertSurvey(pool, filename, body, userid) {
   const exists = await surveyExists(pool, userid, formid)
   if (exists) return
 
-  const values = [created, formid, JSON.stringify(form), JSON.stringify(messages), formid, userid, ''];
+  const values = [created, formid, JSON.stringify(form), JSON.stringify(messages), formid, userid, '', {}];
   await pool.query(query, values)
 }
 

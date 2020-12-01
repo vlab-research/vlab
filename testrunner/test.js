@@ -4,7 +4,7 @@ const sender = require('./sender.js')
 const {makeQR, makePostback, makeTextResponse, makeReferral, makeSynthetic, getFields, makeNotify} = require('@vlab-research/mox')
 const uuid = require('uuid');
 const farmhash = require('farmhash');
-const {seed} = require('./seed-db');
+const {seed, getUserId} = require('./seed-db');
 const {flowMaster} = require('./socket');
 const {snooze} = require('./utils')
 const {getResponses, getState} = require('./responses')
@@ -60,7 +60,6 @@ describe('Test Bot flow Survey Integration Testing', () => {
 
       await sender(makeReferral(userId, 'v7R942'))
       await flowMaster(userId, testFlow)
-
     })
 
 
@@ -277,6 +276,34 @@ describe('Test Bot flow Survey Integration Testing', () => {
       res.map(r => r['response']).should.include('LOL')
       res.map(r => r['response']).should.include('true')
       res.map(r => r['parent_shortcode']).should.eql(['Llu24B', 'Llu24B'])
+    })
+
+    it('Test chat flow on forms with translated responses',  async () => {
+      const userId = uuid()
+      const [source, dest] = ['hc2slBXH', 'mzs7qmvZ']
+
+      const query = `update surveys set translation_conf = jsonb_set(translation_conf, ARRAY['destination'], to_json((select id from surveys where shortcode = $1 limit 1)::STRING)) where shortcode = $2;`
+
+      await chatbase.pool.query(query, [dest, source])
+
+      const fields = getFields('forms/hc2slBXH.json')
+
+      const testFlow = [
+        [ok, fields[0], [makeQR(fields[0], userId, 0)]],
+        [ok, fields[1], [makeTextResponse(userId, 'LOL')]],
+        [ok, fields[2], []],
+      ]
+
+      sender(makeReferral(userId, 'hc2slBXH'))
+      await flowMaster(userId, testFlow)
+
+      await snooze(8000)
+      const res = await getResponses(chatbase, userId)
+      res.length.should.equal(2)
+      res.map(r => r['response']).should.include('LOL')
+      res.map(r => r['response']).should.include('Good')
+      res.map(r => r['translated_response']).should.include('LOL')
+      res.map(r => r['translated_response']).should.include('Bien')
     })
 
     it('Test chat flow with multiple links and keepMoving tag',  async () => {
