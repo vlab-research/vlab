@@ -24,9 +24,9 @@ versionBotserver: &vbotserver 0.0.8
 versionReplybot: &vreplybot 0.0.109
 versionLinksniffer: &vlinksniffer 0.0.3
 versionDean: &vdean 0.0.19
-versionScribble: &vscribble 0.0.14
+versionScribble: &vscribble 0.0.15
 versionDinersclub: &vdinersclub 0.0.3
-versionFormcentral: &vformcentral 0.0.3
+versionFormcentral: &vformcentral 0.0.4
 
 linksniffer:
   replicaCount: 1
@@ -137,7 +137,9 @@ dashboard:
     - name: CUBEJS_DB_PORT
       value: '26257'
     - name: TYPEFORM_REDIRECT_URL
-      value: 'http://localhost:3000/surveys/auth'
+      value: 'https://localhost:3000/surveys/auth'
+    - name: FORMCENTRAL_URL
+      value: 'http://gbv-formcentral'
     - name: FACEBOOK_GRAPH_URL
       value: 'https://graph.facebook.com/v7.0'
   resources:

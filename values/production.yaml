@@ -8,6 +8,8 @@ tags:
   scribble: true
   dean: true
 
+
+
 kafkabrokers: &kb "kafka-headless.default.svc.cluster.local:29092"
 chatTopic: &topic "vlab-prod-chat-events"
 stateTopic: &statetopic "vlab-prod-state"
@@ -16,13 +18,14 @@ paymentTopic: &paymenttopic "vlab-prod-payment"
 botEnvs: &botenvs gbv-bot-envs
 chatbaseHost: &host "gbv-cockroachdb-public"
 
-versionDashboard: &vdashboard 0.0.7
+versionDashboard: &vdashboard 0.0.8
 versionBotserver: &vbotserver 0.0.8
-versionReplybot: &vreplybot 0.0.107
+versionReplybot: &vreplybot 0.0.109
 versionLinksniffer: &vlinksniffer 0.0.3
 versionDean: &vdean 0.0.19
-versionScribble: &vscribble 0.0.10
+versionScribble: &vscribble 0.0.15
 versionDinersclub: &vdinersclub 0.0.3
+versionFormcentral: &vformcentral 0.0.4
 
 processingAlerts:
   - consumergroup: replybot
@@ -136,7 +139,7 @@ dean:
   - name: DEAN_RESPONDING_GRACE
     value: "20 minutes"
   - name: DEAN_SEND_DELAY
-    value: "3s"
+    value: "4s"
   - name: DEAN_FOLLOWUP_MIN
     value: "6 hours"
   - name: DEAN_FOLLOWUP_MAX
@@ -151,14 +154,14 @@ dean:
           memory: 10Mi
     - name: followups
       queries: "followups"
-      schedule: "0 4,10,15,16,17 * * *"
+      schedule: "0 5-19 * * *"
       resources:
         requests:
           cpu: 10m
           memory: 10Mi
     - name: timeouts
       queries: "timeouts"
-      schedule: "0 9,15,17 * * *"
+      schedule: "*/10 * * * *"
       resources:
         requests:
           cpu: 10m
@@ -202,7 +205,7 @@ scribble:
       - name: SCRIBBLE_CHUNK_SIZE
         value: "8"
       - name: SCRIBBLE_BATCH_SIZE
-        value: "16"
+        value: "8"
     - destination: "responses"
       replicaCount: 1
       env:
@@ -211,7 +214,7 @@ scribble:
       - name: KAFKA_GROUP
         value: "scribble-responses"
       - name: SCRIBBLE_CHUNK_SIZE
-        value: "8"
+        value: "16"
       - name: SCRIBBLE_BATCH_SIZE
         value: "16"
     - destination: "messages"
@@ -224,7 +227,7 @@ scribble:
       - name: SCRIBBLE_CHUNK_SIZE
         value: "16"
       - name: SCRIBBLE_BATCH_SIZE
-        value: "32"
+        value: "16"
 
 dumper:
   image:
@@ -236,10 +239,10 @@ dumper:
   parallelism: 1
   backoffLimit: 8
 
-  schedule: "15 * * * *"
+  schedule: "30 * * * *"
   resources:
     requests:
-      cpu: 100m
+      cpu: 800m
       memory: 256Mi
 
   keySecret: gbv-dumper-keys
@@ -248,6 +251,26 @@ dumper:
     value: *host
   - name: DUMPER_LOCATION
     value: "gs://vlab-research-backups/gbv-india/"
+
+formcentral:
+  replicaCount: 1
+  image:
+    tag: *vformcentral
+  env:
+  - name: CHATBASE_DATABASE
+    value: "chatroach"
+  - name: CHATBASE_USER
+    value: "chatroach"
+  - name: CHATBASE_PASSWORD
+    value: ""
+  - name: CHATBASE_HOST
+    value: *host
+  - name: CHATBASE_PORT
+    value: "26257"
+  resources:
+    requests:
+      cpu: 10m
+      memory: 10Mi
 
 
 linksniffer:
@@ -322,6 +345,8 @@ dashboard:
       value: '26257'
     - name: CUBEJS_DB_PORT
       value: '26257'
+    - name: FORMCENTRAL_URL
+      value: 'http://gbv-formcentral'
     - name: TYPEFORM_REDIRECT_URL
       value: 'https://vlab-research.netlify.com/surveys/auth'
     - name: FACEBOOK_GRAPH_URL
@@ -360,11 +385,11 @@ replybot:
   envFrom: *botenvs
   resources:
     requests:
-      cpu: 5m
-      memory: 60Mi
+      cpu: 15m
+      memory: 80Mi
   env:
   - name: FAKE
-    value: "NOTHIN"
+    value: "NOTHING"
   - name: CHATBASE_BACKEND
     value: "@vlab-research/chatbase-postgres"
   - name: CHATBASE_DATABASE
@@ -447,8 +472,8 @@ cockroachdb:
     replicas: 3
     resources:
       requests:
-        cpu: 50m
-        memory: 1536Mi
+        cpu: 200m
+        memory: 3000Mi
   conf:
     cache: 1536Mi
     max-sql-memory: 1536Mi
