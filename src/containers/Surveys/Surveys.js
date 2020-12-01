@@ -65,7 +65,7 @@ const Surveys = () => {
             <Route path={`/${match.path.split('/')[1]}/create`}>
               <CreateForm surveys={surveys} />
             </Route>
-            <Route path={`/${match.path.split('/')[1]}/data`}>
+            <Route path={`${match.path}/data`}>
               <DataScreen surveys={surveys} />
             </Route>
             <Route path={match.path}>

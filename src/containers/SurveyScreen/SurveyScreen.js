@@ -12,6 +12,7 @@ import { CreateBtn } from '../../components/UI';
 const Survey = ({ forms, selected }) => {
   const nameLookup = Object.fromEntries(forms.map(f => [f.id, f.prettyName]));
 
+  const match = useRouteMatch();
   const getTranslationInfo = (record) => {
     if (record.translation_conf.self) {
       return 'self';
@@ -37,7 +38,7 @@ const Survey = ({ forms, selected }) => {
   columns[0] = {
     ...columns[0],
     render: (text, record) => (
-      <Link to={`data?shortcode=${record.shortcode}`}>
+      <Link to={`${match.url}/data?shortcode=${record.shortcode}`}>
         {' '}
         {text}
         {' '}
@@ -57,7 +58,13 @@ const Survey = ({ forms, selected }) => {
 
   const expandedRowRender = (row) => {
     const expanded = grouped.get(row.shortcode);
-    return (<Table columns={columns} dataSource={expanded} pagination={false} showHeader />);
+    const cols = [...columns]
+    cols[0] = {title: 'form', dataIndex: 'prettyName', render: (text, record) => (
+      <Link to={`${match.url}/data?surveyid=${record.id}`}>
+        {record.prettyName}
+      </Link>
+    ),}
+    return (<Table columns={cols} dataSource={expanded} pagination={false} showHeader />);
   };
 
   return (
@@ -98,9 +105,6 @@ const SurveyScreen = ({ forms, selected }) => {
         </Route>
         <Route exact path={`${match.path}/form/:surveyid`}>
           <FormScreen forms={forms} />
-        </Route>
-        <Route exact path={`${match.path}/form/:surveyid/data`}>
-          data
         </Route>
       </Switch>
     </div>
