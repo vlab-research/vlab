@@ -89,7 +89,7 @@ const Actions = ({
 
   return (
     <s.ActionsBtns>
-      <SecondaryBtn onClick={e => {e.preventDefault(); history.go(-1)}} type="text">
+      <SecondaryBtn onClick={(e) => { e.preventDefault(); history.go(-1); }} type="text">
         Cancel
       </SecondaryBtn>
       <PrimaryBtn onClick={handleClick} type="text">Create</PrimaryBtn>

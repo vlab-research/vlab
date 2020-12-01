@@ -58,12 +58,16 @@ const Survey = ({ forms, selected }) => {
 
   const expandedRowRender = (row) => {
     const expanded = grouped.get(row.shortcode);
-    const cols = [...columns]
-    cols[0] = {title: 'form', dataIndex: 'prettyName', render: (text, record) => (
-      <Link to={`${match.url}/data?surveyid=${record.id}`}>
-        {record.prettyName}
-      </Link>
-    ),}
+    const cols = [...columns];
+    cols[0] = {
+      title: 'form',
+      dataIndex: 'prettyName',
+      render: (text, record) => (
+        <Link to={`${match.url}/data?surveyid=${record.id}`}>
+          {record.prettyName}
+        </Link>
+      ),
+    };
     return (<Table columns={cols} dataSource={expanded} pagination={false} showHeader />);
   };
 

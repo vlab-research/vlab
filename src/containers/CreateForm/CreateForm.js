@@ -104,10 +104,7 @@ const CreateForm = ({ surveys }) => {
           >
             <Input />
           </Form.Item>
-        </section>
 
-        <section>
-          <h2> Form </h2>
           <Form.Item
             label="Shortcode"
             name="shortcode"
@@ -119,92 +116,107 @@ const CreateForm = ({ surveys }) => {
 
         <section className="create-typeform">
           <h2> Typeform </h2>
-          <TypeformCreate cb={setTypeformData}> IMPORT FROM TYPEFORM </TypeformCreate>
 
-          <Form.Item
-            label="Typeform Form Title"
-            name="title"
-            rules={[{ required: true, message: 'Please import a Typeform form.' }]}
-          >
-            <Input disabled />
+          <Form.Item label="Form">
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <Form.Item
+                name="title"
+                style={{ display: 'inline-block', width: 'calc(50% - 8px)', margin: '10px 10px 10px 0' }}
+                rules={[{ required: true, message: 'Please import a Typeform form.' }]}
+              >
+                <Input placeholder="Title" disabled />
+              </Form.Item>
+              <Form.Item
+                name="formid"
+                style={{ display: 'inline-block', width: 'calc(30% - 8px)', margin: '10px 10px 10px 0' }}
+                rules={[{ required: true, message: 'Please import a Typeform form.' }]}
+              >
+                <Input placeholder="ID" disabled />
+              </Form.Item>
+              <TypeformCreate cb={setTypeformData}> IMPORT FROM TYPEFORM </TypeformCreate>
+            </div>
           </Form.Item>
-          <Form.Item
-            label="Typeform Form ID"
-            name="formid"
-            rules={[{ required: true, message: 'Please import a Typeform form.' }]}
-          >
-            <Input disabled />
-          </Form.Item>
+
         </section>
 
         <section className="create-translation">
           <h2> Translation </h2>
-          <Form.Item
-            label="Self translate"
-            onChange={onSelfTranslating}
-            name="translation_self"
-            valuePropName="checked"
-          >
-            <Checkbox />
-          </Form.Item>
-          <Form.Item dependencies={['translation_self']} label="Destination" name="translation_destination">
-            <Select showSearch optionFilterProp="children" disabled={selfTranslating}>
-              {surveys.map(s => (<Select.Option key={s.id} value={s.id}>{s.prettyName}</Select.Option>))}
-            </Select>
+          <Form.Item label="Destination">
+            <Form.Item
+              label="Self"
+              style={{ display: 'inline-block', width: 'calc(30%)', margin: '0 0 0 50px' }}
+              onChange={onSelfTranslating}
+              name="translation_self"
+              valuePropName="checked"
+            >
+              <Checkbox />
+            </Form.Item>
+            <Form.Item
+              style={{ display: 'inline-block', width: 'calc(70% - 50px)' }}
+              dependencies={['translation_self']}
+              label="Other form"
+              name="translation_destination"
+            >
+              <Select showSearch optionFilterProp="children" disabled={selfTranslating}>
+                {surveys.map(s => (<Select.Option key={s.id} value={s.id}>{s.prettyName}</Select.Option>))}
+              </Select>
+            </Form.Item>
           </Form.Item>
 
         </section>
 
         <section className="create-metadata">
           <h2> Metadata </h2>
-          <Form.List name="metadata">
-            {(fields, { add, remove }) => (
-              <>
-                {fields.map(field => (
-                  <Space
-                    key={field.key}
-                    style={{
-                      display: 'flex',
-                      maxWidth: '800px',
-                      marginBottom: 8,
-                      marginRight: 'auto',
-                      marginLeft: 'auto',
-                    }}
-                    align="baseline"
-                  >
+          <Form.Item label="  " colon={false}>
+            <Form.List name="metadata">
+              {(fields, { add, remove }) => (
+                <>
+                  {fields.map(field => (
+                    <Space
+                      key={field.key}
+                      style={{
+                        display: 'flex',
+                        maxWidth: '800px',
+                        marginBottom: 8,
+                        marginRight: 'auto',
+                        marginLeft: 'auto',
+                      }}
+                      align="baseline"
+                    >
 
-                    <Form.Item
-                      {...field}
-                      name={[field.name, 'key']}
-                      fieldKey={[field.fieldKey, 'key']}
-                      wrapperCol={{ span: 100 }}
-                      rules={[{ required: true, message: 'Missing key' }]}
-                    >
-                      <Input placeholder="Key" />
-                    </Form.Item>
-                    <Form.Item
-                      {...field}
-                      wrapperCol={{ span: 100 }}
-                      name={[field.name, 'value']}
-                      fieldKey={[field.fieldKey, 'value']}
-                      rules={[{ required: true, message: 'Missing value' }]}
-                    >
-                      <Input placeholder="value" />
-                    </Form.Item>
-                    <MinusCircleOutlined onClick={() => remove(field.name)} />
-                  </Space>
-                ))}
-                <Form.Item style={{
-                  display: 'flex', maxWidth: '800px', marginBottom: 8, marginRight: 'auto', marginLeft: 'auto',
-                }}
-                >
-                  <Button type="dashed" onClick={() => add()} block icon={<PlusOutlined />}>
+                      <Form.Item
+                        {...field}
+                        name={[field.name, 'key']}
+                        fieldKey={[field.fieldKey, 'key']}
+                        wrapperCol={{ span: 100 }}
+                        rules={[{ required: true, message: 'Missing key' }]}
+                      >
+                        <Input placeholder="Field" />
+                      </Form.Item>
+                      <Form.Item
+                        {...field}
+                        wrapperCol={{ span: 100 }}
+                        name={[field.name, 'value']}
+                        fieldKey={[field.fieldKey, 'value']}
+                        rules={[{ required: true, message: 'Missing value' }]}
+                      >
+                        <Input placeholder="Value" />
+                      </Form.Item>
+                      <MinusCircleOutlined onClick={() => remove(field.name)} />
+                    </Space>
+                  ))}
+                  <Form.Item style={{
+                    display: 'flex', maxWidth: '800px', marginBottom: 8, marginRight: 'auto', marginLeft: 'auto',
+                  }}
+                  >
+                    <Button type="dashed" onClick={() => add()} block icon={<PlusOutlined />}>
                     Add Metadata
-                  </Button>
-                </Form.Item>
-              </>
-            )}
-          </Form.List>
+                    </Button>
+                  </Form.Item>
+                </>
+              )}
+            </Form.List>
+          </Form.Item>
         </section>
 
 
