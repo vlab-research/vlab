@@ -16,16 +16,14 @@ kubectl apply -f testing/facebot.yaml
 ######################
 # create database
 ######################
+sleep 20
+kubectl wait --for=condition=Ready pod/gbv-cockroachdb-0 --timeout 20m
+sleep 20
 
-kubectl wait --for=condition=Ready pod/gbv-cockroachdb-0 --timeout 5m
-
-sleep 10
-
-cat chatroach.sql | kubectl run -i --rm cockroach-client --image=cockroachdb/cockroach:v19.2.3 --restart=Never --command -- ./cockroach sql --insecure --host gbv-cockroachdb-public
-
-cat migrate-1.sql | kubectl run -i --rm cockroach-client --image=cockroachdb/cockroach:v19.2.3 --restart=Never --command -- ./cockroach sql --insecure --host gbv-cockroachdb-public
-
-cat migrate-2.sql | kubectl run -i --rm cockroach-client --image=cockroachdb/cockroach:v19.2.3 --restart=Never --command -- ./cockroach sql --insecure --host gbv-cockroachdb-public
+for f in `ls ./sql/* | sort -V`
+do
+cat $f | kubectl run -i --rm cockroach-client --image=cockroachdb/cockroach:v20.1.4 --restart=Never --command -- ./cockroach sql --insecure --host gbv-cockroachdb-public
+done
 
 ######################
 # wait for everything
