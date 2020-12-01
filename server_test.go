@@ -17,7 +17,7 @@ const (
 	surveySql = `drop table if exists surveys;
                  create table if not exists surveys(
                    userid VARCHAR NOT NULL,
-                   id VARCHAR NOT NULL UNIQUE,
+                   id UUID NOT NULL UNIQUE,
                    form_json JSON,
                    created TIMESTAMPTZ NOT NULL,
                    translation_conf JSON
@@ -105,9 +105,9 @@ func TestTranslatorReturns400IfNotTranslatable(t *testing.T) {
            "type": "number"}]}`
 
 	mustExec(t, pool, surveySql)
-	mustExec(t, pool, insertSql, "foo", f)
+	mustExec(t, pool, insertSql, "25d88630-8b7b-4f2b-8630-4e5f9085e888", f)
 
-	request := fmt.Sprintf(`{"destination": "foo","form": %v}`, formA)
+	request := fmt.Sprintf(`{"destination": "25d88630-8b7b-4f2b-8630-4e5f9085e888","form": %v}`, formA)
 	body := bytes.NewReader([]byte(request))
 
 	req := httptest.NewRequest(http.MethodPost, "/translator", body)
@@ -125,9 +125,9 @@ func TestTranslatorReturnsTranslator(t *testing.T) {
 	defer pool.Close()
 
 	mustExec(t, pool, surveySql)
-	mustExec(t, pool, insertSql, "foo", formB)
+	mustExec(t, pool, insertSql, "25d88630-8b7b-4f2b-8630-4e5f9085e888", formB)
 
-	request := fmt.Sprintf(`{"destination": "foo","form": %v}`, formA)
+	request := fmt.Sprintf(`{"destination": "25d88630-8b7b-4f2b-8630-4e5f9085e888","form": %v}`, formA)
 	body := bytes.NewReader([]byte(request))
 
 	req := httptest.NewRequest(http.MethodPost, "/translator", body)
@@ -176,17 +176,17 @@ func TestGetTranslatorGetsFromID(t *testing.T) {
 	defer pool.Close()
 
 	mustExec(t, pool, surveySql)
-	mustExec(t, pool, insertSql, "bar", formB)
+	mustExec(t, pool, insertSql, "f6807e0f-600b-40ee-9363-455fcc23aad4", formB)
 
 	insertWithTranslation := `INSERT INTO surveys(userid, created, id, form_json, translation_conf) VALUES ('owner', NOW(), $1, $2, $3);`
-	mustExec(t, pool, insertWithTranslation, "foo", formA, `{"destination": "bar"}`)
+	mustExec(t, pool, insertWithTranslation, "25d88630-8b7b-4f2b-8630-4e5f9085e888", formA, `{"destination": "f6807e0f-600b-40ee-9363-455fcc23aad4"}`)
 
 	req := httptest.NewRequest(http.MethodGet, "/translator/foo", nil)
 	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
 	c := echo.New().NewContext(req, rec)
 	c.SetParamNames("surveyid")
-	c.SetParamValues("foo")
+	c.SetParamValues("25d88630-8b7b-4f2b-8630-4e5f9085e888")
 
 	s := &Server{pool}
 
@@ -205,17 +205,17 @@ func TestGetTranslatorGetsSelf(t *testing.T) {
 	defer pool.Close()
 
 	mustExec(t, pool, surveySql)
-	mustExec(t, pool, insertSql, "bar", formB)
+	mustExec(t, pool, insertSql, "f6807e0f-600b-40ee-9363-455fcc23aad4", formB)
 
 	insertWithTranslation := `INSERT INTO surveys(userid, created, id, form_json, translation_conf) VALUES ('owner', NOW(), $1, $2, $3);`
-	mustExec(t, pool, insertWithTranslation, "foo", formA, `{"self": true}`)
+	mustExec(t, pool, insertWithTranslation, "25d88630-8b7b-4f2b-8630-4e5f9085e888", formA, `{"self": true}`)
 
 	req := httptest.NewRequest(http.MethodGet, "/translator/foo", nil)
 	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
 	c := echo.New().NewContext(req, rec)
 	c.SetParamNames("surveyid")
-	c.SetParamValues("foo")
+	c.SetParamValues("25d88630-8b7b-4f2b-8630-4e5f9085e888")
 
 	s := &Server{pool}
 
@@ -234,10 +234,10 @@ func TestGetTranslatorReturns404OnRawTranslationConf(t *testing.T) {
 	defer pool.Close()
 
 	mustExec(t, pool, surveySql)
-	mustExec(t, pool, insertSql, "bar", formB)
+	mustExec(t, pool, insertSql, "f6807e0f-600b-40ee-9363-455fcc23aad4", formB)
 
 	insertWithTranslation := `INSERT INTO surveys(userid, created, id, form_json, translation_conf) VALUES ('owner', NOW(), $1, $2, $3);`
-	mustExec(t, pool, insertWithTranslation, "foo", formA, `{}`)
+	mustExec(t, pool, insertWithTranslation, "25d88630-8b7b-4f2b-8630-4e5f9085e888", formA, `{}`)
 
 	req := httptest.NewRequest(http.MethodGet, "/translator/foo", nil)
 	req.Header.Set("Content-Type", "application/json")
@@ -257,10 +257,10 @@ func TestGetTranslatorReturns404OnMissingSourceForm(t *testing.T) {
 	defer pool.Close()
 
 	mustExec(t, pool, surveySql)
-	mustExec(t, pool, insertSql, "bar", formB)
+	mustExec(t, pool, insertSql, "f6807e0f-600b-40ee-9363-455fcc23aad4", formB)
 
 	insertWithTranslation := `INSERT INTO surveys(userid, created, id, form_json, translation_conf) VALUES ('owner', NOW(), $1, $2, $3);`
-	mustExec(t, pool, insertWithTranslation, "foo", formA, `{}`)
+	mustExec(t, pool, insertWithTranslation, "25d88630-8b7b-4f2b-8630-4e5f9085e888", formA, `{}`)
 
 	req := httptest.NewRequest(http.MethodGet, "/translator/foo", nil)
 	req.Header.Set("Content-Type", "application/json")
@@ -294,17 +294,17 @@ func TestGetTranslatorReturns500OnTranslationError(t *testing.T) {
            "type": "number"}]}`
 
 	mustExec(t, pool, surveySql)
-	mustExec(t, pool, insertSql, "qux", smallForm)
+	mustExec(t, pool, insertSql, "f6807e0f-600b-40ee-9363-455fcc23aad4", smallForm)
 
 	insertWithTranslation := `INSERT INTO surveys(userid, created, id, form_json, translation_conf) VALUES ('owner', NOW(), $1, $2, $3);`
-	mustExec(t, pool, insertWithTranslation, "foo", formA, `{"destination": "qux"}`)
+	mustExec(t, pool, insertWithTranslation, "25d88630-8b7b-4f2b-8630-4e5f9085e888", formA, `{"destination": "f6807e0f-600b-40ee-9363-455fcc23aad4"}`)
 
 	req := httptest.NewRequest(http.MethodGet, "/translator/foo", nil)
 	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
 	c := echo.New().NewContext(req, rec)
 	c.SetParamNames("surveyid")
-	c.SetParamValues("foo")
+	c.SetParamValues("25d88630-8b7b-4f2b-8630-4e5f9085e888")
 
 	s := &Server{pool}
 
