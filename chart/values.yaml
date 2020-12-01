@@ -1,0 +1,16 @@
+image:
+  repository: vlabresearch/formcentral
+  pullPolicy: IfNotPresent
+  tag: 0.0.3
+
+replicaCount: 1
+autoscaling: {}
+
+resources: {}
+env: {}
+
+service:
+  type: ClusterIP
+  port: 80
+
+
