@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 from typing import Dict
 import pandas as pd
 from .facebook.state import BudgetWindow
-from .forms import BadResponseError
+from .forms import TranslationError
 
 
 
@@ -26,7 +26,7 @@ def _res_col(ref, col_name, t, row):
     except MissingResponseError:
         logging.warning(f'User without {col_name}: {row.userid}')
         row[col_name] = None
-    except BadResponseError:
+    except TranslationError:
         row[col_name] = None
 
     return row

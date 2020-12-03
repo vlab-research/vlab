@@ -1,8 +1,10 @@
 import json
 from datetime import datetime
+
 import pandas as pd
 from toolz import dissoc
 import psycopg2
+
 
 def query(cnf, q, vals=(), as_dict=False):
     with psycopg2.connect(dbname=cnf['db'],
@@ -40,6 +42,89 @@ def get_surveyids(shortcodes, userid, cnf):
     res = query(cnf, q, (shortcodes, userid), as_dict=True)
     return [r['id'] for r in res]
 
+
+def get_all_forms(survey_name, cnf):
+    q = """
+    SELECT id, metadata, form_json, created, shortcode
+    FROM surveys
+    WHERE survey_name = %s
+    """
+
+    res = query(cnf, q, (survey_name, ), as_dict=True)
+    return res
+
+from functools import lru_cache
+
+def temp_translation_target(surveyid, cnf):
+    q = """
+    WITH t AS
+      (SELECT created,
+              survey_name,
+              form_json,
+              translation_conf,
+              jsonb_set(metadata,
+                        ARRAY['language'],
+                        '"english"') AS ref_metadata
+       FROM surveys
+       WHERE id = %s
+       LIMIT 1)
+    SELECT surveys.id AS dest, surveys.shortcode AS shortcode, surveys.form_json as dest_form, t.form_json as form_json
+    FROM t
+    LEFT JOIN surveys
+    ON t.survey_name = surveys.survey_name
+    AND t.ref_metadata = surveys.metadata
+    ORDER BY surveys.created
+    LIMIT 1
+    """
+
+    res = query(dict(cnf), q, (surveyid,), as_dict=True)
+    return next(res)
+
+@lru_cache(maxsize=512)
+def _get_translation_form(surveyid, cnf):
+    q = """
+    WITH t AS
+      (SELECT created,
+              form_json,
+              survey_name,
+              translation_conf,
+              jsonb_set(metadata,
+                        ARRAY[(translation_conf->>'field')],
+                        translation_conf->'reference') AS ref_metadata
+       FROM surveys
+       WHERE id = %s
+       LIMIT 1)
+    SELECT surveys.form_json AS target_form, t.form_json AS source_form
+    FROM t
+    LEFT JOIN surveys
+    ON t.survey_name = surveys.survey_name
+    AND t.ref_metadata = surveys.metadata
+    ORDER BY surveys.created
+    LIMIT 1
+    """
+
+    res = query(dict(cnf), q, (surveyid,), as_dict=True)
+    return next(res)
+
+def get_translation_form(surveyid, cnf):
+    return _get_translation_form(surveyid, frozenset(cnf.items()))
+
+
+def all_responses(shortcodes, cnf):
+    q = """
+    WITH t AS (
+      SELECT
+        *,
+        ROW_NUMBER() OVER (PARTITION BY question_ref, userid, surveyid ORDER BY timestamp DESC) as n
+      FROM responses
+      WHERE shortcode in %s
+    )
+    SELECT metadata, userid, surveyid, shortcode, question_ref, response, timestamp FROM t WHERE n = 1
+    """
+
+    shortcodes = tuple(shortcodes)
+    res = query(cnf, q, (shortcodes, ), as_dict=True)
+    return res
 
 def last_responses(surveyids, questions, cnf):
     q = """
@@ -80,6 +165,32 @@ def get_metadata(surveyids, cnf):
 
     return (dissoc(d, 'metadata') for d in res)
 
+
+def get_survey(surveyid, cnf):
+    q = """
+    SELECT form
+    FROM surveys
+    WHERE id = %s
+    """
+
+    shortcodes = tuple(surveyids)
+    res = query(cnf, q, (surveyid), as_dict=True)
+    res = next(r['form'] for r in res)
+    return json.loads(res)
+
+
+
+def get_all_responses(shortcodes, cnf):
+    q = """
+    SELECT *
+    FROM responses
+    WHERE surveyid in %s
+    ORDER BY surveyid, timestamp DESC
+    """
+
+    shortcodes = tuple(shortcodes)
+    res = query(cnf, q, (shortcodes), as_dict=True)
+    return res
 
 def get_forms(survey_user, shortcodes, timestamp, cnf):
     q = """
