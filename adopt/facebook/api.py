@@ -4,10 +4,10 @@ from facebook_business.exceptions import FacebookRequestError
 from facebook_business.api import Cursor
 
 # Setup backoff logging
-logging.getLogger('backoff').addHandler(logging.StreamHandler())
+logging.getLogger("backoff").addHandler(logging.StreamHandler())
 
 
-interval = 5*60
+interval = 5 * 60
 
 
 @backoff.on_exception(backoff.constant, FacebookRequestError, interval=interval)
