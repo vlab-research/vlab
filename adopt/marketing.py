@@ -14,43 +14,6 @@ from toolz import get_in
 
 from .facebook.update import Instruction
 
-# earlier layer should create all different sets automatically
-# including knowing how to create 'excluded locations'...
-
-# {geo_locations:
-#  excluded_geo_locations: }
-#
-
-# class Targeting
-
-# {'location_types': [], 'custom_locations': [], 'cities': []...}
-
-# create location for FB location...
-# class
-# {'key': '1736', 'name': 'Manipur', 'country': 'IN'},
-
-# custom_locations
-# cities
-#
-# class
-
-# really, should its a subset of 'targeting' of adsetconf
-# to which we then ad the custom audience stuff...
-
-
-# should you use translation?
-# if no translation, is it allowed different surveys?
-# or use translation to create this?
-#
-# translated_response is an idea in the database,
-# so can use it.
-#
-# but then shortcode fails...
-# it would be shortcodes: [...]
-# ref:
-# response/translated_response =
-
-
 Params = Dict[str, Any]
 
 
@@ -116,49 +79,11 @@ class AdsetConf(NamedTuple):
     optimization_goal: str
 
 
-# def create_location(lat, lng, rad):
-#     return {
-#         TargetingGeoLocationCustomLocation.Field.latitude: lat,
-#         TargetingGeoLocationCustomLocation.Field.longitude: lng,
-#         TargetingGeoLocationCustomLocation.Field.radius: rad,
-#         TargetingGeoLocationCustomLocation.Field.distance_unit: 'kilometer',
-#     }
-
-
 def validate_targeting(targeting):
     valid_targets = set(dir(Targeting.Field))
     for k, _ in targeting.items():
         if k not in valid_targets:
             raise Exception(f"Targeting config invalid, key: {k} does not exist!")
-
-
-# def create_targeting(c: AdsetConf) -> Dict[str, Union[Any, List[Any]]]:
-#     targeting: Dict[str, Union[Any, List[Any]]] = {}
-
-#     if c.locs:
-#         custom_locs = [create_location(lat, lng, rad)
-#                        for lat, lng, rad in c.locs]
-
-#         targeting[Targeting.Field.geo_locations] = {
-#             TargetingGeoLocation.Field.location_types: ['home'],
-#             TargetingGeoLocation.Field.custom_locations: custom_locs
-#         }
-
-#     if c.excluded_locs:
-#         excluded_locs = [create_location(lat, lng, rad)
-#                          for lat, lng, rad in c.excluded_locs]
-
-#         targeting[Targeting.Field.excluded_geo_locations] = {
-#             TargetingGeoLocation.Field.location_types: ['home'],
-#             TargetingGeoLocation.Field.custom_locations: excluded_locs
-#         }
-
-#     # this should be everything...
-#     # remove everything before
-#     if c.targeting:
-#         targeting = {**targeting, **c.targeting}
-
-#     return targeting
 
 
 def _adset_base(c: AdsetConf) -> Params:
@@ -285,7 +210,11 @@ def split(li, N):
 
 
 def add_users_to_audience(pageid, aud_id, users) -> List[Instruction]:
-    params = {"schema": ["PAGEUID"], "is_raw": True, "page_ids": [pageid]}
+    params: Dict[str, Any] = {
+        "schema": ["PAGEUID"],
+        "is_raw": True,
+        "page_ids": [pageid],
+    }
 
     return [
         Instruction(
