@@ -1,17 +1,20 @@
 import json
 from datetime import datetime
+from functools import lru_cache
 
 import pandas as pd
-from toolz import dissoc
 import psycopg2
+from toolz import dissoc
 
 
 def query(cnf, q, vals=(), as_dict=False):
-    with psycopg2.connect(dbname=cnf['db'],
-                          user=cnf['user'],
-                          host=cnf['host'],
-                          port=cnf['port'],
-                          password=cnf['password']) as conn:
+    with psycopg2.connect(
+        dbname=cnf["db"],
+        user=cnf["user"],
+        host=cnf["host"],
+        port=cnf["port"],
+        password=cnf["password"],
+    ) as conn:
 
         with conn.cursor() as cur:
             cur.execute(q, vals)
@@ -30,6 +33,7 @@ def query(cnf, q, vals=(), as_dict=False):
             # metadata JSONB,
             # timestamp TIMESTAMPTZ NOT NULL
 
+
 def get_surveyids(shortcodes, userid, cnf):
     q = """
       SELECT id
@@ -40,7 +44,7 @@ def get_surveyids(shortcodes, userid, cnf):
 
     shortcodes = tuple(shortcodes)
     res = query(cnf, q, (shortcodes, userid), as_dict=True)
-    return [r['id'] for r in res]
+    return [r["id"] for r in res]
 
 
 def get_all_forms(survey_name, cnf):
@@ -50,10 +54,9 @@ def get_all_forms(survey_name, cnf):
     WHERE survey_name = %s
     """
 
-    res = query(cnf, q, (survey_name, ), as_dict=True)
+    res = query(cnf, q, (survey_name,), as_dict=True)
     return res
 
-from functools import lru_cache
 
 def temp_translation_target(surveyid, cnf):
     q = """
@@ -79,6 +82,7 @@ def temp_translation_target(surveyid, cnf):
 
     res = query(dict(cnf), q, (surveyid,), as_dict=True)
     return next(res)
+
 
 @lru_cache(maxsize=512)
 def _get_translation_form(surveyid, cnf):
@@ -106,6 +110,7 @@ def _get_translation_form(surveyid, cnf):
     res = query(dict(cnf), q, (surveyid,), as_dict=True)
     return next(res)
 
+
 def get_translation_form(surveyid, cnf):
     return _get_translation_form(surveyid, frozenset(cnf.items()))
 
@@ -123,8 +128,9 @@ def all_responses(shortcodes, cnf):
     """
 
     shortcodes = tuple(shortcodes)
-    res = query(cnf, q, (shortcodes, ), as_dict=True)
+    res = query(cnf, q, (shortcodes,), as_dict=True)
     return res
+
 
 def last_responses(surveyids, questions, cnf):
     q = """
@@ -136,13 +142,14 @@ def last_responses(surveyids, questions, cnf):
       WHERE question_ref in %s
       AND surveyid in %s
     )
-    SELECT userid, surveyid, shortcode, question_ref, response, timestamp FROM t WHERE n = 1
+    SELECT userid, surveyid, shortcode, question_ref, response, translated_response, timestamp FROM t WHERE n = 1
     """
 
     surveyids = tuple(surveyids)
     questions = tuple(questions)
     res = query(cnf, q, (questions, surveyids), as_dict=True)
     return res
+
 
 def get_metadata(surveyids, cnf):
     q = """
@@ -157,13 +164,15 @@ def get_metadata(surveyids, cnf):
     """
 
     surveyids = tuple(surveyids)
-    res = query(cnf, q, (surveyids, ), as_dict=True)
-    res = ({**r, 'question_ref': f'md:{k}', 'response': v}
-           for r in res
-           for k, v in r['metadata'].items()
-           if r.get('metadata'))
+    res = query(cnf, q, (surveyids,), as_dict=True)
+    res = (
+        {**r, "question_ref": f"md:{k}", "response": v}
+        for r in res
+        for k, v in r["metadata"].items()
+        if r.get("metadata")
+    )
 
-    return (dissoc(d, 'metadata') for d in res)
+    return (dissoc(d, "metadata") for d in res)
 
 
 def get_survey(surveyid, cnf):
@@ -173,11 +182,10 @@ def get_survey(surveyid, cnf):
     WHERE id = %s
     """
 
-    shortcodes = tuple(surveyids)
+    # shortcodes = tuple(surveyids)
     res = query(cnf, q, (surveyid), as_dict=True)
-    res = next(r['form'] for r in res)
+    res = next(r["form"] for r in res)
     return json.loads(res)
-
 
 
 def get_all_responses(shortcodes, cnf):
@@ -191,6 +199,7 @@ def get_all_responses(shortcodes, cnf):
     shortcodes = tuple(shortcodes)
     res = query(cnf, q, (shortcodes), as_dict=True)
     return res
+
 
 def get_forms(survey_user, shortcodes, timestamp, cnf):
     q = """
@@ -211,7 +220,7 @@ def get_forms(survey_user, shortcodes, timestamp, cnf):
 
     shortcodes = tuple(shortcodes)
     res = query(cnf, q, (survey_user, shortcodes, timestamp), as_dict=True)
-    res = (r['form'] for r in res)
+    res = (r["form"] for r in res)
     return (json.loads(r) for r in res)
 
 
@@ -219,15 +228,15 @@ def get_response_df(survey_user, shortcodes, questions, database_cnf):
 
     surveyids = get_surveyids(shortcodes, survey_user, database_cnf)
 
-    responses = last_responses(surveyids,
-                               questions,
-                               database_cnf)
+    responses = last_responses(surveyids, questions, database_cnf)
 
     df = pd.DataFrame(list(responses))
 
     if df.shape[0] == 0:
-        print(f'Warning: no responses were found in the database \
-        for shortcodes: {shortcodes} and questions: {questions}')
+        print(
+            f"Warning: no responses were found in the database \
+        for shortcodes: {shortcodes} and questions: {questions}"
+        )
         return None
 
     # add synthetic district responses
@@ -246,11 +255,11 @@ def format_synthetic(responses, ref, description):
     # parent_survey_id, parent_shortcode, surveyid, shortcode, userid, seed, response
 
     new_values = {
-        'question_text': description,
-        'question_ref': ref,
-        'timestamp': datetime.utcnow(), # TODO: timezone?
-        'flowid': 0,
-        'question_idx': None,
+        "question_text": description,
+        "question_ref": ref,
+        "timestamp": datetime.utcnow(),  # TODO: timezone?
+        "flowid": 0,
+        "question_idx": None,
     }
 
     return ({**r, **new_values} for r in responses)

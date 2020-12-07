@@ -1,15 +1,20 @@
-import pytest
 import psycopg2
+import pytest
 
-cnf = {'db': 'test',
-       'user': 'test',
-       'host': 'localhost',
-       'port': '5433',
-       'password': ''}
+cnf = {
+    "db": "test",
+    "user": "test",
+    "host": "localhost",
+    "port": "5433",
+    "password": "",
+}
 
-@pytest.fixture(scope='module')
+
+@pytest.fixture(scope="module")
 def db():
-    with psycopg2.connect(dbname='defaultdb', user='root', host='localhost', port='5433') as conn:
+    with psycopg2.connect(
+        dbname="defaultdb", user="root", host="localhost", port="5433"
+    ) as conn:
         with conn.cursor() as cur:
             q = """
             CREATE DATABASE IF NOT EXISTS test;
@@ -22,6 +27,7 @@ def db():
             userid VARCHAR NOT NULL,
             question_ref VARCHAR NOT NULL,
             response VARCHAR NOT NULL,
+            translated_response VARCHAR,
             metadata JSONB,
             timestamp TIMESTAMPTZ NOT NULL
             );

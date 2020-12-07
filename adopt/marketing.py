@@ -1,8 +1,9 @@
 import json
 from datetime import datetime, timedelta
-from typing import Any, Dict, List, NamedTuple, Optional
+from typing import Any, Dict, List, Mapping, NamedTuple, Optional, Sequence
 from urllib.parse import quote
 
+import typing_json
 import xxhash
 from facebook_business.adobjects.ad import Ad
 from facebook_business.adobjects.adcreative import AdCreative
@@ -39,11 +40,11 @@ class CreativeGroup(NamedTuple):
 
 
 class TargetQuestion(NamedTuple):
-    name: str
     ref: str
     op: str
     field: str
-    value: Optional[str]
+    value: Optional[str] = None
+    name: Optional[str] = None
 
 
 FacebookTargeting = Dict[str, Any]
@@ -51,12 +52,25 @@ FacebookTargeting = Dict[str, Any]
 
 class StratumConf(NamedTuple):
     id: str
-    metadata: Dict[str, str]
     quota: int
     creative_group: str
-    custom_audience: bool
+    shortcodes: List[str]
+    target_questions: List[TargetQuestion]
+    facebook_targeting: FacebookTargeting = {}
+    audiences: List[str] = []
+    excluded_audiences: List[str] = []
+    metadata: Dict[str, str] = {}
+
+
+class Stratum(NamedTuple):
+    id: str
+    metadata: Dict[str, str]
+    quota: int
+    creative_group: CreativeGroup
+    audiences: List[CustomAudience]
+    excluded_audiences: List[CustomAudience]
     facebook_targeting: FacebookTargeting
-    surveys: List[str]
+    shortcodes: List[str]
     target_questions: List[TargetQuestion]
 
 
@@ -68,15 +82,48 @@ class Location(NamedTuple):
 
 class AdsetConf(NamedTuple):
     campaign: Campaign
-    stratum: StratumConf
+    stratum: Stratum
     creatives: List[Params]
-    budget: Optional[float]
+    budget: float
     status: str
     instagram_id: str
     hours: int
-    audience: Optional[CustomAudience]
-    excluded_audience: Optional[CustomAudience]
     optimization_goal: str
+
+
+class LookalikeSpec(NamedTuple):
+    country: str
+    ratio: float
+    starting_ratio: float
+
+
+class Audience(NamedTuple):
+    name: str
+    type: str
+    shortcodes: List[str]
+    target_questions: List[TargetQuestion]
+    lookalike_spec: Optional[LookalikeSpec] = None
+
+
+class TargetingConf(NamedTuple):
+    audiences: List[Audience]
+    strata: List[StratumConf]
+
+
+def parse_sc(s: Mapping[str, Any]) -> Mapping[str, Any]:
+    return {
+        **s,
+        "target_questions": [TargetQuestion(**t) for t in s["target_questions"]],
+    }
+
+
+def parse_conf(d: Mapping[str, Sequence[Mapping[str, Any]]]) -> TargetingConf:
+    try:
+        audiences = typing_json.from_json_obj(d["audiences"], List[Audience])
+        strata = [StratumConf(**parse_sc(s)) for s in d["strata"]]
+        return TargetingConf(audiences, strata)
+    except KeyError as e:
+        raise Exception("Could not parse targeting config, missing keys") from e
 
 
 def validate_targeting(targeting):
@@ -89,18 +136,21 @@ def validate_targeting(targeting):
 def _adset_base(c: AdsetConf) -> Params:
     targeting = {**c.stratum.facebook_targeting}
 
-    if c.audience:
-        targeting[Targeting.Field.custom_audiences] = [{"id": c.audience["id"]}]
+    if c.stratum.audiences:
+        targeting[Targeting.Field.custom_audiences] = [
+            {"id": aud["id"]} for aud in c.stratum.audiences
+        ]
 
-    if c.excluded_audience:
+    if c.stratum.excluded_audiences:
         targeting[Targeting.Field.excluded_custom_audiences] = [
-            {"id": c.excluded_audience["id"]}
+            {"id": aud["id"]} for aud in c.stratum.excluded_audiences
         ]
 
     params = {
         AdSet.Field.end_time: datetime.utcnow() + timedelta(hours=c.hours),
         AdSet.Field.targeting: targeting,
         AdSet.Field.status: c.status,
+        AdSet.Field.daily_budget: c.budget,
     }
 
     return params
@@ -108,21 +158,15 @@ def _adset_base(c: AdsetConf) -> Params:
 
 def update_adset(adset: AdSet, c: AdsetConf) -> Instruction:
     params = _adset_base(c)
-
-    if c.budget:
-        params[AdSet.Field.daily_budget] = c.budget
-
     return Instruction("adset", "update", params, adset["id"])
 
 
 def create_adset(name, c: AdsetConf) -> Instruction:
     params = _adset_base(c)
-
     params = {
         **params,
         AdSet.Field.name: name,
         AdSet.Field.instagram_actor_id: c.instagram_id,
-        AdSet.Field.daily_budget: c.budget,
         AdSet.Field.start_time: datetime.utcnow() + timedelta(minutes=5),
         AdSet.Field.campaign_id: c.campaign["id"],
         AdSet.Field.optimization_goal: c.optimization_goal,
@@ -171,7 +215,7 @@ def make_welcome_message(text, button_text, ref):
     return json.dumps(message, sort_keys=True)
 
 
-def make_ref(form: str, stratum: StratumConf) -> str:
+def make_ref(form: str, stratum: Stratum) -> str:
     id_ = quote(stratum.id)
     s = f"form.{form}.stratumid.{id_}"
     for k, v in stratum.metadata.items():
@@ -192,6 +236,19 @@ def create_ad(adset, creative, status) -> Dict[str, Any]:
     }
 
 
+def create_lookalike_audience(
+    name: str, spec: Dict[str, Any], source: CustomAudience
+) -> Instruction:
+    params = {
+        CustomAudience.Field.name: name,
+        CustomAudience.Field.subtype: CustomAudience.Subtype.lookalike,
+        CustomAudience.Field.origin_audience_id: source.get_id(),
+        CustomAudience.Field.lookalike_spec: json.dumps(spec),
+    }
+
+    return Instruction("custom_audience", "create", params, None)
+
+
 def create_custom_audience(name: str, desc: str) -> Instruction:
     params = {
         "name": name,
@@ -209,7 +266,10 @@ def split(li, N):
         yield head
 
 
-def add_users_to_audience(pageid, aud_id, users) -> List[Instruction]:
+def add_users_to_audience(
+    pageid: str, aud_id: str, users: List[str]
+) -> List[Instruction]:
+
     params: Dict[str, Any] = {
         "schema": ["PAGEUID"],
         "is_raw": True,
@@ -282,17 +342,12 @@ class Marketing:
         self.state = state
         self.cnf = cnf
 
-    def adset_instructions(
-        self,
-        cg: CreativeGroup,
-        stratum: StratumConf,
-        budget: Optional[float],
-        audience: Optional[CustomAudience],
-        anti_audience: Optional[CustomAudience],
-    ) -> List[Instruction]:
+    def adset_instructions(self, stratum: Stratum, budget: float) -> List[Instruction]:
 
-        creatives = [self.create_creative(stratum, c) for c in cg.creatives]
-        status = "ACTIVE" if budget else "PAUSED"
+        creatives = [
+            self.create_creative(stratum, c) for c in stratum.creative_group.creatives
+        ]
+        status = "PAUSED" if budget == 0 else "ACTIVE"
 
         ac = AdsetConf(
             self.state.campaign,
@@ -302,8 +357,6 @@ class Marketing:
             status,
             self.cnf["INSTA_ID"],
             self.cnf["ADSET_HOURS"],
-            audience,
-            anti_audience,
             self.cnf["OPTIMIZATION_GOAL"],
         )
 
@@ -324,36 +377,8 @@ class Marketing:
 
         return [create_adset(name, adset_conf)]
 
-    def add_users(self, audience, users):
-        return add_users_to_audience(self.cnf["PAGE_ID"], audience.get_id(), users)
-
-    def lookalike_settings(self, aud_name):
-        slr, lr = self.cnf["LOOKALIKE_STARTING_RATIO"], self.cnf["LOOKALIKE_RATIO"]
-        name = f"vlab-lookalike-{aud_name}-{slr}-{lr}"
-        return name, slr, lr
-
-    def create_lookalike(self, audience_name: str, country: str) -> Instruction:
-        custom_audience = self.state.get_audience(audience_name)
-        name, slr, lr = self.lookalike_settings(custom_audience["name"])
-
-        spec = {"starting_ratio": slr, "ratio": lr, "country": country}
-
-        params = {
-            CustomAudience.Field.name: name,
-            CustomAudience.Field.subtype: CustomAudience.Subtype.lookalike,
-            CustomAudience.Field.origin_audience_id: custom_audience.get_id(),
-            CustomAudience.Field.lookalike_spec: json.dumps(spec),
-        }
-
-        return Instruction("custom_audience", "create", params, None)
-
-    def get_lookalike(self, audience_name: str) -> CustomAudience:
-        custom_audience = self.state.get_audience(audience_name)
-        name, _, _ = self.lookalike_settings(custom_audience["name"])
-        return self.state.get_audience(name)
-
     def create_creative(
-        self, stratum: StratumConf, config: CreativeConfig
+        self, stratum: Stratum, config: CreativeConfig
     ) -> Dict[str, Any]:
 
         ref = make_ref(config.form, stratum)

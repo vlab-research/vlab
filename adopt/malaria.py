@@ -1,29 +1,20 @@
 import json
-import re
 import logging
+import re
 from datetime import datetime, timedelta
-from typing import Dict, Optional, List, Any, NamedTuple
+from typing import Dict, List
+
 import pandas as pd
 import typing_json
 from environs import Env
-from facebook_business.adobjects.customaudience import CustomAudience
-from .facebook.update import Instruction, GraphUpdater
-from .facebook.state import CampaignState, BudgetWindow
-from .clustering import (
-    get_saturated_clusters,
-    only_target_users,
-    shape_df,
-    get_budget_lookup,
-)
+
+from .clustering import (get_budget_lookup, get_saturated_clusters,
+                         only_target_users, shape_df)
+from .facebook.state import BudgetWindow, CampaignState
+from .facebook.update import GraphUpdater
+from .marketing import (Cluster, CreativeGroup, Marketing, Stratum,
+                        StratumConf, validate_targeting)
 from .responses import get_response_df
-from .marketing import (
-    Marketing,
-    CreativeGroup,
-    Location,
-    Cluster,
-    validate_targeting,
-    create_custom_audience,
-)
 
 logging.basicConfig(level=logging.INFO)
 
@@ -70,6 +61,7 @@ def lookalike(df, stratum):
     target_users = target.userid.unique()
 
     anti = only_target_users(df, stratum["surveys"], "exclude_questions")
+
     anti_users = anti.userid.unique()
 
     return target_users.tolist(), anti_users.tolist()
@@ -123,96 +115,6 @@ def load_creatives(path: str) -> Dict[str, CreativeGroup]:
     return d
 
 
-def load_cities(path):
-    cities = pd.read_csv(path)
-    cities = cities[cities.rad >= 1.0]
-    return cities
-
-
-def uniqueness(clusters: List[Cluster]):
-    ids = [cl.id for cl in clusters]
-    if len(set(ids)) != len(ids):
-        raise Exception("Cluster IDs combinations are not unique")
-
-
-# StratumConf
-
-# locs should be either Lat/Lng rad OR Facebook location
-#
-
-# should be
-
-
-class ClusterConf(NamedTuple):
-    cluster: Cluster
-    cg: CreativeGroup
-    locs: List[Location]
-    include_audience: bool
-
-
-def base_cluster_conf(cnf) -> List[ClusterConf]:
-
-    # TODO: get this dynamically somehow
-    cluster_vars = ["disthash", "distname", "creative_group", "include_audience"]
-    cities = load_cities(cnf["lookup_loc"])
-
-    creative_config = "config/creatives.json"
-    cg_lookup = load_creatives(creative_config)
-
-    locs = [
-        ClusterConf(
-            Cluster(i, n),
-            cg_lookup[cg],
-            [Location(r.lat, r.lng, r.rad) for _, r in df.iterrows()],
-            bool(au),
-        )
-        # In principle all the groupby vars should be the same,
-        # so grouping by clusterid, clustername, and creative group
-        # should return the same groups!! Important data assumption!
-        for (i, n, cg, au), df in cities.groupby(cluster_vars)
-    ]
-
-    return locs
-
-
-def add_users(state: CampaignState, m: Marketing, name: str, users: List[str]):
-    updater = GraphUpdater(state)
-    aud = state.get_audience(name)
-    logging.info(f'Adding {len(users)} users to audience {aud.get("name")}.')
-    instructions = m.add_users(aud, users)
-    for i in instructions:
-        report = updater.execute(i)
-        logging.info(report)
-
-
-def create_respondent_audience(cnf, state: CampaignState):
-    name = cnf["respondent_audience"]
-    updater = GraphUpdater(state)
-    i = create_custom_audience(name, "virtual lab auto-generated audience")
-    report = updater.execute(i)
-    logging.info(report)
-
-
-def update_respondent_audience(cnf, df, m: Marketing):
-    users = df.userid.unique().tolist()
-    name = cnf["respondent_audience"]
-    add_users(m.state, m, name, users)
-
-
-def update_audience():
-    env = Env()
-    cnf = get_conf(env)
-    state = CampaignState(env)
-    m = Marketing(env, state)
-    df = get_df(cnf)
-
-    for stratum in cnf["strata"]:
-        users, anti_users = lookalike(df, stratum)
-        name = stratum["name"]
-        for u, n in [(users, name), (anti_users, f"anti-{name}")]:
-            add_users(state, m, n, u)
-
-
 def window(hours=16):
     floor = lambda d: d.replace(hour=0, minute=0, second=0, microsecond=0)
     yesterday = datetime.now() - timedelta(hours=hours)
@@ -237,49 +139,6 @@ def get_cluster_from_adset(adset_name: str) -> str:
     return matches[0]
 
 
-def new_ads(
-    m: Marketing,
-    cluster_confs: List[ClusterConf],
-    stratum: Dict[str, Any],
-    budget_lookup: Dict[str, int],
-    saturated_clusters: List[str],
-    aud: Optional[CustomAudience],
-    anti_aud: Optional[CustomAudience],
-) -> List[Instruction]:
-
-    # check uniqueness of clusterids
-    uniqueness([cl for cl, _, _, _ in cluster_confs])
-
-    # validate targeting keys
-    targeting = stratum.get("targeting")
-    if targeting:
-        validate_targeting(targeting)
-
-    def adsetter(cl, cg, ls, au):
-
-        # Get budget (0 will pause adset)
-        bu = budget_lookup.get(cl.id, 0)
-        if cl.id in saturated_clusters:
-            bu = 0
-
-        # create adset (with audience if aud is specified)
-        if au:
-            return m.adset_instructions(cl, cg, ls, bu, targeting, aud, anti_aud)
-        return m.adset_instructions(cl, cg, ls, bu, targeting, None, anti_aud)
-
-    instructions = [adsetter(*t) for t in cluster_confs]
-    return [x for y in instructions for x in y]
-
-
-def create_lookalike(cnf, m: Marketing):
-    stratum = cnf["strata"][0]
-    name = stratum["name"]
-    i = m.create_lookalike(name, cnf["country"])
-    updater = GraphUpdater(m.state)
-    report = updater.execute(i)
-    logging.info(report)
-
-
 def run_update_ads(cnf, df, state, m):
 
     # check if campaign,
@@ -291,33 +150,23 @@ def run_update_ads(cnf, df, state, m):
 
     # continue
 
-    # TODO: How to support multiple strata???
-    stratum = cnf["strata"][0]
+    strata = cnf["strata"]
+
+    # load stratum from stratumconf
 
     spend = {get_cluster_from_adset(n): i for n, i in state.spend.items()}
 
     budget_lookup = get_budget_lookup(
         df,
-        stratum,
+        strata,
         cnf["budget"],
         cnf["min_budget"],
-        cnf["n_clusters"],
-        days_left(cnf),
         state.window,
         spend,
+        days_left=days_left(cnf),
     )
 
-    saturated = get_saturated_clusters(df, stratum)
-
-    aud, anti_aud = m.get_lookalike(stratum["name"]), state.get_audience(
-        cnf["respondent_audience"]
-    )
-
-    cluster_confs = base_cluster_conf(cnf)
-    instructions = new_ads(
-        m, cluster_confs, stratum, budget_lookup, saturated, aud, anti_aud
-    )
-
+    instructions = [m.adset_instructions(s, budget_lookup[s.id]) for s in strata]
     updater = GraphUpdater(state)
 
     for i in instructions:
@@ -339,3 +188,33 @@ def update_ads():
     m = Marketing(env, state)
 
     run_update_ads(cnf, df, state, m)
+
+
+###
+# layered creation
+# 1. create campaign
+# 2. create audiences
+# 3. create lookalike audiences
+
+
+# except StateNameError:
+# create_audience(updater, aud)
+
+
+def uniqueness(clusters: List[Cluster]):
+    ids = [cl.id for cl in clusters]
+    if len(set(ids)) != len(ids):
+        raise Exception("Cluster IDs combinations are not unique")
+
+
+## transform StratumConf into Stratum
+def load_stratum(strata: List[StratumConf]) -> List[Stratum]:
+    cg_lookup = load_creatives("config/creatives.json")
+
+    # check uniqueness
+
+    for s in strata:
+        validate_targeting(s.facebook_targeting)
+
+    creative_groups = [cg_lookup[s.creative_group] for s in strata]
+    # 1. get CustomAudiences for audiences

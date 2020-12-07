@@ -1,6 +1,8 @@
 from datetime import datetime, timezone
-from typing import Optional, Dict, Any, NamedTuple
+from typing import Any, Dict, NamedTuple, Optional
+
 import requests
+
 from .state import CampaignState, call
 
 

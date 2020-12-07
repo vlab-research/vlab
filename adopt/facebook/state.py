@@ -2,15 +2,17 @@ import logging
 from dataclasses import dataclass
 from datetime import datetime
 from functools import cached_property
-from typing import List, Optional, Dict, Any
-from facebook_business.api import FacebookAdsApi
-from facebook_business.adobjects.adaccount import AdAccount
-from facebook_business.adobjects.adlabel import AdLabel
-from facebook_business.adobjects.customaudience import CustomAudience
-from facebook_business.adobjects.campaign import Campaign
-from facebook_business.adobjects.adset import AdSet
+from typing import Any, Dict, List, Optional
+
 from facebook_business.adobjects.ad import Ad
+from facebook_business.adobjects.adaccount import AdAccount
 from facebook_business.adobjects.adcreative import AdCreative
+from facebook_business.adobjects.adlabel import AdLabel
+from facebook_business.adobjects.adset import AdSet
+from facebook_business.adobjects.campaign import Campaign
+from facebook_business.adobjects.customaudience import CustomAudience
+from facebook_business.api import FacebookAdsApi
+
 from .api import call
 
 
@@ -208,7 +210,7 @@ class CampaignState:
 
     @cached_property
     def custom_audiences(self) -> List[CustomAudience]:
-        return get_custom_audiences(self.account)  # add label???
+        return get_custom_audiences(self.account)
 
     def get_audience(self, name: str) -> CustomAudience:
         aud = next((a for a in self.custom_audiences if a["name"] == name), None)

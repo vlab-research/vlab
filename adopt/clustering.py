@@ -2,36 +2,18 @@ import logging
 import warnings
 from datetime import datetime, timezone
 from math import floor
-from typing import Dict, List, NamedTuple, Optional
+from statistics import mean
+from typing import Dict, List, Union
 
 import pandas as pd
 
 from .facebook.state import BudgetWindow
 from .forms import TranslationError
-from .marketing import FacebookTargeting
+from .marketing import Audience, Stratum, StratumConf, TargetQuestion
 
 
 class MissingResponseError(BaseException):
     pass
-
-
-class TargetQuestion(NamedTuple):
-    name: str
-    ref: str
-    op: str
-    field: str
-    value: Optional[str]
-
-
-class Stratum(NamedTuple):
-    id: str
-    metadata: Dict[str, str]
-    facebook_targeting: FacebookTargeting
-    quota: int
-    creative_group: str
-    custom_audience: str
-    shortcodes: List[str]
-    target_questions: List[TargetQuestion]
 
 
 def res_col(ref, row, t):
@@ -62,32 +44,42 @@ def add_res_cols(new_cols, df):
 
 
 def make_reqs(target_questions):
-    return [(q["ref"], make_pred(q)) for q in target_questions]
+    return [(q.ref, make_pred(q)) for q in target_questions]
 
 
-def shape_df(df):
-    df = (
-        df.groupby(["surveyid", "shortcode"])
-        .apply(lambda df: df.pivot("userid", "question_ref", "response"))
-        .reset_index()
-    )
+def _latest_survey(df):
+    return df[df.surveyid == df.sort_values("timestamp").surveyid.unique()[-1]]
 
-    df["timestamp"] = df["md:startTime"].map(
-        lambda x: datetime.fromtimestamp(x / 1000, tz=timezone.utc)
-    )
+
+def only_latest_survey(df):
 
     # Clean anyone who answered multiple surveys in this group of shortcodes
     # in theory should only be testers.
     # Keep the lastest survey they took.
-    return df.sort_values("timestamp").drop_duplicates(["userid"], keep="last")
+    # return df.sort_values("timestamp").drop_duplicates(["userid"], keep="last")
+    return df.groupby(["shortcode", "userid"]).apply(_latest_survey)
+
+
+def shape_df(df):
+    df["timestamp"] = df["timestamp"].map(
+        lambda x: datetime.fromtimestamp(x / 1000, tz=timezone.utc)
+    )
+
+    return only_latest_survey(df)
+
+
+def _filter_by_response(df, ref, pred):
+    if df.shape[0] == 0:
+        return df
+    d = df[df.question_ref == ref].reset_index(drop=True)
+    users = d[d.apply(pred, 1)].userid.unique()
+    return df[df.userid.isin(users)].reset_index(drop=True)
 
 
 def users_fulfilling(treqs, df):
     for ref, pred in treqs:
         try:
-            d = df[df[ref].map(pred)]
-            users = d.userid.unique()
-            df = df[df.userid.isin(users)]
+            df = _filter_by_response(df, ref, pred)
         except KeyError:
             return None
         except AttributeError:
@@ -96,19 +88,7 @@ def users_fulfilling(treqs, df):
     return df
 
 
-def users_answering(treqs, df):
-    for ref, _ in treqs:
-        try:
-            d = df[~df[ref].isna()]
-            users = d.userid.unique()
-            df = df[df.userid.isin(users)]
-        except AttributeError:
-            return None
-
-    return df
-
-
-def make_pred(q):
+def make_pred(q: TargetQuestion):
     fns = {
         "answered": lambda a, _: pd.notna(a),
         "not_equal": lambda a, b: a != b,
@@ -118,16 +98,19 @@ def make_pred(q):
     }
 
     try:
-        fn = fns[q["op"]]
+        fn = fns[q.op]
     except KeyError:
-        raise TypeError(f"op function: {q['op']} is not supported!")
+        raise TypeError(f"op function: {q.op} is not supported!")
 
-    return lambda x: fn(x, q["value"])
+    return lambda x: fn(x[q.field], q.value)
 
 
-def only_target_users(df, stratum, fn=users_fulfilling):
-    reqs = make_reqs(stratum["target_questions"])
-    df = df[df.shortcode.isin(stratum["shortcodes"])]
+def only_target_users(
+    df, stratum: Union[Stratum, StratumConf, Audience], fn=users_fulfilling
+):
+
+    reqs = make_reqs(stratum.target_questions)
+    df = df[df.shortcode.isin(stratum.shortcodes)]
     if df.shape[0] == 0:
         return None
 
@@ -145,7 +128,7 @@ def get_saturated_clusters(df, strata):
     dfs = [(stratum, only_target_users(df, stratum)) for stratum in strata]
     dfs = [(s, d) for s, d in dfs if d is not None]
 
-    saturated = [s["id"] for s, d in dfs if d.userid.unique().shape[0] >= s["quota"]]
+    saturated = [s.id for s, d in dfs if d.userid.unique().shape[0] >= s.quota]
     return saturated
 
 
@@ -162,20 +145,25 @@ def budget_trimming(budget, max_budget, min_budget, step=100):
     return budg
 
 
-def calc_price(df, window, spend):
-    # filter out anything that hasn't been spent in the last day
-    # TODO: Make this constraint explicit or get rid of it.
-    # it means you can never increase the number of clusters
-    spend = {k: v for k, v in spend.items() if v > 0}
+def _users_per_cluster(df):
+    return df.groupby("cluster").apply(lambda df: df.userid.unique().shape[0]).to_dict()
 
+
+def calc_price(df, window, spend):
     # filter by time
-    windowed = df[
-        (df["md:startTime"] >= window.start_unix)
-        & (df["md:startTime"] <= window.until_unix)
-    ]
-    counts = windowed.groupby("cluster").userid.count().to_dict()
+    def pred(st):
+        return st.response >= window.start_unix and st.response <= window.until_unix
+
+    windowed = _filter_by_response(df, "md:startTime", pred)
+
+    counts = _users_per_cluster(windowed)
     counts = {**{k: 1 for k in spend.keys()}, **counts}
     price = {k: spend[k] / v for k, v in counts.items() if k in spend}
+
+    # set to mean if we don't have info on the price
+    m = mean([p for p in price.values() if p != 0])
+    make_mean = lambda v: v if v != 0 else m
+    price = {k: make_mean(v) for k, v in price.items()}
 
     return price
 
@@ -184,12 +172,12 @@ def prep_df_for_budget(df, strata):
     # get all unique target_question and response_surveys
     # so that you can add them all???
     dfs = [(stratum, only_target_users(df, stratum)) for stratum in strata]
-    dfs = [d.assign(cluster=s["id"]) for s, d in dfs if d is not None]
+    dfs = [d.assign(cluster=s.id) for s, d in dfs if d is not None]
 
     if not dfs:
         return None
 
-    return pd.concat(dfs)
+    return pd.concat(dfs).reset_index(drop=True)
 
 
 def proportional_budget(budget, max_budget, min_budget):
@@ -202,20 +190,20 @@ def proportional_budget(budget, max_budget, min_budget):
 
 
 def _base_budget(strata, max_budget, min_budget):
-    budget = {s["id"]: max_budget for s in strata}
+    budget = {s.id: max_budget for s in strata}
     return proportional_budget(budget, max_budget, min_budget)
 
 
 def get_budget_lookup(
     df,
-    strata,
-    max_budget,
-    min_budget,
+    strata: List[Union[Stratum, StratumConf]],
+    max_budget: float,
+    min_budget: float,
     window: BudgetWindow,
     spend: Dict[str, float],
-    days_left=None,
-    proportional=False,
-    return_price=False,
+    days_left: int = None,
+    proportional: bool = False,
+    return_price: bool = False,
 ):
 
     if proportional and days_left is not None:
@@ -228,26 +216,32 @@ def get_budget_lookup(
         days_left = 1
 
     df = prep_df_for_budget(df, strata)
+
     if df is None:
         return _base_budget(strata, max_budget, min_budget)
 
     # make a spend lookup that has 0 for all clusters
     # in strata with no spend and then optimize only
     # for those given in the strata.
-    goal_lookup = {s["id"]: s["quota"] for s in strata}
+    goal_lookup = {s.id: s.quota for s in strata}
     spend = {k: v for k, v in spend.items() if k in goal_lookup}
-    tot = df.groupby("cluster").userid.count().to_dict()
+    spend = {**{s.id: 0 for s in strata}, **spend}
+
+    # unique users
+    tot = _users_per_cluster(df)
     tot = {**{k: 0 for k in spend.keys()}, **tot}
 
     remain = {k: goal_lookup[k] - v for k, v in tot.items()}
-    saturated = [k for k, v in remain.items() if v <= 0]
+    saturated = {k for k, v in remain.items() if v <= 0}
 
     price = calc_price(df, window, spend)
 
     budget = {k: v * remain[k] / days_left for k, v in price.items()}
     budget = {k: floor(v) for k, v in budget.items()}
     budget = {**budget, **{k: 0 for k in saturated}}
-    budget = {k: v for k, v in budget.items() if v > 0.0}
+
+    zeroed = {k for k, v in budget.items() if v == 0.0}
+    budget = {k: v for k, v in budget.items() if k not in zeroed}
 
     # from here, you can move to proportion or target
     # days_left can be replaced with 1 if proportion targeting
@@ -255,6 +249,9 @@ def get_budget_lookup(
         budget = proportional_budget(budget, max_budget, min_budget)
     else:
         budget = budget_trimming(budget, max_budget, min_budget)
+
+    # add zero spend strata back in!
+    budget = {**budget, **{k: 0 for k in zeroed}}
 
     if return_price:
         return budget, price
