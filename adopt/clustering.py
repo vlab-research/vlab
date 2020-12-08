@@ -61,10 +61,6 @@ def only_latest_survey(df):
 
 
 def shape_df(df):
-    df["timestamp"] = df["timestamp"].map(
-        lambda x: datetime.fromtimestamp(x / 1000, tz=timezone.utc)
-    )
-
     return only_latest_survey(df)
 
 

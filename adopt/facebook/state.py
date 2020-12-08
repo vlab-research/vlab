@@ -76,7 +76,18 @@ def get_creatives(account: AdAccount, ad_label_id: str) -> List[AdCreative]:
 
 
 def get_adsets(campaign: Campaign) -> List[AdSet]:
-    return call(campaign.get_ad_sets, {}, ["name", "status", "targeting"])
+    return call(
+        campaign.get_ad_sets,
+        {},
+        [
+            "name",
+            "status",
+            "targeting",
+            "optimization_goal",
+            "optimization_sub_event",
+            "destination_type",
+        ],
+    )
 
 
 def get_ads(adset: AdSet) -> List[Ad]:
@@ -128,11 +139,11 @@ def get_spending(insights: Insights) -> Dict[str, float]:
     return spend
 
 
-def get_account(env):
+def get_account(env, token):
     cnf = {
         "APP_ID": env("FACEBOOK_APP_ID"),
         "APP_SECRET": env("FACEBOOK_APP_SECRET"),
-        "USER_TOKEN": env("FACEBOOK_USER_TOKEN"),
+        "USER_TOKEN": token,
         "AD_ACCOUNT": f'act_{env("FACEBOOK_AD_ACCOUNT")}',
     }
 
@@ -146,27 +157,27 @@ def get_custom_audiences(account: AdAccount) -> List[CustomAudience]:
         CustomAudience.Field.description,
         CustomAudience.Field.subtype,
         CustomAudience.Field.time_created,
+        CustomAudience.Field.approximate_count,
+        CustomAudience.Field.source,
+        CustomAudience.Field.lookalike_spec,
+        CustomAudience.Field.expectedsize,
     ]
 
     return call(account.get_custom_audiences, {}, fields)
 
 
 class CampaignState:
-    def __init__(self, env, window=None):
+    def __init__(self, env, token, window=None):
         cnf = {
             "PAGE_ID": env("FACEBOOK_PAGE_ID"),
             "INSTA_ID": env("FACEBOOK_INSTA_ID"),
             "CAMPAIGN": env("FACEBOOK_AD_CAMPAIGN"),
             "AD_LABEL": env("FACEBOOK_AD_LABEL"),
-            "USER_TOKEN": env("FACEBOOK_USER_TOKEN"),
-            "ADSET_HOURS": env.int("FACEBOOK_ADSET_HOURS"),
-            "LOOKALIKE_STARTING_RATIO": env.float("FACEBOOK_LOOKALIKE_STARTING_RATIO"),
-            "LOOKALIKE_RATIO": env.float("FACEBOOK_LOOKALIKE_RATIO"),
         }
 
         self.cnf = cnf
         self.window: BudgetWindow = window
-        self.account: AdAccount = get_account(env)
+        self.account: AdAccount = get_account(env, token)
 
     @cached_property
     def label(self) -> AdLabel:
@@ -176,6 +187,7 @@ class CampaignState:
     def campaign(self) -> Campaign:
         name = self.cnf["CAMPAIGN"]
         campaign = get_campaign(self.account, name)
+
         if campaign is None:
             raise StateNameError(f"Could not find a campaign with name: {name}")
         return campaign
@@ -215,5 +227,6 @@ class CampaignState:
     def get_audience(self, name: str) -> CustomAudience:
         aud = next((a for a in self.custom_audiences if a["name"] == name), None)
         if not aud:
+
             raise StateNameError(f"Audience not found with name: {name}")
         return aud

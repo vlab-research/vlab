@@ -27,6 +27,29 @@ def test_ad_diff_creates_and_pauses():
     ]
 
 
+def test_ad_diff_creates_when_no_running_ads():
+    adset = {"id": "ad"}
+    running_ads = []
+    current_creatives = []
+    creatives = [{"name": "newhindi", "actor_id": "111", "url_tags": "123"}]
+
+    instructions = ad_diff(adset, running_ads, current_creatives, creatives)
+
+    assert instructions == [
+        Instruction(
+            "ad",
+            "create",
+            {
+                "adset_id": "ad",
+                "name": "newhindi",
+                "creative": creatives[0],
+                "status": "ACTIVE",
+            },
+            None,
+        ),
+    ]
+
+
 def test_ad_diff_leaves_alone_if_already_running():
     # TODO: get status in adset, then you can leave alone and save on api calls
     adset = {"id": "ad"}
@@ -112,11 +135,11 @@ def test_ad_diff_leaves_many_alone_if_nothing_to_be_done():
 def test_make_ref():
     stratum = StratumConf("foo", 10, "foo", [], [], metadata={"bar": "baz"})
     ref = make_ref("form1", stratum)
-    assert ref == "form.form1.stratumid.foo.bar.baz"
+    assert ref == "form.form1.bar.baz"
 
     stratum = StratumConf("foo", 10, "foo", [], [], metadata={})
     ref = make_ref("form1", stratum)
-    assert ref == "form.form1.stratumid.foo"
+    assert ref == "form.form1"
 
 
 # test

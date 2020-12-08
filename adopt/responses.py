@@ -224,12 +224,24 @@ def get_forms(survey_user, shortcodes, timestamp, cnf):
     return (json.loads(r) for r in res)
 
 
+def get_ad_token(survey_user, cnf):
+    q = """
+    SELECT details->>'token' as token
+    FROM credentials
+    WHERE userid = %s
+    AND entity = 'facebook_ad_user'
+    ORDER BY created DESC
+    LIMIT 1;
+    """
+
+    res = query(cnf, q, (survey_user,), as_dict=True)
+    return next(r["token"] for r in res)
+
+
 def get_response_df(survey_user, shortcodes, questions, database_cnf):
 
     surveyids = get_surveyids(shortcodes, survey_user, database_cnf)
-
     responses = last_responses(surveyids, questions, database_cnf)
-
     df = pd.DataFrame(list(responses))
 
     if df.shape[0] == 0:

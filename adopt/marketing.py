@@ -23,7 +23,7 @@ class Cluster(NamedTuple):
     name: str
 
 
-class CreativeConfig(NamedTuple):
+class CreativeConf(NamedTuple):
     name: str
     image_hash: str
     image: str
@@ -36,7 +36,7 @@ class CreativeConfig(NamedTuple):
 
 class CreativeGroup(NamedTuple):
     name: str
-    creatives: List[CreativeConfig]
+    creatives: List[CreativeConf]
 
 
 class TargetQuestion(NamedTuple):
@@ -50,28 +50,24 @@ class TargetQuestion(NamedTuple):
 FacebookTargeting = Dict[str, Any]
 
 
-class StratumConf(NamedTuple):
+class Stratum(NamedTuple):
     id: str
     quota: int
-    creative_group: str
+    creatives: List[CreativeConf]
     shortcodes: List[str]
     target_questions: List[TargetQuestion]
     facebook_targeting: FacebookTargeting = {}
-    audiences: List[str] = []
-    excluded_audiences: List[str] = []
     metadata: Dict[str, str] = {}
 
 
-class Stratum(NamedTuple):
+class StratumConf(NamedTuple):
     id: str
-    metadata: Dict[str, str]
     quota: int
-    creative_group: CreativeGroup
-    audiences: List[CustomAudience]
-    excluded_audiences: List[CustomAudience]
-    facebook_targeting: FacebookTargeting
+    creatives: List[str]
     shortcodes: List[str]
     target_questions: List[TargetQuestion]
+    facebook_targeting: FacebookTargeting = {}
+    metadata: Dict[str, str] = {}
 
 
 class Location(NamedTuple):
@@ -89,6 +85,7 @@ class AdsetConf(NamedTuple):
     instagram_id: str
     hours: int
     optimization_goal: str
+    destination_type: str
 
 
 class LookalikeSpec(NamedTuple):
@@ -107,7 +104,7 @@ class Audience(NamedTuple):
 
 class TargetingConf(NamedTuple):
     audiences: List[Audience]
-    strata: List[StratumConf]
+    strata: List[Stratum]
 
 
 def parse_sc(s: Mapping[str, Any]) -> Mapping[str, Any]:
@@ -117,10 +114,16 @@ def parse_sc(s: Mapping[str, Any]) -> Mapping[str, Any]:
     }
 
 
+def load_strata_conf(path: str) -> List[StratumConf]:
+    with open(path) as f:
+        d = json.loads(f.read())
+        return [StratumConf(**parse_sc(s)) for s in d]
+
+
 def parse_conf(d: Mapping[str, Sequence[Mapping[str, Any]]]) -> TargetingConf:
     try:
         audiences = typing_json.from_json_obj(d["audiences"], List[Audience])
-        strata = [StratumConf(**parse_sc(s)) for s in d["strata"]]
+        strata = [Stratum(**parse_sc(s)) for s in d["strata"]]
         return TargetingConf(audiences, strata)
     except KeyError as e:
         raise Exception("Could not parse targeting config, missing keys") from e
@@ -135,16 +138,6 @@ def validate_targeting(targeting):
 
 def _adset_base(c: AdsetConf) -> Params:
     targeting = {**c.stratum.facebook_targeting}
-
-    if c.stratum.audiences:
-        targeting[Targeting.Field.custom_audiences] = [
-            {"id": aud["id"]} for aud in c.stratum.audiences
-        ]
-
-    if c.stratum.excluded_audiences:
-        targeting[Targeting.Field.excluded_custom_audiences] = [
-            {"id": aud["id"]} for aud in c.stratum.excluded_audiences
-        ]
 
     params = {
         AdSet.Field.end_time: datetime.utcnow() + timedelta(hours=c.hours),
@@ -170,6 +163,7 @@ def create_adset(name, c: AdsetConf) -> Instruction:
         AdSet.Field.start_time: datetime.utcnow() + timedelta(minutes=5),
         AdSet.Field.campaign_id: c.campaign["id"],
         AdSet.Field.optimization_goal: c.optimization_goal,
+        AdSet.Field.destination_type: c.destination_type,
         AdSet.Field.billing_event: AdSet.BillingEvent.impressions,
         AdSet.Field.bid_strategy: AdSet.BidStrategy.lowest_cost_without_cap,
     }
@@ -216,8 +210,7 @@ def make_welcome_message(text, button_text, ref):
 
 
 def make_ref(form: str, stratum: Stratum) -> str:
-    id_ = quote(stratum.id)
-    s = f"form.{form}.stratumid.{id_}"
+    s = f"form.{form}"
     for k, v in stratum.metadata.items():
         s += f".{k}.{v}"
     return s
@@ -325,18 +318,11 @@ def ad_diff(
 class Marketing:
     def __init__(self, env, state):
         cnf = {
-            "APP_ID": env("FACEBOOK_APP_ID"),
-            "APP_SECRET": env("FACEBOOK_APP_SECRET"),
             "PAGE_ID": env("FACEBOOK_PAGE_ID"),
             "INSTA_ID": env("FACEBOOK_INSTA_ID"),
-            "USER_TOKEN": env("FACEBOOK_USER_TOKEN"),
-            "AD_ACCOUNT": f'act_{env("FACEBOOK_AD_ACCOUNT")}',
-            "CAMPAIGN": env("FACEBOOK_AD_CAMPAIGN"),
             "OPTIMIZATION_GOAL": env("FACEBOOK_OPTIMIZATION_GOAL"),
-            "AD_LABEL": env("FACEBOOK_AD_LABEL"),
+            "DESTINATION_TYPE": env("FACEBOOK_DESTINATION_TYPE"),
             "ADSET_HOURS": env.int("FACEBOOK_ADSET_HOURS"),
-            "LOOKALIKE_STARTING_RATIO": env.float("FACEBOOK_LOOKALIKE_STARTING_RATIO"),
-            "LOOKALIKE_RATIO": env.float("FACEBOOK_LOOKALIKE_RATIO"),
         }
 
         self.state = state
@@ -344,9 +330,7 @@ class Marketing:
 
     def adset_instructions(self, stratum: Stratum, budget: float) -> List[Instruction]:
 
-        creatives = [
-            self.create_creative(stratum, c) for c in stratum.creative_group.creatives
-        ]
+        creatives = [self.create_creative(stratum, c) for c in stratum.creatives]
         status = "PAUSED" if budget == 0 else "ACTIVE"
 
         ac = AdsetConf(
@@ -358,6 +342,7 @@ class Marketing:
             self.cnf["INSTA_ID"],
             self.cnf["ADSET_HOURS"],
             self.cnf["OPTIMIZATION_GOAL"],
+            self.cnf["DESTINATION_TYPE"],
         )
 
         return self.manage_adset(ac)
@@ -377,9 +362,7 @@ class Marketing:
 
         return [create_adset(name, adset_conf)]
 
-    def create_creative(
-        self, stratum: Stratum, config: CreativeConfig
-    ) -> Dict[str, Any]:
+    def create_creative(self, stratum: Stratum, config: CreativeConf) -> Dict[str, Any]:
 
         ref = make_ref(config.form, stratum)
         msg = make_welcome_message(config.welcome_message, config.button_text, ref)

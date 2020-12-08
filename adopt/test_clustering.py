@@ -23,7 +23,7 @@ def conf(quota=2, field="response"):
             "id": "foo",
             "quota": quota,
             "shortcodes": ["foo", "bar"],
-            "creative_group": "",
+            "creatives": [],
             "target_questions": [
                 {"ref": "dist", "op": "equal", "field": "response", "value": "foo"},
                 {
@@ -38,7 +38,7 @@ def conf(quota=2, field="response"):
             "id": "bar",
             "quota": quota,
             "shortcodes": ["foo", "bar"],
-            "creative_group": "",
+            "creatives": [],
             "target_questions": [
                 {"ref": "dist", "op": "equal", "field": "response", "value": "bar"},
                 {
@@ -53,7 +53,7 @@ def conf(quota=2, field="response"):
             "id": "baz",
             "quota": quota,
             "shortcodes": ["foo", "bar"],
-            "creative_group": "",
+            "creatives": [],
             "target_questions": [
                 {"ref": "dist", "op": "equal", "field": "response", "value": "baz"},
                 {
@@ -74,7 +74,7 @@ def cnf():
 
 
 def _add_timestamp(df):
-    df["timestamp"] = unix_time_millis(DATE)
+    df["timestamp"] = pd.Timestamp(DATE)
     return df
 
 
@@ -186,7 +186,7 @@ def test_get_only_target_users_with_empty_target_questions_filters_none(df):
     s = {
         "id": "foo",
         "quota": 1,
-        "creative_group": "",
+        "creatives": [],
         "shortcodes": ["foo", "bar"],
         "target_questions": [],
     }
@@ -297,7 +297,7 @@ def test_get_saturated_clusters_filters_only_appropriate_shortcodes():
         {
             "id": "foo",
             "quota": 1,
-            "creative_group": "",
+            "creatives": [],
             "shortcodes": ["foo"],
             "target_questions": [
                 {
@@ -311,7 +311,7 @@ def test_get_saturated_clusters_filters_only_appropriate_shortcodes():
         {
             "id": "barfoo",
             "quota": 1,
-            "creative_group": "",
+            "creatives": [],
             "shortcodes": ["bar"],
             "target_questions": [
                 {
@@ -354,7 +354,7 @@ def test_get_saturated_clusters_with_different_id_fields():
         {
             "id": "foo",
             "quota": 1,
-            "creative_group": "",
+            "creatives": [],
             "shortcodes": ["foo", "bar"],
             "target_questions": [
                 {"ref": "dist", "op": "equal", "field": "response", "value": "foo"},
@@ -369,7 +369,7 @@ def test_get_saturated_clusters_with_different_id_fields():
         {
             "id": "bar",
             "quota": 1,
-            "creative_group": "",
+            "creatives": [],
             "shortcodes": ["foo", "bar"],
             "target_questions": [
                 {"ref": "dood", "op": "equal", "field": "response", "value": "bar"},
