@@ -107,7 +107,7 @@ def get_all_ads(api: FacebookAdsApi, adsets: List[AdSet]) -> List[Ad]:
     return ads
 
 
-def _get_insights(api: FacebookAdsApi, adset, window):
+def _get_insights(adset, window):
     params = {"time_range": {"since": window.start, "until": window.until}}
     fields = [
         "unique_link_clicks_ctr",
@@ -123,7 +123,7 @@ def _get_insights(api: FacebookAdsApi, adset, window):
     ]
 
     try:
-        return call(adset.get_insights, params=params, fields=fields, api=api)[0]
+        return call(adset.get_insights, params=params, fields=fields)[0]
     except IndexError:
         return None
 
@@ -131,8 +131,8 @@ def _get_insights(api: FacebookAdsApi, adset, window):
 Insights = Dict[str, Any]
 
 
-def get_insights(api: FacebookAdsApi, adsets, window: BudgetWindow) -> Insights:
-    insights = {a["name"]: _get_insights(api, a, window) for a in adsets}
+def get_insights(adsets, window: BudgetWindow) -> Insights:
+    insights = {a["name"]: _get_insights(a, window) for a in adsets}
     return insights
 
 
@@ -220,7 +220,7 @@ class CampaignState:
     def insights(self) -> Insights:
         if not self.window:
             raise StateInitializationError("Cannot get insights without a window")
-        return get_insights(self.api, self.adsets, self.window)
+        return get_insights(self.adsets, self.window)
 
     @cached_property
     def spend(self) -> Dict[str, float]:

@@ -70,7 +70,8 @@ def _filter_by_response(df, ref, pred):
     if df.shape[0] == 0:
         return df
     d = df[df.question_ref == ref].reset_index(drop=True)
-    users = d[d.apply(pred, 1)].userid.unique()
+    mask = d.apply(pred, 1)
+    users = d[mask].userid.unique()
     return df[df.userid.isin(users)].reset_index(drop=True)
 
 
@@ -213,7 +214,7 @@ def get_budget_lookup(
     if days_left is None:
         days_left = 1
 
-    df = prep_df_for_budget(df, strata) if df else None
+    df = prep_df_for_budget(df, strata) if df is not None else None
 
     if df is None:
         return _base_budget(strata, max_budget, min_budget)
