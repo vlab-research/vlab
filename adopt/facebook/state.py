@@ -60,10 +60,6 @@ class BudgetWindow:
 #############################
 # GET from Facebook API
 #############################
-def get_campaign(account: AdAccount, name: str) -> Optional[Campaign]:
-    campaigns = call(account.get_campaigns, {}, ["name"])
-    c = next((c for c in campaigns if c["name"] == name), None)
-    return c
 
 
 def get_creatives(account: AdAccount, ad_label_id: str) -> List[AdCreative]:
@@ -88,6 +84,10 @@ def get_adsets(campaign: Campaign) -> List[AdSet]:
             "destination_type",
         ],
     )
+
+
+def get_campaigns(account: AdAccount) -> List[Campaign]:
+    return call(account.get_campaigns, {}, ["name"])
 
 
 def get_ads(adset: AdSet) -> List[Ad]:
@@ -139,6 +139,7 @@ def get_spending(insights: Insights) -> Dict[str, float]:
     return spend
 
 
+# TODO: move out of env
 def get_account(env, token):
     cnf = {
         "APP_ID": env("FACEBOOK_APP_ID"),
@@ -168,9 +169,9 @@ def get_custom_audiences(account: AdAccount) -> List[CustomAudience]:
 
 class CampaignState:
     def __init__(self, env, token, window=None):
+
+        # todo: move out of env
         cnf = {
-            "PAGE_ID": env("FACEBOOK_PAGE_ID"),
-            "INSTA_ID": env("FACEBOOK_INSTA_ID"),
             "CAMPAIGN": env("FACEBOOK_AD_CAMPAIGN"),
             "AD_LABEL": env("FACEBOOK_AD_LABEL"),
         }
@@ -184,9 +185,13 @@ class CampaignState:
         return get_label(self.account, self.cnf["AD_LABEL"])
 
     @cached_property
+    def campaigns(self) -> List[Campaign]:
+        return get_campaigns(self.account)
+
+    @cached_property
     def campaign(self) -> Campaign:
         name = self.cnf["CAMPAIGN"]
-        campaign = get_campaign(self.account, name)
+        campaign = next((c for c in self.campaigns if c["name"] == name), None)
 
         if campaign is None:
             raise StateNameError(f"Could not find a campaign with name: {name}")

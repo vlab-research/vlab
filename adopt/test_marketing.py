@@ -1,3 +1,5 @@
+from facebook_business.adobjects.ad import Ad
+
 from .marketing import Instruction, StratumConf, ad_diff, make_ref
 
 
@@ -140,6 +142,12 @@ def test_make_ref():
     stratum = StratumConf("foo", 10, "foo", [], [], metadata={})
     ref = make_ref("form1", stratum)
     assert ref == "form.form1"
+
+
+def test_make_url_escapes():
+    stratum = StratumConf("foo", 10, "foo", [], [], metadata={"bar": "baz foo!"})
+    ref = make_ref("form1", stratum)
+    assert ref == "form.form1.bar.baz%20foo%21"
 
 
 # test

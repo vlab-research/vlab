@@ -7,12 +7,16 @@ import typing_json
 import xxhash
 from facebook_business.adobjects.ad import Ad
 from facebook_business.adobjects.adcreative import AdCreative
+from facebook_business.adobjects.adcreativelinkdata import AdCreativeLinkData
+from facebook_business.adobjects.adcreativeobjectstoryspec import \
+    AdCreativeObjectStorySpec
 from facebook_business.adobjects.adset import AdSet
 from facebook_business.adobjects.campaign import Campaign
 from facebook_business.adobjects.customaudience import CustomAudience
 from facebook_business.adobjects.targeting import Targeting
 from toolz import get_in
 
+from .facebook.state import CampaignState
 from .facebook.update import Instruction
 
 Params = Dict[str, Any]
@@ -79,7 +83,7 @@ class Location(NamedTuple):
 class AdsetConf(NamedTuple):
     campaign: Campaign
     stratum: Stratum
-    creatives: List[Params]
+    creatives: List[AdCreative]
     budget: float
     status: str
     instagram_id: str
@@ -136,56 +140,25 @@ def validate_targeting(targeting):
             raise Exception(f"Targeting config invalid, key: {k} does not exist!")
 
 
-def _adset_base(c: AdsetConf) -> Params:
+def create_adset(c: AdsetConf) -> AdSet:
+    name = f"vlab-{c.stratum.id}"
     targeting = {**c.stratum.facebook_targeting}
 
-    params = {
-        AdSet.Field.end_time: datetime.utcnow() + timedelta(hours=c.hours),
-        AdSet.Field.targeting: targeting,
-        AdSet.Field.status: c.status,
-        AdSet.Field.daily_budget: c.budget,
-    }
+    adset = AdSet()
+    adset[AdSet.Field.end_time] = datetime.utcnow() + timedelta(hours=c.hours)
+    adset[AdSet.Field.targeting] = targeting
+    adset[AdSet.Field.status] = c.status
+    adset[AdSet.Field.daily_budget] = c.budget
+    adset[AdSet.Field.name] = name
+    adset[AdSet.Field.instagram_actor_id] = c.instagram_id
+    adset[AdSet.Field.start_time] = datetime.utcnow() + timedelta(minutes=5)
+    adset[AdSet.Field.campaign_id] = c.campaign["id"]
+    adset[AdSet.Field.optimization_goal] = c.optimization_goal
+    adset[AdSet.Field.destination_type] = c.destination_type
+    adset[AdSet.Field.billing_event] = AdSet.BillingEvent.impressions
+    adset[AdSet.Field.bid_strategy] = AdSet.BidStrategy.lowest_cost_without_cap
 
-    return params
-
-
-def update_adset(adset: AdSet, c: AdsetConf) -> Instruction:
-    params = _adset_base(c)
-    return Instruction("adset", "update", params, adset["id"])
-
-
-def create_adset(name, c: AdsetConf) -> Instruction:
-    params = _adset_base(c)
-    params = {
-        **params,
-        AdSet.Field.name: name,
-        AdSet.Field.instagram_actor_id: c.instagram_id,
-        AdSet.Field.start_time: datetime.utcnow() + timedelta(minutes=5),
-        AdSet.Field.campaign_id: c.campaign["id"],
-        AdSet.Field.optimization_goal: c.optimization_goal,
-        AdSet.Field.destination_type: c.destination_type,
-        AdSet.Field.billing_event: AdSet.BillingEvent.impressions,
-        AdSet.Field.bid_strategy: AdSet.BidStrategy.lowest_cost_without_cap,
-    }
-
-    return Instruction("adset", "create", params, None)
-
-
-def hash_creative(creative):
-    keys = [
-        ["actor_id"],
-        ["url_tags"],
-        ["object_story_spec", "instagram_actor_id"],
-        ["object_story_spec", "link_data", "image_hash"],
-        ["object_story_spec", "link_data", "message"],
-        ["object_story_spec", "link_data", "name"],
-        ["object_story_spec", "link_data", "page_welcome_message"],
-    ]
-
-    vals = [get_in(k, creative) for k in keys]
-    vals = [v for v in vals if v]
-    s = " ".join(vals)
-    return xxhash.xxh64(s).hexdigest()
+    return adset
 
 
 def make_welcome_message(text, button_text, ref):
@@ -212,7 +185,7 @@ def make_welcome_message(text, button_text, ref):
 def make_ref(form: str, stratum: Stratum) -> str:
     s = f"form.{form}"
     for k, v in stratum.metadata.items():
-        s += f".{k}.{v}"
+        s += f".{k}.{quote(v)}"
     return s
 
 
@@ -220,18 +193,19 @@ def ads_for_adset(adset, ads):
     return [a for a in ads if a["adset_id"] == adset["id"]]
 
 
-def create_ad(adset, creative, status) -> Dict[str, Any]:
-    return {
-        "name": creative["name"],
-        "status": status,
-        "adset_id": adset["id"],
-        "creative": creative,
-    }
+def create_ad(adset: AdSet, creative: AdCreative, status: str) -> Ad:
+    a = Ad()
+    a[Ad.Field.name] = creative["name"]
+    a[Ad.Field.status] = status
+    a[Ad.Field.adset_id] = adset["id"]
+    a[Ad.Field.creative] = creative
+    return a
 
 
 def create_lookalike_audience(
     name: str, spec: Dict[str, Any], source: CustomAudience
 ) -> Instruction:
+
     params = {
         CustomAudience.Field.name: name,
         CustomAudience.Field.subtype: CustomAudience.Subtype.lookalike,
@@ -243,11 +217,12 @@ def create_lookalike_audience(
 
 
 def create_custom_audience(name: str, desc: str) -> Instruction:
+
     params = {
-        "name": name,
-        "subtype": "CUSTOM",
-        "description": desc,
-        "customer_file_source": "USER_PROVIDED_ONLY",
+        CustomAudience.Field.name: name,
+        CustomAudience.Field.subtype: "CUSTOM",
+        CustomAudience.Field.description: desc,
+        CustomAudience.Field.customer_file_source: "USER_PROVIDED_ONLY",
     }
 
     return Instruction("custom_audience", "create", params, None)
@@ -280,17 +255,62 @@ def add_users_to_audience(
     ]
 
 
+def update_adset(source: AdSet, adset: AdSet) -> Instruction:
+    fields = [
+        AdSet.Field.end_time,
+        AdSet.Field.targeting,
+        AdSet.Field.status,
+        AdSet.Field.daily_budget,
+    ]
+    params = {f: adset[f] for f in fields}
+    return Instruction("adset", "update", params, source["id"])
+
+
+def manage_adset(
+    state: CampaignState, adset: AdSet, creatives: List[AdCreative]
+) -> List[Instruction]:
+
+    source = next((a for a in state.adsets if a["name"] == adset["name"]), None)
+
+    if source:
+        running_ads = ads_for_adset(source, state.ads)
+        instructions = [update_adset(source, adset)]
+        instructions += ad_diff(source, running_ads, state.creatives, creatives)
+        return instructions
+
+    return [Instruction("adset", "create", adset.export_all_data(), None)]
+
+
+def hash_creative(creative: AdCreative) -> str:
+    keys = [
+        ["actor_id"],
+        ["url_tags"],
+        ["object_story_spec", "instagram_actor_id"],
+        ["object_story_spec", "link_data", "image_hash"],
+        ["object_story_spec", "link_data", "message"],
+        ["object_story_spec", "link_data", "name"],
+        ["object_story_spec", "link_data", "page_welcome_message"],
+    ]
+
+    vals = [get_in(k, creative) for k in keys]
+    vals = [v for v in vals if v]
+    s = " ".join(vals)
+    return xxhash.xxh64(s).hexdigest()
+
+
+# Hashing ourselves makes everything much simpler, given so
+# many creatives (every ref change is a different creative)
 def ad_diff(
-    adset,
+    adset: AdSet,
     running_ads: List[Ad],
     current_creatives: List[AdCreative],
-    creatives: List[Dict[str, Any]],
+    creatives: List[AdCreative],
 ) -> List[Instruction]:
 
     creative_lookup = {c["id"]: c for c in current_creatives}
 
-    olds = [(a, None, a["creative"]["id"]) for a in running_ads]
-    olds = [(a, None, creative_lookup[c]) for a, _, c in olds]
+    olds = [(a, "", a["creative"]["id"]) for a in running_ads]
+    olds = [(a, "", creative_lookup[c]) for a, _, c in olds]
     olds = [(a, hash_creative(c), c) for a, _, c in olds]
 
     old_hashes = [h for _, h, _ in olds]
@@ -298,7 +318,9 @@ def ad_diff(
 
     pause = lambda a: Instruction("ad", "update", {"status": "PAUSED"}, a["id"])
     run = lambda a: Instruction("ad", "update", {"status": "ACTIVE"}, a["id"])
-    create = lambda c: Instruction("ad", "create", create_ad(adset, c, "ACTIVE"), None)
+    create = lambda c: Instruction(
+        "ad", "create", create_ad(adset, c, "ACTIVE").export_all_data(), None
+    )
 
     instructions = [
         pause(a)
@@ -315,6 +337,8 @@ def ad_diff(
     return instructions
 
 
+# TODO: abstract this into general lib
+# and wrap with project-specific parts
 class Marketing:
     def __init__(self, env, state):
         cnf = {
@@ -329,7 +353,6 @@ class Marketing:
         self.cnf = cnf
 
     def adset_instructions(self, stratum: Stratum, budget: float) -> List[Instruction]:
-
         creatives = [self.create_creative(stratum, c) for c in stratum.creatives]
         status = "PAUSED" if budget == 0 else "ACTIVE"
 
@@ -345,49 +368,34 @@ class Marketing:
             self.cnf["DESTINATION_TYPE"],
         )
 
-        return self.manage_adset(ac)
+        adset = create_adset(ac)
+        return manage_adset(self.state, adset, creatives)
 
-    def manage_adset(self, adset_conf: AdsetConf) -> List[Instruction]:
-
-        name = f"vlab-{adset_conf.stratum.id}"
-        adset = next((a for a in self.state.adsets if a["name"] == name), None)
-
-        if adset:
-            running_ads = ads_for_adset(adset, self.state.ads)
-            instructions = [update_adset(adset, adset_conf)]
-            instructions += ad_diff(
-                adset, running_ads, self.state.creatives, adset_conf.creatives
-            )
-            return instructions
-
-        return [create_adset(name, adset_conf)]
-
-    def create_creative(self, stratum: Stratum, config: CreativeConf) -> Dict[str, Any]:
+    def create_creative(self, stratum: Stratum, config: CreativeConf) -> AdCreative:
 
         ref = make_ref(config.form, stratum)
         msg = make_welcome_message(config.welcome_message, config.button_text, ref)
 
         oss = {
-            "instagram_actor_id": self.cnf["INSTA_ID"],
-            "link_data": {
-                "call_to_action": {
+            AdCreativeObjectStorySpec.Field.instagram_actor_id: self.cnf["INSTA_ID"],
+            AdCreativeObjectStorySpec.Field.link_data: {
+                AdCreativeLinkData.Field.call_to_action: {
                     "type": "MESSAGE_PAGE",
                     "value": {"app_destination": "MESSENGER"},
                 },
-                "image_hash": config.image_hash,
-                "message": config.body,
-                "name": config.link_text,
-                "page_welcome_message": msg,
+                AdCreativeLinkData.Field.image_hash: config.image_hash,
+                AdCreativeLinkData.Field.message: config.body,
+                AdCreativeLinkData.Field.name: config.link_text,
+                AdCreativeLinkData.Field.page_welcome_message: msg,
             },
-            "page_id": self.cnf["PAGE_ID"],
+            AdCreativeObjectStorySpec.Field.page_id: self.cnf["PAGE_ID"],
         }
 
-        params = {
-            "name": config.name,
-            "url_tags": f"ref={ref}",
-            "actor_id": self.cnf["PAGE_ID"],
-            "object_story_spec": oss,
-            "adlabels": [self.state.label],
-        }
+        c = AdCreative()
+        c[AdCreative.Field.name] = config.name
+        c[AdCreative.Field.url_tags] = f"ref={ref}"
+        c[AdCreative.Field.actor_id] = self.cnf["PAGE_ID"]
+        c[AdCreative.Field.object_story_spec] = oss
+        c[AdCreative.Field.adlabels] = [self.state.label]
 
-        return params
+        return c

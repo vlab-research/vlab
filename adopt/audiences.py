@@ -44,17 +44,15 @@ def create_audience(aud: Audience) -> Instruction:
     return create_custom_audience(name, "virtual lab auto-generated audience")
 
 
-def update_audience(df, aud: Audience, state: CampaignState) -> List[Instruction]:
-    # except StateNameError:
-    # create_audience(updater, aud)
-    # ca = updater.state.get_audience(aud.name)
-
+def update_audience(
+    df, pageid, aud: Audience, state: CampaignState
+) -> List[Instruction]:
     ca = state.get_audience(aud.name)
     users = get_users_for_audience(df, aud)
 
     logging.info(f'Adding {len(users)} users to audience {ca.get("name")}.')
 
-    instructions = add_users_to_audience(state.cnf["PAGE_ID"], ca.get_id(), users)
+    instructions = add_users_to_audience(pageid, ca.get_id(), users)
     return instructions
 
 
