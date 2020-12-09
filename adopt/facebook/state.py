@@ -1,17 +1,18 @@
 import logging
+import re
 from dataclasses import dataclass
 from datetime import datetime
 from functools import cached_property
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Tuple
 
 from facebook_business.adobjects.ad import Ad
 from facebook_business.adobjects.adaccount import AdAccount
 from facebook_business.adobjects.adcreative import AdCreative
-from facebook_business.adobjects.adlabel import AdLabel
 from facebook_business.adobjects.adset import AdSet
 from facebook_business.adobjects.campaign import Campaign
 from facebook_business.adobjects.customaudience import CustomAudience
 from facebook_business.api import FacebookAdsApi
+from facebook_business.session import FacebookSession
 
 from .api import call
 
@@ -61,21 +62,21 @@ class BudgetWindow:
 # GET from Facebook API
 #############################
 
+# TODO: make fields dynamic based on given desired state...
 
-def get_creatives(account: AdAccount, ad_label_id: str) -> List[AdCreative]:
-    # loads ALL creatives for account...
-    # how many API requests does that count as???
+
+def get_creatives(api: FacebookAdsApi, ids: List[str]) -> List[AdCreative]:
+    if not ids:
+        return []
+
     fields = ["name", "url_tags", "actor_id", "object_story_spec"]
-    params = {"ad_label_ids": [ad_label_id]}
-
-    return call(account.get_ad_creatives_by_labels, params, fields)
+    return call(AdCreative.get_by_ids, ids=ids, fields=fields, api=api)
 
 
 def get_adsets(campaign: Campaign) -> List[AdSet]:
     return call(
         campaign.get_ad_sets,
-        {},
-        [
+        fields=[
             "name",
             "status",
             "targeting",
@@ -87,22 +88,26 @@ def get_adsets(campaign: Campaign) -> List[AdSet]:
 
 
 def get_campaigns(account: AdAccount) -> List[Campaign]:
-    return call(account.get_campaigns, {}, ["name"])
+    return call(account.get_campaigns, fields=["name"])
 
 
 def get_ads(adset: AdSet) -> List[Ad]:
-    return call(adset.get_ads, {}, ["creative", "adset_id", "status"])
+    return call(adset.get_ads, fields=["creative", "adset_id", "status", "name"])
 
 
-def get_all_ads(adsets: List[AdSet]) -> List[Ad]:
-    return [a for s in adsets for a in get_ads(s)]
+def get_all_ads(api: FacebookAdsApi, adsets: List[AdSet]) -> List[Ad]:
+    # TODO: test if get_creatives fails from too many ids
+    # and revert to gettting for each adset separately...
+
+    ads = [a for s in adsets for a in get_ads(s)]
+    creative_ids = [ad["creative"]["id"] for ad in ads]
+    creatives = {c["id"]: c for c in get_creatives(api, creative_ids)}
+    for cid, ad in zip(creative_ids, ads):
+        ad["creative"] = creatives[cid]
+    return ads
 
 
-def get_label(account: AdAccount, name: str):
-    return call(account.create_ad_label, {"name": name}, [])
-
-
-def _get_insights(adset, window):
+def _get_insights(api: FacebookAdsApi, adset, window):
     params = {"time_range": {"since": window.start, "until": window.until}}
     fields = [
         "unique_link_clicks_ctr",
@@ -118,7 +123,7 @@ def _get_insights(adset, window):
     ]
 
     try:
-        return call(adset.get_insights, params=params, fields=fields)[0]
+        return call(adset.get_insights, params=params, fields=fields, api=api)[0]
     except IndexError:
         return None
 
@@ -126,9 +131,8 @@ def _get_insights(adset, window):
 Insights = Dict[str, Any]
 
 
-def get_insights(adsets, window: BudgetWindow) -> Insights:
-    insights = {a["name"]: _get_insights(a, window) for a in adsets}
-
+def get_insights(api: FacebookAdsApi, adsets, window: BudgetWindow) -> Insights:
+    insights = {a["name"]: _get_insights(api, a, window) for a in adsets}
     return insights
 
 
@@ -137,19 +141,6 @@ def get_spending(insights: Insights) -> Dict[str, float]:
     spend = {n: spending(i) for n, i in insights.items()}
     spend = {n: float(v) * 100 for n, v in spend.items()}
     return spend
-
-
-# TODO: move out of env
-def get_account(env, token):
-    cnf = {
-        "APP_ID": env("FACEBOOK_APP_ID"),
-        "APP_SECRET": env("FACEBOOK_APP_SECRET"),
-        "USER_TOKEN": token,
-        "AD_ACCOUNT": f'act_{env("FACEBOOK_AD_ACCOUNT")}',
-    }
-
-    FacebookAdsApi.init(cnf["APP_ID"], cnf["APP_SECRET"], cnf["USER_TOKEN"])
-    return AdAccount(cnf["AD_ACCOUNT"])
 
 
 def get_custom_audiences(account: AdAccount) -> List[CustomAudience]:
@@ -164,25 +155,32 @@ def get_custom_audiences(account: AdAccount) -> List[CustomAudience]:
         CustomAudience.Field.expectedsize,
     ]
 
-    return call(account.get_custom_audiences, {}, fields)
+    return call(account.get_custom_audiences, fields=fields)
+
+
+def ads_for_adset(adset, ads):
+    return [a for a in ads if a["adset_id"] == adset["id"]]
+
+
+def get_api(env, token: str) -> FacebookAdsApi:
+    session = FacebookSession(env("FACEBOOK_APP_ID"), env("FACEBOOK_APP_SECRET"), token)
+    api = FacebookAdsApi(session)
+    return api
 
 
 class CampaignState:
-    def __init__(self, env, token, window=None):
-
-        # todo: move out of env
-        cnf = {
-            "CAMPAIGN": env("FACEBOOK_AD_CAMPAIGN"),
-            "AD_LABEL": env("FACEBOOK_AD_LABEL"),
-        }
-
-        self.cnf = cnf
+    def __init__(self, token, api, ad_account_id, campaign_id=None, window=None):
+        self.token: str = token
+        self.api: FacebookAdsApi = api
+        self.campaign_id = campaign_id
         self.window: BudgetWindow = window
-        self.account: AdAccount = get_account(env, token)
 
-    @cached_property
-    def label(self) -> AdLabel:
-        return get_label(self.account, self.cnf["AD_LABEL"])
+        if re.search(r"^act_", ad_account_id):
+            raise Exception(
+                "initial CampaignState with ad account id without act_ prefix"
+            )
+
+        self.account: AdAccount = AdAccount(f"act_{ad_account_id}", api=self.api)
 
     @cached_property
     def campaigns(self) -> List[Campaign]:
@@ -190,18 +188,17 @@ class CampaignState:
 
     @cached_property
     def campaign(self) -> Campaign:
-        name = self.cnf["CAMPAIGN"]
+        name = self.campaign_id
+        if name is None:
+            raise StateNameError(
+                "You must initialize CampaignState with campaign_id "
+                "to access Campaign data"
+            )
         campaign = next((c for c in self.campaigns if c["name"] == name), None)
 
         if campaign is None:
             raise StateNameError(f"Could not find a campaign with name: {name}")
         return campaign
-
-    @cached_property
-    def creatives(self) -> List[AdCreative]:
-        creatives = get_creatives(self.account, self.label["id"])
-        logging.info(f'Loaded {len(creatives)} creatives with label {self.label["id"]}')
-        return creatives
 
     @cached_property
     def adsets(self) -> List[AdSet]:
@@ -213,13 +210,17 @@ class CampaignState:
 
     @cached_property
     def ads(self) -> List[Ad]:
-        return get_all_ads(self.adsets)
+        return get_all_ads(self.api, self.adsets)
+
+    @cached_property
+    def campaign_state(self) -> List[Tuple[AdSet, List[Ad]]]:
+        return [(adset, ads_for_adset(adset, self.ads)) for adset in self.adsets]
 
     @cached_property
     def insights(self) -> Insights:
         if not self.window:
             raise StateInitializationError("Cannot get insights without a window")
-        return get_insights(self.adsets, self.window)
+        return get_insights(self.api, self.adsets, self.window)
 
     @cached_property
     def spend(self) -> Dict[str, float]:

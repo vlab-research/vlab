@@ -1,6 +1,5 @@
 import logging
 import warnings
-from datetime import datetime, timezone
 from math import floor
 from statistics import mean
 from typing import Dict, List, Union
@@ -9,7 +8,7 @@ import pandas as pd
 
 from .facebook.state import BudgetWindow
 from .forms import TranslationError
-from .marketing import Audience, Stratum, StratumConf, TargetQuestion
+from .marketing import AudienceConf, Stratum, StratumConf, TargetQuestion
 
 
 class MissingResponseError(BaseException):
@@ -61,7 +60,10 @@ def only_latest_survey(df):
 
 
 def shape_df(df):
-    return only_latest_survey(df)
+    try:
+        return only_latest_survey(df)
+    except KeyError:
+        return df
 
 
 def _filter_by_response(df, ref, pred):
@@ -102,7 +104,7 @@ def make_pred(q: TargetQuestion):
 
 
 def only_target_users(
-    df, stratum: Union[Stratum, StratumConf, Audience], fn=users_fulfilling
+    df, stratum: Union[Stratum, StratumConf, AudienceConf], fn=users_fulfilling
 ):
 
     reqs = make_reqs(stratum.target_questions)

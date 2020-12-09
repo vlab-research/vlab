@@ -54,7 +54,6 @@ class GraphUpdater:
         self.objects = {
             "adset": getter("adset", state.adsets),
             "ad": getter("ad", state.ads),
-            "creative": getter("creative", state.creatives),
             "custom_audience": getter("custom_audience", state.custom_audiences),
         }
 
@@ -80,12 +79,12 @@ class GraphUpdater:
     def execute(self, instruction: Instruction):
         if instruction.action == "update":
             obj = self.get_object(instruction.node, instruction.id)
-            call(obj.api_update, instruction.params, [])
+            call(obj.api_update, params=instruction.params, fields=[])
             return report(instruction)
 
         if instruction.action == "create":
             create = self.get_create(instruction.node)
-            call(create, instruction.params, [])
+            call(create, params=instruction.params, fields=[])
             return report(instruction)
 
         if instruction.action == "add_users":
@@ -93,7 +92,7 @@ class GraphUpdater:
             # special case, node-edge, but also rest api directly!
             # can be removed when sdk supports this action
             add_users_to_custom_audience(
-                self.state.cnf["USER_TOKEN"], instruction.id, instruction.params
+                self.state.token, instruction.id, instruction.params
             )
             return report(instruction)
 

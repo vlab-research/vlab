@@ -188,6 +188,8 @@ def test_get_only_target_users_with_empty_target_questions_filters_none(df):
         "quota": 1,
         "creatives": [],
         "shortcodes": ["foo", "bar"],
+        "audiences": [],
+        "excluded_audiences": [],
         "target_questions": [],
     }
 

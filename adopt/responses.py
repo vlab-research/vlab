@@ -1,6 +1,5 @@
 import json
 from datetime import datetime
-from functools import lru_cache
 
 import pandas as pd
 import psycopg2
@@ -58,73 +57,18 @@ def get_all_forms(survey_name, cnf):
     return res
 
 
-def temp_translation_target(surveyid, cnf):
-    q = """
-    WITH t AS
-      (SELECT created,
-              survey_name,
-              form_json,
-              translation_conf,
-              jsonb_set(metadata,
-                        ARRAY['language'],
-                        '"english"') AS ref_metadata
-       FROM surveys
-       WHERE id = %s
-       LIMIT 1)
-    SELECT surveys.id AS dest, surveys.shortcode AS shortcode, surveys.form_json as dest_form, t.form_json as form_json
-    FROM t
-    LEFT JOIN surveys
-    ON t.survey_name = surveys.survey_name
-    AND t.ref_metadata = surveys.metadata
-    ORDER BY surveys.created
-    LIMIT 1
-    """
-
-    res = query(dict(cnf), q, (surveyid,), as_dict=True)
-    return next(res)
-
-
-@lru_cache(maxsize=512)
-def _get_translation_form(surveyid, cnf):
-    q = """
-    WITH t AS
-      (SELECT created,
-              form_json,
-              survey_name,
-              translation_conf,
-              jsonb_set(metadata,
-                        ARRAY[(translation_conf->>'field')],
-                        translation_conf->'reference') AS ref_metadata
-       FROM surveys
-       WHERE id = %s
-       LIMIT 1)
-    SELECT surveys.form_json AS target_form, t.form_json AS source_form
-    FROM t
-    LEFT JOIN surveys
-    ON t.survey_name = surveys.survey_name
-    AND t.ref_metadata = surveys.metadata
-    ORDER BY surveys.created
-    LIMIT 1
-    """
-
-    res = query(dict(cnf), q, (surveyid,), as_dict=True)
-    return next(res)
-
-
-def get_translation_form(surveyid, cnf):
-    return _get_translation_form(surveyid, frozenset(cnf.items()))
-
-
 def all_responses(shortcodes, cnf):
     q = """
     WITH t AS (
       SELECT
         *,
-        ROW_NUMBER() OVER (PARTITION BY question_ref, userid, surveyid ORDER BY timestamp DESC) as n
+        ROW_NUMBER() OVER (PARTITION BY question_ref, userid, surveyid
+                           ORDER BY timestamp DESC) as n
       FROM responses
       WHERE shortcode in %s
     )
-    SELECT metadata, userid, surveyid, shortcode, question_ref, response, timestamp FROM t WHERE n = 1
+    SELECT metadata, userid, surveyid, shortcode, question_ref, response, timestamp
+    FROM t WHERE n = 1
     """
 
     shortcodes = tuple(shortcodes)
@@ -137,12 +81,16 @@ def last_responses(surveyids, questions, cnf):
     WITH t AS (
       SELECT
         *,
-        ROW_NUMBER() OVER (PARTITION BY question_ref, userid, surveyid ORDER BY timestamp DESC) as n
+        ROW_NUMBER() OVER (PARTITION BY question_ref, userid, surveyid
+                           ORDER BY timestamp DESC) as n
       FROM responses
       WHERE question_ref in %s
       AND surveyid in %s
     )
-    SELECT userid, surveyid, shortcode, question_ref, response, translated_response, timestamp FROM t WHERE n = 1
+    SELECT userid, surveyid, shortcode, question_ref,
+           response, translated_response, timestamp
+    FROM t
+    WHERE n = 1
     """
 
     surveyids = tuple(surveyids)
@@ -238,18 +186,23 @@ def get_ad_token(survey_user, cnf):
     return next(r["token"] for r in res)
 
 
+def get_pageid(survey_user, cnf):
+    q = """
+    SELECT pageid, instagramid
+    FROM facebook_pages
+    WHERE userid = %s
+    LIMIT 1;
+    """
+
+    res = query(cnf, q, (survey_user,))
+    return next(res)
+
+
 def get_response_df(survey_user, shortcodes, questions, database_cnf):
 
     surveyids = get_surveyids(shortcodes, survey_user, database_cnf)
     responses = last_responses(surveyids, questions, database_cnf)
     df = pd.DataFrame(list(responses))
-
-    if df.shape[0] == 0:
-        print(
-            f"Warning: no responses were found in the database \
-        for shortcodes: {shortcodes} and questions: {questions}"
-        )
-        return None
 
     # add synthetic district responses
     md = get_metadata(surveyids, database_cnf)
@@ -257,6 +210,14 @@ def get_response_df(survey_user, shortcodes, questions, database_cnf):
 
     # could remove original district questions...
     df = pd.concat([md, df]).reset_index(drop=True)
+
+    if df.shape[0] == 0:
+        print(
+            f"Warning: no responses were found in the database \
+        for shortcodes: {shortcodes} and questions: {questions}"
+        )
+
+        return None
 
     return df
 

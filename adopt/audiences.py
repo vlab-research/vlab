@@ -1,51 +1,23 @@
 import logging
 from typing import List
 
-from facebook_business.adobjects.customaudience import CustomAudience
+import pandas as pd
 
 from .clustering import only_target_users
 from .facebook.state import CampaignState
 from .facebook.update import Instruction
-from .marketing import (Audience, add_users_to_audience,
-                        create_custom_audience, create_lookalike_audience)
+from .marketing import Audience, AudienceConf, Marketing, add_users_to_audience
 
 
-def get_users_for_audience(df, aud: Audience) -> List[str]:
+def get_users_for_audience(df, aud: AudienceConf) -> List[str]:
     target = only_target_users(df, aud)
+    if target is None:
+        return []
     return target.userid.unique().tolist()
 
 
-def aud_name(aud: Audience) -> str:
-    return f"vlab-managed-audience-{aud.name}"
-
-
-def lookalike_name(aud: Audience) -> str:
-    s = aud.lookalike_spec
-    if s is None:
-        raise Exception(
-            "Cannot get lookalike name aud {aud.name}, missing lookalike_spec!"
-        )
-
-    return aud_name(aud) + f"-lookalike-{s.country}-{s.starting_ratio}-{s.ratio}"
-
-
-def create_lookalike(aud: Audience, source: CustomAudience) -> Instruction:
-    name = lookalike_name(aud)
-    if aud.lookalike_spec is None:
-        raise Exception(
-            "Cannot create lookalike from aud {aud.name}, missing lookalike_spec!"
-        )
-
-    return create_lookalike_audience(name, aud.lookalike_spec._asdict(), source)
-
-
-def create_audience(aud: Audience) -> Instruction:
-    name = aud_name(aud)
-    return create_custom_audience(name, "virtual lab auto-generated audience")
-
-
 def update_audience(
-    df, pageid, aud: Audience, state: CampaignState
+    df, pageid, aud: AudienceConf, state: CampaignState
 ) -> List[Instruction]:
     ca = state.get_audience(aud.name)
     users = get_users_for_audience(df, aud)
@@ -56,5 +28,21 @@ def update_audience(
     return instructions
 
 
-def get_lookalike(state: CampaignState, aud: Audience) -> CustomAudience:
-    return state.get_audience(lookalike_name(aud))
+def hydrate_audience(df: pd.DataFrame, m: Marketing, aud: AudienceConf) -> Audience:
+    users = get_users_for_audience(df, aud)
+
+    d = {
+        "name": aud.name,
+        "subtype": aud.subtype,
+        "users": users,
+        "pageid": m.cnf["PAGE_ID"],
+        "lookalike": aud.lookalike,
+    }
+
+    return Audience(**d)
+
+
+def hydrate_audiences(
+    df: pd.DataFrame, m: Marketing, auds: List[AudienceConf]
+) -> List[Audience]:
+    return [hydrate_audience(df, m, aud) for aud in auds]

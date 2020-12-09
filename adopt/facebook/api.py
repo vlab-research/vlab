@@ -16,8 +16,8 @@ interval = 5 * 60
 
 
 @backoff.on_exception(backoff.constant, FacebookRequestError, interval=interval)
-def call(fn, params, fields):
-    res = fn(params=params, fields=fields)
+def call(fn, *args, **kwargs):
+    res = fn(**kwargs)
 
     if isinstance(res, Cursor):
         return [r for r in res]

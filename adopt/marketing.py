@@ -1,10 +1,10 @@
 import json
 from datetime import datetime, timedelta
-from typing import Any, Dict, List, Mapping, NamedTuple, Optional, Sequence
+from typing import (Any, Dict, List, Mapping, NamedTuple, Optional, Sequence,
+                    Tuple)
 from urllib.parse import quote
 
 import typing_json
-import xxhash
 from facebook_business.adobjects.ad import Ad
 from facebook_business.adobjects.adcreative import AdCreative
 from facebook_business.adobjects.adcreativelinkdata import AdCreativeLinkData
@@ -14,17 +14,32 @@ from facebook_business.adobjects.adset import AdSet
 from facebook_business.adobjects.campaign import Campaign
 from facebook_business.adobjects.customaudience import CustomAudience
 from facebook_business.adobjects.targeting import Targeting
-from toolz import get_in
 
 from .facebook.state import CampaignState
+# Hrm...
+# Not fully solved....
 from .facebook.update import Instruction
 
 Params = Dict[str, Any]
 
 
-class Cluster(NamedTuple):
-    id: str
-    name: str
+class UserInfo(NamedTuple):
+    survey_user: str
+    pageid: str
+    instagramid: str
+    token: str
+
+
+class AdoptConfig(NamedTuple):
+    optimization_goal: str
+    destination_type: str
+    adset_hours: int
+    budget: float
+    min_budget: float
+    opt_window: int
+    end_date: str
+    ad_account: str
+    ad_campaign: str
 
 
 class CreativeConf(NamedTuple):
@@ -69,6 +84,8 @@ class StratumConf(NamedTuple):
     quota: int
     creatives: List[str]
     shortcodes: List[str]
+    audiences: List[str]
+    excluded_audiences: List[str]
     target_questions: List[TargetQuestion]
     facebook_targeting: FacebookTargeting = {}
     metadata: Dict[str, str] = {}
@@ -83,7 +100,6 @@ class Location(NamedTuple):
 class AdsetConf(NamedTuple):
     campaign: Campaign
     stratum: Stratum
-    creatives: List[AdCreative]
     budget: float
     status: str
     instagram_id: str
@@ -98,16 +114,30 @@ class LookalikeSpec(NamedTuple):
     starting_ratio: float
 
 
-class Audience(NamedTuple):
+class Lookalike(NamedTuple):
     name: str
-    type: str
+    target: int
+    spec: LookalikeSpec
+
+
+class AudienceConf(NamedTuple):
+    name: str
+    subtype: str
     shortcodes: List[str]
     target_questions: List[TargetQuestion]
-    lookalike_spec: Optional[LookalikeSpec] = None
+    lookalike: Optional[Lookalike] = None
+
+
+class Audience(NamedTuple):
+    name: str
+    subtype: str
+    pageid: str
+    users: List[str]
+    lookalike: Optional[Lookalike] = None
 
 
 class TargetingConf(NamedTuple):
-    audiences: List[Audience]
+    audiences: List[AudienceConf]
     strata: List[Stratum]
 
 
@@ -126,7 +156,7 @@ def load_strata_conf(path: str) -> List[StratumConf]:
 
 def parse_conf(d: Mapping[str, Sequence[Mapping[str, Any]]]) -> TargetingConf:
     try:
-        audiences = typing_json.from_json_obj(d["audiences"], List[Audience])
+        audiences = typing_json.from_json_obj(d["audiences"], List[AudienceConf])
         strata = [Stratum(**parse_sc(s)) for s in d["strata"]]
         return TargetingConf(audiences, strata)
     except KeyError as e:
@@ -143,6 +173,8 @@ def validate_targeting(targeting):
 def create_adset(c: AdsetConf) -> AdSet:
     name = f"vlab-{c.stratum.id}"
     targeting = {**c.stratum.facebook_targeting}
+
+    # TODO: normalize time so that end_time doesn't change on reruns
 
     adset = AdSet()
     adset[AdSet.Field.end_time] = datetime.utcnow() + timedelta(hours=c.hours)
@@ -189,10 +221,6 @@ def make_ref(form: str, stratum: Stratum) -> str:
     return s
 
 
-def ads_for_adset(adset, ads):
-    return [a for a in ads if a["adset_id"] == adset["id"]]
-
-
 def create_ad(adset: AdSet, creative: AdCreative, status: str) -> Ad:
     a = Ad()
     a[Ad.Field.name] = creative["name"]
@@ -200,6 +228,33 @@ def create_ad(adset: AdSet, creative: AdCreative, status: str) -> Ad:
     a[Ad.Field.adset_id] = adset["id"]
     a[Ad.Field.creative] = creative
     return a
+
+
+def manage_aud(old_auds: List[CustomAudience], aud: Audience) -> List[Instruction]:
+
+    existing = {a["name"]: a for a in old_auds}
+    ca = existing.get(aud.name)
+
+    if ca is None:
+        return [create_custom_audience(aud.name, "virtual lab auto-generated audience")]
+
+    instructions = []
+
+    if aud.subtype == "LOOKALIKE" and aud.lookalike is not None:
+        count = ca["approximate_count"]
+        if aud.lookalike.name not in existing and count > aud.lookalike.target:
+            instructions += [
+                create_lookalike_audience(
+                    aud.lookalike.name, aud.lookalike.spec._asdict(), ca
+                )
+            ]
+
+    instructions += add_users_to_audience(aud.pageid, ca.get_id(), aud.users)
+    return instructions
+
+
+def manage_audiences(state, new_auds: List[Audience]) -> List[Instruction]:
+    return [i for aud in new_auds for i in manage_aud(state.custom_audiences, aud)]
 
 
 def create_lookalike_audience(
@@ -255,113 +310,142 @@ def add_users_to_audience(
     ]
 
 
-def update_adset(source: AdSet, adset: AdSet) -> Instruction:
+def _eq(a, b, fields=None) -> bool:
+    try:
+        a, b = a.export_all_data(), b.export_all_data()
+    except AttributeError:
+        pass
+
+    for k, v in a.items():
+        if fields and k not in fields:
+            continue
+        if k not in b:
+            continue
+        if v != b[k]:
+            return False
+
+    return True
+
+
+def update_adset(source: AdSet, adset: AdSet) -> List[Instruction]:
     fields = [
         AdSet.Field.end_time,
         AdSet.Field.targeting,
         AdSet.Field.status,
         AdSet.Field.daily_budget,
     ]
-    params = {f: adset[f] for f in fields}
-    return Instruction("adset", "update", params, source["id"])
+
+    if _eq(source, adset, fields):
+        return []
+
+    dat = adset.export_all_data()
+    params = {f: dat[f] for f in fields}
+    return [Instruction("adset", "update", params, source["id"])]
 
 
-def manage_adset(
-    state: CampaignState, adset: AdSet, creatives: List[AdCreative]
-) -> List[Instruction]:
+def update_ad(source: Ad, ad: Ad) -> List[Instruction]:
 
-    source = next((a for a in state.adsets if a["name"] == adset["name"]), None)
+    if not _eq(ad["creative"], source["creative"]):
+        return [Instruction("ad", "update", ad.export_all_data(), source["id"])]
 
-    if source:
-        running_ads = ads_for_adset(source, state.ads)
-        instructions = [update_adset(source, adset)]
-        instructions += ad_diff(source, running_ads, state.creatives, creatives)
-        return instructions
+    elif source["status"] != ad["status"]:
+        return [Instruction("ad", "update", {"status": ad["status"]}, source["id"])]
 
-    return [Instruction("adset", "create", adset.export_all_data(), None)]
+    return []
 
 
-def hash_creative(creative: AdCreative) -> str:
-    keys = [
-        ["actor_id"],
-        ["url_tags"],
-        ["object_story_spec", "instagram_actor_id"],
-        ["object_story_spec", "link_data", "image_hash"],
-        ["object_story_spec", "link_data", "message"],
-        ["object_story_spec", "link_data", "name"],
-        ["object_story_spec", "link_data", "page_welcome_message"],
-    ]
+def _diff(type_, updater, creator, olds, news) -> List[Instruction]:
 
-    vals = [get_in(k, creative) for k in keys]
-    vals = [v for v in vals if v]
-    s = " ".join(vals)
-    return xxhash.xxh64(s).hexdigest()
+    try:
+        old_lookup = {x["name"]: x for x in olds}
+    except KeyError:
+        print(olds)
 
+    instructions = []
+    updated = set()
 
-# Hashing ourselves makes everything much simpler, given so
-# many creatives (every ref change is a different creative)
-def ad_diff(
-    adset: AdSet,
-    running_ads: List[Ad],
-    current_creatives: List[AdCreative],
-    creatives: List[AdCreative],
-) -> List[Instruction]:
+    for x in news:
+        if x["name"] in old_lookup:
+            updated.add(x["name"])
+            instructions += updater(old_lookup[x["name"]], x)
+        else:
+            instructions += creator(x)
 
-    creative_lookup = {c["id"]: c for c in current_creatives}
-
-    olds = [(a, "", a["creative"]["id"]) for a in running_ads]
-    olds = [(a, "", creative_lookup[c]) for a, _, c in olds]
-    olds = [(a, hash_creative(c), c) for a, _, c in olds]
-
-    old_hashes = [h for _, h, _ in olds]
-    new_hashes = {hash_creative(c): c for c in creatives}
-
-    pause = lambda a: Instruction("ad", "update", {"status": "PAUSED"}, a["id"])
-    run = lambda a: Instruction("ad", "update", {"status": "ACTIVE"}, a["id"])
-    create = lambda c: Instruction(
-        "ad", "create", create_ad(adset, c, "ACTIVE").export_all_data(), None
-    )
-
-    instructions = [
-        pause(a)
-        for a, h, c in olds
-        if h not in new_hashes.keys() and a["status"] != "PAUSED"
-    ]
-
-    instructions += [
-        run(a) for a, h, c in olds if h in new_hashes.keys() and a["status"] != "ACTIVE"
-    ]
-
-    instructions += [create(c) for h, c in new_hashes.items() if h not in old_hashes]
+    for x in olds:
+        if x["name"] not in updated and x["status"] != "PAUSED":
+            instructions += [
+                Instruction(type_, "update", {"status": "PAUSED"}, x["id"])
+            ]
 
     return instructions
 
 
-# TODO: abstract this into general lib
-# and wrap with project-specific parts
+def ad_dif(
+    adset: AdSet,
+    old_ads: List[Ad],
+    new_ads: List[Ad],
+) -> List[Instruction]:
+    def creator(x):
+        params = {**x.export_all_data(), "adset_id": adset["id"]}
+        return [Instruction("ad", "create", params, None)]
+
+    return _diff("ad", update_ad, creator, old_ads, new_ads)
+
+
+def adset_dif(
+    old_adsets: List[Tuple[AdSet, List[Ad]]], new_adsets: List[Tuple[AdSet, List[Ad]]]
+) -> List[Instruction]:
+
+    new_lookup = {a["name"]: ads for a, ads in new_adsets}
+    old_lookup = {a["name"]: ads for a, ads in old_adsets}
+
+    def updater(source, adset):
+        instructions = update_adset(source, adset)
+        instructions += ad_dif(
+            source, old_lookup[source["name"]], new_lookup[adset["name"]]
+        )
+        return instructions
+
+    creator = lambda x: [Instruction("adset", "create", x.export_all_data(), None)]
+
+    olds, news = [[a for a, _ in x] for x in [old_adsets, new_adsets]]
+
+    return _diff("adset", updater, creator, olds, news)
+
+
 class Marketing:
-    def __init__(self, env, state):
-        cnf = {
-            "PAGE_ID": env("FACEBOOK_PAGE_ID"),
-            "INSTA_ID": env("FACEBOOK_INSTA_ID"),
-            "OPTIMIZATION_GOAL": env("FACEBOOK_OPTIMIZATION_GOAL"),
-            "DESTINATION_TYPE": env("FACEBOOK_DESTINATION_TYPE"),
-            "ADSET_HOURS": env.int("FACEBOOK_ADSET_HOURS"),
+    def __init__(self, state: CampaignState, userinfo: UserInfo, config: AdoptConfig):
+        cnf: Dict[str, Any] = {
+            "PAGE_ID": userinfo.pageid,
+            "INSTA_ID": userinfo.instagramid,
+            "OPTIMIZATION_GOAL": config.optimization_goal,
+            "DESTINATION_TYPE": config.destination_type,
+            "ADSET_HOURS": config.adset_hours,
         }
 
         self.state = state
         self.cnf = cnf
 
-    def adset_instructions(self, stratum: Stratum, budget: float) -> List[Instruction]:
+    def update_instructions(
+        self, strata: List[Stratum], budget: Dict[str, float]
+    ) -> List[Instruction]:
+
+        sb = [(s, budget[s.id]) for s in strata]
+        new_state = [self.adset_instructions(s, b) for s, b in sb if b > 0]
+
+        return adset_dif(self.state.campaign_state, new_state)
+
+    def adset_instructions(
+        self, stratum: Stratum, budget: float
+    ) -> Tuple[AdSet, List[Ad]]:
+
         creatives = [self.create_creative(stratum, c) for c in stratum.creatives]
-        status = "PAUSED" if budget == 0 else "ACTIVE"
 
         ac = AdsetConf(
             self.state.campaign,
             stratum,
-            creatives,
             budget,
-            status,
+            "ACTIVE",
             self.cnf["INSTA_ID"],
             self.cnf["ADSET_HOURS"],
             self.cnf["OPTIMIZATION_GOAL"],
@@ -369,7 +453,9 @@ class Marketing:
         )
 
         adset = create_adset(ac)
-        return manage_adset(self.state, adset, creatives)
+
+        ads = [create_ad(adset, c, "ACTIVE") for c in creatives]
+        return (adset, ads)
 
     def create_creative(self, stratum: Stratum, config: CreativeConf) -> AdCreative:
 
@@ -396,6 +482,5 @@ class Marketing:
         c[AdCreative.Field.url_tags] = f"ref={ref}"
         c[AdCreative.Field.actor_id] = self.cnf["PAGE_ID"]
         c[AdCreative.Field.object_story_spec] = oss
-        c[AdCreative.Field.adlabels] = [self.state.label]
 
         return c
