@@ -2,7 +2,7 @@ import logging
 import warnings
 from math import floor
 from statistics import mean
-from typing import Dict, List, Union
+from typing import Dict, List, Optional, Union
 
 import pandas as pd
 
@@ -193,7 +193,7 @@ def _base_budget(strata, max_budget, min_budget):
 
 
 def get_budget_lookup(
-    df,
+    df: Optional[pd.DataFrame],
     strata: List[Union[Stratum, StratumConf]],
     max_budget: float,
     min_budget: float,
@@ -213,7 +213,7 @@ def get_budget_lookup(
     if days_left is None:
         days_left = 1
 
-    df = prep_df_for_budget(df, strata)
+    df = prep_df_for_budget(df, strata) if df else None
 
     if df is None:
         return _base_budget(strata, max_budget, min_budget)

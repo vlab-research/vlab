@@ -136,11 +136,6 @@ class Audience(NamedTuple):
     lookalike: Optional[Lookalike] = None
 
 
-class TargetingConf(NamedTuple):
-    audiences: List[AudienceConf]
-    strata: List[Stratum]
-
-
 def parse_sc(s: Mapping[str, Any]) -> Mapping[str, Any]:
     return {
         **s,
@@ -152,15 +147,6 @@ def load_strata_conf(path: str) -> List[StratumConf]:
     with open(path) as f:
         d = json.loads(f.read())
         return [StratumConf(**parse_sc(s)) for s in d]
-
-
-def parse_conf(d: Mapping[str, Sequence[Mapping[str, Any]]]) -> TargetingConf:
-    try:
-        audiences = typing_json.from_json_obj(d["audiences"], List[AudienceConf])
-        strata = [Stratum(**parse_sc(s)) for s in d["strata"]]
-        return TargetingConf(audiences, strata)
-    except KeyError as e:
-        raise Exception("Could not parse targeting config, missing keys") from e
 
 
 def validate_targeting(targeting):

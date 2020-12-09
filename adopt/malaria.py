@@ -185,7 +185,7 @@ def load_typed_json(path: str, T) -> T:
         return typing_json.loads(f.read(), T)
 
 
-def _add_aud(state, name) -> Optional[CustomAudience]:
+def _add_aud(state, name) -> Optional[Dict[str, Any]]:
     try:
         return {"id": state.get_audience(name).get_id()}
     except StateNameError:
