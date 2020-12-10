@@ -1,0 +1,37 @@
+[
+  {
+    "name": "vlab-mnm-kutcha",
+    "shortcodes": ["baselinehin", "baselineeng"],
+    "subtype": "LOOKALIKE",
+    "lookalike": {
+      "name": "vlab-mnm-kutcha-lookalike",
+      "target": 2000,
+      "spec": {
+        "country": "IN",
+        "starting_ratio": 0.0,
+        "ratio": 0.2
+      }
+    },
+    "target_questions": [
+      {
+        "name": "home",
+        "ref": "4d0ae478-3893-4b46-ab39-d6848c69245d",
+        "field": "response",
+        "op": "equal",
+        "value": "A"
+      }
+    ]
+  },
+  {
+    "name": "vlab-mnm-respondents-panel",
+    "shortcodes": ["baselinehin", "baselineeng", "baselineodi"],
+    "subtype": "CUSTOM",
+    "target_questions": []
+  },
+  {
+    "name": "vlab-mnm-respondents-cross-sectional",
+    "shortcodes": ["mnm-crosssectional-baselinehin"],
+    "subtype": "CUSTOM",
+    "target_questions": []
+  }
+]
