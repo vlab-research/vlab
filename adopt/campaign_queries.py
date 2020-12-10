@@ -1,4 +1,4 @@
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Tuple
 
 from .responses import query
 
@@ -47,6 +47,25 @@ def get_campaigns(cnf: DBConf):
     return [r["id"] for r in query(cnf, q, as_dict=True)]
 
 
+def create_campaign_for_user(email, name, cnf: DBConf):
+    q = """
+       INSERT INTO  campaigns(name, userid)
+       VALUES (%s, (SELECT id FROM users WHERE email = %s))
+       RETURNING *
+    """
+    return list(query(cnf, q, (name, email), as_dict=True))[0]
+
+
+def get_campaigns_for_user(email, cnf: DBConf):
+    q = """
+       SELECT id
+       FROM campaigns
+       WHERE userid = (SELECT id FROM users WHERE email = %s)
+    """
+
+    return list(query(cnf, q, (email,), as_dict=True))
+
+
 def get_campaign_configs(campaignid, cnf: DBConf):
     q = """
     with t AS (
@@ -79,8 +98,15 @@ def _insert_query(table, cols):
     return q
 
 
-def create_campaign_confs(dat: List[Any], cnf: DBConf):
-    q = _insert_query(
-        "campaign_confs", ["campaignid", "conf_type", "entity_name", "conf"]
-    )
-    list(query(cnf, q, dat, batch=True))
+def create_campaign_confs(
+    campaignid: str, conf_type: str, dat: List[Dict[str, Any]], cnf: DBConf
+):
+
+    dats = [(campaignid, conf_type, t["entity_name"], t["conf"]) for t in dat]
+
+    q = """
+    INSERT INTO campaign_confs(campaignid, conf_type, entity_name, conf)
+    VALUES(%s, %s, %s, %s)
+    """
+
+    list(query(cnf, q, dats, batch=True))
