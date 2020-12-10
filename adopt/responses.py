@@ -3,10 +3,11 @@ from datetime import datetime
 
 import pandas as pd
 import psycopg2
+from psycopg2.extras import execute_batch
 from toolz import dissoc
 
 
-def query(cnf, q, vals=(), as_dict=False):
+def query(cnf, q, vals=(), as_dict=False, batch=False):
     with psycopg2.connect(
         dbname=cnf["db"],
         user=cnf["user"],
@@ -16,6 +17,10 @@ def query(cnf, q, vals=(), as_dict=False):
     ) as conn:
 
         with conn.cursor() as cur:
+            if batch:
+                execute_batch(cur, q, vals)
+                return
+
             cur.execute(q, vals)
             column_names = [desc[0] for desc in cur.description]
             for record in cur:
@@ -23,14 +28,6 @@ def query(cnf, q, vals=(), as_dict=False):
                     yield dict(zip(column_names, record))
                 else:
                     yield record
-
-            # surveyid VARCHAR NOT NULL,
-            # shortcode VARCHAR,
-            # userid VARCHAR NOT NULL,
-            # question_ref VARCHAR NOT NULL,
-            # response VARCHAR NOT NULL,
-            # metadata JSONB,
-            # timestamp TIMESTAMPTZ NOT NULL
 
 
 def get_surveyids(shortcodes, userid, cnf):
@@ -170,32 +167,6 @@ def get_forms(survey_user, shortcodes, timestamp, cnf):
     res = query(cnf, q, (survey_user, shortcodes, timestamp), as_dict=True)
     res = (r["form"] for r in res)
     return (json.loads(r) for r in res)
-
-
-def get_ad_token(survey_user, cnf):
-    q = """
-    SELECT details->>'token' as token
-    FROM credentials
-    WHERE userid = %s
-    AND entity = 'facebook_ad_user'
-    ORDER BY created DESC
-    LIMIT 1;
-    """
-
-    res = query(cnf, q, (survey_user,), as_dict=True)
-    return next(r["token"] for r in res)
-
-
-def get_pageid(survey_user, cnf):
-    q = """
-    SELECT pageid, instagramid
-    FROM facebook_pages
-    WHERE userid = %s
-    LIMIT 1;
-    """
-
-    res = query(cnf, q, (survey_user,))
-    return next(res)
 
 
 def get_response_df(survey_user, shortcodes, questions, database_cnf):

@@ -1,3 +1,4 @@
+import json
 import logging
 import re
 from datetime import datetime, timedelta
@@ -6,28 +7,21 @@ from typing import Any, Dict, List, Optional, TypeVar, Union
 import pandas as pd
 import typing_json
 from environs import Env
-from facebook_business.adobjects.customaudience import CustomAudience
 from facebook_business.adobjects.targeting import Targeting
+from toolz import groupby
 
 from .audiences import hydrate_audiences
+from .campaign_queries import (get_campaign_configs, get_campaigns,
+                               get_user_info)
 from .clustering import get_budget_lookup, shape_df
 from .facebook.state import (BudgetWindow, CampaignState, StateNameError,
                              get_api)
 from .facebook.update import GraphUpdater
-# class Config(NamedTuple):
-#     optimization_goal: str
-#     destination_type: str
-#     adset_hours: int
-#     budget: float
-#     min_budget: float
-#     survey_user: str
-#     opt_window: int
-#     end_date: str
-from .marketing import (AdoptConfig, AudienceConf, CreativeConf,
+from .marketing import (AudienceConf, CampaignConf, CreativeConf,
                         FacebookTargeting, Marketing, Stratum, StratumConf,
-                        UserInfo, load_strata_conf, manage_audiences,
+                        UserInfo, make_stratum_conf, manage_audiences,
                         validate_targeting)
-from .responses import get_ad_token, get_pageid, get_response_df
+from .responses import get_response_df
 
 logging.basicConfig(level=logging.INFO)
 
@@ -39,7 +33,6 @@ def get_df(
 ) -> pd.DataFrame:
     shortcodes = {shortcode for stratum in strata for shortcode in stratum.shortcodes}
     questions = {q.ref for stratum in strata for q in stratum.target_questions}
-    survey_user = survey_user
 
     df = get_response_df(survey_user, shortcodes, questions, db_conf)
 
@@ -48,8 +41,24 @@ def get_df(
     return None
 
 
-def get_confs(env):
-    db_conf = {
+def get_confs_for_campaign(campaignid, db_conf):
+    parsers = {
+        "stratum": make_stratum_conf,
+        "audience": lambda x: loads_typed_json(x, AudienceConf),
+        "creative": lambda x: loads_typed_json(x, CreativeConf),
+        "opt": lambda x: loads_typed_json(x, CampaignConf),
+    }
+
+    confs = get_campaign_configs(campaignid, db_conf)
+    confs = groupby(
+        lambda x: x[0],
+        [(c["conf_type"], parsers[c["conf_type"]](c["conf"])) for c in confs],
+    )
+    return {k: [vv for _, vv in v] for k, v in confs.items()}
+
+
+def get_db_conf(env: Env):
+    return {
         "db": env("CHATBASE_DATABASE"),
         "user": env("CHATBASE_USER"),
         "host": env("CHATBASE_HOST"),
@@ -57,33 +66,14 @@ def get_confs(env):
         "password": env("CHATBASE_PASSWORD", None),
     }
 
-    c = {
-        "optimization_goal": env("FACEBOOK_OPTIMIZATION_GOAL"),
-        "destination_type": env("FACEBOOK_DESTINATION_TYPE"),
-        "adset_hours": env.int("FACEBOOK_ADSET_HOURS"),
-        "budget": env.float("MALARIA_BUDGET"),
-        "min_budget": env.float("MALARIA_MIN_BUDGET"),
-        "opt_window": env.int("MALARIA_OPT_WINDOW"),
-        "end_date": env("MALARIA_END_DATE"),
-        "ad_account": env("FACEBOOK_AD_ACCOUNT"),
-        "ad_campaign": env("FACEBOOK_AD_CAMPAIGN"),
-    }
 
-    config = AdoptConfig(**c)
+def get_confs(campaignid: str, env: Env):
+    db_conf = get_db_conf(env)
+    userinfo = UserInfo(**get_user_info(campaignid, db_conf))
+    confs = get_confs_for_campaign(campaignid, db_conf)
+    config = confs["opt"][0]
 
-    survey_user = env("MALARIA_SURVEY_USER")
-    pageid, instaid = get_pageid(survey_user, db_conf)
-
-    c = {
-        "survey_user": survey_user,
-        "token": get_ad_token(survey_user, db_conf),
-        "pageid": pageid,
-        "instagramid": instaid,
-    }
-
-    userinfo = UserInfo(**c)
-
-    return userinfo, config, db_conf
+    return userinfo, config, db_conf, confs
 
 
 def window(hours=16):
@@ -94,7 +84,7 @@ def window(hours=16):
     return BudgetWindow(yesterday, today)
 
 
-def days_left(config: AdoptConfig):
+def days_left(config: CampaignConf):
     dt = datetime.strptime(config.end_date, "%Y-%m-%d")
     td = dt - datetime.now()
     days = td.days
@@ -110,9 +100,8 @@ def get_cluster_from_adset(adset_name: str) -> str:
     return matches[0]
 
 
-def load_basics():
-    env = Env()
-    userinfo, config, db_conf = get_confs(env)
+def load_basics(campaignid, env):
+    userinfo, config, db_conf, confs = get_confs(campaignid, env)
 
     w = window(hours=config.opt_window)
 
@@ -126,28 +115,12 @@ def load_basics():
 
     m = Marketing(state, userinfo, config)
 
-    return userinfo, config, db_conf, state, m
+    return userinfo, config, db_conf, state, m, confs
 
 
-def update_audience():
-    userinfo, config, db_conf, state, m = load_basics()
-    audience_confs = load_typed_json("config/audiences.json", List[AudienceConf])
-
-    df = get_df(db_conf, userinfo.survey_user, audience_confs)
-
-    audiences = hydrate_audiences(df, m, audience_confs)
-
-    instructions = manage_audiences(state, audiences)
-
-    updater = GraphUpdater(state)
-    for i in instructions:
-        report = updater.execute(i)
-        logging.info(report)
-
-
-def update_ads():
-    userinfo, config, db_conf, state, m = load_basics()
-    strata = load_stratum(state)
+def update_ads_for_campaign(campaignid, env):
+    userinfo, config, db_conf, state, m, confs = load_basics(campaignid, env)
+    strata = hydrate_strata(state, confs["stratum"], confs["creative"])
 
     df = get_df(db_conf, userinfo.survey_user, strata)
 
@@ -171,6 +144,39 @@ def update_ads():
         logging.info(report)
 
 
+def update_audience_for_campaign(campaignid, env):
+    userinfo, config, db_conf, state, m, confs = load_basics(campaignid, env)
+    audience_confs = confs["audience"]
+
+    df = get_df(db_conf, userinfo.survey_user, audience_confs)
+
+    audiences = hydrate_audiences(df, m, audience_confs)
+
+    instructions = manage_audiences(state, audiences)
+
+    updater = GraphUpdater(state)
+    for i in instructions:
+        report = updater.execute(i)
+        logging.info(report)
+
+
+def run_updates(fn):
+    env = Env()
+    db_conf = get_db_conf(env)
+    campaigns = get_campaigns(db_conf)
+
+    for c in campaigns:
+        fn(c, env)
+
+
+def update_audience():
+    run_updates(update_audience_for_campaign)
+
+
+def update_ads():
+    run_updates(update_ads_for_campaign)
+
+
 def uniqueness(strata: List[StratumConf]):
     ids = [s.id for s in strata]
     if len(set(ids)) != len(ids):
@@ -183,6 +189,10 @@ T = TypeVar("T")
 def load_typed_json(path: str, T) -> T:
     with open(path) as f:
         return typing_json.loads(f.read(), T)
+
+
+def loads_typed_json(d: Dict[Any, Any], T) -> T:
+    return typing_json.loads(json.dumps(d), T)
 
 
 def _add_aud(state, name) -> Optional[Dict[str, Any]]:
@@ -236,11 +246,3 @@ def hydrate_strata(
     ]
 
     return [Stratum(**s) for s in strata_params]
-
-
-def load_stratum(state: CampaignState) -> List[Stratum]:
-    strata: List[StratumConf] = load_strata_conf("config/strata.json")
-    creatives: List[CreativeConf] = load_typed_json(
-        "config/creatives.json", List[CreativeConf]
-    )
-    return hydrate_strata(state, strata, creatives)

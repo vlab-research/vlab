@@ -8,13 +8,13 @@ from .clustering import (budget_trimming, get_budget_lookup,
                          only_target_users, proportional_budget, shape_df,
                          users_fulfilling)
 from .facebook.state import BudgetWindow, unix_time_millis
-from .marketing import StratumConf, parse_conf
+from .marketing import StratumConf, make_stratum_conf
 
 DATE = datetime(2020, 1, 1)
 
 
 def make_conf(c):
-    return parse_conf({"audiences": [], "strata": c})
+    return [make_stratum_conf(d) for d in c]
 
 
 def conf(quota=2, field="response"):
@@ -24,6 +24,8 @@ def conf(quota=2, field="response"):
             "quota": quota,
             "shortcodes": ["foo", "bar"],
             "creatives": [],
+            "audiences": [],
+            "excluded_audiences": [],
             "target_questions": [
                 {"ref": "dist", "op": "equal", "field": "response", "value": "foo"},
                 {
@@ -39,6 +41,8 @@ def conf(quota=2, field="response"):
             "quota": quota,
             "shortcodes": ["foo", "bar"],
             "creatives": [],
+            "audiences": [],
+            "excluded_audiences": [],
             "target_questions": [
                 {"ref": "dist", "op": "equal", "field": "response", "value": "bar"},
                 {
@@ -54,6 +58,8 @@ def conf(quota=2, field="response"):
             "quota": quota,
             "shortcodes": ["foo", "bar"],
             "creatives": [],
+            "audiences": [],
+            "excluded_audiences": [],
             "target_questions": [
                 {"ref": "dist", "op": "equal", "field": "response", "value": "baz"},
                 {
@@ -218,13 +224,13 @@ def test_get_saturated_clusters_with_some_fulfilled(cnf):
     )
     df = _format_df(df)
 
-    res = get_saturated_clusters(df, cnf.strata)
+    res = get_saturated_clusters(df, cnf)
     assert res == ["bar"]
 
 
 def test_get_saturated_clusters_with_some_fulfilled_on_translated_response():
     cnf = conf(2, "translated_response")
-    print([s.target_questions for s in cnf.strata])
+    print([s.target_questions for s in cnf])
     cols = ["question_ref", "response", "translated_response", "userid", "shortcode"]
     df = pd.DataFrame(
         [
@@ -243,7 +249,7 @@ def test_get_saturated_clusters_with_some_fulfilled_on_translated_response():
     )
     df = _format_df(df)
 
-    res = get_saturated_clusters(df, cnf.strata)
+    res = get_saturated_clusters(df, cnf)
     assert res == ["bar"]
 
 
@@ -264,7 +270,7 @@ def test_get_saturated_clusters_with_some_users_no_cluster(cnf):
     )
     df = _format_df(df)
 
-    res = get_saturated_clusters(df, cnf.strata)
+    res = get_saturated_clusters(df, cnf)
 
     assert res == []
 
@@ -288,7 +294,7 @@ def test_get_saturated_clusters_with_no_fulfilled(cnf):
     )
     df = _format_df(df)
 
-    res = get_saturated_clusters(df, cnf.strata)
+    res = get_saturated_clusters(df, cnf)
 
     assert res == []
 
@@ -300,6 +306,8 @@ def test_get_saturated_clusters_filters_only_appropriate_shortcodes():
             "id": "foo",
             "quota": 1,
             "creatives": [],
+            "audiences": [],
+            "excluded_audiences": [],
             "shortcodes": ["foo"],
             "target_questions": [
                 {
@@ -314,6 +322,8 @@ def test_get_saturated_clusters_filters_only_appropriate_shortcodes():
             "id": "barfoo",
             "quota": 1,
             "creatives": [],
+            "audiences": [],
+            "excluded_audiences": [],
             "shortcodes": ["bar"],
             "target_questions": [
                 {
@@ -346,7 +356,7 @@ def test_get_saturated_clusters_filters_only_appropriate_shortcodes():
 
     df = _format_df(df)
 
-    res = get_saturated_clusters(df, cnf.strata)
+    res = get_saturated_clusters(df, cnf)
     assert res == ["foo"]
 
 
@@ -357,6 +367,8 @@ def test_get_saturated_clusters_with_different_id_fields():
             "id": "foo",
             "quota": 1,
             "creatives": [],
+            "audiences": [],
+            "excluded_audiences": [],
             "shortcodes": ["foo", "bar"],
             "target_questions": [
                 {"ref": "dist", "op": "equal", "field": "response", "value": "foo"},
@@ -372,6 +384,8 @@ def test_get_saturated_clusters_with_different_id_fields():
             "id": "bar",
             "quota": 1,
             "creatives": [],
+            "audiences": [],
+            "excluded_audiences": [],
             "shortcodes": ["foo", "bar"],
             "target_questions": [
                 {"ref": "dood", "op": "equal", "field": "response", "value": "bar"},
@@ -403,7 +417,7 @@ def test_get_saturated_clusters_with_different_id_fields():
 
     df = _format_df(df)
 
-    res = get_saturated_clusters(df, cnf.strata)
+    res = get_saturated_clusters(df, cnf)
     assert res == ["foo", "bar"]
 
 
@@ -411,7 +425,7 @@ def test_get_budget_lookup(cnf, df):
     window = BudgetWindow(DATE, DATE)
     spend = {"bar": 10.0, "baz": 10.0, "foo": 10.0}
 
-    res = get_budget_lookup(df, cnf.strata, 30, 1, window, spend, days_left=5)
+    res = get_budget_lookup(df, cnf, 30, 1, window, spend, days_left=5)
     assert res == {"bar": 2.0, "baz": 2.0, "foo": 4.0}
 
 
@@ -419,7 +433,7 @@ def test_get_budget_lookup_respects_maximum_budget(cnf, df):
     window = BudgetWindow(DATE, DATE)
     spend = {"bar": 100.0, "baz": 100.0, "foo": 100.0}
 
-    res = get_budget_lookup(df, cnf.strata, 200, 1, window, spend, days_left=2)
+    res = get_budget_lookup(df, cnf, 200, 1, window, spend, days_left=2)
     assert sum(res.values()) <= 200
     assert set(res.keys()) == {"bar", "baz", "foo"}
 
@@ -428,7 +442,7 @@ def test_get_budget_lookup_respects_min_budget(cnf, df):
     window = BudgetWindow(DATE, DATE)
     spend = {"bar": 100.0, "baz": 100.0, "foo": 10.0}
 
-    res = get_budget_lookup(df, cnf.strata, 500, 100, window, spend, days_left=2)
+    res = get_budget_lookup(df, cnf, 500, 100, window, spend, days_left=2)
 
     assert min(res.values()) >= 100
     assert sum(res.values()) <= 500
@@ -450,7 +464,7 @@ def test_get_budget_lookup_returns_zero_for_saturated_clusters(cnf, df):
     cnf = conf(1)
     spend = {"bar": 10.0, "baz": 10.0, "foo": 10.0}
     window = BudgetWindow(DATE, DATE)
-    res = get_budget_lookup(df, cnf.strata, 1000, 1, window, spend, days_left=5)
+    res = get_budget_lookup(df, cnf, 1000, 1, window, spend, days_left=5)
 
     assert res == {"foo": 2.0, "bar": 0.0, "baz": 0.0}
 
@@ -458,7 +472,7 @@ def test_get_budget_lookup_returns_zero_for_saturated_clusters(cnf, df):
 def test_get_budget_lookup_handles_missing_spend_by_assuming_mean(cnf, df):
     spend = {"bar": 10.0}
     window = BudgetWindow(DATE, DATE)
-    res = get_budget_lookup(df, cnf.strata, 1000, 1, window, spend, days_left=5)
+    res = get_budget_lookup(df, cnf, 1000, 1, window, spend, days_left=5)
 
     assert res == {"bar": 2.0, "foo": 4.0, "baz": 2.0}
 
@@ -467,7 +481,7 @@ def test_get_budget_lookup_handles_missing_spend_in_saturated_clusters(cnf, df):
     cnf = conf(1)
     spend = {"foo": 10.0}
     window = BudgetWindow(DATE, DATE)
-    res = get_budget_lookup(df, cnf.strata, 1000, 1, window, spend, days_left=5)
+    res = get_budget_lookup(df, cnf, 1000, 1, window, spend, days_left=5)
 
     assert res == {"foo": 2.0, "bar": 0.0, "baz": 0.0}
 
@@ -475,7 +489,7 @@ def test_get_budget_lookup_handles_missing_spend_in_saturated_clusters(cnf, df):
 def test_get_budget_lookup_handles_zero_spend_doesnt_affect_trimming(cnf, df):
     spend = {"foo": 10.0, "bar": 15.0, "baz": 20.0, "qux": 0.0}
     window = BudgetWindow(DATE, DATE)
-    res = get_budget_lookup(df, cnf.strata, 1000, 1, window, spend, days_left=5)
+    res = get_budget_lookup(df, cnf, 1000, 1, window, spend, days_left=5)
     assert res == {"bar": 3, "foo": 4, "baz": 4}
 
 
@@ -488,7 +502,7 @@ def test_get_budget_lookup_handles_initial_conditions(cnf):
     )
 
     window = BudgetWindow(DATE, DATE)
-    res = get_budget_lookup(df, cnf.strata, 1000, 1, window, spend, days_left=5)
+    res = get_budget_lookup(df, cnf, 1000, 1, window, spend, days_left=5)
     assert res == {"bar": 333, "foo": 333, "baz": 333}
 
 
@@ -512,7 +526,7 @@ def test_get_budget_lookup_works_with_missing_data_from_clusters(cnf):
 
     spend = {"bar": 10.0, "foo": 10.0, "baz": 10.0}
     window = BudgetWindow(DATE, DATE)
-    res = get_budget_lookup(df, cnf.strata, 20, 1, window, spend, days_left=5)
+    res = get_budget_lookup(df, cnf, 20, 1, window, spend, days_left=5)
 
     assert res == {"foo": 2.0, "bar": 0.0, "baz": 2.0}
 

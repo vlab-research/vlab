@@ -1,10 +1,8 @@
 import json
 from datetime import datetime, timedelta
-from typing import (Any, Dict, List, Mapping, NamedTuple, Optional, Sequence,
-                    Tuple)
+from typing import Any, Dict, List, Mapping, NamedTuple, Optional, Tuple
 from urllib.parse import quote
 
-import typing_json
 from facebook_business.adobjects.ad import Ad
 from facebook_business.adobjects.adcreative import AdCreative
 from facebook_business.adobjects.adcreativelinkdata import AdCreativeLinkData
@@ -30,7 +28,7 @@ class UserInfo(NamedTuple):
     token: str
 
 
-class AdoptConfig(NamedTuple):
+class CampaignConf(NamedTuple):
     optimization_goal: str
     destination_type: str
     adset_hours: int
@@ -143,10 +141,14 @@ def parse_sc(s: Mapping[str, Any]) -> Mapping[str, Any]:
     }
 
 
+def make_stratum_conf(d: Mapping[str, Any]) -> StratumConf:
+    return StratumConf(**parse_sc(d))
+
+
 def load_strata_conf(path: str) -> List[StratumConf]:
     with open(path) as f:
         d = json.loads(f.read())
-        return [StratumConf(**parse_sc(s)) for s in d]
+        return [make_stratum_conf(s) for s in d]
 
 
 def validate_targeting(targeting):
@@ -400,7 +402,7 @@ def adset_dif(
 
 
 class Marketing:
-    def __init__(self, state: CampaignState, userinfo: UserInfo, config: AdoptConfig):
+    def __init__(self, state: CampaignState, userinfo: UserInfo, config: CampaignConf):
         cnf: Dict[str, Any] = {
             "PAGE_ID": userinfo.pageid,
             "INSTA_ID": userinfo.instagramid,
