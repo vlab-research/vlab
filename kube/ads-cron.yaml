@@ -1,0 +1,37 @@
+apiVersion: batch/v1beta1
+kind: CronJob
+metadata:
+  name: gbv-adopt-update-ads-vlab-11
+  labels:
+    app: gbv-adopt-update-ads-vlab-11
+spec:
+  schedule: 0 13,21 * * *
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: OnFailure
+          containers:
+          - name: gbv-adopt-update-ads
+            image: vlabresearch/adopt:0.0.55
+            imagePullPolicy: IfNotPresent
+            args:
+            - python
+            - malaria_ads.py
+            resources:
+              requests:
+                cpu: 10m
+                memory: 50Mi
+            envFrom:
+            - secretRef:
+                name: gbv-adopt-envs
+            env:
+            - name: CHATBASE_DATABASE
+              value: chatroach
+            - name: CHATBASE_USER
+              value: chatreader
+            - name: CHATBASE_PASSWORD
+            - name: CHATBASE_HOST
+              value: gbv-cockroachdb-public
+            - name: CHATBASE_PORT
+              value: "26257"

@@ -13,7 +13,7 @@ spec:
         image: vlabresearch/adopt:0.0.55
         args:
         - python
-        - malaria_ads.py
+        - malaria_audience.py
         resources:
           requests:
             cpu: "10m"
