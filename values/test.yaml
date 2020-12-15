@@ -24,7 +24,7 @@ versionBotserver: &vbotserver 0.0.8
 versionReplybot: &vreplybot 0.0.110
 versionLinksniffer: &vlinksniffer 0.0.3
 versionDean: &vdean 0.0.19
-versionScribble: &vscribble 0.0.15
+versionScribble: &vscribble 0.0.17
 versionDinersclub: &vdinersclub 0.0.3
 versionFormcentral: &vformcentral 0.0.4
 
