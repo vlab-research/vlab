@@ -27,8 +27,9 @@ type PaymentEvent struct {
 }
 
 type PaymentError struct {
-	Message string `json:"message"`
-	Code    string `json:"code"`
+	Message        string           `json:"message"`
+	Code           string           `json:"code"`
+	PaymentDetails *json.RawMessage `json:"payment_details,omitempty"`
 }
 
 func (e *PaymentError) Error() string {
@@ -36,11 +37,12 @@ func (e *PaymentError) Error() string {
 }
 
 type Result struct {
-	Type      string        `json:"type"`
-	ID        string        `json:"id,omitempty"`
-	Success   bool          `json:"success"`
-	Timestamp time.Time     `json:"timestamp"`
-	Error     *PaymentError `json:"error,omitempty"`
+	Type           string           `json:"type"`
+	ID             string           `json:"id,omitempty"`
+	Success        bool             `json:"success"`
+	Timestamp      time.Time        `json:"timestamp"`
+	Error          *PaymentError    `json:"error,omitempty"`
+	PaymentDetails *json.RawMessage `json:"payment_details,omitempty"`
 }
 
 type Provider interface {

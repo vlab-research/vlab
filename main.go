@@ -86,7 +86,7 @@ func (dc *DC) sendResult(pe *PaymentEvent, res *Result) error {
 
 func invalidProviderResult(pe *PaymentEvent) *Result {
 	message := fmt.Sprintf("You requested payment by provider: %v but no provider with that name is configured", pe.Provider)
-	err := &PaymentError{message, "INVALID_PROVIDER"}
+	err := &PaymentError{message, "INVALID_PROVIDER", nil}
 	t := fmt.Sprintf("payment:%v", pe.Provider)
 	res := &Result{Type: t, Success: false, Timestamp: time.Now().UTC(), Error: err}
 	return res
@@ -171,6 +171,8 @@ func main() {
 
 	bp := botparty.NewBotParty(cfg.Botserver)
 	dc := &DC{cfg, providers, bp}
+
+	// TODO: need to change maximum poll interval for long retries!!
 
 	c := spine.NewKafkaConsumer(cfg.Topic, cfg.KafkaBrokers, cfg.Group,
 		cfg.KafkaPollTimeout, cfg.BatchSize, cfg.ChunkSize)

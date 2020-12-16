@@ -41,18 +41,22 @@ func NewReloadlyProvider() (Provider, error) {
 	return rp, nil
 }
 
-func reloadlyErrorResult(res *Result, err error) (*Result, error) {
+func reloadlyErrorResult(res *Result, err error, details *json.RawMessage) (*Result, error) {
 	res.Success = false
+
+	// TODO: catch 500 errors and "try again later" errors
+	// for retrying...
+
 	if e, ok := err.(reloadly.APIError); ok {
-		res.Error = &PaymentError{e.Message, e.ErrorCode}
+		res.Error = &PaymentError{e.Message, e.ErrorCode, details}
 		return res, nil
 	}
 	if e, ok := err.(reloadly.ReloadlyError); ok {
-		res.Error = &PaymentError{e.Message, e.ErrorCode}
+		res.Error = &PaymentError{e.Message, e.ErrorCode, details}
 		return res, nil
 	}
 	if e, ok := err.(validator.ValidationErrors); ok {
-		res.Error = &PaymentError{e.Error(), "INVALID_PAYMENT_DETAILS"}
+		res.Error = &PaymentError{e.Error(), "INVALID_PAYMENT_DETAILS", details}
 		return res, nil
 	}
 
@@ -75,17 +79,18 @@ func (p *ReloadlyProvider) Payout(event *PaymentEvent) (*Result, error) {
 	validate := validator.New()
 	err = validate.Struct(job)
 	if err != nil {
-		return reloadlyErrorResult(result, err)
+		return reloadlyErrorResult(result, err, event.Details)
 	}
 
 	worker := reloadly.TopupWorker(*p.svc)
 	r, err := worker.DoJob(job)
 
 	if err != nil {
-		return reloadlyErrorResult(result, err)
+		return reloadlyErrorResult(result, err, event.Details)
 	}
 
 	result.Success = true
 	result.Timestamp = time.Time(*r.TransactionDate)
+	result.PaymentDetails = event.Details
 	return result, nil
 }
