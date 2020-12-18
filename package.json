@@ -18,7 +18,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@vlab-research/botspine": "0.0.8",
+    "@vlab-research/botspine": "0.0.12",
     "@vlab-research/chatbase-postgres": "0.0.3",
     "@vlab-research/translate-typeform": "0.0.29",
     "@vlab-research/utils": "0.0.11",
