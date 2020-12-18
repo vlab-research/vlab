@@ -23,7 +23,7 @@ versionBotserver: &vbotserver 0.0.8
 versionReplybot: &vreplybot 0.0.110
 versionLinksniffer: &vlinksniffer 0.0.3
 versionDean: &vdean 0.0.19
-versionScribble: &vscribble 0.0.15
+versionScribble: &vscribble 0.0.17
 versionDinersclub: &vdinersclub 0.0.3
 versionFormcentral: &vformcentral 0.0.4
 
@@ -50,6 +50,10 @@ laggingAlerts:
     alertname: LaggingConsumerScribbleMessages
     window: "5m"
     limit: "20"
+  - consumergroup: dinersclub
+    alertname: LaggingConsumerDinersclub
+    window: "5m"
+    limit: "100"
 
 kafkaTopics:
   - name: *topic
@@ -75,6 +79,7 @@ kafkaTopics:
 
 
 dinersclub:
+  replicaCount: 0
   image:
     repository: vlabresearch/dinersclub
     tag: *vdinersclub
@@ -98,13 +103,13 @@ dinersclub:
     - name: DINERSCLUB_RETRY_BOTSERVER
       value: "2m"
     - name: DINERSCLUB_RETRY_PROVIDER
-      value: "2m"
+      value: "8m"
     - name: DINERSCLUB_PROVIDERS
       value: "fake,reloadly"
     - name: DINERSCLUB_CHUNK_SIZE
-      value: "1"
+      value: "2"
     - name: DINERSCLUB_BATCH_SIZE
-      value: "1"
+      value: "2"
     - name: RELOADLY_SANDBOX
       value: "false"
 
