@@ -2,8 +2,10 @@
 REACT_APP_SERVER_URL="https://gbv-dashboard.nandan.cloud"
 REACT_APP_TYPEFORM_REDIRECT_URL="https://vlab-research.netlify.app/surveys/auth"
 REACT_APP_AUTH0_CALLBACK_URL="https://vlab-research.netlify.app/auth"
+REACT_APP_FACEBOOK_APP_ID=699455733740842
 
 [context.staging.environment]
 REACT_APP_SERVER_URL="https://gbv-dashboard-staging.nandan.cloud"
 REACT_APP_TYPEFORM_REDIRECT_URL="https://staging--vlab-research.netlify.app/surveys/auth"
 REACT_APP_AUTH0_CALLBACK_URL="https://staging--vlab-research.netlify.app/auth"
+REACT_APP_FACEBOOK_APP_ID=790352681363186
