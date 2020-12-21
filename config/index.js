@@ -18,7 +18,10 @@ const envVarsSchema = joi
     DB_PORT: joi.number(),
     FORMCENTRAL_URL: joi.string(),
     AUTH0_CLIENT_ID: joi.string(),
-    AUTH0_DASHBOARD_SECRET: joi.string()
+    AUTH0_DASHBOARD_SECRET: joi.string(),
+    FACEBOOK_APP_ID: joi.string(),
+    FACEBOOK_APP_SECRET: joi.string(),
+    FACEBOOK_GRAPH_URL: joi.string()
   })
   .unknown()
   .required();
@@ -45,6 +48,11 @@ const config = {
     secret: envVars.TYPEFORM_CLIENT_SECRET || '',
     clientId: envVars.TYPEFORM_CLIENT_ID || '',
     redirectUri: envVars.TYPEFORM_REDIRECT_URL || '',
+  },
+  FACEBOOK: {
+    id: envVars.FACEBOOK_APP_ID,
+    secret: envVars.FACEBOOK_APP_SECRET,
+    url: envVars.FACEBOOK_GRAPH_URL
   },
   JWT: {
     secret: jwks.expressJwtSecret({

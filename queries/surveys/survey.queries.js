@@ -21,6 +21,7 @@ async function create({
   return rows[0];
 }
 
+// TODO switch userid for teamid
 async function retrieveByPage({ pageid, code, timestamp }) {
   const RETRIEVE = `SELECT surveys.*
                     FROM surveys
@@ -35,6 +36,7 @@ async function retrieveByPage({ pageid, code, timestamp }) {
   return rows;
 }
 
+// TODO switch email for teamid
 async function retrieve({ email }) {
   const RETRIEVE_ALL = `SELECT s.created, s.shortcode, s.id, s.title, s.survey_name, s.metadata, s.translation_conf, s.formid
                         FROM surveys s

@@ -7,6 +7,7 @@ function auth(req, res, next) {
   jwt(clientConfig)(req, res, (err, res) => {
     if (!err) return next();
     if (err && err.name === 'UnauthorizedError') {
+
       return jwt(serverConfig)(req, res, next);
     } else {
       return next(err);
