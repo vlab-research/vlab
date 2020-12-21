@@ -3,7 +3,7 @@ import PropTypes from 'prop-types';
 
 const initFB = () => {
   const appId = process.env.REACT_APP_FACEBOOK_APP_ID;
-  const version = '7.0'; // TODO: move to config somewhere!
+  const version = '9.0'; // TODO: move to config somewhere!
 
   window.fbAsyncInit = () => {
     window.FB.init({
@@ -32,12 +32,15 @@ const loadSDK = () => {
 
 
 const fb = (cb) => {
+  const cnf = { scopes: 'public_profile,email,pages_show_list,pages_messaging',
+                return_scopes: true };
+
   window.FB.login(() => {
     window.FB.api('/me/accounts', (res) => {
       // TODO: implement paging incase user has many FB pages!
       cb(res.data);
     });
-  }, { scopes: 'public_profile,email,pages_show_list', return_scopes: true });
+  }, cnf);
 };
 
 
