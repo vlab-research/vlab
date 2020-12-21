@@ -34,7 +34,7 @@ export const ModalBox = styled.div`
 
 export const ModalHeader = styled.div`
   background: #9edcb8;
-  height: 35vh;
+  height: 10vh;
   border-bottom: 2px solid #eee;
 `;
 
@@ -119,19 +119,6 @@ export const primaryColor = styled(SelectedInfo)`
   color: #9edcb8;
 `;
 
-export const TitleInput = styled.input`
-  margin: 40px 40px;
-  padding: 10px 10px;
-  font-size: 1.2rem;
-  font-weight: 800;
-`;
-
-export const ShortCodeInput = styled.input`
-  margin: 40px 40px;
-  padding: 10px 10px;
-  font-size: 1.2rem;
-  font-weight: 800;
-`;
 
 // TODO: fix the title length with '...' at the end
 // TODO: styled components structure

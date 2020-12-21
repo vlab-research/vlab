@@ -69,7 +69,8 @@ const CreateForm = ({ surveys }) => {
 
 
   const setTypeformData = (data) => {
-    form.setFieldsValue(data);
+    form.setFieldsValue({ formid: data.id, title: data.title });
+    history.go(-1);
   };
 
   const [selfTranslating, setSelfTranslating] = useState(formData.translation_self);
@@ -158,7 +159,9 @@ const CreateForm = ({ surveys }) => {
               name="translation_destination"
             >
               <Select showSearch optionFilterProp="children" disabled={selfTranslating}>
-                {surveys.map(s => (<Select.Option key={s.id} value={s.id}>{s.prettyName}</Select.Option>))}
+                {surveys.map(s => (
+                  <Select.Option key={s.id} value={s.id}>{s.prettyName}</Select.Option>
+                ))}
               </Select>
             </Form.Item>
           </Form.Item>

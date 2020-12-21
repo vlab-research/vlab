@@ -5,10 +5,11 @@ export const Container = styled.div`
   display: inline-block;
 `;
 
+
 export const CreateBtn = styled(Link)`
   margin: 10px;
   text-decoration: none;
-  background-color: #262627;
+  background-color: ${({ selected }) => (selected ? '#888' : '#262627')};
   border: 0;
   border-radius: 2px;
   display: inline-block;
@@ -21,6 +22,7 @@ export const CreateBtn = styled(Link)`
   transition: 0.2s;
   white-space: nowrap;
   color: #fff;
+
   &:hover {
     color: #fff;
   }
