@@ -1,9 +1,13 @@
 import React from 'react';
+import Accounts from '../Accounts';
 
 import './App.css';
 
-const App = () => {
-  return <h1>Landing page</h1>;
-};
+
+const App = () => (
+  <div>
+    <Accounts />
+  </div>
+);
 
 export default App;

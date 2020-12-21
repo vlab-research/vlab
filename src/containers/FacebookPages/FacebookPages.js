@@ -13,21 +13,22 @@ const initFB = () => {
       xfbml: true,
     });
   };
-}
+};
 
 const loadSDK = () => {
   // code from example: https://developers.facebook.com/docs/facebook-login/web
 
   function load (d, s, id) {
-    var js, fjs = d.getElementsByTagName(s)[0];
+    const fjs = d.getElementsByTagName(s)[0];
     if (d.getElementById(id)) return;
-    js = d.createElement(s); js.id = id;
-    js.src = "https://connect.facebook.net/en_US/sdk.js";
+    const js = d.createElement(s);
+    js.id = id;
+    js.src = 'https://connect.facebook.net/en_US/sdk.js';
     fjs.parentNode.insertBefore(js, fjs);
-  }
+  };
 
   load(document, 'script', 'facebook-jssdk');
-}
+};
 
 
 const fb = (cb) => {
