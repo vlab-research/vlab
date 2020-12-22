@@ -7,13 +7,13 @@ import { CreateBtn } from '../../components/UI';
 const accountConfs = [
   {
     to: '/connect/facebook-messenger',
-    title: 'Facebook Messenger',
+    title: 'Facebook Page for Messenger Chatbot',
     entity: 'facebook_page',
     description: 'To use the Virtual Lab chatbot, Connect your Facebook account and grant Virtual Lab permission to manage messages for the Page for which you are the administrator. Virtual Lab will have permission to send and receieve messages on the behalf of the Page',
   },
   {
     to: '/connect/facebook-ads',
-    title: 'Facebook Advertising',
+    title: 'Facebook Advertising for Recruitment',
     entity: 'facebook_ad_user',
     description: 'To use the Virtual Lab ad optimization with Facebook Advertising, Connect your Facebook account and grant Virtual Lab permission to manage ads on your behalf. ',
   },
