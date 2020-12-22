@@ -1,5 +1,3 @@
-DROP TABLE chatroach.payments;
-
 CREATE TABLE chatroach.credentials(
        userid UUID NOT NULL REFERENCES chatroach.users(id) ON DELETE CASCADE,
        entity VARCHAR NOT NULL,
