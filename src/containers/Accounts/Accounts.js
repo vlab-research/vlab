@@ -20,8 +20,7 @@ const accountConfs = [
 ];
 
 const Accounts = () => {
-  // loading
-  const [accounts, __] = Hook.useMountFetch({ path: '/credentials' }, null);
+  const accounts = Hook.useMountFetch({ path: '/credentials' }, null)[0];
 
   if (accounts === null) {
     return null;

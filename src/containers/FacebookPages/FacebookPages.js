@@ -88,7 +88,7 @@ const FacebookPages = () => {
     const body = { entity: 'facebook_page', details: { name, id, access_token } };
 
     try {
-      const __ = await api.fetcher({ path: '/credentials', method: 'POST', body });
+      await api.fetcher({ path: '/credentials', method: 'POST', body });
     } catch (e) {
       console.error(e);
     }
