@@ -21,6 +21,7 @@ const TypeformCreateForm = ({ cb }) => {
     <LinkModal
       title="Choose Your Form"
       initialSelection={{ id: '', title: '' }}
+      fallbackText="You don't have any forms in Typeform! Please make a form first, then you will be able to import it here."
       success={cb}
       loading={!forms.length}
       back={() => history.go(-1)}

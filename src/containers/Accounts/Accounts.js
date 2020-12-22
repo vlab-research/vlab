@@ -45,9 +45,9 @@ const Accounts = () => {
             <>
               <List.Item
                 actions={[<CreateBtn key={1} selected={!!item.connected} to={item.to}>
-                            {item.connected || 'CONNECT'}
-                          </CreateBtn>
-                         ]}
+                  {item.connected || 'CONNECT'}
+                          </CreateBtn>,
+                ]}
               >
                 <List.Item.Meta
                   title={item.title}

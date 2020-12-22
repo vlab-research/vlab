@@ -30,7 +30,7 @@ Actions.propTypes = {
 
 
 const LinkModal = ({
-  dataSource, renderItem, title, loading, back, success, footer, initialSelection = {},
+  dataSource, renderItem, title, loading, back, success, footer, fallbackText, initialSelection = {},
 }) => {
   const closeModal = ({ target, currentTarget }) => target === currentTarget && back();
 
@@ -48,7 +48,7 @@ const LinkModal = ({
               {' '}
             </s.ModalTitle>
             <s.List>
-              {dataSource.map((item, index) => (
+              {dataSource.length ? dataSource.map((item, index) => (
                 <s.ListItem
                   key={item.id}
                   active={item.id === selected.id}
@@ -56,7 +56,13 @@ const LinkModal = ({
                 >
                   {renderItem(item, index)}
                 </s.ListItem>
-              ))}
+              )) : (
+                <s.ListItem>
+                  {' '}
+                  {fallbackText}
+                  {' '}
+                </s.ListItem>
+              )}
             </s.List>
             <s.ModalFooter>
               {footer(selected)}
@@ -80,6 +86,7 @@ LinkModal.propTypes = {
   loading: PropTypes.bool,
   initialSelection: PropTypes.object,
   title: PropTypes.string.isRequired,
+  fallbackText: PropTypes.string.isRequired,
   dataSource: PropTypes.array,
 };
 

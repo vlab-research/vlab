@@ -18,7 +18,7 @@ const handleAuthentication = ({ location }) => {
 
 const NotFound = () => (
   <div style={{ width: 800, margin: '5em auto' }}> Page Not Found (maybe not yet built??) </div>
-)
+);
 
 const Root = () => (
   <Layout style={{ height: '100vh' }}>

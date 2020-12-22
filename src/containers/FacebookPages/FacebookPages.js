@@ -72,7 +72,7 @@ const fb = (cb) => {
 const FacebookPages = () => {
   const history = useHistory();
   const back = () => history.go(-1);
-  const [pages, setPages] = useState([]);
+  const [pages, setPages] = useState(null);
 
   useEffect(() => {
     loadSDK();
@@ -99,8 +99,9 @@ const FacebookPages = () => {
     <LinkModal
       title="Connect a Facebook Page"
       initialSelection={{ id: '', name: '' }}
+      fallbackText="You don't have any pages! Please first make a Facebook Page to connect it to the bot."
       success={callback}
-      loading={!pages.length}
+      loading={pages === null}
       back={back}
       dataSource={pages}
       footer={selected => (
