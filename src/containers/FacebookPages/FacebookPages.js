@@ -42,7 +42,7 @@ const loadSDK = () => {
 
 const fb = (cb) => {
   const cnf = {
-    scopes: 'public_profile,email,pages_show_list,pages_messaging,pages_manage_metadata',
+    scope: 'public_profile,email,pages_show_list,pages_messaging,pages_manage_metadata',
     return_scopes: true,
   };
 
