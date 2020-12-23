@@ -48,11 +48,6 @@ class Auth {
     this.accessToken = accessToken;
     this.idToken = idToken;
     this.expiresAt = expiresAt;
-    const auth = {
-      accessToken,
-      idToken,
-      expiresAt,
-    };
 
     if (forward) {
       return history.replace(forward);
@@ -67,22 +62,25 @@ class Auth {
         this.setSession(authResult);
         this.renewing = false;
       } else if (err) {
-        this.logout();
+        this.clear();
         this.renewing = false;
+        history.push('/login');
         console.error(err);
       }
     });
   };
 
-  logout = () => {
-    // Remove tokens and expiry time
+  clear = () => {
     this.accessToken = null;
     this.idToken = null;
     this.expiresAt = 0;
-
-    // Remove isLoggedIn flag from localStorage
     localStorage.removeItem('isLoggedIn');
-    history.replace('/login');
+  }
+
+  logout = () => {
+    // TODO: WHY THE HELL DOESNT RETURNTO WORK??
+    const returnTo = ''
+    this.auth0.logout({clientID: this.auth0.clientID, returnTo });
   };
 
   // Check whether the current time is past the
