@@ -1,16 +1,11 @@
 const router = require('express').Router();
-const responses = require('./responses');
-const surveys = require('./surveys');
-const typeform = require('./typeform');
-const credentials = require('./credentials');
-const facebook = require('./facebook');
 
 router
-  .use('/responses', responses)
-  .use('/surveys', surveys)
-  .use('/typeform', typeform)
-  .use('/credentials', credentials)
-  .use('/facebook', facebook);
-
+  .use('/responses', require('./responses'))
+  .use('/users', require('./users'))
+  .use('/surveys', require('./surveys'))
+  .use('/typeform', require('./typeform'))
+  .use('/credentials', require('./credentials'))
+  .use('/facebook', require('./facebook'));
 
 module.exports = router;

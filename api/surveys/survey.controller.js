@@ -1,7 +1,6 @@
 'use strict';
 
-const { Survey } = require('../../queries');
-const { User } = require('../../queries');
+const { Survey, User, Credential } = require('../../queries');
 const { SurveyUtil } = require('../../utils');
 const { TypeformUtil } = require('../../utils');
 
@@ -19,11 +18,14 @@ exports.postOne = async (req, res) => {
         );
     }
 
+    // TODO: this is silly, get userid via db query
     const user = await User.user({ email });
     if (!user)
       return res.status(404).json({ error: `User ${email} does not exist!` });
+    const { id: userid } = user;
 
-    const { id: userid, token } = user;
+    const cred = await Credential.getOne({email, entity: 'typeform_token', key: 'typeform'});
+    const token = cred.details.access_token;
 
     const form = await TypeformUtil.TypeformForm(token, formid);
     const messages = await TypeformUtil.TypeformMessages(token, formid);
@@ -92,7 +94,7 @@ exports.getAll = async (req, res) => {
     const { email } = req.user;
 
     if (!email) {
-      return res.status(404).send('No user, no survey!');
+      return res.status(400).send('No user, no survey!');
     }
 
     const surveys = await Survey.retrieve({ email });

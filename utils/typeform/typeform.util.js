@@ -32,6 +32,10 @@ async function TypeformFormList(token) {
   const res = await r2(`${typeformUrl}/forms?page_size=${PAGE_SIZE}`, {
     headers,
   }).response;
+  if (!res.ok) {
+    const s = await res.text();
+    throw new Error(s);
+  }
   return res.json();
 }
 
