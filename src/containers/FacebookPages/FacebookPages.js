@@ -40,6 +40,17 @@ const loadSDK = () => {
 };
 
 
+const getPages = (access_token, limit, after) => {
+  return new Promise((resolve, reject) => {
+    const params = {access_token, limit, after}
+
+    window.FB.api('/me/accounts', params, (res) => {
+      if (res.error) return reject(res.error)
+      resolve(res)
+    })
+  })
+}
+
 const fb = (cb) => {
   const cnf = {
     scope: 'public_profile,email,pages_show_list,pages_messaging,pages_manage_metadata',
@@ -48,22 +59,16 @@ const fb = (cb) => {
 
   window.FB.login((res) => {
     const token = res.authResponse.accessToken;
-
     const body = { token };
 
     api.fetcher({ path: '/facebook/exchange-token', method: 'POST', body })
       .then(res => res.json())
       .then((res) => {
         if (res.error) throw new Error(res.error);
-
-        const { access_token } = res;
-
-        window.FB.api('/me/accounts', { access_token }, (res) => {
-          // TODO: implement paging incase user has many FB pages!
-          const response = { pages: res.data, userToken: access_token };
-          cb(response);
-        });
+        const {access_token} = res;
+        return getPages(access_token, 3).then(result => ({result, access_token}))
       })
+      .then(cb)
       .catch(err => console.error(err)); //eslint-disable-line
   }, cnf);
 };
@@ -73,12 +78,19 @@ const FacebookPages = () => {
   const history = useHistory();
   const back = () => history.go(-1);
   const [pages, setPages] = useState(null);
+  const [token, setToken] = useState(null);
+  const [after, setAfter] = useState(null);
 
   useEffect(() => {
     loadSDK();
     initFB(() => {
       fb((res) => {
-        setPages(res.pages);
+        setPages(res.result.data);
+        setToken(res.access_token);
+        setAfter(res.result.paging.cursors.after);
+
+        // TODO: build UI to page though pages.
+        getPages(res.access_token, 3, res.result.paging.cursors.after).then(console.log);
       });
     });
   }, []);
@@ -89,8 +101,11 @@ const FacebookPages = () => {
 
     try {
       await api.fetcher({ path: '/credentials', method: 'POST', body });
+      await api.fetcher({ path: '/facebook/webhooks', method: 'POST', body: { pageid: id, token: access_token} })
+
     } catch (e) {
       console.error(e);
+      alert(e)
     }
     back();
   };
