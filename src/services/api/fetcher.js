@@ -1,7 +1,7 @@
 import auth from '../auth';
 import { Validator } from '../../helpers';
 
-export default function fetcher({
+export default async function fetcher({
   path = Validator.isRequired('path'),
   method = 'GET',
   headers = {},
@@ -16,5 +16,12 @@ export default function fetcher({
 
   opts.headers.Authorization = `Bearer ${TOKEN}`;
 
-  return fetch(URL, opts).catch(err => console.error('Error while fetching on this address', err)); // eslint-disable-line no-console
+  const res = await fetch(URL, opts)
+
+  if (!res.ok) {
+    const r = await res.text()
+    throw new Error(r)
+  }
+
+  return res
 }
