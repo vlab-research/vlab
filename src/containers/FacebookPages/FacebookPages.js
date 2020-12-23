@@ -78,16 +78,12 @@ const FacebookPages = () => {
   const history = useHistory();
   const back = () => history.go(-1);
   const [pages, setPages] = useState(null);
-  const [token, setToken] = useState(null);
-  const [after, setAfter] = useState(null);
 
   useEffect(() => {
     loadSDK();
     initFB(() => {
       fb((res) => {
         setPages(res.result.data);
-        setToken(res.access_token);
-        setAfter(res.result.paging.cursors.after);
 
         // TODO: build UI to page though pages.
         getPages(res.access_token, 3, res.result.paging.cursors.after).then(console.log);
