@@ -1,13 +1,12 @@
 async function get ({email}) {
-
-  const q = `
-   WITH t AS (SELECT *, ROW_NUMBER() OVER (PARTITION BY entity ORDER BY created DESC) AS n
+   const q = `
+   WITH t AS (SELECT *, ROW_NUMBER() OVER (PARTITION BY entity, key ORDER BY created DESC) AS n
               FROM credentials
               JOIN users ON userid=id
               WHERE email = $1)
   SELECT entity, details, created
   FROM t
-  WHERE n = 1;
+  WHERE n = 1
   `
 
   const values = [email]
@@ -16,14 +15,14 @@ async function get ({email}) {
 }
 
 
-async function create ({entity, details, email}) {
+async function create ({entity, key, details, email}) {
   const q = `
-  INSERT INTO credentials (entity, details, userid)
-  VALUES ($1, $2, (SELECT id FROM users WHERE email = $3))
+  INSERT INTO credentials (entity, key, details, userid)
+  VALUES ($1, $2, $3, (SELECT id FROM users WHERE email = $3))
   RETURNING *
   `
 
-  const values = [entity, details, email]
+  const values = [entity, key, details, email]
   const {rows} = await this.query(q, values)
   return rows
 }
