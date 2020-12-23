@@ -6,15 +6,6 @@ import AUTH_CONFIG from './auth0-variables';
 
 class Auth {
   constructor() {
-    this.logged = false;
-    const auth = localStorage.getItem('auth');
-    if (auth) {
-      const { accessToken, idToken, expiresAt } = JSON.parse(auth);
-      this.accessToken = accessToken;
-      this.idToken = idToken;
-      this.expiresAt = expiresAt;
-      this.logged = true;
-    }
     this.auth0 = new auth0.WebAuth({
       domain: AUTH_CONFIG.domain,
       clientID: AUTH_CONFIG.clientId,
@@ -22,6 +13,11 @@ class Auth {
       responseType: 'token id_token',
       scope: 'openid email',
     });
+
+    const loggedIn = localStorage.getItem('isLoggedIn');
+    if (loggedIn) {
+      this.renewSession();
+    }
   }
 
   login = () => {
@@ -31,7 +27,7 @@ class Auth {
   handleAuthentication = () => {
     this.auth0.parseHash((err, authResult) => {
       if (authResult && authResult.accessToken && authResult.idToken) {
-        this.setSession(authResult);
+        this.setSession(authResult, "/");
       } else if (err) {
         console.error(err);
         history.push('/login');
@@ -43,7 +39,7 @@ class Auth {
 
   getIdToken = () => this.idToken;
 
-  setSession = ({ expiresIn, accessToken, idToken }) => {
+  setSession = ({ expiresIn, accessToken, idToken }, forward) => {
     // Set isLoggedIn flag in localStorage
     localStorage.setItem('isLoggedIn', 'true');
 
@@ -58,17 +54,21 @@ class Auth {
       expiresAt,
     };
 
-    localStorage.setItem('auth', JSON.stringify(auth));
-    this.logged = true;
-    history.replace('/');
+    if (forward) {
+      return history.replace(forward);
+    }
+    history.replace(history.location.pathname);
   };
 
   renewSession = () => {
+    this.renewing = true
     this.auth0.checkSession({}, (err, authResult) => {
       if (authResult && authResult.accessToken && authResult.idToken) {
         this.setSession(authResult);
+        this.renewing = false;
       } else if (err) {
         this.logout();
+        this.renewing = false;
         console.error(err);
       }
     });
@@ -82,8 +82,6 @@ class Auth {
 
     // Remove isLoggedIn flag from localStorage
     localStorage.removeItem('isLoggedIn');
-    localStorage.removeItem('auth');
-    this.logged = false;
     history.replace('/login');
   };
 
