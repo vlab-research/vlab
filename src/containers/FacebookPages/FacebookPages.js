@@ -40,16 +40,14 @@ const loadSDK = () => {
 };
 
 
-const getPages = (access_token, limit, after) => {
-  return new Promise((resolve, reject) => {
-    const params = {access_token, limit, after}
+const getPages = (access_token, limit, after) => new Promise((resolve, reject) => {
+  const params = { access_token, limit, after };
 
-    window.FB.api('/me/accounts', params, (res) => {
-      if (res.error) return reject(res.error)
-      resolve(res)
-    })
-  })
-}
+  window.FB.api('/me/accounts', params, (res) => {
+    if (res.error) return reject(res.error);
+    resolve(res);
+  });
+});
 
 const fb = (cb) => {
   const cnf = {
@@ -65,8 +63,8 @@ const fb = (cb) => {
       .then(res => res.json())
       .then((res) => {
         if (res.error) throw new Error(res.error);
-        const {access_token} = res;
-        return getPages(access_token, 3).then(result => ({result, access_token}))
+        const { access_token } = res;
+        return getPages(access_token, 3).then(result => ({ result, access_token }));
       })
       .then(cb)
       .catch(err => console.error(err)); //eslint-disable-line
@@ -97,11 +95,10 @@ const FacebookPages = () => {
 
     try {
       await api.fetcher({ path: '/credentials', method: 'POST', body });
-      await api.fetcher({ path: '/facebook/webhooks', method: 'POST', body: { pageid: id, token: access_token} })
-
+      await api.fetcher({ path: '/facebook/webhooks', method: 'POST', body: { pageid: id, token: access_token } });
     } catch (e) {
       console.error(e);
-      alert(e)
+      alert(e);
     }
     back();
   };

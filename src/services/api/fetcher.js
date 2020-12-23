@@ -16,12 +16,12 @@ export default async function fetcher({
 
   opts.headers.Authorization = `Bearer ${TOKEN}`;
 
-  const res = await fetch(URL, opts)
+  const res = await fetch(URL, opts);
 
   if (!res.ok) {
-    const r = await res.text()
-    throw new Error(r)
+    const r = await res.text();
+    throw new Error(r);
   }
 
-  return res
+  return res;
 }

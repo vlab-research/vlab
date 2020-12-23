@@ -9,7 +9,7 @@ const accountConfs = [
     to: '/connect/facebook-messenger',
     title: 'Facebook Page for Messenger Chatbot',
     entity: 'facebook_page',
-    description: 'To use the Virtual Lab chatbot, Connect your Facebook account and grant Virtual Lab permission to manage messages for the Page for which you are the administrator. Virtual Lab will have permission to send and receieve messages on the behalf of the Page',
+    description: 'To use the Virtual Lab chatbot, Connect your Facebook account and grant Virtual Lab permission to manage messages for the Page for which you are the administrator. Virtual Lab will have permission to send and receieve messages on the behalf of the Page.',
   },
   {
     to: '/connect/facebook-ads',
@@ -32,7 +32,7 @@ const Accounts = () => {
     if (!r) return acc;
 
     // TODO: make this a function from confs
-    return { ...acc, connected: r[0].details.name };
+    return { ...acc, connected: [...new Set(r.map(d => d.details.name))] };
   });
 
   return (
@@ -40,19 +40,26 @@ const Accounts = () => {
       <div className="accounts" style={{ maxWidth: 1000, margin: '2em auto' }}>
         <h1 style={{}}> Connected Accounts </h1>
         <List
+          itemLayout="vertical"
           dataSource={confs}
           renderItem={item => (
             <>
               <List.Item
-                actions={[<CreateBtn key={1} selected={!!item.connected} to={item.to}>
-                  {item.connected || 'CONNECT'}
-                          </CreateBtn>,
-                ]}
+                extra={(
+                  <CreateBtn key={1} to={item.to}>
+                    {'CONNECT'}
+                  </CreateBtn>
+                )
+                }
               >
                 <List.Item.Meta
                   title={item.title}
                   description={item.description}
+
                 />
+
+                {item.connected && (<p style={{ fontWeight: 700, margin: '0' }}> Connected: </p>)}
+                {item.connected && item.connected.map((name, key) => (<p key={key} style={{ margin: '0' }}>{name}</p>))}
 
               </List.Item>
               <Divider />
