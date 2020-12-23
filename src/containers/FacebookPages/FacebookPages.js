@@ -91,7 +91,7 @@ const FacebookPages = () => {
 
   const callback = async (res) => {
     const { name, id, access_token } = res;
-    const body = { entity: 'facebook_page', details: { name, id, access_token } };
+    const body = { entity: 'facebook_page', key: id, details: { name, id, access_token } };
 
     try {
       await api.fetcher({ path: '/credentials', method: 'POST', body });
