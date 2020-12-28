@@ -24,7 +24,7 @@ exports.postOne = async (req, res) => {
       return res.status(404).json({ error: `User ${email} does not exist!` });
     const { id: userid } = user;
 
-    const cred = await Credential.getOne({email, entity: 'typeform_token', key: 'typeform'});
+    const cred = await Credential.getOne({email, entity: 'typeform_token', key: TypeformUtil.makeKey(email)});
     const token = cred.details.access_token;
 
     const form = await TypeformUtil.TypeformForm(token, formid);

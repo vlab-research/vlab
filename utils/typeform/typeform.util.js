@@ -52,9 +52,12 @@ async function TypeformMessages(token, formId) {
   return res.text();
 }
 
+const makeKey = email => `${email}:typeform`;
+
 module.exports = {
   TypeformToken,
   TypeformFormList,
   TypeformForm,
   TypeformMessages,
+  makeKey,
 };
