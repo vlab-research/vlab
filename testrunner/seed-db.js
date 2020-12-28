@@ -1,7 +1,7 @@
 const fs = require('fs')
 
 async function getUserId(pool) {
-  const {rows} = await pool.query(`INSERT INTO users(token, email) VALUES($1, $2) ON CONFLICT(email) DO UPDATE SET token = $1 RETURNING id;`, ['test', 'test@test.com'])
+  const {rows} = await pool.query(`INSERT INTO users(email) VALUES($1) ON CONFLICT(email) DO UPDATE SET email=$1 RETURNING id;`, ['test@test.com'])
   return rows[0].id
 }
 
@@ -9,8 +9,8 @@ async function pages(pool, userid) {
   // require('@vlab-research/mox').PAGE_ID
   const pageid = '935593143497601';
   const token = 'test'
-  const query = `INSERT INTO facebook_pages(pageid, userid, token) VALUES($1, $2, $3) ON CONFLICT(pageid) DO NOTHING`
-  return pool.query(query, [pageid, userid, token])
+  const query = `INSERT INTO credentials(userid, entity, key, details) VALUES($1, $2, $3, $4)`
+  return pool.query(query, [userid, 'facebook_page', pageid, JSON.stringify({token, id: pageid, name: 'Test Page'})])
 }
 
 async function surveyExists(pool, userid, shortcode) {
