@@ -1,9 +1,8 @@
 import React from 'react';
 import PropTypes from 'prop-types';
 import { Route, Redirect } from 'react-router-dom';
-import { Layout } from 'antd';
 import { Navbar } from '..';
-import { Spin } from 'antd';
+import { Layout, Spin } from 'antd';
 
 const { Header, Content } = Layout;
 
@@ -19,7 +18,7 @@ const PrivateRoute = ({ component: Component, auth, ...rest }) => (
           <Component {...props} />
         </Content>
       </>
-    ) : (auth.renewing ? (<Spin size="large" style={{margin: '45vh auto'} }/>) : (
+    ) : (auth.renewing ? (<Spin size="large" style={{ margin: '45vh auto' }} />) : (
       <Redirect
         to={{
           pathname: '/login',

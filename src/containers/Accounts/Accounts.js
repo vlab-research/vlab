@@ -1,5 +1,6 @@
 import React from 'react';
 import { List, Divider } from 'antd';
+import { Link } from 'react-router-dom';
 import { Hook } from '../../services';
 import { groupBy } from '../../helpers';
 import { CreateBtn } from '../../components/UI';
@@ -32,7 +33,7 @@ const Accounts = () => {
     if (!r) return acc;
 
     // TODO: make this a function from confs
-    return { ...acc, connected: [...new Set(r.map(d => d.details.name))] };
+    return { ...acc, connected: r };
   });
 
   return (
@@ -59,7 +60,14 @@ const Accounts = () => {
                 />
 
                 {item.connected && (<p style={{ fontWeight: 700, margin: '0' }}> Connected: </p>)}
-                {item.connected && item.connected.map((name, key) => (<p key={key} style={{ margin: '0' }}>{name}</p>))}
+                {item.connected && item.connected.map((d, key) => (
+                  <p key={key} style={{ margin: '0' }}>
+                    {' '}
+                    <span>{d.details.name}</span>
+                    {' '}
+                    <Link style={{ marginLeft: '0.5em' }} to={`${item.to}?key=${d.key}`}> (update) </Link>
+                  </p>
+                ))}
 
               </List.Item>
               <Divider />

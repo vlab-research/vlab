@@ -27,7 +27,7 @@ class Auth {
   handleAuthentication = () => {
     this.auth0.parseHash((err, authResult) => {
       if (authResult && authResult.accessToken && authResult.idToken) {
-        this.setSession(authResult, "/");
+        this.setSession(authResult, '/');
       } else if (err) {
         console.error(err);
         history.push('/login');
@@ -52,11 +52,11 @@ class Auth {
     if (forward) {
       return history.replace(forward);
     }
-    history.replace(history.location.pathname);
+    return history.replace(history.location);
   };
 
   renewSession = () => {
-    this.renewing = true
+    this.renewing = true;
     this.auth0.checkSession({}, (err, authResult) => {
       if (authResult && authResult.accessToken && authResult.idToken) {
         this.setSession(authResult);
@@ -79,8 +79,8 @@ class Auth {
 
   logout = () => {
     // TODO: WHY THE HELL DOESNT RETURNTO WORK??
-    const returnTo = ''
-    this.auth0.logout({clientID: this.auth0.clientID, returnTo });
+    const returnTo = '';
+    this.auth0.logout({ clientID: this.auth0.clientID, returnTo });
   };
 
   // Check whether the current time is past the

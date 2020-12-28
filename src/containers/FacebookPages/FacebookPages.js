@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useHistory } from 'react-router-dom';
+import { useHistory, useLocation } from 'react-router-dom';
 import api from '../../services/api';
 import LinkModal from '../../components/LinkModal';
 
@@ -45,7 +45,7 @@ const getPages = (access_token, limit, after) => new Promise((resolve, reject) =
 
   window.FB.api('/me/accounts', params, (res) => {
     if (res.error) return reject(res.error);
-    resolve(res);
+    return resolve(res);
   });
 });
 
@@ -73,9 +73,79 @@ const fb = (cb) => {
 
 
 const FacebookPages = () => {
+  // modify to work for create and update igual
+
   const history = useHistory();
+  const location = useLocation();
+  const query = new URLSearchParams(location.search);
+
   const back = () => history.go(-1);
   const [pages, setPages] = useState(null);
+
+  const key = query.get('key');
+
+
+  const handle = async (res) => {
+    const e = await res.json();
+
+    if (res.status === 400) {
+      if (e.code === '23505') {
+        alert('You already connected this Page. You can use the "update" link to update the credentials.');
+        return;
+      }
+    }
+
+    throw new Error(JSON.stringify(e));
+  };
+
+  const formatPage = (res) => {
+    const { name, id, access_token } = res;
+    return { entity: 'facebook_page', key: id, details: { name, id, access_token } };
+  };
+
+  const addWebhook = async cred => api.fetcher({
+    path: '/facebook/webhooks',
+    method: 'POST',
+    body: {
+      pageid: cred.details.id,
+      token: cred.details.access_token,
+    },
+  });
+
+  const callback = async (res) => {
+    const body = formatPage(res);
+
+    try {
+      const res = await api.fetcher({
+        path: '/credentials', method: 'POST', body, raw: true,
+      });
+
+      if (!res.ok) {
+        await handle(res);
+        return;
+      }
+      const cred = await res.json();
+      await addWebhook(cred);
+    } catch (e) {
+      console.error(e);
+      alert(e);
+    }
+    back();
+  };
+
+  const update = async (page) => {
+    try {
+      const res = await api.fetcher({ path: '/credentials', method: 'PUT', body: formatPage(page) });
+      const cred = await res.json();
+      await addWebhook(cred);
+      alert(`Page ID ${cred.key} credentials have been updated succesfully.`);
+    } catch (e) {
+      console.error(e);
+      alert(e);
+    }
+
+    back();
+  };
 
   useEffect(() => {
     loadSDK();
@@ -84,24 +154,19 @@ const FacebookPages = () => {
         setPages(res.result.data);
 
         // TODO: build UI to page though pages.
-        getPages(res.access_token, 3, res.result.paging.cursors.after).then(console.log);
+        // getPages(res.access_token, 3, res.result.paging.cursors.after).then(console.log);
       });
     });
   }, []);
 
-  const callback = async (res) => {
-    const { name, id, access_token } = res;
-    const body = { entity: 'facebook_page', key: id, details: { name, id, access_token } };
-
-    try {
-      await api.fetcher({ path: '/credentials', method: 'POST', body });
-      await api.fetcher({ path: '/facebook/webhooks', method: 'POST', body: { pageid: id, token: access_token } });
-    } catch (e) {
-      console.error(e);
-      alert(e);
+  if (pages && key) {
+    const p = pages.find(p => p.id === key);
+    if (p) {
+      update(p);
+      return null;
     }
-    back();
-  };
+  }
+
 
   return (
     <LinkModal

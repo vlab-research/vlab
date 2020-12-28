@@ -1,4 +1,4 @@
-import fetcher from './fetcher';
+import fetcher, { wrapApiResponse } from './fetcher';
 import getCSV from './getCSV';
 
-export default { fetcher, getCSV };
+export default { fetcher, getCSV, wrapApiResponse };

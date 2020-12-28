@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { Route, Redirect, useRouteMatch } from 'react-router-dom';
+import { Route, useRouteMatch } from 'react-router-dom';
 import PropTypes from 'prop-types';
 import { Typeform } from '../../services';
 import { CreateBtn, Container } from '../UI';
@@ -20,16 +20,23 @@ const TypeformCreate = ({ cb, children }) => {
   );
 };
 
-export const TypeformCreateAuth = ({ location, match, history }) => {
+export const TypeformCreateAuth = ({ location, history }) => {
   const code = location.search && location.search.match(/([A-Z,0-9])\w+/)[0];
 
   useEffect(() => {
-    if (code) handleAuthorization({ code, history, match });
+    if (code) {
+      handleAuthorization(code)
+        .then(() => {
+          // crazy hack to deal with all the "backs"
+          // in other components...
+          history.push('/surveys');
+          history.push('/surveys/create');
+          history.push('/surveys/create/from-typeform');
+        });
+    }
   }, [code]);
 
-  if (!code) return <Redirect to="/surveys/create" />;
-
-  return null;
+  return (<div> spinner </div>);
 };
 
 TypeformCreate.propTypes = {
@@ -38,7 +45,6 @@ TypeformCreate.propTypes = {
 };
 
 TypeformCreateAuth.propTypes = {
-  match: PropTypes.objectOf(PropTypes.any).isRequired,
   history: PropTypes.objectOf(PropTypes.any).isRequired,
   location: PropTypes.objectOf(PropTypes.any).isRequired,
 };

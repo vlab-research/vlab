@@ -3,7 +3,7 @@ import AUTH_CONFIG from './Oauth-variables';
 import ApiClient from '../api';
 
 class Typeform {
-  createOrAuthorize = () => ApiClient.fetcher({ path: '/typeform/form' }).then((res) => {
+  createOrAuthorize = () => ApiClient.fetcher({ path: '/typeform/form', raw: true }).then((res) => {
     if (res.status === 401) return this.typeformAuthorization();
     return res.json();
   });
@@ -16,9 +16,10 @@ class Typeform {
     )}`;
   };
 
-  handleAuthorization = ({ code, history, match }) => ApiClient.fetcher({ path: `/typeform/auth/${code}` }).then(() => {
-    history.push(`/${match.path.split('/')[1]}/create`); // TODO: ???
-  });
+  handleAuthorization = code => ApiClient.fetcher({ path: `/typeform/auth/${code}` })
+    .catch((err) => {
+      alert(err);
+    })
 
   createSurvey = body => ApiClient.fetcher({ method: 'POST', path: '/surveys', body })
     .then(async (res) => {
