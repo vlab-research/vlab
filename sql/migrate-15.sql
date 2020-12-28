@@ -12,7 +12,7 @@ CREATE TABLE chatroach.credentials(
 -- on conflict insert for post...
 ALTER TABLE chatroach.credentials ADD COLUMN facebook_page_id VARCHAR AS (CASE WHEN entity = 'facebook_page' THEN details->>'id' ELSE NULL END) STORED;
 ALTER TABLE chatroach.credentials ADD CONSTRAINT unique_facebook_page UNIQUE(facebook_page_id);
-CREATE INDEX ON chatroach.credentials(facebook_page_id) STORING (details);
+CREATE INDEX ON chatroach.credentials(facebook_page_id) STORING (details, key, userid);
 
 GRANT INSERT,SELECT,UPDATE ON TABLE chatroach.credentials to chatroach;
 GRANT SELECT ON TABLE chatroach.credentials to chatreader;
