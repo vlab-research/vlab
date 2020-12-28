@@ -1,7 +1,7 @@
 CREATE TABLE chatroach.credentials(
        userid UUID NOT NULL REFERENCES chatroach.users(id) ON DELETE CASCADE,
        entity VARCHAR NOT NULL,
-       key VARCHAR NOT NULL UNIQUE,
+       key VARCHAR NOT NULL,
        created TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
        details JSONB NOT NULL,
        UNIQUE(entity, key),
