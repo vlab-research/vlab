@@ -9,7 +9,7 @@ async function pages(pool, userid) {
   // require('@vlab-research/mox').PAGE_ID
   const pageid = '935593143497601';
   const token = 'test'
-  const query = `INSERT INTO credentials(userid, entity, key, details) VALUES($1, $2, $3, $4)`
+  const query = `INSERT INTO credentials(userid, entity, key, details) VALUES($1, $2, $3, $4) ON CONFLICT DO NOTHING`
   return pool.query(query, [userid, 'facebook_page', pageid, JSON.stringify({token, id: pageid, name: 'Test Page'})])
 }
 
