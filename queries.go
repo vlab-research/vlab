@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"time"
 
 	"github.com/jackc/pgx/v4"
 	"github.com/jackc/pgx/v4/pgxpool"
@@ -77,10 +78,11 @@ func Respondings(cfg *Config, conn *pgxpool.Pool) <-chan *ExternalEvent {
               FROM states
               WHERE
                 current_state = 'RESPONDING' AND
-                updated > (NOW() - ($1)::INTERVAL) AND
-                (NOW() - updated) > ($2)::INTERVAL`
+                updated > ($3 - ($1)::INTERVAL) AND
+                ($3 - updated) > ($2)::INTERVAL`
 
-	return get(conn, getRedo, query, cfg.RespondingInterval, cfg.RespondingGrace)
+	d := time.Now().UTC()
+	return get(conn, getRedo, query, cfg.RespondingInterval, cfg.RespondingGrace, d)
 }
 
 func Errored(cfg *Config, conn *pgxpool.Pool) <-chan *ExternalEvent {
@@ -90,9 +92,10 @@ func Errored(cfg *Config, conn *pgxpool.Pool) <-chan *ExternalEvent {
               WHERE
                 current_state = 'ERROR' AND
                 error_tag = ANY($1) AND
-                updated > (NOW() - ($2)::INTERVAL)`
+                updated > ($3 - ($2)::INTERVAL)`
 
-	return get(conn, getRedo, query, cfg.ErrorTags, cfg.ErrorInterval)
+	d := time.Now().UTC()
+	return get(conn, getRedo, query, cfg.ErrorTags, cfg.ErrorInterval, d)
 }
 
 func Blocked(cfg *Config, conn *pgxpool.Pool) <-chan *ExternalEvent {
@@ -102,9 +105,10 @@ func Blocked(cfg *Config, conn *pgxpool.Pool) <-chan *ExternalEvent {
               WHERE
                 current_state = 'BLOCKED' AND
                 fb_error_code = ANY($1) AND
-                updated > (NOW() - ($2)::INTERVAL)`
+                updated > ($3 - ($2)::INTERVAL)`
 
-	return get(conn, getRedo, query, cfg.Codes, cfg.BlockedInterval)
+	d := time.Now().UTC()
+	return get(conn, getRedo, query, cfg.Codes, cfg.BlockedInterval, d)
 }
 
 func Timeouts(cfg *Config, conn *pgxpool.Pool) <-chan *ExternalEvent {
@@ -112,26 +116,25 @@ func Timeouts(cfg *Config, conn *pgxpool.Pool) <-chan *ExternalEvent {
               FROM states
               WHERE
                 current_state = 'WAIT_EXTERNAL_EVENT' AND
-                timeout_date < NOW()`
+                timeout_date < $1`
 
-	return get(conn, getTimeout, query)
+	d := time.Now().UTC()
+	return get(conn, getTimeout, query, d)
 }
 
 // TODO: test cockroach perf and index
 func FollowUps(cfg *Config, conn *pgxpool.Pool) <-chan *ExternalEvent {
 	query := `WITH x AS
                 (WITH t AS
-                  (SELECT state_json->>'question' as question, states.userid, states.pageid, surveys.shortcode, has_followup, created
+                  (SELECT state_json->>'question' as question, states.userid, states.pageid, surveys.shortcode, has_followup, surveys.created
 				  FROM states
-				  LEFT JOIN
-					(SELECT shortcode, pageid, has_followup, created
-					 FROM surveys
-					 INNER JOIN facebook_pages
-					 USING (userid)) AS surveys
-				  ON states.current_form = surveys.shortcode
-				  AND states.pageid = surveys.pageid
+                                  INNER JOIN credentials c
+                                    ON pageid = facebook_page_id
+				  INNER JOIN surveys
+                                    ON states.current_form = surveys.shortcode
+                                    AND c.userid = surveys.userid
 				  WHERE
-					created <= form_start_time AND
+					surveys.created <= form_start_time AND
 					current_state = 'QOUT'  AND
 					previous_is_followup = FALSE AND
 					previous_with_token = FALSE AND

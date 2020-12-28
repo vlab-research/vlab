@@ -18,27 +18,37 @@ const (
                    created TIMESTAMPTZ NOT NULL,
                    has_followup BOOL AS (messages_json->>'label.buttonHint.default' IS NOT NULL) STORED
                  );
-                 drop table if exists facebook_pages;
-                 create table if not exists facebook_pages(
-                   userid VARCHAR NOT NULL,
-                   pageid VARCHAR NOT NULL
-                 );`
 
-	pageInsertSql   = `INSERT INTO facebook_pages(userid, pageid) VALUES ('owner', $1)`
+                drop table if exists credentials;
+                create table if not exists credentials(
+		    entity VARCHAR NOT NULL,
+		    key VARCHAR NOT NULL UNIQUE,
+		    created TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+		    details JSONB NOT NULL,
+		    facebook_page_id VARCHAR AS (CASE WHEN entity = 'facebook_page' THEN details->>'id' ELSE NULL END) STORED,
+		    UNIQUE(entity, key),
+                    UNIQUE(facebook_page_id)
+                );
+        `
+
+	pageInsertSql   = `INSERT INTO credentials(entity, key, userid) VALUES ('facebook_page', $1, 'owner', '{"id": $1}')`
 	surveyInsertSql = `INSERT INTO surveys(userid, shortcode, created, messages_json) VALUES ('owner', $1, $2, $3);`
 
 	stateSql = `drop table if exists states;
                 create table if not exists states(
-     			  userid VARCHAR NOT NULL,
-				  pageid VARCHAR NOT NULL NOT NULL,
-				  updated TIMESTAMPTZ NOT NULL,
-				  current_state VARCHAR NOT NULL,
-				  state_json JSON NOT NULL,
+   	          userid VARCHAR NOT NULL,
+		  pageid VARCHAR NOT NULL NOT NULL,
+		  updated TIMESTAMPTZ NOT NULL,
+		  current_state VARCHAR NOT NULL,
+		  state_json JSON NOT NULL,
                   current_form VARCHAR AS (state_json->'forms'->>-1) STORED,
                   form_start_time TIMESTAMPTZ AS (CEILING((state_json->'md'->>'startTime')::INT/1000)::INT::TIMESTAMPTZ) STORED,
                   previous_with_token BOOL AS (state_json->'previousOutput'->>'token' IS NOT NULL) STORED,
                   previous_is_followup BOOL AS (state_json->'previousOutput'->>'followUp' IS NOT NULL) STORED,
-                  timeout_date TIMESTAMPTZ AS (CEILING((state_json->>'waitStart')::INT/1000)::INT::TIMESTAMPTZ + (state_json->'wait'->>'value')::INTERVAL) STORED,
+		  timeout_date TIMESTAMPTZ AS (CASE
+			WHEN state_json->'wait'->>'type' = 'timeout' THEN (CEILING((state_json->>'waitStart')::INT/1000)::INT::TIMESTAMPTZ + (state_json->'wait'->>'value')::INTERVAL)
+			ELSE NULL
+		  END) STORED,
                   fb_error_code varchar AS (state_json->'error'->>'code') STORED,
                   error_tag VARCHAR AS (state_json->'error'->>'tag') STORED,
                   CONSTRAINT "valid_state_json" CHECK (state_json ? 'state'),
@@ -193,7 +203,7 @@ func TestGetTimeoutsGetsOnlyExpiredTimeouts(t *testing.T) {
 		"WAIT_EXTERNAL_EVENT",
 		fmt.Sprintf(`{"state": "WAIT_EXTERNAL_EVENT",
                       "waitStart": %v,
-                      "wait": { "value": "20 minutes"}}`, ms))
+                      "wait": { "type": "timeout", "value": "20 minutes"}}`, ms))
 
 	mustExec(t, pool, insertQuery,
 		"baz",
@@ -202,7 +212,7 @@ func TestGetTimeoutsGetsOnlyExpiredTimeouts(t *testing.T) {
 		"WAIT_EXTERNAL_EVENT",
 		fmt.Sprintf(`{"state": "WAIT_EXTERNAL_EVENT",
                       "waitStart": %v,
-                      "wait": { "value": "40 minutes"}}`, ms))
+                      "wait": { "type": "timeout", "value": "40 minutes"}}`, ms))
 
 	cfg := &Config{}
 	ch := Timeouts(cfg, pool)
