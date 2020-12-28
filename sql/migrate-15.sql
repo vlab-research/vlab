@@ -1,10 +1,21 @@
 CREATE TABLE chatroach.credentials(
        userid UUID NOT NULL REFERENCES chatroach.users(id) ON DELETE CASCADE,
        entity VARCHAR NOT NULL,
+       key VARCHAR NOT NULL UNIQUE,
        created TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
        details JSONB NOT NULL,
-       INDEX (userid, entity, created desc) STORING (details)
+       UNIQUE(entity, key),
+       INDEX (userid, entity, key, created desc) STORING (details)
 );
+
+-- add unique constraint to facebook_page_id, then force updating rather than just posting
+-- on conflict insert for post...
+ALTER TABLE chatroach.credentials ADD COLUMN facebook_page_id VARCHAR AS (CASE WHEN entity = 'facebook_page' THEN details->>'id' ELSE NULL END) STORED;
+ALTER TABLE chatroach.credentials ADD CONSTRAINT unique_facebook_page UNIQUE(facebook_page_id);
+CREATE INDEX ON chatroach.credentials(facebook_page_id) STORING (details);
+
+GRANT INSERT,SELECT,UPDATE ON TABLE chatroach.credentials to chatroach;
+GRANT SELECT ON TABLE chatroach.credentials to chatreader;
 
 
 ALTER TABLE chatroach.facebook_pages ADD COLUMN instagramid VARCHAR;
@@ -27,11 +38,7 @@ CREATE TABLE chatroach.campaign_confs(
        INDEX (campaignid, conf_type, created desc) STORING (entity_name, conf)
 );
 
-GRANT INSERT,SELECT,UPDATE ON TABLE chatroach.credentials to chatroach;
 GRANT INSERT,SELECT ON TABLE chatroach.campaigns to chatroach;
 GRANT INSERT,SELECT ON TABLE chatroach.campaign_confs to chatroach;
-
-
-GRANT SELECT ON TABLE chatroach.credentials to chatreader;
 GRANT INSERT,SELECT ON TABLE chatroach.campaigns to chatreader;
 GRANT INSERT,SELECT ON TABLE chatroach.campaign_confs to chatreader;

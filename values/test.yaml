@@ -19,7 +19,7 @@ kafkabrokers: &kb gbv-kafka:9092
 botEnvs: &botenvs gbv-bot-envs
 chatbaseHost: &host gbv-cockroachdb-public
 
-versionDashboard: &vdashboard 0.0.10
+versionDashboard: &vdashboard 0.0.12
 versionBotserver: &vbotserver 0.0.9
 versionReplybot: &vreplybot 0.0.112
 versionLinksniffer: &vlinksniffer 0.0.3
