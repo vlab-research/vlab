@@ -3,7 +3,7 @@ import { List, Divider } from 'antd';
 import { Link } from 'react-router-dom';
 import { Hook } from '../../services';
 import { groupBy } from '../../helpers';
-import { CreateBtn } from '../../components/UI';
+import { CreateBtn, Loading } from '../../components/UI';
 
 const accountConfs = [
   {
@@ -24,7 +24,7 @@ const Accounts = () => {
   const accounts = Hook.useMountFetch({ path: '/credentials' }, null)[0];
 
   if (accounts === null) {
-    return null;
+    return <Loading> (loading accounts) </Loading>;
   }
 
   const a = groupBy(accounts, a => a.entity);

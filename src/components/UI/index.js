@@ -1,3 +1,5 @@
+import React from 'react';
+import { Spin } from 'antd';
 import styled from 'styled-components/macro';
 import { Link } from 'react-router-dom';
 
@@ -5,6 +7,12 @@ export const Container = styled.div`
   display: inline-block;
 `;
 
+export const Loading = ({ children }) => (
+  <div style={{ margin: '45vh auto', textAlign: 'center' }}>
+    <Spin style={{ display: 'block' }} />
+    {children}
+  </div>
+);
 
 export const CreateBtn = styled(Link)`
   margin: 10px;

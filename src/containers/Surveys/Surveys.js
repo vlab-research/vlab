@@ -3,7 +3,7 @@ import {
   Switch, Route, useRouteMatch, useHistory, useParams,
 } from 'react-router-dom';
 import { Layout, Menu } from 'antd';
-import { CreateBtn } from '../../components/UI';
+import { CreateBtn, Loading } from '../../components/UI';
 import { Hook } from '../../services';
 import { SurveyScreen, CreateForm, DataScreen } from '..';
 import './Surveys.css';
@@ -23,7 +23,12 @@ function sortForms(fo) {
 }
 
 const Surveys = () => {
-  const [survs, setSurveys] = Hook.useMountFetch({ path: '/surveys' }, []);
+  const [survs, setSurveys] = Hook.useMountFetch({ path: '/surveys' }, null);
+
+
+  if (survs === null) {
+    return <Loading> (loading surveys) </Loading>;
+  }
 
   const match = useRouteMatch();
   const history = useHistory();
