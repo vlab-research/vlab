@@ -11,4 +11,4 @@ END) STORED;
 -- Index those columns for queries!
 -- TODO: Should include updated, for time window filtering in grafana!!
 CREATE INDEX ON chatroach.states (current_state, fb_error_code) STORING (state_json);
-CREATE INDEX ON chatroach.states (current_state, timeout_date) STORING (state_json);
+-- CREATE INDEX ON chatroach.states (current_state, timeout_date) STORING (state_json);

@@ -1,6 +1,6 @@
 -- DROP OLD INDEX/COLUMN FOR TIMEOUTS
 
-DROP index IF EXISTS states_current_state_timeout_date_idx;
+DROP INDEX IF EXISTS states_current_state_timeout_date_idx;
 
 SET sql_safe_updates=FALSE;
 ALTER TABLE chatroach.states DROP COLUMN timeout_date;
