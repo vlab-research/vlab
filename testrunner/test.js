@@ -100,6 +100,7 @@ describe('Test Bot flow Survey Integration Testing', () => {
       await flowMaster(userId, testFlow)
     })
 
+
     it('Test chat flow with logic jump "Yes"',  async () => {
       const userId = uuid()
       const fields = getFields('forms/LDfNCy.json')
@@ -382,6 +383,27 @@ describe('Test Bot flow Survey Integration Testing', () => {
       ]
 
       sender(makeReferral(userId, 'vHXzrh'))
+      await flowMaster(userId, testFlow)
+    })
+
+
+    it('Sends message after timeoutDate absolute timeout',  async () => {
+      const userId = uuid()
+      const timeoutDate = (new Date(Math.floor(Date.now()/1000 + 60)*1000)).toISOString()
+
+      const vals = {'hidden:timeout_date': timeoutDate}
+      const form = fs.readFileSync('forms/j1sp7ffL.json', 'utf-8')
+      const f = interpolate(form, vals)
+      fs.writeFileSync('forms/temp-j1sp7ffL.json', f)
+
+      const fields = getFields('forms/temp-j1sp7ffL.json')
+
+      const testFlow = [
+        [ok, fields[0], []],
+        [ok, fields[1], [makeTextResponse(userId, 'loved it')]],
+        [ok, fields[2], []],
+      ]
+      sender(makeReferral(userId, `j1sp7ffL.timeout_date.${timeoutDate}`))
       await flowMaster(userId, testFlow)
     })
 

@@ -1,0 +1,76 @@
+{
+  "id": "j1sp7ffL",
+  "type": "form",
+  "title": "absolute timeout_date test",
+  "workspace": {
+    "href": "https://api.typeform.com/workspaces/WA44hg"
+  },
+  "theme": {
+    "href": "https://api.typeform.com/themes/qHWOQ7"
+  },
+  "settings": {
+    "language": "en",
+    "progress_bar": "proportion",
+    "meta": {
+      "allow_indexing": false
+    },
+    "hide_navigation": false,
+    "is_public": true,
+    "is_trial": false,
+    "show_progress_bar": true,
+    "show_typeform_branding": true,
+    "are_uploads_public": false,
+    "show_time_to_complete": true
+  },
+  "thankyou_screens": [
+    {
+      "id": "DefaultTyScreen",
+      "ref": "default_tys",
+      "title": "Done! Your information was sent perfectly.",
+      "properties": {
+        "show_button": false,
+        "share_icons": false
+      }
+    }
+  ],
+  "fields": [
+    {
+      "id": "zgqqzSiliUdt",
+      "title": "Youll have to wait",
+      "ref": "894c2277-1556-4909-9706-e74ddafbb293",
+      "properties": {
+        "description": "type: wait\nresponseMessage: Please wait!\nwait:\n    type: timeoutDate\n    value: {{hidden:timeout_date}}",
+        "button_text": "Continue",
+        "hide_marks": false
+      },
+      "type": "statement"
+    },
+    {
+      "id": "7iPvNoZhYEqW",
+      "title": "Cool new timeout, no?",
+      "ref": "f2fa87c8-73d1-4080-8e4f-9d6a84d958e5",
+      "properties": {},
+      "validations": {
+        "required": false
+      },
+      "type": "short_text"
+    },
+    {
+      "id": "DefaultTyScreen",
+      "ref": "default_tys",
+      "title": "Done! Your information was sent perfectly.",
+      "properties": {
+        "show_button": false,
+        "share_icons": false
+      },
+      "type": "thankyou_screen"
+    }
+  ],
+  "hidden": [
+    "timeout_date"
+  ],
+  "_links": {
+    "display": "https://nandanrao.typeform.com/to/j1sp7ffL"
+  },
+  "custom_messages": {}
+}
