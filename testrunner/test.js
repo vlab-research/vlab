@@ -387,7 +387,7 @@ describe('Test Bot flow Survey Integration Testing', () => {
     })
 
 
-    it('Sends message after timeoutDate absolute timeout',  async () => {
+    it('Sends message after timeout absolute timeout',  async () => {
       const userId = uuid()
       const timeoutDate = (new Date(Math.floor(Date.now()/1000 + 60)*1000)).toISOString()
 

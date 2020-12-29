@@ -39,7 +39,7 @@
       "title": "Youll have to wait",
       "ref": "894c2277-1556-4909-9706-e74ddafbb293",
       "properties": {
-        "description": "type: wait\nresponseMessage: Please wait!\nwait:\n    type: timeoutDate\n    value: {{hidden:timeout_date}}",
+        "description": "type: wait\nresponseMessage: Please wait!\nwait:\n    type: timeout\n    value:\n        type: absolute\n        timeout: {{hidden:timeout_date}}",
         "button_text": "Continue",
         "hide_marks": false
       },
