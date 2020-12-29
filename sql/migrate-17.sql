@@ -1,6 +1,6 @@
 -- DROP OLD INDEX/COLUMN FOR TIMEOUTS
 
-DROP index states_current_state_timeout_date_idx;
+DROP index IF EXISTS states_current_state_timeout_date_idx;
 
 SET sql_safe_updates=FALSE;
 ALTER TABLE chatroach.states DROP COLUMN timeout_date;
@@ -10,8 +10,6 @@ SET sql_safe_updates=TRUE;
 ALTER TABLE chatroach.states ADD COLUMN timeout_date TIMESTAMPTZ AS (CASE
       WHEN state_json->'wait'->>'type' = 'timeout' AND state_json->'wait'->'value'->>'type' = 'absolute' THEN (state_json->'wait'->'value'->>'timeout')::TIMESTAMPTZ
       WHEN state_json->'wait'->>'type' = 'timeout' AND state_json->'wait'->'value'->>'type' = 'relative' THEN (CEILING((state_json->>'waitStart')::INT/1000)::INT::TIMESTAMPTZ + (state_json->'wait'->'value'->>'timeout')::INTERVAL)
-
-      -- FOR BACKWARDS COMPATABILITY, SIMPLE TIMEOUT
       WHEN state_json->'wait'->>'type' = 'timeout' THEN (CEILING((state_json->>'waitStart')::INT/1000)::INT::TIMESTAMPTZ + (state_json->'wait'->>'value')::INTERVAL)
       ELSE NULL
 END) STORED;
