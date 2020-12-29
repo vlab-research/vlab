@@ -21,6 +21,7 @@ const (
 
                 drop table if exists credentials;
                 create table if not exists credentials(
+                    userid VARCHAR NOT NULL,
 		    entity VARCHAR NOT NULL,
 		    key VARCHAR NOT NULL UNIQUE,
 		    created TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -31,7 +32,7 @@ const (
                 );
         `
 
-	pageInsertSql   = `INSERT INTO credentials(entity, key, userid) VALUES ('facebook_page', $1, 'owner', '{"id": $1}')`
+	pageInsertSql   = `INSERT INTO credentials(entity, key, userid, details) VALUES ('facebook_page', ($1)->>'id', 'owner', $1)`
 	surveyInsertSql = `INSERT INTO surveys(userid, shortcode, created, messages_json) VALUES ('owner', $1, $2, $3);`
 
 	stateSql = `drop table if exists states;
@@ -242,9 +243,9 @@ func TestFollowUpsGetsOnlyThoseBetweenMinAndMaxAndIgnoresAllSortsOfThings(t *tes
 	mustExec(t, pool, stateSql)
 	mustExec(t, pool, surveySql)
 
-	mustExec(t, pool, pageInsertSql, "bar")
-	mustExec(t, pool, pageInsertSql, "qux")
-	mustExec(t, pool, pageInsertSql, "quux")
+	mustExec(t, pool, pageInsertSql, `{"id": "bar"}`)
+	mustExec(t, pool, pageInsertSql, `{"id": "qux"}`)
+	mustExec(t, pool, pageInsertSql, `{"id": "quux"}`)
 	mustExec(t, pool, surveyInsertSql, "with_followup", time.Now().UTC().Add(-50*time.Hour), `{"label.buttonHint.default": "this is follow up"}`)
 	mustExec(t, pool, surveyInsertSql, "with_followup", time.Now().UTC().Add(-40*time.Hour), `{"label.buttonHint.default": "this is follow up"}`)
 	mustExec(t, pool, surveyInsertSql, "with_followup", time.Now().UTC().Add(-20*time.Hour), `{"label.other": "not a follow up"}`)

@@ -78,7 +78,7 @@ func Respondings(cfg *Config, conn *pgxpool.Pool) <-chan *ExternalEvent {
               FROM states
               WHERE
                 current_state = 'RESPONDING' AND
-                updated > ($3 - ($1)::INTERVAL) AND
+                updated + ($1)::INTERVAL > $3 AND
                 ($3 - updated) > ($2)::INTERVAL`
 
 	d := time.Now().UTC()
@@ -92,7 +92,7 @@ func Errored(cfg *Config, conn *pgxpool.Pool) <-chan *ExternalEvent {
               WHERE
                 current_state = 'ERROR' AND
                 error_tag = ANY($1) AND
-                updated > ($3 - ($2)::INTERVAL)`
+                updated + ($2)::INTERVAL > $3`
 
 	d := time.Now().UTC()
 	return get(conn, getRedo, query, cfg.ErrorTags, cfg.ErrorInterval, d)
@@ -105,7 +105,7 @@ func Blocked(cfg *Config, conn *pgxpool.Pool) <-chan *ExternalEvent {
               WHERE
                 current_state = 'BLOCKED' AND
                 fb_error_code = ANY($1) AND
-                updated > ($3 - ($2)::INTERVAL)`
+                updated + ($2)::INTERVAL > $3`
 
 	d := time.Now().UTC()
 	return get(conn, getRedo, query, cfg.Codes, cfg.BlockedInterval, d)
