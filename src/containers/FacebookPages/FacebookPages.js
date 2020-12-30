@@ -90,7 +90,7 @@ const FacebookPages = () => {
 
     if (res.status === 400) {
       if (e.code === '23505') {
-        alert('You already connected this Page. You can use the "update" link to update the credentials.');
+        alert('You (or someone else in a different account) already connected this Page. You can use the "update" link to update the credentials.');
         return;
       }
     }
@@ -112,6 +112,15 @@ const FacebookPages = () => {
     },
   });
 
+  const addGetStarted = async cred => api.fetcher({
+    path: '/facebook/get-started',
+    method: 'POST',
+    body: {
+      pageid: cred.details.id,
+      token: cred.details.access_token,
+    },
+  });
+
   const callback = async (res) => {
     const body = formatPage(res);
 
@@ -126,6 +135,7 @@ const FacebookPages = () => {
       }
       const cred = await res.json();
       await addWebhook(cred);
+      await addGetStarted(cred);
     } catch (e) {
       console.error(e);
       alert(e);
