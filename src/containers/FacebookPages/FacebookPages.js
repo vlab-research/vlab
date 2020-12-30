@@ -148,6 +148,7 @@ const FacebookPages = () => {
       const res = await api.fetcher({ path: '/credentials', method: 'PUT', body: formatPage(page) });
       const cred = await res.json();
       await addWebhook(cred);
+      await addGetStarted(cred);
       alert(`Page ID ${cred.key} credentials have been updated succesfully.`);
     } catch (e) {
       console.error(e);
