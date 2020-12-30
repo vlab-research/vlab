@@ -43,3 +43,20 @@ exports.addWebhooks = async (req, res) => {
 
   return res.status(201).json(r);
 }
+
+
+exports.addGetStarted = async (req, res) => {
+  const {token} = req.body;
+
+  const json = {get_started: {payload: 'get_started'}}
+  const url = `https://graph.facebook.com/v9.0/me/messenger_profile?access_token=${token}`
+  const r = await r2.post(url, { json }).json
+
+  if (r.error) {
+    // TODO: put into general error handling (next)
+    console.error(r.error);
+    return res.status(400).json(r.error);
+  }
+
+  return res.status(201).json(r);
+}
