@@ -23,16 +23,16 @@ function sortForms(fo) {
 }
 
 const Surveys = () => {
-  const [survs, setSurveys] = Hook.useMountFetch({ path: '/surveys' }, null);
+  const match = useRouteMatch();
+  const history = useHistory();
+  const { survey: surveyParam } = useParams();
 
+  const [survs, setSurveys] = Hook.useMountFetch({ path: '/surveys' }, null);
 
   if (survs === null) {
     return <Loading> (loading surveys) </Loading>;
   }
 
-  const match = useRouteMatch();
-  const history = useHistory();
-  const { survey: surveyParam } = useParams();
   const selected = decodeURIComponent(surveyParam);
 
   const formattedSurveys = [...groupBy(survs, f => f.shortcode)]
