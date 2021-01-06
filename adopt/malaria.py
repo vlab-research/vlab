@@ -113,7 +113,7 @@ def load_basics(campaignid, env):
         w,
     )
 
-    m = Marketing(state, userinfo, config)
+    m = Marketing(state, config)
 
     return userinfo, config, db_conf, state, m, confs
 

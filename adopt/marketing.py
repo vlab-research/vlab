@@ -14,8 +14,6 @@ from facebook_business.adobjects.customaudience import CustomAudience
 from facebook_business.adobjects.targeting import Targeting
 
 from .facebook.state import CampaignState
-# Hrm...
-# Not fully solved....
 from .facebook.update import Instruction
 
 Params = Dict[str, Any]
@@ -23,14 +21,14 @@ Params = Dict[str, Any]
 
 class UserInfo(NamedTuple):
     survey_user: str
-    pageid: str
-    instagramid: str
     token: str
 
 
 class CampaignConf(NamedTuple):
     optimization_goal: str
     destination_type: str
+    page_id: str
+    instagram_id: Optional[str]
     adset_hours: int
     budget: float
     min_budget: float
@@ -100,7 +98,7 @@ class AdsetConf(NamedTuple):
     stratum: Stratum
     budget: float
     status: str
-    instagram_id: str
+    instagram_id: Optional[str]
     hours: int
     optimization_goal: str
     destination_type: str
@@ -170,13 +168,15 @@ def create_adset(c: AdsetConf) -> AdSet:
     adset[AdSet.Field.status] = c.status
     adset[AdSet.Field.daily_budget] = c.budget
     adset[AdSet.Field.name] = name
-    adset[AdSet.Field.instagram_actor_id] = c.instagram_id
     adset[AdSet.Field.start_time] = datetime.utcnow() + timedelta(minutes=5)
     adset[AdSet.Field.campaign_id] = c.campaign["id"]
     adset[AdSet.Field.optimization_goal] = c.optimization_goal
     adset[AdSet.Field.destination_type] = c.destination_type
     adset[AdSet.Field.billing_event] = AdSet.BillingEvent.impressions
     adset[AdSet.Field.bid_strategy] = AdSet.BidStrategy.lowest_cost_without_cap
+
+    if c.instagram_id:
+        adset[AdSet.Field.instagram_actor_id] = c.instagram_id
 
     return adset
 
@@ -304,15 +304,18 @@ def _eq(a, b, fields=None) -> bool:
     except AttributeError:
         pass
 
-    for k, v in a.items():
-        if fields and k not in fields:
-            continue
-        if k not in b:
-            continue
-        if v != b[k]:
-            return False
+    try:
+        for k, v in a.items():
+            if fields and k not in fields:
+                continue
+            if k not in b:
+                continue
+            if not _eq(v, b[k]):
+                return False
+        return True
 
-    return True
+    except AttributeError:
+        return a == b
 
 
 def update_adset(source: AdSet, adset: AdSet) -> List[Instruction]:
@@ -346,8 +349,8 @@ def _diff(type_, updater, creator, olds, news) -> List[Instruction]:
 
     try:
         old_lookup = {x["name"]: x for x in olds}
-    except KeyError:
-        print(olds)
+    except KeyError as e:
+        raise Exception("Old ad(set)s do not have name!") from e
 
     instructions = []
     updated = set()
@@ -402,10 +405,10 @@ def adset_dif(
 
 
 class Marketing:
-    def __init__(self, state: CampaignState, userinfo: UserInfo, config: CampaignConf):
+    def __init__(self, state: CampaignState, config: CampaignConf):
         cnf: Dict[str, Any] = {
-            "PAGE_ID": userinfo.pageid,
-            "INSTA_ID": userinfo.instagramid,
+            "PAGE_ID": config.page_id,
+            "INSTA_ID": config.instagram_id,
             "OPTIMIZATION_GOAL": config.optimization_goal,
             "DESTINATION_TYPE": config.destination_type,
             "ADSET_HOURS": config.adset_hours,
@@ -451,7 +454,6 @@ class Marketing:
         msg = make_welcome_message(config.welcome_message, config.button_text, ref)
 
         oss = {
-            AdCreativeObjectStorySpec.Field.instagram_actor_id: self.cnf["INSTA_ID"],
             AdCreativeObjectStorySpec.Field.link_data: {
                 AdCreativeLinkData.Field.call_to_action: {
                     "type": "MESSAGE_PAGE",
@@ -464,6 +466,11 @@ class Marketing:
             },
             AdCreativeObjectStorySpec.Field.page_id: self.cnf["PAGE_ID"],
         }
+
+        if self.cnf["INSTA_ID"]:
+            oss[AdCreativeObjectStorySpec.Field.instagram_actor_id] = self.cnf[
+                "INSTA_ID"
+            ]
 
         c = AdCreative()
         c[AdCreative.Field.name] = config.name

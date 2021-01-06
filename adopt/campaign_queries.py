@@ -7,20 +7,16 @@ DBConf = Dict[str, str]
 
 def get_user_info(campaignid, cnf):
     q = """
-    with t as (SELECT userid FROM campaigns WHERE id = %s)
-    SELECT (SELECT details->>'token' as token
-            FROM t
-            JOIN credentials
-            USING (userid)
-            WHERE entity = 'facebook_ad_user'
-            ORDER BY created DESC
-            LIMIT 1) as token,
-            t.userid as survey_user,
-            pageid,
-            instagramid
-    FROM t
-    JOIN facebook_pages
-    USING (userid);
+    SELECT
+      details->>'token' as token,
+      userid as survey_user
+    FROM campaigns
+    JOIN credentials
+    USING (userid)
+    WHERE campaigns.id = %s
+    AND entity = 'facebook_ad_user'
+    ORDER BY credentials.created DESC
+    LIMIT 1
     """
 
     res = query(cnf, q, (campaignid,), as_dict=True)

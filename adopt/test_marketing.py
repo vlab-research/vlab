@@ -38,6 +38,83 @@ def test_eq_with_subset_a_not_true():
     assert not _eq(a, b)
 
 
+def test_nested_without_name():
+    a = {
+        "id": "23846326646590518",
+        "creative": {
+            "id": "23846327900110518",
+            "url_tags": "ref=form.extrabasehin.stratumid.07853f76",
+            "actor_id": "102998371752603",
+            "object_story_spec": {
+                "page_id": "102998371752603",
+                "link_data": {
+                    "image_hash": "3181666208161582c277488a2c2b5fdb",
+                },
+            },
+        },
+        "adset_id": "23846317632290518",
+        "status": "ACTIVE",
+        "name": "vlab-mnm-mother-daughter-voice-be-heard",
+    }
+
+    b = {
+        "name": "vlab-mnm-mother-daughter-voice-be-heard",
+        "status": "ACTIVE",
+        "creative": {
+            "name": "vlab-mnm-mother-daughter-voice-be-heard",
+            "url_tags": "ref=form.extrabasehin.stratumid.07853f76",
+            "actor_id": "102998371752603",
+            "object_story_spec": {
+                "link_data": {
+                    "image_hash": "3181666208161582c277488a2c2b5fdb",
+                },
+                "page_id": "102998371752603",
+            },
+        },
+    }
+
+    assert _eq(a, b)
+
+
+def test_nested_with_dif_name_not_equal():
+    a = {
+        "id": "23846326646590518",
+        "creative": {
+            "name": "foo",
+            "id": "23846327900110518",
+            "url_tags": "ref=form.extrabasehin.stratumid.07853f76",
+            "actor_id": "102998371752603",
+            "object_story_spec": {
+                "page_id": "102998371752603",
+                "link_data": {
+                    "image_hash": "3181666208161582c277488a2c2b5fdb",
+                },
+            },
+        },
+        "adset_id": "23846317632290518",
+        "status": "ACTIVE",
+        "name": "vlab-mnm-mother-daughter-voice-be-heard",
+    }
+
+    b = {
+        "name": "vlab-mnm-mother-daughter-voice-be-heard",
+        "status": "ACTIVE",
+        "creative": {
+            "name": "vlab-mnm-mother-daughter-voice-be-heard",
+            "url_tags": "ref=form.extrabasehin.stratumid.07853f76",
+            "actor_id": "102998371752603",
+            "object_story_spec": {
+                "link_data": {
+                    "image_hash": "3181666208161582c277488a2c2b5fdb",
+                },
+                "page_id": "102998371752603",
+            },
+        },
+    }
+
+    assert not _eq(a, b)
+
+
 T = TypeVar("T")
 
 

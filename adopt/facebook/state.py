@@ -69,7 +69,7 @@ def get_creatives(api: FacebookAdsApi, ids: List[str]) -> List[AdCreative]:
     if not ids:
         return []
 
-    fields = ["name", "url_tags", "actor_id", "object_story_spec"]
+    fields = ["url_tags", "actor_id", "object_story_spec"]
     return call(AdCreative.get_by_ids, ids=ids, fields=fields, api=api)
 
 
