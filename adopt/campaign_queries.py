@@ -6,9 +6,10 @@ DBConf = Dict[str, str]
 
 
 def get_user_info(campaignid, cnf):
+    # add system user?
     q = """
     SELECT
-      details->>'token' as token,
+      details->>'access_token' as token,
       userid as survey_user
     FROM campaigns
     JOIN credentials
@@ -20,7 +21,10 @@ def get_user_info(campaignid, cnf):
     """
 
     res = query(cnf, q, (campaignid,), as_dict=True)
-    return next(res)
+    try:
+        return next(res)
+    except StopIteration as e:
+        raise Exception(f"Could not find credentials for campaign id: {campaignid}")
 
 
 def get_pageid(survey_user, cnf):

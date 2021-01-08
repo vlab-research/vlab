@@ -2,7 +2,8 @@ import json
 import logging
 import re
 from datetime import datetime, timedelta
-from typing import Any, Dict, List, Optional, TypeVar, Union
+from typing import (Any, Dict, List, NamedTuple, Optional, Sequence, Tuple,
+                    TypeVar, Union)
 
 import pandas as pd
 import typing_json
@@ -16,7 +17,7 @@ from .campaign_queries import (get_campaign_configs, get_campaigns,
 from .clustering import get_budget_lookup, shape_df
 from .facebook.state import (BudgetWindow, CampaignState, StateNameError,
                              get_api)
-from .facebook.update import GraphUpdater
+from .facebook.update import GraphUpdater, Instruction
 from .marketing import (AudienceConf, CampaignConf, CreativeConf,
                         FacebookTargeting, Marketing, Stratum, StratumConf,
                         UserInfo, make_stratum_conf, manage_audiences,
@@ -29,7 +30,7 @@ logging.basicConfig(level=logging.INFO)
 def get_df(
     db_conf: Dict[str, str],
     survey_user: str,
-    strata: List[Union[Stratum, AudienceConf]],
+    strata: Sequence[Union[Stratum, AudienceConf]],
 ) -> pd.DataFrame:
     shortcodes = {shortcode for stratum in strata for shortcode in stratum.shortcodes}
     questions = {q.ref for stratum in strata for q in stratum.target_questions}
@@ -57,7 +58,21 @@ def get_confs_for_campaign(campaignid, db_conf):
     return {k: [vv for _, vv in v] for k, v in confs.items()}
 
 
-def get_db_conf(env: Env):
+DBConf = Dict[str, str]
+
+from typing import NamedTuple
+
+
+class Malaria(NamedTuple):
+    userinfo: UserInfo
+    config: CampaignConf
+    db_conf: DBConf
+    state: CampaignState
+    m: Marketing
+    confs: Dict[str, Any]
+
+
+def get_db_conf(env: Env) -> DBConf:
     return {
         "db": env("CHATBASE_DATABASE"),
         "user": env("CHATBASE_USER"),
@@ -67,7 +82,9 @@ def get_db_conf(env: Env):
     }
 
 
-def get_confs(campaignid: str, env: Env):
+def get_confs(
+    campaignid: str, env: Env
+) -> Tuple[UserInfo, CampaignConf, DBConf, Dict[str, Any]]:
     db_conf = get_db_conf(env)
     userinfo = UserInfo(**get_user_info(campaignid, db_conf))
     confs = get_confs_for_campaign(campaignid, db_conf)
@@ -85,6 +102,9 @@ def window(hours=16):
 
 
 def days_left(config: CampaignConf):
+    if not config.end_date:
+        return None
+
     dt = datetime.strptime(config.end_date, "%Y-%m-%d")
     td = dt - datetime.now()
     days = td.days
@@ -100,7 +120,7 @@ def get_cluster_from_adset(adset_name: str) -> str:
     return matches[0]
 
 
-def load_basics(campaignid, env):
+def load_basics(campaignid: str, env: Env) -> Malaria:
     userinfo, config, db_conf, confs = get_confs(campaignid, env)
 
     w = window(hours=config.opt_window)
@@ -115,16 +135,26 @@ def load_basics(campaignid, env):
 
     m = Marketing(state, config)
 
-    return userinfo, config, db_conf, state, m, confs
+    return Malaria(userinfo, config, db_conf, state, m, confs)
 
 
-def update_ads_for_campaign(campaignid, env):
-    userinfo, config, db_conf, state, m, confs = load_basics(campaignid, env)
+def run_instructions(instructions: Sequence[Instruction], state: CampaignState):
+    updater = GraphUpdater(state)
+    for i in instructions:
+        report = updater.execute(i)
+        logging.info(report)
+
+
+def update_ads_for_campaign(malaria: Malaria) -> Sequence[Instruction]:
+    userinfo, config, db_conf, state, m, confs = malaria
     strata = hydrate_strata(state, confs["stratum"], confs["creative"])
 
     df = get_df(db_conf, userinfo.survey_user, strata)
 
     spend = {get_cluster_from_adset(n): i for n, i in state.spend.items()}
+
+    left = days_left(config)
+    proportional = left is None
 
     budget_lookup = get_budget_lookup(
         df,
@@ -133,31 +163,21 @@ def update_ads_for_campaign(campaignid, env):
         config.min_budget,
         state.window,
         spend,
-        days_left=days_left(config),
+        days_left=left,
+        proportional=proportional,
     )
 
-    instructions = m.update_instructions(strata, budget_lookup)
-
-    updater = GraphUpdater(state)
-    for i in instructions:
-        report = updater.execute(i)
-        logging.info(report)
+    return m.update_instructions(strata, budget_lookup)
 
 
-def update_audience_for_campaign(campaignid, env):
-    userinfo, config, db_conf, state, m, confs = load_basics(campaignid, env)
+def update_audience_for_campaign(malaria: Malaria) -> Sequence[Instruction]:
+    userinfo, config, db_conf, state, m, confs = malaria
     audience_confs = confs["audience"]
 
     df = get_df(db_conf, userinfo.survey_user, audience_confs)
-
     audiences = hydrate_audiences(df, m, audience_confs)
 
-    instructions = manage_audiences(state, audiences)
-
-    updater = GraphUpdater(state)
-    for i in instructions:
-        report = updater.execute(i)
-        logging.info(report)
+    return manage_audiences(state, audiences)
 
 
 def run_updates(fn):
@@ -166,7 +186,9 @@ def run_updates(fn):
     campaigns = get_campaigns(db_conf)
 
     for c in campaigns:
-        fn(c, env)
+        m = load_basics(c, env)
+        i = fn(m)
+        run_instructions(i, m.state)
 
 
 def update_audience():

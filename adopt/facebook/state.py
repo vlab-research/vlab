@@ -77,12 +77,15 @@ def get_adsets(campaign: Campaign) -> List[AdSet]:
     return call(
         campaign.get_ad_sets,
         fields=[
-            "name",
-            "status",
-            "targeting",
-            "optimization_goal",
-            "optimization_sub_event",
-            "destination_type",
+            AdSet.Field.name,
+            AdSet.Field.status,
+            AdSet.Field.targeting,
+            AdSet.Field.optimization_goal,
+            AdSet.Field.optimization_sub_event,
+            AdSet.Field.destination_type,
+            AdSet.Field.daily_budget,
+            AdSet.Field.end_time,
+            AdSet.Field.bid_strategy,
         ],
     )
 
@@ -91,17 +94,23 @@ def get_campaigns(account: AdAccount) -> List[Campaign]:
     return call(account.get_campaigns, fields=["name"])
 
 
-def get_ads(adset: AdSet) -> List[Ad]:
-    return call(adset.get_ads, fields=["creative", "adset_id", "status", "name"])
+def get_ads(campaign: Campaign) -> List[Ad]:
+    return call(campaign.get_ads, fields=["creative", "adset_id", "status", "name"])
 
 
-def get_all_ads(api: FacebookAdsApi, adsets: List[AdSet]) -> List[Ad]:
-    # TODO: test if get_creatives fails from too many ids
-    # and revert to gettting for each adset separately...
+def split(li, N):
+    while li:
+        head, li = li[:N], li[N:]
+        yield head
 
-    ads = [a for s in adsets for a in get_ads(s)]
+
+def get_all_ads(api: FacebookAdsApi, c: Campaign) -> List[Ad]:
+    ads = [a for a in get_ads(c)]
     creative_ids = [ad["creative"]["id"] for ad in ads]
-    creatives = {c["id"]: c for c in get_creatives(api, creative_ids)}
+
+    creatives = {
+        c["id"]: c for cids in split(creative_ids, 50) for c in get_creatives(api, cids)
+    }
     for cid, ad in zip(creative_ids, ads):
         ad["creative"] = creatives[cid]
     return ads
@@ -210,7 +219,9 @@ class CampaignState:
 
     @cached_property
     def ads(self) -> List[Ad]:
-        return get_all_ads(self.api, self.adsets)
+        ads = get_all_ads(self.api, self.campaign)
+        logging.info(f'Loaded {len(ads)} ads from campaign {self.campaign["name"]}')
+        return ads
 
     @cached_property
     def campaign_state(self) -> List[Tuple[AdSet, List[Ad]]]:

@@ -13,7 +13,7 @@ from facebook_business.adobjects.campaign import Campaign
 from facebook_business.adobjects.customaudience import CustomAudience
 from facebook_business.adobjects.targeting import Targeting
 
-from .facebook.state import CampaignState
+from .facebook.state import CampaignState, split
 from .facebook.update import Instruction
 
 Params = Dict[str, Any]
@@ -33,7 +33,8 @@ class CampaignConf(NamedTuple):
     budget: float
     min_budget: float
     opt_window: int
-    end_date: str
+    end_date: Optional[str]
+
     ad_account: str
     ad_campaign: str
 
@@ -160,10 +161,11 @@ def create_adset(c: AdsetConf) -> AdSet:
     name = f"vlab-{c.stratum.id}"
     targeting = {**c.stratum.facebook_targeting}
 
-    # TODO: normalize time so that end_time doesn't change on reruns
+    # TODO: document this funkyness - pretends it's runnign at midnight...
+    midnight = datetime.utcnow().replace(microsecond=0, second=0, minute=0, hour=0)
 
     adset = AdSet()
-    adset[AdSet.Field.end_time] = datetime.utcnow() + timedelta(hours=c.hours)
+    adset[AdSet.Field.end_time] = midnight + timedelta(hours=c.hours)
     adset[AdSet.Field.targeting] = targeting
     adset[AdSet.Field.status] = c.status
     adset[AdSet.Field.daily_budget] = c.budget
@@ -186,16 +188,10 @@ def make_welcome_message(text, button_text, ref):
 
     message = {
         "message": {
-            "attachment": {
-                "type": "template",
-                "payload": {
-                    "template_type": "button",
-                    "text": text,
-                    "buttons": [
-                        {"type": "postback", "title": button_text, "payload": payload}
-                    ],
-                },
-            }
+            "text": text,
+            "quick_replies": [
+                {"content_type": "text", "title": button_text, "payload": payload}
+            ],
         }
     }
 
@@ -269,12 +265,6 @@ def create_custom_audience(name: str, desc: str) -> Instruction:
     }
 
     return Instruction("custom_audience", "create", params, None)
-
-
-def split(li, N):
-    while li:
-        head, li = li[:N], li[N:]
-        yield head
 
 
 def add_users_to_audience(
