@@ -125,6 +125,26 @@ def _adobject(d, T) -> T:
     return t
 
 
+def _ad(c, adset):
+    a = Ad()
+    a[Ad.Field.adset_id] = adset["id"]
+    a["name"] = c["name"]
+    a["creative"] = c
+    a["status"] = "ACTIVE"
+    return a
+
+
+def _adset(d):
+    d = {
+        **d,
+        "end_time": "",
+        "targeting": {},
+        "daily_budget": 1,
+        "optimization_goal": "REPLIES",
+    }
+    return _adobject(d, AdSet)
+
+
 def test_update_adset_returns_none_if_equal():
     now = datetime.utcnow()
 
@@ -145,24 +165,13 @@ def test_update_adset_returns_instruction_if_not_equal():
         "targeting": {},
         "id": "foo",
     }
-    adset = {"status": "active", "daily_budget": 100, "end_time": now, "targeting": {}}
+
+    adset = _adset(
+        {"status": "active", "daily_budget": 100, "end_time": now}
+    ).export_all_data()
 
     instructions = update_adset(_adobject(source, AdSet), _adobject(adset, AdSet))
     assert instructions == [Instruction("adset", "update", adset, "foo")]
-
-
-def _ad(c, adset):
-    a = Ad()
-    a[Ad.Field.adset_id] = adset["id"]
-    a["name"] = c["name"]
-    a["creative"] = c
-    a["status"] = "ACTIVE"
-    return a
-
-
-def _adset(d):
-    d = {**d, "end_time": "", "targeting": {}, "daily_budget": 1}
-    return _adobject(d, AdSet)
 
 
 def _conv(adset):
@@ -423,6 +432,81 @@ def test_ad_dif_leaves_many_alone_if_nothing_to_be_done():
     instructions = ad_dif(adset, running_ads, [_ad(c, adset) for c in creatives])
 
     assert instructions == []
+
+
+def test_ad_dif_leaves_many_alone_if_nothing_to_be_done():
+    adset = {"id": "ad"}
+    running_ads = [
+        {
+            "id": "foo",
+            "status": "ACTIVE",
+            "name": "hindi",
+            "creative": {
+                "name": "hindi",
+                "id": "bar",
+                "actor_id": "111",
+                "url_tags": "111",
+            },
+        },
+        {
+            "id": "baz",
+            "status": "PAUSED",
+            "name": "odia",
+            "creative": {
+                "name": "odia",
+                "id": "qux",
+                "actor_id": "111",
+                "url_tags": "123",
+            },
+        },
+    ]
+
+    running_ads = [_adobject(d, Ad) for d in running_ads]
+
+    creatives = [{"name": "hindi", "actor_id": "111", "url_tags": "111"}]
+
+    instructions = ad_dif(adset, running_ads, [_ad(c, adset) for c in creatives])
+
+    assert instructions == []
+
+
+def test_ad_dif_removes_duplicate_ads_and_updates_other():
+    adset = {"id": "ad"}
+    running_ads = [
+        {
+            "id": "foo",
+            "status": "ACTIVE",
+            "name": "hindi",
+            "creative": {
+                "name": "hindi",
+                "id": "bar",
+                "actor_id": "111",
+                "url_tags": "111",
+            },
+        },
+        {
+            "id": "bar",
+            "status": "ACTIVE",
+            "name": "hindi",
+            "creative": {
+                "name": "hindi",
+                "id": "bar",
+                "actor_id": "111",
+                "url_tags": "111",
+            },
+        },
+    ]
+
+    running_ads = [_adobject(d, Ad) for d in running_ads]
+
+    creatives = [{"name": "hindi", "actor_id": "111", "url_tags": "222"}]
+
+    instructions = ad_dif(adset, running_ads, [_ad(c, adset) for c in creatives])
+
+    assert instructions == [
+        Instruction("ad", "update", {"status": "PAUSED"}, "bar"),
+        Instruction("ad", "update", _ad(creatives[0], adset).export_all_data(), "foo"),
+    ]
 
 
 def _aud_params(name, subtype, description):

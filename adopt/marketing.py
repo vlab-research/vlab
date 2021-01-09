@@ -1,6 +1,7 @@
 import json
 from datetime import datetime, timedelta
-from typing import Any, Dict, List, Mapping, NamedTuple, Optional, Tuple
+from typing import (Any, Dict, List, Mapping, NamedTuple, Optional, Sequence,
+                    Tuple, TypeVar)
 from urllib.parse import quote
 
 from facebook_business.adobjects.ad import Ad
@@ -17,6 +18,7 @@ from .facebook.state import CampaignState, split
 from .facebook.update import Instruction
 
 Params = Dict[str, Any]
+T = TypeVar("T")
 
 
 class UserInfo(NamedTuple):
@@ -314,6 +316,7 @@ def update_adset(source: AdSet, adset: AdSet) -> List[Instruction]:
         AdSet.Field.targeting,
         AdSet.Field.status,
         AdSet.Field.daily_budget,
+        AdSet.Field.optimization_goal,
     ]
 
     if _eq(source, adset, fields):
@@ -335,14 +338,31 @@ def update_ad(source: Ad, ad: Ad) -> List[Instruction]:
     return []
 
 
+def _dedup_olds(
+    type_: str, li: Sequence[T]
+) -> Tuple[Dict[str, T], Sequence[Instruction]]:
+
+    lookup = {}
+    instructions = []
+
+    for obj in li:
+        if obj["name"] in lookup:
+            instructions += [
+                Instruction(type_, "update", {"status": "PAUSED"}, obj["id"])
+            ]
+        else:
+            lookup[obj["name"]] = obj
+
+    return lookup, instructions
+
+
 def _diff(type_, updater, creator, olds, news) -> List[Instruction]:
 
     try:
-        old_lookup = {x["name"]: x for x in olds}
+        old_lookup, instructions = _dedup_olds(type_, olds)
     except KeyError as e:
         raise Exception("Old ad(set)s do not have name!") from e
 
-    instructions = []
     updated = set()
 
     for x in news:
