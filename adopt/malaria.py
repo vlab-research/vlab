@@ -32,6 +32,26 @@ def get_df(
     survey_user: str,
     strata: Sequence[Union[Stratum, AudienceConf]],
 ) -> pd.DataFrame:
+
+    # This makes no sense for AudienceConf, or at least a seq of them,
+    # becase the questions in one sholdn't exclude the aud from another
+
+    # Is this the case with strata as well if you have target_questions
+    # that are different?? Yes, but usually they should be the same
+    # for all strata. But then the code you have here is confusing
+    # because it gets the union of all qs...
+
+    # I mean, the query is question_ref is in %s, so it's only
+    # problematic for when there is NO question wanted (any respondent)
+    # that's the real problem
+
+    # TODO - look at tests, what is the desired behavior for audiences/stratum
+    # with no target_questions???? it shouldn't work at all...
+
+    # TODO - for audience you should actually have a query that gets responses
+    # who are only to the correct pageid! Because now each surveyuser can have
+    # multiple pages, but that won't work for audiences with page scoped ids!
+
     shortcodes = {shortcode for stratum in strata for shortcode in stratum.shortcodes}
     questions = {q.ref for stratum in strata for q in stratum.target_questions}
 
@@ -59,8 +79,6 @@ def get_confs_for_campaign(campaignid, db_conf):
 
 
 DBConf = Dict[str, str]
-
-from typing import NamedTuple
 
 
 class Malaria(NamedTuple):
@@ -112,7 +130,7 @@ def days_left(config: CampaignConf):
 
 
 def get_cluster_from_adset(adset_name: str) -> str:
-    pat = r"(?<=vlab-)\w+"
+    pat = r"(?<=vlab-).+"
     matches = re.search(pat, adset_name)
     if not matches:
         raise Exception(f"Cannot extract cluster id from adset: {adset_name}")
