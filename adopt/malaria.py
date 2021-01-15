@@ -12,9 +12,9 @@ from facebook_business.adobjects.targeting import Targeting
 from toolz import groupby
 
 from .audiences import hydrate_audiences
-from .campaign_queries import (get_campaign_configs, get_campaigns,
-                               get_user_info)
-from .clustering import get_budget_lookup, shape_df
+from .campaign_queries import (create_adopt_report, get_campaign_configs,
+                               get_campaigns, get_user_info)
+from .clustering import AdOptReport, get_budget_lookup, shape_df
 from .facebook.state import (BudgetWindow, CampaignState, StateNameError,
                              get_api)
 from .facebook.update import GraphUpdater, Instruction
@@ -163,7 +163,9 @@ def run_instructions(instructions: Sequence[Instruction], state: CampaignState):
         logging.info(report)
 
 
-def update_ads_for_campaign(malaria: Malaria) -> Sequence[Instruction]:
+def update_ads_for_campaign(
+    malaria: Malaria,
+) -> Tuple[Sequence[Instruction], Optional[AdOptReport]]:
     userinfo, config, db_conf, state, m, confs = malaria
     strata = hydrate_strata(state, confs["stratum"], confs["creative"])
 
@@ -171,31 +173,31 @@ def update_ads_for_campaign(malaria: Malaria) -> Sequence[Instruction]:
 
     spend = {get_cluster_from_adset(n): i for n, i in state.spend.items()}
 
-    left = days_left(config)
-    proportional = left is None
-
-    budget_lookup = get_budget_lookup(
+    budget_lookup, report = get_budget_lookup(
         df,
         strata,
         config.budget,
         config.min_budget,
         state.window,
         spend,
-        days_left=left,
-        proportional=proportional,
+        state.total_spend,
+        days_left=days_left(config),
+        proportional=config.proportional,
     )
 
-    return m.update_instructions(strata, budget_lookup)
+    return m.update_instructions(strata, budget_lookup), report
 
 
-def update_audience_for_campaign(malaria: Malaria) -> Sequence[Instruction]:
+def update_audience_for_campaign(
+    malaria: Malaria,
+) -> Tuple[Sequence[Instruction], Optional[AdOptReport]]:
     userinfo, config, db_conf, state, m, confs = malaria
     audience_confs = confs["audience"]
 
     df = get_df(db_conf, userinfo.survey_user, audience_confs)
     audiences = hydrate_audiences(df, m, audience_confs)
 
-    return manage_audiences(state, audiences)
+    return manage_audiences(state, audiences), None
 
 
 def run_updates(fn):
@@ -205,7 +207,11 @@ def run_updates(fn):
 
     for c in campaigns:
         m = load_basics(c, env)
-        i = fn(m)
+        i, report = fn(m)
+
+        if report:
+            create_adopt_report(report)
+
         run_instructions(i, m.state)
 
 

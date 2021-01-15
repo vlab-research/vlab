@@ -18,7 +18,6 @@ from .facebook.state import CampaignState, split
 from .facebook.update import Instruction
 
 Params = Dict[str, Any]
-T = TypeVar("T")
 
 
 class UserInfo(NamedTuple):
@@ -35,8 +34,8 @@ class CampaignConf(NamedTuple):
     budget: float
     min_budget: float
     opt_window: int
-    end_date: Optional[str]
-
+    end_date: str
+    proportional: bool
     ad_account: str
     ad_campaign: str
 
@@ -338,18 +337,17 @@ def update_ad(source: Ad, ad: Ad) -> List[Instruction]:
     return []
 
 
-def _dedup_olds(
-    type_: str, li: Sequence[T]
-) -> Tuple[Dict[str, T], Sequence[Instruction]]:
+T = TypeVar("T", AdSet, Ad)
+
+
+def _dedup_olds(type_: str, li: Sequence[T]) -> Tuple[Dict[str, T], List[Instruction]]:
 
     lookup = {}
     instructions = []
 
     for obj in li:
         if obj["name"] in lookup:
-            instructions += [
-                Instruction(type_, "update", {"status": "PAUSED"}, obj["id"])
-            ]
+            instructions += [Instruction(type_, "delete", {}, obj["id"])]
         else:
             lookup[obj["name"]] = obj
 
@@ -357,7 +355,6 @@ def _dedup_olds(
 
 
 def _diff(type_, updater, creator, olds, news) -> List[Instruction]:
-
     try:
         old_lookup, instructions = _dedup_olds(type_, olds)
     except KeyError as e:
@@ -383,8 +380,8 @@ def _diff(type_, updater, creator, olds, news) -> List[Instruction]:
 
 def ad_dif(
     adset: AdSet,
-    old_ads: List[Ad],
-    new_ads: List[Ad],
+    old_ads: Sequence[Ad],
+    new_ads: Sequence[Ad],
 ) -> List[Instruction]:
     def creator(x):
         params = {**x.export_all_data(), "adset_id": adset["id"]}
@@ -394,7 +391,8 @@ def ad_dif(
 
 
 def adset_dif(
-    old_adsets: List[Tuple[AdSet, List[Ad]]], new_adsets: List[Tuple[AdSet, List[Ad]]]
+    old_adsets: Sequence[Tuple[AdSet, Sequence[Ad]]],
+    new_adsets: Sequence[Tuple[AdSet, Sequence[Ad]]],
 ) -> List[Instruction]:
 
     new_lookup = {a["name"]: ads for a, ads in new_adsets}
@@ -429,7 +427,7 @@ class Marketing:
 
     def update_instructions(
         self, strata: List[Stratum], budget: Dict[str, float]
-    ) -> List[Instruction]:
+    ) -> Sequence[Instruction]:
 
         sb = [(s, budget[s.id]) for s in strata]
         new_state = [self.adset_instructions(s, b) for s, b in sb if b > 0]

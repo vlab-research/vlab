@@ -82,6 +82,11 @@ class GraphUpdater:
             call(obj.api_update, params=instruction.params, fields=[])
             return report(instruction)
 
+        if instruction.action == "delete":
+            obj = self.get_object(instruction.node, instruction.id)
+            call(obj.api_delete)
+            return report(instruction)
+
         if instruction.action == "create":
             create = self.get_create(instruction.node)
             call(create, params=instruction.params, fields=[])

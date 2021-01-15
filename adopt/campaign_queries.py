@@ -1,5 +1,7 @@
+import json
 from typing import Any, Dict, List, Tuple
 
+from .clustering import AdOptReport
 from .responses import query
 
 DBConf = Dict[str, str]
@@ -110,3 +112,15 @@ def create_campaign_confs(
     """
 
     list(query(cnf, q, dats, batch=True))
+
+
+def create_adopt_report(
+    campaignid: str, report_type: str, details: AdOptReport, cnf: DBConf
+):
+    q = """
+    INSERT INTO adopt_reports(campaignid, report_type, details)
+    VALUES(%s, %s, %s)
+    RETURNING *
+    """
+
+    return list(query(cnf, q, (campaignid, report_type, json.dumps(details))))[0]

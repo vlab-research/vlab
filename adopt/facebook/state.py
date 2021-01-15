@@ -238,6 +238,11 @@ class CampaignState:
         return get_spending(self.insights)
 
     @cached_property
+    def total_spend(self) -> float:
+        res = call(self.campaign.get_insights, fields=["spend"])
+        return float(res[0]["spend"])
+
+    @cached_property
     def custom_audiences(self) -> List[CustomAudience]:
         return get_custom_audiences(self.account)
 

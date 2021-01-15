@@ -2,9 +2,11 @@ import logging
 import warnings
 from math import floor
 from statistics import mean
-from typing import Dict, List, Optional, Sequence, Union
+from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
 
+import numpy as np
 import pandas as pd
+from scipy.optimize import minimize
 
 from .facebook.state import BudgetWindow
 from .forms import TranslationError
@@ -156,7 +158,7 @@ def calc_price(df, window, spend):
     windowed = _filter_by_response(df, "md:startTime", pred)
 
     counts = _users_per_cluster(windowed)
-    counts = {**{k: 1 for k in spend.keys()}, **counts}
+    counts = {**{k: 0.5 for k in spend.keys()}, **counts}
     price = {k: spend[k] / v for k, v in counts.items() if k in spend}
 
     # set to mean if we don't have info on the price
@@ -179,7 +181,70 @@ def prep_df_for_budget(df, strata):
     return pd.concat(dfs).reset_index(drop=True)
 
 
-def proportional_budget(budget, max_budget, min_budget):
+def constrained_opt(S, goal, tot, price, budget):
+    C = 1 / price
+    s = S / S.sum()
+    new_spend = s * budget
+    projection = C * new_spend + tot
+    projection /= projection.sum()
+    return np.linalg.norm(projection - goal)
+
+
+def proportional_opt(goal, tot, price, budget, tol=0.1):
+    P = goal.shape[0]
+    x0 = np.repeat(1, P)
+    x0 = x0 / x0.sum()
+
+    m = minimize(
+        constrained_opt, x0=x0, args=(goal, tot, price, budget), bounds=[(0, None)] * P
+    )
+
+    logging.info(f"Finished optimizing with loss: {m.fun}")
+
+    if m.fun > tol:
+        logging.warning(f"Optimization loss very high: {m.fun}")
+
+    new_spend = (m.x / m.x.sum()) * budget
+
+    return new_spend
+
+
+def proportional_budget(
+    goal,
+    spend,
+    tot,
+    price,
+    budget,
+    min_budget,
+    days_left,
+):
+
+    if not np.isclose(sum(goal.values()), 1.0, 0.01):
+        raise Exception(f"proportional_budget needs a goal that sums to one: {goal}")
+
+    df = pd.DataFrame(
+        {
+            "goal": goal,
+            "spend": spend,
+            "respondents": tot,
+            "price": price,
+        }
+    )
+
+    new_spend = proportional_opt(
+        df.goal.values, df.respondents.values, df.price.values, budget
+    )
+
+    new_spend /= days_left
+
+    new_spend = [floor(s) for s in new_spend]
+    df["new_spend"] = [min_budget if s > 0 and s < min_budget else s for s in new_spend]
+
+    return df.new_spend.to_dict()
+
+
+def _base_budget(strata, max_budget, min_budget):
+    budget = {s.id: max_budget for s in strata}
     while sum(budget.values()) > max_budget:
         s = sum(budget.values())
         budget = {k: floor(max_budget * (v / s)) for k, v in budget.items()}
@@ -188,11 +253,59 @@ def proportional_budget(budget, max_budget, min_budget):
     return budget
 
 
-def _base_budget(strata, max_budget, min_budget):
-    budget = {s.id: max_budget for s in strata}
-    return proportional_budget(budget, max_budget, min_budget)
+AdOptReport = Dict[str, Dict[str, Union[int, float]]]
 
 
+def make_report(facts: List[Tuple[str, Dict[str, Any]]]) -> AdOptReport:
+
+    d: AdOptReport = {}
+
+    for k, fact in facts:
+        for i, f in fact.items():
+            try:
+                d[i][k] = f
+            except KeyError:
+                d[i] = {k: f}
+
+    return d
+
+
+def _normalize_values(di):
+    t = sum(di.values())
+    return {k: v / t for k, v in di.items()}
+
+
+def normalize_goal(strata):
+    goal = {s.id: s.quota for s in strata}
+    t = sum([gg for _, gg in goal.items()])
+    return {k: v / t for k, v in goal.items()}
+
+
+def get_stats(
+    df: Optional[pd.DataFrame],
+    strata: Sequence[Union[Stratum, StratumConf]],
+    window: BudgetWindow,
+    spend: Dict[str, float],
+):
+
+    optimized_ids = {s.id for s in strata}
+
+    spend = {k: v for k, v in spend.items() if k in optimized_ids}
+    spend = {**{s.id: 0 for s in strata}, **spend}
+
+    respondents = _users_per_cluster(df)
+    respondents = {**{k: 0 for k in spend.keys()}, **respondents}
+
+    price = calc_price(df, window, spend)
+
+    return spend, respondents, price
+
+
+# TODO: return price and left and strata info in a nice
+# event to persist. This
+# should basically give a sense of the strata, the number
+# fulfilled, the number remaining, the price per individual
+# per strata, and the current budget per strata.
 def get_budget_lookup(
     df: Optional[pd.DataFrame],
     strata: Sequence[Union[Stratum, StratumConf]],
@@ -200,40 +313,46 @@ def get_budget_lookup(
     min_budget: float,
     window: BudgetWindow,
     spend: Dict[str, float],
-    days_left: int = None,
+    total_spend: float,
+    days_left: int,
     proportional: bool = False,
-    return_price: bool = False,
-):
-
-    if proportional and days_left is not None:
-        warnings.warn("days_left is ignored in proportional budget optimization")
-
-    if not proportional and days_left is None:
-        raise Exception("days_left is required if proportional is False")
-
-    if days_left is None:
-        days_left = 1
+) -> Tuple[Dict[str, float], Optional[AdOptReport]]:
 
     df = prep_df_for_budget(df, strata) if df is not None else None
 
     if df is None:
-        return _base_budget(strata, max_budget, min_budget)
+        return _base_budget(strata, max_budget, min_budget), None
 
-    # make a spend lookup that has 0 for all clusters
-    # in strata with no spend and then optimize only
-    # for those given in the strata.
+    spend, tot, price = get_stats(df, strata, window, spend)
+    share = _normalize_values(tot)
+
+    if proportional:
+        goal = _normalize_values({s.id: s.quota for s in strata})
+        budget = proportional_budget(
+            goal,
+            spend,
+            tot,
+            price,
+            max_budget - total_spend,
+            min_budget,
+            days_left,
+        )
+
+        report = make_report(
+            [
+                ("price", price),
+                ("spend", spend),
+                ("goal", goal),
+                ("respondents", tot),
+                ("respondent_share", share),
+                ("budget", budget),
+            ]
+        )
+        return budget, report
+
     goal_lookup = {s.id: s.quota for s in strata}
-    spend = {k: v for k, v in spend.items() if k in goal_lookup}
-    spend = {**{s.id: 0 for s in strata}, **spend}
-
-    # unique users
-    tot = _users_per_cluster(df)
-    tot = {**{k: 0 for k in spend.keys()}, **tot}
-
     remain = {k: goal_lookup[k] - v for k, v in tot.items()}
     saturated = {k for k, v in remain.items() if v <= 0}
-
-    price = calc_price(df, window, spend)
 
     budget = {k: v * remain[k] / days_left for k, v in price.items()}
     budget = {k: floor(v) for k, v in budget.items()}
@@ -242,16 +361,20 @@ def get_budget_lookup(
     zeroed = {k for k, v in budget.items() if v == 0.0}
     budget = {k: v for k, v in budget.items() if k not in zeroed}
 
-    # from here, you can move to proportion or target
-    # days_left can be replaced with 1 if proportion targeting
-    if proportional:
-        budget = proportional_budget(budget, max_budget, min_budget)
-    else:
-        budget = budget_trimming(budget, max_budget, min_budget)
+    budget = budget_trimming(budget, max_budget, min_budget)
 
     # add zero spend strata back in!
     budget = {**budget, **{k: 0 for k in zeroed}}
 
-    if return_price:
-        return budget, price
-    return budget
+    report = make_report(
+        [
+            ("price", price),
+            ("spend", spend),
+            ("goal", goal_lookup),
+            ("remaining", remain),
+            ("respondents", tot),
+            ("budget", budget),
+        ]
+    )
+
+    return budget, report

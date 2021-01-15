@@ -434,42 +434,6 @@ def test_ad_dif_leaves_many_alone_if_nothing_to_be_done():
     assert instructions == []
 
 
-def test_ad_dif_leaves_many_alone_if_nothing_to_be_done():
-    adset = {"id": "ad"}
-    running_ads = [
-        {
-            "id": "foo",
-            "status": "ACTIVE",
-            "name": "hindi",
-            "creative": {
-                "name": "hindi",
-                "id": "bar",
-                "actor_id": "111",
-                "url_tags": "111",
-            },
-        },
-        {
-            "id": "baz",
-            "status": "PAUSED",
-            "name": "odia",
-            "creative": {
-                "name": "odia",
-                "id": "qux",
-                "actor_id": "111",
-                "url_tags": "123",
-            },
-        },
-    ]
-
-    running_ads = [_adobject(d, Ad) for d in running_ads]
-
-    creatives = [{"name": "hindi", "actor_id": "111", "url_tags": "111"}]
-
-    instructions = ad_dif(adset, running_ads, [_ad(c, adset) for c in creatives])
-
-    assert instructions == []
-
-
 def test_ad_dif_removes_duplicate_ads_and_updates_other():
     adset = {"id": "ad"}
     running_ads = [
@@ -504,7 +468,7 @@ def test_ad_dif_removes_duplicate_ads_and_updates_other():
     instructions = ad_dif(adset, running_ads, [_ad(c, adset) for c in creatives])
 
     assert instructions == [
-        Instruction("ad", "update", {"status": "PAUSED"}, "bar"),
+        Instruction("ad", "delete", {}, "bar"),
         Instruction("ad", "update", _ad(creatives[0], adset).export_all_data(), "foo"),
     ]
 
