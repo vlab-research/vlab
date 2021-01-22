@@ -2,8 +2,8 @@ import json
 import logging
 import re
 from datetime import datetime, timedelta
-from typing import (Any, Dict, List, NamedTuple, Optional, Sequence, Tuple,
-                    TypeVar, Union)
+from typing import (Any, Callable, Dict, List, NamedTuple, Optional, Sequence,
+                    Tuple, TypeVar, Union)
 
 import pandas as pd
 import typing_json
@@ -19,12 +19,31 @@ from .facebook.state import (BudgetWindow, CampaignState, StateNameError,
                              get_api)
 from .facebook.update import GraphUpdater, Instruction
 from .marketing import (AudienceConf, CampaignConf, CreativeConf,
-                        FacebookTargeting, Marketing, Stratum, StratumConf,
-                        UserInfo, make_stratum_conf, manage_audiences,
-                        validate_targeting)
+                        FacebookTargeting, Marketing, QuestionTargeting,
+                        Stratum, StratumConf, TargetVar, UserInfo,
+                        make_audience_conf, make_stratum_conf,
+                        manage_audiences, validate_targeting)
 from .responses import get_response_df
 
 logging.basicConfig(level=logging.INFO)
+
+
+def _get_ref(v: Union[TargetVar, QuestionTargeting]) -> Sequence[Optional[str]]:
+    if isinstance(v, QuestionTargeting):
+        return get_target_questions(v)
+
+    if v.type in {"response", "translated_response"}:
+        return [v.value]
+
+    return [None]
+
+
+def get_target_questions(qt: Optional[QuestionTargeting]) -> Sequence[str]:
+    if qt is None:
+        return []
+
+    refs = [r for v in qt.vars for r in _get_ref(v)]
+    return [r for r in refs if r is not None]
 
 
 def get_df(
@@ -53,7 +72,11 @@ def get_df(
     # multiple pages, but that won't work for audiences with page scoped ids!
 
     shortcodes = {shortcode for stratum in strata for shortcode in stratum.shortcodes}
-    questions = {q.ref for stratum in strata for q in stratum.target_questions}
+    questions = {
+        q
+        for stratum in strata
+        for q in get_target_questions(stratum.question_targeting)
+    }
 
     df = get_response_df(survey_user, shortcodes, questions, db_conf)
 
@@ -65,7 +88,7 @@ def get_df(
 def get_confs_for_campaign(campaignid, db_conf):
     parsers = {
         "stratum": make_stratum_conf,
-        "audience": lambda x: loads_typed_json(x, AudienceConf),
+        "audience": make_audience_conf,
         "creative": lambda x: loads_typed_json(x, CreativeConf),
         "opt": lambda x: loads_typed_json(x, CampaignConf),
     }
@@ -73,7 +96,11 @@ def get_confs_for_campaign(campaignid, db_conf):
     confs = get_campaign_configs(campaignid, db_conf)
     confs = groupby(
         lambda x: x[0],
-        [(c["conf_type"], parsers[c["conf_type"]](c["conf"])) for c in confs],
+        [
+            (c["conf_type"], parsers[c["conf_type"]](conf))
+            for c in confs
+            for conf in c["conf"]
+        ],
     )
     return {k: [vv for _, vv in v] for k, v in confs.items()}
 
@@ -191,6 +218,7 @@ def update_ads_for_campaign(
 def update_audience_for_campaign(
     malaria: Malaria,
 ) -> Tuple[Sequence[Instruction], Optional[AdOptReport]]:
+
     userinfo, config, db_conf, state, m, confs = malaria
     audience_confs = confs["audience"]
 
@@ -200,26 +228,29 @@ def update_audience_for_campaign(
     return manage_audiences(state, audiences), None
 
 
-def run_updates(fn):
+def run_updates(
+    fn: Callable[[Malaria], Tuple[Sequence[Instruction], Optional[AdOptReport]]]
+) -> None:
+
     env = Env()
     db_conf = get_db_conf(env)
     campaigns = get_campaigns(db_conf)
 
     for c in campaigns:
         m = load_basics(c, env)
-        i, report = fn(m)
+        instructions, report = fn(m)
 
         if report:
-            create_adopt_report(report)
+            create_adopt_report(c, "FACEBOOK_ADOPT", report, db_conf)
 
-        run_instructions(i, m.state)
+        run_instructions(instructions, m.state)
 
 
-def update_audience():
+def update_audience() -> None:
     run_updates(update_audience_for_campaign)
 
 
-def update_ads():
+def update_ads() -> None:
     run_updates(update_ads_for_campaign)
 
 

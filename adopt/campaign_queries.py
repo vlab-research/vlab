@@ -60,7 +60,7 @@ def create_campaign_for_user(email, name, cnf: DBConf):
 
 def get_campaigns_for_user(email, cnf: DBConf):
     q = """
-       SELECT id
+       SELECT *
        FROM campaigns
        WHERE userid = (SELECT id FROM users WHERE email = %s)
     """
@@ -73,7 +73,7 @@ def get_campaign_configs(campaignid, cnf: DBConf):
     with t AS (
                SELECT *,
                ROW_NUMBER() OVER
-                 (PARTITION BY conf_type, entity_name ORDER BY created DESC)
+                 (PARTITION BY conf_type ORDER BY created DESC)
                as n
                FROM campaign_confs
                WHERE campaignid = %s
@@ -104,14 +104,15 @@ def create_campaign_confs(
     campaignid: str, conf_type: str, dat: List[Dict[str, Any]], cnf: DBConf
 ):
 
-    dats = [(campaignid, conf_type, t["entity_name"], t["conf"]) for t in dat]
+    dats = (campaignid, conf_type, json.dumps(dat))
 
     q = """
-    INSERT INTO campaign_confs(campaignid, conf_type, entity_name, conf)
-    VALUES(%s, %s, %s, %s)
+    INSERT INTO campaign_confs(campaignid, conf_type, conf)
+    VALUES(%s, %s, %s)
+    RETURNING *
     """
 
-    list(query(cnf, q, dats, batch=True))
+    return list(query(cnf, q, dats))[0]
 
 
 def create_adopt_report(

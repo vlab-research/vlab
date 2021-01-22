@@ -240,6 +240,8 @@ class CampaignState:
     @cached_property
     def total_spend(self) -> float:
         res = call(self.campaign.get_insights, fields=["spend"])
+        if not res:
+            return 0
         return float(res[0]["spend"])
 
     @cached_property

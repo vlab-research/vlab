@@ -1,8 +1,9 @@
 import logging
 import warnings
+from functools import reduce
 from math import floor
 from statistics import mean
-from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
+from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
 import pandas as pd
@@ -10,7 +11,8 @@ from scipy.optimize import minimize
 
 from .facebook.state import BudgetWindow
 from .forms import TranslationError
-from .marketing import AudienceConf, Stratum, StratumConf, TargetQuestion
+from .marketing import (AudienceConf, QuestionTargeting, Stratum, StratumConf,
+                        TargetVar)
 
 
 class MissingResponseError(BaseException):
@@ -44,10 +46,6 @@ def add_res_cols(new_cols, df):
     return df
 
 
-def make_reqs(target_questions):
-    return [(q.ref, make_pred(q)) for q in target_questions]
-
-
 def _latest_survey(df):
     return df[df.surveyid == df.sort_values("timestamp").surveyid.unique()[-1]]
 
@@ -58,7 +56,9 @@ def only_latest_survey(df):
     # in theory should only be testers.
     # Keep the lastest survey they took.
     # return df.sort_values("timestamp").drop_duplicates(["userid"], keep="last")
-    return df.groupby(["shortcode", "userid"]).apply(_latest_survey)
+    return (
+        df.groupby(["shortcode", "userid"]).apply(_latest_survey).reset_index(drop=True)
+    )
 
 
 def shape_df(df):
@@ -77,20 +77,47 @@ def _filter_by_response(df, ref, pred):
     return df[df.userid.isin(users)].reset_index(drop=True)
 
 
-def users_fulfilling(treqs, df):
-    for ref, pred in treqs:
+def users_fulfilling(pred, df):
+    return df.groupby("userid").filter(lambda df: pred(df)).reset_index(drop=True)
+
+
+def get_var(v: Union[TargetVar, QuestionTargeting], df: pd.DataFrame):
+    if isinstance(v, QuestionTargeting):
+        return make_pred(v)(df)
+
+    type_, value = v
+
+    if type_ == "constant":
+        return value
+
+    if type_ in {"response", "translated_response"}:
+
         try:
-            df = _filter_by_response(df, ref, pred)
-        except KeyError:
+            ans = df[df.question_ref == value][type_].iloc[0]
+            return ans
+        except IndexError:
             return None
-        except AttributeError:
-            return None
 
-    return df
+    raise Exception(f"Target Question Type not valid: {type_}")
 
 
-def make_pred(q: TargetQuestion):
+def wrap(fn):
+    def _wrapped(*args, **kwargs):
+        try:
+            return fn(*args, **kwargs)
+        except TypeError:
+            return False
+
+    return _wrapped
+
+
+def make_pred(q: Optional[QuestionTargeting]) -> Callable[[pd.DataFrame], bool]:
+    if q is None:
+        return lambda _: True
+
     fns = {
+        "and": lambda a, b: a and b,
+        "or": lambda a, b: a or b,
         "answered": lambda a, _: pd.notna(a),
         "not_equal": lambda a, b: a != b,
         "equal": lambda a, b: a == b,
@@ -100,22 +127,30 @@ def make_pred(q: TargetQuestion):
 
     try:
         fn = fns[q.op]
-    except KeyError:
-        raise TypeError(f"op function: {q.op} is not supported!")
+        fn = wrap(fn)
 
-    return lambda x: fn(x[q.field], q.value)
+    except KeyError as e:
+        raise TypeError(f"op function: {q.op} is not supported!") from e
+
+    if len(q.vars) == 1:
+        v = q.vars[0]
+        return lambda df: fn(get_var(v, df), None)
+
+    vars_ = q.vars
+    return lambda df: reduce(fn, [get_var(var, df) for var in vars_])
 
 
 def only_target_users(
     df, stratum: Union[Stratum, StratumConf, AudienceConf], fn=users_fulfilling
 ):
 
-    reqs = make_reqs(stratum.target_questions)
+    pred = make_pred(stratum.question_targeting)
     df = df[df.shortcode.isin(stratum.shortcodes)]
     if df.shape[0] == 0:
         return None
 
-    filtered = fn(reqs, df)
+    filtered = fn(pred, df)
+
     if filtered is None:
         return None
 
@@ -150,6 +185,10 @@ def _users_per_cluster(df):
     return df.groupby("cluster").apply(lambda df: df.userid.unique().shape[0]).to_dict()
 
 
+class AdDataError(BaseException):
+    pass
+
+
 def calc_price(df, window, spend):
     # filter by time
     def pred(st):
@@ -162,7 +201,12 @@ def calc_price(df, window, spend):
     price = {k: spend[k] / v for k, v in counts.items() if k in spend}
 
     # set to mean if we don't have info on the price
-    m = mean([p for p in price.values() if p != 0])
+    non_zeros = [p for p in price.values() if p != 0]
+    if not non_zeros:
+        raise AdDataError(
+            f"Could not calculate the price of any adset between {window.start} and {window.until}"
+        )
+    m = mean(non_zeros)
     make_mean = lambda v: v if v != 0 else m
     price = {k: make_mean(v) for k, v in price.items()}
 
@@ -323,7 +367,12 @@ def get_budget_lookup(
     if df is None:
         return _base_budget(strata, max_budget, min_budget), None
 
-    spend, tot, price = get_stats(df, strata, window, spend)
+    try:
+        spend, tot, price = get_stats(df, strata, window, spend)
+    except AdDataError as e:
+        logging.info(f"Falling back to base budget due to the follow error: {e}")
+        return _base_budget(strata, max_budget, min_budget), None
+
     share = _normalize_values(tot)
 
     if proportional:

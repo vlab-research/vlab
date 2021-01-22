@@ -1,7 +1,7 @@
 import json
 from datetime import datetime, timedelta
 from typing import (Any, Dict, List, Mapping, NamedTuple, Optional, Sequence,
-                    Tuple, TypeVar)
+                    Tuple, TypeVar, Union)
 from urllib.parse import quote
 
 from facebook_business.adobjects.ad import Ad
@@ -23,6 +23,10 @@ Params = Dict[str, Any]
 class UserInfo(NamedTuple):
     survey_user: str
     token: str
+
+
+# add max_budget - for max daily budget
+# make budget optional - only for proportional
 
 
 class CampaignConf(NamedTuple):
@@ -56,11 +60,14 @@ class CreativeGroup(NamedTuple):
     creatives: List[CreativeConf]
 
 
-class TargetQuestion(NamedTuple):
-    ref: str
+class TargetVar(NamedTuple):
+    type: str
+    value: str
+
+
+class QuestionTargeting(NamedTuple):
     op: str
-    field: str
-    value: Optional[str] = None
+    vars: Sequence[Any]
     name: Optional[str] = None
 
 
@@ -72,7 +79,7 @@ class Stratum(NamedTuple):
     quota: int
     creatives: List[CreativeConf]
     shortcodes: List[str]
-    target_questions: List[TargetQuestion]
+    question_targeting: Optional[QuestionTargeting]
     facebook_targeting: FacebookTargeting = {}
     metadata: Dict[str, str] = {}
 
@@ -84,7 +91,7 @@ class StratumConf(NamedTuple):
     shortcodes: List[str]
     audiences: List[str]
     excluded_audiences: List[str]
-    target_questions: List[TargetQuestion]
+    question_targeting: Optional[QuestionTargeting]
     facebook_targeting: FacebookTargeting = {}
     metadata: Dict[str, str] = {}
 
@@ -122,7 +129,7 @@ class AudienceConf(NamedTuple):
     name: str
     subtype: str
     shortcodes: List[str]
-    target_questions: List[TargetQuestion]
+    question_targeting: Optional[QuestionTargeting]
     lookalike: Optional[Lookalike] = None
 
 
@@ -134,15 +141,50 @@ class Audience(NamedTuple):
     lookalike: Optional[Lookalike] = None
 
 
+def dict_from_nested_type(d):
+    if hasattr(d, "_asdict"):
+        d = d._asdict()
+
+    if isinstance(d, dict):
+        for k, v in d.items():
+            d[k] = dict_from_nested_type(v)
+        return d
+
+    if isinstance(d, list):
+        return [dict_from_nested_type(v) for v in d]
+
+    return d
+
+
+def parse_question_targeting(
+    qt: Optional[Mapping[str, Any]]
+) -> Optional[QuestionTargeting]:
+    if qt is None:
+        return None
+
+    vars_: Union[List[TargetVar], List[Optional[QuestionTargeting]]]
+
+    try:
+        vars_ = [TargetVar(**v) for v in qt["vars"]]
+    except TypeError:
+        vars_ = [parse_question_targeting(v) for v in qt["vars"]]
+
+    return QuestionTargeting(op=qt["op"], vars=vars_, name=qt.get("name"))
+
+
 def parse_sc(s: Mapping[str, Any]) -> Mapping[str, Any]:
     return {
         **s,
-        "target_questions": [TargetQuestion(**t) for t in s["target_questions"]],
+        "question_targeting": parse_question_targeting(s.get("question_targeting")),
     }
 
 
 def make_stratum_conf(d: Mapping[str, Any]) -> StratumConf:
     return StratumConf(**parse_sc(d))
+
+
+def make_audience_conf(d: Mapping[str, Any]) -> AudienceConf:
+    return AudienceConf(**parse_sc(d))
 
 
 def load_strata_conf(path: str) -> List[StratumConf]:

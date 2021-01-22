@@ -45,7 +45,7 @@ def get_surveyids(shortcodes, userid, cnf):
 
 def get_all_forms(survey_name, cnf):
     q = """
-    SELECT id, metadata, form_json, created, shortcode
+    SELECT id, metadata, form_json, created, shortcode, translation_conf
     FROM surveys
     WHERE survey_name = %s
     """
@@ -64,7 +64,7 @@ def all_responses(shortcodes, cnf):
       FROM responses
       WHERE shortcode in %s
     )
-    SELECT metadata, userid, surveyid, shortcode, question_ref, response, timestamp
+    SELECT metadata, userid, surveyid, shortcode, question_ref, response, timestamp, translated_response
     FROM t WHERE n = 1
     """
 
