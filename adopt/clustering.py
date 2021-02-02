@@ -77,13 +77,9 @@ def _filter_by_response(df, ref, pred):
     return df[df.userid.isin(users)].reset_index(drop=True)
 
 
-def users_fulfilling(pred, df):
-    return df.groupby("userid").filter(lambda df: pred(df)).reset_index(drop=True)
-
-
-def get_var(v: Union[TargetVar, QuestionTargeting], df: pd.DataFrame):
+def get_var(v: Union[TargetVar, QuestionTargeting], d: Dict[str, Any]):
     if isinstance(v, QuestionTargeting):
-        return make_pred(v)(df)
+        return make_pred(v)(d)
 
     type_, value = v
 
@@ -93,9 +89,9 @@ def get_var(v: Union[TargetVar, QuestionTargeting], df: pd.DataFrame):
     if type_ in {"response", "translated_response"}:
 
         try:
-            ans = df[df.question_ref == value][type_].iloc[0]
+            ans = d[type_][value]
             return ans
-        except IndexError:
+        except KeyError:
             return None
 
     raise Exception(f"Target Question Type not valid: {type_}")
@@ -106,6 +102,8 @@ def wrap(fn):
         try:
             return fn(*args, **kwargs)
         except TypeError:
+            return False
+        except ValueError:
             return False
 
     return _wrapped
@@ -121,8 +119,8 @@ def make_pred(q: Optional[QuestionTargeting]) -> Callable[[pd.DataFrame], bool]:
         "answered": lambda a, _: pd.notna(a),
         "not_equal": lambda a, b: a != b,
         "equal": lambda a, b: a == b,
-        "greater_than": lambda a, b: a > b,
-        "less_than": lambda a, b: a < b,
+        "greater_than": lambda a, b: float(a) > float(b),
+        "less_than": lambda a, b: float(a) < float(b),
     }
 
     try:
@@ -137,7 +135,15 @@ def make_pred(q: Optional[QuestionTargeting]) -> Callable[[pd.DataFrame], bool]:
         return lambda df: fn(get_var(v, df), None)
 
     vars_ = q.vars
-    return lambda df: reduce(fn, [get_var(var, df) for var in vars_])
+    return lambda d: reduce(fn, [get_var(var, d) for var in vars_])
+
+
+def users_fulfilling(pred, df):
+    dis = [
+        (u, df.to_dict()) for u, df in df.set_index("question_ref").groupby("userid")
+    ]
+    users = {u for u, d in dis if pred(d)}
+    return df[df.userid.isin(users)]
 
 
 def only_target_users(
@@ -362,16 +368,18 @@ def get_budget_lookup(
     proportional: bool = False,
 ) -> Tuple[Dict[str, float], Optional[AdOptReport]]:
 
+    total_spend = total_spend * 100
+
     df = prep_df_for_budget(df, strata) if df is not None else None
 
     if df is None:
-        return _base_budget(strata, max_budget, min_budget), None
+        return _base_budget(strata, max_budget / days_left, min_budget), None
 
     try:
         spend, tot, price = get_stats(df, strata, window, spend)
     except AdDataError as e:
         logging.info(f"Falling back to base budget due to the follow error: {e}")
-        return _base_budget(strata, max_budget, min_budget), None
+        return _base_budget(strata, max_budget / days_left, min_budget), None
 
     share = _normalize_values(tot)
 

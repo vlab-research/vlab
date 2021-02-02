@@ -147,15 +147,15 @@ def df():
     d = pd.DataFrame(
         [
             ("dist", "foo", 1, "foo"),
-            ("rand", 50, 1, "foo"),
+            ("rand", "50", 1, "foo"),
             ("dist", "bar", 2, "foo"),
-            ("rand", 55, 2, "foo"),
+            ("rand", "55", 2, "foo"),
             ("dist", "bar", 3, "foo"),
-            ("rand", 60, 3, "foo"),
+            ("rand", "60", 3, "foo"),
             ("dist", "bar", 4, "bar"),
-            ("rand", 105, 4, "bar"),
+            ("rand", "105", 4, "bar"),
             ("dist", "baz", 5, "bar"),
-            ("rand", 105, 5, "bar"),
+            ("rand", "105", 5, "bar"),
         ],
         columns=cols,
     )
@@ -167,14 +167,14 @@ def test_only_latest_survey_removes_duplicate_surveyids_per_user():
     d = pd.DataFrame(
         [
             ("dist", "foo", 1, "foo", "bar"),
-            ("rand", 50, 1, "foo", "bar"),
+            ("rand", "50", 1, "foo", "bar"),
             ("dist", "fooz", 1, "foo", "baz"),
             ("dist", "bar", 2, "foo", "foo"),
-            ("rand", 55, 2, "foo", "foo"),
+            ("rand", "55", 2, "foo", "foo"),
             ("dist", "bar", 3, "foo", "foo"),
-            ("rand", 60, 3, "foo", "foo"),
+            ("rand", "60", 3, "foo", "foo"),
             ("dist", "bar", 4, "bar", "foo"),
-            ("rand", 105, 4, "bar", "foo"),
+            ("rand", "105", 4, "bar", "foo"),
         ],
         columns=cols,
     )
@@ -209,15 +209,39 @@ def test_get_saturated_clusters_with_some_fulfilled(cnf):
     df = pd.DataFrame(
         [
             ("dist", "foo", 1, "foo"),
-            ("rand", 50, 1, "foo"),
+            ("rand", "50", 1, "foo"),
             ("dist", "bar", 2, "foo"),
-            ("rand", 55, 2, "foo"),
+            ("rand", "55", 2, "foo"),
             ("dist", "bar", 3, "foo"),
-            ("rand", 101, 3, "foo"),
+            ("rand", "101", 3, "foo"),
             ("dist", "bar", 4, "bar"),
-            ("rand", 103, 4, "bar"),
+            ("rand", "103", 4, "bar"),
             ("dist", "baz", 5, "bar"),
-            ("rand", 99, 5, "bar"),
+            ("rand", "99", 5, "bar"),
+        ],
+        columns=cols,
+    )
+    df = _format_df(df)
+
+    res = get_saturated_clusters(df, cnf)
+    assert res == ["bar"]
+
+
+def test_get_saturated_clusters_ignores_poorly_formated_numbers(cnf):
+
+    cols = ["question_ref", "response", "userid", "shortcode"]
+    df = pd.DataFrame(
+        [
+            ("dist", "foo", 1, "foo"),
+            ("rand", "50", 1, "foo"),
+            ("dist", "bar", 2, "foo"),
+            ("rand", "jkljk", 2, "foo"),
+            ("dist", "bar", 3, "foo"),
+            ("rand", "101", 3, "foo"),
+            ("dist", "bar", 4, "bar"),
+            ("rand", "103", 4, "bar"),
+            ("dist", "baz", 5, "bar"),
+            ("rand", "99", 5, "bar"),
         ],
         columns=cols,
     )
@@ -233,15 +257,15 @@ def test_get_saturated_clusters_with_some_fulfilled_on_translated_response():
     df = pd.DataFrame(
         [
             ("dist", "foo", None, 1, "foo"),
-            ("rand", 50, 50, 1, "foo"),
+            ("rand", "50", 50, 1, "foo"),
             ("dist", "bar", None, 2, "foo"),
-            ("rand", 55, 55, 2, "foo"),
+            ("rand", "55", 55, 2, "foo"),
             ("dist", "bar", None, 3, "foo"),
-            ("rand", 101, 101, 3, "foo"),
+            ("rand", "101", 101, 3, "foo"),
             ("dist", "bar", None, 4, "bar"),
-            ("rand", 103, 103, 4, "bar"),
+            ("rand", "103", 103, 4, "bar"),
             ("dist", "baz", None, 5, "bar"),
-            ("rand", 99, 99, 5, "bar"),
+            ("rand", "99", 99, 5, "bar"),
         ],
         columns=cols,
     )
@@ -256,13 +280,13 @@ def test_get_saturated_clusters_with_some_users_no_cluster(cnf):
     df = pd.DataFrame(
         [
             ("dist", "foo", 1, "foo"),
-            ("rand", 50, 1, "foo"),
-            ("rand", 55, 2, "foo"),
-            ("rand", 60, 3, "foo"),
+            ("rand", "50", 1, "foo"),
+            ("rand", "55", 2, "foo"),
+            ("rand", "60", 3, "foo"),
             ("dist", "bar", 4, "bar"),
-            ("rand", 105, 4, "bar"),
+            ("rand", "105", 4, "bar"),
             ("dist", "baz", 5, "bar"),
-            ("rand", 99, 5, "bar"),
+            ("rand", "99", 5, "bar"),
         ],
         columns=cols,
     )
@@ -278,15 +302,15 @@ def test_get_saturated_clusters_with_no_fulfilled(cnf):
     df = pd.DataFrame(
         [
             ("dist", "foo", 1, "foo"),
-            ("rand", 50, 1, "foo"),
+            ("rand", "50", 1, "foo"),
             ("dist", "bar", 2, "foo"),
-            ("rand", 55, 2, "foo"),
+            ("rand", "55", 2, "foo"),
             ("dist", "bar", 3, "foo"),
-            ("rand", 60, 3, "foo"),
+            ("rand", "60", 3, "foo"),
             ("dist", "bar", 4, "bar"),
-            ("rand", 105, 4, "bar"),
+            ("rand", "105", 4, "bar"),
             ("dist", "baz", 5, "bar"),
-            ("rand", 99, 5, "bar"),
+            ("rand", "99", 5, "bar"),
         ],
         columns=cols,
     )
@@ -337,11 +361,11 @@ def test_get_saturated_clusters_filters_only_appropriate_shortcodes():
     df = pd.DataFrame(
         [
             ("dist", "foo", 1, "foo"),
-            ("rand", 105, 1, "foo"),
+            ("rand", "105", 1, "foo"),
             ("dist", "bar", 2, "foo"),
-            ("rand", 55, 2, "foo"),
+            ("rand", "55", 2, "foo"),
             ("dist", "bar", 3, "foo"),
-            ("rand", 60, 3, "foo"),
+            ("rand", "60", 3, "foo"),
             ("dist", "bar", 4, "bar"),
             ("rook", 50, 4, "bar"),
             ("dist", "foo", 5, "foo"),
@@ -420,11 +444,11 @@ def test_get_saturated_clusters_with_different_id_fields():
     df = pd.DataFrame(
         [
             ("dist", "foo", 1, "foo"),
-            ("rand", 105, 1, "foo"),
+            ("rand", "105", 1, "foo"),
             ("dood", "bar", 2, "foo"),
-            ("rand", 55, 2, "foo"),
+            ("rand", "55", 2, "foo"),
             ("dood", "bar", 3, "foo"),
-            ("rand", 60, 3, "foo"),
+            ("rand", "60", 3, "foo"),
             ("dood", "bar", 4, "bar"),
             ("rook", 50, 4, "bar"),
         ],
@@ -532,13 +556,13 @@ def test_get_saturated_clusters_with_complex_nested_or_condition():
     df = pd.DataFrame(
         [
             ("dist", "foo", 1, "foo"),
-            ("rand", 105, 1, "foo"),
+            ("rand", "105", 1, "foo"),
             ("dist", "bar", 2, "foo"),
-            ("rand", 55, 2, "foo"),
+            ("rand", "55", 2, "foo"),
             ("dist", "bar", 3, "foo"),
-            ("rand", 60, 3, "foo"),
+            ("rand", "60", 3, "foo"),
             ("dist", "bar", 4, "bar"),
-            ("rand", 50, 4, "bar"),
+            ("rand", "50", 4, "bar"),
         ],
         columns=cols,
     )
@@ -571,11 +595,11 @@ def test_get_saturated_clusters_works_with_is_answered_op():
     df = pd.DataFrame(
         [
             ("dist", "foo", 1, "foo"),
-            ("rand", 105, 1, "foo"),
+            ("rand", "105", 1, "foo"),
             ("dist", "bar", 2, "foo"),
-            ("rand", 55, 2, "foo"),
+            ("rand", "55", 2, "foo"),
             ("dist", "bar", 3, "foo"),
-            ("rand", 60, 3, "foo"),
+            ("rand", "60", 3, "foo"),
             ("dist", "bar", 4, "bar"),
             ("rook", 50, 4, "bar"),
             ("dist", "foo", 5, "foo"),
@@ -757,11 +781,11 @@ def test_get_budget_lookup_works_with_missing_data_from_clusters(cnf):
     df = pd.DataFrame(
         [
             ("dist", "bar", 2, "foo"),
-            ("rand", 55, 2, "foo"),
+            ("rand", "55", 2, "foo"),
             ("dist", "bar", 3, "foo"),
-            ("rand", 60, 3, "foo"),
+            ("rand", "60", 3, "foo"),
             ("dist", "bar", 4, "bar"),
-            ("rand", 105, 4, "bar"),
+            ("rand", "105", 4, "bar"),
         ],
         columns=cols,
     )
