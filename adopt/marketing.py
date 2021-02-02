@@ -184,7 +184,9 @@ def make_stratum_conf(d: Mapping[str, Any]) -> StratumConf:
 
 
 def make_audience_conf(d: Mapping[str, Any]) -> AudienceConf:
-    return AudienceConf(**parse_sc(d))
+    lookalike = d.get('lookalike')
+    lookalike = Lookalike(**lookalike) if lookalike else None
+    return AudienceConf(**{**parse_sc(d), 'lookalike': lookalike})
 
 
 def load_strata_conf(path: str) -> List[StratumConf]:
