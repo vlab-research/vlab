@@ -43,7 +43,7 @@ def get_pageid(survey_user, cnf):
 
 def get_campaigns(cnf: DBConf):
     q = """
-    SELECT id FROM campaigns
+    SELECT id FROM campaigns WHERE active = TRUE
     """
 
     return [r["id"] for r in query(cnf, q, as_dict=True)]
