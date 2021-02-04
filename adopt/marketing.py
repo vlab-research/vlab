@@ -243,8 +243,8 @@ def make_welcome_message(text, button_text, ref):
     return json.dumps(message, sort_keys=True)
 
 
-def make_ref(form: str, stratum: Stratum) -> str:
-    s = f"form.{form}"
+def make_ref(creative: CreativeConf, stratum: Stratum) -> str:
+    s = f"form.{creative.form}.creative.{creative.name}"
     for k, v in stratum.metadata.items():
         s += f".{k}.{quote(v)}"
     return s
@@ -502,7 +502,7 @@ class Marketing:
 
     def create_creative(self, stratum: Stratum, config: CreativeConf) -> AdCreative:
 
-        ref = make_ref(config.form, stratum)
+        ref = make_ref(config, stratum)
         msg = make_welcome_message(config.welcome_message, config.button_text, ref)
 
         oss = {

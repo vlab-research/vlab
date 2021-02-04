@@ -5,9 +5,9 @@ from facebook_business.adobjects.ad import Ad
 from facebook_business.adobjects.adset import AdSet
 from facebook_business.adobjects.customaudience import CustomAudience
 
-from .marketing import (Audience, Instruction, Lookalike, LookalikeSpec,
-                        StratumConf, _eq, ad_dif, adset_dif, make_ref,
-                        manage_aud, update_adset)
+from .marketing import (Audience, CreativeConf, Instruction, Lookalike,
+                        LookalikeSpec, StratumConf, _eq, ad_dif, adset_dif,
+                        make_ref, manage_aud, update_adset)
 
 
 def test_eq_with_all_same():
@@ -629,22 +629,30 @@ def test_manage_aud_creates_lookalike_if_target_passed():
     ]
 
 
+def _creative_conf(name, form):
+    return CreativeConf(
+        name, "foo", "foo.jpg", "body", "welcome", "link_text", "button", form
+    )
+
+
 def test_make_ref():
     stratum = StratumConf("foo", 10, "foo", [], [], [], [], metadata={"bar": "baz"})
-    ref = make_ref("form1", stratum)
-    assert ref == "form.form1.bar.baz"
+    creative = _creative_conf("foo", "form1")
+    ref = make_ref(creative, stratum)
+    assert ref == "form.form1.creative.foo.bar.baz"
 
     stratum = StratumConf("foo", 10, "foo", [], [], [], [], metadata={})
-    ref = make_ref("form1", stratum)
-    assert ref == "form.form1"
+    ref = make_ref(creative, stratum)
+    assert ref == "form.form1.creative.foo"
 
 
 def test_make_url_escapes():
     stratum = StratumConf(
         "foo", 10, "foo", [], [], [], [], metadata={"bar": "baz foo!"}
     )
-    ref = make_ref("form1", stratum)
-    assert ref == "form.form1.bar.baz%20foo%21"
+    creative = _creative_conf("foo", "form1")
+    ref = make_ref(creative, stratum)
+    assert ref == "form.form1.creative.foo.bar.baz%20foo%21"
 
 
 # test

@@ -704,7 +704,7 @@ def test_get_budget_lookup(cnf, df):
 def test_get_budget_lookup_with_proportional_budget_when_budget_is_spent(cnf, df):
     window = BudgetWindow(DATE, DATE)
     spend = {"bar": 10.0, "baz": 10.0, "foo": 10.0}
-    res, _ = get_budget_lookup(df, cnf, 30, 1, window, spend, 30, 1, proportional=True)
+    res, _ = get_budget_lookup(df, cnf, 30, 1, window, spend, 0.3, 1, proportional=True)
     assert res == {"bar": 0, "baz": 0, "foo": 0}
 
 
@@ -770,7 +770,10 @@ def test_get_budget_lookup_handles_initial_conditions(cnf):
     )
 
     window = BudgetWindow(DATE, DATE)
-    res, _ = get_budget_lookup(df, cnf, 1000, 1, window, spend, 100, days_left=5)
+    res, _ = get_budget_lookup(df, cnf, 1000, 1, window, spend, 0.1, days_left=1)
+    assert res == {"bar": 333, "foo": 333, "baz": 333}
+
+    res, _ = get_budget_lookup(df, cnf, 2000, 1, window, spend, 0.1, days_left=2)
     assert res == {"bar": 333, "foo": 333, "baz": 333}
 
 
