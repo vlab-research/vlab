@@ -64,7 +64,8 @@ def all_responses(shortcodes, cnf):
       FROM responses
       WHERE shortcode in %s
     )
-    SELECT metadata, userid, surveyid, shortcode, question_ref, response, timestamp, translated_response
+    SELECT metadata, userid, surveyid, shortcode, question_ref,
+           response, timestamp, translated_response
     FROM t WHERE n = 1
     """
 
@@ -167,32 +168,6 @@ def get_forms(survey_user, shortcodes, timestamp, cnf):
     res = query(cnf, q, (survey_user, shortcodes, timestamp), as_dict=True)
     res = (r["form"] for r in res)
     return (json.loads(r) for r in res)
-
-
-def temp_translation_target(surveyid, cnf):
-    q = """
-    WITH t AS
-      (SELECT created,
-              survey_name,
-              form_json,
-              translation_conf,
-              jsonb_set(metadata,
-                        ARRAY['language'],
-                        '"english"') AS ref_metadata
-       FROM surveys
-       WHERE id = %s
-       LIMIT 1)
-    SELECT surveys.id AS dest, surveys.shortcode AS shortcode, surveys.form_json as dest_form, t.form_json as form_json
-    FROM t
-    LEFT JOIN surveys
-    ON t.survey_name = surveys.survey_name
-    AND t.ref_metadata = surveys.metadata
-    ORDER BY surveys.created
-    LIMIT 1
-    """
-
-    res = query(dict(cnf), q, (surveyid,), as_dict=True)
-    return next(res)
 
 
 def get_response_df(survey_user, shortcodes, questions, database_cnf):

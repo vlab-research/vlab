@@ -1,5 +1,4 @@
 import logging
-import warnings
 from functools import reduce
 from math import floor
 from statistics import mean
@@ -210,7 +209,8 @@ def calc_price(df, window, spend):
     non_zeros = [p for p in price.values() if p != 0]
     if not non_zeros:
         raise AdDataError(
-            f"Could not calculate the price of any adset between {window.start} and {window.until}"
+            f"Could not calculate the price of any adset "
+            f"between {window.start} and {window.until}"
         )
     m = mean(non_zeros)
     make_mean = lambda v: v if v != 0 else m

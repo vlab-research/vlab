@@ -184,9 +184,10 @@ def make_stratum_conf(d: Mapping[str, Any]) -> StratumConf:
 
 
 def make_audience_conf(d: Mapping[str, Any]) -> AudienceConf:
-    lookalike = d.get('lookalike')
+    lookalike = d.get("lookalike")
     lookalike = Lookalike(**lookalike) if lookalike else None
-    return AudienceConf(**{**parse_sc(d), 'lookalike': lookalike})
+    kwargs: Dict[str, Any] = {**parse_sc(d), "lookalike": lookalike}
+    return AudienceConf(**kwargs)
 
 
 def load_strata_conf(path: str) -> List[StratumConf]:

@@ -91,7 +91,7 @@ def get_adsets(campaign: Campaign) -> List[AdSet]:
 
 
 def get_campaigns(account: AdAccount) -> List[Campaign]:
-    return call(account.get_campaigns, fields=["name"])
+    return call(account.get_campaigns, fields=["name", "objective", "status"])
 
 
 def get_ads(campaign: Campaign) -> List[Ad]:

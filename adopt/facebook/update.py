@@ -10,7 +10,7 @@ class Instruction(NamedTuple):
     node: str
     action: str
     params: Dict[str, Any]
-    id: Optional[str]
+    id: Optional[str] = None
 
 
 class InstructionError(BaseException):
@@ -34,11 +34,12 @@ def add_users_to_custom_audience(token, aud_id, params):
     return requests.post(url, json={"payload": params})
 
 
-def getter(type_, prop):
+def getter(type_, obj, prop):
     """ Lazy so that nothing more gets loaded than needed """
 
     def _getter(i):
-        val = next((a for a in prop if a["id"] == i), None)
+        coll = getattr(obj, prop)
+        val = next((a for a in coll if a["id"] == i), None)
         if val is None:
             raise InstructionError(f"Could not find id {i} of type {type_}")
         return val
@@ -52,9 +53,9 @@ class GraphUpdater:
         self.account = state.account
 
         self.objects = {
-            "adset": getter("adset", state.adsets),
-            "ad": getter("ad", state.ads),
-            "custom_audience": getter("custom_audience", state.custom_audiences),
+            "adset": getter("adset", state, "adsets"),
+            "ad": getter("ad", state, "ads"),
+            "custom_audience": getter("custom_audience", state, "custom_audiences"),
         }
 
         self.creates = {
