@@ -55,6 +55,7 @@ class GraphUpdater:
         self.objects = {
             "adset": getter("adset", state, "adsets"),
             "ad": getter("ad", state, "ads"),
+            "campaign": getter("campaign", state, "campaigns"),
             "custom_audience": getter("custom_audience", state, "custom_audiences"),
         }
 

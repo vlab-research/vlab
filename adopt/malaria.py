@@ -50,7 +50,7 @@ def get_df(
     db_conf: Dict[str, str],
     survey_user: str,
     strata: Sequence[Union[Stratum, AudienceConf]],
-) -> pd.DataFrame:
+) -> Optional[pd.DataFrame]:
 
     # This makes no sense for AudienceConf, or at least a seq of them,
     # becase the questions in one sholdn't exclude the aud from another
@@ -223,6 +223,11 @@ def update_audience_for_campaign(
     audience_confs = confs["audience"]
 
     df = get_df(db_conf, userinfo.survey_user, audience_confs)
+
+    if df is None:
+        logging.info("No responses found, no audience updates made.")
+        return [], None
+
     audiences = hydrate_audiences(df, m, audience_confs)
 
     return manage_audiences(state, audiences), None
