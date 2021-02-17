@@ -614,6 +614,45 @@ def test_get_saturated_clusters_works_with_is_answered_op():
     assert res == ["foo"]
 
 
+def test_get_saturated_clusters_not_equal_only_those_who_answered():
+
+    s = [
+        {
+            "id": "foo",
+            "quota": 1,
+            "creatives": [],
+            "audiences": [],
+            "excluded_audiences": [],
+            "shortcodes": ["foo"],
+            "question_targeting": {
+                "op": "not_equal",
+                "vars": [
+                    {"type": "response", "value": "rook"},
+                    {"type": "constant", "value": "105"},
+                ],
+            },
+        },
+    ]
+    cnf = make_conf(s)
+
+    cols = ["question_ref", "response", "userid", "shortcode"]
+    df = pd.DataFrame(
+        [
+            ("rand", "105", 1, "foo"),
+            ("rand", "55", 2, "foo"),
+            ("rand", "60", 3, "foo"),
+            ("rook", "105", 1, "bar"),
+            ("rook", "105", 2, "foo"),
+        ],
+        columns=cols,
+    )
+
+    df = _format_df(df)
+
+    res = get_saturated_clusters(df, cnf)
+    assert res == []
+
+
 def test_get_stats_adds_zero_spend_when_no_info(cnf, df):
     window = BudgetWindow(DATE, DATE)
     spend = {"bar": 10.0, "baz": 10.0}

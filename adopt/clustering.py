@@ -116,7 +116,7 @@ def make_pred(q: Optional[QuestionTargeting]) -> Callable[[pd.DataFrame], bool]:
         "and": lambda a, b: a and b,
         "or": lambda a, b: a or b,
         "answered": lambda a, _: pd.notna(a),
-        "not_equal": lambda a, b: a != b,
+        "not_equal": lambda a, b: pd.notna(a) and pd.notna(b) and a != b,
         "equal": lambda a, b: a == b,
         "greater_than": lambda a, b: float(a) > float(b),
         "less_than": lambda a, b: float(a) < float(b),
