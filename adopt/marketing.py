@@ -275,7 +275,7 @@ def manage_aud(old_auds: List[CustomAudience], aud: Audience) -> List[Instructio
     if ca is None:
         return [create_custom_audience(aud.name, "virtual lab auto-generated audience")]
 
-    instructions = []
+    instructions = add_users_to_audience(aud.pageid, ca.get_id(), aud.users)
 
     if aud.subtype == "LOOKALIKE" and aud.lookalike is not None:
         count = ca["approximate_count"]
@@ -286,7 +286,6 @@ def manage_aud(old_auds: List[CustomAudience], aud: Audience) -> List[Instructio
                 )
             ]
 
-    instructions += add_users_to_audience(aud.pageid, ca.get_id(), aud.users)
     return instructions
 
 
