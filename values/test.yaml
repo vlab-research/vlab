@@ -24,7 +24,7 @@ versionBotserver: &vbotserver 0.0.9
 versionReplybot: &vreplybot 0.0.115
 versionLinksniffer: &vlinksniffer 0.0.3
 versionDean: &vdean 0.0.22
-versionScribble: &vscribble 0.0.17
+versionScribble: &vscribble 0.0.18
 versionDinersclub: &vdinersclub 0.0.7
 versionFormcentral: &vformcentral 0.0.4
 
@@ -336,7 +336,7 @@ scribble:
 
 cockroachdb:
   image:
-    tag: v20.1.4
+    tag: v20.2.4
   statefulset:
     replicas: 1
   conf:

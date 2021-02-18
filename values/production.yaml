@@ -18,7 +18,7 @@ chatbaseHost: &host "gbv-cockroachdb-public"
 
 versionDashboard: &vdashboard 0.0.13
 versionBotserver: &vbotserver 0.0.9
-versionReplybot: &vreplybot 0.0.114
+versionReplybot: &vreplybot 0.0.115
 versionLinksniffer: &vlinksniffer 0.0.3
 versionDean: &vdean 0.0.22
 versionScribble: &vscribble 0.0.17
@@ -140,7 +140,7 @@ dean:
   - name: DEAN_RESPONDING_INTERVAL
     value: "24 hours"
   - name: DEAN_RESPONDING_GRACE
-    value: "720 minutes"
+    value: "20 minutes"
   - name: DEAN_SEND_DELAY
     value: "3s"
   - name: DEAN_FOLLOWUP_MIN
@@ -148,13 +148,13 @@ dean:
   - name: DEAN_FOLLOWUP_MAX
     value: "24 hours"
   queries:
-    - name: respondings
-      queries: "respondings,blocked,errored"
-      schedule: "0 * * * *"
-      resources:
-        requests:
-          cpu: 10m
-          memory: 10Mi
+    # - name: respondings
+    #   queries: "respondings,errored"
+    #   schedule: "0 */1 * * *"
+    #   resources:
+    #     requests:
+    #       cpu: 10m
+    #       memory: 10Mi
     - name: followups
       queries: "followups"
       schedule: "0 5-19 * * *"
@@ -206,9 +206,9 @@ scribble:
       - name: KAFKA_GROUP
         value: "scribble-states"
       - name: SCRIBBLE_CHUNK_SIZE
-        value: "8"
+        value: "16"
       - name: SCRIBBLE_BATCH_SIZE
-        value: "8"
+        value: "64"
     - destination: "responses"
       replicaCount: 1
       env:
@@ -228,25 +228,25 @@ scribble:
       - name: KAFKA_GROUP
         value: "scribble-messages"
       - name: SCRIBBLE_CHUNK_SIZE
-        value: "16"
+        value: "32"
       - name: SCRIBBLE_BATCH_SIZE
-        value: "16"
+        value: "128"
 
 dumper:
   image:
     repository: vlabresearch/dumper
-    tag: 0.0.1
+    tag: 0.0.11
     pullPolicy: IfNotPresent
 
   completions: 1
   parallelism: 1
   backoffLimit: 8
 
-  schedule: "30 * * * *"
+  schedule: "30 */4 * * *"
   resources:
     requests:
-      cpu: 800m
-      memory: 256Mi
+      cpu: 1000m
+      memory: 300Mi
 
   keySecret: gbv-dumper-keys
   env:
@@ -381,7 +381,7 @@ dashboard:
 
 
 replybot:
-  replicaCount: 12
+  replicaCount: 24
   image:
     repository: vlabresearch/replybot
     tag: *vreplybot
