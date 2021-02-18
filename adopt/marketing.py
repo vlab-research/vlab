@@ -184,8 +184,15 @@ def make_stratum_conf(d: Mapping[str, Any]) -> StratumConf:
 
 
 def make_audience_conf(d: Mapping[str, Any]) -> AudienceConf:
+
+    # TODO: abstract recursive namedtuple making from typed_json lib
     lookalike = d.get("lookalike")
-    lookalike = Lookalike(**lookalike) if lookalike else None
+    if lookalike:
+        params: Dict[str, Any] = {
+            **lookalike,
+            "spec": LookalikeSpec(**lookalike["spec"]),
+        }
+        lookalike = Lookalike(**params)
     kwargs: Dict[str, Any] = {**parse_sc(d), "lookalike": lookalike}
     return AudienceConf(**kwargs)
 
