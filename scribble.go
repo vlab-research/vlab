@@ -52,22 +52,20 @@ func getPool(cfg *Config) *pgxpool.Pool {
 	return pool
 }
 
-func getMarshaller(cfg *Config, pool *pgxpool.Pool) MarshalWriteable {
+func getMarshaller(cfg *Config, pool *pgxpool.Pool) Scribbler {
 	name := cfg.Destination
 
-	responser := NewResponser(pool)
-
-	marshallers := map[string]MarshalWriteable{
-		"states":    StateMarshaller,
-		"responses": responser.ResponseMarshaller,
-		"messages":  MessageMarshaller,
+	marshallers := map[string]func(*pgxpool.Pool) Scribbler{
+		"states":    NewStateScribbler,
+		"responses": NewResponseScribbler,
+		"messages":  NewMessageScribbler,
 	}
 
-	m, ok := marshallers[name]
+	fn, ok := marshallers[name]
 	if !ok {
 		log.Fatalf("Scribble couldnt find a marshaller for destination %v", name)
 	}
-	return m
+	return fn(pool)
 }
 
 func getConfig() Config {
@@ -94,7 +92,8 @@ func main() {
 	go monitor(HandleErrors(errs, getHandlers(&cfg)))
 
 	// Write forever
-	writer := GetWriter(pool, getMarshaller(&cfg, pool))
+	// getwriter takes the struct, not marshalwriteable
+	writer := GetWriter(getMarshaller(&cfg, pool))
 	for {
 		c.SideEffect(writer.Write, errs)
 	}

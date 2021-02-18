@@ -2,49 +2,58 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"testing"
 
 	"github.com/confluentinc/confluent-kafka-go/kafka"
-	"github.com/jackc/pgx/v4"
+	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/stretchr/testify/assert"
 )
 
-
 type StringData struct {
-	foo string
+	Foo string `json:"foo" validate:"required"`
 }
 
-func (f *StringData) Queue (batch *pgx.Batch) {
-	query := "INSERT INTO test (foo) VALUES($1)"
-	batch.Queue(query, f.foo)
+func (f *StringData) GetRow() []interface{} {
+	return []interface{}{f.Foo}
 }
 
-type IntData struct {
-	foo int64
+type StringScribbler struct {
+	pool *pgxpool.Pool
 }
 
-func (f *IntData) Queue (batch *pgx.Batch) {
-	query := "INSERT INTO test (foo) VALUES($1)"
-	batch.Queue(query, f.foo)
+func (s *StringScribbler) SendBatch(values []interface{}) error {
+	query := SertQuery("INSERT", "test", []string{"foo"}, values)
+	_, err := s.pool.Exec(context.Background(), query, values...)
+	return err
+}
+
+func (s *StringScribbler) Marshal(msg *kafka.Message) (Writeable, error) {
+	m := new(StringData)
+	err := json.Unmarshal(msg.Value, m)
+	if err != nil {
+		return nil, err
+	}
+
+	return m, nil
 }
 
 type TestError struct{ msg string }
+
 func (e *TestError) Error() string {
-    return e.msg
+	return e.msg
 }
 
-func GoodStringMarshaller(msg *kafka.Message) (Writeable, error){
+func GoodStringMarshaller(msg *kafka.Message) (Writeable, error) {
 	return &StringData{"hey"}, nil
 }
 
-
-func ErrorStringMarshaller(msg *kafka.Message) (Writeable, error){
+func ErrorStringMarshaller(msg *kafka.Message) (Writeable, error) {
 	if string(msg.Value) == "bad" {
 		return nil, &TestError{"test"}
 	}
 	return &StringData{"hey"}, nil
 }
-
 
 func TestPrepWhenAllGood(t *testing.T) {
 	data, _ := Prep(GoodStringMarshaller, makeMessages([]string{"foo", "bar"}))
@@ -56,7 +65,6 @@ func TestPrepWhenOneBadYouGetAnError(t *testing.T) {
 	assert.Nil(t, data)
 	assert.NotNil(t, err)
 }
-
 
 func TestWriteBatchSucceeds(t *testing.T) {
 
@@ -70,12 +78,14 @@ func TestWriteBatchSucceeds(t *testing.T) {
 
 	mustExec(t, pool, sql)
 
-	data := []Writeable{
-		&StringData{"bar"},
-		&StringData{"baz"},
+	msgs := []*kafka.Message{
+		{Value: []byte(`{ "foo": "bar"}`)},
+		{Value: []byte(`{ "foo": "baz"}`)},
 	}
 
-	err := WriteBatch(pool, data)
+	writer := GetWriter(&StringScribbler{pool})
+
+	err := writer.Write(msgs)
 	assert.Nil(t, err)
 
 	rows, err := pool.Query(context.Background(), "select * from test")
@@ -88,8 +98,8 @@ func TestWriteBatchSucceeds(t *testing.T) {
 		results = append(results, res)
 	}
 
-	assert.Equal(t, results[0], "bar")
-	assert.Equal(t, results[1], "baz")
+	assert.Equal(t, "bar", results[0])
+	assert.Equal(t, "baz", results[1])
 	assert.Equal(t, len(results), 2)
 }
 
@@ -104,14 +114,14 @@ func TestWriteBatchWithFailedLocallyWritesNothing(t *testing.T) {
 
 	mustExec(t, pool, sql)
 
-	data := []Writeable{
-		&StringData{"baz"},
-		&StringData{"bar"},
-		&IntData{1},
+	msgs := []*kafka.Message{
+		{Value: []byte(`{ "foo": "bar"}`)},
+		{Value: []byte(`{ "foo": 1}`)},
 	}
 
-	err := WriteBatch(pool, data)
-	t.Log(err)
+	writer := GetWriter(&StringScribbler{pool})
+
+	err := writer.Write(msgs)
 	assert.NotNil(t, err)
 
 	rows, err := pool.Query(context.Background(), "select * from test")
@@ -125,40 +135,4 @@ func TestWriteBatchWithFailedLocallyWritesNothing(t *testing.T) {
 	}
 
 	assert.Equal(t, len(results), 0)
-}
-
-func TestWriteBatchWithFailedOnDBWritesPartially(t *testing.T) {
-
-	pool := testPool()
-	defer pool.Close()
-
-	sql := `drop table if exists test;
-            create table if not exists test(
-              foo int
-           );`
-
-	mustExec(t, pool, sql)
-
-	data := []Writeable{
-		&IntData{1},
-		&IntData{2},
-		&StringData{"baz"},
-		&IntData{3},
-		&IntData{4},
-	}
-
-	err := WriteBatch(pool, data)
-	assert.NotNil(t, err)
-
-	rows, err := pool.Query(context.Background(), "select * from test")
-	handle(err)
-
-	results := []int64{}
-	for rows.Next() {
-		var res int64
-		_ = rows.Scan(&res)
-		results = append(results, res)
-	}
-
-	assert.Equal(t, len(results), 2)
 }

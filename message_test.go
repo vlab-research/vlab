@@ -28,7 +28,7 @@ func TestMessageWriterWritesGoodData(t *testing.T) {
 		&kafka.Message{Value: []byte(`{ "bar": "baz "}`), Key: []byte("foo"), Timestamp: time.Now()},
 	}
 
-	writer := GetWriter(pool, MessageMarshaller)
+	writer := GetWriter(NewMessageScribbler(pool))
 	err := writer.Write(msgs)
 	assert.Nil(t, err)
 
@@ -58,7 +58,7 @@ func TestMessageWriterDoesNotThrowOnDuplicateMessage(t *testing.T) {
 		&kafka.Message{Value: []byte(`{ "foo": "bar "}`), Key: []byte("foo"), Timestamp: time.Now()},
 	}
 
-	writer := GetWriter(pool, MessageMarshaller)
+	writer := GetWriter(NewMessageScribbler(pool))
 	err := writer.Write(msgs)
 	assert.Nil(t, err)
 

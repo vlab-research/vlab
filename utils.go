@@ -7,24 +7,31 @@ import (
 	"time"
 )
 
-
-func SertQuery(sert string, table string, fields []string) string {
-	placeholders := make([]string, len(fields))
-	for i, _ := range fields {
-		placeholders[i] = fmt.Sprintf("$%v", i+1)
-	}
-
+func SertQuery(sert string, table string, fields []string, values []interface{}) string {
 	query := fmt.Sprintf("%v INTO %v(", sert, table)
 	query += strings.Join(fields, ",")
-	query += ") VALUES ("
-	query += strings.Join(placeholders, ",")
-	query += ")"
-
+	query += ") VALUES "
+	query += Placeholders(len(fields), len(values)/len(fields))
 	return query
 }
 
+func Placeholders(numVals int, numRows int) string {
+	rows := make([]string, numRows)
+	n := 0
+	for i := range rows {
+		placeholders := make([]string, numVals)
+		for j := range placeholders {
+			n += 1
+			placeholders[j] = fmt.Sprintf("$%v", n)
+		}
+		rows[i] = "(" + strings.Join(placeholders, ",") + ")"
+	}
+
+	return strings.Join(rows, ",")
+}
+
 type JSTimestamp struct {
-	time.Time 
+	time.Time
 }
 
 func (t *JSTimestamp) UnmarshalJSON(b []byte) error {
@@ -36,7 +43,6 @@ func (t *JSTimestamp) UnmarshalJSON(b []byte) error {
 	*t = JSTimestamp{time.Unix(0, i*1000000).UTC()}
 	return nil
 }
-
 
 type CastString struct {
 	String string

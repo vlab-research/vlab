@@ -1,36 +1,40 @@
 package main
 
 import (
-	"context"
-
-	"github.com/go-playground/validator/v10"
-	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/confluentinc/confluent-kafka-go/kafka"
-	"github.com/jackc/pgx/v4"
+	"github.com/go-playground/validator/v10"
 )
 
-type Writeable interface {
-	Queue(*pgx.Batch)
+type Batch struct {
+	rows []interface{}
 }
-type MarshalWriteable func(*kafka.Message) (Writeable, error)
 
-func Write(v *validator.Validate, pool *pgxpool.Pool, fn MarshalWriteable, messages []*kafka.Message) error {
-	data, err := Prep(fn, messages)
-	if err != nil {
-		return err
+func (batch *Batch) Queue(vals ...interface{}) {
+	for _, v := range vals {
+		batch.rows = append(batch.rows, v)
 	}
+}
 
+type Batcher interface {
+	sendBatch(*Batch) error
+}
+
+type Writeable interface {
+	GetRow() []interface{}
+}
+
+func BatchValues(data []Writeable) []interface{} {
+	values := []interface{}{}
 	for _, d := range data {
-		err := v.Struct(d)
-		if err != nil {
-			return err
+		for _, r := range d.GetRow() {
+			values = append(values, r)
 		}
 	}
 
-	return WriteBatch(pool, data)
+	return values
 }
 
-func Prep(fn MarshalWriteable, messages []*kafka.Message) ([]Writeable, error) {
+func Prep(fn func(*kafka.Message) (Writeable, error), messages []*kafka.Message) ([]Writeable, error) {
 	data := []Writeable{}
 	for _, msg := range messages {
 		w, err := fn(msg)
@@ -47,29 +51,38 @@ func Prep(fn MarshalWriteable, messages []*kafka.Message) ([]Writeable, error) {
 	return data, nil
 }
 
-func WriteBatch(pool *pgxpool.Pool, data []Writeable) error {
-	// TODO: this only returns a single error
-	// but an error could occur on any insert
-	batch := &pgx.Batch{}
-	for _, d := range data {
-		d.Queue(batch)
+func Write(v *validator.Validate, scribbler Scribbler, messages []*kafka.Message) error {
+	data, err := Prep(scribbler.Marshal, messages)
+	if err != nil {
+		return err
 	}
-	br := pool.SendBatch(context.Background(), batch)
-	return br.Close() // contains any error in batchresults
-}
 
+	for _, d := range data {
+		err := v.Struct(d)
+		if err != nil {
+			return err
+		}
+	}
+
+	batch := BatchValues(data)
+	return scribbler.SendBatch(batch)
+}
 
 type Writer struct {
-	pool *pgxpool.Pool
-	validate *validator.Validate
-	fn MarshalWriteable
+	validate  *validator.Validate
+	scribbler Scribbler
 }
 
-func GetWriter(pool *pgxpool.Pool, fn MarshalWriteable) *Writer {
-	validate := validator.New()
-	return &Writer{pool, validate, fn}
+type Scribbler interface {
+	SendBatch([]interface{}) error
+	Marshal(*kafka.Message) (Writeable, error)
 }
 
 func (w *Writer) Write(messages []*kafka.Message) error {
-	return Write(w.validate, w.pool, w.fn, messages)
+	return Write(w.validate, w.scribbler, messages)
+}
+
+func GetWriter(scribbler Scribbler) *Writer {
+	validate := validator.New()
+	return &Writer{validate, scribbler}
 }

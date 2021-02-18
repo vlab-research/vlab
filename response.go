@@ -6,7 +6,6 @@ import (
 
 	"github.com/confluentinc/confluent-kafka-go/kafka"
 	"github.com/dgraph-io/ristretto"
-	"github.com/jackc/pgx/v4"
 	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/vlab-research/trans"
 )
@@ -40,8 +39,33 @@ type Response struct {
 	Metadata           json.RawMessage `json:"metadata" validate:"required"`
 }
 
-func (r *Response) Queue(batch *pgx.Batch) {
-	query := SertQuery("INSERT", "responses", []string{
+func (r *Response) GetRow() []interface{} {
+
+	return []interface{}{
+		r.ParentShortcode.String,
+		r.Surveyid,
+		r.Shortcode.String,
+		r.Flowid,
+		r.Userid,
+		nullify(r.Pageid),
+		r.QuestionRef,
+		r.QuestionIdx,
+		r.QuestionText,
+		r.Response.String,
+		r.TranslatedResponse,
+		r.Seed,
+		r.Timestamp.Time,
+		r.Metadata,
+	}
+}
+
+type ResponseScribbler struct {
+	pool  *pgxpool.Pool
+	cache *ristretto.Cache
+}
+
+func (s *ResponseScribbler) SendBatch(values []interface{}) error {
+	fields := []string{
 		"parent_shortcode",
 		"surveyid",
 		"shortcode",
@@ -56,24 +80,11 @@ func (r *Response) Queue(batch *pgx.Batch) {
 		"seed",
 		"timestamp",
 		"metadata",
-	})
+	}
+	query := SertQuery("INSERT", "responses", fields, values)
 	query += " ON CONFLICT(userid, timestamp, question_ref) DO NOTHING"
-
-	batch.Queue(query,
-		r.ParentShortcode.String,
-		r.Surveyid,
-		r.Shortcode.String,
-		r.Flowid,
-		r.Userid,
-		nullify(r.Pageid),
-		r.QuestionRef,
-		r.QuestionIdx,
-		r.QuestionText,
-		r.Response.String,
-		r.TranslatedResponse,
-		r.Seed,
-		r.Timestamp.Time,
-		r.Metadata)
+	_, err := s.pool.Exec(context.Background(), query, values...)
+	return err
 }
 
 func getTranslationForms(pool *pgxpool.Pool, surveyid string) (*trans.FormJson, *trans.FormJson, error) {
@@ -98,12 +109,7 @@ func getTranslationForms(pool *pgxpool.Pool, surveyid string) (*trans.FormJson, 
 	return src, dest, err
 }
 
-type Responser struct {
-	pool  *pgxpool.Pool
-	cache *ristretto.Cache
-}
-
-func (r Responser) cachedTranslator(response *Response) (*trans.FormTranslator, error) {
+func (r ResponseScribbler) cachedTranslator(response *Response) (*trans.FormTranslator, error) {
 	res, ok := r.cache.Get(response.Surveyid)
 	if ok {
 		if res == nil {
@@ -129,7 +135,7 @@ func (r Responser) cachedTranslator(response *Response) (*trans.FormTranslator, 
 	return translator, nil
 }
 
-func (r Responser) Translate(response *Response) (*string, error) {
+func (r ResponseScribbler) Translate(response *Response) (*string, error) {
 	translator, err := r.cachedTranslator(response)
 	if err != nil {
 		return nil, err
@@ -142,7 +148,7 @@ func (r Responser) Translate(response *Response) (*string, error) {
 	return trans.Translate(response.QuestionRef, response.Response.String, translator)
 }
 
-func NewResponser(pool *pgxpool.Pool) *Responser {
+func NewResponseScribbler(pool *pgxpool.Pool) Scribbler {
 	cache, err := ristretto.NewCache(&ristretto.Config{
 		NumCounters: 1e4,
 		MaxCost:     1e4,
@@ -152,17 +158,17 @@ func NewResponser(pool *pgxpool.Pool) *Responser {
 		panic(err)
 	}
 
-	return &Responser{pool, cache}
+	return &ResponseScribbler{pool, cache}
 }
 
-func (r Responser) ResponseMarshaller(msg *kafka.Message) (Writeable, error) {
+func (s *ResponseScribbler) Marshal(msg *kafka.Message) (Writeable, error) {
 	m := new(Response)
 	err := json.Unmarshal(msg.Value, m)
 	if err != nil {
 		return nil, err
 	}
 
-	tr, err := r.Translate(m)
+	tr, err := s.Translate(m)
 	if err != nil {
 		return nil, err
 	}
