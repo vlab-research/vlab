@@ -303,6 +303,10 @@ def _base_budget(strata, max_budget, min_budget):
     return budget
 
 
+def _off_budget(strata):
+    return {s.id: 0 for s in strata}
+
+
 AdOptReport = Dict[str, Dict[str, Union[int, float]]]
 
 
@@ -369,6 +373,9 @@ def get_budget_lookup(
 ) -> Tuple[Dict[str, float], Optional[AdOptReport]]:
 
     total_spend = total_spend * 100
+
+    if days_left == 0:
+        return _off_budget(strata), None
 
     df = prep_df_for_budget(df, strata) if df is not None else None
 

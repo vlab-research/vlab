@@ -730,6 +730,14 @@ def test_get_budget_lookup(cnf, df):
     assert res == {"bar": 2.0, "baz": 2.0, "foo": 8.0}
 
 
+def test_get_budget_lookup_when_no_days_left(cnf, df):
+    window = BudgetWindow(DATE, DATE)
+    spend = {"bar": 10.0, "baz": 10.0, "foo": 10.0}
+
+    res, _ = get_budget_lookup(df, cnf, 30, 1, window, spend, 100, 0)
+    assert res == {"bar": 0.0, "baz": 0.0, "foo": 0.0}
+
+
 # def test_get_budget_lookup_with_proportional_budget(cnf, df):
 #     window = BudgetWindow(DATE, DATE)
 #     spend = {"bar": 10.0, "baz": 10.0, "foo": 5.0}
