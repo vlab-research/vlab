@@ -49,3 +49,19 @@ def create_conf(campaignid, conf_type):
 def get_confs(campaignid):
     res = get_campaign_configs(campaignid, db_conf)
     return jsonify(res), 200
+
+
+def create_image():
+    fi = request.files.get("file")
+
+    if fi and allowed_file(fi.filename):
+        b = fi.read()
+        s = base64.b64encode(b).decode()
+
+        # make image in facebook api with those bytes
+        # ...
+        # store in database and do this elsewhere???
+
+        # state.account.create_ad_image(params = {AdImage.Field.bytes: s, AdImage.Field.name: 'vlab-mnm-test'})
+    else:
+        return "poop", 400
