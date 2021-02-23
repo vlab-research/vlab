@@ -83,7 +83,7 @@ above_threshes <- function (balance, threshes) {
 }
 
 find_best_balance <- function (ma, iters, threshes) {
-    selected_ma <- select(raw_ma, kutchas, university, malaria, malaria_now, population, cost_per_completion, saturated)
+    selected_ma <- select(ma, kutchas, university, malaria, malaria_now, population, cost_per_completion, saturated)
     or <- get_order(selected_ma)
     labels <- choose(pairem(selected_ma, or))
 
@@ -119,4 +119,6 @@ ma <- dplyr::select(raw_ma, -disthash)
 get_balance(ma, ma$treatment, 1)
 
 individual <- read_csv('outs/individual-with-treatment.csv')
-MatchBalance(treatment ~ kutcha + university + unemployed + malaria + malaria_now + under_net, data=individual)
+individual <- read_csv('outs/individual-for-balance.csv')
+
+MatchBalance(treatment ~ kutcha + pucca + university + unemployed + malaria + malaria_now + under_net, data=individual)
