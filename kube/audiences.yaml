@@ -1,16 +1,16 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: gbv-adopt-update-ads-vlab
+  name: gbv-adopt-update-audiences-vlab
   labels:
-    app: gbv-adopt-update-ads-vlab
+    app: gbv-adopt-update-audiences-vlab
 spec:
   template:
     spec:
       restartPolicy: OnFailure
       containers:
-      - name: gbv-adopt-update-ads
-        image: vlabresearch/adopt:0.0.55
+      - name: gbv-adopt-update-audiences
+        image: vlabresearch/adopt:0.0.75
         args:
         - python
         - malaria_audience.py
@@ -25,7 +25,7 @@ spec:
         - name: CHATBASE_DATABASE
           value: chatroach
         - name: CHATBASE_USER
-          value: chatreader
+          value: adopt
         - name: CHATBASE_PASSWORD
         - name: CHATBASE_HOST
           value: gbv-cockroachdb-public

@@ -1,22 +1,22 @@
 apiVersion: batch/v1beta1
 kind: CronJob
 metadata:
-  name: gbv-adopt-update-ads-vlab
+  name: gbv-adopt-update-audiences-vlab
   labels:
-    app: gbv-adopt-update-ads-vlab
+    app: gbv-adopt-update-audiences-vlab
 spec:
-  schedule: 0 9,11,17 * * *
+  schedule: 0 8,16 * * *
   jobTemplate:
     spec:
       template:
         spec:
           restartPolicy: OnFailure
           containers:
-          - name: gbv-adopt-update-ads
-            image: vlabresearch/adopt:0.0.76
+          - name: gbv-adopt-update-audiences
+            image: vlabresearch/adopt:0.0.75
             args:
             - python
-            - malaria_ads.py
+            - malaria_audience.py
             resources:
               requests:
                 cpu: 10m

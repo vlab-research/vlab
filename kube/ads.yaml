@@ -10,7 +10,7 @@ spec:
       restartPolicy: OnFailure
       containers:
       - name: gbv-adopt-update-ads
-        image: vlabresearch/adopt:0.0.55
+        image: vlabresearch/adopt:0.0.76
         args:
         - python
         - malaria_ads.py
@@ -25,7 +25,7 @@ spec:
         - name: CHATBASE_DATABASE
           value: chatroach
         - name: CHATBASE_USER
-          value: chatreader
+          value: adopt
         - name: CHATBASE_PASSWORD
         - name: CHATBASE_HOST
           value: gbv-cockroachdb-public
