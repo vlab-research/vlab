@@ -125,3 +125,16 @@ def create_adopt_report(
     """
 
     return list(query(cnf, q, (campaignid, report_type, json.dumps(details))))[0]
+
+
+def get_last_adopt_report(campaignid: str, report_type: str, cnf: DBConf):
+    q = """
+    SELECT details
+    FROM adopt_reports
+    WHERE campaignid = %s
+    AND report_type = %s
+    ORDER BY created DESC
+    LIMIT 1
+    """
+
+    return list(query(cnf, q, (campaignid, report_type)))[0][0]
