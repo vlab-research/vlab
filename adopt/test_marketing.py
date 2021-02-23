@@ -614,6 +614,7 @@ def test_manage_aud_creates_lookalike_if_target_passed():
 
     spec = '{"country": "IN", "ratio": 0.1, "starting_ratio": 0.0}'
     assert instructions == [
+        _update_instruction(),
         Instruction(
             "custom_audience",
             "create",
@@ -625,7 +626,6 @@ def test_manage_aud_creates_lookalike_if_target_passed():
             },
             None,
         ),
-        _update_instruction(),
     ]
 
 
