@@ -595,7 +595,7 @@ def test_manage_aud_creates_lookalike_if_target_passed():
                 "id": "foo",
                 "name": "foo",
                 "description": "bar",
-                "approximate_count": 101,
+                "approximate_count": 200,
             },
             CustomAudience,
         )
@@ -636,19 +636,19 @@ def _creative_conf(name, form):
 
 
 def test_make_ref():
-    stratum = StratumConf("foo", 10, "foo", [], [], [], [], metadata={"bar": "baz"})
+    stratum = StratumConf("foo", 10, "foo", [], [], [], [], {}, metadata={"bar": "baz"})
     creative = _creative_conf("foo", "form1")
     ref = make_ref(creative, stratum)
     assert ref == "form.form1.creative.foo.bar.baz"
 
-    stratum = StratumConf("foo", 10, "foo", [], [], [], [], metadata={})
+    stratum = StratumConf("foo", 10, "foo", [], [], [], [], {}, metadata={})
     ref = make_ref(creative, stratum)
     assert ref == "form.form1.creative.foo"
 
 
 def test_make_url_escapes():
     stratum = StratumConf(
-        "foo", 10, "foo", [], [], [], [], metadata={"bar": "baz foo!"}
+        "foo", 10, "foo", [], [], [], [], {}, metadata={"bar": "baz foo!"}
     )
     creative = _creative_conf("foo", "form1")
     ref = make_ref(creative, stratum)

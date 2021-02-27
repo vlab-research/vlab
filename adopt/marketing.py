@@ -4,6 +4,7 @@ from typing import (Any, Dict, List, Mapping, NamedTuple, Optional, Sequence,
                     Tuple, TypeVar, Union)
 from urllib.parse import quote
 
+import typedjson
 from facebook_business.adobjects.ad import Ad
 from facebook_business.adobjects.adcreative import AdCreative
 from facebook_business.adobjects.adcreativelinkdata import AdCreativeLinkData
@@ -62,13 +63,12 @@ class CreativeGroup(NamedTuple):
 
 class TargetVar(NamedTuple):
     type: str
-    value: str
+    value: Union[str, int, float]
 
 
 class QuestionTargeting(NamedTuple):
     op: str
-    vars: Sequence[Any]
-    name: Optional[str] = None
+    vars: List[Union[TargetVar, "QuestionTargeting"]]  # type: ignore
 
 
 FacebookTargeting = Dict[str, Any]
@@ -76,24 +76,24 @@ FacebookTargeting = Dict[str, Any]
 
 class Stratum(NamedTuple):
     id: str
-    quota: int
+    quota: Union[int, float]
     creatives: List[CreativeConf]
     shortcodes: List[str]
+    facebook_targeting: FacebookTargeting
     question_targeting: Optional[QuestionTargeting]
-    facebook_targeting: FacebookTargeting = {}
-    metadata: Dict[str, str] = {}
+    metadata: Dict[str, str]
 
 
 class StratumConf(NamedTuple):
     id: str
-    quota: int
+    quota: Union[int, float]
     creatives: List[str]
     shortcodes: List[str]
     audiences: List[str]
     excluded_audiences: List[str]
+    facebook_targeting: FacebookTargeting
     question_targeting: Optional[QuestionTargeting]
-    facebook_targeting: FacebookTargeting = {}
-    metadata: Dict[str, str] = {}
+    metadata: Dict[str, str]
 
 
 class Location(NamedTuple):
@@ -129,7 +129,7 @@ class AudienceConf(NamedTuple):
     name: str
     subtype: str
     shortcodes: List[str]
-    question_targeting: Optional[QuestionTargeting]
+    question_targeting: Optional[QuestionTargeting] = None
     lookalike: Optional[Lookalike] = None
 
 
@@ -142,6 +142,9 @@ class Audience(NamedTuple):
 
 
 def dict_from_nested_type(d):
+    if hasattr(d, "export_data"):
+        d = d.export_data()
+
     if hasattr(d, "_asdict"):
         d = d._asdict()
 
@@ -156,45 +159,12 @@ def dict_from_nested_type(d):
     return d
 
 
-def parse_question_targeting(
-    qt: Optional[Mapping[str, Any]]
-) -> Optional[QuestionTargeting]:
-    if qt is None:
-        return None
-
-    vars_: Union[List[TargetVar], List[Optional[QuestionTargeting]]]
-
-    try:
-        vars_ = [TargetVar(**v) for v in qt["vars"]]
-    except TypeError:
-        vars_ = [parse_question_targeting(v) for v in qt["vars"]]
-
-    return QuestionTargeting(op=qt["op"], vars=vars_, name=qt.get("name"))
-
-
-def parse_sc(s: Mapping[str, Any]) -> Mapping[str, Any]:
-    return {
-        **s,
-        "question_targeting": parse_question_targeting(s.get("question_targeting")),
-    }
-
-
 def make_stratum_conf(d: Mapping[str, Any]) -> StratumConf:
-    return StratumConf(**parse_sc(d))
+    return typedjson.decode(StratumConf, d)
 
 
 def make_audience_conf(d: Mapping[str, Any]) -> AudienceConf:
-
-    # TODO: abstract recursive namedtuple making from typed_json lib
-    lookalike = d.get("lookalike")
-    if lookalike:
-        params: Dict[str, Any] = {
-            **lookalike,
-            "spec": LookalikeSpec(**lookalike["spec"]),
-        }
-        lookalike = Lookalike(**params)
-    kwargs: Dict[str, Any] = {**parse_sc(d), "lookalike": lookalike}
-    return AudienceConf(**kwargs)
+    return typedjson.decode(AudienceConf, d)
 
 
 def load_strata_conf(path: str) -> List[StratumConf]:

@@ -6,10 +6,9 @@ import pytest
 from .clustering import (budget_trimming, calc_price, get_budget_lookup,
                          get_saturated_clusters, get_stats, make_report,
                          only_latest_survey, only_target_users,
-                         prep_df_for_budget, proportional_budget, shape_df,
-                         users_fulfilling)
+                         prep_df_for_budget, proportional_budget, shape_df)
 from .facebook.state import BudgetWindow, unix_time_millis
-from .marketing import StratumConf, make_stratum_conf
+from .marketing import make_stratum_conf
 
 DATE = datetime(2020, 1, 1)
 
@@ -27,6 +26,8 @@ def conf(quota=2, field="response"):
             "creatives": [],
             "audiences": [],
             "excluded_audiences": [],
+            "facebook_targeting": {},
+            "metadata": {},
             "question_targeting": {
                 "op": "and",
                 "vars": [
@@ -54,6 +55,8 @@ def conf(quota=2, field="response"):
             "creatives": [],
             "audiences": [],
             "excluded_audiences": [],
+            "facebook_targeting": {},
+            "metadata": {},
             "question_targeting": {
                 "op": "and",
                 "vars": [
@@ -80,6 +83,8 @@ def conf(quota=2, field="response"):
             "shortcodes": ["foo", "bar"],
             "creatives": [],
             "audiences": [],
+            "facebook_targeting": {},
+            "metadata": {},
             "excluded_audiences": [],
             "question_targeting": {
                 "op": "and",
@@ -184,10 +189,6 @@ def test_only_latest_survey_removes_duplicate_surveyids_per_user():
     assert df[df.userid == 1].response.tolist() == ["fooz"]
 
 
-# def test_shape_df_removes_duplicate_surveyids_per_user():
-# pass
-
-
 def test_get_only_target_users_with_empty_target_questions_filters_none(df):
     s = {
         "id": "foo",
@@ -196,6 +197,9 @@ def test_get_only_target_users_with_empty_target_questions_filters_none(df):
         "shortcodes": ["foo", "bar"],
         "audiences": [],
         "excluded_audiences": [],
+        "facebook_targeting": {},
+        "metadata": {},
+        "question_targeting": None,
     }
 
     stratum = make_stratum_conf(s)
@@ -331,6 +335,8 @@ def test_get_saturated_clusters_filters_only_appropriate_shortcodes():
             "audiences": [],
             "excluded_audiences": [],
             "shortcodes": ["foo"],
+            "facebook_targeting": {},
+            "metadata": {},
             "question_targeting": {
                 "op": "greater_than",
                 "vars": [
@@ -345,6 +351,8 @@ def test_get_saturated_clusters_filters_only_appropriate_shortcodes():
             "creatives": [],
             "audiences": [],
             "excluded_audiences": [],
+            "facebook_targeting": {},
+            "metadata": {},
             "shortcodes": ["bar"],
             "question_targeting": {
                 "op": "greater_than",
@@ -389,6 +397,8 @@ def test_get_saturated_clusters_with_different_id_fields():
             "creatives": [],
             "audiences": [],
             "excluded_audiences": [],
+            "facebook_targeting": {},
+            "metadata": {},
             "shortcodes": ["foo", "bar"],
             "question_targeting": {
                 "op": "and",
@@ -416,6 +426,8 @@ def test_get_saturated_clusters_with_different_id_fields():
             "creatives": [],
             "audiences": [],
             "excluded_audiences": [],
+            "facebook_targeting": {},
+            "metadata": {},
             "shortcodes": ["foo", "bar"],
             "question_targeting": {
                 "op": "and",
@@ -471,6 +483,8 @@ def test_get_saturated_clusters_with_complex_nested_or_condition():
             "audiences": [],
             "excluded_audiences": [],
             "shortcodes": ["foo", "bar"],
+            "facebook_targeting": {},
+            "metadata": {},
             "question_targeting": {
                 "op": "and",
                 "vars": [
@@ -517,6 +531,8 @@ def test_get_saturated_clusters_with_complex_nested_or_condition():
             "audiences": [],
             "excluded_audiences": [],
             "shortcodes": ["foo", "bar"],
+            "facebook_targeting": {},
+            "metadata": {},
             "question_targeting": {
                 "op": "and",
                 "vars": [
@@ -582,6 +598,8 @@ def test_get_saturated_clusters_works_with_is_answered_op():
             "creatives": [],
             "audiences": [],
             "excluded_audiences": [],
+            "facebook_targeting": {},
+            "metadata": {},
             "shortcodes": ["foo"],
             "question_targeting": {
                 "op": "answered",
@@ -623,6 +641,8 @@ def test_get_saturated_clusters_not_equal_only_those_who_answered():
             "creatives": [],
             "audiences": [],
             "excluded_audiences": [],
+            "facebook_targeting": {},
+            "metadata": {},
             "shortcodes": ["foo"],
             "question_targeting": {
                 "op": "not_equal",
