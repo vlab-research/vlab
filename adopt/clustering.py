@@ -237,7 +237,8 @@ def constrained_opt(S, goal, tot, price, budget):
     new_spend = s * budget
     projection = C * new_spend + tot
     projection /= projection.sum()
-    return np.linalg.norm(projection - goal)
+    dif = (goal - projection).clip(0)
+    return np.linalg.norm(dif)
 
 
 def proportional_opt(goal, tot, price, budget, tol=0.1):
@@ -246,7 +247,11 @@ def proportional_opt(goal, tot, price, budget, tol=0.1):
     x0 = x0 / x0.sum()
 
     m = minimize(
-        constrained_opt, x0=x0, args=(goal, tot, price, budget), bounds=[(0, None)] * P
+        constrained_opt,
+        x0=x0,
+        args=(goal, tot, price, budget),
+        method="L-BFGS-B",
+        bounds=[(0, None)] * P,
     )
 
     logging.info(f"Finished optimizing with loss: {m.fun}")
