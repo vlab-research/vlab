@@ -705,10 +705,13 @@ def test_proportional_budget_optimizes_all_budget():
     tot = {"bar": 1, "baz": 1, "foo": 0}
     price = {"bar": 10.0, "baz": 10.0, "foo": 10.0}
     goal = {"foo": 1 / 3, "bar": 1 / 3, "baz": 1 / 3}
-    budget = proportional_budget(goal, spend, tot, price, 100, 10, 2)
-    assert budget["foo"] == 19
-    assert budget["bar"] == 15
-    assert budget["baz"] == 14
+    budget, expected = proportional_budget(goal, spend, tot, price, 100, 10, 1)
+    assert budget["foo"] == 39
+    assert budget["bar"] == 30
+    assert budget["baz"] == 29
+    assert expected["foo"] == 3.9
+    assert expected["bar"] == 4
+    assert expected["baz"] == 3.9
 
 
 def test_proportional_budget_drops_strata_under_min_to_min_budget():
@@ -716,7 +719,7 @@ def test_proportional_budget_drops_strata_under_min_to_min_budget():
     tot = {"bar": 1, "baz": 1, "foo": 0}
     price = {"bar": 10.0, "baz": 10.0, "foo": 10.0}
     goal = {"foo": 1 / 3, "bar": 1 / 3, "baz": 1 / 3}
-    budget = proportional_budget(goal, spend, tot, price, 100, 16, 2)
+    budget, _ = proportional_budget(goal, spend, tot, price, 100, 16, 2)
     assert budget["foo"] == 19
     assert budget["bar"] == 16
     assert budget["baz"] == 16
@@ -727,7 +730,7 @@ def test_proportional_budget_can_drop_to_zero_budget():
     tot = {"bar": 10, "baz": 1, "foo": 0}
     price = {"bar": 10.0, "baz": 10.0, "foo": 10.0}
     goal = {"foo": 1 / 3, "bar": 1 / 3, "baz": 1 / 3}
-    budget = proportional_budget(goal, spend, tot, price, 100, 16, 2)
+    budget, _ = proportional_budget(goal, spend, tot, price, 100, 16, 2)
     assert budget["foo"] == 27
     assert budget["bar"] == 0
     assert budget["baz"] == 22
@@ -738,7 +741,7 @@ def test_proportional_budget_prioritizes_underperforming_when_its_obvious():
     tot = {"bar": 5, "baz": 5, "foo": 2}
     price = {"bar": 20.0, "baz": 20.0, "foo": 50.0}
     goal = {"foo": 1 / 3, "bar": 1 / 3, "baz": 1 / 3}
-    budget = proportional_budget(goal, spend, tot, price, 100, 16, 2)
+    budget, _ = proportional_budget(goal, spend, tot, price, 100, 16, 2)
     assert budget["foo"] == 50
     assert budget["bar"] == 0
     assert budget["baz"] == 0
@@ -749,7 +752,7 @@ def test_proportional_budget_prioritizes_underperforming_even_at_high_cost():
     tot = {"bar": 20, "baz": 10, "foo": 2}
     price = {"bar": 5.0, "baz": 20.0, "foo": 50.0}
     goal = {"foo": 1 / 3, "bar": 1 / 3, "baz": 1 / 3}
-    budget = proportional_budget(goal, spend, tot, price, 100, 16, 2)
+    budget, _ = proportional_budget(goal, spend, tot, price, 100, 16, 2)
     assert budget["foo"] == 50
     assert budget["bar"] == 0
     assert budget["baz"] == 0

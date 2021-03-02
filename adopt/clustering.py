@@ -241,7 +241,7 @@ def constrained_opt(S, goal, tot, price, budget):
     return np.linalg.norm(dif)
 
 
-def proportional_opt(goal, tot, price, budget, tol=0.1):
+def proportional_opt(goal, tot, price, budget, tol=0.01):
     P = goal.shape[0]
     x0 = np.repeat(1, P)
     x0 = x0 / x0.sum()
@@ -256,7 +256,7 @@ def proportional_opt(goal, tot, price, budget, tol=0.1):
 
     logging.info(f"Finished optimizing with loss: {m.fun}")
 
-    if m.fun > tol:
+    if m.fun / P > tol:
         logging.warning(f"Optimization loss very high: {m.fun}")
 
     new_spend = (m.x / m.x.sum()) * budget
@@ -295,7 +295,9 @@ def proportional_budget(
     new_spend = [floor(s) for s in new_spend]
     df["new_spend"] = [min_budget if s > 0 and s < min_budget else s for s in new_spend]
 
-    return df.new_spend.to_dict()
+    df["expected"] = df.respondents + ((df.new_spend / df.price) * days_left)
+
+    return df.new_spend.to_dict(), df.expected.to_dict()
 
 
 def _base_budget(strata, max_budget, min_budget):
@@ -397,7 +399,7 @@ def get_budget_lookup(
 
     if proportional:
         goal = _normalize_values({s.id: s.quota for s in strata})
-        budget = proportional_budget(
+        budget, expected = proportional_budget(
             goal,
             spend,
             tot,
@@ -415,6 +417,8 @@ def get_budget_lookup(
                 ("respondents", tot),
                 ("respondent_share", share),
                 ("budget", budget),
+                ("expected", expected),
+                ("expected_share", _normalize_values(expected)),
             ]
         )
         return budget, report
