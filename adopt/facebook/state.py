@@ -159,9 +159,7 @@ def get_custom_audiences(account: AdAccount) -> List[CustomAudience]:
         CustomAudience.Field.subtype,
         CustomAudience.Field.time_created,
         CustomAudience.Field.approximate_count,
-        CustomAudience.Field.source,
         CustomAudience.Field.lookalike_spec,
-        CustomAudience.Field.expectedsize,
     ]
 
     return call(account.get_custom_audiences, fields=fields)
@@ -203,7 +201,10 @@ class CampaignState:
                 "You must initialize CampaignState with campaign_id "
                 "to access Campaign data"
             )
-        campaign = next((c for c in self.campaigns if c["name"] == name), None)
+
+        campaign = next(
+            (c for c in self.campaigns if c["name"] == name or c["id"] == name), None
+        )
 
         if campaign is None:
             raise StateNameError(f"Could not find a campaign with name: {name}")
