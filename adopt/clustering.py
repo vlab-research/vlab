@@ -301,12 +301,7 @@ def proportional_budget(
 
 
 def _base_budget(strata, max_budget, min_budget):
-    budget = {s.id: max_budget for s in strata}
-    while sum(budget.values()) > max_budget:
-        s = sum(budget.values())
-        budget = {k: floor(max_budget * (v / s)) for k, v in budget.items()}
-        budget = {k: max(min_budget, v) for k, v in budget.items()}
-
+    budget = {s.id: min_budget for s in strata}
     return budget
 
 
@@ -387,13 +382,14 @@ def get_budget_lookup(
     df = prep_df_for_budget(df, strata) if df is not None else None
 
     if df is None:
-        return _base_budget(strata, max_budget / days_left, min_budget), None
+        logging.info(f"Falling back to base budget due to lack of response data")
+        return _base_budget(strata, max_budget, min_budget), None
 
     try:
         spend, tot, price = get_stats(df, strata, window, spend)
     except AdDataError as e:
         logging.info(f"Falling back to base budget due to the follow error: {e}")
-        return _base_budget(strata, max_budget / days_left, min_budget), None
+        return _base_budget(strata, max_budget, min_budget), None
 
     share = _normalize_values(tot)
 
