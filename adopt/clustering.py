@@ -236,9 +236,8 @@ def constrained_opt(S, goal, tot, price, budget):
     s = S / S.sum()
     new_spend = s * budget
     projection = C * new_spend + tot
-    projection /= projection.sum()
-    dif = (goal - projection).clip(0)
-    return np.linalg.norm(dif)
+    loss = np.sum(goal ** 2 / projection)
+    return loss
 
 
 def proportional_opt(goal, tot, price, budget, tol=0.01):
@@ -275,7 +274,9 @@ def proportional_budget(
 ):
 
     if not np.isclose(sum(goal.values()), 1.0, 0.01):
-        raise Exception(f"proportional_budget needs a goal that sums to one: {goal}")
+        raise Exception(
+            f"proportional_budget needs a goal that sums to one. was given: {goal}"
+        )
 
     df = pd.DataFrame(
         {
@@ -357,11 +358,8 @@ def get_stats(
     return spend, respondents, price
 
 
-# TODO: return price and left and strata info in a nice
-# event to persist. This
-# should basically give a sense of the strata, the number
-# fulfilled, the number remaining, the price per individual
-# per strata, and the current budget per strata.
+# TODO: add frequency -- at least to report if nothing automated
+# probably more elegant just to change "spend" to "insights"
 def get_budget_lookup(
     df: Optional[pd.DataFrame],
     strata: Sequence[Union[Stratum, StratumConf]],
@@ -374,6 +372,7 @@ def get_budget_lookup(
     proportional: bool = False,
 ) -> Tuple[Dict[str, float], Optional[AdOptReport]]:
 
+    # TODO: fix total_spend and insights spend here
     total_spend = total_spend * 100
 
     if days_left == 0:
@@ -382,7 +381,7 @@ def get_budget_lookup(
     df = prep_df_for_budget(df, strata) if df is not None else None
 
     if df is None:
-        logging.info(f"Falling back to base budget due to lack of response data")
+        logging.info("Falling back to base budget due to lack of response data")
         return _base_budget(strata, max_budget, min_budget), None
 
     try:
@@ -394,13 +393,19 @@ def get_budget_lookup(
     share = _normalize_values(tot)
 
     if proportional:
+        to_spend = max_budget - total_spend
+
+        if to_spend <= 0:
+            logging.info("No money left in the budget!")
+            return _off_budget(strata), None
+
         goal = _normalize_values({s.id: s.quota for s in strata})
         budget, expected = proportional_budget(
             goal,
             spend,
             tot,
             price,
-            max_budget - total_spend,
+            to_spend,
             min_budget,
             days_left,
         )
