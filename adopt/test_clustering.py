@@ -708,10 +708,10 @@ def test_proportional_budget_optimizes_all_budget():
     budget, expected = proportional_budget(goal, spend, tot, price, 100, 10, 1)
     assert budget["foo"] == 39
     assert budget["bar"] == 30
-    assert budget["baz"] == 29
+    assert budget["baz"] == 30
     assert expected["foo"] == 3.9
     assert expected["bar"] == 4
-    assert expected["baz"] == 3.9
+    assert expected["baz"] == 4.0
 
 
 def test_proportional_budget_drops_strata_under_min_to_min_budget():
@@ -742,9 +742,9 @@ def test_proportional_budget_prioritizes_underperforming_when_its_obvious():
     price = {"bar": 20.0, "baz": 20.0, "foo": 50.0}
     goal = {"foo": 1 / 3, "bar": 1 / 3, "baz": 1 / 3}
     budget, _ = proportional_budget(goal, spend, tot, price, 100, 16, 2)
-    assert budget["foo"] == 50
-    assert budget["bar"] == 0
-    assert budget["baz"] == 0
+    assert budget["foo"] == 38
+    assert budget["bar"] == 16
+    assert budget["baz"] == 16
 
 
 def test_proportional_budget_prioritizes_underperforming_even_at_high_cost():
@@ -853,7 +853,7 @@ def test_get_budget_lookup_handles_zero_spend_doesnt_affect_trimming(cnf, df):
     assert res == {"bar": 3, "foo": 8, "baz": 4}
 
 
-def test_get_budget_lookup_handles_initial_conditions(cnf):
+def test_get_budget_lookup_handles_initial_conditions_with_min(cnf):
     spend = {}
     cols = ["question_ref", "response", "userid", "shortcode"]
     df = pd.DataFrame(
@@ -863,10 +863,10 @@ def test_get_budget_lookup_handles_initial_conditions(cnf):
 
     window = BudgetWindow(DATE, DATE)
     res, _ = get_budget_lookup(df, cnf, 1000, 1, window, spend, 0.1, days_left=1)
-    assert res == {"bar": 333, "foo": 333, "baz": 333}
+    assert res == {"bar": 1, "foo": 1, "baz": 1}
 
     res, _ = get_budget_lookup(df, cnf, 2000, 1, window, spend, 0.1, days_left=2)
-    assert res == {"bar": 333, "foo": 333, "baz": 333}
+    assert res == {"bar": 1, "foo": 1, "baz": 1}
 
 
 def test_get_budget_lookup_works_with_missing_data_from_clusters(cnf):
