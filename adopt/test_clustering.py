@@ -714,6 +714,17 @@ def test_proportional_budget_optimizes_all_budget():
     assert expected["baz"] == 4.0
 
 
+def test_proportional_budget_optimizes_for_weights():
+    spend = {"bar": 10.0, "baz": 10.0, "foo": 10.0}
+    tot = {"bar": 1, "baz": 1, "foo": 1}
+    price = {"bar": 10.0, "baz": 10.0, "foo": 10.0}
+    goal = {"foo": 0.3, "bar": 0.2, "baz": 0.5}
+    budget, expected = proportional_budget(goal, spend, tot, price, 10000, 10, 1)
+    assert expected["foo"] == 301.8
+    assert expected["bar"] == 201.5
+    assert expected["baz"] == 499.5
+
+
 def test_proportional_budget_drops_strata_under_min_to_min_budget():
     spend = {"bar": 10.0, "baz": 10.0, "foo": 0.0}
     tot = {"bar": 1, "baz": 1, "foo": 0}
