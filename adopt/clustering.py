@@ -233,24 +233,28 @@ def prep_df_for_budget(df, strata):
 
 def constrained_opt(S, goal, tot, price, budget):
     C = 1 / price
-    s = S / S.sum()
-    new_spend = s * budget
-    projection = C * new_spend + tot
+    projection = C * S + tot
     loss = np.sum(goal ** 2 / projection)
     return loss
 
 
+from scipy.optimize import LinearConstraint
+
+
 def proportional_opt(goal, tot, price, budget, tol=0.01):
     P = goal.shape[0]
-    x0 = np.repeat(1, P)
-    x0 = x0 / x0.sum()
+
+    x0 = np.repeat(budget / P, P)
+    constraint = LinearConstraint(np.repeat(1, P), budget, budget)
+    bounds = [(0, None)] * P
 
     m = minimize(
         constrained_opt,
         x0=x0,
         args=(goal, tot, price, budget),
-        method="L-BFGS-B",
-        bounds=[(0, None)] * P,
+        method="SLSQP",
+        constraints=constraint,
+        bounds=bounds,
     )
 
     logging.info(f"Finished optimizing with loss: {m.fun}")
@@ -258,8 +262,7 @@ def proportional_opt(goal, tot, price, budget, tol=0.01):
     if m.fun / P > tol:
         logging.warning(f"Optimization loss very high: {m.fun}")
 
-    new_spend = (m.x / m.x.sum()) * budget
-
+    new_spend = m.x
     return new_spend
 
 
