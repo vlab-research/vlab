@@ -6,7 +6,7 @@ from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
 import pandas as pd
-from scipy.optimize import minimize
+from scipy.optimize import LinearConstraint, minimize
 
 from .facebook.state import BudgetWindow
 from .forms import TranslationError
@@ -232,13 +232,9 @@ def prep_df_for_budget(df, strata):
 
 
 def constrained_opt(S, goal, tot, price, budget):
-    C = 1 / price
-    projection = C * S + tot
+    projection = S / price + tot
     loss = np.sum(goal ** 2 / projection)
     return loss
-
-
-from scipy.optimize import LinearConstraint
 
 
 def proportional_opt(goal, tot, price, budget, tol=0.01):
@@ -255,6 +251,7 @@ def proportional_opt(goal, tot, price, budget, tol=0.01):
         method="SLSQP",
         constraints=constraint,
         bounds=bounds,
+        options={"disp": True, "maxiter": 1000, "ftol": 1e-9},
     )
 
     logging.info(f"Finished optimizing with loss: {m.fun}")
