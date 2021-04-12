@@ -21,7 +21,7 @@ versionBotserver: &vbotserver 0.0.9
 versionReplybot: &vreplybot 0.0.115
 versionLinksniffer: &vlinksniffer 0.0.3
 versionDean: &vdean 0.0.22
-versionScribble: &vscribble 0.0.17
+versionScribble: &vscribble 0.0.20
 versionDinersclub: &vdinersclub 0.0.7
 versionFormcentral: &vformcentral 0.0.4
 
@@ -39,15 +39,15 @@ laggingAlerts:
   - consumergroup: scribble-responses
     alertname: LaggingConsumerScribbleResponses
     window: "5m"
-    limit: "20"
+    limit: "200"
   - consumergroup: scribble-states
     alertname: LaggingConsumerScribbleStates
     window: "5m"
-    limit: "20"
+    limit: "200"
   - consumergroup: scribble-messages
     alertname: LaggingConsumerScribbleMessages
     window: "5m"
-    limit: "20"
+    limit: "200"
   - consumergroup: dinersclub
     alertname: LaggingConsumerDinersclub
     window: "5m"
@@ -148,13 +148,13 @@ dean:
   - name: DEAN_FOLLOWUP_MAX
     value: "24 hours"
   queries:
-    # - name: respondings
-    #   queries: "respondings,errored"
-    #   schedule: "0 */1 * * *"
-    #   resources:
-    #     requests:
-    #       cpu: 10m
-    #       memory: 10Mi
+    - name: respondings
+      queries: "respondings,blocked,errored"
+      schedule: "0 */1 * * *"
+      resources:
+        requests:
+          cpu: 10m
+          memory: 10Mi
     - name: followups
       queries: "followups"
       schedule: "0 5-19 * * *"
@@ -206,9 +206,9 @@ scribble:
       - name: KAFKA_GROUP
         value: "scribble-states"
       - name: SCRIBBLE_CHUNK_SIZE
-        value: "16"
+        value: "128"
       - name: SCRIBBLE_BATCH_SIZE
-        value: "64"
+        value: "128"
     - destination: "responses"
       replicaCount: 1
       env:
@@ -217,9 +217,9 @@ scribble:
       - name: KAFKA_GROUP
         value: "scribble-responses"
       - name: SCRIBBLE_CHUNK_SIZE
-        value: "16"
+        value: "32"
       - name: SCRIBBLE_BATCH_SIZE
-        value: "16"
+        value: "64"
     - destination: "messages"
       replicaCount: 1
       env:
@@ -245,7 +245,7 @@ dumper:
   schedule: "30 */4 * * *"
   resources:
     requests:
-      cpu: 1000m
+      cpu: 750m
       memory: 300Mi
 
   keySecret: gbv-dumper-keys
@@ -381,7 +381,7 @@ dashboard:
 
 
 replybot:
-  replicaCount: 24
+  replicaCount: 12
   image:
     repository: vlabresearch/replybot
     tag: *vreplybot

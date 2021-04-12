@@ -21,7 +21,7 @@ versionBotserver: &vbotserver 0.0.9
 versionReplybot: &vreplybot 0.0.115
 versionLinksniffer: &vlinksniffer 0.0.3
 versionDean: &vdean 0.0.22
-versionScribble: &vscribble 0.0.18
+versionScribble: &vscribble 0.0.20
 versionDinersclub: &vdinersclub 0.0.7
 versionFormcentral: &vformcentral 0.0.4
 
@@ -165,7 +165,7 @@ scribble:
   - name: SCRIBBLE_CHUNK_SIZE
     value: "16"
   - name: SCRIBBLE_BATCH_SIZE
-    value: "128"
+    value: "16"
   - name: SCRIBBLE_ERROR_HANDLERS
     value: ""
 
