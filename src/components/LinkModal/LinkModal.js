@@ -30,7 +30,8 @@ Actions.propTypes = {
 
 
 const LinkModal = ({
-  dataSource, renderItem, title, loading, back, success, footer, fallbackText, initialSelection = {},
+  dataSource, renderItem, title, loading, back,
+  success, footer, fallbackText, initialSelection = {},
 }) => {
   const closeModal = ({ target, currentTarget }) => target === currentTarget && back();
 

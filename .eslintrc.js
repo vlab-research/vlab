@@ -25,8 +25,12 @@ module.exports = {
   rules: {
     'no-unused-vars': ['error', { varsIgnorePattern: "__", argsIgnorePattern: "__" }],
     'no-shadow': 0,
+    'no-alert': 0,
     'keyword-spacing': 'error',
     'import/named': 0,
+    'camelcase': 0,
+    'react/forbid-prop-types': 0,
+    'no-nested-ternary': 0,
     'import/prefer-default-export': 0,
     indent: ['error', 2, { SwitchCase: 1 }],
     'linebreak-style': ['error', 'unix'],

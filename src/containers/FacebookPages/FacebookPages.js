@@ -10,7 +10,8 @@ const initFB = (cb) => {
   // quick hack to check for weird facebook sdk global
   // function that should only be set once
   if (window.FB) {
-    return cb();
+    cb();
+    return;
   }
 
   window.fbAsyncInit = () => {
@@ -137,7 +138,7 @@ const FacebookPages = () => {
       await addWebhook(cred);
       await addGetStarted(cred);
     } catch (e) {
-      console.error(e);
+      console.error(e); //eslint-disable-line
       alert(e);
     }
     back();
@@ -151,7 +152,7 @@ const FacebookPages = () => {
       await addGetStarted(cred);
       alert(`Page ID ${cred.key} credentials have been updated succesfully.`);
     } catch (e) {
-      console.error(e);
+      console.error(e); //eslint-disable-line
       alert(e);
     }
 

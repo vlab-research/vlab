@@ -1,4 +1,5 @@
 import React from 'react';
+import PropTypes from 'prop-types';
 import { Spin } from 'antd';
 import styled from 'styled-components/macro';
 import { Link } from 'react-router-dom';
@@ -13,6 +14,10 @@ export const Loading = ({ children }) => (
     {children}
   </div>
 );
+
+Loading.propTypes = {
+  children: PropTypes.element,
+};
 
 export const CreateBtn = styled(Link)`
   margin: 10px;
@@ -43,12 +48,12 @@ export const Button = styled.button`
   border-radius: 2px;
   color: #fff;
   display: inline-block;
-  font-size: 0.9em;
+  font-size: 0.7rem;
   font-weight: 600;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif,
     'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol';
   line-height: 24px;
-  padding: 12px 16px;
+  padding: 8px 16px;
   transition: 0.2s;
   white-space: nowrap;
   flex: 1;
