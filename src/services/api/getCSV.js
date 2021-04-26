@@ -1,12 +1,10 @@
 import ApiClient from '.';
 
-export default function getCsv(formids) {
-  const ids = formids.join(',');
-
-  ApiClient.fetcher({ path: `/responses/csv?formids=${ids}` })
+export default function getCsv(selected) {
+  ApiClient.fetcher({ path: `/responses/csv?survey=${encodeURIComponent(selected)}` })
     .then(async (res) => {
       if (res.status !== 200) {
-        throw new Error(`Error fetching CSV Form: ${formids} Error: ${res.statusText}`);
+        throw new Error(`Error fetching CSV Survey: ${selected} Error: ${res.statusText}`);
       }
       return {
         filename: res.headers

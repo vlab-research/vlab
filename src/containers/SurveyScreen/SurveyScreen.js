@@ -7,7 +7,8 @@ import { Table } from 'antd';
 import './SurveyScreen.css';
 import { FormConfig } from '..';
 import { groupBy } from '../../helpers';
-import { CreateBtn } from '../../components/UI';
+import { CreateBtn, PrimaryBtn } from '../../components/UI';
+import getCsv from '../../services/api/getCSV';
 
 const Survey = ({ forms, selected }) => {
   const nameLookup = Object.fromEntries(forms.map(f => [f.id, f.prettyName]));
@@ -35,15 +36,17 @@ const Survey = ({ forms, selected }) => {
   let columns = ['shortcode', 'version', 'created', ...metadataFields]
     .map(f => ({ title: f, dataIndex: f, sorter: { compare: (a, b) => (a[f] > b[f] ? 1 : -1) } }));
 
+  const ShortCodeLink = (text, record) => (
+    <Link to={`${match.url}/data?shortcode=${record.shortcode}`}>
+      {' '}
+      {text}
+      {' '}
+    </Link>
+  );
+
   columns[0] = {
     ...columns[0],
-    render: (text, record) => (
-      <Link to={`${match.url}/data?shortcode=${record.shortcode}`}>
-        {' '}
-        {text}
-        {' '}
-      </Link>
-    ),
+    render: ShortCodeLink,
   };
 
   columns[2] = {
@@ -51,10 +54,18 @@ const Survey = ({ forms, selected }) => {
     render: text => (`${text.toLocaleDateString()} - ${text.toLocaleTimeString()}`),
   };
 
+  const ActionLink = (text, record) => (<Link to={`create?from=${record.id}`}> new version </Link>);
+
   columns = [...columns,
     { title: 'translation', dataIndex: 'translation_conf', render: (text, record) => getTranslationInfo(record) },
-    { title: 'actions', dataIndex: 'id', render: (text, record) => (<Link to={`create?from=${record.id}`}> new version </Link>) },
+    { title: 'actions', dataIndex: 'id', render: ActionLink },
   ];
+
+  const PrettyNameLink = (text, record) => (
+    <Link to={`${match.url}/data?surveyid=${record.id}`}>
+      {record.prettyName}
+    </Link>
+  );
 
   const expandedRowRender = (row) => {
     const expanded = grouped.get(row.shortcode);
@@ -62,11 +73,7 @@ const Survey = ({ forms, selected }) => {
     cols[0] = {
       title: 'form',
       dataIndex: 'prettyName',
-      render: (text, record) => (
-        <Link to={`${match.url}/data?surveyid=${record.id}`}>
-          {record.prettyName}
-        </Link>
-      ),
+      render: PrettyNameLink,
     };
     return (<Table columns={cols} dataSource={expanded} pagination={false} showHeader />);
   };
@@ -74,6 +81,7 @@ const Survey = ({ forms, selected }) => {
   return (
     <div className="survey-table">
       <CreateBtn to={`/surveys/create?survey_name=${encodeURIComponent(selected)}`}> NEW FORM </CreateBtn>
+      <PrimaryBtn onClick={() => getCsv(selected)}> DOWNLOAD CSV </PrimaryBtn>
       <Table
         columns={columns}
         dataSource={data}

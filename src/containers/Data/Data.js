@@ -1,12 +1,11 @@
 import React from 'react';
 import PropTypes from 'prop-types';
-import { Row, Col, Button } from 'antd';
+import { Row, Col } from 'antd';
 import { useLocation } from 'react-router-dom';
 import { Cube, Auth } from '../../services';
 import { StartTimeReport, DurationReport } from '..';
 import AnswersReport from '../AnswersReport';
 import JoinTimeReport from '../JoinTimeReport';
-import getCsv from '../../services/api/getCSV';
 
 
 const DataScreen = ({ surveys }) => {
@@ -43,9 +42,6 @@ const DataScreen = ({ surveys }) => {
         <Col span={12}>
           <JoinTimeReport cubejs={cubeInstance} formids={formids} />
         </Col>
-      </Row>
-      <Row style={{ marginTop: '2em', textAlign: 'center' }}>
-        <Button size="large" onClick={() => getCsv(formids)}> DOWNLOAD CSV </Button>
       </Row>
     </div>
   );
