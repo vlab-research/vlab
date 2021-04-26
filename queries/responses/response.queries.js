@@ -1,6 +1,6 @@
 'use strict';
 
-const QueryStream = require('pg-query-stream')
+const  { DBStream } = require('./pgstream')
 
 async function all() {
   const GET_ALL = `SELECT *
@@ -18,11 +18,20 @@ async function all() {
   return rows;
 }
 
-async function formResponses(survey) {
-  const query = new QueryStream(`SELECT responses.* FROM responses LEFT JOIN surveys ON responses.surveyid = surveys.id WHERE surveys.survey_name=$1 ORDER BY timestamp ASC`, [survey])
+async function responsesQuery(pool, name, lim) {
+  const query = `SELECT responses.* FROM responses LEFT JOIN surveys ON responses.surveyid = surveys.id WHERE surveys.survey_name=$1 AND timestamp > $2 AND responses.userid > $3 AND question_ref > $4 ORDER BY timestamp, userid, question_ref LIMIT 100000`
 
-  const client = await this.connect();
-  const stream = client.query(query);
+  const res = await pool.query(query, [name, ...lim])
+  const fin = res.rows.slice(-1)[0]
+
+  if (!fin) return [null, null]
+
+  return [res.rows, [fin['timestamp'], fin['userid'], fin['question_ref']]]
+}
+
+async function formResponses(survey) {
+  const fn = (lim) => responsesQuery(this, survey, lim)
+  const stream = new DBStream(fn, [new Date('1970-01-01'), '', ''])
   return stream;
 }
 
