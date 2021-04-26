@@ -14,10 +14,9 @@ exports.getAll = async (req, res) => {
 };
 
 exports.getResponsesCSV = async (req, res) => {
-  const { formids } = req.query;
+  const { survey } = req.query;
   try {
-    const ids = formids.split(',')
-    const responses = await Response.formResponses(ids);
+    const responses = await Response.formResponses(decodeURIComponent(survey));
 
     res.header('Content-Type', 'text/csv');
     res.header(
