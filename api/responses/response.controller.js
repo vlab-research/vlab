@@ -13,10 +13,11 @@ exports.getAll = async (req, res) => {
   }
 };
 
+
 exports.getResponsesCSV = async (req, res) => {
   const { survey } = req.query;
   try {
-    const responses = await Response.formResponses(decodeURIComponent(survey));
+    const responseStream = await Response.formResponses(decodeURIComponent(survey));
 
     res.header('Content-Type', 'text/csv');
     res.header(
@@ -25,7 +26,10 @@ exports.getResponsesCSV = async (req, res) => {
     );
     res.status(200);
 
-    ResponseUtil.toCSV(responses).pipe(res);
+    responseStream
+      .pipe(ResponseUtil.toCSV())
+      .pipe(res);
+
   } catch (err) {
     console.error(err);
     res.status(500).end();

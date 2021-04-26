@@ -2,10 +2,13 @@
 
 const stringify = require('csv-stringify');
 
-function toCSV(arr) {
-  return stringify(arr, {
+// pipe into this
+function toCSV() {
+  const s = stringify({
     header: true,
   });
+
+  return s
 }
 
 module.exports = {

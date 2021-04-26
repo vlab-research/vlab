@@ -1,5 +1,7 @@
 'use strict';
 
+const QueryStream = require('pg-query-stream')
+
 async function all() {
   const GET_ALL = `SELECT *
     FROM  (
@@ -17,9 +19,11 @@ async function all() {
 }
 
 async function formResponses(survey) {
-  const GET_FORM_RESPONSES = `SELECT responses.* FROM responses  LEFT JOIN surveys ON responses.surveyid = surveys.id WHERE surveys.survey_name=$1 ORDER BY timestamp DESC`;
-  const { rows } = await this.query(GET_FORM_RESPONSES, [survey]);
-  return rows;
+  const query = new QueryStream(`SELECT responses.* FROM responses  LEFT JOIN surveys ON responses.surveyid = surveys.id WHERE surveys.survey_name=$1 ORDER BY timestamp DESC`, [survey])
+
+  const client = await this.connect();
+  const stream = client.query(query);
+  return stream;
 }
 
 module.exports = {
