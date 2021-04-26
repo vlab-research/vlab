@@ -19,7 +19,7 @@ async function all() {
 }
 
 async function formResponses(survey) {
-  const query = new QueryStream(`SELECT responses.* FROM responses  LEFT JOIN surveys ON responses.surveyid = surveys.id WHERE surveys.survey_name=$1 ORDER BY timestamp DESC`, [survey])
+  const query = new QueryStream(`SELECT responses.* FROM responses LEFT JOIN surveys ON responses.surveyid = surveys.id WHERE surveys.survey_name=$1 ORDER BY timestamp ASC`, [survey])
 
   const client = await this.connect();
   const stream = client.query(query);
