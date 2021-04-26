@@ -19,19 +19,38 @@ async function all() {
 }
 
 async function responsesQuery(pool, name, lim) {
-  const query = `SELECT responses.* FROM responses LEFT JOIN surveys ON responses.surveyid = surveys.id WHERE surveys.survey_name=$1 AND timestamp > $2 AND responses.userid > $3 AND question_ref > $4 ORDER BY timestamp, userid, question_ref LIMIT 100000`
+
+  const query = `SELECT parent_surveyid,
+                        parent_shortcode,
+                        surveyid,
+                        responses.shortcode,
+                        flowid,
+                        responses.userid,
+                        question_ref,
+                        question_idx,
+                        question_text,
+                        response,
+                        timestamp,
+                        responses.metadata,
+                        pageid,
+                        translated_response
+                 FROM responses
+                 LEFT JOIN surveys ON responses.surveyid = surveys.id
+                 WHERE surveys.survey_name=$1 AND (responses.userid, timestamp, question_ref) > ($2, $3, $4)
+                 ORDER BY (responses.userid, timestamp, question_ref)
+                 LIMIT 100000`
 
   const res = await pool.query(query, [name, ...lim])
   const fin = res.rows.slice(-1)[0]
 
   if (!fin) return [null, null]
 
-  return [res.rows, [fin['timestamp'], fin['userid'], fin['question_ref']]]
+  return [res.rows, [fin['userid'], fin['timestamp'], fin['question_ref']]]
 }
 
 async function formResponses(survey) {
   const fn = (lim) => responsesQuery(this, survey, lim)
-  const stream = new DBStream(fn, [new Date('1970-01-01'), '', ''])
+  const stream = new DBStream(fn, ['', new Date('1970-01-01'), ''])
   return stream;
 }
 
