@@ -1,17 +1,20 @@
 import ApiClient from '.';
 
 export default function getCsv(selected) {
-  ApiClient.fetcher({ path: `/responses/csv?survey=${encodeURIComponent(selected)}` })
+  return ApiClient.fetcher({ path: `/responses/csv?survey=${encodeURIComponent(selected)}` })
     .then(async (res) => {
       if (res.status !== 200) {
         throw new Error(`Error fetching CSV Survey: ${selected} Error: ${res.statusText}`);
       }
+
+      const blob = await res.blob()
+
       return {
         filename: res.headers
           .get('Content-Disposition')
           .split('filename="')[1]
           .slice(0, -1),
-        blob: await res.blob(),
+        blob,
       };
     })
     .then((obj) => {

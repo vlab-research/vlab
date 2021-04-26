@@ -1,9 +1,9 @@
-import React from 'react';
+import React, { useState } from 'react';
 import PropTypes from 'prop-types';
 import {
   Switch, Route, useRouteMatch, useParams, Link,
 } from 'react-router-dom';
-import { Table } from 'antd';
+import { Table, Spin } from 'antd';
 import './SurveyScreen.css';
 import { FormConfig } from '..';
 import { groupBy } from '../../helpers';
@@ -11,6 +11,7 @@ import { CreateBtn, PrimaryBtn } from '../../components/UI';
 import getCsv from '../../services/api/getCSV';
 
 const Survey = ({ forms, selected }) => {
+  const [downloading, setDownloading] = useState(false);
   const nameLookup = Object.fromEntries(forms.map(f => [f.id, f.prettyName]));
 
   const match = useRouteMatch();
@@ -78,17 +79,25 @@ const Survey = ({ forms, selected }) => {
     return (<Table columns={cols} dataSource={expanded} pagination={false} showHeader />);
   };
 
+  const onDownload = async () => {
+    setDownloading(true)
+    await getCsv(selected)
+    setDownloading(false)
+  }
+
   return (
-    <div className="survey-table">
-      <CreateBtn to={`/surveys/create?survey_name=${encodeURIComponent(selected)}`}> NEW FORM </CreateBtn>
-      <PrimaryBtn onClick={() => getCsv(selected)}> DOWNLOAD CSV </PrimaryBtn>
-      <Table
-        columns={columns}
-        dataSource={data}
-        pagination={{ pageSize: 20 }}
-        expandable={{ expandedRowRender, indentSize: 100 }}
-      />
-    </div>
+    <Spin spinning={downloading}>
+      <div className="survey-table">
+        <CreateBtn to={`/surveys/create?survey_name=${encodeURIComponent(selected)}`}> NEW FORM </CreateBtn>
+        <PrimaryBtn onClick={onDownload}> DOWNLOAD CSV </PrimaryBtn>
+        <Table
+          columns={columns}
+          dataSource={data}
+          pagination={{ pageSize: 20 }}
+          expandable={{ expandedRowRender, indentSize: 100 }}
+        />
+      </div>
+    </Spin>
   );
 };
 
