@@ -17,14 +17,17 @@ exports.getAll = async (req, res) => {
 exports.getResponsesCSV = async (req, res) => {
   const { survey } = req.query;
   try {
-    const responseStream = await Response.formResponses(decodeURIComponent(survey));
-
     res.header('Content-Type', 'text/csv');
     res.header(
       'Content-Disposition',
       `attachment; filename="responses_${new Date().toISOString()}.csv"`,
     );
-    res.status(200);
+
+    // Hoping this helps avoid problems with proxy timeouts
+    // TODO: check if query is OK first???
+    res.writeHead(200);
+
+    const responseStream = await Response.formResponses(decodeURIComponent(survey));
 
     responseStream
       .pipe(ResponseUtil.toCSV())
