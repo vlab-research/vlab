@@ -5,20 +5,20 @@ const { Response } = require('../../queries');
 const { ResponseUtil } = require('../../utils');
 
 
+function handle(err, res) {
+  console.error(err)
+  res.status(500).end()
+}
+
 exports.getAll = async (req, res) => {
   try {
     const responses = await Response.all();
     res.status(200).send(responses);
   } catch (err) {
-    console.error(err);
-    res.status(500).end();
+    handle(err, res)
   }
 };
 
-function handle(err, res) {
-  console.error(err.message)
-  res.status(500).end()
-}
 
 function handleCsvResponse (dataStream, filename, res) {
   res.header('Content-Type', 'text/csv');
@@ -31,9 +31,8 @@ function handleCsvResponse (dataStream, filename, res) {
 
   const csv = ResponseUtil.toCSV();
 
-  // TODO: test this error handling!
-  csv.on('error', handle);
-  dataStream.on('error', handle);
+  csv.on('error', err => handle(err, res));
+  dataStream.on('error', err => handle(err, res));
 
   dataStream
     .pipe(csv)
@@ -42,28 +41,29 @@ function handleCsvResponse (dataStream, filename, res) {
 
 exports.getResponsesCSV = async (req, res) => {
   const { survey } = req.query;
+  const { email } = req.user;
   try {
 
-    const responseStream = await Response.formResponses(decodeURIComponent(survey));
+    const responseStream = await Response.formResponses(email, decodeURIComponent(survey));
     handleCsvResponse(responseStream, 'responses', res);
 
   } catch (err) {
-    console.error(err);
-    res.status(500).end();
+    handle(err, res)
   }
 };
 
 // TODO: move to surveys route...
 exports.getFormDataCSV = async (req, res) => {
   const { survey } = req.query;
+  const { email } = req.user;
+
   try {
 
-    const data = await Response.formData(decodeURIComponent(survey));
+    const data = await Response.formData(email, decodeURIComponent(survey));
     const dataStream = Readable.from(data);
     handleCsvResponse(dataStream, survey, res);
 
   } catch (err) {
-    console.error(err);
-    res.status(500).end();
+    handle(err, res)
   }
 };
