@@ -71,7 +71,7 @@ async function formData(email, survey) {
                    WHERE users.email = $1
                    AND survey_name = $2
                  )
-                 SELECT id, shortcode, version, created, metadata, translation_conf
+                 SELECT id as surveyid, shortcode, version, created, metadata, translation_conf
                  FROM t
                  ORDER BY shortcode, created`;
 
