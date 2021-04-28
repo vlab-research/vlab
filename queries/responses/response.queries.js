@@ -71,7 +71,11 @@ async function formData(email, survey) {
                    WHERE users.email = $1
                    AND survey_name = $2
                  )
-                 SELECT id as surveyid, shortcode, version, created, metadata, translation_conf
+                 SELECT id as surveyid,
+                        shortcode,
+                        version,
+                        created as survey_created,
+                        metadata
                  FROM t
                  ORDER BY shortcode, created`;
 
