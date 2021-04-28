@@ -30,7 +30,7 @@ async function responsesQuery(pool, email, name, lim) {
                         question_idx,
                         question_text,
                         response,
-                        timestamp,
+                        timestamp::string,
                         responses.metadata,
                         pageid,
                         translated_response
@@ -74,7 +74,7 @@ async function formData(email, survey) {
                  SELECT id as surveyid,
                         shortcode,
                         version,
-                        created as survey_created,
+                        created as survey_created::string,
                         metadata
                  FROM t
                  ORDER BY shortcode, created`;
