@@ -18,12 +18,12 @@ async function all() {
   return rows;
 }
 
+// TODO: remove question_text and push to another download? save space.
 async function responsesQuery(pool, name, lim) {
 
   const query = `SELECT parent_surveyid,
                         parent_shortcode,
                         surveyid,
-                        responses.shortcode,
                         flowid,
                         responses.userid,
                         question_ref,
@@ -54,10 +54,30 @@ async function formResponses(survey) {
   return stream;
 }
 
+
+async function formData(survey) {
+
+  // Adds "version" following same logic as per dashboard.
+  // TODO: clean this up, there is duplicated logic with surveys
+  // controller -- make surveys controller get by survey_name instead
+  // of all surveys? hrm...
+  const query = `WITH t AS (
+                   SELECT *, row_number() OVER (partition BY shortcode ORDER BY created) AS version
+                   FROM surveys WHERE survey_name = $1
+                 )
+                 SELECT id, shortcode, version, created, metadata, translation_conf
+                 FROM t
+                 ORDER BY shortcode, created`;
+
+  const { rows } = await this.query(query, [survey]);
+  return rows;
+}
+
 module.exports = {
   name: 'Response',
   queries: pool => ({
     all: all.bind(pool),
     formResponses: formResponses.bind(pool),
+    formData: formData.bind(pool),
   }),
 };
