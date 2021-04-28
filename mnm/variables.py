@@ -26,7 +26,6 @@ questions += [
     ("hasairconditioning", "e279587c-975f-433a-adab-1ad563876af6"),
     ("worried_covid", "25b20f99-a30c-4549-968a-05b7276fa485"),
     ("worried_malaria", "7c955b2b-0480-4cbc-9800-f94b77078f22"),
-    # ("seekhelpfever", "f526f205-7aa9-4e3a-9acc-c39766e1bc8c"),
     ("malaria5year", "f6e69027-97cc-494e-8d52-318b75047e23"),
     ("malaria2weeks", "dad23031-8468-4900-89cc-d01841d8b660"),
     ("fever2weeks", "8327f607-0ebe-4db5-9708-2b6207cc2483"),
@@ -37,9 +36,16 @@ questions += [
     ("sleepundernet", "b5b1ff58-c8df-4890-9b1c-0cd40ce6edc0"),
     ("longsleeves", "0992f107-7274-4404-aeff-bf80a723f098"),
     ("used_spray", "02379921-3b90-4005-b813-cf1e9aec0f40"),
-    ("home", "4d0ae478-3893-4b46-ab39-d6848c69245d"),
+    ("dwelling", "4d0ae478-3893-4b46-ab39-d6848c69245d"),
     ("occupation", "4fc929c7-132d-49b1-a164-515e5cc9064f"),
 ]
+
+questions += [
+    ("admalaria", "37af2f5e-b96c-4f90-a855-6c2e18d5ea1a"),
+    ("knowmnm", "0ff56497-c2e3-4970-82ef-4ed560d6c214"),
+    ("admnm", "235abf1e-3d1a-46a7-8bb3-cd25d2ddffcd"),
+]
+
 
 variable_lookup = {v: k for k, v in questions}
 assert len(questions) == len(variable_lookup)

@@ -88,14 +88,18 @@ def replace_from(new_key, old_key, fn, li):
     return [{**d, new_key: fn(d.get(old_key))} for d in li]
 
 
-def translate_responses(db_conf, forms, formcentral_url, responses):
-    form_lookup = {f["id"]: f for f in forms}
+def group_forms_by_shortcode(forms):
     g = groupby("shortcode", forms).items()
     g = {k: sorted(v, key=lambda f: f["created"]) for k, v in g}
+    return g
 
+
+def get_translators(db_conf, forms, formcentral_url):
+    g = group_forms_by_shortcode(forms)
     replacement_survey = g["baselinehin"][-1]["id"]
 
     targets = [temp_translation_target(f["id"], db_conf) for f in forms]
+
     translation_confs = [
         (formcentral_url, g, dest["shortcode"], form["form_json"])
         for form, dest in zip(forms, targets)
@@ -106,6 +110,15 @@ def translate_responses(db_conf, forms, formcentral_url, responses):
         k: v if v is not None else translators[replacement_survey]
         for k, v in translators.items()
     }
+
+    return translators
+
+
+def translate_responses(forms, translators, responses):
+    form_lookup = {f["id"]: f for f in forms}
+    g = group_forms_by_shortcode(forms)
+
+    replacement_survey = g["baselinehin"][-1]["id"]
 
     tr = [
         {
