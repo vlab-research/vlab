@@ -1,7 +1,7 @@
 import ApiClient from '.';
 
-export default function getCsv(selected) {
-  return ApiClient.fetcher({ path: `/responses/csv?survey=${encodeURIComponent(selected)}` })
+export default function getCsv(path, selected) {
+  return ApiClient.fetcher({ path: `${path}?survey=${encodeURIComponent(selected)}` })
     .then(async (res) => {
       if (res.status !== 200) {
         throw new Error(`Error fetching CSV Survey: ${selected} Error: ${res.statusText}`);

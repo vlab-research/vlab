@@ -79,17 +79,24 @@ const Survey = ({ forms, selected }) => {
     return (<Table columns={cols} dataSource={expanded} pagination={false} showHeader />);
   };
 
-  const onDownload = async () => {
-    setDownloading(true)
-    await getCsv(selected)
-    setDownloading(false)
+  const onDownload = (path) => {
+    return async () => {
+      setDownloading(true)
+      await getCsv(path, selected)
+      setDownloading(false)
+    }
   }
 
   return (
     <Spin spinning={downloading}>
       <div className="survey-table">
-        <CreateBtn to={`/surveys/create?survey_name=${encodeURIComponent(selected)}`}> NEW FORM </CreateBtn>
-        <PrimaryBtn onClick={onDownload}> DOWNLOAD CSV </PrimaryBtn>
+        <div className="buttons">
+          <CreateBtn to={`/surveys/create?survey_name=${encodeURIComponent(selected)}`}> NEW FORM </CreateBtn>
+          <span classsName="download-buttons">
+            <PrimaryBtn onClick={onDownload('/responses/csv')}> DOWNLOAD CSV </PrimaryBtn>
+            <PrimaryBtn onClick={onDownload('/responses/form-data')}> DOWNLOAD METADATA </PrimaryBtn>
+          </span>
+        </div>
         <Table
           columns={columns}
           dataSource={data}

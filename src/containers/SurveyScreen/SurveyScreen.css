@@ -9,6 +9,11 @@
   font-weight: 700;
 }
 
+.survey-table .buttons {
+  display: flex;
+  justify-content: space-between;
+}
+
 .survey-table .ant-table-expanded-row .ant-table-cell{
   background-color: #EEE;
   border-bottom: 1px solid #DDD;
