@@ -74,7 +74,7 @@ async function formData(email, survey) {
                  SELECT id as surveyid,
                         shortcode,
                         version,
-                        created as survey_created::string,
+                        created::string as survey_created,
                         metadata
                  FROM t
                  ORDER BY shortcode, created`;
