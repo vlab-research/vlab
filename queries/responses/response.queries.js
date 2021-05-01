@@ -1,6 +1,6 @@
 'use strict';
 
-const  { DBStream } = require('./pgstream')
+const { ClientCursorStream, cursorResult } = require('@vlab-research/client-cursor-stream')
 
 async function all() {
   const GET_ALL = `SELECT *
@@ -19,7 +19,7 @@ async function all() {
 }
 
 // TODO: remove question_text and push to another download? save space.
-async function responsesQuery(pool, email, name, lim) {
+async function responsesQuery(pool, email, name, time, lim) {
 
   const query = `SELECT parent_surveyid,
                         parent_shortcode,
@@ -37,23 +37,25 @@ async function responsesQuery(pool, email, name, lim) {
                  FROM responses
                  LEFT JOIN surveys ON responses.surveyid = surveys.id
                  LEFT JOIN users ON surveys.userid = users.id
+                 AS OF SYSTEM TIME $3
                  WHERE users.email = $1
                  AND surveys.survey_name = $2
-                 AND (responses.userid, timestamp, question_ref) > ($3, $4, $5)
+                 AND (responses.userid, timestamp, question_ref) > ($4, $5, $6)
                  ORDER BY (responses.userid, timestamp, question_ref)
                  LIMIT 100000`
 
-  const res = await pool.query(query, [email, name, ...lim])
+  const res = await pool.query(query, [email, name, time, ...lim])
   const fin = res.rows.slice(-1)[0]
 
-  if (!fin) return [null, null]
+  if (!fin) return cursorResult(null, null)
 
-  return [res.rows, [fin['userid'], fin['timestamp'], fin['question_ref']]]
+  // function to extract limit from single row
+  return cursorResult(res.rows, [fin['userid'], fin['timestamp'], fin['question_ref']])
 }
 
 async function formResponses(email, survey) {
-  const fn = (lim) => responsesQuery(this, email, survey, lim)
-  const stream = new DBStream(fn, ['', new Date('1970-01-01'), ''])
+  const fn = (lim, time) => responsesQuery(this, email, survey, time, lim)
+  const stream = new ClientCursorStream(fn, ['', new Date('1970-01-01'), ''])
   return stream;
 }
 

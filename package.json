@@ -38,6 +38,7 @@
   "dependencies": {
     "@cubejs-backend/postgres-driver": "^0.10.35",
     "@cubejs-backend/server-core": "^0.10.41",
+    "@vlab-research/client-cursor-stream": "^0.1.1",
     "cors": "2.8.5",
     "csv-stringify": "5.3.0",
     "dotenv": "6.2.0",
