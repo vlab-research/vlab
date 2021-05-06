@@ -1,10 +1,9 @@
 import json
 from datetime import datetime, timedelta
-from typing import (Any, Dict, List, Mapping, NamedTuple, Optional, Sequence,
-                    Tuple, TypeVar, Union)
+from typing import (Any, Dict, List, NamedTuple, Optional, Sequence, Tuple,
+                    TypeVar, Union)
 from urllib.parse import quote
 
-import typedjson
 from facebook_business.adobjects.ad import Ad
 from facebook_business.adobjects.adcreative import AdCreative
 from facebook_business.adobjects.adcreativelinkdata import AdCreativeLinkData
@@ -159,20 +158,6 @@ def dict_from_nested_type(d):
     return d
 
 
-def make_stratum_conf(d: Mapping[str, Any]) -> StratumConf:
-    return typedjson.decode(StratumConf, d)
-
-
-def make_audience_conf(d: Mapping[str, Any]) -> AudienceConf:
-    return typedjson.decode(AudienceConf, d)
-
-
-def load_strata_conf(path: str) -> List[StratumConf]:
-    with open(path) as f:
-        d = json.loads(f.read())
-        return [make_stratum_conf(s) for s in d]
-
-
 def validate_targeting(targeting):
     valid_targets = set(dir(Targeting.Field))
     for k, _ in targeting.items():
@@ -181,7 +166,7 @@ def validate_targeting(targeting):
 
 
 def create_adset(c: AdsetConf) -> AdSet:
-    name = f"vlab-{c.stratum.id}"
+    name = f"vlab-{c.stratum.id}"  # TODO: remove vlab prefix
     targeting = {**c.stratum.facebook_targeting}
 
     # TODO: document this funkyness - pretends it's runnign at midnight...

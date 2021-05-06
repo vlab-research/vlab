@@ -1,12 +1,11 @@
-import json
 import logging
 import re
 from datetime import datetime, timedelta
 from typing import (Any, Callable, Dict, List, NamedTuple, Optional, Sequence,
-                    Tuple, TypeVar, Union)
+                    Tuple, Union)
 
 import pandas as pd
-import typing_json
+import typedjson
 from environs import Env
 from facebook_business.adobjects.targeting import Targeting
 from toolz import groupby
@@ -21,7 +20,6 @@ from .facebook.update import GraphUpdater, Instruction
 from .marketing import (AudienceConf, CampaignConf, CreativeConf,
                         FacebookTargeting, Marketing, QuestionTargeting,
                         Stratum, StratumConf, TargetVar, UserInfo,
-                        make_audience_conf, make_stratum_conf,
                         manage_audiences, validate_targeting)
 from .responses import get_response_df
 
@@ -87,10 +85,10 @@ def get_df(
 
 def get_confs_for_campaign(campaignid, db_conf):
     parsers = {
-        "stratum": make_stratum_conf,
-        "audience": make_audience_conf,
-        "creative": lambda x: loads_typed_json(x, CreativeConf),
-        "opt": lambda x: loads_typed_json(x, CampaignConf),
+        "stratum": lambda x: typedjson.decode(StratumConf, x),
+        "audience": lambda x: typedjson.decode(AudienceConf, x),
+        "creative": lambda x: typedjson.decode(CreativeConf, x),
+        "opt": lambda x: typedjson.decode(CampaignConf, x),
     }
 
     confs = get_campaign_configs(campaignid, db_conf)
@@ -156,6 +154,7 @@ def days_left(config: CampaignConf):
     return days
 
 
+# TODO: deprecate this shit.
 def get_cluster_from_adset(adset_name: str) -> str:
     pat = r"(?<=vlab-).+"
     matches = re.search(pat, adset_name)
@@ -198,6 +197,7 @@ def update_ads_for_campaign(
 
     df = get_df(db_conf, userinfo.survey_user, strata)
 
+    # TODO: change to insights
     spend = {get_cluster_from_adset(n): i for n, i in state.spend.items()}
 
     budget_lookup, report = get_budget_lookup(
@@ -263,18 +263,6 @@ def uniqueness(strata: List[StratumConf]):
     ids = [s.id for s in strata]
     if len(set(ids)) != len(ids):
         raise Exception("Strata IDs combinations are not unique")
-
-
-T = TypeVar("T")
-
-
-def load_typed_json(path: str, T) -> T:
-    with open(path) as f:
-        return typing_json.loads(f.read(), T)
-
-
-def loads_typed_json(d: Dict[Any, Any], T) -> T:
-    return typing_json.loads(json.dumps(d), T)
 
 
 def _add_aud(state, name) -> Optional[Dict[str, Any]]:
