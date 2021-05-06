@@ -2,17 +2,20 @@ from datetime import datetime
 
 import pandas as pd
 import pytest
+import typedjson
 
 from .clustering import (budget_trimming, calc_price, get_budget_lookup,
                          get_saturated_clusters, get_stats, make_report,
                          only_latest_survey, only_target_users,
                          prep_df_for_budget, proportional_budget, shape_df)
 from .facebook.state import BudgetWindow, unix_time_millis
-from .marketing import make_stratum_conf
+from .marketing import StratumConf
 
 DATE = datetime(2020, 1, 1)
 
 
+def make_stratum_conf(d):
+    return typedjson.decode(StratumConf, d)
 def make_conf(c):
     return [make_stratum_conf(d) for d in c]
 

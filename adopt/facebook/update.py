@@ -30,7 +30,7 @@ def report(i: Instruction):
 
 
 def add_users_to_custom_audience(token, aud_id, params):
-    url = f"https://graph.facebook.com/v8.0/{aud_id}/users?access_token={token}"
+    url = f"https://graph.facebook.com/v9.0/{aud_id}/users?access_token={token}"
     return requests.post(url, json={"payload": params})
 
 
@@ -95,12 +95,12 @@ class GraphUpdater:
             return report(instruction)
 
         if instruction.action == "add_users":
+            # special case, node-edge
+            # think about how to make this more general
+            aud = self.get_object(instruction.node, instruction.id)
 
-            # special case, node-edge, but also rest api directly!
-            # can be removed when sdk supports this action
-            add_users_to_custom_audience(
-                self.state.token, instruction.id, instruction.params
-            )
+            call(aud.create_users_replace, params=instruction.params, fields=[])
+
             return report(instruction)
 
         raise InstructionError(

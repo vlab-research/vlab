@@ -43,17 +43,6 @@ def get_surveyids(shortcodes, userid, cnf):
     return [r["id"] for r in res]
 
 
-def get_all_forms(survey_names, cnf):
-    q = """
-    SELECT id, metadata, form_json, created, shortcode, translation_conf
-    FROM surveys
-    WHERE survey_name = ANY(%s)
-    """
-
-    res = query(cnf, q, (survey_names,), as_dict=True)
-    return res
-
-
 def all_responses(shortcodes, cnf):
     q = """
     WITH t AS (
@@ -138,12 +127,12 @@ def get_all_responses(shortcodes, cnf):
     q = """
     SELECT *
     FROM responses
-    WHERE surveyid in %s
+    WHERE shortcode in %s
     ORDER BY surveyid, timestamp DESC
     """
 
     shortcodes = tuple(shortcodes)
-    res = query(cnf, q, (shortcodes), as_dict=True)
+    res = query(cnf, q, (shortcodes,), as_dict=True)
     return res
 
 

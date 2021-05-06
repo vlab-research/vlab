@@ -1,4 +1,5 @@
 import json
+import random
 from datetime import datetime, timedelta
 from typing import (Any, Dict, List, NamedTuple, Optional, Sequence, Tuple,
                     TypeVar, Union)
@@ -284,14 +285,26 @@ def add_users_to_audience(
         "page_ids": [pageid],
     }
 
+    session_id = random.randint(1, 1_000_000)
+    chunks = [(i + 1, chunk) for i, chunk in enumerate(split(users, 10_000))]
+    batches = len(chunks)
+
     return [
         Instruction(
             "custom_audience",
             "add_users",
-            {**params, "data": [[u] for u in chunk]},
+            {
+                "payload": {**params, "data": [[u] for u in chunk]},
+                "session": {
+                    "session_id": session_id,
+                    "batch_seq": i,
+                    "last_batch_flag": i == batches,
+                    "estimated_num_total": len(users),
+                },
+            },
             aud_id,
         )
-        for chunk in split(users, 1000)
+        for i, chunk in chunks
     ]
 
 

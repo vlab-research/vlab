@@ -80,6 +80,11 @@ def get_var(v: Union[TargetVar, QuestionTargeting], d: Dict[str, Any]):
     if isinstance(v, QuestionTargeting):
         return make_pred(v)(d)
 
+    if not isinstance(v, TargetVar):
+        raise Exception(
+            f"get_var must be passed TargetVar or QuestionTargeting. Was passed: {v}"
+        )
+
     type_, value = v
 
     if type_ == "constant":

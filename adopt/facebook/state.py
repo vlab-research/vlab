@@ -129,6 +129,7 @@ def _get_insights(adset, window):
         "reach",
         "spend",
         "actions",
+        "frequency",
     ]
 
     try:
@@ -145,6 +146,7 @@ def get_insights(adsets, window: BudgetWindow) -> Insights:
     return insights
 
 
+# TODO: remove spend-specific logic, just leave insights
 def get_spending(insights: Insights) -> Dict[str, float]:
     spending = lambda i: 0 if i is None else i["spend"]
     spend = {n: spending(i) for n, i in insights.items()}
@@ -158,6 +160,7 @@ def get_custom_audiences(account: AdAccount) -> List[CustomAudience]:
         CustomAudience.Field.description,
         CustomAudience.Field.subtype,
         CustomAudience.Field.time_created,
+        CustomAudience.Field.time_updated,
         CustomAudience.Field.approximate_count,
         CustomAudience.Field.lookalike_spec,
     ]

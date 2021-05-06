@@ -1,3 +1,4 @@
+import random
 from datetime import datetime
 from typing import TypeVar
 
@@ -509,21 +510,30 @@ def test_manage_aud_creates_if_doesnt_exist():
     ]
 
 
-def _update_instruction():
+def _update_instruction(id_=140892):
     return Instruction(
         "custom_audience",
         "add_users",
         {
-            "schema": ["PAGEUID"],
-            "is_raw": True,
-            "page_ids": ["page"],
-            "data": [["bar"]],
+            "payload": {
+                "schema": ["PAGEUID"],
+                "is_raw": True,
+                "page_ids": ["page"],
+                "data": [["bar"]],
+            },
+            "session": {
+                "session_id": id_,
+                "batch_seq": 1,
+                "last_batch_flag": True,
+                "estimated_num_total": 1,
+            },
         },
         "foo",
     )
 
 
 def test_manage_aud_updates_if_exists():
+    random.seed(1)
     old = [
         _adobject({"id": "foo", "name": "foo", "description": "bar"}, CustomAudience)
     ]
@@ -534,6 +544,7 @@ def test_manage_aud_updates_if_exists():
 
 
 def test_manage_aud_only_updates_if_no_lookalike_target_reached():
+    random.seed(1)
     old = [
         _adobject(
             {"id": "foo", "name": "foo", "description": "bar", "approximate_count": 10},
@@ -555,6 +566,7 @@ def test_manage_aud_only_updates_if_no_lookalike_target_reached():
 
 
 def test_manage_aud_only_updates_if_lookalike_and_lookalike_exists():
+    random.seed(1)
     old = [
         _adobject(
             {
@@ -589,6 +601,7 @@ def test_manage_aud_only_updates_if_lookalike_and_lookalike_exists():
 
 
 def test_manage_aud_creates_lookalike_if_target_passed():
+    random.seed(1)
     old = [
         _adobject(
             {

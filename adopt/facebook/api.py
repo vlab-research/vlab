@@ -8,14 +8,15 @@ from facebook_business.exceptions import FacebookRequestError
 logging.getLogger("backoff").addHandler(logging.StreamHandler())
 
 
-interval = 5 * 60
+INTERVAL = 5 * 60
 
 # TODO:
 # check status code
 # only retry on known codes
+# 17, user request limit reached
 
 
-@backoff.on_exception(backoff.constant, FacebookRequestError, interval=interval)
+@backoff.on_exception(backoff.constant, FacebookRequestError, interval=INTERVAL)
 def call(fn, *args, **kwargs):
     res = fn(**kwargs)
 
