@@ -1,11 +1,13 @@
-FROM python:3.8
+FROM python:3.9
 
 WORKDIR /usr/src/app
 
-COPY requirements.txt ./
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir poetry
 
-RUN pip install git+https://github.com/nandanrao/typedjson-python
+RUN poetry config virtualenvs.create false
+COPY poetry.lock pyproject.toml ./
+
+RUN poetry install --no-dev
 
 COPY . .
 

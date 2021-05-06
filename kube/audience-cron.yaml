@@ -5,15 +5,16 @@ metadata:
   labels:
     app: gbv-adopt-update-audiences-vlab
 spec:
-  schedule: 0 8,16 * * *
+  schedule: 0 7,15,23 * * *
   jobTemplate:
     spec:
+      activeDeadlineSeconds: 14400 # 4 hours
       template:
         spec:
           restartPolicy: OnFailure
           containers:
           - name: gbv-adopt-update-audiences
-            image: vlabresearch/adopt:0.0.75
+            image: vlabresearch/adopt:0.0.85
             args:
             - python
             - malaria_audience.py

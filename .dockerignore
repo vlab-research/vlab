@@ -1,6 +1,7 @@
 .env*
 .Dockerfile
 venv
+.venv
 India_MNM
 config
 output
