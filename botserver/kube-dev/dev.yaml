@@ -1,0 +1,48 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gbv-botserver
+  labels:
+    app: gbv-botserver
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: gbv-botserver
+  template:
+    metadata:
+      labels:
+        app: gbv-botserver
+    spec:
+      containers:
+      - name: gbv-botserver
+        image: localhost:32000/botserver:registry
+        imagePullPolicy: Always
+        resources:
+          requests:
+            cpu: "50m"
+            memory: "100Mi"
+        ports:
+        - containerPort: 80
+        envFrom:
+        - secretRef:
+            name: gbv-bot-envs
+        env:
+        - name: BOTSERVER_EVENT_TOPIC
+          value: "chat-events"
+        - name: KAFKA_BROKERS
+          value: "gbv-kafka:9092"
+
+---
+
+kind: Service
+apiVersion: v1
+metadata:
+  name: gbv-botserver
+spec:
+  selector:
+    app: gbv-botserver
+  ports:
+  - protocol: TCP
+    port: 80
+    targetPort: 80

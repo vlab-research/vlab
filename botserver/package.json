@@ -1,0 +1,24 @@
+{
+  "name": "botserver",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "dependencies": {
+    "@koa/cors": "^2.2.3",
+    "@vlab-research/utils": "0.0.11",
+    "koa": "^2.6.2",
+    "koa-bodyparser": "^4.2.1",
+    "koa-router": "^7.4.0",
+    "node-rdkafka": "^2.10.0"
+  },
+  "devDependencies": {
+    "eslint": "^7.7.0"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node server/index.js",
+    "lint": "eslint ."
+  },
+  "author": "",
+  "license": "ISC"
+}
