@@ -1,21 +1,21 @@
 package main
 
 import (
-	"net/http"
-	"net/url"
-	"net/http/httptest"
-	"io/ioutil"
-	"testing"
 	"github.com/labstack/echo/v4"
-	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
+	"io/ioutil"
+	"net/http"
+	"net/http/httptest"
+	"net/url"
+	"testing"
 )
 
 type MockEventer struct {
 	mock.Mock
 }
 
-func (m *MockEventer) Send (id string, url string) error {
+func (m *MockEventer) Send(id string, url string) error {
 	args := m.Called(id, url)
 	return args.Error(0)
 }
@@ -45,7 +45,6 @@ func TestGetEvent_forwardHttps(t *testing.T) {
 	assert.Equal(t, http.StatusFound, rec.Code)
 	assert.Equal(t, "https://redcross.org", rec.HeaderMap["Location"][0])
 }
-
 
 func TestGetEvent_forwardHttp(t *testing.T) {
 	e := echo.New()
