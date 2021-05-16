@@ -7,11 +7,11 @@ import (
 	"time"
 )
 
-func SertQuery(sert string, table string, fields []string, values []interface{}) string {
+func SertQuery(sert string, table string, fields []string, numRows int) string {
 	query := fmt.Sprintf("%v INTO %v(", sert, table)
 	query += strings.Join(fields, ",")
 	query += ") VALUES "
-	query += Placeholders(len(fields), len(values)/len(fields))
+	query += Placeholders(len(fields), numRows)
 	return query
 }
 

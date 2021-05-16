@@ -5,20 +5,6 @@ import (
 	"github.com/go-playground/validator/v10"
 )
 
-type Batch struct {
-	rows []interface{}
-}
-
-func (batch *Batch) Queue(vals ...interface{}) {
-	for _, v := range vals {
-		batch.rows = append(batch.rows, v)
-	}
-}
-
-type Batcher interface {
-	sendBatch(*Batch) error
-}
-
 type Writeable interface {
 	GetRow() []interface{}
 }
@@ -64,8 +50,7 @@ func Write(v *validator.Validate, scribbler Scribbler, messages []*kafka.Message
 		}
 	}
 
-	batch := BatchValues(data)
-	return scribbler.SendBatch(batch)
+	return scribbler.SendBatch(data)
 }
 
 type Writer struct {
@@ -74,7 +59,7 @@ type Writer struct {
 }
 
 type Scribbler interface {
-	SendBatch([]interface{}) error
+	SendBatch([]Writeable) error
 	Marshal(*kafka.Message) (Writeable, error)
 }
 

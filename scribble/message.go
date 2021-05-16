@@ -30,9 +30,10 @@ func NewMessageScribbler(pool *pgxpool.Pool) Scribbler {
 	return &MessageScribbler{pool}
 }
 
-func (s *MessageScribbler) SendBatch(values []interface{}) error {
+func (s *MessageScribbler) SendBatch(data []Writeable) error {
+	values := BatchValues(data)
 	fields := []string{"userid", "timestamp", "content"}
-	query := SertQuery("INSERT", "messages", fields, values)
+	query := SertQuery("INSERT", "messages", fields, len(data))
 	query += ` ON CONFLICT(hsh, userid) DO NOTHING`
 	_, err := s.pool.Exec(context.Background(), query, values...)
 	return err

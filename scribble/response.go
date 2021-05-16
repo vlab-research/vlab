@@ -64,7 +64,8 @@ type ResponseScribbler struct {
 	cache *ristretto.Cache
 }
 
-func (s *ResponseScribbler) SendBatch(values []interface{}) error {
+func (s *ResponseScribbler) SendBatch(data []Writeable) error {
+	values := BatchValues(data)
 	fields := []string{
 		"parent_shortcode",
 		"surveyid",
@@ -81,7 +82,7 @@ func (s *ResponseScribbler) SendBatch(values []interface{}) error {
 		"timestamp",
 		"metadata",
 	}
-	query := SertQuery("INSERT", "responses", fields, values)
+	query := SertQuery("INSERT", "responses", fields, len(data))
 	query += " ON CONFLICT(userid, timestamp, question_ref) DO NOTHING"
 	_, err := s.pool.Exec(context.Background(), query, values...)
 	return err

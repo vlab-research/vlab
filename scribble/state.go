@@ -34,7 +34,27 @@ func NewStateScribbler(pool *pgxpool.Pool) Scribbler {
 	return &StateScribbler{pool}
 }
 
-func (s *StateScribbler) SendBatch(values []interface{}) error {
+func DedupStates(data []Writeable) []Writeable {
+	dataMap := map[string]*State{}
+	for _, d := range data {
+		state, ok := d.(*State)
+		if !ok {
+			panic("Cannot decode state Writeable as State!")
+		}
+		dataMap[state.UserID] = state
+	}
+
+	data = []Writeable{}
+	for _, d := range dataMap {
+		data = append(data, d)
+	}
+
+	return data
+}
+
+func (s *StateScribbler) SendBatch(data []Writeable) error {
+	data = DedupStates(data)
+	values := BatchValues(data)
 	fields := []string{
 		"userid",
 		"pageid",
@@ -42,7 +62,7 @@ func (s *StateScribbler) SendBatch(values []interface{}) error {
 		"current_state",
 		"state_json",
 	}
-	query := SertQuery("UPSERT", "states", fields, values)
+	query := SertQuery("UPSERT", "states", fields, len(data))
 	_, err := s.pool.Exec(context.Background(), query, values...)
 	return err
 }

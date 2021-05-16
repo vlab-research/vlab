@@ -22,8 +22,9 @@ type StringScribbler struct {
 	pool *pgxpool.Pool
 }
 
-func (s *StringScribbler) SendBatch(values []interface{}) error {
-	query := SertQuery("INSERT", "test", []string{"foo"}, values)
+func (s *StringScribbler) SendBatch(data []Writeable) error {
+	values := BatchValues(data)
+	query := SertQuery("INSERT", "test", []string{"foo"}, len(data))
 	_, err := s.pool.Exec(context.Background(), query, values...)
 	return err
 }
