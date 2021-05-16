@@ -1,0 +1,45 @@
+{{- range .Values.queries }}
+apiVersion: batch/v1beta1
+kind: CronJob
+metadata:
+  name: {{ include "dean.fullname" $ }}-{{ .name }}
+  labels:
+    {{- include "dean.labels" $ | nindent 4 }}
+spec:
+  schedule: "{{ .schedule }}"
+  jobTemplate:
+    spec:
+      template:
+        spec:
+        {{- with $.Values.imagePullSecrets }}
+          imagePullSecrets:
+            {{- toYaml $ | nindent 12 }}
+        {{- end }}
+          restartPolicy: OnFailure
+          containers:
+            - name: {{ $.Chart.Name }}
+              image: "{{ $.Values.image.repository }}:{{ $.Values.image.tag }}"
+              imagePullPolicy: {{ $.Values.image.pullPolicy }}
+              env:
+                {{- toYaml $.Values.env | nindent 16 }}
+                - name: DEAN_QUERIES
+                  value: {{ .queries }}
+                {{- with .env }}
+                {{- toYaml .env | nindent 16 }}
+                {{- end }}
+              resources:
+                {{- toYaml .resources | nindent 16 }}
+          {{- with $.Values.nodeSelector }}
+          nodeSelector:
+            {{- toYaml $ | nindent 12 }}
+          {{- end }}
+          {{- with $.Values.affinity }}
+          affinity:
+            {{- toYaml $ | nindent 12 }}
+          {{- end }}
+          {{- with $.Values.tolerations }}
+          tolerations:
+            {{- toYaml $ | nindent 12 }}
+          {{- end }}
+---
+{{- end }}
