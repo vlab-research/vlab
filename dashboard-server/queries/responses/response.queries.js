@@ -75,6 +75,7 @@ async function formData(email, survey) {
                  )
                  SELECT id as surveyid,
                         shortcode,
+                        survey_name,
                         version,
                         created::string as survey_created,
                         metadata
