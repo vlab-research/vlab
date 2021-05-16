@@ -1,0 +1,11 @@
+kind: Service
+apiVersion: v1
+metadata:
+  name: gbv-dashboard
+spec:
+  selector:
+    app: gbv-dashboard
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 3000
