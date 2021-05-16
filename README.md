@@ -36,7 +36,7 @@ This should only have to be done once for each new Messenger app!
 
 7. Setup get_started payload
 ``` shell
-curl -X POST -H "Content-type: application/json" -d '{ "get_started":{ "payload": "get_started"} }' "https://graph.facebook.com/v3.2/me/messenger_profile?access_token=${PAGE_ACCESS_TOKEN}"
+curl -X POST -H "Content-type: application/json" -d '{ "get_started":{ "payload": "get_started"} }' "https://graph.facebook.com/v7.0/me/messenger_profile?access_token=${PAGE_ACCESS_TOKEN}"
 
 ```
 

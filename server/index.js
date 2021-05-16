@@ -30,6 +30,8 @@ const handleMessengerEvents = async (ctx) => {
 
       // abstraction layer??
       const message = {...entry.messaging[0], source: 'messenger'}
+
+      // add getPageFromEvent(message)
       const user = getUserFromEvent(message)
       const data = Buffer.from(JSON.stringify(message))
 
@@ -51,6 +53,15 @@ const handleSyntheticEvents = async (ctx) => {
     const {body} = ctx.request
     console.log(util.inspect(body, null, 8))
 
+
+    // TODO: timestamp is all over the place right now.
+    // FB sends a timestamp, then Botserver makes the timestamp for synthetic
+    // events. So far, so good.
+    // However then Scribble takes the kafka timestamp, which
+    // is good because then it's replied in the same order its recieved
+
+    // but then what should report.timestamp have?
+
     const message = {...body, source: 'synthetic', timestamp: Date.now()}
     const data = Buffer.from(JSON.stringify(message))
 
@@ -58,6 +69,8 @@ const handleSyntheticEvents = async (ctx) => {
       console.log(body)
       throw new Error('No user!')
     }
+
+    // message.page
 
     producer.produce(EVENT_TOPIC, null, data, message.user)
     ctx.status = 200
