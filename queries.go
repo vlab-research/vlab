@@ -98,6 +98,16 @@ func Errored(cfg *Config, conn *pgxpool.Pool) <-chan *ExternalEvent {
 	return get(conn, getRedo, query, cfg.ErrorTags, cfg.ErrorInterval, d)
 }
 
+// TODO: some way to know if the user is Blocked and has
+// been sent a redo already (i.e. STILL blocked)
+// Or more specifically, if they entered the blocked state
+// more than 24 hours ago, in which case...
+// hrm, but no if they have a token could still be worth trying
+// so when do we give up? What characterizes a give up sitch?
+//
+// ...
+//
+//
 func Blocked(cfg *Config, conn *pgxpool.Pool) <-chan *ExternalEvent {
 
 	query := `SELECT userid, pageid
