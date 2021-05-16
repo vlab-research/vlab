@@ -1,0 +1,48 @@
+module.exports = {
+  parser: 'babel-eslint',
+  env: {
+    browser: true,
+    commonjs: true,
+    es6: true,
+    amd: true,
+  },
+  extends: ['airbnb', 'plugin:react/recommended'],
+  parserOptions: {
+    ecmaVersion: 8,
+    ecmaFeatures: {
+      ecmaVersion: 2019,
+      jsx: true,
+    },
+    sourceType: 'module',
+  },
+  plugins: ['react-hooks'],
+  settings: {
+    react: {
+      pragma: 'React',
+      version: '16.8.5',
+    },
+  },
+  rules: {
+    'no-unused-vars': ['error', { varsIgnorePattern: "__", argsIgnorePattern: "__" }],
+    'no-shadow': 0,
+    'no-alert': 0,
+    'keyword-spacing': 'error',
+    'import/named': 0,
+    'camelcase': 0,
+    'react/forbid-prop-types': 0,
+    'no-nested-ternary': 0,
+    'import/prefer-default-export': 0,
+    indent: ['error', 2, { SwitchCase: 1 }],
+    'linebreak-style': ['error', 'unix'],
+    'no-plusplus': 0,
+    'no-undef': 0,
+    quotes: ['error', 'single'],
+    'react/prop-types': 2,
+    'react/require-default-props': 0,
+    'react/jsx-filename-extension': 0,
+    'react/no-array-index-key': 0,
+    'react-hooks/rules-of-hooks': 'error',
+    semi: ['error', 'always'],
+    'space-before-blocks': 'error',
+  },
+};
