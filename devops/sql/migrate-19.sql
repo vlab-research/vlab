@@ -1,0 +1,1 @@
+CREATE INDEX ON chatroach.responses (surveyid, userid, timestamp asc, question_ref) storing (parent_surveyid, parent_shortcode, shortcode, flowid, question_idx, question_text, response, seed, metadata, pageid, clusterid, translated_response);

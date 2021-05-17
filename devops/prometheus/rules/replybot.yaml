@@ -1,0 +1,24 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: prometheus-replybot-crashing
+  labels:
+    heritage: Helm
+    release: prometheus
+  namespace: monitoring
+spec:
+  groups:
+  - name: Replybot is crashing
+    interval: 1m
+    rules:
+      - alert: ReplyBotCrashing
+        expr: |
+          delta(kube_pod_container_status_restarts_total{container="replybot",job="kube-state-metrics"}[10m]) > 2
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: |
+            Replybot restarts
+          description: |
+            Replybot restarts

@@ -1,0 +1,26 @@
+{{- range .Values.laggingAlerts }}
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: prometheus-consumer-{{ .consumergroup }}-lagging
+  labels:
+    heritage: Helm
+    release: prometheus
+spec:
+  groups:
+  - name: {{ .consumergroup }} lagging by {{ .limit }}
+    interval: 1m
+    rules:
+      - alert: Vlab{{ .alertname }}
+        expr: |
+          sum(kafka_consumergroup_lag_sum{consumergroup="{{ .consumergroup }}"}) > {{ .limit }}
+        for: {{ .window }}
+        labels:
+          severity: warning
+        annotations:
+          summary: |
+            {{ .consumergroup }} lagging
+          description: |
+            {{ .consumergroup }} lagging
+---
+{{- end }}

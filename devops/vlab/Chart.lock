@@ -1,0 +1,45 @@
+dependencies:
+- name: replybot
+  repository: https://vlab-research.github.io/devops
+  version: 0.0.1
+- name: botserver
+  repository: https://vlab-research.github.io/devops
+  version: 0.0.1
+- name: linksniffer
+  repository: https://vlab-research.github.io/devops
+  version: 0.0.1
+- name: dashboard
+  repository: https://vlab-research.github.io/devops
+  version: 0.0.1
+- name: formcentral
+  repository: https://vlab-research.github.io/devops
+  version: 0.0.1
+- name: dumper
+  repository: https://vlab-research.github.io/devops
+  version: 0.0.1
+- name: dinersclub
+  repository: https://vlab-research.github.io/devops
+  version: 0.0.1
+- name: dean
+  repository: https://vlab-research.github.io/devops
+  version: 0.0.1
+- name: scribble
+  repository: https://vlab-research.github.io/devops
+  version: 0.0.1
+- name: naughtybot
+  repository: https://vlab-research.github.io/devops
+  version: 0.0.1
+- name: botscribe
+  repository: https://vlab-research.github.io/devops
+  version: 0.0.1
+- name: scratchbot
+  repository: https://vlab-research.github.io/devops
+  version: 0.0.1
+- name: cockroachdb
+  repository: https://charts.cockroachdb.com/
+  version: 5.0.1
+- name: kafka
+  repository: https://storage.googleapis.com/kubernetes-charts-incubator
+  version: 0.20.8
+digest: sha256:eb606b65d86d5fe7d5de04022c777bfb46d3c76db7cf06aa3786a0dc46e17cfa
+generated: "2020-12-01T09:08:27.152313332+01:00"

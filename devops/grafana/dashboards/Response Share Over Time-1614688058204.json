@@ -1,0 +1,639 @@
+{
+  "annotations": {
+    "list": [
+      {
+        "$$hashKey": "object:1085",
+        "builtIn": 1,
+        "datasource": "-- Grafana --",
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      }
+    ]
+  },
+  "editable": true,
+  "gnetId": null,
+  "graphTooltip": 0,
+  "id": 25,
+  "iteration": 1614686994378,
+  "links": [],
+  "panels": [
+    {
+      "aliasColors": {},
+      "bars": true,
+      "dashLength": 10,
+      "dashes": false,
+      "datasource": "PostgreSQL",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {},
+          "links": []
+        },
+        "overrides": []
+      },
+      "fill": 1,
+      "fillGradient": 0,
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
+      "hiddenSeries": false,
+      "id": 10,
+      "interval": "1d",
+      "legend": {
+        "avg": true,
+        "current": false,
+        "max": true,
+        "min": false,
+        "show": true,
+        "total": false,
+        "values": true
+      },
+      "lines": false,
+      "linewidth": 1,
+      "nullPointMode": "null",
+      "options": {
+        "alertThreshold": true
+      },
+      "percentage": false,
+      "pluginVersion": "7.4.2",
+      "pointradius": 2,
+      "points": false,
+      "renderer": "flot",
+      "repeat": null,
+      "repeatDirection": "h",
+      "seriesOverrides": [],
+      "spaceLength": 10,
+      "stack": false,
+      "steppedLine": false,
+      "targets": [
+        {
+          "format": "time_series",
+          "group": [],
+          "metricColumn": "none",
+          "rawQuery": true,
+          "rawSql": "with t as (SELECT\n  response, clusterid, translated_response = '$response' as had_malaria,  $__timeGroupAlias(timestamp,$__interval) \nFROM\n  responses\nWHERE\n  $__timeFilter(timestamp) AND \n  question_ref = '$question_ref' AND \n  shortcode = ANY($form, )\nORDER BY \n  time\n) select time, sum(had_malaria::int) / count(*) as malaria_incidence from t group by time order by time;",
+          "refId": "A",
+          "select": [
+            [
+              {
+                "params": [
+                  "value"
+                ],
+                "type": "column"
+              }
+            ]
+          ],
+          "timeColumn": "time",
+          "where": [
+            {
+              "name": "$__timeFilter",
+              "params": [],
+              "type": "macro"
+            }
+          ]
+        }
+      ],
+      "thresholds": [],
+      "timeFrom": null,
+      "timeRegions": [],
+      "timeShift": null,
+      "title": "Response percentage per day",
+      "tooltip": {
+        "shared": true,
+        "sort": 0,
+        "value_type": "individual"
+      },
+      "type": "graph",
+      "xaxis": {
+        "buckets": null,
+        "mode": "time",
+        "name": null,
+        "show": true,
+        "values": []
+      },
+      "yaxes": [
+        {
+          "$$hashKey": "object:5831",
+          "format": "short",
+          "label": null,
+          "logBase": 1,
+          "max": null,
+          "min": null,
+          "show": true
+        },
+        {
+          "$$hashKey": "object:5832",
+          "format": "short",
+          "label": null,
+          "logBase": 1,
+          "max": null,
+          "min": null,
+          "show": true
+        }
+      ],
+      "yaxis": {
+        "align": false,
+        "alignLevel": null
+      }
+    },
+    {
+      "aliasColors": {},
+      "bars": false,
+      "dashLength": 10,
+      "dashes": false,
+      "datasource": "PostgreSQL",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {},
+          "links": []
+        },
+        "overrides": []
+      },
+      "fill": 1,
+      "fillGradient": 0,
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 8
+      },
+      "hiddenSeries": false,
+      "id": 15,
+      "interval": "2d",
+      "legend": {
+        "avg": true,
+        "current": false,
+        "max": true,
+        "min": false,
+        "show": true,
+        "total": false,
+        "values": true
+      },
+      "lines": true,
+      "linewidth": 1,
+      "nullPointMode": "null",
+      "options": {
+        "alertThreshold": true
+      },
+      "percentage": false,
+      "pluginVersion": "7.4.2",
+      "pointradius": 2,
+      "points": false,
+      "renderer": "flot",
+      "repeatDirection": "h",
+      "seriesOverrides": [],
+      "spaceLength": 10,
+      "stack": false,
+      "steppedLine": false,
+      "targets": [
+        {
+          "format": "time_series",
+          "group": [],
+          "metricColumn": "none",
+          "rawQuery": true,
+          "rawSql": "with y as (with x as (with t as (SELECT\n  response, clusterid, translated_response = '$response' as had_malaria,  $__timeGroupAlias(timestamp,$__interval) \nFROM\n  responses\nWHERE\n  $__timeFilter(timestamp) AND \n  question_ref = '$question_ref' AND \n  shortcode = ANY($form, )\nORDER BY \n  time\n) select clusterid, time, sum(had_malaria::int) / count(*) as malaria_incidence from t group by time, clusterid order by time)\n select time, AVG(malaria_incidence) as malaria_incidence from x GROUP BY time)\n select time, AVG(malaria_incidence) OVER (ORDER BY time ROWS BETWEEN 6 PRECEDING AND CURRENT ROW) AS rolling_average FROM y ORDER BY time;",
+          "refId": "A",
+          "select": [
+            [
+              {
+                "params": [
+                  "value"
+                ],
+                "type": "column"
+              }
+            ]
+          ],
+          "timeColumn": "time",
+          "where": [
+            {
+              "name": "$__timeFilter",
+              "params": [],
+              "type": "macro"
+            }
+          ]
+        }
+      ],
+      "thresholds": [],
+      "timeFrom": null,
+      "timeRegions": [],
+      "timeShift": null,
+      "title": "Rolling Average",
+      "tooltip": {
+        "shared": true,
+        "sort": 0,
+        "value_type": "individual"
+      },
+      "type": "graph",
+      "xaxis": {
+        "buckets": null,
+        "mode": "time",
+        "name": null,
+        "show": true,
+        "values": []
+      },
+      "yaxes": [
+        {
+          "$$hashKey": "object:5831",
+          "format": "short",
+          "label": null,
+          "logBase": 1,
+          "max": null,
+          "min": null,
+          "show": true
+        },
+        {
+          "$$hashKey": "object:5832",
+          "format": "short",
+          "label": null,
+          "logBase": 1,
+          "max": null,
+          "min": null,
+          "show": true
+        }
+      ],
+      "yaxis": {
+        "align": false,
+        "alignLevel": null
+      }
+    },
+    {
+      "datasource": "PostgreSQL",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {},
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 24,
+        "x": 0,
+        "y": 16
+      },
+      "id": 5,
+      "maxPerRow": 12,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "mean"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "text": {},
+        "textMode": "auto"
+      },
+      "pluginVersion": "7.4.2",
+      "repeat": "form",
+      "repeatDirection": "h",
+      "scopedVars": {
+        "form": {
+          "selected": true,
+          "text": "extrabasehin1shot",
+          "value": "extrabasehin1shot"
+        }
+      },
+      "targets": [
+        {
+          "format": "table",
+          "group": [],
+          "metricColumn": "none",
+          "rawQuery": true,
+          "rawSql": "with t as (SELECT\n  response, clusterid, response = '$response' as had_malaria\nFROM\n  responses\nWHERE\n  $__timeFilter(timestamp) AND \n  question_ref = '$question_ref' AND \n  shortcode = $form\n) select sum(had_malaria::int) / count(*) as malaria_incidence from t;",
+          "refId": "A",
+          "select": [
+            [
+              {
+                "params": [
+                  "value"
+                ],
+                "type": "column"
+              }
+            ]
+          ],
+          "timeColumn": "time",
+          "where": [
+            {
+              "name": "$__timeFilter",
+              "params": [],
+              "type": "macro"
+            }
+          ]
+        }
+      ],
+      "timeFrom": null,
+      "timeShift": null,
+      "title": "$form",
+      "type": "stat"
+    }
+  ],
+  "schemaVersion": 27,
+  "style": "dark",
+  "tags": [],
+  "templating": {
+    "list": [
+      {
+        "allValue": null,
+        "current": {
+          "selected": true,
+          "tags": [],
+          "text": [
+            "extrabasehin1shot"
+          ],
+          "value": [
+            "extrabasehin1shot"
+          ]
+        },
+        "datasource": "PostgreSQL",
+        "definition": "select distinct(current_form) as form from states where updated > NOW() - interval '7 days' order by form",
+        "description": null,
+        "error": null,
+        "hide": 0,
+        "includeAll": true,
+        "label": null,
+        "multi": true,
+        "name": "form",
+        "options": [],
+        "query": "select distinct(current_form) as form from states where updated > NOW() - interval '7 days' order by form",
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 0,
+        "tagValuesQuery": "",
+        "tags": [],
+        "tagsQuery": "",
+        "type": "query",
+        "useTags": false
+      },
+      {
+        "allValue": null,
+        "current": {
+          "selected": false,
+          "text": "dwelling",
+          "value": "dwelling"
+        },
+        "datasource": "PostgreSQL",
+        "definition": "with y as (with t as (select question_ref, shortcode from responses where shortcode = ANY($form, )) select question_ref, shortcode from t group by question_ref, shortcode) select question_ref from y group by question_ref having array_agg(shortcode) @> (ARRAY($form, )) AND (ARRAY($form, )) @> array_agg(shortcode);",
+        "description": null,
+        "error": null,
+        "hide": 0,
+        "includeAll": false,
+        "label": null,
+        "multi": false,
+        "name": "question_ref",
+        "options": [
+          {
+            "selected": false,
+            "text": "testmalaria",
+            "value": "testmalaria"
+          },
+          {
+            "selected": false,
+            "text": "buymosquitonet",
+            "value": "buymosquitonet"
+          },
+          {
+            "selected": false,
+            "text": "castespecify",
+            "value": "castespecify"
+          },
+          {
+            "selected": false,
+            "text": "consent",
+            "value": "consent"
+          },
+          {
+            "selected": false,
+            "text": "numbermosquitonet",
+            "value": "numbermosquitonet"
+          },
+          {
+            "selected": false,
+            "text": "hasairconditioning",
+            "value": "hasairconditioning"
+          },
+          {
+            "selected": false,
+            "text": "knowbuymosquitonet",
+            "value": "knowbuymosquitonet"
+          },
+          {
+            "selected": false,
+            "text": "numbermalaria4months",
+            "value": "numbermalaria4months"
+          },
+          {
+            "selected": false,
+            "text": "timeseekhelpmalaria",
+            "value": "timeseekhelpmalaria"
+          },
+          {
+            "selected": false,
+            "text": "education",
+            "value": "education"
+          },
+          {
+            "selected": false,
+            "text": "fever4months",
+            "value": "fever4months"
+          },
+          {
+            "selected": false,
+            "text": "religion",
+            "value": "religion"
+          },
+          {
+            "selected": false,
+            "text": "seekhelpfever",
+            "value": "seekhelpfever"
+          },
+          {
+            "selected": false,
+            "text": "treatmosquitonet",
+            "value": "treatmosquitonet"
+          },
+          {
+            "selected": false,
+            "text": "worriedmalaria",
+            "value": "worriedmalaria"
+          },
+          {
+            "selected": false,
+            "text": "age",
+            "value": "age"
+          },
+          {
+            "selected": false,
+            "text": "caste",
+            "value": "caste"
+          },
+          {
+            "selected": false,
+            "text": "hasmosquitonet",
+            "value": "hasmosquitonet"
+          },
+          {
+            "selected": false,
+            "text": "pregnantwoman",
+            "value": "pregnantwoman"
+          },
+          {
+            "selected": false,
+            "text": "occupation",
+            "value": "occupation"
+          },
+          {
+            "selected": false,
+            "text": "worriedcovid",
+            "value": "worriedcovid"
+          },
+          {
+            "selected": false,
+            "text": "distancemedicalcenter",
+            "value": "distancemedicalcenter"
+          },
+          {
+            "selected": true,
+            "text": "dwelling",
+            "value": "dwelling"
+          },
+          {
+            "selected": false,
+            "text": "paymosquitonet",
+            "value": "paymosquitonet"
+          },
+          {
+            "selected": false,
+            "text": "timeseekhelpfever",
+            "value": "timeseekhelpfever"
+          },
+          {
+            "selected": false,
+            "text": "default_tys",
+            "value": "default_tys"
+          },
+          {
+            "selected": false,
+            "text": "familymembers",
+            "value": "familymembers"
+          },
+          {
+            "selected": false,
+            "text": "gender",
+            "value": "gender"
+          },
+          {
+            "selected": false,
+            "text": "malaria4months",
+            "value": "malaria4months"
+          },
+          {
+            "selected": false,
+            "text": "religionspecify",
+            "value": "religionspecify"
+          },
+          {
+            "selected": false,
+            "text": "typemedicalcenter",
+            "value": "typemedicalcenter"
+          }
+        ],
+        "query": "with y as (with t as (select question_ref, shortcode from responses where shortcode = ANY($form, )) select question_ref, shortcode from t group by question_ref, shortcode) select question_ref from y group by question_ref having array_agg(shortcode) @> (ARRAY($form, )) AND (ARRAY($form, )) @> array_agg(shortcode);",
+        "refresh": 0,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 0,
+        "tagValuesQuery": "",
+        "tags": [],
+        "tagsQuery": "",
+        "type": "query",
+        "useTags": false
+      },
+      {
+        "allValue": null,
+        "current": {
+          "selected": true,
+          "text": "Kutcha (made of mud, tin, straw)",
+          "value": "Kutcha (made of mud, tin, straw)"
+        },
+        "datasource": "PostgreSQL",
+        "definition": "with t as (select translated_response, count(translated_response) from responses where question_ref = '$question_ref' group by translated_response) select translated_response from t where count > 2;",
+        "description": null,
+        "error": null,
+        "hide": 0,
+        "includeAll": false,
+        "label": null,
+        "multi": false,
+        "name": "response",
+        "options": [
+          {
+            "selected": false,
+            "text": "Pucca (have cement/brick wall and floor",
+            "value": "Pucca (have cement/brick wall and floor"
+          },
+          {
+            "selected": false,
+            "text": "Semi-pucca",
+            "value": "Semi-pucca"
+          },
+          {
+            "selected": true,
+            "text": "Kutcha (made of mud, tin, straw)",
+            "value": "Kutcha (made of mud, tin, straw)"
+          }
+        ],
+        "query": "with t as (select translated_response, count(translated_response) from responses where question_ref = '$question_ref' group by translated_response) select translated_response from t where count > 2;",
+        "refresh": 0,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 0,
+        "tagValuesQuery": "",
+        "tags": [],
+        "tagsQuery": "",
+        "type": "query",
+        "useTags": false
+      }
+    ]
+  },
+  "time": {
+    "from": "now-20d",
+    "to": "now"
+  },
+  "timepicker": {
+    "refresh_intervals": [
+      "5s",
+      "10s",
+      "30s",
+      "1m",
+      "5m",
+      "15m",
+      "30m",
+      "1h",
+      "2h",
+      "1d"
+    ]
+  },
+  "timezone": "",
+  "title": "Response Share Over Time",
+  "uid": "UFmtkvKGk",
+  "version": 2
+}

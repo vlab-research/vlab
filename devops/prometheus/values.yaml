@@ -1,0 +1,88 @@
+defaultRules:
+  create: true
+  rules:
+    alertmanager: true
+    etcd: true
+    general: true
+    k8s: true
+    kubeApiserver: true
+    kubePrometheusNodeAlerting: true
+    kubePrometheusNodeRecording: true
+    kubernetesAbsent: false
+    kubernetesApps: true
+    kubernetesResources: true
+    kubernetesStorage: true
+    kubernetesSystem: false
+    kubeScheduler: false
+    network: true
+    node: true
+    prometheus: true
+    prometheusOperator: true
+    time: true
+
+coreDns:
+  enabled: false
+
+kubeDns:
+  enabled: true
+
+kubeControllerManager:
+  enabled: false
+
+kubeScheduler:
+  enabled: false
+
+alertmanager:
+  alertmanagerSpec:
+    useExistingSecret: true
+    configSecret: "alertmanager"
+    storage:
+      volumeClaimTemplate:
+        spec:
+          accessModes:
+          - ReadWriteOnce
+          resources:
+            requests:
+              storage: 2Gi
+
+prometheus:
+  prometheusSpec:
+    # Target ALL ServiceMonitors and PrometheusRules
+    ruleSelectorNilUsesHelmValues: false
+    serviceMonitorSelectorNilUsesHelmValues: false
+    podMonitorSelectorNilUsesHelmValues: false
+    ruleSelector: {}
+    serviceMonitorSelector: {}
+    podMonitorSelector: {}
+    storage:
+      volumeClaimTemplate:
+        spec:
+          accessModes:
+          - ReadWriteOnce
+          resources:
+            requests:
+              storage: 20Gi
+
+grafana:
+  enabled: true
+  image:
+    repository: grafana/grafana
+    tag: 7.4.2
+  persistence:
+    type: pvc
+    enabled: true
+    accessModes:
+      - ReadWriteOnce
+    size: 5Gi
+
+  sidecar:
+    datasources:
+      enabled: true
+      defaultDatasourceEnabled: true
+
+      # If not defined, will use prometheus.prometheusSpec.scrapeInterval or its default
+      # defaultDatasourceScrapeInterval: 15s
+
+      ## Annotations for Grafana datasource configmaps
+      ## TODO: put your
+      annotations: {}

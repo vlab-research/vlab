@@ -1,0 +1,69 @@
+apiVersion: v2
+name: vlab
+description: A Helm chart for Kubernetes
+type: application
+version: 0.0.1
+dependencies:
+  - name: replybot
+    version: 0.0.1
+    repository: https://vlab-research.github.io/devops
+  - name: botserver
+    version: 0.0.1
+    repository: https://vlab-research.github.io/devops
+  - name: linksniffer
+    version: 0.0.1
+    repository: https://vlab-research.github.io/devops
+  - name: dashboard
+    version: 0.0.1
+    repository: https://vlab-research.github.io/devops
+  - name: formcentral
+    version: 0.0.1
+    repository: https://vlab-research.github.io/devops
+  - name: dumper
+    version: 0.0.1
+    repository: https://vlab-research.github.io/devops
+    tags:
+      - backup
+  - name: dinersclub
+    version: 0.0.1
+    repository: https://vlab-research.github.io/devops
+    tags:
+      - payments
+  - name: dean
+    version: 0.0.1
+    repository: https://vlab-research.github.io/devops
+    tags:
+      - dean
+  - name: scribble
+    version: 0.0.1
+    repository: https://vlab-research.github.io/devops
+    tags:
+      - scribble
+  - name: naughtybot
+    version: 0.0.1
+    repository: https://vlab-research.github.io/devops
+    tags:
+      - naughtybot
+  - name: botscribe
+    version: 0.0.1
+    repository: https://vlab-research.github.io/devops
+    tags:
+      - botscribe
+  - name: scratchbot
+    version: 0.0.1
+    repository: https://vlab-research.github.io/devops
+    tags:
+      - scratchbot
+
+# TODO: move database out of here (treat as provider)
+# add init job to create database and users
+  - name: cockroachdb
+    version: 5.0.1
+    repository: https://charts.cockroachdb.com/
+    tags:
+      - cockroach
+  - name: kafka
+    version: 0.20.8
+    repository: https://storage.googleapis.com/kubernetes-charts-incubator
+    tags:
+      - kafka
