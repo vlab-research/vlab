@@ -32,7 +32,5 @@ env:
     value: "1"
   - name: DINERSCLUB_BATCH_SIZE
     value: "1"
-  - name: SCRIBBLE_ERROR_HANDLERS
-    value: ""
   - name: RELOADLY_SANDBOX
     value: "true"

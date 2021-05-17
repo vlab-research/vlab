@@ -46,7 +46,16 @@ func reloadlyErrorResult(res *Result, err error, details *json.RawMessage) (*Res
 
 	// TODO: catch 500 errors and "try again later" errors
 	// for retrying...
+	// PHONE_RECENTLY_RECHARGED
+	// TRANSACTION_CANNOT_BE_PROCESSED_AT_THE_MOMENT
+	// PROVIDER_INTERNAL_ERROR
+	// SERVICE_TO_OPERATOR_TEMPORARILY_UNAVAILABLE
 
+	// what to do if fallback is not provider you checked
+	// has correct option types?
+
+	// IMPOSSIBLE_AMOUNT
+	// Add special message in typeform logic to deal with this???
 	if e, ok := err.(reloadly.APIError); ok {
 		res.Error = &PaymentError{e.Message, e.ErrorCode, details}
 		return res, nil

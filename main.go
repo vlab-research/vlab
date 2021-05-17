@@ -22,7 +22,7 @@ type Config struct {
 	Topic            string        `env:"KAFKA_TOPIC,required"`
 	Group            string        `env:"KAFKA_GROUP,required"`
 	BatchSize        int           `env:"DINERSCLUB_BATCH_SIZE,required"`
-	ChunkSize        int           `env:"DINERSCLUB_CHUNK_SIZE,required"`
+	PoolSize         int           `env:"DINERSCLUB_POOL_SIZE,required"`
 	RetryBotserver   time.Duration `env:"DINERSCLUB_RETRY_BOTSERVER,required"`
 	RetryProvider    time.Duration `env:"DINERSCLUB_RETRY_PROVIDER,required"`
 	Providers        []string      `env:"DINERSCLUB_PROVIDERS" envSeparator:","`
@@ -51,7 +51,11 @@ func (dc *DC) Process(messages []*kafka.Message) error {
 		tasks = append(tasks, pe)
 	}
 
-	outch := chance.Pool(len(tasks), chance.Flatten(tasks), dc.Work)
+	// this processes them all at once
+	// maybe better for providers to have
+	// a fixed pool size, limit concurrent
+	// requests
+	outch := chance.Pool(dc.cfg.PoolSize, chance.Flatten(tasks), dc.Work)
 	for x := range outch {
 		switch x.(type) {
 		case error:
@@ -175,7 +179,7 @@ func main() {
 	// TODO: need to change maximum poll interval for long retries!!
 
 	c := spine.NewKafkaConsumer(cfg.Topic, cfg.KafkaBrokers, cfg.Group,
-		cfg.KafkaPollTimeout, cfg.BatchSize, cfg.ChunkSize)
+		cfg.KafkaPollTimeout, cfg.BatchSize, cfg.BatchSize)
 
 	errs := make(chan error)
 	go monitor(errs)
