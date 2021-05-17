@@ -1,0 +1,69 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gbv-replybot
+  labels:
+    app: gbv-replybot
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: gbv-replybot
+  template:
+    metadata:
+      labels:
+        app: gbv-replybot
+    spec:
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchExpressions:
+              - key: app
+                operator: In
+                values:
+                - gbv-replybot
+            topologyKey: "kubernetes.io/hostname"
+      containers:
+      - name: gbv-replybot
+        image: vlabresearch/replybot:0.0.38
+        resources:
+          requests:
+            cpu: "10m"
+            memory: "50Mi"
+        ports:
+        - containerPort: 80
+        volumeMounts:
+          - name: keys
+            mountPath: /usr/src/app/keys
+            readOnly: true
+        envFrom:
+        - secretRef:
+            name: gbv-bot-envs
+        env:
+        - name: CHATBASE_BACKEND
+          value: "@vlab-research/chatbase-postgres"
+        - name: CHATBASE_DATABASE
+          value: "chatroach"
+        - name: CHATBASE_USER
+          value: "chatroach"
+        - name: CHATBASE_PASSWORD
+          value: ""
+        - name: CHATBASE_HOST
+          value: "chatroach-cockroachdb-public.default"
+        - name: CHATBASE_PORT
+          value: "26257"
+        - name: FALLBACK_FORM
+          value: "305"
+        - name: REPLYBOT_EVENT_TOPIC
+          value: "chat-events"
+        - name: BOTSPINE_KAFKA_BROKERS
+          value: "spinaltap-kafka:9092"
+        - name: BOTSPINE_MESSAGE_TOPIC
+          value: "chat-events"
+        - name: DASHBOARD_API
+          value: "http://gbv-dashboard/api/v1"
+      volumes:
+        - name: keys
+          secret:
+            secretName: gbv-replybot-keys

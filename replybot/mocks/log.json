@@ -1,0 +1,93 @@
+[
+    {
+        "sender": {
+            "id": "1800244896727776"
+        },
+        "recipient": {
+            "id": "1051551461692797"
+        },
+        "timestamp": 1542106624151,
+        "read": {
+            "watermark": 1542106597790,
+            "seq": 0
+        }
+    },
+    {
+        "sender": {
+            "id": "1800244896727776"
+        },
+        "recipient": {
+            "id": "1051551461692797"
+        },
+        "timestamp": 1542106599488,
+        "delivery": {
+            "mids": [
+                "ZUcDh69qcWnD8UVv4KvQxCn2iasmlDFy9VOouP2MXEYKsIOrj3frasz62dGY5V384Irunz526TKJth4jL-Ns3A"
+            ],
+            "watermark": 1542106597790,
+            "seq": 0
+        }
+    },
+    {
+        "sender": {
+            "id": "1800244896727776"
+        },
+        "recipient": {
+            "id": "1051551461692797"
+        },
+        "timestamp": 1542106598340,
+        "delivery": {
+            "mids": [
+                "ZUcDh69qcWnD8UVv4KvQxCn2iasmlDFy9VOouP2MXEYKsIOrj3frasz62dGY5V384Irunz526TKJth4jL-Ns3A"
+            ],
+            "watermark": 1542106597790,
+            "seq": 0
+        }
+    },
+    {
+        "sender": {
+            "id": "1051551461692797"
+        },
+        "recipient": {
+            "id": "1800244896727776"
+        },
+        "timestamp": 1542106597790,
+        "message": {
+            "is_echo": true,
+            "app_id": 699455733740842,
+            "metadata": "foobarbaz",
+            "mid": "ZUcDh69qcWnD8UVv4KvQxCn2iasmlDFy9VOouP2MXEYKsIOrj3frasz62dGY5V384Irunz526TKJth4jL-Ns3A",
+            "seq": 95305,
+            "text": "Do you wish to share this?",
+            "attachments": [
+                {
+                    "title": "",
+                    "url": null,
+                    "type": "template",
+                    "payload": {
+                        "template_type": "button",
+                        "buttons": [
+                            {
+                                "title": "Share"
+                            }
+                        ]
+                    }
+                }
+            ]
+        }
+    },
+    {
+        "sender": {
+            "id": "1800244896727776"
+        },
+        "recipient": {
+            "id": "1051551461692797"
+        },
+        "timestamp": 1542106596197,
+        "message": {
+            "mid": "zQb4PYSoVAkvMdn1fd29nin2iasmlDFy9VOouP2MXEYvdHOsnz5YF7DAvkQIwFhPqzyKkWGKw1OElkWqV2c0Rw",
+            "seq": 95303,
+            "text": "foo"
+        }
+    }
+]

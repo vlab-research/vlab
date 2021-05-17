@@ -1,0 +1,37 @@
+replicaCount: 1
+
+image:
+  repository: vlabresearch/replybot
+  tag: 0.0.42
+  pullPolicy: IfNotPresent
+
+envFrom: gbv-bot-envs
+
+env:
+- name: CHATBASE_BACKEND
+  value: "@vlab-research/chatbase-postgres"
+- name: CHATBASE_DATABASE
+  value: "chatroach"
+- name: CHATBASE_USER
+  value: "chatroach"
+- name: CHATBASE_PASSWORD
+  value: ""
+- name: CHATBASE_HOST
+  value: "gbv-cockroachdb-public.default"
+- name: CHATBASE_PORT
+  value: "26257"
+- name: FALLBACK_FORM
+  value: "305"
+- name: REPLYBOT_EVENT_TOPIC
+  value: "chat-events"
+- name: BOTSPINE_KAFKA_BROKERS
+  value: "gbv-kafka:9092"
+- name: BOTSPINE_MESSAGE_TOPIC
+  value: "chat-events"
+- name: DASHBOARD_API
+  value: "http://gbv-dashboard/api/v1"
+
+resources:
+  requests:
+    cpu: 10m
+    memory: 64Mi

@@ -1,0 +1,43 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: gbv-state-debugger
+  labels:
+    app: gbv-state-debugger
+spec:
+  template:
+    spec:
+      restartPolicy: OnFailure
+      containers:
+      - name: gbv-state-debugger
+        image: vlabresearch/replybot:0.0.111
+        args:
+        - node
+        - lib/responses/debugger.js
+        - "3916159398416624"
+        resources:
+          requests:
+            cpu: "50m"
+            memory: "100Mi"
+        envFrom:
+        - secretRef:
+            name: gbv-bot-envs
+        env:
+        - name: CHATBASE_BACKEND
+          value: "@vlab-research/chatbase-postgres"
+        - name: CHATBASE_DATABASE
+          value: "chatroach"
+        - name: CHATBASE_USER
+          value: "chatroach"
+        - name: CHATBASE_PASSWORD
+          value: ""
+        - name: CHATBASE_HOST
+          value: "gbv-cockroachdb-public"
+        - name: CHATBASE_PORT
+          value: "26257"
+        - name: BOTSPINE_MESSAGE_TOPIC
+          value: "chat-events"
+        - name: DASHBOARD_API
+          value: "http://gbv-dashboard/api/v1"
+        - name: FALLBACK_FORM
+          value: "305"
