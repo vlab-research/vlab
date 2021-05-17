@@ -62,3 +62,27 @@ prometheus:
           resources:
             requests:
               storage: 20Gi
+
+grafana:
+  enabled: true
+  image:
+    repository: grafana/grafana
+    tag: 7.4.2
+  persistence:
+    type: pvc
+    enabled: true
+    accessModes:
+      - ReadWriteOnce
+    size: 5Gi
+
+  sidecar:
+    datasources:
+      enabled: true
+      defaultDatasourceEnabled: true
+
+      # If not defined, will use prometheus.prometheusSpec.scrapeInterval or its default
+      # defaultDatasourceScrapeInterval: 15s
+
+      ## Annotations for Grafana datasource configmaps
+      ## TODO: put your
+      annotations: {}
