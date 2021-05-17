@@ -1,0 +1,79 @@
+{
+  "id": "ulrtpfSQ",
+  "type": "form",
+  "title": "follow up test - default",
+  "workspace": {
+    "href": "https://api.typeform.com/workspaces/WA44hg"
+  },
+  "theme": {
+    "href": "https://api.typeform.com/themes/qHWOQ7"
+  },
+  "settings": {
+    "language": "en",
+    "progress_bar": "proportion",
+    "meta": {
+      "allow_indexing": false
+    },
+    "is_public": true,
+    "is_trial": false,
+    "show_progress_bar": true,
+    "show_typeform_branding": true,
+    "are_uploads_public": false
+  },
+  "thankyou_screens": [
+    {
+      "id": "DefaultTyScreen",
+      "ref": "default_tys",
+      "title": "Done! Your information was sent perfectly.",
+      "properties": {
+        "show_button": false,
+        "share_icons": false
+      }
+    }
+  ],
+  "fields": [
+    {
+      "id": "mu9v9k6thpuH",
+      "title": "Hello, are you",
+      "ref": "6ceebf31-4cac-4de8-b760-8bb1f162f145",
+      "properties": {
+        "randomize": false,
+        "allow_multiple_selection": false,
+        "allow_other_choice": false,
+        "vertical_alignment": true,
+        "choices": [
+          {
+            "id": "7CxMQdH6AGUd",
+            "ref": "e0de7ac4-bb24-4461-90c6-df6907a0193b",
+            "label": "tired"
+          },
+          {
+            "id": "cLbPbnnmB1eZ",
+            "ref": "3731fb41-9ce0-44db-9cd8-5c154ec1001f",
+            "label": "cold"
+          }
+        ]
+      },
+      "validations": {
+        "required": false
+      },
+      "type": "multiple_choice"
+    },
+    {
+      "id": "DefaultTyScreen",
+      "ref": "default_tys",
+      "title": "Done! Your information was sent perfectly.",
+      "properties": {
+        "show_button": false,
+        "share_icons": false
+      },
+      "type": "thankyou_screen"
+    }
+  ],
+  "_links": {
+    "display": "https://nandanrao.typeform.com/to/ulrtpfSQ"
+  },
+  "custom_messages": {
+    "label.buttonHint.default": "this is a follow up"
+  }
+}

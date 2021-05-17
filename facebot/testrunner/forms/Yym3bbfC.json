@@ -1,0 +1,1551 @@
+{
+  "id": "Yym3bbfC",
+  "title": "baselineeng",
+  "workspace": {
+    "href": "https://api.typeform.com/workspaces/p7LWDc"
+  },
+  "theme": {
+    "href": "https://api.typeform.com/themes/qHWOQ7"
+  },
+  "settings": {
+    "language": "en",
+    "progress_bar": "percentage",
+    "meta": {
+      "allow_indexing": false
+    },
+    "is_public": true,
+    "is_trial": false,
+    "show_progress_bar": true,
+    "show_typeform_branding": true,
+    "are_uploads_public": false
+  },
+  "thankyou_screens": [
+    {
+      "id": "DefaultTyScreen",
+      "ref": "default_tys",
+      "title": "Done! Your information was sent perfectly.",
+      "properties": {
+        "show_button": false,
+        "share_icons": false
+      }
+    }
+  ],
+  "fields": [
+    {
+      "id": "0urmFpT3hBxK",
+      "title": "Welcome {{hidden:name}}! 😀\nWe are a team of researchers conducting a study about life and opinions of Indian people. We would like to ask you a few questions today and only five questions every two weeks over the following six months.\n \nIf you complete the whole study, you will receive 300 INR in mobile credit. In particular, you will get 100 INR in 1 month, and the remaining 200 INR at the end of the six months.\n\nThe survey will only take 10 minutes of your time. This survey is important for policymakers, so your accurate answers would be greatly appreciated.",
+      "ref": "036d231e-ec3d-45f1-b479-4ff5fa3db78e",
+      "properties": {
+        "button_text": "Continue",
+        "hide_marks": false
+      },
+      "type": "statement"
+    },
+    {
+      "id": "l3WpJvZrIPVW",
+      "title": "There are no risks and costs associated with this study and you can end it at any time. Keep in mind that your answers will remain confidential.\n\nThe consent form of this study is available here:",
+      "ref": "7eee0de0-3dcb-45b1-b37d-bbde6285242a",
+      "properties": {
+        "button_text": "Continue",
+        "hide_marks": false
+      },
+      "type": "statement"
+    },
+    {
+      "id": "MvSA2OhhpCfK",
+      "title": "https://bit.ly/consenteng",
+      "ref": "9a1bdf0f-28ee-4dd9-9b6b-57ad2b37831d",
+      "properties": {
+        "button_text": "Continue",
+        "hide_marks": false
+      },
+      "type": "statement"
+    },
+    {
+      "id": "UORJU3vUXkpA",
+      "title": "If you consent to be part of this study, click on the Accept button below.",
+      "ref": "9476f55c-1d51-4af5-aa54-cf39a9db7c23",
+      "properties": {
+        "randomize": false,
+        "allow_multiple_selection": false,
+        "allow_other_choice": false,
+        "vertical_alignment": true,
+        "choices": [
+          {
+            "id": "8UZBIjQCW2W6",
+            "ref": "795fbe01-e036-4d0d-a896-1790b200f43d",
+            "label": "Accept"
+          }
+        ]
+      },
+      "validations": {
+        "required": false
+      },
+      "type": "multiple_choice"
+    },
+    {
+      "id": "4pnm4nvOnOkg",
+      "title": "Thank you! We would like to start by asking you some questions about you and your everyday life.",
+      "ref": "68bf0e90-b3ba-4132-a152-de29c0cba889",
+      "properties": {
+        "button_text": "Continue",
+        "hide_marks": false
+      },
+      "type": "statement"
+    },
+    {
+      "id": "Ahw5ZDS9zXa0",
+      "title": "How old are you? [Enter age in numbers]",
+      "ref": "da3d1de1-a287-4143-8b2c-107565a4e4d4",
+      "properties": {},
+      "validations": {
+        "required": false
+      },
+      "type": "number"
+    },
+    {
+      "id": "vuLAzL93xiSH",
+      "title": "What is your gender? ",
+      "ref": "20218ad0-96c8-4799-bdfe-90c689c5c206",
+      "properties": {
+        "randomize": false,
+        "allow_multiple_selection": false,
+        "allow_other_choice": false,
+        "vertical_alignment": true,
+        "choices": [
+          {
+            "id": "9BaCyGw0T5lC",
+            "ref": "0e81e688-3209-4be0-be9e-5cb2c27223be",
+            "label": "Male"
+          },
+          {
+            "id": "tQTPTHHOASIW",
+            "ref": "8eae8361-a61e-4fd3-bd83-ac1f9de0653d",
+            "label": "Female"
+          },
+          {
+            "id": "gnauAFpldGH4",
+            "ref": "8e15cc76-62a7-4f74-971f-f679430d79ec",
+            "label": "Other"
+          }
+        ]
+      },
+      "validations": {
+        "required": false
+      },
+      "type": "multiple_choice"
+    },
+    {
+      "id": "aC0nHnuBENRn",
+      "title": "Which state do you currently live in?\n- A. Chhattisgarh\n- B. Jharkhand\n- C. Odisha\n- D. Uttar Pradesh",
+      "ref": "e959559b-092a-434f-b67f-dca329fab50a",
+      "properties": {
+        "randomize": false,
+        "allow_multiple_selection": false,
+        "allow_other_choice": false,
+        "vertical_alignment": true,
+        "choices": [
+          {
+            "id": "cCW8ulcu2t97",
+            "ref": "e647fae8-5f2b-48e7-80e9-cb52ad0acbd1",
+            "label": "A"
+          },
+          {
+            "id": "7z0xQPqBeKH9",
+            "ref": "72ea5dd2-5d37-42b0-bb99-b53325825538",
+            "label": "B"
+          },
+          {
+            "id": "qgNZRv4nVoJ1",
+            "ref": "0892c930-5943-4beb-9a87-4084e7333a0e",
+            "label": "C"
+          },
+          {
+            "id": "uPdb5uhfSZd6",
+            "ref": "0c682f76-d7a3-4d77-b5d7-d90594f8c69b",
+            "label": "D"
+          }
+        ]
+      },
+      "validations": {
+        "required": false
+      },
+      "type": "multiple_choice"
+    },
+    {
+      "id": "rhZk6fvyfgCl",
+      "title": "What is the 6-digits PIN code (Postal Index Number) of the area you currently live in? [Enter PIN code]",
+      "ref": "e498f47e-50d7-43b4-8916-95968d4a0fd8",
+      "properties": {},
+      "validations": {
+        "required": false
+      },
+      "type": "number"
+    },
+    {
+      "id": "2VNOEhjc9Hgf",
+      "title": "What is the name of the District you currently live in?",
+      "ref": "d5f05f39-0f08-4415-8cef-5c786dbef004",
+      "properties": {},
+      "validations": {
+        "required": false
+      },
+      "type": "short_text"
+    },
+    {
+      "id": "P8b8b0dXEcAO",
+      "title": "How many family members (including yourself) live in your house? [Enter number]",
+      "ref": "254fe756-eab6-4989-8c80-acb0bb6ec52b",
+      "properties": {},
+      "validations": {
+        "required": false
+      },
+      "type": "number"
+    },
+    {
+      "id": "34uTr9o6Ktu6",
+      "title": "Is there a pregnant woman living in your household?",
+      "ref": "0733cbf7-575b-4f5b-8f76-95e5298dff5e",
+      "properties": {
+        "randomize": false,
+        "allow_multiple_selection": false,
+        "allow_other_choice": false,
+        "vertical_alignment": true,
+        "choices": [
+          {
+            "id": "EI1lf68sKLXm",
+            "ref": "95d9dfac-7a83-4fe4-beb7-c9f3f7d93fc4",
+            "label": "Yes"
+          },
+          {
+            "id": "Mnu3bHZXmXny",
+            "ref": "d4620a82-1928-433a-a46d-e46c4f5a0a75",
+            "label": "No"
+          }
+        ]
+      },
+      "validations": {
+        "required": false
+      },
+      "type": "multiple_choice"
+    },
+    {
+      "id": "GFlA944Vcac4",
+      "title": "If you walk, how long does it take to get to the closest medical center from your house?\n\n- A. Less than 15 minutes\n- B. Between 15 and 30 minutes\n- C. Between 30 and 60 minutes\n- D. More than 60 minutes",
+      "ref": "d7573919-8a7e-457f-9a1d-1f8c389127a7",
+      "properties": {
+        "randomize": false,
+        "allow_multiple_selection": false,
+        "allow_other_choice": false,
+        "vertical_alignment": true,
+        "choices": [
+          {
+            "id": "e4wZ68r6qiLi",
+            "ref": "f19ce8dc-bad8-414a-86ab-c9edfeccb838",
+            "label": "A"
+          },
+          {
+            "id": "tem4T44q8py1",
+            "ref": "c73599eb-d4e4-401a-987a-b47d172b98ee",
+            "label": "B"
+          },
+          {
+            "id": "SSmSgaFIFpRP",
+            "ref": "837dd2c4-d77b-4c61-bca0-a645b38eda1f",
+            "label": "C"
+          },
+          {
+            "id": "yXkfXDU6Yikb",
+            "ref": "8d9bd2d2-8616-4e1a-a573-98f667d4bfeb",
+            "label": "D"
+          }
+        ]
+      },
+      "validations": {
+        "required": false
+      },
+      "type": "multiple_choice"
+    },
+    {
+      "id": "fbhoPssoWz1e",
+      "title": "What kind of medical center is it?\n\n- A. Sub Center\n- B. Primary Health Center\n- C. Community Health Center\n- D. District Hospital",
+      "ref": "fef0a648-a752-424f-a74a-dd0830975811",
+      "properties": {
+        "randomize": false,
+        "allow_multiple_selection": false,
+        "allow_other_choice": false,
+        "vertical_alignment": true,
+        "choices": [
+          {
+            "id": "dLEHjQLj7YUg",
+            "ref": "14c4e03e-71dd-44b9-a6d2-06921ba563ab",
+            "label": "A"
+          },
+          {
+            "id": "mo2oFNQaZVg4",
+            "ref": "65a46dce-39b4-4e28-88c9-b90f674b9958",
+            "label": "B"
+          },
+          {
+            "id": "9aWTv7N0HHqr",
+            "ref": "1ec0db87-515d-4ab3-a558-dfd1dcf98800",
+            "label": "C"
+          },
+          {
+            "id": "UUXuFNRUfXB8",
+            "ref": "2a7c2d9b-101a-40a6-bf62-8263f018e4e8",
+            "label": "D"
+          }
+        ]
+      },
+      "validations": {
+        "required": false
+      },
+      "type": "multiple_choice"
+    },
+    {
+      "id": "twhDQdMxmdol",
+      "title": "Do you have an air conditioning system in your house?",
+      "ref": "e279587c-975f-433a-adab-1ad563876af6",
+      "properties": {
+        "randomize": false,
+        "allow_multiple_selection": false,
+        "allow_other_choice": false,
+        "vertical_alignment": true,
+        "choices": [
+          {
+            "id": "pQNrLp6F3CVG",
+            "ref": "721e3cf2-72fb-488b-b4ce-d7f332de4e74",
+            "label": "Yes"
+          },
+          {
+            "id": "YROM8L3mkv2W",
+            "ref": "6d4aa0c8-1d29-435b-af65-cf77c9833eda",
+            "label": "No"
+          },
+          {
+            "id": "V955s406jLBh",
+            "ref": "c902be79-08a7-4a4d-aff2-710d5ddb570a",
+            "label": "Don't know"
+          }
+        ]
+      },
+      "validations": {
+        "required": false
+      },
+      "type": "multiple_choice"
+    },
+    {
+      "id": "RYVU15ARwChV",
+      "title": "Do you have a mosquito net in your house?",
+      "ref": "bd4802c6-7bdb-40f0-aac1-18cc6df7da6e",
+      "properties": {
+        "randomize": false,
+        "allow_multiple_selection": false,
+        "allow_other_choice": false,
+        "vertical_alignment": true,
+        "choices": [
+          {
+            "id": "55J1UpKP6SG1",
+            "ref": "2d9a3935-9423-4a39-bb74-503b3c26604f",
+            "label": "Yes"
+          },
+          {
+            "id": "yYjI1g8qG1VQ",
+            "ref": "e6fac69f-d4e9-415d-8ed7-ddf18ecf97c6",
+            "label": "No"
+          },
+          {
+            "id": "EfserEYOKOph",
+            "ref": "0232ca17-e405-49a6-8892-0ffe1356b8dc",
+            "label": "Don't know"
+          }
+        ]
+      },
+      "validations": {
+        "required": false
+      },
+      "type": "multiple_choice"
+    },
+    {
+      "id": "8V1lYS9Q4iD4",
+      "title": "Would you consider buying a mosquito net for your house?",
+      "ref": "8a5cb3e3-24d8-4e60-9591-0869fbc8dc3c",
+      "properties": {
+        "randomize": false,
+        "allow_multiple_selection": false,
+        "allow_other_choice": false,
+        "vertical_alignment": true,
+        "choices": [
+          {
+            "id": "aDFUcEbrlvpV",
+            "ref": "ae39422c-969d-49b5-a311-584b6c1c0477",
+            "label": "Yes"
+          },
+          {
+            "id": "kkBabTTjeHjM",
+            "ref": "25cefd1b-e0f0-43ac-bff9-ae537aeb8110",
+            "label": "No"
+          },
+          {
+            "id": "2RTe7gpVDtCb",
+            "ref": "4fba449b-7ea7-468c-a25b-305469af8772",
+            "label": "Don't know"
+          }
+        ]
+      },
+      "validations": {
+        "required": false
+      },
+      "type": "multiple_choice"
+    },
+    {
+      "id": "isi0L6aGCyEh",
+      "title": "How much are you willing to pay for a mosquito net?",
+      "ref": "b58a24c3-2aab-42dc-8dac-193d18eacd5e",
+      "properties": {},
+      "validations": {
+        "required": false
+      },
+      "type": "short_text"
+    },
+    {
+      "id": "ZicEJksiSJA7",
+      "title": "Do you know where you can buy a mosquito net nearby?",
+      "ref": "d245e8ad-5c5f-4c60-afe2-3ba3f0615cc3",
+      "properties": {
+        "randomize": false,
+        "allow_multiple_selection": false,
+        "allow_other_choice": false,
+        "vertical_alignment": true,
+        "choices": [
+          {
+            "id": "OK771jVBsk4U",
+            "ref": "b5d18ed2-fc72-4be1-8a3a-b4de98de18c1",
+            "label": "Yes"
+          },
+          {
+            "id": "zdHAYC7dTfz7",
+            "ref": "30928852-097a-4d77-9fb2-369b11ea44bb",
+            "label": "No"
+          }
+        ]
+      },
+      "validations": {
+        "required": false
+      },
+      "type": "multiple_choice"
+    },
+    {
+      "id": "Viao3QoIzoig",
+      "title": "How many mosquito nets are there in your house? [Enter number]",
+      "ref": "5b7f5aae-b5d6-4ff3-8367-ce5db3195bfb",
+      "properties": {},
+      "validations": {
+        "required": false
+      },
+      "type": "number"
+    },
+    {
+      "id": "YRqVZm8GNKCn",
+      "title": "Have you, someone in your house, or any of your neighbors had malaria in the last 5 years?",
+      "ref": "f6e69027-97cc-494e-8d52-318b75047e23",
+      "properties": {
+        "randomize": false,
+        "allow_multiple_selection": false,
+        "allow_other_choice": false,
+        "vertical_alignment": true,
+        "choices": [
+          {
+            "id": "MdvCson3stuA",
+            "ref": "5dc5ca01-c90c-4dd8-aba1-29fbe6a4f875",
+            "label": "Yes"
+          },
+          {
+            "id": "oI4AWMbed1m3",
+            "ref": "88169601-fad3-4701-bb93-6a2c907d77b3",
+            "label": "No"
+          },
+          {
+            "id": "q3iUZLbiv8Xk",
+            "ref": "5746ab4e-4187-47cd-b610-4fd1cbacc610",
+            "label": "Don’t know"
+          }
+        ]
+      },
+      "validations": {
+        "required": false
+      },
+      "type": "multiple_choice"
+    },
+    {
+      "id": "xaL04PidqNJd",
+      "title": "Have you/someone in your family ever been tested for malaria?",
+      "ref": "59b673a3-76ca-4963-aef3-04e11e836bb3",
+      "properties": {
+        "randomize": false,
+        "allow_multiple_selection": false,
+        "allow_other_choice": false,
+        "vertical_alignment": true,
+        "choices": [
+          {
+            "id": "U3H4M3DYsBet",
+            "ref": "27b1e041-99f5-4da7-a742-d2e519382ca2",
+            "label": "Yes"
+          },
+          {
+            "id": "rNba9Px50eir",
+            "ref": "8bfb8937-c070-481a-ae0e-318a6eee5b8f",
+            "label": "No"
+          },
+          {
+            "id": "0kJXTVs0L0uK",
+            "ref": "491db7b6-30a0-4c77-8f8c-3e565a578cba",
+            "label": "Don’t know"
+          }
+        ]
+      },
+      "validations": {
+        "required": false
+      },
+      "type": "multiple_choice"
+    },
+    {
+      "id": "wGWy3dnDih41",
+      "title": "Please hold on! We have a few more questions left.",
+      "ref": "155b4ec6-1f63-4508-ad14-0f80695233a5",
+      "properties": {
+        "button_text": "Continue",
+        "hide_marks": false
+      },
+      "type": "statement"
+    },
+    {
+      "id": "cbX3WJmu0nVB",
+      "title": "Now we would like to know how you feel about the current health situation in your community. There are no correct or incorrect answers. We just want to know what you think! \nKeep in mind that your answers will remain confidential.",
+      "ref": "73bcb952-d132-4f40-8463-1f9a75b463ac",
+      "properties": {
+        "button_text": "Continue",
+        "hide_marks": false
+      },
+      "type": "statement"
+    },
+    {
+      "id": "1HjZWhRPELzD",
+      "title": "How worried are you that you/someone in your family will get COVID-19 (or Coronavirus) in the next month?\n\n- A. Extremely worried\n- B. Worried\n- C. Somewhat worried\n- D. Not at all worried",
+      "ref": "25b20f99-a30c-4549-968a-05b7276fa485",
+      "properties": {
+        "randomize": false,
+        "allow_multiple_selection": false,
+        "allow_other_choice": false,
+        "vertical_alignment": true,
+        "choices": [
+          {
+            "id": "ZY8Zt6uZF4Wd",
+            "ref": "9f34016e-4be9-47b0-9c96-626cf16d1712",
+            "label": "A"
+          },
+          {
+            "id": "SfSGl3YjCKSb",
+            "ref": "49955824-c00d-46d8-acb2-33a48ea258d6",
+            "label": "B"
+          },
+          {
+            "id": "BUCQVT6SkkEs",
+            "ref": "b89eb57a-f41a-4dd5-8c85-947e2d7ea86b",
+            "label": "C"
+          },
+          {
+            "id": "atnmGjUSe3dC",
+            "ref": "73960765-7d23-40fe-8590-9646c36d289e",
+            "label": "D"
+          }
+        ]
+      },
+      "validations": {
+        "required": false
+      },
+      "type": "multiple_choice"
+    },
+    {
+      "id": "PSdFqXiiAx5V",
+      "title": "How worried are you that you/someone in your family will get Malaria in the next month?\n\n- A. Extremely worried\n- B. Worried\n- C. Somewhat worried\n- D. Not at all worried",
+      "ref": "7c955b2b-0480-4cbc-9800-f94b77078f22",
+      "properties": {
+        "randomize": false,
+        "allow_multiple_selection": false,
+        "allow_other_choice": false,
+        "vertical_alignment": true,
+        "choices": [
+          {
+            "id": "SEELgrF1kROC",
+            "ref": "bf12f943-7bee-46ab-95c5-861054fff71d",
+            "label": "A"
+          },
+          {
+            "id": "SxfoMtnMCoNM",
+            "ref": "22e3fab6-7d24-4800-9e43-7f45d7250967",
+            "label": "B"
+          },
+          {
+            "id": "MyMBjHtYJooh",
+            "ref": "8a0726e5-eb9d-465d-b065-45f9b36e8d9d",
+            "label": "C"
+          },
+          {
+            "id": "bzeNu6eiLcz0",
+            "ref": "bff5329d-d1c7-46b0-8531-6c5f193f7a84",
+            "label": "D"
+          }
+        ]
+      },
+      "validations": {
+        "required": false
+      },
+      "type": "multiple_choice"
+    },
+    {
+      "id": "eFN4vrDsU2fW",
+      "title": "What would you do if tomorrow you or a family member got a fever (100.4°F / 38°C or above) and there was a doctor or a healthcare facility near your home?\n\n- A. I would seek treatment right away\n- B. I would seek treatment if the fever didn’t subside within 24 hours\n- C. I would wait and see how the fever develops over the next 3 days\n- D. I don’t think it is necessary to seek treatment for a fever",
+      "ref": "f526f205-7aa9-4e3a-9acc-c39766e1bc8c",
+      "properties": {
+        "randomize": false,
+        "allow_multiple_selection": false,
+        "allow_other_choice": false,
+        "vertical_alignment": true,
+        "choices": [
+          {
+            "id": "iQlASLlHULbA",
+            "ref": "e4272a67-7eb2-4770-8d33-e59b1e57c965",
+            "label": "A"
+          },
+          {
+            "id": "yhrmHUvuGjlz",
+            "ref": "f42d7a49-bc3e-470d-8e55-02212abe9e9c",
+            "label": "B"
+          },
+          {
+            "id": "HJFwOteAc4i8",
+            "ref": "b58378b2-7f98-40a8-95d3-8d26d0674a7c",
+            "label": "C"
+          },
+          {
+            "id": "aA9avb0NKGjf",
+            "ref": "2948788d-e563-472c-a390-417704e9f811",
+            "label": "D"
+          }
+        ]
+      },
+      "validations": {
+        "required": false
+      },
+      "type": "multiple_choice"
+    },
+    {
+      "id": "LosNUY1QamOQ",
+      "title": "Did you sleep under a mosquito net last night?",
+      "ref": "b5b1ff58-c8df-4890-9b1c-0cd40ce6edc0",
+      "properties": {
+        "randomize": false,
+        "allow_multiple_selection": false,
+        "allow_other_choice": false,
+        "vertical_alignment": true,
+        "choices": [
+          {
+            "id": "M9EvY0uutLqW",
+            "ref": "190d33a8-2be4-43ac-8653-23ee9a402487",
+            "label": "Yes"
+          },
+          {
+            "id": "ELt1aEuspxCI",
+            "ref": "9b693b7c-c922-4c13-a370-4955c84ddcd4",
+            "label": "No"
+          }
+        ]
+      },
+      "validations": {
+        "required": false
+      },
+      "type": "multiple_choice"
+    },
+    {
+      "id": "gGoKa3gyrFlr",
+      "title": "How many family members that live in your house (including yourself) slept under a mosquito net last night? [Enter number]",
+      "ref": "8065d101-7995-4471-9ca6-54e9ce6d4310",
+      "properties": {},
+      "validations": {
+        "required": false
+      },
+      "type": "number"
+    },
+    {
+      "id": "n5Zj4V6yNYCX",
+      "title": "Thinking about yesterday, did you/your family use long-sleeve clothing to prevent mosquito bites?",
+      "ref": "0992f107-7274-4404-aeff-bf80a723f098",
+      "properties": {
+        "randomize": false,
+        "allow_multiple_selection": false,
+        "allow_other_choice": false,
+        "vertical_alignment": true,
+        "choices": [
+          {
+            "id": "vb62h274Phhh",
+            "ref": "e5b68286-f91d-4efd-afae-3d6b464c943c",
+            "label": "Yes"
+          },
+          {
+            "id": "xzHWwSp5aPn4",
+            "ref": "6f1f3ce8-1d0f-4661-a9f0-17658d15fd11",
+            "label": "No"
+          }
+        ]
+      },
+      "validations": {
+        "required": false
+      },
+      "type": "multiple_choice"
+    },
+    {
+      "id": "RYhh5ufAKh17",
+      "title": "Thinking about yesterday, did you/your family use body/wall sprays to prevent mosquito bites?",
+      "ref": "02379921-3b90-4005-b813-cf1e9aec0f40",
+      "properties": {
+        "randomize": false,
+        "allow_multiple_selection": false,
+        "allow_other_choice": false,
+        "vertical_alignment": true,
+        "choices": [
+          {
+            "id": "foi5JpwEXOlw",
+            "ref": "c72dc59c-af90-4d93-b789-daec2134e960",
+            "label": "Yes"
+          },
+          {
+            "id": "Pef7ep8pGfcT",
+            "ref": "0e2786e7-7eea-46f8-a64c-df11d8838b3b",
+            "label": "No"
+          }
+        ]
+      },
+      "validations": {
+        "required": false
+      },
+      "type": "multiple_choice"
+    },
+    {
+      "id": "xVn0Zd2rU4Vc",
+      "title": "Please hold on!\nOnly ten questions are left.",
+      "ref": "ebc86c0e-e433-478a-89cb-bbecdb98ffb8",
+      "properties": {
+        "button_text": "Continue",
+        "hide_marks": false
+      },
+      "type": "statement"
+    },
+    {
+      "id": "h8d4dTlLeUNh",
+      "title": "Have you/someone in your family had a fever (100.4°F / 38°C or above) in the last two weeks?",
+      "ref": "8327f607-0ebe-4db5-9708-2b6207cc2483",
+      "properties": {
+        "randomize": false,
+        "allow_multiple_selection": false,
+        "allow_other_choice": false,
+        "vertical_alignment": true,
+        "choices": [
+          {
+            "id": "0PPDpZ0SxXdU",
+            "ref": "734dc3df-cff5-4e15-8536-8e15fdf1efee",
+            "label": "Yes"
+          },
+          {
+            "id": "hP17GXrsHXjt",
+            "ref": "cf74a4d6-9e52-4560-99f3-94914ca4d7ac",
+            "label": "No"
+          },
+          {
+            "id": "wassYz3ZrZbN",
+            "ref": "ce9c2a42-a0c1-469a-9725-8cbabb0b67d4",
+            "label": "Don’t know"
+          }
+        ]
+      },
+      "validations": {
+        "required": false
+      },
+      "type": "multiple_choice"
+    },
+    {
+      "id": "FbLb4b0D9DzA",
+      "title": "Did you seek medical help?",
+      "ref": "e6d4dc10-85e8-43c8-ad44-295305027958",
+      "properties": {
+        "randomize": false,
+        "allow_multiple_selection": false,
+        "allow_other_choice": false,
+        "vertical_alignment": true,
+        "choices": [
+          {
+            "id": "vpuAJiWxzbTE",
+            "ref": "09462a71-f033-4c46-bd97-972104759004",
+            "label": "Yes"
+          },
+          {
+            "id": "vquOfpMooqkL",
+            "ref": "29e85d98-04f9-4e1d-81b5-73311d78bffe",
+            "label": "No"
+          },
+          {
+            "id": "Giw4AsI9a1sa",
+            "ref": "4ad16066-e957-4271-9a8d-b3a25fd279ff",
+            "label": "Don’t know"
+          }
+        ]
+      },
+      "validations": {
+        "required": false
+      },
+      "type": "multiple_choice"
+    },
+    {
+      "id": "eMy8jjwy4w8r",
+      "title": "How long after the onset of the fever did you seek medical help?\n\n- A. Less than 24 hours\n- B. 24-48 hours\n- C. More than 2 days",
+      "ref": "96d6dba5-bd1e-4fef-a71a-cc20fbca7ca4",
+      "properties": {
+        "randomize": false,
+        "allow_multiple_selection": false,
+        "allow_other_choice": false,
+        "vertical_alignment": true,
+        "choices": [
+          {
+            "id": "uHkN9nOvU8Aa",
+            "ref": "b588f7ee-09a4-43b3-8d3d-1d84bb831619",
+            "label": "A"
+          },
+          {
+            "id": "YG0Yomn8QpD6",
+            "ref": "f009289a-563d-4516-addf-36570b4beb84",
+            "label": "B"
+          },
+          {
+            "id": "qXoxhI4FcdPD",
+            "ref": "4432090c-ab1d-42c6-b54c-c4a9325a13b4",
+            "label": "C"
+          }
+        ]
+      },
+      "validations": {
+        "required": false
+      },
+      "type": "multiple_choice"
+    },
+    {
+      "id": "EE8MO2ztGNTN",
+      "title": "Have you/someone in your family had Malaria in the last two weeks?",
+      "ref": "dad23031-8468-4900-89cc-d01841d8b660",
+      "properties": {
+        "randomize": false,
+        "allow_multiple_selection": false,
+        "allow_other_choice": false,
+        "vertical_alignment": true,
+        "choices": [
+          {
+            "id": "zanWKIhcdUWQ",
+            "ref": "4ee2d7ee-8009-42ea-9a0e-e16d7308d0aa",
+            "label": "Yes"
+          },
+          {
+            "id": "d14ffSgVqkSM",
+            "ref": "2de201fd-ec9b-43a9-b756-1038bbcff0cb",
+            "label": "No"
+          },
+          {
+            "id": "1b9QDUZzBxrP",
+            "ref": "fab1f8ad-e253-47ff-8112-97c59198c623",
+            "label": "Don’t know"
+          }
+        ]
+      },
+      "validations": {
+        "required": false
+      },
+      "type": "multiple_choice"
+    },
+    {
+      "id": "2Re3hdxpxUUe",
+      "title": "Were you or your family members tested for Malaria?",
+      "ref": "9de3d2f5-d9c0-45aa-9065-a61c975a58dc",
+      "properties": {
+        "randomize": false,
+        "allow_multiple_selection": false,
+        "allow_other_choice": false,
+        "vertical_alignment": true,
+        "choices": [
+          {
+            "id": "sGCQyRef5Zzh",
+            "ref": "b8e3de37-c489-4e27-a7be-03f72776f070",
+            "label": "Yes"
+          },
+          {
+            "id": "6X82xtaaI1ep",
+            "ref": "37c991fd-698c-4d65-a242-cbfc90333360",
+            "label": "No"
+          },
+          {
+            "id": "NVcFD83pFdAC",
+            "ref": "26173a74-79c5-47b7-97f7-6000387bcb77",
+            "label": "Don’t know"
+          }
+        ]
+      },
+      "validations": {
+        "required": false
+      },
+      "type": "multiple_choice"
+    },
+    {
+      "id": "ZYKQjRwKPtQQ",
+      "title": "How long after the onset of Malaria symptoms did you seek medical help?\n\n- A. Less than 24 hours\n- B. 24-48 hours\n- C. More than 2 days",
+      "ref": "73ef8720-5e2b-463c-aa8a-ed890a839a8b",
+      "properties": {
+        "randomize": false,
+        "allow_multiple_selection": false,
+        "allow_other_choice": false,
+        "vertical_alignment": true,
+        "choices": [
+          {
+            "id": "IPuHXGSvmVAo",
+            "ref": "eda3c146-8906-4db8-93e2-a73adbef3836",
+            "label": "A"
+          },
+          {
+            "id": "fiv6bLygcdze",
+            "ref": "c9abca85-cec3-472a-a527-4a33e99ae548",
+            "label": "B"
+          },
+          {
+            "id": "p7qcpGKpio9W",
+            "ref": "28aee1ec-a5db-4675-980b-fcfb71020e9d",
+            "label": "C"
+          }
+        ]
+      },
+      "validations": {
+        "required": false
+      },
+      "type": "multiple_choice"
+    },
+    {
+      "id": "xnL6mRrY5t9U",
+      "title": "What is your religion?",
+      "ref": "8e490114-df6d-4fb3-b1be-6ce11acd9212",
+      "properties": {
+        "randomize": false,
+        "allow_multiple_selection": false,
+        "allow_other_choice": false,
+        "vertical_alignment": true,
+        "choices": [
+          {
+            "id": "U7yw8RTD2LBq",
+            "ref": "c2c9f9ef-182e-4862-9991-8d1cb1d10e4b",
+            "label": "Hindu"
+          },
+          {
+            "id": "4fzdAdtH9aj0",
+            "ref": "2a31906b-f0bc-4942-b70b-4b4f2e863831",
+            "label": "Muslim"
+          },
+          {
+            "id": "GgEGfEZvqswy",
+            "ref": "fdcafa30-aee8-41bc-8c0d-a128fe32f9c8",
+            "label": "Christian"
+          },
+          {
+            "id": "r8NLqj0Dkzb7",
+            "ref": "6d9f951e-811e-4b27-bc46-ebadf53e127f",
+            "label": "Sikh"
+          },
+          {
+            "id": "BJ5v03CzLAXr",
+            "ref": "8897e057-aa4d-48ef-a4ed-6eadd3b1b178",
+            "label": "Buddhist"
+          },
+          {
+            "id": "j6AGmj0lYWBs",
+            "ref": "147a4832-fea0-4c22-9c3b-790cb12f524d",
+            "label": "Jain"
+          },
+          {
+            "id": "PmDIHP3u1H9j",
+            "ref": "09857e8a-f07b-42c7-aeb0-d0e608628c9c",
+            "label": "Jewish"
+          },
+          {
+            "id": "a40UKgDbkByC",
+            "ref": "5f8bd114-e597-49d3-902c-25e4da18d081",
+            "label": "Other"
+          }
+        ]
+      },
+      "validations": {
+        "required": false
+      },
+      "type": "multiple_choice"
+    },
+    {
+      "id": "fvGhE6oo3loo",
+      "title": "Please specify:",
+      "ref": "759da95d-bad2-46cd-adb1-69a510b3d87f",
+      "properties": {},
+      "validations": {
+        "required": false
+      },
+      "type": "short_text"
+    },
+    {
+      "id": "0j7FvJK0WC7S",
+      "title": "What is your caste?",
+      "ref": "912bc5d8-db4a-402b-b506-f85ce4e89e6f",
+      "properties": {
+        "randomize": false,
+        "allow_multiple_selection": false,
+        "allow_other_choice": false,
+        "vertical_alignment": true,
+        "choices": [
+          {
+            "id": "4WBdRm3K248P",
+            "ref": "517f4278-ee39-47bf-bbe7-e852ae197912",
+            "label": "General"
+          },
+          {
+            "id": "N9P7WAYe28bK",
+            "ref": "e55c235a-0400-4ffb-893d-80295975d333",
+            "label": "OBC"
+          },
+          {
+            "id": "NOEauWMbFvJb",
+            "ref": "c9f1fccf-9bc7-4a1d-8b74-aa4878b4f68b",
+            "label": "SC/Dalit"
+          },
+          {
+            "id": "LTQXrG5L5twg",
+            "ref": "d0a56d9d-deb0-40cb-98bf-93d32e592901",
+            "label": "ST"
+          },
+          {
+            "id": "L23nkyNiso7G",
+            "ref": "c7850ee5-bb1b-4c9d-91f6-d6bd71dc74c5",
+            "label": "Other"
+          }
+        ]
+      },
+      "validations": {
+        "required": false
+      },
+      "type": "multiple_choice"
+    },
+    {
+      "id": "54zcDN5vCVMR",
+      "title": "Please specify:",
+      "ref": "14dff568-a88e-452f-a03e-a64d8ba48dbd",
+      "properties": {},
+      "validations": {
+        "required": false
+      },
+      "type": "short_text"
+    },
+    {
+      "id": "8ORLKlZamLDK",
+      "title": "What is the highest level of education you have completed?\n- A. Never attended school\n- B. Primary\n- C. Secondary\n- D. University degree or higher",
+      "ref": "e40fa1c6-13a1-4a02-91cd-0eaade11864d",
+      "properties": {
+        "randomize": false,
+        "allow_multiple_selection": false,
+        "allow_other_choice": false,
+        "vertical_alignment": true,
+        "choices": [
+          {
+            "id": "IMHTGp4FYGak",
+            "ref": "60d46d86-a417-43dd-8a31-e50c86283468",
+            "label": "A"
+          },
+          {
+            "id": "gShj2Kjikk9P",
+            "ref": "49923d21-24f3-43ab-95cb-618fcd28becb",
+            "label": "B"
+          },
+          {
+            "id": "Gy3jsKiWqS0c",
+            "ref": "ccded590-180e-486e-a576-a432597d6723",
+            "label": "C"
+          },
+          {
+            "id": "YevdF3yPe2KL",
+            "ref": "bdc5928d-25de-41df-9a67-4e435d32c2ca",
+            "label": "D"
+          }
+        ]
+      },
+      "validations": {
+        "required": false
+      },
+      "type": "multiple_choice"
+    },
+    {
+      "id": "95xPLGTqlx2A",
+      "title": "What is your current occupation?\n- A. Student\n- B. Employed-full time\n- C. Employed part-time\n- D. Self-employed\n- E. Unemployed",
+      "ref": "4fc929c7-132d-49b1-a164-515e5cc9064f",
+      "properties": {
+        "randomize": false,
+        "allow_multiple_selection": false,
+        "allow_other_choice": false,
+        "vertical_alignment": true,
+        "choices": [
+          {
+            "id": "HXYKSVr4lhoe",
+            "ref": "6284f571-4fbf-4c99-9bcc-7990daf9ba60",
+            "label": "A"
+          },
+          {
+            "id": "z0dfXqILmX0r",
+            "ref": "9aa1a8bd-467f-4c15-abf1-97729574774b",
+            "label": "B"
+          },
+          {
+            "id": "LJvktiRQIUJT",
+            "ref": "c02f90af-cb64-4b4d-9701-4eda3ea4c49a",
+            "label": "C"
+          },
+          {
+            "id": "mZe9hQdC2PsJ",
+            "ref": "f038de2a-0c1c-455a-900a-66d8ed6c70f7",
+            "label": "D"
+          },
+          {
+            "id": "LFRbR9Q1MJJd",
+            "ref": "ca217e8a-ab7d-4764-8e5b-7a0ebe05e0ee",
+            "label": "E"
+          }
+        ]
+      },
+      "validations": {
+        "required": false
+      },
+      "type": "multiple_choice"
+    },
+    {
+      "id": "g4uTpBgD737m",
+      "title": "What best describes the dwelling you live in?\n\n- A. Kutcha (made of mud, tin, straw)\n- B. Pucca (have cement/brick wall and floor\n- C. Semi-pucca",
+      "ref": "4d0ae478-3893-4b46-ab39-d6848c69245d",
+      "properties": {
+        "randomize": false,
+        "allow_multiple_selection": false,
+        "allow_other_choice": false,
+        "vertical_alignment": true,
+        "choices": [
+          {
+            "id": "w907V8Ul1iZ9",
+            "ref": "b71473ac-e33a-4f82-8dac-c36f263e25fd",
+            "label": "A"
+          },
+          {
+            "id": "Py83emTBr9wY",
+            "ref": "6dd12612-6dc3-4b4c-9422-d9584bb82a2e",
+            "label": "B"
+          },
+          {
+            "id": "TsMc5BhjoiwW",
+            "ref": "776d16e0-a984-4dca-829b-b846f297e482",
+            "label": "C"
+          }
+        ]
+      },
+      "validations": {
+        "required": false
+      },
+      "type": "multiple_choice"
+    },
+    {
+      "id": "23HgIeHNUVeE",
+      "title": "Thank you for your time!\nIn two weeks, we will contact you again to ask another 5 questions.\n\nIf you answer our questions, in one month from today you will get 100 INR in mobile credit. Moreover, if you complete the full study, in six months from today you will get 200 INR in phone credit.\n\nPlease allow us to contact you again. ",
+      "ref": "7a136ac5-649f-44f4-845c-fddde09ba69e",
+      "properties": {
+        "button_text": "Continue",
+        "hide_marks": false
+      },
+      "type": "statement"
+    },
+    {
+      "id": "qW4tKgNRlA6I",
+      "title": "Click on the “Notify me” button below.",
+      "ref": "51db7238-4ef0-49e7-b88b-e6bb22f6a30e",
+      "properties": {
+        "description": "type: notify",
+        "button_text": "Continue",
+        "hide_marks": false
+      },
+      "type": "statement"
+    },
+    {
+      "id": "QXwZAL33QDJ5",
+      "title": "Thank you.\nWe will get in touch soon!",
+      "ref": "6ce902c2-4498-4949-8abb-3b10287833a2",
+      "properties": {
+        "description": "type: wait\nwait:\n    notifyPermission: true\n    type: timeout\n    value: 17 days",
+        "button_text": "Continue",
+        "hide_marks": false
+      },
+      "type": "statement"
+    },
+    {
+      "id": "RfIcc8d8B3Pb",
+      "title": "Hi {{hidden:name}}! 😀\nWe hope you are doing well. We contact you because we would like to continue the interview and ask you to answer 5 questions. These will only take 2 minutes of your time.\n\nRemember that you would need to complete the full study to receive the 300 INR mobile credit.\n\nTo continue, please click on the Accept button below.",
+      "ref": "e4cc0a96-43b8-4052-9243-34fbdb680d48",
+      "properties": {
+        "randomize": false,
+        "allow_multiple_selection": false,
+        "allow_other_choice": false,
+        "vertical_alignment": true,
+        "choices": [
+          {
+            "id": "EWwH4jkx4aDI",
+            "ref": "2e7526e7-81b3-46e4-a394-e93e736b7b81",
+            "label": "Accept"
+          }
+        ]
+      },
+      "validations": {
+        "required": false
+      },
+      "type": "multiple_choice"
+    },
+    {
+      "id": "dGAzYdMBuNZs",
+      "title": "Thank you!",
+      "ref": "8af4bf7a-9047-49a2-a529-a20bb2dcbcf5",
+      "properties": {
+        "description": "type: stitch\nstitch:\n    form: follow1eng",
+        "button_text": "Continue",
+        "hide_marks": false
+      },
+      "type": "statement"
+    },
+    {
+      "id": "DefaultTyScreen",
+      "ref": "default_tys",
+      "title": "Done! Your information was sent perfectly.",
+      "properties": {
+        "show_button": false,
+        "share_icons": false
+      },
+      "type": "thankyou_screen"
+    }
+  ],
+  "hidden": [
+    "id",
+    "name"
+  ],
+  "logic": [
+    {
+      "type": "field",
+      "ref": "bd4802c6-7bdb-40f0-aac1-18cc6df7da6e",
+      "actions": [
+        {
+          "action": "jump",
+          "details": {
+            "to": {
+              "type": "field",
+              "value": "5b7f5aae-b5d6-4ff3-8367-ce5db3195bfb"
+            }
+          },
+          "condition": {
+            "op": "is",
+            "vars": [
+              {
+                "type": "field",
+                "value": "bd4802c6-7bdb-40f0-aac1-18cc6df7da6e"
+              },
+              {
+                "type": "choice",
+                "value": "2d9a3935-9423-4a39-bb74-503b3c26604f"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "type": "field",
+      "ref": "8327f607-0ebe-4db5-9708-2b6207cc2483",
+      "actions": [
+        {
+          "action": "jump",
+          "details": {
+            "to": {
+              "type": "field",
+              "value": "e6d4dc10-85e8-43c8-ad44-295305027958"
+            }
+          },
+          "condition": {
+            "op": "is",
+            "vars": [
+              {
+                "type": "field",
+                "value": "8327f607-0ebe-4db5-9708-2b6207cc2483"
+              },
+              {
+                "type": "choice",
+                "value": "734dc3df-cff5-4e15-8536-8e15fdf1efee"
+              }
+            ]
+          }
+        },
+        {
+          "action": "jump",
+          "details": {
+            "to": {
+              "type": "field",
+              "value": "dad23031-8468-4900-89cc-d01841d8b660"
+            }
+          },
+          "condition": {
+            "op": "always",
+            "vars": []
+          }
+        }
+      ]
+    },
+    {
+      "type": "field",
+      "ref": "dad23031-8468-4900-89cc-d01841d8b660",
+      "actions": [
+        {
+          "action": "jump",
+          "details": {
+            "to": {
+              "type": "field",
+              "value": "9de3d2f5-d9c0-45aa-9065-a61c975a58dc"
+            }
+          },
+          "condition": {
+            "op": "is",
+            "vars": [
+              {
+                "type": "field",
+                "value": "dad23031-8468-4900-89cc-d01841d8b660"
+              },
+              {
+                "type": "choice",
+                "value": "4ee2d7ee-8009-42ea-9a0e-e16d7308d0aa"
+              }
+            ]
+          }
+        },
+        {
+          "action": "jump",
+          "details": {
+            "to": {
+              "type": "field",
+              "value": "8e490114-df6d-4fb3-b1be-6ce11acd9212"
+            }
+          },
+          "condition": {
+            "op": "always",
+            "vars": []
+          }
+        }
+      ]
+    },
+    {
+      "type": "field",
+      "ref": "8e490114-df6d-4fb3-b1be-6ce11acd9212",
+      "actions": [
+        {
+          "action": "jump",
+          "details": {
+            "to": {
+              "type": "field",
+              "value": "759da95d-bad2-46cd-adb1-69a510b3d87f"
+            }
+          },
+          "condition": {
+            "op": "is",
+            "vars": [
+              {
+                "type": "field",
+                "value": "8e490114-df6d-4fb3-b1be-6ce11acd9212"
+              },
+              {
+                "type": "choice",
+                "value": "5f8bd114-e597-49d3-902c-25e4da18d081"
+              }
+            ]
+          }
+        },
+        {
+          "action": "jump",
+          "details": {
+            "to": {
+              "type": "field",
+              "value": "912bc5d8-db4a-402b-b506-f85ce4e89e6f"
+            }
+          },
+          "condition": {
+            "op": "always",
+            "vars": []
+          }
+        }
+      ]
+    },
+    {
+      "type": "field",
+      "ref": "912bc5d8-db4a-402b-b506-f85ce4e89e6f",
+      "actions": [
+        {
+          "action": "jump",
+          "details": {
+            "to": {
+              "type": "field",
+              "value": "14dff568-a88e-452f-a03e-a64d8ba48dbd"
+            }
+          },
+          "condition": {
+            "op": "is",
+            "vars": [
+              {
+                "type": "field",
+                "value": "912bc5d8-db4a-402b-b506-f85ce4e89e6f"
+              },
+              {
+                "type": "choice",
+                "value": "c7850ee5-bb1b-4c9d-91f6-d6bd71dc74c5"
+              }
+            ]
+          }
+        },
+        {
+          "action": "jump",
+          "details": {
+            "to": {
+              "type": "field",
+              "value": "e40fa1c6-13a1-4a02-91cd-0eaade11864d"
+            }
+          },
+          "condition": {
+            "op": "always",
+            "vars": []
+          }
+        }
+      ]
+    },
+    {
+      "type": "field",
+      "ref": "e6d4dc10-85e8-43c8-ad44-295305027958",
+      "actions": [
+        {
+          "action": "jump",
+          "details": {
+            "to": {
+              "type": "field",
+              "value": "96d6dba5-bd1e-4fef-a71a-cc20fbca7ca4"
+            }
+          },
+          "condition": {
+            "op": "is",
+            "vars": [
+              {
+                "type": "field",
+                "value": "e6d4dc10-85e8-43c8-ad44-295305027958"
+              },
+              {
+                "type": "choice",
+                "value": "09462a71-f033-4c46-bd97-972104759004"
+              }
+            ]
+          }
+        },
+        {
+          "action": "jump",
+          "details": {
+            "to": {
+              "type": "field",
+              "value": "dad23031-8468-4900-89cc-d01841d8b660"
+            }
+          },
+          "condition": {
+            "op": "always",
+            "vars": []
+          }
+        }
+      ]
+    },
+    {
+      "type": "field",
+      "ref": "9de3d2f5-d9c0-45aa-9065-a61c975a58dc",
+      "actions": [
+        {
+          "action": "jump",
+          "details": {
+            "to": {
+              "type": "field",
+              "value": "73ef8720-5e2b-463c-aa8a-ed890a839a8b"
+            }
+          },
+          "condition": {
+            "op": "is",
+            "vars": [
+              {
+                "type": "field",
+                "value": "9de3d2f5-d9c0-45aa-9065-a61c975a58dc"
+              },
+              {
+                "type": "choice",
+                "value": "b8e3de37-c489-4e27-a7be-03f72776f070"
+              }
+            ]
+          }
+        },
+        {
+          "action": "jump",
+          "details": {
+            "to": {
+              "type": "field",
+              "value": "8e490114-df6d-4fb3-b1be-6ce11acd9212"
+            }
+          },
+          "condition": {
+            "op": "always",
+            "vars": []
+          }
+        }
+      ]
+    },
+    {
+      "type": "field",
+      "ref": "d245e8ad-5c5f-4c60-afe2-3ba3f0615cc3",
+      "actions": [
+        {
+          "action": "jump",
+          "details": {
+            "to": {
+              "type": "field",
+              "value": "f6e69027-97cc-494e-8d52-318b75047e23"
+            }
+          },
+          "condition": {
+            "op": "always",
+            "vars": []
+          }
+        }
+      ]
+    }
+  ],
+  "_links": {
+    "display": "https://nandanrao.typeform.com/to/Yym3bbfC"
+  },
+  "custom_messages": {
+    "label.error.emailAddress": "Sorry, please enter a valid email address.",
+    "label.error.mustSelect": "*Sorry, please use the buttons provided to answer the question.*",
+    "label.error.range": "Sorry, please enter a number and only a number.",
+    "label.error.required": "Sorry, that answer is not valid."
+  }
+}

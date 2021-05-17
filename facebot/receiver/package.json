@@ -1,0 +1,18 @@
+{
+  "name": "gbv-facebot-receiver",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "express": "^4.17.1",
+    "js-xxhash": "^1.0.4",
+    "morgan": "^1.9.1",
+    "shortid": "^2.2.15",
+    "zeromq": "^6.0.0-beta.6"
+  }
+}

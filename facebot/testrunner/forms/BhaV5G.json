@@ -1,0 +1,56 @@
+{
+  "id": "BhaV5G",
+  "title": "bail test - B",
+  "theme": {
+    "href": "https://api.typeform.com/themes/TSYAuE"
+  },
+  "workspace": {
+    "href": "https://api.typeform.com/workspaces/WA44hg"
+  },
+  "settings": {
+    "is_public": true,
+    "is_trial": false,
+    "language": "en",
+    "progress_bar": "proportion",
+    "show_progress_bar": true,
+    "show_typeform_branding": true,
+    "meta": {
+      "allow_indexing": false
+    }
+  },
+  "thankyou_screens": [
+    {
+      "ref": "default_tys",
+      "title": "Done! Your information was sent perfectly.",
+      "properties": {
+        "show_button": false,
+        "share_icons": false
+      }
+    }
+  ],
+  "fields": [
+    {
+      "id": "OuMQTZvoMALD",
+      "title": "Thanks for coming to the new form!",
+      "ref": "ce5032e5-ae06-4edc-b2cb-82d059d0c6b0",
+      "properties": {
+        "hide_marks": false,
+        "button_text": "Continue"
+      },
+      "type": "statement"
+    },
+    {
+      "ref": "default_tys",
+      "title": "Done! Your information was sent perfectly.",
+      "properties": {
+        "show_button": false,
+        "share_icons": false
+      },
+      "type": "thankyou_screen"
+    }
+  ],
+  "_links": {
+    "display": "https://nandanrao.typeform.com/to/BhaV5G"
+  },
+  "custom_messages": {}
+}

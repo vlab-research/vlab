@@ -1,0 +1,45 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gbv-facebot
+  labels:
+    app: gbv-facebot
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: gbv-facebot
+  template:
+    metadata:
+      labels:
+        app: gbv-facebot
+    spec:
+      containers:
+      - name: gbv-facebot
+        image: localhost:5000/facebot:registry
+        imagePullPolicy: Always
+        resources:
+          requests:
+            cpu: "10m"
+            memory: "30Mi"
+        ports:
+        - containerPort: 3000
+        - containerPort: 4000
+        envFrom:
+        - secretRef:
+            name: gbv-bot-envs
+
+---
+
+kind: Service
+apiVersion: v1
+metadata:
+  name: gbv-facebot
+spec:
+  selector:
+    app: gbv-facebot
+  ports:
+  - protocol: TCP
+    port: 80
+    targetPort: 3000
+    name: http

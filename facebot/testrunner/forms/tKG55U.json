@@ -1,0 +1,110 @@
+{
+  "id": "tKG55U",
+  "title": "stitch test - part B",
+  "theme": {
+    "href": "https://api.typeform.com/themes/6lPNE6"
+  },
+  "workspace": {
+    "href": "https://api.typeform.com/workspaces/WA44hg"
+  },
+  "settings": {
+    "is_public": true,
+    "is_trial": false,
+    "language": "en",
+    "progress_bar": "percentage",
+    "show_progress_bar": true,
+    "show_typeform_branding": true,
+    "meta": {
+      "allow_indexing": false
+    }
+  },
+  "thankyou_screens": [
+    {
+      "ref": "default_tys",
+      "title": "Done! Your information was sent perfectly.",
+      "properties": {
+        "show_button": false,
+        "share_icons": false
+      }
+    }
+  ],
+  "fields": [
+    {
+      "id": "QX8lQUUyTVFK",
+      "title": "You made it to the next form! Skip? ",
+      "ref": "210905a2-00f9-4667-b075-2bfc672d9343",
+      "validations": {
+        "required": false
+      },
+      "type": "yes_no"
+    },
+    {
+      "id": "kEFQUHoQ80m8",
+      "title": "Did you have fun? ",
+      "ref": "fc26ba63-6c0d-4ae2-9cc6-32302ee8ae29",
+      "validations": {
+        "required": false
+      },
+      "type": "yes_no"
+    },
+    {
+      "ref": "default_tys",
+      "title": "Done! Your information was sent perfectly.",
+      "properties": {
+        "show_button": false,
+        "share_icons": false
+      },
+      "type": "thankyou_screen"
+    }
+  ],
+  "hidden": [
+    "seed_5"
+  ],
+  "logic": [
+    {
+      "type": "field",
+      "ref": "210905a2-00f9-4667-b075-2bfc672d9343",
+      "actions": [
+        {
+          "action": "jump",
+          "details": {
+            "to": {
+              "type": "thankyou",
+              "value": "default_tys"
+            }
+          },
+          "condition": {
+            "op": "equal",
+            "vars": [
+              {
+                "type": "hidden",
+                "value": "seed_5"
+              },
+              {
+                "type": "constant",
+                "value": "1"
+              }
+            ]
+          }
+        },
+        {
+          "action": "jump",
+          "details": {
+            "to": {
+              "type": "field",
+              "value": "fc26ba63-6c0d-4ae2-9cc6-32302ee8ae29"
+            }
+          },
+          "condition": {
+            "op": "always",
+            "vars": []
+          }
+        }
+      ]
+    }
+  ],
+  "_links": {
+    "display": "https://nandanrao.typeform.com/to/tKG55U"
+  },
+  "custom_messages": {}
+}

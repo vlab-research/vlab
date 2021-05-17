@@ -1,0 +1,221 @@
+{
+  "id": "nFgfNE",
+  "title": "Integration Test - Hidden Fields + Seed",
+  "theme": {
+    "href": "https://api.typeform.com/themes/6lPNE6"
+  },
+  "workspace": {
+    "href": "https://api.typeform.com/workspaces/WA44hg"
+  },
+  "settings": {
+    "is_public": true,
+    "is_trial": false,
+    "language": "en",
+    "progress_bar": "percentage",
+    "show_progress_bar": true,
+    "show_typeform_branding": true,
+    "meta": {
+      "allow_indexing": false
+    }
+  },
+  "thankyou_screens": [
+    {
+      "ref": "14ddcceb-6c69-4722-8440-567fcf087883",
+      "title": "Foo!",
+      "properties": {
+        "show_button": true,
+        "share_icons": true,
+        "button_mode": "reload",
+        "button_text": "again"
+      }
+    },
+    {
+      "ref": "default_tys",
+      "title": "Foo!",
+      "properties": {
+        "show_button": false,
+        "share_icons": false
+      }
+    }
+  ],
+  "fields": [
+    {
+      "id": "gpSaPqZkInic",
+      "title": "Whatchu do?",
+      "ref": "a072e75f-0f04-4e9c-91d2-ffd15aa3e82d",
+      "properties": {
+        "randomize": false,
+        "allow_multiple_selection": false,
+        "allow_other_choice": false,
+        "vertical_alignment": true,
+        "choices": [
+          {
+            "id": "OSxbPNEwNJn2",
+            "ref": "95f434b0-6cbd-4bbc-a79b-975be3fde07e",
+            "label": "foo"
+          },
+          {
+            "id": "eoIMNZvj0peg",
+            "ref": "8746db80-6628-4301-9277-35e56c7ea778",
+            "label": "bar"
+          }
+        ]
+      },
+      "validations": {
+        "required": false
+      },
+      "type": "multiple_choice"
+    },
+    {
+      "id": "l0E41jrMEVSM",
+      "title": "This is branch A. True/False?",
+      "ref": "8b67d18c-cda5-4936-83ea-bda055cf20dc",
+      "validations": {
+        "required": false
+      },
+      "type": "yes_no"
+    },
+    {
+      "id": "Kh4BS5v1BnT9",
+      "title": "This is branch B. True/False?",
+      "ref": "2641788b-af67-4f0f-ba1c-45fee515443c",
+      "validations": {
+        "required": false
+      },
+      "type": "yes_no"
+    },
+    {
+      "ref": "14ddcceb-6c69-4722-8440-567fcf087883",
+      "title": "Foo!",
+      "properties": {
+        "show_button": true,
+        "share_icons": true,
+        "button_mode": "reload",
+        "button_text": "again"
+      },
+      "type": "thankyou_screen"
+    },
+    {
+      "ref": "default_tys",
+      "title": "Foo!",
+      "properties": {
+        "show_button": false,
+        "share_icons": false
+      },
+      "type": "thankyou_screen"
+    }
+  ],
+  "hidden": [
+    "name",
+    "seed_2"
+  ],
+  "logic": [
+    {
+      "type": "field",
+      "ref": "a072e75f-0f04-4e9c-91d2-ffd15aa3e82d",
+      "actions": [
+        {
+          "action": "jump",
+          "details": {
+            "to": {
+              "type": "field",
+              "value": "8b67d18c-cda5-4936-83ea-bda055cf20dc"
+            }
+          },
+          "condition": {
+            "op": "equal",
+            "vars": [
+              {
+                "type": "hidden",
+                "value": "seed_2"
+              },
+              {
+                "type": "constant",
+                "value": "1"
+              }
+            ]
+          }
+        },
+        {
+          "action": "jump",
+          "details": {
+            "to": {
+              "type": "field",
+              "value": "2641788b-af67-4f0f-ba1c-45fee515443c"
+            }
+          },
+          "condition": {
+            "op": "equal",
+            "vars": [
+              {
+                "type": "hidden",
+                "value": "seed_2"
+              },
+              {
+                "type": "constant",
+                "value": "2"
+              }
+            ]
+          }
+        },
+        {
+          "action": "jump",
+          "details": {
+            "to": {
+              "type": "thankyou",
+              "value": "default_tys"
+            }
+          },
+          "condition": {
+            "op": "always",
+            "vars": []
+          }
+        }
+      ]
+    },
+    {
+      "type": "field",
+      "ref": "8b67d18c-cda5-4936-83ea-bda055cf20dc",
+      "actions": [
+        {
+          "action": "jump",
+          "details": {
+            "to": {
+              "type": "thankyou",
+              "value": "14ddcceb-6c69-4722-8440-567fcf087883"
+            }
+          },
+          "condition": {
+            "op": "always",
+            "vars": []
+          }
+        }
+      ]
+    },
+    {
+      "type": "field",
+      "ref": "2641788b-af67-4f0f-ba1c-45fee515443c",
+      "actions": [
+        {
+          "action": "jump",
+          "details": {
+            "to": {
+              "type": "thankyou",
+              "value": "14ddcceb-6c69-4722-8440-567fcf087883"
+            }
+          },
+          "condition": {
+            "op": "always",
+            "vars": []
+          }
+        }
+      ]
+    }
+  ],
+  "_links": {
+    "display": "https://nandanrao.typeform.com/to/nFgfNE"
+  },
+  "custom_messages": {
+    "label.warning.success": "Foo!"
+  }
+}

@@ -1,0 +1,32 @@
+{
+  "name": "testrunner",
+  "version": "1.0.0",
+  "description": "",
+  "directories": {
+    "test": "test"
+  },
+  "scripts": {
+    "test": "mocha --colors test.js --exit",
+    "lint": "eslint ."
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@vlab-research/chatbase-postgres": "0.0.3",
+    "@vlab-research/mox": "0.0.18",
+    "@vlab-research/utils": "0.0.10",
+    "chai": "^4.2.0",
+    "dotenv": "^8.1.0",
+    "farmhash": "^3.0.0",
+    "mocha": "^6.2.0",
+    "mocha.parallel": "^0.15.6",
+    "mustache": "^4.0.1",
+    "pg": "^7.18.1",
+    "r2": "^2.0.1",
+    "uuid": "^3.3.3",
+    "zeromq": "^6.0.0-beta.6"
+  },
+  "devDependencies": {
+    "eslint": "^7.8.1"
+  }
+}

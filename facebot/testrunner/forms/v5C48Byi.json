@@ -1,0 +1,158 @@
+{
+  "id": "v5C48Byi",
+  "type": "form",
+  "title": "langchoice",
+  "workspace": {
+    "href": "https://api.typeform.com/workspaces/p7LWDc"
+  },
+  "theme": {
+    "href": "https://api.typeform.com/themes/6lPNE6"
+  },
+  "settings": {
+    "language": "en",
+    "progress_bar": "percentage",
+    "meta": {
+      "allow_indexing": false
+    },
+    "is_public": true,
+    "is_trial": false,
+    "show_progress_bar": true,
+    "show_typeform_branding": true,
+    "are_uploads_public": false
+  },
+  "thankyou_screens": [
+    {
+      "id": "DefaultTyScreen",
+      "ref": "default_tys",
+      "title": "Done! Your information was sent perfectly.",
+      "properties": {
+        "show_button": false,
+        "share_icons": false
+      }
+    }
+  ],
+  "fields": [
+    {
+      "id": "l6MBvAlW2Sya",
+      "title": "नमस्ते {{hidden:name}} आप हमें किस भाषा में जवाब देना पसंद करेंगे?\n\nକେଉଁ {{hidden:name}} ଭାଷାରେ ଆପଣ ଆମକୁ ଲେଖିବାକୁ ଚାହୁଁଛନ୍ତି ?",
+      "ref": "09a14047-26f1-46b6-9c5f-cb7b1330cbad",
+      "properties": {
+        "randomize": false,
+        "allow_multiple_selection": false,
+        "allow_other_choice": false,
+        "vertical_alignment": true,
+        "choices": [
+          {
+            "id": "YYo97jDcOfJk",
+            "ref": "9d91b813-6bf4-46d4-915a-40087b81e8ab",
+            "label": "हिंदी"
+          },
+          {
+            "id": "aHSwLYDwJEwl",
+            "ref": "73392686-1b36-4c69-9eb9-9e6e3e6a95be",
+            "label": "ଓଡିଆ"
+          }
+        ]
+      },
+      "validations": {
+        "required": false
+      },
+      "type": "multiple_choice"
+    },
+    {
+      "id": "9gX8GoRGOznN",
+      "title": "धन्यवाद।",
+      "ref": "f761c804-0a8e-4328-a29d-b9dec849f284",
+      "properties": {
+        "description": "type: stitch\nstitch:\n    form: baselinehin",
+        "button_text": "Continue",
+        "hide_marks": false
+      },
+      "type": "statement"
+    },
+    {
+      "id": "RSfniHreXKMC",
+      "title": "ଧନ୍ୟବାଦ",
+      "ref": "755c26ff-ccc4-4ae0-a44a-29461858b41c",
+      "properties": {
+        "description": "type: stitch\nstitch:\n    form: baselineodi",
+        "button_text": "Continue",
+        "hide_marks": false
+      },
+      "type": "statement"
+    },
+    {
+      "id": "DefaultTyScreen",
+      "ref": "default_tys",
+      "title": "Done! Your information was sent perfectly.",
+      "properties": {
+        "show_button": false,
+        "share_icons": false
+      },
+      "type": "thankyou_screen"
+    }
+  ],
+  "hidden": [
+    "id",
+    "name"
+  ],
+  "logic": [
+    {
+      "type": "field",
+      "ref": "09a14047-26f1-46b6-9c5f-cb7b1330cbad",
+      "actions": [
+        {
+          "action": "jump",
+          "details": {
+            "to": {
+              "type": "field",
+              "value": "f761c804-0a8e-4328-a29d-b9dec849f284"
+            }
+          },
+          "condition": {
+            "op": "is",
+            "vars": [
+              {
+                "type": "field",
+                "value": "09a14047-26f1-46b6-9c5f-cb7b1330cbad"
+              },
+              {
+                "type": "choice",
+                "value": "9d91b813-6bf4-46d4-915a-40087b81e8ab"
+              }
+            ]
+          }
+        },
+        {
+          "action": "jump",
+          "details": {
+            "to": {
+              "type": "field",
+              "value": "755c26ff-ccc4-4ae0-a44a-29461858b41c"
+            }
+          },
+          "condition": {
+            "op": "is",
+            "vars": [
+              {
+                "type": "field",
+                "value": "09a14047-26f1-46b6-9c5f-cb7b1330cbad"
+              },
+              {
+                "type": "choice",
+                "value": "73392686-1b36-4c69-9eb9-9e6e3e6a95be"
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ],
+  "_links": {
+    "display": "https://nandanrao.typeform.com/to/v5C48Byi"
+  },
+  "custom_messages": {
+    "label.error.mustSelect": "क्षमा करें, कृपया प्रश्न का उत्तर देने के लिए प्रदान किए गए बटनों का उपयोग करें।",
+    "label.error.required": "क्षमा करें, यह उत्तर मान्य नहीं है।"
+  }
+}

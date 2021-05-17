@@ -1,0 +1,556 @@
+{
+  "id": "PyJ5Dsnc",
+  "type": "form",
+  "title": "follow1hin",
+  "workspace": {
+    "href": "https://api.typeform.com/workspaces/p7LWDc"
+  },
+  "theme": {
+    "href": "https://api.typeform.com/themes/qHWOQ7"
+  },
+  "settings": {
+    "language": "en",
+    "progress_bar": "percentage",
+    "meta": {
+      "allow_indexing": false
+    },
+    "is_public": true,
+    "is_trial": false,
+    "show_progress_bar": true,
+    "show_typeform_branding": true,
+    "are_uploads_public": false
+  },
+  "thankyou_screens": [
+    {
+      "id": "DefaultTyScreen",
+      "ref": "default_tys",
+      "title": "Done! Your information was sent perfectly.",
+      "properties": {
+        "show_button": false,
+        "share_icons": false
+      }
+    }
+  ],
+  "fields": [
+    {
+      "id": "HUwXLOovcxw7",
+      "title": "कोई सही या गलत उत्तर नहीं हैं। हम सिर्फ यह जानना चाहते हैं कि आप क्या सोचते हैं! \nध्यान रखें कि आपके उत्तर गोपनीय रहेंगे।",
+      "ref": "0ebdd97f-0529-412a-a164-b1a72f1410a2",
+      "properties": {
+        "button_text": "Continue",
+        "hide_marks": false
+      },
+      "type": "statement"
+    },
+    {
+      "id": "wFLxq0nx4mIX",
+      "title": "क्या आप पिछली रात मच्छरदानी के अंदर सोए थे?",
+      "ref": "1f812d37-a7a5-400d-8a31-145fbb49f577",
+      "properties": {
+        "randomize": false,
+        "allow_multiple_selection": false,
+        "allow_other_choice": false,
+        "vertical_alignment": true,
+        "choices": [
+          {
+            "id": "zY5ezN2bPleB",
+            "ref": "72c28aec-2452-44e6-b7fe-a663157a5c0f",
+            "label": "हाँ"
+          },
+          {
+            "id": "6neTf6ghd1x1",
+            "ref": "c761a82d-0b8c-4fe0-857e-a500dd657bf7",
+            "label": "नहीं"
+          }
+        ]
+      },
+      "validations": {
+        "required": false
+      },
+      "type": "multiple_choice"
+    },
+    {
+      "id": "M1o8IAD2mL0Y",
+      "title": "आपके परिवार में जितने लोग रहते हैं (आप सहित), उसमें से कितने सदस्य कल रात मच्छरदानी के नीचे सोए थे? [नंबर डालें]",
+      "ref": "57badd12-1206-4f36-a83c-f77691d985b8",
+      "properties": {},
+      "validations": {
+        "required": false
+      },
+      "type": "number"
+    },
+    {
+      "id": "IdRWrrRzgURD",
+      "title": "बीते हुए कल के बारे में सोचकर बताइए, क्या आपने या आपके परिवार ने मच्छरों के काटने से बचने के लिए लंबी आस्तीन वाले कपड़ों का उपयोग किया था?",
+      "ref": "3571207f-3fe9-4fd2-8714-9514e91a2a45",
+      "properties": {
+        "randomize": false,
+        "allow_multiple_selection": false,
+        "allow_other_choice": false,
+        "vertical_alignment": true,
+        "choices": [
+          {
+            "id": "qGtj1l050qq9",
+            "ref": "59238d32-8c39-49b0-99f2-d39e7a51e419",
+            "label": "हाँ"
+          },
+          {
+            "id": "nbA83qQHLTjH",
+            "ref": "fe17a09c-bb70-4f25-9859-576f91c65714",
+            "label": "नहीं"
+          }
+        ]
+      },
+      "validations": {
+        "required": false
+      },
+      "type": "multiple_choice"
+    },
+    {
+      "id": "fxxNY3tASfaE",
+      "title": "क्या आपको या आपके परिवार के किसी व्यक्ति को पिछले दो हफ्तों में बुखार (100.4°F / 38°C या इससे अधिक) हुआ है?",
+      "ref": "ab9e9369-458f-4de6-af85-df62bc57cb82",
+      "properties": {
+        "randomize": false,
+        "allow_multiple_selection": false,
+        "allow_other_choice": false,
+        "vertical_alignment": true,
+        "choices": [
+          {
+            "id": "jUCQz4YTqQJI",
+            "ref": "a3eb447a-4753-4ca3-a6cc-58e903938b05",
+            "label": "हाँ"
+          },
+          {
+            "id": "dwBeJtF836Lg",
+            "ref": "b1212fc0-4e7b-4141-993d-d78864220161",
+            "label": "नहीं"
+          },
+          {
+            "id": "IxYmAWkLk6cK",
+            "ref": "69b1cf2d-2a7d-44b9-ba4a-dbd951000730",
+            "label": "पता नहीं"
+          }
+        ]
+      },
+      "validations": {
+        "required": false
+      },
+      "type": "multiple_choice"
+    },
+    {
+      "id": "B17Va5Y163B0",
+      "title": "तो क्या आपने चिकित्सा सहायता ली?",
+      "ref": "99ca4be9-3348-4a81-a3be-02e6dbe7a318",
+      "properties": {
+        "randomize": false,
+        "allow_multiple_selection": false,
+        "allow_other_choice": false,
+        "vertical_alignment": true,
+        "choices": [
+          {
+            "id": "Cv1A9Y3ui80e",
+            "ref": "160b8e8a-ced8-424a-b6f1-c2dfdfa7f31d",
+            "label": "हाँ"
+          },
+          {
+            "id": "lT1KeJ9vxB2t",
+            "ref": "4f2ed7c8-beef-40ca-a4da-7a4a76a5375b",
+            "label": "नहीं"
+          },
+          {
+            "id": "1szSuo8bc7wo",
+            "ref": "795a9a61-6f84-45c2-820d-254a291240d9",
+            "label": "पता नहीं"
+          }
+        ]
+      },
+      "validations": {
+        "required": false
+      },
+      "type": "multiple_choice"
+    },
+    {
+      "id": "65TyVPedJlLa",
+      "title": "बुखार की शुरुआत के कितने समय बाद आपने चिकित्सा सहायता ली?\n\n- A. 24 घंटे से कम\n- B. 24-48 घंटे\n- C. 2 दिनों से अधिक",
+      "ref": "41f68347-e0bd-4b4d-84d4-8da5e898660b",
+      "properties": {
+        "randomize": false,
+        "allow_multiple_selection": false,
+        "allow_other_choice": false,
+        "vertical_alignment": true,
+        "choices": [
+          {
+            "id": "ZDuDCe38RO1G",
+            "ref": "e5b41ec2-822b-4a68-b089-4676710d22e3",
+            "label": "A"
+          },
+          {
+            "id": "PFqeWKUR0e96",
+            "ref": "1c7fc30a-d748-4e73-b8b9-deba61087286",
+            "label": "B"
+          },
+          {
+            "id": "FX5I8EqO3fVo",
+            "ref": "79474352-b490-4ed9-8faf-eae5d3997360",
+            "label": "C"
+          }
+        ]
+      },
+      "validations": {
+        "required": false
+      },
+      "type": "multiple_choice"
+    },
+    {
+      "id": "NCSSy0iHRAzR",
+      "title": "क्या आपको या आपके परिवार में किसी को पिछले दो हफ्तों में मलेरिया हुआ था?",
+      "ref": "58583e72-7036-4c74-9ebd-179598cba59f",
+      "properties": {
+        "randomize": false,
+        "allow_multiple_selection": false,
+        "allow_other_choice": false,
+        "vertical_alignment": true,
+        "choices": [
+          {
+            "id": "oOMWAULhhcXs",
+            "ref": "9619e393-f7c5-4f2a-ad7a-6a808d1fc7b3",
+            "label": "हाँ"
+          },
+          {
+            "id": "0L2L0weqlYgs",
+            "ref": "251ff3ab-f2fe-46df-9a51-f1c052d2bb59",
+            "label": "नहीं"
+          },
+          {
+            "id": "RZWE5jXGnGo6",
+            "ref": "ceeffcb9-2205-4c79-bb18-068edd8209e8",
+            "label": "पता नहीं"
+          }
+        ]
+      },
+      "validations": {
+        "required": false
+      },
+      "type": "multiple_choice"
+    },
+    {
+      "id": "HiqpgBIphsKT",
+      "title": "क्या आप या आपके परिवार के सदस्य का मलेरिया के लिए परीक्षण हुआ था?",
+      "ref": "8f8921dd-2299-4de3-ab21-0796865f9801",
+      "properties": {
+        "randomize": false,
+        "allow_multiple_selection": false,
+        "allow_other_choice": false,
+        "vertical_alignment": true,
+        "choices": [
+          {
+            "id": "cwYi6plxcFX2",
+            "ref": "90e2caf5-84ef-4e63-896b-3c6542b98b78",
+            "label": "हाँ"
+          },
+          {
+            "id": "k5yCQC0McEYh",
+            "ref": "7abafe61-2411-4cfd-840b-d99c1ad59551",
+            "label": "नहीं"
+          },
+          {
+            "id": "WEjlNQeqXau8",
+            "ref": "4de0977c-9d8a-4e5c-b8f9-8d16f007b741",
+            "label": "पता नहीं"
+          }
+        ]
+      },
+      "validations": {
+        "required": false
+      },
+      "type": "multiple_choice"
+    },
+    {
+      "id": "63vmOhPIQoIR",
+      "title": "मलेरिया के लक्षणों की शुरुआत के कितने समय बाद आपने चिकित्सा सहायता ली?\n\n- A. 24 घंटे से कम\n- B. 24-48 घंटे\n- C. 2 दिनों से अधिक",
+      "ref": "ac38821e-7c2e-443c-8cfa-1cddd0320f2d",
+      "properties": {
+        "randomize": false,
+        "allow_multiple_selection": false,
+        "allow_other_choice": false,
+        "vertical_alignment": true,
+        "choices": [
+          {
+            "id": "IXvDHHrbJxfk",
+            "ref": "f7a34bed-2880-48e3-ac5e-89313386c1d6",
+            "label": "A"
+          },
+          {
+            "id": "U1h5bEqmpB0D",
+            "ref": "9cb2eb75-9b99-4609-b2e9-692bc9fe8bbb",
+            "label": "B"
+          },
+          {
+            "id": "hiqpXH5Sju7W",
+            "ref": "f81741a0-a009-4a65-9e7d-65eeab5300c1",
+            "label": "C"
+          }
+        ]
+      },
+      "validations": {
+        "required": false
+      },
+      "type": "multiple_choice"
+    },
+    {
+      "id": "rU5f3Ho1tIyB",
+      "title": "अपना समय देने के लिए धन्यवाद!\nहम दो सप्ताह में आपसे 5 और सवाल पूछने के लिए फिर से संपर्क करेंगे।\n\nयदि आप हमारे सवालों का जवाब देते हैं तो आज से एक महीने बाद आपको ₹100 के मोबाइल क्रेडिट मिलेंगे। इसके अलावा यदि आप संपूर्ण अध्ययन को पूरा करते हैं तो आज से छह महीने बाद आपको ₹200 के फोन क्रेडिट मिलेंगे।\n\nकृपया हमें आपसे फिर से संपर्क करने की अनुमति दें।",
+      "ref": "d4441dd4-ef88-4586-9423-231b4b62bd8e",
+      "properties": {
+        "button_text": "Continue",
+        "hide_marks": false
+      },
+      "type": "statement"
+    },
+    {
+      "id": "EslyOhAgJerJ",
+      "title": "नीचे \"मुझे सूचित करें\" बटन पर क्लिक करें।",
+      "ref": "4ec4f1eb-8d96-4dde-828e-42f75c015562",
+      "properties": {
+        "description": "type: notify",
+        "button_text": "Continue",
+        "hide_marks": false
+      },
+      "type": "statement"
+    },
+    {
+      "id": "NFCm0TUz8tbE",
+      "title": "धन्यवाद।\nहम जल्द ही संपर्क करेंगे!",
+      "ref": "5d950845-5b60-4663-852d-9705f6877ccd",
+      "properties": {
+        "description": "type: wait\nwait:\n    notifyPermission: true\n    type: timeout\n    value: 17 days",
+        "button_text": "Continue",
+        "hide_marks": false
+      },
+      "type": "statement"
+    },
+    {
+      "id": "X8LiPcbquXh2",
+      "title": "नमस्ते {{hidden:name}}! 😀\nहमें उम्मीद है कि आप अच्छे हैं। हम साक्षात्कार जारी रखना चाहते हैं और 5 सवाल  और पूछेंगे। यह आपके समय का केवल 2 मिनट लेगा।\n\nयाद रखें कि आपको ₹300 के मोबाइल क्रेडिट प्राप्त करने के लिए संपूर्ण अध्ययन को पूरा करना जरूरी है।\n\nजारी रखने के लिए, कृपया नीचे दिए गए स्वीकार करें बटन पर क्लिक करें।",
+      "ref": "8b51ecfe-3859-4d7a-b247-59ed500bfd3f",
+      "properties": {
+        "randomize": false,
+        "allow_multiple_selection": false,
+        "allow_other_choice": false,
+        "vertical_alignment": true,
+        "choices": [
+          {
+            "id": "TJkvCdpCO6LR",
+            "ref": "652d3dc3-d3d3-47e5-8c90-8e7b87bd0bd7",
+            "label": "Accept"
+          }
+        ]
+      },
+      "validations": {
+        "required": false
+      },
+      "type": "multiple_choice"
+    },
+    {
+      "id": "RyYBh4IJivms",
+      "title": "धन्यवाद।",
+      "ref": "22d877fe-881d-44a9-baaf-ab03ed852a9c",
+      "properties": {
+        "description": "type: stitch\nstitch:\n    form: follow2hin",
+        "button_text": "Continue",
+        "hide_marks": false
+      },
+      "type": "statement"
+    },
+    {
+      "id": "DefaultTyScreen",
+      "ref": "default_tys",
+      "title": "Done! Your information was sent perfectly.",
+      "properties": {
+        "show_button": false,
+        "share_icons": false
+      },
+      "type": "thankyou_screen"
+    }
+  ],
+  "hidden": [
+    "id",
+    "name"
+  ],
+  "logic": [
+    {
+      "type": "field",
+      "ref": "99ca4be9-3348-4a81-a3be-02e6dbe7a318",
+      "actions": [
+        {
+          "action": "jump",
+          "details": {
+            "to": {
+              "type": "field",
+              "value": "41f68347-e0bd-4b4d-84d4-8da5e898660b"
+            }
+          },
+          "condition": {
+            "op": "is",
+            "vars": [
+              {
+                "type": "field",
+                "value": "99ca4be9-3348-4a81-a3be-02e6dbe7a318"
+              },
+              {
+                "type": "choice",
+                "value": "160b8e8a-ced8-424a-b6f1-c2dfdfa7f31d"
+              }
+            ]
+          }
+        },
+        {
+          "action": "jump",
+          "details": {
+            "to": {
+              "type": "field",
+              "value": "58583e72-7036-4c74-9ebd-179598cba59f"
+            }
+          },
+          "condition": {
+            "op": "always",
+            "vars": []
+          }
+        }
+      ]
+    },
+    {
+      "type": "field",
+      "ref": "ab9e9369-458f-4de6-af85-df62bc57cb82",
+      "actions": [
+        {
+          "action": "jump",
+          "details": {
+            "to": {
+              "type": "field",
+              "value": "99ca4be9-3348-4a81-a3be-02e6dbe7a318"
+            }
+          },
+          "condition": {
+            "op": "is",
+            "vars": [
+              {
+                "type": "field",
+                "value": "ab9e9369-458f-4de6-af85-df62bc57cb82"
+              },
+              {
+                "type": "choice",
+                "value": "a3eb447a-4753-4ca3-a6cc-58e903938b05"
+              }
+            ]
+          }
+        },
+        {
+          "action": "jump",
+          "details": {
+            "to": {
+              "type": "field",
+              "value": "58583e72-7036-4c74-9ebd-179598cba59f"
+            }
+          },
+          "condition": {
+            "op": "always",
+            "vars": []
+          }
+        }
+      ]
+    },
+    {
+      "type": "field",
+      "ref": "58583e72-7036-4c74-9ebd-179598cba59f",
+      "actions": [
+        {
+          "action": "jump",
+          "details": {
+            "to": {
+              "type": "field",
+              "value": "8f8921dd-2299-4de3-ab21-0796865f9801"
+            }
+          },
+          "condition": {
+            "op": "is",
+            "vars": [
+              {
+                "type": "field",
+                "value": "58583e72-7036-4c74-9ebd-179598cba59f"
+              },
+              {
+                "type": "choice",
+                "value": "9619e393-f7c5-4f2a-ad7a-6a808d1fc7b3"
+              }
+            ]
+          }
+        },
+        {
+          "action": "jump",
+          "details": {
+            "to": {
+              "type": "field",
+              "value": "d4441dd4-ef88-4586-9423-231b4b62bd8e"
+            }
+          },
+          "condition": {
+            "op": "always",
+            "vars": []
+          }
+        }
+      ]
+    },
+    {
+      "type": "field",
+      "ref": "8f8921dd-2299-4de3-ab21-0796865f9801",
+      "actions": [
+        {
+          "action": "jump",
+          "details": {
+            "to": {
+              "type": "field",
+              "value": "ac38821e-7c2e-443c-8cfa-1cddd0320f2d"
+            }
+          },
+          "condition": {
+            "op": "is",
+            "vars": [
+              {
+                "type": "field",
+                "value": "8f8921dd-2299-4de3-ab21-0796865f9801"
+              },
+              {
+                "type": "choice",
+                "value": "90e2caf5-84ef-4e63-896b-3c6542b98b78"
+              }
+            ]
+          }
+        },
+        {
+          "action": "jump",
+          "details": {
+            "to": {
+              "type": "field",
+              "value": "d4441dd4-ef88-4586-9423-231b4b62bd8e"
+            }
+          },
+          "condition": {
+            "op": "always",
+            "vars": []
+          }
+        }
+      ]
+    }
+  ],
+  "_links": {
+    "display": "https://nandanrao.typeform.com/to/PyJ5Dsnc"
+  },
+  "custom_messages": {
+    "label.error.emailAddress": "क्षमा करें, कृपया एक वैध ईमेल आईडी प्रवेश करें।",
+    "label.error.mustSelect": "क्षमा करें, कृपया प्रश्न का उत्तर देने के लिए प्रदान किए गए बटनों का उपयोग करें।",
+    "label.error.range": "क्षमा करें, कृपया एक नंबर और केवल एक ही नंबर प्रवेश करें।",
+    "label.error.required": "क्षमा करें, यह उत्तर मान्य नहीं है।"
+  }
+}
