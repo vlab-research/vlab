@@ -1,0 +1,9 @@
+# tied to single kafka release...
+kafkaExporter:
+  kafka:
+    servers:
+      - kafka-headless:29092
+
+prometheus:
+  serviceMonitor: 
+    enabled: true
