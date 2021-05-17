@@ -1,0 +1,36 @@
+image:
+  repository: localhost:5000/dinersclub
+  tag: registry
+  pullPolicy: Always
+
+resources:
+  requests:
+    cpu: 5m
+    memory: 16Mi
+
+# needs reloadly envs in prod
+envFrom: "gbv-bot-envs"
+
+env:
+  - name: BOTSERVER_URL
+    value: "http://gbv-botserver/synthetic"
+  - name: KAFKA_BROKERS
+    value: "gbv-kafka:9092"
+  - name: KAFKA_POLL_TIMEOUT
+    value: "1s"
+  - name: KAFKA_TOPIC
+    value: "vlab-payment"
+  - name: KAFKA_GROUP
+    value: "dinersclub"
+  - name: DINERSCLUB_RETRY_BOTSERVER
+    value: "2m"
+  - name: DINERSCLUB_RETRY_PROVIDER
+    value: "2m"
+  - name: DINERSCLUB_PROVIDERS
+    value: "fake"
+  - name: DINERSCLUB_CHUNK_SIZE
+    value: "1"
+  - name: DINERSCLUB_BATCH_SIZE
+    value: "1"
+  - name: RELOADLY_SANDBOX
+    value: "true"
