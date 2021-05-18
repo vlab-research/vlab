@@ -63,18 +63,22 @@ choose <- function(pairs) {
     out
 }
 
-get_balance <- function(dat, labels, print.level=0) {
+get_balance <- function(formula, dat, labels, print.level=0) {
     dat <- mutate(dat, a = labels)
-    MatchBalance(a ~ kutchas + university + unemployed + malaria + malaria_now + population + cost_per_completion + saturated + under_net + exclusion + audienced + current_total + cost_per_message + CTR + CPM + I(malaria**2) + I(malaria_now**2) + log(population) + I(kutchas*population) + I(malaria*kutchas),
+    MatchBalance(formula,
                  data=dat,
                  print.level=print.level)
 }
 
 
 above_threshes <- function (balance, threshes) {
-    for (i in 1:length(threshes)) {
+    bm <- balance$BeforeMatching
+    for (i in 1:length(bm)) {
         thresh <- threshes[i]
-        val <- balance$BeforeMatching[[i]]$tt$p.value
+        if (is.na(thresh)) {
+            stop("Not enough thresholds given!")
+        }
+        val <- bm[[i]]$tt$p.value
         if (val < thresh) {
             return(FALSE)
         }
@@ -82,43 +86,120 @@ above_threshes <- function (balance, threshes) {
     TRUE
 }
 
-find_best_balance <- function (ma, iters, threshes) {
-    selected_ma <- select(ma, kutchas, university, malaria, malaria_now, population, cost_per_completion, saturated)
-    or <- get_order(selected_ma)
-    labels <- choose(pairem(selected_ma, or))
-
-    best_balance <- NULL
-    best_labels <- labels
-    best_score <- 0.0
-
+rerandomize <- function (formula, df, gen_assignment, balance_on, threshes, minimum_threshold, iters) {
     for (i in 1:iters) {
-        labels <- choose(pairem(selected_ma, or))
-        balance <- get_balance(ma, labels)
+        labels <- gen_assignment(df)
+        balance <- get_balance(formula, df, labels)
         mi <- balance$BMsmallest.p.value
-        malaria_p <- b$BeforeMatching[[4]]$tt$p.value
-        if ((mi > best_score) & above_threshes(balance, threshes)) {
-            best_score <- mi
-            best_labels <- labels
-            best_balance <- balance
+
+        if ((mi > minimum_threshold) & above_threshes(balance, threshes)) {
+            print(balance)
+            return(labels)
         }
     }
-
-    if (is.null(best_balance)) {
-        stop('No suitable balance found!')
-    }
-
-    print(best_balance)
-    best_labels
 }
 
-raw_ma <- read_csv('outs/ma-3.csv')
-ma <- dplyr::select(raw_ma, -disthash)
-## bl5 <- find_best_balance(ma, 100, c(.6, .3, .3, .6, .75, .75, .3))
-## write_csv(mutate(raw_ma, treatment=bl6), 'outs/ma-with-treatment.csv')
+match_and_rerandomize <- function (formula, ma, balance_on, threshes, minimum_threshold, iters) {
+    selected_ma <- dplyr::select(ma, all_of(balance_on))
+    or <- get_order(selected_ma)
+    pairs  <- pairem(selected_ma, or)
+    gen_assignment <- function(df) choose(pairs)
 
-get_balance(ma, ma$treatment, 1)
+    assignment <- rerandomize(formula, ma, gen_assignment, balance_on, threshes, minimum_threshold, iters)
+
+    list(assignment = assignment, pairs = pairs)
+}
+
+check_unique <- function (X) {
+    N <- ncol(X)
+    for (i in 1:(N-1)) {
+        for (j in (i+1):N) {
+            if (all(X[,i] == X[,j])) {
+                print('phooey')
+            }
+        }
+    }
+}
+
+make_pair_ids <- function (pairs) {
+    N <- length(pairs)
+    out <- rep(0, N)
+    j <- 1
+    for (i in seq(1, N, by=2)) {
+        a <- pairs[i]
+        b <- pairs[i+1]
+        out[a] <- j
+        out[b] <- j
+        j <- j + 1
+    }
+    out
+}
+
+#################################
+# Original assignmnet
+raw_ma <- read_csv('outs/ma.csv')
+ma <- dplyr::select(raw_ma, -disthash)
+balance_on <- c('kutchas', 'university', 'malaria', 'malaria_now', 'population', 'cost_per_completion', 'saturated')
+thresholds <-  c(c(.6, .3, .3, .6, .75, .75, .3), rep(.1, 13))
+## thresholds <- rep(.05, 20)
+formula <- a ~ kutchas + university + unemployed + malaria + malaria_now + population + cost_per_completion + saturated + under_net + exclusion + audienced + current_total + cost_per_message + CTR + CPM + I(malaria**2) + I(malaria_now**2) + log(population) + I(kutchas*population) + I(malaria*kutchas)
+
+
+
+res <- match_and_rerandomize(formula, ma, balance_on, thresholds, 0.1, 100)
+
+## write_csv(mutate(raw_ma, treatment=bl6), 'outs/ma-with-treatment.csv')
+write_csv(mutate(raw_ma, pair_id=make_pair_ids(res$pairs)), 'outs/ma-with-pair-id.csv')
+
+
+
+###############################################
+# For exact p-values
+library(doRNG)
+cl <- parallel::makeForkCluster(7)
+doParallel::registerDoParallel(cl)
+
+formula <- a ~ kutchas + university + unemployed + malaria + malaria_now + population + cost_per_completion + cost_per_message + CTR + CPM + I(malaria**2) + I(malaria_now**2) + I(kutchas*population) + I(malaria*kutchas)
+
+set.seed(123)
+bb <- foreach(i = 1:1000, .combine = 'cbind') %dorng% {
+    match_and_rerandomize(formula, ma, balance_on, thresholds, 0.35, 2000)$assignment
+}
+
+write_csv(data.frame(bb), 'outs/cluster-assignments-2.csv')
+
+
+ma <- read_csv('outs/ma-with-treatment.csv')
+b <- get_balance(formula, ma, ma$treatment, 1)
+
+###############################
+# Checking balance
 
 individual <- read_csv('outs/individual-with-treatment.csv')
 individual <- read_csv('outs/individual-for-balance.csv')
 
 MatchBalance(treatment ~ kutcha + pucca + university + unemployed + malaria + malaria_now + under_net, data=individual)
+
+
+ddb <- read_csv('outs/mnm-ddb-clean.csv') %>%
+    mutate(kutcha = dwelling == "Kutcha (made of mud, tin, straw)",
+           pucca = dwelling == "Pucca (have cement/brick wall and floor",
+           university = education == "University degree or higher",
+           unemployed = occupation == "Unemployed")
+
+MatchBalance(treatment ~ kutcha + pucca + university + unemployed, data=ddb)
+
+
+
+########################################
+# INDIVIDUAL EFFECT STUDY
+ind_effect <- read_csv('outs/ind-effect-for-balance.csv')
+
+balance_on <- c('treatment', 'gender', 'dwelling', 'education', 'malaria4months', 'fever4months', 'hasmosquitonet', 'caste')
+thresholds  <- rep(0.2, 18)
+formula <- a ~ treatment + gender + dwelling + education + malaria4months + fever4months + hasmosquitonet + caste
+gen <- function (df) rbinom(nrow(df), 1, 0.5)
+b <- rerandomize(formula, ind_effect, gen, balance_on, thresholds, 0.2, 100)
+
+
+balance <- MatchBalance(formula, data=ind_effect %>% mutate(a = b))
