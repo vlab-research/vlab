@@ -1,0 +1,3 @@
+from typing import Any
+
+def quote_with_encoding(val: Any): ...
