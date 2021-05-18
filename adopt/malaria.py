@@ -31,7 +31,7 @@ def _get_ref(v: Union[TargetVar, QuestionTargeting]) -> Sequence[Optional[str]]:
         return get_target_questions(v)
 
     if v.type in {"response", "translated_response"}:
-        return [v.value]
+        return [v.value]  # type: ignore
 
     return [None]
 

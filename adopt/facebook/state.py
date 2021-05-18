@@ -95,7 +95,16 @@ def get_campaigns(account: AdAccount) -> List[Campaign]:
 
 
 def get_ads(campaign: Campaign) -> List[Ad]:
-    return call(campaign.get_ads, fields=["creative", "adset_id", "status", "name"])
+    return call(
+        campaign.get_ads,
+        fields=[
+            Ad.Field.creative,
+            Ad.Field.adset_id,
+            Ad.Field.status,
+            Ad.Field.name,
+            Ad.Field.effective_status,
+        ],
+    )
 
 
 def split(li, N):
