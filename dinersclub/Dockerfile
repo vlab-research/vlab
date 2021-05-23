@@ -4,7 +4,7 @@ RUN apk upgrade --update-cache --available
 RUN apk add --no-cache \
         gcc \
         libc-dev \
-        librdkafka-dev=1.5.3-r0 \
+        librdkafka-dev=1.7.0-r0 \
         pkgconf
 RUN mkdir /app
 WORKDIR /app
@@ -21,7 +21,7 @@ RUN sed -i -e 's/v[[:digit:]]\..*\//edge\//g' /etc/apk/repositories
 RUN apk upgrade --update-cache --available
 
 RUN apk add --no-cache \
-        librdkafka-dev=1.5.3-r0
+        librdkafka-dev=1.7.0-r0
 WORKDIR /app
 COPY --from=build /app/main /app/
 CMD ["/app/main"]

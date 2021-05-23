@@ -5,7 +5,7 @@ go 1.15
 require (
 	github.com/caarlos0/env/v6 v6.3.0
 	github.com/cenkalti/backoff v2.2.1+incompatible
-	github.com/confluentinc/confluent-kafka-go v1.5.2
+	github.com/confluentinc/confluent-kafka-go v1.7.0
 	github.com/fsnotify/fsnotify v1.4.9 // indirect
 	github.com/go-playground/validator/v10 v10.4.1
 	github.com/leodido/go-urn v1.2.1 // indirect
