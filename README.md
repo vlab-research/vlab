@@ -1,3 +1,3 @@
-# Anecdote
+# Virtual Lab
 
-Anecdote is a platform for running experiments easily, efficiently, and iteratively.
+Virtual Lab is a platform for running experiments easily, efficiently, and iteratively.

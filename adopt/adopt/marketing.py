@@ -142,6 +142,7 @@ class Audience(NamedTuple):
 
 
 def dict_from_nested_type(d):
+    """Handles both Facebook SDK's types and Named Tuples"""
     if hasattr(d, "export_data"):
         d = d.export_data()
 
