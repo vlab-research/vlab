@@ -80,7 +80,7 @@ describe('Test Bot flow Survey Integration Testing', () => {
 
     it('Follows logic jumps based on external events: payment failure',  async () => {
       const userId = uuid()
-      const vals = {'hidden:event__payment_fake_error_message': 'you fake'}
+      const vals = {'hidden:e_payment_fake_error_message': 'you fake'}
       const form = fs.readFileSync('forms/gk3gt9ag.json', 'utf-8')
       const f = interpolate(form, vals)
       fs.writeFileSync('forms/temp.json', f)
