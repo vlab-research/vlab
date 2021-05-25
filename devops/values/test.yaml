@@ -96,9 +96,9 @@ dinersclub:
       value: "2m"
     - name: DINERSCLUB_PROVIDERS
       value: "fake"
-    - name: DINERSCLUB_CHUNK_SIZE
-      value: "1"
     - name: DINERSCLUB_BATCH_SIZE
+      value: "1"
+    - name: DINERSCLUB_POOL_SIZE
       value: "1"
 
 
