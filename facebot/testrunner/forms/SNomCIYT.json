@@ -114,8 +114,8 @@
     }
   ],
   "hidden": [
-    "event__payment_fake_success",
-    "event__payment_fake_error_message"
+    "e_payment_fake_success",
+    "e_payment_fake_error_message"
   ],
   "logic": [
     {
@@ -135,7 +135,7 @@
             "vars": [
               {
                 "type": "hidden",
-                "value": "event__payment_fake_success"
+                "value": "e_payment_fake_success"
               },
               {
                 "type": "constant",

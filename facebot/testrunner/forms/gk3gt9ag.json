@@ -84,7 +84,7 @@
     },
     {
       "id": "pBMCSIAhLdAz",
-      "title": "We're sorry. The mobile payment had the following problem: {{hidden:event__payment_fake_error_message}}",
+      "title": "We're sorry. The mobile payment had the following problem: {{hidden:e_payment_fake_error_message}}",
       "ref": "edde703e-d1d2-47b9-9028-a5e0e5ff7f9a",
       "properties": {
         "button_text": "Continue",
@@ -114,8 +114,8 @@
     }
   ],
   "hidden": [
-    "event__payment_fake_success",
-    "event__payment_fake_error_message"
+    "e_payment_fake_success",
+    "e_payment_fake_error_message"
   ],
   "logic": [
     {
@@ -135,7 +135,7 @@
             "vars": [
               {
                 "type": "hidden",
-                "value": "event__payment_fake_success"
+                "value": "e_payment_fake_success"
               },
               {
                 "type": "constant",
