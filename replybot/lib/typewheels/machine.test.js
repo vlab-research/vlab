@@ -26,49 +26,49 @@ describe('makeEventMetadata', () => {
   it('should get the metadata for a simple linksniffer event', () => {
     const event = { event: { type: 'external', value: {type: 'linksniffer:click', url: 'foobar'}}}
     const md = makeEventMetadata(event)
-    md.should.eql({event__linksniffer_click_url: 'foobar'})
+    md.should.eql({e_linksniffer_click_url: 'foobar'})
   })
 
   it('should get multiple key/value pairs if they exist', () => {
     const event = { event: { type: 'external', value: {type: 'random', id: 'foo', foo: 'bar'}}}
     const md = makeEventMetadata(event)
-    md.should.eql({event__random_id: 'foo', event__random_foo: 'bar'})
+    md.should.eql({e_random_id: 'foo', e_random_foo: 'bar'})
   })
 
   it('should unnest kv pairs if they exist', () => {
     const event = { event: { type: 'external', value: { type: 'payment:reloadly', success: false, error: { message: 'foobar', code: 'BAR', doublenest: { foo: 'baz' } }}}}
 
     const md = makeEventMetadata(event)
-    md.should.eql({event__payment_reloadly_success: false,
-                   event__payment_reloadly_error_message: 'foobar',
-                   event__payment_reloadly_error_doublenest_foo: 'baz',
-                   event__payment_reloadly_error_code: 'BAR'})
+    md.should.eql({e_payment_reloadly_success: false,
+                   e_payment_reloadly_error_message: 'foobar',
+                   e_payment_reloadly_error_doublenest_foo: 'baz',
+                   e_payment_reloadly_error_code: 'BAR'})
   })
 
   it('shoudl work with array values and key them out by index', () => {
     const event = { event: { type: 'external', value: { type: 'random', list: ['foo', 'bar']}}}
 
     const md = makeEventMetadata(event)
-    md.should.eql({event__random_list_0: 'foo',
-                   event__random_list_1: 'bar'})
+    md.should.eql({e_random_list_0: 'foo',
+                   e_random_list_1: 'bar'})
   })
 
   it('should work with number values', () => {
     const event = { event: { type: 'external', value: {type: 'random', foo: 1234}}}
     const md = makeEventMetadata(event)
-    md.should.eql({event__random_foo: 1234})
+    md.should.eql({e_random_foo: 1234})
   })
 
   it('should work with boolean values', () => {
     const event = { event: { type: 'external', value: {type: 'random', foo: false}}}
     const md = makeEventMetadata(event)
-    md.should.eql({event__random_foo: false})
+    md.should.eql({e_random_foo: false})
   })
 
   it('should set null but not undefined values', () => {
     const event = { event: { type: 'external', value: {type: 'random', foo: undefined, bar: null}}}
     const md = makeEventMetadata(event)
-    md.should.eql({ event__random_bar: null })
+    md.should.eql({ e_random_bar: null })
   })
 
   it('should return undefined if an event not properly formatted', () => {
@@ -329,7 +329,7 @@ describe('getState', () => {
     state.question.should.equal('foo')
 
     // and stores metadata
-    state.md.should.have.property('event__moviehouse_play_id', 'foobar')
+    state.md.should.have.property('e_moviehouse_play_id', 'foobar')
     state.md.should.have.property('form', 'FOO')
   })
 
@@ -351,7 +351,7 @@ describe('getState', () => {
     state.state.should.equal('WAIT_EXTERNAL_EVENT')
 
     // and stores metadata
-    state.md.should.have.property('event__moviehouse_play_id', 'foobar')
+    state.md.should.have.property('e_moviehouse_play_id', 'foobar')
     state.md.should.have.property('form', 'FOO')
   })
 
@@ -378,7 +378,7 @@ describe('getState', () => {
     state.state.should.equal('RESPONDING')
 
     // and stores metadata
-    state.md.should.have.property('event__moviehouse_play_id', 'foobar')
+    state.md.should.have.property('e_moviehouse_play_id', 'foobar')
     state.md.should.have.property('form', 'FOO')
   })
 
@@ -395,7 +395,7 @@ describe('getState', () => {
     const state = getState(log)
 
     state.state.should.equal('RESPONDING')
-    state.md.should.not.have.property('event__moviehouse_play_id')
+    state.md.should.not.have.property('e_moviehouse_play_id')
   })
 
 
@@ -435,7 +435,7 @@ describe('getState', () => {
     state.md.startTime.should.not.equal(referral.timestamp)
     state.md.startTime.should.equal(echo.timestamp)
 
-    state.md.should.have.property('event__moviehouse_play_id', 'foobar')
+    state.md.should.have.property('e_moviehouse_play_id', 'foobar')
     state.md.should.have.property('form', 'FOO')
   })
 
@@ -923,7 +923,7 @@ describe('Machine', () => {
                                  { to: { type: 'field', value: 'qux' }},
                                  condition:
                                  { op: 'equal',
-                                   vars: [ { type: 'hidden', value: 'event__payment_reloadly_success' },
+                                   vars: [ { type: 'hidden', value: 'e_payment_reloadly_success' },
                                            { type: 'constant', value: 'true' }]}}]}
 
     const form = { logic: [ logic ],

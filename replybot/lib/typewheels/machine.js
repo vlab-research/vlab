@@ -24,7 +24,7 @@ function makeEventMetadata(event) {
   if (type !== 'external' || !value.type) return
 
   const base = value.type.split(':').join('_')
-  const prefix = `event__${base}`
+  const prefix = `e_${base}`
 
   return _eventMetadata(prefix, value)
 }
