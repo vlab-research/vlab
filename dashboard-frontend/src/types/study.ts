@@ -2,29 +2,31 @@ export interface Study {
   id: string;
   name: string;
   slug: string;
-  createdAt: string;
+  createdAt: number;
   studyProgressList: StudyProgress[];
   stratumProgressList: StratumProgress[];
 }
 
-interface StudyProgress {
+export interface StudyProgress {
   id: string;
-  datetime: string;
+  datetime: number;
+  desiredParticipants?: number;
   currentParticipants: number;
   expectedParticipants: number;
   currentAverageDeviation: number;
   expectedAverageDeviation: number;
 }
 
-interface StratumProgress {
+export interface StratumProgress {
   id: string;
   name: string;
-  datetime: string;
+  datetime: number;
   desiredPercentage: number;
   currentPercentage: number;
   expectedPercentage: number;
   percentageDeviationFromGoal: number;
-  desiredParticipants: number;
+  desiredParticipants?: number;
+  expectedParticipants: number;
   currentParticipants: number;
   currentBudget: number;
   currentPricePerParticipant: number;
