@@ -11,9 +11,12 @@ export const computeHistogramData = (resultSet, interval) => {
     freqData[max] = freqData[max] ? freqData[max] + 1 : 1;
   });
 
+  const defaultMax = interval*8;
   const maxDuration = Math.max(...Object.keys(freqData));
+  const mx = maxDuration > defaultMax ? defaultMax : maxDuration;
+  
   const stackedData = [];
-  for (let i = 0; i < maxDuration; i += interval) {
+  for (let i = 0; i < mx; i += interval) {
     let freq = freqData[i + interval];
     if (!freq) freq = 0;
     stackedData.push({ interval: `${i} - ${i + interval}`, Users: freq });
