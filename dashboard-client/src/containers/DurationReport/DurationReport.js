@@ -22,16 +22,17 @@ const renderHistogram = (Component, interval) => ({ resultSet, error }) => {
 const DurationHistogram = ({ formids, cubejs }) => {
 
   // TODO: change intervals to be automatic based on max
-  // then allow reasonable max - or manually chosen max. 
+  // then allow reasonable max - or manually chosen max.
   // OR: allow intervals and just show the first X intervals
   // and allow big range of intervals...
   const stepIntervals = {
-    '5 min': 5/60,
-    '1 hour': 1,
-    '1 day': 24,
+    '5 min': [5, 'asMinutes'],
+    '1 hour': [1, 'asHours'],
+    '1 day': [1, 'asDays'],
   };
 
-  const [activeInterval, setActiveInterval] = useState('3 hours');
+  const [activeInterval, setActiveInterval] = useState('1 hour');
+  const [interval, intervalFn] = stepIntervals[activeInterval]
 
   return (
     <div className="chart-container">
@@ -61,7 +62,7 @@ const DurationHistogram = ({ formids, cubejs }) => {
             ],
           }}
           cubejsApi={cubejs}
-          render={renderHistogram(Histogram, stepIntervals[activeInterval])}
+          render={renderHistogram(Histogram, interval, intervalFn)}
         />
       </div>
     </div>
