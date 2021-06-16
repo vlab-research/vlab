@@ -6,12 +6,12 @@ import { Spinner, Histogram, IntervalSelector } from '../../components';
 import { computeHistogramData } from './chartUtil';
 import './DurationReport.css';
 
-const renderHistogram = (Component, interval) => ({ resultSet, error }) => {
+const renderHistogram = (Component, interval, intervalFn) => ({ resultSet, error }) => {
   if (error) console.error(error); // eslint-disable-line no-console
   return (
     (resultSet && (
       <Component
-        resultSet={computeHistogramData(resultSet, interval)}
+        resultSet={computeHistogramData(resultSet, interval, intervalFn)}
         barKey="Users"
         xAxisKey="interval"
       />
@@ -20,11 +20,6 @@ const renderHistogram = (Component, interval) => ({ resultSet, error }) => {
 };
 
 const DurationHistogram = ({ formids, cubejs }) => {
-
-  // TODO: change intervals to be automatic based on max
-  // then allow reasonable max - or manually chosen max.
-  // OR: allow intervals and just show the first X intervals
-  // and allow big range of intervals...
   const stepIntervals = {
     '5 min': [5, 'asMinutes'],
     '1 hour': [1, 'asHours'],
@@ -32,7 +27,7 @@ const DurationHistogram = ({ formids, cubejs }) => {
   };
 
   const [activeInterval, setActiveInterval] = useState('1 hour');
-  const [interval, intervalFn] = stepIntervals[activeInterval]
+  const [interval, intervalFn] = stepIntervals[activeInterval];
 
   return (
     <div className="chart-container">

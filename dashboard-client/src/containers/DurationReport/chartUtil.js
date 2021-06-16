@@ -11,7 +11,7 @@ export const computeHistogramData = (resultSet, interval, fn) => {
     freqData[max] = freqData[max] ? freqData[max] + 1 : 1;
   });
 
-  const defaultMax = interval*8;
+  const defaultMax = interval * 8;
   const maxDuration = Math.max(...Object.keys(freqData));
   const mx = maxDuration > defaultMax ? defaultMax : maxDuration;
 
