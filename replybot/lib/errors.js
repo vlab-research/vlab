@@ -14,6 +14,11 @@ async function iowrap(msg, tag, fn, ...args) {
     const res = await fn(...args)
     return res
   } catch(e) {
+
+    if (e instanceof MachineIOError) {
+      throw e
+    }
+
     const err = new MachineIOError(tag, msg, e.details)
     err.stack = e.stack
     throw err

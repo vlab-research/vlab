@@ -5,7 +5,7 @@ const fs = require('fs')
 const _ = require('lodash')
 const {parseLogJSON} = require('./utils')
 const {followUpMessage}= require('@vlab-research/translate-typeform')
-const {_initialState, getMessage, exec, act, apply, getState, getCurrentForm, getWatermark, makeEventMetadata} = require('./machine')
+const {_shouldRetry, _initialState, getMessage, exec, act, apply, getState, getCurrentForm, getWatermark, makeEventMetadata} = require('./machine')
 const form = JSON.parse(fs.readFileSync('mocks/sample.json'))
 const { echo, tyEcho, statementEcho, repeatEcho, delivery, read, qr, text, sticker, multipleChoice, referral, USER_ID, reaction, syntheticBail, syntheticPR, optin, payloadReferral, syntheticRedo, synthetic } = require('./events.test')
 
@@ -1273,10 +1273,96 @@ describe('Machine', () => {
                    fields: [{type: 'statement', title: 'foo', ref: 'foo'},
                             {type: 'short_text', title: 'bar', ref: 'bar'}]}
 
-    const log = [referral, syntheticRedo]
+    const log = [referral, synthetic({type: 'redo'})]
     const actions = getMessage(log, form, user)
     actions[0].message.text.should.equal('foo')
     actions[1].message.text.should.equal('bar')
+
+    const state = getState(log)
+    state.retries.should.eql([20])
+  })
+
+
+  it('Ignores a second redo if one was just sent', () => {
+    const form = { logic: [],
+                   fields: [{type: 'statement', title: 'foo', ref: 'foo'},
+                            {type: 'short_text', title: 'bar', ref: 'bar'}]}
+
+    const now = Date.now()
+
+    const log = [referral, 
+                 synthetic({type: 'redo'}, {timestamp: now}), 
+                 synthetic({type: 'redo'}, {timestamp: now + 60000})]
+
+    const actions = getMessage(log, form, user)
+    actions.length.should.equal(0) 
+    const state = getState(log)
+    state.retries.should.eql([now])
+  })
+
+  it('Sends more redos if it has been a while since the last one', () => {
+    const form = { logic: [],
+                   fields: [{type: 'statement', title: 'foo', ref: 'foo'},
+                            {type: 'short_text', title: 'bar', ref: 'bar'}]}
+
+    const now = Date.now() - 60000*60
+
+    const log = [referral, 
+                 synthetic({type: 'redo'}, {timestamp: now}), 
+                 synthetic({type: 'redo'}, {timestamp: now + 60000}),
+                 synthetic({type: 'redo'}, {timestamp: now + 60000*10})]
+
+    const actions = getMessage(log, form, user)
+    actions.length.should.equal(2) 
+    const state = getState(log)
+    state.retries.should.eql([now, now + 60000, now + 60000*10]) 
+  })
+
+
+  it('Doesnt send more redos if it hasnt been so since the last one', () => {
+    const form = { logic: [],
+                   fields: [{type: 'statement', title: 'foo', ref: 'foo'},
+                            {type: 'short_text', title: 'bar', ref: 'bar'}]}
+
+    const now = Date.now() - 60000*60
+
+    const log = [referral, 
+                 synthetic({type: 'redo'}, {timestamp: now}), 
+                 synthetic({type: 'redo'}, {timestamp: now + 60000}),
+                 synthetic({type: 'redo'}, {timestamp: now + 60000*10}),
+                 synthetic({type: 'redo'}, {timestamp: now + 60000*45}),
+                 synthetic({type: 'redo'}, {timestamp: now + 60000*60})]
+
+    const actions = getMessage(log, form, user)
+    actions.length.should.equal(0) 
+
+    const state = getState(log)
+    state.retries.should.eql([now, now + 60000, now + 60000*10, now + 60000*45])
+  })
+
+
+  it('Wipes the retries history when a message is finally sent', () => {
+    const form = { logic: [],
+                   fields: [{type: 'short_text', title: 'foo', ref: 'foo'}, 
+                            {type: 'thankyou_screen', title: 'baz', ref: 'baz'}]}
+
+    const now = Date.now() - 60000*60
+
+    const log = [referral,
+                 synthetic({type: 'redo'}, {timestamp: now}), 
+                 synthetic({type: 'redo'}, {timestamp: now + 60000}),
+                 synthetic({type: 'redo'}, {timestamp: now + 60000*10}),
+                 synthetic({type: 'redo'}, {timestamp: now + 60000*45}),
+                 synthetic({type: 'redo'}, {timestamp: now + 60000*60}), 
+                 echo,
+                 text
+                ]
+
+    const actions = getMessage(log, form, user)
+    actions.length.should.equal(1) 
+
+    const state = getState(log)
+    should.not.exist(state.retries)
   })
 
 
@@ -1287,7 +1373,7 @@ describe('Machine', () => {
                    fields: [{type: 'statement', title: 'foo', ref: 'foo'},
                             {type: 'short_text', title: 'bar', ref: 'bar'}]}
 
-    const log = [referral, statementEcho, syntheticRedo]
+    const log = [referral, statementEcho, synthetic({type: 'redo'})]
 
     const actions = getMessage(log, form, user)
     actions[0].message.text.should.equal('foo')
@@ -1309,7 +1395,7 @@ describe('Machine', () => {
                    fields: [{type: 'statement', title: 'foo', ref: 'foo', properties: { description: 'type: wait\nwait:\n    type: timeout\n    value: 25 hours'}},
                            {type: 'short_text', title: 'bar', ref: 'bar' }]}
 
-    const log = [referral, optin, _echo({wait, ref: 'foo'}), externalEvent, syntheticRedo]
+    const log = [referral, optin, _echo({wait, ref: 'foo'}), externalEvent, synthetic({type:'redo'})]
 
     const action = getMessage(log, form, user)
 
@@ -1324,7 +1410,7 @@ describe('Machine', () => {
     const form = { logic: [],
                    fields: [{type: 'multiple_choice', title: 'foo', ref: 'foo', properties: {choices: [{label: 'qux'}, {label: 'quux'}]}}]}
 
-    const log = [referral, echo, text, syntheticRedo]
+    const log = [referral, echo, text, synthetic({type: 'redo'})]
     const action = getMessage(log, form, user)[0]
 
     action.message.metadata.should.equal('{"repeat":true,"ref":"foo"}')
@@ -1334,7 +1420,7 @@ describe('Machine', () => {
 
   it('It switches forms again if redo sent after form switch', () => {
     const metadata = { "type":"stitch", "stitch": {"form":"BAR"}, "ref":"foo" }
-    const log = [referral, _echo(metadata), syntheticRedo]
+    const log = [referral, _echo(metadata), synthetic({type: 'redo'})]
 
     const state = getState(log)
     state.state.should.equal('RESPONDING')
@@ -1349,7 +1435,7 @@ describe('Machine', () => {
                             {type: 'short_text', title: 'bar', ref: 'bar'}]}
 
     const metadata = { "type":"stitch", "stitch": {"form":"BAR"}, "ref":"foo" }
-    const log = [referral, _echo(metadata), syntheticRedo]
+    const log = [referral, _echo(metadata), synthetic({type: 'redo'})]
 
     const actions = getMessage(log, form, user)
     actions.length.should.equal(2)
@@ -1364,13 +1450,14 @@ describe('Machine', () => {
                             {type: 'short_text', title: 'bar', ref: 'bar'}]}
 
     const pr = _.set(syntheticPR, 'event.value.response', {error: {code: 2022}})
-    const log = [referral, echo, pr, syntheticRedo]
+    const log = [referral, echo, pr, synthetic({type: 'redo'})]
 
     const actions = getMessage(log, form, user)
     actions.length.should.equal(2)
     actions[0].message.text.should.equal('foo')
     actions[1].message.text.should.equal('bar')
   })
+
 
 
 
@@ -1384,10 +1471,25 @@ describe('Machine', () => {
 
     const echoBar = _.set(echo, 'message.metadata.ref', 'bar')
 
-    const log = [referral, statementEcho, echoBar, syntheticRedo]
+    const log = [referral, statementEcho, echoBar, synthetic({type: 'redo'})]
     const action = getMessage(log, form, user)[0]
 
     should.not.exist(action)
   })
 
+})
+
+describe('shouldRetry', () => {
+  it('works with undefined and empty', () => {
+    _shouldRetry().should.equal(true)
+    _shouldRetry([]).should.equal(true)
+  })
+
+  it('will retry following exponential logic in minutes', () => {
+    _shouldRetry([Date.now() - 60000*2]).should.equal(true) 
+    _shouldRetry([1, Date.now() - 60000*2]).should.equal(false)
+
+    _shouldRetry([1, 2, 4, 5, Date.now() - 60000*30]).should.equal(false)
+    _shouldRetry([1, 2, 4, 5, Date.now() - 60000*32]).should.equal(true)
+  })
 })

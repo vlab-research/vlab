@@ -1,5 +1,6 @@
 const r2 = require('r2')
 const jwt = require('jsonwebtoken')
+const {MachineIOError} = require('../errors')
 
 
 // TODO: move off auth0, create our own endpoint
@@ -42,11 +43,19 @@ async function getForm(pageid, shortcode, timestamp) {
 
   const f = await res.json()
   if (f.error) {
+
+    if (res.status === 404) {
+      throw new MachineIOError('FORM_NOT_FOUND', 
+                               `Survey with shortcode ${shortcode} could not be found.`, 
+                               {...f.error, status: res.status})
+    }
+ 
     const e = new Error('Error from form server')
     e.details = f.error
     e.details.status = res.status
     throw e
   }
+
   const {id:surveyId, form, messages} = f
   return [translateForm(JSON.parse(form), JSON.parse(messages)), surveyId]
 }

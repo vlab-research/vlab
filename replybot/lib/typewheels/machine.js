@@ -36,7 +36,7 @@ function repeatResponse(question, text) {
 
   return {
     text,
-    metadata: JSON.stringify({ repeat: true, ref: question })
+    metadata: JSON.stringify({ repeat: true, ref: question }) 
   }
 }
 
@@ -67,6 +67,12 @@ function _externalEvent(event) {
   return (event.source === 'synthetic') &&
     ((event.event.type === 'timeout') ||
      (event.event.type === 'external'))
+}
+
+function _shouldRetry (r) {
+  if (!r || !r.length) return true
+  const add = 60000*(2**r.length)
+  return add + _.last(r) <= Date.now()
 }
 
 function categorizeEvent(nxt) {
@@ -146,7 +152,7 @@ function tokenWrap(state, nxt, output) {
 
 
 
-function exec (state, nxt) {
+function exec (state, nxt) { 
   switch(categorizeEvent(nxt)) {
 
   case 'REFERRAL': {
@@ -209,8 +215,16 @@ function exec (state, nxt) {
 
   case 'REDO': {
     const dontRedo = ['QOUT', 'END']
+
     if (dontRedo.includes(state.state)) return _noop()
-    return { action: 'RESPOND_AGAIN', ...state.previousOutput }
+
+    if (!_shouldRetry(state.retries)) return _noop()
+
+    const newRetries = [...(state.retries || []), nxt.timestamp]
+
+    return { action: 'RESPOND_AGAIN', 
+             stateUpdate: { retries: newRetries }, 
+             ...state.previousOutput }
   }
 
   case 'FOLLOW_UP': {
@@ -390,7 +404,11 @@ function apply (state, output) {
             question: output.question,
             previousOutput: output,
             error: undefined, // remove error when responding
+            retries: undefined, // remove retries when responding
             qa: updateQA(state.qa, update(output)) }
+
+  case 'RESPOND_AGAIN':
+    return {...state, ...output.stateUpdate}
 
   case 'SWITCH_FORM':
     return { ..._initialState(),
@@ -567,5 +585,6 @@ module.exports = {
   act,
   update,
   getMessage,
-  _initialState
+  _initialState,
+  _shouldRetry
 }
