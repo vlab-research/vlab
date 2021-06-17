@@ -65,7 +65,7 @@ const fb = (cb) => {
       .then((res) => {
         if (res.error) throw new Error(res.error);
         const { access_token } = res;
-        return getPages(access_token, 3).then(result => ({ result, access_token }));
+        return getPages(access_token, 10).then(result => ({ result, access_token }));
       })
       .then(cb)
       .catch(err => console.error(err)); //eslint-disable-line
