@@ -160,8 +160,7 @@ describe('Test Bot flow Survey Integration Testing', () => {
       await snooze(8000)
       const state = await getState(chatbase, userId)
       state.current_state.should.equal('ERROR')
-      state.state_json.error.tag.should.equal('INTERNAL')
-      state.state_json.error.message.should.equal('getForm')
+      state.state_json.error.tag.should.equal('FORM_NOT_FOUND') // change this
       state.state_json.error.status.should.equal(404)
     })
 
@@ -441,6 +440,54 @@ describe('Test Bot flow Survey Integration Testing', () => {
 
       sender(makeReferral(userId, 'ulrtpfSQ'))
       await flowMaster(userId, testFlow)
+    })
+
+
+    it('Retries sending the message when it fails with a proper code',  async () => {
+      const userId = uuid()
+      const fields = getFields('forms/LDfNCy.json')
+      const err = { error: { code: -1 }}
+
+      const testFlow = [
+        [err, fields[0], []],
+        [ok, fields[0], [makePostback(fields[0], userId, 0)]],
+        [ok, fields[1], [makePostback(fields[1], userId, 0)]],
+        [ok, fields[2], [makeTextResponse(userId, 'LOL')]],
+        [ok, fields[4], []],
+        [ok, fields[5], []],
+      ]
+
+      sender(makeReferral(userId, 'LDfNCy'))
+      await flowMaster(userId, testFlow)
+
+      // wait for scribble to catch up
+      await snooze(8000)
+      const state = await getState(chatbase, userId)
+      state.current_state.should.equal('END')
+    })    
+  })
+
+  parallel('Waits', function () {
+    this.timeout(300000)
+
+    it('Retries sending the message only up to a point',  async () => {
+      const userId = uuid()
+      const fields = getFields('forms/LDfNCy.json')
+      const err = { error: { code: -1 }}
+
+      const testFlow = [
+        [err, fields[0], []],
+        [err, fields[0], []],
+        [err, fields[0], []]
+      ]
+
+      sender(makeReferral(userId, 'LDfNCy'))
+      await flowMaster(userId, testFlow)
+
+      // wait for scribble to catch up
+      await snooze(8000)
+      const state = await getState(chatbase, userId)
+      state.current_state.should.equal('BLOCKED')
     })
   })
 
