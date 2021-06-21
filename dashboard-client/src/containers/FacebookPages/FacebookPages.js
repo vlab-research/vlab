@@ -50,7 +50,7 @@ const getPages = (access_token, limit, after) => new Promise((resolve, reject) =
   });
 });
 
-const fb = (cb) => {
+const fb = () => new Promise((resolve, reject) => {
   const cnf = {
     scope: 'public_profile,email,pages_show_list,pages_messaging,pages_manage_metadata',
     return_scopes: true,
@@ -58,12 +58,12 @@ const fb = (cb) => {
 
   window.FB.login((res) => {
     if (res.error) {
-      cb(res.error);
+      reject(new Error(res.error));
       return;
     }
 
     if (!res.authResponse) {
-      cb(`No authResponse in response: ${res}`);
+      reject(new Error(`No authResponse in response: ${JSON.stringify(res)}`));
       return;
     }
 
@@ -77,10 +77,10 @@ const fb = (cb) => {
         const { access_token } = res;
         return getPages(access_token, 3).then(result => ({ result, access_token }));
       })
-      .then(res => cb(null, res))
-      .catch(err => cb(err));
+      .then(res => resolve(res))
+      .catch(err => reject(err));
   }, cnf);
-};
+});
 
 
 const FacebookPages = () => {
@@ -172,17 +172,16 @@ const FacebookPages = () => {
   useEffect(() => {
     loadSDK();
     initFB(() => {
-      fb((err, res) => {
-        if (err) {
+      fb()
+        .then((res) => {
+          setPages(res.result.data);
+
+          // TODO: build UI to page though pages.
+          // getPages(res.access_token, 3, res.result.paging.cursors.after).then(console.log);
+        })
+        .catch((err) => {
           alert(`There was an error in the FB login attempt: ${err}`);
-          return;
-        }
-
-        setPages(res.result.data);
-
-        // TODO: build UI to page though pages.
-        // getPages(res.access_token, 3, res.result.paging.cursors.after).then(console.log);
-      });
+        });
     });
   }, []);
 
