@@ -57,6 +57,11 @@ const fb = (cb) => {
   };
 
   window.FB.login((res) => {
+    if (res.error) {
+      cb(res.error);
+      return;
+    }
+
     const token = res.authResponse.accessToken;
     const body = { token };
 
@@ -67,8 +72,8 @@ const fb = (cb) => {
         const { access_token } = res;
         return getPages(access_token, 3).then(result => ({ result, access_token }));
       })
-      .then(cb)
-      .catch(err => console.error(err)); //eslint-disable-line
+      .then(res => cb(null, res))
+      .catch(err => cb(err));
   }, cnf);
 };
 
@@ -162,7 +167,12 @@ const FacebookPages = () => {
   useEffect(() => {
     loadSDK();
     initFB(() => {
-      fb((res) => {
+      fb((err, res) => {
+        if (err) {
+          alert(`There was an error in the FB login attempt: ${err}`);
+          return;
+        }
+
         setPages(res.result.data);
 
         // TODO: build UI to page though pages.
