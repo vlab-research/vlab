@@ -62,6 +62,11 @@ const fb = (cb) => {
       return;
     }
 
+    if (!res.authResponse) {
+      cb(`No authResponse in response: ${res}`);
+      return;
+    }
+
     const token = res.authResponse.accessToken;
     const body = { token };
 
