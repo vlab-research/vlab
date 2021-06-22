@@ -16,7 +16,7 @@ export const Loading = ({ children }) => (
 );
 
 Loading.propTypes = {
-  children: PropTypes.element,
+  children: PropTypes.node,
 };
 
 export const CreateBtn = styled(Link)`
