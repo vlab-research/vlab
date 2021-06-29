@@ -8,6 +8,10 @@ const {TokenStore} = require('./typewheels/tokenstore')
 const {producer, producerReady} = require('./producer')
 
 
+const REPLYBOT_STATESTORE_TTL = process.env.REPLYBOT_STATESTORE_TTL || '24h'
+const REPLYBOT_MACHINE_TTL = process.env.REPLYBOT_MACHINE_TTL || '60m'
+
+
 async function publishReport(report) {
   const url = process.env.BOTSERVER_URL
   const json = { user: report.user,
@@ -77,12 +81,13 @@ function processor(machine, stateStore) {
   }
 }
 
+
 // EventStore with chatbase backend
 const Chatbase = require(process.env.CHATBASE_BACKEND)
 const chatbase = new Chatbase()
-const stateStore = new StateStore(chatbase)
+const stateStore = new StateStore(chatbase, REPLYBOT_STATESTORE_TTL)
 const tokenstore = new TokenStore(chatbase.pool)
-const machine = new Machine('60m', tokenstore) // SET TTL!
+const machine = new Machine(REPLYBOT_MACHINE_TTL, tokenstore)
 
 function handle(err) {
   throw err
