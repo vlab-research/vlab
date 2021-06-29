@@ -114,8 +114,7 @@ function getField({form, user}, ref, index=false) {
   const field = form.fields[idx]
 
   if (!field) {
-    throw new FieldError(`Could not find the requested field, ${ref},
-                          in our form: ${form.id}, for user id: ${user.id}!`)
+    throw new FieldError(`Could not find the requested field, ${ref}, in our form: ${form.id}, for user id: ${user.id}!`)
   }
 
   return index ? [idx, field] : field
