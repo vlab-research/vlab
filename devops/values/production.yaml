@@ -18,7 +18,7 @@ chatbaseHost: &host "gbv-cockroachdb-public"
 
 versionDashboard: &vdashboard 0.0.25
 versionBotserver: &vbotserver 0.0.9
-versionReplybot: &vreplybot v0.0.117
+versionReplybot: &vreplybot v0.0.118
 versionLinksniffer: &vlinksniffer 0.0.3
 versionDean: &vdean 0.0.22
 versionScribble: &vscribble 0.0.20
@@ -130,7 +130,7 @@ dean:
   - name: BOTSERVER_URL
     value: "http://gbv-botserver/synthetic"
   - name: DEAN_ERROR_TAGS
-    value: "NETWORK,INTERNAL"
+    value: "NETWORK,INTERNAL,STATE_ACTIONS"
   - name: DEAN_ERROR_INTERVAL
     value: "24 hours"
   - name: DEAN_FB_CODES
@@ -150,7 +150,7 @@ dean:
   queries:
     - name: respondings
       queries: "respondings,blocked,errored"
-      schedule: "0 */1 * * *"
+      schedule: "*/10 * * * *"
       resources:
         requests:
           cpu: 10m
@@ -391,10 +391,10 @@ replybot:
   resources:
     requests:
       cpu: 15m
-      memory: 80Mi
+      memory: 100Mi
   env:
   - name: FAKE
-    value: "NOTHIN"
+    value: "NOTHING"
   - name: CHATBASE_BACKEND
     value: "@vlab-research/chatbase-postgres"
   - name: CHATBASE_DATABASE
@@ -478,10 +478,10 @@ cockroachdb:
     resources:
       requests:
         cpu: 200m
-        memory: 3000Mi
+        memory: 8000Mi
   conf:
-    cache: 1536Mi
-    max-sql-memory: 1536Mi
+    cache: 3500Mi
+    max-sql-memory: 3000Mi
     max-disk-temp-storage: 24GiB
     budget:
       maxUnavailable: 1
@@ -489,5 +489,5 @@ cockroachdb:
     enabled: no
   storage:
     persistentVolume:
-      size: 50Gi
+      size: 100Gi
       storageClass: "pd-ssd"
