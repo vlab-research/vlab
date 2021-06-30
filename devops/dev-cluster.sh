@@ -8,10 +8,10 @@
 kubectl config use-context kind-kind
 
 ######################
-# env file for testing
+# env file for dev
 ######################
-
-kubectl create secret generic gbv-bot-envs --from-env-file=testing/.test-env
+# NOTE: this contains actual secrets
+kubectl create secret generic gbv-bot-envs --from-env-file=dev/.env
 
 ######################
 # install
