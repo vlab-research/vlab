@@ -1,0 +1,29 @@
+name: Dashboard Frontend Tests
+on:
+  push:
+    paths:
+      - "dashboard-frontend/**"
+
+jobs:
+  tests:
+    name: Tests
+    runs-on: ubuntu-20.04
+    env:
+      working-directory: ./dashboard-frontend
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-node@v2
+        with:
+          node-version: "14.17.0"
+      - name: Install Dependencies
+        run: npm ci
+        working-directory: ${{env.working-directory}}
+      - name: Unit Tests
+        run: npm test -- --watchAll=false
+        working-directory: ${{env.working-directory}}
+      - name: E2E Tests
+        uses: cypress-io/github-action@v2
+        with:
+          start: npm start
+          wait-on: "http://localhost:3000"
+          working-directory: ${{env.working-directory}}
