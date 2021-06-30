@@ -214,9 +214,10 @@ function exec (state, nxt) {
 
     const newRetries = [...(state.retries || []), nxt.timestamp]
 
-    return { action: 'RESPOND_AGAIN',
-             stateUpdate: { retries: newRetries },
-             ...state.previousOutput }
+    return { ...state.previousOutput,
+             action: 'RESPOND_AGAIN',
+             stateUpdate: { retries: newRetries }
+           }
   }
 
   case 'FOLLOW_UP': {
@@ -389,6 +390,9 @@ function apply (state, output) {
 
   case 'RESPOND':
 
+    // NOTE: by removing errors/retries on RESPOND, we are "resetting"
+    // our retry-on-error process (and exponential backoff) whenever
+    // the user responds. I think this is reasonable. But it's implicit here.
     return {...state,
             ...output.stateUpdate,
             state: 'RESPONDING',
@@ -400,7 +404,9 @@ function apply (state, output) {
             qa: updateQA(state.qa, update(output)) }
 
   case 'RESPOND_AGAIN':
-    return {...state, ...output.stateUpdate}
+    return {...state,
+            ...output.stateUpdate,
+            state: 'RESPONDING' }
 
   case 'SWITCH_FORM':
     return { ..._initialState(),

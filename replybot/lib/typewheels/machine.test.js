@@ -1294,6 +1294,24 @@ describe('Machine', () => {
     state.retries.should.eql([20])
   })
 
+  it('Resends a waiting message with a redo event when blocked and keeps retry and qa', () => {
+    const form = { logic: [],
+                   fields: [{type: 'short_text', title: 'foo', ref: 'foo'},
+                            {type: 'short_text', title: 'bar', ref: 'bar'}]}
+
+    const report = synthetic({ type: 'machine_report', value: {error: { tag: 'FB', code: 200, message: 'foo'}}})
+
+    const log = [referral, echo, text, report, synthetic({type: 'redo'})]
+
+    const actions = getMessage(log, form, user)
+    actions[0].message.text.should.equal('bar')
+
+    const state = getState(log)
+    state.retries.should.eql([20])
+    state.qa.should.eql([['foo', 'foo']])
+  })
+
+
 
   it('Wipes the retries history when a message is finally sent', () => {
     const form = { logic: [],
