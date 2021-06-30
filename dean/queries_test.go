@@ -52,6 +52,7 @@ const (
 		  END) STORED,
                   fb_error_code varchar AS (state_json->'error'->>'code') STORED,
                   error_tag VARCHAR AS (state_json->'error'->>'tag') STORED,
+                  next_retry TIMESTAMP AS ((FLOOR((POWER(2, JSON_ARRAY_LENGTH(state_json->'retries'))*60000 + (state_json->'retries'->>-1)::INT)::INT)/1000)::INT::TIMESTAMP) STORED,
                   CONSTRAINT "valid_state_json" CHECK (state_json ? 'state'),
 				  PRIMARY KEY (userid, pageid)
            );`
@@ -67,6 +68,18 @@ func getEvents(ch <-chan *ExternalEvent) []*ExternalEvent {
 		events = append(events, e)
 	}
 	return events
+}
+
+func makeMs(mins time.Duration) int64 {
+	ts := time.Now().UTC().Add(mins)
+	ms := ts.Unix() * 1000
+	return ms
+}
+
+func makeStateJson(startTime time.Time, form, previousOutput string) string {
+	base := `{"state": "QOUT", "md": { "startTime": %v }, "forms": ["%v"], "question": "foo", "previousOutput": %v }`
+
+	return fmt.Sprintf(base, startTime.Unix()*1000, form, previousOutput)
 }
 
 func TestGetRespondingsGetsOnlyThoseInGivenInterval(t *testing.T) {
@@ -161,6 +174,44 @@ func TestGetBlockedOnlyGetsThoseWithCodesInsideWindow(t *testing.T) {
 	mustExec(t, pool, "drop table states")
 }
 
+func TestGetBlockedOnlyGetsThoseWithNextRetryPassed(t *testing.T) {
+	pool := testPool()
+	defer pool.Close()
+
+	mustExec(t, pool, stateSql)
+	mustExec(t, pool, insertQuery,
+		"foo",
+		"bar",
+		time.Now().Add(-30*time.Minute),
+		"BLOCKED",
+		fmt.Sprintf(`{"state": "BLOCKED", "error": {"code": 2020}, "retries": [%d]}`, makeMs(-2*time.Minute)))
+	mustExec(t, pool, insertQuery,
+		"bar",
+		"bar",
+		time.Now().Add(-30*time.Minute),
+		"BLOCKED",
+		fmt.Sprintf(`{"state": "BLOCKED", "error": {"code": 2020}, "retries": [%d]}`, makeMs(-1*time.Minute)))
+
+	mustExec(t, pool, insertQuery,
+		"baz",
+		"bar",
+		time.Now().Add(-30*time.Minute),
+		"BLOCKED",
+		fmt.Sprintf(`{"state": "BLOCKED", "error": {"code": 2020}, "retries": [%d, %d, %d]}`,
+			makeMs(-12*time.Minute),
+			makeMs(-10*time.Minute),
+			makeMs(-6*time.Minute)))
+
+	cfg := &Config{BlockedInterval: "1 hour", Codes: []string{"2020", "-1"}}
+	ch := Blocked(cfg, pool)
+	events := getEvents(ch)
+
+	assert.Equal(t, 1, len(events))
+	assert.Equal(t, "foo", events[0].User)
+
+	mustExec(t, pool, "drop table states")
+}
+
 func TestGetErroredGetsByTag(t *testing.T) {
 	pool := testPool()
 	defer pool.Close()
@@ -228,12 +279,6 @@ func TestGetTimeoutsGetsOnlyExpiredTimeouts(t *testing.T) {
 	assert.Equal(t, string(ev), fmt.Sprintf(`{"type":"timeout","value":%v}`, ms))
 
 	mustExec(t, pool, "drop table states")
-}
-
-func makeStateJson(startTime time.Time, form, previousOutput string) string {
-	base := `{"state": "QOUT", "md": { "startTime": %v }, "forms": ["%v"], "question": "foo", "previousOutput": %v }`
-
-	return fmt.Sprintf(base, startTime.Unix()*1000, form, previousOutput)
 }
 
 func TestFollowUpsGetsOnlyThoseBetweenMinAndMaxAndIgnoresAllSortsOfThings(t *testing.T) {
