@@ -144,21 +144,4 @@ describe('getUserInfo', () => {
     const res = await m.getUserInfo('foo', 'token')
     res.name.should.equal('_')
   })
-
-  it('should throw MachineIOError if there is a network issue from Facebook and return default', async () => {
-    let error;
-
-    nock(BASE_URL)
-      .get(`/${V}/foo?fields=id,name,first_name,last_name`)
-      .replyWithError({code: 'ETIMEDOUT', connect: false});
-
-    try {
-      await m.getUserInfo('foo', 'token')
-    } catch (e) {
-      error = e
-    }
-
-    error.should.be.instanceof(MachineIOError)
-    error.tag.should.equal('NETWORK')
-  })
 })

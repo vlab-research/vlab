@@ -5,7 +5,7 @@ const fs = require('fs')
 const _ = require('lodash')
 const {parseLogJSON} = require('./utils')
 const {followUpMessage}= require('@vlab-research/translate-typeform')
-const {_shouldRetry, _initialState, getMessage, exec, act, apply, getState, getCurrentForm, getWatermark, makeEventMetadata} = require('./machine')
+const {_initialState, getMessage, exec, act, apply, getState, getCurrentForm, getWatermark, makeEventMetadata} = require('./machine')
 const form = JSON.parse(fs.readFileSync('mocks/sample.json'))
 const { echo, tyEcho, statementEcho, repeatEcho, delivery, read, qr, text, sticker, multipleChoice, referral, USER_ID, reaction, syntheticBail, syntheticPR, optin, payloadReferral, syntheticRedo, synthetic } = require('./events.test')
 
@@ -475,11 +475,23 @@ describe('getState', () => {
   })
 
   it('gets into a blocked state when given a report with a FB error', () => {
-    const report = synthetic({ type: 'machine_report', value: {error: { tag: 'FB', code: 200}}})
+    const report = synthetic({ type: 'machine_report', value: {error: { tag: 'FB', code: 200, message: 'foo'}}})
     const log = [referral, echo, text, report]
     const state = getState(log)
     state.state.should.equal('BLOCKED')
     state.error.code.should.equal(200)
+    state.error.message.should.equal('foo')
+  })
+
+
+  it('gets into a new blocked state when given a new report with a new FB error', () => {
+    const reportA = synthetic({ type: 'machine_report', value: {error: { tag: 'FB', code: 200, message: 'foo'}}})
+    const reportB = synthetic({ type: 'machine_report', value: {error: { tag: 'FB', code: 300, message: 'bar'}}})
+    const log = [referral, echo, text, reportA, synthetic({type: 'redo'}), reportB]
+    const state = getState(log)
+    state.state.should.equal('BLOCKED')
+    state.error.code.should.equal(300)
+    state.error.message.should.equal('bar')
   })
 
   it('gets into an error state when given a report with a different error', () => {
@@ -1283,83 +1295,25 @@ describe('Machine', () => {
   })
 
 
-  it('Ignores a second redo if one was just sent', () => {
-    const form = { logic: [],
-                   fields: [{type: 'statement', title: 'foo', ref: 'foo'},
-                            {type: 'short_text', title: 'bar', ref: 'bar'}]}
-
-    const now = Date.now()
-
-    const log = [referral, 
-                 synthetic({type: 'redo'}, {timestamp: now}), 
-                 synthetic({type: 'redo'}, {timestamp: now + 60000})]
-
-    const actions = getMessage(log, form, user)
-    actions.length.should.equal(0) 
-    const state = getState(log)
-    state.retries.should.eql([now])
-  })
-
-  it('Sends more redos if it has been a while since the last one', () => {
-    const form = { logic: [],
-                   fields: [{type: 'statement', title: 'foo', ref: 'foo'},
-                            {type: 'short_text', title: 'bar', ref: 'bar'}]}
-
-    const now = Date.now() - 60000*60
-
-    const log = [referral, 
-                 synthetic({type: 'redo'}, {timestamp: now}), 
-                 synthetic({type: 'redo'}, {timestamp: now + 60000}),
-                 synthetic({type: 'redo'}, {timestamp: now + 60000*10})]
-
-    const actions = getMessage(log, form, user)
-    actions.length.should.equal(2) 
-    const state = getState(log)
-    state.retries.should.eql([now, now + 60000, now + 60000*10]) 
-  })
-
-
-  it('Doesnt send more redos if it hasnt been so since the last one', () => {
-    const form = { logic: [],
-                   fields: [{type: 'statement', title: 'foo', ref: 'foo'},
-                            {type: 'short_text', title: 'bar', ref: 'bar'}]}
-
-    const now = Date.now() - 60000*60
-
-    const log = [referral, 
-                 synthetic({type: 'redo'}, {timestamp: now}), 
-                 synthetic({type: 'redo'}, {timestamp: now + 60000}),
-                 synthetic({type: 'redo'}, {timestamp: now + 60000*10}),
-                 synthetic({type: 'redo'}, {timestamp: now + 60000*45}),
-                 synthetic({type: 'redo'}, {timestamp: now + 60000*60})]
-
-    const actions = getMessage(log, form, user)
-    actions.length.should.equal(0) 
-
-    const state = getState(log)
-    state.retries.should.eql([now, now + 60000, now + 60000*10, now + 60000*45])
-  })
-
-
   it('Wipes the retries history when a message is finally sent', () => {
     const form = { logic: [],
-                   fields: [{type: 'short_text', title: 'foo', ref: 'foo'}, 
+                   fields: [{type: 'short_text', title: 'foo', ref: 'foo'},
                             {type: 'thankyou_screen', title: 'baz', ref: 'baz'}]}
 
     const now = Date.now() - 60000*60
 
     const log = [referral,
-                 synthetic({type: 'redo'}, {timestamp: now}), 
+                 synthetic({type: 'redo'}, {timestamp: now}),
                  synthetic({type: 'redo'}, {timestamp: now + 60000}),
                  synthetic({type: 'redo'}, {timestamp: now + 60000*10}),
                  synthetic({type: 'redo'}, {timestamp: now + 60000*45}),
-                 synthetic({type: 'redo'}, {timestamp: now + 60000*60}), 
+                 synthetic({type: 'redo'}, {timestamp: now + 60000*60}),
                  echo,
                  text
                 ]
 
     const actions = getMessage(log, form, user)
-    actions.length.should.equal(1) 
+    actions.length.should.equal(1)
 
     const state = getState(log)
     should.not.exist(state.retries)
@@ -1477,19 +1431,4 @@ describe('Machine', () => {
     should.not.exist(action)
   })
 
-})
-
-describe('shouldRetry', () => {
-  it('works with undefined and empty', () => {
-    _shouldRetry().should.equal(true)
-    _shouldRetry([]).should.equal(true)
-  })
-
-  it('will retry following exponential logic in minutes', () => {
-    _shouldRetry([Date.now() - 60000*2]).should.equal(true) 
-    _shouldRetry([1, Date.now() - 60000*2]).should.equal(false)
-
-    _shouldRetry([1, 2, 4, 5, Date.now() - 60000*30]).should.equal(false)
-    _shouldRetry([1, 2, 4, 5, Date.now() - 60000*32]).should.equal(true)
-  })
 })

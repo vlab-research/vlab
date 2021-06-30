@@ -36,7 +36,7 @@ function repeatResponse(question, text) {
 
   return {
     text,
-    metadata: JSON.stringify({ repeat: true, ref: question }) 
+    metadata: JSON.stringify({ repeat: true, ref: question })
   }
 }
 
@@ -67,12 +67,6 @@ function _externalEvent(event) {
   return (event.source === 'synthetic') &&
     ((event.event.type === 'timeout') ||
      (event.event.type === 'external'))
-}
-
-function _shouldRetry (r) {
-  if (!r || !r.length) return true
-  const add = 60000*(2**r.length)
-  return add + _.last(r) <= Date.now()
 }
 
 function categorizeEvent(nxt) {
@@ -152,7 +146,7 @@ function tokenWrap(state, nxt, output) {
 
 
 
-function exec (state, nxt) { 
+function exec (state, nxt) {
   switch(categorizeEvent(nxt)) {
 
   case 'REFERRAL': {
@@ -218,12 +212,10 @@ function exec (state, nxt) {
 
     if (dontRedo.includes(state.state)) return _noop()
 
-    if (!_shouldRetry(state.retries)) return _noop()
-
     const newRetries = [...(state.retries || []), nxt.timestamp]
 
-    return { action: 'RESPOND_AGAIN', 
-             stateUpdate: { retries: newRetries }, 
+    return { action: 'RESPOND_AGAIN',
+             stateUpdate: { retries: newRetries },
              ...state.previousOutput }
   }
 
@@ -585,6 +577,5 @@ module.exports = {
   act,
   update,
   getMessage,
-  _initialState,
-  _shouldRetry
+  _initialState
 }
