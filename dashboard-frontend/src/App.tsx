@@ -13,6 +13,7 @@ function App() {
   return (
     <div className="bg-gray-200 min-h-screen p-8 flex flex-col items-center justify-center antialiased">
       <div>
+        <h1>Smoke Test</h1>
         <pre>{JSON.stringify(study, null, 2)}</pre>
       </div>
     </div>
