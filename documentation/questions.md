@@ -2,19 +2,19 @@
 
 Fly supports the following question types:
 
-#### Short Text
+## Short Text
 
 This is a free text question. The user can type anything and send it in the chat and it will be accepted as valid. 
 
 In Typeform, pick "Short Text"
 
-#### Multiple Choice
+## Multiple Choice
 
 Creates a multiple choice question. 
 
 In Typeform, pick "Multiple Choice".
 
-**Notes:** 
+Notes:
 
 1. You can have a maximum of 13 answers.
 2. If any answer text is longer than 15 characters, you should use letters A,B,C...M as the answers instead and the question text should be written in the following format: 
@@ -31,21 +31,21 @@ Which region do you live in?
 
 The `-` and the `.` before and after the letters are optional, but recommended for legibility.
 
-#### Number
+## Number
 
 Number type validates that the user has sent us a number and only a number. To change the error message when a user enters something other than a number, do: ....
 
 In Typeform, pick "Number".
 
 
-#### Statement
+## Statement
 
 A statement is a simple message that you send. The bot will move on to the next question without waiting for a response. 
 
 In Typeform, pick "Statement"
 
 
-#### Stitch
+## Stitch
 
 When stitching from one form to another, the "stitch" must be a statement:
 
@@ -58,9 +58,9 @@ JSON:
 
 Where `FORM_SHORTCODE` is the shortcode of the form you'd like to move to.
 
-#### Wait - Timeout
+## Wait - Timeout
 
-##### Relative timeout:
+### Relative timeout:
 
 
 JSON:
@@ -80,7 +80,7 @@ JSON:
 `value` written as "1 minute" or "2 hours" or "2 days".
 
 
-##### Absolute timeout:
+### Absolute timeout:
 
 JSON:
 
@@ -100,7 +100,7 @@ JSON:
 ```
 
 
-#### Notify
+## Notify
 
 This creates the "Notify Me" built-in message from Facebook, which gives us token to write them later. This is necessary before a Wait/Timeout of more than 24 hours. The system will store all recieved tokens and automatically try and use them if it is sending a message after 24 hours have passed.
 
@@ -118,7 +118,7 @@ NOTE: The token only gives you permission to send a single message. As such, the
 
 ALSO NOTE: You need one time notification permission to use the notify type. To get that go to Advanced Messaging under your Page Settings to request the permission.
 
-#### Payment - Reloadly
+## Payment - Reloadly
 
 JSON:
 ``` json
