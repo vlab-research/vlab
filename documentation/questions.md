@@ -1,5 +1,50 @@
 # Question types
 
+Fly supports the following question types:
+
+#### Short Text
+
+This is a free text question. The user can type anything and send it in the chat and it will be accepted as valid. 
+
+In Typeform, pick "Short Text"
+
+#### Multiple Choice
+
+Creates a multiple choice question. 
+
+In Typeform, pick "Multiple Choice".
+
+**Notes:** 
+
+1. You can have a maximum of 13 answers.
+2. If any answer text is longer than 15 characters, you should use letters A,B,C...M as the answers instead and the question text should be written in the following format: 
+
+```
+Which region do you live in? 
+-A. North Central (Middle Belt)
+-B. North East
+-C. North West
+-D. South East
+-E. South South (Niger Delta)
+-F. South West
+```
+
+The `-` and the `.` before and after the letters are optional, but recommended for legibility.
+
+#### Number
+
+Number type validates that the user has sent us a number and only a number. To change the error message when a user enters something other than a number, do: ....
+
+In Typeform, pick "Number".
+
+
+#### Statement
+
+A statement is a simple message that you send. The bot will move on to the next question without waiting for a response. 
+
+In Typeform, pick "Statement"
+
+
 #### Stitch
 
 When stitching from one form to another, the "stitch" must be a statement:
@@ -45,6 +90,7 @@ JSON:
     "responseMessage": "Please wait!",
     "wait": {
         "type": "timeout",
+        "notifyPermission": "true",
         "value": {
             "type": "absolute",
             "timeout": "2021-08-01 12:00"
@@ -52,6 +98,7 @@ JSON:
     }
 }
 ```
+
 
 #### Notify
 
@@ -68,6 +115,8 @@ NOTE: The token only gives you permission to send a single message. As such, the
 2. wait
 3. question ("do you want to take another quick survey?")
 4. statement with stitch to the next form
+
+ALSO NOTE: You need one time notification permission to use the notify type. To get that go to Advanced Messaging under your Page Settings to request the permission.
 
 #### Payment - Reloadly
 
