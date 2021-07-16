@@ -709,12 +709,12 @@ def test_proportional_budget_optimizes_all_budget():
     price = {"bar": 10.0, "baz": 10.0, "foo": 10.0}
     goal = {"foo": 1 / 3, "bar": 1 / 3, "baz": 1 / 3}
     budget, expected = proportional_budget(goal, spend, tot, price, 100, 10, 1)
-    assert budget["foo"] == 39
-    assert budget["bar"] == 30
-    assert budget["baz"] == 30
-    assert expected["foo"] == 3.9
-    assert expected["bar"] == 4
-    assert expected["baz"] == 4.0
+    assert budget["foo"] == 40
+    assert budget["bar"] == 29
+    assert budget["baz"] == 29
+    assert expected["foo"] == 4.0
+    assert expected["bar"] == 3.9
+    assert expected["baz"] == 3.9
 
 
 def test_proportional_budget_optimizes_for_weights():
@@ -723,9 +723,9 @@ def test_proportional_budget_optimizes_for_weights():
     price = {"bar": 10.0, "baz": 10.0, "foo": 10.0}
     goal = {"foo": 0.3, "bar": 0.2, "baz": 0.5}
     budget, expected = proportional_budget(goal, spend, tot, price, 10000, 10, 1)
-    assert expected["foo"] == 301.8
-    assert expected["bar"] == 201.5
-    assert expected["baz"] == 499.5
+    assert expected["foo"] == 300.8
+    assert expected["bar"] == 200.5
+    assert expected["baz"] == 501.5
 
 
 def test_proportional_budget_drops_strata_under_min_to_min_budget():
@@ -734,7 +734,7 @@ def test_proportional_budget_drops_strata_under_min_to_min_budget():
     price = {"bar": 10.0, "baz": 10.0, "foo": 10.0}
     goal = {"foo": 1 / 3, "bar": 1 / 3, "baz": 1 / 3}
     budget, _ = proportional_budget(goal, spend, tot, price, 100, 16, 2)
-    assert budget["foo"] == 19
+    assert budget["foo"] == 20
     assert budget["bar"] == 16
     assert budget["baz"] == 16
 
@@ -768,6 +768,16 @@ def test_proportional_budget_prioritizes_underperforming_even_at_high_cost():
     goal = {"foo": 1 / 3, "bar": 1 / 3, "baz": 1 / 3}
     budget, _ = proportional_budget(goal, spend, tot, price, 100, 16, 2)
     assert budget["foo"] == 50
+    assert budget["bar"] == 0
+    assert budget["baz"] == 0
+
+def test_proportional_budget_optimizes_even_if_already_pretty_good():
+    spend = {"bar": 100.0, "baz": 100.0, "foo": 100.0}
+    tot = {"bar": 3333, "baz": 3333, "foo": 3000}
+    price = {"bar": 20.0, "baz": 20.0, "foo": 20.0}
+    goal = {"foo": 1 / 3, "bar": 1 / 3, "baz": 1 / 3}
+    budget, _ = proportional_budget(goal, spend, tot, price, 1000, 16, 2)
+    assert budget["foo"] == 500
     assert budget["bar"] == 0
     assert budget["baz"] == 0
 
