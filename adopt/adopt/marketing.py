@@ -236,6 +236,12 @@ def manage_aud(old_auds: List[CustomAudience], aud: Audience) -> List[Instructio
 
     if aud.subtype == "LOOKALIKE" and aud.lookalike is not None:
         count = ca["approximate_count"]
+
+        # use aud.users as size? This would work if Facebook is immediate about
+        # counting the new users, otherwise it will fail.
+        # should make a best-effort kind of thing here.
+        # TODO: Add instruction metadata to allow it to give up on certain fail
+        # codes...
         if aud.lookalike.name not in existing and count > aud.lookalike.target:
             instructions += [
                 create_lookalike_audience(

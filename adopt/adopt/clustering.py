@@ -365,6 +365,17 @@ def get_stats(
 
 # TODO: add frequency -- at least to report if nothing automated
 # probably more elegant just to change "spend" to "insights"
+
+# TODO: we need a more sophisticated process to estimate price.
+# The "BudgetWindow" creates a problem here, it's too miopic
+# If an adset has been turned off for a few days, we forget
+# all information we have about price. Similarly, for very
+# high priced strata, we chronically underestimate the price.
+#
+# Solution: Create a separate job that collects insights data,
+# for each single day, for all active campaigns, and stores
+# them in your database. Then use that timeseries to actually
+# create a reasonable estimate of the price of each user.
 def get_budget_lookup(
     df: Optional[pd.DataFrame],
     strata: Sequence[Union[Stratum, StratumConf]],
