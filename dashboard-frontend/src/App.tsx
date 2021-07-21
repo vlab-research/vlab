@@ -1,23 +1,22 @@
 import React from 'react';
-import { createFakeStudy } from './fixtures/study';
+import { ReactQueryConfigProvider } from 'react-query';
+import { ReactQueryDevtools } from 'react-query-devtools';
+import StudiesPage from './pages/StudiesPage/StudiesPage';
 
-function App() {
-  const study = createFakeStudy({
-    creationDate: Date.now(),
-    desiredParticipants: 24000,
-    numOfDifferentStrata: 10,
-    desiredParticipantsPerStrata: 2400,
-    totalHoursOfData: 24,
-  });
-
-  return (
-    <div className="bg-gray-200 min-h-screen p-8 flex flex-col items-center justify-center antialiased">
-      <div>
-        <h1>Smoke Test</h1>
-        <pre>{JSON.stringify(study, null, 2)}</pre>
-      </div>
-    </div>
-  );
-}
+const App = () => (
+  <React.Fragment>
+    <ReactQueryConfigProvider
+      config={{
+        queries: {
+          retry: !process.env.REACT_APP_RUNNING_IN_E2E_MODE,
+          refetchOnWindowFocus: !process.env.REACT_APP_RUNNING_IN_E2E_MODE,
+        },
+      }}
+    >
+      <StudiesPage />
+    </ReactQueryConfigProvider>
+    <ReactQueryDevtools />
+  </React.Fragment>
+);
 
 export default App;
