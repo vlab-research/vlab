@@ -58,7 +58,7 @@ export class InvalidNumberError extends Error {
   }
 }
 
-const isValidNumber = (num: number) => {
+export const isValidNumber = (num: number) => {
   if (num === Infinity || num === -Infinity || isNaN(num)) {
     return false;
   }

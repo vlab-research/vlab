@@ -24,6 +24,6 @@ jobs:
       - name: E2E Tests
         uses: cypress-io/github-action@v2
         with:
-          start: npm start
+          start: npm run start:e2e-mode
           wait-on: "http://localhost:3000"
           working-directory: ${{env.working-directory}}
