@@ -4,23 +4,23 @@ Fly supports the following question types:
 
 ## Short Text
 
-This is a free text question. The user can type anything and send it in the chat and it will be accepted as valid. 
+This is a free text question. The user can type anything and send it in the chat and it will be accepted as valid.
 
 In Typeform, pick "Short Text"
 
 ## Multiple Choice
 
-Creates a multiple choice question. 
+Creates a multiple choice question.
 
 In Typeform, pick "Multiple Choice".
 
 Notes:
 
 1. You can have a maximum of 13 answers.
-2. If any answer text is longer than 15 characters, you should use letters A,B,C...M as the answers instead and the question text should be written in the following format: 
+2. If any answer text is longer than 15 characters, you should use letters A,B,C...M as the answers instead and the question text should be written in the following format:
 
 ```
-Which region do you live in? 
+Which region do you live in?
 -A. North Central (Middle Belt)
 -B. North East
 -C. North West
@@ -40,10 +40,35 @@ In Typeform, pick "Number".
 
 ## Statement
 
-A statement is a simple message that you send. The bot will move on to the next question without waiting for a response. 
+A statement is a simple message that you send. The bot will move on to the next question without waiting for a response.
 
 In Typeform, pick "Statement"
 
+## Image
+
+JSON:
+```json
+{"type": "attachment",
+ "keepMoving": true,
+ "attachment": {
+    "type": "image",
+    "url": "https://i.imgur.com/ZSHauqq.png"
+ }
+}
+```
+
+## Video
+
+JSON:
+```json
+{"type": "attachment",
+ "keepMoving": true,
+ "attachment": {
+    "type": "video",
+    "url": "https://url-to-your-video.mp4"
+ }
+}
+```
 
 ## Stitch
 
@@ -51,7 +76,7 @@ When stitching from one form to another, the "stitch" must be a statement:
 
 
 JSON:
-```yaml
+```json
 {"type": "stitch",
  "stitch": { "form": "FORM_SHORTCODE" }}
 ```
@@ -72,7 +97,10 @@ JSON:
     "wait": {
         "notifyPermission": "true",
         "type": "timeout",
-        "value": "1 minute"
+        "value": {
+            "type": "relative",
+            "timeout": "2 days"
+        }
     }
 }
 ```
