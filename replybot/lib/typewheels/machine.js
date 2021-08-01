@@ -69,6 +69,7 @@ function _externalEvent(event) {
      (event.event.type === 'external'))
 }
 
+
 function categorizeEvent(nxt) {
   if (nxt.referral ||
       (nxt.postback && nxt.postback.referral) ||
@@ -95,8 +96,12 @@ function categorizeEvent(nxt) {
   if (nxt.message && nxt.message.attachments) return 'MEDIA'
   if (nxt.reaction) return 'REACTION'
 
-  throw new TypeError(`Machine could not categorize event!
-		       \nEvent: ${util.inspect(nxt, null, 8)}`)
+  console.log(`Machine could not categorize event!
+        	       \nEvent: ${util.inspect(nxt, null, 8)}`)
+
+  return 'UNKNOWN'
+
+
 }
 
 function _noop() {
@@ -376,6 +381,13 @@ function exec (state, nxt) {
     return _noop()
 
   }
+
+  case 'UNKNOWN': {
+
+    return _noop()
+  }
+
+
   default:
     throw new TypeError(`Machine did not produce output!\nState: ${util.inspect(state, null, 8)}\nEvent: ${util.inspect(nxt, null, 8)}`)
 

@@ -179,6 +179,20 @@ describe('getState', () => {
     state.question.should.equal('foo')
   })
 
+
+  it('Ignores unknown event (message event)', () => {
+    const e = { sender: { id: '123' },
+                recipient: { id: '345' },
+                timestamp: 1605980769303,
+                message: { mid: 'foo'},
+                source: 'messenger' }
+
+    const log = [referral, text, echo, e]
+    const state = getState(log)
+    state.state.should.equal('QOUT')
+    state.question.should.equal('foo')
+  })
+
   it('Responds to postback', () => {
     const log = [referral, text, echo, multipleChoice]
     const state = getState(log)
@@ -1448,5 +1462,4 @@ describe('Machine', () => {
 
     should.not.exist(action)
   })
-
 })
