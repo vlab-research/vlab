@@ -5,7 +5,7 @@ import LinkModal from '../../components/LinkModal';
 
 const initFB = (cb) => {
   const appId = process.env.REACT_APP_FACEBOOK_APP_ID;
-  const version = '9.0'; // TODO: move to config somewhere!
+  const version = process.env.REACT_APP_FACEBOOK_GRAPH_VERSION;
 
   // quick hack to check for weird facebook sdk global
   // function that should only be set once
@@ -45,20 +45,20 @@ const getPages = (access_token, limit, after) => new Promise((resolve, reject) =
   const params = { access_token, limit, after };
 
   window.FB.api('/me/accounts', params, (res) => {
-    if (res.error) return reject(res.error);
+    if (res.error) return reject(new Error(JSON.stringify(res.error)));
     return resolve(res);
   });
 });
 
 const fb = () => new Promise((resolve, reject) => {
   const cnf = {
-    scope: 'public_profile,email,pages_show_list,pages_messaging,pages_manage_metadata',
+    scope: 'public_profile,email,pages_show_list,pages_messaging,pages_manage_metadata,pages_read_engagement',
     return_scopes: true,
   };
 
   window.FB.login((res) => {
     if (res.error) {
-      reject(new Error(res.error));
+      reject(new Error(JSON.stringify(res.error)));
       return;
     }
 

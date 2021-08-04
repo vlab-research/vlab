@@ -4,6 +4,7 @@ REACT_APP_TYPEFORM_REDIRECT_URL="https://app.vlab.digital/surveys/auth"
 REACT_APP_AUTH0_CALLBACK_URL="https://app.vlab.digital/auth"
 REACT_APP_URL="https://app.vlab.digital"
 REACT_APP_FACEBOOK_APP_ID="699455733740842"
+REACT_APP_FACEBOOK_GRAPH_VERSION="11.0"
 
 [context.staging.environment]
 REACT_APP_SERVER_URL="https://gbv-dashboard-staging.nandan.cloud"
@@ -11,3 +12,4 @@ REACT_APP_TYPEFORM_REDIRECT_URL="https://staging--vlab-research.netlify.app/surv
 REACT_APP_AUTH0_CALLBACK_URL="https://staging--vlab-research.netlify.app/auth"
 REACT_APP_URL="https://staging--vlab-research.netlify.app"
 REACT_APP_FACEBOOK_APP_ID="790352681363186"
+REACT_APP_FACEBOOK_GRAPH_VERSION="11.0"
