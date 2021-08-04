@@ -70,6 +70,43 @@ JSON:
 }
 ```
 
+## Links
+
+It's possible to send a link as a button and allow the users to open it in a Messenger webview:
+
+JSON:
+```json
+{
+  "type": "webview",
+  "url": "https://links.vlab.digital?url=asiapacific.unwomen.org%2Fen%2Fcountries%2Findia",
+  "buttonText": "Visit UN Women",
+  "extensions": false,
+  "keepMoving": true
+}
+```
+
+To track information about the user, add metadata as query parameters in addition to `url` in the `url` value. For example, you can add the user id by adding `&id=` to the end of the URL followed by a typeform ref to a "hidden field" called "id".
+
+Set `keepMoving` to `true` if you want the message to act like a "statement" and continue to the next message. Otherwise, you can combine with a "wait" to wait until the user has clicked the link:
+
+JSON:
+```json
+{
+  "type": "webview",
+  "url": "https://links.vlab.digital?url=asiapacific.unwomen.org%2Fen%2Fcountries%2Findia",
+  "buttonText": "Visit UN Women",
+  "responseMessage": "Click on the button to visit the website",
+  "extensions": false,
+  "wait": {
+    "type": "external",
+    "value": {
+      "type": "linksniffer:click",
+      "url": "https://asiapacific.unwomen.org"
+    }
+  }
+}
+```
+
 ## Stitch
 
 When stitching from one form to another, the "stitch" must be a statement:
