@@ -11,6 +11,8 @@ const {producer, producerReady} = require('./producer')
 const REPLYBOT_STATESTORE_TTL = process.env.REPLYBOT_STATESTORE_TTL || '24h'
 const REPLYBOT_MACHINE_TTL = process.env.REPLYBOT_MACHINE_TTL || '60m'
 
+// TODO: Add /ready endpoint that has await producerReady
+// and /health endpoint that checks kafka connection somehow!
 
 async function publishReport(report) {
   const url = process.env.BOTSERVER_URL

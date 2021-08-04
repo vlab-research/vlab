@@ -18,7 +18,7 @@ chatbaseHost: &host "gbv-cockroachdb-public"
 
 versionDashboard: &vdashboard 0.0.25
 versionBotserver: &vbotserver 0.0.9
-versionReplybot: &vreplybot v0.0.120
+versionReplybot: &vreplybot v0.0.123
 versionLinksniffer: &vlinksniffer 0.0.3
 versionDean: &vdean v0.0.24
 versionScribble: &vscribble 0.0.20
@@ -300,13 +300,13 @@ linksniffer:
     annotations:
       cert-manager.io/cluster-issuer: letsencrypt-prod
     hosts:
-      - host: gbvlinks.nandan.cloud
+      - host: links.vlab.digital
         paths:
           - "/"
     tls:
       - secretName: gbv-linksniffer-cert
         hosts:
-          - gbvlinks.nandan.cloud
+          - links.vlab.digital
 
   service:
     type: ClusterIP
@@ -394,7 +394,7 @@ replybot:
       memory: 100Mi
   env:
   - name: FAKE
-    value: "NOTHING"
+    value: "NOTHIN"
   - name: CHATBASE_BACKEND
     value: "@vlab-research/chatbase-postgres"
   - name: CHATBASE_DATABASE
