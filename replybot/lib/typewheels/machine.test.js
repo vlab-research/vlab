@@ -565,7 +565,7 @@ describe('getState', () => {
     state.question.should.equal('foo')
   })
 
-  it('adds tokens to the state from an optin event', () => {
+  it('adds tokens to the state from an optin event and records response', () => {
 
     // TODO: Is this what we want???
     const log = [referral, echo, optin]
@@ -574,6 +574,7 @@ describe('getState', () => {
     state.state.should.equal('RESPONDING')
     state.tokens.should.eql(['FOOBAR'])
     state.question.should.equal('foo')
+    state.qa.should.eql([['foo', 'optin']])
   })
 
   it('removes tokens to the state when it needs to use them for timeout', () => {

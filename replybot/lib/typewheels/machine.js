@@ -323,7 +323,7 @@ function exec (state, nxt) {
     return { action: 'RESPOND',
              stateUpdate: { tokens },
              response: payload,
-             responseValue: null,
+             responseValue: 'optin',
              question: state.question }
   }
 
