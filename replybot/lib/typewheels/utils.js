@@ -1,4 +1,4 @@
-const {recursiveJSONParser} = require('@vlab-research/utils')
+const {recursiveJSONParser, getPageFromEvent} = require('@vlab-research/utils')
 const farmhash = require('farmhash')
 const _ = require('lodash')
 
@@ -54,6 +54,7 @@ function getMetadata(event) {
 
   md.form = md.form || process.env.FALLBACK_FORM
   md.startTime = event.timestamp
+  md.pageid = getPageFromEvent(event)
 
   return {...md,
           ...randomSeed(event, md)}

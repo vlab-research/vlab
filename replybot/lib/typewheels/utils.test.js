@@ -46,10 +46,23 @@ describe('getMetadata', () => {
   })
 
   it('gets metadata from referral', () => {
-    u.getMetadata(referral).should.deep.equal({ form: 'FOO', foo: 'bar', seed: 4001850155, startTime: referral.timestamp })
+    u.getMetadata(referral)
+      .should.deep.equal(
+        { form: 'FOO',
+          foo: 'bar',
+          seed: 4001850155,
+          startTime: referral.timestamp,
+          pageid: '1051551461692797' }
+      )
   })
 
   it('falls back to fallback infor when there is no referral event', () => {
-    u.getMetadata(echo).should.deep.equal({ form: 'fallback', seed: 3282470650, startTime: echo.timestamp })
+    u.getMetadata(echo)
+      .should.deep.equal(
+        { form: 'fallback',
+          seed: 3282470650,
+          startTime: echo.timestamp,
+          pageid: '1051551461692797' }
+      )
   })
 })

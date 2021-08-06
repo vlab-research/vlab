@@ -143,7 +143,7 @@ describe('Machine integrated', () => {
     report.publish.should.be.true
     report.payment.should.eql({
       userid: 'bar',
-      pageid: 1051551461692797,
+      pageid: '1051551461692797',
       timestamp: 5,
       provider: 'reloadly',
       details: { foo: 'bar' }

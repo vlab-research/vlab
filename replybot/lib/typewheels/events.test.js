@@ -1,5 +1,5 @@
-const USER_ID = 1800244896727776
-const PAGE_ID = 1051551461692797
+const USER_ID = '1800244896727776'
+const PAGE_ID = '1051551461692797'
 
 const referral =  {
   recipient: { id: PAGE_ID },
