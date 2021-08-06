@@ -1,39 +1,38 @@
 package main
 
 import (
-	"net/http"
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"log"
-	"bytes"
+	"net/http"
 )
 
 type Event struct {
 	Type string `json:"type"` // forwarder:click
-	Url string `json:"url"`
+	Url  string `json:"url"`
 }
 
 type LinkClickEvent struct {
-	Type string `json:"type"` // external
-	Value Event `json:"value"`
+	Type  string `json:"type"` // external
+	Value Event  `json:"value"`
 }
 
 type ExternalEvent struct {
-	User string `json:"user"`
-	Page string `json:"page"`
+	User  string         `json:"user"`
+	Page  string         `json:"page"`
 	Event LinkClickEvent `json:"event"`
 }
 
 type Eventer struct {
-	client *http.Client
+	client    *http.Client
 	botserver string
-	page string
 }
 
-func (e *Eventer) Send(user string, url string) error {
+func (e *Eventer) Send(user, page, url string) error {
 	event := Event{"linksniffer:click", url}
 	lc := LinkClickEvent{"external", event}
-	ee := ExternalEvent{user, e.page, lc}
+	ee := ExternalEvent{user, page, lc}
 
 	body, err := json.Marshal(ee)
 	if err != nil {

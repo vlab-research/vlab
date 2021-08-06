@@ -1,20 +1,19 @@
 package main
 
 import (
-	"net/http"
-	"os"
-	"log"
 	"fmt"
-	"net/url"
 	"github.com/labstack/echo/v4"
+	"log"
+	"net/http"
+	"net/url"
+	"os"
 )
 
 func main() {
 	botserverUrl := os.Getenv("BOTSERVER_URL")
-	page := os.Getenv("FB_PAGE_ID")
 
 	client := &http.Client{}
-	eventer := &Eventer{client, botserverUrl, page}
+	eventer := &Eventer{client, botserverUrl}
 	server := &Server{eventer}
 
 	e := echo.New()
@@ -34,8 +33,14 @@ func (s *Server) health(c echo.Context) error {
 
 func (s *Server) forward(c echo.Context) error {
 	id := c.QueryParam("id")
+	pageid := c.QueryParam("pageid")
 	u := c.QueryParam("url")
 	p := c.QueryParam("p")
+
+	if id == "" {
+		e := fmt.Errorf("Cannot forward to url, lacking tracking id")
+		return echo.NewHTTPError(http.StatusBadRequest, e)
+	}
 
 	if p == "" {
 		p = "https"
@@ -50,7 +55,7 @@ func (s *Server) forward(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusBadRequest, e)
 	}
 
-	err = s.Eventer.Send(id, u)
+	err = s.Eventer.Send(id, pageid, u)
 	if err != nil {
 		log.Printf("Error sending event: %v", err)
 		return err
