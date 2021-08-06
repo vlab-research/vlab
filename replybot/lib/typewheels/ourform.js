@@ -45,11 +45,11 @@ async function getForm(pageid, shortcode, timestamp) {
   if (f.error) {
 
     if (res.status === 404) {
-      throw new MachineIOError('FORM_NOT_FOUND', 
-                               `Survey with shortcode ${shortcode} could not be found.`, 
+      throw new MachineIOError('FORM_NOT_FOUND',
+                               `Survey with shortcode ${shortcode} at timestamp ${timestamp} for page ${pageid} could not be found.`,
                                {...f.error, status: res.status})
     }
- 
+
     const e = new Error('Error from form server')
     e.details = f.error
     e.details.status = res.status
