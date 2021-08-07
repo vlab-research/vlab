@@ -41,8 +41,8 @@ const loadSDK = () => {
 };
 
 
-const getPages = (access_token, limit, after) => new Promise((resolve, reject) => {
-  const params = { access_token, limit, after };
+const getPages = (access_token) => new Promise((resolve, reject) => {
+  const params = { access_token };
 
   window.FB.api('/me/accounts', params, (res) => {
     if (res.error) return reject(new Error(JSON.stringify(res.error)));
@@ -75,7 +75,7 @@ const fb = () => new Promise((resolve, reject) => {
       .then((res) => {
         if (res.error) throw new Error(res.error);
         const { access_token } = res;
-        return getPages(access_token, 3).then(result => ({ result, access_token }));
+        return getPages(access_token).then(result => ({ result, access_token }));
       })
       .then(res => resolve(res))
       .catch(err => reject(err));
