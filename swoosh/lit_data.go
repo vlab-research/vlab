@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"time"
 
@@ -133,8 +134,10 @@ func printJSON(data *LitDataEvent) {
 func Iterate(client *http.Client) []*InferenceDataEvent {
 	cursor := "0"
 	results := []*LitDataEvent{}
+	i := 0
 
 	for {
+		i++
 		if cursor == "" {
 			break
 		}
@@ -146,6 +149,10 @@ func Iterate(client *http.Client) []*InferenceDataEvent {
 
 		results = append(results, res.Data...)
 		cursor = res.NextCursor
+
+		if i%10 == 0 {
+			log.Println(fmt.Sprintf("Collected %d results.", len(results)))
+		}
 	}
 
 	events := []*InferenceDataEvent{}
