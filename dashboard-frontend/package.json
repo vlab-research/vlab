@@ -6,6 +6,7 @@
     "@heroicons/react": "1.0.1",
     "chance": "1.1.7",
     "react": "17.0.2",
+    "react-charts": "3.0.0-beta.26",
     "react-dom": "17.0.2",
     "react-query": "2.4.5",
     "react-query-devtools": "2.1.1",
@@ -18,7 +19,8 @@
     "build": "craco build",
     "test": "craco test",
     "cypress": "cypress open",
-    "eject": "craco eject"
+    "eject": "craco eject",
+    "check-types": "tsc -w --noEmit"
   },
   "eslintConfig": {
     "extends": [

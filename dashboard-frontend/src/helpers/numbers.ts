@@ -72,3 +72,6 @@ export class UnexpectedNumberError extends Error {
     Object.setPrototypeOf(this, UnexpectedNumberError.prototype);
   }
 }
+
+export const formatNumber = (num: number) =>
+  new Intl.NumberFormat('en-US').format(num);

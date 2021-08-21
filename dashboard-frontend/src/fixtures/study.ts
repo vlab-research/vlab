@@ -6,7 +6,16 @@ import {
 } from '../helpers/numbers';
 import { createSlugFor } from '../helpers/strings';
 import { lastValue } from '../helpers/arrays';
-import { StratumProgress, Study, StudyProgress } from '../types/study';
+import {
+  StudyResource,
+  StudyProgressResource,
+  StudySegmentProgressResource,
+} from '../types/study';
+
+interface Study extends StudyResource {
+  studyProgressList: StudyProgressResource[];
+  stratumProgressList: StudySegmentProgressResource[];
+}
 
 const chance = Chance();
 
@@ -129,7 +138,7 @@ const updateStudyData = (
   );
 
   const lastStudyProgressList = lastValue(study.studyProgressList);
-  const newStudyProgress: StudyProgress = {
+  const newStudyProgress: Study['studyProgressList'][number] = {
     ...lastStudyProgressList,
     ...computeStudyProgressDataFrom(newStratumProgressList),
     id: chance.guid({ version: 4 }),
@@ -149,7 +158,7 @@ const updateStudyData = (
 };
 
 const updateStratumProgress = (
-  stratumProgress: StratumProgress,
+  stratumProgress: Study['stratumProgressList'][number],
   {
     newParticipants,
     datetime,
@@ -187,7 +196,7 @@ const updateStratumProgress = (
 };
 
 const computeStudyProgressDataFrom = (
-  stratumProgressList: StratumProgress[]
+  stratumProgressList: Study['stratumProgressList']
 ) => ({
   currentParticipants: stratumProgressList.reduce(
     (prev, { currentParticipants }) => prev + currentParticipants,
