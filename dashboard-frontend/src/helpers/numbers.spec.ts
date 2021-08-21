@@ -2,6 +2,7 @@ import {
   calculateAverage,
   calculateAverageDeviation,
   calculatePercentage,
+  formatNumber,
   InvalidNumberError,
   INVALID_NUMBERS,
   round,
@@ -102,5 +103,22 @@ describe('round', () => {
         expect(err).toBeInstanceOf(InvalidNumberError);
       }
     });
+  });
+});
+
+describe('formatNumbers', () => {
+  it('can format a number in English from United States', () => {
+    expect(formatNumber(0)).toBe('0');
+    expect(formatNumber(55)).toBe('55');
+    expect(formatNumber(999)).toBe('999');
+    expect(formatNumber(1000)).toBe('1,000');
+    expect(formatNumber(10000)).toBe('10,000');
+    expect(formatNumber(100000)).toBe('100,000');
+    expect(formatNumber(1222333)).toBe('1,222,333');
+    expect(formatNumber(-1222333)).toBe('-1,222,333');
+    expect(formatNumber(-1222333.37)).toBe('-1,222,333.37');
+    expect(formatNumber(NaN)).toBe('NaN');
+    expect(formatNumber(Infinity)).toBe('∞');
+    expect(formatNumber(-Infinity)).toBe('-∞');
   });
 });

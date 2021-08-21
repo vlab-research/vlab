@@ -1,5 +1,6 @@
 import React, { useCallback } from 'react';
 import { CalendarIcon } from '@heroicons/react/solid';
+import { Link } from 'react-router-dom';
 import { formatTimestamp } from '../../helpers/dates';
 import { StudyResource } from '../../types/study';
 import useInfiniteScrolling from './useInfiniteScrolling';
@@ -47,7 +48,7 @@ const StudyListItem = ({
   elementRef?: ReturnType<typeof useCallback>;
 }) => (
   <li data-testid="study-list-item" ref={elementRef}>
-    <a href="#placeholder" className="block hover:bg-gray-50">
+    <Link to={`/studies/${study.slug}`} className="block hover:bg-gray-50">
       <div className="px-4 py-4 sm:px-6">
         <div className="flex items-center">
           <p className="text-sm font-medium text-indigo-600 truncate">
@@ -64,7 +65,7 @@ const StudyListItem = ({
           </div>
         </div>
       </div>
-    </a>
+    </Link>
   </li>
 );
 

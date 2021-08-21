@@ -1,6 +1,15 @@
-export interface ApiListSucessResponse<Data> {
-  data: Data[];
+export interface ApiResponse<Data> {
+  data: Data;
   pagination: {
-    nextCursor: string | null;
+    nextCursor: Cursor;
   };
 }
+
+export interface PaginatedApiResponse<Data, PaginationExtraFields = void> {
+  data: Data;
+  pagination: {
+    nextCursor: Cursor;
+  } & PaginationExtraFields;
+}
+
+export type Cursor = string | null;

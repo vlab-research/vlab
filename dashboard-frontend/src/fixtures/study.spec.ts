@@ -1,5 +1,8 @@
-import { StratumProgress, Study, StudyProgress } from '../types/study';
 import { createFakeStudy } from './study';
+
+type Study = ReturnType<typeof createFakeStudy>;
+type StratumProgress = Study['stratumProgressList'][number];
+type StudyProgress = Study['studyProgressList'][number];
 
 describe('FakeStudyBuilder', () => {
   let study: Study;

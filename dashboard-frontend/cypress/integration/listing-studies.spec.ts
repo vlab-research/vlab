@@ -1,9 +1,13 @@
+import { Response } from 'miragejs';
+import Chance from 'chance';
 import {
   makeServer,
   createStudyResource,
   createStudyResources,
+  createStudyProgressResource,
 } from '../../src/server';
-import { Response } from 'miragejs';
+
+const chance = Chance();
 
 describe('Given an authenticated user', () => {
   let server: ReturnType<typeof makeServer>;
@@ -34,9 +38,23 @@ describe('Given an authenticated user', () => {
 
   describe('When he has created one Study and visits the home page', () => {
     beforeEach(() => {
-      createStudyResource(server, {
+      const study = createStudyResource(server, {
         name: 'Study 1',
+        slug: 'study-1',
         createdAt: new Date('Tue, 09 Mar 2021 01:39:09 GMT').getTime(),
+      });
+
+      createStudyProgressResource(server, {
+        study,
+        progress: {
+          id: chance.guid({ version: 4 }),
+          datetime: new Date('2021-06-19').getTime(),
+          currentParticipants: 0,
+          expectedParticipants: 0,
+          currentAverageDeviation: 0,
+          expectedAverageDeviation: 0,
+          desiredParticipants: null,
+        },
       });
 
       cy.visit('/');
@@ -48,6 +66,21 @@ describe('Given an authenticated user', () => {
       cy.get('[data-testid="study-list-item"]')
         .should('contain', 'Study 1')
         .should('contain', 'Created on March 09, 2021');
+    });
+
+    it("He's redirected to the Study page when clicking the created Study", () => {
+      cy.get('[data-testid="header"]')
+        .contains('Studies')
+        .should('have.class', 'border-indigo-500 text-gray-900')
+        .should('have.attr', 'aria-current', 'page');
+
+      cy.get('[data-testid="study-list-item"]').click();
+
+      cy.url().should('eq', `${Cypress.config().baseUrl}/studies/study-1`);
+      cy.get('[data-testid="header"]')
+        .contains('Studies')
+        .should('have.class', 'border-transparent text-gray-500')
+        .should('not.have.attr', 'aria-current');
     });
   });
 
