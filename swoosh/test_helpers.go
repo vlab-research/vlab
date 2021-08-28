@@ -10,12 +10,21 @@ import (
 	"github.com/jackc/pgx/v4/pgxpool"
 )
 
-func mustExec(t testing.TB, conn *pgxpool.Pool, sql string, arguments ...interface{}) (commandTag pgconn.CommandTag) {
-	var err error
-	if commandTag, err = conn.Exec(context.Background(), sql, arguments...); err != nil {
-		t.Fatalf("Exec unexpectedly failed with %v: %v", sql, err)
+func exec(conn *pgxpool.Pool, sql string, arguments ...interface{}) (*pgconn.CommandTag, error) {
+	commandTag, err := conn.Exec(context.Background(), sql, arguments...)
+
+	if err != nil {
+		return nil, fmt.Errorf("Exec unexpectedly failed with %v: %v", sql, err)
 	}
-	return
+
+	return &commandTag, nil
+}
+
+func mustExec(t *testing.T, conn *pgxpool.Pool, sql string, arguments ...interface{}) {
+	_, err := exec(conn, sql, arguments...)
+	if err != nil {
+		t.Fatal(err.Error())
+	}
 }
 
 func rowStrings(rows pgx.Rows) []*string {
@@ -38,12 +47,14 @@ func getCol(pool *pgxpool.Pool, table string, col string) []*string {
 }
 
 func testPool() *pgxpool.Pool {
-	config, err := pgxpool.ParseConfig("postgres://postgres:test@localhost:5433/test")
+	config, err := pgxpool.ParseConfig("postgres://root@localhost:5433/test")
 	handle(err)
 
 	ctx := context.Background()
 	pool, err := pgxpool.ConnectConfig(ctx, config)
 	handle(err)
+
+	exec(pool, "CREATE DATABASE IF NOT EXISTS test")
 
 	return pool
 }

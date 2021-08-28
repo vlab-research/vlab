@@ -50,6 +50,17 @@ type LitDataEvent struct {
 	} `json:"user"`
 }
 
+func marshalValue(lde *LitDataEvent) json.RawMessage {
+	v := LitDataValue{lde.User.Event.Value, lde.User.Event.ValueType}
+	b, err := json.Marshal(v)
+	if err != nil {
+		// shouldn't happen, just string/json.RawMessage
+		panic(err)
+	}
+
+	return b
+}
+
 func (lde *LitDataEvent) AsInferenceDataEvent(study string) *InferenceDataEvent {
 
 	md := map[string]json.RawMessage{}
@@ -62,12 +73,20 @@ func (lde *LitDataEvent) AsInferenceDataEvent(study string) *InferenceDataEvent 
 	return &InferenceDataEvent{
 		User{lde.User.ID, md},
 		study,
+		"literacy_data_api",
 		lde.User.Event.Timestamp.Time,
 		lde.User.Event.Action,
-		lde.User.Event.ValueType,
-		lde.User.Event.Value,
-		nil,
+		marshalValue(lde),
 	}
+}
+
+func (lde *LitDataEvent) Print() {
+	b, err := json.Marshal(lde)
+	if err != nil {
+		panic(err)
+	}
+
+	fmt.Println(string(b))
 }
 
 type LitDataResponse struct {
@@ -75,14 +94,25 @@ type LitDataResponse struct {
 	Data       []*LitDataEvent `json:"data"`
 }
 
-type LitDataParams struct {
-	From          string `url:"from"`
-	AppID         string `url:"app_id"`
-	AttributionID string `url:"attribution_id,omitempty"`
+type LitDataAPIParams struct {
+	From          string `url:"from" json:"from"`
+	AppID         string `url:"app_id" json:"app_id"`
+	AttributionID string `url:"attribution_id,omitempty" json:"attribution_id"`
+}
+
+type LitDataConfig struct {
+	From          string `json:"from"`
+	AppID         string `json:"app_id"`
+	AttributionID string `json:"attribution_id"`
 }
 
 type LitDataError struct {
 	Msg string `json:"msg"`
+}
+
+type LitDataValue struct {
+	Value     json.RawMessage `json:"value"`
+	ValueType string          `json:"value_type"`
 }
 
 func (e *LitDataError) Empty() bool {
@@ -100,11 +130,8 @@ func (e *LitDataError) Error() string {
 	return e.Msg
 }
 
-func Wrapper(client *http.Client, cursor string) (*LitDataResponse, error) {
-	baseUrl := "http://localhost:4000"
+func Call(client *http.Client, baseUrl string, params *LitDataAPIParams) (*LitDataResponse, error) {
 	sli := sling.New().Client(client).Base(baseUrl).Set("Accept", "application/json")
-
-	params := &LitDataParams{cursor, "com.eduapp4syria.feedthemonsterBangla", "FB_Bangla_App_6_2021"}
 
 	res := new(LitDataResponse)
 	apiError := new(LitDataError)
@@ -121,34 +148,25 @@ func Wrapper(client *http.Client, cursor string) (*LitDataResponse, error) {
 	return res, nil
 }
 
-// TODO: cleanup temp helper for developing off lit data api
-func printJSON(data *LitDataEvent) {
-	b, err := json.Marshal(data)
-	if err != nil {
-		panic(err)
-	}
-
-	fmt.Println(string(b))
-}
-
-func Iterate(client *http.Client) []*InferenceDataEvent {
-	cursor := "0"
+func GetEvents(study, url string, params *LitDataAPIParams) []*InferenceDataEvent {
+	client := http.DefaultClient
 	results := []*LitDataEvent{}
 	i := 0
 
 	for {
 		i++
-		if cursor == "" {
+		if params.From == "" {
 			break
 		}
-		res, err := Wrapper(client, cursor)
+
+		res, err := Call(client, url, params)
 		if err != nil {
-			fmt.Println(err)
+			log.Fatal(err)
 			return nil
 		}
 
 		results = append(results, res.Data...)
-		cursor = res.NextCursor
+		params.From = res.NextCursor
 
 		if i%10 == 0 {
 			log.Println(fmt.Sprintf("Collected %d results.", len(results)))
@@ -158,7 +176,8 @@ func Iterate(client *http.Client) []*InferenceDataEvent {
 	events := []*InferenceDataEvent{}
 
 	for _, res := range results {
-		events = append(events, res.AsInferenceDataEvent("foo"))
+		ev := res.AsInferenceDataEvent(study)
+		events = append(events, ev)
 	}
 
 	return events

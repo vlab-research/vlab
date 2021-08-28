@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"testing"
 
@@ -12,12 +13,14 @@ const (
                 drop table if exists inference_data;
 
                 create table if not exists inference_data(
-		    study VARCHAR NOT NULL,
+		    study_id VARCHAR NOT NULL,
 		    user_id VARCHAR NOT NULL,
                     variable VARCHAR NOT NULL,
-                    data JSONB NOT NULL,
+                    value_type VARCHAR NOT NULL,
+                    value JSONB NOT NULL,
+                    timestamp TIMESTAMPTZ NOT NULL,
 		    updated TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-		    CONSTRAINT study_user UNIQUE(study, user_id, variable)
+		    CONSTRAINT study_user UNIQUE(study_id, user_id, variable)
                 );
 `
 )
@@ -26,7 +29,7 @@ func str(s string) *string {
 	return &s
 }
 
-func TestInferenceDataWriterWritesMultipleTimesAndUpdatesDataRemovingVariables(t *testing.T) {
+func TestInferenceDataWriter_WritesMultipleTimesAndUpdatesDataRemovingVariables(t *testing.T) {
 	pool := testPool()
 	defer pool.Close()
 	mustExec(t, pool, inferenceDataSql)
@@ -45,26 +48,45 @@ func TestInferenceDataWriterWritesMultipleTimesAndUpdatesDataRemovingVariables(t
 			}},
 	}
 
-	e := WriteInferenceData(pool, "foo", id)
+	e := WriteInferenceData(pool, "study_foo", id)
 	handle(e)
 
+	// Writes 5 lines to database, one for each variable/value
 	users := getCol(pool, "inference_data", "user_id")
 	assert.Equal(t, 5, len(users))
 
-	d := InferenceDataValue{ti("07"), "q1", []byte(`"A"`), "categorical"}
-
-	id = InferenceData{"foo": {"foo", map[string]*InferenceDataValue{"q1": &d}}}
-	e = WriteInferenceData(pool, "foo", id)
+	// Now, overwrites all data from study_foo with a single variable/user
+	id = InferenceData{
+		"foo": {"foo",
+			map[string]*InferenceDataValue{
+				"q1": {ti("07"), "q1", []byte(`"A"`), "categorical"},
+			}},
+	}
+	e = WriteInferenceData(pool, "study_foo", id)
 	handle(e)
 
-	dat := getCol(pool, "inference_data", "data")
-	dv := new(InferenceDataValue)
-	json.Unmarshal([]byte(*dat[0]), dv)
+	// Assert all data is overwritten.
+	// custom parsing logic to asser that it's a json rawmessage of the same
+	// data we started with.
+	rows, err := pool.Query(context.Background(), "select value from inference_data")
+	handle(err)
+	res := []json.RawMessage{}
+	for rows.Next() {
+		var msg json.RawMessage
+		err = rows.Scan(&msg)
+		handle(err)
+		res = append(res, msg)
 
+	}
+
+	assert.Equal(t, 1, len(res))
+	assert.Equal(t, json.RawMessage([]byte(`"A"`)), res[0])
+
+	// Assert only one user now, foo
 	users = getCol(pool, "inference_data", "user_id")
 	assert.Equal(t, []*string{str("foo")}, users)
-
-	assert.Equal(t, 1, len(dat))
-	assert.Equal(t, d, *dv)
+	assert.Equal(t, 1, len(users))
 
 }
+
+// TODO: Add tests for error handling and consider the handling well

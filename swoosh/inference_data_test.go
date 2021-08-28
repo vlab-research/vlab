@@ -10,7 +10,7 @@ import (
 )
 
 func testEvents(fi string) []*InferenceDataEvent {
-	b, e := ioutil.ReadFile(fi)
+	b, e := ioutil.ReadFile(fmt.Sprintf("test/%s", fi))
 	check(e)
 
 	events := []InferenceDataEvent{}
@@ -19,11 +19,10 @@ func testEvents(fi string) []*InferenceDataEvent {
 
 	res := []*InferenceDataEvent{}
 
-	for i, _ := range events {
+	for i := range events {
 		res = append(res, &events[i])
 	}
 
-	// return *events
 	return res
 }
 
@@ -39,24 +38,194 @@ func ti(day string) time.Time {
 	return t.UTC()
 }
 
-func TestReduceInferenceData(t *testing.T) {
+func TestReduceInferenceData_SelectsVariablesAsPerConfAndSelectFunction(t *testing.T) {
+	events := testEvents("events_c.json")
+
+	expected := InferenceData{
+		"foo": {"foo",
+			map[string]*InferenceDataValue{
+				"renamed_q1": {ti("07"), "renamed_q1", []byte(`"yes"`), "categorical"},
+			}},
+	}
+
+	mapping := &InferenceDataConf{map[string]*InferenceDataSource{
+		"literacy_data_api": {
+			map[string]*ExtractionConf{
+				"q1": {
+					Name:     "renamed_q1",
+					Type:     "categorical",
+					Function: "select",
+					Params:   []byte(`{"path": "translated_response"}`),
+				}},
+			nil,
+		},
+	}}
+
+	actual, err := Reduce(events, mapping)
+	assert.Nil(t, err)
+	assert.Equal(t, expected, actual)
+}
+
+func TestReduceInferenceData_GroupsByUserAndOverwritesRepeatedValues(t *testing.T) {
 	events := testEvents("events_a.json")
 
 	expected := InferenceData{
 		"foo": {"foo",
 			map[string]*InferenceDataValue{
-				"user_md": {ti("09"), "user_md", []byte(`"foo"`), "metadata"},
-				"q1":      {ti("07"), "q1", []byte(`"A"`), "categorical"},
-				"q2":      {ti("09"), "q2", []byte(`2`), "continuous"},
+				"q1": {ti("07"), "q1", []byte(`"A"`), "categorical"},
+				"q2": {ti("09"), "q2", []byte(`2`), "continuous"}, // second value
 			}},
 		"bar": {"bar",
 			map[string]*InferenceDataValue{
-				"user_md": {ti("10"), "user_md", []byte(`"bar"`), "metadata"},
-				"q2":      {ti("10"), "q2", []byte(`2`), "continuous"},
+				"q2": {ti("10"), "q2", []byte(`2`), "continuous"},
 			}},
 	}
 
-	actual := Reduce(events)
+	mapping := &InferenceDataConf{map[string]*InferenceDataSource{
+		"literacy_data_api": {
+			VariableExtractionMapping: map[string]*ExtractionConf{
+				"q1": {
+					Name:     "q1",
+					Type:     "categorical",
+					Function: "select",
+					Params:   []byte(`{"path": ""}`),
+				},
+				"q2": {
+					Name:     "q2",
+					Type:     "continuous",
+					Function: "select",
+					Params:   []byte(`{"path": ""}`),
+				},
+			},
+			MetadataExtractionMapping: nil,
+		},
+	}}
 
+	actual, err := Reduce(events, mapping)
+	assert.Nil(t, err)
 	assert.Equal(t, expected, actual)
+}
+
+func TestReduceInferenceData_CollectsMetadataWithTimestampFirstEventOfUniqueValue(t *testing.T) {
+	events := testEvents("events_b.json")
+
+	expected := InferenceData{
+		"foo": {"foo",
+			map[string]*InferenceDataValue{
+				"some_md": {ti("07"), "some_md", []byte(`"foo"`), "categorical"}, // time of first event
+				"q1":      {ti("07"), "q1", []byte(`"A"`), "categorical"},
+				"q2":      {ti("08"), "q2", []byte(`0`), "continuous"},
+			}},
+		"bar": {"bar",
+			map[string]*InferenceDataValue{
+				"some_md": {ti("11"), "some_md", []byte(`"baz"`), "categorical"}, // time of second event
+				"q1":      {ti("10"), "q1", []byte(`"A"`), "categorical"},
+				"q2":      {ti("11"), "q2", []byte(`2`), "continuous"},
+			}},
+	}
+
+	mapping := &InferenceDataConf{map[string]*InferenceDataSource{
+		"literacy_data_api": {
+			VariableExtractionMapping: map[string]*ExtractionConf{
+				"q1": {
+					Name:     "q1",
+					Type:     "categorical",
+					Function: "select",
+					Params:   []byte(`{"path": ""}`),
+				},
+				"q2": {
+					Name:     "q2",
+					Type:     "continuous",
+					Function: "select",
+					Params:   []byte(`{"path": ""}`),
+				},
+			},
+			MetadataExtractionMapping: map[string]*ExtractionConf{
+				"user_md": {
+					Name:     "some_md",
+					Type:     "categorical",
+					Function: "select",
+					Params:   []byte(`{"path": ""}`),
+				},
+			},
+		},
+	}}
+
+	actual, err := Reduce(events, mapping)
+	assert.Nil(t, err)
+	assert.Equal(t, expected, actual)
+}
+
+func TestReduceInferenceData_ReturnsErrorWhenNonExistantDataSource(t *testing.T) {
+	events := testEvents("events_a.json")
+
+	mapping := &InferenceDataConf{map[string]*InferenceDataSource{
+		"foo": {
+			VariableExtractionMapping: map[string]*ExtractionConf{
+				"bar": {},
+			},
+			MetadataExtractionMapping: nil,
+		},
+		"bar": {
+			VariableExtractionMapping: map[string]*ExtractionConf{
+				"baz": {},
+			},
+			MetadataExtractionMapping: nil,
+		},
+	}}
+
+	_, err := Reduce(events, mapping)
+	assert.NotNil(t, err)
+	assert.Contains(t, err.Error(), "literacy_data_api")
+	assert.Contains(t, err.Error(), "foo")
+	assert.Contains(t, err.Error(), "bar")
+}
+
+func TestReduceInferenceData_ReturnsErrorWhenInvalidExtractionParamsForFunction(t *testing.T) {
+	events := testEvents("events_a.json")
+
+	mapping := &InferenceDataConf{map[string]*InferenceDataSource{
+		"literacy_data_api": {
+			VariableExtractionMapping: map[string]*ExtractionConf{
+				"q1": {Function: "select", Params: []byte(`{"missing": "key"}`)},
+			},
+			MetadataExtractionMapping: nil,
+		},
+	}}
+
+	_, err := Reduce(events, mapping)
+	assert.NotNil(t, err)
+	assert.Contains(t, err.Error(), "Path")
+
+	mapping = &InferenceDataConf{map[string]*InferenceDataSource{
+		"literacy_data_api": {
+			VariableExtractionMapping: map[string]*ExtractionConf{
+				"q1": {Function: "select", Params: []byte(`notjson`)},
+			},
+			MetadataExtractionMapping: nil,
+		},
+	}}
+
+	_, err = Reduce(events, mapping)
+	assert.NotNil(t, err)
+	assert.Contains(t, err.Error(), "select")
+	assert.Contains(t, err.Error(), "notjson")
+}
+
+func TestReduceInferenceData_ReturnsErrorWhenExtractionFunctionFails(t *testing.T) {
+	events := testEvents("events_a.json")
+
+	mapping := &InferenceDataConf{map[string]*InferenceDataSource{
+		"literacy_data_api": {
+			VariableExtractionMapping: map[string]*ExtractionConf{
+				"q1": {Function: "select", Params: []byte(`{"path": "does.not.exist.in.json"}`)},
+			},
+			MetadataExtractionMapping: nil,
+		},
+	}}
+
+	_, err := Reduce(events, mapping)
+	assert.NotNil(t, err)
+	assert.Contains(t, err.Error(), "does.not.exist.in.json")
+	assert.Contains(t, err.Error(), "\"A\"")
 }

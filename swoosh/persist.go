@@ -2,19 +2,19 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 
 	"github.com/jackc/pgx/v4"
 	"github.com/jackc/pgx/v4/pgxpool"
+	"time"
 )
 
-func InsertInferenceData(tx pgx.Tx, study, user, variable string, data []byte) error {
+func InsertInferenceData(tx pgx.Tx, study, user, variable, valueType string, value []byte, timestamp time.Time) error {
 	query := `
-            INSERT INTO inference_data (study, user_id, variable, data) VALUES ($1, $2, $3, $4)
-            ON CONFLICT (study, user_id, variable) DO UPDATE SET data = $4
+            INSERT INTO inference_data (study_id, user_id, variable, value_type, value, timestamp) VALUES ($1, $2, $3, $4, $5, $6)
+            ON CONFLICT (study_id, user_id, variable) DO UPDATE SET value = $5, timestamp = $6
         `
 
-	_, err := tx.Exec(context.Background(), query, study, user, variable, data)
+	_, err := tx.Exec(context.Background(), query, study, user, variable, valueType, value, timestamp)
 
 	return err
 }
@@ -26,7 +26,7 @@ func WriteInferenceData(pool *pgxpool.Pool, study string, id InferenceData) erro
 	}
 
 	// TODO: this is very expensive and silly, should be optimized
-	_, err = tx.Exec(context.Background(), "DELETE FROM inference_data WHERE study = $1", study)
+	_, err = tx.Exec(context.Background(), "DELETE FROM inference_data WHERE study_id = $1", study)
 
 	if err != nil {
 		return err
@@ -34,13 +34,8 @@ func WriteInferenceData(pool *pgxpool.Pool, study string, id InferenceData) erro
 
 	for user, row := range id {
 		for variable, row := range row.Data {
-			d, err := json.Marshal(row)
 
-			if err != nil {
-				return err
-			}
-
-			err = InsertInferenceData(tx, study, user, variable, d)
+			err = InsertInferenceData(tx, study, user, variable, row.ValueType, row.Value, row.Timestamp)
 			if err != nil {
 				return err
 			}
