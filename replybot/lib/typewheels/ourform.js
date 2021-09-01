@@ -3,9 +3,6 @@ const jwt = require('jsonwebtoken')
 const {MachineIOError} = require('../errors')
 
 
-// TODO: move off auth0, create our own endpoint
-// or just put a token in the env vars and call
-// it a day.
 async function getDashboardToken() {
   const secret = process.env.AUTH0_DASHBOARD_SECRET
   const opts = { algorithm: 'HS256'}
