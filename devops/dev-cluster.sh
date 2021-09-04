@@ -27,10 +27,9 @@ sleep 20
 kubectl wait --for=condition=Ready pod/gbv-cockroachdb-0 --timeout 20m
 sleep 20
 
-for f in `ls ./sql/* | sort -V`
-do
-cat $f | kubectl run -i --rm cockroach-client --image=cockroachdb/cockroach:v20.1.4 --restart=Never --command -- ./cockroach sql --insecure --host gbv-cockroachdb-public
-done
+cat ./sql/* > tmp.sql
+cat tmp.sql | kubectl run -i --rm cockroach-client --image=cockroachdb/cockroach:v20.1.4 --restart=Never --command -- ./cockroach sql --insecure --host gbv-cockroachdb-public
+rm -f tmp.sql
 
 ######################
 # wait for everything
