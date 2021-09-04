@@ -39,7 +39,7 @@ dependencies:
   repository: https://charts.cockroachdb.com/
   version: 5.0.1
 - name: kafka
-  repository: https://storage.googleapis.com/kubernetes-charts-incubator
-  version: 0.20.8
-digest: sha256:eb606b65d86d5fe7d5de04022c777bfb46d3c76db7cf06aa3786a0dc46e17cfa
-generated: "2020-12-01T09:08:27.152313332+01:00"
+  repository: https://charts.bitnami.com/bitnami
+  version: 14.0.5
+digest: sha256:7ea332b297e6125475d1036bd478599d148926cd6283c1a8170ed6be8d04395a
+generated: "2021-09-04T11:43:37.980673886+02:00"

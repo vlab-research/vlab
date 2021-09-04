@@ -62,8 +62,9 @@ dependencies:
     repository: https://charts.cockroachdb.com/
     tags:
       - cockroach
+
   - name: kafka
-    version: 0.20.8
-    repository: https://storage.googleapis.com/kubernetes-charts-incubator
+    version: 14.0.5
+    repository: https://charts.bitnami.com/bitnami
     tags:
       - kafka
