@@ -14,8 +14,7 @@ from .audiences import hydrate_audiences
 from .campaign_queries import (create_adopt_report, get_campaign_configs,
                                get_campaigns, get_user_info)
 from .clustering import AdOptReport, get_budget_lookup, shape_df
-from .facebook.state import (BudgetWindow, CampaignState, StateNameError,
-                             get_api)
+from .facebook.state import CampaignState, DateRange, StateNameError, get_api
 from .facebook.update import GraphUpdater, Instruction
 from .marketing import (AudienceConf, CampaignConf, CreativeConf,
                         FacebookTargeting, Marketing, QuestionTargeting,
@@ -44,30 +43,15 @@ def get_target_questions(qt: Optional[QuestionTargeting]) -> Sequence[str]:
     return [r for r in refs if r is not None]
 
 
+# TODO: This is the entrance to get data from the InferenceData store
+# update to reflect that.
+
+
 def get_df(
     db_conf: Dict[str, str],
     survey_user: str,
     strata: Sequence[Union[Stratum, AudienceConf]],
 ) -> Optional[pd.DataFrame]:
-
-    # This makes no sense for AudienceConf, or at least a seq of them,
-    # becase the questions in one sholdn't exclude the aud from another
-
-    # Is this the case with strata as well if you have target_questions
-    # that are different?? Yes, but usually they should be the same
-    # for all strata. But then the code you have here is confusing
-    # because it gets the union of all qs...
-
-    # I mean, the query is question_ref is in %s, so it's only
-    # problematic for when there is NO question wanted (any respondent)
-    # that's the real problem
-
-    # TODO - look at tests, what is the desired behavior for audiences/stratum
-    # with no target_questions???? it shouldn't work at all...
-
-    # TODO - for audience you should actually have a query that gets responses
-    # who are only to the correct pageid! Because now each surveyuser can have
-    # multiple pages, but that won't work for audiences with page scoped ids!
 
     shortcodes = {shortcode for stratum in strata for shortcode in stratum.shortcodes}
     questions = {
@@ -141,7 +125,7 @@ def window(hours=16):
     yesterday = datetime.now() - timedelta(hours=hours)
     yesterday = floor(yesterday)
     today = datetime.now()
-    return BudgetWindow(yesterday, today)
+    return DateRange(yesterday, today)
 
 
 def days_left(config: CampaignConf):

@@ -6,9 +6,9 @@ from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
 import pandas as pd
-from scipy.optimize import LinearConstraint, minimize
+from scipy.optimize import minimize
 
-from .facebook.state import BudgetWindow
+from .facebook.state import DateRange
 from .forms import TranslationError
 from .marketing import (AudienceConf, QuestionTargeting, Stratum, StratumConf,
                         TargetVar)
@@ -242,7 +242,7 @@ def constrained_opt(S, goal, tot, price, budget):
     new_spend = s * budget
     projection = C * new_spend + tot
     loss = np.sum(goal ** 2 / projection)
-    return loss*100
+    return loss * 100
 
 
 def proportional_opt(goal, tot, price, budget, tol=0.01):
@@ -256,7 +256,7 @@ def proportional_opt(goal, tot, price, budget, tol=0.01):
         args=(goal, tot, price, budget),
         method="L-BFGS-B",
         bounds=[(0, None)] * P,
-        options={'ftol': 1e-14, 'gtol': 1e-10, 'eps': 1e-12}
+        options={"ftol": 1e-14, "gtol": 1e-10, "eps": 1e-12},
     )
 
     logging.info(f"Finished optimizing with loss: {m.fun}")
@@ -347,7 +347,7 @@ def normalize_goal(strata):
 def get_stats(
     df: Optional[pd.DataFrame],
     strata: Sequence[Union[Stratum, StratumConf]],
-    window: BudgetWindow,
+    window: DateRange,
     spend: Dict[str, float],
 ):
 
@@ -368,7 +368,7 @@ def get_stats(
 # probably more elegant just to change "spend" to "insights"
 
 # TODO: we need a more sophisticated process to estimate price.
-# The "BudgetWindow" creates a problem here, it's too miopic
+# The "DateWindow" creates a problem here, it's too miopic
 # If an adset has been turned off for a few days, we forget
 # all information we have about price. Similarly, for very
 # high priced strata, we chronically underestimate the price.
@@ -382,7 +382,7 @@ def get_budget_lookup(
     strata: Sequence[Union[Stratum, StratumConf]],
     max_budget: float,
     min_budget: float,
-    window: BudgetWindow,
+    window: DateRange,
     spend: Dict[str, float],
     total_spend: float,
     days_left: int,

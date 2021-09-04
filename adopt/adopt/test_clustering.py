@@ -8,7 +8,7 @@ from .clustering import (budget_trimming, calc_price, get_budget_lookup,
                          get_saturated_clusters, get_stats, make_report,
                          only_latest_survey, only_target_users,
                          prep_df_for_budget, proportional_budget, shape_df)
-from .facebook.state import BudgetWindow, unix_time_millis
+from .facebook.date_range import DateRange, unix_time_millis
 from .marketing import StratumConf
 
 DATE = datetime(2020, 1, 1)
@@ -16,6 +16,8 @@ DATE = datetime(2020, 1, 1)
 
 def make_stratum_conf(d):
     return typedjson.decode(StratumConf, d)
+
+
 def make_conf(c):
     return [make_stratum_conf(d) for d in c]
 
@@ -677,7 +679,7 @@ def test_get_saturated_clusters_not_equal_only_those_who_answered():
 
 
 def test_get_stats_adds_zero_spend_when_no_info(cnf, df):
-    window = BudgetWindow(DATE, DATE)
+    window = DateRange(DATE, DATE)
     spend = {"bar": 10.0, "baz": 10.0}
     df = prep_df_for_budget(df, cnf)
 
@@ -686,7 +688,7 @@ def test_get_stats_adds_zero_spend_when_no_info(cnf, df):
 
 
 def test_calc_price_pretends_as_if_found_half_user_when_no_user(cnf, df):
-    window = BudgetWindow(DATE, DATE)
+    window = DateRange(DATE, DATE)
     spend = {"bar": 10.0, "baz": 10.0, "foo": 10.0}
     df = prep_df_for_budget(df, cnf)
 
@@ -695,7 +697,7 @@ def test_calc_price_pretends_as_if_found_half_user_when_no_user(cnf, df):
 
 
 def test_calc_price_picks_mean_if_no_spend_(cnf, df):
-    window = BudgetWindow(DATE, DATE)
+    window = DateRange(DATE, DATE)
     spend = {"bar": 10.0, "baz": 10.0, "foo": 0.0}
     df = prep_df_for_budget(df, cnf)
 
@@ -771,6 +773,7 @@ def test_proportional_budget_prioritizes_underperforming_even_at_high_cost():
     assert budget["bar"] == 0
     assert budget["baz"] == 0
 
+
 def test_proportional_budget_optimizes_even_if_already_pretty_good():
     spend = {"bar": 100.0, "baz": 100.0, "foo": 100.0}
     tot = {"bar": 3333, "baz": 3333, "foo": 3000}
@@ -792,7 +795,7 @@ def test_proportional_budget_raises_exception_when_not_near_one():
 
 
 def test_get_budget_lookup(cnf, df):
-    window = BudgetWindow(DATE, DATE)
+    window = DateRange(DATE, DATE)
     spend = {"bar": 10.0, "baz": 10.0, "foo": 10.0}
 
     res, _ = get_budget_lookup(df, cnf, 30, 1, window, spend, 100, 5)
@@ -800,7 +803,7 @@ def test_get_budget_lookup(cnf, df):
 
 
 def test_get_budget_lookup_when_no_days_left(cnf, df):
-    window = BudgetWindow(DATE, DATE)
+    window = DateRange(DATE, DATE)
     spend = {"bar": 10.0, "baz": 10.0, "foo": 10.0}
 
     res, _ = get_budget_lookup(df, cnf, 30, 1, window, spend, 100, 0)
@@ -808,7 +811,7 @@ def test_get_budget_lookup_when_no_days_left(cnf, df):
 
 
 # def test_get_budget_lookup_with_proportional_budget(cnf, df):
-#     window = BudgetWindow(DATE, DATE)
+#     window = DateWindow(DATE, DATE)
 #     spend = {"bar": 10.0, "baz": 10.0, "foo": 5.0}
 
 #     res, _ = get_budget_lookup(df, cnf, 50, 1, window, spend, 30, 1, proportional=True)
@@ -818,14 +821,14 @@ def test_get_budget_lookup_when_no_days_left(cnf, df):
 
 
 def test_get_budget_lookup_with_proportional_budget_when_budget_is_spent(cnf, df):
-    window = BudgetWindow(DATE, DATE)
+    window = DateRange(DATE, DATE)
     spend = {"bar": 10.0, "baz": 10.0, "foo": 10.0}
     res, _ = get_budget_lookup(df, cnf, 30, 1, window, spend, 0.3, 1, proportional=True)
     assert res == {"bar": 0, "baz": 0, "foo": 0}
 
 
 def test_get_budget_lookup_respects_maximum_budget(cnf, df):
-    window = BudgetWindow(DATE, DATE)
+    window = DateRange(DATE, DATE)
     spend = {"bar": 100.0, "baz": 100.0, "foo": 100.0}
 
     res, _ = get_budget_lookup(df, cnf, 200, 1, window, spend, 100, 2)
@@ -834,7 +837,7 @@ def test_get_budget_lookup_respects_maximum_budget(cnf, df):
 
 
 def test_get_budget_lookup_respects_min_budget(cnf, df):
-    window = BudgetWindow(DATE, DATE)
+    window = DateRange(DATE, DATE)
     spend = {"bar": 100.0, "baz": 100.0, "foo": 10.0}
 
     res, _ = get_budget_lookup(df, cnf, 500, 100, window, spend, 100, days_left=2)
@@ -847,7 +850,7 @@ def test_get_budget_lookup_respects_min_budget(cnf, df):
 def test_get_budget_lookup_returns_zero_for_saturated_clusters(cnf, df):
     cnf = conf(1)
     spend = {"bar": 10.0, "baz": 10.0, "foo": 10.0}
-    window = BudgetWindow(DATE, DATE)
+    window = DateRange(DATE, DATE)
     res, _ = get_budget_lookup(df, cnf, 1000, 1, window, spend, 100, days_left=5)
 
     assert res == {"foo": 4.0, "bar": 0.0, "baz": 0.0}
@@ -855,7 +858,7 @@ def test_get_budget_lookup_returns_zero_for_saturated_clusters(cnf, df):
 
 def test_get_budget_lookup_handles_missing_spend_by_assuming_mean(cnf, df):
     spend = {"bar": 10.0}
-    window = BudgetWindow(DATE, DATE)
+    window = DateRange(DATE, DATE)
     res, _ = get_budget_lookup(df, cnf, 1000, 1, window, spend, 100, days_left=5)
 
     assert res == {"bar": 2.0, "foo": 4.0, "baz": 2.0}
@@ -864,7 +867,7 @@ def test_get_budget_lookup_handles_missing_spend_by_assuming_mean(cnf, df):
 def test_get_budget_lookup_handles_missing_spend_in_saturated_clusters(cnf, df):
     cnf = conf(1)
     spend = {"foo": 10.0}
-    window = BudgetWindow(DATE, DATE)
+    window = DateRange(DATE, DATE)
     res, _ = get_budget_lookup(df, cnf, 1000, 1, window, spend, 100, days_left=5)
 
     assert res == {"foo": 4.0, "bar": 0.0, "baz": 0.0}
@@ -872,7 +875,7 @@ def test_get_budget_lookup_handles_missing_spend_in_saturated_clusters(cnf, df):
 
 def test_get_budget_lookup_handles_zero_spend_doesnt_affect_trimming(cnf, df):
     spend = {"foo": 10.0, "bar": 15.0, "baz": 20.0, "qux": 0.0}
-    window = BudgetWindow(DATE, DATE)
+    window = DateRange(DATE, DATE)
     res, _ = get_budget_lookup(df, cnf, 1000, 1, window, spend, 100, days_left=5)
     assert res == {"bar": 3, "foo": 8, "baz": 4}
 
@@ -885,7 +888,7 @@ def test_get_budget_lookup_handles_initial_conditions_with_min(cnf):
         columns=cols,
     )
 
-    window = BudgetWindow(DATE, DATE)
+    window = DateRange(DATE, DATE)
     res, _ = get_budget_lookup(df, cnf, 1000, 1, window, spend, 0.1, days_left=1)
     assert res == {"bar": 1, "foo": 1, "baz": 1}
 
@@ -912,7 +915,7 @@ def test_get_budget_lookup_works_with_missing_data_from_clusters(cnf):
     df = _format_df(df)
 
     spend = {"bar": 10.0, "foo": 10.0, "baz": 10.0}
-    window = BudgetWindow(DATE, DATE)
+    window = DateRange(DATE, DATE)
     res, _ = get_budget_lookup(df, cnf, 20, 1, window, spend, 100, days_left=5)
 
     assert res == {"foo": 4.0, "bar": 0.0, "baz": 4.0}

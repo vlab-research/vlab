@@ -1,7 +1,5 @@
 import logging
 import re
-from dataclasses import dataclass
-from datetime import datetime
 from functools import cached_property
 from typing import Any, Dict, List, Tuple
 
@@ -15,6 +13,7 @@ from facebook_business.api import FacebookAdsApi
 from facebook_business.session import FacebookSession
 
 from .api import call
+from .date_range import DateRange
 
 
 class StateNameError(BaseException):
@@ -29,39 +28,6 @@ class StateInitializationError(BaseException):
 # GET from Facebook API
 #############################
 
-epoch = datetime.utcfromtimestamp(0)
-
-
-def unix_time_millis(dt):
-    return (dt - epoch).total_seconds() * 1000.0
-
-
-@dataclass
-class BudgetWindow:
-    start_date: datetime
-    until_date: datetime
-
-    @property
-    def start(self):
-        return self.start_date.strftime("%Y-%m-%d")
-
-    @property
-    def until(self):
-        return self.until_date.strftime("%Y-%m-%d")
-
-    @property
-    def start_unix(self):
-        return unix_time_millis(self.start_date)
-
-    @property
-    def until_unix(self):
-        return unix_time_millis(self.until_date)
-
-
-#############################
-# GET from Facebook API
-#############################
-
 # TODO: make fields dynamic based on given desired state...
 
 
@@ -69,7 +35,7 @@ def get_creatives(api: FacebookAdsApi, ids: List[str]) -> List[AdCreative]:
     if not ids:
         return []
 
-    fields = ["url_tags", "actor_id", "object_story_spec"]
+    fields = ["url_tags", "actor_id", "object_story_spec", "link_deep_link_url"]
     return call(AdCreative.get_by_ids, ids=ids, fields=fields, api=api)
 
 
@@ -125,6 +91,8 @@ def get_all_ads(api: FacebookAdsApi, c: Campaign) -> List[Ad]:
     return ads
 
 
+# TODO: remove from here, move to Facebook RecruitmentData connector
+# allow for time_ranges to get multiple...
 def _get_insights(adset, window):
     params = {"time_range": {"since": window.start, "until": window.until}}
     fields = [
@@ -150,12 +118,14 @@ def _get_insights(adset, window):
 Insights = Dict[str, Any]
 
 
-def get_insights(adsets, window: BudgetWindow) -> Insights:
+# TODO: remove from here, move to Facebook RecruitmentData connector
+def get_insights(adsets, window: DateRange) -> Insights:
     insights = {a["name"]: _get_insights(a, window) for a in adsets}
     return insights
 
 
-# TODO: remove spend-specific logic, just leave insights
+# TODO: remove from here, adopt should know how to get spend
+# from stored RecruitmentData
 def get_spending(insights: Insights) -> Dict[str, float]:
     spending = lambda i: 0 if i is None else i["spend"]
     spend = {n: spending(i) for n, i in insights.items()}
@@ -192,7 +162,7 @@ class CampaignState:
         self.token: str = token
         self.api: FacebookAdsApi = api
         self.campaign_id = campaign_id
-        self.window: BudgetWindow = window
+        self.window: DateRange = window
 
         if re.search(r"^act_", ad_account_id):
             raise Exception(
@@ -246,6 +216,8 @@ class CampaignState:
             raise StateInitializationError("Cannot get insights without a window")
         return get_insights(self.adsets, self.window)
 
+    # TODO: remove spend. System should get this from another place
+    # and change insights api to deal with getting multiple days...
     @cached_property
     def spend(self) -> Dict[str, float]:
         return get_spending(self.insights)
