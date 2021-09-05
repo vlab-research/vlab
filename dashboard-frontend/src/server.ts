@@ -1,5 +1,5 @@
 import Chance from 'chance';
-import { Model, Server } from 'miragejs';
+import { Model, Server, Response, Request } from 'miragejs';
 import { createFakeStudy } from './fixtures/study';
 import {
   StudyProgressResource,
@@ -118,6 +118,10 @@ export const makeServer = ({ environment = 'development' } = {}) => {
       this.timing = 750;
 
       this.get('/studies', ({ db }, request) => {
+        if (!isAuthenticatedRequest(request)) {
+          return unauthorizedResponse;
+        }
+
         let number = 10;
         let cursor = 0;
 
@@ -150,6 +154,10 @@ export const makeServer = ({ environment = 'development' } = {}) => {
       });
 
       this.get('/studies/:slug', ({ db }, request) => {
+        if (!isAuthenticatedRequest(request)) {
+          return unauthorizedResponse;
+        }
+
         const study = (db.studies as any).findBy({ slug: request.params.slug });
 
         return {
@@ -174,6 +182,10 @@ export const makeServer = ({ environment = 'development' } = {}) => {
        *    To decide yet if we want more granularity and allow the user to see hourly and minutes updates reflected in the chart.
        */
       this.get('/studies/:slug/progress', ({ db }, request) => {
+        if (!isAuthenticatedRequest(request)) {
+          return unauthorizedResponse;
+        }
+
         const study: StudyResource = (db.studies as any).findBy({
           slug: request.params.slug,
         });
@@ -197,6 +209,10 @@ export const makeServer = ({ environment = 'development' } = {}) => {
        *  - Soon, when we allow the users to pick a specific range of dates, we'll add the required query_parameters.
        */
       this.get('/studies/:slug/segments-progress', ({ db }, request) => {
+        if (!isAuthenticatedRequest(request)) {
+          return unauthorizedResponse;
+        }
+
         let number = 10;
         let cursor = 0;
 
@@ -243,6 +259,8 @@ export const makeServer = ({ environment = 'development' } = {}) => {
           },
         };
       });
+
+      this.passthrough(`https://${process.env.REACT_APP_AUTH0_DOMAIN}/**`);
     },
   });
 
@@ -324,3 +342,14 @@ export const createSegmentProgressResource = (
     studyId: study.id,
   });
 };
+
+const isAuthenticatedRequest = (request: Request) =>
+  (request.requestHeaders.authorization || '').slice(7) !== '';
+
+const unauthorizedResponse = new Response(
+  401,
+  { 'content-type': 'application/json' },
+  {
+    error: 'Unauthorized',
+  }
+);

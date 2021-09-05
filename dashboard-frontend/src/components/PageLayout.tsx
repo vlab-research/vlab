@@ -5,12 +5,14 @@ const PageLayout = ({
   title,
   children,
   showBackButton = false,
+  testId,
 }: {
   title: string;
   children: JSX.Element;
   showBackButton?: boolean;
+  testId?: string;
 }) => (
-  <div className="min-h-screen bg-gray-100">
+  <div className="min-h-screen bg-gray-100" data-testid={testId}>
     <Header className="sticky top-0 z-10" />
     <div className="py-10">
       <header>

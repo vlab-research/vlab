@@ -2,6 +2,7 @@
   "name": "dashboard-frontend",
   "private": true,
   "dependencies": {
+    "@auth0/auth0-react": "1.6.0",
     "@headlessui/react": "1.2.0",
     "@heroicons/react": "1.0.1",
     "chance": "1.1.7",
