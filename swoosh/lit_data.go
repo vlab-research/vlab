@@ -25,12 +25,12 @@ func (t *LitDataTimestamp) UnmarshalJSON(b []byte) error {
 }
 
 type LitDataEvent struct {
-	AttributionURL json.RawMessage `json:"attribution_url"`
-	AppID          string          `json:"app_id"`
-	OrderedID      int64           `json:"ordered_id"`
+	AttributionURL json.RawMessage `json:"attribution_url" validate:"required"`
+	AppID          string          `json:"app_id" validate:"required"`
+	OrderedID      int64           `json:"ordered_id" validate:"required"`
 	User           struct {
-		ID            string                     `json:"id"`
-		Metadata      map[string]json.RawMessage `json:"metadata"`
+		ID            string                     `json:"id" validate:"required"`
+		Metadata      map[string]json.RawMessage `json:"metadata" validate:"required"`
 		AdAttribution struct {
 			Source string `json:"source"`
 			Data   struct {
@@ -38,20 +38,20 @@ type LitDataEvent struct {
 				// add other types of ids for other sources...
 			} `json:"data"`
 		} `json:"ad_attribution"`
-		Event struct {
-			Name      string           `json:"name"`
-			Date      string           `json:"date"`
-			Timestamp LitDataTimestamp `json:"timestamp"`
-			Label     string           `json:"label"`
-			Action    string           `json:"action"`
-			Value     json.RawMessage  `json:"value"`
-			ValueType string           `json:"value_type"`
-		} `json:"event"`
-	} `json:"user"`
+	} `json:"user" validate:"required"`
+	Event struct {
+		Name      string           `json:"name" validate:"required"`
+		Date      string           `json:"date" validate:"required"`
+		Timestamp LitDataTimestamp `json:"timestamp" validate:"required"`
+		Action    string           `json:"action"`
+		Label     string           `json:"label"`
+		Value     json.RawMessage  `json:"value" validate:"required"`
+		ValueType string           `json:"value_type" validate:"required"`
+	} `json:"event" validate:"required"`
 }
 
 func marshalValue(lde *LitDataEvent) json.RawMessage {
-	v := LitDataValue{lde.User.Event.Value, lde.User.Event.ValueType}
+	v := LitDataValue{lde.Event.Value, lde.Event.ValueType, lde.Event.Label}
 	b, err := json.Marshal(v)
 	if err != nil {
 		// shouldn't happen, just string/json.RawMessage
@@ -74,8 +74,8 @@ func (lde *LitDataEvent) AsInferenceDataEvent(study string) *InferenceDataEvent 
 		User{lde.User.ID, md},
 		study,
 		"literacy_data_api",
-		lde.User.Event.Timestamp.Time,
-		lde.User.Event.Action,
+		lde.Event.Timestamp.Time,
+		lde.Event.Action,
 		marshalValue(lde),
 	}
 }
@@ -113,6 +113,7 @@ type LitDataError struct {
 type LitDataValue struct {
 	Value     json.RawMessage `json:"value"`
 	ValueType string          `json:"value_type"`
+	Label     string          `json:"label"`
 }
 
 func (e *LitDataError) Empty() bool {
