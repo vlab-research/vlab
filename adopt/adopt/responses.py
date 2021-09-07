@@ -6,6 +6,8 @@ import psycopg2
 from psycopg2.extras import execute_batch
 from toolz import dissoc
 
+# TODO: deprecate this in favor of using InferenceData abstraction
+# and getting this data from an API + connector plugin
 
 def query(cnf, q, vals=(), as_dict=False, batch=False):
     with psycopg2.connect(

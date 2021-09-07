@@ -158,6 +158,7 @@ def get_api(env, token: str) -> FacebookAdsApi:
 
 
 class CampaignState:
+    # TODO: remove window from state
     def __init__(self, token, api, ad_account_id, campaign_id=None, window=None):
         self.token: str = token
         self.api: FacebookAdsApi = api
