@@ -64,24 +64,6 @@ const (
 	}]
        `
 
-	confStudies = `
-	[{
-	    "source": "literacy_data_api",
-	    "config": {
-		"from": "0",
-		"app_id": "com.eduapp4syria.feedthemonsterBangla",
-		"attribution_id": "FB_Bangla_App_6_2021"
-	    }
-	},
-        {
-	    "source": "literacy_data_api",
-	    "config": {
-		"from": "0",
-		"app_id": "com.eduapp4syria.feedthemonsterNepali",
-		"attribution_id": "FB_Nepal_foo"
-	    }
-	}]`
-
 	insertStudy = `insert into studies(name, active) values($1, $2) returning id`
 	insertConf  = `insert into study_confs(study_id, conf_type, conf) values($1, $2, $3)`
 )
@@ -153,16 +135,4 @@ func TestGetStudyConfs_GetsOnlyTheLatestConfPerStudy(t *testing.T) {
 	assert.Equal(t, 1, len(confs))
 	params := parseParams(confs[0].Conf.Config)
 	assert.Equal(t, "attribution_later", params.AttributionID)
-}
-
-// TODO: clean this up soon, just for quick piloting
-func TestGetStudyConfs_leaveUsefulData(t *testing.T) {
-	pool := testPool()
-	defer pool.Close()
-	mustExec(t, pool, studiesSql)
-	mustExec(t, pool, studyConfsSql)
-
-	foo := createStudy(pool, "cl_bangla_pilot", true)
-
-	mustExec(t, pool, insertConf, foo, "data_source", confStudies)
 }

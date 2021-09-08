@@ -47,8 +47,8 @@ type ExtractionConf struct {
 }
 
 type InferenceDataSource struct {
-	VariableExtractionMapping map[string]*ExtractionConf // source variable name -> extraction conf
-	MetadataExtractionMapping map[string]*ExtractionConf // source variable name -> extraction conf
+	VariableExtractionMapping map[string]*ExtractionConf `json:"variable_extraction"` // source variable name -> extraction conf
+	MetadataExtractionMapping map[string]*ExtractionConf `json:"metadata_extraction"` // source variable name -> extraction conf
 }
 
 type InferenceDataConf struct {
@@ -161,6 +161,7 @@ func Reduce(events []*InferenceDataEvent, c *InferenceDataConf) (InferenceData, 
 		}
 
 		// attempt to extract the values from the user metadata, according to config
+		// TODO: should this have a nil check? Preferably not!
 		vals := extractMetadata(e, sourceConf.MetadataExtractionMapping)
 
 		// attempt to extract the values from the event itself, according to config

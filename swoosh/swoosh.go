@@ -31,19 +31,41 @@ func getConfig() Config {
 	return cfg
 }
 
+func GetInferenceDataConf(pool *pgxpool.Pool, study string) (*InferenceDataConf, error) {
+	q := `
+        SELECT conf
+        FROM study_confs
+        WHERE study_id = $1
+        AND conf_type = 'inference_data'
+        ORDER BY created DESC
+        LIMIT 1;
+        `
+
+	conf := new(InferenceDataConf)
+	err := pool.QueryRow(context.Background(), q, study).Scan(conf)
+	if err != nil {
+		return nil, err
+	}
+
+	return conf, nil
+}
+
 func main() {
 	cnf := getConfig()
 	pool, err := pgxpool.Connect(context.Background(), cnf.DB)
 	handle(err)
 
-	// create config -- env vars, not study-specific stuff....
-	url := "http://localhost:4000"
-
+	// This part should go in the "literacy data connector"
 	sources, err := GetStudyConfs(pool, "literacy_data_api")
 	handle(err)
 
 	for _, source := range sources {
+		// --------------------------
+		// This part should go in the "literacy data connector"
+		// --------------------------
 
+		// create config -- env vars, not study-specific stuff....
+		url := "http://localhost:4000"
 		litDataConfig := new(LitDataConfig)
 		err := json.Unmarshal(source.Conf.Config, litDataConfig)
 		handle(err)
@@ -57,31 +79,24 @@ func main() {
 			litDataConfig.AttributionID,
 		}
 
-		res := GetEvents(source.StudyID, url, params)
-		log.Println(fmt.Printf("Swoosh read %d events.", len(res)))
+		events := GetEvents(source.StudyID, url, params)
+		log.Println(fmt.Printf("Swoosh read %d events.", len(events)))
 
-		// ------------
-		// write to Kafka
-		// ------------
+		// ---------------------
+		// write to Kafka here.
+		// ---------------------
 
-		// this part should now be study-specific, picking the variables based on
-		// the config and the source. It consumes from kafka.
-
-		mapping := &InferenceDataConf{map[string]*InferenceDataSource{
-			"literacy_data_api": {
-				VariableExtractionMapping: map[string]*ExtractionConf{
-					// look at variable names
-					"LevelSuccess_2": {Name: "level_2", Type: "existence", Function: "select", Params: []byte(`{"path": "value"}`)},
-					"LevelSuccess_5": {Name: "level_5", Type: "existence", Function: "select", Params: []byte(`{"path": "value"}`)},
-				},
-				MetadataExtractionMapping: nil,
-			},
-		}}
-		id, err := Reduce(res, mapping)
+		// ---------------------
+		// this part goes in Swoosh. Is study-specific, picking the variables based on
+		// and the source. It gets the events from the event store in batch
+                // mode or from kafka in streaming mode.
+		// ---------------------
+		mapping, err := GetInferenceDataConf(pool, source.StudyID)
+		handle(err)
+		id, err := Reduce(events, mapping)
 		handle(err)
 
 		log.Println(fmt.Printf("Swoosh storing InferenceData from %d users", len(id)))
-
 		err = WriteInferenceData(pool, source.StudyID, id)
 		handle(err)
 
