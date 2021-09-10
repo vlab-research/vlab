@@ -21,12 +21,9 @@ describe('Given an authenticated user', () => {
   });
 
   describe("When he hasn't created any Study and visits the home page", () => {
-    beforeEach(() => {
-      cy.visit('/');
-      assertLoaderAppears();
-    });
-
     it('He sees information on how to create a Study', () => {
+      cy.visit('/');
+
       cy.contains('Contact info@vlab.digital and create your first Study.');
       cy.contains('info@vlab.digital').should(
         'have.attr',

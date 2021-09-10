@@ -1,18 +1,23 @@
 import { useInfiniteQuery } from 'react-query';
-import { fetchStudies } from '../../helpers/api';
 import { StudiesApiResponse } from '../../types/study';
 import { Cursor } from '../../types/api';
+import useAuthenticatedApi from '../../hooks/useAuthenticatedApi';
 
 const studiesPerPage = 10;
 const defaultErrorMessage = 'Something went wrong while fetching the Studies.';
 
 const useStudies = () => {
+  const { fetchStudies } = useAuthenticatedApi();
   const queryKey = 'studies';
 
   const query = useInfiniteQuery<StudiesApiResponse, string, Cursor>(
     queryKey,
     (_: unknown, cursor: Cursor = null) =>
-      fetchStudies({ studiesPerPage, cursor, defaultErrorMessage }),
+      fetchStudies({
+        studiesPerPage,
+        cursor,
+        defaultErrorMessage,
+      }),
     {
       getFetchMore: lastPage => lastPage.pagination.nextCursor,
     }

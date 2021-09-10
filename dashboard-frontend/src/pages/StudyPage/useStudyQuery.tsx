@@ -1,7 +1,10 @@
 import { useQuery } from 'react-query';
-import { fetchStudy } from '../../helpers/api';
+import useAuthenticatedApi from '../../hooks/useAuthenticatedApi';
 
-const useStudyQuery = (slug: string) =>
-  useQuery(['study', slug], () => fetchStudy(slug));
+const useStudyQuery = (slug: string) => {
+  const { fetchStudy } = useAuthenticatedApi();
+
+  return useQuery(['study', slug], () => fetchStudy({ slug }));
+};
 
 export default useStudyQuery;

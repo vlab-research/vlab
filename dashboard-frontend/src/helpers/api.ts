@@ -13,50 +13,76 @@ import { Cursor } from '../types/api';
  *    when reporting to Sentry or a similar service.
  */
 
-export const fetchStudies = ({
+const fetchStudies = ({
   studiesPerPage,
   cursor,
   defaultErrorMessage,
+  accessToken,
 }: {
   studiesPerPage: number;
   cursor: Cursor;
   defaultErrorMessage: string;
+  accessToken: string;
 }) =>
   apiRequest<StudiesApiResponse>(
     `/api/studies?number=${studiesPerPage}&cursor=${cursor}`,
     {
       defaultErrorMessage,
+      accessToken,
     }
   );
 
-export const fetchStudy = (slug: string) =>
-  apiRequest<StudyApiResponse>(`/api/studies/${slug}`).then(({ data }) => data);
+const fetchStudy = ({
+  slug,
+  accessToken,
+}: {
+  slug: string;
+  accessToken: string;
+}) =>
+  apiRequest<StudyApiResponse>(`/api/studies/${slug}`, { accessToken }).then(
+    ({ data }) => data
+  );
 
-export const fetchStudyProgress = (slug: string) =>
-  apiRequest<StudyProgressListApiResponse>(
-    `/api/studies/${slug}/progress`
-  ).then(({ data }) => data);
+const fetchStudyProgress = ({
+  slug,
+  accessToken,
+}: {
+  slug: string;
+  accessToken: string;
+}) =>
+  apiRequest<StudyProgressListApiResponse>(`/api/studies/${slug}/progress`, {
+    accessToken,
+  }).then(({ data }) => data);
 
-export const fetchStudySegmentsProgress = ({
+const fetchStudySegmentsProgress = ({
   slug,
   segmentsProgressPerPage,
   cursor,
+  accessToken,
 }: {
   slug: string;
   segmentsProgressPerPage: number;
   cursor: Cursor;
+  accessToken: string;
 }) =>
   apiRequest<StudySegmentsProgressApiResponse>(
-    `/api/studies/${slug}/segments-progress?number=${segmentsProgressPerPage}&cursor=${cursor}`
+    `/api/studies/${slug}/segments-progress?number=${segmentsProgressPerPage}&cursor=${cursor}`,
+    { accessToken }
   );
 
 const apiRequest = async <ApiResponse>(
   url: string,
-  { defaultErrorMessage = 'Something went wrong.' } = {}
+  {
+    defaultErrorMessage = 'Something went wrong.',
+    accessToken = '',
+  }: { defaultErrorMessage?: string; accessToken: string }
 ) => {
   try {
     const response = await fetchWithTimeout(url, {
       timeout: 10000,
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
     });
 
     if (!response.ok) {
@@ -88,4 +114,11 @@ const getErrorMessageFor = async (
   const responseBody = await errorResponse.json();
 
   return responseBody.error || defaultErrorMessage;
+};
+
+export const authenticatedApiCalls = {
+  fetchStudies,
+  fetchStudy,
+  fetchStudyProgress,
+  fetchStudySegmentsProgress,
 };

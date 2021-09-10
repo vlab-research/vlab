@@ -9,7 +9,7 @@ import ErrorPlaceholder, {
 } from '../../components/ErrorPlaceholder';
 
 const StudiesPage = () => (
-  <PageLayout title={'Studies'}>
+  <PageLayout title={'Studies'} testId="studies-page">
     <PageContent />
   </PageLayout>
 );

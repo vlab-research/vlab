@@ -27,3 +27,5 @@ jobs:
           start: npm run start:e2e-mode
           wait-on: "http://localhost:3000"
           working-directory: ${{env.working-directory}}
+          browser: chrome
+          headless: true

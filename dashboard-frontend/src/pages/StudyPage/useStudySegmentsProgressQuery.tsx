@@ -1,18 +1,26 @@
 import { usePaginatedQuery } from 'react-query';
-import { fetchStudySegmentsProgress } from '../../helpers/api';
+import useAuthenticatedApi from '../../hooks/useAuthenticatedApi';
 
 export const segmentsProgressPerPage = 7;
 
 const useStudySegmentsProgressQuery = (
   slug: string,
   cursor: string | null = null
-) =>
-  usePaginatedQuery(
+) => {
+  const { fetchStudySegmentsProgress } = useAuthenticatedApi();
+
+  return usePaginatedQuery(
     ['study', slug, 'segments-progress', { cursor }],
-    () => fetchStudySegmentsProgress({ slug, cursor, segmentsProgressPerPage }),
+    () =>
+      fetchStudySegmentsProgress({
+        slug,
+        cursor,
+        segmentsProgressPerPage,
+      }),
     {
       refetchInterval: 30000,
     }
   );
+};
 
 export default useStudySegmentsProgressQuery;
