@@ -7,6 +7,7 @@ metadata:
     {{- include "dean.labels" $ | nindent 4 }}
 spec:
   schedule: "{{ .schedule }}"
+  concurrencyPolicy: Forbid
   jobTemplate:
     spec:
       template:

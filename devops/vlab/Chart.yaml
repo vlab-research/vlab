@@ -30,7 +30,7 @@ dependencies:
     tags:
       - payments
   - name: dean
-    version: 0.0.1
+    version: 0.0.2
     repository: https://vlab-research.github.io/devops
     tags:
       - dean
