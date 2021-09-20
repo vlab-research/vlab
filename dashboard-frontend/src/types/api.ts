@@ -1,8 +1,5 @@
 export interface ApiResponse<Data> {
   data: Data;
-  pagination: {
-    nextCursor: Cursor;
-  };
 }
 
 export interface PaginatedApiResponse<Data, PaginationExtraFields = void> {

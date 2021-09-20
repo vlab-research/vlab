@@ -1,6 +1,5 @@
 import {
   calculateAverage,
-  calculateAverageDeviation,
   calculatePercentage,
   formatNumber,
   InvalidNumberError,
@@ -55,26 +54,10 @@ describe('calculatePercentage', () => {
   });
 });
 
-describe('calculateAverageDeviation', () => {
-  it('returns the average deviation given an array of numbers', () => {
-    expect(calculateAverageDeviation([1, 2, 3])).toBe(0.67);
-  });
-
-  INVALID_NUMBERS.forEach(invalidNumber => {
-    it(`throws error when any of the values provided is ${invalidNumber}`, () => {
-      try {
-        expect.assertions(1);
-        calculateAverageDeviation([1, 2, invalidNumber]);
-      } catch (err) {
-        expect(err).toBeInstanceOf(InvalidNumberError);
-      }
-    });
-  });
-});
-
 describe('calculateAverage', () => {
   it('returns the average given an array of numbers', () => {
     expect(calculateAverage([1, 2, 3])).toBe(2);
+    expect(calculateAverage([1.01, 1.02, 1.03])).toBe(1.02);
   });
 
   INVALID_NUMBERS.forEach(invalidNumber => {

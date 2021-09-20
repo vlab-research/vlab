@@ -1,9 +1,5 @@
 import Chance from 'chance';
-import {
-  calculateAverageDeviation,
-  calculatePercentage,
-  round,
-} from '../helpers/numbers';
+import { calculatePercentage, round } from '../helpers/numbers';
 import { createSlugFor } from '../helpers/strings';
 import { lastValue } from '../helpers/arrays';
 import {
@@ -11,6 +7,11 @@ import {
   StudyProgressResource,
   StudySegmentProgressResource,
 } from '../types/study';
+import {
+  computeStudyProgressDataFrom,
+  computeCurrentParticipantsFrom,
+  computeExpectedParticipantsFrom,
+} from '../helpers/study';
 
 interface Study extends StudyResource {
   studyProgressList: StudyProgressResource[];
@@ -24,13 +25,13 @@ export const createFakeStudy = ({
   desiredParticipants,
   numOfDifferentStrata,
   desiredParticipantsPerStrata,
-  totalHoursOfData,
+  totalDaysOfData,
 }: {
   creationDate: number;
   desiredParticipants: number;
   numOfDifferentStrata: number;
   desiredParticipantsPerStrata: number;
-  totalHoursOfData: number;
+  totalDaysOfData: number;
 }) => {
   let study = createInitialStudyData({
     creationDate,
@@ -39,15 +40,14 @@ export const createFakeStudy = ({
     desiredParticipantsPerStrata,
   });
 
-  for (let hours = 1; hours <= totalHoursOfData; hours++) {
+  for (let days = 1; days <= totalDaysOfData; days++) {
     const lastStudyProgress = lastValue(study.studyProgressList);
-    const oneHourInMilliseconds = 3600000;
+    const oneDayInMilliseconds = 24 * 60 * 60 * 1000;
 
     study = updateStudyData(study, {
-      datetime: lastStudyProgress.datetime + oneHourInMilliseconds,
-      maxOfNewParticipants: desiredParticipants / totalHoursOfData,
+      datetime: lastStudyProgress.datetime + oneDayInMilliseconds,
+      maxOfNewParticipants: desiredParticipants / totalDaysOfData,
       numOfDifferentStrata: numOfDifferentStrata,
-      desiredParticipants,
     });
   }
 
@@ -99,7 +99,7 @@ const createInitialStudyData = ({
       currentPercentage: 0,
       expectedParticipants: 0,
       expectedPercentage: 0,
-      percentageDeviationFromGoal: 100,
+      percentageDeviationFromGoal: 0,
       currentBudget: desiredParticipantsPerStrata * 3 * 100,
       currentPricePerParticipant: 0,
     })),
@@ -114,18 +114,17 @@ const updateStudyData = (
     maxOfNewParticipants,
     numOfDifferentStrata,
     datetime,
-    desiredParticipants,
   }: {
     maxOfNewParticipants: number;
     numOfDifferentStrata: number;
     datetime: number;
-    desiredParticipants: number;
   }
 ): Study => {
   const lastStratumProgressList = study.stratumProgressList.slice(
     -numOfDifferentStrata
   );
-  const newStratumProgressList = lastStratumProgressList.map(
+
+  let newStratumProgressList = lastStratumProgressList.map(
     (stratumProgress, index) =>
       updateStratumProgress(stratumProgress, {
         newParticipants: chance.natural({
@@ -133,9 +132,34 @@ const updateStudyData = (
           max: Math.floor(maxOfNewParticipants / numOfDifferentStrata),
         }),
         datetime,
-        desiredParticipants,
       })
   );
+  const currentParticipantsForStudy = computeCurrentParticipantsFrom(
+    newStratumProgressList
+  );
+  const expectedParticipantsPerStudy = computeExpectedParticipantsFrom(
+    newStratumProgressList
+  );
+  newStratumProgressList = newStratumProgressList.map(newStratumProgress => {
+    const currentPercentage = round(
+      (newStratumProgress.currentParticipants / currentParticipantsForStudy) *
+        100
+    );
+    const percentageDeviationFromGoal = round(
+      Math.abs(newStratumProgress.desiredPercentage - currentPercentage)
+    );
+
+    return {
+      ...newStratumProgress,
+      currentPercentage,
+      percentageDeviationFromGoal,
+      expectedPercentage: round(
+        (newStratumProgress.expectedParticipants /
+          expectedParticipantsPerStudy) *
+          100
+      ),
+    };
+  });
 
   const lastStudyProgressList = lastValue(study.studyProgressList);
   const newStudyProgress: Study['studyProgressList'][number] = {
@@ -162,19 +186,13 @@ const updateStratumProgress = (
   {
     newParticipants,
     datetime,
-    desiredParticipants,
   }: {
     newParticipants: number;
     datetime: number;
-    desiredParticipants: number;
   }
 ) => {
   const currentParticipants =
     stratumProgress.currentParticipants + newParticipants;
-
-  const currentPercentage = round(
-    (currentParticipants / desiredParticipants) * 100
-  );
 
   const expectedParticipants = Math.floor(
     currentParticipants * chance.pickone([0.9, 1, 1.1])
@@ -186,37 +204,9 @@ const updateStratumProgress = (
     datetime,
     currentParticipants,
     expectedParticipants,
-    currentPercentage,
-    expectedPercentage: round(
-      (expectedParticipants / desiredParticipants) * 100
-    ),
-    percentageDeviationFromGoal: round(100 - currentPercentage),
     currentPricePerParticipant: chance.pickone([100, 200, 300]),
   };
 };
-
-const computeStudyProgressDataFrom = (
-  stratumProgressList: Study['stratumProgressList']
-) => ({
-  currentParticipants: stratumProgressList.reduce(
-    (prev, { currentParticipants }) => prev + currentParticipants,
-    0
-  ),
-  expectedParticipants: stratumProgressList.reduce(
-    (prev, { expectedParticipants }) => prev + expectedParticipants,
-    0
-  ),
-  currentAverageDeviation: calculateAverageDeviation(
-    stratumProgressList.map(
-      ({ percentageDeviationFromGoal }) => percentageDeviationFromGoal
-    )
-  ),
-  expectedAverageDeviation: calculateAverageDeviation(
-    stratumProgressList.map(({ expectedPercentage }) =>
-      round(100 - expectedPercentage)
-    )
-  ),
-});
 
 const createRandomSuffix = () =>
   chance.string({

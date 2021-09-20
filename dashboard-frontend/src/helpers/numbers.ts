@@ -20,26 +20,16 @@ export const calculatePercentage = ({
   return round((current / total) * 100);
 };
 
-export const calculateAverageDeviation = (values: number[]) => {
-  const centralPoint = calculateAverage(values);
-
-  const absoluteDeviationsFromCentralPoint = values.map(value =>
-    Math.abs(centralPoint - value)
-  );
-
-  const averageDeviation = calculateAverage(absoluteDeviationsFromCentralPoint);
-
-  return round(averageDeviation);
-};
-
 export const calculateAverage = (values: number[]) =>
-  values.reduce((prev, current) => {
-    if (!isValidNumber(current)) {
-      throw new InvalidNumberError();
-    }
+  round(
+    values.reduce((prev, current) => {
+      if (!isValidNumber(current)) {
+        throw new InvalidNumberError();
+      }
 
-    return prev + current;
-  }, 0) / values.length;
+      return prev + current;
+    }, 0) / values.length
+  );
 
 export const round = (num: number) => {
   if (!isValidNumber(num)) {

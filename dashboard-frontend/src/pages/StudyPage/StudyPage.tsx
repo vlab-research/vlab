@@ -1,15 +1,11 @@
 import React, { useState } from 'react';
-import { queryCache } from 'react-query';
 import { useParams } from 'react-router-dom';
-import useStudyQuery from './useStudyQuery';
-import useStudyProgressQuery from './useStudyProgressQuery';
-import useStudySegmentsProgressQuery from './useStudySegmentsProgressQuery';
+import useStudy from './useStudy';
 import StudyProgressStats from './StudyProgressStats';
 import StudyProgressChart from './StudyProgressChart';
 import StudySegmentsTables from './StudySegmentsTables';
 import PageLayout from '../../components/PageLayout';
 import ErrorPlaceholder from '../../components/ErrorPlaceholder';
-import { lastValue } from '../../helpers/arrays';
 
 /**
  * TODO: Implement proper scroll restoration behaviour
@@ -26,30 +22,15 @@ import { lastValue } from '../../helpers/arrays';
 
 const StudyPage = () => {
   const { studySlug } = useParams<{ studySlug: string }>();
-  const studyQuery = useStudyQuery(studySlug);
-  const studyProgressQuery = useStudyProgressQuery(studySlug);
-  const studySegmentsProgressQuery = useStudySegmentsProgressQuery(studySlug);
+  const study = useStudy(studySlug);
   const [selectedStat, setSelectedState] = useState('Current Participants');
 
-  const isFirstTimeLoad =
-    !studyQuery.data ||
-    !studyProgressQuery.data?.length ||
-    !studySegmentsProgressQuery.resolvedData;
-
-  const anyErrorDuringFirstTimeLoad =
-    isFirstTimeLoad &&
-    (studyQuery.isError ||
-      studyProgressQuery.isError ||
-      studySegmentsProgressQuery.isError);
-
-  if (anyErrorDuringFirstTimeLoad) {
+  if (study.anyErrorDuringLoading) {
     return (
       <PageLayout title={''}>
         <ErrorPlaceholder
           message="Something went wrong while fetching the Study."
-          onClickTryAgain={() => {
-            queryCache.invalidateQueries(['study', studySlug]);
-          }}
+          onClickTryAgain={study.refetchData}
         />
       </PageLayout>
     );
@@ -58,13 +39,11 @@ const StudyPage = () => {
   return (
     <PageLayout
       showBackButton
-      title={isFirstTimeLoad ? 'Loading...' : studyQuery.data!.name}
+      title={study.isLoading ? 'Loading...' : study.name}
     >
       <React.Fragment>
         <StudyProgressStats
-          currentProgress={
-            isFirstTimeLoad ? undefined : lastValue(studyProgressQuery.data!)
-          }
+          currentProgress={study.isLoading ? undefined : study.currentProgress}
           selectedStat={selectedStat}
           onSelectStat={newSelectedStat => {
             setSelectedState(newSelectedStat);
@@ -73,13 +52,10 @@ const StudyPage = () => {
 
         <StudyProgressChart
           label={selectedStat}
-          data={isFirstTimeLoad ? undefined : studyProgressQuery.data!}
+          data={study.isLoading ? undefined : study.progressOverTime}
         />
 
-        <StudySegmentsTables
-          studySlug={studySlug}
-          showLoader={isFirstTimeLoad}
-        />
+        <StudySegmentsTables />
       </React.Fragment>
     </PageLayout>
   );

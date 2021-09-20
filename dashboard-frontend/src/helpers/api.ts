@@ -2,7 +2,6 @@ import { fetchWithTimeout } from './http';
 import {
   StudiesApiResponse,
   StudyApiResponse,
-  StudyProgressListApiResponse,
   StudySegmentsProgressApiResponse,
 } from '../types/study';
 import { Cursor } from '../types/api';
@@ -43,30 +42,15 @@ const fetchStudy = ({
     ({ data }) => data
   );
 
-const fetchStudyProgress = ({
-  slug,
-  accessToken,
-}: {
-  slug: string;
-  accessToken: string;
-}) =>
-  apiRequest<StudyProgressListApiResponse>(`/api/studies/${slug}/progress`, {
-    accessToken,
-  }).then(({ data }) => data);
-
 const fetchStudySegmentsProgress = ({
   slug,
-  segmentsProgressPerPage,
-  cursor,
   accessToken,
 }: {
   slug: string;
-  segmentsProgressPerPage: number;
-  cursor: Cursor;
   accessToken: string;
 }) =>
   apiRequest<StudySegmentsProgressApiResponse>(
-    `/api/studies/${slug}/segments-progress?number=${segmentsProgressPerPage}&cursor=${cursor}`,
+    `/api/studies/${slug}/segments-progress`,
     { accessToken }
   );
 
@@ -119,6 +103,5 @@ const getErrorMessageFor = async (
 export const authenticatedApiCalls = {
   fetchStudies,
   fetchStudy,
-  fetchStudyProgress,
   fetchStudySegmentsProgress,
 };
