@@ -1,39 +1,39 @@
 dependencies:
 - name: replybot
-  repository: https://vlab-research.github.io/devops
+  repository: https://vlab-research.github.io/fly
   version: 0.0.1
 - name: botserver
-  repository: https://vlab-research.github.io/devops
+  repository: https://vlab-research.github.io/fly
   version: 0.0.1
 - name: linksniffer
-  repository: https://vlab-research.github.io/devops
+  repository: https://vlab-research.github.io/fly
   version: 0.0.1
 - name: dashboard
-  repository: https://vlab-research.github.io/devops
+  repository: https://vlab-research.github.io/fly
   version: 0.0.1
 - name: formcentral
-  repository: https://vlab-research.github.io/devops
+  repository: https://vlab-research.github.io/fly
   version: 0.0.1
 - name: dumper
-  repository: https://vlab-research.github.io/devops
+  repository: https://vlab-research.github.io/fly
   version: 0.0.1
 - name: dinersclub
-  repository: https://vlab-research.github.io/devops
+  repository: https://vlab-research.github.io/fly
   version: 0.0.1
 - name: dean
-  repository: https://vlab-research.github.io/devops
-  version: 0.0.1
+  repository: https://vlab-research.github.io/fly
+  version: 0.0.2
 - name: scribble
-  repository: https://vlab-research.github.io/devops
+  repository: https://vlab-research.github.io/fly
   version: 0.0.1
 - name: naughtybot
-  repository: https://vlab-research.github.io/devops
+  repository: https://vlab-research.github.io/fly
   version: 0.0.1
 - name: botscribe
-  repository: https://vlab-research.github.io/devops
+  repository: https://vlab-research.github.io/fly
   version: 0.0.1
 - name: scratchbot
-  repository: https://vlab-research.github.io/devops
+  repository: https://vlab-research.github.io/fly
   version: 0.0.1
 - name: cockroachdb
   repository: https://charts.cockroachdb.com/
@@ -41,5 +41,5 @@ dependencies:
 - name: kafka
   repository: https://charts.bitnami.com/bitnami
   version: 14.0.5
-digest: sha256:7ea332b297e6125475d1036bd478599d148926cd6283c1a8170ed6be8d04395a
-generated: "2021-09-04T11:43:37.980673886+02:00"
+digest: sha256:7f8d490756488dc695f5156abb516e47497cd63b389e28c76f9b7e0edf6aed27
+generated: "2021-09-14T03:25:25.231775314+02:00"

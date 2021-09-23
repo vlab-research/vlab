@@ -4,6 +4,11 @@ kafkaExporter:
     servers:
       - kafka-headless:29092
 
+image:
+  repository: danielqsj/kafka-exporter
+  tag: latest
+  pullPolicy: Always
+
 prometheus:
   serviceMonitor: 
     enabled: true

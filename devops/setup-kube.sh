@@ -45,5 +45,8 @@ sleep 20
 kubectl apply -f ./kafka-operator/prod
 
 # wait for cluster and install exporter 
+# TODO: bring this up to date with the latest chart version which
+# now lives in the kafka_exporter repo: 
+# https://github.com/danielqsj/kafka_exporter
 sleep 30
 helm install kafka-exporter kafka-exporter -f ./kafka-operator/exporter-values.yaml

@@ -6,52 +6,52 @@ version: 0.0.1
 dependencies:
   - name: replybot
     version: 0.0.1
-    repository: https://vlab-research.github.io/devops
+    repository: https://vlab-research.github.io/fly
   - name: botserver
     version: 0.0.1
-    repository: https://vlab-research.github.io/devops
+    repository: https://vlab-research.github.io/fly
   - name: linksniffer
     version: 0.0.1
-    repository: https://vlab-research.github.io/devops
+    repository: https://vlab-research.github.io/fly
   - name: dashboard
     version: 0.0.1
-    repository: https://vlab-research.github.io/devops
+    repository: https://vlab-research.github.io/fly
   - name: formcentral
     version: 0.0.1
-    repository: https://vlab-research.github.io/devops
+    repository: https://vlab-research.github.io/fly
   - name: dumper
     version: 0.0.1
-    repository: https://vlab-research.github.io/devops
+    repository: https://vlab-research.github.io/fly
     tags:
       - backup
   - name: dinersclub
     version: 0.0.1
-    repository: https://vlab-research.github.io/devops
+    repository: https://vlab-research.github.io/fly
     tags:
       - payments
   - name: dean
     version: 0.0.2
-    repository: https://vlab-research.github.io/devops
+    repository: https://vlab-research.github.io/fly
     tags:
       - dean
   - name: scribble
     version: 0.0.1
-    repository: https://vlab-research.github.io/devops
+    repository: https://vlab-research.github.io/fly
     tags:
       - scribble
   - name: naughtybot
     version: 0.0.1
-    repository: https://vlab-research.github.io/devops
+    repository: https://vlab-research.github.io/fly
     tags:
       - naughtybot
   - name: botscribe
     version: 0.0.1
-    repository: https://vlab-research.github.io/devops
+    repository: https://vlab-research.github.io/fly
     tags:
       - botscribe
   - name: scratchbot
     version: 0.0.1
-    repository: https://vlab-research.github.io/devops
+    repository: https://vlab-research.github.io/fly
     tags:
       - scratchbot
 
