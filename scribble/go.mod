@@ -4,7 +4,7 @@ go 1.15
 
 require (
 	github.com/caarlos0/env/v6 v6.3.0
-	github.com/confluentinc/confluent-kafka-go v1.5.2
+	github.com/confluentinc/confluent-kafka-go v1.7.0
 	github.com/dgraph-io/ristretto v0.0.3
 	github.com/go-playground/validator/v10 v10.3.0
 	github.com/jackc/pgconn v1.6.4
