@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-func TestJsonSelectHappyPath(t *testing.T) {
+func TestJsonSelect_HappyPath(t *testing.T) {
 	res, _ := JsonSelect([]byte(`{"foo": 2}`), "foo")
 	assert.Equal(t, []byte(`2`), res)
 
@@ -26,10 +26,28 @@ func TestJsonSelectHappyPath(t *testing.T) {
 	assert.Equal(t, []byte(`2`), res)
 }
 
-func TestJsonSelectMissingValueAtPath(t *testing.T) {
+func TestJsonSelect_MissingValueAtPath(t *testing.T) {
 	_, err := JsonSelect([]byte(`{"foo": 2}`), "bar")
 	assert.NotNil(t, err)
 
 	_, err = JsonSelect([]byte(``), "")
+	assert.NotNil(t, err)
+}
+
+func TestCastContinuous_CastsAllValues(t *testing.T) {
+	f, err := CastContinuous([]byte(`2`))
+	assert.Nil(t, err)
+	assert.Equal(t, 2.0, f)
+
+	f, err = CastContinuous([]byte(`"2"`))
+	assert.Nil(t, err)
+	assert.Equal(t, 2.0, f)
+}
+
+func TestCastContinuous_ErrorsWhenNotPossible(t *testing.T) {
+	_, err := CastContinuous([]byte(`{"foo": "bar"}`))
+	assert.NotNil(t, err)
+
+	_, err = CastContinuous([]byte(`"foo"`))
 	assert.NotNil(t, err)
 }

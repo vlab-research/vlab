@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"strconv"
 
 	"github.com/tidwall/gjson"
 )
@@ -10,6 +11,10 @@ import (
 type ExtractionFunctionParams interface {
 	GetValue(json.RawMessage) ([]byte, error)
 }
+
+// ---------------------------
+// Select
+// ---------------------------
 
 type SelectFunctionParams struct {
 	Path *string `json:"path" validate:"required"` // use pointer because "" is valid
@@ -35,5 +40,25 @@ func JsonSelect(dat json.RawMessage, path string) ([]byte, error) {
 	}
 
 	return []byte(val), nil
+
+}
+
+// ---------------------------
+// Casting functions
+// ---------------------------
+
+func CastValue(b []byte) {
+
+}
+func CastContinuous(b []byte) (float64, error) {
+	res := gjson.ParseBytes(b)
+	switch res.Type {
+	case gjson.Number:
+		return res.Float(), nil
+	case gjson.String:
+		return strconv.ParseFloat(res.String(), 64)
+	default:
+		return 0, fmt.Errorf("Could not cast value as continuous: %s", string(b))
+	}
 
 }

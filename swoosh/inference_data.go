@@ -39,11 +39,12 @@ type InferenceData map[string]*InferenceDataRow
 
 // TODO: validate not empty fields...?
 type ExtractionConf struct {
-	Name     string          `json:"name"`
-	Function string          `json:"function"`
-	Params   json.RawMessage `json:"params"`
-	Type     string          `json:"type"`
-	fn       func(json.RawMessage) ([]byte, error)
+	Name      string          `json:"name"`
+	Function  string          `json:"function"`
+	Params    json.RawMessage `json:"params"`
+	Type      string          `json:"type"`
+	Aggregate string          `json:"aggregate"` // first, last, max, min
+	fn        func(json.RawMessage) ([]byte, error)
 }
 
 type InferenceDataSource struct {
@@ -97,7 +98,22 @@ func (conf *ExtractionConf) Extract(dat json.RawMessage) ([]byte, error) {
 	return conf.fn(dat)
 }
 
-func addValue(id InferenceData, user string, val *InferenceDataValue) InferenceData {
+// TODO: this casting is pretty silly...
+// We were happily transparently flowing raw json through as value
+// until all the sudden we needed to compare...
+func getNumericValues(oldVal, val *InferenceDataValue) (float64, float64, error) {
+	o, err := CastContinuous(oldVal.Value)
+	if err != nil {
+		return 0, 0, err
+	}
+	n, err := CastContinuous(val.Value)
+	if err != nil {
+		return o, 0, err
+	}
+	return o, n, nil
+}
+
+func addValue(conf *ExtractionConf, id InferenceData, user string, val *InferenceDataValue) (InferenceData, error) {
 	_, ok := id[user]
 
 	if !ok {
@@ -106,17 +122,57 @@ func addValue(id InferenceData, user string, val *InferenceDataValue) InferenceD
 
 	oldVal, ok := id[user].Data[val.Variable]
 
-	if ok {
-		if bytes.Equal(oldVal.Value, val.Value) {
-			return id
-		}
+	if !ok {
+		id[user].Data[val.Variable] = val
+		return id, nil
 	}
 
-	id[user].Data[val.Variable] = val
-	return id
+	if bytes.Equal(oldVal.Value, val.Value) {
+		return id, nil
+	}
+
+	switch conf.Aggregate {
+	case "last":
+		if oldVal.Timestamp.Before(val.Timestamp) {
+			id[user].Data[val.Variable] = val
+		}
+		return id, nil
+
+	case "first":
+		if oldVal.Timestamp.After(val.Timestamp) {
+			id[user].Data[val.Variable] = val
+		}
+		return id, nil
+
+	case "max":
+		// TODO: this casting is pretty silly...
+		o, n, err := getNumericValues(oldVal, val)
+		if err != nil {
+			return id, err
+		}
+
+		if o < n {
+			id[user].Data[val.Variable] = val
+		}
+		return id, nil
+
+	case "min":
+		o, n, err := getNumericValues(oldVal, val)
+		if err != nil {
+			return id, err
+		}
+
+		if o > n {
+			id[user].Data[val.Variable] = val
+		}
+		return id, nil
+
+	default:
+		return id, fmt.Errorf("Could not find match for aggregate function: %s", conf.Aggregate)
+	}
 }
 
-func extractValue(e *InferenceDataEvent, extractionConfs map[string]*ExtractionConf) (*InferenceDataValue, error) {
+func extractValue(id InferenceData, e *InferenceDataEvent, extractionConfs map[string]*ExtractionConf) (InferenceData, error) {
 	// Now deal with the main value from the event
 	conf, ok := extractionConfs[e.Variable]
 	if !ok {
@@ -128,23 +184,28 @@ func extractValue(e *InferenceDataEvent, extractionConfs map[string]*ExtractionC
 		return nil, err
 	}
 
-	return &InferenceDataValue{e.Timestamp, conf.Name, val, conf.Type}, nil
+	v := &InferenceDataValue{e.Timestamp, conf.Name, val, conf.Type}
+
+	return addValue(conf, id, e.User.ID, v)
 }
 
-func extractMetadata(e *InferenceDataEvent, extractionConfs map[string]*ExtractionConf) []*InferenceDataValue {
-	vals := []*InferenceDataValue{}
+func extractMetadata(id InferenceData, e *InferenceDataEvent, extractionConfs map[string]*ExtractionConf) (InferenceData, error) {
 
 	// Every event might have user metadata of interest, so we need to look at all of it
 	for k, conf := range extractionConfs {
-		v, ok := e.User.Metadata[k]
+		val, ok := e.User.Metadata[k]
 		if !ok {
 			continue
 		}
 
-		vals = append(vals, &InferenceDataValue{e.Timestamp, conf.Name, v, conf.Type})
+		v := &InferenceDataValue{e.Timestamp, conf.Name, val, conf.Type}
+		id, err := addValue(conf, id, e.User.ID, v)
+		if err != nil {
+			return id, err
+		}
 	}
 
-	return vals
+	return id, nil
 }
 
 func Reduce(events []*InferenceDataEvent, c *InferenceDataConf) (InferenceData, error) {
@@ -162,20 +223,19 @@ func Reduce(events []*InferenceDataEvent, c *InferenceDataConf) (InferenceData, 
 
 		// attempt to extract the values from the user metadata, according to config
 		// TODO: should this have a nil check? Preferably not!
-		vals := extractMetadata(e, sourceConf.MetadataExtractionMapping)
 
-		// attempt to extract the values from the event itself, according to config
-		val, err := extractValue(e, sourceConf.VariableExtractionMapping)
+		// add from metadata
+		id, err := extractMetadata(id, e, sourceConf.MetadataExtractionMapping)
 		if err != nil {
 			return id, err
 		}
-		if val != nil {
-			vals = append(vals, val)
-		}
 
-		// add the variable to the InferenceData
-		for _, v := range vals {
-			addValue(id, e.User.ID, v)
+		// attempt to extract the values from the event itself, according to config
+		id, err = extractValue(id, e, sourceConf.VariableExtractionMapping)
+		if err != nil {
+			bb, _ := json.Marshal(e)
+			fmt.Println(string(bb))
+			return id, err
 		}
 	}
 

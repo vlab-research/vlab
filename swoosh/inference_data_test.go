@@ -38,6 +38,87 @@ func ti(day string) time.Time {
 	return t.UTC()
 }
 
+func TestAddValue_PicksMax(t *testing.T) {
+	conf := &ExtractionConf{
+		Name:      "name",
+		Type:      "categorical",
+		Function:  "select",
+		Params:    []byte(`{"path": "translated_response"}`),
+		Aggregate: "max",
+	}
+
+	id := make(InferenceData)
+
+	expected := InferenceData{
+		"foo": {"foo",
+			map[string]*InferenceDataValue{
+				"name": {ti("07"), "name", []byte(`1`), "continuous"},
+			}},
+	}
+
+	val := &InferenceDataValue{ti("07"), "name", []byte(`1`), "continuous"}
+	actual, err := addValue(conf, id, "foo", val)
+
+	assert.Nil(t, err)
+	assert.Equal(t, expected, actual)
+
+	val = &InferenceDataValue{ti("08"), "name", []byte(`0`), "continuous"}
+	actual, err = addValue(conf, id, "foo", val)
+
+	assert.Nil(t, err)
+	assert.Equal(t, expected, actual)
+
+	val = &InferenceDataValue{ti("09"), "name", []byte(`2`), "continuous"}
+	actual, err = addValue(conf, id, "foo", val)
+
+	expected = InferenceData{
+		"foo": {"foo",
+			map[string]*InferenceDataValue{
+				"name": {ti("09"), "name", []byte(`2`), "continuous"},
+			}},
+	}
+
+	assert.Nil(t, err)
+	assert.Equal(t, expected, actual)
+}
+
+func TestAddValue_PicksLast(t *testing.T) {
+	conf := &ExtractionConf{
+		Name:      "name",
+		Type:      "categorical",
+		Function:  "select",
+		Params:    []byte(`{"path": "translated_response"}`),
+		Aggregate: "last",
+	}
+
+	id := make(InferenceData)
+
+	expected := InferenceData{
+		"foo": {"foo",
+			map[string]*InferenceDataValue{
+				"name": {ti("07"), "name", []byte(`1`), "continuous"},
+			}},
+	}
+
+	val := &InferenceDataValue{ti("07"), "name", []byte(`1`), "continuous"}
+	actual, err := addValue(conf, id, "foo", val)
+
+	assert.Nil(t, err)
+	assert.Equal(t, expected, actual)
+
+	expected = InferenceData{
+		"foo": {"foo",
+			map[string]*InferenceDataValue{
+				"name": {ti("08"), "name", []byte(`0`), "continuous"},
+			}},
+	}
+	val = &InferenceDataValue{ti("08"), "name", []byte(`0`), "continuous"}
+	actual, err = addValue(conf, id, "foo", val)
+
+	assert.Nil(t, err)
+	assert.Equal(t, expected, actual)
+}
+
 func TestReduceInferenceData_SelectsVariablesAsPerConfAndSelectFunction(t *testing.T) {
 	events := testEvents("events_c.json")
 
@@ -85,16 +166,18 @@ func TestReduceInferenceData_GroupsByUserAndOverwritesRepeatedValues(t *testing.
 		"literacy_data_api": {
 			VariableExtractionMapping: map[string]*ExtractionConf{
 				"q1": {
-					Name:     "q1",
-					Type:     "categorical",
-					Function: "select",
-					Params:   []byte(`{"path": ""}`),
+					Name:      "q1",
+					Type:      "categorical",
+					Function:  "select",
+					Params:    []byte(`{"path": ""}`),
+					Aggregate: "last",
 				},
 				"q2": {
-					Name:     "q2",
-					Type:     "continuous",
-					Function: "select",
-					Params:   []byte(`{"path": ""}`),
+					Name:      "q2",
+					Type:      "continuous",
+					Function:  "select",
+					Params:    []byte(`{"path": ""}`),
+					Aggregate: "last",
 				},
 			},
 			MetadataExtractionMapping: nil,
@@ -128,24 +211,27 @@ func TestReduceInferenceData_CollectsMetadataWithTimestampFirstEventOfUniqueValu
 		"literacy_data_api": {
 			VariableExtractionMapping: map[string]*ExtractionConf{
 				"q1": {
-					Name:     "q1",
-					Type:     "categorical",
-					Function: "select",
-					Params:   []byte(`{"path": ""}`),
+					Name:      "q1",
+					Type:      "categorical",
+					Function:  "select",
+					Params:    []byte(`{"path": ""}`),
+					Aggregate: "last",
 				},
 				"q2": {
-					Name:     "q2",
-					Type:     "continuous",
-					Function: "select",
-					Params:   []byte(`{"path": ""}`),
+					Name:      "q2",
+					Type:      "continuous",
+					Function:  "select",
+					Params:    []byte(`{"path": ""}`),
+					Aggregate: "last",
 				},
 			},
 			MetadataExtractionMapping: map[string]*ExtractionConf{
 				"user_md": {
-					Name:     "some_md",
-					Type:     "categorical",
-					Function: "select",
-					Params:   []byte(`{"path": ""}`),
+					Name:      "some_md",
+					Type:      "categorical",
+					Function:  "select",
+					Params:    []byte(`{"path": ""}`),
+					Aggregate: "last",
 				},
 			},
 		},

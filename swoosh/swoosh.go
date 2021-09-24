@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"log"
 
@@ -50,54 +49,65 @@ func GetInferenceDataConf(pool *pgxpool.Pool, study string) (*InferenceDataConf,
 	return conf, nil
 }
 
+func GetEvents(pool *pgxpool.Pool, study string) ([]*InferenceDataEvent, error) {
+	events := []*InferenceDataEvent{}
+	rows, err := pool.Query(context.Background(), "SELECT data from inference_data_events where study_id = $1", study)
+	if err != nil {
+		return events, err
+	}
+
+	for rows.Next() {
+		event := new(InferenceDataEvent)
+		err := rows.Scan(event)
+		if err != nil {
+			return events, err
+		}
+
+		events = append(events, event)
+	}
+
+	return events, nil
+}
+
+func GetActiveStudies(pool *pgxpool.Pool) ([]string, error) {
+	studies := []string{}
+	rows, err := pool.Query(context.Background(), "SELECT id from studies where active = true")
+	if err != nil {
+		return studies, err
+	}
+
+	for rows.Next() {
+		var study string
+		err := rows.Scan(&study)
+		if err != nil {
+			return studies, err
+		}
+		studies = append(studies, study)
+	}
+
+	return studies, nil
+}
+
 func main() {
 	cnf := getConfig()
 	pool, err := pgxpool.Connect(context.Background(), cnf.DB)
 	handle(err)
 
-	// This part should go in the "literacy data connector"
-	sources, err := GetStudyConfs(pool, "literacy_data_api")
+	studies, err := GetActiveStudies(pool)
 	handle(err)
 
-	for _, source := range sources {
-		// --------------------------
-		// This part should go in the "literacy data connector"
-		// --------------------------
-
-		// create config -- env vars, not study-specific stuff....
-		url := "http://localhost:4000"
-		litDataConfig := new(LitDataConfig)
-		err := json.Unmarshal(source.Conf.Config, litDataConfig)
+	for _, study := range studies {
+		events, err := GetEvents(pool, study)
 		handle(err)
-
-		log.Println("Swoosh getting data for: ", litDataConfig)
-
-		// NOTE: right now the config is the params, but that will change
-		params := &LitDataAPIParams{
-			litDataConfig.From,
-			litDataConfig.AppID,
-			litDataConfig.AttributionID,
-		}
-
-		events := GetEvents(source.StudyID, url, params)
 		log.Println(fmt.Printf("Swoosh read %d events.", len(events)))
 
-		// ---------------------
-		// write to Kafka here.
-		// ---------------------
-
-		// ---------------------
-		// this part goes in Swoosh. Is study-specific, picking the variables based on
-		// and the source. It gets the events from the event store in batch
-                // mode or from kafka in streaming mode.
-		// ---------------------
-		mapping, err := GetInferenceDataConf(pool, source.StudyID)
+		mapping, err := GetInferenceDataConf(pool, study)
 		handle(err)
 		id, err := Reduce(events, mapping)
 		handle(err)
 
 		log.Println(fmt.Printf("Swoosh storing InferenceData from %d users", len(id)))
-		err = WriteInferenceData(pool, source.StudyID, id)
+		err = WriteInferenceData(pool, study, id)
 		handle(err)
 
 	}
