@@ -9,10 +9,10 @@ RUN apk add --no-cache \
 RUN mkdir /app
 WORKDIR /app
 
-ADD go.mod .
-ADD go.sum .
+COPY go.mod .
+COPY go.sum .
 RUN go mod download
-ADD . /app/
+COPY . /app/
 RUN go build -tags dynamic -a -o main .
 
 
