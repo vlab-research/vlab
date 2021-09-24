@@ -7,7 +7,6 @@ jobs:
     steps:
       - checkout
       - run:
-          name: Run application tests
           command: ./test.sh dinersclub --is-ci
   test_formcentral:
     machine:
@@ -15,7 +14,6 @@ jobs:
     steps:
       - checkout
       - run:
-          name: Run application tests
           command: ./test.sh formcentral --is-ci
   test_e2e:
     machine:
@@ -50,7 +48,4 @@ workflows:
     jobs:
       - test_dinersclub
       - test_formcentral
-      - test_e2e:
-          requires:
-            - test_dinersclub
-            - test_formcentral
+      - test_e2e
