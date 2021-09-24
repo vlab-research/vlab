@@ -21,22 +21,6 @@ async function create({
   return rows[0];
 }
 
-async function retrieveByPage({ pageid, code, timestamp }) {
-
-  const RETRIEVE = `SELECT surveys.*
-                    FROM surveys
-                    WHERE userid = (SELECT userid FROM credentials
-                                    WHERE facebook_page_id=$1 LIMIT 1)
-                    AND shortcode=$2
-                    AND created<=$3
-                    ORDER BY created DESC`;
-
-  const created = new Date(+timestamp);
-  const values = [pageid, code, created];
-  const { rows } = await this.query(RETRIEVE, values);
-  return rows;
-}
-
 async function retrieve({ email }) {
   const RETRIEVE_ALL = `SELECT s.created, s.shortcode, s.id, s.title, s.survey_name, s.metadata, s.translation_conf, s.formid
                         FROM surveys s
@@ -53,6 +37,5 @@ module.exports = {
   queries: pool => ({
     create: create.bind(pool),
     retrieve: retrieve.bind(pool),
-    retrieveByPage: retrieveByPage.bind(pool),
   }),
 };

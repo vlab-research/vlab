@@ -19,14 +19,14 @@ kafkabrokers: &kb gbv-kafka:9092
 botEnvs: &botenvs gbv-bot-envs
 chatbaseHost: &host gbv-cockroachdb-public
 
-versionDashboard: &vdashboard 0.0.21
+versionDashboard: &vdashboard 0.0.26
 versionBotserver: &vbotserver 0.0.9
-versionReplybot: &vreplybot v0.0.125
+versionReplybot: &vreplybot v0.0.126
 versionLinksniffer: &vlinksniffer v0.0.4
 versionDean: &vdean v0.0.24
 versionScribble: &vscribble 0.0.20
 versionDinersclub: &vdinersclub v0.0.10
-versionFormcentral: &vformcentral 0.0.4
+versionFormcentral: &vformcentral v0.0.7
 
 linksniffer:
   replicaCount: 1
@@ -194,10 +194,10 @@ replybot:
     value: *responsetopic
   - name: VLAB_PAYMENT_TOPIC
     value: *paymenttopic
-  - name: DASHBOARD_API
-    value: "http://gbv-dashboard/api/v1"
   - name: BOTSERVER_URL
     value: "http://gbv-botserver"
+  - name: FORMCENTRAL_URL
+    value: "http://gbv-formcentral"
 
 botserver:
   replicaCount: 1

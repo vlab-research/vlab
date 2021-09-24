@@ -7,6 +7,9 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
+	"io"
+	"net/url"
 
 	"github.com/labstack/echo/v4"
 	"github.com/jackc/pgx/v4/pgxpool"
@@ -26,6 +29,10 @@ const (
 		INSERT INTO surveys(id, userid, form, translation_conf, formid, shortcode, title, created)
 		VALUES ($1, $2, $3, $4, 'test-form-id', 'test-sc', 'test-title', NOW());
 	`
+ 	insertCredentialsSql = `
+ 		INSERT INTO credentials(userid, entity, key, details) 
+ 		VALUES ($1, 'facebook_page', '', '{"id": "page-test"}');
+ 	`
 	formA = `
 		{
 			"fields": [
@@ -349,6 +356,101 @@ func TestGetTranslatorReturns500OnTranslationError(t *testing.T) {
 	c.SetParamNames("surveyid")
 	c.SetParamValues(surveyid)
 	err := s.GetTranslator(c)
+
+	assert.Equal(t, err.(*echo.HTTPError).Code, 500)
+}
+
+func TestGetSurveyByParams(t *testing.T) {
+	before()
+
+	cfg := getConfig()
+	pool := getPool(&cfg)
+	defer pool.Close()
+
+ 	mustExec(t, pool, insertUser, userid)
+ 	mustExec(t, pool, insertCredentialsSql, userid)
+
+ 	before := time.Time{}
+ 	beforeFmt := before.Format(time.RFC3339)
+ 	insertSurveySql := `
+ 		INSERT INTO surveys(id, userid, form, formid, shortcode, translation_conf, messages, title, created)
+		VALUES ($1, $2, '{}', '', 'a1234', '{}', '{}', '', $3);
+ 	`
+ 	mustExec(t, pool, insertSurveySql, "00000000-0000-0000-0000-000000000000", userid, beforeFmt)
+
+ 	now := time.Now()
+ 	nowFmt := now.Format(time.RFC3339)
+ 	mustExec(t, pool, insertSurveySql, "00000000-0000-0000-0000-000000000001", userid, nowFmt)
+
+	q := make(url.Values)
+	q.Set("pageid", "page-test")
+	q.Set("shortcode", "a1234")
+	q.Set("timestamp", fmt.Sprintf("%v", now.Unix()))
+	rec, c, s := request(pool, http.MethodGet, "/surveys/?" + q.Encode(), "")
+	err := s.GetSurveyByParams(c)
+
+	assert.Nil(t, err)
+
+	res := rec.Result()
+	body, _ := io.ReadAll(res.Body)
+	res.Body.Close()
+	resSurvey := Survey{}
+	json.Unmarshal(body, &resSurvey)
+
+	survey := Survey {
+		ID: "00000000-0000-0000-0000-000000000001",
+	}
+
+	assert.Equal(t, http.StatusOK, rec.Code)
+	assert.Equal(t, resSurvey.ID, survey.ID)
+}
+
+func TestGetSurveyByParamsReturns404IfSurveyNotFound(t *testing.T) {
+	before()
+
+	cfg := getConfig()
+	pool := getPool(&cfg)
+	defer pool.Close()
+
+	ts := time.Time{}
+	q := make(url.Values)
+	q.Set("pageid", "page-test")
+	q.Set("shortcode", "a1234")
+	q.Set("timestamp", fmt.Sprintf("%v", ts.Unix()))
+	_, c, s := request(pool, http.MethodGet, "/surveys/?" + q.Encode(), "")
+	err := s.GetSurveyByParams(c)
+
+	assert.Equal(t, err.(*echo.HTTPError).Code, 404)
+}
+
+func TestGetSurveyByParamsReturns400IfMissingParameters(t *testing.T) {
+	before()
+
+	cfg := getConfig()
+	pool := getPool(&cfg)
+	defer pool.Close()
+
+	q := make(url.Values)
+	q.Set("shortcode", "1234")
+	_, c, s := request(pool, http.MethodGet, "/surveys/?" + q.Encode(), "")
+	err := s.GetSurveyByParams(c)
+
+	assert.Equal(t, err.(*echo.HTTPError).Code, 400)
+}
+
+func TestGetSurveyByParamsReturns500OnServerError(t *testing.T) {
+	before()
+
+	cfg := getConfig()
+	pool := getPool(&cfg)
+	defer pool.Close()
+
+	q := make(url.Values)
+	q.Set("pageid", "page-test")
+	q.Set("shortcode", "a1234")
+	q.Set("timestamp", "timestamp-test") // malformed timestamp
+	_, c, s := request(pool, http.MethodGet, "/surveys/?" + q.Encode(), "")
+	err := s.GetSurveyByParams(c)
 
 	assert.Equal(t, err.(*echo.HTTPError).Code, 500)
 }

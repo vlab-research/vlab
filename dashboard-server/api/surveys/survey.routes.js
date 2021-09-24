@@ -12,6 +12,6 @@ const controller = require('./survey.controller');
 // auth0 API auth to custom setup.
 
 router.post('/', controller.postOne);
-router.get('/', controller.getBy, controller.getAll);
+router.get('/', controller.getAll);
 
 module.exports = router;

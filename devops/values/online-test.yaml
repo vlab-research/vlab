@@ -62,6 +62,8 @@ replybot:
     value: "http://gbv-dashboard/api/v1"
   - name: BOTSERVER_URL
     value: "http://gbv-botserver"
+  - name: FORMCENTRAL_URL
+    value: "http://gbv-formcentral"
 
 naughtybot:
   image:

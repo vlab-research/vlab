@@ -4,6 +4,9 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"time"
+	"strconv"
+
 	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/labstack/echo/v4"
 	"github.com/vlab-research/trans"
@@ -67,6 +70,35 @@ func (s *Server) CreateTranslator(c echo.Context) error {
 	return c.JSON(http.StatusOK, translator)
 }
 
+func (s *Server) GetSurveyByParams(c echo.Context) error {
+	pageid := c.QueryParam("pageid")
+	shortcode := c.QueryParam("shortcode")
+	timestamp := c.QueryParam("timestamp")
+
+	if pageid == "" || shortcode == "" || timestamp == "" {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Missing Parameter(s)"))
+	}
+
+	timestampInt, err := strconv.ParseInt(timestamp, 10, 0)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, fmt.Sprintf("Could not parse 'timestamp'"))
+	}
+
+	timestampFmt := time.Unix(timestampInt, 0)
+	survey, err := getSurveyByParams(s.pool, pageid, shortcode, timestampFmt)
+
+	if err != nil {
+		msg := err.Error()
+		return echo.NewHTTPError(http.StatusInternalServerError, fmt.Sprintf("Could not execute query to DB. Failed with the following error: %v", msg))
+	}
+
+	if survey == nil {
+		return echo.NewHTTPError(http.StatusNotFound, "Survey not found")
+	}
+
+	return c.JSON(http.StatusOK, survey)
+}
+
 func handle(err error) {
 	if err != nil {
 		log.Fatal(err)
@@ -80,6 +112,7 @@ func main() {
 
 	e := echo.New()
 	e.GET("/health", server.Health)
+	e.GET("/surveys", server.GetSurveyByParams)
 	e.GET("/translators/:surveyid", server.GetTranslator)
 	e.POST("/translators", server.CreateTranslator)
 

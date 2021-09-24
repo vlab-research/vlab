@@ -62,33 +62,6 @@ exports.postOne = async (req, res) => {
   }
 };
 
-exports.getBy = async (req, res, next) => {
-  try {
-    const { pageid, shortcode, timestamp } = req.query;
-
-    if (pageid && shortcode && timestamp) {
-      const surveys = await Survey.retrieveByPage({
-        pageid,
-        code: shortcode,
-        timestamp,
-      });
-
-      // send only latest survey...
-      const survey = surveys[0]
-      if (survey) {
-        return res.status(200).send(survey);
-      }
-      return res.status(404).json({error: {message: 'survey not found'}})
-
-    } else {
-      next();
-    }
-  } catch (err) {
-    console.error(err);
-    res.status(500).send(err);
-  }
-};
-
 exports.getAll = async (req, res) => {
   try {
     const { email } = req.user;

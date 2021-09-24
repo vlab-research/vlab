@@ -34,21 +34,18 @@ async function getForm(pageid, shortcode, timestamp) {
   const {token, tokenType} = await getDashboardToken()
 
   const headers = {Authorization: `${tokenType} ${token}`}
-  const url = `${process.env.DASHBOARD_API}/surveys?pageid=${pageid}&shortcode=${shortcode}&timestamp=${timestamp}`
+  const url = `${process.env.FORMCENTRAL_URL}/surveys?pageid=${pageid}&shortcode=${shortcode}&timestamp=${timestamp}`
 
   const res = await r2(url, { headers }).response
 
   const f = await res.json()
-  if (f.error) {
-
-    if (res.status === 404) {
-      throw new MachineIOError('FORM_NOT_FOUND',
-                               `Survey with shortcode ${shortcode} at timestamp ${timestamp} for page ${pageid} could not be found.`,
-                               {...f.error, status: res.status})
-    }
-
+  if (res.status === 404) {
+    throw new MachineIOError('FORM_NOT_FOUND',
+                             `Survey with shortcode ${shortcode} at timestamp ${timestamp} for page ${pageid} could not be found.`,
+                             {...f, status: res.status})
+  } else if (res.status !== 200) {
     const e = new Error('Error from form server')
-    e.details = f.error
+    e.details = f
     e.details.status = res.status
     throw e
   }

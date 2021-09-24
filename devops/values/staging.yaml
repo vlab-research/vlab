@@ -260,12 +260,12 @@ replybot:
     value: *responsetopic
   - name: VLAB_PAYMENT_TOPIC
     value: *paymenttopic
-  - name: DASHBOARD_API
-    value: "http://gbv-dashboard/api/v1"
   - name: BOTSERVER_URL
     value: "http://gbv-botserver"
   - name: FACEBOOK_GRAPH_URL
     value: "https://graph.facebook.com/v8.0"
+  - name: FORMCENTRAL_URL
+    value: "http://gbv-formcentral"
 
 formcentral:
   replicaCount: 1
