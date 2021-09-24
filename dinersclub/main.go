@@ -6,7 +6,6 @@ import (
 	"log"
 	"time"
 
-	"github.com/caarlos0/env/v6"
 	"github.com/cenkalti/backoff"
 	"github.com/confluentinc/confluent-kafka-go/kafka"
 	"github.com/go-playground/validator/v10"
@@ -14,19 +13,6 @@ import (
 	"github.com/vlab-research/botparty"
 	"github.com/vlab-research/spine"
 )
-
-type Config struct {
-	Botserver        string        `env:"BOTSERVER_URL,required"`
-	KafkaBrokers     string        `env:"KAFKA_BROKERS,required"`
-	KafkaPollTimeout time.Duration `env:"KAFKA_POLL_TIMEOUT,required"`
-	Topic            string        `env:"KAFKA_TOPIC,required"`
-	Group            string        `env:"KAFKA_GROUP,required"`
-	BatchSize        int           `env:"DINERSCLUB_BATCH_SIZE,required"`
-	PoolSize         int           `env:"DINERSCLUB_POOL_SIZE,required"`
-	RetryBotserver   time.Duration `env:"DINERSCLUB_RETRY_BOTSERVER,required"`
-	RetryProvider    time.Duration `env:"DINERSCLUB_RETRY_PROVIDER,required"`
-	Providers        []string      `env:"DINERSCLUB_PROVIDERS" envSeparator:","`
-}
 
 type DC struct {
 	cfg       *Config
@@ -166,15 +152,12 @@ func monitor(errs <-chan error) {
 }
 
 func main() {
-	cfg := new(Config)
-	err := env.Parse(cfg)
-	handle(err)
-
-	providers, err := getProviders(cfg)
+	cfg := getConfig()
+	providers, err := getProviders(&cfg)
 	handle(err)
 
 	bp := botparty.NewBotParty(cfg.Botserver)
-	dc := &DC{cfg, providers, bp}
+	dc := &DC{&cfg, providers, bp}
 
 	// TODO: need to change maximum poll interval for long retries!!
 
