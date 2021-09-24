@@ -44,7 +44,7 @@ jobs:
 
 workflows:
   version: 2
-  app_tests:
+  test:
     jobs:
       - test_dinersclub
       - test_formcentral
