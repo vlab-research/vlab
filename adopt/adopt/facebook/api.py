@@ -15,6 +15,8 @@ INTERVAL = 5 * 60
 # only retry on known codes
 # 17, user request limit reached
 
+# 368 - page blocked from sending messages...
+
 
 @backoff.on_exception(backoff.constant, FacebookRequestError, interval=INTERVAL)
 def call(fn, *args, **kwargs):
