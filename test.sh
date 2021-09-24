@@ -1,11 +1,12 @@
 export APP_NAME=${1}
 if [ "${APP_NAME}" = "" ]
-	then
-		echo "ERROR: enter an application name"
-		exit 1
-	else
-		FILE_PATH="${APP_NAME}/test.yaml"
+then
+	echo "ERROR: enter an application name"
+	exit 1
 fi
+
+FILE_PATH="${APP_NAME}/test.yaml"
+export IS_CI=${2}
 
 docker-compose -f ${FILE_PATH} down --remove-orphans
 

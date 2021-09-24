@@ -18,8 +18,12 @@ services:
     command: |
       sh -c '
         echo "Running tests..."
-        go test || true
-        looper
+        if [ "${IS_CI}" = "" ]
+        then
+          go test || true
+          looper
+        fi
+        go test
       '
     volumes:
       - ./:/app
