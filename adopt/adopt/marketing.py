@@ -365,6 +365,11 @@ class Marketing:
         self.state = state
         self.cnf = cnf
 
+    # TODO: in order to accomodate multiple campaigns, this should be split
+    # into two parts: A) generates the "format" from the configs (this should be
+    # either persisted or exposed via API) and then B) uses that format to
+    # create a set of instructions which can then be diffed with the
+    # facebook_ad_state reconciler.
     def update_instructions(
         self, strata: List[Stratum], budget: Dict[str, float]
     ) -> Sequence[Instruction]:
