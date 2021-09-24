@@ -1,7 +1,7 @@
 import logging
 import re
 from functools import cached_property
-from typing import Any, Dict, List, Tuple
+from typing import List, Tuple
 
 from facebook_business.adobjects.ad import Ad
 from facebook_business.adobjects.adaccount import AdAccount
@@ -100,46 +100,13 @@ def get_all_ads(api: FacebookAdsApi, c: Campaign) -> List[Ad]:
     return ads
 
 
-# TODO: remove from here, move to Facebook RecruitmentData connector
-# allow for time_ranges to get multiple...
-def _get_insights(adset, window):
-    params = {"time_range": {"since": window.start, "until": window.until}}
-    fields = [
-        "unique_link_clicks_ctr",
-        "unique_ctr",
-        "ctr",
-        "cpp",
-        "cpm",
-        "cpc",
-        "unique_clicks",
-        "reach",
-        "spend",
-        "actions",
-        "frequency",
-    ]
-
-    try:
-        return call(adset.get_insights, params=params, fields=fields)[0]
-    except IndexError:
-        return None
-
-
-Insights = Dict[str, Any]
-
-
-# TODO: remove from here, move to Facebook RecruitmentData connector
-def get_insights(adsets, window: DateRange) -> Insights:
-    insights = {a["name"]: _get_insights(a, window) for a in adsets}
-    return insights
-
-
 # TODO: remove from here, adopt should know how to get spend
 # from stored RecruitmentData
-def get_spending(insights: Insights) -> Dict[str, float]:
-    spending = lambda i: 0 if i is None else i["spend"]
-    spend = {n: spending(i) for n, i in insights.items()}
-    spend = {n: float(v) * 100 for n, v in spend.items()}
-    return spend
+# def get_spending(insights: Insights) -> Dict[str, float]:
+#     spending = lambda i: 0 if i is None else i["spend"]
+#     spend = {n: spending(i) for n, i in insights.items()}
+#     spend = {n: float(v) * 100 for n, v in spend.items()}
+#     return spend
 
 
 def get_custom_audiences(account: AdAccount) -> List[CustomAudience]:
@@ -166,12 +133,10 @@ def get_api(env, token: str) -> FacebookAdsApi:
 
 
 class CampaignState:
-    # TODO: remove window from state
-    def __init__(self, token, api, ad_account_id, campaign_id=None, window=None):
+    def __init__(self, token, api, ad_account_id, campaign_id=None):
         self.token: str = token
         self.api: FacebookAdsApi = api
         self.campaign_id = campaign_id
-        self.window: DateRange = window
 
         if re.search(r"^act_", ad_account_id):
             raise Exception(
@@ -218,18 +183,6 @@ class CampaignState:
     @cached_property
     def campaign_state(self) -> List[Tuple[AdSet, List[Ad]]]:
         return [(adset, ads_for_adset(adset, self.ads)) for adset in self.adsets]
-
-    @cached_property
-    def insights(self) -> Insights:
-        if not self.window:
-            raise StateInitializationError("Cannot get insights without a window")
-        return get_insights(self.adsets, self.window)
-
-    # TODO: remove spend. System should get this from another place
-    # and change insights api to deal with getting multiple days...
-    @cached_property
-    def spend(self) -> Dict[str, float]:
-        return get_spending(self.insights)
 
     @cached_property
     def total_spend(self) -> float:
