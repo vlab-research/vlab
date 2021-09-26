@@ -12,13 +12,13 @@ import (
 
 func TestReloadlyResultsOnErrorIfBadDetails(t *testing.T) {
 	ts := JSTimestamp(time.Now().UTC())
-	details := json.RawMessage([]byte(`{"foo": "bar"}`))
+	jm := json.RawMessage([]byte(`{"foo": "bar"}`))
 	pe := &PaymentEvent{
 		Userid:    "foo",
 		Pageid:    "page",
 		Timestamp: &ts,
 		Provider:  "reloadly",
-		Details:   &details,
+		Details:   &jm,
 	}
 	service := &reloadly.Service{
 		Client: &http.Client{},
@@ -35,13 +35,13 @@ func TestReloadlyResultsOnErrorIfBadDetails(t *testing.T) {
 
 func TestReloadlyReportsAPIErrorsInResult(t *testing.T) {
 	ts := JSTimestamp(time.Now().UTC())
-	details := json.RawMessage([]byte(`{"number": "+123", "amount": 2.5, "country": "IN", "id": "id"}`))
+	jm := json.RawMessage([]byte(`{"number": "+123", "amount": 2.5, "country": "IN", "id": "id"}`))
 	pe := &PaymentEvent{
 		Userid:    "foo",
 		Pageid:    "page",
 		Timestamp: &ts,
 		Provider:  "reloadly",
-		Details:   &details,
+		Details:   &jm,
 	}
 	service := &reloadly.Service{
 		Client: TestClient(404, `{"errorCode": "FOOBAR", "message": "Sorry"}`, nil),
@@ -53,7 +53,7 @@ func TestReloadlyReportsAPIErrorsInResult(t *testing.T) {
 	assert.NotNil(t, res.Error)
 	assert.Equal(t, "FOOBAR", res.Error.Code)
 	assert.Equal(t, "Sorry", res.Error.Message)
-	assert.Equal(t, &details, res.Error.PaymentDetails)
+	assert.Equal(t, &jm, res.Error.PaymentDetails)
 	assert.Equal(t, "id", res.ID)
 	assert.Equal(t, "payment:reloadly", res.Type)
 	assert.Equal(t, false, res.Success)
@@ -61,13 +61,13 @@ func TestReloadlyReportsAPIErrorsInResult(t *testing.T) {
 
 func TestReloadlyReportsSuccessResult(t *testing.T) {
 	ts := JSTimestamp(time.Now().UTC())
-	details := json.RawMessage([]byte(`{"number": "+123", "amount": 2.5, "country": "IN"}`))
+	jm := json.RawMessage([]byte(`{"number": "+123", "amount": 2.5, "country": "IN"}`))
 	pe := &PaymentEvent{
 		Userid:    "foo",
 		Pageid:    "page",
 		Timestamp: &ts,
 		Provider:  "reloadly",
-		Details:   &details,
+		Details:   &jm,
 	}
 	service := &reloadly.Service{
 		Client: TestClient(200, `{"suggestedAmountsMap":{"2.5": 2.5},"transactionDate":"2020-09-19 12:53:22","transactionId": 567}`, nil),
@@ -79,5 +79,5 @@ func TestReloadlyReportsSuccessResult(t *testing.T) {
 	assert.Nil(t, res.Error)
 	assert.Equal(t, "payment:reloadly", res.Type)
 	assert.Equal(t, true, res.Success)
-	assert.Equal(t, &details, res.PaymentDetails)
+	assert.Equal(t, &jm, res.PaymentDetails)
 }
