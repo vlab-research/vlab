@@ -131,7 +131,7 @@ func TestTranslatorReturns404IfDestinationNotFound(t *testing.T) {
 	before()
 
 	cfg := getConfig()
-	pool := getPool(&cfg)
+	pool := getPool(cfg)
 	defer pool.Close()
 	
 	params := fmt.Sprintf(`{"destination": "foo", "form": %v}`, formA)
@@ -145,7 +145,7 @@ func TestTranslatorReturns400IfNotTranslatable(t *testing.T) {
 	before()
 
 	cfg := getConfig()
-	pool := getPool(&cfg)
+	pool := getPool(cfg)
 	defer pool.Close()
 
 	mustExec(t, pool, insertUser, userid)
@@ -189,7 +189,7 @@ func TestTranslatorReturnsTranslator(t *testing.T) {
 	before()
 
 	cfg := getConfig()
-	pool := getPool(&cfg)
+	pool := getPool(cfg)
 	defer pool.Close()
 
 	mustExec(t, pool, insertUser, userid)
@@ -212,7 +212,7 @@ func TestTranslatorWorksWithSelf(t *testing.T) {
 	before()
 
 	cfg := getConfig()
-	pool := getPool(&cfg)
+	pool := getPool(cfg)
 	defer pool.Close()
 
 	params := fmt.Sprintf(`{"self": true, "form": %v}`, formA)
@@ -232,7 +232,7 @@ func TestGetTranslatorGetsFromID(t *testing.T) {
 	before()
 
 	cfg := getConfig()
-	pool := getPool(&cfg)
+	pool := getPool(cfg)
 	defer pool.Close()
 
 	mustExec(t, pool, insertUser, userid)
@@ -258,7 +258,7 @@ func TestGetTranslatorGetsSelf(t *testing.T) {
 	before()
 
 	cfg := getConfig()
-	pool := getPool(&cfg)
+	pool := getPool(cfg)
 	defer pool.Close()
 
 	mustExec(t, pool, insertUser, userid)
@@ -284,7 +284,7 @@ func TestGetTranslatorReturns404OnRawTranslationConf(t *testing.T) {
 	before()
 
 	cfg := getConfig()
-	pool := getPool(&cfg)
+	pool := getPool(cfg)
 	defer pool.Close()
 
 	mustExec(t, pool, insertUser, userid)
@@ -303,7 +303,7 @@ func TestGetTranslatorReturns404OnMissingSourceForm(t *testing.T) {
 	before()
 
 	cfg := getConfig()
-	pool := getPool(&cfg)
+	pool := getPool(cfg)
 	defer pool.Close()
 
 	_, c, s := request(pool, http.MethodGet, "/translator/foo", "")
@@ -318,7 +318,7 @@ func TestGetTranslatorReturns500OnTranslationError(t *testing.T) {
 	before()
 
 	cfg := getConfig()
-	pool := getPool(&cfg)
+	pool := getPool(cfg)
 	defer pool.Close()
 
 	mustExec(t, pool, insertUser, userid)
@@ -364,7 +364,7 @@ func TestGetSurveyByParams(t *testing.T) {
 	before()
 
 	cfg := getConfig()
-	pool := getPool(&cfg)
+	pool := getPool(cfg)
 	defer pool.Close()
 
  	mustExec(t, pool, insertUser, userid)
@@ -409,7 +409,7 @@ func TestGetSurveyByParamsReturns404IfSurveyNotFound(t *testing.T) {
 	before()
 
 	cfg := getConfig()
-	pool := getPool(&cfg)
+	pool := getPool(cfg)
 	defer pool.Close()
 
 	ts := time.Time{}
@@ -427,7 +427,7 @@ func TestGetSurveyByParamsReturns400IfMissingParameters(t *testing.T) {
 	before()
 
 	cfg := getConfig()
-	pool := getPool(&cfg)
+	pool := getPool(cfg)
 	defer pool.Close()
 
 	q := make(url.Values)
@@ -442,7 +442,7 @@ func TestGetSurveyByParamsReturns500OnServerError(t *testing.T) {
 	before()
 
 	cfg := getConfig()
-	pool := getPool(&cfg)
+	pool := getPool(cfg)
 	defer pool.Close()
 
 	q := make(url.Values)
