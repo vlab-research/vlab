@@ -20,10 +20,10 @@ func TestReloadlyResultsOnErrorIfBadDetails(t *testing.T) {
 		Provider:  "reloadly",
 		Details:   &jm,
 	}
-	service := &reloadly.Service{
+	svc := &reloadly.Service{
 		Client: &http.Client{},
 	}
-	provider := &ReloadlyProvider{&ReloadlyConfig{}, service}
+	provider := &ReloadlyProvider{&ReloadlyConfig{}, svc}
 	res, err := provider.Payout(pe)
 
 	assert.Nil(t, err)
@@ -43,10 +43,10 @@ func TestReloadlyReportsAPIErrorsInResult(t *testing.T) {
 		Provider:  "reloadly",
 		Details:   &jm,
 	}
-	service := &reloadly.Service{
+	svc := &reloadly.Service{
 		Client: TestClient(404, `{"errorCode": "FOOBAR", "message": "Sorry"}`, nil),
 	}
-	provider := &ReloadlyProvider{&ReloadlyConfig{}, service}
+	provider := &ReloadlyProvider{&ReloadlyConfig{}, svc}
 	res, err := provider.Payout(pe)
 
 	assert.Nil(t, err)
@@ -69,10 +69,10 @@ func TestReloadlyReportsSuccessResult(t *testing.T) {
 		Provider:  "reloadly",
 		Details:   &jm,
 	}
-	service := &reloadly.Service{
+	svc := &reloadly.Service{
 		Client: TestClient(200, `{"suggestedAmountsMap":{"2.5": 2.5},"transactionDate":"2020-09-19 12:53:22","transactionId": 567}`, nil),
 	}
-	provider := &ReloadlyProvider{&ReloadlyConfig{}, service}
+	provider := &ReloadlyProvider{&ReloadlyConfig{}, svc}
 	res, err := provider.Payout(pe)
 
 	assert.Nil(t, err)
