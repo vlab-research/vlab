@@ -153,11 +153,11 @@ func monitor(errs <-chan error) {
 
 func main() {
 	cfg := getConfig()
-	providers, err := getProviders(&cfg)
+	providers, err := getProviders(cfg)
 	handle(err)
 
 	bp := botparty.NewBotParty(cfg.Botserver)
-	dc := &DC{&cfg, providers, bp}
+	dc := &DC{cfg, providers, bp}
 
 	// TODO: need to change maximum poll interval for long retries!!
 

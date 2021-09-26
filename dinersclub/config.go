@@ -19,9 +19,9 @@ type Config struct {
 	Providers        []string      `env:"DINERSCLUB_PROVIDERS" envSeparator:","`
 }
 
-func getConfig() Config {
+func getConfig() *Config {
 	cfg := Config{}
 	err := env.Parse(&cfg)
 	handle(err)
-	return cfg
+	return &cfg
 }
