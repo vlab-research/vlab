@@ -3,6 +3,8 @@ package main
 import (
 	"encoding/json"
 	"time"
+
+	"github.com/jackc/pgx/v4/pgxpool"
 )
 
 type FakeProvider struct{}
@@ -13,6 +15,10 @@ type FakeDetails struct {
 
 func NewFakeProvider() (Provider, error) {
 	return &FakeProvider{}, nil
+}
+
+func (p *FakeProvider) Auth(pool *pgxpool.Pool, userid string) error {
+	return nil
 }
 
 func (p *FakeProvider) Payout(event *PaymentEvent) (*Result, error) {

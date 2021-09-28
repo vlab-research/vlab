@@ -49,6 +49,10 @@ type MockErrorProvider struct {
 	count int
 }
 
+func (p *MockErrorProvider) Auth(pool *pgxpool.Pool, userid string) error {
+	return nil
+}
+
 func (p *MockErrorProvider) Payout(pe *PaymentEvent) (*Result, error) {
 	p.count++
 	return nil, fmt.Errorf("mock error")
