@@ -161,8 +161,8 @@ func main() {
 
 	// TODO: need to change maximum poll interval for long retries!!
 
-	c := spine.NewKafkaConsumer(cfg.Topic, cfg.KafkaBrokers, cfg.Group,
-		cfg.KafkaPollTimeout, cfg.BatchSize, cfg.BatchSize)
+	c := spine.NewKafkaConsumer(cfg.KafkaTopic, cfg.KafkaBrokers, cfg.KafkaGroup,
+		cfg.KafkaPollTimeout, cfg.KafkaBatchSize, cfg.KafkaBatchSize)
 
 	errs := make(chan error)
 	go monitor(errs)
