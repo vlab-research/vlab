@@ -9,6 +9,7 @@ services:
       context: .
       dockerfile: Dockerfile.dev
     environment:
+      IS_DEVELOPMENT: 'true'
       BOTSERVER_URL: ''
       CHATBASE_DATABASE: chatroach
       CHATBASE_HOST: cockroachdb
