@@ -14,7 +14,13 @@ import (
 	"github.com/vlab-research/botparty"
 )
 
+
+func before() {
+	http.Get("http://system/resetdb")
+}
+
 func TestDinersClub(t *testing.T) {
+	before()
 	count := 0
 
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -58,6 +64,8 @@ func TestDinersClub(t *testing.T) {
 }
 
 func TestDinersClubErrorsOnMessagesWithMissingFields(t *testing.T) {
+	before()
+
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.FailNow(t, "should not call botserver")
 	}))
@@ -83,6 +91,8 @@ func TestDinersClubErrorsOnMessagesWithMissingFields(t *testing.T) {
 }
 
 func TestDinersClubErrorsOnMalformedJSONMessages(t *testing.T) {
+	before()
+
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
 
 	cfg := getConfig()
@@ -107,6 +117,8 @@ func TestDinersClubErrorsOnMalformedJSONMessages(t *testing.T) {
 }
 
 func TestDinersClubErrorsOnNonExistentProvider(t *testing.T) {
+	before()
+
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		data, _ := ioutil.ReadAll(r.Body)
 		dat := strings.TrimSpace(string(data))
@@ -136,6 +148,7 @@ func TestDinersClubErrorsOnNonExistentProvider(t *testing.T) {
 }
 
 func TestDinersClubRepeatsOnServerErrorFromBotserver(t *testing.T) {
+	before()
 	count := 0
 
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -168,6 +181,8 @@ func TestDinersClubRepeatsOnServerErrorFromBotserver(t *testing.T) {
 }
 
 func TestDinersClubRepeatsOnErrorFromProviderPayout(t *testing.T) {
+	before()
+
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.FailNow(t, "Should not have called botserver")
 	}))
