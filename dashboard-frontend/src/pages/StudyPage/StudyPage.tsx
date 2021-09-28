@@ -3,7 +3,7 @@ import { useParams } from 'react-router-dom';
 import useStudy from './useStudy';
 import StudyProgressStats from './StudyProgressStats';
 import StudyProgressChart from './StudyProgressChart';
-import StudySegmentsTables from './StudySegmentsTables';
+import ParticipantsAcquiredPerSegmentTable from './ParticipantsAcquiredPerSegmentTable';
 import PageLayout from '../../components/PageLayout';
 import ErrorPlaceholder from '../../components/ErrorPlaceholder';
 
@@ -55,7 +55,7 @@ const StudyPage = () => {
           data={study.isLoading ? undefined : study.progressOverTime}
         />
 
-        <StudySegmentsTables />
+        <ParticipantsAcquiredPerSegmentTable />
       </React.Fragment>
     </PageLayout>
   );

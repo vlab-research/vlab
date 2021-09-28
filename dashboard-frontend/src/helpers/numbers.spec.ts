@@ -4,6 +4,7 @@ import {
   formatNumber,
   InvalidNumberError,
   INVALID_NUMBERS,
+  parseNumber,
   round,
   UnexpectedNumberError,
 } from './numbers';
@@ -103,5 +104,23 @@ describe('formatNumbers', () => {
     expect(formatNumber(NaN)).toBe('NaN');
     expect(formatNumber(Infinity)).toBe('∞');
     expect(formatNumber(-Infinity)).toBe('-∞');
+  });
+});
+
+describe('parseNumber', () => {
+  it('can parse a number that has been formatted by "formatNumbers" helper', () => {
+    expect(parseNumber(formatNumber(0))).toBe(0);
+    expect(parseNumber(formatNumber(55))).toBe(55);
+    expect(parseNumber(formatNumber(999))).toBe(999);
+    expect(parseNumber(formatNumber(1000))).toBe(1000);
+    expect(parseNumber(formatNumber(10000))).toBe(10000);
+    expect(parseNumber(formatNumber(100000))).toBe(100000);
+    expect(parseNumber(formatNumber(1222333))).toBe(1222333);
+    expect(parseNumber(formatNumber(-1222333))).toBe(-1222333);
+    expect(parseNumber(formatNumber(-1222333.37))).toBe(-1222333.37);
+
+    expect(parseNumber(formatNumber(NaN))).toBe(NaN);
+    expect(parseNumber(formatNumber(Infinity))).toBe(Infinity);
+    expect(parseNumber(formatNumber(-Infinity))).toBe(-Infinity);
   });
 });

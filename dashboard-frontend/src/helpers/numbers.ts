@@ -1,3 +1,5 @@
+import d2lIntl from 'd2l-intl';
+
 export const calculatePercentage = ({
   current,
   total,
@@ -65,3 +67,17 @@ export class UnexpectedNumberError extends Error {
 
 export const formatNumber = (num: number) =>
   new Intl.NumberFormat('en-US').format(num);
+
+export const parseNumber = (formattedNumber: string) => {
+  if (formattedNumber === '∞') {
+    return Infinity;
+  }
+
+  if (formattedNumber === '-∞') {
+    return -Infinity;
+  }
+
+  const parser = new d2lIntl.NumberParse('en-US');
+
+  return parser.parse(formattedNumber);
+};
