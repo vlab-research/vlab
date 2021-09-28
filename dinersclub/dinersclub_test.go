@@ -15,10 +15,9 @@ import (
 )
 
 func TestDinersClub(t *testing.T) {
-
 	count := 0
-	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		expected := []string{
 			`{"user":"foo","page":"page","event":{"type":"external","value":{"type":"foo","success":true,"timestamp":"0001-01-01T00:00:00Z"}}}`,
 			`{"user":"bar","page":"page","event":{"type":"external","value":{"type":"foo","success":true,"timestamp":"0001-01-01T00:00:00Z"}}}`,
@@ -60,7 +59,6 @@ func TestDinersClub(t *testing.T) {
 
 func TestDinersClubErrorsOnMessagesWithMissingFields(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-
 		assert.FailNow(t, "should not call botserver")
 	}))
 
@@ -109,7 +107,6 @@ func TestDinersClubErrorsOnMalformedJSONMessages(t *testing.T) {
 }
 
 func TestDinersClubErrorsOnNonExistentProvider(t *testing.T) {
-
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		data, _ := ioutil.ReadAll(r.Body)
 		dat := strings.TrimSpace(string(data))
