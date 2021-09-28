@@ -12,10 +12,12 @@ import (
 	"github.com/nandanrao/chance"
 	"github.com/vlab-research/botparty"
 	"github.com/vlab-research/spine"
+	"github.com/jackc/pgx/v4/pgxpool"
 )
 
 type DC struct {
 	cfg       *Config
+	pool      *pgxpool.Pool
 	providers map[string]Provider
 	botparty  *botparty.BotParty
 }
@@ -155,9 +157,10 @@ func main() {
 	cfg := getConfig()
 	providers, err := getProviders(cfg)
 	handle(err)
+	pool := getPool(cfg)
 
 	bp := botparty.NewBotParty(cfg.Botserver)
-	dc := &DC{cfg, providers, bp}
+	dc := &DC{cfg, pool, providers, bp}
 
 	// TODO: need to change maximum poll interval for long retries!!
 

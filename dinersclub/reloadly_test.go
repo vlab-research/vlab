@@ -10,6 +10,11 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+
+func before() {
+	http.Get("http://system/resetdb")
+}
+
 func TestReloadlyResultsOnErrorIfBadDetails(t *testing.T) {
 	ts := JSTimestamp(time.Now().UTC())
 	jm := json.RawMessage([]byte(`{"foo": "bar"}`))

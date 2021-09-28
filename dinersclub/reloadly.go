@@ -4,41 +4,22 @@ import (
 	"encoding/json"
 	"time"
 
-	"github.com/caarlos0/env/v6"
 	"github.com/go-playground/validator/v10"
 	"github.com/nandanrao/go-reloadly/reloadly"
+	"github.com/jackc/pgx/v4/pgxpool"
 )
 
-type ReloadlyConfig struct {
-	Sandbox bool   `env:"RELOADLY_SANDBOX,required"`
-	ID      string `env:"RELOADLY_ID,required"`
-	Secret  string `env:"RELOADLY_SECRET,required"`
-}
-
 type ReloadlyProvider struct {
-	config *ReloadlyConfig
 	svc    *reloadly.Service
 }
 
 func NewReloadlyProvider() (Provider, error) {
-	cfg := new(ReloadlyConfig)
-	err := env.Parse(cfg)
-	if err != nil {
-		return nil, err
-	}
-
+	cfg := getConfig() 
 	svc := reloadly.New()
-	if cfg.Sandbox {
+	if cfg.IsDev {
 		svc.Sandbox()
 	}
-
-	err = svc.Auth(cfg.ID, cfg.Secret)
-	if err != nil {
-		return nil, err
-	}
-
-	rp := &ReloadlyProvider{cfg, svc}
-	return rp, nil
+	return &ReloadlyProvider{svc}, nil
 }
 
 func reloadlyErrorResult(res *Result, err error, details *json.RawMessage) (*Result, error) {

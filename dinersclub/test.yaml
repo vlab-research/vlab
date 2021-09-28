@@ -2,10 +2,28 @@ version: '3'
 
 services:
   main:
+    depends_on:
+      - system
     image: ${APP_NAME}_dev
     build:
       context: .
       dockerfile: Dockerfile.dev
+    environment:
+      BOTSERVER_URL: ''
+      CHATBASE_DATABASE: chatroach
+      CHATBASE_HOST: cockroachdb
+      CHATBASE_PORT: 26257
+      CHATBASE_USER: root
+      CHATBASE_MAX_CONNECTIONS: 1
+      KAFKA_BROKERS: ''
+      KAFKA_POLL_TIMEOUT: 5s
+      KAFKA_TOPIC: test-topic
+      KAFKA_GROUP: test-group
+      DINERSCLUB_BATCH_SIZE: 1
+      DINERSCLUB_RETRY_BOTSERVER: ''
+      DINERSCLUB_RETRY_PROVIDER: ''
+      DINERSCLUB_POOL_SIZE: 1
+      DINERSCLUB_PROVIDERS: 'fake,reloadly'
     command: |
       sh -c '
         echo "Running tests..."
@@ -18,3 +36,47 @@ services:
       '
     volumes:
       - ./:/app
+    networks:
+      - fly
+  system:
+    build:
+      context: ../system
+    environment:
+      CHATBASE_DATABASE: chatroach
+      CHATBASE_HOST: cockroachdb
+      CHATBASE_PORT: 26257
+      CHATBASE_USER: root
+      PORT: 80
+    command: go run .
+    ports:
+      - 80:80
+    volumes:
+      - ../system:/app
+    networks:
+      - fly
+  initdb:
+    image: cockroachdb/cockroach:v20.1.4
+    depends_on:
+      - cockroachdb
+    entrypoint: |
+      sh -c '
+        /tools/wait-for-it.sh cockroachdb:26257 -t 60
+        cat /migrations/* > /tmp/merged-latest.sql
+        cat /tmp/merged-latest.sql | ./cockroach sql --insecure --host cockroachdb
+      '
+    volumes:
+      - ../devops:/tools
+      - ../devops/sql:/migrations
+    networks:
+      - fly
+  cockroachdb:
+    image: cockroachdb/cockroach:v20.1.4
+    command: start --insecure
+    ports:
+      - 26257:26257
+    networks:
+      - fly
+
+networks:
+  fly:
+    driver: bridge

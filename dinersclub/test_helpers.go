@@ -1,12 +1,15 @@
 package main
 
 import (
+	"context"
 	"bytes"
 	"fmt"
 	"net/http"
-
 	"io/ioutil"
+	"testing"
 
+	"github.com/jackc/pgconn"
+	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/confluentinc/confluent-kafka-go/kafka"
 )
 
@@ -50,3 +53,12 @@ func (p *MockErrorProvider) Payout(pe *PaymentEvent) (*Result, error) {
 	p.count++
 	return nil, fmt.Errorf("mock error")
 }
+
+func mustExec(t testing.TB, conn *pgxpool.Pool, sql string, arguments ...interface{}) (commandTag pgconn.CommandTag) {
+	var err error
+	if commandTag, err = conn.Exec(context.Background(), sql, arguments...); err != nil {
+		t.Fatalf("Exec unexpectedly failed with %v: %v", sql, err)
+	}
+	return
+}
+

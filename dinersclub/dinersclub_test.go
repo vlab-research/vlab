@@ -35,9 +35,11 @@ func TestDinersClub(t *testing.T) {
 		count++
 	}))
 
-	cfg := &Config{Providers: []string{"fake"}}
+	cfg := getConfig()
+	cfg.Providers = []string{"fake"}
+	pool := getPool(cfg)
 	providers, _ := getProviders(cfg)
-	dc := DC{cfg, providers, &botparty.BotParty{Client: http.DefaultClient, Botserver: ts.URL}}
+	dc := DC{cfg, pool, providers, &botparty.BotParty{Client: http.DefaultClient, Botserver: ts.URL}}
 
 	msgs := makeMessages([]string{
 		`{"userid": "foo",
@@ -62,9 +64,12 @@ func TestDinersClubErrorsOnMessagesWithMissingFields(t *testing.T) {
 		assert.FailNow(t, "should not call botserver")
 	}))
 
-	cfg := &Config{PoolSize: 2, Providers: []string{"fake"}}
+	cfg := getConfig()
+	cfg.PoolSize = 2
+	cfg.Providers = []string{"fake"}
+	pool := getPool(cfg)
 	providers, _ := getProviders(cfg)
-	dc := DC{cfg, providers, &botparty.BotParty{Client: http.DefaultClient, Botserver: ts.URL}}
+	dc := DC{cfg, pool, providers, &botparty.BotParty{Client: http.DefaultClient, Botserver: ts.URL}}
 
 	msgs := makeMessages([]string{
 		`{"userid": "foo",
@@ -82,9 +87,12 @@ func TestDinersClubErrorsOnMessagesWithMissingFields(t *testing.T) {
 func TestDinersClubErrorsOnMalformedJSONMessages(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
 
-	cfg := &Config{PoolSize: 2, Providers: []string{"fake"}}
+	cfg := getConfig()
+	cfg.PoolSize = 2
+	cfg.Providers = []string{"fake"}
+	pool := getPool(cfg)
 	providers, _ := getProviders(cfg)
-	dc := DC{cfg, providers, &botparty.BotParty{Client: http.DefaultClient, Botserver: ts.URL}}
+	dc := DC{cfg, pool, providers, &botparty.BotParty{Client: http.DefaultClient, Botserver: ts.URL}}
 
 	msgs := makeMessages([]string{
 		`{"userid": "foo",
@@ -111,9 +119,12 @@ func TestDinersClubErrorsOnNonExistentProvider(t *testing.T) {
 		w.WriteHeader(200)
 	}))
 
-	cfg := &Config{PoolSize: 2, Providers: []string{"fake"}}
+	cfg := getConfig()
+	cfg.PoolSize = 2
+	cfg.Providers = []string{"fake"}
+	pool := getPool(cfg)
 	providers, _ := getProviders(cfg)
-	dc := DC{cfg, providers, &botparty.BotParty{Client: http.DefaultClient, Botserver: ts.URL}}
+	dc := DC{cfg, pool, providers, &botparty.BotParty{Client: http.DefaultClient, Botserver: ts.URL}}
 
 	msgs := makeMessages([]string{
 		`{"userid": "foo",
@@ -137,10 +148,13 @@ func TestDinersClubRepeatsOnServerErrorFromBotserver(t *testing.T) {
 		w.WriteHeader(500)
 	}))
 
-	cfg := &Config{PoolSize: 2, Providers: []string{"fake"}, RetryBotserver: 1 * time.Second}
-
+	cfg := getConfig()
+	cfg.PoolSize = 2
+	cfg.Providers = []string{"fake"}
+	cfg.RetryBotserver = 1 * time.Second
+	pool := getPool(cfg)
 	providers, _ := getProviders(cfg)
-	dc := DC{cfg, providers, &botparty.BotParty{Client: http.DefaultClient, Botserver: ts.URL}}
+	dc := DC{cfg, pool, providers, &botparty.BotParty{Client: http.DefaultClient, Botserver: ts.URL}}
 
 	msgs := makeMessages([]string{
 		`{"userid": "foo",
@@ -161,12 +175,13 @@ func TestDinersClubRepeatsOnErrorFromProviderPayout(t *testing.T) {
 		assert.FailNow(t, "Should not have called botserver")
 	}))
 
-	provider := &MockErrorProvider{}
-
-	providers := map[string]Provider{"mock": provider}
-	cfg := &Config{PoolSize: 2}
+	cfg := getConfig()
+	cfg.PoolSize = 2
 	cfg.RetryProvider = 1 * time.Second
-	dc := DC{cfg, providers, &botparty.BotParty{Client: http.DefaultClient, Botserver: ts.URL}}
+	pool := getPool(cfg)
+	provider := &MockErrorProvider{}
+	providers := map[string]Provider{"mock": provider}
+	dc := DC{cfg, pool, providers, &botparty.BotParty{Client: http.DefaultClient, Botserver: ts.URL}}
 
 	msgs := makeMessages([]string{
 		`{"userid": "foo",
