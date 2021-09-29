@@ -8,6 +8,8 @@ require (
 	github.com/confluentinc/confluent-kafka-go v1.7.0
 	github.com/fsnotify/fsnotify v1.4.9 // indirect
 	github.com/go-playground/validator/v10 v10.4.1
+	github.com/jackc/pgconn v1.7.2
+	github.com/jackc/pgx/v4 v4.9.2
 	github.com/leodido/go-urn v1.2.1 // indirect
 	github.com/magiconair/properties v1.8.4 // indirect
 	github.com/mitchellh/mapstructure v1.4.0 // indirect
