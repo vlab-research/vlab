@@ -22,7 +22,7 @@ services:
       KAFKA_GROUP: test-group
       DINERSCLUB_BATCH_SIZE: 1
       DINERSCLUB_RETRY_BOTSERVER: ''
-      DINERSCLUB_RETRY_PROVIDER: ''
+      DINERSCLUB_RETRY_PROVIDER: 5s
       DINERSCLUB_POOL_SIZE: 1
       DINERSCLUB_PROVIDERS: 'fake,reloadly'
     command: |
