@@ -302,3 +302,33 @@ func TestDinersClubErrorsOnMissingCredentials(t *testing.T) {
 	assert.NotNil(t, err)
 	assert.Equal(t, err.Error(), "No credentials were found to authorize the user")
 }
+
+func TestDinersClubErrorsOnDatabaseError(t *testing.T) {
+	before()
+
+	cfg := getConfig()
+	cfg.Providers = []string{"fake"}
+	pool := getPool(cfg)
+	providers, _ := getProviders(cfg)
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
+	dc := DC{cfg, pool, providers, &botparty.BotParty{Client: http.DefaultClient, Botserver: ts.URL}}
+
+	msgs := makeMessages([]string{
+		`{
+			"userid": "foo",
+			"pageid": "page",
+			"timestamp": 1600558963867,
+			"provider": "fake",
+			"details": {
+				"result": {
+					"type": "foo",
+					"success": true
+				}
+			}
+		}`,
+	})
+
+	err := dc.Process(msgs)
+	assert.NotNil(t, err)
+	assert.Contains(t, err.Error(), "ERROR: error in argument for $1: could not parse string \"foo\" as uuid")
+}

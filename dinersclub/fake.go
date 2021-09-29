@@ -23,6 +23,7 @@ func (p *FakeProvider) Auth(pool *pgxpool.Pool, userid string) error {
 	if crds == nil {
 		return errors.New("No credentials were found to authorize the user")
 	}
+	return err
 }
 
 func (p *FakeProvider) Payout(event *PaymentEvent) (*Result, error) {
