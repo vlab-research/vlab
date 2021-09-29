@@ -28,6 +28,7 @@ services:
     command: |
       sh -c '
         echo "Running tests..."
+        go mod tidy
         if [ "${IS_CI}" = "" ]
         then
           go test -tags dynamic || true
