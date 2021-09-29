@@ -7,7 +7,7 @@ import (
 )
 
 type Config struct {
-	IsDev            bool          `env:"IS_DEVELOPMENT,required"`
+	Sandbox          bool          `env:"RELOADLY_SANDBOX,required"`
 	Botserver        string        `env:"BOTSERVER_URL,required"`
 	DbName           string        `env:"CHATBASE_DATABASE,required"`
 	DbHost           string        `env:"CHATBASE_HOST,required"`

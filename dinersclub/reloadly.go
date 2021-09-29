@@ -16,7 +16,7 @@ type ReloadlyProvider struct {
 func NewReloadlyProvider() (Provider, error) {
 	cfg := getConfig() 
 	svc := reloadly.New()
-	if cfg.IsDev {
+	if cfg.Sandbox {
 		svc.Sandbox()
 	}
 	return &ReloadlyProvider{svc}, nil
