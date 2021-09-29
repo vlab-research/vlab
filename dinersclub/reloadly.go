@@ -55,6 +55,26 @@ func reloadlyErrorResult(res *Result, err error, details *json.RawMessage) (*Res
 	return res, err
 }
 
+func (p *ReloadlyProvider) Auth(pool *pgxpool.Pool, userid string) error {
+	crds, err := getCredentials(pool, userid, "reloadly")
+	if err != nil {
+		return err
+	}
+
+	type Auth struct {
+		id string
+		secret string
+	}
+	auth := &Auth{}
+	err = json.Unmarshal(*crds.Details, &auth)
+	if err != nil {
+		return err
+	}
+
+	err = p.svc.Auth(auth.id, auth.secret)
+	return err
+}
+
 func (p *ReloadlyProvider) Payout(event *PaymentEvent) (*Result, error) {
 	job := new(reloadly.TopupJob)
 	err := json.Unmarshal(*event.Details, job)
