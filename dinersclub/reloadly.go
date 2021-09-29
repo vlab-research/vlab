@@ -10,7 +10,7 @@ import (
 )
 
 type ReloadlyProvider struct {
-	svc    *reloadly.Service
+	svc *reloadly.Service
 }
 
 func NewReloadlyProvider() (Provider, error) {
