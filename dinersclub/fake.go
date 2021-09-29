@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"time"
+	"errors"
 
 	"github.com/jackc/pgx/v4/pgxpool"
 )
@@ -18,7 +19,10 @@ func NewFakeProvider() (Provider, error) {
 }
 
 func (p *FakeProvider) Auth(pool *pgxpool.Pool, userid string) error {
-	return nil
+	crds, err := getCredentials(pool, userid, "fake")
+	if crds == nil {
+		return errors.New("No credentials were found to authorize the user")
+	}
 }
 
 func (p *FakeProvider) Payout(event *PaymentEvent) (*Result, error) {

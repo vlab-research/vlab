@@ -272,3 +272,33 @@ func TestDinersClubRepeatsOnErrorFromProviderPayout(t *testing.T) {
 	assert.Contains(t, err.Error(), "mock error")
 	assert.Equal(t, 3, provider.count)
 }
+
+func TestDinersClubErrorsOnMissingCredentials(t *testing.T) {
+	before()
+
+	cfg := getConfig()
+	cfg.Providers = []string{"fake"}
+	pool := getPool(cfg)
+	providers, _ := getProviders(cfg)
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
+	dc := DC{cfg, pool, providers, &botparty.BotParty{Client: http.DefaultClient, Botserver: ts.URL}}
+
+	msgs := makeMessages([]string{
+		`{
+			"userid": "00000000-0000-0000-0000-000000000000",
+			"pageid": "page",
+			"timestamp": 1600558963867,
+			"provider": "fake",
+			"details": {
+				"result": {
+					"type": "foo",
+					"success": true
+				}
+			}
+		}`,
+	})
+
+	err := dc.Process(msgs)
+	assert.NotNil(t, err)
+	assert.Equal(t, err.Error(), "No credentials were found to authorize the user")
+}

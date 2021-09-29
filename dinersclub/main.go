@@ -98,6 +98,10 @@ func (dc *DC) Job(pe *PaymentEvent) error {
 
 	res := new(Result)
 	op := func() error {
+		e := provider.Auth(dc.pool, pe.Userid)
+		if e != nil {
+			return e
+		}
 		r, e := provider.Payout(pe)
 		if e != nil {
 			return e
