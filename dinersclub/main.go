@@ -98,7 +98,7 @@ func (dc *DC) Job(pe *PaymentEvent) error {
 
 	res := new(Result)
 	op := func() error {
-		e := provider.Auth(dc.pool, pe.Userid)
+		e := provider.Auth(dc.pool, pe)
 		if e != nil {
 			return e
 		}
@@ -159,9 +159,9 @@ func monitor(errs <-chan error) {
 
 func main() {
 	cfg := getConfig()
+	pool := getPool(cfg)
 	providers, err := getProviders(cfg)
 	handle(err)
-	pool := getPool(cfg)
 
 	bp := botparty.NewBotParty(cfg.Botserver)
 	dc := &DC{cfg, pool, providers, bp}

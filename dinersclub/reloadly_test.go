@@ -10,6 +10,10 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func before() {
+	http.Get("http://system/resetdb")
+}
+
 func TestReloadlyResultsOnErrorIfBadDetails(t *testing.T) {
 	ts := JSTimestamp(time.Now().UTC())
 	jm := json.RawMessage([]byte(`{"foo": "bar"}`))
@@ -60,6 +64,23 @@ func TestReloadlyReportsAPIErrorsInResult(t *testing.T) {
 }
 
 func TestReloadlyReportsSuccessResult(t *testing.T) {
+	before()
+
+	cfg := getConfig()
+	pool := getPool(cfg)
+	defer pool.Close()
+
+	insertUserSql := `
+		INSERT INTO users(id, email) 
+		VALUES ('00000000-0000-0000-0000-000000000000', 'test@test.com');
+	`
+	mustExec(t, pool, insertUserSql)
+	insertCredentialsSql := `
+		INSERT INTO credentials(userid, entity, key, details)
+		VALUES ('00000000-0000-0000-0000-000000000000', 'facebook_page', 'test-key', '{"id": "page", "secret": ""}');
+	`
+	mustExec(t, pool, insertCredentialsSql)
+
 	ts := JSTimestamp(time.Now().UTC())
 	jm := json.RawMessage([]byte(`{"number": "+123", "amount": 2.5, "country": "IN"}`))
 	pe := &PaymentEvent{
@@ -77,7 +98,30 @@ func TestReloadlyReportsSuccessResult(t *testing.T) {
 
 	assert.Nil(t, err)
 	assert.Nil(t, res.Error)
+
+	err = provider.Auth(pool, pe)
+	assert.Nil(t, err)
+
 	assert.Equal(t, "payment:reloadly", res.Type)
 	assert.Equal(t, true, res.Success)
 	assert.Equal(t, &jm, res.PaymentDetails)
+}
+
+func TestReloadlyResultsOnMissingCredentials(t *testing.T) {
+	before()
+
+	svc := &reloadly.Service{}
+	provider := &ReloadlyProvider{svc}
+
+	cfg := getConfig()
+	pool := getPool(cfg)
+	defer pool.Close()
+
+	pe := &PaymentEvent{
+		Pageid: "page",
+	}
+	err := provider.Auth(pool, pe)
+
+	assert.NotNil(t, err)
+	assert.Equal(t, err.Error(), "No credentials were found for pageid: page")
 }

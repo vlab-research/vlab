@@ -48,6 +48,6 @@ type Result struct {
 }
 
 type Provider interface {
-	Auth(pool *pgxpool.Pool, userid string) error
+	Auth(*pgxpool.Pool, *PaymentEvent) error
 	Payout(*PaymentEvent) (*Result, error)
 }

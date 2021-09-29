@@ -3,9 +3,13 @@ package main
 import (
 	"encoding/json"
 	"time"
+	"context"
+	"errors"
+	"fmt"
 
 	"github.com/go-playground/validator/v10"
 	"github.com/nandanrao/go-reloadly/reloadly"
+	"github.com/jackc/pgx/v4"
 	"github.com/jackc/pgx/v4/pgxpool"
 )
 
@@ -55,10 +59,27 @@ func reloadlyErrorResult(res *Result, err error, details *json.RawMessage) (*Res
 	return res, err
 }
 
-func (p *ReloadlyProvider) Auth(pool *pgxpool.Pool, userid string) error {
-	crds, err := getCredentials(pool, userid, "reloadly")
+func (p *ReloadlyProvider) getCredentials(pool *pgxpool.Pool, pageid string) (*Credentials, error) {
+	query := `SELECT details FROM credentials WHERE facebook_page_id=$1 LIMIT 1`
+	var c Credentials
+	row := pool.QueryRow(context.Background(), query, pageid)
+	err := row.Scan(&c.Details)
+
+	if err == pgx.ErrNoRows {
+		return nil, nil
+	}
+
+	return &c, err
+}
+
+func (p *ReloadlyProvider) Auth(pool *pgxpool.Pool, event *PaymentEvent) error {
+	crds, err := p.getCredentials(pool, event.Pageid)
 	if err != nil {
 		return err
+	}
+	if crds == nil {
+		msg := fmt.Sprintf(`No credentials were found for pageid: %s`, event.Pageid)
+		return errors.New(msg)
 	}
 
 	type Auth struct {

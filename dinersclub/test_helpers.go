@@ -49,7 +49,7 @@ type MockErrorProvider struct {
 	count int
 }
 
-func (p *MockErrorProvider) Auth(pool *pgxpool.Pool, userid string) error {
+func (p *MockErrorProvider) Auth(pool *pgxpool.Pool, pe *PaymentEvent) error {
 	return nil
 }
 
