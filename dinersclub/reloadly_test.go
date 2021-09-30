@@ -75,11 +75,16 @@ func TestReloadlyReportsSuccessResult(t *testing.T) {
 		VALUES ('00000000-0000-0000-0000-000000000000', 'test@test.com');
 	`
 	mustExec(t, pool, insertUserSql)
-	insertCredentialsSql := `
+	insertFbPageSql := `
 		INSERT INTO credentials(userid, entity, key, details)
-		VALUES ('00000000-0000-0000-0000-000000000000', 'facebook_page', 'test-key', '{"id": "page", "secret": ""}');
+		VALUES ('00000000-0000-0000-0000-000000000000', 'facebook_page', 'test-key', '{"id": "page"}');
 	`
-	mustExec(t, pool, insertCredentialsSql)
+	mustExec(t, pool, insertFbPageSql)
+	insertReloadlySql := `
+		INSERT INTO credentials(userid, entity, key, details)
+		VALUES ('00000000-0000-0000-0000-000000000000', 'reloadly', 'test-key', '{"id": "test-id", "secret": "test-secret"}');
+	`
+	mustExec(t, pool, insertReloadlySql)
 
 	ts := JSTimestamp(time.Now().UTC())
 	jm := json.RawMessage([]byte(`{"number": "+123", "amount": 2.5, "country": "IN"}`))

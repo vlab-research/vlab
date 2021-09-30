@@ -59,7 +59,13 @@ func reloadlyErrorResult(res *Result, err error, details *json.RawMessage) (*Res
 }
 
 func (p *ReloadlyProvider) getCredentials(pool *pgxpool.Pool, pageid string) (*Credentials, error) {
-	query := `SELECT details FROM credentials WHERE facebook_page_id=$1 LIMIT 1`
+	query := `
+		SELECT details
+		FROM credentials
+		WHERE entity='reloadly'
+		AND userid=(SELECT userid FROM credentials WHERE facebook_page_id=$1 LIMIT 1)
+		LIMIT 1
+	`
 	var c Credentials
 	row := pool.QueryRow(context.Background(), query, pageid)
 	err := row.Scan(&c.Details)
