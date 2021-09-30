@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"time"
 	"context"
-	"errors"
 	"fmt"
 
 	"github.com/go-playground/validator/v10"
@@ -78,8 +77,8 @@ func (p *ReloadlyProvider) Auth(pool *pgxpool.Pool, event *PaymentEvent) error {
 		return err
 	}
 	if crds == nil {
-		msg := fmt.Sprintf(`No credentials were found for pageid: %s`, event.Pageid)
-		return errors.New(msg)
+		err := fmt.Errorf(`No credentials were found for pageid: %s`, event.Pageid)
+		return err
 	}
 
 	auth := struct {
