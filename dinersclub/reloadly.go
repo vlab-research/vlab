@@ -82,11 +82,10 @@ func (p *ReloadlyProvider) Auth(pool *pgxpool.Pool, event *PaymentEvent) error {
 		return errors.New(msg)
 	}
 
-	type Auth struct {
+	auth := struct {
 		id string
 		secret string
-	}
-	auth := &Auth{}
+	}{}
 	err = json.Unmarshal(*crds.Details, &auth)
 	if err != nil {
 		return err
