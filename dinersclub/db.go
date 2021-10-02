@@ -8,6 +8,10 @@ import (
 	"github.com/jackc/pgx/v4/pgxpool"
 )
 
+type User struct {
+	Id string
+}
+
 type Credentials struct {
 	Details *json.RawMessage
 }

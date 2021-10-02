@@ -18,7 +18,6 @@ import (
 type DC struct {
 	cfg       *Config
 	pool      *pgxpool.Pool
-	providers map[string]Provider
 	botparty  *botparty.BotParty
 }
 
@@ -91,14 +90,23 @@ func (dc *DC) Job(pe *PaymentEvent) error {
 		return err
 	}
 
-	provider, ok := dc.providers[pe.Provider]
-	if !ok {
+	provider, err := dc.getProvider(pe)
+	if err != nil {
+		return err
+	}
+
+	if provider == nil || !contains(dc.cfg.Providers, pe.Provider) {
 		return dc.sendResult(pe, invalidProviderResult(pe))
+	}
+
+	user, err := provider.GetUserFromPaymentEvent(pe)
+	if err != nil {
+		return err
 	}
 
 	res := new(Result)
 	op := func() error {
-		e := provider.Auth(dc.pool, pe)
+		e := provider.Auth(user)
 		if e != nil {
 			return e
 		}
@@ -132,24 +140,14 @@ func contains(s []string, target string) bool {
 	return false
 }
 
-func getProviders(cfg *Config) (map[string]Provider, error) {
-	lookup := map[string]func() (Provider, error){
-		"fake":     NewFakeProvider,
-		"reloadly": NewReloadlyProvider,
+func (dc *DC) getProvider(event *PaymentEvent) (Provider, error) {
+	switch event.Provider {
+	case "fake":
+		return NewFakeProvider()
+	case "reloadly":
+		return NewReloadlyProvider(dc.pool)
 	}
-
-	providers := map[string]Provider{}
-	for name, fn := range lookup {
-		if contains(cfg.Providers, name) {
-			p, err := fn()
-			if err != nil {
-				return nil, err
-			}
-			providers[name] = p
-		}
-	}
-
-	return providers, nil
+	return nil, nil
 }
 
 func monitor(errs <-chan error) {
@@ -160,11 +158,8 @@ func monitor(errs <-chan error) {
 func main() {
 	cfg := getConfig()
 	pool := getPool(cfg)
-	providers, err := getProviders(cfg)
-	handle(err)
-
 	bp := botparty.NewBotParty(cfg.Botserver)
-	dc := &DC{cfg, pool, providers, bp}
+	dc := &DC{cfg, pool, bp}
 
 	// TODO: need to change maximum poll interval for long retries!!
 

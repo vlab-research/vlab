@@ -13,19 +13,20 @@ import (
 )
 
 type ReloadlyProvider struct {
-	svc *reloadly.Service
+	pool *pgxpool.Pool
+	svc  *reloadly.Service
 }
 
-func NewReloadlyProvider() (Provider, error) {
-	cfg := getConfig() 
+func NewReloadlyProvider(pool *pgxpool.Pool) (Provider, error) {
+	cfg := getConfig()
 	svc := reloadly.New()
 	if cfg.Sandbox {
 		svc.Sandbox()
 	}
-	return &ReloadlyProvider{svc}, nil
+	return &ReloadlyProvider{pool, svc}, nil
 }
 
-func reloadlyErrorResult(res *Result, err error, details *json.RawMessage) (*Result, error) {
+func (p *ReloadlyProvider) formatError(res *Result, err error, details *json.RawMessage) (*Result, error) {
 	res.Success = false
 
 	// TODO: catch 500 errors and "try again later" errors
@@ -58,33 +59,26 @@ func reloadlyErrorResult(res *Result, err error, details *json.RawMessage) (*Res
 	return res, err
 }
 
-func (p *ReloadlyProvider) getCredentials(pool *pgxpool.Pool, pageid string) (*Credentials, error) {
-	query := `
-		SELECT details
-		FROM credentials
-		WHERE entity='reloadly'
-		AND userid=(SELECT userid FROM credentials WHERE facebook_page_id=$1 LIMIT 1)
-		LIMIT 1
-	`
-	var c Credentials
-	row := pool.QueryRow(context.Background(), query, pageid)
-	err := row.Scan(&c.Details)
+func (p *ReloadlyProvider) GetUserFromPaymentEvent(event *PaymentEvent) (*User, error) {
+	query := `SELECT userid FROM credentials WHERE facebook_page_id=$1 LIMIT 1`
+	row := p.pool.QueryRow(context.Background(), query, event.Pageid)
+	var u User
+	err := row.Scan(&u.Id)
 
 	if err == pgx.ErrNoRows {
 		return nil, nil
 	}
 
-	return &c, err
+	return &u, err
 }
 
-func (p *ReloadlyProvider) Auth(pool *pgxpool.Pool, event *PaymentEvent) error {
-	crds, err := p.getCredentials(pool, event.Pageid)
+func (p *ReloadlyProvider) Auth(user *User) error {
+	crds, err := p.getCredentials(user.Id)
 	if err != nil {
 		return err
 	}
 	if crds == nil {
-		err := fmt.Errorf(`No credentials were found for pageid: %s`, event.Pageid)
-		return err
+		return fmt.Errorf(`No credentials were found for user: %s`, user.Id)
 	}
 
 	auth := struct {
@@ -98,6 +92,19 @@ func (p *ReloadlyProvider) Auth(pool *pgxpool.Pool, event *PaymentEvent) error {
 
 	err = p.svc.Auth(auth.id, auth.secret)
 	return err
+}
+
+func (p *ReloadlyProvider) getCredentials(userid string) (*Credentials, error) {
+	query := `SELECT details FROM credentials WHERE entity='reloadly' AND userid=$1 LIMIT 1`
+	row := p.pool.QueryRow(context.Background(), query, userid)
+	var c Credentials
+	err := row.Scan(&c.Details)
+
+	if err == pgx.ErrNoRows {
+		return nil, nil
+	}
+
+	return &c, err
 }
 
 func (p *ReloadlyProvider) Payout(event *PaymentEvent) (*Result, error) {
@@ -114,13 +121,13 @@ func (p *ReloadlyProvider) Payout(event *PaymentEvent) (*Result, error) {
 	validate := validator.New()
 	err = validate.Struct(job)
 	if err != nil {
-		return reloadlyErrorResult(result, err, event.Details)
+		return p.formatError(result, err, event.Details)
 	}
 
 	worker := reloadly.TopupWorker(*p.svc)
 	r, err := worker.DoJob(job)
 	if err != nil {
-		return reloadlyErrorResult(result, err, event.Details)
+		return p.formatError(result, err, event.Details)
 	}
 
 	result.Success = true

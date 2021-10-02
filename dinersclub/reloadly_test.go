@@ -24,10 +24,12 @@ func TestReloadlyResultsOnErrorIfBadDetails(t *testing.T) {
 		Provider:  "reloadly",
 		Details:   &jm,
 	}
+	cfg := getConfig()
+	pool := getPool(cfg)
 	svc := &reloadly.Service{
 		Client: &http.Client{},
 	}
-	provider := &ReloadlyProvider{svc}
+	provider := &ReloadlyProvider{pool, svc}
 	res, err := provider.Payout(pe)
 
 	assert.Nil(t, err)
@@ -47,10 +49,12 @@ func TestReloadlyReportsAPIErrorsInResult(t *testing.T) {
 		Provider:  "reloadly",
 		Details:   &jm,
 	}
+	cfg := getConfig()
+	pool := getPool(cfg)
 	svc := &reloadly.Service{
 		Client: TestClient(404, `{"errorCode": "FOOBAR", "message": "Sorry"}`, nil),
 	}
-	provider := &ReloadlyProvider{svc}
+	provider := &ReloadlyProvider{pool, svc}
 	res, err := provider.Payout(pe)
 
 	assert.Nil(t, err)
@@ -89,7 +93,7 @@ func TestReloadlyReportsSuccessResult(t *testing.T) {
 	ts := JSTimestamp(time.Now().UTC())
 	jm := json.RawMessage([]byte(`{"number": "+123", "amount": 2.5, "country": "IN"}`))
 	pe := &PaymentEvent{
-		Userid:    "foo",
+		Userid:    "00000000-0000-0000-0000-000000000000",
 		Pageid:    "page",
 		Timestamp: &ts,
 		Provider:  "reloadly",
@@ -98,35 +102,67 @@ func TestReloadlyReportsSuccessResult(t *testing.T) {
 	svc := &reloadly.Service{
 		Client: TestClient(200, `{"suggestedAmountsMap":{"2.5": 2.5},"transactionDate":"2020-09-19 12:53:22","transactionId": 567}`, nil),
 	}
-	provider := &ReloadlyProvider{svc}
-	res, err := provider.Payout(pe)
+	provider := &ReloadlyProvider{pool, svc}
 
+	user, err := provider.GetUserFromPaymentEvent(pe)
+	assert.Nil(t, err)
+	assert.Equal(t, user.Id, "00000000-0000-0000-0000-000000000000")
+
+	err = provider.Auth(user)
+	assert.Nil(t, err)
+
+	res, err := provider.Payout(pe)
 	assert.Nil(t, err)
 	assert.Nil(t, res.Error)
-
-	err = provider.Auth(pool, pe)
-	assert.Nil(t, err)
-
 	assert.Equal(t, "payment:reloadly", res.Type)
 	assert.Equal(t, true, res.Success)
 	assert.Equal(t, &jm, res.PaymentDetails)
 }
 
-func TestReloadlyResultsOnMissingCredentials(t *testing.T) {
+func TestReloadlyResultsOnMissingUser(t *testing.T) {
 	before()
-
-	svc := &reloadly.Service{}
-	provider := &ReloadlyProvider{svc}
 
 	cfg := getConfig()
 	pool := getPool(cfg)
 	defer pool.Close()
 
+	svc := &reloadly.Service{}
+	provider := &ReloadlyProvider{pool, svc}
 	pe := &PaymentEvent{
 		Pageid: "page",
 	}
-	err := provider.Auth(pool, pe)
+	user, err := provider.GetUserFromPaymentEvent(pe)
+	assert.Nil(t, user)
+	assert.Nil(t, err)
+}
 
-	assert.NotNil(t, err)
-	assert.Equal(t, err.Error(), "No credentials were found for pageid: page")
+func TestReloadlyResultsOnMissingCredentials(t *testing.T) {
+	before()
+
+	cfg := getConfig()
+	pool := getPool(cfg)
+	defer pool.Close()
+
+	insertUserSql := `
+		INSERT INTO users(id, email) 
+		VALUES ('00000000-0000-0000-0000-000000000000', 'test@test.com');
+	`
+	mustExec(t, pool, insertUserSql)
+	insertFbPageSql := `
+		INSERT INTO credentials(userid, entity, key, details)
+		VALUES ('00000000-0000-0000-0000-000000000000', 'facebook_page', 'test-key', '{"id": "page"}');
+	`
+	mustExec(t, pool, insertFbPageSql)
+
+	svc := &reloadly.Service{}
+	provider := &ReloadlyProvider{pool, svc}
+	pe := &PaymentEvent{
+		Pageid: "page",
+	}
+	user, err := provider.GetUserFromPaymentEvent(pe)
+	assert.NotNil(t, user)
+	assert.Nil(t, err)
+
+	err = provider.Auth(user)
+	assert.Equal(t, err.Error(), "No credentials were found for user: 00000000-0000-0000-0000-000000000000")
 }

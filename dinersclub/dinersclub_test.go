@@ -35,8 +35,7 @@ func TestDinersClub(t *testing.T) {
 
 	cfg := getConfig()
 	pool := getPool(cfg)
-	providers, _ := getProviders(cfg)
-	dc := DC{cfg, pool, providers, &botparty.BotParty{Client: http.DefaultClient, Botserver: ts.URL}}
+	dc := DC{cfg, pool, &botparty.BotParty{Client: http.DefaultClient, Botserver: ts.URL}}
 
 	msgs := makeMessages([]string{
 		`{
@@ -76,8 +75,7 @@ func TestDinersClubErrorsOnMessagesWithMissingFields(t *testing.T) {
 
 	cfg := getConfig()
 	pool := getPool(cfg)
-	providers, _ := getProviders(cfg)
-	dc := DC{cfg, pool, providers, &botparty.BotParty{Client: http.DefaultClient, Botserver: ts.URL}}
+	dc := DC{cfg, pool, &botparty.BotParty{Client: http.DefaultClient, Botserver: ts.URL}}
 
 	msgs := makeMessages([]string{
 		`{
@@ -104,8 +102,7 @@ func TestDinersClubErrorsOnMalformedJSONMessages(t *testing.T) {
 
 	cfg := getConfig()
 	pool := getPool(cfg)
-	providers, _ := getProviders(cfg)
-	dc := DC{cfg, pool, providers, &botparty.BotParty{Client: http.DefaultClient, Botserver: ts.URL}}
+	dc := DC{cfg, pool, &botparty.BotParty{Client: http.DefaultClient, Botserver: ts.URL}}
 
 	msgs := makeMessages([]string{
 		`{
@@ -140,8 +137,7 @@ func TestDinersClubErrorsOnNonExistentProvider(t *testing.T) {
 
 	cfg := getConfig()
 	pool := getPool(cfg)
-	providers, _ := getProviders(cfg)
-	dc := DC{cfg, pool, providers, &botparty.BotParty{Client: http.DefaultClient, Botserver: ts.URL}}
+	dc := DC{cfg, pool, &botparty.BotParty{Client: http.DefaultClient, Botserver: ts.URL}}
 
 	msgs := makeMessages([]string{
 		`{
@@ -174,8 +170,7 @@ func TestDinersClubRepeatsOnServerErrorFromBotserver(t *testing.T) {
 
 	cfg := getConfig()
 	pool := getPool(cfg)
-	providers, _ := getProviders(cfg)
-	dc := DC{cfg, pool, providers, &botparty.BotParty{Client: http.DefaultClient, Botserver: ts.URL}}
+	dc := DC{cfg, pool, &botparty.BotParty{Client: http.DefaultClient, Botserver: ts.URL}}
 
 	msgs := makeMessages([]string{
 		`{
@@ -198,32 +193,31 @@ func TestDinersClubRepeatsOnServerErrorFromBotserver(t *testing.T) {
 	assert.Equal(t, 3, count)
 }
 
-func TestDinersClubRepeatsOnErrorFromProviderPayout(t *testing.T) {
+func TestDinersClubErrorsWhenProviderNotListed(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		assert.FailNow(t, "Should not have called botserver")
+		w.WriteHeader(200)
 	}))
 
 	cfg := getConfig()
+	cfg.Providers = []string{}
 	pool := getPool(cfg)
-	provider := &MockErrorProvider{}
-	providers := map[string]Provider{"mock": provider}
-	dc := DC{cfg, pool, providers, &botparty.BotParty{Client: http.DefaultClient, Botserver: ts.URL}}
+	dc := DC{cfg, pool, &botparty.BotParty{Client: http.DefaultClient, Botserver: ts.URL}}
 
 	msgs := makeMessages([]string{
 		`{
 			"userid": "foo",
 			"pageid": "page",
 			"timestamp": 1600558963867,
-			"provider": "mock",
+			"provider": "fake",
 			"details": {
-				"error": true
+				"result": {
+					"type": "foo",
+					"success": true
+				}
 			}
 		}`,
 	})
 
 	err := dc.Process(msgs)
-	t.Log(err)
-	assert.NotNil(t, err)
-	assert.Contains(t, err.Error(), "mock error")
-	assert.Equal(t, 3, provider.count)
+	assert.Nil(t, err)
 }

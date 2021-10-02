@@ -3,8 +3,6 @@ package main
 import (
 	"encoding/json"
 	"time"
-
-	"github.com/jackc/pgx/v4/pgxpool"
 )
 
 type JSTimestamp time.Time
@@ -48,6 +46,7 @@ type Result struct {
 }
 
 type Provider interface {
-	Auth(*pgxpool.Pool, *PaymentEvent) error
+	GetUserFromPaymentEvent(*PaymentEvent) (*User, error)
+	Auth(*User) error
 	Payout(*PaymentEvent) (*Result, error)
 }
