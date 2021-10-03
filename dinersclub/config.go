@@ -7,6 +7,10 @@ import (
 )
 
 type Config struct {
+	CacheTTLTimeout  time.Duration `env:"CACHE_TTL_TIMEOUT,required"`
+	CacheNumCounters int64         `env:"CACHE_NUM_COUNTERS,required"`
+	CacheMaxCost     int64         `env:"CACHE_MAX_COST,required"`
+	CacheBufferItems int64         `env:"CACHE_BUFFER_ITEMS,required"`
 	Sandbox          bool          `env:"RELOADLY_SANDBOX,required"`
 	Botserver        string        `env:"BOTSERVER_URL,required"`
 	DbName           string        `env:"CHATBASE_DATABASE,required"`

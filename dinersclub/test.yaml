@@ -9,6 +9,10 @@ services:
       context: .
       dockerfile: Dockerfile.dev
     environment:
+      CACHE_TTL_TIMEOUT: 1h
+      CACHE_NUM_COUNTERS: 10000
+      CACHE_MAX_COST: 10000
+      CACHE_BUFFER_ITEMS: 64
       RELOADLY_SANDBOX: 'true'
       BOTSERVER_URL: ''
       CHATBASE_DATABASE: chatroach

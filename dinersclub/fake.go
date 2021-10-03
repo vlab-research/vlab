@@ -16,6 +16,9 @@ func NewFakeProvider() (Provider, error) {
 }
 
 func (p *FakeProvider) GetUserFromPaymentEvent(event *PaymentEvent) (*User, error) {
+	if event.Pageid == "page" {
+		return &User{Id:"test-id"}, nil
+	}
 	return nil, nil
 }
 

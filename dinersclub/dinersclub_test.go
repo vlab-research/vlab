@@ -11,7 +11,22 @@ import (
 	"github.com/go-playground/validator/v10"
 	"github.com/stretchr/testify/assert"
 	"github.com/vlab-research/botparty"
+	"github.com/dgraph-io/ristretto"
 )
+
+func getDC(ts *httptest.Server) *DC {
+	cfg := getConfig()
+	pool := getPool(cfg)
+	bp := &botparty.BotParty{Client: http.DefaultClient, Botserver: ts.URL}
+	cache, _ := ristretto.NewCache(&ristretto.Config{
+		NumCounters: cfg.CacheNumCounters,
+		MaxCost:     cfg.CacheMaxCost,
+		BufferItems: cfg.CacheBufferItems,
+		Metrics:     true,
+	})
+	cache.Clear()
+	return &DC{cfg, pool, bp, cache}
+}
 
 func TestDinersClub(t *testing.T) {
 	count := 0
@@ -32,10 +47,6 @@ func TestDinersClub(t *testing.T) {
 		w.WriteHeader(200)
 		count++
 	}))
-
-	cfg := getConfig()
-	pool := getPool(cfg)
-	dc := DC{cfg, pool, &botparty.BotParty{Client: http.DefaultClient, Botserver: ts.URL}}
 
 	msgs := makeMessages([]string{
 		`{
@@ -64,7 +75,7 @@ func TestDinersClub(t *testing.T) {
 		}`,
 	})
 
-	err := dc.Process(msgs)
+	err := getDC(ts).Process(msgs)
 	assert.Nil(t, err)
 }
 
@@ -72,10 +83,6 @@ func TestDinersClubErrorsOnMessagesWithMissingFields(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.FailNow(t, "should not call botserver")
 	}))
-
-	cfg := getConfig()
-	pool := getPool(cfg)
-	dc := DC{cfg, pool, &botparty.BotParty{Client: http.DefaultClient, Botserver: ts.URL}}
 
 	msgs := makeMessages([]string{
 		`{
@@ -91,7 +98,7 @@ func TestDinersClubErrorsOnMessagesWithMissingFields(t *testing.T) {
 		}`,
 	})
 
-	err := dc.Process(msgs)
+	err := getDC(ts).Process(msgs)
 	assert.NotNil(t, err)
 	e := err.(validator.ValidationErrors)
 	assert.Contains(t, e.Error(), "Provider")
@@ -99,10 +106,6 @@ func TestDinersClubErrorsOnMessagesWithMissingFields(t *testing.T) {
 
 func TestDinersClubErrorsOnMalformedJSONMessages(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
-
-	cfg := getConfig()
-	pool := getPool(cfg)
-	dc := DC{cfg, pool, &botparty.BotParty{Client: http.DefaultClient, Botserver: ts.URL}}
 
 	msgs := makeMessages([]string{
 		`{
@@ -118,7 +121,7 @@ func TestDinersClubErrorsOnMalformedJSONMessages(t *testing.T) {
 		}`,
 	})
 
-	err := dc.Process(msgs)
+	err := getDC(ts).Process(msgs)
 	assert.NotNil(t, err)
 
 	e := err.(*json.SyntaxError)
@@ -135,10 +138,6 @@ func TestDinersClubErrorsOnNonExistentProvider(t *testing.T) {
 		w.WriteHeader(200)
 	}))
 
-	cfg := getConfig()
-	pool := getPool(cfg)
-	dc := DC{cfg, pool, &botparty.BotParty{Client: http.DefaultClient, Botserver: ts.URL}}
-
 	msgs := makeMessages([]string{
 		`{
 			"userid": "foo",
@@ -154,7 +153,7 @@ func TestDinersClubErrorsOnNonExistentProvider(t *testing.T) {
 		}`,
 	})
 
-	err := dc.Process(msgs)
+	err := getDC(ts).Process(msgs)
 	assert.Nil(t, err)
 }
 
@@ -168,10 +167,6 @@ func TestDinersClubRepeatsOnServerErrorFromBotserver(t *testing.T) {
 		w.WriteHeader(500)
 	}))
 
-	cfg := getConfig()
-	pool := getPool(cfg)
-	dc := DC{cfg, pool, &botparty.BotParty{Client: http.DefaultClient, Botserver: ts.URL}}
-
 	msgs := makeMessages([]string{
 		`{
 			"userid": "foo",
@@ -187,7 +182,7 @@ func TestDinersClubRepeatsOnServerErrorFromBotserver(t *testing.T) {
 		}`,
 	})
 
-	err := dc.Process(msgs)
+	err := getDC(ts).Process(msgs)
 	assert.NotNil(t, err)
 	assert.Contains(t, err.Error(), "Botserver")
 	assert.Equal(t, 3, count)
@@ -198,11 +193,6 @@ func TestDinersClubErrorsWhenProviderNotListed(t *testing.T) {
 		w.WriteHeader(200)
 	}))
 
-	cfg := getConfig()
-	cfg.Providers = []string{}
-	pool := getPool(cfg)
-	dc := DC{cfg, pool, &botparty.BotParty{Client: http.DefaultClient, Botserver: ts.URL}}
-
 	msgs := makeMessages([]string{
 		`{
 			"userid": "foo",
@@ -218,6 +208,82 @@ func TestDinersClubErrorsWhenProviderNotListed(t *testing.T) {
 		}`,
 	})
 
-	err := dc.Process(msgs)
+	err := getDC(ts).Process(msgs)
 	assert.Nil(t, err)
+}
+
+func TestDinersClubErrorsOnMissingUser(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(200)
+	}))
+
+	msgs := makeMessages([]string{
+		`{
+			"userid": "foo",
+			"pageid": "invalid-page",
+			"timestamp": 1600558963867,
+			"provider": "fake",
+			"details": {
+				"result": {
+					"type": "foo",
+					"success": true
+				}
+			}
+		}`,
+	})
+
+	err := getDC(ts).Process(msgs)
+	assert.NotNil(t, err)
+	assert.Equal(t, err.Error(), "User not found for page id: invalid-page")
+}
+
+func TestDinersClubCache(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(200)
+	}))
+
+	msgs := makeMessages([]string{
+		`{
+			"userid": "foo",
+			"pageid": "page",
+			"timestamp": 1600558963867,
+			"provider": "fake",
+			"details": {
+				"result": {
+					"type": "foo",
+					"success": true
+				}
+			}
+		}`,
+		`{
+			"userid": "bar",
+			"pageid": "page",
+			"timestamp": 1600558963867,
+			"provider": "fake",
+			"details": {
+				"result": {
+					"type": "foo",
+					"success": true
+				}
+			}
+		}`,
+		`{
+			"userid": "bar",
+			"pageid": "page",
+			"timestamp": 1600558963867,
+			"provider": "fake",
+			"details": {
+				"result": {
+					"type": "foo",
+					"success": true
+				}
+			}
+		}`,
+	})
+
+	dc := getDC(ts)
+	dc.Process(msgs)
+
+	assert.Equal(t, dc.cache.Metrics.Misses(), uint64(1))
+	assert.Equal(t, dc.cache.Metrics.Hits(), uint64(2))
 }

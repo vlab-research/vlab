@@ -13,12 +13,14 @@ import (
 	"github.com/vlab-research/botparty"
 	"github.com/vlab-research/spine"
 	"github.com/jackc/pgx/v4/pgxpool"
+	"github.com/dgraph-io/ristretto"
 )
 
 type DC struct {
 	cfg       *Config
 	pool      *pgxpool.Pool
 	botparty  *botparty.BotParty
+	cache     *ristretto.Cache
 }
 
 func handle(err error) {
@@ -83,6 +85,22 @@ func invalidProviderResult(pe *PaymentEvent) *Result {
 	return res
 }
 
+func (dc *DC) checkCache(provider Provider, pe *PaymentEvent, user *User) (Provider, error) {
+	key := pe.Provider + user.Id
+	p, ok := dc.cache.Get(key)
+	if ok {
+		return p.(Provider), nil
+	} 
+
+	dc.cache.SetWithTTL(key, provider, 1, dc.cfg.CacheTTLTimeout)
+	e := provider.Auth(user)
+	if e != nil {
+		return nil, e
+	}
+
+	return provider, nil
+}
+
 func (dc *DC) Job(pe *PaymentEvent) error {
 	validate := validator.New()
 	err := validate.Struct(pe)
@@ -100,16 +118,20 @@ func (dc *DC) Job(pe *PaymentEvent) error {
 	}
 
 	user, err := provider.GetUserFromPaymentEvent(pe)
+	if user == nil {
+		return fmt.Errorf(`User not found for page id: %s`, pe.Pageid)
+	}
 	if err != nil {
 		return err
 	}
 
 	res := new(Result)
 	op := func() error {
-		e := provider.Auth(user)
+		provider, e := dc.checkCache(provider, pe, user)
 		if e != nil {
 			return e
 		}
+
 		r, e := provider.Payout(pe)
 		if e != nil {
 			return e
@@ -159,7 +181,13 @@ func main() {
 	cfg := getConfig()
 	pool := getPool(cfg)
 	bp := botparty.NewBotParty(cfg.Botserver)
-	dc := &DC{cfg, pool, bp}
+	cache, err := ristretto.NewCache(&ristretto.Config{
+		NumCounters: cfg.CacheNumCounters,
+		MaxCost:     cfg.CacheMaxCost,
+		BufferItems: cfg.CacheBufferItems,
+	})
+	handle(err)
+	dc := &DC{cfg, pool, bp, cache}
 
 	// TODO: need to change maximum poll interval for long retries!!
 

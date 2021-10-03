@@ -6,6 +6,7 @@ require (
 	github.com/caarlos0/env/v6 v6.3.0
 	github.com/cenkalti/backoff v2.2.1+incompatible
 	github.com/confluentinc/confluent-kafka-go v1.7.0
+	github.com/dgraph-io/ristretto v0.1.0
 	github.com/go-playground/validator/v10 v10.4.1
 	github.com/jackc/pgconn v1.7.2
 	github.com/jackc/pgx/v4 v4.9.2
