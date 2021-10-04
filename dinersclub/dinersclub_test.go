@@ -190,6 +190,11 @@ func TestDinersClubRepeatsOnServerErrorFromBotserver(t *testing.T) {
 
 func TestDinersClubErrorsWhenProviderNotListed(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		data, _ := ioutil.ReadAll(r.Body)
+		dat := strings.TrimSpace(string(data))
+		assert.Contains(t, dat, `"code":"INVALID_PROVIDER"`)
+		assert.Contains(t, dat, "fake")
+		assert.Equal(t, "/", r.URL.Path)
 		w.WriteHeader(200)
 	}))
 
@@ -208,7 +213,19 @@ func TestDinersClubErrorsWhenProviderNotListed(t *testing.T) {
 		}`,
 	})
 
-	err := getDC(ts).Process(msgs)
+	cfg := getConfig()
+	cfg.Providers = []string{}
+	pool := getPool(cfg)
+	bp := &botparty.BotParty{Client: http.DefaultClient, Botserver: ts.URL}
+	cache, _ := ristretto.NewCache(&ristretto.Config{
+		NumCounters: cfg.CacheNumCounters,
+		MaxCost:     cfg.CacheMaxCost,
+		BufferItems: cfg.CacheBufferItems,
+		Metrics:     true,
+	})
+	cache.Clear()
+	dc := &DC{cfg, pool, bp, cache}
+	err := dc.Process(msgs)
 	assert.Nil(t, err)
 }
 
