@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"bytes"
-	"fmt"
 	"net/http"
 	"io/ioutil"
 	"testing"
@@ -43,19 +42,6 @@ func makeMessages(vals []string) []*kafka.Message {
 	}
 
 	return msgs
-}
-
-type MockErrorProvider struct {
-	count int
-}
-
-func (p *MockErrorProvider) Auth(pool *pgxpool.Pool, pe *PaymentEvent) error {
-	return nil
-}
-
-func (p *MockErrorProvider) Payout(pe *PaymentEvent) (*Result, error) {
-	p.count++
-	return nil, fmt.Errorf("mock error")
 }
 
 func mustExec(t testing.TB, conn *pgxpool.Pool, sql string, arguments ...interface{}) (commandTag pgconn.CommandTag) {

@@ -113,11 +113,11 @@ func (dc *DC) Job(pe *PaymentEvent) error {
 	}
 
 	provider, err := dc.getProvider(pe)
-	if err != nil {
-		return err
-	}
 	if provider == nil {
 		return dc.sendResult(pe, invalidProviderResult(pe))
+	}
+	if err != nil {
+		return err
 	}
 
 	user, err := provider.GetUserFromPaymentEvent(pe)
