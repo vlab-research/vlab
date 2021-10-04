@@ -17,10 +17,10 @@ import (
 )
 
 type DC struct {
-	cfg       *Config
-	pool      *pgxpool.Pool
-	botparty  *botparty.BotParty
-	cache     *ristretto.Cache
+	cfg      *Config
+	pool     *pgxpool.Pool
+	botparty *botparty.BotParty
+	cache    *ristretto.Cache
 }
 
 func handle(err error) {
@@ -92,7 +92,7 @@ func (dc *DC) checkCache(provider Provider, pe *PaymentEvent, user *User) (Provi
 		return p.(Provider), nil
 	} 
 
-	dc.cache.SetWithTTL(key, provider, 1, dc.cfg.CacheTTLTimeout)
+	dc.cache.SetWithTTL(key, provider, 1, dc.cfg.CacheTTL)
 	e := provider.Auth(user)
 	if e != nil {
 		return nil, e
@@ -108,12 +108,15 @@ func (dc *DC) Job(pe *PaymentEvent) error {
 		return err
 	}
 
+	if !contains(dc.cfg.Providers, pe.Provider) {
+		return dc.sendResult(pe, invalidProviderResult(pe))
+	}
+
 	provider, err := dc.getProvider(pe)
 	if err != nil {
 		return err
 	}
-
-	if provider == nil || !contains(dc.cfg.Providers, pe.Provider) {
+	if provider == nil {
 		return dc.sendResult(pe, invalidProviderResult(pe))
 	}
 
