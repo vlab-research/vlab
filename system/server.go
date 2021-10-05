@@ -2,10 +2,10 @@ package main
 
 import (
 	"fmt"
-	"log"
-	"net/http"
 	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/labstack/echo/v4"
+	"log"
+	"net/http"
 )
 
 type Server struct {
@@ -13,8 +13,26 @@ type Server struct {
 	tableNames []string
 }
 
+type ResetParams struct {
+	Tables []string `query:"table"`
+}
+
 func (s *Server) ResetDb(c echo.Context) error {
-	resetDb(s.pool, s.tableNames)
+
+	params := new(ResetParams)
+	if err := c.Bind(params); err != nil {
+		return err
+	}
+
+	// If no tables supplied, clear all of them
+	if len(params.Tables) == 0 {
+		params.Tables = s.tableNames
+	}
+
+	err := resetDb(s.pool, params.Tables)
+	if err != nil {
+		return err
+	}
 	return c.String(http.StatusOK, "ok")
 }
 

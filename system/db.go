@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"strings"
 
 	"github.com/jackc/pgx/v4/pgxpool"
 )
@@ -38,7 +37,12 @@ func getTableNames(pool *pgxpool.Pool) ([]string, error) {
 	return tableNames, nil
 }
 
-func resetDb(pool *pgxpool.Pool, tableNames []string) {
-	query := fmt.Sprintf("TRUNCATE %s;", strings.Join(tableNames[:], ","))
-	pool.Exec(context.Background(), query)
+func resetDb(pool *pgxpool.Pool, tableNames []string) error {
+	query := ""
+	for _, table := range tableNames {
+		query += fmt.Sprintf("DELETE FROM %s; ", table)
+	}
+
+	_, err := pool.Exec(context.Background(), query)
+	return err
 }

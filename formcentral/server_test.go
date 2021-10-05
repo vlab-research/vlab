@@ -4,23 +4,23 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"testing"
 	"time"
-	"io"
-	"net/url"
 
-	"github.com/labstack/echo/v4"
 	"github.com/jackc/pgx/v4/pgxpool"
+	"github.com/labstack/echo/v4"
 	"github.com/stretchr/testify/assert"
 	"github.com/vlab-research/trans"
 )
 
 const (
-	surveyid = "00000000-0000-0000-0000-000000000000"
-	userid = "55555555-5555-5555-5555-555555555555"
-	insertUser = `INSERT INTO users(id, email) VALUES ($1, 'test@test.com');`
+	surveyid     = "00000000-0000-0000-0000-000000000000"
+	userid       = "55555555-5555-5555-5555-555555555555"
+	insertUser   = `INSERT INTO users(id, email) VALUES ($1, 'test@test.com');`
 	insertSurvey = `
 		INSERT INTO surveys(id, userid, form, formid, shortcode, title, created)
 		VALUES ($1, $2, $3, 'test-form-id', 'test-sc', 'test-title', NOW());
@@ -29,8 +29,8 @@ const (
 		INSERT INTO surveys(id, userid, form, translation_conf, formid, shortcode, title, created)
 		VALUES ($1, $2, $3, $4, 'test-form-id', 'test-sc', 'test-title', NOW());
 	`
- 	insertCredentialsSql = `
- 		INSERT INTO credentials(userid, entity, key, details) 
+	insertCredentialsSql = `
+ 		INSERT INTO credentials(userid, entity, key, details)
  		VALUES ($1, 'facebook_page', '', '{"id": "page-test"}');
  	`
 	formA = `
@@ -114,7 +114,10 @@ const (
 )
 
 func before() {
-	http.Get("http://system/resetdb")
+	_, err := http.Get("http://system/resetdb")
+	if err != nil {
+		panic(err)
+	}
 }
 
 func request(pool *pgxpool.Pool, method string, uri string, params string) (*httptest.ResponseRecorder, echo.Context, *Server) {
@@ -133,7 +136,7 @@ func TestTranslatorReturns404IfDestinationNotFound(t *testing.T) {
 	cfg := getConfig()
 	pool := getPool(&cfg)
 	defer pool.Close()
-	
+
 	params := fmt.Sprintf(`{"destination": "foo", "form": %v}`, formA)
 	_, c, s := request(pool, http.MethodPost, "/translator", params)
 	err := s.CreateTranslator(c)
@@ -151,7 +154,7 @@ func TestTranslatorReturns400IfNotTranslatable(t *testing.T) {
 	mustExec(t, pool, insertUser, userid)
 	form := `
 		{
-			"title": "mytitle", 
+			"title": "mytitle",
 			"fields": [
 				{
 					"id": "vjl6LihKMtcX",
@@ -367,26 +370,26 @@ func TestGetSurveyByParams(t *testing.T) {
 	pool := getPool(&cfg)
 	defer pool.Close()
 
- 	mustExec(t, pool, insertUser, userid)
- 	mustExec(t, pool, insertCredentialsSql, userid)
+	mustExec(t, pool, insertUser, userid)
+	mustExec(t, pool, insertCredentialsSql, userid)
 
- 	before := time.Time{}
- 	beforeFmt := before.Format(time.RFC3339)
- 	insertSurveySql := `
+	b := time.Time{}
+	beforeFmt := b.Format(time.RFC3339)
+	insertSurveySql := `
  		INSERT INTO surveys(id, userid, form, formid, shortcode, translation_conf, messages, title, created)
 		VALUES ($1, $2, '{}', '', 'a1234', '{}', '{}', '', $3);
  	`
- 	mustExec(t, pool, insertSurveySql, "00000000-0000-0000-0000-000000000000", userid, beforeFmt)
+	mustExec(t, pool, insertSurveySql, "00000000-0000-0000-0000-000000000000", userid, beforeFmt)
 
- 	now := time.Now()
- 	nowFmt := now.Format(time.RFC3339)
- 	mustExec(t, pool, insertSurveySql, "00000000-0000-0000-0000-000000000001", userid, nowFmt)
+	now := time.Now()
+	nowFmt := now.Format(time.RFC3339)
+	mustExec(t, pool, insertSurveySql, "00000000-0000-0000-0000-000000000001", userid, nowFmt)
 
 	q := make(url.Values)
 	q.Set("pageid", "page-test")
 	q.Set("shortcode", "a1234")
 	q.Set("timestamp", fmt.Sprintf("%v", now.Unix()))
-	rec, c, s := request(pool, http.MethodGet, "/surveys/?" + q.Encode(), "")
+	rec, c, s := request(pool, http.MethodGet, "/surveys/?"+q.Encode(), "")
 	err := s.GetSurveyByParams(c)
 
 	assert.Nil(t, err)
@@ -397,12 +400,13 @@ func TestGetSurveyByParams(t *testing.T) {
 	resSurvey := Survey{}
 	json.Unmarshal(body, &resSurvey)
 
-	survey := Survey {
+	survey := Survey{
 		ID: "00000000-0000-0000-0000-000000000001",
 	}
 
 	assert.Equal(t, http.StatusOK, rec.Code)
 	assert.Equal(t, resSurvey.ID, survey.ID)
+
 }
 
 func TestGetSurveyByParamsReturns404IfSurveyNotFound(t *testing.T) {
@@ -417,7 +421,7 @@ func TestGetSurveyByParamsReturns404IfSurveyNotFound(t *testing.T) {
 	q.Set("pageid", "page-test")
 	q.Set("shortcode", "a1234")
 	q.Set("timestamp", fmt.Sprintf("%v", ts.Unix()))
-	_, c, s := request(pool, http.MethodGet, "/surveys/?" + q.Encode(), "")
+	_, c, s := request(pool, http.MethodGet, "/surveys/?"+q.Encode(), "")
 	err := s.GetSurveyByParams(c)
 
 	assert.Equal(t, err.(*echo.HTTPError).Code, 404)
@@ -432,7 +436,7 @@ func TestGetSurveyByParamsReturns400IfMissingParameters(t *testing.T) {
 
 	q := make(url.Values)
 	q.Set("shortcode", "1234")
-	_, c, s := request(pool, http.MethodGet, "/surveys/?" + q.Encode(), "")
+	_, c, s := request(pool, http.MethodGet, "/surveys/?"+q.Encode(), "")
 	err := s.GetSurveyByParams(c)
 
 	assert.Equal(t, err.(*echo.HTTPError).Code, 400)
@@ -449,7 +453,7 @@ func TestGetSurveyByParamsReturns500OnServerError(t *testing.T) {
 	q.Set("pageid", "page-test")
 	q.Set("shortcode", "a1234")
 	q.Set("timestamp", "timestamp-test") // malformed timestamp
-	_, c, s := request(pool, http.MethodGet, "/surveys/?" + q.Encode(), "")
+	_, c, s := request(pool, http.MethodGet, "/surveys/?"+q.Encode(), "")
 	err := s.GetSurveyByParams(c)
 
 	assert.Equal(t, err.(*echo.HTTPError).Code, 500)
