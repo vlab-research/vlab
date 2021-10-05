@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/caarlos0/env/v6"
@@ -81,7 +82,7 @@ func marshalValue(lde *LitDataEvent) json.RawMessage {
 	return b
 }
 
-func (lde *LitDataEvent) AsInferenceDataEvent(study string) *InferenceDataEvent {
+func (lde *LitDataEvent) AsInferenceDataEvent(source *Source, idx int) *InferenceDataEvent {
 
 	md := map[string]json.RawMessage{}
 	for k, v := range lde.User.Metadata {
@@ -90,13 +91,17 @@ func (lde *LitDataEvent) AsInferenceDataEvent(study string) *InferenceDataEvent 
 	md["attribution_url"] = lde.AttributionURL
 	md["advertising_id"] = []byte(fmt.Sprintf(`"%s"`, lde.User.AdAttribution.Data.AdvertisingID))
 
+	from := fmt.Sprintf("%d", lde.Event.Timestamp.Time.Unix())
+
 	return &InferenceDataEvent{
-		User{lde.User.ID, md},
-		study,
-		"literacy_data_api",
-		lde.Event.Timestamp.Time,
-		lde.Event.Name,
-		marshalValue(lde),
+		User:       User{lde.User.ID, md},
+		Study:      source.StudyID,
+		SourceConf: source.Conf,
+		Timestamp:  lde.Event.Timestamp.Time,
+		Variable:   lde.Event.Name,
+		Value:      marshalValue(lde),
+		Idx:        idx,
+		Pagination: from,
 	}
 }
 
@@ -115,7 +120,7 @@ type LitDataResponse struct {
 }
 
 type LitDataAPIParams struct {
-	From          int32  `url:"from,omitempty" json:"from,omitempty"`
+	From          int    `url:"from" json:"from,omitempty"`
 	Token         string `url:"token,omitempty" json:"token,omitempty"`
 	AppID         string `url:"app_id" json:"app_id"`
 	AttributionID string `url:"attribution_id,omitempty" json:"attribution_id"`
@@ -171,23 +176,17 @@ func Call(client *http.Client, baseUrl string, params *LitDataAPIParams) (*LitDa
 	return res, nil
 }
 
-func GetEvents(study, url string, params *LitDataAPIParams) <-chan *InferenceDataEvent {
+func GetEvents(source *Source, url string, params *LitDataAPIParams, i int) <-chan *InferenceDataEvent {
 	client := http.DefaultClient
 	events := make(chan *InferenceDataEvent)
 
 	go func() {
 		defer close(events)
 
-		i := 0
 		for {
 			res, err := Call(client, url, params)
 			if err != nil {
 				panic(err)
-			}
-
-			params.Token = res.NextCursor
-			if params.Token == "" {
-				break
 			}
 
 			for _, res := range res.Data {
@@ -196,29 +195,17 @@ func GetEvents(study, url string, params *LitDataAPIParams) <-chan *InferenceDat
 					log.Println(fmt.Sprintf("Collected %d results.", i))
 				}
 
-				events <- res.AsInferenceDataEvent(study)
+				events <- res.AsInferenceDataEvent(source, i)
+			}
+
+			params.Token = res.NextCursor
+			if params.Token == "" {
+				break
 			}
 		}
 	}()
 
 	return events
-}
-
-func WriteEvents(pool *pgxpool.Pool, study string, events <-chan *InferenceDataEvent) {
-	query := `
-        INSERT INTO inference_data_events(study_id, data) values($1, $2)
-        `
-
-	i := 0
-	for e := range events {
-		i++
-		b, err := json.Marshal(e)
-		handle(err)
-		_, err = pool.Exec(context.Background(), query, study, b)
-		handle(err)
-	}
-
-	log.Println(fmt.Sprintf("Wrote %d results to the event store", i))
 }
 
 type Config struct {
@@ -245,9 +232,9 @@ func main() {
 	handle(err)
 
 	for _, source := range sources {
-		// --------------------------
-		// This part should go in the "literacy data connector"
-		// --------------------------
+
+		// we need someway to A) look to see if we already
+		// have events, then potentially start from there...
 
 		// create config -- env vars, not study-specific stuff....
 		url := "http://localhost:4000"
@@ -257,16 +244,30 @@ func main() {
 
 		log.Println("Literacy Data Connector getting data for: ", litDataConfig)
 
+		from, err := strconv.Atoi(litDataConfig.From)
+		handle(err)
+
+		// override the from with events already in the database
+		idx, token, ok, err := LastEvent(pool, source)
+		handle(err)
+
+		if ok {
+			from, err = strconv.Atoi(token)
+			handle(err) // shouldn't happen
+		}
+
 		// NOTE: right now the config is the params, but that will change
 		params := &LitDataAPIParams{
-			1,  // start from 0...
+			from,
 			"", // no token
 			litDataConfig.AppID,
 			litDataConfig.AttributionID,
 		}
 
-		events := GetEvents(source.StudyID, url, params)
-		WriteEvents(pool, source.StudyID, events)
+		events := GetEvents(source, url, params, idx)
+		written, err := WriteEvents(pool, source.StudyID, events)
 
+		log.Println(fmt.Sprintf("Wrote %d results to the event store", written))
+		handle(err)
 	}
 }

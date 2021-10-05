@@ -24,8 +24,12 @@ CREATE TABLE inference_data(
        CONSTRAINT study_user UNIQUE(study_id, user_id, variable)
 );
 
-
+-- hash sharded index
 CREATE TABLE inference_data_events(
        study_id UUID NOT NULL REFERENCES studies(id),
+       source_name VARCHAR NOT NULL,
+       timestamp TIMESTAMP NOT NULL,
+       idx INT NOT NULL,
+       pagination VARCHAR,
        data JSON NOT NULL
 );

@@ -14,10 +14,16 @@ type User struct {
 	Metadata map[string]json.RawMessage `json:"metadata"`
 }
 
+type SourceConf struct {
+	Name   string          `json:"name"`
+	Source string          `json:"source"`
+	Config json.RawMessage `json:"config"`
+}
+
 type InferenceDataEvent struct {
 	User       User            `json:"user"`
 	Study      string          `json:"study"`
-	DataSource string          `json:"data_source"`
+	SourceConf *SourceConf     `json:"source_conf"`
 	Timestamp  time.Time       `json:"timestamp"`
 	Variable   string          `json:"variable"`
 	Value      json.RawMessage `json:"value"`
@@ -212,12 +218,13 @@ func Reduce(events []*InferenceDataEvent, c *InferenceDataConf) (InferenceData, 
 	id := make(InferenceData)
 
 	for _, e := range events {
-		sourceConf, ok := c.DataSources[e.DataSource]
+
+		sourceConf, ok := c.DataSources[e.SourceConf.Name]
 
 		if !ok {
 			return nil, fmt.Errorf("Attempted to process event from data source not in SourceVariableMapping. "+
 				"Data source: %s. Sources in mapping: %s",
-				e.DataSource,
+				e.SourceConf.Name,
 				c.Sources())
 		}
 
