@@ -30,12 +30,13 @@ def report(i: Instruction):
 
 
 def add_users_to_custom_audience(token, aud_id, params):
-    url = f"https://graph.facebook.com/v9.0/{aud_id}/users?access_token={token}"
+    # TOOD: get the base url from somewhere!
+    url = f"https://graph.facebook.com/v11.0/{aud_id}/users?access_token={token}"
     return requests.post(url, json={"payload": params})
 
 
 def getter(type_, obj, prop):
-    """ Lazy so that nothing more gets loaded than needed """
+    """Lazy so that nothing more gets loaded than needed"""
 
     def _getter(i):
         coll = getattr(obj, prop)
