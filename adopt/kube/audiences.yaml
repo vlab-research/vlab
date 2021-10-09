@@ -10,7 +10,7 @@ spec:
       restartPolicy: OnFailure
       containers:
       - name: gbv-adopt-update-audiences
-        image: vlabresearch/adopt:0.0.85
+        image: vlabresearch/adopt:v0.0.87
         args:
         - python
         - malaria_audience.py
