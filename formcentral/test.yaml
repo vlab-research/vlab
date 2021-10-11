@@ -50,6 +50,7 @@ services:
         /tools/wait-for-it.sh cockroachdb:26257 -t 60
         cat /migrations/* > /tmp/merged-latest.sql
         cat /tmp/merged-latest.sql | ./cockroach sql --insecure --host cockroachdb
+        echo "set sql_safe_updates=false;" | ./cockroach sql --insecure --host cockroachdb
       '
     volumes:
       - ../devops:/tools
