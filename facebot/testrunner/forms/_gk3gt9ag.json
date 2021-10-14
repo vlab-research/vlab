@@ -1,7 +1,7 @@
 {
-  "id": "_SNomCIYT",
+  "id": "_gk3gt9ag",
   "type": "form",
-  "title": "payment test - reloadly - full",
+  "title": "payment test - reloadly - failure",
   "workspace": {
     "href": "https://api.typeform.com/workspaces/WA44hg"
   },
@@ -33,7 +33,7 @@
   ],
   "fields": [
     {
-      "id": "AzIj6G5jUYha",
+      "id": "Zf3MwzJBEmHz",
       "title": "Hey what's your number?",
       "ref": "ref_num",
       "properties": {
@@ -45,7 +45,7 @@
       "type": "phone_number"
     },
     {
-      "id": "9HmmHRKBNUcI",
+      "id": "oyvYcOP4LE3T",
       "title": "And what's your operator?",
       "ref": "ref_op",
       "properties": {
@@ -55,12 +55,12 @@
         "vertical_alignment": true,
         "choices": [
           {
-            "id": "yjsVxsp4khN3",
+            "id": "imClR1kHooMk",
             "ref": "4127a919-c337-46d0-8021-3216b2f9d259",
             "label": "Foodafone"
           },
           {
-            "id": "30v3frlwT4BE",
+            "id": "TAUsmm4cbpwo",
             "ref": "1c2dc360-ed98-4a3a-94a6-595d41a354ca",
             "label": "Bardafone"
           }
@@ -72,19 +72,19 @@
       "type": "multiple_choice"
     },
     {
-      "id": "21GH4vNOLRjM",
+      "id": "hHTfxBDfssJc",
       "title": "Thank you, we'll send money there!!",
       "ref": "b69e2638-5999-44b6-b44d-5931578b1956",
       "properties": {
-        "description": "type: wait\nwait:\n    type: external\n    value:\n        type: payment:reloadly\n        id: foobaz\npayment:\n    provider: reloadly\n    details:\n        number: 88097795\n        amount: 1\n        country: CR\n        tolerance: 30\n        operator: Claro Costa Rica Bundles\n        id: foobaz",
+        "description": "type: wait\nwait:\n    type: external\n    value:\n        type: payment:reloadly\n        id: foobaz\npayment:\n    provider: reloadly\n    details:\n        number: 88097795\n        amount: 1\n        country: invalid-country-code\n        tolerance: 30\n        operator: invalid-operator\n        id: foobaz",
         "button_text": "Continue",
         "hide_marks": false
       },
       "type": "statement"
     },
     {
-      "id": "BbKLJPrHdQYZ",
-      "title": "We're sorry. The mobile payment had the following problem: ",
+      "id": "pBMCSIAhLdAz",
+      "title": "We're sorry. The mobile payment had the following problem: {{hidden:e_payment_reloadly_error_message}}",
       "ref": "edde703e-d1d2-47b9-9028-a5e0e5ff7f9a",
       "properties": {
         "button_text": "Continue",
@@ -93,7 +93,7 @@
       "type": "statement"
     },
     {
-      "id": "sKEHfZctaN1C",
+      "id": "xJhu1AnTOnC3",
       "title": "Please try again with another number. ",
       "ref": "9b47b29a-31b4-48ed-8ad9-1fb899e241c5",
       "properties": {
@@ -180,7 +180,7 @@
     }
   ],
   "_links": {
-    "display": "https://nandanrao.typeform.com/to/_SNomCIYT"
+    "display": "https://nandanrao.typeform.com/to/_gk3gt9ag"
   },
   "custom_messages": {}
 }
