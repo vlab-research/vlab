@@ -22,7 +22,7 @@ versionReplybot: &vreplybot v0.0.125
 versionLinksniffer: &vlinksniffer v0.0.4
 versionDean: &vdean v0.0.24
 versionScribble: &vscribble 0.0.20
-versionDinersclub: &vdinersclub v0.0.10
+versionDinersclub: &vdinersclub v0.0.11
 versionFormcentral: &vformcentral v0.0.6
 
 processingAlerts: []
@@ -62,28 +62,46 @@ dinersclub:
       memory: 16Mi
   envFrom: gbv-bot-envs
   env:
+    - name: CACHE_TTL
+      value: "1h"
+    - name: CACHE_NUM_COUNTERS
+      value: "1000"
+    - name: CACHE_MAX_COST
+      value: "1000"
+    - name: CACHE_BUFFER_ITEMS
+      value: "64"
+    - name: RELOADLY_SANDBOX
+      value: "true"
     - name: BOTSERVER_URL
       value: "http://gbv-botserver/synthetic"
+    - name: CHATBASE_DATABASE
+      value: "chatroach"
+    - name: CHATBASE_HOST
+      value: *host
+    - name: CHATBASE_PORT
+      value: "26257"
+    - name: CHATBASE_USER
+      value: "chatroach"
+    - name: CHATBASE_MAX_CONNECTIONS
+      value: "1"
     - name: KAFKA_BROKERS
       value: *kb
+    - name: KAFKA_POLL_TIMEOUT
+      value: "1s"
     - name: KAFKA_TOPIC
       value: *paymenttopic
     - name: KAFKA_GROUP
       value: "dinersclub"
-    - name: KAFKA_POLL_TIMEOUT
-      value: "2s"
+    - name: DINERSCLUB_BATCH_SIZE
+      value: "1"
     - name: DINERSCLUB_RETRY_BOTSERVER
       value: "2m"
     - name: DINERSCLUB_RETRY_PROVIDER
       value: "2m"
-    - name: DINERSCLUB_PROVIDERS
-      value: "fake,reloadly"
     - name: DINERSCLUB_POOL_SIZE
       value: "1"
-    - name: DINERSCLUB_BATCH_SIZE
-      value: "1"
-    - name: RELOADLY_SANDBOX
-      value: "true"
+    - name: DINERSCLUB_PROVIDERS
+      value: "fake,reloadly"
 
 
 dean:

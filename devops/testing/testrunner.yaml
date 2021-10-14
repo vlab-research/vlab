@@ -14,7 +14,7 @@ spec:
       restartPolicy: OnFailure
       containers:
       - name: gbv-testrunner
-        image: vlabresearch/testrunner:v0.0.3
+        image: vlabresearch/testrunner:v0.0.4
         imagePullPolicy: Always
         resources:
           requests:
