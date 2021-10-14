@@ -91,13 +91,12 @@ func (dc *DC) checkCache(provider Provider, pe *PaymentEvent, user *User) (Provi
 	if ok {
 		return p.(Provider), nil
 	} 
-
-	dc.cache.SetWithTTL(key, provider, 1, dc.cfg.CacheTTL)
 	e := provider.Auth(user)
 	if e != nil {
 		return nil, e
 	}
 
+	dc.cache.SetWithTTL(key, provider, 1, dc.cfg.CacheTTL)
 	return provider, nil
 }
 
