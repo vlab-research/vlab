@@ -5,17 +5,12 @@ export interface StudiesApiResponse
 
 export interface StudyApiResponse extends ApiResponse<StudyResource> {}
 
-export interface StudyProgressListApiResponse
-  extends ApiResponse<StudyProgressResource[]> {}
-
 export interface StudySegmentsProgressApiResponse
-  extends PaginatedApiResponse<
-    StudySegmentProgressResource[],
+  extends ApiResponse<
     {
-      from: number;
-      to: number;
-      total: number;
-    }
+      segments: StudySegmentProgressResource[];
+      datetime: number;
+    }[]
   > {}
 
 export interface StudyResource {

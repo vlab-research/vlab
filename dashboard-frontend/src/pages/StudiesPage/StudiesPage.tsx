@@ -1,4 +1,3 @@
-import React from 'react';
 import { queryCache } from 'react-query';
 import useStudies from './useStudies';
 import StudyList, { StudyListSkeleton } from './StudyList';

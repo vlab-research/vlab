@@ -14,8 +14,8 @@ describe('FakeStudyBuilder', () => {
       creationDate: studyCreationDate,
       desiredParticipants,
       numOfDifferentStrata: 2,
-      desiredParticipantsPerStrata: 2400,
-      totalHoursOfData: 2,
+      desiredParticipantsPerStrata: 12000,
+      totalDaysOfData: 2,
     });
   });
 
@@ -61,10 +61,10 @@ describe('FakeStudyBuilder', () => {
     });
 
     it('datetime augmented', () => {
-      const oneHourInMilliseconds = 3600000;
+      const oneDayInMilliseconds = 24 * 60 * 60 * 1000;
       expect(first.datetime).toBe(studyCreationDate);
-      expect(second.datetime).toBe(first.datetime + oneHourInMilliseconds);
-      expect(third.datetime).toBe(second.datetime + oneHourInMilliseconds);
+      expect(second.datetime).toBe(first.datetime + oneDayInMilliseconds);
+      expect(third.datetime).toBe(second.datetime + oneDayInMilliseconds);
     });
 
     it('currentAverageDeviation changed', () => {
@@ -112,32 +112,32 @@ describe('FakeStudyBuilder', () => {
     });
 
     it('datetime augmented', () => {
-      const oneHourInMilliseconds = 3600000;
+      const oneDayInMilliseconds = 24 * 60 * 60 * 1000;
 
       first.forEach(({ datetime }, i) => {
         expect(datetime).toBe(studyCreationDate);
       });
 
       second.forEach(({ datetime }, i) => {
-        expect(datetime).toBe(first[i].datetime + oneHourInMilliseconds);
+        expect(datetime).toBe(first[i].datetime + oneDayInMilliseconds);
       });
 
       third.forEach(({ datetime }, i) => {
-        expect(datetime).toBe(second[i].datetime + oneHourInMilliseconds);
+        expect(datetime).toBe(second[i].datetime + oneDayInMilliseconds);
       });
     });
 
-    it('currentPercentage augmented', () => {
+    it('currentPercentage changed', () => {
       first.forEach(({ currentPercentage }, i) => {
         expect(currentPercentage).toBe(0);
       });
 
       second.forEach(({ currentPercentage }, i) => {
-        expect(currentPercentage).toBeGreaterThan(first[i].currentPercentage);
+        expect(currentPercentage).not.toBe(first[i].currentPercentage);
       });
 
       third.forEach(({ currentPercentage }, i) => {
-        expect(currentPercentage).toBeGreaterThan(second[i].currentPercentage);
+        expect(currentPercentage).not.toBe(second[i].currentPercentage);
       });
     });
 
@@ -155,24 +155,6 @@ describe('FakeStudyBuilder', () => {
       third.forEach(({ currentParticipants }, i) => {
         expect(currentParticipants).toBeGreaterThan(
           second[i].currentParticipants
-        );
-      });
-    });
-
-    it('percentageDeviationFromGoal decreased', () => {
-      first.forEach(({ percentageDeviationFromGoal }, i) => {
-        expect(percentageDeviationFromGoal).toBe(100);
-      });
-
-      second.forEach(({ percentageDeviationFromGoal }, i) => {
-        expect(percentageDeviationFromGoal).toBeLessThan(
-          first[i].percentageDeviationFromGoal
-        );
-      });
-
-      third.forEach(({ percentageDeviationFromGoal }, i) => {
-        expect(percentageDeviationFromGoal).toBeLessThan(
-          second[i].percentageDeviationFromGoal
         );
       });
     });
@@ -233,6 +215,24 @@ describe('FakeStudyBuilder', () => {
       });
     });
 
+    it('percentageDeviationFromGoal changed', () => {
+      first.forEach(({ percentageDeviationFromGoal }, i) => {
+        expect(percentageDeviationFromGoal).toBe(0);
+      });
+
+      second.forEach(({ percentageDeviationFromGoal }, i) => {
+        expect(percentageDeviationFromGoal).not.toBe(
+          first[i].percentageDeviationFromGoal
+        );
+      });
+
+      third.forEach(({ percentageDeviationFromGoal }, i) => {
+        expect(percentageDeviationFromGoal).not.toBe(
+          second[i].percentageDeviationFromGoal
+        );
+      });
+    });
+
     it('currentPricePerParticipant remained/changed to one of: 100, 200, 300', () => {
       first.forEach(({ currentPricePerParticipant }) => {
         expect(currentPricePerParticipant).toBe(0);
@@ -249,29 +249,29 @@ describe('FakeStudyBuilder', () => {
 
     it('desiredPercentage remained the same', () => {
       first.forEach(({ desiredPercentage }, i) => {
-        expect(desiredPercentage).toBe(10);
+        expect(desiredPercentage).toBe(50);
       });
 
       second.forEach(({ desiredPercentage }, i) => {
-        expect(desiredPercentage).toBe(10);
+        expect(desiredPercentage).toBe(50);
       });
 
       third.forEach(({ desiredPercentage }, i) => {
-        expect(desiredPercentage).toBe(10);
+        expect(desiredPercentage).toBe(50);
       });
     });
 
     it('desiredParticipants remained the same', () => {
       first.forEach(({ desiredParticipants }, i) => {
-        expect(desiredParticipants).toBe(2400);
+        expect(desiredParticipants).toBe(12000);
       });
 
       second.forEach(({ desiredParticipants }, i) => {
-        expect(desiredParticipants).toBe(2400);
+        expect(desiredParticipants).toBe(12000);
       });
 
       third.forEach(({ desiredParticipants }, i) => {
-        expect(desiredParticipants).toBe(2400);
+        expect(desiredParticipants).toBe(12000);
       });
     });
 

@@ -1,24 +1,18 @@
 import React from 'react';
+import { useParams } from 'react-router-dom';
 import Table, { TableSkeleton } from './Table';
-import useStudySegmentsProgressQuery, {
-  segmentsProgressPerPage,
-} from './useStudySegmentsProgressQuery';
-import { lastValue } from '../../helpers/arrays';
+import useStudy from './useStudy';
 import { StudySegmentProgressResource } from '../../types/study';
+
+const segmentsProgressPerPage = 7;
 
 const StudySegmentsTable = ({
   testId,
-  loaderTestId,
-  showLoader,
-  studySlug,
   title,
   columnNames,
   getRowData,
 }: {
   testId?: string;
-  loaderTestId?: string;
-  showLoader: boolean;
-  studySlug: string;
   title: string;
   columnNames: string[];
   getRowData: (studySegmentProgress: StudySegmentProgressResource) => {
@@ -29,51 +23,70 @@ const StudySegmentsTable = ({
     fourthColumn: string;
   };
 }) => {
-  const [cursors, setCursors] = React.useState<Array<string | null>>([null]);
-  const currentCursor = lastValue(cursors);
-  const query = useStudySegmentsProgressQuery(studySlug, currentCursor);
+  const params = useParams<{ studySlug: string }>();
+  const study = useStudy(params.studySlug);
+  const [currentPage, setCurrentPage] = React.useState(0);
+
+  if (study.isLoading) {
+    return (
+      <TableLayout title={title}>
+        <TableSkeleton
+          testId="study-segment-table-skeleton"
+          numRows={segmentsProgressPerPage}
+        />
+      </TableLayout>
+    );
+  }
+
+  const startIndex = currentPage * segmentsProgressPerPage;
+  const endIndex = startIndex + segmentsProgressPerPage;
+  const numberItems = study.currentSegmentsProgress.length;
+
+  const visibleRows = study.currentSegmentsProgress
+    .slice(startIndex, endIndex)
+    .map(getRowData);
+
+  const pagination = {
+    from: numberItems > 0 ? startIndex + 1 : 0,
+    to: Math.min(endIndex, numberItems),
+    total: numberItems,
+    previousButton: {
+      disabled: currentPage === 0,
+      onClick: () => {
+        setCurrentPage(currentPage => currentPage - 1);
+      },
+    },
+    nextButton: {
+      disabled: endIndex > numberItems,
+      onClick: () => {
+        setCurrentPage(currentPage => currentPage + 1);
+      },
+    },
+  };
 
   return (
-    <div className="pt-5 sm:pt-6 lg:pt-10" data-testid={testId}>
-      <h3 className="text-lg leading-6 font-medium text-gray-900">{title}</h3>
-      <div className="pt-4">
-        {!showLoader && query?.resolvedData?.data ? (
-          <Table
-            columnNames={columnNames}
-            rows={query.resolvedData.data.map(getRowData)}
-            pagination={{
-              from: query.resolvedData.pagination.from,
-              to: query.resolvedData.pagination.to,
-              total: query.resolvedData.pagination.total,
-              previousButton: {
-                disabled: currentCursor === null,
-                onClick: () => {
-                  const newCursors = cursors.slice(0, cursors.length - 1);
-                  setCursors(newCursors);
-                },
-              },
-              nextButton: {
-                disabled: !query.latestData?.pagination.nextCursor,
-                onClick: () => {
-                  if (query.latestData?.pagination.nextCursor) {
-                    setCursors([
-                      ...cursors,
-                      query.latestData.pagination.nextCursor,
-                    ]);
-                  }
-                },
-              },
-            }}
-          />
-        ) : (
-          <TableSkeleton
-            testId={loaderTestId}
-            numRows={segmentsProgressPerPage}
-          />
-        )}
-      </div>
-    </div>
+    <TableLayout title={title} testId={testId}>
+      <Table
+        columnNames={columnNames}
+        rows={visibleRows}
+        pagination={pagination}
+      />
+    </TableLayout>
   );
 };
+const TableLayout = ({
+  title,
+  children,
+  testId,
+}: {
+  title: string;
+  children: React.ReactNode;
+  testId?: string;
+}) => (
+  <div className="pt-5 sm:pt-6 lg:pt-10" data-testid={testId}>
+    <h3 className="text-lg leading-6 font-medium text-gray-900">{title}</h3>
+    <div className="pt-4">{children}</div>
+  </div>
+);
 
 export default StudySegmentsTable;

@@ -8,6 +8,7 @@ import {
 } from './types/study';
 import { isValidNumber } from './helpers/numbers';
 import { createSlugFor } from './helpers/strings';
+import { lastValue } from './helpers/arrays';
 
 const chance = Chance();
 
@@ -22,8 +23,6 @@ export const makeServer = ({ environment = 'development' } = {}) => {
     },
 
     seeds(server) {
-      // TODO: Simplify the way I'm creating seeds.
-
       const today = Date.now();
       const yesterday = Date.now() - 24 * 60 * 60 * 1000;
 
@@ -59,56 +58,35 @@ export const makeServer = ({ environment = 'development' } = {}) => {
           slug: createSlugFor(study.name),
         })
       );
-      const randomStudyResources = createStudyResources(server, 34);
+
+      const randomStudyResources = createStudyResources(server, 8);
 
       [...staticStudyResources, ...randomStudyResources].forEach(
         studyResource => {
-          const twentySegments = 20;
+          const aDayInMilliseconds = 24 * 60 * 60 * 1000;
+          const dateTimeFrom24DaysAgo = Date.now() - aDayInMilliseconds * 24;
 
           const fakeStudy = createFakeStudy({
-            creationDate: studyResource.createdAt,
-            desiredParticipants: 24000,
-            numOfDifferentStrata: twentySegments,
+            creationDate: dateTimeFrom24DaysAgo,
+            desiredParticipants: 48000,
+            numOfDifferentStrata: 20,
             desiredParticipantsPerStrata: 2400,
-            totalHoursOfData: 24,
+            totalDaysOfData: 24,
           });
-
-          // For each Study, creates StudyProgress resources for last 24 days. (1 per day)
-          const aDayInMilliseconds = 24 * 60 * 60 * 1000;
-          const currentTimestamp = Date.now();
-          const dateTimeFrom24DaysAgo =
-            currentTimestamp -
-            aDayInMilliseconds * fakeStudy.studyProgressList.length;
-
-          let datetime = dateTimeFrom24DaysAgo;
 
           fakeStudy.studyProgressList.forEach(progress => {
             createStudyProgressResource(server, {
               study: studyResource,
-              progress: {
-                ...progress,
-                datetime,
-              },
+              progress,
             });
-
-            datetime += aDayInMilliseconds;
           });
 
-          /*
-            For each Study, creates 20 SegmentProgress resources (1 for each Study Segment)
-            Are going to be used to display current progress of the different 20 Segments in the Study page tables.
-          */
-          fakeStudy.stratumProgressList
-            .slice(-twentySegments)
-            .forEach((stratumProgress: any) => {
-              createSegmentProgressResource(server, {
-                study: studyResource,
-                segmentProgress: {
-                  ...stratumProgress,
-                  datetime: currentTimestamp,
-                },
-              });
+          fakeStudy.stratumProgressList.forEach(stratumProgress => {
+            createSegmentProgressResource(server, {
+              study: studyResource,
+              segmentProgress: stratumProgress,
             });
+          });
         }
       );
     },
@@ -165,65 +143,9 @@ export const makeServer = ({ environment = 'development' } = {}) => {
         };
       });
 
-      /**
-       * Things to consider when implementing the real endpoint:
-       *  - When a Study is initially created, an associated StudyProgress must be created with default values.
-       *    As an example, when the frontend hits the real endpoint for a newly created Study, the response should
-       *    include a data array with a single StudyProgress that have default values.
-       *
-       *  - This endpoint is used by the stats card and the chart displayed in the Study page.
-       *    At the moment, we only display all-time progress (chart) or current progress (stat cards).
-       *      - So this endpoint should only return one data point per day (latest one for that day)
-       *      - This endpoint is not paginated because we need to display all available data in the chart.
-       *        If we anticipate that this will be a problem, we can limit the number of StudyProgress returned
-       *        by this endpoint to a fixed number. (first study progress and latest one will always be included)
-       *
-       *  - Soon, when we allow the users to pick a specific range of dates, we'll add the required query_parameters.
-       *    To decide yet if we want more granularity and allow the user to see hourly and minutes updates reflected in the chart.
-       */
-      this.get('/studies/:slug/progress', ({ db }, request) => {
-        if (!isAuthenticatedRequest(request)) {
-          return unauthorizedResponse;
-        }
-
-        const study: StudyResource = (db.studies as any).findBy({
-          slug: request.params.slug,
-        });
-
-        return {
-          data: Array.from(db.studyProgresses as any)
-            .filter((progress: any) => progress.studyId === study.id)
-            .sort((a: any, b: any) => a.datetime - b.datetime),
-        };
-      });
-
-      /**
-       * Things to consider when implementing the real endpoint:
-       *  - This endpoint returns a paginated list of StudySegmentProgress for today.
-       *    As an example, if an specific Study have 20 different Segments, when the frontend makes a request to this endpoint
-       *    asking for 7 results, the api endpoint will return the most recent progress from 7 of the 20 Segments with a nextCursor,
-       *    to request the next 7.
-       *
-       *  - The default order criteria still needs to be decided.
-       *
-       *  - Soon, when we allow the users to pick a specific range of dates, we'll add the required query_parameters.
-       */
       this.get('/studies/:slug/segments-progress', ({ db }, request) => {
         if (!isAuthenticatedRequest(request)) {
           return unauthorizedResponse;
-        }
-
-        let number = 10;
-        let cursor = 0;
-
-        const receivedNumber = Number(request.queryParams.number);
-        if (isValidNumber(receivedNumber)) {
-          number = receivedNumber;
-        }
-
-        const receivedCursor = Number(request.queryParams.cursor);
-        if (isValidNumber(receivedCursor)) {
-          cursor = receivedCursor;
         }
 
         const study: StudyResource = (db.studies as any).findBy({
@@ -234,29 +156,35 @@ export const makeServer = ({ environment = 'development' } = {}) => {
           db.segmentProgresses as any
         ).filter(
           (segmentProgress: any) => segmentProgress.studyId === study.id
-        );
+        ) as StudySegmentProgressResource[];
 
-        const data = Array.from(allSegmentsForAnSpecificStudy).slice(
-          cursor * number,
-          cursor * number + number
-        );
+        const data = allSegmentsForAnSpecificStudy.reduce((acc, segment) => {
+          if (acc.length === 0) {
+            return [
+              {
+                segments: [segment],
+                datetime: segment.datetime,
+              },
+            ];
+          }
 
-        const nextData = Array.from(allSegmentsForAnSpecificStudy).slice(
-          (cursor + 1) * number,
-          (cursor + 1) * number + number
-        );
+          const hasDatetimeChanged =
+            lastValue(acc).datetime !== segment.datetime;
+
+          if (hasDatetimeChanged) {
+            acc.push({
+              segments: [segment],
+              datetime: segment.datetime,
+            });
+          } else {
+            lastValue(acc).segments.push(segment);
+          }
+
+          return acc;
+        }, [] as { segments: StudySegmentProgressResource[]; datetime: number }[]);
 
         return {
           data,
-          pagination: {
-            nextCursor: nextData.length ? String(cursor + 1) : null,
-            total: allSegmentsForAnSpecificStudy.length,
-            from: cursor * number + 1,
-            to: Math.min(
-              cursor * number + number,
-              allSegmentsForAnSpecificStudy.length
-            ),
-          },
         };
       });
 
@@ -294,7 +222,7 @@ export const createStudyResource = (
     desiredParticipants: 24000,
     numOfDifferentStrata: 10,
     desiredParticipantsPerStrata: 2400,
-    totalHoursOfData: 24,
+    totalDaysOfData: 24,
   });
 
   const studyResource: StudyResource = {

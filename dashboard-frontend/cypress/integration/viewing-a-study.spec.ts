@@ -7,7 +7,11 @@ import {
   createStudyProgressResource,
   createSegmentProgressResource,
 } from '../../src/server';
-import { StudyResource } from '../../src/types/study';
+import {
+  StudyProgressResource,
+  StudyResource,
+  StudySegmentProgressResource,
+} from '../../src/types/study';
 
 const chance = Chance();
 
@@ -29,39 +33,67 @@ describe('Given an authenticated user', () => {
         slug: 'weekly-consume-of-meat',
       });
 
-      [
-        {
-          id: chance.guid({ version: 4 }),
+      createSegmentProgressResource(server, {
+        study,
+        segmentProgress: {
+          ...getFakeStudySegmentProgress(),
+          name: '64-spain',
           datetime: new Date('2021-06-19').getTime(),
-          currentParticipants: 0,
-          expectedParticipants: 0,
-          currentAverageDeviation: 0,
-          expectedAverageDeviation: 0,
-          desiredParticipants: null,
         },
-        {
-          id: chance.guid({ version: 4 }),
+      });
+      createSegmentProgressResource(server, {
+        study,
+        segmentProgress: {
+          ...getFakeStudySegmentProgress(),
+          name: '64-france',
+          datetime: new Date('2021-06-19').getTime(),
+        },
+      });
+
+      createSegmentProgressResource(server, {
+        study,
+        segmentProgress: {
+          ...getFakeStudySegmentProgress(),
+          name: '64-spain',
           datetime: new Date('2021-06-20').getTime(),
-          currentParticipants: 15037,
-          expectedParticipants: 16000,
-          currentAverageDeviation: 1,
-          expectedAverageDeviation: 1.1,
-          desiredParticipants: null,
         },
-        {
-          id: chance.guid({ version: 4 }),
+      });
+      createSegmentProgressResource(server, {
+        study,
+        segmentProgress: {
+          ...getFakeStudySegmentProgress(),
+          name: '64-france',
+          datetime: new Date('2021-06-20').getTime(),
+        },
+      });
+
+      createSegmentProgressResource(server, {
+        study,
+        segmentProgress: {
+          ...getFakeStudySegmentProgress(),
+          name: '64-spain',
           datetime: new Date('2021-06-21').getTime(),
-          currentParticipants: 20137,
-          expectedParticipants: 21250,
-          currentAverageDeviation: 1.5,
-          expectedAverageDeviation: 1.7,
-          desiredParticipants: null,
+          currentParticipants: 7137,
+          expectedParticipants: 7750,
+          desiredPercentage: 10,
+          currentPercentage: 3.2,
+          expectedPercentage: 3.4,
+          percentageDeviationFromGoal: 6.8,
         },
-      ].forEach(progress => {
-        createStudyProgressResource(server, {
-          study,
-          progress,
-        });
+      });
+      createSegmentProgressResource(server, {
+        study,
+        segmentProgress: {
+          ...getFakeStudySegmentProgress(),
+          name: '64-france',
+          datetime: new Date('2021-06-21').getTime(),
+          currentParticipants: 13000,
+          expectedParticipants: 13500,
+          desiredPercentage: 10,
+          currentPercentage: 6.2,
+          expectedPercentage: 6.8,
+          percentageDeviationFromGoal: 3.8,
+        },
       });
 
       cy.visit('/studies/weekly-consume-of-meat');
@@ -81,10 +113,10 @@ describe('Given an authenticated user', () => {
       cy.contains('21,250');
 
       cy.contains('Current Avg. Deviation');
-      cy.contains('1.5 %');
+      cy.contains('5.3 %');
 
       cy.contains('Expected Avg. Deviation');
-      cy.contains('1.7 %');
+      cy.contains('4.9 %');
     });
 
     it('He sees an areachart with current participants data over time', () => {
@@ -109,7 +141,7 @@ describe('Given an authenticated user', () => {
       cy.get('[data-testid="study-progress-chart"]')
         .contains('20,000')
         .should('not.exist');
-      cy.get('[data-testid="study-progress-chart"]').contains('1.5');
+      cy.get('[data-testid="study-progress-chart"]').contains('5.0');
     });
 
     it("He's redirected to the Studies page when clicking the back button", () => {
@@ -121,7 +153,10 @@ describe('Given an authenticated user', () => {
 
   describe('When he has created a Study with one Segment and visits the Study page', () => {
     beforeEach(() => {
-      const study = createStudyWithRandomProgress(server);
+      const study = createStudyResource(server, {
+        name: 'Weekly consume of meat',
+        slug: 'weekly-consume-of-meat',
+      });
 
       createSegmentProgressResource(server, {
         study,
@@ -137,7 +172,7 @@ describe('Given an authenticated user', () => {
           expectedParticipants: 1571,
           datetime: Date.now(),
           currentPricePerParticipant: 2,
-          percentageDeviationFromGoal: 5.95,
+          percentageDeviationFromGoal: 4.05,
         },
       });
 
@@ -150,12 +185,14 @@ describe('Given an authenticated user', () => {
       cy.contains('Summary per segment');
 
       cy.get('[data-testid="summary-per-segment-table"]').contains('Name');
-      cy.get('[data-testid="summary-per-segment-table"]').contains('%Progress');
+      cy.get('[data-testid="summary-per-segment-table"]').contains(
+        '%Deviation'
+      );
       cy.get('[data-testid="summary-per-segment-table"]').contains('Budget');
       cy.get('[data-testid="summary-per-segment-table"]').contains('Spent');
 
       cy.get('[data-testid="summary-per-segment-table"]').contains('64-spain');
-      cy.get('[data-testid="summary-per-segment-table"]').contains('94.05');
+      cy.get('[data-testid="summary-per-segment-table"]').contains('4.05');
       cy.get('[data-testid="summary-per-segment-table"]').contains('7,200');
       cy.get('[data-testid="summary-per-segment-table"]').contains('2,858');
     });
@@ -219,7 +256,10 @@ describe('Given an authenticated user', () => {
 
   describe('When he has created a Study with 12 Segments and visits the Study page', () => {
     beforeEach(() => {
-      const study = createStudyWithRandomProgress(server);
+      const study = createStudyResource(server, {
+        name: 'Weekly consume of meat',
+        slug: 'weekly-consume-of-meat',
+      });
 
       createStudySegments(server, {
         study,
@@ -311,7 +351,10 @@ describe('Given an authenticated user', () => {
       cy.contains('Something went wrong while fetching the Study.').then(() => {
         server.shutdown();
         server = makeServer({ environment: 'test' });
-        const study = createStudyWithRandomProgress(server);
+        const study = createStudyResource(server, {
+          name: 'Weekly consume of meat',
+          slug: 'weekly-consume-of-meat',
+        });
         createStudySegments(server, { study, numOfSegments: 1 });
       });
 
@@ -320,6 +363,43 @@ describe('Given an authenticated user', () => {
 
       cy.contains('Weekly consume of meat');
     });
+  });
+
+  describe("When he visits a specific Study page that hasn't any progress", () => {
+    beforeEach(() => {
+      createStudyResource(server, {
+        name: 'Weekly consume of meat',
+        slug: 'weekly-consume-of-meat',
+      });
+
+      cy.visit('/studies/weekly-consume-of-meat');
+
+      assertLoadersAppear();
+    });
+
+    it('He sees default values in the overview of the Study', () => {
+      cy.get('[data-testid="stats-card-for-current-participants"]').contains(
+        '0'
+      );
+      cy.get('[data-testid="stats-card-for-expected-participants"]').contains(
+        '0'
+      );
+      cy.get('[data-testid="stats-card-for-current-avg.-deviation"]').contains(
+        '0 %'
+      );
+      cy.get('[data-testid="stats-card-for-expected-avg.-deviation"]').contains(
+        '0 %'
+      );
+    });
+
+    it('He sees the default Study progress in the areachart', () => {
+      assertStudyProgressChartAppears({
+        numDataPoints: 1,
+      });
+      cy.get('[data-testid="study-progress-chart"]').contains('0');
+    });
+
+    // TODO: Create a tests for the table empty state
   });
 });
 
@@ -350,52 +430,6 @@ const assertLoadersAppear = () => {
   );
 };
 
-const createStudyWithRandomProgress = (
-  server: ReturnType<typeof makeServer>
-) => {
-  const study = createStudyResource(server, {
-    name: 'Weekly consume of meat',
-    slug: 'weekly-consume-of-meat',
-  });
-
-  [
-    {
-      id: chance.guid({ version: 4 }),
-      datetime: new Date('2021-06-19').getTime(),
-      currentParticipants: 0,
-      expectedParticipants: 0,
-      currentAverageDeviation: 0,
-      expectedAverageDeviation: 0,
-      desiredParticipants: null,
-    },
-    {
-      id: chance.guid({ version: 4 }),
-      datetime: new Date('2021-06-20').getTime(),
-      currentParticipants: 15037,
-      expectedParticipants: 16000,
-      currentAverageDeviation: 1,
-      expectedAverageDeviation: 1.1,
-      desiredParticipants: null,
-    },
-    {
-      id: chance.guid({ version: 4 }),
-      datetime: new Date('2021-06-21').getTime(),
-      currentParticipants: 20137,
-      expectedParticipants: 21250,
-      currentAverageDeviation: 1.5,
-      expectedAverageDeviation: 1.7,
-      desiredParticipants: null,
-    },
-  ].forEach(progress => {
-    createStudyProgressResource(server, {
-      study,
-      progress,
-    });
-  });
-
-  return study;
-};
-
 const createStudySegments = (
   server: ReturnType<typeof makeServer>,
   { study, numOfSegments }: { study: StudyResource; numOfSegments: number }
@@ -405,7 +439,7 @@ const createStudySegments = (
     creationDate: currentTime,
     desiredParticipants: 24000,
     desiredParticipantsPerStrata: 2400,
-    totalHoursOfData: 24,
+    totalDaysOfData: 24,
   };
 
   const segmentsProgress = createFakeStudy({
@@ -423,3 +457,18 @@ const createStudySegments = (
     });
   });
 };
+
+const getFakeStudySegmentProgress = (): StudySegmentProgressResource => ({
+  id: chance.guid({ version: 4 }),
+  currentBudget: 0,
+  desiredPercentage: 0,
+  currentPercentage: 0,
+  desiredParticipants: null,
+  currentPricePerParticipant: 0,
+  expectedPercentage: 0,
+  percentageDeviationFromGoal: 0,
+  currentParticipants: 0,
+  expectedParticipants: 0,
+  datetime: Date.now(),
+  name: '',
+});

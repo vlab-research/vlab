@@ -1,4 +1,4 @@
-import { classNames } from '../../helpers/strings';
+import { classNames, createSlugFor } from '../../helpers/strings';
 
 const Stats = ({
   testId,
@@ -14,6 +14,7 @@ const Stats = ({
   <StatsContainer testId={testId}>
     {stats.map(stat => (
       <Stat
+        testId={`stats-card-for-${createSlugFor(stat.name)}`}
         key={stat.name}
         onClick={() => {
           onSelectStat(stat.name);
