@@ -87,7 +87,7 @@ dinersclub:
     - name: KAFKA_BROKERS
       value: *kb
     - name: KAFKA_POLL_TIMEOUT
-      value: "1s"
+      value: "2s"
     - name: KAFKA_TOPIC
       value: *paymenttopic
     - name: KAFKA_GROUP
