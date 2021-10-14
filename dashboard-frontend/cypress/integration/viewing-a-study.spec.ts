@@ -12,6 +12,7 @@ import {
   StudyResource,
   StudySegmentProgressResource,
 } from '../../src/types/study';
+import { parseNumber } from '../../src/helpers/numbers';
 
 const chance = Chance();
 
@@ -181,76 +182,70 @@ describe('Given an authenticated user', () => {
       assertLoadersAppear();
     });
 
-    it('He sees a table that displays summary per segment data', () => {
-      cy.contains('Summary per segment');
-
-      cy.get('[data-testid="summary-per-segment-table"]').contains('Name');
-      cy.get('[data-testid="summary-per-segment-table"]').contains(
-        '%Deviation'
-      );
-      cy.get('[data-testid="summary-per-segment-table"]').contains('Budget');
-      cy.get('[data-testid="summary-per-segment-table"]').contains('Spent');
-
-      cy.get('[data-testid="summary-per-segment-table"]').contains('64-spain');
-      cy.get('[data-testid="summary-per-segment-table"]').contains('4.05');
-      cy.get('[data-testid="summary-per-segment-table"]').contains('7,200');
-      cy.get('[data-testid="summary-per-segment-table"]').contains('2,858');
-    });
-
-    it('He sees a table that displays percentage of participants per segment data', () => {
-      cy.contains('% Participants per segment');
+    it('He sees a table that displays the current progress of acquiring participants for each Segment', () => {
+      cy.contains('Participants acquired per segment');
 
       cy.get(
-        '[data-testid="percentage-participants-per-segment-table"]'
+        '[data-testid="participants-acquired-per-segment-table"]'
       ).contains('Name');
       cy.get(
-        '[data-testid="percentage-participants-per-segment-table"]'
+        '[data-testid="participants-acquired-per-segment-table"]'
+      ).contains('%Deviation');
+      cy.get(
+        '[data-testid="participants-acquired-per-segment-table"]'
       ).contains('%Desired');
       cy.get(
-        '[data-testid="percentage-participants-per-segment-table"]'
+        '[data-testid="participants-acquired-per-segment-table"]'
       ).contains('%Current');
       cy.get(
-        '[data-testid="percentage-participants-per-segment-table"]'
+        '[data-testid="participants-acquired-per-segment-table"]'
       ).contains('%Expected');
+      cy.get(
+        '[data-testid="participants-acquired-per-segment-table"]'
+      ).contains('Desired');
+      cy.get(
+        '[data-testid="participants-acquired-per-segment-table"]'
+      ).contains('Current');
+      cy.get(
+        '[data-testid="participants-acquired-per-segment-table"]'
+      ).contains('Expected');
+      cy.get(
+        '[data-testid="participants-acquired-per-segment-table"]'
+      ).contains('Budget');
+      cy.get(
+        '[data-testid="participants-acquired-per-segment-table"]'
+      ).contains('Spent');
 
       cy.get(
-        '[data-testid="percentage-participants-per-segment-table"]'
+        '[data-testid="participants-acquired-per-segment-table"]'
       ).contains('64-spain');
       cy.get(
-        '[data-testid="percentage-participants-per-segment-table"]'
+        '[data-testid="participants-acquired-per-segment-table"]'
+      ).contains('4.05');
+      cy.get(
+        '[data-testid="participants-acquired-per-segment-table"]'
       ).contains('10');
       cy.get(
-        '[data-testid="percentage-participants-per-segment-table"]'
+        '[data-testid="participants-acquired-per-segment-table"]'
       ).contains('5.95');
       cy.get(
-        '[data-testid="percentage-participants-per-segment-table"]'
+        '[data-testid="participants-acquired-per-segment-table"]'
       ).contains('6.55');
-    });
-
-    it('He sees a table that displays participants per segment data', () => {
-      cy.contains('Participants per segment');
-
-      cy.get('[data-testid="participants-per-segment-table"]').contains('Name');
-      cy.get('[data-testid="participants-per-segment-table"]').contains(
-        'Desired'
-      );
-      cy.get('[data-testid="participants-per-segment-table"]').contains(
-        'Current'
-      );
-      cy.get('[data-testid="participants-per-segment-table"]').contains(
-        'Expected'
-      );
-
-      cy.get('[data-testid="participants-per-segment-table"]').contains(
-        '64-spain'
-      );
-      cy.get('[data-testid="participants-per-segment-table"]').contains('N/A');
-      cy.get('[data-testid="participants-per-segment-table"]').contains(
-        '1,429'
-      );
-      cy.get('[data-testid="participants-per-segment-table"]').contains(
-        '1,571'
-      );
+      cy.get(
+        '[data-testid="participants-acquired-per-segment-table"]'
+      ).contains('N/A');
+      cy.get(
+        '[data-testid="participants-acquired-per-segment-table"]'
+      ).contains('1,429');
+      cy.get(
+        '[data-testid="participants-acquired-per-segment-table"]'
+      ).contains('1,571');
+      cy.get(
+        '[data-testid="participants-acquired-per-segment-table"]'
+      ).contains('7,200');
+      cy.get(
+        '[data-testid="participants-acquired-per-segment-table"]'
+      ).contains('2,858');
     });
   });
 
@@ -271,31 +266,99 @@ describe('Given an authenticated user', () => {
       assertLoadersAppear();
     });
 
-    it('He sees 7 Segments in the Summary per Segment table', () => {
-      cy.get('[data-testid="summary-per-segment-table"]').contains(
-        'Showing 1 to 7 of 12 results'
-      );
-      cy.get('[data-testid="summary-per-segment-table"]')
+    it('He sees 10 Segments in the "Participants acquired per segment" table', () => {
+      cy.get(
+        '[data-testid="participants-acquired-per-segment-table"]'
+      ).contains('Showing 1 to 10 of 12 results');
+      cy.get('[data-testid="participants-acquired-per-segment-table"]')
         .find('tbody')
         .find('tr')
-        .should('have.length', 7);
+        .should('have.length', 10);
     });
-    it('He sees the remaining 5 Segments after clicking the Next button', () => {
+    it('He sees the remaining 2 Segments after clicking the Next button', () => {
       cy.contains('Previous').should('have.attr', 'disabled', 'disabled');
       cy.contains('Next').should('not.have.attr', 'disabled');
 
       cy.contains('Next').click();
 
-      cy.get('[data-testid="summary-per-segment-table"]').contains(
-        'Showing 8 to 12 of 12 results'
-      );
-      cy.get('[data-testid="summary-per-segment-table"]')
+      cy.get(
+        '[data-testid="participants-acquired-per-segment-table"]'
+      ).contains('Showing 11 to 12 of 12 results');
+      cy.get('[data-testid="participants-acquired-per-segment-table"]')
         .find('tbody')
         .find('tr')
-        .should('have.length', 5);
+        .should('have.length', 2);
 
       cy.contains('Previous').should('not.have.attr', 'disabled');
       cy.contains('Next').should('have.attr', 'disabled', 'disabled');
+    });
+
+    it('He sees that by default the Segments are ordered by current percentage of participants in ascending order', () => {
+      cy.contains('%Current').within(() => {
+        cy.get('[data-testid="selected-column-ascending-indicator"]').should(
+          'be.visible'
+        );
+        cy.get('[data-testid="selected-column-descending-indicator"]').should(
+          'not.be.visible'
+        );
+      });
+
+      cy.get('[data-testid="%current-column-value"]').then(
+        firstPageOfColumnValues => {
+          cy.contains('Next').click();
+          cy.get('[data-testid="%current-column-value"]').then(
+            secondPageOfColumnValues => {
+              const allCurrentPercentageColumnValues = [
+                ...Array.from(firstPageOfColumnValues),
+                ...Array.from(secondPageOfColumnValues),
+              ].map(({ innerText }) => parseNumber(innerText));
+
+              assertValuesAreOrdered(allCurrentPercentageColumnValues, 'asc');
+            }
+          );
+        }
+      );
+    });
+
+    it('He sees that when clicking the "%Deviation column", the Segments are ordered by the percentage of deviation in descending order', () => {
+      cy.contains('%Deviation').within(() => {
+        cy.get('[data-testid="selected-column-ascending-indicator"]').should(
+          'not.be.visible'
+        );
+        cy.get('[data-testid="selected-column-descending-indicator"]').should(
+          'not.be.visible'
+        );
+      });
+
+      cy.contains('%Deviation').click();
+
+      cy.contains('%Deviation').within(() => {
+        cy.get('[data-testid="selected-column-ascending-indicator"]').should(
+          'not.be.visible'
+        );
+        cy.get('[data-testid="selected-column-descending-indicator"]').should(
+          'be.visible'
+        );
+      });
+
+      cy.get('[data-testid="%deviation-column-value"]').then(
+        firstPageOfColumnValues => {
+          cy.contains('Next').click();
+          cy.get('[data-testid="%deviation-column-value"]').then(
+            secondPageOfColumnValues => {
+              const allDeviationPercentageColumnValues = [
+                ...Array.from(firstPageOfColumnValues),
+                ...Array.from(secondPageOfColumnValues),
+              ].map(({ innerText }) => parseNumber(innerText));
+
+              assertValuesAreOrdered(
+                allDeviationPercentageColumnValues,
+                'desc'
+              );
+            }
+          );
+        }
+      );
     });
   });
 
@@ -424,10 +487,9 @@ const assertLoadersAppear = () => {
     'have.length',
     1
   );
-  cy.get('[data-testid="study-segment-table-skeleton"]').should(
-    'have.length',
-    3
-  );
+  cy.get(
+    '[data-testid="participants-acquired-per-segment-table-skeleton"]'
+  ).should('have.length', 1);
 };
 
 const createStudySegments = (
@@ -472,3 +534,19 @@ const getFakeStudySegmentProgress = (): StudySegmentProgressResource => ({
   datetime: Date.now(),
   name: '',
 });
+
+const assertValuesAreOrdered = (values: number[], order: 'asc' | 'desc') => {
+  values.forEach((value, index) => {
+    if (index === 0) {
+      return;
+    }
+
+    const previousValue = values[index - 1];
+
+    if (order === 'asc') {
+      expect(value).to.be.gte(previousValue);
+    } else {
+      expect(value).to.be.lte(previousValue);
+    }
+  });
+};
