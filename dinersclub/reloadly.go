@@ -82,15 +82,15 @@ func (p *ReloadlyProvider) Auth(user *User) error {
 	}
 
 	auth := struct {
-		id string
-		secret string
+		Id     string `json:"id"`
+		Secret string `json:"secret"`
 	}{}
 	err = json.Unmarshal(*crds.Details, &auth)
 	if err != nil {
 		return err
 	}
 
-	err = p.svc.Auth(auth.id, auth.secret)
+	err = p.svc.Auth(auth.Id, auth.Secret)
 	return err
 }
 
