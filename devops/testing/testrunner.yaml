@@ -42,3 +42,7 @@ spec:
           value: "gbv-cockroachdb-public"
         - name: CHATBASE_PORT
           value: "26257"
+        - name: RELOADLY_ID
+          value: ${RELOADLY_ID}
+        - name: RELOADLY_SECRET
+          value: ${RELOADLY_SECRET}

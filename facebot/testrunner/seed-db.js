@@ -13,6 +13,13 @@ async function pages(pool, userid) {
   return pool.query(query, [userid, 'facebook_page', pageid, JSON.stringify({token, id: pageid, name: 'Test Page'})])
 }
 
+async function reloadly(pool, userid) {
+  // require('@vlab-research/mox').PAGE_ID
+  const pageid = '935593143497601';
+  const query = `INSERT INTO credentials(userid, entity, key, details) VALUES($1, $2, $3, $4) ON CONFLICT DO NOTHING`
+  return pool.query(query, [userid, 'reloadly', pageid, JSON.stringify({"id": process.env.RELOADLY_ID, "secret": process.env.RELOADLY_SECRET})])
+}
+
 async function surveyExists(pool, userid, shortcode) {
   const query = `SELECT id from surveys where userid = $1 and shortcode = $2;`
   const {rows} = await pool.query(query, [userid, shortcode])
@@ -45,6 +52,7 @@ async function seed(chatbase) {
 
   const userId = await getUserId(pool)
   await pages(pool, userId)
+  await reloadly(pool, userId)
 
   const inserts = fs.readdirSync('forms')
     .map(readForm)

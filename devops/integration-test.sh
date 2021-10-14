@@ -47,7 +47,6 @@ kubectl wait --for=condition=available \
 
 sleep 120
 
-
 envsubst < testing/testrunner.yaml | kubectl apply -f -
 
 kubectl wait --for=condition=complete job/gbv-testrunner --timeout 10m
