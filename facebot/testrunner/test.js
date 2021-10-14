@@ -4,7 +4,7 @@ const sender = require('./sender.js')
 const {makeQR, makePostback, makeTextResponse, makeReferral, makeSynthetic, getFields, makeNotify} = require('@vlab-research/mox')
 const uuid = require('uuid');
 const farmhash = require('farmhash');
-const {seed, getUserId} = require('./seed-db');
+const {seed} = require('./seed-db');
 const {flowMaster} = require('./socket');
 const {snooze} = require('./utils')
 const {getResponses, getState} = require('./responses')
@@ -78,6 +78,21 @@ describe('Test Bot flow Survey Integration Testing', () => {
       await flowMaster(userId, testFlow)
     })
 
+    it('Follows logic jumps based on external events: reloadly payment success',  async () => {
+      const userId = uuid()
+      const fields = getFields('forms/_SNomCIYT.json')
+
+      const testFlow = [
+        [ok, fields[0], [makeTextResponse(userId, '+918888000000')]],
+        [ok, fields[1], [makeQR(fields[1], userId, 0)]],
+        [ok, fields[2], []],
+        [ok, fields[5], []],
+      ]
+
+      sender(makeReferral(userId, '_SNomCIYT'))
+      await flowMaster(userId, testFlow)
+    })
+
     it('Follows logic jumps based on external events: payment failure',  async () => {
       const userId = uuid()
       const vals = {'hidden:e_payment_fake_error_message': 'you fake'}
@@ -100,6 +115,27 @@ describe('Test Bot flow Survey Integration Testing', () => {
       await flowMaster(userId, testFlow)
     })
 
+    it('Follows logic jumps based on external events: reloadly payment failure',  async () => {
+      const userId = uuid()
+      const vals = {'hidden:e_payment_reloadly_error_message': '400 Bad Request'}
+      const form = fs.readFileSync('forms/_gk3gt9ag.json', 'utf-8')
+      const f = interpolate(form, vals)
+      fs.writeFileSync('forms/temp.json', f)
+
+      const fields = getFields('forms/temp.json')
+
+      const testFlow = [
+        [ok, fields[0], [makeTextResponse(userId, '+918888000000')]],
+        [ok, fields[1], [makeQR(fields[1], userId, 0)]],
+        [ok, fields[2], []],
+        [ok, fields[3], []],
+        [ok, fields[4], []],
+        [ok, fields[0], []],
+      ]
+
+      sender(makeReferral(userId, '_gk3gt9ag'))
+      await flowMaster(userId, testFlow)
+    })
 
     it('Test chat flow with logic jump "Yes"',  async () => {
       const userId = uuid()
