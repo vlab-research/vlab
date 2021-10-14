@@ -48,4 +48,5 @@ workflows:
     jobs:
       - test_dinersclub
       - test_formcentral
-      - test_e2e
+      - test_e2e:
+          context: secrets
