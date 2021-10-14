@@ -109,7 +109,7 @@ func (p *ReloadlyProvider) getCredentials(userid string) (*Credentials, error) {
 
 func (p *ReloadlyProvider) Payout(event *PaymentEvent) (*Result, error) {
 	job := new(reloadly.TopupJob)
-	err := json.Unmarshal(*event.Details, job)
+	err := json.Unmarshal(*event.Details, &job)
 	if err != nil {
 		return nil, err
 	}
