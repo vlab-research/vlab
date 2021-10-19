@@ -44,7 +44,7 @@ func handle(err error) {
 
 func main() {
 	cfg := getConfig()
-	pool := getPool(&cfg)
+	pool := getPool(cfg)
 	tableNames, err := getTableNames(pool)
 	handle(err)
 	server := &Server{pool, tableNames}

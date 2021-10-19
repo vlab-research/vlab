@@ -107,7 +107,7 @@ func handle(err error) {
 
 func main() {
 	cfg := getConfig()
-	pool := getPool(&cfg)
+	pool := getPool(cfg)
 	server := &Server{pool}
 
 	e := echo.New()

@@ -11,14 +11,8 @@ import (
 )
 
 func TestReloadlyResultsOnErrorIfBadDetails(t *testing.T) {
-	provider := &ReloadlyProvider{&ReloadlyConfig{}, &reloadly.Service{
-		Client: &http.Client{},
-	}}
-
-	jm := json.RawMessage([]byte(`{"foo": "bar"}`))
-
 	ts := JSTimestamp(time.Now().UTC())
-
+	jm := json.RawMessage([]byte(`{"foo": "bar"}`))
 	pe := &PaymentEvent{
 		Userid:    "foo",
 		Pageid:    "page",
@@ -26,8 +20,12 @@ func TestReloadlyResultsOnErrorIfBadDetails(t *testing.T) {
 		Provider:  "reloadly",
 		Details:   &jm,
 	}
-
+	svc := &reloadly.Service{
+		Client: &http.Client{},
+	}
+	provider := &ReloadlyProvider{&ReloadlyConfig{}, svc}
 	res, err := provider.Payout(pe)
+
 	assert.Nil(t, err)
 	assert.NotNil(t, res.Error)
 	assert.Equal(t, "INVALID_PAYMENT_DETAILS", res.Error.Code)
@@ -36,12 +34,8 @@ func TestReloadlyResultsOnErrorIfBadDetails(t *testing.T) {
 }
 
 func TestReloadlyReportsAPIErrorsInResult(t *testing.T) {
-	provider := &ReloadlyProvider{&ReloadlyConfig{}, &reloadly.Service{
-		Client: TestClient(404, `{"errorCode": "FOOBAR", "message": "Sorry"}`, nil),
-	}}
-
-	jm := json.RawMessage([]byte(`{"number": "+123", "amount": 2.5, "country": "IN", "id": "id"}`))
 	ts := JSTimestamp(time.Now().UTC())
+	jm := json.RawMessage([]byte(`{"number": "+123", "amount": 2.5, "country": "IN", "id": "id"}`))
 	pe := &PaymentEvent{
 		Userid:    "foo",
 		Pageid:    "page",
@@ -49,8 +43,12 @@ func TestReloadlyReportsAPIErrorsInResult(t *testing.T) {
 		Provider:  "reloadly",
 		Details:   &jm,
 	}
-
+	svc := &reloadly.Service{
+		Client: TestClient(404, `{"errorCode": "FOOBAR", "message": "Sorry"}`, nil),
+	}
+	provider := &ReloadlyProvider{&ReloadlyConfig{}, svc}
 	res, err := provider.Payout(pe)
+
 	assert.Nil(t, err)
 	assert.NotNil(t, res.Error)
 	assert.Equal(t, "FOOBAR", res.Error.Code)
@@ -62,12 +60,8 @@ func TestReloadlyReportsAPIErrorsInResult(t *testing.T) {
 }
 
 func TestReloadlyReportsSuccessResult(t *testing.T) {
-	provider := &ReloadlyProvider{&ReloadlyConfig{}, &reloadly.Service{
-		Client: TestClient(200, `{"suggestedAmountsMap":{"2.5": 2.5},"transactionDate":"2020-09-19 12:53:22","transactionId": 567}`, nil),
-	}}
-
-	jm := json.RawMessage([]byte(`{"number": "+123", "amount": 2.5, "country": "IN"}`))
 	ts := JSTimestamp(time.Now().UTC())
+	jm := json.RawMessage([]byte(`{"number": "+123", "amount": 2.5, "country": "IN"}`))
 	pe := &PaymentEvent{
 		Userid:    "foo",
 		Pageid:    "page",
@@ -75,8 +69,12 @@ func TestReloadlyReportsSuccessResult(t *testing.T) {
 		Provider:  "reloadly",
 		Details:   &jm,
 	}
-
+	svc := &reloadly.Service{
+		Client: TestClient(200, `{"suggestedAmountsMap":{"2.5": 2.5},"transactionDate":"2020-09-19 12:53:22","transactionId": 567}`, nil),
+	}
+	provider := &ReloadlyProvider{&ReloadlyConfig{}, svc}
 	res, err := provider.Payout(pe)
+
 	assert.Nil(t, err)
 	assert.Nil(t, res.Error)
 	assert.Equal(t, "payment:reloadly", res.Type)

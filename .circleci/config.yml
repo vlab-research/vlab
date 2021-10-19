@@ -1,6 +1,21 @@
 version: 2
+
 jobs:
-  build:
+  test_dinersclub:
+    machine:
+      image: ubuntu-1604:202007-01
+    steps:
+      - checkout
+      - run:
+          command: ./test.sh dinersclub --is-ci
+  test_formcentral:
+    machine:
+      image: ubuntu-1604:202007-01
+    steps:
+      - checkout
+      - run:
+          command: ./test.sh formcentral --is-ci
+  test_e2e:
     machine:
       image: ubuntu-1604:202007-01
     steps:
@@ -26,3 +41,11 @@ jobs:
       - run:
           name: Run tests
           command: cd devops && ./integration-test.sh
+
+workflows:
+  version: 2
+  test:
+    jobs:
+      - test_dinersclub
+      - test_formcentral
+      - test_e2e

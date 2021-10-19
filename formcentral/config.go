@@ -13,9 +13,9 @@ type Config struct {
 	Port       int    `env:"PORT,required"`
 }
 
-func getConfig() Config {
+func getConfig() *Config {
 	cfg := Config{}
 	err := env.Parse(&cfg)
 	handle(err)
-	return cfg
+	return &cfg
 }

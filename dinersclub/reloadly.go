@@ -93,7 +93,6 @@ func (p *ReloadlyProvider) Payout(event *PaymentEvent) (*Result, error) {
 
 	worker := reloadly.TopupWorker(*p.svc)
 	r, err := worker.DoJob(job)
-
 	if err != nil {
 		return reloadlyErrorResult(result, err, event.Details)
 	}

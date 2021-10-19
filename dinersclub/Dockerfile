@@ -4,15 +4,15 @@ RUN apk upgrade --update-cache --available
 RUN apk add --no-cache \
         gcc \
         libc-dev \
-        librdkafka-dev=1.7.0-r0 \
+        librdkafka-dev=1.8.0-r0 \
         pkgconf
 RUN mkdir /app
 WORKDIR /app
 
-ADD go.mod .
-ADD go.sum .
+COPY go.mod .
+COPY go.sum .
 RUN go mod download
-ADD . /app/
+COPY . /app/
 RUN go build -tags dynamic -a -o main .
 
 
