@@ -10,11 +10,6 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-
-func before() {
-	http.Get("http://system/resetdb")
-}
-
 func TestReloadlyResultsOnErrorIfBadDetails(t *testing.T) {
 	ts := JSTimestamp(time.Now().UTC())
 	jm := json.RawMessage([]byte(`{"foo": "bar"}`))
@@ -28,7 +23,7 @@ func TestReloadlyResultsOnErrorIfBadDetails(t *testing.T) {
 	svc := &reloadly.Service{
 		Client: &http.Client{},
 	}
-	provider := &ReloadlyProvider{&ReloadlyConfig{}, svc}
+	provider := &ReloadlyProvider{svc}
 	res, err := provider.Payout(pe)
 
 	assert.Nil(t, err)
@@ -51,7 +46,7 @@ func TestReloadlyReportsAPIErrorsInResult(t *testing.T) {
 	svc := &reloadly.Service{
 		Client: TestClient(404, `{"errorCode": "FOOBAR", "message": "Sorry"}`, nil),
 	}
-	provider := &ReloadlyProvider{&ReloadlyConfig{}, svc}
+	provider := &ReloadlyProvider{svc}
 	res, err := provider.Payout(pe)
 
 	assert.Nil(t, err)
@@ -77,7 +72,7 @@ func TestReloadlyReportsSuccessResult(t *testing.T) {
 	svc := &reloadly.Service{
 		Client: TestClient(200, `{"suggestedAmountsMap":{"2.5": 2.5},"transactionDate":"2020-09-19 12:53:22","transactionId": 567}`, nil),
 	}
-	provider := &ReloadlyProvider{&ReloadlyConfig{}, svc}
+	provider := &ReloadlyProvider{svc}
 	res, err := provider.Payout(pe)
 
 	assert.Nil(t, err)
