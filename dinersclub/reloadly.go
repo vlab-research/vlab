@@ -7,7 +7,7 @@ import (
 	"fmt"
 
 	"github.com/go-playground/validator/v10"
-	"github.com/nandanrao/go-reloadly/reloadly"
+	"github.com/vlab-research/go-reloadly/reloadly"
 	"github.com/jackc/pgx/v4"
 	"github.com/jackc/pgx/v4/pgxpool"
 )

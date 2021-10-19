@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nandanrao/go-reloadly/reloadly"
+	"github.com/vlab-research/go-reloadly/reloadly"
 	"github.com/stretchr/testify/assert"
 )
 
