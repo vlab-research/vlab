@@ -16,7 +16,13 @@ const accountConfs = [
     to: '/connect/facebook-ads',
     title: 'Facebook Advertising for Recruitment',
     entity: 'facebook_ad_user',
-    description: 'To use the Virtual Lab ad optimization with Facebook Advertising, Connect your Facebook account and grant Virtual Lab permission to manage ads on your behalf. ',
+    description: 'To use the Virtual Lab ad optimization with Facebook Advertising, Connect your Facebook account and grant Virtual Lab permission to manage ads on your behalf.',
+  },
+  {
+    to: '/connect/reloadly',
+    title: 'Reloadly',
+    entity: 'reloadly',
+    description: 'To enable top-ups in Virtual Lab chatbot using Reloadly, provide your Reloadly API keys.',
   },
 ];
 
