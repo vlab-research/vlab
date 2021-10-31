@@ -8,6 +8,10 @@ import (
 	studiesmanager "github.com/vlab-research/vlab/dashboard-api/internal"
 )
 
+type readResponse struct {
+	Data studiesmanager.Study `json:"data"`
+}
+
 func ReadHandler(studyRepository studiesmanager.StudyRepository) gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		var req struct {
@@ -32,6 +36,6 @@ func ReadHandler(studyRepository studiesmanager.StudyRepository) gin.HandlerFunc
 			}
 		}
 
-		ctx.JSON(http.StatusOK, gin.H{"data": study})
+		ctx.JSON(http.StatusOK, readResponse{Data: study})
 	}
 }

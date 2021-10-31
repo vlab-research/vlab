@@ -14,6 +14,29 @@ type StudyRepository struct {
 	mock.Mock
 }
 
+// GetStudies provides a mock function with given fields: ctx, offset, limit
+func (_m *StudyRepository) GetStudies(ctx context.Context, offset int, limit int) ([]studiesmanager.Study, error) {
+	ret := _m.Called(ctx, offset, limit)
+
+	var r0 []studiesmanager.Study
+	if rf, ok := ret.Get(0).(func(context.Context, int, int) []studiesmanager.Study); ok {
+		r0 = rf(ctx, offset, limit)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]studiesmanager.Study)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(context.Context, int, int) error); ok {
+		r1 = rf(ctx, offset, limit)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // GetStudyBySlug provides a mock function with given fields: ctx, slug
 func (_m *StudyRepository) GetStudyBySlug(ctx context.Context, slug string) (studiesmanager.Study, error) {
 	ret := _m.Called(ctx, slug)
