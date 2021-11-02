@@ -38,8 +38,11 @@ class Auth {
   getAccessToken = () => this.accessToken;
 
   getIdToken = () => this.idToken;
+  getUserEmail = () => this.userEmail;
 
-  setSession = ({ expiresIn, accessToken, idToken }, forward) => {
+  setSession = ({ expiresIn, accessToken, idToken, idTokenPayload }, forward) => {
+    this.userEmail = idTokenPayload.email
+
     // Set isLoggedIn flag in localStorage
     localStorage.setItem('isLoggedIn', 'true');
 

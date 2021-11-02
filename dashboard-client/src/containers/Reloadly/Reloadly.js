@@ -4,6 +4,7 @@ import LinkModal from '../../components/LinkModal';
 import { Form, Input } from 'antd';
 import api from '../../services/api';
 import './Reloadly.css'
+import { Auth } from '../../services';
 
 const Reloadly = () => {
   const history = useHistory();
@@ -33,7 +34,7 @@ const Reloadly = () => {
       return;
     }
 
-    const body = { entity: 'reloadly', key: '', details: { id, secret } };
+    const body = { entity: 'reloadly', key: Auth.getUserEmail(), details: { id, secret, name: id } };
     await api.fetcher({
       path: '/credentials', method: cred ? 'PUT' : 'POST', body, raw: true,
     });
