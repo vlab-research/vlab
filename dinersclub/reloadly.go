@@ -78,7 +78,7 @@ func (p *ReloadlyProvider) Auth(user *User) error {
 		return err
 	}
 	if crds == nil {
-		return fmt.Errorf(`No credentials were found for user: %s`, user.Id)
+		return fmt.Errorf(`No reloadly credentials were found for user: %s`, user.Id)
 	}
 
 	auth := struct {

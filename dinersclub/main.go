@@ -85,6 +85,14 @@ func invalidProviderResult(pe *PaymentEvent) *Result {
 	return res
 }
 
+func authError(pe *PaymentEvent, e error) *Result {
+	message := fmt.Sprint(e)
+	err := &PaymentError{message, "AUTH_ERROR", nil}
+	t := fmt.Sprintf("payment:%v", pe.Provider)
+	res := &Result{Type: t, Success: false, Timestamp: time.Now().UTC(), Error: err}
+	return res
+}
+
 func (dc *DC) checkCache(provider Provider, pe *PaymentEvent, user *User) (Provider, error) {
 	key := pe.Provider + user.Id
 	p, ok := dc.cache.Get(key)
@@ -127,13 +135,13 @@ func (dc *DC) Job(pe *PaymentEvent) error {
 		return err
 	}
 
+	provider, e := dc.checkCache(provider, pe, user)
+	if e != nil {
+		return dc.sendResult(pe, authError(pe, e))
+	}
+
 	res := new(Result)
 	op := func() error {
-		provider, e := dc.checkCache(provider, pe, user)
-		if e != nil {
-			return e
-		}
-
 		r, e := provider.Payout(pe)
 		if e != nil {
 			return e

@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"time"
+	"fmt"
 )
 
 type FakeProvider struct{}
@@ -18,11 +19,16 @@ func NewFakeProvider() (Provider, error) {
 func (p *FakeProvider) GetUserFromPaymentEvent(event *PaymentEvent) (*User, error) {
 	if event.Pageid == "page" || event.Pageid == "935593143497601" {
 		return &User{Id:"test-id"}, nil
+	} else if event.Pageid == "test-auth-page" {
+		return &User{Id:"test-auth-user"}, nil
 	}
 	return nil, nil
 }
 
 func (p *FakeProvider) Auth(user *User) error {
+	if user.Id == "test-auth-user" {
+		return fmt.Errorf(`No credentials were found for user: %s`, user.Id)
+	}
 	return nil
 }
 

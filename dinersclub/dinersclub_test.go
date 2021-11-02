@@ -304,3 +304,32 @@ func TestDinersClubCache(t *testing.T) {
 	assert.Equal(t, dc.cache.Metrics.Misses(), uint64(1))
 	assert.Equal(t, dc.cache.Metrics.Hits(), uint64(2))
 }
+
+func TestDinersClubAuthError(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		data, _ := ioutil.ReadAll(r.Body)
+		dat := strings.TrimSpace(string(data))
+		assert.Contains(t, dat, `"code":"AUTH_ERROR"`)
+		assert.Contains(t, dat, "No credentials were found for user: test-auth-user")
+		assert.Equal(t, "/", r.URL.Path)
+		w.WriteHeader(200)
+	}))
+
+	msgs := makeMessages([]string{
+		`{
+			"userid": "test-auth-user",
+			"pageid": "test-auth-page",
+			"provider": "fake",
+			"timestamp": 1600558963867,
+			"details": {
+				"result": {
+					"type": "foo",
+					"success": true
+				}
+			}
+		}`,
+	})
+
+	err := getDC(ts).Process(msgs)
+	assert.Nil(t, err)
+}
