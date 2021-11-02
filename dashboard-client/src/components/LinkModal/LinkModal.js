@@ -4,7 +4,7 @@ import * as s from './style';
 import { PrimaryBtn, SecondaryBtn } from '../UI';
 
 const Actions = ({
-  success, selected, back,
+  success, successText, selected, back,
 }) => {
   const handleClick = (e) => {
     e.preventDefault();
@@ -16,7 +16,7 @@ const Actions = ({
       <SecondaryBtn onClick={(e) => { e.preventDefault(); back(); }} type="text">
         Cancel
       </SecondaryBtn>
-      <PrimaryBtn onClick={handleClick} type="text">Create</PrimaryBtn>
+      <PrimaryBtn onClick={handleClick} type="text">{ successText }</PrimaryBtn>
     </s.ActionsBtns>
   );
 };
@@ -24,14 +24,15 @@ const Actions = ({
 
 Actions.propTypes = {
   success: PropTypes.func.isRequired,
+  successText: PropTypes.string,
   selected: PropTypes.object.isRequired,
   back: PropTypes.func.isRequired,
 };
 
 
 const LinkModal = ({
-  dataSource, renderItem, title, loading, back,
-  success, footer, fallbackText, initialSelection = {},
+  content, dataSource, renderItem, title, loading, back,
+  success, successText, footer, fallbackText, initialSelection = {},
 }) => {
   const closeModal = ({ target, currentTarget }) => target === currentTarget && back();
 
@@ -49,25 +50,28 @@ const LinkModal = ({
               {' '}
             </s.ModalTitle>
             <s.List>
-              {dataSource.length ? dataSource.map((item, index) => (
-                <s.ListItem
-                  key={item.id}
-                  active={item.id === selected.id}
-                  onClick={() => setSelected(state => ({ ...state, ...item }))}
-                >
-                  {renderItem(item, index)}
-                </s.ListItem>
-              )) : (
-                <s.ListItem>
-                  {' '}
-                  {fallbackText}
-                  {' '}
-                </s.ListItem>
-              )}
+              { content ? content 
+              : dataSource.length ? dataSource.map((item, index) => (
+                  <s.ListItem
+                    key={item.id}
+                    active={item.id === selected.id}
+                    onClick={() => setSelected(state => ({ ...state, ...item }))}
+                  >
+                    {renderItem(item, index)}
+                  </s.ListItem>
+                )) : (
+                  <s.ListItem>
+                    {' '}
+                    {fallbackText}
+                    {' '}
+                  </s.ListItem>
+                )
+              }
             </s.List>
             <s.ModalFooter>
-              {footer(selected)}
-              <Actions {...{ success, selected, back }} />
+              { footer ? footer(selected)
+              : <LinkModal.s.Selected></LinkModal.s.Selected> }
+              <Actions {...{ success, successText, selected, back }} />
             </s.ModalFooter>
           </>
         )}
@@ -79,16 +83,21 @@ const LinkModal = ({
 
 LinkModal.s = s;
 
+LinkModal.defaultProps = {
+  successText: "Create"
+};
+
 LinkModal.propTypes = {
   success: PropTypes.func.isRequired,
   back: PropTypes.func.isRequired,
-  renderItem: PropTypes.func.isRequired,
-  footer: PropTypes.func.isRequired,
+  renderItem: PropTypes.func,
+  footer: PropTypes.func,
   loading: PropTypes.bool,
   initialSelection: PropTypes.object,
   title: PropTypes.string.isRequired,
-  fallbackText: PropTypes.string.isRequired,
+  fallbackText: PropTypes.string,
   dataSource: PropTypes.array,
+  successText: PropTypes.string,
 };
 
 export default LinkModal;

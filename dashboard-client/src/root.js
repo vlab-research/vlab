@@ -9,6 +9,7 @@ import { PrivateRoute, Spinner } from './components';
 import { TypeformCreateAuth } from './components/TypeformCreate/TypeformCreate';
 import { Auth, History } from './services';
 import FacebookPages from './containers/FacebookPages';
+import Reloadly from './containers/Reloadly';
 
 const handleAuthentication = ({ location }) => {
   if (/access_token|id_token|error/.test(location.hash)) {
@@ -27,6 +28,7 @@ const Root = () => (
       <PrivateRoute exact path="/surveys/auth" component={TypeformCreateAuth} auth={Auth} />
       <PrivateRoute exact path="/connect/facebook-messenger" component={FacebookPages} auth={Auth} />
       <PrivateRoute exact path="/connect/facebook-ads" component={NotFound} auth={Auth} />
+      <PrivateRoute exact path="/connect/reloadly" component={Reloadly} auth={Auth} />
       <PrivateRoute path="/surveys/:survey?" component={Surveys} auth={Auth} />
       <Route exact path="/login" render={props => <LoginScreen {...props} auth={Auth} />} />
       <Route
