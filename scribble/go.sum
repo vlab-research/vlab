@@ -150,6 +150,8 @@ github.com/vlab-research/trans v0.0.3 h1:rhen209AXL8i/XE2PgkU62YcXrFbUfROQnUW7Z4
 github.com/vlab-research/trans v0.0.3/go.mod h1:760R69NitmG7XcxEOF0OuuQjxvZiLGqG5sL493lmfjw=
 github.com/vlab-research/trans v0.0.4 h1:ut9OWN5KW017Vn1eigq60xs6N+vrazWMnsP7C/H2TOk=
 github.com/vlab-research/trans v0.0.4/go.mod h1:760R69NitmG7XcxEOF0OuuQjxvZiLGqG5sL493lmfjw=
+github.com/vlab-research/trans v0.0.6 h1:ZZCWXru4xYwe8PZnLgp0KWB8nOGFZVJ8Yy4qTBQ4vio=
+github.com/vlab-research/trans v0.0.6/go.mod h1:760R69NitmG7XcxEOF0OuuQjxvZiLGqG5sL493lmfjw=
 github.com/zenazn/goji v0.9.0/go.mod h1:7S9M489iMyHBNxwZnk9/EHS098H4/F6TATF2mIxtB1Q=
 go.uber.org/atomic v1.3.2/go.mod h1:gD2HeocX3+yG+ygLZcrzQJaqmWj9AIm7n08wl/qW/PE=
 go.uber.org/atomic v1.4.0/go.mod h1:gD2HeocX3+yG+ygLZcrzQJaqmWj9AIm7n08wl/qW/PE=
