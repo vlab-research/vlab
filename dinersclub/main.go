@@ -17,11 +17,14 @@ import (
 )
 
 type DC struct {
-	cfg      *Config
-	pool     *pgxpool.Pool
-	botparty *botparty.BotParty
-	cache    *ristretto.Cache
+	cfg         *Config
+	pool        *pgxpool.Pool
+	botparty    *botparty.BotParty
+	cache       *ristretto.Cache
+	getProvider GetProvider
 }
+
+type GetProvider func(pool *pgxpool.Pool, event *PaymentEvent) (Provider, error)
 
 func handle(err error) {
 	if err != nil {
@@ -85,6 +88,14 @@ func invalidProviderResult(pe *PaymentEvent) *Result {
 	return res
 }
 
+func authError(pe *PaymentEvent, e error) *Result {
+	message := fmt.Sprint(e)
+	err := &PaymentError{message, "AUTH_ERROR", nil}
+	t := fmt.Sprintf("payment:%v", pe.Provider)
+	res := &Result{Type: t, Success: false, Timestamp: time.Now().UTC(), Error: err}
+	return res
+}
+
 func (dc *DC) checkCache(provider Provider, pe *PaymentEvent, user *User) (Provider, error) {
 	key := pe.Provider + user.Id
 	p, ok := dc.cache.Get(key)
@@ -111,7 +122,7 @@ func (dc *DC) Job(pe *PaymentEvent) error {
 		return dc.sendResult(pe, invalidProviderResult(pe))
 	}
 
-	provider, err := dc.getProvider(pe)
+	provider, err := dc.getProviderFromEvent(pe)
 	if provider == nil {
 		return dc.sendResult(pe, invalidProviderResult(pe))
 	}
@@ -127,13 +138,13 @@ func (dc *DC) Job(pe *PaymentEvent) error {
 		return err
 	}
 
+	provider, e := dc.checkCache(provider, pe, user)
+	if e != nil {
+		return dc.sendResult(pe, authError(pe, e))
+	}
+
 	res := new(Result)
 	op := func() error {
-		provider, e := dc.checkCache(provider, pe, user)
-		if e != nil {
-			return e
-		}
-
 		r, e := provider.Payout(pe)
 		if e != nil {
 			return e
@@ -164,12 +175,17 @@ func contains(s []string, target string) bool {
 	return false
 }
 
-func (dc *DC) getProvider(event *PaymentEvent) (Provider, error) {
+
+func (dc *DC) getProviderFromEvent(event *PaymentEvent) (Provider, error) {
+	return dc.getProvider(dc.pool, event)
+}
+
+func getProvider(pool *pgxpool.Pool, event *PaymentEvent) (Provider, error) {
 	switch event.Provider {
 	case "fake":
-		return NewFakeProvider()
+		return NewFakeProvider(getUserFromFakePaymentEvent, auth)
 	case "reloadly":
-		return NewReloadlyProvider(dc.pool)
+		return NewReloadlyProvider(pool)
 	}
 	return nil, nil
 }
@@ -189,7 +205,7 @@ func main() {
 		BufferItems: cfg.CacheBufferItems,
 	})
 	handle(err)
-	dc := &DC{cfg, pool, bp, cache}
+	dc := &DC{cfg, pool, bp, cache, getProvider}
 
 	// TODO: need to change maximum poll interval for long retries!!
 

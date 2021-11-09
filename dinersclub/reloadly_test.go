@@ -164,5 +164,5 @@ func TestReloadlyResultsOnMissingCredentials(t *testing.T) {
 	assert.Nil(t, err)
 
 	err = provider.Auth(user)
-	assert.Equal(t, err.Error(), "No credentials were found for user: 00000000-0000-0000-0000-000000000000")
+	assert.Equal(t, err.Error(), "No reloadly credentials were found for user: 00000000-0000-0000-0000-000000000000")
 }

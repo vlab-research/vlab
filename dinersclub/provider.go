@@ -50,3 +50,6 @@ type Provider interface {
 	Auth(*User) error
 	Payout(*PaymentEvent) (*Result, error)
 }
+
+type GetUserFromPaymentEvent func(event *PaymentEvent) (*User, error)
+type Auth func(user *User) error

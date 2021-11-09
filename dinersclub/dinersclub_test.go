@@ -7,11 +7,13 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"fmt"
 
 	"github.com/go-playground/validator/v10"
 	"github.com/stretchr/testify/assert"
 	"github.com/vlab-research/botparty"
 	"github.com/dgraph-io/ristretto"
+	"github.com/jackc/pgx/v4/pgxpool"
 )
 
 func getDC(ts *httptest.Server) *DC {
@@ -25,7 +27,7 @@ func getDC(ts *httptest.Server) *DC {
 		Metrics:     true,
 	})
 	cache.Clear()
-	return &DC{cfg, pool, bp, cache}
+	return &DC{cfg, pool, bp, cache, getProvider}
 }
 
 func TestDinersClub(t *testing.T) {
@@ -224,7 +226,7 @@ func TestDinersClubErrorsWhenProviderNotListed(t *testing.T) {
 		Metrics:     true,
 	})
 	cache.Clear()
-	dc := &DC{cfg, pool, bp, cache}
+	dc := &DC{cfg, pool, bp, cache, getProvider}
 	err := dc.Process(msgs)
 	assert.Nil(t, err)
 }
@@ -249,7 +251,24 @@ func TestDinersClubErrorsOnMissingUser(t *testing.T) {
 		}`,
 	})
 
-	err := getDC(ts).Process(msgs)
+	cfg := getConfig()
+	pool := getPool(cfg)
+	bp := &botparty.BotParty{Client: http.DefaultClient, Botserver: ts.URL}
+	cache, _ := ristretto.NewCache(&ristretto.Config{
+		NumCounters: cfg.CacheNumCounters,
+		MaxCost:     cfg.CacheMaxCost,
+		BufferItems: cfg.CacheBufferItems,
+		Metrics:     true,
+	})
+	cache.Clear()
+	getProvider := func(pool *pgxpool.Pool, event *PaymentEvent) (Provider, error) {
+		getUser := func(event *PaymentEvent) (*User, error) {
+			return nil, nil
+		}
+		return NewFakeProvider(getUser, auth)
+	}
+	dc := &DC{cfg, pool, bp, cache, getProvider}
+	err := dc.Process(msgs)
 	assert.NotNil(t, err)
 	assert.Equal(t, err.Error(), "User not found for page id: invalid-page")
 }
@@ -303,4 +322,54 @@ func TestDinersClubCache(t *testing.T) {
 
 	assert.Equal(t, dc.cache.Metrics.Misses(), uint64(1))
 	assert.Equal(t, dc.cache.Metrics.Hits(), uint64(2))
+}
+
+func TestDinersClubAuthError(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		data, _ := ioutil.ReadAll(r.Body)
+		dat := strings.TrimSpace(string(data))
+		assert.Contains(t, dat, `"code":"AUTH_ERROR"`)
+		assert.Contains(t, dat, "No credentials were found for user: bad-user")
+		assert.Equal(t, "/", r.URL.Path)
+		w.WriteHeader(200)
+	}))
+
+	auth := func(user *User) error {
+		return fmt.Errorf(`No credentials were found for user: %s`, user.Id)
+	}
+	getProvider := func(pool *pgxpool.Pool, event *PaymentEvent) (Provider, error) {
+		getUser := func(event *PaymentEvent) (*User, error) {
+			return &User{Id:"bad-user"}, nil
+		}
+		return NewFakeProvider(getUser, auth)
+	}
+
+	msgs := makeMessages([]string{
+		`{
+			"userid": "bad-user",
+			"pageid": "page",
+			"provider": "fake",
+			"timestamp": 1600558963867,
+			"details": {
+				"result": {
+					"type": "foo",
+					"success": true
+				}
+			}
+		}`,
+	})
+
+	cfg := getConfig()
+	pool := getPool(cfg)
+	bp := &botparty.BotParty{Client: http.DefaultClient, Botserver: ts.URL}
+	cache, _ := ristretto.NewCache(&ristretto.Config{
+		NumCounters: cfg.CacheNumCounters,
+		MaxCost:     cfg.CacheMaxCost,
+		BufferItems: cfg.CacheBufferItems,
+		Metrics:     true,
+	})
+	cache.Clear()
+	dc := &DC{cfg, pool, bp, cache, getProvider}
+	err := dc.Process(msgs)
+	assert.Nil(t, err)
 }
