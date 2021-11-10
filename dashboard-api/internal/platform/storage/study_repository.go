@@ -1,4 +1,4 @@
-package cockroachdb
+package storage
 
 import (
 	"context"
@@ -37,7 +37,7 @@ func (r *StudyRepository) GetStudyBySlug(ctx context.Context, slug string) (stud
 }
 
 func (r *StudyRepository) GetStudies(ctx context.Context, offset int, limit int) ([]studiesmanager.Study, error) {
-	var studies []studiesmanager.Study
+	studies := []studiesmanager.Study{}
 
 	rows, err := r.db.Query("SELECT id, name, slug, created FROM studies ORDER BY created DESC OFFSET $1 LIMIT $2", offset, limit)
 	if err != nil {

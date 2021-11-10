@@ -8,6 +8,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	studiesmanager "github.com/vlab-research/vlab/dashboard-api/internal"
+	"github.com/vlab-research/vlab/dashboard-api/internal/platform/storage"
 )
 
 type listResponse struct {
@@ -19,7 +20,7 @@ type listResponsePagination struct {
 	NextCursor *string `json:"nextCursor"`
 }
 
-func ListHandler(studyRepository studiesmanager.StudyRepository) gin.HandlerFunc {
+func ListHandler(repositories storage.Repositories) gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		pagination, err := parsePaginationQueryParams(ctx)
 		if err != nil {
@@ -27,7 +28,7 @@ func ListHandler(studyRepository studiesmanager.StudyRepository) gin.HandlerFunc
 			return
 		}
 
-		studies, err := studyRepository.GetStudies(ctx, pagination.Cursor, pagination.Number)
+		studies, err := repositories.Study.GetStudies(ctx, pagination.Cursor, pagination.Number)
 		if err != nil {
 			ctx.Status(http.StatusInternalServerError)
 			return
