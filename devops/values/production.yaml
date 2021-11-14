@@ -16,14 +16,15 @@ paymentTopic: &paymenttopic "vlab-prod-payment"
 botEnvs: &botenvs gbv-bot-envs
 chatbaseHost: &host "gbv-cockroachdb-public"
 
-versionDashboard: &vdashboard 0.0.25
+
+versionDashboard: &vdashboard 0.0.26
 versionBotserver: &vbotserver 0.0.9
-versionReplybot: &vreplybot v0.0.125
+versionReplybot: &vreplybot v0.0.126
 versionLinksniffer: &vlinksniffer v0.0.4
 versionDean: &vdean v0.0.24
-versionScribble: &vscribble 0.0.20
-versionDinersclub: &vdinersclub v0.0.11
-versionFormcentral: &vformcentral v0.0.6
+versionScribble: &vscribble v0.0.21
+versionDinersclub: &vdinersclub v0.0.12
+versionFormcentral: &vformcentral v0.0.8
 
 processingAlerts:
   - consumergroup: replybot
@@ -119,11 +120,11 @@ dinersclub:
     - name: KAFKA_GROUP
       value: "dinersclub"
     - name: DINERSCLUB_BATCH_SIZE
-      value: "8"
+      value: "4"
     - name: DINERSCLUB_RETRY_BOTSERVER
       value: "2m"
     - name: DINERSCLUB_RETRY_PROVIDER
-      value: "8m"
+      value: "2m"
     - name: DINERSCLUB_POOL_SIZE
       value: "4"
     - name: DINERSCLUB_PROVIDERS
@@ -288,6 +289,10 @@ formcentral:
     value: *host
   - name: CHATBASE_PORT
     value: "26257"
+  - name: CHATBASE_MAX_CONNECTIONS
+    value: "6"
+  - name: PORT
+    value: "1323"
   resources:
     requests:
       cpu: 10m

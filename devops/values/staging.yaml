@@ -23,7 +23,7 @@ versionLinksniffer: &vlinksniffer v0.0.4
 versionDean: &vdean v0.0.24
 versionScribble: &vscribble 0.0.20
 versionDinersclub: &vdinersclub v0.0.13
-versionFormcentral: &vformcentral v0.0.7
+versionFormcentral: &vformcentral v0.0.8
 
 processingAlerts: []
 laggingAlerts: []
@@ -300,6 +300,8 @@ formcentral:
     value: *host
   - name: CHATBASE_PORT
     value: "26257"
+  - name: PORT
+    value: "1323"
   resources:
     requests:
       cpu: 10m
