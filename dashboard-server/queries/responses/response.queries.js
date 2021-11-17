@@ -20,6 +20,9 @@ async function all() {
 
 // TODO: remove question_text and push to another download? save space.
 async function responsesQuery(pool, email, name, time, lim) {
+  // TODO: put back in the clause: AS OF SYSTEM TIME $3
+  // was removed because cockroach was freakin out and not working mysteriously
+  // probably will be fine after upgrade.
 
   const query = `SELECT parent_surveyid,
                         parent_shortcode,
@@ -37,14 +40,13 @@ async function responsesQuery(pool, email, name, time, lim) {
                  FROM responses
                  LEFT JOIN surveys ON responses.surveyid = surveys.id
                  LEFT JOIN users ON surveys.userid = users.id
-                 AS OF SYSTEM TIME $3
                  WHERE users.email = $1
                  AND surveys.survey_name = $2
-                 AND (responses.userid, timestamp, question_ref) > ($4, $5, $6)
+                 AND (responses.userid, timestamp, question_ref) > ($3, $4, $5)
                  ORDER BY (responses.userid, timestamp, question_ref)
                  LIMIT 100000`
 
-  const res = await pool.query(query, [email, name, time, ...lim])
+  const res = await pool.query(query, [email, name, ...lim])
   const fin = res.rows.slice(-1)[0]
 
   if (!fin) return cursorResult(null, null)
