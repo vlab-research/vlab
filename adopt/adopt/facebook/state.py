@@ -148,7 +148,6 @@ def get_custom_audiences(account: AdAccount) -> List[CustomAudience]:
         CustomAudience.Field.subtype,
         CustomAudience.Field.time_created,
         CustomAudience.Field.time_updated,
-        CustomAudience.Field.approximate_count,
         CustomAudience.Field.lookalike_spec,
     ]
 
