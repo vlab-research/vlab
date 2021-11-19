@@ -29,6 +29,7 @@ services:
       DINERSCLUB_RETRY_PROVIDER: 1s
       DINERSCLUB_POOL_SIZE: 1
       DINERSCLUB_PROVIDERS: 'fake,reloadly'
+      BACK_OFF_RANDOM_FACTOR: 0
     command: |
       sh -c '
         echo "Running tests..."

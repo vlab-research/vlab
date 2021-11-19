@@ -59,8 +59,9 @@ func (dc *DC) Process(messages []*kafka.Message) error {
 	return nil
 }
 
-func backoffTime(d time.Duration) *backoff.ExponentialBackOff {
+func backoffTime(d time.Duration, r float64) *backoff.ExponentialBackOff {
 	ebo := backoff.NewExponentialBackOff()
+	ebo.RandomizationFactor = r
 	ebo.MaxElapsedTime = d
 	return ebo
 }
@@ -77,7 +78,7 @@ func (dc *DC) sendResult(pe *PaymentEvent, res *Result) error {
 		return dc.botparty.Send(ee)
 	}
 
-	return backoff.Retry(op, backoffTime(dc.cfg.RetryBotserver))
+	return backoff.Retry(op, backoffTime(dc.cfg.RetryBotserver, dc.cfg.BackOffRandomFactor))
 }
 
 func invalidProviderResult(pe *PaymentEvent) *Result {
@@ -153,7 +154,7 @@ func (dc *DC) Job(pe *PaymentEvent) error {
 		return nil
 	}
 
-	err = backoff.Retry(op, backoffTime(dc.cfg.RetryProvider))
+	err = backoff.Retry(op, backoffTime(dc.cfg.RetryProvider, dc.cfg.BackOffRandomFactor))
 	if err != nil {
 		return err
 	}
