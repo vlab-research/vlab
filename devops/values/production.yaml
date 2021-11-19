@@ -17,7 +17,7 @@ botEnvs: &botenvs gbv-bot-envs
 chatbaseHost: &host "gbv-cockroachdb-public"
 
 
-versionDashboard: &vdashboard 0.0.26
+versionDashboard: &vdashboard v0.0.27
 versionBotserver: &vbotserver 0.0.9
 versionReplybot: &vreplybot v0.0.126
 versionLinksniffer: &vlinksniffer v0.0.4
