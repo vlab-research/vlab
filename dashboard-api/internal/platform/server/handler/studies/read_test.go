@@ -16,7 +16,7 @@ import (
 func TestHandler_Read(t *testing.T) {
 	t.Run("should return a 404 when the requested study does not exist", func(t *testing.T) {
 		studyRepository := new(storagemocks.StudyRepository)
-		studyRepository.On("GetStudyBySlug", mock.Anything, "example-study").Return(studiesmanager.Study{}, studiesmanager.ErrStudyNotFound)
+		studyRepository.On("GetStudyBySlug", mock.Anything, "example-study", mock.Anything).Return(studiesmanager.Study{}, studiesmanager.ErrStudyNotFound)
 
 		res := testhelpers.PerformGetRequest("/studies/example-study", storage.Repositories{Study: studyRepository})
 
@@ -27,7 +27,7 @@ func TestHandler_Read(t *testing.T) {
 
 	t.Run("should return a 500 when there is an error while processing the request", func(t *testing.T) {
 		studyRepository := new(storagemocks.StudyRepository)
-		studyRepository.On("GetStudyBySlug", mock.Anything, "example-study").Return(studiesmanager.Study{}, errors.New("db timeout error"))
+		studyRepository.On("GetStudyBySlug", mock.Anything, "example-study", mock.Anything).Return(studiesmanager.Study{}, errors.New("db timeout error"))
 
 		res := testhelpers.PerformGetRequest("/studies/example-study", storage.Repositories{Study: studyRepository})
 
@@ -37,7 +37,7 @@ func TestHandler_Read(t *testing.T) {
 	t.Run("should return a 200 with with the requested study when it exists", func(t *testing.T) {
 		studyRepository := new(storagemocks.StudyRepository)
 		study := studiesmanager.NewStudy("5372ca9c-9fcd-42d4-a596-d90792909917", "Example Study", "example-study", 1605049200000)
-		studyRepository.On("GetStudyBySlug", mock.Anything, "example-study").Return(study, nil)
+		studyRepository.On("GetStudyBySlug", mock.Anything, "example-study", mock.Anything).Return(study, nil)
 
 		res := testhelpers.PerformGetRequest("/studies/example-study", storage.Repositories{Study: studyRepository})
 

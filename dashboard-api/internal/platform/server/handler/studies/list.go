@@ -8,6 +8,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	studiesmanager "github.com/vlab-research/vlab/dashboard-api/internal"
+	"github.com/vlab-research/vlab/dashboard-api/internal/platform/server/middleware/auth"
 	"github.com/vlab-research/vlab/dashboard-api/internal/platform/storage"
 )
 
@@ -28,7 +29,7 @@ func ListHandler(repositories storage.Repositories) gin.HandlerFunc {
 			return
 		}
 
-		studies, err := repositories.Study.GetStudies(ctx, pagination.Cursor, pagination.Number)
+		studies, err := repositories.Study.GetStudies(ctx, pagination.Cursor, pagination.Number, auth.GetUserIdFrom(ctx))
 		if err != nil {
 			ctx.Status(http.StatusInternalServerError)
 			return

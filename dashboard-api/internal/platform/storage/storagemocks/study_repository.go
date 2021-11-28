@@ -14,13 +14,13 @@ type StudyRepository struct {
 	mock.Mock
 }
 
-// GetStudies provides a mock function with given fields: ctx, offset, limit
-func (_m *StudyRepository) GetStudies(ctx context.Context, offset int, limit int) ([]studiesmanager.Study, error) {
-	ret := _m.Called(ctx, offset, limit)
+// GetStudies provides a mock function with given fields: ctx, offset, limit, userId
+func (_m *StudyRepository) GetStudies(ctx context.Context, offset int, limit int, userId string) ([]studiesmanager.Study, error) {
+	ret := _m.Called(ctx, offset, limit, userId)
 
 	var r0 []studiesmanager.Study
-	if rf, ok := ret.Get(0).(func(context.Context, int, int) []studiesmanager.Study); ok {
-		r0 = rf(ctx, offset, limit)
+	if rf, ok := ret.Get(0).(func(context.Context, int, int, string) []studiesmanager.Study); ok {
+		r0 = rf(ctx, offset, limit, userId)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]studiesmanager.Study)
@@ -28,8 +28,8 @@ func (_m *StudyRepository) GetStudies(ctx context.Context, offset int, limit int
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func(context.Context, int, int) error); ok {
-		r1 = rf(ctx, offset, limit)
+	if rf, ok := ret.Get(1).(func(context.Context, int, int, string) error); ok {
+		r1 = rf(ctx, offset, limit, userId)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -37,20 +37,20 @@ func (_m *StudyRepository) GetStudies(ctx context.Context, offset int, limit int
 	return r0, r1
 }
 
-// GetStudyBySlug provides a mock function with given fields: ctx, slug
-func (_m *StudyRepository) GetStudyBySlug(ctx context.Context, slug string) (studiesmanager.Study, error) {
-	ret := _m.Called(ctx, slug)
+// GetStudyBySlug provides a mock function with given fields: ctx, slug, userId
+func (_m *StudyRepository) GetStudyBySlug(ctx context.Context, slug string, userId string) (studiesmanager.Study, error) {
+	ret := _m.Called(ctx, slug, userId)
 
 	var r0 studiesmanager.Study
-	if rf, ok := ret.Get(0).(func(context.Context, string) studiesmanager.Study); ok {
-		r0 = rf(ctx, slug)
+	if rf, ok := ret.Get(0).(func(context.Context, string, string) studiesmanager.Study); ok {
+		r0 = rf(ctx, slug, userId)
 	} else {
 		r0 = ret.Get(0).(studiesmanager.Study)
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
-		r1 = rf(ctx, slug)
+	if rf, ok := ret.Get(1).(func(context.Context, string, string) error); ok {
+		r1 = rf(ctx, slug, userId)
 	} else {
 		r1 = ret.Error(1)
 	}

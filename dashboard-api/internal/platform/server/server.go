@@ -12,16 +12,26 @@ import (
 )
 
 type Server struct {
-	Engine       *gin.Engine
-	httpAddr     string
-	repositories storage.Repositories
+	Engine                     *gin.Engine
+	httpAddr                   string
+	repositories               storage.Repositories
+	ensureValidTokenMiddleware gin.HandlerFunc
+	auth0Domain                string
 }
 
-func New(host string, port uint, repositories storage.Repositories) Server {
+func New(
+	host string,
+	port uint,
+	repositories storage.Repositories,
+	ensureValidTokenMiddleware gin.HandlerFunc,
+	auth0Domain string,
+) Server {
 	srv := Server{
-		Engine:       gin.New(),
-		httpAddr:     fmt.Sprintf("%s:%d", host, port),
-		repositories: repositories,
+		Engine:                     gin.New(),
+		httpAddr:                   fmt.Sprintf("%s:%d", host, port),
+		repositories:               repositories,
+		ensureValidTokenMiddleware: ensureValidTokenMiddleware,
+		auth0Domain:                auth0Domain,
 	}
 
 	srv.registerRoutes()
@@ -35,10 +45,10 @@ func (s *Server) Run() error {
 }
 
 func (s *Server) registerRoutes() {
-	s.Engine.GET("/health", health.CheckHandler(s.repositories))
+	s.Engine.GET("/health", health.CheckHandler(s.repositories, s.auth0Domain))
 
-	s.Engine.GET("/studies/:slug", studies.ReadHandler(s.repositories))
-	s.Engine.GET("/studies", studies.ListHandler(s.repositories))
+	s.Engine.GET("/studies/:slug", s.ensureValidTokenMiddleware, studies.ReadHandler(s.repositories))
+	s.Engine.GET("/studies", s.ensureValidTokenMiddleware, studies.ListHandler(s.repositories))
 
-	s.Engine.GET("/studies/:slug/segments-progress", segmentsprogress.ListHandler(s.repositories))
+	s.Engine.GET("/studies/:slug/segments-progress", s.ensureValidTokenMiddleware, segmentsprogress.ListHandler(s.repositories))
 }

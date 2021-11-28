@@ -20,7 +20,7 @@ func TestHandler_List(t *testing.T) {
 		defaultLimit := 20
 		studyRepository := new(storagemocks.StudyRepository)
 		study := studiesmanager.NewStudy("5372ca9c-9fcd-42d4-a596-d90792909917", "Example Study", "example-study", 1605049200000)
-		studyRepository.On("GetStudies", mock.Anything, defaultOffset, defaultLimit).Return([]studiesmanager.Study{study}, nil)
+		studyRepository.On("GetStudies", mock.Anything, defaultOffset, defaultLimit, mock.Anything).Return([]studiesmanager.Study{study}, nil)
 
 		res := testhelpers.PerformGetRequest("/studies", storage.Repositories{Study: studyRepository})
 
@@ -33,7 +33,7 @@ func TestHandler_List(t *testing.T) {
 		defaultOffset := 0
 		defaultLimit := 20
 		studyRepository := new(storagemocks.StudyRepository)
-		studyRepository.On("GetStudies", mock.Anything, defaultOffset, defaultLimit).Return([]studiesmanager.Study{}, nil)
+		studyRepository.On("GetStudies", mock.Anything, defaultOffset, defaultLimit, mock.Anything).Return([]studiesmanager.Study{}, nil)
 
 		res := testhelpers.PerformGetRequest("/studies", storage.Repositories{Study: studyRepository})
 
@@ -60,7 +60,7 @@ func TestHandler_List(t *testing.T) {
 
 	t.Run("should return a 500 when the repository returns an error", func(t *testing.T) {
 		studyRepository := new(storagemocks.StudyRepository)
-		studyRepository.On("GetStudies", mock.Anything, mock.Anything, mock.Anything).Return([]studiesmanager.Study{}, errors.New("unexpected-error"))
+		studyRepository.On("GetStudies", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]studiesmanager.Study{}, errors.New("unexpected-error"))
 		res := testhelpers.PerformGetRequest("/studies", storage.Repositories{Study: studyRepository})
 
 		assert.Equal(t, http.StatusInternalServerError, res.StatusCode)
@@ -69,7 +69,7 @@ func TestHandler_List(t *testing.T) {
 	t.Run("should return a valid nextCursor when number of studies returned for the current page is equal to the requested ones", func(t *testing.T) {
 		numStudiesPerPage := 2
 		studyRepository := new(storagemocks.StudyRepository)
-		studyRepository.On("GetStudies", mock.Anything, 0, numStudiesPerPage).
+		studyRepository.On("GetStudies", mock.Anything, 0, numStudiesPerPage, mock.Anything).
 			Return(
 				[]studiesmanager.Study{
 					studiesmanager.NewStudy("5372ca9c-9fcd-42d4-a596-d90792909917", "Example Study1", "example-study1", 1605049200000),
@@ -88,7 +88,7 @@ func TestHandler_List(t *testing.T) {
 	t.Run("should return a null nextCursor when number of studies returned for the current page is less than the requested ones", func(t *testing.T) {
 		numStudiesPerPage := 2
 		studyRepository := new(storagemocks.StudyRepository)
-		studyRepository.On("GetStudies", mock.Anything, 0, numStudiesPerPage).
+		studyRepository.On("GetStudies", mock.Anything, 0, numStudiesPerPage, mock.Anything).
 			Return(
 				[]studiesmanager.Study{
 					studiesmanager.NewStudy("5372ca9c-9fcd-42d4-a596-d90792909917", "Example Study1", "example-study1", 1605049200000),
