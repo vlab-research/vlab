@@ -8,6 +8,7 @@ import (
 	"github.com/vlab-research/vlab/dashboard-api/internal/platform/server/handler/health"
 	"github.com/vlab-research/vlab/dashboard-api/internal/platform/server/handler/segmentsprogress"
 	"github.com/vlab-research/vlab/dashboard-api/internal/platform/server/handler/studies"
+	"github.com/vlab-research/vlab/dashboard-api/internal/platform/server/users"
 	"github.com/vlab-research/vlab/dashboard-api/internal/platform/storage"
 )
 
@@ -51,4 +52,6 @@ func (s *Server) registerRoutes() {
 	s.Engine.GET("/studies", s.ensureValidTokenMiddleware, studies.ListHandler(s.repositories))
 
 	s.Engine.GET("/studies/:slug/segments-progress", s.ensureValidTokenMiddleware, segmentsprogress.ListHandler(s.repositories))
+
+	s.Engine.POST("/users", s.ensureValidTokenMiddleware, users.CreateHandler(s.repositories))
 }
