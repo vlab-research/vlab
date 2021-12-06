@@ -1,10 +1,10 @@
 package health
 
 import (
-	"database/sql"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/vlab-research/vlab/dashboard-api/internal/platform/storage"
 )
 
 type checkResponse struct {
@@ -17,11 +17,11 @@ type checkResponseDependencies []struct {
 	Healthy bool   `json:"healthy"`
 }
 
-func CheckHandler(db *sql.DB) gin.HandlerFunc {
+func CheckHandler(repositories storage.Repositories) gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		isHealthy := true
 
-		if err := db.PingContext(ctx); err != nil {
+		if err := repositories.Db.PingContext(ctx); err != nil {
 			isHealthy = false
 		}
 

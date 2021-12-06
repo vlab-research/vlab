@@ -1,4 +1,4 @@
-package studies
+package segmentsprogress
 
 import (
 	"errors"
@@ -9,11 +9,7 @@ import (
 	"github.com/vlab-research/vlab/dashboard-api/internal/platform/storage"
 )
 
-type readResponse struct {
-	Data studiesmanager.Study `json:"data"`
-}
-
-func ReadHandler(repositories storage.Repositories) gin.HandlerFunc {
+func ListHandler(repositories storage.Repositories) gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		var req struct {
 			Slug string `uri:"slug" binding:"required"`
@@ -24,7 +20,6 @@ func ReadHandler(repositories storage.Repositories) gin.HandlerFunc {
 		}
 
 		study, err := repositories.Study.GetStudyBySlug(ctx, req.Slug)
-
 		if err != nil {
 			switch {
 			case errors.Is(err, studiesmanager.ErrStudyNotFound):
@@ -37,6 +32,14 @@ func ReadHandler(repositories storage.Repositories) gin.HandlerFunc {
 			}
 		}
 
-		ctx.JSON(http.StatusOK, readResponse{Data: study})
+		allTimeSegmentsProgress, err := repositories.StudySegments.GetAllTimeSegmentsProgress(ctx, study.Id)
+		if err != nil {
+			ctx.Status(http.StatusInternalServerError)
+			return
+		}
+
+		ctx.JSON(http.StatusOK, gin.H{
+			"data": allTimeSegmentsProgress,
+		})
 	}
 }
