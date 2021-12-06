@@ -11,7 +11,8 @@ CREATE TABLE studies(
 );
 
 INSERT INTO studies 
-  (name, slug) 
+  (name, slug, created) 
 VALUES 
-  ('Iron overload in men', 'iron-overload-in-men'),
-  ('Consuming carbs less often leads to better fat adaptation', 'consuming-carbs-less-often-leads-to-better-fat-adaptation');
+  ('Iron overload in men', 'iron-overload-in-men', '2021-01-03'),
+  ('Consuming carbs less often leads to better fat adaptation', 'consuming-carbs-less-often-leads-to-better-fat-adaptation', '2021-01-02'),
+  ('Most used programming language for api development', 'most-used-programming-language-for-api-development', '2021-01-04');

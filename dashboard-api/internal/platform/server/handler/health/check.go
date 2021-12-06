@@ -7,6 +7,16 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+type checkResponse struct {
+	Healthy      bool                      `json:"healthy"`
+	Dependencies checkResponseDependencies `json:"dependencies"`
+}
+
+type checkResponseDependencies []struct {
+	Name    string `json:"name"`
+	Healthy bool   `json:"healthy"`
+}
+
 func CheckHandler(db *sql.DB) gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		isHealthy := true
@@ -15,12 +25,12 @@ func CheckHandler(db *sql.DB) gin.HandlerFunc {
 			isHealthy = false
 		}
 
-		ctx.JSON(http.StatusOK, gin.H{
-			"healthy": isHealthy,
-			"dependencies": []gin.H{
+		ctx.JSON(http.StatusOK, checkResponse{
+			Healthy: isHealthy,
+			Dependencies: checkResponseDependencies{
 				{
-					"name":    "cockroachdb",
-					"healthy": isHealthy,
+					Name:    "cockroachdb",
+					Healthy: isHealthy,
 				},
 			},
 		})

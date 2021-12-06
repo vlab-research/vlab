@@ -7,6 +7,7 @@ import (
 
 type StudyRepository interface {
 	GetStudyBySlug(ctx context.Context, slug string) (Study, error)
+	GetStudies(ctx context.Context, offset int, limit int) ([]Study, error)
 }
 
 var ErrStudyNotFound = errors.New("Study not found")
