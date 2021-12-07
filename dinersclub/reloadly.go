@@ -13,17 +13,18 @@ import (
 )
 
 type ReloadlyProvider struct {
-	pool *pgxpool.Pool
-	svc  *reloadly.Service
+	pool      *pgxpool.Pool
+	svc       *reloadly.Service
+	valErrMsg string
 }
 
 func NewReloadlyProvider(pool *pgxpool.Pool) (Provider, error) {
 	cfg := getConfig()
-	svc := reloadly.New()
+	svc := reloadly.NewTopups()
 	if cfg.Sandbox {
 		svc.Sandbox()
 	}
-	return &ReloadlyProvider{pool, svc}, nil
+	return &ReloadlyProvider{pool, svc, "INVALID_PAYMENT_DETAILS"}, nil
 }
 
 func (p *ReloadlyProvider) formatError(res *Result, err error, details *json.RawMessage) (*Result, error) {
@@ -31,10 +32,16 @@ func (p *ReloadlyProvider) formatError(res *Result, err error, details *json.Raw
 
 	// TODO: catch 500 errors and "try again later" errors
 	// for retrying...
-	// PHONE_RECENTLY_RECHARGED
-	// TRANSACTION_CANNOT_BE_PROCESSED_AT_THE_MOMENT
-	// PROVIDER_INTERNAL_ERROR
-	// SERVICE_TO_OPERATOR_TEMPORARILY_UNAVAILABLE
+	// TOPUPS ERRORS
+	// - PHONE_RECENTLY_RECHARGED
+	// - TRANSACTION_CANNOT_BE_PROCESSED_AT_THE_MOMENT
+	// - PROVIDER_INTERNAL_ERROR
+	// - SERVICE_TO_OPERATOR_TEMPORARILY_UNAVAILABLE
+	// GIFT CARDS ERRORS
+	// - CARD_IS_NOT_READY
+	// - PENDING_OR_IN_PROGRESS
+	// - ORDER_IS_NOT_READY
+	// - IMPORT_CARD_ERROR
 
 	// what to do if fallback is not provider you checked
 	// has correct option types?
@@ -50,7 +57,7 @@ func (p *ReloadlyProvider) formatError(res *Result, err error, details *json.Raw
 		return res, nil
 	}
 	if e, ok := err.(validator.ValidationErrors); ok {
-		res.Error = &PaymentError{e.Error(), "INVALID_PAYMENT_DETAILS", details}
+		res.Error = &PaymentError{e.Error(), p.valErrMsg, details}
 		return res, nil
 	}
 
@@ -90,8 +97,7 @@ func (p *ReloadlyProvider) Auth(user *User) error {
 		return err
 	}
 
-	err = p.svc.Auth(auth.Id, auth.Secret)
-	return err
+	return p.svc.Auth(auth.Id, auth.Secret)
 }
 
 func (p *ReloadlyProvider) getCredentials(userid string) (*Credentials, error) {

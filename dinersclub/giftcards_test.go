@@ -10,18 +10,14 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func before() {
-	http.Get("http://system/resetdb")
-}
-
-func TestReloadlyResultsOnErrorIfBadDetails(t *testing.T) {
+func TestGiftCardsResultsOnErrorIfBadDetails(t *testing.T) {
 	ts := JSTimestamp(time.Now().UTC())
 	jm := json.RawMessage([]byte(`{"foo": "bar"}`))
 	pe := &PaymentEvent{
 		Userid:    "foo",
 		Pageid:    "page",
 		Timestamp: &ts,
-		Provider:  "reloadly",
+		Provider:  "reloadly-giftcard",
 		Details:   &jm,
 	}
 	cfg := getConfig()
@@ -29,24 +25,25 @@ func TestReloadlyResultsOnErrorIfBadDetails(t *testing.T) {
 	svc := &reloadly.Service{
 		Client: &http.Client{},
 	}
-	provider := &ReloadlyProvider{pool, svc, "INVALID_PAYMENT_DETAILS"}
+	rp := ReloadlyProvider{pool, svc, "INVALID_GIFT_CARD_DETAILS"}
+	provider := &GiftCardsProvider{rp}
 	res, err := provider.Payout(pe)
 
 	assert.Nil(t, err)
 	assert.NotNil(t, res.Error)
-	assert.Equal(t, "INVALID_PAYMENT_DETAILS", res.Error.Code)
-	assert.Equal(t, "payment:reloadly", res.Type)
+	assert.Equal(t, "INVALID_GIFT_CARD_DETAILS", res.Error.Code)
+	assert.Equal(t, "payment:reloadly-giftcard", res.Type)
 	assert.Equal(t, false, res.Success)
 }
 
-func TestReloadlyReportsAPIErrorsInResult(t *testing.T) {
+func TestGiftCardsReportsAPIErrorsInResult(t *testing.T) {
 	ts := JSTimestamp(time.Now().UTC())
-	jm := json.RawMessage([]byte(`{"number": "+123", "amount": 2.5, "country": "IN", "id": "id"}`))
+	jm := json.RawMessage([]byte(`{"productId":1234,"countryCode":"test-country","quantity":1,"unitPrice":0.5,"customIdentifier":"test-identifier","senderName":"test-name","recipientEmail":"test@test.com","id":"test-id"}`))
 	pe := &PaymentEvent{
 		Userid:    "foo",
 		Pageid:    "page",
 		Timestamp: &ts,
-		Provider:  "reloadly",
+		Provider:  "reloadly-giftcard",
 		Details:   &jm,
 	}
 	cfg := getConfig()
@@ -54,7 +51,8 @@ func TestReloadlyReportsAPIErrorsInResult(t *testing.T) {
 	svc := &reloadly.Service{
 		Client: TestClient(404, `{"errorCode": "FOOBAR", "message": "Sorry"}`, nil),
 	}
-	provider := &ReloadlyProvider{pool, svc, ""}
+	rp := ReloadlyProvider{pool, svc, ""}
+	provider := &GiftCardsProvider{rp}
 	res, err := provider.Payout(pe)
 
 	assert.Nil(t, err)
@@ -62,12 +60,12 @@ func TestReloadlyReportsAPIErrorsInResult(t *testing.T) {
 	assert.Equal(t, "FOOBAR", res.Error.Code)
 	assert.Equal(t, "Sorry", res.Error.Message)
 	assert.Equal(t, &jm, res.Error.PaymentDetails)
-	assert.Equal(t, "id", res.ID)
-	assert.Equal(t, "payment:reloadly", res.Type)
+	assert.Equal(t, "test-id", res.ID)
+	assert.Equal(t, "payment:reloadly-giftcard", res.Type)
 	assert.Equal(t, false, res.Success)
 }
 
-func TestReloadlyReportsSuccessResult(t *testing.T) {
+func TestGiftCardsReportsSuccessResult(t *testing.T) {
 	before()
 
 	cfg := getConfig()
@@ -91,18 +89,19 @@ func TestReloadlyReportsSuccessResult(t *testing.T) {
 	mustExec(t, pool, insertReloadlySql)
 
 	ts := JSTimestamp(time.Now().UTC())
-	jm := json.RawMessage([]byte(`{"number": "+123", "amount": 2.5, "country": "IN"}`))
+	jm := json.RawMessage([]byte(`{"productId":1234,"countryCode":"test-country","quantity":1,"unitPrice":0.5,"customIdentifier":"test-identifier","senderName":"test-name","recipientEmail":"test@test.com","id":"test-id"}`))
 	pe := &PaymentEvent{
 		Userid:    "00000000-0000-0000-0000-000000000000",
 		Pageid:    "page",
 		Timestamp: &ts,
-		Provider:  "reloadly",
+		Provider:  "reloadly-giftcard",
 		Details:   &jm,
 	}
 	svc := &reloadly.Service{
-		Client: TestClient(200, `{"suggestedAmountsMap":{"2.5": 2.5},"transactionDate":"2020-09-19 12:53:22","transactionId": 567}`, nil),
+		Client: TestClient(200, `{"transactionId":1,"amount":0.1,"discount":10,"currencyCode":"INR","fee":1,"recipientEmail":"test@test.com","customIdentifier":"test-card","status":"SUCCESSFUL","transactionCreatedTime":"2021-11-15 16:55:30"}`, nil),
 	}
-	provider := &ReloadlyProvider{pool, svc, ""}
+	rp := ReloadlyProvider{pool, svc, ""}
+	provider := &GiftCardsProvider{rp}
 
 	user, err := provider.GetUserFromPaymentEvent(pe)
 	assert.Nil(t, err)
@@ -114,55 +113,7 @@ func TestReloadlyReportsSuccessResult(t *testing.T) {
 	res, err := provider.Payout(pe)
 	assert.Nil(t, err)
 	assert.Nil(t, res.Error)
-	assert.Equal(t, "payment:reloadly", res.Type)
+	assert.Equal(t, "payment:reloadly-giftcard", res.Type)
 	assert.Equal(t, true, res.Success)
 	assert.Equal(t, &jm, res.PaymentDetails)
-}
-
-func TestReloadlyResultsOnMissingUser(t *testing.T) {
-	before()
-
-	cfg := getConfig()
-	pool := getPool(cfg)
-	defer pool.Close()
-
-	svc := &reloadly.Service{}
-	provider := &ReloadlyProvider{pool, svc, ""}
-	pe := &PaymentEvent{
-		Pageid: "page",
-	}
-	user, err := provider.GetUserFromPaymentEvent(pe)
-	assert.Nil(t, user)
-	assert.Nil(t, err)
-}
-
-func TestReloadlyResultsOnMissingCredentials(t *testing.T) {
-	before()
-
-	cfg := getConfig()
-	pool := getPool(cfg)
-	defer pool.Close()
-
-	insertUserSql := `
-		INSERT INTO users(id, email) 
-		VALUES ('00000000-0000-0000-0000-000000000000', 'test@test.com');
-	`
-	mustExec(t, pool, insertUserSql)
-	insertFbPageSql := `
-		INSERT INTO credentials(userid, entity, key, details)
-		VALUES ('00000000-0000-0000-0000-000000000000', 'facebook_page', 'test-key', '{"id": "page"}');
-	`
-	mustExec(t, pool, insertFbPageSql)
-
-	svc := &reloadly.Service{}
-	provider := &ReloadlyProvider{pool, svc, ""}
-	pe := &PaymentEvent{
-		Pageid: "page",
-	}
-	user, err := provider.GetUserFromPaymentEvent(pe)
-	assert.NotNil(t, user)
-	assert.Nil(t, err)
-
-	err = provider.Auth(user)
-	assert.Equal(t, err.Error(), "No reloadly credentials were found for user: 00000000-0000-0000-0000-000000000000")
 }
