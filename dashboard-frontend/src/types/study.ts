@@ -13,6 +13,11 @@ export interface StudySegmentsProgressApiResponse
     }[]
   > {}
 
+export interface CreateUserApiResponse
+  extends ApiResponse<{
+    id: string;
+  }> {}
+
 export interface StudyResource {
   id: string;
   name: string;

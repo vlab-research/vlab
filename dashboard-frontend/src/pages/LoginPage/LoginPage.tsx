@@ -3,7 +3,11 @@ import PrimaryButton from '../../components/PrimaryButton';
 import { ReactComponent as Logo } from '../../assets/logo.svg';
 import { ReactComponent as WelcomeIllustration } from '../../assets/launching-illustration.svg';
 
-const LoginPage = () => {
+const LoginPage = ({
+  withGenericError = false,
+}: {
+  withGenericError?: boolean;
+}) => {
   const { loginWithRedirect } = useAuth0();
 
   return (
@@ -18,11 +22,15 @@ const LoginPage = () => {
             <WelcomeIllustration className="h-56 w-72" />
 
             <p className="pt-10 pl-9 pr-9 sm:pl-20 sm:pr-20 text-4xl text-gray-900 text-center">
-              Ready to start?
+              {withGenericError
+                ? 'Oops, something went wrong!'
+                : 'Ready to start?'}
             </p>
 
             <p className="pt-5 pl-9 pr-9 sm:pl-20 sm:pr-20 text-xl text-gray-900 text-center">
-              Log in now to view the progress of your Studies!
+              {withGenericError
+                ? 'Please check your internet connection and try again.'
+                : 'Log in now to view the progress of your Studies!'}
             </p>
 
             <PrimaryButton

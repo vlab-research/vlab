@@ -1,5 +1,6 @@
 import { fetchWithTimeout } from './http';
 import {
+  CreateUserApiResponse,
   StudiesApiResponse,
   StudyApiResponse,
   StudySegmentsProgressApiResponse,
@@ -54,12 +55,30 @@ const fetchStudySegmentsProgress = ({
     { accessToken }
   );
 
+const createUser = ({ accessToken }: { accessToken: string }) => {
+  const userCreatedStatusCode = 201;
+  const userAlreadyExistsStatusCode = 422;
+
+  return apiRequest<CreateUserApiResponse>('/api/users', {
+    accessToken,
+    method: 'POST',
+    expectedStatusCodes: [userCreatedStatusCode, userAlreadyExistsStatusCode],
+  });
+};
+
 const apiRequest = async <ApiResponse>(
   url: string,
   {
     defaultErrorMessage = 'Something went wrong.',
+    method = 'GET',
     accessToken = '',
-  }: { defaultErrorMessage?: string; accessToken: string }
+    expectedStatusCodes,
+  }: {
+    defaultErrorMessage?: string;
+    method?: 'GET' | 'POST';
+    accessToken: string;
+    expectedStatusCodes?: number[];
+  }
 ) => {
   try {
     const response = await fetchWithTimeout(url, {
@@ -67,9 +86,14 @@ const apiRequest = async <ApiResponse>(
       headers: {
         Authorization: `Bearer ${accessToken}`,
       },
+      method,
     });
 
-    if (!response.ok) {
+    const isExpectedResponse = expectedStatusCodes
+      ? expectedStatusCodes.includes(response.status)
+      : response.ok;
+
+    if (!isExpectedResponse) {
       throw new Error(await getErrorMessageFor(response, defaultErrorMessage));
     }
 
@@ -104,4 +128,5 @@ export const authenticatedApiCalls = {
   fetchStudies,
   fetchStudy,
   fetchStudySegmentsProgress,
+  createUser,
 };
