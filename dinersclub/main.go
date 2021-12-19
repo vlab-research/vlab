@@ -8,12 +8,12 @@ import (
 
 	"github.com/cenkalti/backoff"
 	"github.com/confluentinc/confluent-kafka-go/kafka"
+	"github.com/dgraph-io/ristretto"
 	"github.com/go-playground/validator/v10"
+	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/nandanrao/chance"
 	"github.com/vlab-research/botparty"
 	"github.com/vlab-research/spine"
-	"github.com/jackc/pgx/v4/pgxpool"
-	"github.com/dgraph-io/ristretto"
 )
 
 type DC struct {
@@ -102,7 +102,7 @@ func (dc *DC) checkCache(provider Provider, pe *PaymentEvent, user *User) (Provi
 	p, ok := dc.cache.Get(key)
 	if ok {
 		return p.(Provider), nil
-	} 
+	}
 	e := provider.Auth(user)
 	if e != nil {
 		return nil, e
@@ -176,7 +176,6 @@ func contains(s []string, target string) bool {
 	return false
 }
 
-
 func (dc *DC) getProviderFromEvent(event *PaymentEvent) (Provider, error) {
 	return dc.getProvider(dc.pool, event)
 }
@@ -187,6 +186,8 @@ func getProvider(pool *pgxpool.Pool, event *PaymentEvent) (Provider, error) {
 		return NewFakeProvider(getUserFromFakePaymentEvent, auth)
 	case "reloadly":
 		return NewReloadlyProvider(pool)
+	case "reloadly-giftcard":
+		return NewGiftCardsProvider(pool)
 	}
 	return nil, nil
 }
