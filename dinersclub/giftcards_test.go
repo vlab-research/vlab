@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/vlab-research/go-reloadly/reloadly"
 	"github.com/stretchr/testify/assert"
+	"github.com/vlab-research/go-reloadly/reloadly"
 )
 
 func TestGiftCardsResultsOnErrorIfBadDetails(t *testing.T) {
@@ -17,7 +17,7 @@ func TestGiftCardsResultsOnErrorIfBadDetails(t *testing.T) {
 		Userid:    "foo",
 		Pageid:    "page",
 		Timestamp: &ts,
-		Provider:  "reloadly-giftcard",
+		Provider:  "giftcard",
 		Details:   &jm,
 	}
 	cfg := getConfig()
@@ -32,7 +32,7 @@ func TestGiftCardsResultsOnErrorIfBadDetails(t *testing.T) {
 	assert.Nil(t, err)
 	assert.NotNil(t, res.Error)
 	assert.Equal(t, "INVALID_GIFT_CARD_DETAILS", res.Error.Code)
-	assert.Equal(t, "payment:reloadly-giftcard", res.Type)
+	assert.Equal(t, "payment:giftcard", res.Type)
 	assert.Equal(t, false, res.Success)
 }
 
@@ -43,7 +43,7 @@ func TestGiftCardsReportsAPIErrorsInResult(t *testing.T) {
 		Userid:    "foo",
 		Pageid:    "page",
 		Timestamp: &ts,
-		Provider:  "reloadly-giftcard",
+		Provider:  "giftcard",
 		Details:   &jm,
 	}
 	cfg := getConfig()
@@ -61,7 +61,7 @@ func TestGiftCardsReportsAPIErrorsInResult(t *testing.T) {
 	assert.Equal(t, "Sorry", res.Error.Message)
 	assert.Equal(t, &jm, res.Error.PaymentDetails)
 	assert.Equal(t, "test-id", res.ID)
-	assert.Equal(t, "payment:reloadly-giftcard", res.Type)
+	assert.Equal(t, "payment:giftcard", res.Type)
 	assert.Equal(t, false, res.Success)
 }
 
@@ -73,7 +73,7 @@ func TestGiftCardsReportsSuccessResult(t *testing.T) {
 	defer pool.Close()
 
 	insertUserSql := `
-		INSERT INTO users(id, email) 
+		INSERT INTO users(id, email)
 		VALUES ('00000000-0000-0000-0000-000000000000', 'test@test.com');
 	`
 	mustExec(t, pool, insertUserSql)
@@ -94,7 +94,7 @@ func TestGiftCardsReportsSuccessResult(t *testing.T) {
 		Userid:    "00000000-0000-0000-0000-000000000000",
 		Pageid:    "page",
 		Timestamp: &ts,
-		Provider:  "reloadly-giftcard",
+		Provider:  "giftcard",
 		Details:   &jm,
 	}
 	svc := &reloadly.Service{
@@ -113,7 +113,7 @@ func TestGiftCardsReportsSuccessResult(t *testing.T) {
 	res, err := provider.Payout(pe)
 	assert.Nil(t, err)
 	assert.Nil(t, res.Error)
-	assert.Equal(t, "payment:reloadly-giftcard", res.Type)
+	assert.Equal(t, "payment:giftcard", res.Type)
 	assert.Equal(t, true, res.Success)
 	assert.Equal(t, &jm, res.PaymentDetails)
 }

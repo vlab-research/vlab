@@ -5,8 +5,8 @@ import (
 	"time"
 
 	"github.com/go-playground/validator/v10"
-	"github.com/vlab-research/go-reloadly/reloadly"
 	"github.com/jackc/pgx/v4/pgxpool"
+	"github.com/vlab-research/go-reloadly/reloadly"
 )
 
 type GiftCardsProvider struct {
@@ -31,7 +31,7 @@ func (p *GiftCardsProvider) Payout(event *PaymentEvent) (*Result, error) {
 	}
 
 	result := &Result{}
-	result.Type = "payment:reloadly-giftcard"
+	result.Type = "payment:giftcard"
 	result.ID = order.ID
 
 	validate := validator.New()

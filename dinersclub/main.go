@@ -186,7 +186,7 @@ func getProvider(pool *pgxpool.Pool, event *PaymentEvent) (Provider, error) {
 		return NewFakeProvider(getUserFromFakePaymentEvent, auth)
 	case "reloadly":
 		return NewReloadlyProvider(pool)
-	case "reloadly-giftcard":
+	case "giftcard":
 		return NewGiftCardsProvider(pool)
 	}
 	return nil, nil
