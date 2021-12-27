@@ -22,7 +22,7 @@ versionReplybot: &vreplybot v0.0.126
 versionLinksniffer: &vlinksniffer v0.0.4
 versionDean: &vdean v0.0.24
 versionScribble: &vscribble 0.0.20
-versionDinersclub: &vdinersclub v0.0.13
+versionDinersclub: &vdinersclub v0.0.15
 versionFormcentral: &vformcentral v0.0.8
 
 processingAlerts: []
@@ -101,7 +101,7 @@ dinersclub:
     - name: DINERSCLUB_POOL_SIZE
       value: "1"
     - name: DINERSCLUB_PROVIDERS
-      value: "fake,reloadly"
+      value: "fake,reloadly,giftcard"
 
 
 dean:
@@ -300,6 +300,8 @@ formcentral:
     value: *host
   - name: CHATBASE_PORT
     value: "26257"
+  - name: CHATBASE_MAX_CONNECTIONS
+    value: "6"
   - name: PORT
     value: "1323"
   resources:

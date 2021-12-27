@@ -23,7 +23,7 @@ versionReplybot: &vreplybot v0.0.126
 versionLinksniffer: &vlinksniffer v0.0.4
 versionDean: &vdean v0.0.24
 versionScribble: &vscribble v0.0.21
-versionDinersclub: &vdinersclub v0.0.12
+versionDinersclub: &vdinersclub v0.0.15
 versionFormcentral: &vformcentral v0.0.8
 
 processingAlerts:
@@ -120,15 +120,15 @@ dinersclub:
     - name: KAFKA_GROUP
       value: "dinersclub"
     - name: DINERSCLUB_BATCH_SIZE
-      value: "4"
+      value: "8"
     - name: DINERSCLUB_RETRY_BOTSERVER
       value: "2m"
     - name: DINERSCLUB_RETRY_PROVIDER
       value: "2m"
     - name: DINERSCLUB_POOL_SIZE
-      value: "4"
+      value: "8"
     - name: DINERSCLUB_PROVIDERS
-      value: "fake,reloadly"
+      value: "fake,reloadly,giftcard"
 
 dean:
   image:
