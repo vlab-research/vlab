@@ -8,17 +8,17 @@ DBConf = Dict[str, str]
 
 
 def get_user_info(campaignid, cnf):
-    # add system user?
     q = """
     SELECT
       details->>'access_token' as token,
-      userid as survey_user
+      campaigns.userid as survey_user
     FROM campaigns
     JOIN credentials
-    USING (userid)
+    ON campaigns.userid = credentials.userid
+    AND campaigns.credentials_entity = credentials.entity
+    AND campaigns.credentials_key = credentials.key
     WHERE campaigns.id = %s
-    AND entity = 'facebook_ad_user'
-    ORDER BY credentials.created DESC
+    ORDER BY credentials.created DESC -- not currently used!
     LIMIT 1
     """
 
@@ -49,13 +49,13 @@ def get_campaigns(cnf: DBConf):
     return [r["id"] for r in query(cnf, q, as_dict=True)]
 
 
-def create_campaign_for_user(email, name, cnf: DBConf):
+def create_campaign_for_user(email, name, cnf: DBConf, key):
     q = """
-       INSERT INTO  campaigns(name, userid)
-       VALUES (%s, (SELECT id FROM users WHERE email = %s))
+       INSERT INTO  campaigns(name, userid, credentials_key)
+       VALUES (%s, (SELECT id FROM users WHERE email = %s), %s)
        RETURNING *
     """
-    return list(query(cnf, q, (name, email), as_dict=True))[0]
+    return list(query(cnf, q, (name, email, key), as_dict=True))[0]
 
 
 def get_campaigns_for_user(email, cnf: DBConf):
