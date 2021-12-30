@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/vlab-research/go-reloadly/reloadly"
 )
@@ -63,6 +64,24 @@ func TestGiftCardsReportsAPIErrorsInResult(t *testing.T) {
 	assert.Equal(t, "test-id", res.ID)
 	assert.Equal(t, "payment:giftcard", res.Type)
 	assert.Equal(t, false, res.Success)
+}
+
+func TestFormatOrderAddsRandomUUIDIfNotPresent(t *testing.T) {
+	jm := json.RawMessage([]byte(`{"productId":1234,"countryCode":"test-country","quantity":1,"unitPrice":0.5,"senderName":"test-name","recipientEmail":"test@test.com","id":"test-id"}`))
+	order := new(reloadly.GiftCardOrder)
+	json.Unmarshal(jm, &order)
+
+	res := FormatOrder(order)
+	uuid.MustParse(res.CustomIdentifier)
+}
+
+func TestFormatOrderLeavesDefaultCustomIdentifierIfPresent(t *testing.T) {
+	jm := json.RawMessage([]byte(`{"productId":1234,"countryCode":"test-country","quantity":1,"unitPrice":0.5,"customIdentifier": "foo", "senderName":"test-name","recipientEmail":"test@test.com","id":"test-id"}`))
+	order := new(reloadly.GiftCardOrder)
+	json.Unmarshal(jm, &order)
+
+	res := FormatOrder(order)
+	assert.Equal(t, "foo", res.CustomIdentifier)
 }
 
 func TestGiftCardsReportsSuccessResult(t *testing.T) {

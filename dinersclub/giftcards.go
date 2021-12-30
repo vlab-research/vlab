@@ -2,11 +2,11 @@ package main
 
 import (
 	"encoding/json"
-	"time"
-
 	"github.com/go-playground/validator/v10"
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/vlab-research/go-reloadly/reloadly"
+	"time"
 )
 
 type GiftCardsProvider struct {
@@ -23,12 +23,25 @@ func NewGiftCardsProvider(pool *pgxpool.Pool) (Provider, error) {
 	return &GiftCardsProvider{p}, nil
 }
 
+func FormatOrder(order *reloadly.GiftCardOrder) *reloadly.GiftCardOrder {
+
+	// random hack to support non customIdentifiers until
+	// reloadly actually works
+	if order.CustomIdentifier == "" {
+		u := uuid.New()
+		order.CustomIdentifier = u.String()
+	}
+	return order
+}
+
 func (p *GiftCardsProvider) Payout(event *PaymentEvent) (*Result, error) {
 	order := new(reloadly.GiftCardOrder)
 	err := json.Unmarshal(*event.Details, &order)
 	if err != nil {
 		return nil, err
 	}
+
+	order = FormatOrder(order)
 
 	result := &Result{}
 	result.Type = "payment:giftcard"

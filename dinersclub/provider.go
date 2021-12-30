@@ -18,6 +18,7 @@ func (t *JSTimestamp) UnmarshalJSON(b []byte) error {
 }
 
 // Add id for payment??? hash of userid/pageid/timestamp? question ref? id field in description?
+// Add shortcode to payment event - to associate different reloadly accounts with different surveys?
 type PaymentEvent struct {
 	Userid    string           `json:"userid" validate:"required"`
 	Pageid    string           `json:"pageid" validate:"required"`

@@ -8,6 +8,7 @@ require (
 	github.com/confluentinc/confluent-kafka-go v1.7.0
 	github.com/dgraph-io/ristretto v0.1.0
 	github.com/go-playground/validator/v10 v10.4.1
+	github.com/google/uuid v1.3.0
 	github.com/jackc/pgconn v1.7.2
 	github.com/jackc/pgx/v4 v4.9.2
 	github.com/leodido/go-urn v1.2.1 // indirect
