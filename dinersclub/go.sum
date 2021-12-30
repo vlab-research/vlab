@@ -238,6 +238,8 @@ github.com/vlab-research/go-reloadly v0.0.17 h1:9RUUubDqOja42slZahdWsOHcECrVvk82
 github.com/vlab-research/go-reloadly v0.0.17/go.mod h1:bJHsKM3lTjw1tahB6mK0JXJgYtC0zrUmJ7LS1GSaepA=
 github.com/vlab-research/go-reloadly v0.0.19 h1:zSBI3H1+UWBO4qJJVS3AXYE6XR01fwD8IvBWJkEI5Fs=
 github.com/vlab-research/go-reloadly v0.0.19/go.mod h1:bJHsKM3lTjw1tahB6mK0JXJgYtC0zrUmJ7LS1GSaepA=
+github.com/vlab-research/go-reloadly v0.0.20 h1:JPzdQG0OqnrqqoXEtyh2ruzGMCZnWVpUFLAzbUATwhc=
+github.com/vlab-research/go-reloadly v0.0.20/go.mod h1:bJHsKM3lTjw1tahB6mK0JXJgYtC0zrUmJ7LS1GSaepA=
 github.com/vlab-research/gotils v0.0.2 h1:o/LceCxyu7x9xogMDBBc37xAOhzGZoSxyDYkatq8NR0=
 github.com/vlab-research/gotils v0.0.2/go.mod h1:ACGZhkXG9rnKZqUiMgIvR7EeENyoTIZuriv5DXYUH2I=
 github.com/vlab-research/spine v0.0.4 h1:sJfRCMUumRM7HoQKBTlgV6Cna2QpNV/SEH9zc3ujMZA=
