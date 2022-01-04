@@ -23,7 +23,7 @@ versionReplybot: &vreplybot v0.0.126
 versionLinksniffer: &vlinksniffer v0.0.4
 versionDean: &vdean v0.0.24
 versionScribble: &vscribble v0.0.21
-versionDinersclub: &vdinersclub v0.0.15
+versionDinersclub: &vdinersclub v0.0.18
 versionFormcentral: &vformcentral v0.0.8
 
 processingAlerts:
