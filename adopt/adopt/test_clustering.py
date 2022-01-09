@@ -211,6 +211,12 @@ def test_get_only_target_users_with_empty_target_questions_filters_none(df):
     res = only_target_users(df, stratum)
     assert res.equals(df)
 
+    # assert that it filters out shortcode
+    s = {**s, "shortcodes": ["baz"]}
+    stratum = make_stratum_conf(s)
+    res = only_target_users(df, stratum)
+    assert res is None
+
 
 def test_get_saturated_clusters_with_some_fulfilled(cnf):
 

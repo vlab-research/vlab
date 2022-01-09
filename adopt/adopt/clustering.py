@@ -18,33 +18,6 @@ class MissingResponseError(BaseException):
     pass
 
 
-def res_col(ref, row, t):
-    response = row[ref]
-
-    if pd.isna(response):
-        raise MissingResponseError("user missing response")
-
-    return t(response)
-
-
-def _res_col(ref, col_name, t, row):
-    try:
-        row[col_name] = res_col(ref, row, t)
-    except MissingResponseError:
-        logging.warning(f"User without {col_name}: {row.userid}")
-        row[col_name] = None
-    except TranslationError:
-        row[col_name] = None
-
-    return row
-
-
-def add_res_cols(new_cols, df):
-    for col, ref, t in new_cols:
-        df = df.apply(lambda r: _res_col(ref, col, t, r), axis=1)
-    return df
-
-
 def _latest_survey(df):
     return df[df.surveyid == df.sort_values("timestamp").surveyid.unique()[-1]]
 
@@ -150,19 +123,14 @@ def users_fulfilling(pred, df):
     return df[df.userid.isin(users)]
 
 
-def only_target_users(
-    df, stratum: Union[Stratum, StratumConf, AudienceConf], fn=users_fulfilling
-):
+def only_target_users(df, stratum: Union[Stratum, StratumConf, AudienceConf]):
 
     pred = make_pred(stratum.question_targeting)
     df = df[df.shortcode.isin(stratum.shortcodes)]
     if df.shape[0] == 0:
         return None
 
-    filtered = fn(pred, df)
-
-    if filtered is None:
-        return None
+    filtered = users_fulfilling(pred, df)
 
     if filtered.shape[0] == 0:
         return None
