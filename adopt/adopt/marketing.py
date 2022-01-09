@@ -107,6 +107,9 @@ class CreativeGroup(NamedTuple):
     creatives: List[CreativeConf]
 
 
+Metadata = Dict[str, str]
+
+
 class Stratum(NamedTuple):
     id: str
     quota: Union[int, float]
@@ -114,7 +117,7 @@ class Stratum(NamedTuple):
     shortcodes: List[str]
     facebook_targeting: FacebookTargeting
     question_targeting: Optional[QuestionTargeting]
-    metadata: Dict[str, str]
+    metadata: Metadata
 
 
 class Location(NamedTuple):
@@ -209,9 +212,9 @@ def make_welcome_message(text, button_text, ref):
     return json.dumps(message, sort_keys=True)
 
 
-def make_ref(creative: CreativeConf, stratum: Stratum) -> str:
+def make_ref(creative: CreativeConf, metadata: Metadata) -> str:
     s = f"form.{creative.form}.creative.{creative.name}"
-    for k, v in stratum.metadata.items():
+    for k, v in metadata.items():
         s += f".{k}.{quote(v)}"
     return s
 
@@ -316,6 +319,39 @@ def add_users_to_audience(
     ]
 
 
+def create_creative(
+    config: CreativeConf, metadata: Metadata, page_id: str, insta_id: Optional[str]
+) -> AdCreative:
+
+    ref = make_ref(config, metadata)
+    msg = make_welcome_message(config.welcome_message, config.button_text, ref)
+
+    oss = {
+        AdCreativeObjectStorySpec.Field.link_data: {
+            AdCreativeLinkData.Field.call_to_action: {
+                "type": "MESSAGE_PAGE",
+                "value": {"app_destination": "MESSENGER"},
+            },
+            AdCreativeLinkData.Field.image_hash: config.image_hash,
+            AdCreativeLinkData.Field.message: config.body,
+            AdCreativeLinkData.Field.name: config.link_text,
+            AdCreativeLinkData.Field.page_welcome_message: msg,
+        },
+        AdCreativeObjectStorySpec.Field.page_id: page_id,
+    }
+
+    if insta_id:
+        oss[AdCreativeObjectStorySpec.Field.instagram_actor_id] = insta_id
+
+    c = AdCreative()
+    c[AdCreative.Field.name] = config.name
+    c[AdCreative.Field.url_tags] = f"ref={ref}"
+    c[AdCreative.Field.actor_id] = page_id
+    c[AdCreative.Field.object_story_spec] = oss
+
+    return c
+
+
 class Marketing:
     def __init__(self, state: CampaignState, config: CampaignConf):
         cnf: Dict[str, Any] = {
@@ -361,33 +397,6 @@ class Marketing:
         return (adset, ads)
 
     def create_creative(self, stratum: Stratum, config: CreativeConf) -> AdCreative:
-
-        ref = make_ref(config, stratum)
-        msg = make_welcome_message(config.welcome_message, config.button_text, ref)
-
-        oss = {
-            AdCreativeObjectStorySpec.Field.link_data: {
-                AdCreativeLinkData.Field.call_to_action: {
-                    "type": "MESSAGE_PAGE",
-                    "value": {"app_destination": "MESSENGER"},
-                },
-                AdCreativeLinkData.Field.image_hash: config.image_hash,
-                AdCreativeLinkData.Field.message: config.body,
-                AdCreativeLinkData.Field.name: config.link_text,
-                AdCreativeLinkData.Field.page_welcome_message: msg,
-            },
-            AdCreativeObjectStorySpec.Field.page_id: self.cnf["PAGE_ID"],
-        }
-
-        if self.cnf["INSTA_ID"]:
-            oss[AdCreativeObjectStorySpec.Field.instagram_actor_id] = self.cnf[
-                "INSTA_ID"
-            ]
-
-        c = AdCreative()
-        c[AdCreative.Field.name] = config.name
-        c[AdCreative.Field.url_tags] = f"ref={ref}"
-        c[AdCreative.Field.actor_id] = self.cnf["PAGE_ID"]
-        c[AdCreative.Field.object_story_spec] = oss
-
-        return c
+        return create_creative(
+            config, stratum.metadata, self.cnf["PAGE_ID"], self.cnf["INSTA_ID"]
+        )
