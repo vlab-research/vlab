@@ -6,6 +6,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	studiesmanager "github.com/vlab-research/vlab/dashboard-api/internal"
+	"github.com/vlab-research/vlab/dashboard-api/internal/platform/server/middleware/auth"
 	"github.com/vlab-research/vlab/dashboard-api/internal/platform/storage"
 )
 
@@ -19,7 +20,7 @@ func ListHandler(repositories storage.Repositories) gin.HandlerFunc {
 			return
 		}
 
-		study, err := repositories.Study.GetStudyBySlug(ctx, req.Slug)
+		study, err := repositories.Study.GetStudyBySlug(ctx, req.Slug, auth.GetUserIdFrom(ctx))
 		if err != nil {
 			switch {
 			case errors.Is(err, studiesmanager.ErrStudyNotFound):

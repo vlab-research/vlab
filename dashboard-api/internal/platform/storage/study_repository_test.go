@@ -15,18 +15,19 @@ import (
 
 func Test_StudyRepository_GetStudyBySlug_StudyNotFoundError(t *testing.T) {
 	studySlug := "example-study"
+	userId := "auth0|61916c1dab79c900713936de"
 
 	db, sqlMock, err := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherEqual))
 	require.NoError(t, err)
 
 	sqlMock.ExpectQuery(
-		"SELECT id, name, created FROM studies WHERE slug = $1").
-		WithArgs(studySlug).
+		"SELECT id, name, created FROM studies WHERE slug = $1 AND user_id = $2").
+		WithArgs(studySlug, userId).
 		WillReturnError(sql.ErrNoRows)
 
 	repo := NewStudyRepository(db)
 
-	_, err = repo.GetStudyBySlug(context.Background(), studySlug)
+	_, err = repo.GetStudyBySlug(context.Background(), studySlug, userId)
 
 	assert.NoError(t, sqlMock.ExpectationsWereMet())
 	assert.ErrorIs(t, err, studiesmanager.ErrStudyNotFound)
@@ -34,18 +35,19 @@ func Test_StudyRepository_GetStudyBySlug_StudyNotFoundError(t *testing.T) {
 
 func Test_StudyRepository_GetStudyBySlug_UnexpectedError(t *testing.T) {
 	studySlug := "example-study"
+	userId := "auth0|61916c1dab79c900713936de"
 
 	db, sqlMock, err := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherEqual))
 	require.NoError(t, err)
 
 	sqlMock.ExpectQuery(
-		"SELECT id, name, created FROM studies WHERE slug = $1").
-		WithArgs(studySlug).
+		"SELECT id, name, created FROM studies WHERE slug = $1 AND user_id = $2").
+		WithArgs(studySlug, userId).
 		WillReturnError(errors.New("unexpected-error"))
 
 	repo := NewStudyRepository(db)
 
-	_, err = repo.GetStudyBySlug(context.Background(), studySlug)
+	_, err = repo.GetStudyBySlug(context.Background(), studySlug, userId)
 
 	assert.NoError(t, sqlMock.ExpectationsWereMet())
 	if assert.NotErrorIs(t, err, studiesmanager.ErrStudyNotFound) {
@@ -55,6 +57,7 @@ func Test_StudyRepository_GetStudyBySlug_UnexpectedError(t *testing.T) {
 
 func Test_StudyRepository_GetStudyBySlug_Succeed(t *testing.T) {
 	studySlug := "example-study"
+	userId := "auth0|61916c1dab79c900713936de"
 	studyCreatedAt := time.Date(2020, time.November, 10, 23, 0, 0, 0, time.UTC)
 
 	db, sqlMock, err := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherEqual))
@@ -63,13 +66,13 @@ func Test_StudyRepository_GetStudyBySlug_Succeed(t *testing.T) {
 	rows := sqlMock.NewRows([]string{"id", "name", "created"}).
 		AddRow("7261456a-77b7-4731-a499-629f9f49abe8", "Example Study", studyCreatedAt)
 	sqlMock.ExpectQuery(
-		"SELECT id, name, created FROM studies WHERE slug = $1").
-		WithArgs(studySlug).
+		"SELECT id, name, created FROM studies WHERE slug = $1 AND user_id = $2").
+		WithArgs(studySlug, userId).
 		WillReturnRows(rows)
 
 	repo := NewStudyRepository(db)
 
-	study, err := repo.GetStudyBySlug(context.Background(), studySlug)
+	study, err := repo.GetStudyBySlug(context.Background(), studySlug, userId)
 
 	assert.NoError(t, sqlMock.ExpectationsWereMet())
 	assert.NoError(t, err)
@@ -80,26 +83,28 @@ func Test_StudyRepository_GetStudyBySlug_Succeed(t *testing.T) {
 func Test_StudyRepository_GetStudies_UnexpectedError_during_Query(t *testing.T) {
 	offset := 0
 	limit := 20
+	userId := "auth0|61916c1dab79c900713936de"
 
 	db, sqlMock, err := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherEqual))
 	require.NoError(t, err)
 
 	sqlMock.ExpectQuery(
-		"SELECT id, name, slug, created FROM studies ORDER BY created DESC OFFSET $1 LIMIT $2").
-		WithArgs(offset, limit).
+		"SELECT id, name, slug, created FROM studies WHERE user_id = $3 ORDER BY created DESC OFFSET $1 LIMIT $2").
+		WithArgs(offset, limit, userId).
 		WillReturnError(errors.New("unexpected-error"))
 
 	repo := NewStudyRepository(db)
 
-	_, err = repo.GetStudies(context.Background(), offset, limit)
+	_, err = repo.GetStudies(context.Background(), offset, limit, userId)
 
 	assert.NoError(t, sqlMock.ExpectationsWereMet())
-	assert.Equal(t, errors.New("(db.Query) error trying to get studies (offset: 0, limit: 20): unexpected-error"), err)
+	assert.Equal(t, errors.New("(db.Query) error trying to get studies (offset: 0, limit: 20, userId: auth0|61916c1dab79c900713936de): unexpected-error"), err)
 }
 
 func Test_StudyRepository_GetStudies_UnexpectedError_during_Scan(t *testing.T) {
 	offset := 0
 	limit := 20
+	userId := "auth0|61916c1dab79c900713936de"
 
 	db, sqlMock, err := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherEqual))
 	require.NoError(t, err)
@@ -108,21 +113,22 @@ func Test_StudyRepository_GetStudies_UnexpectedError_during_Scan(t *testing.T) {
 		AddRow("7261456a-77b7-4731-a499-629f9f49abe8", "Example Study", "example-study")
 
 	sqlMock.ExpectQuery(
-		"SELECT id, name, slug, created FROM studies ORDER BY created DESC OFFSET $1 LIMIT $2").
-		WithArgs(offset, limit).
+		"SELECT id, name, slug, created FROM studies WHERE user_id = $3 ORDER BY created DESC OFFSET $1 LIMIT $2").
+		WithArgs(offset, limit, userId).
 		WillReturnRows(rows)
 
 	repo := NewStudyRepository(db)
 
-	_, err = repo.GetStudies(context.Background(), offset, limit)
+	_, err = repo.GetStudies(context.Background(), offset, limit, userId)
 
 	assert.NoError(t, sqlMock.ExpectationsWereMet())
-	assert.Equal(t, errors.New("(rows.Scan) error trying to get studies (offset: 0, limit: 20): sql: expected 3 destination arguments in Scan, not 4"), err)
+	assert.Equal(t, errors.New("(rows.Scan) error trying to get studies (offset: 0, limit: 20, userId: auth0|61916c1dab79c900713936de): sql: expected 3 destination arguments in Scan, not 4"), err)
 }
 
 func Test_StudyRepository_GetStudies_Succeed(t *testing.T) {
 	offset := 0
 	limit := 20
+	userId := "auth0|61916c1dab79c900713936de"
 	studyId := "7261456a-77b7-4731-a499-629f9f49abe8"
 	studyName := "Example Study"
 	studySlug := "example-study"
@@ -135,13 +141,13 @@ func Test_StudyRepository_GetStudies_Succeed(t *testing.T) {
 		AddRow(studyId, studyName, studySlug, studyCreatedAt)
 
 	sqlMock.ExpectQuery(
-		"SELECT id, name, slug, created FROM studies ORDER BY created DESC OFFSET $1 LIMIT $2").
-		WithArgs(offset, limit).
+		"SELECT id, name, slug, created FROM studies WHERE user_id = $3 ORDER BY created DESC OFFSET $1 LIMIT $2").
+		WithArgs(offset, limit, userId).
 		WillReturnRows(rows)
 
 	repo := NewStudyRepository(db)
 
-	studies, err := repo.GetStudies(context.Background(), offset, limit)
+	studies, err := repo.GetStudies(context.Background(), offset, limit, userId)
 
 	assert.NoError(t, sqlMock.ExpectationsWereMet())
 	assert.NoError(t, err)

@@ -17,7 +17,7 @@ func TestHandler_List(t *testing.T) {
 	t.Run("should return a 404 when the study does not exist", func(t *testing.T) {
 		studyRepository := new(storagemocks.StudyRepository)
 		studySegmentsRepository := new(storagemocks.StudySegmentsRepository)
-		studyRepository.On("GetStudyBySlug", mock.Anything, "inexistent-study").Return(studiesmanager.Study{}, studiesmanager.ErrStudyNotFound)
+		studyRepository.On("GetStudyBySlug", mock.Anything, "inexistent-study", mock.Anything).Return(studiesmanager.Study{}, studiesmanager.ErrStudyNotFound)
 
 		res := testhelpers.PerformGetRequest("/studies/inexistent-study/segments-progress", storage.Repositories{
 			Study:         studyRepository,
@@ -30,7 +30,7 @@ func TestHandler_List(t *testing.T) {
 	t.Run("should return a 500 when the studyRepository returns an unexpected error", func(t *testing.T) {
 		studyRepository := new(storagemocks.StudyRepository)
 		studySegmentsRepository := new(storagemocks.StudySegmentsRepository)
-		studyRepository.On("GetStudyBySlug", mock.Anything, "inexistent-study").Return(studiesmanager.Study{}, errors.New("db timeout error"))
+		studyRepository.On("GetStudyBySlug", mock.Anything, "inexistent-study", mock.Anything).Return(studiesmanager.Study{}, errors.New("db timeout error"))
 
 		res := testhelpers.PerformGetRequest("/studies/inexistent-study/segments-progress", storage.Repositories{
 			Study:         studyRepository,
@@ -44,7 +44,7 @@ func TestHandler_List(t *testing.T) {
 		studyRepository := new(storagemocks.StudyRepository)
 		studySegmentsRepository := new(storagemocks.StudySegmentsRepository)
 		study := studiesmanager.NewStudy("5372ca9c-9fcd-42d4-a596-d90792909917", "Example Study", "example-study", 1605049200000)
-		studyRepository.On("GetStudyBySlug", mock.Anything, "example-study").Return(study, nil)
+		studyRepository.On("GetStudyBySlug", mock.Anything, "example-study", mock.Anything).Return(study, nil)
 		studySegmentsRepository.On("GetAllTimeSegmentsProgress", mock.Anything, study.Id).Return(nil, errors.New("db timeout error"))
 
 		res := testhelpers.PerformGetRequest("/studies/example-study/segments-progress", storage.Repositories{
@@ -59,7 +59,7 @@ func TestHandler_List(t *testing.T) {
 		studyRepository := new(storagemocks.StudyRepository)
 		studySegmentsRepository := new(storagemocks.StudySegmentsRepository)
 		study := studiesmanager.NewStudy("5372ca9c-9fcd-42d4-a596-d90792909917", "Example Study", "example-study", 1605049200000)
-		studyRepository.On("GetStudyBySlug", mock.Anything, "example-study").Return(study, nil)
+		studyRepository.On("GetStudyBySlug", mock.Anything, "example-study", mock.Anything).Return(study, nil)
 		studySegmentsRepository.On("GetAllTimeSegmentsProgress", mock.Anything, study.Id).
 			Return(
 				[]studiesmanager.SegmentsProgress(
@@ -121,7 +121,7 @@ func TestHandler_List(t *testing.T) {
 		studyRepository := new(storagemocks.StudyRepository)
 		studySegmentsRepository := new(storagemocks.StudySegmentsRepository)
 		study := studiesmanager.NewStudy("5372ca9c-9fcd-42d4-a596-d90792909917", "Example Study", "example-study", 1605049200000)
-		studyRepository.On("GetStudyBySlug", mock.Anything, "example-study").Return(study, nil)
+		studyRepository.On("GetStudyBySlug", mock.Anything, "example-study", mock.Anything).Return(study, nil)
 		studySegmentsRepository.On("GetAllTimeSegmentsProgress", mock.Anything, study.Id).
 			Return(
 				[]studiesmanager.SegmentsProgress{},

@@ -5,6 +5,7 @@ DROP TABLE IF EXISTS studies;
 
 CREATE TABLE studies(
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id string NOT NULL, 
     created TIMESTAMP DEFAULT CURRENT_TIMESTAMP(),
     name string NOT NULL,
     slug string NOT NULL,
@@ -13,11 +14,11 @@ CREATE TABLE studies(
 );
 
 INSERT INTO studies 
-  (name, slug, created, id) 
+  (name, slug, created, id, user_id) 
 VALUES 
-  ('Iron overload in men', 'iron-overload-in-men', '2021-01-03', '36634740-0a26-44a3-b69d-d1338af5126c'),
-  ('Consuming carbs less often leads to better fat adaptation', 'consuming-carbs-less-often-leads-to-better-fat-adaptation', '2021-01-02', 'f6112068-5227-4e17-b255-2b80df8745e9'),
-  ('Most used programming language for api development', 'most-used-programming-language-for-api-development', '2021-01-04', 'a5601576-08d9-486b-adc9-9b981b7f103b');
+  ('Iron overload in men', 'iron-overload-in-men', '2021-01-03', '36634740-0a26-44a3-b69d-d1338af5126c', 'auth0|61916c1dab79c900713936de'),
+  ('Consuming carbs less often leads to better fat adaptation', 'consuming-carbs-less-often-leads-to-better-fat-adaptation', '2021-01-02', 'f6112068-5227-4e17-b255-2b80df8745e9', 'auth0|61916c1dab79c900713936de'),
+  ('Most used programming language for api development', 'most-used-programming-language-for-api-development', '2021-01-04', 'a5601576-08d9-486b-adc9-9b981b7f103b', 'auth0|47016c1dab79c900713937fa');
 
 
 CREATE TABLE optimization_reports(
