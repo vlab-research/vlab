@@ -23,6 +23,14 @@ type response struct {
 }
 
 func PerformGetRequest(path string, repositories storage.Repositories) response {
+	return PerformRequest(path, http.MethodGet, repositories)
+}
+
+func PerformPostRequest(path string, repositories storage.Repositories, body interface{}) response {
+	return PerformRequest(path, http.MethodPost, repositories)
+}
+
+func PerformRequest(path string, method string, repositories storage.Repositories) response {
 	gin.SetMode(gin.TestMode)
 
 	noopString := ""
@@ -30,7 +38,7 @@ func PerformGetRequest(path string, repositories storage.Repositories) response 
 
 	srv := server.New(noopString, noopUint, repositories, FakeValidTokenMiddleware(), noopString)
 
-	req, err := http.NewRequest(http.MethodGet, path, nil)
+	req, err := http.NewRequest(method, path, nil)
 	if err != nil {
 		log.Fatalf("(http.NewRequest) performRequest failed for path: %s", path)
 	}

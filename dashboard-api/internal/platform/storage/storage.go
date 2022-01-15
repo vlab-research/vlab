@@ -13,6 +13,7 @@ type Repositories struct {
 	Db            *sql.DB
 	Study         studiesmanager.StudyRepository
 	StudySegments studiesmanager.StudySegmentsRepository
+	User          studiesmanager.UserRepository
 }
 
 func InitializeRepositories(dbURI string) Repositories {
@@ -28,5 +29,6 @@ func InitializeRepositories(dbURI string) Repositories {
 		Db:            db,
 		Study:         NewStudyRepository(db),
 		StudySegments: NewStudySegmentsRepository(db),
+		User:          NewUserRepository(db),
 	}
 }
