@@ -29,7 +29,7 @@ func ReadHandler(repositories storage.Repositories) gin.HandlerFunc {
 		if err != nil {
 			switch {
 			case errors.Is(err, studiesmanager.ErrStudyNotFound):
-				ctx.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+				ctx.JSON(http.StatusNotFound, gin.H{"test": err.Error()})
 				return
 
 			default:
