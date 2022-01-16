@@ -1,0 +1,49 @@
+services:
+  cockroachdb:
+    image: cockroachdb/cockroach:v21.2.3
+    entrypoint: cockroach start-single-node --insecure --advertise-addr localhost
+    ports:
+      - "26257:26257"
+      - "8080:8080"
+    networks:
+      - cockroachnet
+  setup_cockroachdb:
+    image: cockroachdb/cockroach:v21.2.3
+    volumes:
+      - ./setup_db.sh:/setup_db.sh
+      - ./seed_cockroachdb.sql:/seed_cockroachdb.sql
+    entrypoint: "/bin/bash"
+    command: /setup_db.sh
+    depends_on:
+      - cockroachdb
+    networks:
+      - cockroachnet
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.test
+    environment:
+      STUDIESMANAGER_HOST: 0.0.0.0
+      STUDIESMANAGER_PORT: 80
+      STUDIESMANAGER_DBURI: postgresql://root@cockroachdb:26257/vlab?sslmode=disable
+    ports:
+      - 80:80
+    depends_on:
+      - setup_cockroachdb
+    networks:
+      - cockroachnet
+    volumes:
+      - .:/github.com/vlab-research/vlab/dashboard-api
+    command: |
+      sh -c '
+        echo "Running tests..."
+        go mod tidy
+        if [ "${IS_CI}" = "" ]
+        then
+          go test ./... || true
+          looper
+        fi
+        go test ./...
+      '
+networks:
+  cockroachnet:

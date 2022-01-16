@@ -1,0 +1,6 @@
+FROM golang:alpine
+
+WORKDIR /github.com/vlab-research/vlab/dashboard-api
+RUN go get -u github.com/cosmtrek/air
+
+ENTRYPOINT ["air"]
