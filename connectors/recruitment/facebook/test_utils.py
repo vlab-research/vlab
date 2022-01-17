@@ -1,6 +1,6 @@
 from datetime import date, datetime, timedelta
 
-from .utils import _get_study_days, get_study_days, today
+from utils import _get_study_days, get_study_days, today
 
 
 def test__get_study_days():

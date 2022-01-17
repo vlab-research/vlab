@@ -1,10 +1,13 @@
 import random
 from typing import TypeVar
 
+import pytest
 from facebook_business.adobjects.customaudience import CustomAudience
 
-from .marketing import (Audience, CreativeConf, Instruction, Lookalike,
-                        LookalikeSpec, StratumConf, make_ref, manage_aud)
+from .marketing import (Audience, CreativeConf, Instruction,
+                        InvalidConfigError, Lookalike, LookalikeAudience,
+                        LookalikeSpec, Partitioning, StratumConf, make_ref,
+                        manage_aud)
 
 T = TypeVar("T")
 
@@ -16,7 +19,7 @@ def _adobject(d, T) -> T:
     return t
 
 
-def _aud_params(name, subtype, description):
+def _aud_params(name, subtype, description, origin_audience_id=None):
     return {
         "name": name,
         "subtype": subtype,
@@ -25,22 +28,19 @@ def _aud_params(name, subtype, description):
     }
 
 
-def test_manage_aud_creates_if_doesnt_exist():
+def _lookalike_aud_params(name, origin_audience_id, spec):
+    return {
+        "name": name,
+        "subtype": "LOOKALIKE",
+        "origin_audience_id": origin_audience_id,
+        "lookalike_spec": spec,
+    }
+
+
+def test_manage_aud_creates_basic_aud_if_doesnt_exist():
     old = []
-    aud = Audience(name="foo", subtype="CUSTOM", pageid="page", users=[])
+    aud = Audience(name="foo", pageid="page", users=[])
 
-    instructions = manage_aud(old, aud)
-
-    assert instructions == [
-        Instruction(
-            "custom_audience",
-            "create",
-            _aud_params("foo", "CUSTOM", "virtual lab auto-generated audience"),
-            None,
-        )
-    ]
-
-    aud = Audience(name="foo", subtype="LOOKALIKE", pageid="page", users=[])
     instructions = manage_aud(old, aud)
     assert instructions == [
         Instruction(
@@ -74,51 +74,66 @@ def _update_instruction(id_=140892):
     )
 
 
-def test_manage_aud_updates_if_exists():
+def test_manage_aud_updates_basic_aud_if_exists():
     random.seed(1)
     old = [
         _adobject({"id": "foo", "name": "foo", "description": "bar"}, CustomAudience)
     ]
-    aud = Audience(name="foo", subtype="CUSTOM", pageid="page", users=["bar"])
-    instructions = manage_aud(old, aud)
 
+    aud = Audience(name="foo", pageid="page", users=["bar"])
+
+    instructions = manage_aud(old, aud)
     assert instructions == [_update_instruction()]
 
 
-def test_manage_aud_only_updates_if_no_lookalike_target_reached():
+def test_manage_aud_creates_lookalike_with_lookalike_and_lookalike_does_not_exist_and_origin():
     random.seed(1)
+
     old = [
         _adobject(
-            {"id": "foo", "name": "foo", "description": "bar", "approximate_count": 10},
+            {"id": "foo-origin-id", "name": "foo-origin", "description": "bar"},
             CustomAudience,
         )
     ]
 
-    lookalike = Lookalike("foo-lookalike", 100, LookalikeSpec("IN", 0.1, 0.0))
-    aud = Audience(
-        name="foo",
-        subtype="LOOKALIKE",
-        pageid="page",
-        users=["bar"],
-        lookalike=lookalike,
+    origin = Audience(name="foo-origin", pageid="page", users=["bar"])
+
+    aud = LookalikeAudience(
+        name="foo-lookalike", spec=LookalikeSpec("IN", 0.1, 0.0), origin_audience=origin
     )
+
     instructions = manage_aud(old, aud)
+    assert instructions == [
+        Instruction(
+            "custom_audience",
+            "create",
+            _lookalike_aud_params(
+                "foo-lookalike",
+                "foo-origin-id",
+                '{"country": "IN", "ratio": 0.1, "starting_ratio": 0.0}',
+            ),
+            None,
+        )
+    ]
 
-    assert instructions == [_update_instruction()]
+
+def test_manage_aud_does_nothing_with_lookalike_when_origin_does_not_exist():
+    random.seed(1)
+    old = []
+
+    origin = Audience(name="foo-origin", pageid="page", users=["bar"])
+
+    aud = LookalikeAudience(
+        name="foo-lookalike", spec=LookalikeSpec("IN", 0.1, 0.0), origin_audience=origin
+    )
+
+    instructions = manage_aud(old, aud)
+    assert instructions == []
 
 
-def test_manage_aud_only_updates_if_lookalike_and_lookalike_exists():
+def test_manage_aud_does_nothing_with_lookalike_and_lookalike_exists():
     random.seed(1)
     old = [
-        _adobject(
-            {
-                "id": "foo",
-                "name": "foo",
-                "description": "bar",
-                "approximate_count": 200,
-            },
-            CustomAudience,
-        ),
         _adobject(
             {
                 "id": "foo-lookalike",
@@ -130,46 +145,14 @@ def test_manage_aud_only_updates_if_lookalike_and_lookalike_exists():
         ),
     ]
 
-    lookalike = Lookalike("foo-lookalike", 100, LookalikeSpec("IN", 0.1, 0.0))
-    aud = Audience(
-        name="foo",
-        subtype="LOOKALIKE",
-        pageid="page",
-        users=["bar"],
-        lookalike=lookalike,
-    )
-    instructions = manage_aud(old, aud)
-    assert instructions == [_update_instruction()]
+    origin = Audience(name="foo-origin", pageid="page", users=["bar"])
 
-
-def test_manage_aud_creates_lookalike_if_target_passed():
-    random.seed(1)
-    old = [
-        _adobject(
-            {
-                "id": "foo",
-                "name": "foo",
-                "description": "bar",
-                "approximate_count": 200,
-            },
-            CustomAudience,
-        )
-    ]
-
-    lookalike = Lookalike("foo-lookalike", 100, LookalikeSpec("IN", 0.1, 0.0))
-    aud = Audience(
-        name="foo",
-        subtype="LOOKALIKE",
-        pageid="page",
-        users=["bar"]*101,
-        lookalike=lookalike,
+    aud = LookalikeAudience(
+        name="foo-lookalike", spec=LookalikeSpec("IN", 0.1, 0.0), origin_audience=origin
     )
 
     instructions = manage_aud(old, aud)
-
-    spec = '{"country": "IN", "ratio": 0.1, "starting_ratio": 0.0}'
-
-    assert len(instructions) == 2
+    assert instructions == []
 
 
 def _creative_conf(name, form):
@@ -179,25 +162,47 @@ def _creative_conf(name, form):
 
 
 def test_make_ref():
-    stratum = StratumConf("foo", 10, "foo", [], [], [], [], {}, metadata={"bar": "baz"})
+    metadata = {"bar": "baz"}
     creative = _creative_conf("foo", "form1")
-    ref = make_ref(creative, stratum)
+    ref = make_ref(creative, metadata)
     assert ref == "form.form1.creative.foo.bar.baz"
 
-    stratum = StratumConf("foo", 10, "foo", [], [], [], [], {}, metadata={})
-    ref = make_ref(creative, stratum)
+    metadata = {}
+    ref = make_ref(creative, metadata)
     assert ref == "form.form1.creative.foo"
 
 
 def test_make_url_escapes():
-    stratum = StratumConf(
-        "foo", 10, "foo", [], [], [], [], {}, metadata={"bar": "baz foo!"}
-    )
+    metadata = {"bar": "baz foo!"}
     creative = _creative_conf("foo", "form1")
-    ref = make_ref(creative, stratum)
+    ref = make_ref(creative, metadata)
     assert ref == "form.form1.creative.foo.bar.baz%20foo%21"
+
+
+def test_partitioning_valid_scenarios():
+    Partitioning(min_users=100)
+    Partitioning(min_users=100, min_days=2)
+    Partitioning(min_users=10, max_users=100, max_days=2)
+
+    with pytest.raises(InvalidConfigError):
+        Partitioning(min_users=100, max_days=100)
+        Partitioning(min_users=100, min_days=100, max_days=100)
 
 
 # test
 # create new campaign if none (or no??)
 #
+
+
+# This doesn't change - i just need to dynamically
+# create the audiences
+#
+# 1. audiences + responses
+# create audiences from responses
+# sync with Facebook audiences
+#
+# for each Remarketing campaign.
+# get partitioned audience.
+# get all associeted audiences.
+# For each audience, build campaign
+# based on end_date.
