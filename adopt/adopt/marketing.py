@@ -1,5 +1,6 @@
 import json
 import random
+from dataclasses import dataclass, fields
 from datetime import datetime, timedelta
 from typing import (Any, Dict, List, NamedTuple, Optional, Sequence, Tuple,
                     Union)
@@ -44,18 +45,6 @@ class QuestionTargeting(NamedTuple):
 FacebookTargeting = Dict[str, Any]
 
 
-class LookalikeSpec(NamedTuple):
-    country: str
-    ratio: float
-    starting_ratio: float
-
-
-class Lookalike(NamedTuple):
-    name: str
-    target: int
-    spec: LookalikeSpec
-
-
 class CampaignConf(NamedTuple):
     optimization_goal: str
     destination_type: str
@@ -94,12 +83,134 @@ class StratumConf(NamedTuple):
     metadata: Dict[str, str]
 
 
+# OLD
+# {
+#     "name": f"vlab-vacc-{COUNTRY_CODE}-vacc-A+B",
+#     "shortcodes": SURVEY_SHORTCODES,
+#     "subtype": "LOOKALIKE",
+#     "lookalike": {
+#         "name": f"vlab-vacc-{COUNTRY_CODE}-vacc-A+B-lookalike",
+#         "target": 1100,
+#         "spec": {
+#             "country": COUNTRY_CODE,
+#             "starting_ratio": 0.0,
+#             "ratio": 0.2
+#         }
+#     },
+
+
+# NEW
+# {
+#     "name": f"vlab-vacc-{COUNTRY_CODE}-",
+#     "shortcodes": SURVEY_SHORTCODES,
+#     "subtype": "LOOKALIKE",
+#     "lookalike": {
+#         "target": 1100,
+#         "spec": {
+#             "country": COUNTRY_CODE,
+#             "starting_ratio": 0.0,
+#             "ratio": 0.2
+#         }
+#     },
+
+# {
+#     "name": f"vlab-vacc-{COUNTRY_CODE}-respondents",
+#     "shortcodes": SURVEY_SHORTCODES,
+#     "subtype": "PARTITIONED",
+#     "partitioning": {
+#     },
+
+# create higher level audience conf object that generates
+# AudienceConfs dynamically (in the case of a partitioned audience)
+# --> you're implicitly doing this already with custom/lookalike, no?
+
+# OR add configuration -> make it dummer.
+# In addition to question_targeting, you have some sort of config
+# needed to get users from database, without knowing anything else.
+#
+# Or make this one the higher level, that's what's happenign already.
+# and in addition to "lookalike" it has a "partitions" field...?
+# but the 1-1 mapping of AudienceConf to audience will be removed.
+# But that's probably better for the old way anyhoo.
+#
+# The way it's currently is in "manage_aud" -> could work within that.
+# It's not a perfect parallel with Lookalikes, because their the set of
+# users doesn't really change - or for lookalikes there are no users!
+
+
+class InvalidConfigError(BaseException):
+    pass
+
+
+# scenario: I want to split every N users.
+# usage: set min_users only
+#
+# scenario: I want to split when I've BOTH past X days,
+# and have at least N users.
+# usage: set min_users, min_days
+#
+# scenario: I want to split if I've either passed X days
+# or past N users
+# usage: set max_users, max_days, and min_users
+@dataclass(frozen=True)
+class Partitioning:
+    min_users: int
+    min_days: Optional[int] = None
+    max_days: Optional[int] = None
+    max_users: Optional[int] = None
+
+    @property
+    def scenario(self):
+        return {f.name for f in fields(self) if getattr(self, f.name)}
+
+    def __post_init__(self):
+        valid_scenarios = [
+            {"min_users"},
+            {"min_users", "min_days"},
+            {"min_users", "max_users", "max_days"},
+        ]
+
+        if self.scenario not in valid_scenarios:
+            raise InvalidConfigError(
+                f"Invalid partitioning config. The following fields "
+                f"were all set: {self.scenario}. Please see documentation for "
+                f"valid combinations."
+            )
+
+
+class LookalikeSpec(NamedTuple):
+    country: str
+    ratio: float
+    starting_ratio: float
+
+
+class Lookalike(NamedTuple):
+    target: int
+    spec: LookalikeSpec
+
+
 class AudienceConf(NamedTuple):
     name: str
     subtype: str
     shortcodes: List[str]
     question_targeting: Optional[QuestionTargeting] = None
     lookalike: Optional[Lookalike] = None
+    partitioning: Optional[Partitioning] = None
+
+
+class Audience(NamedTuple):
+    name: str
+    pageid: str
+    users: List[str]
+
+
+class LookalikeAudience(NamedTuple):
+    name: str
+    spec: LookalikeSpec
+    origin_audience: Audience
+
+
+AnyAudience = Union[Audience, LookalikeAudience]
 
 
 class CreativeGroup(NamedTuple):
@@ -135,14 +246,6 @@ class AdsetConf(NamedTuple):
     hours: int
     optimization_goal: str
     destination_type: str
-
-
-class Audience(NamedTuple):
-    name: str
-    subtype: str
-    pageid: str
-    users: List[str]
-    lookalike: Optional[Lookalike] = None
 
 
 def dict_from_nested_type(d):
@@ -225,35 +328,45 @@ def create_ad(adset: AdSet, creative: AdCreative, status: str) -> Ad:
     return a
 
 
-def manage_aud(old_auds: List[CustomAudience], aud: Audience) -> List[Instruction]:
-
+def manage_basic_aud(
+    old_auds: List[CustomAudience], aud: Audience
+) -> List[Instruction]:
     existing = {a["name"]: a for a in old_auds}
     ca = existing.get(aud.name)
 
     if ca is None:
         return [create_custom_audience(aud.name, "virtual lab auto-generated audience")]
 
-    instructions = add_users_to_audience(aud.pageid, ca.get_id(), aud.users)
-
-    if aud.subtype == "LOOKALIKE" and aud.lookalike is not None:
-        count = len(aud.users)
-
-        # use aud.users as size? This would work if Facebook is immediate about
-        # counting the new users, otherwise it will fail.
-        # should make a best-effort kind of thing here.
-        # TODO: Add instruction metadata to allow it to give up on certain fail
-        # codes...
-        if aud.lookalike.name not in existing and count > aud.lookalike.target:
-            instructions += [
-                create_lookalike_audience(
-                    aud.lookalike.name, aud.lookalike.spec._asdict(), ca
-                )
-            ]
-
-    return instructions
+    return add_users_to_audience(aud.pageid, ca.get_id(), aud.users)
 
 
-def manage_audiences(state, new_auds: List[Audience]) -> List[Instruction]:
+def manage_lookalike_aud(
+    old_auds: List[CustomAudience], aud: LookalikeAudience
+) -> List[Instruction]:
+    existing = {a["name"]: a for a in old_auds}
+    origin = existing.get(aud.origin_audience.name)
+
+    if aud.name not in existing and origin:
+        return [create_lookalike_audience(aud.name, aud.spec._asdict(), origin)]
+
+    return []
+
+
+def manage_aud(
+    old_auds: List[CustomAudience], aud: Union[Audience, LookalikeAudience]
+) -> List[Instruction]:
+
+    if isinstance(aud, Audience):
+        return manage_basic_aud(old_auds, aud)
+
+    if isinstance(aud, LookalikeAudience):
+        return manage_lookalike_aud(old_auds, aud)
+
+
+def manage_audiences(
+    state, new_auds: List[Union[Audience, LookalikeAudience]]
+) -> List[Instruction]:
+
     return [i for aud in new_auds for i in manage_aud(state.custom_audiences, aud)]
 
 
