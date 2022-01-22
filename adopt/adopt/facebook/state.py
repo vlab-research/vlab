@@ -35,7 +35,7 @@ def get_creatives(api: FacebookAdsApi, ids: List[str]) -> List[AdCreative]:
     if not ids:
         return []
 
-    fields = ["url_tags", "actor_id", "object_story_spec", "link_deep_link_url"]
+    fields = ["url_tags", "actor_id", "instagram_actor_id", "object_story_spec", "link_deep_link_url"]
     return call(AdCreative.get_by_ids, ids=ids, fields=fields, api=api)
 
 
@@ -44,6 +44,7 @@ def get_adsets(campaign: Campaign) -> List[AdSet]:
         campaign.get_ad_sets,
         fields=[
             AdSet.Field.name,
+            AdSet.Field.instagram_actor_id,
             AdSet.Field.status,
             AdSet.Field.targeting,
             AdSet.Field.optimization_goal,

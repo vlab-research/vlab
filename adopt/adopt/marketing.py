@@ -191,9 +191,6 @@ def create_adset(c: AdsetConf) -> AdSet:
     adset[AdSet.Field.billing_event] = AdSet.BillingEvent.impressions
     adset[AdSet.Field.bid_strategy] = AdSet.BidStrategy.lowest_cost_without_cap
 
-    if c.instagram_id:
-        adset[AdSet.Field.instagram_actor_id] = c.instagram_id
-
     return adset
 
 
@@ -340,10 +337,13 @@ def create_creative(
         AdCreativeObjectStorySpec.Field.page_id: page_id,
     }
 
-    if insta_id:
-        oss[AdCreativeObjectStorySpec.Field.instagram_actor_id] = insta_id
-
     c = AdCreative()
+
+    if insta_id:
+        c[AdCreative.Field.instagram_actor_id] = insta_id
+        oss[AdCreativeObjectStorySpec.Field.instagram_actor_id] = insta_id # used???
+
+
     c[AdCreative.Field.name] = config.name
     c[AdCreative.Field.url_tags] = f"ref={ref}"
     c[AdCreative.Field.actor_id] = page_id
