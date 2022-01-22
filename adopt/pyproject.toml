@@ -5,19 +5,20 @@ description = ""
 authors = ["Nandan Rao <nandanmarkrao@gmail.com>"]
 
 [tool.poetry.dependencies]
-python = ">=3.9,<3.10"
+python = ">=3.9,<3.11"
 PyYAML = "^5.4.1"
 backoff = "^1.10.0"
 environs = "^9.3.2"
 facebook-business = "^12.0.0"
-numpy = "^1.20.2"
-pandas = "^1.2.4"
+numpy = "^1.22.1"
+pandas = "^1.4.0"
 psycopg2-binary = "^2.8.6"
-pystache = "^0.5.4"
+pystache = "^0.6.0"
 requests = "^2.25.1"
 scipy = "^1.6.3"
 toolz = "^0.11.1"
-typedjson = {git = "https://github.com/nandanrao/typedjson-python", rev = "353685be3b8b6d4c65eb345f388d3750072c9b10"}
+setuptools = "^60.5.0" # needed for current poetry version 1.12
+typedjson = {git = "https://github.com/nandanrao/typedjson-python", rev = "86138a64a9642bb811a79273d0d8dcbfbfe6b5cc"}
 
 [tool.poetry.dev-dependencies]
 future = "^0.18.2"
