@@ -17,8 +17,8 @@ type TimePeriod struct {
 
 type RecruitmentDataEvent struct {
 	StudyID    string          `json:"study_id"`
-	Source     string          `json:"source"`
-	Integrity  int64           `json:"integrity"` // 0,1,2,3,4...
+	SourceConf *SourceConf     `json:"source_conf"`
+	Integrity  int64           `json:"integrity"` // -1,0,1,2,3,4...
 	TimePeriod TimePeriod      `json:"time_period"`
 	Data       json.RawMessage `json:"data"`
 }

@@ -6,8 +6,8 @@ import typedjson
 
 from .clustering import (budget_trimming, calc_price, get_budget_lookup,
                          get_saturated_clusters, get_stats, make_report,
-                         only_latest_survey, only_target_users,
-                         prep_df_for_budget, proportional_budget, shape_df)
+                         only_target_users, prep_df_for_budget,
+                         proportional_budget)
 from .facebook.date_range import DateRange, unix_time_millis
 from .marketing import StratumConf
 
@@ -22,12 +22,11 @@ def make_conf(c):
     return [make_stratum_conf(d) for d in c]
 
 
-def conf(quota=2, field="response"):
+def conf(quota=2, field="variable"):
     c = [
         {
             "id": "foo",
             "quota": quota,
-            "shortcodes": ["foo", "bar"],
             "creatives": [],
             "audiences": [],
             "excluded_audiences": [],
@@ -39,7 +38,7 @@ def conf(quota=2, field="response"):
                     {
                         "op": "equal",
                         "vars": [
-                            {"type": "response", "value": "dist"},
+                            {"type": "variable", "value": "dist"},
                             {"type": "constant", "value": "foo"},
                         ],
                     },
@@ -56,7 +55,6 @@ def conf(quota=2, field="response"):
         {
             "id": "bar",
             "quota": quota,
-            "shortcodes": ["foo", "bar"],
             "creatives": [],
             "audiences": [],
             "excluded_audiences": [],
@@ -68,7 +66,7 @@ def conf(quota=2, field="response"):
                     {
                         "op": "equal",
                         "vars": [
-                            {"type": "response", "value": "dist"},
+                            {"type": "variable", "value": "dist"},
                             {"type": "constant", "value": "bar"},
                         ],
                     },
@@ -85,7 +83,6 @@ def conf(quota=2, field="response"):
         {
             "id": "baz",
             "quota": quota,
-            "shortcodes": ["foo", "bar"],
             "creatives": [],
             "audiences": [],
             "facebook_targeting": {},
@@ -97,7 +94,7 @@ def conf(quota=2, field="response"):
                     {
                         "op": "equal",
                         "vars": [
-                            {"type": "response", "value": "dist"},
+                            {"type": "variable", "value": "dist"},
                             {"type": "constant", "value": "baz"},
                         ],
                     },
@@ -127,14 +124,14 @@ def _add_timestamp(df):
 
 def _add_time(df):
     return (
-        df.groupby(["userid", "surveyid"])
+        df.groupby(["user_id"])
         .apply(
             lambda df: df.append(
                 [
                     {
                         **df.iloc[0].to_dict(),
-                        "question_ref": "md:startTime",
-                        "response": unix_time_millis(DATE),
+                        "variable": "md:startTime",
+                        "value": unix_time_millis(DATE),
                     }
                 ]
             )
@@ -144,54 +141,35 @@ def _add_time(df):
 
 
 def _format_df(df):
-    df["surveyid"] = df.shortcode
     df = _add_time(df)
     df = _add_timestamp(df)
-    df = shape_df(df)
     return df
 
 
+# question_ref -> variable
+# response ->. value
+# userid -> user_id
+# shortcode -> no longer applicable,
+# inference data conf should take care of it
 @pytest.fixture
 def df():
-    cols = ["question_ref", "response", "userid", "shortcode"]
+    cols = ["variable", "value", "user_id"]
     d = pd.DataFrame(
         [
-            ("dist", "foo", 1, "foo"),
-            ("rand", "50", 1, "foo"),
-            ("dist", "bar", 2, "foo"),
-            ("rand", "55", 2, "foo"),
-            ("dist", "bar", 3, "foo"),
-            ("rand", "60", 3, "foo"),
-            ("dist", "bar", 4, "bar"),
-            ("rand", "105", 4, "bar"),
-            ("dist", "baz", 5, "bar"),
-            ("rand", "105", 5, "bar"),
+            ("dist", "foo", 1),
+            ("rand", "50", 1),
+            ("dist", "bar", 2),
+            ("rand", "55", 2),
+            ("dist", "bar", 3),
+            ("rand", "60", 3),
+            ("dist", "bar", 4),
+            ("rand", "105", 4),
+            ("dist", "baz", 5),
+            ("rand", "105", 5),
         ],
         columns=cols,
     )
     return _format_df(d)
-
-
-def test_only_latest_survey_removes_duplicate_surveyids_per_user():
-    cols = ["question_ref", "response", "userid", "shortcode", "surveyid"]
-    d = pd.DataFrame(
-        [
-            ("dist", "foo", 1, "foo", "bar"),
-            ("rand", "50", 1, "foo", "bar"),
-            ("dist", "fooz", 1, "foo", "baz"),
-            ("dist", "bar", 2, "foo", "foo"),
-            ("rand", "55", 2, "foo", "foo"),
-            ("dist", "bar", 3, "foo", "foo"),
-            ("rand", "60", 3, "foo", "foo"),
-            ("dist", "bar", 4, "bar", "foo"),
-            ("rand", "105", 4, "bar", "foo"),
-        ],
-        columns=cols,
-    )
-
-    df = only_latest_survey(_add_timestamp(d))
-    assert df.shape[0] == 7
-    assert df[df.userid == 1].response.tolist() == ["fooz"]
 
 
 def test_get_only_target_users_with_empty_target_questions_filters_none(df):
@@ -199,7 +177,6 @@ def test_get_only_target_users_with_empty_target_questions_filters_none(df):
         "id": "foo",
         "quota": 1,
         "creatives": [],
-        "shortcodes": ["foo", "bar"],
         "audiences": [],
         "excluded_audiences": [],
         "facebook_targeting": {},
@@ -211,76 +188,45 @@ def test_get_only_target_users_with_empty_target_questions_filters_none(df):
     res = only_target_users(df, stratum)
     assert res.equals(df)
 
-    # assert that it filters out shortcode
-    s = {**s, "shortcodes": ["baz"]}
-    stratum = make_stratum_conf(s)
-    res = only_target_users(df, stratum)
-    assert res is None
 
-
-def test_get_saturated_clusters_with_some_fulfilled(cnf):
-
-    cols = ["question_ref", "response", "userid", "shortcode"]
+def test_only_target_users_works_with_number_predicates(cnf):
+    cols = ["variable", "value", "user_id"]
     df = pd.DataFrame(
         [
-            ("dist", "foo", 1, "foo"),
-            ("rand", "50", 1, "foo"),
-            ("dist", "bar", 2, "foo"),
-            ("rand", "55", 2, "foo"),
-            ("dist", "bar", 3, "foo"),
-            ("rand", "101", 3, "foo"),
-            ("dist", "bar", 4, "bar"),
-            ("rand", "103", 4, "bar"),
-            ("dist", "baz", 5, "bar"),
-            ("rand", "99", 5, "bar"),
+            ("dist", "foo", 1),
+            ("rand", "50", 1),
+            ("dist", "bar", 2),
+            ("rand", "55", 2),
+            ("dist", "bar", 3),
+            ("rand", "101", 3),
+            ("dist", "bar", 4),
+            ("rand", "103", 4),
+            ("dist", "baz", 5),
+            ("rand", "99", 5),
         ],
         columns=cols,
     )
     df = _format_df(df)
 
-    res = get_saturated_clusters(df, cnf)
-    assert res == ["bar"]
+    users = only_target_users(df, cnf[1])
+    assert set(users.user_id.unique().tolist()) == {3, 4}
 
 
-def test_get_saturated_clusters_ignores_poorly_formated_numbers(cnf):
+def test_only_target_users_ignores_poorly_formated_numbers(cnf):
 
-    cols = ["question_ref", "response", "userid", "shortcode"]
+    cols = ["variable", "value", "user_id"]
     df = pd.DataFrame(
         [
-            ("dist", "foo", 1, "foo"),
-            ("rand", "50", 1, "foo"),
-            ("dist", "bar", 2, "foo"),
-            ("rand", "jkljk", 2, "foo"),
-            ("dist", "bar", 3, "foo"),
-            ("rand", "101", 3, "foo"),
-            ("dist", "bar", 4, "bar"),
-            ("rand", "103", 4, "bar"),
-            ("dist", "baz", 5, "bar"),
-            ("rand", "99", 5, "bar"),
-        ],
-        columns=cols,
-    )
-    df = _format_df(df)
-
-    res = get_saturated_clusters(df, cnf)
-    assert res == ["bar"]
-
-
-def test_get_saturated_clusters_with_some_fulfilled_on_translated_response():
-    cnf = conf(2, "translated_response")
-    cols = ["question_ref", "response", "translated_response", "userid", "shortcode"]
-    df = pd.DataFrame(
-        [
-            ("dist", "foo", None, 1, "foo"),
-            ("rand", "50", 50, 1, "foo"),
-            ("dist", "bar", None, 2, "foo"),
-            ("rand", "55", 55, 2, "foo"),
-            ("dist", "bar", None, 3, "foo"),
-            ("rand", "101", 101, 3, "foo"),
-            ("dist", "bar", None, 4, "bar"),
-            ("rand", "103", 103, 4, "bar"),
-            ("dist", "baz", None, 5, "bar"),
-            ("rand", "99", 99, 5, "bar"),
+            ("dist", "foo", 1),
+            ("rand", "50", 1),
+            ("dist", "bar", 2),
+            ("rand", "jkljk", 2),
+            ("dist", "bar", 3),
+            ("rand", "101", 3),
+            ("dist", "bar", 4),
+            ("rand", "103", 4),
+            ("dist", "baz", 5),
+            ("rand", "99", 5),
         ],
         columns=cols,
     )
@@ -291,17 +237,17 @@ def test_get_saturated_clusters_with_some_fulfilled_on_translated_response():
 
 
 def test_get_saturated_clusters_with_some_users_no_cluster(cnf):
-    cols = ["question_ref", "response", "userid", "shortcode"]
+    cols = ["variable", "value", "user_id"]
     df = pd.DataFrame(
         [
-            ("dist", "foo", 1, "foo"),
-            ("rand", "50", 1, "foo"),
-            ("rand", "55", 2, "foo"),
-            ("rand", "60", 3, "foo"),
-            ("dist", "bar", 4, "bar"),
-            ("rand", "105", 4, "bar"),
-            ("dist", "baz", 5, "bar"),
-            ("rand", "99", 5, "bar"),
+            ("dist", "foo", 1),
+            ("rand", "50", 1),
+            ("rand", "55", 2),
+            ("rand", "60", 3),
+            ("dist", "bar", 4),
+            ("rand", "105", 4),
+            ("dist", "baz", 5),
+            ("rand", "99", 5),
         ],
         columns=cols,
     )
@@ -313,19 +259,19 @@ def test_get_saturated_clusters_with_some_users_no_cluster(cnf):
 
 
 def test_get_saturated_clusters_with_no_fulfilled(cnf):
-    cols = ["question_ref", "response", "userid", "shortcode"]
+    cols = ["variable", "value", "user_id"]
     df = pd.DataFrame(
         [
-            ("dist", "foo", 1, "foo"),
-            ("rand", "50", 1, "foo"),
-            ("dist", "bar", 2, "foo"),
-            ("rand", "55", 2, "foo"),
-            ("dist", "bar", 3, "foo"),
-            ("rand", "60", 3, "foo"),
-            ("dist", "bar", 4, "bar"),
-            ("rand", "105", 4, "bar"),
-            ("dist", "baz", 5, "bar"),
-            ("rand", "99", 5, "bar"),
+            ("dist", "foo", 1),
+            ("rand", "50", 1),
+            ("dist", "bar", 2),
+            ("rand", "55", 2),
+            ("dist", "bar", 3),
+            ("rand", "60", 3),
+            ("dist", "bar", 4),
+            ("rand", "105", 4),
+            ("dist", "baz", 5),
+            ("rand", "99", 5),
         ],
         columns=cols,
     )
@@ -334,69 +280,6 @@ def test_get_saturated_clusters_with_no_fulfilled(cnf):
     res = get_saturated_clusters(df, cnf)
 
     assert res == []
-
-
-def test_get_saturated_clusters_filters_only_appropriate_shortcodes():
-
-    s = [
-        {
-            "id": "foo",
-            "quota": 1,
-            "creatives": [],
-            "audiences": [],
-            "excluded_audiences": [],
-            "shortcodes": ["foo"],
-            "facebook_targeting": {},
-            "metadata": {},
-            "question_targeting": {
-                "op": "greater_than",
-                "vars": [
-                    {"type": "response", "value": "rand"},
-                    {"type": "constant", "value": 100},
-                ],
-            },
-        },
-        {
-            "id": "barfoo",
-            "quota": 1,
-            "creatives": [],
-            "audiences": [],
-            "excluded_audiences": [],
-            "facebook_targeting": {},
-            "metadata": {},
-            "shortcodes": ["bar"],
-            "question_targeting": {
-                "op": "greater_than",
-                "vars": [
-                    {"type": "response", "value": "rook"},
-                    {"type": "constant", "value": 100},
-                ],
-            },
-        },
-    ]
-    cnf = make_conf(s)
-
-    cols = ["question_ref", "response", "userid", "shortcode"]
-    df = pd.DataFrame(
-        [
-            ("dist", "foo", 1, "foo"),
-            ("rand", "105", 1, "foo"),
-            ("dist", "bar", 2, "foo"),
-            ("rand", "55", 2, "foo"),
-            ("dist", "bar", 3, "foo"),
-            ("rand", "60", 3, "foo"),
-            ("dist", "bar", 4, "bar"),
-            ("rook", 50, 4, "bar"),
-            ("dist", "foo", 5, "foo"),
-            ("rook", 105, 5, "foo"),
-        ],
-        columns=cols,
-    )
-
-    df = _format_df(df)
-
-    res = get_saturated_clusters(df, cnf)
-    assert res == ["foo"]
 
 
 def test_get_saturated_clusters_with_different_id_fields():
@@ -410,21 +293,20 @@ def test_get_saturated_clusters_with_different_id_fields():
             "excluded_audiences": [],
             "facebook_targeting": {},
             "metadata": {},
-            "shortcodes": ["foo", "bar"],
             "question_targeting": {
                 "op": "and",
                 "vars": [
                     {
                         "op": "equal",
                         "vars": [
-                            {"type": "response", "value": "dist"},
+                            {"type": "variable", "value": "dist"},
                             {"type": "constant", "value": "foo"},
                         ],
                     },
                     {
                         "op": "greater_than",
                         "vars": [
-                            {"type": "response", "value": "rand"},
+                            {"type": "variable", "value": "rand"},
                             {"type": "constant", "value": 100},
                         ],
                     },
@@ -439,21 +321,20 @@ def test_get_saturated_clusters_with_different_id_fields():
             "excluded_audiences": [],
             "facebook_targeting": {},
             "metadata": {},
-            "shortcodes": ["foo", "bar"],
             "question_targeting": {
                 "op": "and",
                 "vars": [
                     {
                         "op": "equal",
                         "vars": [
-                            {"type": "response", "value": "dood"},
+                            {"type": "variable", "value": "dood"},
                             {"type": "constant", "value": "bar"},
                         ],
                     },
                     {
                         "op": "less_than",
                         "vars": [
-                            {"type": "response", "value": "rand"},
+                            {"type": "variable", "value": "rand"},
                             {"type": "constant", "value": 100},
                         ],
                     },
@@ -463,17 +344,17 @@ def test_get_saturated_clusters_with_different_id_fields():
     ]
     cnf = make_conf(s)
 
-    cols = ["question_ref", "response", "userid", "shortcode"]
+    cols = ["variable", "value", "user_id"]
     df = pd.DataFrame(
         [
-            ("dist", "foo", 1, "foo"),
-            ("rand", "105", 1, "foo"),
-            ("dood", "bar", 2, "foo"),
-            ("rand", "55", 2, "foo"),
-            ("dood", "bar", 3, "foo"),
-            ("rand", "60", 3, "foo"),
-            ("dood", "bar", 4, "bar"),
-            ("rook", 50, 4, "bar"),
+            ("dist", "foo", 1),
+            ("rand", "105", 1),
+            ("dood", "bar", 2),
+            ("rand", "55", 2),
+            ("dood", "bar", 3),
+            ("rand", "60", 3),
+            ("dood", "bar", 4),
+            ("rook", 50, 4),
         ],
         columns=cols,
     )
@@ -502,7 +383,7 @@ def test_get_saturated_clusters_with_complex_nested_or_condition():
                     {
                         "op": "equal",
                         "vars": [
-                            {"type": "response", "value": "dist"},
+                            {"type": "variable", "value": "dist"},
                             {"type": "constant", "value": "foo"},
                         ],
                     },
@@ -512,21 +393,21 @@ def test_get_saturated_clusters_with_complex_nested_or_condition():
                             {
                                 "op": "greater_than",
                                 "vars": [
-                                    {"type": "response", "value": "rand"},
+                                    {"type": "variable", "value": "rand"},
                                     {"type": "constant", "value": 100},
                                 ],
                             },
                             {
                                 "op": "equal",
                                 "vars": [
-                                    {"type": "response", "value": "rand"},
+                                    {"type": "variable", "value": "rand"},
                                     {"type": "constant", "value": 999},
                                 ],
                             },
                             {
                                 "op": "less_than",
                                 "vars": [
-                                    {"type": "response", "value": "rand"},
+                                    {"type": "variable", "value": "rand"},
                                     {"type": "constant", "value": 54},
                                 ],
                             },
@@ -550,7 +431,7 @@ def test_get_saturated_clusters_with_complex_nested_or_condition():
                     {
                         "op": "equal",
                         "vars": [
-                            {"type": "response", "value": "dist"},
+                            {"type": "variable", "value": "dist"},
                             {"type": "constant", "value": "bar"},
                         ],
                     },
@@ -560,14 +441,14 @@ def test_get_saturated_clusters_with_complex_nested_or_condition():
                             {
                                 "op": "greater_than",
                                 "vars": [
-                                    {"type": "response", "value": "rand"},
+                                    {"type": "variable", "value": "rand"},
                                     {"type": "constant", "value": 100},
                                 ],
                             },
                             {
                                 "op": "less_than",
                                 "vars": [
-                                    {"type": "response", "value": "rand"},
+                                    {"type": "variable", "value": "rand"},
                                     {"type": "constant", "value": 54},
                                 ],
                             },
@@ -579,17 +460,17 @@ def test_get_saturated_clusters_with_complex_nested_or_condition():
     ]
     cnf = make_conf(s)
 
-    cols = ["question_ref", "response", "userid", "shortcode"]
+    cols = ["variable", "value", "user_id"]
     df = pd.DataFrame(
         [
-            ("dist", "foo", 1, "foo"),
-            ("rand", "105", 1, "foo"),
-            ("dist", "bar", 2, "foo"),
-            ("rand", "55", 2, "foo"),
-            ("dist", "bar", 3, "foo"),
-            ("rand", "60", 3, "foo"),
-            ("dist", "bar", 4, "bar"),
-            ("rand", "50", 4, "bar"),
+            ("dist", "foo", 1),
+            ("rand", "105", 1),
+            ("dist", "bar", 2),
+            ("rand", "55", 2),
+            ("dist", "bar", 3),
+            ("rand", "60", 3),
+            ("dist", "bar", 4),
+            ("rand", "50", 4),
         ],
         columns=cols,
     )
@@ -611,28 +492,27 @@ def test_get_saturated_clusters_works_with_is_answered_op():
             "excluded_audiences": [],
             "facebook_targeting": {},
             "metadata": {},
-            "shortcodes": ["foo"],
             "question_targeting": {
                 "op": "answered",
-                "vars": [{"type": "response", "value": "rand"}],
+                "vars": [{"type": "variable", "value": "rand"}],
             },
         },
     ]
     cnf = make_conf(s)
 
-    cols = ["question_ref", "response", "userid", "shortcode"]
+    cols = ["variable", "value", "user_id"]
     df = pd.DataFrame(
         [
-            ("dist", "foo", 1, "foo"),
-            ("rand", "105", 1, "foo"),
-            ("dist", "bar", 2, "foo"),
-            ("rand", "55", 2, "foo"),
-            ("dist", "bar", 3, "foo"),
-            ("rand", "60", 3, "foo"),
-            ("dist", "bar", 4, "bar"),
-            ("rook", 50, 4, "bar"),
-            ("dist", "foo", 5, "foo"),
-            ("rook", 105, 5, "foo"),
+            ("dist", "foo", 1),
+            ("rand", "105", 1),
+            ("dist", "bar", 2),
+            ("rand", "55", 2),
+            ("dist", "bar", 3),
+            ("rand", "60", 3),
+            ("dist", "bar", 4),
+            ("rook", 50, 4),
+            ("dist", "foo", 5),
+            ("rook", 105, 5),
         ],
         columns=cols,
     )
@@ -654,11 +534,10 @@ def test_get_saturated_clusters_not_equal_only_those_who_answered():
             "excluded_audiences": [],
             "facebook_targeting": {},
             "metadata": {},
-            "shortcodes": ["foo"],
             "question_targeting": {
                 "op": "not_equal",
                 "vars": [
-                    {"type": "response", "value": "rook"},
+                    {"type": "variable", "value": "rook"},
                     {"type": "constant", "value": "105"},
                 ],
             },
@@ -666,14 +545,14 @@ def test_get_saturated_clusters_not_equal_only_those_who_answered():
     ]
     cnf = make_conf(s)
 
-    cols = ["question_ref", "response", "userid", "shortcode"]
+    cols = ["variable", "value", "user_id"]
     df = pd.DataFrame(
         [
-            ("rand", "105", 1, "foo"),
-            ("rand", "55", 2, "foo"),
-            ("rand", "60", 3, "foo"),
-            ("rook", "105", 1, "bar"),
-            ("rook", "105", 2, "foo"),
+            ("rand", "105", 1),
+            ("rand", "55", 2),
+            ("rand", "60", 3),
+            ("rook", "105", 1),
+            ("rook", "105", 2),
         ],
         columns=cols,
     )
@@ -888,7 +767,7 @@ def test_get_budget_lookup_handles_zero_spend_doesnt_affect_trimming(cnf, df):
 
 def test_get_budget_lookup_handles_initial_conditions_with_min(cnf):
     spend = {}
-    cols = ["question_ref", "response", "userid", "shortcode"]
+    cols = ["variable", "value", "user_id"]
     df = pd.DataFrame(
         [],
         columns=cols,
@@ -905,15 +784,15 @@ def test_get_budget_lookup_handles_initial_conditions_with_min(cnf):
 def test_get_budget_lookup_works_with_missing_data_from_clusters(cnf):
     cnf = conf(1)
 
-    cols = ["question_ref", "response", "userid", "shortcode"]
+    cols = ["variable", "value", "user_id"]
     df = pd.DataFrame(
         [
-            ("dist", "bar", 2, "foo"),
-            ("rand", "55", 2, "foo"),
-            ("dist", "bar", 3, "foo"),
-            ("rand", "60", 3, "foo"),
-            ("dist", "bar", 4, "bar"),
-            ("rand", "105", 4, "bar"),
+            ("dist", "bar", 2),
+            ("rand", "55", 2),
+            ("dist", "bar", 3),
+            ("rand", "60", 3),
+            ("dist", "bar", 4),
+            ("rand", "105", 4),
         ],
         columns=cols,
     )
@@ -949,5 +828,9 @@ def test_make_report():
         [("goal", {"foo": 100, "bar": 10}), ("remain", {"foo": 90, "bar": 0})]
     )
 
+    assert r["foo"] == {"goal": 100, "remain": 90}
+    assert r["bar"] == {"goal": 10, "remain": 0}
+    assert r["foo"] == {"goal": 100, "remain": 90}
+    assert r["bar"] == {"goal": 10, "remain": 0}
     assert r["foo"] == {"goal": 100, "remain": 90}
     assert r["bar"] == {"goal": 10, "remain": 0}

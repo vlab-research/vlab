@@ -19,40 +19,18 @@ class TimePeriod(NamedTuple):
     end: datetime
 
 
+class SourceConf(NamedTuple):
+    name: str
+    source: str
+    config: Any  # ????
+
+
 class RecruitmentDataEvent(NamedTuple):
     study_id: str
-    source: str
+    source_conf: SourceConf
     integrity: int
     time_period: TimePeriod
     data: Dict[Stratum, Insights]
-
-
-def _get_insights(adset, window):
-    params = {"time_range": {"since": window.start, "until": window.until}}
-    fields = [
-        "unique_link_clicks_ctr",
-        "unique_ctr",
-        "ctr",
-        "cpp",
-        "cpm",
-        "cpc",
-        "unique_clicks",
-        "reach",
-        "spend",
-        "actions",
-        "frequency",
-    ]
-
-    try:
-        return call(adset.get_insights, params=params, fields=fields)[0]
-    except IndexError:
-        return None
-
-
-# TODO: remove from here, move to Facebook RecruitmentData connector
-def get_insights(adsets: Sequence[AdSet], window: DateRange) -> Insights:
-    insights = {a["name"]: _get_insights(a, window) for a in adsets}
-    return insights
 
 
 def get_adsets(account: AdAccount, study_mapping) -> Sequence[AdSet]:

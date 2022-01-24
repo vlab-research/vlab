@@ -17,9 +17,11 @@ from .clustering import AdOptReport, get_budget_lookup, shape_df
 from .facebook.state import CampaignState, DateRange, StateNameError, get_api
 from .facebook.update import GraphUpdater, Instruction
 from .marketing import (AudienceConf, CampaignConf, CreativeConf,
-                        FacebookTargeting, Marketing, QuestionTargeting,
-                        Stratum, StratumConf, TargetVar, UserInfo,
-                        manage_audiences, validate_targeting)
+                        DestinationConf, FacebookTargeting, Marketing,
+                        QuestionTargeting, Stratum, StratumConf, TargetVar,
+                        UserInfo, manage_audiences, validate_targeting)
+from .recruitment_data import (RecruitmentData, calculate_stat, day_start,
+                               get_recruitment_data)
 from .responses import get_response_df
 
 logging.basicConfig(level=logging.INFO)
@@ -53,7 +55,10 @@ def get_df(
     strata: Sequence[Union[Stratum, AudienceConf]],
 ) -> Optional[pd.DataFrame]:
 
+    # TODO: remove shortcodes
     shortcodes = {shortcode for stratum in strata for shortcode in stratum.shortcodes}
+
+    # TODO: make this more general... Work with InferenceData
     questions = {
         q
         for stratum in strata
@@ -73,6 +78,7 @@ def get_confs_for_campaign(campaignid, db_conf):
         "audience": lambda x: typedjson.decode(AudienceConf, x),
         "creative": lambda x: typedjson.decode(CreativeConf, x),
         "opt": lambda x: typedjson.decode(CampaignConf, x),
+        "destination": lambda x: typedjson.decode(DestinationConf, x),
     }
 
     confs = get_campaign_configs(campaignid, db_conf)
@@ -97,6 +103,7 @@ class Malaria(NamedTuple):
     state: CampaignState
     m: Marketing
     confs: Dict[str, Any]
+    recruitment_data: list[RecruitmentData]
 
 
 def get_db_conf(env: Env) -> DBConf:
@@ -112,20 +119,13 @@ def get_db_conf(env: Env) -> DBConf:
 def get_confs(
     campaignid: str, env: Env
 ) -> Tuple[UserInfo, CampaignConf, DBConf, Dict[str, Any]]:
+
     db_conf = get_db_conf(env)
     userinfo = UserInfo(**get_user_info(campaignid, db_conf))
     confs = get_confs_for_campaign(campaignid, db_conf)
     config = confs["opt"][0]
 
     return userinfo, config, db_conf, confs
-
-
-def window(hours=16):
-    floor = lambda d: d.replace(hour=0, minute=0, second=0, microsecond=0)
-    yesterday = datetime.now() - timedelta(hours=hours)
-    yesterday = floor(yesterday)
-    today = datetime.now()
-    return DateRange(yesterday, today)
 
 
 def days_left(config: CampaignConf):
@@ -138,32 +138,27 @@ def days_left(config: CampaignConf):
     return days
 
 
-# TODO: deprecate this shit.
-def get_cluster_from_adset(adset_name: str) -> str:
-    pat = r"(?<=vlab-).+"
-    matches = re.search(pat, adset_name)
-    if not matches:
-        raise Exception(f"Cannot extract cluster id from adset: {adset_name}")
-
-    return matches[0]
+def make_window(hours, now):
+    start = now - timedelta(hours=hours)
+    start = day_start(start)
+    return DateRange(start, now)
 
 
 def load_basics(campaignid: str, env: Env) -> Malaria:
     userinfo, config, db_conf, confs = get_confs(campaignid, env)
 
-    w = window(hours=config.opt_window)
-
     state = CampaignState(
         userinfo.token,
         get_api(env, userinfo.token),
         config.ad_account,
-        config.ad_campaign,
-        w,
+        config.ad_campaign_name,
     )
 
-    m = Marketing(state, config)
+    m = Marketing(state, config, confs["destination"])
 
-    return Malaria(userinfo, config, db_conf, state, m, confs)
+    rd = get_recruitment_data(db_conf, campaignid)
+
+    return Malaria(userinfo, config, db_conf, state, m, confs, rd)
 
 
 def run_instructions(instructions: Sequence[Instruction], state: CampaignState):
@@ -176,20 +171,21 @@ def run_instructions(instructions: Sequence[Instruction], state: CampaignState):
 def update_ads_for_campaign(
     malaria: Malaria,
 ) -> Tuple[Sequence[Instruction], Optional[AdOptReport]]:
-    userinfo, config, db_conf, state, m, confs = malaria
+    userinfo, config, db_conf, state, m, confs, rd = malaria
     strata = hydrate_strata(state, confs["stratum"], confs["creative"])
 
     df = get_df(db_conf, userinfo.survey_user, strata)
 
-    # TODO: change to insights
-    spend = {get_cluster_from_adset(n): i for n, i in state.spend.items()}
+    now = datetime.utcnow()
+    window = make_window(config.opt_window, now)
+    spend = calculate_stat(rd, "spend", window)
 
     budget_lookup, report = get_budget_lookup(
         df,
         strata,
         config.budget,
         config.min_budget,
-        state.window,
+        window,
         spend,
         state.total_spend,
         days_left=days_left(config),
@@ -203,7 +199,7 @@ def update_audience_for_campaign(
     malaria: Malaria,
 ) -> Tuple[Sequence[Instruction], Optional[AdOptReport]]:
 
-    userinfo, config, db_conf, state, m, confs = malaria
+    userinfo, config, db_conf, state, m, confs, rd = malaria
     audience_confs = confs["audience"]
 
     df = get_df(db_conf, userinfo.survey_user, audience_confs)

@@ -2,9 +2,11 @@ import random
 from typing import TypeVar
 
 import pytest
+import typedjson
 from facebook_business.adobjects.customaudience import CustomAudience
 
-from .marketing import (Audience, CreativeConf, Instruction,
+from .marketing import (Audience, AudienceConf, CreativeConf,
+                        FlyMessengerDestination, Instruction,
                         InvalidConfigError, Lookalike, LookalikeAudience,
                         LookalikeSpec, Partitioning, StratumConf, make_ref,
                         manage_aud)
@@ -155,28 +157,57 @@ def test_manage_aud_does_nothing_with_lookalike_and_lookalike_exists():
     assert instructions == []
 
 
+# class FlyMessengerDestination(NamedTuple):
+#     form: str  # fly only
+#     welcome_message: str  # messenger only
+#     button_text: str  # messenger only
+
+
+# class AppDestination(NamedTuple):
+#     app_id: str  # app only
+#     app_install_link: str  # app only
+#     deeplink_template: str
+
+
+# DestinationConf = Union[FlyMessengerDestination, AppDestination]
+
+
+# class CreativeConf(NamedTuple):
+#     name: str
+#     image_hash: str
+#     image: str
+#     body: str
+#     link_text: str
+#     destination_conf: DestinationConf
+
+
 def _creative_conf(name, form):
     return CreativeConf(
-        name, "foo", "foo.jpg", "body", "welcome", "link_text", "button", form
+        name,
+        image_hash="foo",
+        image="foo.jpg",
+        body="body",
+        link_text="link_text",
+        destination_conf=FlyMessengerDestination(
+            form=form, welcome_message="welcome", button_text="button"
+        ),
     )
 
 
 def test_make_ref():
     metadata = {"bar": "baz"}
-    creative = _creative_conf("foo", "form1")
-    ref = make_ref(creative, metadata)
-    assert ref == "form.form1.creative.foo.bar.baz"
+    ref = make_ref("foo", metadata)
+    assert ref == "creative.foo.bar.baz"
 
     metadata = {}
-    ref = make_ref(creative, metadata)
-    assert ref == "form.form1.creative.foo"
+    ref = make_ref("foo", metadata)
+    assert ref == "creative.foo"
 
 
 def test_make_url_escapes():
     metadata = {"bar": "baz foo!"}
-    creative = _creative_conf("foo", "form1")
-    ref = make_ref(creative, metadata)
-    assert ref == "form.form1.creative.foo.bar.baz%20foo%21"
+    ref = make_ref("foo", metadata)
+    assert ref == "creative.foo.bar.baz%20foo%21"
 
 
 def test_partitioning_valid_scenarios():
@@ -187,6 +218,50 @@ def test_partitioning_valid_scenarios():
     with pytest.raises(InvalidConfigError):
         Partitioning(min_users=100, max_days=100)
         Partitioning(min_users=100, min_days=100, max_days=100)
+
+
+# Note: not a unit test, testing typedjson implicitly
+def test_load_partitioning_works_with_errors():
+    raw = {"min_users": 100}
+    pt = typedjson.decode(Partitioning, raw)
+    assert pt == Partitioning(min_users=100)
+
+    raw = {"min_users": 100, "max_days": 100}
+    with pytest.raises(InvalidConfigError):
+        typedjson.decode(Partitioning, raw)
+
+
+def test_AudienceConf_validates_config_based_on_subtype():
+    AudienceConf("foo", "CUSTOM", ["foo"])
+
+    # partitioned
+    AudienceConf(
+        "foo", "PARTITIONED", ["foo"], partitioning=Partitioning(min_users=100)
+    )
+
+    with pytest.raises(InvalidConfigError):
+        AudienceConf("foo", "PARTITIONED", ["foo"])
+
+    with pytest.raises(InvalidConfigError):
+        AudienceConf("foo", "PARTITIONED", ["foo"], partitioning={"foo": "bar"})
+
+    # lookalike
+    AudienceConf(
+        "foo",
+        "LOOKALIKE",
+        ["foo"],
+        lookalike=Lookalike(100, LookalikeSpec("IN", 0.2, 0.1)),
+    )
+
+    with pytest.raises(InvalidConfigError):
+        AudienceConf(
+            "foo",
+            "LOOKALIKE",
+            ["foo"],
+        )
+
+    with pytest.raises(InvalidConfigError):
+        AudienceConf("foo", "LOOKALIKE", ["foo"], lookalike={"foo": "bar"})
 
 
 # test

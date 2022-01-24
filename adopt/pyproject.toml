@@ -12,13 +12,15 @@ environs = "^9.3.2"
 facebook-business = "^12.0.0"
 numpy = "^1.22.1"
 pandas = "^1.4.0"
-psycopg2-binary = "^2.8.6"
 pystache = "^0.6.0"
 requests = "^2.25.1"
 scipy = "^1.6.3"
 toolz = "^0.11.1"
 setuptools = "^60.5.0" # needed for current poetry version 1.12
 typedjson = {git = "https://github.com/nandanrao/typedjson-python", rev = "86138a64a9642bb811a79273d0d8dcbfbfe6b5cc"}
+psycopg = "^3.0.8"
+openpyxl = "^3.0.9"
+orjson = "^3.6.6"
 
 [tool.poetry.dev-dependencies]
 future = "^0.18.2"

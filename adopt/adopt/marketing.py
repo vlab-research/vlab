@@ -11,6 +11,7 @@ from facebook_business.adobjects.adcreative import AdCreative
 from facebook_business.adobjects.adcreativelinkdata import AdCreativeLinkData
 from facebook_business.adobjects.adcreativeobjectstoryspec import \
     AdCreativeObjectStorySpec
+from facebook_business.adobjects.adpromotedobject import AdPromotedObject
 from facebook_business.adobjects.adset import AdSet
 from facebook_business.adobjects.campaign import Campaign
 from facebook_business.adobjects.customaudience import CustomAudience
@@ -20,7 +21,16 @@ from .facebook.reconciliation import adset_dif
 from .facebook.state import CampaignState, split
 from .facebook.update import Instruction
 
+ADSET_HOURS = 48
+
 Params = Dict[str, Any]
+
+
+class TargetingConf(NamedTuple):
+    template_campaign_name: Optional[str]
+    distribution_vars: list[str]
+    country_code: str
+    respondent_audience_name: str
 
 
 class UserInfo(NamedTuple):
@@ -42,6 +52,20 @@ class QuestionTargeting(NamedTuple):
     vars: List[Union[TargetVar, "QuestionTargeting"]]  # type: ignore
 
 
+class FlyMessengerDestination(NamedTuple):
+    initial_shortcode: str
+    survey_shortcodes: list[str]
+    finished_question_ref: str
+
+
+class AppDestination(NamedTuple):
+    facebook_app_id: str
+    app_install_link: str
+    deeplink_template: str
+
+
+DestinationConf = Union[FlyMessengerDestination, AppDestination]
+
 FacebookTargeting = Dict[str, Any]
 
 
@@ -50,32 +74,30 @@ class CampaignConf(NamedTuple):
     destination_type: str
     page_id: str
     instagram_id: Optional[str]
-    adset_hours: int
     budget: float
     min_budget: float
     opt_window: int
-    end_date: str
+    start_date: datetime
+    end_date: datetime
     proportional: bool
     ad_account: str
-    ad_campaign: str
+    ad_campaign_name: str
+    extra_metadata: dict[str, str]
 
 
 class CreativeConf(NamedTuple):
     name: str
     image_hash: str
-    image: str
     body: str
-    welcome_message: str
     link_text: str
-    button_text: str
-    form: str
+    welcome_message: Optional[str] = None  # messenger only
+    button_text: Optional[str] = None  # messenger only
 
 
 class StratumConf(NamedTuple):
     id: str
     quota: Union[int, float]
     creatives: List[str]
-    shortcodes: List[str]
     audiences: List[str]
     excluded_audiences: List[str]
     facebook_targeting: FacebookTargeting
@@ -86,7 +108,6 @@ class StratumConf(NamedTuple):
 # OLD
 # {
 #     "name": f"vlab-vacc-{COUNTRY_CODE}-vacc-A+B",
-#     "shortcodes": SURVEY_SHORTCODES,
 #     "subtype": "LOOKALIKE",
 #     "lookalike": {
 #         "name": f"vlab-vacc-{COUNTRY_CODE}-vacc-A+B-lookalike",
@@ -102,7 +123,6 @@ class StratumConf(NamedTuple):
 # NEW
 # {
 #     "name": f"vlab-vacc-{COUNTRY_CODE}-",
-#     "shortcodes": SURVEY_SHORTCODES,
 #     "subtype": "LOOKALIKE",
 #     "lookalike": {
 #         "target": 1100,
@@ -115,27 +135,9 @@ class StratumConf(NamedTuple):
 
 # {
 #     "name": f"vlab-vacc-{COUNTRY_CODE}-respondents",
-#     "shortcodes": SURVEY_SHORTCODES,
 #     "subtype": "PARTITIONED",
 #     "partitioning": {
 #     },
-
-# create higher level audience conf object that generates
-# AudienceConfs dynamically (in the case of a partitioned audience)
-# --> you're implicitly doing this already with custom/lookalike, no?
-
-# OR add configuration -> make it dummer.
-# In addition to question_targeting, you have some sort of config
-# needed to get users from database, without knowing anything else.
-#
-# Or make this one the higher level, that's what's happenign already.
-# and in addition to "lookalike" it has a "partitions" field...?
-# but the 1-1 mapping of AudienceConf to audience will be removed.
-# But that's probably better for the old way anyhoo.
-#
-# The way it's currently is in "manage_aud" -> could work within that.
-# It's not a perfect parallel with Lookalikes, because their the set of
-# users doesn't really change - or for lookalikes there are no users!
 
 
 class InvalidConfigError(BaseException):
@@ -178,6 +180,41 @@ class Partitioning:
             )
 
 
+def validate(cls, subtype, subtype_confs):
+    if subtype not in subtype_confs:
+        raise InvalidConfigError(
+            f"Invalid subtype: {subtype}. " f"We support: {list(subtype_confs.keys())}"
+        )
+
+    conf = subtype_confs[subtype]
+    if conf:
+        attr, type_ = conf
+        val = getattr(cls, attr)
+        if not isinstance(val, type_):
+            raise InvalidConfigError(
+                f"Invalid config. Subtype {subtype} "
+                f"requires a {type_} value for {attr}"
+            )
+
+
+@dataclass(frozen=True)
+class SimpleRandomizationConf:
+    arms: int
+
+
+@dataclass(frozen=True)
+class RandomizationConf:
+    name: str
+    strategy: str
+    config: Union[SimpleRandomizationConf]
+
+    def __post_init__(self):
+        subtype_confs = {
+            "SIMPLE": ("config", SimpleRandomizationConf),
+        }
+        validate(self, self.subtype, subtype_confs)
+
+
 class LookalikeSpec(NamedTuple):
     country: str
     ratio: float
@@ -189,13 +226,21 @@ class Lookalike(NamedTuple):
     spec: LookalikeSpec
 
 
-class AudienceConf(NamedTuple):
+@dataclass(frozen=True)
+class AudienceConf:
     name: str
     subtype: str
-    shortcodes: List[str]
     question_targeting: Optional[QuestionTargeting] = None
     lookalike: Optional[Lookalike] = None
     partitioning: Optional[Partitioning] = None
+
+    def __post_init__(self):
+        subtype_confs = {
+            "CUSTOM": None,
+            "LOOKALIKE": ("lookalike", Lookalike),
+            "PARTITIONED": ("partitioning", Partitioning),
+        }
+        validate(self, self.subtype, subtype_confs)
 
 
 class Audience(NamedTuple):
@@ -225,7 +270,6 @@ class Stratum(NamedTuple):
     id: str
     quota: Union[int, float]
     creatives: List[CreativeConf]
-    shortcodes: List[str]
     facebook_targeting: FacebookTargeting
     question_targeting: Optional[QuestionTargeting]
     metadata: Metadata
@@ -246,6 +290,7 @@ class AdsetConf(NamedTuple):
     hours: int
     optimization_goal: str
     destination_type: str
+    promoted_object: Optional[dict[str, str]]
 
 
 def dict_from_nested_type(d):
@@ -275,7 +320,7 @@ def validate_targeting(targeting):
 
 
 def create_adset(c: AdsetConf) -> AdSet:
-    name = f"vlab-{c.stratum.id}"  # TODO: remove vlab prefix
+    name = c.stratum.id
     targeting = {**c.stratum.facebook_targeting}
 
     # TODO: document this funkyness - pretends it's runnign at midnight...
@@ -294,6 +339,10 @@ def create_adset(c: AdsetConf) -> AdSet:
     adset[AdSet.Field.billing_event] = AdSet.BillingEvent.impressions
     adset[AdSet.Field.bid_strategy] = AdSet.BidStrategy.lowest_cost_without_cap
 
+    # hack to support app install ads...
+    if c.promoted_object:
+        adset[AdSet.Field.promoted_object] = c.promoted_object
+
     return adset
 
 
@@ -310,13 +359,6 @@ def make_welcome_message(text, button_text, ref):
     }
 
     return json.dumps(message, sort_keys=True)
-
-
-def make_ref(creative: CreativeConf, metadata: Metadata) -> str:
-    s = f"form.{creative.form}.creative.{creative.name}"
-    for k, v in metadata.items():
-        s += f".{k}.{quote(v)}"
-    return s
 
 
 def create_ad(adset: AdSet, creative: AdCreative, status: str) -> Ad:
@@ -429,52 +471,82 @@ def add_users_to_audience(
     ]
 
 
-def create_creative(
-    config: CreativeConf, metadata: Metadata, page_id: str, insta_id: Optional[str]
-) -> AdCreative:
+def make_ref(creative_name: str, metadata: Metadata) -> str:
+    s = f"creative.{creative_name}"
+    for k, v in metadata.items():
+        s += f".{k}.{quote(v)}"
+    return s
 
-    ref = make_ref(config, metadata)
-    msg = make_welcome_message(config.welcome_message, config.button_text, ref)
 
-    oss = {
-        AdCreativeObjectStorySpec.Field.link_data: {
-            AdCreativeLinkData.Field.call_to_action: {
-                "type": "MESSAGE_PAGE",
-                "value": {"app_destination": "MESSENGER"},
-            },
-            AdCreativeLinkData.Field.image_hash: config.image_hash,
-            AdCreativeLinkData.Field.message: config.body,
-            AdCreativeLinkData.Field.name: config.link_text,
-            AdCreativeLinkData.Field.page_welcome_message: msg,
-        },
-        AdCreativeObjectStorySpec.Field.page_id: page_id,
+def messenger_call_to_action():
+    {
+        "type": "MESSAGE_PAGE",
+        "value": {"app_destination": "MESSENGER"},
     }
+
+
+def app_download_call_to_action(deeplink):
+    return {
+        "type": "INSTALL_MOBILE_APP",
+        "value": {"app_link": deeplink},
+    }
+
+
+def create_creative(
+    config: CreativeConf,
+    page_id: str,
+    call_to_action: dict[str, Any],
+    insta_id: Optional[str],
+    page_welcome_message: Optional[str] = None,
+    url_tags: Optional[str] = None,
+    link: Optional[str] = None,
+) -> AdCreative:
 
     c = AdCreative()
 
+    link_data = {
+        AdCreativeLinkData.Field.call_to_action: call_to_action,
+        AdCreativeLinkData.Field.image_hash: config.image_hash,
+        AdCreativeLinkData.Field.message: config.body,
+        AdCreativeLinkData.Field.name: config.link_text,
+    }
+
+    if page_welcome_message:
+        link_data[AdCreativeLinkData.Field.page_welcome_message] = page_welcome_message
+
+    if link:
+        link_data[AdCreativeLinkData.Field.link] = link
+
     if insta_id:
         c[AdCreative.Field.instagram_actor_id] = insta_id
-        oss[AdCreativeObjectStorySpec.Field.instagram_actor_id] = insta_id # used???
 
+    if url_tags:
+        c[AdCreative.Field.url_tags] = url_tags
 
     c[AdCreative.Field.name] = config.name
-    c[AdCreative.Field.url_tags] = f"ref={ref}"
     c[AdCreative.Field.actor_id] = page_id
-    c[AdCreative.Field.object_story_spec] = oss
+    c[AdCreative.Field.object_story_spec] = {
+        AdCreativeObjectStorySpec.Field.link_data: link_data,
+        AdCreativeObjectStorySpec.Field.page_id: page_id,
+    }
 
     return c
 
 
 class Marketing:
-    def __init__(self, state: CampaignState, config: CampaignConf):
+    def __init__(
+        self, state: CampaignState, config: CampaignConf, destination: DestinationConf
+    ):
         cnf: Dict[str, Any] = {
             "PAGE_ID": config.page_id,
             "INSTA_ID": config.instagram_id,
             "OPTIMIZATION_GOAL": config.optimization_goal,
             "DESTINATION_TYPE": config.destination_type,
-            "ADSET_HOURS": config.adset_hours,
+            "ADSET_HOURS": ADSET_HOURS,
+            "EXTRA_METADATA": config.extra_metadata,
         }
 
+        self.destination = destination
         self.state = state
         self.cnf = cnf
 
@@ -498,6 +570,15 @@ class Marketing:
 
         creatives = [self.create_creative(stratum, c) for c in stratum.creatives]
 
+        if isinstance(self.destination, AppDestination):
+            d = self.destination
+            promoted_object = {
+                AdPromotedObject.Field.application_id: d.facebook_app_id,
+                AdPromotedObject.Field.object_store_url: d.app_install_link,
+            }
+        else:
+            promoted_object = None
+
         ac = AdsetConf(
             self.state.campaign,
             stratum,
@@ -507,6 +588,7 @@ class Marketing:
             self.cnf["ADSET_HOURS"],
             self.cnf["OPTIMIZATION_GOAL"],
             self.cnf["DESTINATION_TYPE"],
+            promoted_object,
         )
 
         adset = create_adset(ac)
@@ -515,6 +597,31 @@ class Marketing:
         return (adset, ads)
 
     def create_creative(self, stratum: Stratum, config: CreativeConf) -> AdCreative:
-        return create_creative(
-            config, stratum.metadata, self.cnf["PAGE_ID"], self.cnf["INSTA_ID"]
-        )
+        md = {**stratum.metadata, **self.cnf["EXTRA_METADATA"]}
+
+        if isinstance(self.destination, FlyMessengerDestination):
+            md = {**md, "form": self.destination.initial_shortcode}
+            ref = make_ref(config.name, md)
+            msg = make_welcome_message(config.welcome_message, config.button_text, ref)
+
+            return create_creative(
+                config,
+                self.cnf["PAGE_ID"],
+                call_to_action=messenger_call_to_action(),
+                page_welcome_message=msg,
+                insta_id=self.cnf["INSTA_ID"],
+                url_tags=f"ref={ref}",
+            )
+
+        if isinstance(self.destination, AppDestination):
+            ref = make_ref(config.name, md)
+            deeplink = self.destination.deeplink_template.format(ref=ref)
+            link = self.destination.app_install_link
+
+            return create_creative(
+                config,
+                self.cnf["PAGE_ID"],
+                call_to_action=app_download_call_to_action(deeplink),
+                insta_id=self.cnf["INSTA_ID"],
+                link=link,
+            )
