@@ -1,7 +1,8 @@
 import logging
 import re
+from datetime import date, datetime, timezone
 from functools import cached_property
-from typing import List, Tuple
+from typing import Any, List, Tuple
 
 from facebook_business.adobjects.ad import Ad
 from facebook_business.adobjects.adaccount import AdAccount
@@ -35,7 +36,13 @@ def get_creatives(api: FacebookAdsApi, ids: List[str]) -> List[AdCreative]:
     if not ids:
         return []
 
-    fields = ["url_tags", "actor_id", "instagram_actor_id", "object_story_spec", "link_deep_link_url"]
+    fields = [
+        "url_tags",
+        "actor_id",
+        "instagram_actor_id",
+        "object_story_spec",
+        "link_deep_link_url",
+    ]
     return call(AdCreative.get_by_ids, ids=ids, fields=fields, api=api)
 
 
@@ -53,6 +60,7 @@ def get_adsets(campaign: Campaign) -> List[AdSet]:
             AdSet.Field.daily_budget,
             AdSet.Field.end_time,
             AdSet.Field.bid_strategy,
+            AdSet.Field.promoted_object,
         ],
     )
 
@@ -100,6 +108,36 @@ def get_all_ads(api: FacebookAdsApi, c: Campaign) -> List[Ad]:
     return ads
 
 
+def _get_insights(adset, window):
+    params = {"time_range": {"since": window.start, "until": window.until}}
+    fields = [
+        "unique_link_clicks_ctr",
+        "unique_ctr",
+        "ctr",
+        "cpp",
+        "cpm",
+        "cpc",
+        "unique_clicks",
+        "reach",
+        "spend",
+        "actions",
+        "frequency",
+    ]
+
+    try:
+        return call(adset.get_insights, params=params, fields=fields)[0]
+    except IndexError:
+        return None
+
+
+# def get_daily_insights(
+#     adsets: list[AdSet], start: date, end: date
+# ) -> dict[date, dict[str, Any]]:
+
+#     days = get_past_days(start, end)
+#     return {day: get_insights(adsets, DateRange(day, day)) for day in days}
+
+
 # TODO: remove from here, adopt should know how to get spend
 # from stored RecruitmentData
 # def get_spending(insights: Insights) -> Dict[str, float]:
@@ -107,6 +145,10 @@ def get_all_ads(api: FacebookAdsApi, c: Campaign) -> List[Ad]:
 #     spend = {n: spending(i) for n, i in insights.items()}
 #     spend = {n: float(v) * 100 for n, v in spend.items()}
 #     return spend
+
+# daily_insights
+# create daily insights from campaign start to now.
+# make "temp" true/false flag
 
 
 def get_custom_audiences(account: AdAccount) -> List[CustomAudience]:
@@ -166,6 +208,12 @@ class CampaignState:
             raise StateNameError(f"Could not find a campaign with name: {name}")
         return campaign
 
+    @property
+    def campaign_start(self) -> datetime:
+        return datetime.strptime(
+            self.campaign["created_time"], "%Y-%m-%dT%H:%M:%S%z"
+        ).astimezone(timezone.utc)
+
     @cached_property
     def adsets(self) -> List[AdSet]:
         adsets = get_adsets(self.campaign)
@@ -201,3 +249,14 @@ class CampaignState:
 
             raise StateNameError(f"Audience not found with name: {name}")
         return aud
+
+
+def get_insights(
+    state: CampaignState, start: datetime, end: datetime
+) -> dict[str, Any]:
+
+    window = DateRange(start, end)
+    insights = {a["name"]: _get_insights(a, window) for a in state.adsets}
+
+    # map adset name to stratum name
+    return insights

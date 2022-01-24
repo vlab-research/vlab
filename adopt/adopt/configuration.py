@@ -1,0 +1,232 @@
+import json
+import os
+import re
+from itertools import product
+from typing import get_type_hints
+
+import pandas as pd
+import typedjson
+from pandas.api.types import is_list_like
+from typedjson.annotation import origin_of
+
+from adopt.marketing import CreativeConf
+
+
+def hyphen_case(s):
+    try:
+        return s.replace(" ", "-").lower().strip()
+    except AttributeError:
+        return str(s)
+
+
+def make_variable_extraction(name):
+    return re.compile(rf"{name}\s*-?\s*(.+)")
+
+
+# TRIM from variable extraction
+
+
+def get_geo_name(g):
+    m = re.search(make_variable_extraction("GEO"), g["name"])
+    if m is not None:
+        return m[1]
+
+    try:
+        return g["targeting"]["geo_locations"]["regions"][0]["name"]
+    except KeyError:
+        raise Exception(f"Couldnt make geo name from: {g['name']}")
+
+
+def conf_for_export(conf):
+    conf["geo_locations"] = conf["geo_locations"].export_all_data()
+    if conf.get("excluded_geo_locations"):
+        conf["excluded_geo_locations"] = conf[
+            "excluded_geo_locations"
+        ].export_all_data()
+    return conf
+
+
+fb_property_lookup = {
+    "age": ["age_max", "age_min"],
+    "gender": ["genders"],
+    "location": ["excluded_geo_locations", "geo_locations"],
+    "education": ["flexible_spec", "exclusions"],
+}
+
+
+def get_relevant_part(keys, adset_conf):
+    conf = {k: v for k, v in adset_conf["targeting"].items() if k in keys}
+
+    return conf
+
+
+extraction_confs = [
+    ("age", "Age", lambda g: str(g["targeting"]["age_min"])),
+    ("gender", "Gender", lambda g: str(g["targeting"]["genders"][0])),
+    ("location", "GEO", get_geo_name),
+]
+
+
+def _get_adsets(template_state, name, pattern, fn):
+    sets = [(fn(a), a) for a in template_state.adsets if pattern in a["name"]]
+    sets = [(n, get_relevant_part(fb_property_lookup[name], a)) for n, a in sets]
+    return [{"name": n, "params": c} for n, c in sets]
+
+
+def get_adsets(template_state, confs):
+    return [{"levels": _get_adsets(template_state, *c)} for c in confs]
+
+
+def format_group_product(group, share_lookup, finished_question_ref=None):
+    facebook_targeting = {}
+    tvars = []
+    md = {}
+    conf = {"audiences": [], "excluded_audiences": []}
+
+    id_list = []
+    names = []
+
+    for name, source, c in group:
+        id_list += [name, c["name"]]
+        names += [c["name"]]
+
+        if "params" in c:
+            facebook_targeting = {**facebook_targeting, **c["params"]}
+
+        if source == "facebook":
+            md_name = f"stratum_{name}"
+            qt = {
+                "op": "equal",
+                "vars": [
+                    {"type": "response", "value": f"md:{md_name}"},
+                    {"type": "constant", "value": c["name"]},
+                ],
+            }
+            tvars.append(qt)
+
+            md = {**md, md_name: c["name"]}
+
+        if source == "survey":
+            tvars.append(c["question_targeting"])
+            conf["audiences"] += c.get("audiences", [])
+            conf["excluded_audiences"] += c.get("excluded_audiences", [])
+
+    if finished_question_ref:
+        tvars.append(
+            {
+                "op": "answered",
+                "vars": [{"type": "response", "value": finished_question_ref}],
+            }
+        )
+
+    conf = {
+        "facebook_targeting": facebook_targeting,
+        "question_targeting": {"op": "and", "vars": tvars},
+        "metadata": md,
+        **conf,
+    }
+
+    variables = [name for name, _, _ in group]
+    try:
+        share = (
+            share_lookup[variables + ["percentage"]]
+            .set_index(variables)
+            .loc[tuple(names)][0]
+        )
+    except KeyError as e:
+        raise Exception(f"Could not find share for stratum: {names}") from e
+
+    id_ = "-".join([hyphen_case(s) for s in id_list])
+
+    return id_, share, conf
+
+
+def _creative_conf(c):
+    return {
+        "name": c["name"],
+        "image_hash": c["image_hash"],
+        "body": c["body"],
+        "link_text": c["headline"],
+        "welcome_message": c["welcome_message"],
+        "button_text": c["button_text"],
+    }
+
+
+def generate_creative_confs(path):
+    df = pd.read_excel(path, sheet_name="creative")
+    image_confs = df.to_dict(orient="records")
+    confs = [CreativeConf(**_creative_conf(c))._asdict() for c in image_confs]
+    image_confs = [
+        {
+            **c,
+            "tags": [x.strip() for x in c["tags"].split(",")]
+            if c.get("tags") and isinstance(c["tags"], str) and c["tags"] != ""
+            else None,
+        }
+        for c in image_confs
+    ]
+
+    return confs, image_confs
+
+
+def stringify_column(col):
+    if isinstance(col, tuple):
+        return tuple([str(i) for i in col])
+    return str(col)
+
+
+def read_share_lookup(path, distribution_vars):
+    df = pd.read_excel(
+        path,
+        header=list(range(0, len(distribution_vars))),
+        index_col=[0],
+        sheet_name="weighting",
+    )
+    df.columns = df.columns.map(stringify_column)
+    return df
+
+
+def cast_strings(type_, dict_):
+    res = dict_.copy()
+
+    hints = get_type_hints(type_)
+    for k, v in dict_.items():
+
+        # quick hack to allow for Optional...
+        if pd.isna(v):
+            res[k] = None
+            continue
+
+        if isinstance(v, str):
+            t = hints[k]
+
+            if origin_of(t) == list:
+                res[k] = [x.strip() for x in v.split(",")]
+
+            if origin_of(t) == dict:
+                res[k] = json.loads(v)
+                continue
+
+            if t not in (int, float, str, bool):
+                continue
+
+            res[k] = t(v)
+    return res
+
+
+def additional_ops(d):
+    ops = {"budget": lambda x: x * 100, "min_budget": lambda x: x * 100}
+
+    for k, fn in ops.items():
+        if k in d:
+            d[k] = fn(d[k])
+
+    return d
+
+
+def parse_kv_sheet(path, sheet_name, type_):
+    df = pd.read_excel(path, sheet_name=sheet_name, index_col=[0])
+    x = {k: v["value"] for k, v in df.to_dict(orient="index").items()}
+    x = cast_strings(type_, x)
+    x = additional_ops(x)
+    return typedjson.decode(type_, x)

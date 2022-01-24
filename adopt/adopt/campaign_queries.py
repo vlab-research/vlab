@@ -1,6 +1,8 @@
 import json
 from typing import Any, Dict, List, Tuple
 
+import orjson
+
 from .clustering import AdOptReport
 from .responses import query
 
@@ -11,13 +13,13 @@ def get_user_info(campaignid, cnf):
     q = """
     SELECT
       details->>'access_token' as token,
-      campaigns.userid as survey_user
-    FROM campaigns
+      studies.user_id as survey_user
+    FROM studies
     JOIN credentials
-    ON campaigns.userid = credentials.userid
-    AND campaigns.credentials_entity = credentials.entity
-    AND campaigns.credentials_key = credentials.key
-    WHERE campaigns.id = %s
+    ON studies.user_id = credentials.user_id
+    AND studies.credentials_entity = credentials.entity
+    AND studies.credentials_key = credentials.key
+    WHERE studies.id = %s
     ORDER BY credentials.created DESC -- not currently used!
     LIMIT 1
     """
@@ -25,7 +27,7 @@ def get_user_info(campaignid, cnf):
     res = query(cnf, q, (campaignid,), as_dict=True)
     try:
         return next(res)
-    except StopIteration as e:
+    except StopIteration:
         raise Exception(f"Could not find credentials for campaign id: {campaignid}")
 
 
@@ -33,7 +35,7 @@ def get_pageid(survey_user, cnf):
     q = """
     SELECT pageid, instagramid
     FROM facebook_pages
-    WHERE userid = %s
+    WHERE user_id = %s
     LIMIT 1;
     """
 
@@ -43,7 +45,7 @@ def get_pageid(survey_user, cnf):
 
 def get_campaigns(cnf: DBConf):
     q = """
-    SELECT id FROM campaigns WHERE active = TRUE
+    SELECT id FROM studies
     """
 
     return [r["id"] for r in query(cnf, q, as_dict=True)]
@@ -51,7 +53,7 @@ def get_campaigns(cnf: DBConf):
 
 def create_campaign_for_user(email, name, cnf: DBConf, key):
     q = """
-       INSERT INTO  campaigns(name, userid, credentials_key)
+       INSERT INTO studies(name, user_id, credentials_key)
        VALUES (%s, (SELECT id FROM users WHERE email = %s), %s)
        RETURNING *
     """
@@ -61,8 +63,8 @@ def create_campaign_for_user(email, name, cnf: DBConf, key):
 def get_campaigns_for_user(email, cnf: DBConf):
     q = """
        SELECT *
-       FROM campaigns
-       WHERE userid = (SELECT id FROM users WHERE email = %s)
+       FROM studies
+       WHERE user_id = (SELECT id FROM users WHERE email = %s)
     """
 
     return list(query(cnf, q, (email,), as_dict=True))
@@ -75,8 +77,8 @@ def get_campaign_configs(campaignid, cnf: DBConf):
                ROW_NUMBER() OVER
                  (PARTITION BY conf_type ORDER BY created DESC)
                as n
-               FROM campaign_confs
-               WHERE campaignid = %s
+               FROM study_confs
+               WHERE study_id = %s
     ) SELECT conf_type, conf FROM t WHERE n = 1;
     """
 
@@ -85,14 +87,13 @@ def get_campaign_configs(campaignid, cnf: DBConf):
 
 
 def _insert_query(table, cols):
-
     placeholders = ",".join(["%s"] * (len(cols) - 1))
     q = f"""
     INSERT INTO {table}({','.join(cols)})
     VALUES(
       (SELECT id
-       FROM campaigns
-       WHERE userid = (SELECT id FROM users WHERE email = %s)
+       FROM studies
+       WHERE user_id = (SELECT id FROM users WHERE email = %s)
        AND name = %s),
      {placeholders})
     """
@@ -104,10 +105,10 @@ def create_campaign_confs(
     campaignid: str, conf_type: str, dat: List[Dict[str, Any]], cnf: DBConf
 ):
 
-    dats = (campaignid, conf_type, json.dumps(dat))
+    dats = (campaignid, conf_type, orjson.dumps(dat).decode("utf8"))
 
     q = """
-    INSERT INTO campaign_confs(campaignid, conf_type, conf)
+    INSERT INTO study_confs(study_id, conf_type, conf)
     VALUES(%s, %s, %s)
     RETURNING *
     """
@@ -119,7 +120,7 @@ def create_adopt_report(
     campaignid: str, report_type: str, details: AdOptReport, cnf: DBConf
 ):
     q = """
-    INSERT INTO adopt_reports(campaignid, report_type, details)
+    INSERT INTO adopt_reports(study_id, report_type, details)
     VALUES(%s, %s, %s)
     RETURNING *
     """

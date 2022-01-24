@@ -7,15 +7,10 @@ from .clustering import only_target_users
 from .marketing import (Audience, AudienceConf, LookalikeAudience, Marketing,
                         Partitioning)
 
-# where to put partitioning logic...
-# really has to be here.
-# don't want to test only_target_users :/ ... or mock if avoidable.
-
-
 def get_users(df) -> List[str]:
     if df is None:
         return []
-    return df.userid.unique().tolist()
+    return df.user_id.unique().tolist()
 
 
 def partitioning_view(
@@ -24,7 +19,7 @@ def partitioning_view(
 
     d = (
         df.sort_values("timestamp")
-        .drop_duplicates("userid", keep="first")
+        .drop_duplicates("user_id", keep="first")
         .reset_index(drop=True)
     )
 
@@ -37,7 +32,7 @@ def partitioning_view(
     min_users = d.shape[0] >= part.min_users
 
     def msk(m):
-        return df[df.userid.isin(d[m].userid)].reset_index(drop=True)
+        return df[df.user_id.isin(d[m].user_id)].reset_index(drop=True)
 
     if part.scenario == {"min_users"}:
         cutoff = d.users > part.min_users
@@ -76,10 +71,6 @@ def partitioning_view(
 def partition_users(
     df: Optional[pd.DataFrame], aud: AudienceConf, now: datetime
 ) -> list[pd.DataFrame]:
-    if not aud.partitioning:
-        raise Exception(
-            "Cannot create a partitioned audience without valid partitioning"
-        )
 
     partitions: list[pd.DataFrame] = []
 
