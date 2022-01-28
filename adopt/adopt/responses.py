@@ -1,5 +1,6 @@
 import json
 from datetime import datetime
+from typing import Optional
 
 import pandas as pd
 from toolz import dissoc
@@ -134,6 +135,26 @@ def get_forms(survey_user, shortcodes, timestamp, cnf):
     res = query(cnf, q, (survey_user, shortcodes, timestamp), as_dict=True)
     res = (r["form"] for r in res)
     return (json.loads(r) for r in res)
+
+
+def get_inference_data(survey_user, study_id, database_cnf) -> Optional[pd.DataFrame]:
+    q = """
+    select variable, value_type, value, timestamp
+    from inference_data
+    where user_id = %s
+    and study_id = %s
+    """
+
+    res = query(database_cnf, q, [survey_user, study_id], as_dict=True)
+    dat = list(res)
+    if not dat:
+        print(
+            f"Warning: no responses were found in the database \
+            for study_id: {study_id}"
+        )
+        return None
+
+    return pd.DataFrame(dat)
 
 
 def get_response_df(survey_user, shortcodes, questions, database_cnf):

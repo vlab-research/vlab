@@ -48,7 +48,7 @@ type ExtractionConf struct {
 	Name      string          `json:"name"`
 	Function  string          `json:"function"`
 	Params    json.RawMessage `json:"params"`
-	Type      string          `json:"type"`
+	ValueType string          `json:"value_type"`
 	Aggregate string          `json:"aggregate"` // first, last, max, min
 	fn        func(json.RawMessage) ([]byte, error)
 }
@@ -190,7 +190,7 @@ func extractValue(id InferenceData, e *InferenceDataEvent, extractionConfs map[s
 		return nil, err
 	}
 
-	v := &InferenceDataValue{e.Timestamp, conf.Name, val, conf.Type}
+	v := &InferenceDataValue{e.Timestamp, conf.Name, val, conf.ValueType}
 
 	return addValue(conf, id, e.User.ID, v)
 }
@@ -204,7 +204,7 @@ func extractMetadata(id InferenceData, e *InferenceDataEvent, extractionConfs ma
 			continue
 		}
 
-		v := &InferenceDataValue{e.Timestamp, conf.Name, val, conf.Type}
+		v := &InferenceDataValue{e.Timestamp, conf.Name, val, conf.ValueType}
 		id, err := addValue(conf, id, e.User.ID, v)
 		if err != nil {
 			return id, err

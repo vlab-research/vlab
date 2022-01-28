@@ -56,8 +56,15 @@ CREATE TABLE recruitment_data_events(
 ALTER TABLE recruitment_data_events ADD CONSTRAINT unique_per_period UNIQUE(study_id, source_name, temp, period_start, period_end);
 
 
+CREATE TABLE credentials(
+       user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+       entity VARCHAR NOT NULL,
+       key VARCHAR NOT NULL,
+       created TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+       details JSONB NOT NULL
+);
 
--- ALTER TABLE credentials ADD CONSTRAINT unique_entity_key_per_user UNIQUE(userid, entity, key);
+ALTER TABLE credentials ADD CONSTRAINT unique_entity_key_per_user UNIQUE(user_id, entity, key);
 
 -- CREATE index ON studies (userid, credentials_entity, credentials_key);
 -- ALTER TABLE studies ADD CONSTRAINT credentials_key_exists FOREIGN KEY (userid, credentials_entity, credentials_key) REFERENCES credentials (userid, entity, key);

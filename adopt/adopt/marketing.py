@@ -26,11 +26,27 @@ ADSET_HOURS = 48
 Params = Dict[str, Any]
 
 
-class TargetingConf(NamedTuple):
-    template_campaign_name: Optional[str]
-    distribution_vars: list[str]
-    country_code: str
-    respondent_audience_name: str
+class SourceConf(NamedTuple):
+    name: str
+    source: str
+    config: Any
+
+
+class ExtractionConf(NamedTuple):
+    name: str
+    function: str
+    params: Any
+    value_type: str
+    aggregate: str
+
+
+class InferenceDataSource(NamedTuple):
+    variable_extraction: dict[str, ExtractionConf]
+    metadata_extraction: dict[str, ExtractionConf]
+
+
+class InferenceDataConf(NamedTuple):
+    data_sources: dict[str, InferenceDataSource]
 
 
 class UserInfo(NamedTuple):
@@ -62,6 +78,9 @@ class AppDestination(NamedTuple):
     facebook_app_id: str
     app_install_link: str
     deeplink_template: str
+    app_install_state: str
+    user_device: list[str]
+    user_os: list[str]
 
 
 DestinationConf = Union[FlyMessengerDestination, AppDestination]
@@ -82,6 +101,7 @@ class CampaignConf(NamedTuple):
     proportional: bool
     ad_account: str
     ad_campaign_name: str
+    country_code: str
     extra_metadata: dict[str, str]
 
 
@@ -92,6 +112,7 @@ class CreativeConf(NamedTuple):
     link_text: str
     welcome_message: Optional[str] = None  # messenger only
     button_text: Optional[str] = None  # messenger only
+    tags: Optional[list[str]] = None
 
 
 class StratumConf(NamedTuple):
@@ -535,7 +556,10 @@ def create_creative(
 
 class Marketing:
     def __init__(
-        self, state: CampaignState, config: CampaignConf, destination: DestinationConf
+        self,
+        state: CampaignState,
+        config: CampaignConf,
+        destination: list[DestinationConf],
     ):
         cnf: Dict[str, Any] = {
             "PAGE_ID": config.page_id,
@@ -546,7 +570,7 @@ class Marketing:
             "EXTRA_METADATA": config.extra_metadata,
         }
 
-        self.destination = destination
+        self.destination = destination[0]
         self.state = state
         self.cnf = cnf
 
@@ -625,3 +649,5 @@ class Marketing:
                 insta_id=self.cnf["INSTA_ID"],
                 link=link,
             )
+
+        raise Exception(f"destination is not a proper type: {self.destination}")

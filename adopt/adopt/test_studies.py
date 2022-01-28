@@ -7,12 +7,13 @@ from adopt.campaign_queries import (create_campaign_confs,
                                     create_campaign_for_user,
                                     get_campaigns_for_user)
 
-from .configuration import (format_group_product, generate_creative_confs,
-                            parse_kv_sheet, read_share_lookup)
+from .configuration import (TargetingConf, format_group_product,
+                            parse_kv_sheet, parse_row_sheet, read_share_lookup,
+                            respondent_audience_name)
 from .db import _connect, execute, manyify, query
 from .marketing import (AppDestination, AudienceConf, CampaignConf,
-                        DestinationConf, FlyMessengerDestination, StratumConf,
-                        TargetingConf, dict_from_nested_type)
+                        CreativeConf, DestinationConf, FlyMessengerDestination,
+                        StratumConf, dict_from_nested_type)
 
 
 def _reset_db():
@@ -27,6 +28,16 @@ def _reset_db():
 def create_user(email):
     q = """
     insert into users(email) values(%s) on conflict do nothing
+    """
+    execute(db_conf, q, [email])
+
+    q = """
+    insert into credentials(user_id, entity, key, details) values(
+      (select id from users where email = %s limit 1),
+      'facebook_ad_user',
+      'default',
+      '{"access_token": "foo"}'
+    )
     """
     execute(db_conf, q, [email])
 
@@ -47,21 +58,16 @@ def test_make_study():
     )
 
     config = parse_kv_sheet(config_file, "general", CampaignConf)
-    # print(config)
 
     create_campaign_confs(CAMPAIGNID, "opt", [config._asdict()], db_conf)
 
     destination = parse_kv_sheet(config_file, "destination", FlyMessengerDestination)
 
-    # print(destination)
     create_campaign_confs(CAMPAIGNID, "destination", [destination._asdict()], db_conf)
-
-    targeting = parse_kv_sheet(config_file, "targeting", TargetingConf)
-    # print(targeting)
 
     audiences = [
         {
-            "name": targeting.respondent_audience_name,
+            "name": respondent_audience_name(config),
             "subtype": "CUSTOM",
         },
     ]
@@ -71,23 +77,22 @@ def test_make_study():
     # print(confs)
     create_campaign_confs(CAMPAIGNID, "audience", confs, db_conf)
 
-    creative_confs, image_confs = generate_creative_confs(config_file)
+    creative_confs = parse_row_sheet(config_file, "creative", CreativeConf)
+    confs = [dict_from_nested_type(a) for a in creative_confs]
     # print(creative_confs)
-    create_campaign_confs(CAMPAIGNID, "creative", creative_confs, db_conf)
+    create_campaign_confs(CAMPAIGNID, "creative", confs, db_conf)
 
-    all_creatives = [t["name"] for t in image_confs]
-
-    # all_creatives, targeting, destination
+    # destination, creative_confs, config
     def make_stratum(id_, quota, c):
         return {
             "id": id_,
             "metadata": c["metadata"],
             "facebook_targeting": c["facebook_targeting"],
-            "creatives": all_creatives,
+            "creatives": [t.name for t in creative_confs],
             "audiences": c["audiences"],
             "excluded_audiences": [
                 *c["excluded_audiences"],
-                targeting.respondent_audience_name,
+                respondent_audience_name(config),
             ],
             "quota": float(quota),
             "shortcodes": destination.survey_shortcodes,
@@ -123,7 +128,11 @@ def test_make_study():
         {"name": "location", "source": "facebook", "conf": l},
     ]
 
-    share_lookup = read_share_lookup(config_file, targeting.distribution_vars)
+    targeting = parse_kv_sheet(config_file, "targeting", TargetingConf)
+
+    share_lookup = read_share_lookup(
+        config_file, targeting.distribution_vars, "targeting_distribution"
+    )
     share = share_lookup.T.reset_index().melt(
         id_vars=targeting.distribution_vars,
         var_name="location",
@@ -133,18 +142,53 @@ def test_make_study():
     groups = product(
         *[[(v["name"], v["source"], l) for l in v["conf"]["levels"]] for v in variables]
     )
+
+    base_targeting = {}
+
+    if isinstance(destination, AppDestination):
+        base_targeting = {
+            "app_install_state": destination.app_install_state,
+            "user_device": destination.user_device,
+            "user_os": destination.user_os,
+        }
+
+    finish_filter = {
+        "op": "greater_than",
+        "vars": [
+            {"type": "variable", "value": "highest_segment"},
+            {"type": "constant", "value": 4},
+        ],
+    }
+
     groups = [
-        format_group_product(g, share, destination.finished_question_ref)
-        for g in groups
+        format_group_product(g, share, base_targeting, finish_filter) for g in groups
     ]
-    # groups somehow
 
     strata = [make_stratum(*g) for g in groups]
     strata_data = [
         dict_from_nested_type(typedjson.decode(StratumConf, c)) for c in strata
     ]
-
     create_campaign_confs(CAMPAIGNID, "stratum", strata_data, db_conf)
 
-    assert False
+    import os
+
+    os.environ["CHATBASE_DATABASE"] = "test"
+    os.environ["CHATBASE_USER"] = "root"
+    os.environ["CHATBASE_HOST"] = "localhost"
+    os.environ["CHATBASE_PORT"] = "5433"
+
+    os.environ["FACEBOOK_APP_ID"] = "123"
+    os.environ["FACEBOOK_APP_SECRET"] = "123"
+
+    from environs import Env
+
+    from .malaria import get_confs, load_basics
+
+    env = Env()
+
+    userinfo, config, __, confs = get_confs(CAMPAIGNID, env)
+
+    load_basics(CAMPAIGNID, env)
+
+    # assert False
     # make destination confs

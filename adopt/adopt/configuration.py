@@ -1,15 +1,25 @@
 import json
-import os
 import re
-from itertools import product
-from typing import get_type_hints
+from typing import NamedTuple, Optional, TypeVar, get_type_hints
 
 import pandas as pd
 import typedjson
-from pandas.api.types import is_list_like
+from facebook_business.adobjects.targeting import Targeting
+from facebook_business.adobjects.targetinggeolocation import \
+    TargetingGeoLocation
+from facebook_business.adobjects.targetinggeolocationcity import \
+    TargetingGeoLocationCity
+from facebook_business.adobjects.targetinggeolocationcustomlocation import \
+    TargetingGeoLocationCustomLocation
+from typedjson import DecodingError
 from typedjson.annotation import origin_of
 
-from adopt.marketing import CreativeConf
+from adopt.marketing import CampaignConf, CreativeConf
+
+
+class TargetingConf(NamedTuple):
+    template_campaign_name: Optional[str]
+    distribution_vars: list[str]
 
 
 def hyphen_case(s):
@@ -77,8 +87,8 @@ def get_adsets(template_state, confs):
     return [{"levels": _get_adsets(template_state, *c)} for c in confs]
 
 
-def format_group_product(group, share_lookup, finished_question_ref=None):
-    facebook_targeting = {}
+def format_group_product(group, share_lookup, base_targeting, finish_filter=None):
+    facebook_targeting = base_targeting.copy()
     tvars = []
     md = {}
     conf = {"audiences": [], "excluded_audiences": []}
@@ -111,13 +121,8 @@ def format_group_product(group, share_lookup, finished_question_ref=None):
             conf["audiences"] += c.get("audiences", [])
             conf["excluded_audiences"] += c.get("excluded_audiences", [])
 
-    if finished_question_ref:
-        tvars.append(
-            {
-                "op": "answered",
-                "vars": [{"type": "response", "value": finished_question_ref}],
-            }
-        )
+    if finish_filter:
+        tvars.append(finish_filter)
 
     conf = {
         "facebook_targeting": facebook_targeting,
@@ -149,24 +154,8 @@ def _creative_conf(c):
         "link_text": c["headline"],
         "welcome_message": c["welcome_message"],
         "button_text": c["button_text"],
+        "tags": c["tags"],
     }
-
-
-def generate_creative_confs(path):
-    df = pd.read_excel(path, sheet_name="creative")
-    image_confs = df.to_dict(orient="records")
-    confs = [CreativeConf(**_creative_conf(c))._asdict() for c in image_confs]
-    image_confs = [
-        {
-            **c,
-            "tags": [x.strip() for x in c["tags"].split(",")]
-            if c.get("tags") and isinstance(c["tags"], str) and c["tags"] != ""
-            else None,
-        }
-        for c in image_confs
-    ]
-
-    return confs, image_confs
 
 
 def stringify_column(col):
@@ -175,12 +164,12 @@ def stringify_column(col):
     return str(col)
 
 
-def read_share_lookup(path, distribution_vars):
+def read_share_lookup(path, distribution_vars, tab_name):
     df = pd.read_excel(
         path,
         header=list(range(0, len(distribution_vars))),
         index_col=[0],
-        sheet_name="weighting",
+        sheet_name=tab_name,
     )
     df.columns = df.columns.map(stringify_column)
     return df
@@ -197,8 +186,9 @@ def cast_strings(type_, dict_):
             res[k] = None
             continue
 
+        t = hints[k]
+
         if isinstance(v, str):
-            t = hints[k]
 
             if origin_of(t) == list:
                 res[k] = [x.strip() for x in v.split(",")]
@@ -211,6 +201,7 @@ def cast_strings(type_, dict_):
                 continue
 
             res[k] = t(v)
+
     return res
 
 
@@ -227,6 +218,60 @@ def additional_ops(d):
 def parse_kv_sheet(path, sheet_name, type_):
     df = pd.read_excel(path, sheet_name=sheet_name, index_col=[0])
     x = {k: v["value"] for k, v in df.to_dict(orient="index").items()}
+
     x = cast_strings(type_, x)
     x = additional_ops(x)
-    return typedjson.decode(type_, x)
+    d = typedjson.decode(type_, x)
+
+    if isinstance(d, DecodingError):
+        raise Exception(f"Error parsing config sheet: {d.reason}")
+
+    return d
+
+
+T = TypeVar("T")
+
+
+def parse_row_sheet(path, sheet_name, type_: T) -> list[T]:
+    df = pd.read_excel(path, sheet_name=sheet_name)
+    rows = df.to_dict(orient="records")
+    rows = [cast_strings(type_, x) for x in rows]
+    rows = [typedjson.decode(type_, x) for x in rows]
+    return rows
+
+
+def respondent_audience_name(config: CampaignConf) -> str:
+    return f"{config.ad_campaign_name}-respondents"
+
+
+def create_location(lat, lng, rad):
+    return {
+        TargetingGeoLocationCustomLocation.Field.latitude: lat,
+        TargetingGeoLocationCustomLocation.Field.longitude: lng,
+        TargetingGeoLocationCustomLocation.Field.radius: rad,
+        TargetingGeoLocationCustomLocation.Field.distance_unit: "kilometer",
+    }
+
+
+def location_levels(name, rows):
+    locs = [create_location(r.lat, r.lng, r.rad) for _, r in rows]
+
+    params = {
+        Targeting.Field.geo_locations: {
+            TargetingGeoLocation.Field.location_types: ["home"],
+            TargetingGeoLocation.Field.custom_locations: locs,
+        }
+    }
+
+    return {"name": name, "params": params}
+
+
+def create_campaign(name):
+    params = {
+        "name": name,
+        "objective": "MESSAGES",
+        "status": "PAUSED",
+        "special_ad_categories": [],
+    }
+
+    return Instruction("campaign", "create", params)
