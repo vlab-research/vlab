@@ -6,7 +6,7 @@ import orjson
 from .clustering import AdOptReport
 from .responses import query
 
-DBConf = Dict[str, str]
+DBConf = str
 
 
 def get_user_info(campaignid, cnf):

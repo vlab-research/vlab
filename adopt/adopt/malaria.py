@@ -1,5 +1,4 @@
 import logging
-import re
 from datetime import datetime, timedelta
 from typing import (Any, Callable, Dict, List, NamedTuple, Optional, Sequence,
                     Tuple, Union)
@@ -11,18 +10,20 @@ from facebook_business.adobjects.targeting import Targeting
 from toolz import groupby
 
 from .audiences import hydrate_audiences
-from .campaign_queries import (create_adopt_report, get_campaign_configs,
-                               get_campaigns, get_user_info)
-from .clustering import AdOptReport, get_budget_lookup, shape_df
+from .campaign_queries import (DBConf, create_adopt_report,
+                               get_campaign_configs, get_campaigns,
+                               get_user_info)
+from .clustering import AdOptReport, get_budget_lookup
 from .facebook.state import CampaignState, DateRange, StateNameError, get_api
 from .facebook.update import GraphUpdater, Instruction
 from .marketing import (AudienceConf, CampaignConf, CreativeConf,
-                        DestinationConf, FacebookTargeting, Marketing,
-                        QuestionTargeting, Stratum, StratumConf, TargetVar,
-                        UserInfo, manage_audiences, validate_targeting)
+                        DestinationConf, FacebookTargeting, InferenceDataConf,
+                        Marketing, QuestionTargeting, SourceConf, Stratum,
+                        StratumConf, TargetVar, UserInfo, manage_audiences,
+                        validate_targeting)
 from .recruitment_data import (RecruitmentData, calculate_stat, day_start,
                                get_recruitment_data)
-from .responses import get_response_df
+from .responses import get_inference_data
 
 logging.basicConfig(level=logging.INFO)
 
@@ -50,26 +51,19 @@ def get_target_questions(qt: Optional[QuestionTargeting]) -> Sequence[str]:
 
 
 def get_df(
-    db_conf: Dict[str, str],
+    db_conf: DBConf,
     survey_user: str,
-    strata: Sequence[Union[Stratum, AudienceConf]],
+    study_id: str,
 ) -> Optional[pd.DataFrame]:
 
-    # TODO: remove shortcodes
-    shortcodes = {shortcode for stratum in strata for shortcode in stratum.shortcodes}
+    df = get_inference_data(survey_user, study_id, db_conf)
+    return df
 
-    # TODO: make this more general... Work with InferenceData
-    questions = {
-        q
-        for stratum in strata
-        for q in get_target_questions(stratum.question_targeting)
-    }
 
-    df = get_response_df(survey_user, shortcodes, questions, db_conf)
-
-    if df is not None:
-        return shape_df(df)
-    return None
+def prep_opt(s):
+    s["end_date"] = datetime.fromisoformat(s["end_date"])
+    s["start_date"] = datetime.fromisoformat(s["start_date"])
+    return s
 
 
 def get_confs_for_campaign(campaignid, db_conf):
@@ -77,8 +71,10 @@ def get_confs_for_campaign(campaignid, db_conf):
         "stratum": lambda x: typedjson.decode(StratumConf, x),
         "audience": lambda x: typedjson.decode(AudienceConf, x),
         "creative": lambda x: typedjson.decode(CreativeConf, x),
-        "opt": lambda x: typedjson.decode(CampaignConf, x),
+        "opt": lambda x: typedjson.decode(CampaignConf, prep_opt(x)),
         "destination": lambda x: typedjson.decode(DestinationConf, x),
+        "data_source": lambda x: typedjson.decode(SourceConf, x),
+        "inference_data": lambda x: typedjson.decode(InferenceDataConf, x),
     }
 
     confs = get_campaign_configs(campaignid, db_conf)
@@ -93,7 +89,7 @@ def get_confs_for_campaign(campaignid, db_conf):
     return {k: [vv for _, vv in v] for k, v in confs.items()}
 
 
-DBConf = Dict[str, str]
+DBConf = str
 
 
 class Malaria(NamedTuple):
@@ -107,13 +103,15 @@ class Malaria(NamedTuple):
 
 
 def get_db_conf(env: Env) -> DBConf:
-    return {
-        "db": env("CHATBASE_DATABASE"),
-        "user": env("CHATBASE_USER"),
-        "host": env("CHATBASE_HOST"),
-        "port": env("CHATBASE_PORT"),
-        "password": env("CHATBASE_PASSWORD", None),
-    }
+
+    db = env("CHATBASE_DATABASE")
+    user = env("CHATBASE_USER")
+    host = env("CHATBASE_HOST")
+    port = env("CHATBASE_PORT")
+    password = env("CHATBASE_PASSWORD", None)
+
+    cnf = f"postgresql://{user}:{password}@{host}:{port}/{db}"
+    return cnf
 
 
 def get_confs(
@@ -132,7 +130,7 @@ def days_left(config: CampaignConf):
     if not config.end_date:
         return None
 
-    dt = datetime.strptime(config.end_date, "%Y-%m-%d")
+    dt = config.end_date
     td = dt - datetime.now()
     days = td.days
     return days
@@ -169,12 +167,13 @@ def run_instructions(instructions: Sequence[Instruction], state: CampaignState):
 
 
 def update_ads_for_campaign(
+    study_id: str,
     malaria: Malaria,
 ) -> Tuple[Sequence[Instruction], Optional[AdOptReport]]:
     userinfo, config, db_conf, state, m, confs, rd = malaria
     strata = hydrate_strata(state, confs["stratum"], confs["creative"])
 
-    df = get_df(db_conf, userinfo.survey_user, strata)
+    df = get_df(db_conf, userinfo.survey_user, study_id)
 
     now = datetime.utcnow()
     window = make_window(config.opt_window, now)
@@ -196,17 +195,19 @@ def update_ads_for_campaign(
 
 
 def update_audience_for_campaign(
+    study_id: str,
     malaria: Malaria,
 ) -> Tuple[Sequence[Instruction], Optional[AdOptReport]]:
 
     userinfo, config, db_conf, state, m, confs, rd = malaria
     audience_confs = confs["audience"]
 
-    df = get_df(db_conf, userinfo.survey_user, audience_confs)
+    df = get_df(db_conf, userinfo.survey_user, study_id)
 
     if df is None:
-        logging.info("No responses found, no audience updates made.")
-        return [], None
+        df = pd.DataFrame([], columns=[])
+        # logging.info("No responses found, no audience updates made.")
+        # return [], None
 
     audiences = hydrate_audiences(df, m, audience_confs)
 
@@ -214,7 +215,7 @@ def update_audience_for_campaign(
 
 
 def run_updates(
-    fn: Callable[[Malaria], Tuple[Sequence[Instruction], Optional[AdOptReport]]]
+    fn: Callable[[str, Malaria], Tuple[Sequence[Instruction], Optional[AdOptReport]]]
 ) -> None:
 
     env = Env()
@@ -223,7 +224,7 @@ def run_updates(
 
     for c in campaigns:
         m = load_basics(c, env)
-        instructions, report = fn(m)
+        instructions, report = fn(c, m)
 
         if report:
             create_adopt_report(c, "FACEBOOK_ADOPT", report, db_conf)
