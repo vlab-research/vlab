@@ -1,6 +1,6 @@
 import React from 'react';
 import { Auth0Provider } from '@auth0/auth0-react';
-import { ReactQueryConfigProvider } from 'react-query';
+import { ReactQueryConfigProvider, useQuery } from 'react-query';
 import { ReactQueryDevtools } from 'react-query-devtools';
 import { BrowserRouter, Switch, Route, Redirect } from 'react-router-dom';
 import StudiesPage from './pages/StudiesPage/StudiesPage';
@@ -8,14 +8,18 @@ import StudyPage from './pages/StudyPage/StudyPage';
 import LoginPage from './pages/LoginPage/LoginPage';
 import { ReactComponent as Logo } from './assets/logo.svg';
 import useAuth0 from './hooks/useAuth0';
+import useAuthenticatedApi from './hooks/useAuthenticatedApi';
+
+const areTestsRunning =
+  process.env.REACT_APP_RUNNING_IN_E2E_MODE || process.env.NODE_ENV === 'test';
 
 const App = () => (
   <React.Fragment>
     <ReactQueryConfigProvider
       config={{
         queries: {
-          retry: process.env.REACT_APP_RUNNING_IN_E2E_MODE ? false : 3,
-          refetchOnWindowFocus: !process.env.REACT_APP_RUNNING_IN_E2E_MODE,
+          retry: areTestsRunning ? false : 3,
+          refetchOnWindowFocus: !areTestsRunning,
         },
       }}
     >
@@ -34,9 +38,14 @@ const App = () => (
 
 const Routes = () => {
   const { isLoading, isAuthenticated } = useAuth0();
+  const creatingUserState = useCreateUserForCurrentAccessToken();
 
-  if (isLoading) {
+  if (isLoading || (isAuthenticated && creatingUserState.inProgress)) {
     return <LoadingPage />;
+  }
+
+  if (creatingUserState.failed) {
+    return <LoginPage withGenericError />;
   }
 
   return (
@@ -85,6 +94,23 @@ const AuthenticatedRoute = ({
       render={() => (isAuthenticated ? children : <Redirect to="/login" />)}
     />
   );
+};
+
+const useCreateUserForCurrentAccessToken = () => {
+  const { isAuthenticated } = useAuth0();
+  const { createUser } = useAuthenticatedApi();
+  const query = useQuery('create-user-for-current-access-token', createUser, {
+    staleTime: Infinity,
+    refetchOnWindowFocus: false,
+    enabled: isAuthenticated,
+  });
+
+  const inProgress = !query.isSuccess && !query.isError;
+
+  return {
+    inProgress,
+    failed: query.isError,
+  };
 };
 
 export default App;

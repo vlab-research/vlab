@@ -1,15 +1,27 @@
-import { render, screen } from '@testing-library/react';
+import { Response } from 'miragejs';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import App from '../App';
 import * as moduleUseAuth0 from '../hooks/useAuth0';
+import { authenticatedApiCalls } from '../helpers/api';
+import { queryCache } from 'react-query';
+import { makeServer } from '../server';
 
 jest.mock('@auth0/auth0-react', () => ({
   Auth0Provider: ({ children }: { children: React.ReactNode }) => children,
 }));
 
 describe('user', () => {
+  let server: ReturnType<typeof makeServer>;
+
+  beforeEach(() => {
+    server = makeServer({ environment: 'test' });
+  });
+
   afterEach(() => {
     jest.restoreAllMocks();
+    queryCache.clear();
+    server.shutdown();
   });
 
   it('while the app is checking if the user is authenticated, a loader page is shown', () => {
@@ -25,6 +37,8 @@ describe('user', () => {
 
     visit('/');
 
+    screen.getByText('Ready to start?');
+    screen.getByText('Log in now to view the progress of your Studies!');
     screen.getByRole('button', { name: 'Log in' });
   });
 
@@ -33,6 +47,8 @@ describe('user', () => {
 
     visit('/studies/weekly-consume-meat');
 
+    screen.getByText('Ready to start?');
+    screen.getByText('Log in now to view the progress of your Studies!');
     screen.getByRole('button', { name: 'Log in' });
   });
 
@@ -46,48 +62,81 @@ describe('user', () => {
     expect(login).toHaveBeenCalledTimes(1);
   });
 
-  it('authenticated user accessing login page, are redirected to studies page', () => {
-    userAuthenticated(true);
+  describe('when is authenticated', () => {
+    it('the app tries to create the user in our backend, when it fails for a reason other than "user already exists", the login page with a generic error is shown', async () => {
+      userAuthenticated(true);
+      server.post('/users', () => new Response(500));
 
-    visit('/login');
+      visit('/');
+      screen.getByTestId('loading-page');
 
-    screen.getByTestId('studies-page');
-  });
+      await waitFor(() => {
+        screen.getByText('Oops, something went wrong!');
+        screen.getByText(
+          'Please check your internet connection and try again.'
+        );
+        screen.getByRole('button', { name: 'Log in' });
+      });
+    });
 
-  it('authenticated users can see their name/email and avatar in the header', () => {
-    const user = {
-      name: 'testuser',
-      avatarUrl: 'https://s.img.com/avatar.png',
-    };
-    userAuthenticated(true, user);
+    it('the app tries to create the user in our backend, when the backend returns "user already exists" error, everything works as expected and the user can see the studies page', async () => {
+      userAuthenticated(true);
+      server.post('/users', () => new Response(422));
 
-    visit('/');
+      visit('/');
 
-    const header = screen.getByTestId('header');
-    expect(header).toContainElement(screen.getByText(user.name));
-    const userAvatar = screen.getByTestId('user-avatar');
-    expect(header).toContainElement(userAvatar);
-    expect(userAvatar).toHaveAttribute('src', user.avatarUrl);
-  });
+      await waitFor(() => {
+        screen.getByTestId('studies-page');
+      });
+    });
 
-  it('clicking user avatar opens a dropdown with a Sign out button', () => {
-    userAuthenticated(true);
-    visit('/');
+    it('and access the login page, is redirected to studies page', async () => {
+      userAuthenticated(true);
 
-    userEvent.click(screen.getByTestId('user-avatar'));
+      visit('/login');
 
-    screen.getByText('Sign out');
-  });
+      await waitFor(() => {
+        screen.getByTestId('studies-page');
+      });
+    });
 
-  it('clicking the Sign out button, starts the logout flow', () => {
-    const logout = jest.fn();
-    userAuthenticated(true, { logout });
-    visit('/');
-    userEvent.click(screen.getByTestId('user-avatar'));
+    it('can see their name/email and avatar in the header', async () => {
+      const user = {
+        name: 'testuser',
+        avatarUrl: 'https://s.img.com/avatar.png',
+      };
+      userAuthenticated(true, user);
 
-    userEvent.click(screen.getByText('Sign out'));
+      visit('/');
 
-    expect(logout).toHaveBeenCalledTimes(1);
+      await waitFor(() => {
+        const header = screen.getByTestId('header');
+        expect(header).toContainElement(screen.getByText(user.name));
+        const userAvatar = screen.getByTestId('user-avatar');
+        expect(header).toContainElement(userAvatar);
+        expect(userAvatar).toHaveAttribute('src', user.avatarUrl);
+      });
+    });
+
+    it('clicking the avatar opens a dropdown with a Sign out button', async () => {
+      userAuthenticated(true);
+      visit('/');
+
+      userEvent.click(await waitFor(() => screen.getByTestId('user-avatar')));
+
+      screen.getByText('Sign out');
+    });
+
+    it('clicking the Sign out button, starts the logout flow', async () => {
+      const logout = jest.fn();
+      userAuthenticated(true, { logout });
+      visit('/');
+      userEvent.click(await waitFor(() => screen.getByTestId('user-avatar')));
+
+      userEvent.click(screen.getByText('Sign out'));
+
+      expect(logout).toHaveBeenCalledTimes(1);
+    });
   });
 });
 

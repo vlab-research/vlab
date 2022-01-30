@@ -188,6 +188,18 @@ export const makeServer = ({ environment = 'development' } = {}) => {
         };
       });
 
+      this.post('/users', ({ db }, request) => {
+        if (!isAuthenticatedRequest(request)) {
+          return unauthorizedResponse;
+        }
+
+        return {
+          data: {
+            id: 'auth0|61916c1dab79c900713936de',
+          },
+        };
+      });
+
       this.passthrough(`https://${process.env.REACT_APP_AUTH0_DOMAIN}/**`);
     },
   });
