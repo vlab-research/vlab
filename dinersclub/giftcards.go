@@ -27,10 +27,8 @@ func FormatOrder(order *reloadly.GiftCardOrder) *reloadly.GiftCardOrder {
 
 	// random hack to support non customIdentifiers until
 	// reloadly actually works
-	if order.CustomIdentifier == "" {
-		u := uuid.New()
-		order.CustomIdentifier = u.String()
-	}
+	u := uuid.New()
+	order.CustomIdentifier = u.String()
 	return order
 }
 

@@ -75,13 +75,13 @@ func TestFormatOrderAddsRandomUUIDIfNotPresent(t *testing.T) {
 	uuid.MustParse(res.CustomIdentifier)
 }
 
-func TestFormatOrderLeavesDefaultCustomIdentifierIfPresent(t *testing.T) {
+func TestFormatOrderAddsRandomUUIDEvenIfCustomIdentifierPresent(t *testing.T) {
 	jm := json.RawMessage([]byte(`{"productId":1234,"countryCode":"test-country","quantity":1,"unitPrice":0.5,"customIdentifier": "foo", "senderName":"test-name","recipientEmail":"test@test.com","id":"test-id"}`))
 	order := new(reloadly.GiftCardOrder)
 	json.Unmarshal(jm, &order)
 
 	res := FormatOrder(order)
-	assert.Equal(t, "foo", res.CustomIdentifier)
+	uuid.MustParse(res.CustomIdentifier)
 }
 
 func TestGiftCardsReportsSuccessResult(t *testing.T) {
