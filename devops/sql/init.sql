@@ -13,6 +13,9 @@ CREATE TABLE studies(
        CONSTRAINT unique_name UNIQUE(user_id, name)
 );
 
+-- view studies add active based on start/end date.
+
+
 
 CREATE TABLE study_confs(
        created TIMESTAMP DEFAULT CURRENT_TIMESTAMP(),
@@ -68,3 +71,22 @@ ALTER TABLE credentials ADD CONSTRAINT unique_entity_key_per_user UNIQUE(user_id
 
 -- CREATE index ON studies (userid, credentials_entity, credentials_key);
 -- ALTER TABLE studies ADD CONSTRAINT credentials_key_exists FOREIGN KEY (userid, credentials_entity, credentials_key) REFERENCES credentials (userid, entity, key);
+
+CREATE VIEW study_state AS (
+  WITH t AS (
+    SELECT created, study_id, conf_type, conf,
+    ROW_NUMBER() OVER (PARTITION BY study_id, conf_type ORDER BY study_confs.created DESC) AS n
+    FROM study_confs
+  )
+  SELECT id,
+         studies.created,
+         user_id,
+         NAME,
+         credentials_key,
+         credentials_entity,
+         ((conf->0->>'start_date')::TIMESTAMP < now() AND (conf->0->>'end_date')::TIMESTAMP > now()) AS active
+  FROM t
+  INNER JOIN studies ON t.study_id = studies.id
+  WHERE conf_type = 'opt'
+  AND n = 1
+);

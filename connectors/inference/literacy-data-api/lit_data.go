@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -11,7 +10,6 @@ import (
 
 	"github.com/caarlos0/env/v6"
 	"github.com/dghubble/sling"
-	"github.com/jackc/pgx/v4/pgxpool"
 )
 
 func handle(err error) {
@@ -184,21 +182,21 @@ func GetEvents(source *Source, url string, params *LitDataAPIParams, i int) <-ch
 		defer close(events)
 
 		for {
-			res, err := Call(client, url, params)
+			response, err := Call(client, url, params)
 			if err != nil {
 				panic(err)
 			}
 
-			for _, res := range res.Data {
+			for _, r := range response.Data {
 				i++
 				if i%10000 == 0 {
 					log.Println(fmt.Sprintf("Collected %d results.", i))
 				}
 
-				events <- res.AsInferenceDataEvent(source, i)
+				events <- r.AsInferenceDataEvent(source, i)
 			}
 
-			params.Token = res.NextCursor
+			params.Token = response.NextCursor
 			if params.Token == "" {
 				break
 			}
@@ -208,66 +206,45 @@ func GetEvents(source *Source, url string, params *LitDataAPIParams, i int) <-ch
 	return events
 }
 
-type Config struct {
-	DB string `env:"PG_URL,required"` // postgres://user:password@host:port/db
-	// KafkaBrokers     string        `env:"KAFKA_BROKERS,required"`
-	// KafkaPollTimeout time.Duration `env:"KAFKA_POLL_TIMEOUT,required"`
-	// Topic            string        `env:"KAFKA_TOPIC,required"`
-	// Group            string        `env:"KAFKA_GROUP,required"`
+type LitDataApiConnector struct {
+	LitDataUrl string `env:"LITERACY_DATA_API_URL,required"`
 }
 
-func getConfig() Config {
-	cfg := Config{}
-	err := env.Parse(&cfg)
+func (c LitDataApiConnector) loadEnv() LitDataApiConnector {
+	err := env.Parse(&c)
 	handle(err)
-	return cfg
+	return c
+}
+
+func (c LitDataApiConnector) Handler(source *Source, lastEvent *InferenceDataEvent) <-chan *InferenceDataEvent {
+	litDataConfig := new(LitDataConfig)
+	err := json.Unmarshal(source.Conf.Config, litDataConfig)
+	handle(err)
+
+	log.Println("Literacy Data Connector getting data for: ", litDataConfig)
+
+	from, err := strconv.Atoi(litDataConfig.From)
+	handle(err)
+
+	if lastEvent != nil {
+		from, err = strconv.Atoi(lastEvent.Pagination)
+		handle(err) // shouldn't happen
+	}
+
+	// NOTE: right now the config is the params, but that will change
+	params := &LitDataAPIParams{
+		from,
+		"", // no token
+		litDataConfig.AppID,
+		litDataConfig.AttributionID,
+	}
+
+	events := GetEvents(source, c.LitDataUrl, params, lastEvent.Idx)
+	return events
 }
 
 func main() {
-	cnf := getConfig()
-	pool, err := pgxpool.Connect(context.Background(), cnf.DB)
-	handle(err)
-
-	sources, err := GetStudyConfs(pool, "literacy_data_api")
-	handle(err)
-
-	for _, source := range sources {
-
-		// we need someway to A) look to see if we already
-		// have events, then potentially start from there...
-
-		// create config -- env vars, not study-specific stuff....
-		url := "http://localhost:4000"
-		litDataConfig := new(LitDataConfig)
-		err := json.Unmarshal(source.Conf.Config, litDataConfig)
-		handle(err)
-
-		log.Println("Literacy Data Connector getting data for: ", litDataConfig)
-
-		from, err := strconv.Atoi(litDataConfig.From)
-		handle(err)
-
-		// override the from with events already in the database
-		idx, token, ok, err := LastEvent(pool, source)
-		handle(err)
-
-		if ok {
-			from, err = strconv.Atoi(token)
-			handle(err) // shouldn't happen
-		}
-
-		// NOTE: right now the config is the params, but that will change
-		params := &LitDataAPIParams{
-			from,
-			"", // no token
-			litDataConfig.AppID,
-			litDataConfig.AttributionID,
-		}
-
-		events := GetEvents(source, url, params, idx)
-		written, err := WriteEvents(pool, source.StudyID, events)
-
-		log.Println(fmt.Sprintf("Wrote %d results to the event store", written))
-		handle(err)
-	}
+	c := LitDataApiConnector{}
+	c.loadEnv()
+	LoadEvents(c, "literaci_data_api", "timestamp")
 }
