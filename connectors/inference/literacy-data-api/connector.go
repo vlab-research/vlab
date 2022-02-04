@@ -3,8 +3,11 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"fmt"
+	"log"
 	"time"
 
+	"github.com/caarlos0/env/v6"
 	"github.com/jackc/pgx/v4"
 	"github.com/jackc/pgx/v4/pgxpool"
 )
@@ -12,6 +15,7 @@ import (
 // -------------------------------
 // TODO: move to shared library, currently copy-pasted here
 // temporarily
+
 type User struct {
 	ID       string                     `json:"id"`
 	Metadata map[string]json.RawMessage `json:"metadata"`
@@ -44,17 +48,21 @@ type Source struct {
 // DB reprsentation of configuration of data sources for a study
 type DataSourceConf []*SourceConf
 
+type Connector interface {
+	Handler(source *Source, lastEvent *InferenceDataEvent) <-chan *InferenceDataEvent
+}
+
 func GetStudyConfs(pool *pgxpool.Pool, dataSource string) ([]*Source, error) {
 	query := `
         WITH tt AS (
 	  WITH t AS (
 	    SELECT conf,
 		   study_id,
-		   ROW_NUMBER() OVER (PARTITION BY study_id ORDER BY created DESC) AS n
+		   ROW_NUMBER() OVER (PARTITION BY study_id ORDER BY study_confs.created DESC) AS n
 	    FROM study_confs
-	    INNER JOIN studies on study_confs.study_id = studies.id
+	    INNER JOIN study_state on study_confs.study_id = study_state.id
 	    WHERE conf_type = 'data_source'
-	    AND active = true
+            AND study_state.active = true
 	  )
 	  SELECT json_array_elements(conf) as conf,
 		 study_id
@@ -114,25 +122,78 @@ func WriteEvents(pool *pgxpool.Pool, study string, events <-chan *InferenceDataE
 	return i, nil
 }
 
-func LastEvent(pool *pgxpool.Pool, source *Source) (int, string, bool, error) {
+func LastEvent(pool *pgxpool.Pool, source *Source, orderBy string) (*InferenceDataEvent, bool, error) {
+	match := false
+	for _, opt := range []string{"timestamp", "idx", "pagination"} {
+		if orderBy == opt {
+			match = true
+			break
+		}
+	}
+
+	if match == false {
+		return nil, false, fmt.Errorf("Column %s is not a valid order by column", orderBy)
+	}
+
 	query := `
-	SELECT idx, pagination
+	SELECT data
         FROM inference_data_events
         WHERE study_id = $1 AND source_name = $2
-        ORDER BY TIMESTAMP DESC
+        ORDER BY %s DESC
         LIMIT 1
 	`
-	var idx int
-	var pagination string
-	err := pool.QueryRow(context.Background(), query, source.StudyID, source.Conf.Name).Scan(&idx, &pagination)
+	query = fmt.Sprintf(query, orderBy)
+
+	e := new(InferenceDataEvent)
+	err := pool.QueryRow(context.Background(), query, source.StudyID, source.Conf.Name).Scan(e)
 
 	if err == pgx.ErrNoRows {
-		return 0, "", false, nil
+		return nil, false, nil
 	}
 
 	if err != nil {
-		return 0, "", false, err
+		return nil, false, err
 	}
 
-	return idx, pagination, true, nil
+	return e, true, nil
+}
+
+type Config struct {
+	DB string `env:"PG_URL,required"` // postgres://user:password@host:port/db
+	// KafkaBrokers     string        `env:"KAFKA_BROKERS,required"`
+	// KafkaPollTimeout time.Duration `env:"KAFKA_POLL_TIMEOUT,required"`
+	// Topic            string        `env:"KAFKA_TOPIC,required"`
+	// Group            string        `env:"KAFKA_GROUP,required"`
+}
+
+func (cfg Config) load() Config {
+	err := env.Parse(&cfg)
+	handle(err)
+	return cfg
+}
+
+func LoadEvents(connector Connector, dataSource string, orderColumn string) {
+	cnf := Config{}
+	cnf.load()
+
+	pool, err := pgxpool.Connect(context.Background(), cnf.DB)
+	handle(err)
+
+	sources, err := GetStudyConfs(pool, dataSource)
+	handle(err)
+
+	// this doesn't need to be done sequentially,
+	// make a go loop?
+	for _, source := range sources {
+
+		e, _, err := LastEvent(pool, source, orderColumn)
+		handle(err)
+
+		events := connector.Handler(source, e)
+
+		written, err := WriteEvents(pool, source.StudyID, events)
+		log.Println(fmt.Sprintf("Wrote %d results to the event store", written))
+		handle(err)
+	}
+
 }
