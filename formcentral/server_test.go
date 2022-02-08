@@ -373,22 +373,25 @@ func TestGetSurveyByParams(t *testing.T) {
 	mustExec(t, pool, insertUser, userid)
 	mustExec(t, pool, insertCredentialsSql, userid)
 
-	b := time.Time{}
-	beforeFmt := b.Format(time.RFC3339)
+	earlier, _ := time.Parse("2006-01-02", "2022-02-06")
 	insertSurveySql := `
  		INSERT INTO surveys(id, userid, form, formid, shortcode, translation_conf, messages, title, created)
 		VALUES ($1, $2, '{}', '', 'a1234', '{}', '{}', '', $3);
  	`
-	mustExec(t, pool, insertSurveySql, "00000000-0000-0000-0000-000000000000", userid, beforeFmt)
+	mustExec(t, pool, insertSurveySql, "00000000-0000-0000-0000-000000000000", userid, earlier)
 
-	now := time.Now()
-	nowFmt := now.Format(time.RFC3339)
-	mustExec(t, pool, insertSurveySql, "00000000-0000-0000-0000-000000000001", userid, nowFmt)
+	later, _ := time.Parse("2006-01-02", "2022-02-07")
+	mustExec(t, pool, insertSurveySql, "00000000-0000-0000-0000-000000000001", userid, later)
+
+	timestamp := 1644356479749 // 2022-02-08
+
+	wayLater, _ := time.Parse("2006-01-02", "2022-02-09")
+	mustExec(t, pool, insertSurveySql, "00000000-0000-0000-0000-000000000002", userid, wayLater)
 
 	q := make(url.Values)
 	q.Set("pageid", "page-test")
 	q.Set("shortcode", "a1234")
-	q.Set("timestamp", fmt.Sprintf("%v", now.Unix()))
+	q.Set("timestamp", fmt.Sprintf("%v", timestamp))
 	rec, c, s := request(pool, http.MethodGet, "/surveys/?"+q.Encode(), "")
 	err := s.GetSurveyByParams(c)
 

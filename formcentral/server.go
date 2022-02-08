@@ -3,9 +3,10 @@ package main
 import (
 	"fmt"
 	"log"
+	"math"
 	"net/http"
-	"time"
 	"strconv"
+	"time"
 
 	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/labstack/echo/v4"
@@ -79,12 +80,12 @@ func (s *Server) GetSurveyByParams(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Missing Parameter(s)"))
 	}
 
-	timestampInt, err := strconv.ParseInt(timestamp, 10, 0)
+	timestampFloat, err := strconv.ParseFloat(timestamp, 0)
 	if err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, fmt.Sprintf("Could not parse 'timestamp'"))
+		return echo.NewHTTPError(http.StatusInternalServerError, fmt.Sprintf("Could not parse 'timestamp': %s", timestamp))
 	}
 
-	timestampFmt := time.Unix(timestampInt, 0)
+	timestampFmt := time.Unix(int64(math.Ceil(timestampFloat/1000)), 0)
 	survey, err := getSurveyByParams(s.pool, pageid, shortcode, timestampFmt)
 
 	if err != nil {
