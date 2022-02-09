@@ -62,6 +62,10 @@ formcentral:
     value: *host
   - name: CHATBASE_PORT
     value: "26257"
+  - name: CHATBASE_MAX_CONNECTIONS
+    value: "1"
+  - name: PORT
+    value: "1323"
   resources:
     requests:
       cpu: 10m
