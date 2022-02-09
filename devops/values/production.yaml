@@ -23,7 +23,7 @@ versionReplybot: &vreplybot v0.0.126
 versionLinksniffer: &vlinksniffer v0.0.4
 versionDean: &vdean v0.0.24
 versionScribble: &vscribble v0.0.21
-versionDinersclub: &vdinersclub v0.0.18
+versionDinersclub: &vdinersclub v0.0.19
 versionFormcentral: &vformcentral v0.0.8
 
 processingAlerts:
@@ -261,7 +261,7 @@ dumper:
   parallelism: 1
   backoffLimit: 8
 
-  schedule: "30 */4 * * *"
+  schedule: "30 0 * * *"
   resources:
     requests:
       cpu: 750m
