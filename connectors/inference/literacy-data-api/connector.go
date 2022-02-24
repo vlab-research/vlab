@@ -166,15 +166,15 @@ type Config struct {
 	// Group            string        `env:"KAFKA_GROUP,required"`
 }
 
-func (cfg Config) load() Config {
-	err := env.Parse(&cfg)
+func (cfg *Config) load() *Config {
+	err := env.Parse(cfg)
 	handle(err)
 	return cfg
 }
 
 func LoadEvents(connector Connector, dataSource string, orderColumn string) {
-	cnf := Config{}
-	cnf.load()
+	cnf := &Config{}
+	cnf = cnf.load()
 
 	pool, err := pgxpool.Connect(context.Background(), cnf.DB)
 	handle(err)
