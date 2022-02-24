@@ -166,6 +166,11 @@ def run_instructions(instructions: Sequence[Instruction], state: CampaignState):
         logging.info(report)
 
 
+def calculate_total_spend(rd: list[RecruitmentData]) -> float:
+    spend = calculate_stat(rd, "spend")
+    return sum(spend.values())
+
+
 def update_ads_for_campaign(
     study_id: str,
     malaria: Malaria,
@@ -178,6 +183,7 @@ def update_ads_for_campaign(
     now = datetime.utcnow()
     window = make_window(config.opt_window, now)
     spend = calculate_stat(rd, "spend", window)
+    total_spend = calculate_total_spend(rd)
 
     budget_lookup, report = get_budget_lookup(
         df,
@@ -186,7 +192,7 @@ def update_ads_for_campaign(
         config.min_budget,
         window,
         spend,
-        state.total_spend,
+        total_spend,
         days_left=days_left(config),
         proportional=config.proportional,
     )
