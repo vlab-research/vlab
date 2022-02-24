@@ -210,8 +210,8 @@ type LitDataApiConnector struct {
 	LitDataUrl string `env:"LITERACY_DATA_API_URL,required"`
 }
 
-func (c LitDataApiConnector) loadEnv() LitDataApiConnector {
-	err := env.Parse(&c)
+func (c *LitDataApiConnector) loadEnv() *LitDataApiConnector {
+	err := env.Parse(c)
 	handle(err)
 	return c
 }
@@ -226,9 +226,13 @@ func (c LitDataApiConnector) Handler(source *Source, lastEvent *InferenceDataEve
 	from, err := strconv.Atoi(litDataConfig.From)
 	handle(err)
 
+	idx := 0
+
 	if lastEvent != nil {
 		from, err = strconv.Atoi(lastEvent.Pagination)
 		handle(err) // shouldn't happen
+
+		idx = lastEvent.Idx
 	}
 
 	// NOTE: right now the config is the params, but that will change
@@ -239,12 +243,12 @@ func (c LitDataApiConnector) Handler(source *Source, lastEvent *InferenceDataEve
 		litDataConfig.AttributionID,
 	}
 
-	events := GetEvents(source, c.LitDataUrl, params, lastEvent.Idx)
+	events := GetEvents(source, c.LitDataUrl, params, idx)
 	return events
 }
 
 func main() {
-	c := LitDataApiConnector{}
-	c.loadEnv()
-	LoadEvents(c, "literaci_data_api", "timestamp")
+	c := &LitDataApiConnector{}
+	c = c.loadEnv()
+	LoadEvents(c, "literacy_data_api", "timestamp")
 }
