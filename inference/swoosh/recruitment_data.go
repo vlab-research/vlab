@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	. "github.com/vlab-research/vlab/inference/inference-data"
 	"time"
 )
 
@@ -17,7 +18,7 @@ type TimePeriod struct {
 
 type RecruitmentDataEvent struct {
 	StudyID    string          `json:"study_id"`
-	SourceConf *SourceConf     `json:"source_conf"`
+	SourceConf SourceConf      `json:"source_conf"`
 	Integrity  int64           `json:"integrity"` // -1,0,1,2,3,4...
 	TimePeriod TimePeriod      `json:"time_period"`
 	Data       json.RawMessage `json:"data"`

@@ -10,8 +10,8 @@ import (
 
 	"github.com/caarlos0/env/v6"
 	"github.com/dghubble/sling"
-
-	"github.com/vlab-research/vlab/connectors/inference/connector"
+	"github.com/vlab-research/vlab/inference/connector"
+	. "github.com/vlab-research/vlab/inference/inference-data"
 )
 
 func handle(err error) {
@@ -82,7 +82,7 @@ func marshalValue(lde *LitDataEvent) json.RawMessage {
 	return b
 }
 
-func (lde *LitDataEvent) AsInferenceDataEvent(source *connector.Source, idx int) *connector.InferenceDataEvent {
+func (lde *LitDataEvent) AsInferenceDataEvent(source *Source, idx int) *InferenceDataEvent {
 
 	md := map[string]json.RawMessage{}
 	for k, v := range lde.User.Metadata {
@@ -93,8 +93,8 @@ func (lde *LitDataEvent) AsInferenceDataEvent(source *connector.Source, idx int)
 
 	from := fmt.Sprintf("%d", lde.Event.Timestamp.Time.Unix())
 
-	return &connector.InferenceDataEvent{
-		User:       connector.User{lde.User.ID, md},
+	return &InferenceDataEvent{
+		User:       User{lde.User.ID, md},
 		Study:      source.StudyID,
 		SourceConf: source.Conf,
 		Timestamp:  lde.Event.Timestamp.Time,
@@ -176,9 +176,9 @@ func Call(client *http.Client, baseUrl string, params *LitDataAPIParams) (*LitDa
 	return res, nil
 }
 
-func GetEvents(source *connector.Source, url string, params *LitDataAPIParams, i int) <-chan *connector.InferenceDataEvent {
+func GetEvents(source *Source, url string, params *LitDataAPIParams, i int) <-chan *InferenceDataEvent {
 	client := http.DefaultClient
-	events := make(chan *connector.InferenceDataEvent)
+	events := make(chan *InferenceDataEvent)
 
 	go func() {
 		defer close(events)
@@ -252,5 +252,5 @@ func (c LitDataApiConnector) Handler(source *Source, lastEvent *InferenceDataEve
 func main() {
 	c := &LitDataApiConnector{}
 	c = c.loadEnv()
-	LoadEvents(c, "literacy_data_api", "timestamp")
+	connector.LoadEvents(c, "literacy_data_api", "timestamp")
 }

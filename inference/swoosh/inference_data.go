@@ -4,44 +4,11 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"time"
 
 	"github.com/go-playground/validator/v10"
+
+	. "github.com/vlab-research/vlab/inference/inference-data"
 )
-
-type User struct {
-	ID       string                     `json:"id"`
-	Metadata map[string]json.RawMessage `json:"metadata"`
-}
-
-type SourceConf struct {
-	Name   string          `json:"name"`
-	Source string          `json:"source"`
-	Config json.RawMessage `json:"config"`
-}
-
-type InferenceDataEvent struct {
-	User       User            `json:"user"`
-	Study      string          `json:"study"`
-	SourceConf *SourceConf     `json:"source_conf"`
-	Timestamp  time.Time       `json:"timestamp"`
-	Variable   string          `json:"variable"`
-	Value      json.RawMessage `json:"value"`
-}
-
-type InferenceDataValue struct {
-	Timestamp time.Time       `json:"timestamp"`
-	Variable  string          `json:"variable"`
-	Value     json.RawMessage `json:"value"`
-	ValueType string          `json:"value_type"`
-}
-
-type InferenceDataRow struct {
-	User string                         `json:"user"`
-	Data map[string]*InferenceDataValue `json:"data"`
-}
-
-type InferenceData map[string]*InferenceDataRow
 
 // TODO: validate not empty fields...?
 type ExtractionConf struct {
@@ -241,7 +208,7 @@ func Reduce(events []*InferenceDataEvent, c *InferenceDataConf) (InferenceData, 
 		id, err = extractValue(id, e, sourceConf.VariableExtractionMapping)
 		if err != nil {
 			bb, _ := json.Marshal(e)
-			fmt.Println(string(bb))
+			fmt.Println("Error extracting value: " + string(bb))
 			return id, err
 		}
 	}

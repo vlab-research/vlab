@@ -139,13 +139,12 @@ def get_forms(survey_user, shortcodes, timestamp, cnf):
 
 def get_inference_data(survey_user, study_id, database_cnf) -> Optional[pd.DataFrame]:
     q = """
-    select variable, value_type, value, timestamp
+    select user_id, variable, value_type, value, timestamp
     from inference_data
-    where user_id = %s
-    and study_id = %s
+    where study_id = %s
     """
 
-    res = query(database_cnf, q, [survey_user, study_id], as_dict=True)
+    res = query(database_cnf, q, [study_id], as_dict=True)
     dat = list(res)
     if not dat:
         print(

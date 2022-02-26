@@ -4,7 +4,11 @@
       "id": "foo"
     },
     "study": "foo",
-    "data_source": "literacy_data_api",
+    "source_conf": {
+      "config": null,
+      "name": "lit_data",
+      "source": "literacy_data_api"
+    },
     "timestamp": "2021-07-07T00:00:00.000000000Z",
     "variable": "q1",
     "value": "A"
@@ -14,7 +18,11 @@
       "id": "foo"
     },
     "study": "foo",
-    "data_source": "literacy_data_api",
+    "source_conf": {
+      "config": null,
+      "name": "lit_data",
+      "source": "literacy_data_api"
+    },
     "timestamp": "2021-07-08T00:00:00.000000000Z",
     "variable": "q2",
     "value": 0
@@ -24,7 +32,11 @@
       "id": "foo"
     },
     "study": "foo",
-    "data_source": "literacy_data_api",
+    "source_conf": {
+      "config": null,
+      "name": "lit_data",
+      "source": "literacy_data_api"
+    },
     "timestamp": "2021-07-09T00:00:00.000000000Z",
     "variable": "q2",
     "value": 2
@@ -34,7 +46,11 @@
       "id": "bar"
     },
     "study": "foo",
-    "data_source": "literacy_data_api",
+    "source_conf": {
+      "config": null,
+      "name": "lit_data",
+      "source": "literacy_data_api"
+    },
     "timestamp": "2021-07-10T00:00:00.000000000Z",
     "variable": "q2",
     "value": 2

@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	. "github.com/vlab-research/vlab/inference/inference-data"
 )
 
 const (

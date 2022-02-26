@@ -108,7 +108,7 @@ def format_group_product(group, share_lookup, base_targeting, finish_filter=None
             qt = {
                 "op": "equal",
                 "vars": [
-                    {"type": "response", "value": f"md:{md_name}"},
+                    {"type": "variable", "value": f"md:{md_name}"},
                     {"type": "constant", "value": c["name"]},
                 ],
             }
