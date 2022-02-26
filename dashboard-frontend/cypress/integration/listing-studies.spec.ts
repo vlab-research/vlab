@@ -24,12 +24,20 @@ describe('Given an authenticated user', () => {
     it('He sees information on how to create a Study', () => {
       cy.visit('/');
 
-      cy.contains('Contact info@vlab.digital and create your first Study.');
-      cy.contains('info@vlab.digital').should(
-        'have.attr',
-        'href',
-        'mailto:info@vlab.digital?subject=[New Account] Create first Study'
+      cy.contains('No studies');
+      cy.contains('Get started by creating a new study.');
+      cy.get('[data-testid="new-study-button--in-empty-page"]').should(
+        'be.visible'
       );
+      cy.get(
+        '[data-testid="new-study-button--in-top-right-pagelayout"]'
+      ).should('not.exist');
+    });
+
+    it("He's redirected to the Study creation page after clicking the 'New Study' button", () => {
+      cy.get('[data-testid="new-study-button--in-empty-page"]').click();
+
+      assertUserIsInNewStudyPage();
     });
   });
 
@@ -78,6 +86,14 @@ describe('Given an authenticated user', () => {
         .contains('Studies')
         .should('have.class', 'border-transparent text-gray-500')
         .should('not.have.attr', 'aria-current');
+    });
+
+    it("He's redirected to the Study creation page after clicking the 'New Study' button at the top of the page", () => {
+      cy.get(
+        '[data-testid="new-study-button--in-top-right-pagelayout"]'
+      ).click();
+
+      assertUserIsInNewStudyPage();
     });
   });
 
@@ -138,3 +154,12 @@ describe('Given an authenticated user', () => {
 
 const assertLoaderAppears = () =>
   cy.get('[data-testid="study-list-skeleton-item"]').should('have.length', 10);
+
+const assertUserIsInNewStudyPage = () => {
+  cy.url().should('eq', `${Cypress.config().baseUrl}/new-study`);
+  cy.get('[data-testid="header"]')
+    .contains('Studies')
+    .should('have.class', 'border-transparent text-gray-500')
+    .should('not.have.attr', 'aria-current');
+  cy.contains('New Study');
+};

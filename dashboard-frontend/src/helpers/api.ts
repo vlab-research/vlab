@@ -1,5 +1,6 @@
 import { fetchWithTimeout } from './http';
 import {
+  CreateStudyApiResponse,
   CreateUserApiResponse,
   StudiesApiResponse,
   StudyApiResponse,
@@ -66,27 +67,49 @@ const createUser = ({ accessToken }: { accessToken: string }) => {
   });
 };
 
+const createStudy = ({
+  name,
+  accessToken,
+}: {
+  name: string;
+  accessToken: string;
+}) =>
+  apiRequest<CreateStudyApiResponse>('/api/studies', {
+    accessToken,
+    method: 'POST',
+    body: { name },
+  });
+
 const apiRequest = async <ApiResponse>(
   url: string,
   {
     defaultErrorMessage = 'Something went wrong.',
     method = 'GET',
     accessToken = '',
+    body,
     expectedStatusCodes,
   }: {
     defaultErrorMessage?: string;
     method?: 'GET' | 'POST';
     accessToken: string;
+    body?: object;
     expectedStatusCodes?: number[];
   }
 ) => {
+  const requestBody = body ? JSON.stringify(body) : undefined;
+  const requestHeaders: HeadersInit = {
+    Authorization: `Bearer ${accessToken}`,
+  };
+  if (requestBody) {
+    requestHeaders['Content-Type'] = 'application/json';
+  }
+
   try {
     const response = await fetchWithTimeout(url, {
       timeout: 10000,
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-      },
+      headers: requestHeaders,
       method,
+      body: requestBody,
     });
 
     const isExpectedResponse = expectedStatusCodes
@@ -129,4 +152,5 @@ export const authenticatedApiCalls = {
   fetchStudy,
   fetchStudySegmentsProgress,
   createUser,
+  createStudy,
 };

@@ -1,14 +1,14 @@
-import { useInfiniteQuery } from 'react-query';
-import { StudiesApiResponse } from '../../types/study';
-import { Cursor } from '../../types/api';
-import useAuthenticatedApi from '../../hooks/useAuthenticatedApi';
+import { useInfiniteQuery, queryCache } from 'react-query';
+import { StudiesApiResponse, StudyResource } from '../types/study';
+import { Cursor } from '../types/api';
+import useAuthenticatedApi from './useAuthenticatedApi';
 
 const studiesPerPage = 10;
+const queryKey = 'studies';
 const defaultErrorMessage = 'Something went wrong while fetching the Studies.';
 
 const useStudies = () => {
   const { fetchStudies } = useAuthenticatedApi();
-  const queryKey = 'studies';
 
   const query = useInfiniteQuery<StudiesApiResponse, string, Cursor>(
     queryKey,
@@ -33,6 +33,25 @@ const useStudies = () => {
       .flatMap(studyData => studyData),
     errorMessage: query.error?.message || defaultErrorMessage,
   };
+};
+
+export const addStudyToCacheWhileRefetching = (study: StudyResource) => {
+  // Add a study to the cache
+  queryCache.setQueryData(queryKey, (studiesCache: any) => {
+    const studiesCacheExists =
+      Array.isArray(studiesCache) &&
+      studiesCache[0] &&
+      Array.isArray(studiesCache[0].data);
+
+    if (studiesCacheExists) {
+      studiesCache[0].data = [study, ...studiesCache[0].data];
+    }
+
+    return studiesCache;
+  });
+
+  // Refetch the studies by invalidating the query
+  queryCache.invalidateQueries(queryKey);
 };
 
 export default useStudies;
