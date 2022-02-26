@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/stretchr/testify/assert"
+	. "github.com/vlab-research/vlab/inference/inference-data"
 	"io/ioutil"
 	"testing"
 	"time"
@@ -41,7 +42,7 @@ func ti(day string) time.Time {
 func TestAddValue_PicksMax(t *testing.T) {
 	conf := &ExtractionConf{
 		Name:      "name",
-		Type:      "categorical",
+		ValueType: "categorical",
 		Function:  "select",
 		Params:    []byte(`{"path": "translated_response"}`),
 		Aggregate: "max",
@@ -85,7 +86,7 @@ func TestAddValue_PicksMax(t *testing.T) {
 func TestAddValue_PicksLast(t *testing.T) {
 	conf := &ExtractionConf{
 		Name:      "name",
-		Type:      "categorical",
+		ValueType: "categorical",
 		Function:  "select",
 		Params:    []byte(`{"path": "translated_response"}`),
 		Aggregate: "last",
@@ -130,13 +131,13 @@ func TestReduceInferenceData_SelectsVariablesAsPerConfAndSelectFunction(t *testi
 	}
 
 	mapping := &InferenceDataConf{map[string]*InferenceDataSource{
-		"literacy_data_api": {
+		"lit_data": {
 			map[string]*ExtractionConf{
 				"q1": {
-					Name:     "renamed_q1",
-					Type:     "categorical",
-					Function: "select",
-					Params:   []byte(`{"path": "translated_response"}`),
+					Name:      "renamed_q1",
+					ValueType: "categorical",
+					Function:  "select",
+					Params:    []byte(`{"path": "translated_response"}`),
 				}},
 			nil,
 		},
@@ -163,18 +164,18 @@ func TestReduceInferenceData_GroupsByUserAndOverwritesRepeatedValues(t *testing.
 	}
 
 	mapping := &InferenceDataConf{map[string]*InferenceDataSource{
-		"literacy_data_api": {
+		"lit_data": {
 			VariableExtractionMapping: map[string]*ExtractionConf{
 				"q1": {
 					Name:      "q1",
-					Type:      "categorical",
+					ValueType: "categorical",
 					Function:  "select",
 					Params:    []byte(`{"path": ""}`),
 					Aggregate: "last",
 				},
 				"q2": {
 					Name:      "q2",
-					Type:      "continuous",
+					ValueType: "continuous",
 					Function:  "select",
 					Params:    []byte(`{"path": ""}`),
 					Aggregate: "last",
@@ -208,18 +209,18 @@ func TestReduceInferenceData_CollectsMetadataWithTimestampFirstEventOfUniqueValu
 	}
 
 	mapping := &InferenceDataConf{map[string]*InferenceDataSource{
-		"literacy_data_api": {
+		"lit_data": {
 			VariableExtractionMapping: map[string]*ExtractionConf{
 				"q1": {
 					Name:      "q1",
-					Type:      "categorical",
+					ValueType: "categorical",
 					Function:  "select",
 					Params:    []byte(`{"path": ""}`),
 					Aggregate: "last",
 				},
 				"q2": {
 					Name:      "q2",
-					Type:      "continuous",
+					ValueType: "continuous",
 					Function:  "select",
 					Params:    []byte(`{"path": ""}`),
 					Aggregate: "last",
@@ -228,7 +229,7 @@ func TestReduceInferenceData_CollectsMetadataWithTimestampFirstEventOfUniqueValu
 			MetadataExtractionMapping: map[string]*ExtractionConf{
 				"user_md": {
 					Name:      "some_md",
-					Type:      "categorical",
+					ValueType: "categorical",
 					Function:  "select",
 					Params:    []byte(`{"path": ""}`),
 					Aggregate: "last",
@@ -262,7 +263,7 @@ func TestReduceInferenceData_ReturnsErrorWhenNonExistantDataSource(t *testing.T)
 
 	_, err := Reduce(events, mapping)
 	assert.NotNil(t, err)
-	assert.Contains(t, err.Error(), "literacy_data_api")
+	assert.Contains(t, err.Error(), "lit_data")
 	assert.Contains(t, err.Error(), "foo")
 	assert.Contains(t, err.Error(), "bar")
 }
@@ -271,7 +272,7 @@ func TestReduceInferenceData_ReturnsErrorWhenInvalidExtractionParamsForFunction(
 	events := testEvents("events_a.json")
 
 	mapping := &InferenceDataConf{map[string]*InferenceDataSource{
-		"literacy_data_api": {
+		"lit_data": {
 			VariableExtractionMapping: map[string]*ExtractionConf{
 				"q1": {Function: "select", Params: []byte(`{"missing": "key"}`)},
 			},
@@ -284,7 +285,7 @@ func TestReduceInferenceData_ReturnsErrorWhenInvalidExtractionParamsForFunction(
 	assert.Contains(t, err.Error(), "Path")
 
 	mapping = &InferenceDataConf{map[string]*InferenceDataSource{
-		"literacy_data_api": {
+		"lit_data": {
 			VariableExtractionMapping: map[string]*ExtractionConf{
 				"q1": {Function: "select", Params: []byte(`notjson`)},
 			},
@@ -302,7 +303,7 @@ func TestReduceInferenceData_ReturnsErrorWhenExtractionFunctionFails(t *testing.
 	events := testEvents("events_a.json")
 
 	mapping := &InferenceDataConf{map[string]*InferenceDataSource{
-		"literacy_data_api": {
+		"lit_data": {
 			VariableExtractionMapping: map[string]*ExtractionConf{
 				"q1": {Function: "select", Params: []byte(`{"path": "does.not.exist.in.json"}`)},
 			},

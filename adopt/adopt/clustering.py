@@ -90,13 +90,16 @@ def make_pred(q: Optional[QuestionTargeting]) -> Callable[[pd.DataFrame], bool]:
         return lambda df: fn(get_var(v, df), None)
 
     vars_ = q.vars
-    return lambda d: reduce(fn, [get_var(var, d) for var in vars_])
+
+    def pred(d):
+        return reduce(fn, [get_var(var, d) for var in vars_])
+
+    return pred
 
 
 def users_fulfilling(pred, df):
     dis = [(u, df.to_dict()) for u, df in df.set_index("variable").groupby("user_id")]
 
-    print(dis)
     users = {u for u, d in dis if pred(d)}
     return df[df.user_id.isin(users)]
 

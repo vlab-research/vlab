@@ -7,6 +7,8 @@ import (
 
 	"github.com/caarlos0/env/v6"
 	"github.com/jackc/pgx/v4/pgxpool"
+
+	. "github.com/vlab-research/vlab/inference/inference-data"
 )
 
 func handle(err error) {
@@ -32,7 +34,7 @@ func getConfig() Config {
 
 func GetInferenceDataConf(pool *pgxpool.Pool, study string) (*InferenceDataConf, error) {
 	q := `
-        SELECT conf
+        SELECT conf->0
         FROM study_confs
         WHERE study_id = $1
         AND conf_type = 'inference_data'
@@ -71,7 +73,9 @@ func GetEvents(pool *pgxpool.Pool, study string) ([]*InferenceDataEvent, error) 
 
 func GetActiveStudies(pool *pgxpool.Pool) ([]string, error) {
 	studies := []string{}
-	rows, err := pool.Query(context.Background(), "SELECT id from studies where active = true")
+
+	// TODO: get only active!
+	rows, err := pool.Query(context.Background(), "SELECT id from studies")
 	if err != nil {
 		return studies, err
 	}

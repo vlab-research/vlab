@@ -5,6 +5,7 @@ import (
 
 	"github.com/jackc/pgx/v4"
 	"github.com/jackc/pgx/v4/pgxpool"
+	. "github.com/vlab-research/vlab/inference/inference-data"
 	"time"
 )
 

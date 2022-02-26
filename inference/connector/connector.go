@@ -4,12 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
-	"time"
-
 	"github.com/caarlos0/env/v6"
 	"github.com/jackc/pgx/v4"
 	"github.com/jackc/pgx/v4/pgxpool"
+	. "github.com/vlab-research/vlab/inference/inference-data"
+	"log"
 )
 
 func handle(err error) {
@@ -21,38 +20,6 @@ func handle(err error) {
 // -------------------------------
 // TODO: move to shared library, currently copy-pasted here
 // temporarily
-
-type User struct {
-	ID       string                     `json:"id"`
-	Metadata map[string]json.RawMessage `json:"metadata"`
-}
-
-type SourceConf struct {
-	Name   string          `json:"name"`
-	Source string          `json:"source"`
-	Config json.RawMessage `json:"config"`
-}
-
-type InferenceDataEvent struct {
-	User       User            `json:"user"`
-	Study      string          `json:"study"`
-	SourceConf *SourceConf     `json:"source_conf"`
-	Timestamp  time.Time       `json:"timestamp"`
-	Variable   string          `json:"variable"`
-	Value      json.RawMessage `json:"value"`
-	Idx        int             `json:"idx"`
-	Pagination string          `json:"pagination"`
-}
-
-// -------------------------------
-
-type Source struct {
-	StudyID string
-	Conf    *SourceConf
-}
-
-// DB reprsentation of configuration of data sources for a study
-type DataSourceConf []*SourceConf
 
 type Connector interface {
 	Handler(source *Source, lastEvent *InferenceDataEvent) <-chan *InferenceDataEvent

@@ -1,15 +1,15 @@
-package main
+package connector
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
-	"log"
-	"testing"
-	"time"
-
 	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/stretchr/testify/assert"
+	"github.com/tidwall/gjson"
+	. "github.com/vlab-research/vlab/inference/inference-data"
+	. "github.com/vlab-research/vlab/inference/test-helpers"
+	"testing"
+	"time"
 )
 
 const (
@@ -110,52 +110,20 @@ func uuid(i int) string {
 	return fmt.Sprintf("00000000-0000-0000-0000-00000000000%d", i)
 }
 
-func createUser(pool *pgxpool.Pool, email string) string {
-	var id string
-	err := pool.QueryRow(context.Background(), selectUser, email).Scan(&id)
-	if err == nil {
-		return id
-	}
-
-	err = pool.QueryRow(context.Background(), insertUser, email).Scan(&id)
-	if err != nil {
-		log.Fatal(err)
-	}
-	return id
-}
-
-func createStudy(pool *pgxpool.Pool, name string) string {
-	user := createUser(pool, "email@email")
-
-	var id string
-	err := pool.QueryRow(context.Background(), insertStudy, user, name).Scan(&id)
-	if err != nil {
-		log.Fatal(err)
-	}
-	return id
-}
-
-func parseParams(d json.RawMessage) *LitDataAPIParams {
-	params := new(LitDataAPIParams)
-	err := json.Unmarshal(d, params)
-	handle(err)
-	return params
-}
-
 func TestGetStudyConfs_GetsOnlyActiveStudies(t *testing.T) {
-	pool := testPool()
+	pool := TestPool()
 	defer pool.Close()
 
 	resetDb(pool)
 
-	foo := createStudy(pool, "foo")
-	bar := createStudy(pool, "bar")
+	foo := CreateStudy(pool, "foo")
+	bar := CreateStudy(pool, "bar")
 
-	mustExec(t, pool, insertConf, foo, "opt", futureDate)
-	mustExec(t, pool, insertConf, bar, "opt", pastDate)
+	MustExec(t, pool, insertConf, foo, "opt", futureDate)
+	MustExec(t, pool, insertConf, bar, "opt", pastDate)
 
-	mustExec(t, pool, insertConf, foo, "data_source", confA)
-	mustExec(t, pool, insertConf, bar, "data_source", confA)
+	MustExec(t, pool, insertConf, foo, "data_source", confA)
+	MustExec(t, pool, insertConf, bar, "data_source", confA)
 
 	confs, err := GetStudyConfs(pool, "literacy_data_api")
 
@@ -165,34 +133,34 @@ func TestGetStudyConfs_GetsOnlyActiveStudies(t *testing.T) {
 }
 
 func TestGetStudyConfs_GetsOnlyConfsWithCorrectSource(t *testing.T) {
-	pool := testPool()
+	pool := TestPool()
 	defer pool.Close()
 
 	resetDb(pool)
 
-	foo := createStudy(pool, "foo")
-	mustExec(t, pool, insertConf, foo, "opt", futureDate)
-	mustExec(t, pool, insertConf, foo, "data_source", confB)
+	foo := CreateStudy(pool, "foo")
+	MustExec(t, pool, insertConf, foo, "opt", futureDate)
+	MustExec(t, pool, insertConf, foo, "data_source", confB)
 
 	confs, err := GetStudyConfs(pool, "literacy_data_api")
 
 	assert.Nil(t, err)
 	assert.Equal(t, 1, len(confs))
 
-	params := parseParams(confs[0].Conf.Config)
-	assert.Equal(t, "attribution", params.AttributionID)
+	value := gjson.Get(string(confs[0].Conf.Config), "attribution_id")
+	assert.Equal(t, "attribution", value.String())
 }
 
 func TestGetStudyConfs_GetsMultipleConfsFromTheSameSource(t *testing.T) {
-	pool := testPool()
+	pool := TestPool()
 	defer pool.Close()
 
 	resetDb(pool)
 
-	foo := createStudy(pool, "foo")
-	mustExec(t, pool, insertConf, foo, "opt", futureDate)
+	foo := CreateStudy(pool, "foo")
+	MustExec(t, pool, insertConf, foo, "opt", futureDate)
 
-	mustExec(t, pool, insertConf, foo, "data_source", confD)
+	MustExec(t, pool, insertConf, foo, "data_source", confD)
 
 	confs, err := GetStudyConfs(pool, "literacy_data_api")
 
@@ -204,23 +172,23 @@ func TestGetStudyConfs_GetsMultipleConfsFromTheSameSource(t *testing.T) {
 }
 
 func TestGetStudyConfs_GetsOnlyTheLatestConfPerStudy(t *testing.T) {
-	pool := testPool()
+	pool := TestPool()
 	defer pool.Close()
 
 	resetDb(pool)
 
-	foo := createStudy(pool, "foo")
-	mustExec(t, pool, insertConf, foo, "opt", futureDate)
+	foo := CreateStudy(pool, "foo")
+	MustExec(t, pool, insertConf, foo, "opt", futureDate)
 
-	mustExec(t, pool, insertConf, foo, "data_source", confA)
-	mustExec(t, pool, insertConf, foo, "data_source", confC)
+	MustExec(t, pool, insertConf, foo, "data_source", confA)
+	MustExec(t, pool, insertConf, foo, "data_source", confC)
 
 	confs, err := GetStudyConfs(pool, "literacy_data_api")
 
 	assert.Nil(t, err)
 	assert.Equal(t, 1, len(confs))
-	params := parseParams(confs[0].Conf.Config)
-	assert.Equal(t, "attribution_later", params.AttributionID)
+	value := gjson.Get(string(confs[0].Conf.Config), "attribution_id")
+	assert.Equal(t, "attribution_later", value.String())
 }
 
 func TestWriteEvents_DoesSomethingReasonable(t *testing.T) {
@@ -250,13 +218,13 @@ func simpleEvent(study, sourceName string, idx int, pagination string) *Inferenc
 }
 
 func TestLastEvent_GetsLatestPaginationToken(t *testing.T) {
-	pool := testPool()
+	pool := TestPool()
 	defer pool.Close()
 
 	resetDb(pool)
 
-	foo := createStudy(pool, "foo")
-	mustExec(t, pool, insertConf, foo, "opt", futureDate)
+	foo := CreateStudy(pool, "foo")
+	MustExec(t, pool, insertConf, foo, "opt", futureDate)
 
 	events := eventChan(
 		simpleEvent(foo, "sourceA", 0, "0"),
@@ -275,13 +243,13 @@ func TestLastEvent_GetsLatestPaginationToken(t *testing.T) {
 }
 
 func TestLastEvent_ReturnsFalseWhenNoEvents(t *testing.T) {
-	pool := testPool()
+	pool := TestPool()
 	defer pool.Close()
 
 	resetDb(pool)
 
-	foo := createStudy(pool, "foo")
-	mustExec(t, pool, insertConf, foo, "opt", futureDate)
+	foo := CreateStudy(pool, "foo")
+	MustExec(t, pool, insertConf, foo, "opt", futureDate)
 
 	source := &Source{foo, &SourceConf{"sourceA", "fly", []byte(`{"foo": "bar"}`)}}
 	event, ok, err := LastEvent(pool, source, "timestamp")
