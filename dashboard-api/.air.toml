@@ -1,0 +1,5 @@
+# Config file for [Air](https://github.com/cosmtrek/air) in TOML format
+
+[build]
+cmd = "go build -o /tmp/api cmd/api/main.go"
+bin = "/tmp/api"

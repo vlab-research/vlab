@@ -1,0 +1,15 @@
+name: Dashboard Api Tests
+on:
+  push:
+    paths:
+      - "dashboard-api/**"
+
+jobs:
+  tests:
+    name: Tests
+    runs-on: ubuntu-20.04
+    steps:
+      - uses: actions/checkout@v2
+      - name: Tests
+        run: ./test.sh --is-ci
+        working-directory: ./dashboard-api

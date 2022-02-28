@@ -16,7 +16,7 @@ VALUES
 
 CREATE TABLE studies(
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id string NOT NULL REFERENCES users(id), 
+    user_id string NOT NULL REFERENCES users(id) ON DELETE CASCADE, 
     created TIMESTAMP DEFAULT CURRENT_TIMESTAMP(),
     name string NOT NULL,
     slug string NOT NULL,
@@ -33,7 +33,7 @@ VALUES
 
 
 CREATE TABLE optimization_reports(
-  study_id UUID NOT NULL REFERENCES studies(id),
+  study_id UUID NOT NULL REFERENCES studies(id) ON DELETE CASCADE,
   created TIMESTAMP DEFAULT CURRENT_TIMESTAMP(),
   report_type VARCHAR NOT NULL,
   details JSON NOT NULL,
