@@ -1,0 +1,45 @@
+version: '3'
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    environment:
+      DATABASE_NAME: vlab
+      DATABASE_HOST: cockroachdb
+      DATABASE_PORT: 26257
+      DATABASE_USER: root
+    depends_on:
+      - setup_cockroachdb
+      - system
+    networks:
+      - dashboard-api
+    volumes:
+      - .:/app
+    command: |
+      sh -c '
+        echo "Running tests..."
+        go mod tidy
+        if [ "${IS_CI}" = "" ]
+        then
+          go test ./...
+          looper
+        fi
+        go test ./...
+      '
+  system:
+    build:
+      context: ../system
+    environment:
+      DATABASE_NAME: vlab
+      DATABASE_HOST: cockroachdb
+      DATABASE_PORT: 26257
+      DATABASE_USER: root
+      API_PORT: 80
+    command: go run .
+    ports:
+      - 80:80
+    volumes:
+      - ../system:/app
+    networks:
+      - dashboard-api
