@@ -113,12 +113,13 @@ export const makeServer = ({ environment = 'development' } = {}) => {
           cursor = receivedCursor;
         }
 
-        const data = Array.from(db.studies as any).slice(
-          cursor * number,
-          cursor * number + 10
-        );
+        const allStudies = (
+          Array.from(db.studies as any) as StudyResource[]
+        ).sort((studyA, studyB) => studyB.createdAt - studyA.createdAt);
 
-        const nextData = Array.from(db.studies as any).slice(
+        const data = allStudies.slice(cursor * number, cursor * number + 10);
+
+        const nextData = allStudies.slice(
           (cursor + 1) * number,
           (cursor + 1) * number + 10
         );
@@ -197,6 +198,52 @@ export const makeServer = ({ environment = 'development' } = {}) => {
           data: {
             id: 'auth0|61916c1dab79c900713936de',
           },
+        };
+      });
+
+      this.post('/studies', ({ db }, request) => {
+        if (!isAuthenticatedRequest(request)) {
+          return unauthorizedResponse;
+        }
+
+        const { name } = JSON.parse(request.requestBody);
+        const isNameEmpty = name.trim() === '';
+        if (isNameEmpty) {
+          return new Response(
+            400,
+            { 'content-type': 'application/json' },
+            {
+              error: 'The name cannot be empty.',
+            }
+          );
+        }
+
+        const allStudies = Array.from(db.studies as any) as StudyResource[];
+        const isNameAlreadyInUse =
+          allStudies.filter(
+            study => study.name.toLowerCase() === name.toLowerCase()
+          ).length > 0;
+        if (isNameAlreadyInUse) {
+          return new Response(
+            409,
+            { 'content-type': 'application/json' },
+            {
+              error: 'The name is already in use.',
+            }
+          );
+        }
+
+        const studyResource: StudyResource = {
+          id: chance.guid({ version: 4 }),
+          name,
+          slug: createSlugFor(name),
+          createdAt: Date.now(),
+        };
+
+        server.create('study', studyResource);
+
+        return {
+          data: studyResource,
         };
       });
 

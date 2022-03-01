@@ -18,6 +18,8 @@ export interface CreateUserApiResponse
     id: string;
   }> {}
 
+export interface CreateStudyApiResponse extends ApiResponse<StudyResource> {}
+
 export interface StudyResource {
   id: string;
   name: string;
