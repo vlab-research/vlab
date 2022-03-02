@@ -33,6 +33,7 @@ class SourceConf(NamedTuple):
 
 
 class ExtractionConf(NamedTuple):
+    key: str
     name: str
     function: str
     params: Any
@@ -41,8 +42,8 @@ class ExtractionConf(NamedTuple):
 
 
 class InferenceDataSource(NamedTuple):
-    variable_extraction: dict[str, ExtractionConf]
-    metadata_extraction: dict[str, ExtractionConf]
+    variable_extraction: list[ExtractionConf]
+    metadata_extraction: list[ExtractionConf]
 
 
 class InferenceDataConf(NamedTuple):
