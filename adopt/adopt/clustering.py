@@ -18,12 +18,26 @@ class MissingResponseError(BaseException):
     pass
 
 
+def _users_by_predicate(df, pred):
+    mask = df.apply(pred, 1)
+    users = df[mask].user_id.unique()
+    return users
+
 def _filter_by_response(df, ref, pred):
     if df.shape[0] == 0:
         return df
     d = df[df.variable == ref].reset_index(drop=True)
-    mask = d.apply(pred, 1)
-    users = d[mask].user_id.unique()
+    users = _users_by_predicate(d, pred)
+    return df[df.user_id.isin(users)].reset_index(drop=True)
+
+
+def _filter_by_join_time(df, pred):
+    initial_events = (df
+                      .groupby("user_id")
+                      .apply(lambda df: df.sort_values("timestamp").iloc[0])
+                      .reset_index(drop=True))
+
+    users = _users_by_predicate(initial_events, pred)
     return df[df.user_id.isin(users)].reset_index(drop=True)
 
 
@@ -151,11 +165,11 @@ class AdDataError(BaseException):
 def calc_price(df, window, spend):
     # filter by time
     def pred(st):
-        return st.value >= window.start_unix and st.value <= window.until_unix
+        return st.timestamp >= window.start_date and st.timestamp <= window.until_date
 
-    windowed = _filter_by_response(df, "md:startTime", pred)
-
+    windowed = _filter_by_join_time(df, pred)
     counts = _users_per_cluster(windowed)
+
     counts = {**{k: 0.5 for k in spend.keys()}, **counts}
     price = {k: spend[k] / v for k, v in counts.items() if k in spend}
 
