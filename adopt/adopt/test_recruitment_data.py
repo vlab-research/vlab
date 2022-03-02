@@ -3,6 +3,8 @@ from datetime import date, datetime, timedelta
 from test.dbfix import cnf
 from unittest.mock import MagicMock, patch
 
+from adopt.campaign_queries import create_campaign_confs
+
 from .db import _connect, execute, manyify, query
 from .facebook.date_range import DateRange
 from .recruitment_data import (CollectionPeriod, RecruitmentData, Study,
@@ -148,19 +150,30 @@ def create_study(name, user_email="foo@email"):
         [user_id, name, "key", "entity"],
     )
 
-    return list(res)[0][0]
+    study_id = list(res)[0][0]
+
+    return user_id, study_id
 
 
-# def _load_recruitment_data(db, dat):
-#     _execute(
-#         db,
-#         "INSERT INTO receruitment_data(user_id, name, start_time, end_time)"
-#         " values(%s, %s, %s, %s)",
-#         [user_id, name, start_time, end_time],
-#     )
+def insert_general_conf(study_id, start_date, end_date):
+    config = {
+        "optimization_goal": "APP_INSTALLS",
+        "destination_type": "APP",
+        "page_id": "388192931318145",
+        "instagram_id": "3028838973816046",
+        "budget": 20000.0,
+        "min_budget": 100.0,
+        "opt_window": 120,
+        "start_date": start_date,
+        "end_date": end_date,
+        "proportional": True,
+        "ad_account": "1180800068778728",
+        "ad_campaign_name": "vlab-geotargeting-bangla-1",
+        "country_code": "BD",
+        "extra_metadata": {},
+    }
 
-
-# patch
+    create_campaign_confs(study_id, "opt", [config], cnf)
 
 
 @patch("adopt.recruitment_data.get_insights")
@@ -174,7 +187,7 @@ def test_load_recruitment_data_loads_same_data_multiple_times_without_throwing(m
     start = now
     end = now + timedelta(days=2)
 
-    study_id = create_study("foo")
+    _, study_id = create_study("foo")
 
     load_recruitment_data(cnf, study_id, start, end, None, now)
 
@@ -209,7 +222,7 @@ def test_load_recruitment_data_adds_additional_events(mock):
     start = day_start(now)
     end = now + timedelta(days=2)
 
-    study_id = create_study("foo")
+    _, study_id = create_study("foo")
     load_recruitment_data(cnf, study_id, start, end, None, now)
 
     events = query(cnf, "select * from recruitment_data_events", as_dict=True)
@@ -238,7 +251,7 @@ def test_load_recruitment_data_adds_additional_events(mock):
 
 def test_get_recruitment_data_returns_empty_array_if_no_data():
     _reset_db()
-    study_id = create_study("foo")
+    _, study_id = create_study("foo")
     data = get_recruitment_data(cnf, study_id)
     assert data == []
 
@@ -254,6 +267,20 @@ def insert_data(dats):
     execute(cnf, q, records)
 
 
+def test_get_active_studies_happy_path():
+    _reset_db()
+
+    now = _dt(2, 12)
+    start = _dt(1, 10)
+    end = _dt(3, 23)
+
+    user_id, study_id = create_study("foo")
+
+    insert_general_conf(study_id, start, end)
+
+    # create conf
+
+
 def test_get_recruitment_data_returns_only_latest_temp_data():
     _reset_db()
 
@@ -261,7 +288,7 @@ def test_get_recruitment_data_returns_only_latest_temp_data():
     start = _dt(1, 10)
     end = _dt(3, 23)
 
-    study_id = create_study("foo")
+    _, study_id = create_study("foo")
 
     to_insert = [
         (
