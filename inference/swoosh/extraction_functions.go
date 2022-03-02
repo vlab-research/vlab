@@ -3,9 +3,9 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"strconv"
-
 	"github.com/tidwall/gjson"
+	"strconv"
+	"strings"
 )
 
 type ExtractionFunctionParams interface {
@@ -44,10 +44,70 @@ func JsonSelect(dat json.RawMessage, path string) ([]byte, error) {
 }
 
 // ---------------------------
+// vlab-kv-pair-select
+// ---------------------------
+
+type VlabKVPairSelectFunctionParams struct {
+	Path *string `json:"path" validate:"required"` // use pointer because "" is valid
+	Key  string  `json:"key" validate:"required"`
+}
+
+func (p *VlabKVPairSelectFunctionParams) GetValue(dat json.RawMessage) ([]byte, error) {
+	s, err := JsonSelect(dat, *p.Path)
+	if err != nil {
+		return s, err
+	}
+
+	var st string
+	err = json.Unmarshal(s, &st)
+	if err != nil {
+		return nil, fmt.Errorf("Bad KV Pair string: %s is not a string at all.", s)
+	}
+
+	sli := strings.Split(st, ".")
+
+	if len(sli)%2 != 0 {
+		return nil, fmt.Errorf("Bad KV Pair string: %s has odd number of items", st)
+	}
+
+	pairs := map[string]string{}
+	prev := ""
+
+	for i, v := range sli {
+		if i%2 == 0 {
+			prev = v
+		} else {
+			pairs[prev] = v
+		}
+	}
+
+	v, ok := pairs[p.Key]
+	if !ok {
+		return nil, fmt.Errorf("Could not extract KV Pair %s from string %s", p.Key, st)
+	}
+
+	// should not be possible for previous string to be unmarshallable
+	b, _ := json.Marshal(v)
+
+	return b, nil
+}
+
+// ---------------------------
 // Casting functions
 // ---------------------------
 
-func CastValue(b []byte) {
+func CastValue(conf *ExtractionConf, b []byte) ([]byte, error) {
+	switch conf.ValueType {
+	case "continuous":
+		n, err := CastContinuous(b)
+		if err != nil {
+			return nil, err
+		}
+		return json.Marshal(n)
+
+	default:
+		return b, nil
+	}
 
 }
 func CastContinuous(b []byte) (float64, error) {

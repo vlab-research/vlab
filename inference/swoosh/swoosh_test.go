@@ -15,15 +15,16 @@ const (
         [{
            "data_sources": {
                "fly": {
-                  "variable_extraction": {
-                      "foo_raw": {
+                  "variable_extraction": [
+                      {
+                          "key": "foo_raw",
 			  "name": "foo",
 			  "function": "select",
 			  "params": { "path": "value" },
 			  "value_type": "existence"
                       }
-                  },
-                  "metadata_extraction": {}
+                  ],
+                  "metadata_extraction": []
               }
            }
         }]
@@ -33,15 +34,16 @@ const (
         [{
            "data_sources": {
                "fly": {
-                  "variable_extraction": {
-                      "foo_raw": {
+                  "variable_extraction": [
+                      {
+                          "key": "foo_raw",
 			  "name": "bar",
 			  "function": "select",
 			  "params": { "path": "value" },
 			  "value_type": "existence"
                       }
-                  },
-                  "metadata_extraction": {}
+                  ],
+                  "metadata_extraction": []
               }
            }
         }]
@@ -78,10 +80,10 @@ func TestGetInferenceDataConf_GetsLatestConf(t *testing.T) {
 
 	expected := &InferenceDataConf{map[string]*InferenceDataSource{
 		"fly": {
-			VariableExtractionMapping: map[string]*ExtractionConf{
-				"foo_raw": {Name: "foo", ValueType: "existence", Function: "select", Params: []byte(`{"path": "value"}`)},
+			VariableExtractionMapping: []*ExtractionConf{
+				{Key: "foo_raw", Name: "foo", ValueType: "existence", Function: "select", Params: []byte(`{"path": "value"}`)},
 			},
-			MetadataExtractionMapping: map[string]*ExtractionConf{},
+			MetadataExtractionMapping: []*ExtractionConf{},
 		},
 	}}
 

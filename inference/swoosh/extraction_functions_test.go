@@ -51,3 +51,64 @@ func TestCastContinuous_ErrorsWhenNotPossible(t *testing.T) {
 	_, err = CastContinuous([]byte(`"foo"`))
 	assert.NotNil(t, err)
 }
+
+func TestVlabKVPairSelectParams_SplitAndGetIfExists(t *testing.T) {
+	s := "foo"
+	params := &VlabKVPairSelectFunctionParams{
+		&s,
+		"bar",
+	}
+
+	v, e := params.GetValue([]byte(`{"foo": "not.value.bar.baz"}`))
+	assert.Nil(t, e)
+	assert.Equal(t, []byte(`"baz"`), v)
+}
+
+func TestVlabKVPairSelectParams_ErrorsIfNotExists(t *testing.T) {
+	s := "foo"
+	params := &VlabKVPairSelectFunctionParams{
+		&s,
+		"bar",
+	}
+
+	_, e := params.GetValue([]byte(`{"foo": "not.value"}`))
+	assert.NotNil(t, e)
+	assert.Contains(t, e.Error(), "not.value")
+	assert.Contains(t, e.Error(), "bar")
+}
+
+func TestVlabKVPairSelectParams_GetsNumbersAsStrings(t *testing.T) {
+	s := "foo"
+	params := &VlabKVPairSelectFunctionParams{
+		&s,
+		"bar",
+	}
+
+	v, e := params.GetValue([]byte(`{"foo": "bar.5"}`))
+	assert.Nil(t, e)
+	assert.Equal(t, []byte(`"5"`), v)
+}
+
+func TestVlabKVPairSelectParams_ErrorsIfBadKVPairString(t *testing.T) {
+	s := "foo"
+	params := &VlabKVPairSelectFunctionParams{
+		&s,
+		"bar",
+	}
+
+	_, e := params.GetValue([]byte(`{"foo": "baz.bar.foo"}`))
+	assert.NotNil(t, e)
+	assert.Contains(t, e.Error(), "baz.bar.foo")
+}
+
+func TestVlabKVPairSelectParams_ErrorsIfKVPairStringNotAString(t *testing.T) {
+	s := "foo"
+	params := &VlabKVPairSelectFunctionParams{
+		&s,
+		"bar",
+	}
+
+	_, e := params.GetValue([]byte(`{"foo": 100}`))
+	assert.NotNil(t, e)
+	assert.Contains(t, e.Error(), "100")
+}

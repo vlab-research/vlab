@@ -12,6 +12,7 @@ import (
 
 // TODO: validate not empty fields...?
 type ExtractionConf struct {
+	Key       string          `json:"key"`
 	Name      string          `json:"name"`
 	Function  string          `json:"function"`
 	Params    json.RawMessage `json:"params"`
@@ -21,8 +22,8 @@ type ExtractionConf struct {
 }
 
 type InferenceDataSource struct {
-	VariableExtractionMapping map[string]*ExtractionConf `json:"variable_extraction"` // source variable name -> extraction conf
-	MetadataExtractionMapping map[string]*ExtractionConf `json:"metadata_extraction"` // source variable name -> extraction conf
+	VariableExtractionMapping []*ExtractionConf `json:"variable_extraction"`
+	MetadataExtractionMapping []*ExtractionConf `json:"metadata_extraction"`
 }
 
 type InferenceDataConf struct {
@@ -45,8 +46,13 @@ func (conf *ExtractionConf) Extract(dat json.RawMessage) ([]byte, error) {
 
 		var p ExtractionFunctionParams
 		switch conf.Function {
+
 		case "select":
 			p = new(SelectFunctionParams)
+
+		case "vlab-kv-pair-select":
+			p = new(VlabKVPairSelectFunctionParams)
+
 		}
 
 		err := json.Unmarshal(conf.Params, p)
@@ -68,7 +74,12 @@ func (conf *ExtractionConf) Extract(dat json.RawMessage) ([]byte, error) {
 
 	}
 
-	return conf.fn(dat)
+	raw, err := conf.fn(dat)
+	if err != nil {
+		return nil, err
+	}
+
+	return CastValue(conf, raw)
 }
 
 // TODO: this casting is pretty silly...
@@ -145,33 +156,31 @@ func addValue(conf *ExtractionConf, id InferenceData, user string, val *Inferenc
 	}
 }
 
-func extractValue(id InferenceData, e *InferenceDataEvent, extractionConfs map[string]*ExtractionConf) (InferenceData, error) {
-	// Now deal with the main value from the event
-	conf, ok := extractionConfs[e.Variable]
-	if !ok {
-		return nil, nil
-	}
-
-	val, err := conf.Extract(e.Value)
-	if err != nil {
-		return nil, err
-	}
-
-	v := &InferenceDataValue{e.Timestamp, conf.Name, val, conf.ValueType}
-
-	return addValue(conf, id, e.User.ID, v)
+func retrieveFromMetadata(e *InferenceDataEvent, conf *ExtractionConf) (json.RawMessage, bool) {
+	v, ok := e.User.Metadata[conf.Key]
+	return v, ok
 }
 
-func extractMetadata(id InferenceData, e *InferenceDataEvent, extractionConfs map[string]*ExtractionConf) (InferenceData, error) {
+func retrieveFromVariable(e *InferenceDataEvent, conf *ExtractionConf) (json.RawMessage, bool) {
+	ok := e.Variable == conf.Key
+	return e.Value, ok
+}
 
-	// Every event might have user metadata of interest, so we need to look at all of it
-	for k, conf := range extractionConfs {
-		val, ok := e.User.Metadata[k]
+func extractValue(id InferenceData, e *InferenceDataEvent, extractionConfs []*ExtractionConf, retrieve func(*InferenceDataEvent, *ExtractionConf) (json.RawMessage, bool)) (InferenceData, error) {
+	for _, conf := range extractionConfs {
+
+		val, ok := retrieve(e, conf)
 		if !ok {
 			continue
 		}
 
+		val, err := conf.Extract(val)
+		if err != nil {
+			return nil, err
+		}
+
 		v := &InferenceDataValue{e.Timestamp, conf.Name, val, conf.ValueType}
+
 		id, err := addValue(conf, id, e.User.ID, v)
 		if err != nil {
 			return id, err
@@ -199,13 +208,14 @@ func Reduce(events []*InferenceDataEvent, c *InferenceDataConf) (InferenceData, 
 		// TODO: should this have a nil check? Preferably not!
 
 		// add from metadata
-		id, err := extractMetadata(id, e, sourceConf.MetadataExtractionMapping)
+		id, err := extractValue(id, e, sourceConf.MetadataExtractionMapping, retrieveFromMetadata)
+
 		if err != nil {
 			return id, err
 		}
 
 		// attempt to extract the values from the event itself, according to config
-		id, err = extractValue(id, e, sourceConf.VariableExtractionMapping)
+		id, err = extractValue(id, e, sourceConf.VariableExtractionMapping, retrieveFromVariable)
 		if err != nil {
 			bb, _ := json.Marshal(e)
 			fmt.Println("Error extracting value: " + string(bb))
