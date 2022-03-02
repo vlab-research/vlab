@@ -1,0 +1,20 @@
+[
+  {
+    "user": {
+      "id": "foo",
+      "metadata": {
+        "user_md": "foo",
+        "other_md": {"key": "value"}
+      }
+    },
+    "study": "foo",
+    "source_conf": {
+      "config": null,
+      "name": "lit_data",
+      "source": "literacy_data_api"
+    },
+    "timestamp": "2021-07-07T00:00:00.000000000Z",
+    "variable": "q1",
+    "value": "A"
+  }
+]
