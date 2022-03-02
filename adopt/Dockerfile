@@ -1,8 +1,17 @@
-FROM python:3.9
+FROM python:3.9-slim
 
 WORKDIR /usr/src/app
 
-RUN pip install --no-cache-dir poetry
+RUN apt-get update && \
+    apt-get install --yes \
+    curl \
+    git
+
+RUN pip install --upgrade pip
+
+RUN curl -sSL https://install.python-poetry.org | python3 -
+
+ENV PATH="/root/.local/bin:$PATH"
 
 RUN poetry config virtualenvs.create false
 COPY poetry.lock pyproject.toml ./

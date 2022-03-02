@@ -184,7 +184,7 @@ def calculate_stat(data: list[RecruitmentData], stat, window=None) -> dict[str, 
     return stat
 
 
-def get_active_studies() -> list[Study]:
+def get_active_studies(now: datetime) -> list[Study]:
     pass
 
 
