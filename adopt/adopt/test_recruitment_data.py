@@ -9,9 +9,9 @@ from .db import _connect, execute, manyify, query
 from .facebook.date_range import DateRange
 from .recruitment_data import (CollectionPeriod, RecruitmentData, Study,
                                TimePeriod, _get_days, calculate_stat, day_end,
-                               day_start, get_collection_days,
-                               get_recruitment_data, load_recruitment_data,
-                               today)
+                               day_start, get_active_studies,
+                               get_collection_days, get_recruitment_data,
+                               load_recruitment_data, today)
 
 
 def _now():
@@ -267,7 +267,7 @@ def insert_data(dats):
     execute(cnf, q, records)
 
 
-def test_get_active_studies_happy_path():
+def test_get_active_studies_gets_based_on_latest_conf():
     _reset_db()
 
     now = _dt(2, 12)
@@ -276,9 +276,37 @@ def test_get_active_studies_happy_path():
 
     user_id, study_id = create_study("foo")
 
+    insert_general_conf(study_id, start, start)
     insert_general_conf(study_id, start, end)
 
-    # create conf
+    studies = get_active_studies(cnf, now)
+
+    assert len(studies) == 1
+    assert studies[0].id == study_id
+    assert studies[0].user_id == user_id
+
+
+def test_get_active_studies_gets_only_active_studies():
+    _reset_db()
+
+    now = _dt(2, 12)
+    start = _dt(1, 10)
+    end = _dt(3, 23)
+
+    user_id, study_id = create_study("foo")
+    user_id_b, study_id_b = create_study("bar", "bar@email")
+    user_id_c, study_id_c = create_study("baz", "baz@email")
+
+    insert_general_conf(study_id, start, end)
+    insert_general_conf(study_id_b, start - timedelta(days=1), start)
+    insert_general_conf(study_id_c, end, end + timedelta(days=1))
+
+    studies = get_active_studies(cnf, now)
+
+    assert len(studies) == 1
+    print(studies)
+    assert studies[0].id == study_id
+    assert studies[0].user_id == user_id
 
 
 def test_get_recruitment_data_returns_only_latest_temp_data():
@@ -390,3 +418,26 @@ def test_calculate_spend_calculates_all_spend_within_window():
 
     assert res["a"] == 2.5
     assert res["b"] == 0.6
+
+
+def test_calculate_spend_works_with_missing_data():
+    data = [
+        _rd(
+            _dt(1, 12),
+            day_end(_dt(1, 12)),
+            False,
+            {"a": {"spend": "1.1"}, "b": {"spend": "0.2"}},
+        ),
+        _rd(
+            _dt(2, 0),
+            day_end(_dt(2, 0)),
+            False,
+            {"a": {"spend": "2.5"}, "b": None},
+        ),
+    ]
+
+    window = DateRange(_dt(2, 0), _dt(3, 0))
+    res = calculate_stat(data, "spend", window)
+
+    assert res["a"] == 2.5
+    assert res["b"] == 0.0

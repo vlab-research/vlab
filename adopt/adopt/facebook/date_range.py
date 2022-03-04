@@ -5,7 +5,7 @@ epoch = datetime.utcfromtimestamp(0)
 
 
 def unix_time_millis(dt):
-    return (dt - epoch).total_seconds() * 1000.0
+    return int((dt - epoch).total_seconds() * 1000.0)
 
 
 @dataclass

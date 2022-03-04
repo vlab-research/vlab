@@ -22,7 +22,8 @@ from .marketing import (AudienceConf, CampaignConf, CreativeConf,
                         StratumConf, TargetVar, UserInfo, manage_audiences,
                         validate_targeting)
 from .recruitment_data import (RecruitmentData, calculate_stat, day_start,
-                               get_recruitment_data)
+                               get_active_studies, get_recruitment_data,
+                               load_recruitment_data)
 from .responses import get_inference_data
 
 logging.basicConfig(level=logging.INFO)
@@ -220,20 +221,38 @@ def update_audience_for_campaign(
     return manage_audiences(state, audiences), None
 
 
+def update_recruitment_data_for_campaign(study_id: str, malaria: Malaria):
+    # TODO: actually this shouldn't run for just active studies
+    #       it should run for all studies for whom we're missing
+    #       recruitment data...
+
+    now = datetime.utcnow()
+    _, config, db_conf, state, _, _, _ = malaria
+    load_recruitment_data(
+        db_conf, study_id, config.start_date, config.end_date, state, now
+    )
+    return None, None
+
+
 def run_updates(
     fn: Callable[[str, Malaria], Tuple[Sequence[Instruction], Optional[AdOptReport]]]
 ) -> None:
 
     env = Env()
     db_conf = get_db_conf(env)
-    campaigns = get_campaigns(db_conf)
 
-    for c in campaigns:
-        m = load_basics(c, env)
-        instructions, report = fn(c, m)
+    now = datetime.utcnow()
+    studies = get_active_studies(db_conf, now)
+
+    for s in studies:
+        m = load_basics(s.id, env)
+        instructions, report = fn(s.id, m)
+
+        if instructions is None:
+            continue
 
         if report:
-            create_adopt_report(c, "FACEBOOK_ADOPT", report, db_conf)
+            create_adopt_report(s.id, "FACEBOOK_ADOPT", report, db_conf)
 
         run_instructions(instructions, m.state)
 
@@ -244,6 +263,10 @@ def update_audience() -> None:
 
 def update_ads() -> None:
     run_updates(update_ads_for_campaign)
+
+
+def update_recruitment_data() -> None:
+    run_updates(update_recruitment_data_for_campaign)
 
 
 def uniqueness(strata: List[StratumConf]):

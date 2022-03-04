@@ -117,7 +117,7 @@ def create_campaign_confs(
 
 
 def create_adopt_report(
-    campaignid: str, report_type: str, details: AdOptReport, cnf: DBConf
+    study_id: str, report_type: str, details: AdOptReport, cnf: DBConf
 ):
     q = """
     INSERT INTO adopt_reports(study_id, report_type, details)
@@ -125,7 +125,7 @@ def create_adopt_report(
     RETURNING *
     """
 
-    return list(query(cnf, q, (campaignid, report_type, json.dumps(details))))[0]
+    return list(query(cnf, q, (study_id, report_type, json.dumps(details))))[0]
 
 
 def get_last_adopt_report(campaignid: str, report_type: str, cnf: DBConf):

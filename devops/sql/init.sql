@@ -69,6 +69,14 @@ CREATE TABLE credentials(
 
 ALTER TABLE credentials ADD CONSTRAINT unique_entity_key_per_user UNIQUE(user_id, entity, key);
 
+
+CREATE TABLE adopt_reports(
+       study_id UUID NOT NULL REFERENCES studies(id) ON DELETE CASCADE,
+       created TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+       report_type VARCHAR NOT NULL,
+       details JSONB NOT NULL
+);
+
 -- CREATE index ON studies (userid, credentials_entity, credentials_key);
 -- ALTER TABLE studies ADD CONSTRAINT credentials_key_exists FOREIGN KEY (userid, credentials_entity, credentials_key) REFERENCES credentials (userid, entity, key);
 
