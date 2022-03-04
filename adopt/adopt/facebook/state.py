@@ -2,14 +2,14 @@ import logging
 import re
 from datetime import date, datetime, timezone
 from functools import cached_property
-from datetime import datetime 
-from typing import Any, List, Tuple
+from typing import Any, List, Optional, Tuple
 
 
 from facebook_business.adobjects.ad import Ad
 from facebook_business.adobjects.adaccount import AdAccount
 from facebook_business.adobjects.adcreative import AdCreative
 from facebook_business.adobjects.adset import AdSet
+from facebook_business.adobjects.adsinsights import AdsInsights
 from facebook_business.adobjects.campaign import Campaign
 from facebook_business.adobjects.customaudience import CustomAudience
 from facebook_business.api import FacebookAdsApi
@@ -110,7 +110,7 @@ def get_all_ads(api: FacebookAdsApi, c: Campaign) -> List[Ad]:
     return ads
 
 
-def _get_insights(adset, window):
+def _get_insights(adset, window) -> Optional[dict]:
     params = {"time_range": {"since": window.start, "until": window.until}}
     fields = [
         "unique_link_clicks_ctr",
@@ -127,7 +127,8 @@ def _get_insights(adset, window):
     ]
 
     try:
-        return call(adset.get_insights, params=params, fields=fields)[0]
+        ai = call(adset.get_insights, params=params, fields=fields)[0]
+        return ai.export_all_data()
     except IndexError:
         return None
 
@@ -258,10 +259,8 @@ class CampaignState:
 
 def get_insights(
     state: CampaignState, start: datetime, end: datetime
-) -> dict[str, Any]:
+) -> dict[str, Optional[dict]]:
 
     window = DateRange(start, end)
     insights = {a["name"]: _get_insights(a, window) for a in state.adsets}
-
-    # map adset name to stratum name
     return insights

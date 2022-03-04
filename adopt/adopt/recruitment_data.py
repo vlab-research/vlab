@@ -1,6 +1,6 @@
 import json
 from datetime import date, datetime, timedelta
-from typing import Any, NamedTuple
+from typing import Any, NamedTuple, Optional
 
 from facebook_business.adobjects.adsinsights import AdsInsights
 
@@ -25,7 +25,7 @@ class TimePeriod(NamedTuple):
 class RecruitmentData(NamedTuple):
     time_period: TimePeriod
     temp: bool
-    data: dict[Stratum, AdsInsights]
+    data: dict[Stratum, Optional[dict]]
 
 
 class Study(NamedTuple):
@@ -179,40 +179,32 @@ def calculate_stat(data: list[RecruitmentData], stat, window=None) -> dict[str, 
                 daily_stats[k] = [v]
 
     stat = {
-        k: sum([float(x.get(stat, 0.0)) for x in v]) for k, v in daily_stats.items()
+        k: sum([float(x.get(stat, 0.0) if x else 0.0) for x in v])
+        for k, v in daily_stats.items()
     }
     return stat
 
 
-def get_active_studies(now: datetime) -> list[Study]:
-    pass
+# TODO: remove "Study" type, change to just id??
+def get_active_studies(db_conf, now: datetime) -> list[Study]:
+    q = """
+    WITH t AS (
+    SELECT s.id,
+           s.user_id,
+           s.NAME,
+           (conf->0->>'start_date')::TIMESTAMP AS start_date,
+           (conf->0->>'end_date')::TIMESTAMP AS end_date,
+           row_number() over (PARTITION BY sc.study_id ORDER BY sc.created DESC) AS n
+    FROM studies s
+    JOIN study_confs sc ON sc.study_id = s.id
+    WHERE conf_type = 'opt'
+    ORDER BY sc.created DESC)
+    SELECT id, user_id, name, start_date, end_date
+    FROM t
+    WHERE n = 1
+    AND start_date <= %s
+    AND end_date >= %s
+    """
 
-
-def get_campaign_state(study: Study) -> CampaignState:
-
-    # get confs from db based on study.id
-
-    # userinfo, config, db_conf, confs = get_confs(campaignid, env)
-
-    # state = CampaignState(
-    #     userinfo.token,
-    #     get_api(env, userinfo.token),
-    #     config.ad_account,
-    #     config.ad_campaign,
-    # )
-    # userid
-
-    # add start_time, end_time from general conf! Create Study?
-
-    # create useful Study object, not necessarily DB object (Oh snap! ORM!)
-    #
-    pass
-
-
-def main():
-    studies = get_active_studies()
-
-    for study in studies:
-        # eventually: for each source in study
-        state = get_campaign_state(study)
-        load_recruitment_data(study, state, datetime.utcnow())
+    res = query(db_conf, q, [now, now])
+    return [Study(*t) for t in res]

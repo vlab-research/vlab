@@ -18,7 +18,7 @@ scipy = "^1.6.3"
 toolz = "^0.11.1"
 setuptools = "^60.5.0" # needed for current poetry version 1.12
 typedjson = {git = "https://github.com/nandanrao/typedjson-python", rev = "86138a64a9642bb811a79273d0d8dcbfbfe6b5cc"}
-psycopg = "^3.0.8"
+psycopg = {extras = ["binary", "pool"], version = "^3.0.9"}
 openpyxl = "^3.0.9"
 orjson = "^3.6.6"
 
