@@ -51,9 +51,11 @@ function processor(machine, stateStore) {
   return async function _processor ({ key:userId, value:event }) {
 
     try {
+      console.log('EVENT: ', event)
+
       const state = await stateStore.getState(userId, event)
       console.log('STATE: ', state)
-      console.log('EVENT: ', event)
+
 
       const report = await machine.run(state, userId, event)
 
