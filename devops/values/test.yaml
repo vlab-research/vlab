@@ -21,12 +21,12 @@ chatbaseHost: &host gbv-cockroachdb-public
 
 versionDashboard: &vdashboard v0.0.27
 versionBotserver: &vbotserver 0.0.9
-versionReplybot: &vreplybot v0.0.126
+versionReplybot: &vreplybot v0.0.127
 versionLinksniffer: &vlinksniffer v0.0.4
 versionDean: &vdean v0.0.24
 versionScribble: &vscribble v0.0.21
 versionDinersclub: &vdinersclub v0.0.19
-versionFormcentral: &vformcentral v0.0.9
+versionFormcentral: &vformcentral v0.0.10
 
 linksniffer:
   replicaCount: 1
