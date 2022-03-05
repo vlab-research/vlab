@@ -36,3 +36,13 @@ type config struct {
 		Audience string `envconfig:"AUTH0_AUDIENCE"`
 	}
 }
+
+func GetConfig() (config, error) {
+	var cfg config
+	err := envconfig.Process("", &cfg)
+	if err != nil {
+		return config{}, fmt.Errorf("envconfig.Process: %w", err)
+	}
+
+	return cfg, nil
+}
