@@ -1,7 +1,10 @@
 package testhelpers
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
+	"fmt"
 	"io"
 	"log"
 	"net/http"
@@ -12,25 +15,28 @@ import (
 	"github.com/gin-gonic/gin"
 	"gopkg.in/square/go-jose.v2/jwt"
 
+	"github.com/vlab-research/vlab/dashboard-api/cmd/api/bootstrap"
 	"github.com/vlab-research/vlab/dashboard-api/internal/platform/server"
 	"github.com/vlab-research/vlab/dashboard-api/internal/platform/storage"
 )
 
-type response struct {
+type Response struct {
 	StatusCode int
 	Header     http.Header
 	Body       string
 }
 
-func PerformGetRequest(path string, repositories storage.Repositories) response {
-	return PerformRequest(path, http.MethodGet, repositories)
+var CurrentUserId = "auth0|61916c1dab79c900713936de"
+
+func PerformGetRequest(path string, repositories storage.Repositories) Response {
+	return PerformRequest(path, http.MethodGet, repositories, nil)
 }
 
-func PerformPostRequest(path string, repositories storage.Repositories, body interface{}) response {
-	return PerformRequest(path, http.MethodPost, repositories)
+func PerformPostRequest(path string, repositories storage.Repositories, reqBody interface{}) Response {
+	return PerformRequest(path, http.MethodPost, repositories, reqBody)
 }
 
-func PerformRequest(path string, method string, repositories storage.Repositories) response {
+func PerformRequest(path string, method string, repositories storage.Repositories, reqBody interface{}) Response {
 	gin.SetMode(gin.TestMode)
 
 	noopString := ""
@@ -38,7 +44,16 @@ func PerformRequest(path string, method string, repositories storage.Repositorie
 
 	srv := server.New(noopString, noopUint, repositories, FakeValidTokenMiddleware(), noopString)
 
-	req, err := http.NewRequest(method, path, nil)
+	var req *http.Request
+	var err error
+
+	if method == http.MethodPost {
+		reqBodyAsString, _ := json.Marshal(reqBody)
+		req, err = http.NewRequest(method, path, bytes.NewBuffer([]byte(reqBodyAsString)))
+	} else {
+		req, err = http.NewRequest(method, path, nil)
+	}
+
 	if err != nil {
 		log.Fatalf("(http.NewRequest) performRequest failed for path: %s", path)
 	}
@@ -54,7 +69,7 @@ func PerformRequest(path string, method string, repositories storage.Repositorie
 
 	defer res.Body.Close()
 
-	return response{
+	return Response{
 		StatusCode: res.StatusCode,
 		Header:     res.Header,
 		Body:       string(body),
@@ -65,7 +80,7 @@ func FakeValidTokenMiddleware() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		userCtx := josev2.UserContext{
 			RegisteredClaims: jwt.Claims{
-				Subject: "fake-user-id",
+				Subject: CurrentUserId,
 			},
 		}
 
@@ -73,4 +88,19 @@ func FakeValidTokenMiddleware() gin.HandlerFunc {
 
 		ctx.Next()
 	}
+}
+
+func GetRepositories() storage.Repositories {
+	cfg, err := bootstrap.GetConfig()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	dbUri := fmt.Sprintf("postgresql://%s:%s@%s:%d/%s?sslmode=disable", cfg.DbUser, cfg.DbPassword, cfg.DbHost, cfg.DbPort, cfg.DbName)
+	return storage.InitializeRepositories(dbUri)
+}
+
+func DeleteAllStudies() {
+	repositories := GetRepositories()
+	repositories.Db.Exec("DELETE FROM studies")
 }

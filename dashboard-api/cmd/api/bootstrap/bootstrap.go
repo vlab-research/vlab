@@ -10,24 +10,6 @@ import (
 	storage "github.com/vlab-research/vlab/dashboard-api/internal/platform/storage"
 )
 
-func Run() error {
-	var cfg config
-	err := envconfig.Process("", &cfg)
-	if err != nil {
-		return fmt.Errorf("envconfig.Process: %w", err)
-	}
-
-	dbUri := fmt.Sprintf("postgresql://%s:%s@%s:%d/%s?sslmode=disable", cfg.DbUser, cfg.DbPassword, cfg.DbHost, cfg.DbPort, cfg.DbName)
-	srv := server.New(
-		cfg.Host,
-		cfg.Port,
-		storage.InitializeRepositories(dbUri),
-		auth.EnsureValidTokenMiddleware(cfg.Auth0.Domain, cfg.Auth0.Audience),
-		cfg.Auth0.Domain,
-	)
-	return srv.Run()
-}
-
 type config struct {
 	Host       string `default:"localhost" envconfig:"API_HOST"`
 	Port       uint   `default:"8080" envconfig:"API_PORT"`
@@ -40,4 +22,31 @@ type config struct {
 		Domain   string `default:"https://vlab-dev.us.auth0.com/"`
 		Audience string `default:"https://api-dev.vlab/"`
 	}
+}
+
+func GetConfig() (config, error) {
+	var cfg config
+	err := envconfig.Process("", &cfg)
+	if err != nil {
+		return config{}, fmt.Errorf("envconfig.Process: %w", err)
+	}
+
+	return cfg, nil
+}
+
+func Run() error {
+	cfg, err := GetConfig()
+	if err != nil {
+		return err
+	}
+
+	dbUri := fmt.Sprintf("postgresql://%s:%s@%s:%d/%s?sslmode=disable", cfg.DbUser, cfg.DbPassword, cfg.DbHost, cfg.DbPort, cfg.DbName)
+	srv := server.New(
+		cfg.Host,
+		cfg.Port,
+		storage.InitializeRepositories(dbUri),
+		auth.EnsureValidTokenMiddleware(cfg.Auth0.Domain, cfg.Auth0.Audience),
+		cfg.Auth0.Domain,
+	)
+	return srv.Run()
 }

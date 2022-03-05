@@ -4,8 +4,10 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"strings"
 	"time"
 
+	"github.com/gosimple/slug"
 	studiesmanager "github.com/vlab-research/vlab/dashboard-api/internal"
 )
 
@@ -60,4 +62,24 @@ func (r *StudyRepository) GetStudies(ctx context.Context, offset int, limit int,
 	}
 
 	return studies, nil
+}
+
+func (r *StudyRepository) CreateStudy(ctx context.Context, name, userId string) (studiesmanager.Study, error) {
+	slug := slug.Make(name)
+
+	row := r.db.QueryRow("INSERT INTO studies (slug, name, user_id) VALUES ($1, $2, $3) RETURNING id,created", slug, name, userId)
+
+	var id string
+	var created time.Time
+
+	if err := row.Scan(&id, &created); err != nil {
+		if strings.Contains(err.Error(), "violates unique constraint") {
+			return studiesmanager.Study{}, fmt.Errorf("%w: %s", studiesmanager.ErrStudyAlreadyExist, slug)
+		}
+
+		return studiesmanager.Study{}, fmt.Errorf("study (slug: %s, name: %s, userId: %s) cannot be created: %v", slug, name, userId, err)
+
+	}
+
+	return studiesmanager.NewStudy(id, name, slug, created.UnixMilli()), nil
 }
