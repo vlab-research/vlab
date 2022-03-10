@@ -1,54 +1,27 @@
 import logging
 from datetime import datetime, timedelta
-from typing import (Any, Callable, Dict, List, NamedTuple, Optional, Sequence,
-                    Tuple, Union)
+from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
 
 import pandas as pd
-import typedjson
 from environs import Env
 from facebook_business.adobjects.targeting import Targeting
-from toolz import groupby
 
 from .audiences import hydrate_audiences
 from .campaign_queries import (DBConf, create_adopt_report,
-                               get_campaign_configs, get_campaigns,
-                               get_user_info)
+                               get_campaign_configs, get_user_info)
 from .clustering import AdOptReport, get_budget_lookup
-from .facebook.state import CampaignState, DateRange, StateNameError, get_api
+from .facebook.state import DateRange, FacebookState, StateNameError, get_api
 from .facebook.update import GraphUpdater, Instruction
-from .marketing import (AudienceConf, CampaignConf, CreativeConf,
-                        DestinationConf, FacebookTargeting, InferenceDataConf,
-                        Marketing, QuestionTargeting, SourceConf, Stratum,
-                        StratumConf, TargetVar, UserInfo, manage_audiences,
+from .marketing import (manage_audiences, update_instructions,
                         validate_targeting)
 from .recruitment_data import (RecruitmentData, calculate_stat, day_start,
                                get_active_studies, get_recruitment_data,
                                load_recruitment_data)
 from .responses import get_inference_data
+from .study_conf import (CampaignConf, CreativeConf, FacebookTargeting,
+                         Stratum, StratumConf, StudyConf)
 
 logging.basicConfig(level=logging.INFO)
-
-
-def _get_ref(v: Union[TargetVar, QuestionTargeting]) -> Sequence[Optional[str]]:
-    if isinstance(v, QuestionTargeting):
-        return get_target_questions(v)
-
-    if v.type in {"response", "translated_response"}:
-        return [v.value]  # type: ignore
-
-    return [None]
-
-
-def get_target_questions(qt: Optional[QuestionTargeting]) -> Sequence[str]:
-    if qt is None:
-        return []
-
-    refs = [r for v in qt.vars for r in _get_ref(v)]
-    return [r for r in refs if r is not None]
-
-
-# TODO: This is the entrance to get data from the InferenceData store
-# update to reflect that.
 
 
 def get_df(
@@ -57,54 +30,10 @@ def get_df(
     study_id: str,
 ) -> Optional[pd.DataFrame]:
 
-    df = get_inference_data(survey_user, study_id, db_conf)
-    return df
-
-
-def prep_opt(s):
-    s["end_date"] = datetime.fromisoformat(s["end_date"])
-    s["start_date"] = datetime.fromisoformat(s["start_date"])
-    return s
-
-
-def get_confs_for_campaign(campaignid, db_conf):
-    parsers = {
-        "stratum": lambda x: typedjson.decode(StratumConf, x),
-        "audience": lambda x: typedjson.decode(AudienceConf, x),
-        "creative": lambda x: typedjson.decode(CreativeConf, x),
-        "opt": lambda x: typedjson.decode(CampaignConf, prep_opt(x)),
-        "destination": lambda x: typedjson.decode(DestinationConf, x),
-        "data_source": lambda x: typedjson.decode(SourceConf, x),
-        "inference_data": lambda x: typedjson.decode(InferenceDataConf, x),
-    }
-
-    confs = get_campaign_configs(campaignid, db_conf)
-    confs = groupby(
-        lambda x: x[0],
-        [
-            (c["conf_type"], parsers[c["conf_type"]](conf))
-            for c in confs
-            for conf in c["conf"]
-        ],
-    )
-    return {k: [vv for _, vv in v] for k, v in confs.items()}
-
-
-DBConf = str
-
-
-class Malaria(NamedTuple):
-    userinfo: UserInfo
-    config: CampaignConf
-    db_conf: DBConf
-    state: CampaignState
-    m: Marketing
-    confs: Dict[str, Any]
-    recruitment_data: list[RecruitmentData]
+    return get_inference_data(survey_user, study_id, db_conf)
 
 
 def get_db_conf(env: Env) -> DBConf:
-
     db = env("CHATBASE_DATABASE")
     user = env("CHATBASE_USER")
     host = env("CHATBASE_HOST")
@@ -115,16 +44,14 @@ def get_db_conf(env: Env) -> DBConf:
     return cnf
 
 
-def get_confs(
-    campaignid: str, env: Env
-) -> Tuple[UserInfo, CampaignConf, DBConf, Dict[str, Any]]:
+def get_study_conf(db_conf, study_id: str) -> StudyConf:
+    user_info = get_user_info(study_id, db_conf)
+    confs = get_campaign_configs(study_id, db_conf)
+    cd = {v["conf_type"]: v["conf"] for v in confs}
 
-    db_conf = get_db_conf(env)
-    userinfo = UserInfo(**get_user_info(campaignid, db_conf))
-    confs = get_confs_for_campaign(campaignid, db_conf)
-    config = confs["opt"][0]
-
-    return userinfo, config, db_conf, confs
+    # str() around study_id temp, is UUID in some tests now
+    params = {"id": str(study_id), "user": user_info, **cd}
+    return StudyConf(**params)
 
 
 def days_left(config: CampaignConf):
@@ -143,24 +70,7 @@ def make_window(hours, now):
     return DateRange(start, now)
 
 
-def load_basics(campaignid: str, env: Env) -> Malaria:
-    userinfo, config, db_conf, confs = get_confs(campaignid, env)
-
-    state = CampaignState(
-        userinfo.token,
-        get_api(env, userinfo.token),
-        config.ad_account,
-        config.ad_campaign_name,
-    )
-
-    m = Marketing(state, config, confs["destination"])
-
-    rd = get_recruitment_data(db_conf, campaignid)
-
-    return Malaria(userinfo, config, db_conf, state, m, confs, rd)
-
-
-def run_instructions(instructions: Sequence[Instruction], state: CampaignState):
+def run_instructions(instructions: Sequence[Instruction], state: FacebookState):
     updater = GraphUpdater(state)
     for i in instructions:
         report = updater.execute(i)
@@ -172,71 +82,92 @@ def calculate_total_spend(rd: list[RecruitmentData]) -> float:
     return sum(spend.values())
 
 
+# in pipeline design, this manages a single campaign,
+# but takes a study id. That's ok ->
+# picking config
+# recruitment_data can be the same, we can learn
+# from other campaigns.
+# So optimization is the same, pick the same
+# recruitment data
 def update_ads_for_campaign(
-    study_id: str,
-    malaria: Malaria,
+    db_conf: DBConf, study: StudyConf, state: FacebookState
 ) -> Tuple[Sequence[Instruction], Optional[AdOptReport]]:
-    userinfo, config, db_conf, state, m, confs, rd = malaria
-    strata = hydrate_strata(state, confs["stratum"], confs["creative"])
 
-    df = get_df(db_conf, userinfo.survey_user, study_id)
+    rd = get_recruitment_data(db_conf, study.id)
+
+    strata = hydrate_strata(state, study.strata, study.creatives)
+
+    df = get_df(db_conf, study.user.survey_user, study.id)
 
     now = datetime.utcnow()
-    window = make_window(config.opt_window, now)
+    window = make_window(study.general.opt_window, now)
+
     spend = calculate_stat(rd, "spend", window)
+
     total_spend = calculate_total_spend(rd)
 
     budget_lookup, report = get_budget_lookup(
         df,
         strata,
-        config.budget,
-        config.min_budget,
+        study.general.budget,
+        study.general.min_budget,
         window,
         spend,
         total_spend,
-        days_left=days_left(config),
-        proportional=config.proportional,
+        days_left=days_left(study.general),
+        proportional=study.general.proportional,
     )
 
-    return m.update_instructions(strata, budget_lookup), report
+    return update_instructions(study, state, strata, budget_lookup), report
 
 
 def update_audience_for_campaign(
-    study_id: str,
-    malaria: Malaria,
+    db_conf: DBConf, study: StudyConf, state: FacebookState
 ) -> Tuple[Sequence[Instruction], Optional[AdOptReport]]:
 
-    userinfo, config, db_conf, state, m, confs, rd = malaria
-    audience_confs = confs["audience"]
-
-    df = get_df(db_conf, userinfo.survey_user, study_id)
+    df = get_df(db_conf, study.user.survey_user, study.id)
 
     if df is None:
         df = pd.DataFrame([], columns=[])
         # logging.info("No responses found, no audience updates made.")
         # return [], None
 
-    audiences = hydrate_audiences(df, m, audience_confs)
+    audiences = hydrate_audiences(study, df, study.audiences)
 
     return manage_audiences(state, audiences), None
 
 
-def update_recruitment_data_for_campaign(study_id: str, malaria: Malaria):
+def update_recruitment_data_for_campaign(
+    db_conf: DBConf, study: StudyConf, state: FacebookState
+):
     # TODO: actually this shouldn't run for just active studies
     #       it should run for all studies for whom we're missing
     #       recruitment data...
 
+    # also we need a way to select based on pipeline design.
+
     now = datetime.utcnow()
-    _, config, db_conf, state, _, _, _ = malaria
-    load_recruitment_data(
-        db_conf, study_id, config.start_date, config.end_date, state, now
-    )
+    load_recruitment_data(db_conf, study, state, now)
     return None, None
 
 
-def run_updates(
-    fn: Callable[[str, Malaria], Tuple[Sequence[Instruction], Optional[AdOptReport]]]
-) -> None:
+AdoptJob = Callable[
+    [DBConf, StudyConf, FacebookState],
+    Tuple[Sequence[Instruction], Optional[AdOptReport]],
+]
+
+
+def load_basics(study_id: str, db_conf: DBConf, env: Env) -> [StudyConf, FacebookState]:
+    study = get_study_conf(db_conf, study_id)
+    state = FacebookState(
+        get_api(env, study.user.token),
+        study.general.ad_account,
+    )
+
+    return study, state
+
+
+def run_updates(fn: AdoptJob) -> None:
 
     env = Env()
     db_conf = get_db_conf(env)
@@ -245,16 +176,17 @@ def run_updates(
     studies = get_active_studies(db_conf, now)
 
     for s in studies:
-        m = load_basics(s.id, env)
-        instructions, report = fn(s.id, m)
+        study, state = load_basics(s, db_conf, env)
+
+        instructions, report = fn(db_conf, study, state)
 
         if instructions is None:
             continue
 
         if report:
-            create_adopt_report(s.id, "FACEBOOK_ADOPT", report, db_conf)
+            create_adopt_report(s, "FACEBOOK_ADOPT", report, db_conf)
 
-        run_instructions(instructions, m.state)
+        run_instructions(instructions, state)
 
 
 def update_audience() -> None:
@@ -286,7 +218,7 @@ def _add_aud(state, name) -> Optional[Dict[str, Any]]:
 
 
 def add_audience_targeting(
-    state: CampaignState, stratum: StratumConf
+    state: FacebookState, stratum: StratumConf
 ) -> FacebookTargeting:
 
     targeting = stratum.facebook_targeting
@@ -302,7 +234,7 @@ def add_audience_targeting(
 
 
 def hydrate_strata(
-    state: CampaignState, strata: List[StratumConf], creatives: List[CreativeConf]
+    state: FacebookState, strata: List[StratumConf], creatives: List[CreativeConf]
 ) -> List[Stratum]:
 
     # Validate strata
@@ -316,7 +248,7 @@ def hydrate_strata(
         {
             **{
                 k: v
-                for k, v in s._asdict().items()
+                for k, v in s.dict().items()
                 if k not in {"audiences", "excluded_audiences"}
             },
             "creatives": [creative_lookup[c] for c in s.creatives],

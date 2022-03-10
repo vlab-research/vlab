@@ -1,6 +1,6 @@
 import json
 import random
-from dataclasses import dataclass, fields
+from dataclasses import asdict, dataclass, fields
 from datetime import datetime, timedelta
 from typing import (Any, Dict, List, NamedTuple, Optional, Sequence, Tuple,
                     Union)
@@ -18,283 +18,15 @@ from facebook_business.adobjects.customaudience import CustomAudience
 from facebook_business.adobjects.targeting import Targeting
 
 from .facebook.reconciliation import adset_dif
-from .facebook.state import CampaignState, split
+from .facebook.state import FacebookState, split
 from .facebook.update import Instruction
+from .study_conf import (AppDestination, Audience, CampaignConf, CreativeConf,
+                         DestinationConf, FlyMessengerDestination,
+                         LookalikeAudience, Stratum, StudyConf, WebDestination)
 
 ADSET_HOURS = 48
 
-Params = Dict[str, Any]
-
-
-class SourceConf(NamedTuple):
-    name: str
-    source: str
-    config: Any
-
-
-class ExtractionConf(NamedTuple):
-    key: str
-    name: str
-    function: str
-    params: Any
-    value_type: str
-    aggregate: str
-
-
-class InferenceDataSource(NamedTuple):
-    variable_extraction: list[ExtractionConf]
-    metadata_extraction: list[ExtractionConf]
-
-
-class InferenceDataConf(NamedTuple):
-    data_sources: dict[str, InferenceDataSource]
-
-
-class UserInfo(NamedTuple):
-    survey_user: str
-    token: str
-
-
-# add max_budget - for max daily budget
-# make budget optional - only for proportional
-
-
-class TargetVar(NamedTuple):
-    type: str
-    value: Union[str, int, float]
-
-
-class QuestionTargeting(NamedTuple):
-    op: str
-    vars: List[Union[TargetVar, "QuestionTargeting"]]  # type: ignore
-
-
-class FlyMessengerDestination(NamedTuple):
-    initial_shortcode: str
-    survey_shortcodes: list[str]
-    finished_question_ref: str
-
-
-class AppDestination(NamedTuple):
-    facebook_app_id: str
-    app_install_link: str
-    deeplink_template: str
-    app_install_state: str
-    user_device: list[str]
-    user_os: list[str]
-
-
-DestinationConf = Union[FlyMessengerDestination, AppDestination]
-
-FacebookTargeting = Dict[str, Any]
-
-
-class CampaignConf(NamedTuple):
-    optimization_goal: str
-    destination_type: str
-    page_id: str
-    instagram_id: Optional[str]
-    budget: float
-    min_budget: float
-    opt_window: int
-    start_date: datetime
-    end_date: datetime
-    proportional: bool
-    ad_account: str
-    ad_campaign_name: str
-    country_code: str
-    extra_metadata: dict[str, str]
-
-
-class CreativeConf(NamedTuple):
-    name: str
-    image_hash: str
-    body: str
-    link_text: str
-    welcome_message: Optional[str] = None  # messenger only
-    button_text: Optional[str] = None  # messenger only
-    tags: Optional[list[str]] = None
-
-
-class StratumConf(NamedTuple):
-    id: str
-    quota: Union[int, float]
-    creatives: List[str]
-    audiences: List[str]
-    excluded_audiences: List[str]
-    facebook_targeting: FacebookTargeting
-    question_targeting: Optional[QuestionTargeting]
-    metadata: Dict[str, str]
-
-
-# OLD
-# {
-#     "name": f"vlab-vacc-{COUNTRY_CODE}-vacc-A+B",
-#     "subtype": "LOOKALIKE",
-#     "lookalike": {
-#         "name": f"vlab-vacc-{COUNTRY_CODE}-vacc-A+B-lookalike",
-#         "target": 1100,
-#         "spec": {
-#             "country": COUNTRY_CODE,
-#             "starting_ratio": 0.0,
-#             "ratio": 0.2
-#         }
-#     },
-
-
-# NEW
-# {
-#     "name": f"vlab-vacc-{COUNTRY_CODE}-",
-#     "subtype": "LOOKALIKE",
-#     "lookalike": {
-#         "target": 1100,
-#         "spec": {
-#             "country": COUNTRY_CODE,
-#             "starting_ratio": 0.0,
-#             "ratio": 0.2
-#         }
-#     },
-
-# {
-#     "name": f"vlab-vacc-{COUNTRY_CODE}-respondents",
-#     "subtype": "PARTITIONED",
-#     "partitioning": {
-#     },
-
-
-class InvalidConfigError(BaseException):
-    pass
-
-
-# scenario: I want to split every N users.
-# usage: set min_users only
-#
-# scenario: I want to split when I've BOTH past X days,
-# and have at least N users.
-# usage: set min_users, min_days
-#
-# scenario: I want to split if I've either passed X days
-# or past N users
-# usage: set max_users, max_days, and min_users
-@dataclass(frozen=True)
-class Partitioning:
-    min_users: int
-    min_days: Optional[int] = None
-    max_days: Optional[int] = None
-    max_users: Optional[int] = None
-
-    @property
-    def scenario(self):
-        return {f.name for f in fields(self) if getattr(self, f.name)}
-
-    def __post_init__(self):
-        valid_scenarios = [
-            {"min_users"},
-            {"min_users", "min_days"},
-            {"min_users", "max_users", "max_days"},
-        ]
-
-        if self.scenario not in valid_scenarios:
-            raise InvalidConfigError(
-                f"Invalid partitioning config. The following fields "
-                f"were all set: {self.scenario}. Please see documentation for "
-                f"valid combinations."
-            )
-
-
-def validate(cls, subtype, subtype_confs):
-    if subtype not in subtype_confs:
-        raise InvalidConfigError(
-            f"Invalid subtype: {subtype}. " f"We support: {list(subtype_confs.keys())}"
-        )
-
-    conf = subtype_confs[subtype]
-    if conf:
-        attr, type_ = conf
-        val = getattr(cls, attr)
-        if not isinstance(val, type_):
-            raise InvalidConfigError(
-                f"Invalid config. Subtype {subtype} "
-                f"requires a {type_} value for {attr}"
-            )
-
-
-@dataclass(frozen=True)
-class SimpleRandomizationConf:
-    arms: int
-
-
-@dataclass(frozen=True)
-class RandomizationConf:
-    name: str
-    strategy: str
-    config: Union[SimpleRandomizationConf]
-
-    def __post_init__(self):
-        subtype_confs = {
-            "SIMPLE": ("config", SimpleRandomizationConf),
-        }
-        validate(self, self.subtype, subtype_confs)
-
-
-class LookalikeSpec(NamedTuple):
-    country: str
-    ratio: float
-    starting_ratio: float
-
-
-class Lookalike(NamedTuple):
-    target: int
-    spec: LookalikeSpec
-
-
-@dataclass(frozen=True)
-class AudienceConf:
-    name: str
-    subtype: str
-    question_targeting: Optional[QuestionTargeting] = None
-    lookalike: Optional[Lookalike] = None
-    partitioning: Optional[Partitioning] = None
-
-    def __post_init__(self):
-        subtype_confs = {
-            "CUSTOM": None,
-            "LOOKALIKE": ("lookalike", Lookalike),
-            "PARTITIONED": ("partitioning", Partitioning),
-        }
-        validate(self, self.subtype, subtype_confs)
-
-
-class Audience(NamedTuple):
-    name: str
-    pageid: str
-    users: List[str]
-
-
-class LookalikeAudience(NamedTuple):
-    name: str
-    spec: LookalikeSpec
-    origin_audience: Audience
-
-
-AnyAudience = Union[Audience, LookalikeAudience]
-
-
-class CreativeGroup(NamedTuple):
-    name: str
-    creatives: List[CreativeConf]
-
-
 Metadata = Dict[str, str]
-
-
-class Stratum(NamedTuple):
-    id: str
-    quota: Union[int, float]
-    creatives: List[CreativeConf]
-    facebook_targeting: FacebookTargeting
-    question_targeting: Optional[QuestionTargeting]
-    metadata: Metadata
 
 
 class Location(NamedTuple):
@@ -315,17 +47,29 @@ class AdsetConf(NamedTuple):
     promoted_object: Optional[dict[str, str]]
 
 
+from dataclasses import is_dataclass
+
+
 def dict_from_nested_type(d):
-    """Handles both Facebook SDK's types and Named Tuples"""
+    """Handles both Facebook SDK's types and Named Tuples
+    and Pydantic BaseModels and dataclasses"""
+
     if hasattr(d, "export_data"):
         d = d.export_data()
 
     if hasattr(d, "_asdict"):
         d = d._asdict()
 
+    if hasattr(d, "dict"):
+        d = d.dict()
+
+    if is_dataclass(d):
+        d = asdict(d)
+
     if isinstance(d, dict):
         for k, v in d.items():
             d[k] = dict_from_nested_type(v)
+
         return d
 
     if isinstance(d, list):
@@ -411,7 +155,7 @@ def manage_lookalike_aud(
     origin = existing.get(aud.origin_audience.name)
 
     if aud.name not in existing and origin:
-        return [create_lookalike_audience(aud.name, aud.spec._asdict(), origin)]
+        return [create_lookalike_audience(aud.name, aud.spec.dict(), origin)]
 
     return []
 
@@ -500,21 +244,21 @@ def make_ref(creative_name: str, metadata: Metadata) -> str:
     return s
 
 
-def messenger_call_to_action():
-    {
+def messenger_call_to_action() -> dict:
+    return {
         "type": "MESSAGE_PAGE",
         "value": {"app_destination": "MESSENGER"},
     }
 
 
-def app_download_call_to_action(deeplink):
+def app_download_call_to_action(deeplink) -> dict:
     return {
         "type": "INSTALL_MOBILE_APP",
         "value": {"app_link": deeplink},
     }
 
 
-def create_creative(
+def _create_creative(
     config: CreativeConf,
     page_id: str,
     call_to_action: dict[str, Any],
@@ -555,100 +299,108 @@ def create_creative(
     return c
 
 
-class Marketing:
-    def __init__(
-        self,
-        state: CampaignState,
-        config: CampaignConf,
-        destination: list[DestinationConf],
-    ):
-        cnf: Dict[str, Any] = {
-            "PAGE_ID": config.page_id,
-            "INSTA_ID": config.instagram_id,
-            "OPTIMIZATION_GOAL": config.optimization_goal,
-            "DESTINATION_TYPE": config.destination_type,
-            "ADSET_HOURS": ADSET_HOURS,
-            "EXTRA_METADATA": config.extra_metadata,
-        }
+def create_creative(
+    study: StudyConf, stratum: Stratum, config: CreativeConf
+) -> AdCreative:
+    md = {**stratum.metadata, **study.general.extra_metadata}
 
-        self.destination = destination[0]
-        self.state = state
-        self.cnf = cnf
+    dest_lookup = {d.name: d for d in study.destinations}
 
-    # TODO: in order to accomodate multiple campaigns, this should be split
-    # into two parts: A) generates the "format" from the configs (this should be
-    # either persisted or exposed via API) and then B) uses that format to
-    # create a set of instructions which can then be diffed with the
-    # facebook_ad_state reconciler.
-    def update_instructions(
-        self, strata: List[Stratum], budget: Dict[str, float]
-    ) -> Sequence[Instruction]:
+    try:
+        destination = dest_lookup[config.destination]
+    except KeyError as e:
+        raise Exception(
+            f"Config Problem: destination {config.destination} is "
+            f"not configured. Destination options: {list(dest_lookup.keys())}"
+        ) from e
 
-        sb = [(s, budget[s.id]) for s in strata]
-        new_state = [self.adset_instructions(s, b) for s, b in sb if b > 0]
+    if isinstance(destination, FlyMessengerDestination):
+        md = {**md, "form": destination.initial_shortcode}
+        ref = make_ref(config.name, md)
+        msg = make_welcome_message(config.welcome_message, config.button_text, ref)
 
-        return adset_dif(self.state.campaign_state, new_state)
-
-    def adset_instructions(
-        self, stratum: Stratum, budget: float
-    ) -> Tuple[AdSet, List[Ad]]:
-
-        creatives = [self.create_creative(stratum, c) for c in stratum.creatives]
-
-        if isinstance(self.destination, AppDestination):
-            d = self.destination
-            promoted_object = {
-                AdPromotedObject.Field.application_id: d.facebook_app_id,
-                AdPromotedObject.Field.object_store_url: d.app_install_link,
-            }
-        else:
-            promoted_object = None
-
-        ac = AdsetConf(
-            self.state.campaign,
-            stratum,
-            budget,
-            "ACTIVE",
-            self.cnf["INSTA_ID"],
-            self.cnf["ADSET_HOURS"],
-            self.cnf["OPTIMIZATION_GOAL"],
-            self.cnf["DESTINATION_TYPE"],
-            promoted_object,
+        return _create_creative(
+            config,
+            study.general.page_id,
+            call_to_action=messenger_call_to_action(),
+            page_welcome_message=msg,
+            insta_id=study.general.instagram_id,
+            url_tags=f"ref={ref}",
         )
 
-        adset = create_adset(ac)
+    if isinstance(destination, AppDestination):
+        ref = make_ref(config.name, md)
+        deeplink = destination.deeplink_template.format(ref=ref)
+        link = destination.app_install_link
 
-        ads = [create_ad(adset, c, "ACTIVE") for c in creatives]
-        return (adset, ads)
+        return _create_creative(
+            config,
+            study.general.page_id,
+            call_to_action=app_download_call_to_action(deeplink),
+            insta_id=study.general.instagram_id,
+            link=link,
+        )
 
-    def create_creative(self, stratum: Stratum, config: CreativeConf) -> AdCreative:
-        md = {**stratum.metadata, **self.cnf["EXTRA_METADATA"]}
+    if isinstance(destination, WebDestination):
+        ref = make_ref(config.name, md)
+        pass  # to implement
 
-        if isinstance(self.destination, FlyMessengerDestination):
-            md = {**md, "form": self.destination.initial_shortcode}
-            ref = make_ref(config.name, md)
-            msg = make_welcome_message(config.welcome_message, config.button_text, ref)
+    raise Exception(f"destination is not a proper type: {destination}")
 
-            return create_creative(
-                config,
-                self.cnf["PAGE_ID"],
-                call_to_action=messenger_call_to_action(),
-                page_welcome_message=msg,
-                insta_id=self.cnf["INSTA_ID"],
-                url_tags=f"ref={ref}",
-            )
 
-        if isinstance(self.destination, AppDestination):
-            ref = make_ref(config.name, md)
-            deeplink = self.destination.deeplink_template.format(ref=ref)
-            link = self.destination.app_install_link
+def adset_instructions(
+    study: StudyConf, state: FacebookState, stratum: Stratum, budget: float
+) -> Tuple[AdSet, List[Ad]]:
 
-            return create_creative(
-                config,
-                self.cnf["PAGE_ID"],
-                call_to_action=app_download_call_to_action(deeplink),
-                insta_id=self.cnf["INSTA_ID"],
-                link=link,
-            )
+    creatives = [create_creative(study, stratum, c) for c in stratum.creatives]
 
-        raise Exception(f"destination is not a proper type: {self.destination}")
+    # app destination needs to be set at adest, can't be multiple...
+    if len(study.destinations) == 1 and isinstance(
+        study.destinations[0], AppDestination
+    ):
+        d = study.destinations[0]
+        promoted_object = {
+            AdPromotedObject.Field.application_id: d.facebook_app_id,
+            AdPromotedObject.Field.object_store_url: d.app_install_link,
+        }
+    else:
+        promoted_object = None
+
+    ac = AdsetConf(
+        state.campaigns[0],  # TODO: multi campaign!
+        stratum,
+        budget,
+        "ACTIVE",
+        study.general.instagram_id,
+        ADSET_HOURS,
+        study.general.optimization_goal,
+        study.general.destination_type,
+        promoted_object,
+    )
+
+    adset = create_adset(ac)
+
+    ads = [create_ad(adset, c, "ACTIVE") for c in creatives]
+    return (adset, ads)
+
+
+# need to turn budget, stratum -> spend, into spending
+# across different campaigns.
+# --> create an intermediate function with tested business logic
+# then use this to do adset diff.
+
+# one function to go from StudyConf -> CampaignGroup Spending Schedule.
+def update_instructions(
+    study: StudyConf,
+    state: FacebookState,
+    strata: List[Stratum],
+    budget: Dict[str, float],
+) -> Sequence[Instruction]:
+
+    sb = [(s, budget[s.id]) for s in strata]
+    new_state = [adset_instructions(study, state, s, b) for s, b in sb if b > 0]
+
+    # TODO: fix campaign name --> multicampaign!
+    return adset_dif(
+        state.campaign_state(study.general.ad_campaign_name).campaign_state, new_state
+    )

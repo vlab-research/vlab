@@ -6,9 +6,11 @@ from facebook_business.adobjects.adsinsights import AdsInsights
 
 from .db import execute, manyify, query
 from .facebook.date_range import DateRange
-from .facebook.state import CampaignState, get_insights
+from .facebook.state import FacebookState
+from .study_conf import CampaignConf, StudyConf, UserInfo
 
 Stratum = str  # stratum id of some sort
+Campaign = str  # campaign name
 
 
 class CollectionPeriod(NamedTuple):
@@ -25,7 +27,7 @@ class TimePeriod(NamedTuple):
 class RecruitmentData(NamedTuple):
     time_period: TimePeriod
     temp: bool
-    data: dict[Stratum, Optional[dict]]
+    data: dict[Campaign, dict[Stratum, Optional[dict]]]
 
 
 class Study(NamedTuple):
@@ -78,33 +80,67 @@ def get_collection_days(
     return first + get_collection_days(start, until, now)
 
 
-# eventually this should be told the source too
-# (not just facebook, multiple per study)
+# Wrapper for mocking
+def get_insights(
+    state: FacebookState, campaign: str, start_time: datetime, end_time: datetime
+):
+    return state.campaign_state(campaign).get_insights(start_time, end_time)
+
+
 def facebook_recruitment_data(
-    state: CampaignState, start_time: datetime, end_time: datetime, now: datetime
+    state: FacebookState,
+    campaigns: list[str],
+    start_time: datetime,
+    end_time: datetime,
+    now: datetime,
 ) -> list[RecruitmentData]:
 
     days = get_collection_days(start_time, end_time, now)
 
     insights = [
-        RecruitmentData(TimePeriod(s, e), t, get_insights(state, s, e))
+        RecruitmentData(
+            TimePeriod(s, e),
+            t,
+            {c: get_insights(state, c, s, e) for c in campaigns},
+        )
         for s, e, t in days
     ]
 
     return insights
 
 
-def load_recruitment_data(
+# TODO: create a function that finds gaps in recruitment_data
+# for all studies and fills the gaps, instead of
+# current model of using active studies
+
+
+def insert_recruitment_data_events(db_conf, records):
+    q = """
+    INSERT INTO recruitment_data_events
+    (study_id, source_name, period_start, period_end, temp, data)
+    """
+    q, records = manyify(q, records)
+
+    q += """
+    ON CONFLICT (study_id, source_name, temp, period_start, period_end)
+    DO UPDATE SET data = excluded.data
+    """
+
+    return execute(db_conf, q, records)
+
+
+def _load_recruitment_data(
     db_conf,
     study_id: str,
+    campaigns: list[str],
     start_time: datetime,
     end_time: datetime,
-    state: CampaignState,
+    state: FacebookState,
     now: datetime,
 ):
-    data = facebook_recruitment_data(state, start_time, end_time, now)
 
-    # ORM
+    data = facebook_recruitment_data(state, campaigns, start_time, end_time, now)
+
     records = [
         (
             study_id,
@@ -117,14 +153,25 @@ def load_recruitment_data(
         for d in data
     ]
 
-    q = """
-    INSERT INTO recruitment_data_events
-    (study_id, source_name, period_start, period_end, temp, data)
-    """
-    q, records = manyify(q, records)
-    q += "ON CONFLICT DO NOTHING"
+    return insert_recruitment_data_events(db_conf, records)
 
-    execute(db_conf, q, records)
+
+def load_recruitment_data(
+    db_conf,
+    study: StudyConf,
+    state: FacebookState,
+    now: datetime,
+):
+
+    return _load_recruitment_data(
+        db_conf,
+        study.id,
+        study.campaign_names,
+        study.general.start_date,
+        study.general.end_date,
+        state,
+        now,
+    )
 
 
 def get_recruitment_data(db_conf, study_id: str) -> list[RecruitmentData]:
@@ -133,7 +180,6 @@ def get_recruitment_data(db_conf, study_id: str) -> list[RecruitmentData]:
     FROM recruitment_data_events
     WHERE study_id = %s
     AND temp = FALSE
-
 
     UNION
 
@@ -161,7 +207,11 @@ def get_recruitment_data(db_conf, study_id: str) -> list[RecruitmentData]:
     return data
 
 
-def calculate_stat(data: list[RecruitmentData], stat, window=None) -> dict[str, float]:
+def calculate_stat(
+    data: list[RecruitmentData], stat, window: DateRange = None
+) -> dict[str, float]:
+    # Note: sums over campaigns. This good?
+
     if window:
         data = [
             d
@@ -171,12 +221,14 @@ def calculate_stat(data: list[RecruitmentData], stat, window=None) -> dict[str, 
         ]
 
     daily_stats: dict[str, Any] = {}
+
     for d in data:
-        for k, v in d.data.items():
-            if k in daily_stats:
-                daily_stats[k].append(v)
-            else:
-                daily_stats[k] = [v]
+        for campaign, insights in d.data.items():
+            for k, v in insights.items():
+                if k in daily_stats:
+                    daily_stats[k].append(v)
+                else:
+                    daily_stats[k] = [v]
 
     stat = {
         k: sum([float(x.get(stat, 0.0) if x else 0.0) for x in v])
@@ -185,13 +237,10 @@ def calculate_stat(data: list[RecruitmentData], stat, window=None) -> dict[str, 
     return stat
 
 
-# TODO: remove "Study" type, change to just id??
-def get_active_studies(db_conf, now: datetime) -> list[Study]:
+def get_active_studies(db_conf, now: datetime) -> list[str]:
     q = """
     WITH t AS (
     SELECT s.id,
-           s.user_id,
-           s.NAME,
            (conf->0->>'start_date')::TIMESTAMP AS start_date,
            (conf->0->>'end_date')::TIMESTAMP AS end_date,
            row_number() over (PARTITION BY sc.study_id ORDER BY sc.created DESC) AS n
@@ -199,7 +248,7 @@ def get_active_studies(db_conf, now: datetime) -> list[Study]:
     JOIN study_confs sc ON sc.study_id = s.id
     WHERE conf_type = 'opt'
     ORDER BY sc.created DESC)
-    SELECT id, user_id, name, start_date, end_date
+    SELECT id
     FROM t
     WHERE n = 1
     AND start_date <= %s
@@ -207,4 +256,4 @@ def get_active_studies(db_conf, now: datetime) -> list[Study]:
     """
 
     res = query(db_conf, q, [now, now])
-    return [Study(*t) for t in res]
+    return [t[0] for t in res]

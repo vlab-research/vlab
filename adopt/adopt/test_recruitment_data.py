@@ -8,10 +8,11 @@ from adopt.campaign_queries import create_campaign_confs
 from .db import _connect, execute, manyify, query
 from .facebook.date_range import DateRange
 from .recruitment_data import (CollectionPeriod, RecruitmentData, Study,
-                               TimePeriod, _get_days, calculate_stat, day_end,
-                               day_start, get_active_studies,
-                               get_collection_days, get_recruitment_data,
-                               load_recruitment_data, today)
+                               TimePeriod, _get_days, _load_recruitment_data,
+                               calculate_stat, day_end, day_start,
+                               get_active_studies, get_collection_days,
+                               get_recruitment_data,
+                               insert_recruitment_data_events, today)
 
 
 def _now():
@@ -189,7 +190,7 @@ def test_load_recruitment_data_loads_same_data_multiple_times_without_throwing(m
 
     _, study_id = create_study("foo")
 
-    load_recruitment_data(cnf, study_id, start, end, None, now)
+    _load_recruitment_data(cnf, study_id, ["campaign_a"], start, end, None, now)
 
     events = query(cnf, "select * from recruitment_data_events", as_dict=True)
 
@@ -204,9 +205,9 @@ def test_load_recruitment_data_loads_same_data_multiple_times_without_throwing(m
     assert len(res) == 1
     assert res[0].time_period.start.day == now.day
     assert res[0].time_period.end.day == now.day
-    assert res[0].data == insights
+    assert res[0].data == {"campaign_a": insights}
 
-    load_recruitment_data(cnf, study_id, start, end, None, now)
+    _load_recruitment_data(cnf, study_id, ["campaign_a"], start, end, None, now)
     events = query(cnf, "select * from recruitment_data_events", as_dict=True)
     assert len(list(events)) == 1
 
@@ -223,14 +224,14 @@ def test_load_recruitment_data_adds_additional_events(mock):
     end = now + timedelta(days=2)
 
     _, study_id = create_study("foo")
-    load_recruitment_data(cnf, study_id, start, end, None, now)
+    _load_recruitment_data(cnf, study_id, ["campaign_a"], start, end, None, now)
 
     events = query(cnf, "select * from recruitment_data_events", as_dict=True)
     assert len(list(events)) == 1
 
     # one day later, temp becomes permanent, now loads two events
     now = now + timedelta(days=1)
-    load_recruitment_data(cnf, study_id, start, end, None, now)
+    _load_recruitment_data(cnf, study_id, ["campaign_a"], start, end, None, now)
 
     events = query(cnf, "select * from recruitment_data_events", as_dict=True)
 
@@ -257,14 +258,7 @@ def test_get_recruitment_data_returns_empty_array_if_no_data():
 
 
 def insert_data(dats):
-    query = """
-    insert into recruitment_data_events
-    (study_id, source_name, period_start, period_end, temp, data)
-    """
-
-    q, records = manyify(query, dats)
-
-    execute(cnf, q, records)
+    insert_recruitment_data_events(cnf, dats)
 
 
 def test_get_active_studies_gets_based_on_latest_conf():
@@ -282,8 +276,7 @@ def test_get_active_studies_gets_based_on_latest_conf():
     studies = get_active_studies(cnf, now)
 
     assert len(studies) == 1
-    assert studies[0].id == study_id
-    assert studies[0].user_id == user_id
+    assert studies[0] == study_id
 
 
 def test_get_active_studies_gets_only_active_studies():
@@ -304,9 +297,7 @@ def test_get_active_studies_gets_only_active_studies():
     studies = get_active_studies(cnf, now)
 
     assert len(studies) == 1
-    print(studies)
-    assert studies[0].id == study_id
-    assert studies[0].user_id == user_id
+    assert studies[0] == study_id
 
 
 def test_get_recruitment_data_returns_only_latest_temp_data():
@@ -314,7 +305,6 @@ def test_get_recruitment_data_returns_only_latest_temp_data():
 
     now = _dt(2, 12)
     start = _dt(1, 10)
-    end = _dt(3, 23)
 
     _, study_id = create_study("foo")
 
@@ -376,40 +366,46 @@ def _rd(start, end, temp, data):
     return RecruitmentData(TimePeriod(start, end), temp, data)
 
 
-def test_calculate_spend_calculates_all_spend():
+def test_calculate_stat_sums_all_spend_for_multiple_campaigns():
     data = [
         _rd(
             _dt(1, 12),
             day_end(_dt(1, 12)),
             False,
-            {"a": {"spend": "1.1"}, "b": {"spend": "0.2"}},
+            {
+                "campaign_a": {"a": {"spend": "1.1"}, "b": {"spend": "0.2"}},
+                "campaign_b": {"a": {"spend": "2.0"}, "b": {"spend": "3.0"}},
+            },
         ),
         _rd(
             _dt(2, 0),
             day_end(_dt(2, 0)),
             False,
-            {"a": {"spend": "2.5"}, "b": {"spend": "0.6"}},
+            {
+                "campaign_a": {"a": {"spend": "2.5"}, "b": {"spend": "0.6"}},
+                "campaign_b": {"a": {"spend": "1.0"}, "b": {"spend": "1.2"}},
+            },
         ),
     ]
 
     res = calculate_stat(data, "spend")
-    assert res["a"] == 3.6
-    assert res["b"] == 0.8
+    assert res["a"] == 6.6
+    assert res["b"] == 5.0
 
 
-def test_calculate_spend_calculates_all_spend_within_window():
+def test_calculate_stat_calculates_all_spend_within_window():
     data = [
         _rd(
             _dt(1, 12),
             day_end(_dt(1, 12)),
             False,
-            {"a": {"spend": "1.1"}, "b": {"spend": "0.2"}},
+            {"campaign_a": {"a": {"spend": "1.1"}, "b": {"spend": "0.2"}}},
         ),
         _rd(
             _dt(2, 0),
             day_end(_dt(2, 0)),
             False,
-            {"a": {"spend": "2.5"}, "b": {"spend": "0.6"}},
+            {"campaign_a": {"a": {"spend": "2.5"}, "b": {"spend": "0.6"}}},
         ),
     ]
 
@@ -420,19 +416,19 @@ def test_calculate_spend_calculates_all_spend_within_window():
     assert res["b"] == 0.6
 
 
-def test_calculate_spend_works_with_missing_data():
+def test_calculate_stat_works_with_missing_data():
     data = [
         _rd(
             _dt(1, 12),
             day_end(_dt(1, 12)),
             False,
-            {"a": {"spend": "1.1"}, "b": {"spend": "0.2"}},
+            {"campaign_a": {"a": {"spend": "1.1"}, "b": {"spend": "0.2"}}},
         ),
         _rd(
             _dt(2, 0),
             day_end(_dt(2, 0)),
             False,
-            {"a": {"spend": "2.5"}, "b": None},
+            {"campaign_a": {"a": {"spend": "2.5"}, "b": None}},
         ),
     ]
 

@@ -4,7 +4,7 @@ import pandas as pd
 import pytest
 
 from .audiences import hydrate_audience, partition_users, partitioning_view
-from .marketing import AudienceConf, Lookalike, LookalikeSpec, Partitioning
+from .study_conf import AudienceConf, Lookalike, LookalikeSpec, Partitioning
 
 # integration test
 # works with empty list
@@ -216,7 +216,7 @@ def test_partition_users_partitions_by_user_ignores_extra():
     now = datetime(2021, 1, 10)
 
     part = Partitioning(min_users=2)
-    conf = AudienceConf("foo", "PARTITIONED", partitioning=part)
+    conf = AudienceConf(name="foo", subtype="PARTITIONED", partitioning=part)
     dfs = partition_users(df, conf, now)
     assert len(dfs) == 2
     assert dfs[0].equals(df.iloc[:3])
@@ -236,7 +236,7 @@ def test_partition_users_partitions_by_user_when_they_perfectly_fit():
     now = datetime(2021, 1, 4)
 
     part = Partitioning(min_users=2)
-    conf = AudienceConf("foo", "PARTITIONED", partitioning=part)
+    conf = AudienceConf(name="foo", subtype="PARTITIONED", partitioning=part)
     dfs = partition_users(df, conf, now)
     assert len(dfs) == 2
     assert dfs[0].equals(df.iloc[:3])
@@ -257,7 +257,7 @@ def test_hydrate_audience_creates_partitioned_audiences():
     now = datetime(2021, 1, 4)
     part = Partitioning(min_users=2)
 
-    conf = AudienceConf("foo", "PARTITIONED", partitioning=part)
+    conf = AudienceConf(name="foo", subtype="PARTITIONED", partitioning=part)
     audiences = hydrate_audience("page", df, conf, now)
 
     assert len(audiences) == 2
@@ -274,11 +274,13 @@ def test_hydrate_users_works_when_no_users_for_any_type():
 
     now = datetime(2021, 1, 4)
     part = Partitioning(min_users=2)
-    conf = AudienceConf("foo", "PARTITIONED", partitioning=part)
+    conf = AudienceConf(name="foo", subtype="PARTITIONED", partitioning=part)
     audiences = hydrate_audience("page", df, conf, now)
     assert len(audiences) == 0
 
-    lookalike = Lookalike(4, LookalikeSpec("IN", 0.1, 0.0))
+    lookalike = Lookalike(
+        target=4, spec=LookalikeSpec(country="IN", ratio=0.1, starting_ratio=0.0)
+    )
     conf = AudienceConf(
         name="foo-lookalike",
         subtype="LOOKALIKE",
@@ -305,7 +307,9 @@ def test_hydrate_audience_creates_audience_and_lookalike_if_enough_users():
     )
     now = datetime(2021, 1, 4)
 
-    lookalike = Lookalike(4, LookalikeSpec("IN", 0.1, 0.0))
+    lookalike = Lookalike(
+        target=4, spec=LookalikeSpec(country="IN", ratio=0.1, starting_ratio=0.0)
+    )
     conf = AudienceConf(
         name="foo-lookalike",
         subtype="LOOKALIKE",
@@ -330,7 +334,9 @@ def test_hydrate_audience_creates_no_lookalike_if_not_enough_users():
     )
     now = datetime(2021, 1, 4)
 
-    lookalike = Lookalike(4, LookalikeSpec("IN", 0.1, 0.0))
+    lookalike = Lookalike(
+        target=4, spec=LookalikeSpec(country="IN", ratio=0.1, starting_ratio=0.0)
+    )
     conf = AudienceConf(
         name="foo-lookalike",
         subtype="LOOKALIKE",

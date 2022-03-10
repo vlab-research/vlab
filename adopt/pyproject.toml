@@ -21,6 +21,7 @@ typedjson = {git = "https://github.com/nandanrao/typedjson-python", rev = "86138
 psycopg = {extras = ["binary", "pool"], version = "^3.0.9"}
 openpyxl = "^3.0.9"
 orjson = "^3.6.6"
+pydantic = "^1.9.0"
 
 [tool.poetry.dev-dependencies]
 future = "^0.18.2"
