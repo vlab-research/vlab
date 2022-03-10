@@ -1,3 +1,4 @@
+from dataclasses import asdict
 from itertools import product
 from test.dbfix import cnf as db_conf
 
@@ -10,10 +11,11 @@ from adopt.campaign_queries import (create_campaign_confs,
 from .configuration import (TargetingConf, format_group_product,
                             parse_kv_sheet, parse_row_sheet, read_share_lookup,
                             respondent_audience_name)
-from .db import _connect, execute, manyify, query
-from .marketing import (AppDestination, AudienceConf, CampaignConf,
-                        CreativeConf, DestinationConf, FlyMessengerDestination,
-                        StratumConf, dict_from_nested_type)
+from .db import _connect, execute
+from .marketing import dict_from_nested_type
+from .study_conf import (AppDestination, AudienceConf, CampaignConf,
+                         CreativeConf, FlyMessengerDestination,
+                         PipelineRecruitmentExperiment, StratumConf)
 
 
 def _reset_db():
@@ -59,11 +61,18 @@ def test_make_study():
 
     config = parse_kv_sheet(config_file, "general", CampaignConf)
 
-    create_campaign_confs(CAMPAIGNID, "opt", [config._asdict()], db_conf)
+    create_campaign_confs(CAMPAIGNID, "general", config.dict(), db_conf)
 
     destination = parse_kv_sheet(config_file, "destination", FlyMessengerDestination)
+    create_campaign_confs(CAMPAIGNID, "destinations", [destination.dict()], db_conf)
 
-    create_campaign_confs(CAMPAIGNID, "destination", [destination._asdict()], db_conf)
+    recruitment_experiment = parse_kv_sheet(
+        config_file, "recruitment_experiment", PipelineRecruitmentExperiment
+    )
+
+    create_campaign_confs(
+        CAMPAIGNID, "recruitment_experiment", recruitment_experiment.dict(), db_conf
+    )
 
     audiences = [
         {
@@ -72,15 +81,15 @@ def test_make_study():
         },
     ]
 
-    audience_confs = [typedjson.decode(AudienceConf, c) for c in audiences]
-    confs = [dict_from_nested_type(a) for a in audience_confs]
-    # print(confs)
-    create_campaign_confs(CAMPAIGNID, "audience", confs, db_conf)
+    audience_confs = [AudienceConf(**c) for c in audiences]
+
+    confs = [a.dict() for a in audience_confs]
+    create_campaign_confs(CAMPAIGNID, "audiences", confs, db_conf)
 
     creative_confs = parse_row_sheet(config_file, "creative", CreativeConf)
-    confs = [dict_from_nested_type(a) for a in creative_confs]
+    confs = [a.dict() for a in creative_confs]
     # print(creative_confs)
-    create_campaign_confs(CAMPAIGNID, "creative", confs, db_conf)
+    create_campaign_confs(CAMPAIGNID, "creatives", confs, db_conf)
 
     # destination, creative_confs, config
     def make_stratum(id_, quota, c):
@@ -95,7 +104,6 @@ def test_make_study():
                 respondent_audience_name(config),
             ],
             "quota": float(quota),
-            "shortcodes": destination.survey_shortcodes,
             "question_targeting": c["question_targeting"],
         }
 
@@ -165,10 +173,10 @@ def test_make_study():
     ]
 
     strata = [make_stratum(*g) for g in groups]
-    strata_data = [
-        dict_from_nested_type(typedjson.decode(StratumConf, c)) for c in strata
-    ]
-    create_campaign_confs(CAMPAIGNID, "stratum", strata_data, db_conf)
+
+    strata_data = [StratumConf(**c).dict() for c in strata]
+
+    create_campaign_confs(CAMPAIGNID, "strata", strata_data, db_conf)
 
     import os
 
@@ -182,13 +190,13 @@ def test_make_study():
 
     from environs import Env
 
-    from .malaria import get_confs, load_basics
+    from .malaria import load_basics
 
     env = Env()
 
-    userinfo, config, __, confs = get_confs(CAMPAIGNID, env)
+    study, state = load_basics(CAMPAIGNID, db_conf, env)
 
-    load_basics(CAMPAIGNID, env)
-
-    # assert False
-    # make destination confs
+    assert study.destinations[0].name == "fly"
+    assert study.creatives[0].destination == "fly"
+    assert isinstance(study.recruitment_experiment, PipelineRecruitmentExperiment)
+    assert study.recruitment_experiment.arms == 2

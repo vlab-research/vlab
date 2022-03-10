@@ -9,7 +9,7 @@ from .responses import query
 DBConf = str
 
 
-def get_user_info(campaignid, cnf):
+def get_user_info(study_id, cnf):
     q = """
     SELECT
       details->>'access_token' as token,
@@ -24,11 +24,13 @@ def get_user_info(campaignid, cnf):
     LIMIT 1
     """
 
-    res = query(cnf, q, (campaignid,), as_dict=True)
+    res = query(cnf, q, (study_id,), as_dict=True)
     try:
-        return next(res)
+        return next(
+            ({"token": u["token"], "survey_user": str(u["survey_user"])} for u in res)
+        )
     except StopIteration:
-        raise Exception(f"Could not find credentials for campaign id: {campaignid}")
+        raise Exception(f"Could not find credentials for study id: {study_id}")
 
 
 def get_pageid(survey_user, cnf):

@@ -10,8 +10,8 @@ from scipy.optimize import minimize
 
 from .facebook.state import DateRange
 from .forms import TranslationError
-from .marketing import (AudienceConf, QuestionTargeting, Stratum, StratumConf,
-                        TargetVar)
+from .study_conf import (AudienceConf, QuestionTargeting, Stratum, StratumConf,
+                         TargetVar)
 
 
 class MissingResponseError(BaseException):
@@ -23,6 +23,7 @@ def _users_by_predicate(df, pred):
     users = df[mask].user_id.unique()
     return users
 
+
 def _filter_by_response(df, ref, pred):
     if df.shape[0] == 0:
         return df
@@ -32,10 +33,11 @@ def _filter_by_response(df, ref, pred):
 
 
 def _filter_by_join_time(df, pred):
-    initial_events = (df
-                      .groupby("user_id")
-                      .apply(lambda df: df.sort_values("timestamp").iloc[0])
-                      .reset_index(drop=True))
+    initial_events = (
+        df.groupby("user_id")
+        .apply(lambda df: df.sort_values("timestamp").iloc[0])
+        .reset_index(drop=True)
+    )
 
     users = _users_by_predicate(initial_events, pred)
     return df[df.user_id.isin(users)].reset_index(drop=True)
@@ -46,11 +48,12 @@ def get_var(v: Union[TargetVar, QuestionTargeting], d: Dict[str, Any]):
         return make_pred(v)(d)
 
     if not isinstance(v, TargetVar):
+
         raise Exception(
             f"get_var must be passed TargetVar or QuestionTargeting. Was passed: {v}"
         )
 
-    type_, value = v
+    type_, value = v.type, v.value
 
     if type_ == "constant":
         return value

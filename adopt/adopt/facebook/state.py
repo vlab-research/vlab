@@ -1,7 +1,7 @@
 import logging
 import re
 from datetime import date, datetime, timezone
-from functools import cached_property
+from functools import cache, cached_property
 from typing import Any, List, Optional, Tuple
 
 
@@ -178,37 +178,22 @@ def get_api(env, token: str) -> FacebookAdsApi:
 
 
 class CampaignState:
-    def __init__(self, token, api, ad_account_id, campaign_id=None):
-        self.token: str = token
-        self.api: FacebookAdsApi = api
-        self.campaign_id = campaign_id
-
-        if re.search(r"^act_", ad_account_id):
-            raise Exception(
-                "initial CampaignState with ad account id without act_ prefix"
-            )
-
-        self.account: AdAccount = AdAccount(f"act_{ad_account_id}", api=self.api)
-
-    @cached_property
-    def campaigns(self) -> List[Campaign]:
-        return get_campaigns(self.account)
+    def __init__(self, api: FacebookAdsApi, account: AdAccount, campaign_name: str):
+        self.campaign_name = campaign_name
+        self.api = api
+        self.account = account
 
     @cached_property
     def campaign(self) -> Campaign:
-        name = self.campaign_id
-        if name is None:
+        name = self.campaign_name
+
+        campaign_options = [c for c in get_campaigns(self.account) if c["name"] == name]
+        if len(campaign_options) != 1:
             raise StateNameError(
-                "You must initialize CampaignState with campaign_id "
-                "to access Campaign data"
+                "Phooey! No clear campaign to get for campaign: {self.campaign_name}."
             )
 
-        campaign = next(
-            (c for c in self.campaigns if c["name"] == name or c["id"] == name), None
-        )
-
-        if campaign is None:
-            raise StateNameError(f"Could not find a campaign with name: {name}")
+        campaign = campaign_options[0]
         return campaign
 
     @property
@@ -231,6 +216,7 @@ class CampaignState:
         logging.info(f'Loaded {len(ads)} ads from campaign {self.campaign["name"]}')
         return ads
 
+    # TODO: change stupid name and nail down type.
     @cached_property
     def campaign_state(self) -> List[Tuple[AdSet, List[Ad]]]:
         return [(adset, ads_for_adset(adset, self.ads)) for adset in self.adsets]
@@ -245,6 +231,31 @@ class CampaignState:
             return 0
         return float(res[0]["spend"])
 
+    def get_insights(self, start: datetime, end: datetime) -> dict[str, Optional[dict]]:
+        window = DateRange(start, end)
+        insights = {a["name"]: _get_insights(a, window) for a in self.adsets}
+        return insights
+
+
+class FacebookState:
+    def __init__(self, api, ad_account_id):
+        self.api: FacebookAdsApi = api
+
+        if re.search(r"^act_", ad_account_id):
+            raise Exception(
+                "initial CampaignState with ad account id without act_ prefix"
+            )
+
+        self.account: AdAccount = AdAccount(f"act_{ad_account_id}", api=self.api)
+
+    @cached_property
+    def campaigns(self) -> List[Campaign]:
+        return get_campaigns(self.account)
+
+    @cache
+    def campaign_state(self, campaign_name: str) -> CampaignState:
+        return CampaignState(self.api, self.account, campaign_name)
+
     @cached_property
     def custom_audiences(self) -> List[CustomAudience]:
         return get_custom_audiences(self.account)
@@ -252,15 +263,5 @@ class CampaignState:
     def get_audience(self, name: str) -> CustomAudience:
         aud = next((a for a in self.custom_audiences if a["name"] == name), None)
         if not aud:
-
             raise StateNameError(f"Audience not found with name: {name}")
         return aud
-
-
-def get_insights(
-    state: CampaignState, start: datetime, end: datetime
-) -> dict[str, Optional[dict]]:
-
-    window = DateRange(start, end)
-    insights = {a["name"]: _get_insights(a, window) for a in state.adsets}
-    return insights

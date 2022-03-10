@@ -1,9 +1,9 @@
 import json
 import re
-from typing import NamedTuple, Optional, TypeVar, get_type_hints
+from typing import (List, NamedTuple, Optional, Tuple, Type, TypeVar,
+                    get_type_hints)
 
 import pandas as pd
-import typedjson
 from facebook_business.adobjects.targeting import Targeting
 from facebook_business.adobjects.targetinggeolocation import \
     TargetingGeoLocation
@@ -11,8 +11,6 @@ from facebook_business.adobjects.targetinggeolocationcity import \
     TargetingGeoLocationCity
 from facebook_business.adobjects.targetinggeolocationcustomlocation import \
     TargetingGeoLocationCustomLocation
-from typedjson import DecodingError
-from typedjson.annotation import origin_of
 
 from adopt.marketing import CampaignConf, CreativeConf
 
@@ -20,6 +18,19 @@ from adopt.marketing import CampaignConf, CreativeConf
 class TargetingConf(NamedTuple):
     template_campaign_name: Optional[str]
     distribution_vars: list[str]
+
+
+def origin_of(type_: Type) -> Optional[Type]:
+    origin = getattr(type_, "__origin__", None)
+
+    # In Python 3.6, the origin of Tuple type is `List` but in Python 3.7 it is `list`.
+    if origin is List:
+        return list
+    # In Python 3.6, the origin of Tuple type is `Tuple` but in Python 3.7 it is `tuple`.
+    elif origin is Tuple:
+        return tuple
+    else:
+        return origin  # type: ignore
 
 
 def hyphen_case(s):
@@ -221,11 +232,7 @@ def parse_kv_sheet(path, sheet_name, type_):
 
     x = cast_strings(type_, x)
     x = additional_ops(x)
-    d = typedjson.decode(type_, x)
-
-    if isinstance(d, DecodingError):
-        raise Exception(f"Error parsing config sheet: {d.reason}")
-
+    d = type_(**x)
     return d
 
 
@@ -236,7 +243,7 @@ def parse_row_sheet(path, sheet_name, type_: T) -> list[T]:
     df = pd.read_excel(path, sheet_name=sheet_name)
     rows = df.to_dict(orient="records")
     rows = [cast_strings(type_, x) for x in rows]
-    rows = [typedjson.decode(type_, x) for x in rows]
+    rows = [type_(**x) for x in rows]
     return rows
 
 

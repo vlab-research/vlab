@@ -5,11 +5,12 @@ import pytest
 import typedjson
 from facebook_business.adobjects.customaudience import CustomAudience
 
-from .marketing import (Audience, AudienceConf, CreativeConf,
-                        FlyMessengerDestination, Instruction,
-                        InvalidConfigError, Lookalike, LookalikeAudience,
-                        LookalikeSpec, Partitioning, StratumConf, make_ref,
-                        manage_aud)
+from .facebook.update import Instruction
+from .marketing import make_ref, manage_aud
+from .study_conf import (Audience, AudienceConf, CreativeConf,
+                         FlyMessengerDestination, InvalidConfigError,
+                         Lookalike, LookalikeAudience, LookalikeSpec,
+                         Partitioning)
 
 T = TypeVar("T")
 
@@ -101,7 +102,9 @@ def test_manage_aud_creates_lookalike_with_lookalike_and_lookalike_does_not_exis
     origin = Audience(name="foo-origin", pageid="page", users=["bar"])
 
     aud = LookalikeAudience(
-        name="foo-lookalike", spec=LookalikeSpec("IN", 0.1, 0.0), origin_audience=origin
+        name="foo-lookalike",
+        spec=LookalikeSpec(country="IN", ratio=0.1, starting_ratio=0.0),
+        origin_audience=origin,
     )
 
     instructions = manage_aud(old, aud)
@@ -126,7 +129,9 @@ def test_manage_aud_does_nothing_with_lookalike_when_origin_does_not_exist():
     origin = Audience(name="foo-origin", pageid="page", users=["bar"])
 
     aud = LookalikeAudience(
-        name="foo-lookalike", spec=LookalikeSpec("IN", 0.1, 0.0), origin_audience=origin
+        name="foo-lookalike",
+        spec=LookalikeSpec(country="IN", ratio=0.1, starting_ratio=0.0),
+        origin_audience=origin,
     )
 
     instructions = manage_aud(old, aud)
@@ -150,7 +155,9 @@ def test_manage_aud_does_nothing_with_lookalike_and_lookalike_exists():
     origin = Audience(name="foo-origin", pageid="page", users=["bar"])
 
     aud = LookalikeAudience(
-        name="foo-lookalike", spec=LookalikeSpec("IN", 0.1, 0.0), origin_audience=origin
+        name="foo-lookalike",
+        spec=LookalikeSpec(country="IN", ratio=0.1, starting_ratio=0.0),
+        origin_audience=origin,
     )
 
     instructions = manage_aud(old, aud)
@@ -183,7 +190,7 @@ def test_manage_aud_does_nothing_with_lookalike_and_lookalike_exists():
 
 def _creative_conf(name, form):
     return CreativeConf(
-        name,
+        name=name,
         image_hash="foo",
         image="foo.jpg",
         body="body",
@@ -223,45 +230,46 @@ def test_partitioning_valid_scenarios():
 # Note: not a unit test, testing typedjson implicitly
 def test_load_partitioning_works_with_errors():
     raw = {"min_users": 100}
-    pt = typedjson.decode(Partitioning, raw)
+    pt = Partitioning(**raw)
     assert pt == Partitioning(min_users=100)
+
+    assert pt.scenario == {"min_users"}
 
     raw = {"min_users": 100, "max_days": 100}
     with pytest.raises(InvalidConfigError):
-        typedjson.decode(Partitioning, raw)
+        Partitioning(**raw)
+
+
+def _ac(name, subtype, **kwargs):
+    return AudienceConf(name=name, subtype=subtype, **kwargs)
 
 
 def test_AudienceConf_validates_config_based_on_subtype():
-    AudienceConf("foo", "CUSTOM", ["foo"])
+    _ac("foo", "CUSTOM")
 
     # partitioned
-    AudienceConf(
-        "foo", "PARTITIONED", ["foo"], partitioning=Partitioning(min_users=100)
-    )
+    _ac("foo", "PARTITIONED", partitioning=Partitioning(min_users=100))
 
     with pytest.raises(InvalidConfigError):
-        AudienceConf("foo", "PARTITIONED", ["foo"])
+        _ac("foo", "PARTITIONED")
 
     with pytest.raises(InvalidConfigError):
-        AudienceConf("foo", "PARTITIONED", ["foo"], partitioning={"foo": "bar"})
+        _ac("foo", "PARTITIONED", partitioning={"foo": "bar"})
 
     # lookalike
-    AudienceConf(
+    _ac(
         "foo",
         "LOOKALIKE",
-        ["foo"],
-        lookalike=Lookalike(100, LookalikeSpec("IN", 0.2, 0.1)),
+        lookalike=Lookalike(
+            target=100, spec=LookalikeSpec(country="IN", ratio=0.2, starting_ratio=0.1)
+        ),
     )
 
     with pytest.raises(InvalidConfigError):
-        AudienceConf(
-            "foo",
-            "LOOKALIKE",
-            ["foo"],
-        )
+        _ac("foo", "LOOKALIKE")
 
     with pytest.raises(InvalidConfigError):
-        AudienceConf("foo", "LOOKALIKE", ["foo"], lookalike={"foo": "bar"})
+        _ac("foo", "LOOKALIKE", lookalike={"foo": "bar"})
 
 
 # test

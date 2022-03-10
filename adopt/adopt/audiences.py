@@ -4,8 +4,9 @@ from typing import List, Optional, Union
 import pandas as pd
 
 from .clustering import only_target_users
-from .marketing import (Audience, AudienceConf, LookalikeAudience, Marketing,
-                        Partitioning)
+from .study_conf import (Audience, AudienceConf, LookalikeAudience,
+                         Partitioning, StudyConf)
+
 
 def get_users(df) -> List[str]:
     if df is None:
@@ -103,23 +104,27 @@ def hydrate_audience(
     audiences: list[Union[Audience, LookalikeAudience]] = []
     if aud.subtype == "LOOKALIKE" and aud.lookalike:
         users = get_users(df)
-        origin = Audience(aud.name + "-origin", page_id, users)
+        origin = Audience(name=aud.name + "-origin", pageid=page_id, users=users)
         audiences += [origin]
 
         if len(users) >= aud.lookalike.target:
-            audiences += [LookalikeAudience(aud.name, aud.lookalike.spec, origin)]
+            audiences += [
+                LookalikeAudience(
+                    name=aud.name, spec=aud.lookalike.spec, origin_audience=origin
+                )
+            ]
 
         return audiences
 
     if aud.subtype == "CUSTOM":
         users = get_users(df)
-        return [Audience(aud.name, page_id, users)]
+        return [Audience(name=aud.name, pageid=page_id, users=users)]
 
     if aud.subtype == "PARTITIONED":
         partitions = partition_users(df, aud, now)
 
         return [
-            Audience(partition_name(aud, i), page_id, get_users(d))
+            Audience(name=partition_name(aud, i), pageid=page_id, users=get_users(d))
             for i, d in enumerate(partitions)
         ]
 
@@ -127,7 +132,10 @@ def hydrate_audience(
 
 
 def hydrate_audiences(
-    df: pd.DataFrame, m: Marketing, auds: List[AudienceConf]
+    study: StudyConf, df: pd.DataFrame, auds: List[AudienceConf]
 ) -> List[Union[Audience, LookalikeAudience]]:
+
     now = datetime.utcnow()
-    return [i for aud in auds for i in hydrate_audience(m.cnf["PAGE_ID"], df, aud, now)]
+    return [
+        i for aud in auds for i in hydrate_audience(study.general.page_id, df, aud, now)
+    ]
