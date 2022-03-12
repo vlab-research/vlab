@@ -3,7 +3,7 @@ from typing import Any, Dict, NamedTuple, Optional
 
 import requests
 
-from .state import FacebookState, call
+from .state import CampaignState, call
 
 
 class Instruction(NamedTuple):
@@ -49,7 +49,7 @@ def getter(type_, obj, prop):
 
 
 class GraphUpdater:
-    def __init__(self, state: FacebookState):
+    def __init__(self, state: CampaignState):
         self.state = state
         self.account = state.account
 
@@ -57,7 +57,9 @@ class GraphUpdater:
             "adset": getter("adset", state, "adsets"),
             "ad": getter("ad", state, "ads"),
             "campaign": getter("campaign", state, "campaigns"),
-            "custom_audience": getter("custom_audience", state, "custom_audiences"),
+            "custom_audience": getter(
+                "custom_audience", state.facebook_state, "custom_audiences"
+            ),
         }
 
         self.creates = {

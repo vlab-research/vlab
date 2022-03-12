@@ -177,7 +177,14 @@ def get_api(env, token: str) -> FacebookAdsApi:
 
 
 class CampaignState:
-    def __init__(self, api: FacebookAdsApi, account: AdAccount, campaign_name: str):
+    def __init__(
+        self,
+        facebook_state: "FacebookState",
+        api: FacebookAdsApi,
+        account: AdAccount,
+        campaign_name: str,
+    ):
+        self.facebook_state = facebook_state
         self.campaign_name = campaign_name
         self.api = api
         self.account = account
@@ -250,7 +257,7 @@ class FacebookState:
 
     @cache
     def campaign_state(self, campaign_name: str) -> CampaignState:
-        return CampaignState(self.api, self.account, campaign_name)
+        return CampaignState(self, self.api, self.account, campaign_name)
 
     @cached_property
     def custom_audiences(self) -> List[CustomAudience]:

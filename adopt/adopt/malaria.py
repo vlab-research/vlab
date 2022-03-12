@@ -10,7 +10,8 @@ from .audiences import hydrate_audiences
 from .campaign_queries import (DBConf, create_adopt_report,
                                get_campaign_configs, get_user_info)
 from .clustering import AdOptReport, get_budget_lookup
-from .facebook.state import DateRange, FacebookState, StateNameError, get_api
+from .facebook.state import (CampaignState, DateRange, FacebookState,
+                             StateNameError, get_api)
 from .facebook.update import GraphUpdater, Instruction
 from .marketing import (manage_audiences, update_instructions,
                         validate_targeting)
@@ -70,7 +71,7 @@ def make_window(hours, now):
     return DateRange(start, now)
 
 
-def run_instructions(instructions: Sequence[Instruction], state: FacebookState):
+def run_instructions(instructions: Sequence[Instruction], state: CampaignState):
     updater = GraphUpdater(state)
     for i in instructions:
         report = updater.execute(i)
@@ -157,7 +158,9 @@ AdoptJob = Callable[
 ]
 
 
-def load_basics(study_id: str, db_conf: DBConf, env: Env) -> [StudyConf, FacebookState]:
+def load_basics(
+    study_id: str, db_conf: DBConf, env: Env
+) -> Tuple[StudyConf, FacebookState]:
     study = get_study_conf(db_conf, study_id)
     state = FacebookState(
         get_api(env, study.user.token),
@@ -186,7 +189,11 @@ def run_updates(fn: AdoptJob) -> None:
         if report:
             create_adopt_report(s, "FACEBOOK_ADOPT", report, db_conf)
 
-        run_instructions(instructions, state)
+        # TODO: update needs to be updated for different states and
+        #       multiple campaigns!
+        run_instructions(
+            instructions, state.campaign_state(study.general.ad_campaign_name)
+        )
 
 
 def update_audience() -> None:
