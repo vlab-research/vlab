@@ -1,15 +1,18 @@
 from __future__ import annotations
 
+from abc import ABC, abstractmethod
 # from dataclasses import dataclass, fields
 from dataclasses import fields
 from datetime import datetime
-from typing import Any, Dict, List, NamedTuple, Optional, Union
+from math import floor
+from typing import Any, Dict, List, NamedTuple, Optional, Tuple, Union
 
 from pydantic import BaseModel, ValidationError, root_validator
 from pydantic.dataclasses import dataclass
 from toolz import groupby
 
 Params = Dict[str, Any]
+Budget = dict[str, float]
 
 
 class SourceConf(BaseModel):
@@ -78,37 +81,220 @@ class AppDestination(BaseModel):
 DestinationConf = Union[FlyMessengerDestination, AppDestination, WebDestination]
 
 
-class PipelineRecruitmentExperiment(BaseModel):
+class BaseRecruitmentConf(BaseModel, ABC):
+    @property
+    @abstractmethod
+    def campaign_names(self):
+        pass
+
+    @property
+    @abstractmethod
+    def base_campaign_name(self) -> str:
+        pass
+
+    @property
+    @abstractmethod
+    def opt_budget(self):
+        pass
+
+    @abstractmethod
+    def spend_for_day(
+        self,
+        strata: list[Union[Stratum, StratumConf]],
+        min_budget: float,
+        budget: Optional[Budget],
+        now: datetime,
+    ) -> dict[str, Budget]:
+        pass
+
+
+class SimpleRecruitment(BaseRecruitmentConf):
+    ad_campaign_name: str
+    budget: int
+    start_date: datetime
+    end_date: datetime
+
+    @property
+    def opt_budget(self):
+        return self.budget
+
+    @property
+    def campaign_names(self) -> list[str]:
+        return [self.ad_campaign_name]
+
+    @property
+    def base_campaign_name(self) -> str:
+        return self.ad_campaign_name
+
+    def spend_for_day(
+        self,
+        strata: Union[list[Stratum], list[StratumConf]],
+        min_budget: float,
+        budget: Optional[Budget],
+        now: datetime,
+    ) -> dict[str, Budget]:
+
+        campaign = self.base_campaign_name
+
+        if budget is None:
+            return {campaign: _base_budget(min_budget, strata)}
+
+        budget = _divide_among_days_left(budget, (self.end_date - now).days)
+        return {campaign: _deal_with_mins(min_budget, budget)}
+
+
+class PipelineRecruitmentExperiment(BaseRecruitmentConf):
+    ad_campaign_name_base: str
+    budget_per_arm: int
+    start_date: datetime
     arms: int
     recruitment_days: int
     offset_days: int
 
+    @property
+    def opt_budget(self):
+        return self.budget_per_arm
 
-class DestinationRecruitmentExperiment(BaseModel):
-    arms: int
-    creative_mapping: dict[int, list[str]]
+    @property
+    def campaign_names(self) -> list[str]:
+        base = self.ad_campaign_name_base
+        return [f"{base}-{i+1}" for i in range(self.arms)]
+
+    @property
+    def base_campaign_name(self) -> str:
+        return self.ad_campaign_name_base
+
+    def current_campaign(self, now: datetime) -> Tuple[Optional[int], Optional[int]]:
+        days_in = (now - self.start_date).days
+
+        if days_in < 0:
+            return None, None
+
+        wave = floor(days_in / self.offset_days)
+
+        wave_start = wave * self.offset_days
+        wave_end = wave_start + self.recruitment_days
+
+        if days_in > wave_end:
+            return None, None
+
+        if wave >= self.arms:
+            return None, None
+
+        days_left = wave_end - days_in
+
+        return wave, days_left
+
+    def spend_for_day(
+        self,
+        strata: Union[list[Stratum], list[StratumConf]],
+        min_budget: float,
+        budget: Optional[Budget],
+        now: datetime,
+    ) -> dict[str, Budget]:
+
+        # TODO: think through how to deal with re-optimization each time.
+        #       right now the set up is based on running the algo again
+        #       each time. Which is a bit random.
+
+        current, days_left = self.current_campaign(now)
+
+        if current is None:
+            return {c: {s.id: 0.0 for s in strata} for c in self.campaign_names}
+
+        current_campaign = self.campaign_names[current]
+
+        offs = {
+            c: {s.id: 0.0 for s in strata}
+            for c in self.campaign_names
+            if c != current_campaign
+        }
+
+        if budget is None:
+            return {**offs, current_campaign: _base_budget(min_budget, strata)}
+
+        budg = _divide_among_days_left(budget, days_left)
+        budg = _deal_with_mins(min_budget, budg)
+
+        return {**offs, current_campaign: budg}
 
 
-RecruitmentExperimentConf = Union[
-    PipelineRecruitmentExperiment, DestinationRecruitmentExperiment
+class DestinationRecruitmentExperiment(BaseRecruitmentConf):
+    ad_campaign_name_base: str
+    budget_per_arm: int
+    start_date: datetime
+    end_date: datetime
+    destinations: list[str]
+
+    @property
+    def opt_budget(self):
+        return self.budget_per_arm * len(self.destinations)
+
+    @property
+    def campaign_names(self) -> list[str]:
+        base = self.ad_campaign_name_base
+        return [f"{base}-{arm}" for arm in self.destinations]
+
+    @property
+    def base_campaign_name(self) -> str:
+        return self.ad_campaign_name_base
+
+    def spend_for_day(
+        self,
+        strata: Union[list[Stratum], list[StratumConf]],
+        min_budget: float,
+        budget: Optional[Budget],
+        now: datetime,
+    ) -> dict[str, Budget]:
+
+        if budget is None:
+            return {c: _base_budget(min_budget, strata) for c in self.campaign_names}
+
+        arms = len(self.destinations)
+        budg = _divide_among_days_left(budget, (self.end_date - now).days)
+        budg = {k: v / arms for k, v in budg.items()}
+        budg = _deal_with_mins(min_budget, budg)
+
+        return {c: budg for c in self.campaign_names}
+
+
+def _base_budget(
+    min_budget: float, strata: Union[list[Stratum], list[StratumConf]]
+) -> Budget:
+    return {s.id: min_budget for s in strata}
+
+
+def _divide_among_days_left(budget: Budget, days_left) -> Budget:
+
+    if days_left < 1:
+        return {s: 0.0 for s in budget.keys()}
+
+    budget = {k: v / days_left for k, v in budget.items()}
+    return budget
+
+
+def _deal_with_mins(min_budget, budget):
+    budget = {k: floor(v) for k, v in budget.items()}
+    return {k: min_budget if v > 0 and v < min_budget else v for k, v in budget.items()}
+
+
+RecruitmentConf = Union[
+    SimpleRecruitment, PipelineRecruitmentExperiment, DestinationRecruitmentExperiment
 ]
+
 
 FacebookTargeting = Dict[str, Any]
 
 
-class CampaignConf(BaseModel):
+class GeneralConf(BaseModel):
+    name: str
     optimization_goal: str
     destination_type: str
     page_id: str
     instagram_id: Optional[str]
-    budget: float
     min_budget: float
     opt_window: int
-    start_date: datetime
-    end_date: datetime
-    proportional: bool
     ad_account: str
-    ad_campaign_name: str
     country_code: str
     extra_metadata: dict[str, str]
 
@@ -268,45 +454,30 @@ class Stratum(BaseModel):
     metadata: dict[str, str]
 
 
-# TODO:
-# more than just names
-# you also want... days, creatives, etc.
-# think about what you need
-
-# also add some good integration tests where you build on test_studies
-# and test the instructions at different points in time.
-# need a nice helper for creating facebook campaign state at any
-# point.
-
-
-def get_campaign_names(
-    base: str, recruitment_experiment: Optional[RecruitmentExperimentConf]
-) -> list[str]:
-
-    if recruitment_experiment is None:
-        return [base]
-
-    arms = recruitment_experiment.arms
-    arm_names = [i + 1 for i in range(arms)]
-    return [f"{base}-{arm}" for arm in arm_names]
+# TODO: add some good integration tests where you build on test_studies
+#       and test the instructions at different points in time.
+#       need a nice helper for creating facebook campaign state at any
+#       point.
 
 
 class StudyConf(BaseModel):
     id: str
     user: UserInfo
-    general: CampaignConf
+    general: GeneralConf
     destinations: list[DestinationConf]
     audiences: list[AudienceConf]
     creatives: list[CreativeConf]
     strata: list[StratumConf]
+    recruitment: RecruitmentConf
 
-    recruitment_experiment: Optional[RecruitmentExperimentConf] = None
     # WAIT - not optional?
     inference_data: Optional[InferenceDataConf] = None
     data_sources: Optional[list[SourceConf]] = None
 
     @property
     def campaign_names(self) -> list[str]:
-        return get_campaign_names(
-            self.general.ad_campaign_name, self.recruitment_experiment
-        )
+        return self.recruitment.campaign_names
+
+    @property
+    def base_campaign_name(self) -> str:
+        return self.recruitment.base_campaign_name

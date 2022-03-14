@@ -17,12 +17,14 @@ from facebook_business.adobjects.campaign import Campaign
 from facebook_business.adobjects.customaudience import CustomAudience
 from facebook_business.adobjects.targeting import Targeting
 
+from .budget import Budget
 from .facebook.reconciliation import adset_dif
-from .facebook.state import FacebookState, split
+from .facebook.state import CampaignState, FacebookState, split
 from .facebook.update import Instruction
-from .study_conf import (AppDestination, Audience, CampaignConf, CreativeConf,
-                         DestinationConf, FlyMessengerDestination,
-                         LookalikeAudience, Stratum, StudyConf, WebDestination)
+from .study_conf import (AppDestination, Audience, CreativeConf,
+                         DestinationConf, FlyMessengerDestination, GeneralConf,
+                         LookalikeAudience, Stratum, StratumConf, StudyConf,
+                         WebDestination)
 
 ADSET_HOURS = 48
 
@@ -349,7 +351,7 @@ def create_creative(
 
 
 def adset_instructions(
-    study: StudyConf, state: FacebookState, stratum: Stratum, budget: float
+    study: StudyConf, state: CampaignState, stratum: Stratum, budget: float
 ) -> Tuple[AdSet, List[Ad]]:
 
     creatives = [create_creative(study, stratum, c) for c in stratum.creatives]
@@ -367,7 +369,7 @@ def adset_instructions(
         promoted_object = None
 
     ac = AdsetConf(
-        state.campaigns[0],  # TODO: multi campaign!
+        state.campaign,
         stratum,
         budget,
         "ACTIVE",
@@ -384,15 +386,9 @@ def adset_instructions(
     return (adset, ads)
 
 
-# need to turn budget, stratum -> spend, into spending
-# across different campaigns.
-# --> create an intermediate function with tested business logic
-# then use this to do adset diff.
-
-# one function to go from StudyConf -> CampaignGroup Spending Schedule.
-def update_instructions(
+def update_instructions_for_campaign(
     study: StudyConf,
-    state: FacebookState,
+    state: CampaignState,
     strata: List[Stratum],
     budget: Dict[str, float],
 ) -> Sequence[Instruction]:
@@ -400,7 +396,20 @@ def update_instructions(
     sb = [(s, budget[s.id]) for s in strata]
     new_state = [adset_instructions(study, state, s, b) for s, b in sb if b > 0]
 
-    # TODO: fix campaign name --> multicampaign!
-    return adset_dif(
-        state.campaign_state(study.general.ad_campaign_name).campaign_state, new_state
-    )
+    return adset_dif(state.campaign_state, new_state)
+
+
+def update_instructions(
+    study: StudyConf,
+    state: FacebookState,
+    strata: List[Stratum],
+    budget: dict[str, Budget],
+) -> Sequence[Instruction]:
+
+    return [
+        i
+        for campaign_name, budg in budget.items()
+        for i in update_instructions_for_campaign(
+            study, state.campaign_state(campaign_name), strata, budg
+        )
+    ]

@@ -241,8 +241,10 @@ class CampaignState:
 
 
 class FacebookState:
-    def __init__(self, api, ad_account_id):
-        self.api: FacebookAdsApi = api
+    def __init__(
+        self, api: FacebookAdsApi, ad_account_id: str, managed_campaigns: list[str]
+    ):
+        self.api = api
 
         if re.search(r"^act_", ad_account_id):
             raise Exception(
@@ -251,13 +253,26 @@ class FacebookState:
 
         self.account: AdAccount = AdAccount(f"act_{ad_account_id}", api=self.api)
 
-    @cached_property
-    def campaigns(self) -> List[Campaign]:
-        return get_campaigns(self.account)
+        self.managed_campaigns = managed_campaigns
 
     @cache
     def campaign_state(self, campaign_name: str) -> CampaignState:
         return CampaignState(self, self.api, self.account, campaign_name)
+
+    @cached_property
+    def campaigns(self) -> List[Campaign]:
+        all_campaigns = get_campaigns(self.account)
+        return [c for c in all_campaigns if c["name"] in self.managed_campaigns]
+
+    @cached_property
+    def adsets(self) -> List[AdSet]:
+        states = [self.campaign_state(campaign["name"]) for campaign in self.campaigns]
+        return [a for c in states for a in c.adsets]
+
+    @cached_property
+    def ads(self) -> List[Ad]:
+        states = [self.campaign_state(campaign["name"]) for campaign in self.campaigns]
+        return [a for c in states for a in c.ads]
 
     @cached_property
     def custom_audiences(self) -> List[CustomAudience]:
