@@ -7,9 +7,9 @@ from environs import Env
 from facebook_business.adobjects.targeting import Targeting
 
 from .audiences import hydrate_audiences
+from .budget import AdOptReport, get_budget_lookup
 from .campaign_queries import (DBConf, create_adopt_report,
                                get_campaign_configs, get_user_info)
-from .clustering import AdOptReport, get_budget_lookup
 from .facebook.state import (CampaignState, DateRange, FacebookState,
                              StateNameError, get_api)
 from .facebook.update import GraphUpdater, Instruction
@@ -19,8 +19,8 @@ from .recruitment_data import (RecruitmentData, calculate_stat, day_start,
                                get_active_studies, get_recruitment_data,
                                load_recruitment_data)
 from .responses import get_inference_data
-from .study_conf import (CampaignConf, CreativeConf, FacebookTargeting,
-                         Stratum, StratumConf, StudyConf)
+from .study_conf import (CreativeConf, FacebookTargeting, GeneralConf, Stratum,
+                         StratumConf, StudyConf)
 
 logging.basicConfig(level=logging.INFO)
 
@@ -55,7 +55,7 @@ def get_study_conf(db_conf, study_id: str) -> StudyConf:
     return StudyConf(**params)
 
 
-def days_left(config: CampaignConf):
+def days_left(config: GeneralConf):
     if not config.end_date:
         return None
 
@@ -108,18 +108,16 @@ def update_ads_for_campaign(
     total_spend = calculate_total_spend(rd)
 
     budget_lookup, report = get_budget_lookup(
-        df,
-        strata,
-        study.general.budget,
-        study.general.min_budget,
-        window,
-        spend,
-        total_spend,
-        days_left=days_left(study.general),
-        proportional=study.general.proportional,
+        df, strata, study.recruitment.opt_budget, window, spend, total_spend
     )
 
-    return update_instructions(study, state, strata, budget_lookup), report
+    min_budget = study.general.min_budget
+    budget = study.recruitment.spend_for_day(strata, min_budget, budget_lookup, now)
+
+    # budget is now str -> Budget, per campaign, which update_instructions
+    # should handle.
+
+    return update_instructions(study, state, strata, budget), report
 
 
 def update_audience_for_campaign(
@@ -162,9 +160,9 @@ def load_basics(
     study_id: str, db_conf: DBConf, env: Env
 ) -> Tuple[StudyConf, FacebookState]:
     study = get_study_conf(db_conf, study_id)
+
     state = FacebookState(
-        get_api(env, study.user.token),
-        study.general.ad_account,
+        get_api(env, study.user.token), study.general.ad_account, study.campaign_names
     )
 
     return study, state

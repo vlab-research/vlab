@@ -13,8 +13,8 @@ from .configuration import (TargetingConf, format_group_product,
                             respondent_audience_name)
 from .db import _connect, execute
 from .marketing import dict_from_nested_type
-from .study_conf import (AppDestination, AudienceConf, CampaignConf,
-                         CreativeConf, FlyMessengerDestination,
+from .study_conf import (AppDestination, AudienceConf, CreativeConf,
+                         FlyMessengerDestination, GeneralConf,
                          PipelineRecruitmentExperiment, StratumConf)
 
 
@@ -52,27 +52,25 @@ def test_make_study():
 
     create_user(user)
 
-    CAMPAIGN = "FOO"
+    config = parse_kv_sheet(config_file, "general", GeneralConf)
+
+    CAMPAIGN = config.name
 
     create_campaign_for_user(user, CAMPAIGN, db_conf, "default")
     CAMPAIGNID = next(
         c["id"] for c in get_campaigns_for_user(user, db_conf) if c["name"] == CAMPAIGN
     )
 
-    config = parse_kv_sheet(config_file, "general", CampaignConf)
-
     create_campaign_confs(CAMPAIGNID, "general", config.dict(), db_conf)
 
     destination = parse_kv_sheet(config_file, "destination", FlyMessengerDestination)
     create_campaign_confs(CAMPAIGNID, "destinations", [destination.dict()], db_conf)
 
-    recruitment_experiment = parse_kv_sheet(
-        config_file, "recruitment_experiment", PipelineRecruitmentExperiment
+    recruitment = parse_kv_sheet(
+        config_file, "recruitment_pipeline_experiment", PipelineRecruitmentExperiment
     )
 
-    create_campaign_confs(
-        CAMPAIGNID, "recruitment_experiment", recruitment_experiment.dict(), db_conf
-    )
+    create_campaign_confs(CAMPAIGNID, "recruitment", recruitment.dict(), db_conf)
 
     audiences = [
         {
@@ -198,5 +196,5 @@ def test_make_study():
 
     assert study.destinations[0].name == "fly"
     assert study.creatives[0].destination == "fly"
-    assert isinstance(study.recruitment_experiment, PipelineRecruitmentExperiment)
-    assert study.recruitment_experiment.arms == 2
+    assert isinstance(study.recruitment, PipelineRecruitmentExperiment)
+    assert study.recruitment.arms == 2

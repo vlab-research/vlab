@@ -3,7 +3,7 @@ from typing import Any, Dict, List, Tuple
 
 import orjson
 
-from .clustering import AdOptReport
+from .budget import AdOptReport
 from .responses import query
 
 DBConf = str

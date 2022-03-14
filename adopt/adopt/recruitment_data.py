@@ -7,7 +7,7 @@ from facebook_business.adobjects.adsinsights import AdsInsights
 from .db import execute, manyify, query
 from .facebook.date_range import DateRange
 from .facebook.state import FacebookState
-from .study_conf import CampaignConf, StudyConf, UserInfo
+from .study_conf import GeneralConf, StudyConf, UserInfo
 
 Stratum = str  # stratum id of some sort
 Campaign = str  # campaign name

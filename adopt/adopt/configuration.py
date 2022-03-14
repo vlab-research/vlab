@@ -12,7 +12,7 @@ from facebook_business.adobjects.targetinggeolocationcity import \
 from facebook_business.adobjects.targetinggeolocationcustomlocation import \
     TargetingGeoLocationCustomLocation
 
-from adopt.marketing import CampaignConf, CreativeConf
+from adopt.study_conf import CreativeConf, GeneralConf
 
 
 class TargetingConf(NamedTuple):
@@ -247,8 +247,8 @@ def parse_row_sheet(path, sheet_name, type_: T) -> list[T]:
     return rows
 
 
-def respondent_audience_name(config: CampaignConf) -> str:
-    return f"{config.ad_campaign_name}-respondents"
+def respondent_audience_name(config: GeneralConf) -> str:
+    return f"{config.name}-respondents"
 
 
 def create_location(lat, lng, rad):
