@@ -3,7 +3,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 # from dataclasses import dataclass, fields
 from dataclasses import fields
-from datetime import datetime
+from datetime import datetime, timedelta
 from math import floor
 from typing import Any, Dict, List, NamedTuple, Optional, Tuple, Union
 
@@ -150,6 +150,13 @@ class PipelineRecruitmentExperiment(BaseRecruitmentConf):
     arms: int
     recruitment_days: int
     offset_days: int
+
+    @property
+    def end_date(self):
+        # loose
+        final_wave_start = (self.arms - 1) * self.offset_days
+        days_out = final_wave_start + self.recruitment_days
+        return self.start_date + timedelta(days_out)
 
     @property
     def opt_budget(self):

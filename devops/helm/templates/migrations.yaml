@@ -1,0 +1,62 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: sql-files
+data:
+  {{ range $path, $_ :=  .Files.Glob  "**.sql" }}
+  {{ $path | base }}: |-
+    {{ $.Files.Get $path | nindent 4}}
+  {{ end }}
+
+---
+
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: apply-db-migration
+spec:
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+      - name: cockroachdb-client-secure
+        image: cockroachdb/cockroach:v21.2.6
+        imagePullPolicy: IfNotPresent
+        volumeMounts:
+        - name: client-certs
+          mountPath: /cockroach/cockroach-certs/
+        - name: sql-file
+          mountPath: /sql/
+        command:
+          - ./cockroach
+          - sql
+          - --certs-dir=/cockroach/cockroach-certs
+          - --host=cockroachdb-public
+          - --database=vlab
+          - --file=/sql/init.sql
+      volumes:
+        - name: sql-file
+          configMap:
+            name: sql-files
+            items:
+              - key: init.sql
+                path: init.sql
+        - name: client-certs
+          projected:
+              sources:
+                - secret:
+                    name: cockroachdb-node
+                    items:
+                      - key: ca.crt
+                        path: ca.crt
+                - secret:
+                    name: cockroachdb-root
+                    items:
+                      - key: tls.crt
+                        path: client.root.crt
+                      - key: tls.key
+                        path: client.root.key
+              defaultMode: 256
+  backoffLimit: 4
+
+---

@@ -1,0 +1,98 @@
+env:
+  - name: PG_URL
+    value: postgres://vlab:KSCED05rij1aFEhcgPGwR6dx@cockroachdb-public:26257/vlab
+  - name: CHATBASE_DATABASE
+    value: vlab
+  - name: CHATBASE_USER
+    value: vlab
+  - name: CHATBASE_PASSWORD
+    value: KSCED05rij1aFEhcgPGwR6dx
+  - name: CHATBASE_HOST
+    value: cockroachdb-public
+  - name: CHATBASE_PORT
+    value: "26257"
+
+# TODO: change to mapping to allow merging.
+cronjobs:
+  - name: literacy-data-api
+    schedule: "10 * * * *"
+    image:
+      repository: "vlabresearch/source-literacy-data-api"
+      tag: "latest"
+      pullPolicy: Always
+    env:
+      - name: LITERACY_DATA_API_URL
+        value: http://lit-data-api.default.svc.cluster.local:80
+  - name: swoosh
+    schedule: "30 * * * *"
+    image:
+      repository: "vlabresearch/swoosh"
+      tag: "latest"
+      pullPolicy: Always
+  - name: adopt-ads
+    schedule: "30 */4 * * *"
+    image:
+      repository: "vlabresearch/adopt"
+      tag: "inference-data"
+      pullPolicy: Always
+    args:
+      - python
+      - malaria_ads.py
+    envSecret: facebook-envs
+  - name: adopt-recruitment-data
+    schedule: "10 */4 * * *"
+    image:
+      repository: "vlabresearch/adopt"
+      tag: "inference-data"
+      pullPolicy: Always
+    args:
+      - python
+      - malaria_recruitment.py
+    envSecret: facebook-envs
+  - name: adopt-audience
+    schedule: "50 */4 * * *"
+    image:
+      repository: "vlabresearch/adopt"
+      tag: "inference-data"
+      pullPolicy: Always
+    args:
+      - python
+      - malaria_audience.py
+    envSecret: facebook-envs
+
+
+
+# add adopt
+# try searching by ref in lit_data, quick hack to optimize this weekend
+# figure out a/b
+# add tarot
+# create remarketing campaign manager
+
+
+serviceAccount:
+  create: true
+  annotations: {}
+  name: "" # use default
+
+
+# COMMIT TO COCKROACH OPERATOR???
+# cockroachdb:
+#   image:
+#     tag: v21.2.6
+#   statefulset:
+#     replicas: 2
+#     resources:
+#       requests:
+#         cpu: 100m
+#         memory: 1000Mi
+#   conf:
+#     cache: 3500Mi
+#     max-sql-memory: 3000Mi
+#     max-disk-temp-storage: 24GiB
+#     budget:
+#       maxUnavailable: 1
+#   tls:
+#     enabled: yes
+#     certs:
+#       selfSigner:
+#         enabled: yes

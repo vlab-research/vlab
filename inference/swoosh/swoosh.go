@@ -34,7 +34,7 @@ func getConfig() Config {
 
 func GetInferenceDataConf(pool *pgxpool.Pool, study string) (*InferenceDataConf, error) {
 	q := `
-        SELECT conf->0
+        SELECT conf
         FROM study_confs
         WHERE study_id = $1
         AND conf_type = 'inference_data'

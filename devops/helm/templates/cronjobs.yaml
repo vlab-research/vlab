@@ -1,0 +1,45 @@
+{{- range .Values.cronjobs }}
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ include "vlab.fullname" $ }}-{{ .name }}
+  labels:
+    {{- include "vlab.labels" $ | nindent 4 }}
+spec:
+  schedule: "{{ .schedule }}"
+  concurrencyPolicy: Forbid
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: OnFailure
+          containers:
+            - name: {{ .name }}
+              image: "{{ .image.repository }}:{{ .image.tag }}"
+              imagePullPolicy: {{ .image.pullPolicy }}
+              {{- if .envSecret }}
+              envFrom:
+                - secretRef:
+                    name: "{{ .envSecret }}"
+              {{- end}}
+              {{- if .args }}
+              args:
+                {{- toYaml .args | nindent 16 }}
+              {{- end}}
+              env:
+                {{- if .env -}}
+                {{- toYaml .env | nindent 16 }}
+                {{- end }}
+                {{- if $.Values.env -}}
+                {{- toYaml $.Values.env | nindent 16 }}
+                {{- end }}
+              {{- if .resources -}}
+              resources:
+                {{- toYaml .resources | nindent 16 }}
+              {{- end }}
+          {{- with .nodeSelector }}
+          nodeSelector:
+            {{- toYaml $ | nindent 12 }}
+          {{- end }}
+---
+{{- end }}
