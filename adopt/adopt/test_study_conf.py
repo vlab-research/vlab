@@ -328,3 +328,19 @@ def test_pipeline_spend_for_day_sets_to_budget_for_on_campaign_based_on_days_lef
         "study-1": {"foo": 0.0, "bar": 0.0, "baz": 0.0},
         "study-2": {"foo": 3.0, "bar": 4.0, "baz": 4.0},
     }
+
+
+def test_pipeline_spend_has_a_calculated_end_date():
+    start = _dt(1)
+    r = _pipeline(
+        name="study", start_date=start, arms=2, recruitment_days=3, offset_days=6
+    )
+
+    assert r.end_date == _dt(10)
+
+    start = _dt(1)
+    r = _pipeline(
+        name="study", start_date=start, arms=3, recruitment_days=3, offset_days=3
+    )
+
+    assert r.end_date == _dt(10)

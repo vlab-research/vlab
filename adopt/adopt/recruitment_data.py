@@ -167,8 +167,8 @@ def load_recruitment_data(
         db_conf,
         study.id,
         study.campaign_names,
-        study.general.start_date,
-        study.general.end_date,
+        study.recruitment.start_date,
+        study.recruitment.end_date,
         state,
         now,
     )
@@ -238,22 +238,10 @@ def calculate_stat(
 
 
 def get_active_studies(db_conf, now: datetime) -> list[str]:
+    # TODO: make this discriminate only the currently active studies!
     q = """
-    WITH t AS (
-    SELECT s.id,
-           (conf->0->>'start_date')::TIMESTAMP AS start_date,
-           (conf->0->>'end_date')::TIMESTAMP AS end_date,
-           row_number() over (PARTITION BY sc.study_id ORDER BY sc.created DESC) AS n
-    FROM studies s
-    JOIN study_confs sc ON sc.study_id = s.id
-    WHERE conf_type = 'opt'
-    ORDER BY sc.created DESC)
-    SELECT id
-    FROM t
-    WHERE n = 1
-    AND start_date <= %s
-    AND end_date >= %s
+    select id from studies
     """
 
-    res = query(db_conf, q, [now, now])
+    res = query(db_conf, q, [])
     return [t[0] for t in res]

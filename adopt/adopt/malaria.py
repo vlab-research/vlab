@@ -71,7 +71,7 @@ def make_window(hours, now):
     return DateRange(start, now)
 
 
-def run_instructions(instructions: Sequence[Instruction], state: CampaignState):
+def run_instructions(instructions: Sequence[Instruction], state: FacebookState):
     updater = GraphUpdater(state)
     for i in instructions:
         report = updater.execute(i)
@@ -176,6 +176,8 @@ def run_updates(fn: AdoptJob) -> None:
     now = datetime.utcnow()
     studies = get_active_studies(db_conf, now)
 
+    logging.info(f"Got {len(studies)} active studies to update")
+
     for s in studies:
         study, state = load_basics(s, db_conf, env)
 
@@ -189,9 +191,7 @@ def run_updates(fn: AdoptJob) -> None:
 
         # TODO: update needs to be updated for different states and
         #       multiple campaigns!
-        run_instructions(
-            instructions, state.campaign_state(study.general.ad_campaign_name)
-        )
+        run_instructions(instructions, state)
 
 
 def update_audience() -> None:
