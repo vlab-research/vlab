@@ -128,11 +128,73 @@ def test_proportional_budget_raises_exception_when_not_near_one():
         proportional_budget(goal, spend, tot, price, 100, 16)
 
 
+def test_proportional_budget_with_max_recuits_optimizes_for_weights():
+    spend = {"bar": 10.0, "baz": 10.0, "foo": 10.0}
+    tot = {"bar": 1, "baz": 1, "foo": 1}
+    price = {"bar": 10.0, "baz": 10.0, "foo": 10.0}
+    goal = {"foo": 0.3, "bar": 0.2, "baz": 0.5}
+
+    budget, expected = proportional_budget(
+        goal, spend, tot, price, budget=None, max_recruits=100
+    )
+
+    assert round(expected["foo"]) == 30
+    assert round(expected["bar"]) == 20
+    assert round(expected["baz"]) == 50
+
+
+def test_proportional_budget_with_max_recruits_spends_on_missing_section():
+    spend = {"bar": 100.0, "baz": 100.0, "foo": 100.0}
+    tot = {"bar": 5, "baz": 5, "foo": 2}
+    price = {"bar": 20.0, "baz": 20.0, "foo": 50.0}
+    goal = {"foo": 1 / 3, "bar": 1 / 3, "baz": 1 / 3}
+
+    budget, _ = proportional_budget(
+        goal, spend, tot, price, budget=None, max_recruits=15
+    )
+    assert round(budget["foo"]) == 150
+    assert round(budget["bar"]) == 0
+    assert round(budget["baz"]) == 0
+
+
+def test_proportional_budget_with_max_recruits_evenly_recruits_with_dif_prices():
+    spend = {"bar": 100.0, "baz": 100.0, "foo": 100.0}
+    tot = {"bar": 5, "baz": 5, "foo": 5}
+    price = {"bar": 20.0, "baz": 40.0, "foo": 50.0}
+    goal = {"foo": 1 / 3, "bar": 1 / 3, "baz": 1 / 3}
+
+    budget, _ = proportional_budget(
+        goal, spend, tot, price, budget=None, max_recruits=30
+    )
+    assert round(budget["foo"]) == 250
+    assert round(budget["bar"]) == 100
+    assert round(budget["baz"]) == 200
+
+
+def test_proportional_budget_with_both_budget_and_max_recruits_picks_constraint():
+    spend = {"bar": 100.0, "baz": 100.0, "foo": 100.0}
+    tot = {"bar": 5, "baz": 5, "foo": 5}
+    price = {"bar": 20.0, "baz": 20.0, "foo": 20.0}
+    goal = {"foo": 1 / 3, "bar": 1 / 3, "baz": 1 / 3}
+
+    budget, expected = proportional_budget(
+        goal, spend, tot, price, budget=100, max_recruits=30
+    )
+    assert round(sum(expected.values())) == 20
+    assert round(sum(budget.values())) == 100
+
+    budget, expected = proportional_budget(
+        goal, spend, tot, price, budget=500, max_recruits=30
+    )
+    assert round(sum(expected.values())) == 30
+    assert round(sum(budget.values())) == 300
+
+
 def test_get_budget_lookup(cnf, df):
     window = DateRange(DATE, DATE)
     spend = {"bar": 10.0, "baz": 10.0, "foo": 10.0}
 
-    budget, _ = get_budget_lookup(df, cnf, 60, window, spend, 0.3)
+    budget, _ = get_budget_lookup(df, cnf, 60, 100, window, spend, 0.3)
     assert round(budget["foo"]) == 21
     assert round(budget["bar"]) == 5
     assert round(budget["baz"]) == 5
@@ -141,7 +203,7 @@ def test_get_budget_lookup(cnf, df):
 def test_get_budget_lookup_with_proportional_budget_when_budget_is_spent(cnf, df):
     window = DateRange(DATE, DATE)
     spend = {"bar": 10.0, "baz": 10.0, "foo": 10.0}
-    budget, _ = get_budget_lookup(df, cnf, 30, window, spend, 3.0)
+    budget, _ = get_budget_lookup(df, cnf, 30, 100, window, spend, 3.0)
     assert budget == {"bar": 0, "baz": 0, "foo": 0}
 
 
@@ -165,7 +227,7 @@ def test_get_budget_lookup_works_with_missing_data_from_clusters():
 
     spend = {"bar": 10.0, "foo": 10.0, "baz": 10.0}
     window = DateRange(DATE, DATE)
-    res, _ = get_budget_lookup(df, cnf, 50, window, spend, 0.40)
+    res, _ = get_budget_lookup(df, cnf, 50, 100, window, spend, 0.40)
 
     assert res == {"foo": 5.0, "bar": 0.0, "baz": 5.0}
 

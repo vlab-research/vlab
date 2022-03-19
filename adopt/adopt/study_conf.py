@@ -97,6 +97,11 @@ class BaseRecruitmentConf(BaseModel, ABC):
     def opt_budget(self):
         pass
 
+    @property
+    @abstractmethod
+    def opt_sample_size(self):
+        pass
+
     @abstractmethod
     def spend_for_day(
         self,
@@ -111,8 +116,13 @@ class BaseRecruitmentConf(BaseModel, ABC):
 class SimpleRecruitment(BaseRecruitmentConf):
     ad_campaign_name: str
     budget: int
+    max_sample: int
     start_date: datetime
     end_date: datetime
+
+    @property
+    def opt_sample_size(self):
+        return self.max_sample
 
     @property
     def opt_budget(self):
@@ -146,6 +156,7 @@ class SimpleRecruitment(BaseRecruitmentConf):
 class PipelineRecruitmentExperiment(BaseRecruitmentConf):
     ad_campaign_name_base: str
     budget_per_arm: int
+    max_sample_per_arm: int
     start_date: datetime
     arms: int
     recruitment_days: int
@@ -157,6 +168,10 @@ class PipelineRecruitmentExperiment(BaseRecruitmentConf):
         final_wave_start = (self.arms - 1) * self.offset_days
         days_out = final_wave_start + self.recruitment_days
         return self.start_date + timedelta(days_out)
+
+    @property
+    def opt_sample_size(self):
+        return self.max_sample_per_arm
 
     @property
     def opt_budget(self):
@@ -229,9 +244,14 @@ class PipelineRecruitmentExperiment(BaseRecruitmentConf):
 class DestinationRecruitmentExperiment(BaseRecruitmentConf):
     ad_campaign_name_base: str
     budget_per_arm: int
+    max_sample_per_arm: int
     start_date: datetime
     end_date: datetime
     destinations: list[str]
+
+    @property
+    def opt_sample_size(self):
+        return self.max_sample_per_arm * len(self.destinations)
 
     @property
     def opt_budget(self):

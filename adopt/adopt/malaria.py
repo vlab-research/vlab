@@ -108,7 +108,13 @@ def update_ads_for_campaign(
     total_spend = calculate_total_spend(rd)
 
     budget_lookup, report = get_budget_lookup(
-        df, strata, study.recruitment.opt_budget, window, spend, total_spend
+        df,
+        strata,
+        study.recruitment.opt_budget,
+        study.recruitment.opt_sample_size,
+        window,
+        spend,
+        total_spend,
     )
 
     min_budget = study.general.min_budget

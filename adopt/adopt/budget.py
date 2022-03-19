@@ -72,7 +72,7 @@ def prep_df_for_budget(df, strata):
     return pd.concat(dfs).reset_index(drop=True)
 
 
-def constrained_opt(S, goal, tot, price, budget):
+def budget_opt(S, goal, tot, price, budget):
     C = 1 / price
     s = S / S.sum()
     new_spend = s * budget
@@ -81,32 +81,68 @@ def constrained_opt(S, goal, tot, price, budget):
     return loss * 100
 
 
-def proportional_opt(goal, tot, price, budget, tol=0.01):
-    P = goal.shape[0]
-    x0 = np.repeat(1, P)
-    x0 = x0 / x0.sum()
+def recruits_opt(S, goal, tot, price, num_recruits):
+    s = S / S.sum()
+    recruits_per_strata = s * num_recruits
+    projection = recruits_per_strata + tot
+    loss = np.sum(goal ** 2 / projection)
+    return loss * 100
 
-    m = minimize(
-        constrained_opt,
-        x0=x0,
-        args=(goal, tot, price, budget),
-        method="L-BFGS-B",
-        bounds=[(0, None)] * P,
-        options={"ftol": 1e-14, "gtol": 1e-10, "eps": 1e-12},
-    )
 
-    logging.info(f"Finished optimizing with loss: {m.fun}")
+def proportional_opt(goal, tot, price, budget=None, max_recruits=None, tol=0.01):
+    if budget is None and max_recruits is None:
+        raise Exception("Need either a max budget or max_recruits to optimize")
 
-    if m.fun / P > tol:
-        logging.warning(f"Optimization loss very high: {m.fun}")
+    def opt(fn, constraint):
+        P = goal.shape[0]
+        x0 = np.repeat(1, P)
+        x0 = x0 / x0.sum()
 
-    new_spend = (m.x / m.x.sum()) * budget
+        m = minimize(
+            fn,
+            x0=x0,
+            args=(goal, tot, price, constraint),
+            method="L-BFGS-B",
+            bounds=[(0, None)] * P,
+            options={"ftol": 1e-14, "gtol": 1e-10, "eps": 1e-12},
+        )
 
-    return new_spend
+        logging.info(f"Finished optimizing with loss: {m.fun}")
+
+        if m.fun / P > tol:
+            logging.warning(f"Optimization loss very high: {m.fun}")
+
+        return m
+
+    if budget is not None:
+        m = opt(budget_opt, budget)
+        new_spend = (m.x / m.x.sum()) * budget
+        new_recruits = new_spend * 1 / price
+        expected_recruits = tot + new_recruits
+        budget_solution = (new_spend, expected_recruits)
+
+    if max_recruits is None:
+        return budget_solution
+
+    num_recruits = max_recruits - tot.sum()
+
+    m = opt(recruits_opt, num_recruits)
+    new_recruits = (m.x / m.x.sum()) * num_recruits
+    new_spend = new_recruits * price
+    expected_recruits = tot + new_recruits
+    recruit_solution = (new_spend, expected_recruits)
+
+    if budget is None:
+        return recruit_solution
+
+    if new_spend.sum() > budget:
+        return budget_solution
+
+    return recruit_solution
 
 
 # provide max
-def proportional_budget(goal, spend, tot, price, budget):
+def proportional_budget(goal, spend, tot, price, budget=None, max_recruits=None):
 
     if not np.isclose(sum(goal.values()), 1.0, 0.01):
         raise Exception(
@@ -122,11 +158,9 @@ def proportional_budget(goal, spend, tot, price, budget):
         }
     )
 
-    df["new_spend"] = proportional_opt(
-        df.goal.values, df.respondents.values, df.price.values, budget
+    df["new_spend"], df["expected"] = proportional_opt(
+        df.goal.values, df.respondents.values, df.price.values, budget, max_recruits
     )
-
-    df["expected"] = df.respondents + ((df.new_spend / df.price))
 
     return df.new_spend.to_dict(), df.expected.to_dict()
 
@@ -203,6 +237,7 @@ def get_budget_lookup(
     df: Optional[pd.DataFrame],
     strata: Sequence[Union[Stratum, StratumConf]],
     max_budget: float,
+    max_sample_size: int,
     window: DateRange,
     spend: Dict[str, float],
     total_spend: float,

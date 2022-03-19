@@ -10,13 +10,18 @@ def _dt(day, month=1, year=2022):
 
 def _simple(name="foo", start_date=_dt(1), end_date=_dt(3)):
     return SimpleRecruitment(
-        ad_campaign_name=name, start_date=start_date, end_date=end_date, budget=10
+        ad_campaign_name=name,
+        start_date=start_date,
+        end_date=end_date,
+        budget=10,
+        max_sample=100,
     )
 
 
 def _pipeline(
     name="foo",
     budget_per_arm=10,
+    max_sample_per_arm=100,
     start_date=_dt(1),
     arms=2,
     recruitment_days=2,
@@ -25,6 +30,7 @@ def _pipeline(
     return PipelineRecruitmentExperiment(
         ad_campaign_name_base=name,
         budget_per_arm=budget_per_arm,
+        max_sample_per_arm=max_sample_per_arm,
         start_date=start_date,
         arms=arms,
         recruitment_days=recruitment_days,
@@ -35,6 +41,7 @@ def _pipeline(
 def _destination(
     name="foo",
     budget_per_arm=10,
+    max_sample_per_arm=100,
     start_date=_dt(1),
     end_date=_dt(3),
     destinations=["baz", "qux"],
@@ -42,6 +49,7 @@ def _destination(
     return DestinationRecruitmentExperiment(
         ad_campaign_name_base=name,
         budget_per_arm=budget_per_arm,
+        max_sample_per_arm=max_sample_per_arm,
         start_date=start_date,
         end_date=end_date,
         destinations=destinations,
