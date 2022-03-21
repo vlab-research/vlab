@@ -18,7 +18,7 @@ const useAuthenticatedApi = () => {
     (acc, apiCallName) => {
       acc[apiCallName] = async (params: any) =>
         apiCalls[apiCallName]({
-          ...params,
+          ...params, 
           accessToken: await getAccessTokenSilently(),
         });
 

@@ -6,6 +6,7 @@ import {
   StudyApiResponse,
   StudySegmentsProgressApiResponse,
 } from '../types/study';
+import querystring from "querystring"
 import { Cursor } from '../types/api';
 
 /**
@@ -24,14 +25,29 @@ const fetchStudies = ({
   cursor: Cursor;
   defaultErrorMessage: string;
   accessToken: string;
-}) =>
-  apiRequest<StudiesApiResponse>(
-    `/api/studies?number=${studiesPerPage}&cursor=${cursor}`,
+}) => {
+
+  // TODO: make general (move to useAuthenticatedAPI) -
+  //       automatically remove null/undefined params
+  //       which requires changing the current method
+  //       of declaring the function params/defaults
+  const route = `/studies`;
+  const params: any = {"number": studiesPerPage};
+  if (cursor) {
+    params["cursor"] = cursor;
+  }
+  const q = querystring.encode(params);
+  const path = `${route}?${q}`
+
+  return apiRequest<StudiesApiResponse>(
+    path,
     {
       defaultErrorMessage,
       accessToken,
     }
   );
+}
+
 
 const fetchStudy = ({
   slug,
@@ -40,7 +56,7 @@ const fetchStudy = ({
   slug: string;
   accessToken: string;
 }) =>
-  apiRequest<StudyApiResponse>(`/api/studies/${slug}`, { accessToken }).then(
+  apiRequest<StudyApiResponse>(`/studies/${slug}`, { accessToken }).then(
     ({ data }) => data
   );
 
@@ -52,7 +68,7 @@ const fetchStudySegmentsProgress = ({
   accessToken: string;
 }) =>
   apiRequest<StudySegmentsProgressApiResponse>(
-    `/api/studies/${slug}/segments-progress`,
+    `/studies/${slug}/segments-progress`,
     { accessToken }
   );
 
@@ -60,7 +76,7 @@ const createUser = ({ accessToken }: { accessToken: string }) => {
   const userCreatedStatusCode = 201;
   const userAlreadyExistsStatusCode = 422;
 
-  return apiRequest<CreateUserApiResponse>('/api/users', {
+  return apiRequest<CreateUserApiResponse>('/users', {
     accessToken,
     method: 'POST',
     expectedStatusCodes: [userCreatedStatusCode, userAlreadyExistsStatusCode],
