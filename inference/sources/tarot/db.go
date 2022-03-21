@@ -6,17 +6,16 @@ func GetUsersMissingAssignments(pool *pgxpool.Pool, conf *TarotConfig) Treatment
 
 	// json_object_agg()
 
-	q := `
-            SELECT user_id
-            FROM inference_data
-            WHERE study_id = $1
+	// q := `
+	//     SELECT user_id
+	//     FROM inference_data
+	//     WHERE study_id = $1
 
-            -- opposite of union
+	//     -- opposite of union
 
-            SELECT
+	//     SELECT
 
-
-        `
+	// `
 
 	params := TreatmentAssignmentParams{
 		// requests
