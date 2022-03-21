@@ -7,6 +7,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	. "github.com/vlab-research/vlab/inference/inference-data"
+	. "github.com/vlab-research/vlab/inference/test-helpers"
 )
 
 const (
@@ -31,9 +32,9 @@ func str(s string) *string {
 }
 
 func TestInferenceDataWriter_WritesMultipleTimesAndUpdatesDataRemovingVariables(t *testing.T) {
-	pool := testPool()
+	pool := TestPool()
 	defer pool.Close()
-	mustExec(t, pool, inferenceDataSql)
+	MustExec(t, pool, inferenceDataSql)
 
 	id := InferenceData{
 		"foo": {"foo",
@@ -53,7 +54,7 @@ func TestInferenceDataWriter_WritesMultipleTimesAndUpdatesDataRemovingVariables(
 	handle(e)
 
 	// Writes 5 lines to database, one for each variable/value
-	users := getCol(pool, "inference_data", "user_id")
+	users := GetCol(pool, "inference_data", "user_id")
 	assert.Equal(t, 5, len(users))
 
 	// Now, overwrites all data from study_foo with a single variable/user
@@ -84,7 +85,7 @@ func TestInferenceDataWriter_WritesMultipleTimesAndUpdatesDataRemovingVariables(
 	assert.Equal(t, json.RawMessage([]byte(`"A"`)), res[0])
 
 	// Assert only one user now, foo
-	users = getCol(pool, "inference_data", "user_id")
+	users = GetCol(pool, "inference_data", "user_id")
 	assert.Equal(t, []*string{str("foo")}, users)
 	assert.Equal(t, 1, len(users))
 

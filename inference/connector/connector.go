@@ -4,11 +4,13 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
+	"time"
+
 	"github.com/caarlos0/env/v6"
 	"github.com/jackc/pgx/v4"
 	"github.com/jackc/pgx/v4/pgxpool"
 	. "github.com/vlab-research/vlab/inference/inference-data"
-	"log"
 )
 
 func handle(err error) {
@@ -35,18 +37,20 @@ func GetStudyConfs(pool *pgxpool.Pool, dataSource string) ([]*Source, error) {
 	    FROM study_confs
 	    INNER JOIN study_state on study_confs.study_id = study_state.id
 	    WHERE conf_type = 'data_source'
-            AND study_state.active = true
+            AND study_state.start_date < $1
+            AND study_state.end_date > $1
 	  )
 	  SELECT json_array_elements(conf) as conf,
 		 study_id
 	  FROM t
 	  WHERE n = 1
 	)
-        SELECT * from tt WHERE conf->>'source' = $1
+        SELECT * from tt WHERE conf->>'source' = $2
         `
 
 	res := []*Source{}
-	rows, err := pool.Query(context.Background(), query, dataSource)
+	now := time.Now().UTC() // extract?
+	rows, err := pool.Query(context.Background(), query, now, dataSource)
 	if err != nil {
 		return nil, err
 	}

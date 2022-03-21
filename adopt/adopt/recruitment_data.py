@@ -238,10 +238,12 @@ def calculate_stat(
 
 
 def get_active_studies(db_conf, now: datetime) -> list[str]:
-    # TODO: make this discriminate only the currently active studies!
     q = """
     select id from studies
+    join study_state using(id)
+    where study_state.start_date < %s
+    and study_state.end_date > %s
     """
 
-    res = query(db_conf, q, [])
+    res = query(db_conf, q, [now, now])
     return [t[0] for t in res]

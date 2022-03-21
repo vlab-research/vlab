@@ -44,6 +44,9 @@ func GetInferenceDataConf(pool *pgxpool.Pool, study string) (*InferenceDataConf,
 
 	conf := new(InferenceDataConf)
 	err := pool.QueryRow(context.Background(), q, study).Scan(conf)
+
+	fmt.Println(err)
+
 	if err != nil {
 		return nil, err
 	}

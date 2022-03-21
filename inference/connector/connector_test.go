@@ -75,19 +75,18 @@ const (
        `
 
 	futureDate = `
-        [{
+        {
            "start_date": "2022-01-10T00:00:00",
            "end_date": "2999-01-31T00:00:00"
-        }]
+        }
         `
 	pastDate = `
-        [{
+        {
            "start_date": "2022-01-10T00:00:00",
            "end_date": "2022-01-31T00:00:00"
-        }]
+        }
         `
 
-	insertUser  = `insert into users(email) values($1) returning id`
 	selectUser  = `select id from users where email = $1`
 	insertStudy = `insert into studies(user_id, name) values($1, $2) returning id`
 	insertConf  = `insert into study_confs(study_id, conf_type, conf) values($1, $2, $3)`
@@ -106,10 +105,6 @@ func resetDb(pool *pgxpool.Pool) {
 	}
 }
 
-func uuid(i int) string {
-	return fmt.Sprintf("00000000-0000-0000-0000-00000000000%d", i)
-}
-
 func TestGetStudyConfs_GetsOnlyActiveStudies(t *testing.T) {
 	pool := TestPool()
 	defer pool.Close()
@@ -119,8 +114,8 @@ func TestGetStudyConfs_GetsOnlyActiveStudies(t *testing.T) {
 	foo := CreateStudy(pool, "foo")
 	bar := CreateStudy(pool, "bar")
 
-	MustExec(t, pool, insertConf, foo, "opt", futureDate)
-	MustExec(t, pool, insertConf, bar, "opt", pastDate)
+	MustExec(t, pool, insertConf, foo, "recruitment", futureDate)
+	MustExec(t, pool, insertConf, bar, "recruitment", pastDate)
 
 	MustExec(t, pool, insertConf, foo, "data_source", confA)
 	MustExec(t, pool, insertConf, bar, "data_source", confA)
@@ -139,7 +134,7 @@ func TestGetStudyConfs_GetsOnlyConfsWithCorrectSource(t *testing.T) {
 	resetDb(pool)
 
 	foo := CreateStudy(pool, "foo")
-	MustExec(t, pool, insertConf, foo, "opt", futureDate)
+	MustExec(t, pool, insertConf, foo, "recruitment", futureDate)
 	MustExec(t, pool, insertConf, foo, "data_source", confB)
 
 	confs, err := GetStudyConfs(pool, "literacy_data_api")
@@ -158,7 +153,7 @@ func TestGetStudyConfs_GetsMultipleConfsFromTheSameSource(t *testing.T) {
 	resetDb(pool)
 
 	foo := CreateStudy(pool, "foo")
-	MustExec(t, pool, insertConf, foo, "opt", futureDate)
+	MustExec(t, pool, insertConf, foo, "recruitment", futureDate)
 
 	MustExec(t, pool, insertConf, foo, "data_source", confD)
 
@@ -178,7 +173,7 @@ func TestGetStudyConfs_GetsOnlyTheLatestConfPerStudy(t *testing.T) {
 	resetDb(pool)
 
 	foo := CreateStudy(pool, "foo")
-	MustExec(t, pool, insertConf, foo, "opt", futureDate)
+	MustExec(t, pool, insertConf, foo, "recruitment", futureDate)
 
 	MustExec(t, pool, insertConf, foo, "data_source", confA)
 	MustExec(t, pool, insertConf, foo, "data_source", confC)
@@ -224,7 +219,7 @@ func TestLastEvent_GetsLatestPaginationToken(t *testing.T) {
 	resetDb(pool)
 
 	foo := CreateStudy(pool, "foo")
-	MustExec(t, pool, insertConf, foo, "opt", futureDate)
+	MustExec(t, pool, insertConf, foo, "recruitment", futureDate)
 
 	events := eventChan(
 		simpleEvent(foo, "sourceA", 0, "0"),
@@ -249,7 +244,7 @@ func TestLastEvent_ReturnsFalseWhenNoEvents(t *testing.T) {
 	resetDb(pool)
 
 	foo := CreateStudy(pool, "foo")
-	MustExec(t, pool, insertConf, foo, "opt", futureDate)
+	MustExec(t, pool, insertConf, foo, "recruitment", futureDate)
 
 	source := &Source{foo, &SourceConf{"sourceA", "fly", []byte(`{"foo": "bar"}`)}}
 	event, ok, err := LastEvent(pool, source, "timestamp")
