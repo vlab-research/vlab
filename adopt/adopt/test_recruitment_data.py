@@ -1,11 +1,11 @@
 import uuid
 from datetime import date, datetime, timedelta
-from test.dbfix import cnf, db
+from test.dbfix import cnf, _reset_db
 from unittest.mock import MagicMock, patch
 
 from adopt.campaign_queries import create_campaign_confs
 
-from .db import _connect, execute, manyify
+from .db import _connect, execute, manyify, query
 from .facebook.date_range import DateRange
 from .recruitment_data import (CollectionPeriod, RecruitmentData, Study,
                                TimePeriod, _get_days, _load_recruitment_data,
@@ -123,21 +123,21 @@ def test_get_collection_days_gets_up_to_now_for_ongoing_study_from_yesterday():
 user = str(uuid.uuid4())
 
 
-def _reset_db():
-    with _connect(cnf) as conn:
-        with conn.cursor() as cur:
-            tables = ["study_confs", "recruitment_data_events", "studies", "users"]
-            for t in tables:
-                cur.execute(f"delete from {t} cascade")
-            conn.commit()
+# def _reset_db():
+#     with _connect(cnf) as conn:
+#         with conn.cursor() as cur:
+#             tables = ["study_confs", "recruitment_data_events", "studies", "users"]
+#             for t in tables:
+#                 cur.execute(f"delete from {t} cascade")
+#             conn.commit()
 
 
-def create_study(db, name, user_email="foo@email"):
+def create_study(name, user_email="foo@email"):
     q = """
     INSERT INTO users(id) VALUES (%s) RETURNING id
     """
 
-    res = db.query(q, [user_email])
+    res = query(cnf, q, [user_email])
     user_id = list(res)[0][0]
 
     q = """
@@ -145,7 +145,8 @@ def create_study(db, name, user_email="foo@email"):
     VALUES (%s, %s, %s, %s, %s) RETURNING id
     """
 
-    res = db.query(
+    res = query(
+        cnf,
         q,
         [user_id, name, name, "key", "entity"],
     )
@@ -177,8 +178,8 @@ def insert_general_conf(study_id, start_date, end_date):
 
 
 @patch("adopt.recruitment_data.get_insights")
-def test_load_recruitment_data_loads_same_data_multiple_times_without_throwing(mock, db):
-    db.reset()
+def test_load_recruitment_data_loads_same_data_multiple_times_without_throwing(mock):
+    _reset_db()
 
     insights = [{"strata1": {"cpm": 1.0}}]
     mock.return_value = insights
@@ -187,11 +188,11 @@ def test_load_recruitment_data_loads_same_data_multiple_times_without_throwing(m
     start = now
     end = now + timedelta(days=2)
 
-    _, study_id = create_study(db, "foo")
+    _, study_id = create_study("foo")
 
     _load_recruitment_data(cnf, study_id, ["campaign_a"], start, end, None, now)
 
-    events = db.query("select * from recruitment_data_events", as_dict=True)
+    events = query(cnf, "select * from recruitment_data_events", as_dict=True)
 
     # ORM
     res = [
@@ -207,14 +208,13 @@ def test_load_recruitment_data_loads_same_data_multiple_times_without_throwing(m
     assert res[0].data == {"campaign_a": insights}
 
     _load_recruitment_data(cnf, study_id, ["campaign_a"], start, end, None, now)
-
-    events = db.query("select * from recruitment_data_events", as_dict=True)
+    events = query(cnf, "select * from recruitment_data_events", as_dict=True)
     assert len(list(events)) == 1
 
 
 @patch("adopt.recruitment_data.get_insights")
-def test_load_recruitment_data_adds_additional_events(mock, db):
-    db.reset()
+def test_load_recruitment_data_adds_additional_events(mock):
+    _reset_db()
 
     insights = [{"strata1": {"cpm": 1.0}}]
     mock.return_value = insights
@@ -223,17 +223,17 @@ def test_load_recruitment_data_adds_additional_events(mock, db):
     start = day_start(now)
     end = now + timedelta(days=2)
 
-    _, study_id = create_study(db, "foo")
+    _, study_id = create_study("foo")
     _load_recruitment_data(cnf, study_id, ["campaign_a"], start, end, None, now)
 
-    events = db.query("select * from recruitment_data_events", as_dict=True)
+    events = query(cnf, "select * from recruitment_data_events", as_dict=True)
     assert len(list(events)) == 1
 
     # one day later, temp becomes permanent, now loads two events
     now = now + timedelta(days=1)
     _load_recruitment_data(cnf, study_id, ["campaign_a"], start, end, None, now)
 
-    events = db.query("select * from recruitment_data_events", as_dict=True)
+    events = query(cnf, "select * from recruitment_data_events", as_dict=True)
 
     # ORM
     res = [
@@ -250,9 +250,9 @@ def test_load_recruitment_data_adds_additional_events(mock, db):
     assert res[0].time_period.end != res[1].time_period.end
 
 
-def test_get_recruitment_data_returns_empty_array_if_no_data(db):
-    db.reset()
-    _, study_id = create_study(db, "foo")
+def test_get_recruitment_data_returns_empty_array_if_no_data():
+    _reset_db()
+    _, study_id = create_study("foo")
     data = get_recruitment_data(cnf, study_id)
     assert data == []
 
@@ -301,13 +301,13 @@ def insert_data(dats):
 #     assert studies[0] == study_id
 
 
-def test_get_recruitment_data_returns_only_latest_temp_data(db):
-    db.reset()
+def test_get_recruitment_data_returns_only_latest_temp_data():
+    _reset_db()
 
     now = _dt(2, 12)
     start = _dt(1, 10)
 
-    _, study_id = create_study(db, "foo")
+    _, study_id = create_study("foo")
 
     to_insert = [
         (

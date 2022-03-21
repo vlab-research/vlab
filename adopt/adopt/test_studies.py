@@ -1,7 +1,7 @@
 from dataclasses import asdict
 from itertools import product
+from test.dbfix import _reset_db
 from test.dbfix import cnf as db_conf
-from test.dbfix import db
 
 import typedjson
 
@@ -19,11 +19,11 @@ from .study_conf import (AppDestination, AudienceConf, CreativeConf,
                          PipelineRecruitmentExperiment, StratumConf)
 
 
-def create_user(db, email):
+def create_user(email):
     q = """
     insert into users(id) values(%s) on conflict do nothing
     """
-    db.execute(q, [email])
+    execute(db_conf, q, [email])
 
     q = """
     insert into credentials(user_id, entity, key, details) values(
@@ -33,16 +33,16 @@ def create_user(db, email):
       '{"access_token": "foo"}'
     )
     """
-    db.execute(q, [email])
+    execute(db_conf, q, [email])
 
 
-def test_make_study(db):
-    db.reset()
+def test_make_study():
+    _reset_db()
 
     config_file = "test/example_ads_conf_fly.xlsx"
-    user = "foobar"
+    user = "foo@email"
 
-    create_user(db, user)
+    create_user(user)
 
     config = parse_kv_sheet(config_file, "general", GeneralConf)
 
