@@ -64,7 +64,8 @@ func GetNewAssignments(source *Source, url string, params TreatmentAssignmentPar
 	// params.Token = response.NextCursor
 
 	// convert each response to an InferenceDataEvent
-
+	events := make(chan *InferenceDataEvent)
+	return events
 }
 
 func (c TarotConnector) Handler(source *Source, lastEvent *InferenceDataEvent) <-chan *InferenceDataEvent {
