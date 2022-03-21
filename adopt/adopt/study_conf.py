@@ -153,21 +153,36 @@ class SimpleRecruitment(BaseRecruitmentConf):
         return {campaign: _deal_with_mins(min_budget, budget)}
 
 
+def _pipeline_check_end_date(v):
+    final_wave_start = (v["arms"] - 1) * v["offset_days"]
+    days_out = final_wave_start + v["recruitment_days"]
+    projected_end = v["start_date"] + timedelta(days_out)
+
+    print(projected_end, v["end_date"])
+
+    if projected_end != v["end_date"]:
+        raise Exception(
+            f"Pipeline Recruitment Config is invalid: end date {v['end_date']} "
+            f"does not match other parameters which imply an end date of "
+            f"{projected_end}"
+        )
+
+
 class PipelineRecruitmentExperiment(BaseRecruitmentConf):
     ad_campaign_name_base: str
     budget_per_arm: int
     max_sample_per_arm: int
     start_date: datetime
+    end_date: datetime
     arms: int
     recruitment_days: int
     offset_days: int
 
-    @property
-    def end_date(self):
-        # loose
-        final_wave_start = (self.arms - 1) * self.offset_days
-        days_out = final_wave_start + self.recruitment_days
-        return self.start_date + timedelta(days_out)
+    def validate_dates(self):
+        # TODO: this is useless, but due to pydantic bugging out, can't
+        #       use union type with root_validators. So stuck without
+        #       validation for now.
+        _pipeline_check_end_date(self.dict())
 
     @property
     def opt_sample_size(self):
