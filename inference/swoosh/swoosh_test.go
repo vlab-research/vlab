@@ -12,7 +12,7 @@ import (
 
 const (
 	infConfA = `
-        [{
+        {
            "data_sources": {
                "fly": {
                   "variable_extraction": [
@@ -27,11 +27,11 @@ const (
                   "metadata_extraction": []
               }
            }
-        }]
+        }
        `
 
 	infConfB = `
-        [{
+        {
            "data_sources": {
                "fly": {
                   "variable_extraction": [
@@ -46,11 +46,10 @@ const (
                   "metadata_extraction": []
               }
            }
-        }]
+        }
        `
 
-	insertUser = `insert into users(email) values($1) returning id`
-	selectUser = `select id from users where email = $1`
+	insertUser = `insert into users(id) values($1) returning id`
 	insertConf = `insert into study_confs(study_id, conf_type, conf) values($1, $2, $3)`
 )
 
@@ -68,15 +67,15 @@ func resetDb(pool *pgxpool.Pool) {
 }
 
 func TestGetInferenceDataConf_GetsLatestConf(t *testing.T) {
-	pool := testPool()
+	pool := TestPool()
 	defer pool.Close()
 
 	resetDb(pool)
 
 	foo := CreateStudy(pool, "foo")
 
-	mustExec(t, pool, insertConf, foo, "inference_data", infConfB)
-	mustExec(t, pool, insertConf, foo, "inference_data", infConfA)
+	MustExec(t, pool, insertConf, foo, "inference_data", infConfB)
+	MustExec(t, pool, insertConf, foo, "inference_data", infConfA)
 
 	expected := &InferenceDataConf{map[string]*InferenceDataSource{
 		"fly": {

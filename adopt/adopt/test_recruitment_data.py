@@ -158,23 +158,11 @@ def create_study(name, user_email="foo@email"):
 
 def insert_general_conf(study_id, start_date, end_date):
     config = {
-        "optimization_goal": "APP_INSTALLS",
-        "destination_type": "APP",
-        "page_id": "388192931318145",
-        "instagram_id": "3028838973816046",
-        "budget": 20000.0,
-        "min_budget": 100.0,
-        "opt_window": 120,
         "start_date": start_date,
         "end_date": end_date,
-        "proportional": True,
-        "ad_account": "1180800068778728",
-        "ad_campaign_name": "vlab-geotargeting-bangla-1",
-        "country_code": "BD",
-        "extra_metadata": {},
     }
 
-    create_campaign_confs(study_id, "opt", [config], cnf)
+    create_campaign_confs(study_id, "recruitment", config, cnf)
 
 
 @patch("adopt.recruitment_data.get_insights")
@@ -261,44 +249,43 @@ def insert_data(dats):
     insert_recruitment_data_events(cnf, dats)
 
 
-# TODO: add back this functionality
-# def test_get_active_studies_gets_based_on_latest_conf():
-#     _reset_db()
+def test_get_active_studies_gets_based_on_latest_conf():
+    _reset_db()
 
-#     now = _dt(2, 12)
-#     start = _dt(1, 10)
-#     end = _dt(3, 23)
+    now = _dt(2, 12)
+    start = _dt(1, 10)
+    end = _dt(3, 23)
 
-#     user_id, study_id = create_study("foo")
+    user_id, study_id = create_study("foo")
 
-#     insert_general_conf(study_id, start, start)
-#     insert_general_conf(study_id, start, end)
+    insert_general_conf(study_id, start, start)
+    insert_general_conf(study_id, start, end)
 
-#     studies = get_active_studies(cnf, now)
+    studies = get_active_studies(cnf, now)
 
-#     assert len(studies) == 1
-#     assert studies[0] == study_id
+    assert len(studies) == 1
+    assert studies[0] == study_id
 
 
-# def test_get_active_studies_gets_only_active_studies():
-#     _reset_db()
+def test_get_active_studies_gets_only_active_studies():
+    _reset_db()
 
-#     now = _dt(2, 12)
-#     start = _dt(1, 10)
-#     end = _dt(3, 23)
+    now = _dt(2, 12)
+    start = _dt(1, 10)
+    end = _dt(3, 23)
 
-#     user_id, study_id = create_study("foo")
-#     user_id_b, study_id_b = create_study("bar", "bar@email")
-#     user_id_c, study_id_c = create_study("baz", "baz@email")
+    user_id, study_id = create_study("foo")
+    user_id_b, study_id_b = create_study("bar", "bar@email")
+    user_id_c, study_id_c = create_study("baz", "baz@email")
 
-#     insert_general_conf(study_id, start, end)
-#     insert_general_conf(study_id_b, start - timedelta(days=1), start)
-#     insert_general_conf(study_id_c, end, end + timedelta(days=1))
+    insert_general_conf(study_id, start, end)
+    insert_general_conf(study_id_b, start - timedelta(days=1), start)
+    insert_general_conf(study_id_c, end, end + timedelta(days=1))
 
-#     studies = get_active_studies(cnf, now)
+    studies = get_active_studies(cnf, now)
 
-#     assert len(studies) == 1
-#     assert studies[0] == study_id
+    assert len(studies) == 1
+    assert studies[0] == study_id
 
 
 def test_get_recruitment_data_returns_only_latest_temp_data():

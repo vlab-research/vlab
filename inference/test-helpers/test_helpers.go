@@ -12,31 +12,31 @@ import (
 )
 
 const (
-	insertUser  = `insert into users(email) values($1) returning id`
+	insertUser  = `insert into users(id) values($1) returning id`
 	selectUser  = `select id from users where email = $1`
-	insertStudy = `insert into studies(user_id, name) values($1, $2) returning id`
+	insertStudy = `insert into studies(user_id, name, slug) values($1, $2, $3) returning id`
 	insertConf  = `insert into study_confs(study_id, conf_type, conf) values($1, $2, $3)`
 )
 
-func CreateUser(pool *pgxpool.Pool, email string) string {
-	var id string
-	err := pool.QueryRow(context.Background(), selectUser, email).Scan(&id)
+func CreateUser(pool *pgxpool.Pool, id string) string {
+	var res string
+	err := pool.QueryRow(context.Background(), selectUser, id).Scan(&res)
 	if err == nil {
-		return id
+		return res
 	}
 
-	err = pool.QueryRow(context.Background(), insertUser, email).Scan(&id)
+	err = pool.QueryRow(context.Background(), insertUser, id).Scan(&res)
 	if err != nil {
 		log.Fatal(err)
 	}
-	return id
+	return res
 }
 
 func CreateStudy(pool *pgxpool.Pool, name string) string {
-	user := CreateUser(pool, "email@email")
+	user := CreateUser(pool, fmt.Sprintf("%s@email", name))
 
 	var id string
-	err := pool.QueryRow(context.Background(), insertStudy, user, name).Scan(&id)
+	err := pool.QueryRow(context.Background(), insertStudy, user, name, name).Scan(&id)
 	if err != nil {
 		log.Fatal(err)
 	}
