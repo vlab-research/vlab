@@ -53,23 +53,24 @@ def get_campaigns(cnf: DBConf):
     return [r["id"] for r in query(cnf, q, as_dict=True)]
 
 
-def create_campaign_for_user(email, name, cnf: DBConf, key):
+def create_campaign_for_user(id_, name, cnf: DBConf, key):
+    # TODO: this makes name = slug!
     q = """
-       INSERT INTO studies(name, user_id, credentials_key)
-       VALUES (%s, (SELECT id FROM users WHERE email = %s), %s)
+       INSERT INTO studies(name, slug, user_id, credentials_key)
+       VALUES (%s, %s, %s, %s)
        RETURNING *
     """
-    return list(query(cnf, q, (name, email, key), as_dict=True))[0]
+    return list(query(cnf, q, (name, name, id_, key), as_dict=True))[0]
 
 
-def get_campaigns_for_user(email, cnf: DBConf):
+def get_campaigns_for_user(id_, cnf: DBConf):
     q = """
        SELECT *
        FROM studies
-       WHERE user_id = (SELECT id FROM users WHERE email = %s)
+       WHERE user_id = %s
     """
 
-    return list(query(cnf, q, (email,), as_dict=True))
+    return list(query(cnf, q, (id_,), as_dict=True))
 
 
 def get_campaign_configs(campaignid, cnf: DBConf):
@@ -95,7 +96,7 @@ def _insert_query(table, cols):
     VALUES(
       (SELECT id
        FROM studies
-       WHERE user_id = (SELECT id FROM users WHERE email = %s)
+       WHERE user_id = %s
        AND name = %s),
      {placeholders})
     """
