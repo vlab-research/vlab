@@ -31,7 +31,7 @@ func ListHandler(repositories storage.Repositories) gin.HandlerFunc {
 
 		studies, err := repositories.Study.GetStudies(ctx, pagination.Cursor, pagination.Number, auth.GetUserIdFrom(ctx))
 		if err != nil {
-			ctx.Status(http.StatusInternalServerError)
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
 

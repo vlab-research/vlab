@@ -2,6 +2,7 @@ package users
 
 import (
 	"errors"
+	"log"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -15,6 +16,7 @@ type createResponse struct {
 }
 
 func CreateHandler(repositories storage.Repositories) gin.HandlerFunc {
+
 	return func(ctx *gin.Context) {
 		user, err := repositories.User.CreateUser(ctx, auth.GetUserIdFrom(ctx))
 
@@ -24,7 +26,8 @@ func CreateHandler(repositories storage.Repositories) gin.HandlerFunc {
 				ctx.JSON(http.StatusUnprocessableEntity, gin.H{"error": "User already exists"})
 				return
 			default:
-				ctx.Status(http.StatusInternalServerError)
+				log.Printf(err.Error())
+				ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 				return
 			}
 		}

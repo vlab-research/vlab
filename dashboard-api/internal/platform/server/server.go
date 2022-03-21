@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 
+	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/vlab-research/vlab/dashboard-api/internal/platform/server/handler/health"
 	"github.com/vlab-research/vlab/dashboard-api/internal/platform/server/handler/segmentsprogress"
@@ -46,6 +47,14 @@ func (s *Server) Run() error {
 }
 
 func (s *Server) registerRoutes() {
+
+	config := cors.DefaultConfig()
+	config.AllowAllOrigins = true
+	// config.AllowOrigins = []string{"http://google.com"}
+	config.AllowHeaders = []string{"Origin", "Content-Length", "Content-Type", "Authorization"}
+
+	s.Engine.Use(cors.New(config))
+
 	s.Engine.GET("/health", health.CheckHandler(s.repositories, s.auth0Domain))
 
 	s.Engine.GET("/studies/:slug", s.ensureValidTokenMiddleware, studies.ReadHandler(s.repositories))

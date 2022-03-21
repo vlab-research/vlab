@@ -26,7 +26,10 @@ if (window.Cypress) {
   cyServer.logging = false;
 } else {
   // mirage dev server
-  makeServer();
+  if (process.env.REACT_APP_DEV_SERVER) {
+    makeServer();
+  }
+  
 }
 
 ReactDOM.render(
