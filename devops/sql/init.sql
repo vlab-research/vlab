@@ -1,16 +1,17 @@
 CREATE TABLE users(
-       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-       email VARCHAR NOT NULL UNIQUE
+       id VARCHAR PRIMARY KEY
 );
 
 CREATE TABLE studies(
        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-       created TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-       user_id UUID NOT NULL REFERENCES users(id),
+       slug VARCHAR NOT NULL,
        name string NOT NULL,
+       created TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+       user_id VARCHAR NOT NULL REFERENCES users(id),
        credentials_key VARCHAR,
        credentials_entity VARCHAR DEFAULT 'facebook_ad_user',
-       CONSTRAINT unique_name UNIQUE(user_id, name)
+       CONSTRAINT unique_name UNIQUE(user_id, name),
+       CONSTRAINT unique_slug UNIQUE(user_id, slug)
 );
 
 -- view studies add active based on start/end date.
@@ -60,7 +61,7 @@ ALTER TABLE recruitment_data_events ADD CONSTRAINT unique_per_period UNIQUE(stud
 
 
 CREATE TABLE credentials(
-       user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+       user_id VARCHAR NOT NULL REFERENCES users(id) ON DELETE CASCADE,
        entity VARCHAR NOT NULL,
        key VARCHAR NOT NULL,
        created TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -80,25 +81,22 @@ CREATE TABLE adopt_reports(
 -- CREATE index ON studies (userid, credentials_entity, credentials_key);
 -- ALTER TABLE studies ADD CONSTRAINT credentials_key_exists FOREIGN KEY (userid, credentials_entity, credentials_key) REFERENCES credentials (userid, entity, key);
 
--- CREATE VIEW study_state AS (
---   WITH t AS (
---     SELECT created, study_id, conf_type, conf,
---     ROW_NUMBER() OVER (PARTITION BY study_id, conf_type ORDER BY study_confs.created DESC) AS n
---     FROM study_confs
---   )
---   SELECT id,
---          studies.created,
---          user_id,
---          NAME,
---          credentials_key,
---          credentials_entity,
---          ((conf->0->>'start_date')::TIMESTAMP < now() AND (conf->0->>'end_date')::TIMESTAMP > now()) AS active
---   FROM t
---   INNER JOIN studies ON t.study_id = studies.id
---   WHERE conf_type = 'opt'
---   AND n = 1
--- );
-
 CREATE VIEW study_state AS (
-  select id, created, user_id, name, creadentials_key, credentials_entity, true as active from studies
+  WITH t AS (
+    SELECT created, study_id, conf_type, conf,
+    ROW_NUMBER() OVER (PARTITION BY study_id, conf_type ORDER BY study_confs.created DESC) AS n
+    FROM study_confs
+  )
+  SELECT id,
+         studies.created,
+         user_id,
+         NAME,
+         credentials_key,
+         credentials_entity,
+         (conf->>'start_date')::TIMESTAMP as start_date,
+         (conf->>'end_date')::TIMESTAMP as end_date
+  FROM t
+  INNER JOIN studies ON t.study_id = studies.id
+  WHERE conf_type = 'recruitment'
+  AND n = 1
 );
