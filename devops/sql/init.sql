@@ -14,8 +14,6 @@ CREATE TABLE studies(
        CONSTRAINT unique_slug UNIQUE(user_id, slug)
 );
 
--- view studies add active based on start/end date.
-
 
 
 CREATE TABLE study_confs(
@@ -78,8 +76,8 @@ CREATE TABLE adopt_reports(
        details JSONB NOT NULL
 );
 
--- CREATE index ON studies (userid, credentials_entity, credentials_key);
--- ALTER TABLE studies ADD CONSTRAINT credentials_key_exists FOREIGN KEY (userid, credentials_entity, credentials_key) REFERENCES credentials (userid, entity, key);
+CREATE index ON studies (userid, credentials_entity, credentials_key);
+ALTER TABLE studies ADD CONSTRAINT credentials_key_exists FOREIGN KEY (userid, credentials_entity, credentials_key) REFERENCES credentials (userid, entity, key);
 
 CREATE VIEW study_state AS (
   WITH t AS (
