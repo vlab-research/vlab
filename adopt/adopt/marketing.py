@@ -368,11 +368,15 @@ def adset_instructions(
     else:
         promoted_object = None
 
+    # make paused adset if we have 0 budget
+    status = "ACTIVE" if budget > 0 else "PAUSED"
+    budget = budget if budget > 0 else study.general.min_budget
+
     ac = AdsetConf(
         state.campaign,
         stratum,
         budget,
-        "ACTIVE",
+        status,
         study.general.instagram_id,
         ADSET_HOURS,
         study.general.optimization_goal,
@@ -394,8 +398,7 @@ def update_instructions_for_campaign(
 ) -> Sequence[Instruction]:
 
     sb = [(s, budget[s.id]) for s in strata]
-    new_state = [adset_instructions(study, state, s, b) for s, b in sb if b > 0]
-
+    new_state = [adset_instructions(study, state, s, b) for s, b in sb]
     return adset_dif(state.campaign_state, new_state)
 
 
