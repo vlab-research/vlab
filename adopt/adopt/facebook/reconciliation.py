@@ -87,10 +87,8 @@ def _diff(type_, updater, creator, olds, news) -> List[Instruction]:
             instructions += creator(x)
 
     for x in olds:
-        if x["name"] not in updated and x["status"] != "PAUSED":
-            instructions += [
-                Instruction(type_, "update", {"status": "PAUSED"}, x["id"])
-            ]
+        if x["name"] not in updated:
+            instructions += [Instruction(type_, "delete", {}, x["id"])]
 
     return instructions
 

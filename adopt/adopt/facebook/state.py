@@ -195,9 +195,10 @@ class CampaignState:
         name = self.campaign_name
 
         campaign_options = [c for c in get_campaigns(self.account) if c["name"] == name]
+
         if len(campaign_options) != 1:
             raise StateNameError(
-                "Phooey! No clear campaign to get for campaign: {self.campaign_name}."
+                f"Phooey! No clear campaign to get for campaign: {self.campaign_name}."
             )
 
         campaign = campaign_options[0]
