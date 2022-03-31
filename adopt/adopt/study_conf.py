@@ -328,8 +328,10 @@ RecruitmentConf = Union[
 FacebookTargeting = Dict[str, Any]
 
 
+# TODO: alot of this is facebook-specific still!
 class GeneralConf(BaseModel):
     name: str
+    objective: str
     optimization_goal: str
     destination_type: str
     page_id: str
