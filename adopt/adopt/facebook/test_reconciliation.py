@@ -256,7 +256,6 @@ def test_ad_dif_creates_when_no_running_ads():
     running_ads = []
     creatives = [{"name": "newhindi", "actor_id": "111", "url_tags": "123"}]
 
-    running_ads = [_adobject(d, Ad) for d in running_ads]
     instructions = ad_dif(adset, running_ads, [_ad(c, adset) for c in creatives])
 
     assert instructions == [
@@ -391,7 +390,7 @@ def test_ad_dif_handles_many():
             },
             None,
         ),
-        Instruction("ad", "update", {"status": "PAUSED"}, "foo"),
+        Instruction("ad", "delete", {}, "foo"),
     ]
 
 
@@ -411,7 +410,7 @@ def test_ad_dif_leaves_many_alone_if_nothing_to_be_done():
         },
         {
             "id": "baz",
-            "status": "PAUSED",
+            "status": "ACTIVE",
             "name": "odia",
             "creative": {
                 "name": "odia",
@@ -424,7 +423,10 @@ def test_ad_dif_leaves_many_alone_if_nothing_to_be_done():
 
     running_ads = [_adobject(d, Ad) for d in running_ads]
 
-    creatives = [{"name": "hindi", "actor_id": "111", "url_tags": "111"}]
+    creatives = [
+        {"name": "hindi", "actor_id": "111", "url_tags": "111"},
+        {"name": "odia", "actor_id": "111", "url_tags": "123"},
+    ]
 
     instructions = ad_dif(adset, running_ads, [_ad(c, adset) for c in creatives])
 
