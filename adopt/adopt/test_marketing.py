@@ -6,7 +6,7 @@ import typedjson
 from facebook_business.adobjects.customaudience import CustomAudience
 
 from .facebook.update import Instruction
-from .marketing import make_ref, manage_aud
+from .marketing import adset_instructions, make_ref, manage_aud
 from .study_conf import (Audience, AudienceConf, CreativeConf,
                          FlyMessengerDestination, InvalidConfigError,
                          Lookalike, LookalikeAudience, LookalikeSpec,
@@ -270,6 +270,16 @@ def test_AudienceConf_validates_config_based_on_subtype():
 
     with pytest.raises(InvalidConfigError):
         _ac("foo", "LOOKALIKE", lookalike={"foo": "bar"})
+
+
+# TODO: test adset instructions, it's a mess, bound with so much.
+#       maybe try adding to test_studies?
+def test_adset_instructions_creates_paused_if_zero_budget():
+    ...
+
+
+def test_adset_instructions_creates_active_if_non_zero_budget():
+    ...
 
 
 # test
