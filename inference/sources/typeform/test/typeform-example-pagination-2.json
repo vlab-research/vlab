@@ -1,0 +1,147 @@
+{
+  "total_items": 1,
+  "page_count": 1,
+  "items": [
+    {
+      "landing_id": "9ba5db11ec6c63d22f08aade805bd363",
+      "token": "9ba5db11ec6c63d22f08aade805bd363",
+      "landed_at": "2017-09-14T22:24:49Z",
+      "submitted_at": "2017-09-14T22:27:34Z",
+      "metadata": {
+        "user_agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 10_2_1 like Mac OS X) AppleWebKit/602.4.6 (KHTML, like Gecko) Version/10.0 Mobile/14D27 Safari/602.1",
+        "platform": "other",
+        "referer": "https://user_id.typeform.com/to/lR6F4j",
+        "network_id": "responsdent_network_id",
+        "browser": "default"
+      },
+      "answers": [
+        {
+          "field": {
+            "id": "RUqkXSeXBXSd",
+            "type": "yes_no",
+            "ref": "my_custom_yes_no_reference"
+          },
+          "type": "boolean",
+          "boolean": false
+        },
+        {
+          "field": {
+            "id": "gFFf3xAkJKsr",
+            "type": "legal",
+            "ref": "my_custom_legal_reference"
+          },
+          "type": "boolean",
+          "boolean": true
+        },
+        {
+          "field": {
+            "id": "JwWggjAKtOkA",
+            "type": "short_text",
+            "ref": "my_custom_short_text_reference"
+          },
+          "type": "text",
+          "text": "Paolo"
+        },
+        {
+          "field": {
+            "id": "pn48RmPazVdM",
+            "type": "number",
+            "ref": "my_custom_number_reference"
+          },
+          "type": "number",
+          "number": 5
+        },
+        {
+          "field": {
+            "id": "Q7M2XAwY04dW",
+            "type": "number",
+            "ref": "my_custom_number2_reference"
+          },
+          "type": "number",
+          "number": 5
+        },
+        {
+          "field": {
+            "id": "PNe8ZKBK8C2Q",
+            "type": "picture_choice",
+            "ref": "my_custom_picture_choice_reference"
+          },
+          "type": "choices",
+          "choices": {
+            "labels": [
+              "Barcelona",
+              "Sydney"
+            ]
+          }
+        },
+        {
+          "field": {
+            "id": "WOTdC00F8A3h",
+            "type": "rating",
+            "ref": "my_custom_rating_reference"
+          },
+          "type": "number",
+          "number": 5
+        },
+        {
+          "field": {
+            "id": "DlXFaesGBpoF",
+            "type": "long_text",
+            "ref": "my_custom_long_text_reference"
+          },
+          "type": "text",
+          "text": "I live in a medium-sized European city. It's not too crowded, and the people are nice. I like the weather. It's also easy to travel to many beautiful and interesting vacation destinations from where I live."
+        },
+        {
+          "field": {
+            "id": "NRsxU591jIW9",
+            "type": "opinion_scale",
+            "ref": "my_custom_opinion_scale_reference"
+          },
+          "type": "number",
+          "number": 4
+        },
+        {
+          "field": {
+            "id": "KoJxDM3c6x8h",
+            "type": "date",
+            "ref": "my_custom_date_reference"
+          },
+          "type": "date",
+          "date": "1999-08-01T00:00:00Z"
+        },
+        {
+          "field": {
+            "id": "k6TP9oLGgHjl",
+            "type": "multiple_choice",
+            "ref": "my_custom_multiple_choice2_reference"
+          },
+          "type": "choice",
+          "choice": {
+            "label": "Barcelona"
+          }
+        },
+        {
+          "field": {
+              "id": "K4tBip2OUqNQ",
+              "type": "phone_number",
+              "ref": "phone_number"
+          },
+          "type": "phone_number",
+          "phone_number": "+14151234567"
+        }
+      ],
+      "hidden": {},
+      "calculated": {
+        "score": 10
+      },
+      "variables": [
+        {
+          "key": "score",
+          "type": "number",
+          "number": 10
+        }
+      ]
+    }
+  ]
+} 
