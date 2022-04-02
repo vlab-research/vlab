@@ -1,16 +1,42 @@
 env:
   - name: PG_URL
     value: postgres://vlab:KSCED05rij1aFEhcgPGwR6dx@cockroachdb-public:26257/vlab
-  - name: CHATBASE_DATABASE
+  - name: DATABASE_NAME
     value: vlab
-  - name: CHATBASE_USER
+  - name: DATABASE_USER
     value: vlab
-  - name: CHATBASE_PASSWORD
+  - name: DATABASE_PASSWORD
     value: KSCED05rij1aFEhcgPGwR6dx
-  - name: CHATBASE_HOST
+  - name: DATABASE_HOST
     value: cockroachdb-public
-  - name: CHATBASE_PORT
+  - name: DATABASE_PORT
     value: "26257"
+  - name: DATABASE_SSL
+    value: "require"
+  - name: AUTH0_DOMAIN
+    value: "https://vlab-pro.us.auth0.com/"
+  - name: AUTH0_AUDIENCE
+    value: "https://api-pro.vlab/"
+
+# not used
+envSecret: facebook-envs
+
+# shared ingress stuff
+ingress:
+  annotations:
+    acme.cert-manager.io/http01-edit-in-place: "true"
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+
+dashboard:
+  replicaCount: 1
+  image:
+    repository: vlabresearch/vlab-dashboard-api
+    tag: latest
+    pullPolicy: Always
+  resources: {}
+  ingress:
+    host: vlab-dashboard-api.vlab.digital
+
 
 # TODO: change to mapping to allow merging.
 cronjobs:

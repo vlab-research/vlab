@@ -1,0 +1,110 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: '{{ include "vlab.fullname" $ }}-dashboard'
+  labels:
+    app.kubernetes.io/service: dashboard
+    {{ include "vlab.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.dashboard.replicaCount }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/service: dashboard
+      {{- include "vlab.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/service: dashboard
+        {{- include "vlab.selectorLabels" . | nindent 8 }}
+    spec:
+    {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+    {{- end }}
+      containers:
+        - name: dashboard
+          image: "{{ .Values.dashboard.image.repository }}:{{ .Values.dashboard.image.tag }}"
+          imagePullPolicy: {{ .Values.dashboard.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+          envFrom:
+          - secretRef:
+              name: "{{ .Values.envSecret }}"
+          env:
+            - name: API_HOST
+              value: "0.0.0.0"
+            - name: API_PORT
+              value: "8080"
+            {{ toYaml .Values.env | nindent 12 }}
+          resources:
+            {{- toYaml .Values.dashboard.resources | nindent 12 }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+    {{- end }}
+    {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+    {{- end }}
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: '{{ include "vlab.fullname" $ }}-dashboard'
+  labels:
+    app.kubernetes.io/service: dashboard
+    {{ include "vlab.labels" . | nindent 4 }}
+spec:
+  type: ClusterIP
+  ports:
+    - port: 80
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app.kubernetes.io/service: dashboard
+    {{ include "vlab.selectorLabels" . | nindent 4 }}
+
+
+---
+
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: '{{ include "vlab.fullname" $ }}-dashboard'
+  labels:
+    app.kubernetes.io/service: dashboard
+    {{ include "vlab.labels" . | nindent 4 }}
+  {{- with .Values.ingress.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - {{ .Values.dashboard.ingress.host }}
+      secretName: dashboard-api-cert
+  rules:
+    - host: {{ .Values.dashboard.ingress.host }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: '{{ include "vlab.fullname" $ }}-dashboard'
+                port:
+                  number: 80
