@@ -35,11 +35,11 @@ def get_df(
 
 
 def get_db_conf(env: Env) -> DBConf:
-    db = env("CHATBASE_DATABASE")
-    user = env("CHATBASE_USER")
-    host = env("CHATBASE_HOST")
-    port = env("CHATBASE_PORT")
-    password = env("CHATBASE_PASSWORD", None)
+    db = env("DATABASE_NAME")
+    user = env("DATABASE_USER")
+    host = env("DATABASE_HOST")
+    port = env("DATABASE_PORT")
+    password = env("DATABASE_PASSWORD", None)
 
     cnf = f"postgresql://{user}:{password}@{host}:{port}/{db}"
     return cnf
