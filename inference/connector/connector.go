@@ -36,7 +36,7 @@ func GetStudyConfs(pool *pgxpool.Pool, dataSource string) ([]*Source, error) {
 		   ROW_NUMBER() OVER (PARTITION BY study_id ORDER BY study_confs.created DESC) AS n
 	    FROM study_confs
 	    INNER JOIN study_state on study_confs.study_id = study_state.id
-	    WHERE conf_type = 'data_source'
+	    WHERE conf_type = 'data_sources'
             AND study_state.start_date < $1
             AND study_state.end_date > $1
 	  )

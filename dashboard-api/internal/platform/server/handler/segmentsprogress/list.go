@@ -28,14 +28,14 @@ func ListHandler(repositories storage.Repositories) gin.HandlerFunc {
 				return
 
 			default:
-				ctx.Status(http.StatusInternalServerError)
+				ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 				return
 			}
 		}
 
 		allTimeSegmentsProgress, err := repositories.StudySegments.GetAllTimeSegmentsProgress(ctx, study.Id)
 		if err != nil {
-			ctx.Status(http.StatusInternalServerError)
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
 
