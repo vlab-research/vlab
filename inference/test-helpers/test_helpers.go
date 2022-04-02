@@ -9,6 +9,10 @@ import (
 	"github.com/jackc/pgconn"
 	"github.com/jackc/pgx/v4"
 	"github.com/jackc/pgx/v4/pgxpool"
+
+	"github.com/dghubble/sling"
+	"net/http"
+	"net/http/httptest"
 )
 
 const (
@@ -17,6 +21,36 @@ const (
 	insertStudy = `insert into studies(user_id, name, slug) values($1, $2, $3) returning id`
 	insertConf  = `insert into study_confs(study_id, conf_type, conf) values($1, $2, $3)`
 )
+
+// NOTE: should we move these channel helpers elsewhere???
+
+func Sliceit[T any](c <-chan T) []T {
+	s := []T{}
+	for x := range c {
+		s = append(s, x)
+	}
+	return s
+}
+
+// NOTE: should we move the http helpers elsewhere???
+
+type TestTransport func(req *http.Request) (*http.Response, error)
+
+func (r TestTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	return r(req)
+}
+
+func TestServer(handler func(http.ResponseWriter, *http.Request)) (*httptest.Server, *sling.Sling) {
+	ts := httptest.NewServer(http.HandlerFunc(handler))
+	sli := sling.New().Client(&http.Client{}).Base(ts.URL)
+	return ts, sli
+}
+
+func TestServerMux() (*httptest.Server, *http.ServeMux) {
+	mux := http.NewServeMux()
+	ts := httptest.NewServer(mux)
+	return ts, mux
+}
 
 func CreateUser(pool *pgxpool.Pool, id string) string {
 	var res string
