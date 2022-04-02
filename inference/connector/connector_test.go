@@ -117,8 +117,8 @@ func TestGetStudyConfs_GetsOnlyActiveStudies(t *testing.T) {
 	MustExec(t, pool, insertConf, foo, "recruitment", futureDate)
 	MustExec(t, pool, insertConf, bar, "recruitment", pastDate)
 
-	MustExec(t, pool, insertConf, foo, "data_source", confA)
-	MustExec(t, pool, insertConf, bar, "data_source", confA)
+	MustExec(t, pool, insertConf, foo, "data_sources", confA)
+	MustExec(t, pool, insertConf, bar, "data_sources", confA)
 
 	confs, err := GetStudyConfs(pool, "literacy_data_api")
 
@@ -135,7 +135,7 @@ func TestGetStudyConfs_GetsOnlyConfsWithCorrectSource(t *testing.T) {
 
 	foo := CreateStudy(pool, "foo")
 	MustExec(t, pool, insertConf, foo, "recruitment", futureDate)
-	MustExec(t, pool, insertConf, foo, "data_source", confB)
+	MustExec(t, pool, insertConf, foo, "data_sources", confB)
 
 	confs, err := GetStudyConfs(pool, "literacy_data_api")
 
@@ -155,7 +155,7 @@ func TestGetStudyConfs_GetsMultipleConfsFromTheSameSource(t *testing.T) {
 	foo := CreateStudy(pool, "foo")
 	MustExec(t, pool, insertConf, foo, "recruitment", futureDate)
 
-	MustExec(t, pool, insertConf, foo, "data_source", confD)
+	MustExec(t, pool, insertConf, foo, "data_sources", confD)
 
 	confs, err := GetStudyConfs(pool, "literacy_data_api")
 
@@ -175,8 +175,8 @@ func TestGetStudyConfs_GetsOnlyTheLatestConfPerStudy(t *testing.T) {
 	foo := CreateStudy(pool, "foo")
 	MustExec(t, pool, insertConf, foo, "recruitment", futureDate)
 
-	MustExec(t, pool, insertConf, foo, "data_source", confA)
-	MustExec(t, pool, insertConf, foo, "data_source", confC)
+	MustExec(t, pool, insertConf, foo, "data_sources", confA)
+	MustExec(t, pool, insertConf, foo, "data_sources", confC)
 
 	confs, err := GetStudyConfs(pool, "literacy_data_api")
 
