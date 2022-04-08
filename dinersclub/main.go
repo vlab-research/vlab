@@ -81,6 +81,9 @@ func (dc *DC) sendResult(pe *PaymentEvent, res *Result) error {
 	return backoff.Retry(op, backoffTime(dc.cfg.RetryBotserver, dc.cfg.BackOffRandomFactor))
 }
 
+// TODO: this result does not provide the ID from the PaymentEvent Details (not yet marshalled)
+//       and thus cannot actually show the result to the user and causes the system to get stuck.
+//       waiting an external event forever that never comes.
 func invalidProviderResult(pe *PaymentEvent) *Result {
 	message := fmt.Sprintf("You requested payment by provider: %v but no provider with that name is configured", pe.Provider)
 	err := &PaymentError{message, "INVALID_PROVIDER", nil}
@@ -188,6 +191,8 @@ func getProvider(pool *pgxpool.Pool, event *PaymentEvent) (Provider, error) {
 		return NewReloadlyProvider(pool)
 	case "giftcard":
 		return NewGiftCardsProvider(pool)
+	case "http":
+		return NewHttpProvider(pool)
 	}
 	return nil, nil
 }

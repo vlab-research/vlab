@@ -1,15 +1,15 @@
 package main
 
 import (
-	"context"
 	"bytes"
-	"net/http"
+	"context"
 	"io/ioutil"
+	"net/http"
 	"testing"
 
+	"github.com/confluentinc/confluent-kafka-go/kafka"
 	"github.com/jackc/pgconn"
 	"github.com/jackc/pgx/v4/pgxpool"
-	"github.com/confluentinc/confluent-kafka-go/kafka"
 )
 
 type TestTransport func(req *http.Request) (*http.Response, error)
@@ -51,4 +51,3 @@ func mustExec(t testing.TB, conn *pgxpool.Pool, sql string, arguments ...interfa
 	}
 	return
 }
-

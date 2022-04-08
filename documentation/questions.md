@@ -248,6 +248,52 @@ You will have the following hidden fields that can be used for logic and error m
 1. `e_payment_reloadly_success` - will be "true" if the payment succeeded.
 2. `e_payment_reloadly_error_message` - an error message, in english, of why the payment failed.
 3. `e_payment_reloadly_id` - the PAYMENT_ID
+
+
+
+## Payment - Generic HTTP Payment Endpoint
+
+This allows you to send payments to an external API via any http request.
+
+JSON:
+``` json
+{
+    "type": "wait",
+    "wait": {
+        "type": "external",
+        "value": {
+            "type": "payment:http",
+            "id": "PAYMENT_ID"
+        }
+    },
+    "payment": {
+        "provider": "http",
+        "details": {
+            "id": "PAYMENT_ID",
+            "method": "POST",
+            "url": "https://mypaymentprovider.com/send/money",
+            "headers": {"Authorization": "Bearer << MYPROVIDER_TOKEN >>"},
+            "body": { "mobile_number": @MOBILE_QUESTION, "amount": 100 },
+            "errorMessage": "path.to.error.message"
+        }
+    }
+}
+```
+
+Notes:
+
+1. The "wait" is not strictly necessary but likely desired!
+2. `PAYMENT_ID` can be useful to keep track of multiple payments to the same person or different payments to different treatment arms (a unique id per treatment arm).
+3. The `body` and `headers` properties are optional.
+4. You can pass secrets into the url, the headers, and/or the body. This is done with templating which uses the delimeters `<<` and `>>`. The secrets available are the secrets you create in the dashboard under "Generic Secrets".
+5. `errorMessage` is a "json path", in dot notation, to extract the message provided in `e_payment_http_error_message`. If the status code is not 2XX, the service will consider it an error and expect a JSON body response. If the body is `{"error": {"code": "BAD_NUMBER", "message": "Please provide a valid mobile number"}}` then the `errorMessage` property should be `error.message` in order to extract the message "Please provide a valid mobile number".
+
+
+You will have the following hidden fields that can be used for logic and error messages:
+
+1. `e_payment_http_success` - will be "true" if the payment succeeded.
+2. `e_payment_http_error_message` - an error message, extracted as specified from error json.
+3. `e_payment_http_id` - the PAYMENT_ID
 ```
 
 # Seeds

@@ -1,15 +1,15 @@
 package main
 
 import (
-	"encoding/json"
-	"time"
 	"context"
+	"encoding/json"
 	"fmt"
+	"time"
 
 	"github.com/go-playground/validator/v10"
-	"github.com/vlab-research/go-reloadly/reloadly"
 	"github.com/jackc/pgx/v4"
 	"github.com/jackc/pgx/v4/pgxpool"
+	"github.com/vlab-research/go-reloadly/reloadly"
 )
 
 type ReloadlyProvider struct {
@@ -67,16 +67,7 @@ func (p *ReloadlyProvider) formatError(res *Result, err error, details *json.Raw
 }
 
 func (p *ReloadlyProvider) GetUserFromPaymentEvent(event *PaymentEvent) (*User, error) {
-	query := `SELECT userid FROM credentials WHERE facebook_page_id=$1 LIMIT 1`
-	row := p.pool.QueryRow(context.Background(), query, event.Pageid)
-	var u User
-	err := row.Scan(&u.Id)
-
-	if err == pgx.ErrNoRows {
-		return nil, nil
-	}
-
-	return &u, err
+	return GenericGetUser(p.pool, event)
 }
 
 func (p *ReloadlyProvider) Auth(user *User) error {

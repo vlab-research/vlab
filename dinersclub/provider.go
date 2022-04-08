@@ -1,8 +1,12 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"time"
+
+	"github.com/jackc/pgx/v4"
+	"github.com/jackc/pgx/v4/pgxpool"
 )
 
 type JSTimestamp time.Time
@@ -54,3 +58,16 @@ type Provider interface {
 
 type GetUserFromPaymentEvent func(event *PaymentEvent) (*User, error)
 type Auth func(user *User) error
+
+func GenericGetUser(pool *pgxpool.Pool, event *PaymentEvent) (*User, error) {
+	query := `SELECT userid FROM credentials WHERE facebook_page_id=$1 LIMIT 1`
+	row := pool.QueryRow(context.Background(), query, event.Pageid)
+	var u User
+	err := row.Scan(&u.Id)
+
+	if err == pgx.ErrNoRows {
+		return nil, nil
+	}
+
+	return &u, err
+}
