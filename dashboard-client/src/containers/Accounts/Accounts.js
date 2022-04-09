@@ -11,18 +11,28 @@ const accountConfs = [
     title: 'Facebook Page for Messenger Chatbot',
     entity: 'facebook_page',
     description: 'To use the Virtual Lab chatbot, Connect your Facebook account and grant Virtual Lab permission to manage messages for the Page for which you are the administrator. Virtual Lab will have permission to send and receieve messages on the behalf of the Page.',
+    getName: c => c.details.name
   },
   {
     to: '/connect/facebook-ads',
     title: 'Facebook Advertising for Recruitment',
     entity: 'facebook_ad_user',
     description: 'To use the Virtual Lab ad optimization with Facebook Advertising, Connect your Facebook account and grant Virtual Lab permission to manage ads on your behalf.',
+    getName: c => c.details.name
   },
   {
     to: '/connect/reloadly',
     title: 'Reloadly',
     entity: 'reloadly',
     description: 'To enable top-ups in Virtual Lab chatbot using Reloadly, provide your Reloadly API keys.',
+    getName: c => c.details.id
+  },
+  {
+    to: '/connect/secrets',
+    title: 'Generic Secrets',
+    entity: 'secrets',
+    description: 'Add generic secrets for additional plugins here.',
+    getName: c => c.key
   },
 ];
 
@@ -38,7 +48,6 @@ const Accounts = () => {
     const r = a.get(acc.entity);
     if (!r) return acc;
 
-    // TODO: make this a function from confs
     return { ...acc, connected: r };
   });
 
@@ -69,7 +78,7 @@ const Accounts = () => {
                 {item.connected && item.connected.map((d, key) => (
                   <p key={key} style={{ margin: '0' }}>
                     {' '}
-                    <span>{d.details.name}</span>
+                    <span>{item.getName(d)}</span>
                     {' '}
                     <Link style={{ marginLeft: '0.5em' }} to={`${item.to}?key=${d.key}`}> (update) </Link>
                   </p>
