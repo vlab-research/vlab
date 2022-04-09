@@ -45,7 +45,7 @@ function getDynamicValue(ctx, qa, v) {
     getFromMetadata(ctx, key) :
     getFieldValue(qa, key)
 
-  if (!val) {
+  if (val === undefined || val === null) {
     throw new TypeError(`Trying to interpolate a non-existent value: ${v}`)
   }
 

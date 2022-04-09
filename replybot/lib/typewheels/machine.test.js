@@ -254,21 +254,22 @@ describe('getState', () => {
     qa.length.should.equal(2)
   })
 
-  it('Updates the qa of the state with repeats', () => {
-    const form = { logic: [],
-                   fields: [{type: 'multiple_choice', title: 'foo', ref: 'foo', properties: {choices: [{label: 'foo'}, {label: 'quux'}]}},
-                            {type: 'short_text', title: 'bar', ref: 'bar'}]}
+  // it('Updates the qa of the state with repeats', () => {
+  //   const form = { logic: [],
+  //                  fields: [{type: 'multiple_choice', title: 'foo', ref: 'foo', properties: {choices: [{label: 'foo'}, {label: 'quux'}]}},
+  //                           {type: 'short_text', title: 'bar', ref: 'bar'}]}
 
-    const response = {...qr, message: { quick_reply: { payload: { value:"quux",ref:"foo" }}}}
-    const response2 = {...qr, message: { quick_reply: { payload: { value:"qux",ref:"foo" }}}}
+  //   const response = {...qr, message: { quick_reply: { payload: { value:"quux",ref:"foo" }}}}
+  //   const response2 = {...qr, message: { quick_reply: { payload: { value:"qux",ref:"foo" }}}}
 
-    const log = [referral, echo, delivery, response, repeatEcho, echo, delivery, response2]
-    const qa = getState(log).qa
+  //   const log = [referral, echo, delivery, response, repeatEcho, echo, delivery, response2]
+  //   const qa = getState(log).qa
 
-    qa[0][1].should.equal('quux')
-    qa[1][1].should.equal('qux')
-    qa.length.should.equal(2)
-  })
+
+  //   qa[0][1].should.equal('quux')
+  //   qa[1][1].should.equal('qux')
+  //   qa.length.should.equal(2)
+  // })
 
   it('Waits for external events when wait is present in echo metadata', () => {
 
@@ -627,13 +628,14 @@ describe('Machine', () => {
   it('gets the correct start field even with no referral', () => {
     const output = exec(_initialState(), text)
     const action = act({user, form, log:[text]}, _initialState(), output)[0]
-    action.message.attachment.payload.text.should.equal(form.fields[0].title)
+    action.message.text.should.equal(form.fields[0].title)
   })
 
   it('sends the first message when it gets a referral', () => {
     const output = exec(_initialState(), referral)
     const action = act({user, form, log:[referral]}, _initialState(), output)[0]
-    action.message.attachment.payload.text.should.equal(form.fields[0].title)
+
+    action.message.text.should.equal(form.fields[0].title)
   })
 
   it('Validates answers via postback', () => {

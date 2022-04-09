@@ -57,7 +57,7 @@ describe('getFromMetadata', () => {
     f.getFromMetadata(ctx, 'seed_4').should.equal(2)
     f.getFromMetadata(ctx, 'seed_3').should.equal(3)
   })
-
+ 
   it('works with unicode url values', () => {
     const name = '小飼弾'
     const uni = encodeURIComponent(name)
@@ -115,7 +115,7 @@ describe('_splitUrls', () => {
 describe('interpolateField', () => {
   it('works with hidden fields from user', () => {
 
-    const ctx = {log: [referral, text], user: { name: 'Foo Bazzle'}}
+    const ctx = {log: [], user: { name: 'Foo Bazzle'}}
     const i = f.interpolateField(ctx, [], { title: 'hello {{hidden:name}}'})
     i.title.should.equal('hello Foo Bazzle')
   })

@@ -34,12 +34,27 @@
             "title": "Welcome! 😀\nWe are a team of researchers conducting a study about life and opinions of young people in India. In the coming weeks, we will share with you some nice and short videoclips that you can watch for free. We will also ask you some questions about them. If you agree to take part to this study and you answer our questions, then you will have the chance of winning up to *10 Samsung Galaxy s8!*\n\nYour answers will always remain confidential.\n\nBy clicking the Accept botton, you confirm you have read and accept the _General Terms and Conditions_ contained in the Consent Form available at the link below.\n",
             "ref": "4cc5c31b-6d23-4d50-8536-7abf1cdf0782",
             "properties": {
-                "description": "https://drive.google.com/file/d/1Eovlbbysgdip6cwOfgl6r-r6nkoR1wyT/view?usp=sharing"
+                "randomize": false,
+                "allow_multiple_selection": false,
+                "allow_other_choice": false,
+                "vertical_alignment": true,
+                "choices": [
+                    {
+                        "id": "Hq797lCsF9jY",
+                        "ref": "newref2",
+                        "label": "I Accept"
+                    },
+                    {
+                        "id": "dJnYKKeMQl6r",
+                        "ref": "newref",
+                        "label": "I Don't Accept"
+                    }
+                ]
             },
             "validations": {
                 "required": true
             },
-            "type": "legal"
+            "type": "multiple_choice"
         },
         {
             "id": "zGz4q4dPLUiB",
