@@ -23,7 +23,7 @@ const NotFound = () => (
 );
 
 const Root = () => (
-  <Layout style={{ height: '100vh' }}>
+  <Layout style={{ minHeight: '100vh' }}>
     <Router history={History}>
       <PrivateRoute exact path="/" component={App} auth={Auth} />
       <PrivateRoute exact path="/surveys/auth" component={TypeformCreateAuth} auth={Auth} />

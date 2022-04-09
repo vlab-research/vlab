@@ -14,7 +14,7 @@ const PrivateRoute = ({ component: Component, auth, ...rest }) => (
         <Header style={{ background: '#fff' }}>
           <Navbar auth={auth} />
         </Header>
-        <Content>
+        <Content style={{display: 'flex', flexDirection: 'column'}}>
           <Component {...props} />
         </Content>
       </>

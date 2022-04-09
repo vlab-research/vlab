@@ -53,7 +53,7 @@ const Accounts = () => {
 
   return (
     <>
-      <div className="accounts" style={{ maxWidth: 1000, margin: '2em auto' }}>
+      <div className="accounts" style={{ width: 800, margin: '2em auto' }}>
         <h1 style={{}}> Connected Accounts </h1>
         <List
           itemLayout="vertical"
