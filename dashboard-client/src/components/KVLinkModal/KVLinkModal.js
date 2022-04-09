@@ -1,8 +1,8 @@
 import React from 'react';
 import PropTypes from 'prop-types';
 import { useHistory } from 'react-router-dom';
-import LinkModal from '../../components/LinkModal';
 import { Form } from 'antd';
+import LinkModal from '../LinkModal';
 
 
 const KVLinkModal = ({items, title, description, successText, handleCreate, loading}) => {
@@ -10,7 +10,7 @@ const KVLinkModal = ({items, title, description, successText, handleCreate, load
   const back = () => history.go(-1);
   const [form] = Form.useForm();
 
-  items.forEach(i => form.setFieldsValue({[i.name]: i.initialValue}))
+  items.forEach(i => form.setFieldsValue({[i.name]: i.initialValue}));
 
   const success = async () => {
     const vals = items.reduce((a, i) => ({...a, [i.name]: form.getFieldValue(i.name)}), {});
@@ -50,7 +50,7 @@ const KVLinkModal = ({items, title, description, successText, handleCreate, load
       success={ success }
     />
   );
-}
+};
 
 
 KVLinkModal.propTypes = {

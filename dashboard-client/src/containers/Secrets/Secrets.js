@@ -1,21 +1,15 @@
 import React, { useEffect, useState } from 'react';
-import { useHistory, useLocation } from 'react-router-dom';
-import LinkModal from '../../components/LinkModal';
-import { Form, Input } from 'antd';
+import { useLocation } from 'react-router-dom';
+import { Input } from 'antd';
 import api from '../../services/api';
-import { Auth } from '../../services';
 import KVLinkModal from '../../components/KVLinkModal'
 
 const Secrets = () => {
-  const history = useHistory();
-  const back = () => history.go(-1);
-
   const location = useLocation();
   const query = new URLSearchParams(location.search);
   const key = query.get('key');
 
   const [items, setItems] = useState([])
-  const [form] = Form.useForm();
 
   const getCredentials = async () => {
     let variable = '';

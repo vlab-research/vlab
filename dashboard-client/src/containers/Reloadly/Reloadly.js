@@ -1,19 +1,13 @@
 import React, { useEffect, useState } from 'react';
-import { useHistory } from 'react-router-dom';
-import LinkModal from '../../components/LinkModal';
-import { Form, Input } from 'antd';
+import { Input } from 'antd';
 import api from '../../services/api';
-import './Reloadly.css'
+import './Reloadly.css';
 import { Auth } from '../../services';
-import KVLinkModal from '../../components/KVLinkModal'
+import KVLinkModal from '../../components/KVLinkModal';
 
 const Reloadly = () => {
-  const history = useHistory();
-  const back = () => history.go(-1);
-  const [cred, setCred] = useState(null)
-
-  const [items, setItems] = useState([])
-  const [form] = Form.useForm();
+  const [cred, setCred] = useState(null);
+  const [items, setItems] = useState([]);
 
   const getCredentials = async () => {
     const res = await api.fetcher({
@@ -23,15 +17,15 @@ const Reloadly = () => {
     const rCred = allCreds.filter(e => e.entity === 'reloadly')[0];
     setCred(rCred);
 
-    const id = rCred && rCred.details && rCred.details.id ? rCred.details.id : ''
-    const secret = rCred && rCred.details && rCred.details.secret ? rCred.details.secret : ''
+    const id = rCred && rCred.details && rCred.details.id ? rCred.details.id : '';
+    const secret = rCred && rCred.details && rCred.details.secret ? rCred.details.secret : '';
 
-    const items  = [
+    const items = [
       {name: 'api_client_id', label: 'API Client ID', initialValue: id, input: <Input  />},
       {name: 'api_client_secret', label: 'API Client Secret', initialValue: secret, input: <Input.Password />},
     ]
 
-    setItems(items)
+    setItems(items);
   }
 
   useEffect(() => {
@@ -48,7 +42,7 @@ const Reloadly = () => {
     await api.fetcher({
       path: '/credentials', method: cred ? 'PUT' : 'POST', body, raw: true,
     });
-  }
+  };
 
   const description = `To connect to Reloadly provide your "API Client ID" and "API Client Secret". You can find these values in the developers section once you have logged into Reloadly.`
 
