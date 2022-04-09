@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/alexkappa/mustache"
 	"github.com/jackc/pgx/v4/pgxpool"
@@ -101,7 +102,10 @@ func (p *HttpProvider) Payout(event *PaymentEvent) (*Result, error) {
 		return formatError(result, event, err.Error(), "MISSING_SECRET")
 	}
 
-	headers := map[string]string{}
+	headers := map[string]string{
+		"Accept": "application/json",
+	}
+
 	for key := range order.Headers {
 		val, err := p.Interpolate(order.Headers[key])
 		if err != nil {
@@ -119,7 +123,9 @@ func (p *HttpProvider) Payout(event *PaymentEvent) (*Result, error) {
 	}
 
 	b := strings.NewReader(body)
-	req, err := http.NewRequest(order.Method, url, b)
+
+	ctx, _ := context.WithTimeout(context.Background(), 60*time.Second)
+	req, err := http.NewRequestWithContext(ctx, order.Method, url, b)
 	if err != nil {
 		return formatError(result, event, err.Error(), "BAD_HTTP_REQUEST")
 	}

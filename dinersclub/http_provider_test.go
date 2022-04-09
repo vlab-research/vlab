@@ -150,7 +150,7 @@ func TestHttpProviderPayout_MakesGetRequestsWithoutBodyOrHeaders(t *testing.T) {
 }
 
 func TestHttpProviderPayout_RetrievesErrorMessage(t *testing.T) {
-	tc := TestClient(400, `{"foo": {"bar": "hello error"}`, nil)
+	tc := TestClient(400, `{"foo": {"bar": "hello error"}, "baz": "hello error"`, nil)
 
 	p := &HttpProvider{
 		client: tc,
@@ -159,18 +159,32 @@ func TestHttpProviderPayout_RetrievesErrorMessage(t *testing.T) {
 		},
 	}
 
+	// get nested message
 	details := json.RawMessage([]byte(
 		`{
                   "method": "POST",
                   "url": "https://foo.com",
-                  "headers": {"Authorization": "Bearer << foo >>"},
-                  "body": {"foo": "bar"},
 		  "errorMessage": "foo.bar"}`,
 	))
 	event := &PaymentEvent{Details: &details}
 
 	res, err := p.Payout(event)
 
+	assert.Nil(t, err)
+	assert.Equal(t, false, res.Success)
+	assert.Equal(t, "400", res.Error.Code)
+	assert.Equal(t, "hello error", res.Error.Message)
+
+	// get directly from root of json
+	details = json.RawMessage([]byte(
+		`{
+                  "method": "POST",
+                  "url": "https://foo.com",
+		  "errorMessage": "baz"}`,
+	))
+	event = &PaymentEvent{Details: &details}
+
+	res, err = p.Payout(event)
 	assert.Nil(t, err)
 	assert.Equal(t, false, res.Success)
 	assert.Equal(t, "400", res.Error.Code)
