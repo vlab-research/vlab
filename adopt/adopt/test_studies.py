@@ -128,13 +128,8 @@ def test_make_study():
 
     targeting = parse_kv_sheet(config_file, "targeting", TargetingConf)
 
-    share_lookup = read_share_lookup(
+    share = read_share_lookup(
         config_file, targeting.distribution_vars, "targeting_distribution"
-    )
-    share = share_lookup.T.reset_index().melt(
-        id_vars=targeting.distribution_vars,
-        var_name="location",
-        value_name="percentage",
     )
 
     groups = product(
