@@ -120,25 +120,19 @@ def test_get_collection_days_gets_up_to_now_for_ongoing_study_from_yesterday():
     ]
 
 
-user = str(uuid.uuid4())
-
-
-# def _reset_db():
-#     with _connect(cnf) as conn:
-#         with conn.cursor() as cur:
-#             tables = ["study_confs", "recruitment_data_events", "studies", "users"]
-#             for t in tables:
-#                 cur.execute(f"delete from {t} cascade")
-#             conn.commit()
-
-
-def create_study(name, user_email="foo@email"):
+def create_study(name, user_id="foo@email"):
     q = """
     INSERT INTO users(id) VALUES (%s) RETURNING id
     """
 
-    res = query(cnf, q, [user_email])
-    user_id = list(res)[0][0]
+    execute(cnf, q, [user_id])
+
+    q = """
+    INSERT INTO credentials(user_id, entity, key, details)
+    VALUES (%s, %s, %s, '{}')
+    """
+
+    execute(cnf, q, [user_id, 'entity', 'key'])
 
     q = """
     INSERT INTO studies(user_id, name, slug, credentials_key, credentials_entity)
