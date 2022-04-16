@@ -144,11 +144,8 @@ def format_group_product(group, share_lookup, base_targeting, finish_filter=None
 
     variables = [name for name, _, _ in group]
     try:
-        share = (
-            share_lookup[variables + ["percentage"]]
-            .set_index(variables)
-            .loc[tuple(names)][0]
-        )
+        share = share_lookup.set_index(variables).loc[tuple(names)][0]
+
     except KeyError as e:
         raise Exception(f"Could not find share for stratum: {names}") from e
 
@@ -176,14 +173,26 @@ def stringify_column(col):
 
 
 def read_share_lookup(path, distribution_vars, tab_name):
+    header = list(range(0, len(distribution_vars)))
+
     df = pd.read_excel(
         path,
-        header=list(range(0, len(distribution_vars))),
-        index_col=[0],
+        header=header,
+        index_col=0,
         sheet_name=tab_name,
     )
-    df.columns = df.columns.map(stringify_column)
-    return df
+
+    df = df.dropna(axis=1)
+    df.index.rename(distribution_vars[0], inplace=True)
+    df = df.unstack()
+    df = df.reset_index(level=-2, drop=True)
+
+    if isinstance(df.index, pd.MultiIndex):
+        df.index = df.index.reorder_levels(distribution_vars)
+        stringified_vals = [tuple([str(v) for v in t]) for t in df.index]
+        df.index = pd.MultiIndex.from_tuples(stringified_vals, names=df.index.names)
+
+    return df.reset_index(name="percentage")
 
 
 def cast_strings(type_, dict_):
