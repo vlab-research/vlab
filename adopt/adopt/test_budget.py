@@ -61,7 +61,7 @@ def test_proportional_budget_optimizes_for_weights():
 
     assert round(expected["foo"]) == 301
     assert round(expected["bar"]) == 201
-    assert round(expected["baz"]) == 502
+    assert round(expected["baz"]) == 501
 
 
 def test_proportional_budget_drops_strata_under_min_to_min_budget():
