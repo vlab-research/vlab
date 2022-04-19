@@ -260,6 +260,15 @@ def app_download_call_to_action(deeplink) -> dict:
     }
 
 
+def web_call_to_action() -> dict:
+
+    # TODO: figure out what this looks like from the API
+    return {
+        "type": "",
+        "value": {},
+    }
+
+
 def _create_creative(
     config: CreativeConf,
     page_id: str,
