@@ -282,10 +282,13 @@ def test_adset_instructions_creates_active_if_non_zero_budget():
     ...
 
 
-# test
-# create new campaign if none (or no??)
-#
+# TODO: test the destination creation stuff to make sure
+#       that your creatives/adsets all look dandy with different
+#       destination types (app/web/messenger)
 
+
+# TODO: create new campaign if none (or no??)
+#
 
 # This doesn't change - i just need to dynamically
 # create the audiences
