@@ -16,28 +16,31 @@ func handle(err error) {
 	}
 }
 
-type flyConfig struct {
-	FormID string `json:"form_id"`
-}
-
 type GetResponsesParams struct {
 	PageSize int    `url:"page_size"`
 	After    string `url:"after,omitempty"`
 }
 
-type Field struct {
-	ID   string `json:"id"`
-	Type string `json:"type"`
-	Ref  string `json:"ref"`
-}
-
-type Answer struct {
-	Field Field  `json:"field"`
-	Type  string `json:"type"`
-}
-
-type GetResponsesResponse []struct {
-	ParentSurveyid string `json:"parent_surveyid"`
+type GetResponsesResponse struct {
+	TotalItems int `json:"total_items"`
+	PageCount  int `json:"page_count"`
+	Items      []struct {
+		Parent_surveyid  string `json:"parent_surveyid"`
+		Parent_shortcode string `json:"parent_shortcode"`
+		Surveyid         string `json:"Surveyid"`
+		flowid           string `json:"flowid"`
+		Userid           string `json:"Userid"`
+		Question_ref     string `json:"question_ref"`
+		Question_idx     string `json:"question_idx"`
+		Question_text    string `json:"question_text"`
+		Response         struct {
+			Text string `json:"user_agent"`
+		} `json:"metadata"`
+		Timestamp           string `json:"timestamp"`
+		metadata            string `json:"metadata"`
+		pageid              string `json:"metadata"`
+		translated_response string `json:"metadata"`
+	} `json:"items"`
 }
 
 type flyConnector struct {
@@ -60,14 +63,12 @@ func (e *TypeformError) Error() string {
 
 func (c flyConnector) loadEnv() flyConnector {
 	err := env.Parse(&c)
-	fmt.Printf("-->>Error: %v\n", err)
 	handle(err)
 	return c
 }
 
 func Call(client *http.Client, baseUrl string, key string, form string, params *GetResponsesParams) (*GetResponsesResponse, error) {
 	sli := sling.New().Client(client).Base(baseUrl).Set("Accept", "application/json").Set("Authorization", fmt.Sprintf("Bearer %s", key))
-
 	res := new(GetResponsesResponse)
 	apiError := new(TypeformError)
 
@@ -80,7 +81,6 @@ func Call(client *http.Client, baseUrl string, key string, form string, params *
 	if !apiError.Empty() {
 		return nil, apiError
 	}
-
 	return res, nil
 }
 
@@ -90,82 +90,42 @@ func (c flyConnector) GetResponses(source *Source, form string, token string, id
 	client := &http.Client{}
 	go func() {
 		defer close(events)
+		// for loop to paginate here?
 		params.After = token
-		res, err := Call(client, c.BaseUrl, c.Key, form, params)
-		fmt.Printf("res esto es la respuesta del servicio-->: %v\n \n", res)
 
-		if err != nil {
-			handle(err)
+		for {
+			res, err := Call(client, c.BaseUrl, c.Key, form, params)
+
+			if err != nil {
+				handle(err)
+			}
+
+			for _, item := range res.Items {
+				fmt.Printf("response: %v\n \n", item.Surveyid)
+				//Todo:  sabe database
+				params.After = item.pageid
+				idx++
+				event := &InferenceDataEvent{
+					User:       User{ID: item.pageid},
+					Study:      source.StudyID,
+					SourceConf: source.Conf,
+					Idx:        idx,
+				}
+				events <- event
+
+			}
+
+			if res.TotalItems == 2 {
+				break
+			}
+
 		}
-
-		// for _, item := range res.Pageid {
-		// fmt.Printf("%v\n", item)
-
-		// for pagination
-		// params.After = item.ParentSurveyid
-
-		// Add referrer and other item.Metadata stuff???
-		// md := item.Hidden
-
-		// for _, dat := range item.Answers {
-		// 	var ans Answer
-		// 	err := json.Unmarshal(dat, &ans)
-		// 	if err != nil {
-		// 		handle(err)
-		// 	}
-
-		// 	rawAns, err := sjson.Delete(string(dat), "field")
-		// 	if err != nil {
-		// 		handle(err)
-		// 	}
-
-		// 	idx++
-		// 	event := &InferenceDataEvent{
-		// 		User:       User{ID: item.Token, Metadata: md},
-		// 		Study:      source.StudyID,
-		// 		SourceConf: source.Conf,
-		// 		Timestamp:  item.SubmittedAt,
-		// 		Variable:   ans.Field.Ref,
-		// 		Value:      []byte(rawAns),
-		// 		Idx:        idx,
-		// 		Pagination: item.Token,
-		// 	}
-		// 	events <- event
-		// }
-		// }
-
-		// if res.TotalItems < params.PageSize {
-		// 	// implies no more responses?
-		// 	break
-		// }
-
-		// }
 	}()
 
 	return events
 }
 
 func (c flyConnector) Handler(source *Source, lastEvent *InferenceDataEvent) <-chan *InferenceDataEvent {
-	// flyConfig := new(flyConfig)
-
-	// fmt.Printf("FIN@esto es nullde Handler: %v\n", flyConfig)
-
-	// err := json.Unmarshal(source.Conf.Config, flyConfig)
-
-	// handle(err)
-
-	// log.Println("Typeform connector getting data for: ", flyConfig)
-
-	// token := ""
-	// idx := 0
-
-	// if lastEvent != nil {
-	// 	token = lastEvent.Pagination
-	// 	idx = lastEvent.Idx
-	// }
-
-	// events := c.GetResponses(source, flyConfig.FormID, token, idx)
-
 	return nil
 }
 
@@ -178,12 +138,12 @@ func Sliceit[T any](c <-chan T) []T {
 }
 
 func main() {
+	// todo: temporarily  flyConnector
 	c := flyConnector{
-		BaseUrl:  "https://demo6926047.mockable.io/flys",
+		BaseUrl:  "",
 		Key:      "parent_shortcode",
 		PageSize: 1,
 	}
-	// fmt.Printf("-->>esto es nullde lastEvent: %v\n", c.BaseUrl)
 	c.loadEnv()
 
 	cnf := &SourceConf{
@@ -195,7 +155,7 @@ func main() {
 	events := c.GetResponses(&Source{"flys", cnf}, "formfoo", "oldtoken", 350)
 	e := Sliceit(events)
 
-	fmt.Printf("terminamos la ecusion: %v\n", e)
+	fmt.Printf("Fin: %v\n", e)
 
 	// connector.LoadEvents(c, "flys", "parent_surveyid")
 }
