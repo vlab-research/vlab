@@ -1,0 +1,40 @@
+{
+  "total_items": 2,
+  "page_count": 1,
+  "items": [
+    {
+      "parent_surveyid": "be5ae9dd-0189-478e-8a3d-4d8ead8240a4",
+      "parent_shortcode": "101",
+      "surveyid": "be5ae9dd-0189-478e-8a3d-4d8ead8240a4",
+      "flowid": "100004",
+      "userid": "126",
+      "question_ref": "ref",
+      "question_idx": "10",
+      "question_text": "text",
+      "response": {
+        "text": "first"
+      },
+      "timestamp": "2022-06-06 09:58:00+00:00",
+      "metadata": null,
+      "pageid": null,
+      "translated_response": null
+    },
+    {
+      "parent_surveyid": "be5ae9dd-0189-478e-8a3d-4d8ead8240a4",
+      "parent_shortcode": "101",
+      "surveyid": "be5ae9dd-0189-478e-8a3d-4d8ead8240a4",
+      "flowid": "100001",
+      "userid": "126",
+      "question_ref": "ref",
+      "question_idx": "10",
+      "question_text": "text",
+      "response": {
+        "text": "last"
+      },
+      "timestamp": "2022-06-06 10:00:00+00:00",
+      "metadata": null,
+      "pageid": null,
+      "translated_response": null
+    }
+  ]
+}

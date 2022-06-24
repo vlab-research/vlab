@@ -34,12 +34,12 @@ func normalizeSpace(s string) string {
 }
 
 func dataAssertions(t *testing.T, e []*InferenceDataEvent) {
+	assert.Equal(t, 2, len(e))
 
-	assert.Equal(t, 45, len(e))
-
-	assert.Equal(t, 1, e[0].Idx)
-	assert.Equal(t, 10, e[9].Idx)
-	assert.Equal(t, 45, e[44].Idx)
+	for i := 0; i < len(e); i++ {
+		assert.Equal(t, 1, e[0].Idx)
+		assert.Equal(t, 2, e[1].Idx)
+	}
 }
 
 func TestGetResponses_PaginatesWhenPageIsFull(t *testing.T) {
@@ -48,7 +48,7 @@ func TestGetResponses_PaginatesWhenPageIsFull(t *testing.T) {
 
 	count := 0
 	ts, _ := TestServer(func(w http.ResponseWriter, r *http.Request) {
-		fmt.Printf(r.URL.Path)
+		// fmt.Printf(r.URL.Path)
 		assert.Equal(t, "/flys/api/v1/", r.URL.Path)
 
 		if count == 0 {
@@ -76,8 +76,9 @@ func TestGetResponses_PaginatesWhenPageIsFull(t *testing.T) {
 		Source: "",
 		Config: []byte(`foo`),
 	}
+	study := "1"
 
-	events := tc.GetResponses(&Source{"mystudy", cnf}, "formfoo", "oldtoken", 0)
+	events := tc.GetResponses(&Source{StudyID: study, Conf: cnf}, "formfoo", "oldtoken", 0)
 
 	e := Sliceit(events)
 	dataAssertions(t, e)
@@ -87,7 +88,7 @@ func TestGetResponses_AddsHiddenFieldsAsUserMetadata(t *testing.T) {
 	res := resData("fly_example.json")
 
 	ts, _ := TestServer(func(w http.ResponseWriter, r *http.Request) {
-		assert.Equal(t, "/forms/formfoo/responses", r.URL.Path)
+		assert.Equal(t, "/flys/api/v1/", r.URL.Path)
 
 		w.WriteHeader(200)
 		w.Header().Set("Content-Type", "application/json")
@@ -102,10 +103,14 @@ func TestGetResponses_AddsHiddenFieldsAsUserMetadata(t *testing.T) {
 		Config: []byte(`foo`),
 	}
 
-	events := tc.GetResponses(&Source{"mystudy", cnf}, "formfoo", "", 0)
-
+	events := tc.GetResponses(&Source{StudyID: res, Conf: cnf}, "formfoo", "", 0)
 	e := Sliceit(events)
 
+	for i := 0; i < len(e); i++ {
+		fmt.Println("e[i] ->", e[i].Study)
+	}
+
+	assert.Equal(t, 2, len(e))
 	assert.Equal(t, 3, len(e))
 	assert.Equal(t, "21085286190ffad1248d17c4135ee56f", e[0].User.ID)
 	assert.Equal(t, json.RawMessage([]byte(`"foo"`)), e[0].User.Metadata["key"])
@@ -114,6 +119,21 @@ func TestGetResponses_AddsHiddenFieldsAsUserMetadata(t *testing.T) {
 
 	assert.Equal(t, "610fc266478b41e4927945e20fe54ad2", e[2].User.ID)
 	assert.Equal(t, json.RawMessage([]byte(`"bar"`)), e[2].User.Metadata["key"])
+
+	// for i := 0; i < len(e); i++ {
+	// fmt.Println("mepoltobonito--------", e[i])
+	// fmt.Println("e--------", e[0].Example)
+	// fmt.Println("e User--------", e[i].User)
+	// fmt.Println("e[i].Study ->", e[i].Study.Parent_surveyid)
+	// assert.Equal(t, "be5ae9dd-0189-478e-8a3d-4d8ead8240a4", e[i].Example)
+	// }
+
+	// assert.Equal(t, json.RawMessage([]byte(`"foo"`)), res2.Items.Surveyid)
+	// assert.Equal(t, "be5ae9dd-0189-478e-8a3d-4d8ead8240a4", res)
+	// assert.Equal(t, json.RawMessage([]byte(`"foo"`)), e[1].User.Metadata["key"])
+
+	// assert.Equal(t, "be5ae9dd-0189-478e-8a3d-4d8ead8240a4", e[2].User.ID)
+	// assert.Equal(t, json.RawMessage([]byte(`"bar"`)), e[2].User.Metadata["key"])
 }
 
 func TestGetResponses_StartsFromOldIdxAndIterates(t *testing.T) {

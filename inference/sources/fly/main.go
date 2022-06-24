@@ -49,15 +49,15 @@ type flyConnector struct {
 	PageSize int    `env:"FLY_PAGE_SIZE,required"`
 }
 
-type TypeformError struct {
+type FlyError struct {
 	Code string `json:"code"`
 }
 
-func (e *TypeformError) Empty() bool {
+func (e *FlyError) Empty() bool {
 	return e.Code == ""
 }
 
-func (e *TypeformError) Error() string {
+func (e *FlyError) Error() string {
 	return e.Code
 }
 
@@ -70,7 +70,7 @@ func (c flyConnector) loadEnv() flyConnector {
 func Call(client *http.Client, baseUrl string, key string, form string, params *GetResponsesParams) (*GetResponsesResponse, error) {
 	sli := sling.New().Client(client).Base(baseUrl).Set("Accept", "application/json").Set("Authorization", fmt.Sprintf("Bearer %s", key))
 	res := new(GetResponsesResponse)
-	apiError := new(TypeformError)
+	apiError := new(FlyError)
 	_, err := sli.Get("flys/api/v1/").QueryStruct(params).Receive(res, apiError)
 
 	if err != nil {
@@ -126,21 +126,9 @@ func (c flyConnector) Handler(source *Source, lastEvent *InferenceDataEvent) <-c
 	return nil
 }
 
-func Sliceit[T any](c <-chan T) []T {
-	s := []T{}
-	for x := range c {
-		s = append(s, x)
-	}
-	return s
-}
-
 func main() {
 	// todo: temporarily  flyConnector
-	c := flyConnector{
-		BaseUrl:  "",
-		Key:      "",
-		PageSize: 1,
-	}
+	c := flyConnector{}
 	c.loadEnv()
 
 	cnf := &SourceConf{
@@ -150,6 +138,6 @@ func main() {
 	}
 
 	events := c.GetResponses(&Source{"flys", cnf}, "formfoo", "oldtoken", 350)
-	e := Sliceit(events)
-	fmt.Printf("Fin: %v\n", e)
+
+	fmt.Printf("Fin: %v\n", events)
 }
