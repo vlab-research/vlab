@@ -131,9 +131,6 @@ func TestGetResponses_AddsHiddenFieldsAsUserMetadata(t *testing.T) {
 	// assert.Equal(t, json.RawMessage([]byte(`"foo"`)), res2.Items.Surveyid)
 	// assert.Equal(t, "be5ae9dd-0189-478e-8a3d-4d8ead8240a4", res)
 	// assert.Equal(t, json.RawMessage([]byte(`"foo"`)), e[1].User.Metadata["key"])
-
-	// assert.Equal(t, "be5ae9dd-0189-478e-8a3d-4d8ead8240a4", e[2].User.ID)
-	// assert.Equal(t, json.RawMessage([]byte(`"bar"`)), e[2].User.Metadata["key"])
 }
 
 func TestGetResponses_StartsFromOldIdxAndIterates(t *testing.T) {
