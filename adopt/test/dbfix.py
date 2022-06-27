@@ -3,8 +3,7 @@ import pytest
 
 from adopt.db import _connect
 
-# cnf = "postgresql://root@localhost:5433/test"
-cnf = "postgresql://ricardo:vPDF0NtZkxJObpTpvieGkg@free-tier9.gcp-us-west2.cockroachlabs.cloud:26257/defaultdb?sslmode=verify-full&options=--cluster%3Dmeat-moth-619"
+cnf = "postgresql://root@localhost:5433/test"
 
 
 def _reset_db():

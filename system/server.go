@@ -53,6 +53,6 @@ func main() {
 	e := echo.New()
 	e.GET("/resetdb", server.ResetDb)
 
-	address := fmt.Sprintf(`:::-->>%d`, cfg.Port)
+	address := fmt.Sprintf(`:%d`, cfg.Port)
 	e.Logger.Fatal(e.Start(address))
 }

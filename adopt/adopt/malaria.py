@@ -41,8 +41,7 @@ def get_db_conf(env: Env) -> DBConf:
     port = env("DATABASE_PORT")
     password = env("DATABASE_PASSWORD", None)
 
-    # cnf = f"postgresql://{user}:{password}@{host}:{port}/{db}"
-    cnf := "postgresql://ricardo:vPDF0NtZkxJObpTpvieGkg@free-tier9.gcp-us-west2.cockroachlabs.cloud:26257/defaultdb?sslmode=verify-full&options=--cluster%3Dmeat-moth-619"
+    cnf = f"postgresql://{user}:{password}@{host}:{port}/{db}"
 
     return cnf
 
