@@ -17,12 +17,10 @@ func Run() error {
 		return fmt.Errorf("envconfig.Process: %w", err)
 	}
 
-	// dbUri := fmt.Sprintf("postgresql://%s:%s@%s:%d/%s?sslmode=%s", cfg.DbUser, cfg.DbPassword, cfg.DbHost, cfg.DbPort, cfg.DbName, cfg.SslMode)
-	dbUri := "postgresql://ricardo:vPDF0NtZkxJObpTpvieGkg@free-tier9.gcp-us-west2.cockroachlabs.cloud:26257/defaultdb?sslmode=verify-full&options=--cluster%3Dmeat-moth-619"
-
+	dbUri := fmt.Sprintf("postgresql://%s:%s@%s:%d/%s?sslmode=%s", cfg.DbUser, cfg.DbPassword, cfg.DbHost, cfg.DbPort, cfg.DbName, cfg.SslMode)
 	srv := server.New(
-		"localhost",
-		5000,
+		cfg.Host,
+		cfg.Port,
 		storage.InitializeRepositories(dbUri),
 		auth.EnsureValidTokenMiddleware(cfg.Auth0.Domain, cfg.Auth0.Audience),
 		cfg.Auth0.Domain,
