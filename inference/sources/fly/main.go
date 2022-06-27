@@ -28,18 +28,20 @@ type GetResponsesResponse struct {
 		Parent_surveyid  string `json:"parent_surveyid"`
 		Parent_shortcode string `json:"parent_shortcode"`
 		Surveyid         string `json:"Surveyid"`
-		flowid           string `json:"flowid"`
+		Flowid           string `json:"Flowid"`
 		Userid           string `json:"Userid"`
 		Question_ref     string `json:"question_ref"`
 		Question_idx     string `json:"question_idx"`
 		Question_text    string `json:"question_text"`
 		Response         struct {
 			Text string `json:"user_agent"`
-		} `json:"metadata"`
-		Timestamp           string `json:"timestamp"`
-		metadata            string `json:"metadata"`
-		pageid              string `json:"metadata"`
-		translated_response string `json:"metadata"`
+		} `json:"res"`
+		Timestamp string `json:"timestamp"`
+		Metadata  struct {
+			Text string `json:"type"`
+		} `json:"Metadata"`
+		Pageid              string `json:"pageid"`
+		Translated_response string `json:"translated_response"`
 	} `json:"items"`
 }
 
@@ -101,10 +103,10 @@ func (c flyConnector) GetResponses(source *Source, form string, token string, id
 			for _, item := range res.Items {
 				fmt.Printf("response: %v\n \n", item.Surveyid)
 				//Todo:  sabe database
-				params.After = item.pageid
+				params.After = item.Pageid
 				idx++
 				event := &InferenceDataEvent{
-					User:       User{ID: item.pageid},
+					User:       User{ID: item.Pageid},
 					Study:      source.StudyID,
 					SourceConf: source.Conf,
 					Idx:        idx,

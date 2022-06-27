@@ -33,6 +33,7 @@ type InferenceDataEvent struct {
 	Value      json.RawMessage `json:"value"`
 	Idx        int             `json:"idx"`
 	Pagination string          `json:"pagination"`
+	// response ?
 }
 
 type InferenceDataValue struct {

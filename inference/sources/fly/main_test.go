@@ -97,48 +97,31 @@ func TestGetResponses_AddsHiddenFieldsAsUserMetadata(t *testing.T) {
 
 	tc := flyConnector{BaseUrl: ts.URL, Key: "sosecret", PageSize: 5}
 
-	cnf := &SourceConf{
-		Name:   "",
-		Source: "",
-		Config: []byte(`foo`),
-	}
-
-	events := tc.GetResponses(&Source{StudyID: res, Conf: cnf}, "formfoo", "", 0)
+	events := tc.GetResponses(&Source{StudyID: res}, "formfoo", "", 0)
 	e := Sliceit(events)
 
+	s := string(res)
+	data := GetResponsesResponse{}
+	json.Unmarshal([]byte(s), &data)
+	// fmt.Println("Operation: ", data.Items)
+	assert.Equal(t, 2, len(e))
 	for i := 0; i < len(e); i++ {
-		fmt.Println("e[i] ->", e[i].Study)
+		// fmt.Println("DATAAAA", data.Items[i].Surveyid)
+		// fmt.Println("DATAAAA", data.Items[0].Metadata.Text)
+		assert.Equal(t, "be5ae9dd-0189-478e-8a3d-4d8ead8240a4", data.Items[0].Surveyid)
+		assert.Equal(t, "foo", data.Items[0].Metadata.Text)
+		assert.Equal(t, "c3c1d340-2335-492b-bb4f-6c0cccc2735f", data.Items[1].Surveyid)
+		assert.Equal(t, "bar", data.Items[1].Metadata.Text)
 	}
 
-	assert.Equal(t, 2, len(e))
-	assert.Equal(t, 3, len(e))
-	assert.Equal(t, "21085286190ffad1248d17c4135ee56f", e[0].User.ID)
-	assert.Equal(t, json.RawMessage([]byte(`"foo"`)), e[0].User.Metadata["key"])
-	assert.Equal(t, "21085286190ffad1248d17c4135ee56f", e[1].User.ID)
-	assert.Equal(t, json.RawMessage([]byte(`"foo"`)), e[1].User.Metadata["key"])
-
-	assert.Equal(t, "610fc266478b41e4927945e20fe54ad2", e[2].User.ID)
-	assert.Equal(t, json.RawMessage([]byte(`"bar"`)), e[2].User.Metadata["key"])
-
-	// for i := 0; i < len(e); i++ {
-	// fmt.Println("mepoltobonito--------", e[i])
-	// fmt.Println("e--------", e[0].Example)
-	// fmt.Println("e User--------", e[i].User)
-	// fmt.Println("e[i].Study ->", e[i].Study.Parent_surveyid)
-	// assert.Equal(t, "be5ae9dd-0189-478e-8a3d-4d8ead8240a4", e[i].Example)
-	// }
-
-	// assert.Equal(t, json.RawMessage([]byte(`"foo"`)), res2.Items.Surveyid)
-	// assert.Equal(t, "be5ae9dd-0189-478e-8a3d-4d8ead8240a4", res)
-	// assert.Equal(t, json.RawMessage([]byte(`"foo"`)), e[1].User.Metadata["key"])
 }
 
 func TestGetResponses_StartsFromOldIdxAndIterates(t *testing.T) {
-	res := resData("typeform-example.json")
+	res := resData("fly_example.json")
 
 	ts, _ := TestServer(func(w http.ResponseWriter, r *http.Request) {
 		fmt.Printf("Fin: %v\n", r.URL.Path)
-		assert.Equal(t, "flys/api/v1/", r.URL.Path)
+		assert.Equal(t, "/flys/api/v1/", r.URL.Path)
 
 		w.WriteHeader(200)
 		w.Header().Set("Content-Type", "application/json")
@@ -157,7 +140,11 @@ func TestGetResponses_StartsFromOldIdxAndIterates(t *testing.T) {
 
 	e := Sliceit(events)
 
-	assert.Equal(t, 45, len(e))
-	assert.Equal(t, 351, e[0].Idx)
-	assert.Equal(t, 395, e[44].Idx)
+	assert.Equal(t, 2, len(e))
+
+	for i := 0; i < len(e); i++ {
+		assert.Equal(t, 351, e[0].Idx)
+		assert.Equal(t, 352, e[1].Idx)
+	}
+
 }

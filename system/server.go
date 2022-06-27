@@ -2,10 +2,11 @@ package main
 
 import (
 	"fmt"
-	"github.com/jackc/pgx/v4/pgxpool"
-	"github.com/labstack/echo/v4"
 	"log"
 	"net/http"
+
+	"github.com/jackc/pgx/v4/pgxpool"
+	"github.com/labstack/echo/v4"
 )
 
 type Server struct {
@@ -52,6 +53,6 @@ func main() {
 	e := echo.New()
 	e.GET("/resetdb", server.ResetDb)
 
-	address := fmt.Sprintf(`:%d`, cfg.Port)
+	address := fmt.Sprintf(`:::-->>%d`, cfg.Port)
 	e.Logger.Fatal(e.Start(address))
 }

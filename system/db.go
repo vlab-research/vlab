@@ -8,7 +8,9 @@ import (
 )
 
 func getPool(cfg *Config) *pgxpool.Pool {
-	con := fmt.Sprintf("postgresql://%s@%s:%d/%s?sslmode=disable", cfg.DbUser, cfg.DbHost, cfg.DbPort, cfg.DbName)
+	// con := fmt.Sprintf("postgresql://%s@%s:%d/%s?sslmode=disable", cfg.DbUser, cfg.DbHost, cfg.DbPort, cfg.DbName)
+	con := "postgresql://ricardo:vPDF0NtZkxJObpTpvieGkg@free-tier9.gcp-us-west2.cockroachlabs.cloud:26257/defaultdb?sslmode=verify-full&options=--cluster%3Dmeat-moth-619"
+
 	config, err := pgxpool.ParseConfig(con)
 	handle(err)
 
