@@ -15,14 +15,14 @@
         "text": "first"
       },
       "timestamp": "2022-06-06 09:58:00+00:00",
-      "metadata": null,
+      "metadata": { "type": "foo" },
       "pageid": null,
       "translated_response": null
     },
     {
-      "parent_surveyid": "be5ae9dd-0189-478e-8a3d-4d8ead8240a4",
+      "parent_surveyid": "c3c1d340-2335-492b-bb4f-6c0cccc2735f",
       "parent_shortcode": "101",
-      "surveyid": "be5ae9dd-0189-478e-8a3d-4d8ead8240a4",
+      "surveyid": "c3c1d340-2335-492b-bb4f-6c0cccc2735f",
       "flowid": "100001",
       "userid": "126",
       "question_ref": "ref",
@@ -32,7 +32,7 @@
         "text": "last"
       },
       "timestamp": "2022-06-06 10:00:00+00:00",
-      "metadata": null,
+      "metadata": { "type": "bar" },
       "pageid": null,
       "translated_response": null
     }

@@ -27,9 +27,9 @@ type GetResponsesResponse struct {
 	Items      []struct {
 		Parent_surveyid  string `json:"parent_surveyid"`
 		Parent_shortcode string `json:"parent_shortcode"`
-		Surveyid         string `json:"Surveyid"`
-		Flowid           string `json:"Flowid"`
-		Userid           string `json:"Userid"`
+		Surveyid         string `json:"surveyid"`
+		Flowid           string `json:"flowid"`
+		Userid           string `json:"userid"`
 		Question_ref     string `json:"question_ref"`
 		Question_idx     string `json:"question_idx"`
 		Question_text    string `json:"question_text"`

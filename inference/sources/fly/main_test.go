@@ -46,9 +46,8 @@ func TestGetResponses_PaginatesWhenPageIsFull(t *testing.T) {
 	res1 := resData("fly_example.json")
 	res2 := resData("fly_example.json")
 
-	count := 0
+	count := 1
 	ts, _ := TestServer(func(w http.ResponseWriter, r *http.Request) {
-		// fmt.Printf(r.URL.Path)
 		assert.Equal(t, "/flys/api/v1/", r.URL.Path)
 
 		if count == 0 {
@@ -59,7 +58,7 @@ func TestGetResponses_PaginatesWhenPageIsFull(t *testing.T) {
 		}
 
 		if count == 1 {
-			assert.Equal(t, "after=5fcb3f9c162e1fcdaadff4405b741080&page_size=3", r.URL.RawQuery)
+			assert.Equal(t, "after=be5ae9dd-0189-478e-8a3d-4d8ead8240a4&page_size=3", r.URL.RawQuery)
 
 			w.WriteHeader(200)
 			w.Header().Set("Content-Type", "application/json")
@@ -78,7 +77,7 @@ func TestGetResponses_PaginatesWhenPageIsFull(t *testing.T) {
 	}
 	study := "1"
 
-	events := tc.GetResponses(&Source{StudyID: study, Conf: cnf}, "formfoo", "oldtoken", 0)
+	events := tc.GetResponses(&Source{StudyID: study, Conf: cnf}, "formfoo", "be5ae9dd-0189-478e-8a3d-4d8ead8240a4", 0)
 
 	e := Sliceit(events)
 	dataAssertions(t, e)
@@ -106,8 +105,6 @@ func TestGetResponses_AddsHiddenFieldsAsUserMetadata(t *testing.T) {
 	// fmt.Println("Operation: ", data.Items)
 	assert.Equal(t, 2, len(e))
 	for i := 0; i < len(e); i++ {
-		// fmt.Println("DATAAAA", data.Items[i].Surveyid)
-		// fmt.Println("DATAAAA", data.Items[0].Metadata.Text)
 		assert.Equal(t, "be5ae9dd-0189-478e-8a3d-4d8ead8240a4", data.Items[0].Surveyid)
 		assert.Equal(t, "foo", data.Items[0].Metadata.Text)
 		assert.Equal(t, "c3c1d340-2335-492b-bb4f-6c0cccc2735f", data.Items[1].Surveyid)
@@ -130,21 +127,16 @@ func TestGetResponses_StartsFromOldIdxAndIterates(t *testing.T) {
 
 	tc := flyConnector{BaseUrl: ts.URL, Key: "sosecret", PageSize: 5}
 
-	cnf := &SourceConf{
-		Name:   "",
-		Source: "",
-		Config: []byte(`foo`),
-	}
-
-	events := tc.GetResponses(&Source{"mystudy", cnf}, "formfoo", "oldtoken", 350)
+	events := tc.GetResponses(&Source{StudyID: res}, "formfoo", "", 0)
+	// events := tc.GetResponses(&Source{"StudyID", cnf}, "formfoo", "oldtoken", 350)
 
 	e := Sliceit(events)
 
 	assert.Equal(t, 2, len(e))
 
 	for i := 0; i < len(e); i++ {
-		assert.Equal(t, 351, e[0].Idx)
-		assert.Equal(t, 352, e[1].Idx)
+		assert.Equal(t, 1, e[0].Idx)
+		assert.Equal(t, 2, e[1].Idx)
 	}
 
 }
