@@ -48,7 +48,7 @@ func TestGetResponses_PaginatesWhenPageIsFull(t *testing.T) {
 
 	count := 1
 	ts, _ := TestServer(func(w http.ResponseWriter, r *http.Request) {
-		assert.Equal(t, "/flys/api/v1/", r.URL.Path)
+		assert.Equal(t, "/all", r.URL.Path)
 
 		if count == 0 {
 			assert.Equal(t, "after=oldtoken&page_size=3", r.URL.RawQuery)
@@ -87,7 +87,7 @@ func TestGetResponses_AddsHiddenFieldsAsUserMetadata(t *testing.T) {
 	res := resData("fly_example.json")
 
 	ts, _ := TestServer(func(w http.ResponseWriter, r *http.Request) {
-		assert.Equal(t, "/flys/api/v1/", r.URL.Path)
+		assert.Equal(t, "/all", r.URL.Path)
 
 		w.WriteHeader(200)
 		w.Header().Set("Content-Type", "application/json")
@@ -118,7 +118,7 @@ func TestGetResponses_StartsFromOldIdxAndIterates(t *testing.T) {
 
 	ts, _ := TestServer(func(w http.ResponseWriter, r *http.Request) {
 		fmt.Printf("Fin: %v\n", r.URL.Path)
-		assert.Equal(t, "/flys/api/v1/", r.URL.Path)
+		assert.Equal(t, "/all", r.URL.Path)
 
 		w.WriteHeader(200)
 		w.Header().Set("Content-Type", "application/json")
