@@ -39,7 +39,7 @@ type GetResponsesResponse struct {
 		Timestamp string `json:"timestamp"`
 		Metadata  struct {
 			Text string `json:"type"`
-		} `json:"Metadata"`
+		} `json:"metadata"`
 		Pageid              string `json:"pageid"`
 		Translated_response string `json:"translated_response"`
 	} `json:"items"`
@@ -105,7 +105,6 @@ func (c flyConnector) GetResponses(source *Source, form string, token string, id
 				params.After = item.Pageid
 				idx++
 				event := &InferenceDataEvent{
-					User:       User{ID: item.Pageid},
 					Study:      source.StudyID,
 					SourceConf: source.Conf,
 					Idx:        idx,
