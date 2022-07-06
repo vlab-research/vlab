@@ -73,6 +73,9 @@ func Call(client *http.Client, baseUrl string, key string, form string, params *
 	sli := sling.New().Client(client).Base(baseUrl).Set("Accept", "application/json").Set("Authorization", fmt.Sprintf("Bearer %s", key))
 	res := new(GetResponsesResponse)
 	apiError := new(FlyError)
+
+	// fmt.Println("key ->", key)
+	// fmt.Println("params ->", params)
 	_, err := sli.Get("all?").QueryStruct(params).Receive(res, apiError)
 	if err != nil {
 		return nil, err

@@ -96,7 +96,7 @@ func TestGetResponses_AddsHiddenFieldsAsUserMetadata(t *testing.T) {
 
 	tc := flyConnector{BaseUrl: ts.URL, Key: "sosecret", PageSize: 5}
 
-	events := tc.GetResponses(&Source{StudyID: res}, "formfoo", "", 0)
+	events := tc.GetResponses(&Source{StudyID: res}, "formfoo", "token_2", 0)
 	e := Sliceit(events)
 
 	s := string(res)
@@ -127,8 +127,7 @@ func TestGetResponses_StartsFromOldIdxAndIterates(t *testing.T) {
 
 	tc := flyConnector{BaseUrl: ts.URL, Key: "sosecret", PageSize: 5}
 
-	events := tc.GetResponses(&Source{StudyID: res}, "formfoo", "", 0)
-	// events := tc.GetResponses(&Source{"StudyID", cnf}, "formfoo", "oldtoken", 350)
+	events := tc.GetResponses(&Source{StudyID: res}, "formfoo", "token_3", 0)
 
 	e := Sliceit(events)
 
@@ -139,4 +138,23 @@ func TestGetResponses_StartsFromOldIdxAndIterates(t *testing.T) {
 		assert.Equal(t, 2, e[1].Idx)
 	}
 
+}
+
+func TestValidateTokenIsSent(t *testing.T) {
+	res := resData("fly_example.json")
+	ts, _ := TestServer(func(w http.ResponseWriter, r *http.Request) {
+		// fmt.Println("get token ->", r.Header.Get("Authorization"))
+		assert.Equal(t, "Bearer token_123", r.Header.Get("Authorization"))
+
+		w.WriteHeader(200)
+		w.Header().Set("Content-Type", "application/json")
+		fmt.Fprint(w, res)
+	})
+
+	tc := flyConnector{BaseUrl: ts.URL, Key: "token_123", PageSize: 10}
+	events := tc.GetResponses(&Source{StudyID: res}, "formfoo", "token_4", 0)
+
+	e := Sliceit(events)
+
+	assert.Equal(t, 2, len(e))
 }
