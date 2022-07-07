@@ -38,7 +38,11 @@ type GetResponsesResponse struct {
 		} `json:"res"`
 		Timestamp string `json:"timestamp"`
 		Metadata  struct {
-			Text string `json:"type"`
+			UserAgent string `json:"user_agent"`
+			Platform  string `json:"platform"`
+			Referer   string `json:"referer"`
+			NetworkID string `json:"network_id"`
+			Browser   string `json:"browser"`
 		} `json:"metadata"`
 		Pageid              string `json:"pageid"`
 		Translated_response string `json:"translated_response"`
@@ -77,6 +81,7 @@ func Call(client *http.Client, baseUrl string, key string, form string, params *
 	// fmt.Println("key ->", key)
 	// fmt.Println("params ->", params)
 	_, err := sli.Get("all?").QueryStruct(params).Receive(res, apiError)
+	// fmt.Println("resp: ", resp)
 	if err != nil {
 		return nil, err
 	}

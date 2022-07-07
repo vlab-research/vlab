@@ -86,31 +86,40 @@ func TestGetResponses_PaginatesWhenPageIsFull(t *testing.T) {
 func TestGetResponses_AddsHiddenFieldsAsUserMetadata(t *testing.T) {
 	res := resData("fly_example.json")
 
+	s := string(res)
+	data := GetResponsesResponse{}
+	json.Unmarshal([]byte(s), &data)
+
+	count := 0
 	ts, _ := TestServer(func(w http.ResponseWriter, r *http.Request) {
+
 		assert.Equal(t, "/all", r.URL.Path)
 
-		w.WriteHeader(200)
-		w.Header().Set("Content-Type", "application/json")
-		fmt.Fprint(w, res)
+		if count == 0 {
+			assert.Equal(t, "other", data.Items[0].Metadata.Platform)
+
+			w.WriteHeader(http.StatusOK)
+			w.Header().Set("Content-Type", "application/json")
+			fmt.Fprint(w, res)
+		}
+
+		if count == 1 {
+			assert.Equal(t, "other", data.Items[1].Metadata.Platform)
+
+			w.WriteHeader(http.StatusOK)
+			w.Header().Set("Content-Type", "application/json")
+			fmt.Fprint(w, res)
+		}
+
 	})
+	count++
 
 	tc := flyConnector{BaseUrl: ts.URL, Key: "sosecret", PageSize: 5}
 
 	events := tc.GetResponses(&Source{StudyID: res}, "formfoo", "token_2", 0)
 	e := Sliceit(events)
 
-	s := string(res)
-	data := GetResponsesResponse{}
-	json.Unmarshal([]byte(s), &data)
-	// fmt.Println("Operation: ", data.Items)
 	assert.Equal(t, 2, len(e))
-	for i := 0; i < len(e); i++ {
-		assert.Equal(t, "be5ae9dd-0189-478e-8a3d-4d8ead8240a4", data.Items[0].Surveyid)
-		assert.Equal(t, "foo", data.Items[0].Metadata.Text)
-		assert.Equal(t, "c3c1d340-2335-492b-bb4f-6c0cccc2735f", data.Items[1].Surveyid)
-		assert.Equal(t, "bar", data.Items[1].Metadata.Text)
-	}
-
 }
 
 func TestGetResponses_StartsFromOldIdxAndIterates(t *testing.T) {
