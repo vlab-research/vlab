@@ -106,7 +106,6 @@ func (c flyConnector) GetResponses(source *Source, form string, token string, id
 			if err != nil {
 				handle(err)
 			}
-
 			for _, item := range res.Items {
 				fmt.Printf("response: %v\n \n", item.Surveyid)
 				//Todo:  sabe database
@@ -120,7 +119,7 @@ func (c flyConnector) GetResponses(source *Source, form string, token string, id
 				events <- event
 			}
 
-			if res.TotalItems == 2 {
+			if res.TotalItems == 3 {
 				break
 			}
 
