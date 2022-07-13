@@ -46,6 +46,14 @@ const Navbar = () => {
         exact: true,
       })?.isExact,
     },
+    {
+      name: 'Connect',
+      href: '/connect',
+      current: matchPath(pathname, {
+        path: '/connect',
+        exact: true,
+      })?.isExact,
+    },
   ];
 
   return (
