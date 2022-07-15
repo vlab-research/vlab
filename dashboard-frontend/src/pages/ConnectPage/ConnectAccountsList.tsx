@@ -36,7 +36,7 @@ const AccountListItem = ({
         </div>
         <button
           className={classNames(
-            'sm:self-end items-center px-4 py-2 mx-4 my-4 sm:my-0 col-span-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50'
+            'sm:self-center items-center px-4 py-2 mx-4 my-4 sm:my-0 col-span-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50'
           )}
         >
           <Link to={`/connect/${slug}`} className="block hover:bg-gray-50">
