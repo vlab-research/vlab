@@ -1,14 +1,32 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"net/http"
+	"strings"
+	"time"
 
 	"github.com/caarlos0/env/v6"
 	"github.com/dghubble/sling"
 	. "github.com/vlab-research/vlab/inference/inference-data"
 )
+
+func (c flyConnector) GetToken() string {
+	url := "https://dev-x7eacpbs.us.auth0.com/oauth/token"
+	devUrl := "https://dev-x7eacpbs.us.auth0.com/api/v2/"
+	payload := strings.NewReader("grant_type=client_credentials&client_id=" + c.ClientId + "&client_secret=" + c.ClientSecret + "&audience=" + devUrl)
+	req, _ := http.NewRequest("POST", url, payload)
+	req.Header.Add("content-type", "application/x-www-form-urlencoded")
+	res, _ := http.DefaultClient.Do(req)
+	// defer res.Body.Close()
+	body, _ := ioutil.ReadAll(res.Body)
+	// fmt.Println("res ->", res)
+	// fmt.Println(string(body))
+	return string(body)
+}
 
 func handle(err error) {
 	if err != nil {
@@ -36,23 +54,22 @@ type GetResponsesResponse struct {
 		Response         struct {
 			Text string `json:"user_agent"`
 		} `json:"res"`
-		Timestamp string `json:"timestamp"`
+		Timestamp time.Time `json:"timestamp"`
 		Metadata  struct {
-			UserAgent string `json:"user_agent"`
-			Platform  string `json:"platform"`
-			Referer   string `json:"referer"`
-			NetworkID string `json:"network_id"`
-			Browser   string `json:"browser"`
-		} `json:"metadata"`
-		Pageid              string `json:"pageid"`
-		Translated_response string `json:"translated_response"`
+			Text string `json:"type"`
+		} `json:"Metadata"`
+		Pageid              string                     `json:"pageid"`
+		Translated_response string                     `json:"translated_response"`
+		Hidden              map[string]json.RawMessage `json:"hidden"`
 	} `json:"items"`
 }
 
 type flyConnector struct {
-	BaseUrl  string `env:"FLY_BASE_URL,required"`
-	Key      string `env:"FLY_KEY,required"`
-	PageSize int    `env:"FLY_PAGE_SIZE,required"`
+	BaseUrl      string `env:"FLY_BASE_URL,required"`
+	Key          string `env:"FLY_KEY,required"`
+	PageSize     int    `env:"FLY_PAGE_SIZE,required"`
+	ClientId     string `env:"FLY_CLIENT_ID,required"`
+	ClientSecret string `env:"FLY_CLIENT_SECRET,required"`
 }
 
 type FlyError struct {
@@ -96,6 +113,8 @@ func (c flyConnector) GetResponses(source *Source, form string, token string, id
 	events := make(chan *InferenceDataEvent)
 	params := &GetResponsesParams{PageSize: c.PageSize, After: token}
 	client := &http.Client{}
+
+	// GetTOKEN()
 	go func() {
 		defer close(events)
 		// for loop to paginate here?
@@ -107,18 +126,24 @@ func (c flyConnector) GetResponses(source *Source, form string, token string, id
 				handle(err)
 			}
 			for _, item := range res.Items {
+				md := item.Hidden
+
 				fmt.Printf("response: %v\n \n", item.Surveyid)
 				//Todo:  sabe database
 				params.After = item.Pageid
 				idx++
 				event := &InferenceDataEvent{
+					User:       User{ID: item.Userid, Metadata: md},
 					Study:      source.StudyID,
 					SourceConf: source.Conf,
+					Timestamp:  item.Timestamp,
 					Idx:        idx,
+					Pagination: item.Surveyid,
+					// Variable:   ??,
+					// Value: ??,
 				}
 				events <- event
 			}
-
 			if res.TotalItems == 3 {
 				break
 			}
@@ -135,16 +160,26 @@ func (c flyConnector) Handler(source *Source, lastEvent *InferenceDataEvent) <-c
 
 func main() {
 	// todo: temporarily  flyConnector
-	c := flyConnector{}
+	c :=
+		flyConnector{
+			BaseUrl:  "https://demo6926047.mockable.io/flys",
+			Key:      "parent_shortcode",
+			PageSize: 1,
+			// GrantType: "client_credentials&client_id=P0F1mNGTyOfAFEvgZEtjRHVBEEmzIyPi&client_secret=TXt1afXrWQitQxfKR4MwSdhPc5puWMiqXrv1Wmx64VluJM-xLgoFYfVa5neVieg5&audience=https://dev-x7eacpbs.us.auth0.com/api/v2/",
+		}
 	c.loadEnv()
-
+	// cnf := &SourceConf{
 	cnf := &SourceConf{
-		Name:   "",
+		//         Name:   "",
+		Name: "",
+		//         Source: "",
 		Source: "",
+		//         Config: []byte(`foo`),
 		Config: []byte(`foo`),
+		// }
 	}
-
+	// events := c.GetResponses(&Source{"flys", cnf}, "formfoo", "oldtoken", 350)
 	events := c.GetResponses(&Source{"flys", cnf}, "formfoo", "oldtoken", 350)
-
+	// fmt.Printf("Fin: %v\n", events)
 	fmt.Printf("Fin: %v\n", events)
 }
