@@ -44,6 +44,7 @@ type GetResponsesResponse struct {
 	PageCount  int `json:"page_count"`
 	Items      []struct {
 		Parent_surveyid  string `json:"parent_surveyid"`
+		Token            string `json:"token"`
 		Parent_shortcode string `json:"parent_shortcode"`
 		Surveyid         string `json:"surveyid"`
 		Flowid           string `json:"flowid"`
@@ -117,7 +118,7 @@ func (c flyConnector) GetResponses(source *Source, form string, token string, id
 	// GetTOKEN()
 	go func() {
 		defer close(events)
-		// for loop to paginate here?
+		// TODO: for loop to paginate here?
 		params.After = token
 		for {
 			res, err := Call(client, c.BaseUrl, c.Key, form, params)
@@ -138,7 +139,7 @@ func (c flyConnector) GetResponses(source *Source, form string, token string, id
 					SourceConf: source.Conf,
 					Timestamp:  item.Timestamp,
 					Idx:        idx,
-					Pagination: item.Surveyid,
+					Pagination: item.Token,
 					// Variable:   ??,
 					// Value: ??,
 				}

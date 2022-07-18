@@ -4,10 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"reflect"
-	"strconv"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -49,67 +47,46 @@ func TestGetResponses_PaginatesWhenPageIsFull(t *testing.T) {
 	data2 := GetResponsesResponse{}
 	json.Unmarshal([]byte(s2), &data2)
 
+	lastToken := data.Items[len(data.Items)-1]
+
 	count := 1
-	// Supongamos que 2 es el limite de items por page
-	full_page_with_items := 3
 	ts, _ := TestServer(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, "/all", r.URL.Path)
 		if count == 1 {
-			assert.Equal(t, "after=be5ae9dd-0189-478e-8a3d-4d8ead8240a4&page_size=1", r.URL.RawQuery)
-			page_size, err := strconv.Atoi(r.URL.Query().Get("page_size"))
-
-			if err != nil {
-				log.Fatal(err)
-			}
-			assert.Equal(t, count, page_size)
-
-			// PAGE #1
-			assert.Equal(t, count, data.PageCount)
-			// assert.Equal(t, full_page_with_items, data.TotalItems-1)
-
-			assert.Condition(t, func() bool {
-				if full_page_with_items < data.TotalItems {
-					return full_page_with_items > data.TotalItems
-				}
-				return true
-			}, "Crearé una nueva página")
+			// assert.Equal(t, "after=4viu4r8djwxwb2udbivx42avnawwj5wj&page_size=1", r.URL.RawQuery)
+			assert.Equal(t, "4viu4r8djwxwb2udbivx42avnawwj5wj", r.URL.Query().Get("after"))
 
 			w.Header().Set("Content-Type", "application/json")
 			fmt.Fprint(w, res1)
 		}
-
-		count++
-
-		if count == 2 {
-			// PAGE #2
-			assert.Equal(t, count, data2.PageCount)
-			assert.Equal(t, 4, data2.TotalItems)
-
-			// page_size, err := strconv.Atoi(r.URL.Query().Get("page_size"))
-			// if err != nil {
-			// 	log.Fatal(err)
-			// }
-			// Si el usuario quiere ir a la segunda pagina pero no existe:
-			// fmt.Println("data.TotalItems ->", data.TotalItems)
-			// assert.Condition(t, func() bool {
-			// 	if full_page <= data.TotalItems {
-			// 		return full_page >= data.TotalItems
-			// 	}
-			// 	return true
-			// }, "Crearé una nueva pagina")
-
-			w.Header().Set("Content-Type", "application/json")
-		}
 	})
-	// Establecer el size de la pagina
-	fmt.Println("ts.URL ->", ts.URL)
+
 	tc := flyConnector{BaseUrl: ts.URL, Key: "sosecret", PageSize: 1}
 
-	events := tc.GetResponses(&Source{StudyID: res1}, "formfoo", "be5ae9dd-0189-478e-8a3d-4d8ead8240a4", 0)
+	events := tc.GetResponses(&Source{StudyID: res1}, "formfoo", lastToken.Token, 0)
 
 	e := Sliceit(events)
-	dataAssertions(t, e)
 	assert.Equal(t, 4, len(e))
+
+	lastTokenPosition := len(e) - 1
+
+	count++
+
+	// PAGE #2
+	if count == 2 {
+		assert.Condition(t, func() bool {
+			for i := range data2.Items {
+				// Searches the entire array
+				fmt.Println("data2.Items[i].Token ->", data2.Items[i].Token)
+				if data2.Items[i].Token == e[lastTokenPosition].Pagination {
+					// Found!
+					return true
+				}
+			}
+			return false
+		}, "token does not match expected")
+	}
+
 }
 
 func TestGetResponses_AddsHiddenFieldsAsUserMetadata(t *testing.T) {
