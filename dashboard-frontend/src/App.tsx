@@ -6,7 +6,11 @@ import { BrowserRouter, Switch, Route, Redirect } from 'react-router-dom';
 import StudiesPage from './pages/StudiesPage/StudiesPage';
 import StudyPage from './pages/StudyPage/StudyPage';
 import LoginPage from './pages/LoginPage/LoginPage';
+<<<<<<< HEAD
 import NewStudyPage from './pages/NewStudyPage/NewStudyPage';
+=======
+import ConnectedAccountsPage from './pages/ConnectedAccountsPage/ConnectedAccountsPage';
+>>>>>>> 4a54ecd (update import declarations)
 import { ReactComponent as Logo } from './assets/logo.svg';
 import useAuth0 from './hooks/useAuth0';
 import useAuthenticatedApi from './hooks/useAuthenticatedApi';
@@ -60,8 +64,13 @@ const Routes = () => {
           <StudyPage />
         </AuthenticatedRoute>
 
+<<<<<<< HEAD
         <AuthenticatedRoute path="/new-study">
           <NewStudyPage />
+=======
+        <AuthenticatedRoute path="/accounts">
+          <ConnectedAccountsPage />
+>>>>>>> 4a54ecd (update import declarations)
         </AuthenticatedRoute>
 
         <Route

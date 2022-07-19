@@ -47,10 +47,10 @@ const Navbar = () => {
       })?.isExact,
     },
     {
-      name: 'Connect',
-      href: '/connect',
+      name: 'Connected Accounts',
+      href: '/accounts',
       current: matchPath(pathname, {
-        path: '/connect',
+        path: '/accounts',
         exact: true,
       })?.isExact,
     },
