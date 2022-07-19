@@ -1,24 +1,11 @@
 import React from 'react';
+
 import { AccountResource } from '../../types/account';
 import { classNames } from '../../helpers/strings';
 
 import { Link } from 'react-router-dom';
 import InputToken from './InputToken';
 import InputSecret from './InputSecret';
-
-const ConnectedAcccountsList = ({
-  accounts,
-}: {
-  accounts: AccountResource[];
-}) => {
-  return (
-    <ListLayout>
-      {accounts.map((account, index) => (
-        <AccountListItem key={account.name} account={account} />
-      ))}
-    </ListLayout>
-  );
-};
 
 const AccountListItem = ({
   account: { name, slug, authType },
@@ -39,14 +26,28 @@ const AccountListItem = ({
             'sm:self-center items-center px-4 py-2 mx-4 col-span-1 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50'
           )}
         >
-          <Link to={`/connect/${slug}`} className="block hover:bg-gray-50">
-            Connect
+          <Link to={`/accounts/${slug}`} className="block hover:bg-gray-50">
+            Connected
           </Link>
         </button>
       </div>
     </div>
   </li>
 );
+
+const ConnectedAcccountsList = ({
+  accounts,
+}: {
+  accounts: AccountResource[];
+}) => {
+  return (
+    <ListLayout>
+      {accounts.map((account, index) => (
+        <AccountListItem key={account.name} account={account} />
+      ))}
+    </ListLayout>
+  );
+};
 
 const ListLayout = ({ children }: { children: React.ReactNode }) => (
   <div className="bg-white shadow overflow-hidden sm:rounded-md">

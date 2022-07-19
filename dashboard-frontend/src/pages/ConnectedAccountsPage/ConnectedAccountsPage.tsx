@@ -2,8 +2,8 @@ import PageLayout from '../../components/PageLayout';
 import ConnectedAcccountsList from './ConnectAccountsList';
 
 const accounts = [
-  { name: 'Fly', slug: 'fly', authType: 'secret' },
-  { name: 'Typeform', slug: 'typeform', authType: 'token' },
+  { id: '1', name: 'Fly', slug: 'fly', authType: 'secret' },
+  { id: '2', name: 'Typeform', slug: 'typeform', authType: 'token' },
 ];
 
 const ConnectedAcccountsPage = () => (
