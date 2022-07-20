@@ -207,23 +207,8 @@ func Sliceit[T any](c <-chan T) []T {
 }
 
 func main() {
-	c := TypeformConnector{
-		BaseUrl:  "https://demo6926047.mockable.io/dosdebuche",
-		Key:      "2",
-		PageSize: 1,
-	}
+	c := TypeformConnector{}
 	c.loadEnv()
-
-	// cnf := &SourceConf{
-	// 	Name:   "",
-	// 	Source: "",
-	// 	Config: []byte(`foo`),
-	// }
-
-	// events := c.Handler(&Source{"typeform", cnf}, "formfoo", "oldtoken", 350)
-	// e := Sliceit(events)
-
-	// fmt.Printf("Fin: %v\n", e)
-
 	connector.LoadEvents(c, "typeform", "idx")
 }
+
