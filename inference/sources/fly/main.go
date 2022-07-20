@@ -11,7 +11,6 @@ import (
 
 	"github.com/caarlos0/env/v6"
 	"github.com/dghubble/sling"
-	"github.com/tidwall/sjson"
 	. "github.com/vlab-research/vlab/inference/inference-data"
 )
 
@@ -35,37 +34,26 @@ func handle(err error) {
 	}
 }
 
-type Field struct {
-	ID   string `json:"id"`
-	Type string `json:"type"`
-	Ref  string `json:"ref"`
-}
-
 type GetResponsesParams struct {
 	PageSize int    `url:"page_size"`
 	After    string `url:"after,omitempty"`
-}
-
-type Response struct {
-	Field Field  `json:"field"`
-	Type  string `json:"type"`
 }
 
 type GetResponsesResponse struct {
 	TotalItems int `json:"total_items"`
 	PageCount  int `json:"page_count"`
 	Items      []struct {
-		Parent_surveyid  string            `json:"parent_surveyid"`
-		Token            string            `json:"token"`
-		Parent_shortcode string            `json:"parent_shortcode"`
-		Surveyid         string            `json:"surveyid"`
-		Flowid           string            `json:"flowid"`
-		Userid           string            `json:"userid"`
-		Question_ref     string            `json:"question_ref"`
-		Question_idx     string            `json:"question_idx"`
-		Question_text    string            `json:"question_text"`
-		Responses        []json.RawMessage `json:"responses"`
-		Timestamp        time.Time         `json:"timestamp"`
+		Parent_surveyid  string    `json:"parent_surveyid"`
+		Token            string    `json:"token"`
+		Parent_shortcode string    `json:"parent_shortcode"`
+		Surveyid         string    `json:"surveyid"`
+		Flowid           string    `json:"flowid"`
+		Userid           string    `json:"userid"`
+		Question_ref     string    `json:"question_ref"`
+		Question_idx     string    `json:"question_idx"`
+		Question_text    string    `json:"question_text"`
+		Response         string    `json:"response"`
+		Timestamp        time.Time `json:"timestamp"`
 		Metadata         struct {
 			Text string `json:"type"`
 		} `json:"Metadata"`
@@ -142,32 +130,33 @@ func (c flyConnector) GetResponses(source *Source, form string, token string, id
 				params.After = item.Token
 
 				md := item.Hidden
-				for _, dat := range item.Responses {
-					var ans Response
-					err := json.Unmarshal(dat, &ans)
-					if err != nil {
-						handle(err)
-					}
+				// for _, dat := range item.Response {
+				// 	var ans Response
+				// 	err := json.Unmarshal(dat, &ans)
+				// 	if err != nil {
+				// 		handle(err)
+				// 	}
 
-					rawAns, err := sjson.Delete(string(dat), "field")
-					if err != nil {
-						handle(err)
-					}
-					// fmt.Println("item.Token ->", item.Token)
-					idx++
-					event := &InferenceDataEvent{
-						User:       User{ID: item.Token, Metadata: md},
-						Study:      source.StudyID,
-						SourceConf: source.Conf,
-						Timestamp:  item.Timestamp,
-						Variable:   ans.Field.Ref,
-						Value:      []byte(rawAns),
-						Idx:        idx,
-						Pagination: item.Token,
-					}
-					events <- event
+				// rawAns, err := sjson.Delete(string(dat), "field")
+				if err != nil {
+					handle(err)
 				}
+
+				idx++
+				event := &InferenceDataEvent{
+					User:       User{ID: item.Token, Metadata: md},
+					Study:      source.StudyID,
+					SourceConf: source.Conf,
+					Timestamp:  item.Timestamp,
+					Idx:        idx,
+					Pagination: item.Token,
+					// Here I am not sure if it is the equivalent
+					Variable: item.Question_ref,
+					Value:    json.RawMessage(item.Question_text),
+				}
+				events <- event
 			}
+			// }
 
 			if res.TotalItems < params.PageSize {
 				break

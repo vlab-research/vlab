@@ -12,36 +12,8 @@
       "question_ref": "ref",
       "question_idx": "10",
       "question_text": "text",
-      "responses": [
-        {
-          "field": {
-            "id": "hVONkQcnSNRj",
-            "type": "dropdown",
-            "ref": "my_custom_dropdown_reference"
-          },
-          "type": "text",
-          "text": "Job opportunities"
-        }
-      ],
-      "calculated": {
-        "score": 2
-      },
-      "variables": [
-        {
-          "key": "score",
-          "type": "number",
-          "number": 2
-        },
-        {
-          "key": "name",
-          "type": "text",
-          "text": "typeform"
-        }
-      ],
       "timestamp": "2021-07-20T02:44:15.072117Z",
-      "metadata": {
-        "type": "foo"
-      },
+      "metadata": null,
       "pageid": null,
       "hidden": {},
       "translated_response": null
@@ -56,13 +28,9 @@
       "question_ref": "ref",
       "question_idx": "10",
       "question_text": "text",
-      "response": {
-        "text": "last"
-      },
+      "response": "last",
       "timestamp": "2021-07-20T02:44:15.072117Z",
-      "metadata": {
-        "type": "bar"
-      },
+      "metadata": null,
       "pageid": null,
       "hidden": {},
       "translated_response": null
@@ -77,13 +45,9 @@
       "question_ref": "ref",
       "question_idx": "10",
       "question_text": "text",
-      "response": {
-        "text": "last"
-      },
+      "response": "last",
       "timestamp": "2021-07-20T02:44:15.072117Z",
-      "metadata": {
-        "type": "bar"
-      },
+      "metadata": null,
       "pageid": null,
       "hidden": {},
       "translated_response": null
@@ -98,156 +62,8 @@
       "question_ref": "ref",
       "question_idx": "10",
       "question_text": "text",
-      "responses": [
-        {
-          "field": {
-            "id": "hVONkQcnSNRj",
-            "type": "dropdown",
-            "ref": "my_custom_dropdown_reference"
-          },
-          "type": "text",
-          "text": "Job opportunities"
-        },
-        {
-          "field": {
-            "id": "RUqkXSeXBXSd",
-            "type": "yes_no",
-            "ref": "my_custom_yes_no_reference"
-          },
-          "type": "boolean",
-          "boolean": false
-        },
-        {
-          "field": {
-            "id": "gFFf3xAkJKsr",
-            "type": "legal",
-            "ref": "my_custom_legal_reference"
-          },
-          "type": "boolean",
-          "boolean": true
-        },
-        {
-          "field": {
-            "id": "JwWggjAKtOkA",
-            "type": "short_text",
-            "ref": "my_custom_short_text_reference"
-          },
-          "type": "text",
-          "text": "Lian"
-        },
-        {
-          "field": {
-            "id": "SMEUb7VJz92Q",
-            "type": "email",
-            "ref": "my_custom_email_reference"
-          },
-          "type": "email",
-          "email": "lian1078@other.com"
-        },
-        {
-          "field": {
-            "id": "pn48RmPazVdM",
-            "type": "number",
-            "ref": "my_custom_number_reference"
-          },
-          "type": "number",
-          "number": 1
-        },
-        {
-          "field": {
-            "id": "Q7M2XAwY04dW",
-            "type": "number",
-            "ref": "my_custom_number2_reference"
-          },
-          "type": "number",
-          "number": 1
-        },
-        {
-          "field": {
-            "id": "WOTdC00F8A3h",
-            "type": "rating",
-            "ref": "my_custom_rating_reference"
-          },
-          "type": "number",
-          "number": 3
-        },
-        {
-          "field": {
-            "id": "DlXFaesGBpoF",
-            "type": "long_text",
-            "ref": "my_custom_long_text_reference"
-          },
-          "type": "text",
-          "text": "It's a big, busy city. I moved here for a job, but I like it, so I am planning to stay. I have made good friends here."
-        },
-        {
-          "field": {
-            "id": "NRsxU591jIW9",
-            "type": "opinion_scale",
-            "ref": "my_custom_opinion_scale_reference"
-          },
-          "type": "number",
-          "number": 1
-        },
-        {
-          "field": {
-            "id": "PNe8ZKBK8C2Q",
-            "type": "picture_choice",
-            "ref": "my_custom_picture_choice_reference"
-          },
-          "type": "choices",
-          "choices": {
-            "labels": [
-              "New York",
-              "Tokyo"
-            ]
-          }
-        },
-        {
-          "field": {
-            "id": "KoJxDM3c6x8h",
-            "type": "date",
-            "ref": "my_custom_date_reference"
-          },
-          "type": "date",
-          "date": "2012-03-20T00:00:00Z"
-        },
-        {
-          "field": {
-            "id": "ceIXxpbP3t2q",
-            "type": "multiple_choice",
-            "ref": "my_custom_multiple_choice_reference"
-          },
-          "type": "choice",
-          "choice": {
-            "label": "A friend's experience in Sydney"
-          }
-        },
-        {
-          "field": {
-            "id": "k6TP9oLGgHjl",
-            "type": "multiple_choice",
-            "ref": "my_custom_multiple_choice2_reference"
-          },
-          "type": "choice",
-          "choice": {
-            "label": "Tokyo"
-          }
-        },
-        {
-          "field": {
-            "id": "K4tBip2OUqNQ",
-            "type": "phone_number",
-            "ref": "phone_number"
-          },
-          "type": "phone_number",
-          "phone_number": "+14151234567"
-        }
-      ],
       "timestamp": "2021-07-20T02:44:15.072117Z",
-      "metadata": {
-        "type": "bar"
-      },
+      "metadata": null,
       "pageid": null,
       "hidden": {},
       "translated_response": null

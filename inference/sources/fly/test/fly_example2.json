@@ -12,21 +12,8 @@
             "question_ref": "ref",
             "question_idx": "10",
             "question_text": "text",
-            "responses": [
-                {
-                    "field": {
-                        "id": "hVONkQcnSNRj",
-                        "type": "dropdown",
-                        "ref": "my_custom_dropdown_reference"
-                    },
-                    "type": "text",
-                    "text": "Job opportunities"
-                }
-            ],
             "timestamp": "2021-07-20T02:44:15.072117Z",
-            "metadata": {
-                "type": "foo"
-            },
+            "metadata": null,
             "pageid": null,
             "hidden": {},
             "translated_response": null
@@ -41,21 +28,8 @@
             "question_ref": "ref",
             "question_idx": "10",
             "question_text": "text",
-            "responses": [
-                {
-                    "field": {
-                        "id": "hVONkQcnSNRj",
-                        "type": "dropdown",
-                        "ref": "my_custom_dropdown_reference"
-                    },
-                    "type": "text",
-                    "text": "Job opportunities"
-                }
-            ],
             "timestamp": "2021-07-20T02:44:15.072117Z",
-            "metadata": {
-                "type": "bar"
-            },
+            "metadata": null,
             "pageid": null,
             "hidden": {},
             "translated_response": null
@@ -70,21 +44,8 @@
             "question_ref": "ref",
             "question_idx": "10",
             "question_text": "text",
-            "responses": [
-                {
-                    "field": {
-                        "id": "hVONkQcnSNRj",
-                        "type": "dropdown",
-                        "ref": "my_custom_dropdown_reference"
-                    },
-                    "type": "text",
-                    "text": "Job opportunities"
-                }
-            ],
             "timestamp": "2021-07-20T02:44:15.072117Z",
-            "metadata": {
-                "type": "bar"
-            },
+            "metadata": null,
             "pageid": null,
             "hidden": {},
             "translated_response": null
@@ -99,21 +60,8 @@
             "question_ref": "ref",
             "question_idx": "10",
             "question_text": "text",
-            "responses": [
-                {
-                    "field": {
-                        "id": "hVONkQcnSNRj",
-                        "type": "dropdown",
-                        "ref": "my_custom_dropdown_reference"
-                    },
-                    "type": "text",
-                    "text": "Job opportunities"
-                }
-            ],
             "timestamp": "2021-07-20T02:44:15.072117Z",
-            "metadata": {
-                "type": "bar"
-            },
+            "metadata": null,
             "pageid": null,
             "hidden": {},
             "translated_response": null

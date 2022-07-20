@@ -27,11 +27,11 @@ func resData(fi string) string {
 }
 
 func dataAssertions(t *testing.T, e []*InferenceDataEvent) {
-	// assert.Equal(t, 4, len(e))
+	assert.Equal(t, 8, len(e))
 
-	// assert.Equal(t, 1, e[0].Idx)
-	// assert.Equal(t, 2, e[1].Idx)
-	// assert.Equal(t, 3, e[2].Idx)
+	// assert.Equal(t, "21085286190ffad1248d17c4135ee56f", e[0].User.ID)
+	// assert.Equal(t, "5fcb3f9c162e1fcdaadff4405b741080", e[10].User.ID)
+	// assert.Equal(t, "3btcnj9rrhzyttmghhapu6znz3y43i36", e[19].User.ID)
 
 	// assert.Equal(t, "126", e[0].User.ID)
 	// assert.Equal(t, "127", e[1].User.ID)
@@ -56,27 +56,24 @@ func TestGetResponses_PaginatesWhenPageIsFull(t *testing.T) {
 	count := 0
 	ts, _ := TestServer(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, "/all", r.URL.Path)
-		if count == 1 {
-			assert.Equal(t, "oldtoken", r.URL.Query().Get("after"))
+		after := r.URL.Query().Get("after")
+
+		if count == 0 {
+			assert.Condition(t, func() bool {
+				if after == "" {
+					return after != ""
+				}
+				return true
+			}, "No token sent")
+
+			assert.Equal(t, "oldtoken", after)
 			w.WriteHeader(200)
 			w.Header().Set("Content-Type", "application/json")
 			fmt.Fprint(w, res1)
 		}
 
 		if count == 1 {
-			// assert.Condition(t, func() bool {
-			// 	for i := range data2.Items {
-			// 		// Searches the entire array
-			// 		// i = 0
-			// 		if data2.Items[i].Token == lastToken.Token {
-			// 			// Found!
-			// 			return true
-			// 		}
-			// 	}
-			// 	return false
-			// }, "token does not match expected")
-
-			assert.Equal(t, "5fcb3f9c162e1fcdaadff4405b741080", r.URL.Query().Get("after"))
+			assert.Equal(t, "4viu4r8djwxwb2udbivx42avnawwj5wj", after)
 			w.WriteHeader(200)
 			w.Header().Set("Content-Type", "application/json")
 			fmt.Fprint(w, res2)
@@ -94,7 +91,7 @@ func TestGetResponses_PaginatesWhenPageIsFull(t *testing.T) {
 }
 
 func TestGetResponses_AddsHiddenFieldsAsUserMetadata(t *testing.T) {
-	res := resData("fly-example-hidden-fields.json")
+	res := resData("fly_example.json")
 
 	s := string(res)
 	data := GetResponsesResponse{}
@@ -120,16 +117,13 @@ func TestGetResponses_AddsHiddenFieldsAsUserMetadata(t *testing.T) {
 
 	e := Sliceit(events)
 
-	assert.Equal(t, 3, len(e))
-	// fmt.Println(e[0].User.ID)
-	assert.Equal(t, "21085286190ffad1248d17c4135ee56f", e[0].User.ID)
-	assert.Equal(t, json.RawMessage([]byte(`"foo"`)), e[0].User.Metadata["key"])
-	assert.Equal(t, "21085286190ffad1248d17c4135ee56f", e[1].User.ID)
-	// fmt.Println(e[1].User.ID)
-	assert.Equal(t, json.RawMessage([]byte(`"foo"`)), e[1].User.Metadata["key"])
-	assert.Equal(t, "610fc266478b41e4927945e20fe54ad2", e[2].User.ID)
-	// fmt.Println(e[2].User.ID)
-	assert.Equal(t, json.RawMessage([]byte(`"bar"`)), e[2].User.Metadata["key"])
+	assert.Equal(t, 4, len(e))
+	assert.Equal(t, "9ba5db11ec6c63d22f08aade805bd363", e[0].User.ID)
+	// assert.Equal(t, json.RawMessage([]byte(`"foo"`)), e[0].User.Metadata["key"])
+	assert.Equal(t, "5fcb3f9c162e1fcdaadff4405b741080", e[1].User.ID)
+	// assert.Equal(t, json.RawMessage([]byte(`"bar"`)), e[1].User.Metadata["key"])
+	assert.Equal(t, "7dfdaryjycfkbynp25ikg47g5fge9kaz", e[2].User.ID)
+	// assert.Equal(t, json.RawMessage([]byte(`"baz"`)), e[2].User.Metadata["key"])
 }
 
 func TestGetResponses_StartsFromOldIdxAndIterates(t *testing.T) {
@@ -158,9 +152,8 @@ func TestGetResponses_StartsFromOldIdxAndIterates(t *testing.T) {
 	events := tc.GetResponses(&Source{StudyID: res}, "formfoo", "9ba5db11ec6c63d22f08aade805bd363", 15)
 
 	e := Sliceit(events)
+
 	assert.Equal(t, 16, e[0].Idx)
-	assert.Equal(t, 25, e[9].Idx)
-	assert.Equal(t, 31, e[15].Idx)
 
 	lastIndex := len(e) - 1
 
@@ -185,9 +178,9 @@ func TestGetResponses_StartsFromOldIdxAndIterates(t *testing.T) {
 	assert.Condition(t, func() bool {
 
 		for i := range list3 {
-			// Searches the entire array
 			// fmt.Println("list3[i].Token ->", list3[i].Token)
 
+			// Searches the entire array
 			if list3[i].Token == e[lastIndex].Pagination {
 
 				totalItems := len(list3)
@@ -230,8 +223,6 @@ func TestValidateTokenIsSent(t *testing.T) {
 	token := tokenStructure.AccessToken
 	tokenType := reflect.TypeOf(token)
 
-	// fmt.Println("token ->", token)
-
 	ts, _ := TestServer(func(w http.ResponseWriter, r *http.Request) {
 		assert.Condition(t, func() bool {
 			// fmt.Println("token ->", token)
@@ -254,5 +245,5 @@ func TestValidateTokenIsSent(t *testing.T) {
 
 	e := Sliceit(events)
 
-	assert.Equal(t, 16, len(e))
+	assert.Equal(t, 4, len(e))
 }
