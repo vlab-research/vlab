@@ -173,27 +173,7 @@ func (c flyConnector) Handler(source *Source, lastEvent *InferenceDataEvent) <-c
 }
 
 func main() {
-	// todo: temporarily  flyConnector
-	c :=
-		flyConnector{
-			BaseUrl:  "https://demo6926047.mockable.io/flys",
-			Key:      "parent_shortcode",
-			PageSize: 1,
-			// GrantType: "client_credentials&client_id=P0F1mNGTyOfAFEvgZEtjRHVBEEmzIyPi&client_secret=TXt1afXrWQitQxfKR4MwSdhPc5puWMiqXrv1Wmx64VluJM-xLgoFYfVa5neVieg5&audience=https://dev-x7eacpbs.us.auth0.com/api/v2/",
-		}
+	c := flyConnector{}
 	c.loadEnv()
-	// cnf := &SourceConf{
-	cnf := &SourceConf{
-		//         Name:   "",
-		Name: "",
-		//         Source: "",
-		Source: "",
-		//         Config: []byte(`foo`),
-		Config: []byte(`foo`),
-		// }
-	}
-	// events := c.GetResponses(&Source{"flys", cnf}, "formfoo", "oldtoken", 350)
-	events := c.GetResponses(&Source{"flys", cnf}, "formfoo", "oldtoken", 350)
-	// fmt.Printf("Fin: %v\n", events)
-	fmt.Printf("Fin: %v\n", events)
+	connector.LoadEvents(c, "fly", "idx")
 }
