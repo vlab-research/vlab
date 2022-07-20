@@ -27,7 +27,7 @@ const AccountListItem = ({
           )}
         >
           <Link to={`/accounts/${slug}`} className="block hover:bg-gray-50">
-            Connected
+            Connect
           </Link>
         </button>
       </div>
