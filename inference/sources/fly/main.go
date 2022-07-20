@@ -11,6 +11,7 @@ import (
 
 	"github.com/caarlos0/env/v6"
 	"github.com/dghubble/sling"
+	"github.com/vlab-research/vlab/inference/connector"
 	. "github.com/vlab-research/vlab/inference/inference-data"
 )
 
