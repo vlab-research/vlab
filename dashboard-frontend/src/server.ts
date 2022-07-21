@@ -6,6 +6,7 @@ import {
   StudySegmentProgressResource,
   StudyResource,
 } from './types/study';
+import { AccountResource } from './types/account';
 import { isValidNumber } from './helpers/numbers';
 import { createSlugFor } from './helpers/strings';
 import { lastValue } from './helpers/arrays';
@@ -20,6 +21,7 @@ export const makeServer = ({ environment = 'development' } = {}) => {
       study: Model,
       studyProgress: Model,
       segmentProgress: Model,
+      account: Model,
     },
 
     seeds(server) {
@@ -88,6 +90,19 @@ export const makeServer = ({ environment = 'development' } = {}) => {
             });
           });
         }
+      );
+
+      const staticAccountResources = [
+        { name: 'Fly', slug: 'fly', authType: 'secret' },
+        { name: 'Typeform', slug: 'typeform', authType: 'token' },
+      ];
+
+      staticAccountResources.map(account =>
+        createAccountResource(server, {
+          name: account.name,
+          slug: account.slug,
+          authType: account.authType,
+        })
       );
     },
 
@@ -200,6 +215,32 @@ export const makeServer = ({ environment = 'development' } = {}) => {
         };
       });
 
+      this.get('/accounts', ({ db }, request) => {
+        if (!isAuthenticatedRequest(request)) {
+          return unauthorizedResponse;
+        }
+
+        const data = Array.from(db.accounts as any);
+
+        return {
+          data,
+        };
+      });
+
+      this.get('/accounts/:slug', ({ db }, request) => {
+        if (!isAuthenticatedRequest(request)) {
+          return unauthorizedResponse;
+        }
+
+        const account = (db.accounts as any).findBy({
+          slug: request.params.slug,
+        });
+
+        return {
+          data: account,
+        };
+      });
+
       this.passthrough(`https://${process.env.REACT_APP_AUTH0_DOMAIN}/**`);
     },
   });
@@ -281,6 +322,29 @@ export const createSegmentProgressResource = (
     id: chance.guid({ version: 4 }),
     studyId: study.id,
   });
+};
+
+export const createAccountResource = (
+  server: InstanceType<typeof Server>,
+  {
+    name,
+    slug,
+    authType,
+  }: {
+    name?: string;
+    slug?: string;
+    authType?: string;
+  }
+) => {
+  const account = { id: '1', name: 'Fly', slug: 'fly', authType: 'secret' };
+
+  const accountResource: AccountResource = {
+    name: name || account.name,
+    slug: slug || account.slug,
+    authType: authType || account.authType,
+  };
+
+  server.create('account', accountResource);
 };
 
 const isAuthenticatedRequest = (request: Request) =>

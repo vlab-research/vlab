@@ -46,6 +46,14 @@ const Navbar = () => {
         exact: true,
       })?.isExact,
     },
+    {
+      name: 'Connected Accounts',
+      href: '/accounts',
+      current: matchPath(pathname, {
+        path: '/accounts',
+        exact: true,
+      })?.isExact,
+    },
   ];
 
   return (
