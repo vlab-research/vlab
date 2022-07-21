@@ -93,8 +93,8 @@ export const makeServer = ({ environment = 'development' } = {}) => {
       );
 
       const staticAccountResources = [
-        { id: '1', name: 'Fly', slug: 'fly', authType: 'secret' },
-        { id: '2', name: 'Typeform', slug: 'typeform', authType: 'token' },
+        { name: 'Fly', slug: 'fly', authType: 'secret' },
+        { name: 'Typeform', slug: 'typeform', authType: 'token' },
       ];
 
       staticAccountResources.map(account =>
@@ -109,36 +109,6 @@ export const makeServer = ({ environment = 'development' } = {}) => {
     routes() {
       this.namespace = 'api';
       this.timing = 750;
-
-      this.get('/accounts', ({ db }, request) => {
-        if (!isAuthenticatedRequest(request)) {
-          return unauthorizedResponse;
-        }
-
-        console.log(db);
-
-        const data = Array.from(db.accounts as any);
-
-        console.log(data);
-
-        return {
-          data,
-        };
-      });
-
-      this.get('/accounts/:slug', ({ db }, request) => {
-        if (!isAuthenticatedRequest(request)) {
-          return unauthorizedResponse;
-        }
-
-        const account = (db.accounts as any).findBy({
-          slug: request.params.slug,
-        });
-
-        return {
-          data: account,
-        };
-      });
 
       this.get('/studies', ({ db }, request) => {
         if (!isAuthenticatedRequest(request)) {
@@ -390,15 +360,12 @@ export const createAccountResource = (
   const account = { id: '1', name: 'Fly', slug: 'fly', authType: 'secret' };
 
   const accountResource: AccountResource = {
-    id: account.id,
     name: name || account.name,
     slug: slug || account.slug,
     authType: authType || account.authType,
   };
 
   server.create('account', accountResource);
-
-  return accountResource;
 };
 
 const isAuthenticatedRequest = (request: Request) =>
