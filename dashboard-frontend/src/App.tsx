@@ -6,10 +6,10 @@ import { BrowserRouter, Switch, Route, Redirect } from 'react-router-dom';
 import StudiesPage from './pages/StudiesPage/StudiesPage';
 import StudyPage from './pages/StudyPage/StudyPage';
 import LoginPage from './pages/LoginPage/LoginPage';
-import ConnectedAccountsPage from './pages/ConnectedAccountsPage/ConnectedAccountsPage';
 import { ReactComponent as Logo } from './assets/logo.svg';
 import useAuth0 from './hooks/useAuth0';
 import useAuthenticatedApi from './hooks/useAuthenticatedApi';
+import AccountsPage from './pages/AccountsPage/AccountsPage';
 
 const areTestsRunning =
   process.env.REACT_APP_RUNNING_IN_E2E_MODE || process.env.NODE_ENV === 'test';
@@ -61,7 +61,7 @@ const Routes = () => {
         </AuthenticatedRoute>
 
         <AuthenticatedRoute path="/accounts">
-          <ConnectedAccountsPage />
+          <AccountsPage />
         </AuthenticatedRoute>
 
         <Route
