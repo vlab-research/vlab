@@ -37,7 +37,7 @@ func GetStudyConfs(pool *pgxpool.Pool, dataSource string) ([]*Source, error) {
 	    FROM study_confs
 	    INNER JOIN study_state on study_confs.study_id = study_state.id 
 	    WHERE conf_type = 'data_sources'
-            AND study_state.start_date < $1
+            AND study_state.start_date > $1
             AND study_state.end_date > $1
 	  )
 	  SELECT json_array_elements(conf) as conf,
@@ -51,9 +51,12 @@ func GetStudyConfs(pool *pgxpool.Pool, dataSource string) ([]*Source, error) {
 	res := []*Source{}
 	now := time.Now().UTC() // extract?
 	rows, err := pool.Query(context.Background(), query, now, dataSource)
+
 	if err != nil {
 		return nil, err
 	}
+
+	fmt.Printf("res esto es la respuesta del servicio-->: %v\n \n", now)
 
 	for rows.Next() {
 		cnf := new(SourceConf)
@@ -66,11 +69,14 @@ func GetStudyConfs(pool *pgxpool.Pool, dataSource string) ([]*Source, error) {
 		// where do I put study??????
 		res = append(res, &Source{StudyID: study, Conf: cnf})
 	}
+	fmt.Printf("resresresresres--->: %v\n \n", res)
 
 	return res, nil
 }
 
 func WriteEvents(pool *pgxpool.Pool, study string, events <-chan *InferenceDataEvent) (int, error) {
+	fmt.Printf("@@@@@@@--->>>: %v\n \n", study)
+
 	query := `
         INSERT INTO inference_data_events(study_id, source_name, timestamp, data, idx, pagination) values($1, $2, $3, $4, $5, $6)
         `
@@ -150,13 +156,16 @@ func (cfg *Config) load() *Config {
 }
 
 func LoadEvents(connector Connector, dataSource string, orderColumn string) {
+
 	cnf := &Config{}
 	cnf = cnf.load()
 
 	pool, err := pgxpool.Connect(context.Background(), cnf.DB)
+
 	handle(err)
 
 	sources, err := GetStudyConfs(pool, dataSource)
+
 	handle(err)
 
 	fmt.Println(sources)
@@ -164,7 +173,6 @@ func LoadEvents(connector Connector, dataSource string, orderColumn string) {
 	// this doesn't need to be done sequentially,
 	// make a go loop?
 	for _, source := range sources {
-
 		e, _, err := LastEvent(pool, source, orderColumn)
 		handle(err)
 

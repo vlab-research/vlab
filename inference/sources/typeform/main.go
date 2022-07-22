@@ -101,7 +101,7 @@ func Call(client *http.Client, baseUrl string, key string, form string, params *
 	res := new(GetResponsesResponse)
 	apiError := new(TypeformError)
 
-	_, err := sli.Get(fmt.Sprintf("/forms/%s/responses", form)).QueryStruct(params).Receive(res, apiError)
+	_, err := sli.Get("/asdflkas/").QueryStruct(params).Receive(res, apiError)
 
 	if err != nil {
 		return nil, err
@@ -198,8 +198,17 @@ func (c TypeformConnector) Handler(source *Source, lastEvent *InferenceDataEvent
 	return events
 }
 
+func Sliceit[T any](c <-chan T) []T {
+	s := []T{}
+	for x := range c {
+		s = append(s, x)
+	}
+	return s
+}
+
 func main() {
 	c := TypeformConnector{}
 	c.loadEnv()
 	connector.LoadEvents(c, "typeform", "idx")
 }
+

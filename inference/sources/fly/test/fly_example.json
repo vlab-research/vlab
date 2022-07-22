@@ -1,0 +1,72 @@
+{
+  "items": [
+    {
+      "parent_surveyid": "be5ae9dd-0189-478e-8a3d-4d8ead8240a4",
+      "parent_shortcode": "101",
+      "token": "9ba5db11ec6c63d22f08aade805bd363",
+      "surveyid": "be5ae9dd-0189-478e-8a3d-4d8ead8240a4",
+      "flowid": "100004",
+      "userid": "126",
+      "question_ref": "ref",
+      "question_idx": "10",
+      "question_text": "Job opportunities",
+      "response": "last",
+      "timestamp": "2022-07-21T22:33:56Z",
+      "metadata": null,
+      "pageid": null,
+      "hidden": {},
+      "translated_response": "último"
+    },
+    {
+      "parent_surveyid": "c3c1d340-2335-492b-bb4f-6c0cccc2735f",
+      "parent_shortcode": "102",
+      "token": "5fcb3f9c162e1fcdaadff4405b741080",
+      "surveyid": "c3c1d340-2335-492b-bb4f-6c0cccc2735f",
+      "flowid": "100001",
+      "userid": "127",
+      "question_ref": "my_custom_dropdown_reference",
+      "question_idx": "10",
+      "question_text": "text",
+      "response": "last",
+      "timestamp": "2021-07-20T02:44:15.072117Z",
+      "metadata": null,
+      "pageid": null,
+      "hidden": {},
+      "translated_response": "último"
+    },
+    {
+      "parent_surveyid": "c3c1d340-2335-492b-bb4f-6c0cccc2735f",
+      "parent_shortcode": "103",
+      "token": "7dfdaryjycfkbynp25ikg47g5fge9kaz",
+      "surveyid": "c3c1d340-2335-492b-bb4f-6c0cccc2735f",
+      "flowid": "100001",
+      "userid": "128",
+      "question_ref": "my_custom_opinion_scale_reference",
+      "question_idx": "10",
+      "question_text": "text",
+      "response": "last",
+      "timestamp": "2021-07-20T02:44:15.072117Z",
+      "metadata": null,
+      "pageid": null,
+      "hidden": {},
+      "translated_response": "último"
+    },
+    {
+      "parent_surveyid": "2039anfsnvdsdkfj394qdqsdqwdq",
+      "parent_shortcode": "104",
+      "token": "4viu4r8djwxwb2udbivx42avnawwj5wj",
+      "surveyid": "2039anfsnvdsdkfj394qdqsdqwdq",
+      "flowid": "100001",
+      "userid": "129",
+      "question_ref": "phone_number",
+      "question_idx": "10",
+      "question_text": "text",
+      "response": "first",
+      "timestamp": "2017-09-14T22:33:56Z",
+      "metadata": null,
+      "pageid": null,
+      "hidden": {},
+      "translated_response": "primero" 
+    }
+  ]
+}

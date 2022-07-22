@@ -42,6 +42,7 @@ def get_db_conf(env: Env) -> DBConf:
     password = env("DATABASE_PASSWORD", None)
 
     cnf = f"postgresql://{user}:{password}@{host}:{port}/{db}"
+
     return cnf
 
 

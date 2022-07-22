@@ -24,10 +24,10 @@ const App = () => (
       }}
     >
       <Auth0Provider
-        domain={process.env.REACT_APP_AUTH0_DOMAIN!}
-        clientId={process.env.REACT_APP_AUTH0_CLIENT_ID!}
+        domain={"dev-2t0k9ew5.us.auth0.com"}
+        clientId={"OgFA0NMd7m8MPdUSd0VMtg4f7PYCfroN"}
         redirectUri={window.location.origin}
-        audience={process.env.REACT_APP_AUTH0_AUDIENCE!}
+        audience={"https://api-dev.vlab/"}
       >
         <Routes />
       </Auth0Provider>
