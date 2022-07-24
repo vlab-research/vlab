@@ -2,6 +2,7 @@ import logging
 import re
 from functools import cached_property
 from typing import Any, Dict, List, Tuple
+from datetime import datetime 
 
 from facebook_business.adobjects.ad import Ad
 from facebook_business.adobjects.adaccount import AdAccount
@@ -233,7 +234,10 @@ class CampaignState:
 
     @cached_property
     def total_spend(self) -> float:
-        res = call(self.campaign.get_insights, fields=["spend"])
+        # total time window
+        window = DateRange(datetime(2020, 1, 1), datetime.utcnow())
+        params = {"time_range": {"since": window.start, "until": window.until}}
+        res = call(self.campaign.get_insights, params = params, fields=["spend"]) 
         if not res:
             return 0
         return float(res[0]["spend"])
