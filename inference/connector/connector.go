@@ -35,7 +35,7 @@ func GetStudyConfs(pool *pgxpool.Pool, dataSource string) ([]*Source, error) {
 		   study_id,
 		   ROW_NUMBER() OVER (PARTITION BY study_id ORDER BY study_confs.created DESC) AS n
 	    FROM study_confs
-	    INNER JOIN study_state on study_confs.study_id = study_state.id 
+	    INNER JOIN study_state on study_confs.study_id = study_state.id
 	    WHERE conf_type = 'data_sources'
             AND study_state.start_date > $1
             AND study_state.end_date > $1
@@ -56,7 +56,7 @@ func GetStudyConfs(pool *pgxpool.Pool, dataSource string) ([]*Source, error) {
 		return nil, err
 	}
 
-	fmt.Printf("res esto es la respuesta del servicio-->: %v\n \n", now)
+	// fmt.Printf("res esto es la respuesta del servicio-->: %v\n \n", now)
 
 	for rows.Next() {
 		cnf := new(SourceConf)
@@ -69,7 +69,30 @@ func GetStudyConfs(pool *pgxpool.Pool, dataSource string) ([]*Source, error) {
 		// where do I put study??????
 		res = append(res, &Source{StudyID: study, Conf: cnf})
 	}
-	fmt.Printf("resresresresres--->: %v\n \n", res)
+	// fmt.Printf("resresresresres--->: %v\n \n", res)
+
+	return res, nil
+}
+
+func GetCredentials(pool *pgxpool.Pool) ([]*Credentials, error) {
+	query := `SELECT * FROM credentials`
+	res := []*Credentials{}
+	rows, err := pool.Query(context.Background(), query)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		user := new(Credentials)
+		if err := rows.Scan(&user.Userid, &user.Entity, &user.Key, &user.Created, &user.Details); err != nil {
+			panic(err)
+		}
+		res = append(res, user)
+	}
+	if err := rows.Err(); err != nil {
+		panic(err)
+	}
 
 	return res, nil
 }
@@ -127,6 +150,8 @@ func LastEvent(pool *pgxpool.Pool, source *Source, orderBy string) (*InferenceDa
 	`
 	query = fmt.Sprintf(query, orderBy)
 
+	fmt.Println("query ->", query)
+
 	e := new(InferenceDataEvent)
 	err := pool.QueryRow(context.Background(), query, source.StudyID, source.Conf.Name).Scan(e)
 
@@ -155,6 +180,20 @@ func (cfg *Config) load() *Config {
 	return cfg
 }
 
+func LoadEventsFlyCredentials(connector Connector, dataSource string, orderColumn string) []*Credentials {
+	cnf := &Config{}
+	cnf = cnf.load()
+
+	pool, err := pgxpool.Connect(context.Background(), cnf.DB)
+
+	handle(err)
+	sources, err2 := GetCredentials(pool)
+
+	handle(err2)
+
+	return sources
+}
+
 func LoadEvents(connector Connector, dataSource string, orderColumn string) {
 
 	cnf := &Config{}
@@ -168,7 +207,7 @@ func LoadEvents(connector Connector, dataSource string, orderColumn string) {
 
 	handle(err)
 
-	fmt.Println(sources)
+	// fmt.Println(sources)
 
 	// this doesn't need to be done sequentially,
 	// make a go loop?
