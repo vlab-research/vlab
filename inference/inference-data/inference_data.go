@@ -16,6 +16,17 @@ type SourceConf struct {
 	Config json.RawMessage `json:"config"`
 }
 
+type Credentials struct {
+	Userid  string
+	Entity  string
+	Key     string
+	Created time.Time
+	Details struct {
+		FirstName string `json:"first_name"`
+		Lastname  string `json:"lastname"`
+	} `json:"details"`
+}
+
 type Source struct {
 	StudyID string
 	Conf    *SourceConf
