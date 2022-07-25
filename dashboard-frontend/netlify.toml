@@ -12,5 +12,5 @@
   REACT_APP_AUTH0_DOMAIN = "vlab-pro.us.auth0.com"
   REACT_APP_AUTH0_CLIENT_ID = "8Msdc56niIAU0dnEplpzUEm2ezPVvcCy"
   REACT_APP_AUTH0_AUDIENCE = "https://api-pro.vlab/"
-  REACT_APP_SERVER_URL = "https://vlab-dashboard-api.vlab.digital"
+  REACT_APP_SERVER_URL = "https://vlab-dashboard-api.toixo.vlab.digital"
   REACT_APP_DEV_SERVER = ""
