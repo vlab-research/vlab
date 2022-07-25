@@ -11,6 +11,7 @@ import (
 
 	"github.com/caarlos0/env/v6"
 	"github.com/dghubble/sling"
+	"github.com/golang-jwt/jwt/v4"
 	"github.com/vlab-research/vlab/inference/connector"
 	. "github.com/vlab-research/vlab/inference/inference-data"
 )
@@ -24,7 +25,6 @@ func (c flyConnector) GetToken() string {
 	res, _ := http.DefaultClient.Do(req)
 	// defer res.Body.Close()
 	body, _ := ioutil.ReadAll(res.Body)
-	// fmt.Println("res ->", res)
 	// fmt.Println(string(body))
 	return string(body)
 }
@@ -117,7 +117,7 @@ func (c flyConnector) GetResponses(source *Source, form string, token string, id
 	params := &GetResponsesParams{PageSize: c.PageSize, After: token}
 	client := &http.Client{}
 
-	// GetTOKEN()
+	c.GetToken()
 	go func() {
 		defer close(events)
 		// TODO: for loop to paginate here?
@@ -174,8 +174,27 @@ func (c flyConnector) Handler(source *Source, lastEvent *InferenceDataEvent) <-c
 	return nil
 }
 
+var hmacSampleSecret []byte
+
 func main() {
 	c := flyConnector{}
 	c.loadEnv()
 	connector.LoadEvents(c, "fly", "idx")
+	credentials := connector.LoadEventsFlyCredentials(c, "fly", "idx")
+
+	// for i := range credentials {
+	// 	fmt.Println(credentials[i])
+	// }
+
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+		"user_id": credentials[2].Userid,
+		"key":     credentials[2].Key,
+		"name":    credentials[2].Details.FirstName,
+	})
+
+	// Sign and get the complete encoded token as a string using the secret
+	tokenString, err := token.SignedString(hmacSampleSecret)
+
+	fmt.Println(tokenString, err)
+
 }
