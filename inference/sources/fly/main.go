@@ -12,20 +12,24 @@ import (
 	"github.com/caarlos0/env/v6"
 	"github.com/dghubble/sling"
 	"github.com/golang-jwt/jwt/v4"
+	"github.com/vlab-research/go-reloadly/reloadly"
 	"github.com/vlab-research/vlab/inference/connector"
 	. "github.com/vlab-research/vlab/inference/inference-data"
 )
 
-func (c flyConnector) GetToken() string {
+func (c flyConnector) GetToken(clientId, clientSecret string) string {
 	url := "https://dev-x7eacpbs.us.auth0.com/oauth/token"
 	devUrl := "https://dev-x7eacpbs.us.auth0.com/api/v2/"
-	payload := strings.NewReader("grant_type=client_credentials&client_id=" + c.ClientId + "&client_secret=" + c.ClientSecret + "&audience=" + devUrl)
+	payload := strings.NewReader("grant_type=client_credentials&client_id=" + clientId + "&client_secret=" + clientSecret + "&audience=" + devUrl)
+	// payload := strings.NewReader("grant_type=client_credentials&client_id=" + c.ClientId + "&client_secret=" + c.ClientSecret + "&audience=" + devUrl)
 	req, _ := http.NewRequest("POST", url, payload)
 	req.Header.Add("content-type", "application/x-www-form-urlencoded")
 	res, _ := http.DefaultClient.Do(req)
 	// defer res.Body.Close()
 	body, _ := ioutil.ReadAll(res.Body)
-	// fmt.Println(string(body))
+
+	// fmt.Println(req)
+
 	return string(body)
 }
 
@@ -68,11 +72,9 @@ type Answer struct {
 }
 
 type flyConnector struct {
-	BaseUrl      string `env:"FLY_BASE_URL,required"`
-	Key          string `env:"FLY_KEY,required"`
-	PageSize     int    `env:"FLY_PAGE_SIZE,required"`
-	ClientId     string `env:"FLY_CLIENT_ID,required"`
-	ClientSecret string `env:"FLY_CLIENT_SECRET,required"`
+	BaseUrl  string `env:"FLY_BASE_URL,required"`
+	Key      string `env:"FLY_KEY,required"`
+	PageSize int    `env:"FLY_PAGE_SIZE,required"`
 }
 
 type FlyError struct {
@@ -117,7 +119,7 @@ func (c flyConnector) GetResponses(source *Source, form string, token string, id
 	params := &GetResponsesParams{PageSize: c.PageSize, After: token}
 	client := &http.Client{}
 
-	c.GetToken()
+	// c.GetToken()
 	go func() {
 		defer close(events)
 		// TODO: for loop to paginate here?
@@ -187,14 +189,24 @@ func main() {
 	// }
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-		"user_id": credentials[2].Userid,
-		"key":     credentials[2].Key,
-		"name":    credentials[2].Details.FirstName,
+		"user_id": credentials[3].Userid,
+		"key":     credentials[3].Key,
+		"name":    credentials[3].Details.FirstName,
 	})
 
 	// Sign and get the complete encoded token as a string using the secret
 	tokenString, err := token.SignedString(hmacSampleSecret)
-
 	fmt.Println(tokenString, err)
+
+	clientId := credentials[3].Userid
+	clientSecret := credentials[3].Key
+
+	c.GetToken(clientId, clientSecret)
+
+	// FIXME: TEST clientId, clientSecret
+
+	svc := reloadly.NewGiftCards().Auth(clientId, clientSecret)
+
+	fmt.Println("svc ->", svc)
 
 }
