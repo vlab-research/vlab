@@ -226,14 +226,12 @@ func TestValidateTokenIsSent(t *testing.T) {
 		AccessToken string `json:"access_token"`
 	}
 
-	tt := flyConnector{
-		BaseUrl:      "",
-		Key:          "",
-		PageSize:     0,
-		ClientId:     "P0F1mNGTyOfAFEvgZEtjRHVBEEmzIyPi",
-		ClientSecret: "TXt1afXrWQitQxfKR4MwSdhPc5puWMiqXrv1Wmx64VluJM-xLgoFYfVa5neVieg5",
-	}
-	tokenResponse := tt.GetToken()
+	tt := flyConnector{}
+
+	clientId := "P0F1mNGTyOfAFEvgZEtjRHVBEEmzIyPi"
+	clientSecret := "TXt1afXrWQitQxfKR4MwSdhPc5puWMiqXrv1Wmx64VluJM-xLgoFYfVa5neVieg5"
+
+	tokenResponse := tt.GetToken(clientId, clientSecret)
 
 	s := string(tokenResponse)
 	tokenStructure := GetTokenResponse{}
