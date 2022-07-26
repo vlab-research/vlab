@@ -15,7 +15,6 @@ const AcccountsPage = () => (
 
 const PageContent = () => {
   const { query, queryKey, accounts, errorMessage } = useAccounts();
-  // show a spinner or empty arr if accounts is not yet resolved
 
   if (query.isLoading) {
     return <AccountListSkeleton numberItems={accounts.length} />;
