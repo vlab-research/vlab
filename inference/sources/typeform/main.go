@@ -87,8 +87,8 @@ func (e *TypeformError) Error() string {
 	return e.Code
 }
 
-func (c TypeformConnector) loadEnv() TypeformConnector {
-	err := env.Parse(&c)
+func (c *TypeformConnector) loadEnv() *TypeformConnector {
+	err := env.Parse(c)
 	handle(err)
 	return c
 }
@@ -101,7 +101,7 @@ func Call(client *http.Client, baseUrl string, key string, form string, params *
 	res := new(GetResponsesResponse)
 	apiError := new(TypeformError)
 
-	_, err := sli.Get(fmt.Sprintf("/forms/%s/responses", form)).QueryStruct(params).Receive(res, apiError)
+	_, err := sli.New().Get(fmt.Sprintf("forms/%s/responses", form)).QueryStruct(params).Receive(res, apiError)
 
 	if err != nil {
 		return nil, err
@@ -183,6 +183,9 @@ func (c TypeformConnector) Handler(source *Source, lastEvent *InferenceDataEvent
 	typeformConfig := new(TypeformConfig)
 	err := json.Unmarshal(source.Conf.Config, typeformConfig)
 	handle(err)
+
+	// get token from credentials...
+	// using something in TypeformConfig
 
 	log.Println("Typeform connector getting data for: ", typeformConfig)
 
