@@ -14,12 +14,10 @@ const useAccounts = () => {
     })
   );
 
-  console.log(query.data);
-
   return {
     query,
     queryKey,
-    accounts: query.data || [],
+    accounts: query.data?.data || [],
     errorMessage: query.error?.message || defaultErrorMessage,
   };
 };
