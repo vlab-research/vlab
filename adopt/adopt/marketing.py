@@ -260,12 +260,10 @@ def app_download_call_to_action(deeplink) -> dict:
     }
 
 
-def web_call_to_action() -> dict:
-
-    # TODO: figure out what this looks like from the API
+def web_call_to_action(link) -> dict:
     return {
-        "type": "",
-        "value": {},
+        "type": "OPEN_LINK",
+        "value": {"link": link},
     }
 
 
@@ -354,7 +352,15 @@ def create_creative(
 
     if isinstance(destination, WebDestination):
         ref = make_ref(config.name, md)
-        pass  # to implement
+        link = destination.url_template.format(ref=ref)
+
+        return _create_creative(
+            config,
+            study.general.page_id,
+            call_to_action=web_call_to_action(link),
+            insta_id=study.general.instagram_id,
+            link=link,
+        )
 
     raise Exception(f"destination is not a proper type: {destination}")
 
