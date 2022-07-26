@@ -5,7 +5,7 @@ import {
   StudyApiResponse,
   StudySegmentsProgressApiResponse,
 } from '../types/study';
-import { AccountsApiResponse, AccountApiResponse } from '../types/account';
+import { AccountsApiResponse } from '../types/account';
 import { Cursor } from '../types/api';
 
 /**
@@ -13,18 +13,6 @@ import { Cursor } from '../types/api';
  *  Create ApiError and TimeoutError which will be useful to have
  *    when reporting to Sentry or a similar service.
  */
-
-const fetchAccounts = ({
-  defaultErrorMessage,
-  accessToken,
-}: {
-  defaultErrorMessage: string;
-  accessToken: string;
-}) =>
-  apiRequest<AccountsApiResponse>(`/api/accounts`, {
-    defaultErrorMessage,
-    accessToken,
-  });
 
 const fetchStudies = ({
   studiesPerPage,
@@ -55,18 +43,6 @@ const fetchStudy = ({
   apiRequest<StudyApiResponse>(`/api/studies/${slug}`, { accessToken }).then(
     ({ data }) => data
   );
-
-const fetchAccount = ({
-  slug,
-  accessToken,
-}: {
-  slug: string;
-  accessToken: string;
-}) =>
-  apiRequest<AccountApiResponse>(`/api/accounts/${slug}`, { accessToken }).then(
-    ({ data }) => data
-  );
-
 const fetchStudySegmentsProgress = ({
   slug,
   accessToken,
@@ -89,6 +65,29 @@ const createUser = ({ accessToken }: { accessToken: string }) => {
     expectedStatusCodes: [userCreatedStatusCode, userAlreadyExistsStatusCode],
   });
 };
+
+const fetchAccounts = ({
+  defaultErrorMessage,
+  accessToken,
+}: {
+  defaultErrorMessage: string;
+  accessToken: string;
+}) =>
+  apiRequest<AccountsApiResponse>(`/api/accounts`, {
+    defaultErrorMessage,
+    accessToken,
+  });
+
+const fetchAccount = ({
+  slug,
+  accessToken,
+}: {
+  slug: string;
+  accessToken: string;
+}) =>
+  apiRequest<AccountsApiResponse>(`/api/accounts/${slug}`, {
+    accessToken,
+  }).then(({ data }) => data);
 
 const apiRequest = async <ApiResponse>(
   url: string,

@@ -1,20 +1,20 @@
 import { useQuery } from 'react-query';
+import { AccountsApiResponse } from '../../types/account';
 import useAuthenticatedApi from '../../hooks/useAuthenticatedApi';
-import { AccountApiResponse } from '../../types/account';
 
-const defaultErrorMessage = 'Something went wrong while fetching the Studies.';
+const defaultErrorMessage = 'Something went wrong while fetching the accounts.';
 
 const useAccounts = () => {
   const { fetchAccounts } = useAuthenticatedApi();
   const queryKey = 'accounts';
 
-  const query = useQuery<AccountApiResponse[], string>(queryKey, (_: unknown) =>
+  const query = useQuery<AccountsApiResponse, string>(queryKey, () =>
     fetchAccounts({
       defaultErrorMessage,
     })
   );
 
-  console.log(query);
+  console.log(query.data);
 
   return {
     query,
