@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
-	"reflect"
+	"strings"
 	"testing"
 	"time"
 
@@ -220,47 +220,70 @@ func TestGetResponses_StartsFromOldIdxAndIterates(t *testing.T) {
 
 }
 
-func TestValidateTokenIsSent(t *testing.T) {
-	res := resData("fly_example.json")
-	type GetTokenResponse struct {
-		AccessToken string `json:"access_token"`
-	}
+// func TestValidateTokenIsSent(t *testing.T) {
+// 	res := resData("fly_example.json")
+// 	type GetTokenResponse struct {
+// 		AccessToken string `json:"access_token"`
+// 	}
 
-	tt := flyConnector{}
+// 	tt := flyConnector{}
 
-	clientId := "P0F1mNGTyOfAFEvgZEtjRHVBEEmzIyPi"
-	clientSecret := "TXt1afXrWQitQxfKR4MwSdhPc5puWMiqXrv1Wmx64VluJM-xLgoFYfVa5neVieg5"
+// 	clientId := "P0F1mNGTyOfAFEvgZEtjRHVBEEmzIyPi"
+// 	clientSecret := "TXt1afXrWQitQxfKR4MwSdhPc5puWMiqXrv1Wmx64VluJM-xLgoFYfVa5neVieg5"
 
-	tokenResponse := tt.GetToken(clientId, clientSecret)
+// 	tokenResponse := tt.GetToken(clientId, clientSecret)
 
-	s := string(tokenResponse)
-	tokenStructure := GetTokenResponse{}
-	json.Unmarshal([]byte(s), &tokenStructure)
+// 	s := string(tokenResponse)
+// 	tokenStructure := GetTokenResponse{}
+// 	json.Unmarshal([]byte(s), &tokenStructure)
 
-	token := tokenStructure.AccessToken
-	tokenType := reflect.TypeOf(token)
+// 	token := tokenStructure.AccessToken
+// 	tokenType := reflect.TypeOf(token)
 
+// 	ts, _ := TestServer(func(w http.ResponseWriter, r *http.Request) {
+// 		assert.Condition(t, func() bool {
+// 			// fmt.Println("token ->", token)
+// 			if token == "" {
+// 				return token != ""
+// 			}
+// 			return true
+// 		}, "Token is required")
+
+// 		assert.Equal(t, reflect.TypeOf(""), tokenType)
+// 		assert.Equal(t, "Bearer "+token, r.Header.Get("Authorization"))
+
+// 		w.WriteHeader(http.StatusOK)
+// 		w.Header().Set("Content-Type", "application/json")
+// 		fmt.Fprint(w, res)
+// 	})
+
+// 	tc := flyConnector{BaseUrl: ts.URL, Key: token, PageSize: 10}
+// 	events := tc.GetResponses(&Source{StudyID: res}, "formfoo", "token_4", 0)
+
+// 	e := Sliceit(events)
+
+// 	assert.Equal(t, 4, len(e))
+// }
+
+func TestGetAuthTokenMakesAudience(t *testing.T) {
 	ts, _ := TestServer(func(w http.ResponseWriter, r *http.Request) {
-		assert.Condition(t, func() bool {
-			// fmt.Println("token ->", token)
-			if token == "" {
-				return token != ""
-			}
-			return true
-		}, "Token is required")
+		expected := `{"client_id":"id","client_secret":"secret","audience":"https://dev-x7eacpbs.us.auth0.com/api/v2","grant_type":"client_credentials"}`
+		data, err := ioutil.ReadAll(r.Body)
+		dat := strings.TrimSpace(string(data))
 
-		assert.Equal(t, reflect.TypeOf(""), tokenType)
-		assert.Equal(t, "Bearer "+token, r.Header.Get("Authorization"))
+		assert.Nil(t, err)
+		assert.Equal(t, "/oauth/token", r.URL.Path)
+		assert.Equal(t, expected, dat)
 
 		w.WriteHeader(http.StatusOK)
 		w.Header().Set("Content-Type", "application/json")
-		fmt.Fprint(w, res)
+
+		fmt.Fprintf(w, `{"token_type": "Bearer", "access_token": "foobarbaz", "expires_in": 14400}`)
 	})
 
-	tc := flyConnector{BaseUrl: ts.URL, Key: token, PageSize: 10}
-	events := tc.GetResponses(&Source{StudyID: res}, "formfoo", "token_4", 0)
+	svc := &Service{AuthUrl: ts.URL, BaseUrl: "https://dev-x7eacpbs.us.auth0.com/api/v2", Client: &http.Client{}}
+	err := svc.Auth("id", "secret")
 
-	e := Sliceit(events)
-
-	assert.Equal(t, 4, len(e))
+	assert.Nil(t, err)
+	assert.Equal(t, "foobarbaz", svc.Token.AccessToken)
 }
