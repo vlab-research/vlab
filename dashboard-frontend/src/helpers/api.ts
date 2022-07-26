@@ -6,6 +6,7 @@ import {
   StudyApiResponse,
   StudySegmentsProgressApiResponse,
 } from '../types/study';
+import { AccountsApiResponse } from '../types/account';
 import { Cursor } from '../types/api';
 
 /**
@@ -79,6 +80,29 @@ const createStudy = ({
     method: 'POST',
     body: { name },
   });
+
+const fetchAccounts = ({
+  defaultErrorMessage,
+  accessToken,
+}: {
+  defaultErrorMessage: string;
+  accessToken: string;
+}) =>
+  apiRequest<AccountsApiResponse>(`/api/accounts`, {
+    defaultErrorMessage,
+    accessToken,
+  });
+
+const fetchAccount = ({
+  slug,
+  accessToken,
+}: {
+  slug: string;
+  accessToken: string;
+}) =>
+  apiRequest<AccountsApiResponse>(`/api/accounts/${slug}`, {
+    accessToken,
+  }).then(({ data }) => data);
 
 const apiRequest = async <ApiResponse>(
   url: string,
