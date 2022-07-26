@@ -17,10 +17,12 @@ spec:
             - name: {{ .name }}
               image: "{{ .image.repository }}:{{ .image.tag }}"
               imagePullPolicy: {{ .image.pullPolicy }}
-              {{- if .envSecret }}
+              {{- with $.Values.envSecrets }}
               envFrom:
+                {{- range .}}
                 - secretRef:
-                    name: "{{ .envSecret }}"
+                    name: {{ . }}
+                {{- end }}
               {{- end}}
               {{- if .args }}
               args:

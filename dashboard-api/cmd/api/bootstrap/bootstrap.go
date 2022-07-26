@@ -17,11 +17,10 @@ func Run() error {
 		return fmt.Errorf("envconfig.Process: %w", err)
 	}
 
-	dbUri := fmt.Sprintf("postgresql://%s:%s@%s:%d/%s?sslmode=%s", cfg.DbUser, cfg.DbPassword, cfg.DbHost, cfg.DbPort, cfg.DbName, cfg.SslMode)
 	srv := server.New(
 		cfg.Host,
 		cfg.Port,
-		storage.InitializeRepositories(dbUri),
+		storage.InitializeRepositories(cfg.DB),
 		auth.EnsureValidTokenMiddleware(cfg.Auth0.Domain, cfg.Auth0.Audience),
 		cfg.Auth0.Domain,
 	)
@@ -29,15 +28,10 @@ func Run() error {
 }
 
 type config struct {
-	Host       string `envconfig:"API_HOST"`
-	Port       uint   `envconfig:"API_PORT"`
-	SslMode    string `envconfig:"DATABASE_SSL"`
-	DbName     string `envconfig:"DATABASE_NAME"`
-	DbHost     string `envconfig:"DATABASE_HOST"`
-	DbPort     uint   `envconfig:"DATABASE_PORT"`
-	DbUser     string `envconfig:"DATABASE_USER"`
-	DbPassword string `envconfig:"DATABASE_PASSWORD"`
-	Auth0      struct {
+	Host  string `envconfig:"API_HOST"`
+	Port  uint   `envconfig:"API_PORT"`
+	DB    string `envconfig:"PG_URL"`
+	Auth0 struct {
 		Domain   string `envconfig:"AUTH0_DOMAIN"`
 		Audience string `envconfig:"AUTH0_AUDIENCE"`
 	}

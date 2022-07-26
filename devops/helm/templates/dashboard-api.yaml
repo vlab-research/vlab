@@ -33,9 +33,13 @@ spec:
             httpGet:
               path: /health
               port: http
+          {{- with .Values.envSecrets }}
           envFrom:
-          - secretRef:
-              name: "{{ .Values.envSecret }}"
+            {{- range .}}
+            - secretRef:
+                name: {{ . }}
+            {{- end }}
+          {{- end}}
           env:
             - name: API_HOST
               value: "0.0.0.0"

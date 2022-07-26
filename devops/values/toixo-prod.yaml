@@ -4,15 +4,15 @@ env:
   - name: AUTH0_AUDIENCE
     value: "https://api-pro.vlab/"
 
-
+# get secret names in vprod
 envSecrets: 
-  - facebook-envs 
-  - db-envs
+  - gbv-bot-envs
+  - vlab-db-envs
+  - vlab-typeform-envs
 
 # shared ingress stuff
 ingress:
   annotations:
-    acme.cert-manager.io/http01-edit-in-place: "true"
     cert-manager.io/cluster-issuer: letsencrypt-prod
 
 dashboard:
@@ -23,20 +23,22 @@ dashboard:
     pullPolicy: Always
   resources: {}
   ingress:
-    host: vlab-dashboard-api.curious.vlab.digital
+    host: vlab-dashboard-api.toixo.vlab.digital 
 
 
 # TODO: change to mapping to allow merging.
 cronjobs:
-  - name: literacy-data-api
+  - name: source-typeform
     schedule: "10 * * * *"
     image:
-      repository: "vlabresearch/source-literacy-data-api"
+      repository: "vlabresearch/source-typeform"
       tag: "latest"
       pullPolicy: Always
     env:
-      - name: LITERACY_DATA_API_URL
-        value: http://lit-data-api.default.svc.cluster.local:80
+      - name: TYPEFORM_BASE_URL
+        value: https://api.typeform.com
+      - name: TYPEFORM_PAGE_SIZE
+        value: "500"
   - name: swoosh
     schedule: "30 * * * *"
     image:
