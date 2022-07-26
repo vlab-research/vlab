@@ -12,7 +12,6 @@ import (
 	"github.com/caarlos0/env/v6"
 	"github.com/dghubble/sling"
 	"github.com/golang-jwt/jwt/v4"
-	"github.com/vlab-research/go-reloadly/reloadly"
 	"github.com/vlab-research/vlab/inference/connector"
 	. "github.com/vlab-research/vlab/inference/inference-data"
 )
@@ -22,14 +21,14 @@ func (c flyConnector) GetToken(clientId, clientSecret string) string {
 	devUrl := "https://dev-x7eacpbs.us.auth0.com/api/v2/"
 	payload := strings.NewReader("grant_type=client_credentials&client_id=" + clientId + "&client_secret=" + clientSecret + "&audience=" + devUrl)
 	// payload := strings.NewReader("grant_type=client_credentials&client_id=" + c.ClientId + "&client_secret=" + c.ClientSecret + "&audience=" + devUrl)
+	fmt.Println("payload ->", payload)
 	req, _ := http.NewRequest("POST", url, payload)
 	req.Header.Add("content-type", "application/x-www-form-urlencoded")
+	// req.Header.Add("authorization", "Bearer "+jwt)
 	res, _ := http.DefaultClient.Do(req)
 	// defer res.Body.Close()
 	body, _ := ioutil.ReadAll(res.Body)
-
-	// fmt.Println(req)
-
+	fmt.Println("body ->", string(body))
 	return string(body)
 }
 
@@ -198,15 +197,8 @@ func main() {
 	tokenString, err := token.SignedString(hmacSampleSecret)
 	fmt.Println(tokenString, err)
 
-	clientId := credentials[3].Userid
-	clientSecret := credentials[3].Key
+	clientId := credentials[4].Userid
+	clientSecret := credentials[4].Key
 
 	c.GetToken(clientId, clientSecret)
-
-	// FIXME: TEST clientId, clientSecret
-
-	svc := reloadly.NewGiftCards().Auth(clientId, clientSecret)
-
-	fmt.Println("svc ->", svc)
-
 }
