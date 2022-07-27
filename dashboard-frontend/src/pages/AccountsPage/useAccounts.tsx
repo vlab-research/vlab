@@ -13,7 +13,6 @@ const useAccounts = () => {
       defaultErrorMessage,
     })
   );
-
   return {
     query,
     queryKey,
