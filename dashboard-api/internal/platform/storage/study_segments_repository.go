@@ -22,14 +22,14 @@ func NewStudySegmentsRepository(db *sql.DB) *StudySegmentsRepository {
 }
 
 type details map[string]struct {
-	CurrentBudget              int64   `json:"current_budget"`
+	CurrentBudget              float64 `json:"current_budget"`
 	DesiredPercentage          float64 `json:"desired_percentage"`
 	CurrentPercentage          float64 `json:"current_percentage"`
 	ExpectedPercentage         float64 `json:"expected_percentage"`
 	DesiredParticipants        *int64  `json:"desired_participants"`
 	CurrentParticipants        int64   `json:"current_participants"`
-	ExpectedParticipants       int64   `json:"expected_participants"`
-	CurrentPricePerParticipant int64   `json:"current_price_per_participant"`
+	ExpectedParticipants       float64 `json:"expected_participants"`
+	CurrentPricePerParticipant float64 `json:"current_price_per_participant"`
 }
 
 func (r *StudySegmentsRepository) GetAllTimeSegmentsProgress(ctx context.Context, studyId string) ([]studiesmanager.SegmentsProgress, error) {
@@ -75,7 +75,7 @@ func (r *StudySegmentsRepository) GetAllTimeSegmentsProgress(ctx context.Context
 				CurrentPercentage:           currentPercentage,
 				ExpectedPercentage:          round(segmentProgress.ExpectedPercentage),
 				DesiredParticipants:         segmentProgress.DesiredParticipants,
-				ExpectedParticipants:        segmentProgress.ExpectedParticipants,
+				ExpectedParticipants:        int64(segmentProgress.ExpectedParticipants),
 				CurrentParticipants:         segmentProgress.CurrentParticipants,
 				CurrentPricePerParticipant:  segmentProgress.CurrentPricePerParticipant,
 				PercentageDeviationFromGoal: round(math.Abs(desiredPercentage - currentPercentage)),

@@ -58,26 +58,26 @@ func Test_StudySegmentsRepository_GetAllTimeSegmentsProgress_Succeed(t *testing.
 	require.NoError(t, err)
 
 	oldestDetails := details{"25-spain-male": {
-		CurrentBudget:               72000,
-		DesiredPercentage:           5,
-		CurrentPercentage:           0,
-		ExpectedPercentage:          0,
-		DesiredParticipants:         nil,
-		CurrentParticipants:         0,
-		ExpectedParticipants:        0,
-		CurrentPricePerParticipants: 0,
+		CurrentBudget:              72000,
+		DesiredPercentage:          5,
+		CurrentPercentage:          0,
+		ExpectedPercentage:         0,
+		DesiredParticipants:        nil,
+		CurrentParticipants:        0,
+		ExpectedParticipants:       0,
+		CurrentPricePerParticipant: 0,
 	}}
 	oldestDetailsInBytes, err := json.Marshal(oldestDetails)
 	require.NoError(t, err)
 	mostRecentDetails := details{"25-spain-male": {
-		CurrentBudget:               72000,
-		DesiredPercentage:           5,
-		CurrentPercentage:           8.25,
-		ExpectedPercentage:          8.67,
-		DesiredParticipants:         nil,
-		CurrentParticipants:         59,
-		ExpectedParticipants:        64,
-		CurrentPricePerParticipants: 100,
+		CurrentBudget:              72000,
+		DesiredPercentage:          5,
+		CurrentPercentage:          8.25,
+		ExpectedPercentage:         8.67,
+		DesiredParticipants:        nil,
+		CurrentParticipants:        59,
+		ExpectedParticipants:       64,
+		CurrentPricePerParticipant: 100,
 	}}
 	mostRecentDetailsInBytes, err := json.Marshal(mostRecentDetails)
 	require.NoError(t, err)
