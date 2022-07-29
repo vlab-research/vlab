@@ -19,7 +19,7 @@ func Test_StudySegmentsRepository_GetAllTimeSegmentsProgress_UnexpectedError_dur
 	require.NoError(t, err)
 
 	sqlMock.ExpectQuery(
-		"SELECT created, details FROM adopt_reports WHERE report_type = 'FACEBOOK_OPTIMIZATION' and study_id = $1 ORDER BY created ASC").
+		"SELECT created, details FROM adopt_reports WHERE report_type = 'FACEBOOK_ADOPT' and study_id = $1 ORDER BY created ASC").
 		WithArgs(studyId).
 		WillReturnError(errors.New("unexpected-error"))
 
@@ -40,7 +40,7 @@ func Test_StudySegmentsRepository_GetAllTimeSegmentsProgress_UnexpectedError_dur
 		AddRow(time.Now())
 
 	sqlMock.ExpectQuery(
-		"SELECT created, details FROM adopt_reports WHERE report_type = 'FACEBOOK_OPTIMIZATION' and study_id = $1 ORDER BY created ASC").
+		"SELECT created, details FROM adopt_reports WHERE report_type = 'FACEBOOK_ADOPT' and study_id = $1 ORDER BY created ASC").
 		WithArgs(studyId).
 		WillReturnRows(rows)
 
@@ -87,7 +87,7 @@ func Test_StudySegmentsRepository_GetAllTimeSegmentsProgress_Succeed(t *testing.
 		AddRow(time.Date(2020, time.November, 10, 23, 0, 0, 0, time.UTC), mostRecentDetailsInBytes)
 
 	sqlMock.ExpectQuery(
-		"SELECT created, details FROM adopt_reports WHERE report_type = 'FACEBOOK_OPTIMIZATION' and study_id = $1 ORDER BY created ASC").
+		"SELECT created, details FROM adopt_reports WHERE report_type = 'FACEBOOK_ADOPT' and study_id = $1 ORDER BY created ASC").
 		WithArgs(studyId).
 		WillReturnRows(rows)
 

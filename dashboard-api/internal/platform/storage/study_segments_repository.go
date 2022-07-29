@@ -35,7 +35,7 @@ type details map[string]struct {
 func (r *StudySegmentsRepository) GetAllTimeSegmentsProgress(ctx context.Context, studyId string) ([]studiesmanager.SegmentsProgress, error) {
 	allTimeSegmentsProgress := []studiesmanager.SegmentsProgress{}
 
-	rows, err := r.db.Query("SELECT created, details FROM adopt_reports WHERE report_type = 'FACEBOOK_OPTIMIZATION' and study_id = $1 ORDER BY created ASC", studyId)
+	rows, err := r.db.Query("SELECT created, details FROM adopt_reports WHERE report_type = 'FACEBOOK_ADOPT' and study_id = $1 ORDER BY created ASC", studyId)
 	if err != nil {
 		return nil, fmt.Errorf("(db.Query) error trying to get all time segments progress (studyId: %s): %v", studyId, err)
 	}
