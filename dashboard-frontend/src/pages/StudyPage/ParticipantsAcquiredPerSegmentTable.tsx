@@ -106,11 +106,10 @@ const useTableProps = (study: ReturnType<typeof useStudy>) => {
       '%Desired',
       '%Current',
       '%Expected',
-      'Desired',
       'Current',
       'Expected',
       'Budget',
-      'Spent',
+      'Price',
     ],
   };
 };
@@ -127,20 +126,10 @@ const getFormattedSortedRowsFor = (
       formatNumber(segmentProgress.desiredPercentage),
       formatNumber(segmentProgress.currentPercentage),
       formatNumber(segmentProgress.expectedPercentage),
-      segmentProgress.desiredParticipants
-        ? formatNumber(segmentProgress.desiredParticipants)
-        : 'N/A',
       formatNumber(segmentProgress.currentParticipants),
       formatNumber(segmentProgress.expectedParticipants),
       formatNumber(segmentProgress.currentBudget),
-      formatNumber(
-        Number(
-          (
-            segmentProgress.currentParticipants *
-            segmentProgress.currentPricePerParticipant
-          ).toFixed(2)
-        )
-      ),
+      formatNumber(segmentProgress.currentPricePerParticipant),
     ],
   }));
 
