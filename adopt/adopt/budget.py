@@ -266,18 +266,20 @@ def get_budget_lookup(
         return _off_budget(strata), None
 
     goal = _normalize_values({s.id: s.quota for s in strata})
-    budget, expected = proportional_budget(goal, spend, tot, price, to_spend)
+    budget, expected = proportional_budget(
+        goal, spend, tot, price, to_spend, max_sample_size
+    )
 
     report = make_report(
         [
-            ("price", price),
-            ("spend", spend),
-            ("goal", goal),
-            ("respondents", tot),
-            ("respondent_share", share),
-            ("budget", budget),
-            ("expected", expected),
-            ("expected_share", _normalize_values(expected)),
+            ("current_price_per_participant", price),
+            ("total_spent", spend),
+            ("desired_percentage", goal),
+            ("current_participants", tot),
+            ("current_percentage", share),
+            ("current_budget", budget),
+            ("expected_participants", expected),
+            ("expected_percentage", _normalize_values(expected)),
         ]
     )
     return budget, report

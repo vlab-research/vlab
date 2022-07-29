@@ -52,7 +52,7 @@ VALUES
       "desired_participants": null,
       "current_participants": 0,
       "expected_participants": 0,
-      "current_price_per_participants": 0
+      "current_price_per_participant": 0
     },
     "25-spain-female": {
       "current_budget": 720000,
@@ -62,7 +62,7 @@ VALUES
       "desired_participants": 2400,
       "current_participants": 0,
       "expected_participants": 0,
-      "current_price_per_participants": 0
+      "current_price_per_participant": 0
     }
   }'),
   ('36634740-0a26-44a3-b69d-d1338af5126c', '2021-01-04', 'FACEBOOK_ADOPT','{
@@ -74,7 +74,7 @@ VALUES
       "desired_participants": null,
       "current_participants": 59,
       "expected_participants": 64,
-      "current_price_per_participants": 100
+      "current_price_per_participant": 100
     },
     "25-spain-female": {
       "current_budget": 720000,
@@ -84,6 +84,6 @@ VALUES
       "desired_participants": 2400,
       "current_participants": 25,
       "expected_participants": 22,
-      "current_price_per_participants": 300
+      "current_price_per_participant": 300
     }
   }');
