@@ -356,7 +356,7 @@ class CreativeConf(BaseModel):
 
 class StratumConf(BaseModel):
     id: str
-    quota: Union[int, float]
+    quota: float
     creatives: List[str]
     audiences: List[str]
     excluded_audiences: List[str]
@@ -491,7 +491,7 @@ AnyAudience = Union[Audience, LookalikeAudience]
 
 class Stratum(BaseModel):
     id: str
-    quota: Union[int, float]
+    quota: float
     creatives: List[CreativeConf]
     facebook_targeting: FacebookTargeting
     question_targeting: Optional[QuestionTargeting]
