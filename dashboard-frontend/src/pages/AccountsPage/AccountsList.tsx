@@ -1,22 +1,33 @@
 import React from 'react';
 
 import { AccountResource } from '../../types/account';
-import { classNames } from '../../helpers/strings';
+import { classNames, createSlugFor } from '../../helpers/strings';
 
 import { Link } from 'react-router-dom';
 import InputToken from './InputToken';
 import InputSecret from './InputSecret';
 
 const AccountsList = ({ accounts }: { accounts: AccountResource[] }) => {
+  console.log(accounts);
   return (
     <ListLayout>
       {accounts.map((account, index) => (
-        <AccountListItem key={account.id} account={account} />
+        <AccountListItem
+          key={account.name}
+          account={account}
+          slug={createSlugFor(account.name)}
+        />
       ))}
     </ListLayout>
   );
 };
-const AccountListItem = ({ account }: { account: AccountResource }) => (
+const AccountListItem = ({
+  account,
+  slug,
+}: {
+  account: AccountResource;
+  slug: string;
+}) => (
   <li>
     <div className="px-4 py-4 sm:px-6">
       <div className="flex flex-col sm:grid grid-cols-5 gap-4">
@@ -24,20 +35,38 @@ const AccountListItem = ({ account }: { account: AccountResource }) => (
           {account.name}
         </p>
         <div className="col-span-2 p-4">
-          {account.authType === 'secret' ? <InputSecret /> : <InputToken />}
-        </div>
-        <button
-          className={classNames(
-            'sm:self-center items-center px-4 py-2 mx-4 col-span-1 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50'
+          {account.connectedAccount ? (
+            <>
+              {account.authType === 'secret' ? (
+                <InputSecret account={account.connectedAccount} />
+              ) : (
+                <InputToken account={account.connectedAccount} />
+              )}
+              <button
+                className={classNames(
+                  'sm:self-center items-center px-4 py-2 mx-4 col-span-1 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50'
+                )}
+              >
+                Update
+              </button>
+            </>
+          ) : (
+            <>
+              <button
+                className={classNames(
+                  'sm:self-center items-center px-4 py-2 mx-4 col-span-1 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50'
+                )}
+              >
+                <Link
+                  to={`/accounts/${slug}`}
+                  className="block hover:bg-gray-50"
+                >
+                  Connect
+                </Link>
+              </button>
+            </>
           )}
-        >
-          <Link
-            to={`/accounts/${account.slug}`}
-            className="block hover:bg-gray-50"
-          >
-            Connect
-          </Link>
-        </button>
+        </div>
       </div>
     </div>
   </li>
