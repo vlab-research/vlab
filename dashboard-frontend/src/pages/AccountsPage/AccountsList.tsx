@@ -8,7 +8,6 @@ import InputToken from './InputToken';
 import InputSecret from './InputSecret';
 
 const AccountsList = ({ accounts }: { accounts: AccountResource[] }) => {
-  console.log(accounts);
   return (
     <ListLayout>
       {accounts.map((account, index) => (
