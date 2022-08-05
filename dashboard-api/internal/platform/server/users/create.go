@@ -2,6 +2,7 @@ package users
 
 import (
 	"errors"
+	"fmt"
 	"log"
 	"net/http"
 
