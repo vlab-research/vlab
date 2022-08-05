@@ -37,3 +37,21 @@ func CreateHandler(repositories storage.Repositories) gin.HandlerFunc {
 		})
 	}
 }
+
+func SaveCredentials(repositories storage.Repositories) gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+		user, err := repositories.Credentials.SaveCredentials(ctx, "123", "clientSecret")
+
+		if err != nil {
+			exa := err.Error()
+			fmt.Println("exa: ", exa)
+			fmt.Println("err ->", err)
+		}
+
+		fmt.Println("user ->", user)
+
+		ctx.JSON(http.StatusOK, createResponse{
+			Data: "SaveCredentials...",
+		})
+	}
+}
