@@ -14,6 +14,7 @@ type Repositories struct {
 	Study         studiesmanager.StudyRepository
 	StudySegments studiesmanager.StudySegmentsRepository
 	User          studiesmanager.UserRepository
+	Credentials   studiesmanager.SaveCredentials
 }
 
 func InitializeRepositories(dbURI string) Repositories {
@@ -30,5 +31,6 @@ func InitializeRepositories(dbURI string) Repositories {
 		Study:         NewStudyRepository(db),
 		StudySegments: NewStudySegmentsRepository(db),
 		User:          NewUserRepository(db),
+		Credentials:   NewSaveCredentials(db),
 	}
 }
