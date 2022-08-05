@@ -6,5 +6,5 @@ RUN apk add --no-cache \
     readline-dev
 
 WORKDIR /app
-RUN go get -u github.com/cosmtrek/air
-RUN go get -u github.com/nathany/looper
+RUN go install github.com/cosmtrek/air@latest
+RUN go install github.com/nathany/looper@latest
