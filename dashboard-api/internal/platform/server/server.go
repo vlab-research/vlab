@@ -63,5 +63,6 @@ func (s *Server) registerRoutes() {
 	s.Engine.GET("/studies/:slug/segments-progress", s.ensureValidTokenMiddleware, segmentsprogress.ListHandler(s.repositories))
 
 	s.Engine.POST("/users", s.ensureValidTokenMiddleware, users.CreateHandler(s.repositories))
-	s.Engine.POST("/users/saveCredentials", users.SaveCredentials(s.repositories))
+	s.Engine.POST("/users/save-credentials", users.SaveCredentials(s.repositories))
+
 }
