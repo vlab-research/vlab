@@ -18,6 +18,12 @@ func NewUserRepository(db *sql.DB) *UserRepository {
 	}
 }
 
+func NewSaveCredentials(db *sql.DB) *UserRepository {
+	return &UserRepository{
+		db: db,
+	}
+}
+
 func (r *UserRepository) CreateUser(ctx context.Context, userId string) (studiesmanager.User, error) {
 	_, err := r.db.Exec("INSERT INTO users (id) VALUES ($1)", userId)
 
@@ -31,5 +37,27 @@ func (r *UserRepository) CreateUser(ctx context.Context, userId string) (studies
 
 	return studiesmanager.User{
 		Id: userId,
+	}, nil
+}
+
+func (r *UserRepository) SaveCredentials(ctx context.Context, clientId string, clientSecret string) (studiesmanager.User, error) {
+
+	clientId = "auth0|47016c1dab79c900713937fa"
+	entity := "entity_fake"
+	key := "key123"
+	details := json.RawMessage(`{"first_name": "Ryan", "lastname": "Brown"}`)
+
+	_, err := r.db.Exec("INSERT INTO credentials (user_id, entity, key, details, rowid) VALUES ($1, $2, $3, $4, $5)", clientId, entity, key, details, 4)
+
+	if err != nil {
+		if err.Error() == "ERROR: duplicate key value violates unique constraint \"primary\" (SQLSTATE 23505)" {
+			return studiesmanager.User{}, fmt.Errorf("%w: %s", studiesmanager.ErrUserAlreadyExists, clientId)
+		}
+
+		return studiesmanager.User{}, fmt.Errorf("user with id '%s' cannot be created: %v", clientId, err)
+	}
+
+	return studiesmanager.User{
+		Id: clientId,
 	}, nil
 }
