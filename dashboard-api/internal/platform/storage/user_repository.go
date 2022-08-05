@@ -3,6 +3,7 @@ package storage
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 
 	studiesmanager "github.com/vlab-research/vlab/dashboard-api/internal"
