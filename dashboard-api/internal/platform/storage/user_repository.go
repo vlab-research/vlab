@@ -43,7 +43,7 @@ func (r *UserRepository) CreateUser(ctx context.Context, userId string) (studies
 
 func (r *UserRepository) SaveCredentials(ctx context.Context, clientId string, clientSecret string) (studiesmanager.User, error) {
 
-	clientId = "auth0|47016c1dab79c900713937fa"
+	// clientId = "auth0|47016c1dab79c900713937fa"
 	entity := "entity_fake"
 	key := "key123"
 	details := json.RawMessage(`{"first_name": "Ryan", "lastname": "Brown"}`)
