@@ -1,6 +1,7 @@
 package users
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
@@ -39,17 +40,32 @@ func CreateHandler(repositories storage.Repositories) gin.HandlerFunc {
 	}
 }
 
+type ExampleRequestBody struct {
+	Clientid     string
+	Clientsecret string
+}
+
 func SaveCredentials(repositories storage.Repositories) gin.HandlerFunc {
 	return func(ctx *gin.Context) {
-		user, err := repositories.Credentials.SaveCredentials(ctx, "123", "clientSecret")
+
+		var tuser ExampleRequestBody
+		decoder := json.NewDecoder(ctx.Request.Body)
+		err := decoder.Decode(&tuser)
+		if err != nil {
+			fmt.Printf("error %s", err)
+			ctx.JSON(501, gin.H{"error": err})
+		}
+
+		fmt.Printf("Decoded Body Request Clientid : %v\n", tuser.Clientid)
+		fmt.Printf("Decoded Body Request Clientsecret : %v\n", tuser.Clientsecret)
+
+		_, err = repositories.Credentials.SaveCredentials(ctx, tuser.Clientid, tuser.Clientsecret)
 
 		if err != nil {
 			exa := err.Error()
 			fmt.Println("exa: ", exa)
 			fmt.Println("err ->", err)
 		}
-
-		fmt.Println("user ->", user)
 
 		ctx.JSON(http.StatusOK, createResponse{
 			Data: "SaveCredentials...",
