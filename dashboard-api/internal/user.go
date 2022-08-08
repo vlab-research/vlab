@@ -9,8 +9,8 @@ type UserRepository interface {
 	CreateUser(ctx context.Context, userId string) (User, error)
 }
 
-type SaveCredentials interface {
-	SaveCredentials(ctx context.Context, clientId string, clientSecret string) (User, error)
+type SaveCredentialsFly interface {
+	SaveCredentialsFly(ctx context.Context, clientId string, nickname string) (User, error)
 }
 
 var ErrUserAlreadyExists = errors.New("User Already Exists")
