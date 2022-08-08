@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	studiesmanager "github.com/vlab-research/vlab/dashboard-api/internal"
@@ -15,6 +16,13 @@ import (
 
 type createResponse struct {
 	Data interface{} `json:"data"`
+}
+
+type RequestBody struct {
+	Clientid     string
+	Clientsecret string
+	NickName     string
+	Accesstoken  string
 }
 
 func CreateHandler(repositories storage.Repositories) gin.HandlerFunc {
@@ -40,15 +48,11 @@ func CreateHandler(repositories storage.Repositories) gin.HandlerFunc {
 	}
 }
 
-type ExampleRequestBody struct {
-	Clientid     string
-	Clientsecret string
-}
-
 func SaveCredentials(repositories storage.Repositories) gin.HandlerFunc {
 	return func(ctx *gin.Context) {
+		var tuser RequestBody
+		tconnector := ctx.Query("type")
 
-		var tuser ExampleRequestBody
 		decoder := json.NewDecoder(ctx.Request.Body)
 		err := decoder.Decode(&tuser)
 		if err != nil {
@@ -56,10 +60,16 @@ func SaveCredentials(repositories storage.Repositories) gin.HandlerFunc {
 			ctx.JSON(501, gin.H{"error": err})
 		}
 
-		fmt.Printf("Decoded Body Request Clientid : %v\n", tuser.Clientid)
-		fmt.Printf("Decoded Body Request Clientsecret : %v\n", tuser.Clientsecret)
+		switch strings.ToLower(tconnector) {
+		case "fly":
+			_, err = repositories.Credentials.SaveCredentialsFly(ctx, tuser.Clientid, tuser.NickName)
+		case "typeform":
+			_, err = repositories.Credentials.SaveCredentialsFly(ctx, tuser.Accesstoken, tuser.NickName)
+		}
 
-		_, err = repositories.Credentials.SaveCredentials(ctx, tuser.Clientid, tuser.Clientsecret)
+		fmt.Printf("Decoded Body Request Clientid: %v\n", tuser.Clientid)
+		fmt.Printf("Decoded Body Request NickName: %v\n", tuser.NickName)
+		fmt.Printf("Decoded Body Request Accesstoken : %v\n", tuser.Accesstoken)
 
 		if err != nil {
 			exa := err.Error()
