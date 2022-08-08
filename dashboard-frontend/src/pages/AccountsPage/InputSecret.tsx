@@ -1,6 +1,10 @@
 import { SecretAccountResource } from '../../types/account';
 
-const InputSecret = ({ account }: { account: SecretAccountResource }) => (
+const InputSecret = ({
+  account,
+}: {
+  account: SecretAccountResource | null;
+}) => (
   <>
     <div className="flex flex-col mb-4">
       <label className="block mb-2 text-sm font-medium text-gray-900 dark:text-gray-300">
@@ -8,18 +12,28 @@ const InputSecret = ({ account }: { account: SecretAccountResource }) => (
       </label>
       <input
         type="text"
+        id="client-id"
         className="bg-gray-100 rounded p-2 border focus:outline-none focus:border-blue-500"
-        placeholder={account.credentials.clientId}
+        placeholder={
+          account?.credentials
+            ? account?.credentials?.clientId
+            : 'Enter client ID'
+        }
       ></input>
     </div>
-    <div className="flex flex-col">
+    <div className="flex flex-col mb-4">
       <label className="block mb-2 text-sm font-medium text-gray-900 dark:text-gray-300">
         Client secret
       </label>
       <input
         type="text"
-        className="bg-gray-100 rounded p-2 border focus:outline-none focus:border-blue-500"
-        placeholder={account.credentials.clientSecret}
+        id="client-secret"
+        className="placeholder-gray-500 bg-gray-100 rounded p-2 border focus:outline-none focus:border-blue-500"
+        placeholder={
+          account?.credentials
+            ? account?.credentials?.clientSecret
+            : 'Enter client secret'
+        }
       ></input>
     </div>
   </>

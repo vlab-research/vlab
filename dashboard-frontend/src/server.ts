@@ -93,16 +93,35 @@ export const makeServer = ({ environment = 'development' } = {}) => {
       );
 
       const staticAccountResources = [
-        { name: 'Fly', slug: 'fly', authType: 'secret' },
-        { name: 'Typeform', slug: 'typeform', authType: 'token' },
+        {
+          name: 'Fly',
+          authType: 'secret',
+          connectedAccount: {
+            createdAt: today,
+            credentials: {
+              clientId: '123456',
+              clientSecret: 'qwertyuiop',
+            },
+          },
+        },
+        {
+          name: 'Typeform',
+          authType: 'token',
+          connectedAccount: {
+            createdAt: yesterday,
+            credentials: {
+              token: '!"·$%&/()',
+            },
+          },
+        },
+        {
+          name: 'Some unconnected account',
+          authType: 'token',
+        },
       ];
 
       staticAccountResources.map(account =>
-        createAccountResource(server, {
-          name: account.name,
-          slug: account.slug,
-          authType: account.authType,
-        })
+        createAccountResource(server, account)
       );
     },
 
@@ -326,25 +345,11 @@ export const createSegmentProgressResource = (
 
 export const createAccountResource = (
   server: InstanceType<typeof Server>,
-  {
-    name,
-    slug,
-    authType,
-  }: {
-    name?: string;
-    slug?: string;
-    authType?: string;
-  }
+  accountResource: AccountResource
 ) => {
-  const account = { id: '1', name: 'Fly', slug: 'fly', authType: 'secret' };
-
-  const accountResource: AccountResource = {
-    name: name || account.name,
-    slug: slug || account.slug,
-    authType: authType || account.authType,
-  };
-
   server.create('account', accountResource);
+
+  return accountResource;
 };
 
 const isAuthenticatedRequest = (request: Request) =>
