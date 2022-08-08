@@ -48,9 +48,9 @@ const AccountListItem = ({
             />
           )}
           {account.connectedAccount ? (
-            <ConnectButton buttonLabel="Connect" slug={slug} />
-          ) : (
             <ConnectButton buttonLabel="Update" slug={slug} />
+          ) : (
+            <ConnectButton buttonLabel="Connect" slug={slug} />
           )}
         </div>
       </div>
