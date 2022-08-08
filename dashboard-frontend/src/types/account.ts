@@ -15,13 +15,13 @@ export interface ConnectedAccountResource {
 }
 
 export interface TokenAccountResource extends ConnectedAccountResource {
-  credentials: {
+  credentials?: {
     token: string;
   };
 }
 
 export interface SecretAccountResource extends ConnectedAccountResource {
-  credentials: {
+  credentials?: {
     clientId: string;
     clientSecret: string;
   };

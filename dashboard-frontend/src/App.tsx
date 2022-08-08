@@ -5,6 +5,8 @@ import { ReactQueryDevtools } from 'react-query-devtools';
 import { BrowserRouter, Switch, Route, Redirect } from 'react-router-dom';
 import StudiesPage from './pages/StudiesPage/StudiesPage';
 import StudyPage from './pages/StudyPage/StudyPage';
+import AccountsPage from './pages/AccountsPage/AccountsPage';
+import AccountPage from './pages/AccountPage/AccountPage';
 import LoginPage from './pages/LoginPage/LoginPage';
 import NewStudyPage from './pages/NewStudyPage/NewStudyPage';
 import { ReactComponent as Logo } from './assets/logo.svg';
@@ -62,6 +64,10 @@ const Routes = () => {
 
         <AuthenticatedRoute path="/new-study">
           <NewStudyPage />
+        </AuthenticatedRoute>
+
+        <AuthenticatedRoute path="/accounts/:accountSlug">
+          <AccountPage />
         </AuthenticatedRoute>
 
         <Route
