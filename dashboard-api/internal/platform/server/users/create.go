@@ -26,7 +26,6 @@ type RequestBody struct {
 }
 
 func CreateHandler(repositories storage.Repositories) gin.HandlerFunc {
-
 	return func(ctx *gin.Context) {
 		user, err := repositories.User.CreateUser(ctx, auth.GetUserIdFrom(ctx))
 
@@ -62,9 +61,9 @@ func SaveCredentials(repositories storage.Repositories) gin.HandlerFunc {
 
 		switch strings.ToLower(tconnector) {
 		case "fly":
-			_, err = repositories.Credentials.SaveCredentialsFly(ctx, tuser.Clientid, tuser.NickName)
+			_, err = repositories.UserSaveCredentials.SaveCredentialsFly(ctx, tuser.Clientid, tuser.NickName)
 		case "typeform":
-			_, err = repositories.Credentials.SaveCredentialsFly(ctx, tuser.Accesstoken, tuser.NickName)
+			_, err = repositories.UserSaveCredentials.SaveCredentialsFly(ctx, tuser.Accesstoken, tuser.NickName)
 		}
 
 		fmt.Printf("Decoded Body Request Clientid: %v\n", tuser.Clientid)
@@ -79,6 +78,24 @@ func SaveCredentials(repositories storage.Repositories) gin.HandlerFunc {
 
 		ctx.JSON(http.StatusOK, createResponse{
 			Data: "SaveCredentials...",
+		})
+	}
+}
+
+func GetCredentials(repositories storage.Repositories) gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+
+		clientId := "auth0|47016c1dab79c900713937fa"
+
+		credentials, err := repositories.GetCredentials.GetCredentials(ctx, clientId)
+
+		if err != nil {
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+
+		ctx.JSON(http.StatusOK, createResponse{
+			Data: credentials,
 		})
 	}
 }
