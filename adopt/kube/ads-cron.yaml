@@ -14,7 +14,7 @@ spec:
           restartPolicy: OnFailure
           containers:
           - name: gbv-adopt-update-ads
-            image: vlabresearch/adopt:v0.0.91
+            image: vlabresearch/adopt:v0.0.92
             args:
             - python
             - malaria_ads.py
