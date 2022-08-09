@@ -25,6 +25,12 @@ func NewSaveCredentialsFly(db *sql.DB) *UserRepository {
 	}
 }
 
+func NewGetCredentials(db *sql.DB) *UserRepository {
+	return &UserRepository{
+		db: db,
+	}
+}
+
 func (r *UserRepository) CreateUser(ctx context.Context, userId string) (studiesmanager.User, error) {
 	_, err := r.db.Exec("INSERT INTO users (id) VALUES ($1)", userId)
 
@@ -60,4 +66,24 @@ func (r *UserRepository) SaveCredentialsFly(ctx context.Context, clientId string
 	return studiesmanager.User{
 		Id: clientId,
 	}, nil
+}
+
+func (r *UserRepository) GetCredentials(ctx context.Context, clientId string) (studiesmanager.Credentials, error) {
+
+	row := r.db.QueryRow("SELECT * FROM credentials WHERE user_id = $1", clientId)
+
+	c := &studiesmanager.Credentials{}
+
+	if err := row.Scan(&c.Userid, &c.Entity, &c.Key, &c.Created, &c.Details); err != nil {
+		return studiesmanager.Credentials{}, fmt.Errorf("user with id '%s' not exists: %v", clientId, err)
+	}
+
+	return studiesmanager.Credentials{
+		Userid:  c.Userid,
+		Entity:  c.Entity,
+		Key:     c.Key,
+		Created: c.Created,
+		Details: c.Details,
+	}, nil
+
 }
