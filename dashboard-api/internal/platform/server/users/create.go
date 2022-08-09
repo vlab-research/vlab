@@ -19,7 +19,7 @@ type createResponse struct {
 }
 
 type RequestBody struct {
-	Clientid     string
+	Clientid     string `json:"clientId" validate:"required"`
 	Clientsecret string
 	NickName     string
 	Accesstoken  string
@@ -85,9 +85,14 @@ func SaveCredentials(repositories storage.Repositories) gin.HandlerFunc {
 func GetCredentials(repositories storage.Repositories) gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 
-		clientId := "auth0|47016c1dab79c900713937fa"
+		var tuser RequestBody
 
-		credentials, err := repositories.GetCredentials.GetCredentials(ctx, clientId)
+		err := json.NewDecoder(ctx.Request.Body).Decode(&tuser)
+		if err != nil {
+			println(err)
+		}
+
+		credentials, err := repositories.GetCredentials.GetCredentials(ctx, tuser.Clientid)
 
 		if err != nil {
 			ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
