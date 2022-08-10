@@ -10,12 +10,13 @@ import (
 )
 
 type Repositories struct {
-	Db                  *sql.DB
-	Study               studiesmanager.StudyRepository
-	StudySegments       studiesmanager.StudySegmentsRepository
-	User                studiesmanager.UserRepository
-	UserSaveCredentials studiesmanager.SaveCredentialsFly
-	GetCredentials      studiesmanager.GetCredentials
+	Db                      *sql.DB
+	Study                   studiesmanager.StudyRepository
+	StudySegments           studiesmanager.StudySegmentsRepository
+	User                    studiesmanager.UserRepository
+	SaveCredentialsFly      studiesmanager.SaveCredentialsFly
+	GetCredentials          studiesmanager.GetCredentials
+	SaveCredentialsTypeform studiesmanager.SaveCredentialsTypeform
 }
 
 func InitializeRepositories(dbURI string) Repositories {
@@ -28,11 +29,12 @@ func InitializeRepositories(dbURI string) Repositories {
 	}
 
 	return Repositories{
-		Db:                  db,
-		Study:               NewStudyRepository(db),
-		StudySegments:       NewStudySegmentsRepository(db),
-		User:                NewUserRepository(db),
-		UserSaveCredentials: NewSaveCredentialsFly(db),
-		GetCredentials:      NewGetCredentials(db),
+		Db:                      db,
+		Study:                   NewStudyRepository(db),
+		StudySegments:           NewStudySegmentsRepository(db),
+		User:                    NewUserRepository(db),
+		SaveCredentialsFly:      NewSaveCredentialsFly(db),
+		SaveCredentialsTypeform: NewSaveCredentialsTypeform(db),
+		GetCredentials:          NewGetCredentials(db),
 	}
 }
