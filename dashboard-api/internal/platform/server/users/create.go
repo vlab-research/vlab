@@ -20,9 +20,9 @@ type createResponse struct {
 
 type RequestBody struct {
 	Clientid     string `json:"clientId" validate:"required"`
-	Clientsecret string
-	NickName     string
-	Accesstoken  string
+	Clientsecret string `json:"clientSecret" validate:"required"`
+	NickName     string `json:"nickName" validate:"required"`
+	Accesstoken  string `json:"accesstoken"`
 }
 
 func CreateHandler(repositories storage.Repositories) gin.HandlerFunc {
@@ -52,32 +52,38 @@ func SaveCredentials(repositories storage.Repositories) gin.HandlerFunc {
 		var tuser RequestBody
 		tconnector := ctx.Query("type")
 
+		if tconnector == "" {
+			tconnector = "fly"
+		}
+
 		decoder := json.NewDecoder(ctx.Request.Body)
 		err := decoder.Decode(&tuser)
 		if err != nil {
 			fmt.Printf("error %s", err)
-			ctx.JSON(501, gin.H{"error": err})
+			ctx.JSON(400, gin.H{"error": "You have not satisfied the structure"})
+			return
 		}
 
 		switch strings.ToLower(tconnector) {
 		case "fly":
-			_, err = repositories.UserSaveCredentials.SaveCredentialsFly(ctx, tuser.Clientid, tuser.NickName)
+			_, err = repositories.SaveCredentialsFly.SaveCredentialsFly(ctx, tuser.Clientid, tuser.NickName)
+			if err != nil {
+				fmt.Println("fly err ->", err)
+				ctx.JSON(401, gin.H{"error": err.Error()})
+				return
+			}
 		case "typeform":
-			_, err = repositories.UserSaveCredentials.SaveCredentialsFly(ctx, tuser.Accesstoken, tuser.NickName)
-		}
+			_, err = repositories.SaveCredentialsTypeform.SaveCredentialsTypeform(ctx, tuser.Accesstoken, tuser.NickName)
+			if err != nil {
+				fmt.Println("typeform err ->", err)
+				ctx.JSON(401, gin.H{"error": err})
+				return
+			}
 
-		fmt.Printf("Decoded Body Request Clientid: %v\n", tuser.Clientid)
-		fmt.Printf("Decoded Body Request NickName: %v\n", tuser.NickName)
-		fmt.Printf("Decoded Body Request Accesstoken : %v\n", tuser.Accesstoken)
-
-		if err != nil {
-			exa := err.Error()
-			fmt.Println("exa: ", exa)
-			fmt.Println("err ->", err)
 		}
 
 		ctx.JSON(http.StatusOK, createResponse{
-			Data: "SaveCredentials...",
+			Data: "Credentials successfully saved!",
 		})
 	}
 }
