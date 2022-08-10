@@ -2,52 +2,107 @@ package storage
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
-	"errors"
-	"testing"
+	"fmt"
 
-	"github.com/DATA-DOG/go-sqlmock"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
+	studiesmanager "github.com/vlab-research/vlab/dashboard-api/internal"
 )
 
-func Test_UserRepository_SaveCredentials_UnexpectedError_during_Query(t *testing.T) {
-	clientId := "auth0|61916c1dab79c900713936d"
-	nickname := "juancarrillodev"
+type UserRepository struct {
+	db *sql.DB
+}
+
+func NewUserRepository(db *sql.DB) *UserRepository {
+	return &UserRepository{
+		db: db,
+	}
+}
+
+func NewSaveCredentialsFly(db *sql.DB) *UserRepository {
+	return &UserRepository{
+		db: db,
+	}
+}
+
+func NewSaveCredentialsTypeform(db *sql.DB) *UserRepository {
+	return &UserRepository{
+		db: db,
+	}
+}
+
+func NewGetCredentials(db *sql.DB) *UserRepository {
+	return &UserRepository{
+		db: db,
+	}
+}
+
+func (r *UserRepository) CreateUser(ctx context.Context, userId string) (studiesmanager.User, error) {
+	_, err := r.db.Exec("INSERT INTO users (id) VALUES ($1)", userId)
+
+	if err != nil {
+		if err.Error() == "ERROR: duplicate key value violates unique constraint \"primary\" (SQLSTATE 23505)" {
+			return studiesmanager.User{}, fmt.Errorf("%w: %s", studiesmanager.ErrUserAlreadyExists, userId)
+		}
+
+		return studiesmanager.User{}, fmt.Errorf("user with id '%s' cannot be created: %v", userId, err)
+	}
+
+	return studiesmanager.User{
+		Id: userId,
+	}, nil
+}
+
+func (r *UserRepository) SaveCredentialsFly(ctx context.Context, clientId string, nickname string) (studiesmanager.User, error) {
+
 	entity := "entity_fake"
 	key := "key123"
 	details := json.RawMessage(`{"first_name": "` + nickname + `"}`)
 
-	db, sqlMock, err := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherEqual))
-	require.NoError(t, err)
+	_, err := r.db.Exec("INSERT INTO credentials (user_id, entity, key, details, rowid) VALUES ($1, $2, $3, $4, $5)", clientId, entity, key, details, 4)
 
-	sqlMock.ExpectExec(
-		"INSERT INTO credentials (user_id, entity, key, details, rowid) VALUES ($1, $2, $3, $4, $5)").
-		WithArgs(clientId, entity, key, details, 4).
-		WillReturnError(errors.New("unexpected-error"))
+	if err != nil {
+		if err.Error() == "ERROR: duplicate key value violates unique constraint \"primary\" (SQLSTATE 23505)" {
+			return studiesmanager.User{}, fmt.Errorf("%w: %s", studiesmanager.ErrUserAlreadyExists, clientId)
+		}
 
-	repo := NewSaveCredentialsFly(db)
+		if err.Error() == "ERROR: insert on table \"credentials\" violates foreign key constraint \"fk_user_id_ref_users\" (SQLSTATE 23503)" {
+			return studiesmanager.User{}, fmt.Errorf("%w: %s", studiesmanager.ErrIdNotExists, clientId)
+		}
 
-	_, err = repo.SaveCredentialsFly(context.Background(), clientId, nickname)
+		return studiesmanager.User{}, fmt.Errorf("user with id '%s' cannot be created: %v", clientId, err)
+	}
 
-	assert.NoError(t, sqlMock.ExpectationsWereMet())
-	assert.Equal(t, errors.New("user with id 'auth0|61916c1dab79c900713936d' cannot be created: unexpected-error"), err)
+	return studiesmanager.User{
+		Id: clientId,
+	}, nil
 }
 
-func Test_UserRepository_GetCredentials_UnexpectedError_during_Query(t *testing.T) {
-	userId := "auth0|47016c1dab79c900713937fa"
+func (r *UserRepository) SaveCredentialsTypeform(ctx context.Context, clientId string, nickname string) (studiesmanager.User, error) {
 
-	db, sqlMock, err := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherEqual))
-	require.NoError(t, err)
+	fmt.Println("Logic...")
 
-	sqlMock.ExpectQuery(
-		"SELECT * FROM credentials WHERE user_id = $1").
-		WithArgs(userId).
-		WillReturnError(errors.New("unexpected-error"))
+	return studiesmanager.User{
+		Id: clientId,
+	}, nil
+}
 
-	repo := NewGetCredentials(db)
+func (r *UserRepository) GetCredentials(ctx context.Context, clientId string) (studiesmanager.Credentials, error) {
 
-	_, err = repo.GetCredentials(context.Background(), userId)
+	row := r.db.QueryRow("SELECT * FROM credentials WHERE user_id = $1", clientId)
 
-	assert.Equal(t, errors.New("user with id 'auth0|47016c1dab79c900713937fa' not exists: unexpected-error"), err)
+	c := &studiesmanager.Credentials{}
+
+	if err := row.Scan(&c.Userid, &c.Entity, &c.Key, &c.Created, &c.Details); err != nil {
+		return studiesmanager.Credentials{}, fmt.Errorf("user with id '%s' not exists: %v", clientId, err)
+	}
+
+	return studiesmanager.Credentials{
+		Userid:  c.Userid,
+		Entity:  c.Entity,
+		Key:     c.Key,
+		Created: c.Created,
+		Details: c.Details,
+	}, nil
+
 }
