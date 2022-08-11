@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"log"
+	"time"
 
 	_ "github.com/jackc/pgx/v4/stdlib"
 	studiesmanager "github.com/vlab-research/vlab/dashboard-api/internal"
@@ -17,6 +18,14 @@ type Repositories struct {
 	SaveCredentialsFly      studiesmanager.SaveCredentialsFly
 	GetCredentials          studiesmanager.GetCredentials
 	SaveCredentialsTypeform studiesmanager.SaveCredentialsTypeform
+}
+
+type Credentials struct {
+	Userid  string
+	Entity  string
+	Key     string
+	Created time.Time
+	Details string
 }
 
 func InitializeRepositories(dbURI string) Repositories {
