@@ -2,6 +2,7 @@ package studiesmanager
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"time"
 )
@@ -36,5 +37,5 @@ type Credentials struct {
 	Entity  string
 	Key     string
 	Created time.Time
-	Details string
+	Details json.RawMessage
 }
