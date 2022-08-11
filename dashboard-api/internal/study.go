@@ -2,7 +2,9 @@ package studiesmanager
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
+	"time"
 )
 
 type StudyRepository interface {
@@ -27,5 +29,15 @@ func NewStudy(id, name, slug string, createdAt int64) Study {
 		Name:      name,
 		Slug:      slug,
 		CreatedAt: createdAt,
+	}
+}
+
+func NewCredentials(id, entity, key string, details json.RawMessage, createdAt time.Time) Credentials {
+	return Credentials{
+		Userid:  id,
+		Key:     key,
+		Entity:  entity,
+		Created: createdAt,
+		Details: details,
 	}
 }
