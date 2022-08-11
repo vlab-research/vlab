@@ -25,6 +25,12 @@ func NewSaveCredentialsFly(db *sql.DB) *UserRepository {
 	}
 }
 
+func NewSaveCredentialsTypeform(db *sql.DB) *UserRepository {
+	return &UserRepository{
+		db: db,
+	}
+}
+
 func NewGetCredentials(db *sql.DB) *UserRepository {
 	return &UserRepository{
 		db: db,
