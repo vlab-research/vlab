@@ -82,21 +82,14 @@ func (r *UserRepository) SaveCredentialsTypeform(ctx context.Context, clientId s
 }
 
 func (r *UserRepository) GetCredentials(ctx context.Context, clientId string) (studiesmanager.Credentials, error) {
-
-	row := r.db.QueryRow("SELECT * FROM credentials WHERE user_id = $1", clientId)
-
-	c := &studiesmanager.Credentials{}
-
-	if err := row.Scan(&c.Userid, &c.Entity, &c.Key, &c.Created, &c.Details); err != nil {
-		return studiesmanager.Credentials{}, fmt.Errorf("user with id '%s' not exists: %v", clientId, err)
-	}
-
-	return studiesmanager.Credentials{
-		Userid:  c.Userid,
-		Entity:  c.Entity,
-		Key:     c.Key,
-		Created: c.Created,
-		Details: c.Details,
-	}, nil
-
+	var c studiesmanager.Credentials
+	row := r.db.QueryRowContext(ctx, "SELECT * FROM credentials WHERE user_id = $1", clientId)
+	err := row.Scan(
+		&c.Userid,
+		&c.Entity,
+		&c.Key,
+		&c.Created,
+		&c.Details,
+	)
+	return c, err
 }
