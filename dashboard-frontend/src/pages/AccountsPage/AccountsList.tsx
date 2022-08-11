@@ -5,7 +5,6 @@ import { createSlugFor } from '../../helpers/strings';
 
 import InputToken from './InputToken';
 import InputSecret from './InputSecret';
-import ConnectButton from '../../components/ConnectButton';
 
 const AccountsList = ({ accounts }: { accounts: AccountResource[] }) => {
   return (
@@ -28,7 +27,7 @@ const AccountListItem = ({
   slug: string;
 }) => (
   <li>
-    <div className="px-4 py-4 sm:px-6 py-6">
+    <div className="px-4 sm:px-6 py-6">
       <div className="flex flex-col sm:grid grid-cols-4 gap-4">
         <p className="text-sm font-medium text-indigo-600 truncate col-span-1">
           {account.name}
@@ -39,18 +38,15 @@ const AccountListItem = ({
               account={
                 account.connectedAccount ? account.connectedAccount : null
               }
+              slug={slug}
             />
           ) : (
             <InputToken
               account={
                 account.connectedAccount ? account.connectedAccount : null
               }
+              slug={slug}
             />
-          )}
-          {account.connectedAccount ? (
-            <ConnectButton buttonLabel="Update" slug={slug} />
-          ) : (
-            <ConnectButton buttonLabel="Connect" slug={slug} />
           )}
         </div>
       </div>
