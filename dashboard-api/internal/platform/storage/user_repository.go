@@ -68,6 +68,13 @@ func (r *UserRepository) SaveCredentialsFly(ctx context.Context, clientId string
 	}, nil
 }
 
+func (r *UserRepository) SaveCredentialsTypeform(ctx context.Context, clientId string, nickname string) (studiesmanager.User, error) {
+	fmt.Println("Logic...")
+	return studiesmanager.User{
+		Id: clientId,
+	}, nil
+}
+
 func (r *UserRepository) GetCredentials(ctx context.Context, clientId string) (studiesmanager.Credentials, error) {
 
 	row := r.db.QueryRow("SELECT * FROM credentials WHERE user_id = $1", clientId)
