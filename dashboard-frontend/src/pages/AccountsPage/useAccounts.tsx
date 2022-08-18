@@ -16,7 +16,7 @@ const useAccounts = () => {
   return {
     query,
     queryKey,
-    accounts: query.data?.data || [],
+    connectedAccounts: query.data?.data || [],
     errorMessage: query.error?.message || defaultErrorMessage,
   };
 };
