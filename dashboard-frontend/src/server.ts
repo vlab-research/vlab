@@ -92,7 +92,7 @@ export const makeServer = ({ environment = 'development' } = {}) => {
         }
       );
 
-      const staticAccountResources = [
+      const connectedAccounts = [
         {
           name: 'Fly',
           authType: 'secret',
@@ -114,15 +114,9 @@ export const makeServer = ({ environment = 'development' } = {}) => {
             },
           },
         },
-        {
-          name: 'Some unconnected account',
-          authType: 'token',
-        },
       ];
 
-      staticAccountResources.map(account =>
-        createAccountResource(server, account)
-      );
+      connectedAccounts.map(account => createAccountResource(server, account));
     },
 
     routes() {
