@@ -1,16 +1,40 @@
 import React from 'react';
-
 import { AccountResource } from '../../types/account';
 import { createSlugFor } from '../../helpers/strings';
-
 import InputToken from './InputToken';
 import InputSecret from './InputSecret';
 import ConnectButton from '../../components/ConnectButton';
+import { arrayMerge } from '../../helpers/arrays';
 
-const AccountsList = ({ accounts }: { accounts: AccountResource[] }) => {
+const staticAccountResources = [
+  {
+    name: 'Fly',
+    authType: 'secret',
+  },
+  {
+    name: 'Typeform',
+    authType: 'token',
+  },
+  {
+    name: 'Some other account',
+    authType: 'token',
+  },
+];
+
+const AccountList = ({
+  connectedAccounts,
+}: {
+  connectedAccounts: AccountResource[];
+}) => {
+  const allAccounts = arrayMerge(
+    staticAccountResources,
+    connectedAccounts,
+    'name'
+  );
+
   return (
     <ListLayout>
-      {accounts.map((account, index) => (
+      {allAccounts.map(account => (
         <AccountListItem
           key={account.name}
           account={account}
@@ -27,7 +51,7 @@ const AccountListItem = ({
   account: AccountResource;
   slug: string;
 }) => (
-  <li>
+  <li data-testid="account-list-item">
     <div className="px-4 py-4 sm:px-6 py-6">
       <div className="flex flex-col sm:grid grid-cols-4 gap-4">
         <p className="text-sm font-medium text-indigo-600 truncate col-span-1">
@@ -73,7 +97,7 @@ const AccountListSkeletonItems = ({ number }: { number: number }) => (
     {Array.from({ length: number }, (_, index) => (
       <li
         className="px-4 py-4 sm:px-6"
-        data-testid="study-list-skeleton-item"
+        data-testid="account-list-skeleton-item"
         key={index}
       >
         <div
@@ -97,4 +121,4 @@ const ListLayout = ({ children }: { children: React.ReactNode }) => (
   </div>
 );
 
-export default AccountsList;
+export default AccountList;

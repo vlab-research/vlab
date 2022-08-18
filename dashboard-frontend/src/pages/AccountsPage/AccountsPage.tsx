@@ -1,10 +1,7 @@
-import ErrorPlaceholder, {
-  Explanation,
-  PlaceholderLayout,
-} from '../../components/ErrorPlaceholder';
+import ErrorPlaceholder from '../../components/ErrorPlaceholder';
 import PageLayout from '../../components/PageLayout';
 import { queryCache } from 'react-query';
-import AccountsList, { AccountListSkeleton } from './AccountsList';
+import AccountList, { AccountListSkeleton } from './AccountList';
 import useAccounts from './useAccounts';
 
 const AcccountsPage = () => (
@@ -14,10 +11,10 @@ const AcccountsPage = () => (
 );
 
 const PageContent = () => {
-  const { query, queryKey, accounts, errorMessage } = useAccounts();
+  const { query, queryKey, connectedAccounts, errorMessage } = useAccounts();
 
   if (query.isLoading) {
-    return <AccountListSkeleton numberItems={accounts.length} />;
+    return <AccountListSkeleton numberItems={connectedAccounts.length} />;
   }
 
   if (query.isError) {
@@ -29,17 +26,7 @@ const PageContent = () => {
     );
   }
 
-  if (!accounts.length) {
-    return <NoAccountsPlaceholder />;
-  }
-
-  return <AccountsList accounts={accounts}></AccountsList>;
+  return <AccountList connectedAccounts={connectedAccounts}></AccountList>;
 };
-
-const NoAccountsPlaceholder = () => (
-  <PlaceholderLayout>
-    <Explanation>Oops, no accounts found!</Explanation>
-  </PlaceholderLayout>
-);
 
 export default AcccountsPage;

@@ -15,7 +15,7 @@ describe('lastValue', () => {
 describe('arrayMerge', () => {
   it('returns arr1 if arr2 is empty', () => {
     const arr1 = [{ name: 'foo' }, { name: 'bar' }, { name: 'baz' }];
-    const arr2 = [];
+    const arr2 = [{}];
     const res = arrayMerge(arr1, arr2, 'name');
     expect(res).toEqual(arr1);
   });
