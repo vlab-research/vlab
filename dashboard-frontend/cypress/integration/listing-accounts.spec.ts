@@ -41,8 +41,9 @@ describe('Given an authenticated user', () => {
       cy.visit('/accounts');
     });
 
-    it('sees the token or secret associated with the connected account', () => {
+    it('sees the data associated with the connected account', () => {
       cy.get('[data-testid="account-list-item"]').should('contain', 'Fly');
+      // TODO test for credentials
     });
 
     it('sees a button to update the credential(s) of the connected account', () => {
