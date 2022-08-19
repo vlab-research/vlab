@@ -19,10 +19,8 @@ const matcher = (el: any, arr2: [], key: string) => {
   for (let i = 0; i < arr2.length; i++) {
     if (el[key] === arr2[i][key]) {
       return arr2[i];
-    }
-    if (!el[key] === arr2[i][key]) {
+    } else {
       return el;
     }
   }
-  return el;
 };
