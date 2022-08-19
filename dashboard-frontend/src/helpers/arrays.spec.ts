@@ -1,4 +1,4 @@
-import { lastValue, arrayMerge } from './arrays';
+import { lastValue, arrayMerge, arrayMerge2 } from './arrays';
 
 describe('lastValue', () => {
   it('returns last value of a given array', () => {
@@ -47,6 +47,8 @@ describe('arrayMerge', () => {
       { name: 'baz', data: '1234' },
     ];
     const res = arrayMerge(arr1, arr2, 'name');
+
+    console.log(res);
 
     expect(res).toStrictEqual(expectation);
   });
