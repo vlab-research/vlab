@@ -50,22 +50,4 @@ describe('arrayMerge', () => {
 
     expect(res).toStrictEqual(expectation);
   });
-
-  it('merges the properties of three matching array elements into another', () => {
-    const arr1 = [{ name: 'foo' }, { name: 'bar' }, { name: 'baz' }];
-    const arr2 = [
-      { name: 'foo', data: 'abcd' },
-      { name: 'bar', data: '!"·$' },
-      { name: 'baz', data: '1234' },
-    ];
-
-    const expectation = [
-      { name: 'foo', data: 'abcd' },
-      { name: 'bar', data: '!"·$' },
-      { name: 'baz', data: '1234' },
-    ];
-    const res = arrayMerge(arr1, arr2, 'name');
-
-    expect(res).toStrictEqual(expectation);
-  });
 });
