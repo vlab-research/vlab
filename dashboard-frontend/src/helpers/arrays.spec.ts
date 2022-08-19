@@ -48,8 +48,6 @@ describe('arrayMerge', () => {
     ];
     const res = arrayMerge(arr1, arr2, 'name');
 
-    console.log(res);
-
     expect(res).toStrictEqual(expectation);
   });
 });
