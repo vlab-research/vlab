@@ -1,4 +1,4 @@
-import { lastValue, arrayMerge, arrayMerge2 } from './arrays';
+import { lastValue, arrayMerge } from './arrays';
 
 describe('lastValue', () => {
   it('returns last value of a given array', () => {
