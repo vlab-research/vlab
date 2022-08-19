@@ -44,6 +44,7 @@ const AccountList = ({
     </ListLayout>
   );
 };
+
 const AccountListItem = ({
   account,
   slug,
@@ -72,9 +73,9 @@ const AccountListItem = ({
             />
           )}
           {account.connectedAccount ? (
-            <ConnectButton buttonLabel="Update" slug={slug} />
+            <ConnectButton buttonLabel="update" slug={slug} />
           ) : (
-            <ConnectButton buttonLabel="Connect" slug={slug} />
+            <ConnectButton buttonLabel="connect" slug={slug} />
           )}
         </div>
       </div>

@@ -11,14 +11,11 @@ const InputSecret = ({
         Client ID
       </label>
       <input
+        data-testid="input-client-id"
         type="text"
-        id="client-id"
         className="bg-gray-100 rounded p-2 border focus:outline-none focus:border-blue-500"
-        placeholder={
-          account?.credentials
-            ? account?.credentials?.clientId
-            : 'Enter client ID'
-        }
+        value={account?.credentials ? account?.credentials?.clientId : ''}
+        placeholder="Enter client ID"
       ></input>
     </div>
     <div className="flex flex-col mb-4">
@@ -26,14 +23,11 @@ const InputSecret = ({
         Client secret
       </label>
       <input
+        data-testid="input-client-secret"
         type="text"
-        id="client-secret"
         className="placeholder-gray-500 bg-gray-100 rounded p-2 border focus:outline-none focus:border-blue-500"
-        placeholder={
-          account?.credentials
-            ? account?.credentials?.clientSecret
-            : 'Enter client secret'
-        }
+        value={account?.credentials ? account?.credentials?.clientSecret : ''}
+        placeholder="Enter client secret"
       ></input>
     </div>
   </>

@@ -7,9 +7,10 @@ const InputToken = ({ account }: { account: TokenAccountResource | null }) => (
         Token
       </label>
       <input
+        data-testid="input-token"
         type="text"
-        id="token"
         className="bg-gray-100 rounded p-2 border focus:outline-none focus:border-blue-500"
+        value={account?.credentials ? account?.credentials?.token : ''}
         placeholder={
           account?.credentials ? account?.credentials?.token : 'Enter token'
         }
