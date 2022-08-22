@@ -2,8 +2,10 @@ import { SecretAccountResource } from '../../types/account';
 
 const InputSecret = ({
   account,
+  index,
 }: {
   account: SecretAccountResource | null;
+  index: number;
 }) => (
   <>
     <div className="flex flex-col mb-4">
@@ -11,7 +13,7 @@ const InputSecret = ({
         Client ID
       </label>
       <input
-        data-testid="input-client-id"
+        data-testid={`input-client-id-${index}`}
         type="text"
         className="bg-gray-100 rounded p-2 border focus:outline-none focus:border-blue-500"
         value={account?.credentials ? account?.credentials?.clientId : ''}
@@ -23,7 +25,7 @@ const InputSecret = ({
         Client secret
       </label>
       <input
-        data-testid="input-client-secret"
+        data-testid={`input-client-secret-${index}`}
         type="text"
         className="placeholder-gray-500 bg-gray-100 rounded p-2 border focus:outline-none focus:border-blue-500"
         value={account?.credentials ? account?.credentials?.clientSecret : ''}

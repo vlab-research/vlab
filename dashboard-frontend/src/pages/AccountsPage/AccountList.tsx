@@ -34,11 +34,12 @@ const AccountList = ({
 
   return (
     <ListLayout>
-      {allAccounts.map(account => (
+      {allAccounts.map((account, index) => (
         <AccountListItem
           key={account.name}
           account={account}
           slug={createSlugFor(account.name)}
+          index={index}
         />
       ))}
     </ListLayout>
@@ -48,9 +49,11 @@ const AccountList = ({
 const AccountListItem = ({
   account,
   slug,
+  index,
 }: {
   account: AccountResource;
   slug: string;
+  index: number;
 }) => (
   <li data-testid="account-list-item">
     <div className="px-4 py-4 sm:px-6 py-6">
@@ -64,12 +67,14 @@ const AccountListItem = ({
               account={
                 account.connectedAccount ? account.connectedAccount : null
               }
+              index={index}
             />
           ) : (
             <InputToken
               account={
                 account.connectedAccount ? account.connectedAccount : null
               }
+              index={index}
             />
           )}
           {account.connectedAccount ? (
