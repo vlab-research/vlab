@@ -21,8 +21,7 @@ describe('Given an authenticated user', () => {
     it('sees a connect button for each unconnected account', () => {
       cy.get('[data-testid="connect-button-connect"]')
         .should('contain', 'connect')
-        .should('have.length', 3)
-        .should('not.contain', 'update');
+        .should('have.length', 3);
     });
 
     it('sees no update buttons because all accounts are unconnected', () => {
