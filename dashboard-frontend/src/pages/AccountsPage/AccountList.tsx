@@ -6,6 +6,24 @@ import InputSecret from './InputSecret';
 import ConnectButton from '../../components/ConnectButton';
 import { arrayMerge } from '../../helpers/arrays';
 
+const createAccount = async () => {
+  try {
+    const res = await fetch('/accounts', {
+      method: 'POST',
+      body: JSON.stringify({ name: 'fly' }),
+    });
+    console.log(res);
+  } catch (err) {
+    console.log(err);
+  }
+};
+
+const submitForm = async (event: any) => {
+  event.preventDefault();
+  createAccount();
+  // if not connected POST else PUT
+};
+
 const staticAccountResources = [
   {
     name: 'Fly',
@@ -31,6 +49,11 @@ const AccountList = ({
     connectedAccounts,
     'name'
   );
+
+  // const [accounts, setAccounts] = useState(null);
+
+  // const [accountName, setAccountName] = useState('');
+  // const [credentials, setCredentials] = useState('');
 
   return (
     <ListLayout>
@@ -61,28 +84,30 @@ const AccountListItem = ({
         <p className="text-sm font-medium text-indigo-600 truncate col-span-1">
           {account.name}
         </p>
-        <div className="col-span-2">
-          {account.authType === 'secret' ? (
-            <InputSecret
-              account={
-                account.connectedAccount ? account.connectedAccount : null
-              }
-              index={index}
-            />
-          ) : (
-            <InputToken
-              account={
-                account.connectedAccount ? account.connectedAccount : null
-              }
-              index={index}
-            />
-          )}
-          {account.connectedAccount ? (
-            <ConnectButton buttonLabel="update" slug={slug} />
-          ) : (
-            <ConnectButton buttonLabel="connect" slug={slug} />
-          )}
-        </div>
+        <form onSubmit={submitForm}>
+          <div className="col-span-2">
+            {account.authType === 'secret' ? (
+              <InputSecret
+                account={
+                  account.connectedAccount ? account.connectedAccount : null
+                }
+                index={index}
+              />
+            ) : (
+              <InputToken
+                account={
+                  account.connectedAccount ? account.connectedAccount : null
+                }
+                index={index}
+              />
+            )}
+            {account.connectedAccount ? (
+              <ConnectButton buttonLabel="update" slug={slug} />
+            ) : (
+              <ConnectButton buttonLabel="connect" slug={slug} />
+            )}
+          </div>
+        </form>
       </div>
     </div>
   </li>

@@ -20,6 +20,7 @@ const InputToken = ({
         placeholder={
           account?.credentials ? account?.credentials?.token : 'Enter token'
         }
+        onChange={e => e.target.value}
       ></input>
     </div>
   </>
