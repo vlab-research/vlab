@@ -18,6 +18,7 @@ const InputSecret = ({
         className="bg-gray-100 rounded p-2 border focus:outline-none focus:border-blue-500"
         value={account?.credentials ? account?.credentials?.clientId : ''}
         placeholder="Enter client ID"
+        onChange={e => e.target.value}
       ></input>
     </div>
     <div className="flex flex-col mb-4">
@@ -30,6 +31,7 @@ const InputSecret = ({
         className="placeholder-gray-500 bg-gray-100 rounded p-2 border focus:outline-none focus:border-blue-500"
         value={account?.credentials ? account?.credentials?.clientSecret : ''}
         placeholder="Enter client secret"
+        onChange={e => e.target.value}
       ></input>
     </div>
   </>

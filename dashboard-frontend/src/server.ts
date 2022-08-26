@@ -240,17 +240,17 @@ export const makeServer = ({ environment = 'development' } = {}) => {
         };
       });
 
-      this.get('/accounts/:slug', ({ db }, request) => {
+      this.post('/accounts', ({ db }, request) => {
         if (!isAuthenticatedRequest(request)) {
           return unauthorizedResponse;
         }
 
-        const account = (db.accounts as any).findBy({
-          slug: request.params.slug,
-        });
+        const attrs = JSON.parse(request.requestBody);
 
         return {
-          data: account,
+          data: attrs,
+          status: true,
+          successMessage: 'New account successfully connected.',
         };
       });
 
