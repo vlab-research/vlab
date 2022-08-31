@@ -245,11 +245,12 @@ export const makeServer = ({ environment = 'development' } = {}) => {
           return unauthorizedResponse;
         }
 
-        const attrs = JSON.parse(request.requestBody);
+        const data = Array.from(db.accounts as any);
+        const newData = JSON.parse(request.requestBody);
+        data.push(newData); // replace with db.accounts.insert(newData)
 
         return {
-          data: attrs,
-          status: true,
+          data, // return just the new data {}
           successMessage: 'New account successfully connected.',
         };
       });

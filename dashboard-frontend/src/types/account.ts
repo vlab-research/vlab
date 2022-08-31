@@ -26,3 +26,9 @@ export interface SecretAccountResource extends ConnectedAccountResource {
     clientSecret: string;
   };
 }
+
+export interface CreateAccountApiResponse
+  extends ApiResponse<{
+    id: string;
+    data: string;
+  }> {}
