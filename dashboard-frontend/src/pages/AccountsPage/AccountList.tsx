@@ -1,28 +1,10 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { AccountResource } from '../../types/account';
-import { createSlugFor } from '../../helpers/strings';
 import InputToken from './InputToken';
 import InputSecret from './InputSecret';
 import ConnectButton from '../../components/ConnectButton';
 import { arrayMerge } from '../../helpers/arrays';
-
-const createAccount = async () => {
-  try {
-    const res = await fetch('/accounts', {
-      method: 'POST',
-      body: JSON.stringify({ name: 'fly' }),
-    });
-    console.log(res);
-  } catch (err) {
-    console.log(err);
-  }
-};
-
-const submitForm = async (event: any) => {
-  event.preventDefault();
-  createAccount();
-  // if not connected POST else PUT
-};
+import useCreateAccount from './useCreateAccount';
 
 const staticAccountResources = [
   {
@@ -49,69 +31,97 @@ const AccountList = ({
     connectedAccounts,
     'name'
   );
-
-  // const [accounts, setAccounts] = useState(null);
-
-  // const [accountName, setAccountName] = useState('');
-  // const [credentials, setCredentials] = useState('');
-
   return (
     <ListLayout>
       {allAccounts.map((account, index) => (
-        <AccountListItem
-          key={account.name}
-          account={account}
-          slug={createSlugFor(account.name)}
-          index={index}
-        />
+        <AccountListItem key={account.name} account={account} index={index} />
       ))}
     </ListLayout>
   );
 };
 
+const testAccount = {
+  name: 'Some other account',
+  authType: 'token',
+  connectedAccount: {
+    createdAt: Date.now(),
+    credentials: {
+      token: 'some token', // TODO replace with formData
+    },
+  },
+};
+
 const AccountListItem = ({
   account,
-  slug,
   index,
 }: {
   account: AccountResource;
-  slug: string;
   index: number;
-}) => (
-  <li data-testid="account-list-item">
-    <div className="px-4 py-4 sm:px-6 py-6">
-      <div className="flex flex-col sm:grid grid-cols-4 gap-4">
-        <p className="text-sm font-medium text-indigo-600 truncate col-span-1">
-          {account.name}
-        </p>
-        <form onSubmit={submitForm}>
-          <div className="col-span-2">
-            {account.authType === 'secret' ? (
-              <InputSecret
-                account={
-                  account.connectedAccount ? account.connectedAccount : null
-                }
-                index={index}
-              />
-            ) : (
-              <InputToken
-                account={
-                  account.connectedAccount ? account.connectedAccount : null
-                }
-                index={index}
-              />
-            )}
-            {account.connectedAccount ? (
-              <ConnectButton buttonLabel="update" slug={slug} />
-            ) : (
-              <ConnectButton buttonLabel="connect" slug={slug} />
-            )}
-          </div>
-        </form>
+}) => {
+  const { query, queryKey, data, errorMessage } = useCreateAccount(testAccount);
+
+  const initialFormData = {
+    'client-id': '',
+    'client-secret': '',
+    token: '',
+  };
+
+  const [formData, setFormData] = useState({
+    initialFormData,
+  });
+
+  const handleSubmit = (event: any) => {
+    console.log('handleSubmit ran');
+    event.preventDefault(); // prevent page refresh
+
+    // 👇️ access input values here
+    console.log('formData: ', formData);
+  };
+
+  return (
+    <li data-testid="account-list-item">
+      <div className="px-4 py-4 sm:px-6 py-6">
+        <div className="flex flex-col sm:grid grid-cols-4 gap-4">
+          <h2 className="text-sm font-medium text-indigo-600 truncate col-span-1">
+            {account.name}
+          </h2>
+          <form onSubmit={handleSubmit}>
+            <div className="col-span-2">
+              {account.authType === 'secret' ? (
+                <InputSecret
+                  account={
+                    account.connectedAccount ? account.connectedAccount : null
+                  }
+                  index={index}
+                  setFormData={setFormData}
+                />
+              ) : (
+                <InputToken
+                  account={
+                    account.connectedAccount ? account.connectedAccount : null
+                  }
+                  index={index}
+                  setFormData={setFormData}
+                />
+              )}
+              {account.connectedAccount ? (
+                <ConnectButton
+                  buttonLabel="update"
+                  handleSubmit={handleSubmit}
+                />
+              ) : (
+                <ConnectButton
+                  buttonLabel="connect"
+                  handleSubmit={handleSubmit}
+                />
+              )}
+            </div>
+          </form>
+        </div>
       </div>
-    </div>
-  </li>
-);
+    </li>
+  );
+};
 
 export const AccountListSkeleton = ({
   numberItems,
