@@ -10,7 +10,12 @@ const ErrorPlaceholder = ({
 }) => (
   <PlaceholderLayout>
     <Explanation>{message}</Explanation>
-    <PrimaryButton className="mt-8" size="500" onClick={onClickTryAgain}>
+    <PrimaryButton
+      rounded
+      className="mt-8"
+      size="500"
+      onClick={onClickTryAgain}
+    >
       Please try again
     </PrimaryButton>
   </PlaceholderLayout>

@@ -35,6 +35,7 @@ const LoginPage = ({
 
             <PrimaryButton
               size="500"
+              rounded
               onClick={loginWithRedirect}
               className="mt-8 pl-32 pr-32 sm:pl-44 sm:pr-44"
             >
