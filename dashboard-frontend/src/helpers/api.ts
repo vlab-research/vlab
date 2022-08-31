@@ -93,17 +93,6 @@ const fetchAccounts = ({
     accessToken,
   });
 
-const fetchAccount = ({
-  slug,
-  accessToken,
-}: {
-  slug: string;
-  accessToken: string;
-}) =>
-  apiRequest<AccountsApiResponse>(`/api/accounts/${slug}`, {
-    accessToken,
-  }).then(({ data }) => data);
-
 const apiRequest = async <ApiResponse>(
   url: string,
   {
@@ -131,9 +120,12 @@ const apiRequest = async <ApiResponse>(
   try {
     const response = await fetchWithTimeout(url, {
       timeout: 10000,
-      headers: requestHeaders,
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        Accept: 'application/json',
+        'Content-Type': 'application/json',
+      },
       method,
-      body: requestBody,
     });
 
     const isExpectedResponse = expectedStatusCodes
@@ -177,4 +169,5 @@ export const authenticatedApiCalls = {
   fetchStudySegmentsProgress,
   createUser,
   createStudy,
+  fetchAccounts,
 };
