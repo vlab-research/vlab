@@ -6,7 +6,10 @@ import {
   StudyApiResponse,
   StudySegmentsProgressApiResponse,
 } from '../types/study';
-import { AccountsApiResponse } from '../types/account';
+import {
+  AccountsApiResponse,
+  CreateAccountApiResponse,
+} from '../types/account';
 import { Cursor } from '../types/api';
 
 /**
@@ -93,6 +96,27 @@ const fetchAccounts = ({
     accessToken,
   });
 
+const createAccount = ({
+  data,
+  accessToken,
+}: {
+  data: string;
+  accessToken: string;
+}) => {
+  const accountCreatedStatusCode = 201;
+  const accountAlreadyExistsStatusCode = 422;
+
+  return apiRequest<CreateAccountApiResponse>('/api/accounts', {
+    accessToken,
+    method: 'POST',
+    body: { data },
+    expectedStatusCodes: [
+      accountCreatedStatusCode,
+      accountAlreadyExistsStatusCode,
+    ],
+  });
+};
+
 const apiRequest = async <ApiResponse>(
   url: string,
   {
@@ -170,4 +194,5 @@ export const authenticatedApiCalls = {
   createUser,
   createStudy,
   fetchAccounts,
+  createAccount,
 };

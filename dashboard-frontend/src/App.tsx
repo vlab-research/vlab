@@ -65,6 +65,10 @@ const Routes = () => {
           <NewStudyPage />
         </AuthenticatedRoute>
 
+        <AuthenticatedRoute path="/accounts">
+          <AccountsPage />
+        </AuthenticatedRoute>
+
         <Route
           path="/login"
           render={() => (isAuthenticated ? <Redirect to="/" /> : <LoginPage />)}

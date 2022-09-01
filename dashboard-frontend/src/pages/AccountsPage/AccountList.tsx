@@ -4,7 +4,7 @@ import InputToken from './InputToken';
 import InputSecret from './InputSecret';
 import ConnectButton from '../../components/ConnectButton';
 import { arrayMerge } from '../../helpers/arrays';
-import useCreateAccount from './useCreateAccount';
+import useCreateAccount from '../../hooks/useCreateAccount';
 
 const staticAccountResources = [
   {

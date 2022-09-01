@@ -1,6 +1,6 @@
 import { useQuery } from 'react-query';
-import useAuthenticatedApi from '../../hooks/useAuthenticatedApi';
-import { AccountResource } from '../../types/account';
+import { AccountResource } from '../types/account';
+import useAuthenticatedApi from './useAuthenticatedApi';
 
 const defaultErrorMessage =
   'Something went wrong while connecting your account.';

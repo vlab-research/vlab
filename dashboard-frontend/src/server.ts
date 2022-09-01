@@ -275,6 +275,33 @@ export const makeServer = ({ environment = 'development' } = {}) => {
         };
       });
 
+      this.get('/accounts', ({ db }, request) => {
+        if (!isAuthenticatedRequest(request)) {
+          return unauthorizedResponse;
+        }
+
+        const data = Array.from(db.accounts as any);
+
+        return {
+          data,
+        };
+      });
+
+      this.post('/accounts', ({ db }, request) => {
+        if (!isAuthenticatedRequest(request)) {
+          return unauthorizedResponse;
+        }
+
+        const data = Array.from(db.accounts as any);
+        const newData = JSON.parse(request.requestBody);
+        data.push(newData); // replace with db.accounts.insert(newData)
+
+        return {
+          data, // return just the new data {}
+          successMessage: 'New account successfully connected.',
+        };
+      });
+
       this.passthrough(`https://${process.env.REACT_APP_AUTH0_DOMAIN}/**`);
     },
   });
