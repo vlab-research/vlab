@@ -61,12 +61,12 @@ const Routes = () => {
           <StudyPage />
         </AuthenticatedRoute>
 
-        <AuthenticatedRoute path="/new-study">
-          <NewStudyPage />
-        </AuthenticatedRoute>
-
         <AuthenticatedRoute path="/accounts">
           <AccountsPage />
+        </AuthenticatedRoute>
+
+        <AuthenticatedRoute path="/new-study">
+          <NewStudyPage />
         </AuthenticatedRoute>
 
         <Route

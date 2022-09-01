@@ -7,6 +7,7 @@ import {
   StudySegmentsProgressApiResponse,
 } from '../types/study';
 import {
+  AccountResource,
   AccountsApiResponse,
   CreateAccountApiResponse,
 } from '../types/account';
@@ -97,10 +98,10 @@ const fetchAccounts = ({
   });
 
 const createAccount = ({
-  data,
+  account,
   accessToken,
 }: {
-  data: string;
+  account: AccountResource;
   accessToken: string;
 }) => {
   const accountCreatedStatusCode = 201;
@@ -109,7 +110,7 @@ const createAccount = ({
   return apiRequest<CreateAccountApiResponse>('/api/accounts', {
     accessToken,
     method: 'POST',
-    body: { data },
+    body: { account },
     expectedStatusCodes: [
       accountCreatedStatusCode,
       accountAlreadyExistsStatusCode,

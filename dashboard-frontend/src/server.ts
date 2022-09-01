@@ -292,9 +292,8 @@ export const makeServer = ({ environment = 'development' } = {}) => {
           return unauthorizedResponse;
         }
 
-        const data = Array.from(db.accounts as any);
-        const newData = JSON.parse(request.requestBody);
-        data.push(newData); // replace with db.accounts.insert(newData)
+        const data = JSON.parse(request.requestBody);
+        db.accounts.insert(data);
 
         return {
           data, // return just the new data {}

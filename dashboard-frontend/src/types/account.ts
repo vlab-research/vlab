@@ -30,5 +30,5 @@ export interface SecretAccountResource extends ConnectedAccountResource {
 export interface CreateAccountApiResponse
   extends ApiResponse<{
     id: string;
-    data: string;
+    data: AccountResource;
   }> {}
