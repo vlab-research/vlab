@@ -296,7 +296,7 @@ export const makeServer = ({ environment = 'development' } = {}) => {
         db.accounts.insert(data);
 
         return {
-          data, // return just the new data {}
+          data,
           successMessage: 'New account successfully connected.',
         };
       });
