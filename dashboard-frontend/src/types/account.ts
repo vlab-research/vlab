@@ -3,6 +3,9 @@ import { ApiResponse } from './api';
 export interface AccountsApiResponse extends ApiResponse<AccountResource[]> {}
 export interface AccountApiResponse extends ApiResponse<AccountResource> {}
 
+export interface CreateAccountApiResponse
+  extends ApiResponse<AccountResource> {}
+
 export interface AccountResource {
   id?: string;
   name: string;

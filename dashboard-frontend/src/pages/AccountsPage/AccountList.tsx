@@ -1,9 +1,10 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { AccountResource } from '../../types/account';
 import { arrayMerge } from '../../helpers/arrays';
 import PrimaryButton from '../../components/PrimaryButton';
 import InputSecret from './InputSecret';
 import InputToken from './InputToken';
+import useCreateAccount from './useCreateAccount';
 
 const staticAccountResources = [
   {
@@ -30,6 +31,7 @@ const AccountList = ({
     connectedAccounts,
     'name'
   );
+
   return (
     <ListLayout>
       {allAccounts.map((account, index) => (
@@ -42,12 +44,35 @@ const AccountList = ({
 const AccountListItem = ({
   account,
   index,
-  errorMessage,
 }: {
   account: AccountResource;
   index: number;
-  errorMessage?: string;
 }) => {
+  const { isCreating, errorMessage, createAccount } = useCreateAccount();
+
+  const handleSubmitForm = (event: any) => {
+    event.preventDefault();
+
+    createAccount({
+      name: account.name,
+      authType: account.authType,
+      connectedAccount: {
+        createdAt: Date.now(),
+        credentials: {
+          token: event.target.elements.token.value, // TODO replace with event.target.elements[name].value
+          //   clientId: event.target.elements.clientId.value,
+          //   clientSecret: event.target.elements.clientSecret.value,
+        },
+      },
+    });
+  };
+
+  const [inputValue, setInputValue] = useState('');
+
+  const handleChange = (e: any) => {
+    setInputValue(e.target.value);
+  };
+
   return (
     <li data-testid="account-list-item">
       <div className="px-4 py-4 sm:px-6 py-6">
@@ -55,38 +80,45 @@ const AccountListItem = ({
           <h2 className="text-sm font-medium text-indigo-600 truncate col-span-1">
             {account.name}
           </h2>
-          <form>
-            <div className="col-span-2">
-              {account.authType === 'secret' ? (
-                <InputSecret
-                  account={
-                    account.connectedAccount ? account.connectedAccount : null
-                  }
-                  index={index}
-                  errorMessage={errorMessage}
-                />
-              ) : (
-                <InputToken
-                  account={
-                    account.connectedAccount ? account.connectedAccount : null
-                  }
-                  index={index}
-                  errorMessage={errorMessage}
-                />
-              )}
-              {account.connectedAccount ? (
-                <PrimaryButton
-                  type="submit"
-                  testId="existing-account-submit-button"
-                >
-                  Update
-                </PrimaryButton>
-              ) : (
-                <PrimaryButton type="submit" testId="new-account-submit-button">
-                  Connect
-                </PrimaryButton>
-              )}
-            </div>
+          <form onSubmit={handleSubmitForm}>
+            {account.authType === 'secret' ? (
+              <InputSecret
+                account={
+                  account.connectedAccount ? account.connectedAccount : null
+                }
+                index={index}
+                errorMessage={errorMessage}
+                handleChange={handleChange}
+                inputValue={inputValue}
+              />
+            ) : (
+              <InputToken
+                account={
+                  account.connectedAccount ? account.connectedAccount : null
+                }
+                index={index}
+                errorMessage={errorMessage}
+                handleChange={handleChange}
+                inputValue={inputValue}
+              />
+            )}
+            {account.connectedAccount ? (
+              <PrimaryButton
+                type="submit"
+                testId="existing-account-submit-button"
+                loading={isCreating}
+              >
+                Update
+              </PrimaryButton>
+            ) : (
+              <PrimaryButton
+                type="submit"
+                testId="new-account-submit-button"
+                loading={isCreating}
+              >
+                Connect
+              </PrimaryButton>
+            )}
           </form>
         </div>
       </div>
