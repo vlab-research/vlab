@@ -9,6 +9,7 @@ import {
 import { isValidNumber } from './helpers/numbers';
 import { createSlugFor } from './helpers/strings';
 import { lastValue } from './helpers/arrays';
+import { AccountResource } from './types/account';
 
 const chance = Chance();
 
@@ -20,6 +21,7 @@ export const makeServer = ({ environment = 'development' } = {}) => {
       study: Model,
       studyProgress: Model,
       segmentProgress: Model,
+      account: Model,
     },
 
     seeds(server) {
@@ -89,6 +91,32 @@ export const makeServer = ({ environment = 'development' } = {}) => {
           });
         }
       );
+
+      const connectedAccounts = [
+        {
+          name: 'Fly',
+          authType: 'secret',
+          connectedAccount: {
+            createdAt: today,
+            credentials: {
+              clientId: '123456',
+              clientSecret: 'qwertyuiop',
+            },
+          },
+        },
+        {
+          name: 'Typeform',
+          authType: 'token',
+          connectedAccount: {
+            createdAt: yesterday,
+            credentials: {
+              token: '!"·$%&/()',
+            },
+          },
+        },
+      ];
+
+      connectedAccounts.map(account => createAccountResource(server, account));
     },
 
     routes() {
@@ -247,6 +275,18 @@ export const makeServer = ({ environment = 'development' } = {}) => {
         };
       });
 
+      this.get('/accounts', ({ db }, request) => {
+        if (!isAuthenticatedRequest(request)) {
+          return unauthorizedResponse;
+        }
+
+        const data = Array.from(db.accounts as any);
+
+        return {
+          data,
+        };
+      });
+
       this.passthrough(`https://${process.env.REACT_APP_AUTH0_DOMAIN}/**`);
     },
   });
@@ -328,6 +368,15 @@ export const createSegmentProgressResource = (
     id: chance.guid({ version: 4 }),
     studyId: study.id,
   });
+};
+
+export const createAccountResource = (
+  server: InstanceType<typeof Server>,
+  accountResource: AccountResource
+) => {
+  server.create('account', accountResource);
+
+  return accountResource;
 };
 
 const isAuthenticatedRequest = (request: Request) =>
