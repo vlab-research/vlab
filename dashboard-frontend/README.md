@@ -35,10 +35,31 @@ To run the E2E tests using Cypress you will need to copy the
 `cypress.env.json.example` => `cypress.env.json` and update it with valid
 values
 
+We currently run Cypress with our backend so you will need to start this by
+navigation to the [api](../dashboard-api) directory and running:
+
+```bash
+make dev
+```
+>Note this is under the assumption that you have setup the backend
+accordingly, please read thee backends [README](../dashboard-api/README.md) for
+more details
+
+Once your backend is up and running you can run the following to start your
+cypress tests
+
 ```bash
 npm run cypress
 ```
-This requires you to be running the frontend
+This requires you to be [running the frontend](#to-start-the-application)
+
+**NOTE:** the cypress tests  will create resources, if you want to run them
+again you will need to reset the seed data, you can do this in the
+[api](../dashboard-api) directory by running:
+
+```bash
+make reset-seed
+```
 
 ### Building the application
 

@@ -9,6 +9,7 @@ import {
 import { isValidNumber } from './helpers/numbers';
 import { createSlugFor } from './helpers/strings';
 import { lastValue } from './helpers/arrays';
+import { Account } from './types/account';
 
 const chance = Chance();
 
@@ -20,6 +21,7 @@ export const makeServer = ({ environment = 'development' } = {}) => {
       study: Model,
       studyProgress: Model,
       segmentProgress: Model,
+      account: Model,
     },
 
     seeds(server) {
@@ -89,11 +91,48 @@ export const makeServer = ({ environment = 'development' } = {}) => {
           });
         }
       );
+
+      const connectedAccounts = [
+        {
+          name: 'fly',
+          authType: 'fly',
+          connectedAccount: {
+            createdAt: today,
+            credentials: {
+              api_key: 'super_secret',
+            },
+          },
+        },
+        {
+          name: 'typeform',
+          authType: 'typeform',
+          connectedAccount: {
+            createdAt: yesterday,
+            credentials: {
+              key: '1233foobar',
+            },
+          },
+        },
+      ];
+
+      connectedAccounts.map(account => createAccountResource(server, account));
     },
 
     routes() {
       this.namespace = 'api';
       this.timing = 750;
+
+      this.post('/users', ({ db }, request) => {
+        if (!isAuthenticatedRequest(request)) {
+          return unauthorizedResponse;
+        }
+
+        return {
+          data: {
+            id: 'auth0|61916c1dab79c900713936de',
+          },
+        };
+      });
 
       this.get('/studies', ({ db }, request) => {
         if (!isAuthenticatedRequest(request)) {
@@ -189,18 +228,6 @@ export const makeServer = ({ environment = 'development' } = {}) => {
         };
       });
 
-      this.post('/users', ({ db }, request) => {
-        if (!isAuthenticatedRequest(request)) {
-          return unauthorizedResponse;
-        }
-
-        return {
-          data: {
-            id: 'auth0|61916c1dab79c900713936de',
-          },
-        };
-      });
-
       this.post('/studies', ({ db }, request) => {
         if (!isAuthenticatedRequest(request)) {
           return unauthorizedResponse;
@@ -244,6 +271,56 @@ export const makeServer = ({ environment = 'development' } = {}) => {
 
         return {
           data: studyResource,
+        };
+      });
+
+      this.get('/accounts', ({ db }, request) => {
+        if (!isAuthenticatedRequest(request)) {
+          return unauthorizedResponse;
+        }
+
+        const data = Array.from(db.accounts as any);
+
+        return {
+          data,
+        };
+      });
+
+      this.post('/accounts', ({ db }, request) => {
+        if (!isAuthenticatedRequest(request)) {
+          return unauthorizedResponse;
+        }
+
+        const { name, authType, connectedAccount } = JSON.parse(
+          request.requestBody
+        );
+
+        const credentials = Object.values(connectedAccount.credentials);
+
+        const credentialsEmpty = credentials.some(
+          (credential: any) => credential.trim() === ''
+        );
+
+        if (credentialsEmpty) {
+          return new Response(
+            400,
+            { 'content-type': 'application/json' },
+            {
+              error: 'Field cannot be empty.',
+            }
+          );
+        }
+
+        const account: Account = {
+          name,
+          authType,
+          connectedAccount,
+        };
+
+        server.create('account', account);
+
+        return {
+          data: account,
         };
       });
 
@@ -328,6 +405,15 @@ export const createSegmentProgressResource = (
     id: chance.guid({ version: 4 }),
     studyId: study.id,
   });
+};
+
+export const createAccountResource = (
+  server: InstanceType<typeof Server>,
+  accountResource: Account
+) => {
+  server.create('account', accountResource);
+
+  return accountResource;
 };
 
 const isAuthenticatedRequest = (request: Request) =>

@@ -13,12 +13,16 @@ your local environment
 
 ```bash
 $ make
-help:      Show help for each of the Makefile recipes
-dev:       Sets up local development environment
-stop:      Stops and cleans up all containers
-start:     Starts local containers
-test:      Runs the go tests 
-test-db: 	 Starts up the test database in the devops directory
+help: 		  Show help for each of the Makefile recipes
+dev:		    Sets up local development environment
+stop: 		  Stops and cleans up all containers
+start: 		  Starts local containers
+start-ci:	  Starts local containers
+test:		    Runs the go tests 
+reset-seed:	Resets the seeds in the database
+seed-down:	Removes the seed data from the database
+seed-up:	  Adds the seed data to the database
+test-db: 	  Starts up the test database in the devops directory
 ```
 
 In order to start the local development environment you will need to setup

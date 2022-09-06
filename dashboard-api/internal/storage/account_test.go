@@ -3,7 +3,6 @@ package storage
 import (
 	"context"
 	"testing"
-	"time"
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/stretchr/testify/require"
@@ -21,7 +20,7 @@ func Test_AccountRepository_Create_Account(t *testing.T) {
 			Name:     "Fly",
 			AuthType: "token",
 			ConnectedAccount: types.FlyConnectedAccount{
-				CreatedAt: time.Date(2020, time.November, 10, 23, 0, 0, 0, time.UTC),
+				CreatedAt: 0,
 				Credentials: flytypes.FlyCredentials{
 					APIKey: "supersecret",
 				},
