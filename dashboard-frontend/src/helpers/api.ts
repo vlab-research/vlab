@@ -7,7 +7,11 @@ import {
   StudySegmentsProgressApiResponse,
 } from '../types/study';
 import { Cursor } from '../types/api';
-import { AccountsApiResponse } from '../types/account';
+import {
+  AccountsApiResponse,
+  ConnectedAccountResource,
+  CreateAccountApiResponse,
+} from '../types/account';
 
 /**
  * TODO:
@@ -93,6 +97,23 @@ const fetchAccounts = ({
     accessToken,
   });
 
+const createAccount = ({
+  name,
+  authType,
+  accessToken,
+  connectedAccount,
+}: {
+  name: string;
+  authType: string;
+  accessToken: string;
+  connectedAccount: ConnectedAccountResource;
+}) =>
+  apiRequest<CreateAccountApiResponse>('/api/accounts', {
+    accessToken,
+    method: 'POST',
+    body: { name, authType, connectedAccount },
+  });
+
 const apiRequest = async <ApiResponse>(
   url: string,
   {
@@ -167,4 +188,5 @@ export const authenticatedApiCalls = {
   createUser,
   createStudy,
   fetchAccounts,
+  createAccount,
 };

@@ -93,17 +93,17 @@ export const makeServer = ({ environment = 'development' } = {}) => {
       );
 
       const connectedAccounts = [
-        {
-          name: 'Fly',
-          authType: 'secret',
-          connectedAccount: {
-            createdAt: today,
-            credentials: {
-              clientId: '123456',
-              clientSecret: 'qwertyuiop',
-            },
-          },
-        },
+        // {
+        //   name: 'Fly',
+        //   authType: 'secret',
+        //   connectedAccount: {
+        //     createdAt: today,
+        //     credentials: {
+        //       clientId: '123456',
+        //       clientSecret: 'qwertyuiop',
+        //     },
+        //   },
+        // },
         {
           name: 'Typeform',
           authType: 'token',
@@ -284,6 +284,53 @@ export const makeServer = ({ environment = 'development' } = {}) => {
 
         return {
           data,
+        };
+      });
+
+      this.post('/accounts', ({ db }, request) => {
+        if (!isAuthenticatedRequest(request)) {
+          return unauthorizedResponse;
+        }
+
+        const { name, authType, connectedAccount } = JSON.parse(
+          request.requestBody
+        );
+        const isNameEmpty = name.trim() === '';
+        if (isNameEmpty) {
+          return new Response(
+            400,
+            { 'content-type': 'application/json' },
+            {
+              error: 'Field cannot be empty.',
+            }
+          );
+        }
+
+        const allAccounts = Array.from(db.accounts as any) as AccountResource[];
+        const isAccountAlreadyConnected =
+          allAccounts.filter(
+            account => account.name.toLowerCase() === name.toLowerCase()
+          ).length > 0;
+        if (isAccountAlreadyConnected) {
+          return new Response(
+            409,
+            { 'content-type': 'application/json' },
+            {
+              error: 'This account is already connected',
+            }
+          );
+        }
+
+        const accountResource: AccountResource = {
+          name,
+          authType,
+          connectedAccount,
+        };
+
+        server.create('account', accountResource);
+
+        return {
+          data: accountResource,
         };
       });
 
