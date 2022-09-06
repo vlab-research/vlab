@@ -8,6 +8,7 @@ import {
 } from '../types/study';
 import querystring from "querystring"
 import { Cursor } from '../types/api';
+import { AccountsApiResponse } from '../types/account';
 
 /**
  * TODO:
@@ -96,6 +97,18 @@ const createStudy = ({
     body: { name },
   });
 
+const fetchAccounts = ({
+  defaultErrorMessage,
+  accessToken,
+}: {
+  defaultErrorMessage: string;
+  accessToken: string;
+}) =>
+  apiRequest<AccountsApiResponse>(`/api/accounts`, {
+    defaultErrorMessage,
+    accessToken,
+  });
+
 const apiRequest = async <ApiResponse>(
   url: string,
   {
@@ -169,4 +182,5 @@ export const authenticatedApiCalls = {
   fetchStudySegmentsProgress,
   createUser,
   createStudy,
+  fetchAccounts,
 };
