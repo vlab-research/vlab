@@ -14,7 +14,7 @@ jobs:
     name: Tests
     runs-on: ubuntu-20.04
     env:
-      CYPRESS_auth0_username: e2e@vlab.digital
+      CYPRESS_auth0_username: demo@vlab.digital
       CYPRESS_auth_domain: vlab-dev.us.auth0.com
       CYPRESS_auth0_audience: https://api-dev.vlab/
       CYPRES_auth0_client_id: ${{ secrets.AUTH0_CLIENT_ID }}
@@ -22,8 +22,7 @@ jobs:
       REACT_APP_AUTH0_DOMAIN: vlab-dev.us.auth0.com
       REACT_APP_AUTH0_CLIENT_ID: ${{ secrets.AUTH0_CLIENT_ID }}
       REACT_APP_AUTH0_AUDIENCE: https://api-dev.vlab/
-      REACT_APP_SERVER_URL: /api
-      REACT_APP_DEV_SERVER: 1
+      REACT_APP_SERVER_URL: http://localhost:8080
     defaults:
       run:
         working-directory: ./dashboard-frontend
@@ -36,15 +35,20 @@ jobs:
         run: npm ci
       - name: Unit Tests
         run: npm test -- --watchAll=false
-      - name: E2E Tests
-        uses: cypress-io/github-action@v5.3.0
-        with:
-          start: npm start
-          wait-on: "http://localhost:3000"
-          working-directory: ./dashboard-frontend
-          config-file: "cypress.config.ts"
-      - uses: actions/upload-artifact@v3
-        if: failure()
-        with:
-          name: cypress-screenshots
-          path: dashboard-frontend/cypress/screenshots
+          # TODO: Currently cypress takes really long to run and setup
+          # we need to find a way to reliably run these
+          # - name: Start backend for E2E tests
+          #   run: cp .env-example .env && make start-ci
+          #   working-directory: ./dashboard-api
+          # - name: E2E Tests
+          #   uses: cypress-io/github-action@v5.3.0
+          #   with:
+          #     start: npm start
+          #     wait-on: "http://localhost:3000"
+          #     working-directory: ./dashboard-frontend
+          #     config-file: "cypress.config.ts"
+          # - uses: actions/upload-artifact@v3
+          #   if: failure()
+          #   with:
+          #     name: cypress-screenshots
+          #     path: dashboard-frontend/cypress/screenshots

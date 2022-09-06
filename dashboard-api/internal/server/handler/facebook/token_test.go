@@ -22,7 +22,7 @@ func TestGenerateTokenHandler(t *testing.T) {
 			description:    "201 with valid code",
 			code:           "valid",
 			expectedStatus: 201,
-			expectedRes:    `{"data":{"userId":"auth0|61916c1dab79c900713936de","authType":"bearer","name":"facebook","connectedAccount":{"createdAt":"0001-01-01T00:00:00Z","credentials":{"expires_in":5181452,"access_token":"supersecret","token_type":"bearer"}}}}`,
+			expectedRes:    `{"data":{"userId":"auth0|61916c1dab79c900713936de","authType":"bearer","name":"facebook","connectedAccount":{"createdAt":0,"credentials":{"expires_in":5181452,"access_token":"supersecret","token_type":"bearer"}}}}`,
 		},
 		{
 			description:    "400 with invalid code",
@@ -32,7 +32,7 @@ func TestGenerateTokenHandler(t *testing.T) {
 		},
 	}
 	for _, tc := range testcases {
-		t.Run(fmt.Sprintf("should  %s", tc.description),
+		t.Run(fmt.Sprintf("should %s", tc.description),
 			func(t *testing.T) {
 				res := generateTokenRequest(t, tc.code)
 				assert.Equal(tc.expectedRes, res.Body)
