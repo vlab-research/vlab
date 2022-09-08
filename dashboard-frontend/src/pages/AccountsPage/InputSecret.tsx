@@ -4,17 +4,17 @@ import { classNames } from '../../helpers/strings';
 import { SecretAccountResource } from '../../types/account';
 
 const InputSecret = ({
-  account,
-  index,
+  existingCredentials,
+  credentials,
   errorMessage,
   handleChange,
-  inputValue,
+  index,
 }: {
-  account: SecretAccountResource | null;
-  index: number;
+  existingCredentials: SecretAccountResource | null;
+  credentials: any;
   errorMessage?: string;
   handleChange: ChangeEventHandler;
-  inputValue: string;
+  index: number;
 }) => (
   <React.Fragment>
     <div className="flex flex-col mb-4">
@@ -32,10 +32,14 @@ const InputSecret = ({
             : 'focus:ring-indigo-500 focus:border-indigo-500  border-gray-300'
         )}
         data-testid={`input-client-id-${index}`}
-        value={account?.credentials ? account.credentials.clientId : inputValue}
+        value={
+          existingCredentials?.credentials
+            ? existingCredentials.credentials.clientId
+            : credentials.clientId
+        }
         placeholder="Enter client ID"
-        onChange={event => event.target.value}
-      ></input>
+        onChange={handleChange}
+      />
     </div>
     <div className="flex flex-col mb-4">
       <label className="block mb-2 text-sm font-medium text-gray-900 dark:text-gray-300">
@@ -52,7 +56,11 @@ const InputSecret = ({
             : 'focus:ring-indigo-500 focus:border-indigo-500  border-gray-300'
         )}
         data-testid={`input-client-secret-${index}`}
-        value={account?.credentials ? account.credentials.clientId : inputValue}
+        value={
+          existingCredentials?.credentials
+            ? existingCredentials.credentials.clientSecret
+            : credentials.clientSecret
+        }
         placeholder="Enter client secret"
         onChange={handleChange}
       />

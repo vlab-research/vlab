@@ -4,17 +4,17 @@ import { classNames } from '../../helpers/strings';
 import { TokenAccountResource } from '../../types/account';
 
 const InputToken = ({
-  account,
-  index,
+  existingCredentials,
+  credentials,
   errorMessage,
   handleChange,
-  inputValue,
+  index,
 }: {
-  account: TokenAccountResource | null;
+  existingCredentials: TokenAccountResource | null;
+  credentials: any;
   index: number;
   errorMessage?: string;
   handleChange: ChangeEventHandler;
-  inputValue: string;
 }) => (
   <React.Fragment>
     <div className="flex flex-col mb-4">
@@ -34,7 +34,11 @@ const InputToken = ({
         data-testid={`input-token-${index}`}
         placeholder="Enter token"
         onChange={handleChange}
-        value={account?.credentials ? account.credentials.token : inputValue}
+        value={
+          existingCredentials?.credentials
+            ? existingCredentials.credentials.token
+            : credentials.token
+        }
       />
       {errorMessage && (
         <div className="absolute pointer-events-none inset-y-0 right-0 pr-3 flex items-center">
