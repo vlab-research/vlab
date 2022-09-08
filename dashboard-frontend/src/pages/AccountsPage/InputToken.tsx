@@ -5,13 +5,13 @@ import { TokenAccountResource } from '../../types/account';
 
 const InputToken = ({
   existingCredentials,
-  credentials,
+  newCredentials,
   errorMessage,
   handleChange,
   index,
 }: {
   existingCredentials: TokenAccountResource | null;
-  credentials: any;
+  newCredentials: any;
   index: number;
   errorMessage?: string;
   handleChange: ChangeEventHandler;
@@ -37,7 +37,7 @@ const InputToken = ({
         value={
           existingCredentials?.credentials
             ? existingCredentials.credentials.token
-            : credentials.token
+            : newCredentials.token
         }
       />
       {errorMessage && (
