@@ -50,27 +50,32 @@ const AccountListItem = ({
 }) => {
   const { isCreating, errorMessage, createAccount } = useCreateAccount();
 
-  const handleSubmitForm = (event: any) => {
-    event.preventDefault();
+  const [credentials, setCredentials] = useState({
+    clientId: '',
+    clientSecret: '',
+    token: '',
+  });
+
+  function handleChange(e: any) {
+    const value = e.target.value;
+
+    setCredentials({
+      ...credentials,
+      [e.target.name]: value,
+    });
+  }
+
+  const handleSubmitForm = (e: any) => {
+    e.preventDefault();
 
     createAccount({
       name: account.name,
       authType: account.authType,
       connectedAccount: {
         createdAt: Date.now(),
-        credentials: {
-          token: event.target.elements.token.value, // TODO replace with event.target.elements[name].value
-          //   clientId: event.target.elements.clientId.value,
-          //   clientSecret: event.target.elements.clientSecret.value,
-        },
+        credentials: credentials,
       },
     });
-  };
-
-  const [inputValue, setInputValue] = useState('');
-
-  const handleChange = (e: any) => {
-    setInputValue(e.target.value);
   };
 
   return (
@@ -83,23 +88,23 @@ const AccountListItem = ({
           <form onSubmit={handleSubmitForm}>
             {account.authType === 'secret' ? (
               <InputSecret
-                account={
+                existingCredentials={
                   account.connectedAccount ? account.connectedAccount : null
                 }
-                index={index}
+                credentials={credentials}
                 errorMessage={errorMessage}
                 handleChange={handleChange}
-                inputValue={inputValue}
+                index={index}
               />
             ) : (
               <InputToken
-                account={
+                existingCredentials={
                   account.connectedAccount ? account.connectedAccount : null
                 }
-                index={index}
+                credentials={credentials}
                 errorMessage={errorMessage}
                 handleChange={handleChange}
-                inputValue={inputValue}
+                index={index}
               />
             )}
             {account.connectedAccount ? (
