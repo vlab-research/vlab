@@ -93,17 +93,17 @@ export const makeServer = ({ environment = 'development' } = {}) => {
       );
 
       const connectedAccounts = [
-        // {
-        //   name: 'Fly',
-        //   authType: 'secret',
-        //   connectedAccount: {
-        //     createdAt: today,
-        //     credentials: {
-        //       clientId: '123456',
-        //       clientSecret: 'qwertyuiop',
-        //     },
-        //   },
-        // },
+        {
+          name: 'Fly',
+          authType: 'secret',
+          connectedAccount: {
+            createdAt: today,
+            credentials: {
+              clientId: '123456',
+              clientSecret: 'qwertyuiop',
+            },
+          },
+        },
         {
           name: 'Typeform',
           authType: 'token',
