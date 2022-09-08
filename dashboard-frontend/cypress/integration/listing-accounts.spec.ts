@@ -74,7 +74,7 @@ describe('Given an authenticated user', () => {
     });
   });
 
-  describe('When the user has two connected accounts of different auth types', () => {
+  describe.only('When the user has two connected accounts of different auth types', () => {
     beforeEach(() => {
       const today = Date.now();
       const yesterday = Date.now() - 24 * 60 * 60 * 1000;
@@ -119,6 +119,10 @@ describe('Given an authenticated user', () => {
         'qwertyuiop'
       );
 
+      cy.get('[data-testid="input-token-1"]').should('have.value', '!"·$%&/()');
+    });
+
+    it('sees the data associated with the token account', () => {
       cy.get('[data-testid="input-token-1"]').should('have.value', '!"·$%&/()');
     });
   });
