@@ -74,7 +74,7 @@ describe('Given an authenticated user', () => {
     });
   });
 
-  describe.only('When the user has two connected accounts of different auth types', () => {
+  describe('When the user has two connected accounts of different auth types', () => {
     beforeEach(() => {
       const today = Date.now();
       const yesterday = Date.now() - 24 * 60 * 60 * 1000;
