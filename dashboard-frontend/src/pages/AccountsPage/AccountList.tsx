@@ -91,7 +91,7 @@ const AccountListItem = ({
                 existingCredentials={
                   account.connectedAccount ? account.connectedAccount : null
                 }
-                credentials={credentials}
+                newCredentials={credentials}
                 errorMessage={errorMessage}
                 handleChange={handleChange}
                 index={index}
@@ -101,7 +101,7 @@ const AccountListItem = ({
                 existingCredentials={
                   account.connectedAccount ? account.connectedAccount : null
                 }
-                credentials={credentials}
+                newCredentials={credentials}
                 errorMessage={errorMessage}
                 handleChange={handleChange}
                 index={index}

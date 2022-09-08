@@ -5,13 +5,13 @@ import { SecretAccountResource } from '../../types/account';
 
 const InputSecret = ({
   existingCredentials,
-  credentials,
+  newCredentials,
   errorMessage,
   handleChange,
   index,
 }: {
   existingCredentials: SecretAccountResource | null;
-  credentials: any;
+  newCredentials: any;
   errorMessage?: string;
   handleChange: ChangeEventHandler;
   index: number;
@@ -35,7 +35,7 @@ const InputSecret = ({
         value={
           existingCredentials?.credentials
             ? existingCredentials.credentials.clientId
-            : credentials.clientId
+            : newCredentials.clientId
         }
         placeholder="Enter client ID"
         onChange={handleChange}
@@ -59,7 +59,7 @@ const InputSecret = ({
         value={
           existingCredentials?.credentials
             ? existingCredentials.credentials.clientSecret
-            : credentials.clientSecret
+            : newCredentials.clientSecret
         }
         placeholder="Enter client secret"
         onChange={handleChange}
