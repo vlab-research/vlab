@@ -110,7 +110,7 @@ const AccountListItem = ({
             {account.connectedAccount ? (
               <PrimaryButton
                 type="submit"
-                testId="existing-account-submit-button"
+                testId={`existing-account-submit-button-${index}`}
                 loading={isCreating}
               >
                 Update
@@ -118,7 +118,7 @@ const AccountListItem = ({
             ) : (
               <PrimaryButton
                 type="submit"
-                testId="new-account-submit-button"
+                testId={`new-account-submit-button-${index}`}
                 loading={isCreating}
               >
                 Connect
