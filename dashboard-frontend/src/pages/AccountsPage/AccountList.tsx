@@ -81,11 +81,11 @@ const AccountListItem = ({
   return (
     <li data-testid="account-list-item">
       <div className="px-4 py-4 sm:px-6 py-6">
-        <div className="flex flex-col sm:grid grid-cols-4 gap-4">
+        <div className="flex flex-col sm:grid grid-cols-5 gap-4">
           <h2 className="text-sm font-medium text-indigo-600 truncate col-span-1">
             {account.name}
           </h2>
-          <form onSubmit={handleSubmitForm}>
+          <form onSubmit={handleSubmitForm} className="col-span-3">
             {account.authType === 'secret' ? (
               <InputSecret
                 existingCredentials={
@@ -107,23 +107,28 @@ const AccountListItem = ({
                 index={index}
               />
             )}
-            {account.connectedAccount ? (
-              <PrimaryButton
-                type="submit"
-                testId={`existing-account-submit-button-${index}`}
-                loading={isCreating}
-              >
-                Update
-              </PrimaryButton>
-            ) : (
-              <PrimaryButton
-                type="submit"
-                testId={`new-account-submit-button-${index}`}
-                loading={isCreating}
-              >
-                Connect
-              </PrimaryButton>
-            )}
+            <div className="flex items-baseline">
+              {account.connectedAccount ? (
+                <PrimaryButton
+                  type="submit"
+                  testId={`existing-account-submit-button-${index}`}
+                  loading={isCreating}
+                >
+                  Update
+                </PrimaryButton>
+              ) : (
+                <PrimaryButton
+                  type="submit"
+                  testId={`new-account-submit-button-${index}`}
+                  loading={isCreating}
+                >
+                  Connect
+                </PrimaryButton>
+              )}
+              <span className="text-sm text-red-600 h-1 ml-4">
+                {errorMessage}
+              </span>
+            </div>
           </form>
         </div>
       </div>

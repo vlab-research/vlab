@@ -73,7 +73,6 @@ const InputSecret = ({
         </div>
       )}
     </div>
-    <p className="mt-2 text-sm text-red-600 h-1">{errorMessage}</p>
   </React.Fragment>
 );
 
