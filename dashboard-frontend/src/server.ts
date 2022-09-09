@@ -311,6 +311,7 @@ export const makeServer = ({ environment = 'development' } = {}) => {
           allAccounts.filter(
             account => account.name.toLowerCase() === name.toLowerCase()
           ).length > 0;
+
         if (isAccountAlreadyConnected) {
           return new Response(
             409,
@@ -322,6 +323,7 @@ export const makeServer = ({ environment = 'development' } = {}) => {
         }
 
         const accountResource: AccountResource = {
+          id: chance.guid({ version: 4 }),
           name,
           authType,
           connectedAccount,
