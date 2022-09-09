@@ -41,7 +41,10 @@ const InputToken = ({
         }
       />
       {errorMessage && (
-        <div className="absolute pointer-events-none inset-y-0 right-0 pr-3 flex items-center">
+        <div
+          className="absolute pointer-events-none inset-y-0 right-0 pr-3 flex items-center"
+          data-testid={`error-message-${index}`}
+        >
           <ExclamationCircleIcon
             className="h-5 w-5 text-red-500"
             aria-hidden="true"
@@ -49,7 +52,6 @@ const InputToken = ({
         </div>
       )}
     </div>
-    <p className="mt-2 text-sm text-red-600 h-1">{errorMessage}</p>
   </React.Fragment>
 );
 
