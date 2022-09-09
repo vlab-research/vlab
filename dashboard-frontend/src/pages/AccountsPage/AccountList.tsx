@@ -125,7 +125,10 @@ const AccountListItem = ({
                   Connect
                 </PrimaryButton>
               )}
-              <span className="text-sm text-red-600 h-1 ml-4">
+              <span
+                className="text-sm text-red-600 h-1 ml-4"
+                data-testid={`error-message-${index}`}
+              >
                 {errorMessage}
               </span>
             </div>

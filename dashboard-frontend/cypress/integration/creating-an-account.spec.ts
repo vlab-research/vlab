@@ -1,4 +1,4 @@
-import { makeServer } from '../../src/server';
+import { createAccountResource, makeServer } from '../../src/server';
 
 describe('Given an authenticated user', () => {
   let server: ReturnType<typeof makeServer>;
@@ -50,6 +50,50 @@ describe('Given an authenticated user', () => {
 
       cy.url().should('eq', `${Cypress.config().baseUrl}/accounts`);
       cy.get('[data-testid="new-account-submit-button-2"]').contains('Update');
+    });
+  });
+
+  describe('When the user clicks the connect button twice when connecting a new account', () => {
+    const token = '!"·$%&/()!';
+
+    it('sees an error message', () => {
+      cy.visit('/accounts');
+
+      cy.get('[data-testid="input-token-2"]').type(token);
+      cy.get('[data-testid="new-account-submit-button-2"]').click();
+      cy.get('[data-testid="input-token-2"]').should('have.value', token);
+
+      cy.get('[data-testid="existing-account-submit-button-2"]').click();
+      cy.get('[data-testid="error-message-2"]').contains(
+        'This account is already connected'
+      );
+    });
+  });
+
+  describe('When the user clicks the connect button on an already connected account', () => {
+    beforeEach(() => {
+      const connectedAccounts = {
+        name: 'Fly',
+        authType: 'secret',
+        connectedAccount: {
+          createdAt: Date.now(),
+          credentials: {
+            clientId: '123456',
+            clientSecret: 'qwertyuiop',
+          },
+        },
+      };
+
+      createAccountResource(server, connectedAccounts);
+
+      cy.visit('/accounts');
+    });
+
+    it('sees an error message', () => {
+      cy.get('[data-testid="existing-account-submit-button-0"]').click();
+      cy.get('[data-testid="error-message-0"]').contains(
+        'This account is already connected'
+      );
     });
   });
 });
