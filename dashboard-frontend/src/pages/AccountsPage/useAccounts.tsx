@@ -17,7 +17,7 @@ const useAccounts = () => {
   return {
     query,
     queryKey,
-    connectedAccounts: query.data?.data || [],
+    accounts: query.data?.data || [],
     errorMessage: query.error?.message || defaultErrorMessage,
   };
 };
@@ -37,7 +37,7 @@ export const addAccountToCacheWhileRefetching = (account: AccountResource) => {
     return accountsCache;
   });
 
-  // Refetch the studies by invalidating the query
+  // Refetch the accounts by invalidating the query
   queryCache.invalidateQueries(queryKey);
 };
 

@@ -21,16 +21,8 @@ const staticAccountResources = [
   },
 ];
 
-const AccountList = ({
-  connectedAccounts,
-}: {
-  connectedAccounts: AccountResource[];
-}) => {
-  const allAccounts = arrayMerge(
-    staticAccountResources,
-    connectedAccounts,
-    'name'
-  );
+const AccountList = ({ accounts }: { accounts: AccountResource[] }) => {
+  const allAccounts = arrayMerge(staticAccountResources, accounts, 'name');
 
   return (
     <ListLayout>
