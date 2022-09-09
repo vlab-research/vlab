@@ -11,10 +11,10 @@ const AcccountsPage = () => (
 );
 
 const PageContent = () => {
-  const { query, queryKey, connectedAccounts, errorMessage } = useAccounts();
+  const { query, queryKey, accounts, errorMessage } = useAccounts();
 
   if (query.isLoading) {
-    return <AccountListSkeleton numberItems={connectedAccounts.length} />;
+    return <AccountListSkeleton numberItems={accounts.length} />;
   }
 
   if (query.isError) {
@@ -26,7 +26,7 @@ const PageContent = () => {
     );
   }
 
-  return <AccountList connectedAccounts={connectedAccounts}></AccountList>;
+  return <AccountList accounts={accounts}></AccountList>;
 };
 
 export default AcccountsPage;
