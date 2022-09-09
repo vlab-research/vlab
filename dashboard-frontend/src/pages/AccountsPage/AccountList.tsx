@@ -81,8 +81,8 @@ const AccountListItem = ({
   return (
     <li data-testid="account-list-item">
       <div className="px-4 py-4 sm:px-6 py-6">
-        <div className="flex flex-col sm:grid grid-cols-5 gap-4">
-          <h2 className="text-sm font-medium text-indigo-600 truncate col-span-1">
+        <div className="flex flex-col sm:grid sm:grid-cols-5 sm:gap-4">
+          <h2 className="mb-4 text-sm font-medium text-indigo-600 truncate sm:mb-0 sm:col-span-1">
             {account.name}
           </h2>
           <form onSubmit={handleSubmitForm} className="col-span-3">
