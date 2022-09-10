@@ -27,7 +27,14 @@ const AccountList = ({ accounts }: { accounts: AccountResource[] }) => {
   return (
     <ListLayout>
       {allAccounts.map((account, index) => (
-        <AccountListItem key={account.name} account={account} index={index} />
+        <AccountListItem
+          key={account.name}
+          account={account}
+          index={index}
+          clientId={account.connectedAccount?.credentials.clientId}
+          clientSecret={account.connectedAccount?.credentials.clientSecret}
+          token={account.connectedAccount?.credentials.token}
+        />
       ))}
     </ListLayout>
   );
@@ -36,16 +43,22 @@ const AccountList = ({ accounts }: { accounts: AccountResource[] }) => {
 const AccountListItem = ({
   account,
   index,
+  clientId,
+  clientSecret,
+  token,
 }: {
   account: AccountResource;
   index: number;
+  clientId: string;
+  clientSecret: string;
+  token: string;
 }) => {
   const { isCreating, errorMessage, createAccount } = useCreateAccount();
 
   const [credentials, setCredentials] = useState({
-    clientId: '',
-    clientSecret: '',
-    token: '',
+    clientId: clientId ? clientId : '',
+    clientSecret: clientSecret ? clientSecret : '',
+    token: token ? token : '',
   });
 
   function handleChange(e: any) {
@@ -80,23 +93,18 @@ const AccountListItem = ({
           <form onSubmit={handleSubmitForm} className="col-span-3">
             {account.authType === 'secret' ? (
               <InputSecret
-                existingCredentials={
-                  account.connectedAccount ? account.connectedAccount : null
-                }
-                newCredentials={credentials}
                 errorMessage={errorMessage}
                 handleChange={handleChange}
                 index={index}
+                clientId={credentials.clientId}
+                clientSecret={credentials.clientSecret}
               />
             ) : (
               <InputToken
-                existingCredentials={
-                  account.connectedAccount ? account.connectedAccount : null
-                }
-                newCredentials={credentials}
                 errorMessage={errorMessage}
                 handleChange={handleChange}
                 index={index}
+                token={credentials.token}
               />
             )}
             <div className="flex items-baseline">
