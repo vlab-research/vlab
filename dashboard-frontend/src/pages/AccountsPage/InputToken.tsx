@@ -1,17 +1,14 @@
 import { ExclamationCircleIcon } from '@heroicons/react/solid';
 import React, { ChangeEventHandler } from 'react';
 import { classNames } from '../../helpers/strings';
-import { TokenAccountResource } from '../../types/account';
 
 const InputToken = ({
-  existingCredentials,
-  newCredentials,
+  token,
   errorMessage,
   handleChange,
   index,
 }: {
-  existingCredentials: TokenAccountResource | null;
-  newCredentials: any;
+  token: string;
   index: number;
   errorMessage?: string;
   handleChange: ChangeEventHandler;
@@ -34,11 +31,7 @@ const InputToken = ({
         data-testid={`input-token-${index}`}
         placeholder="Enter token"
         onChange={handleChange}
-        value={
-          existingCredentials?.credentials
-            ? existingCredentials.credentials.token
-            : newCredentials.token
-        }
+        value={token}
       />
       {errorMessage && (
         <div className="absolute pointer-events-none inset-y-0 right-0 pr-3 flex items-center">
