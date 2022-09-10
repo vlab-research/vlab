@@ -323,7 +323,6 @@ export const makeServer = ({ environment = 'development' } = {}) => {
         }
 
         const accountResource: AccountResource = {
-          id: chance.guid({ version: 4 }),
           name,
           authType,
           connectedAccount,

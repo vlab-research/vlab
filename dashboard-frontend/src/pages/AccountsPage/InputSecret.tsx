@@ -1,20 +1,19 @@
 import { ExclamationCircleIcon } from '@heroicons/react/solid';
 import React, { ChangeEventHandler } from 'react';
 import { classNames } from '../../helpers/strings';
-import { SecretAccountResource } from '../../types/account';
 
 const InputSecret = ({
-  existingCredentials,
-  newCredentials,
   errorMessage,
   handleChange,
   index,
+  clientId,
+  clientSecret,
 }: {
-  existingCredentials: SecretAccountResource | null;
-  newCredentials: any;
   errorMessage?: string;
   handleChange: ChangeEventHandler;
   index: number;
+  clientId: string;
+  clientSecret: string;
 }) => (
   <React.Fragment>
     <div className="flex flex-col mb-4">
@@ -32,11 +31,7 @@ const InputSecret = ({
             : 'focus:ring-indigo-500 focus:border-indigo-500  border-gray-300'
         )}
         data-testid={`input-client-id-${index}`}
-        value={
-          existingCredentials?.credentials
-            ? existingCredentials.credentials.clientId
-            : newCredentials.clientId
-        }
+        value={clientId}
         placeholder="Enter client ID"
         onChange={handleChange}
       />
@@ -56,11 +51,7 @@ const InputSecret = ({
             : 'focus:ring-indigo-500 focus:border-indigo-500  border-gray-300'
         )}
         data-testid={`input-client-secret-${index}`}
-        value={
-          existingCredentials?.credentials
-            ? existingCredentials.credentials.clientSecret
-            : newCredentials.clientSecret
-        }
+        value={clientSecret}
         placeholder="Enter client secret"
         onChange={handleChange}
       />
