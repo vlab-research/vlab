@@ -3,15 +3,17 @@ import React, { ChangeEventHandler } from 'react';
 import { classNames } from '../../helpers/strings';
 
 const InputSecret = ({
-  errorMessage,
+  errorOnCreate,
+  errorOnUpdate,
   handleChange,
   index,
   clientId,
   clientSecret,
 }: {
-  errorMessage?: string;
-  handleChange: ChangeEventHandler;
   index: number;
+  errorOnCreate?: string;
+  errorOnUpdate?: string;
+  handleChange: ChangeEventHandler;
   clientId: string;
   clientSecret: string;
 }) => (
@@ -26,7 +28,7 @@ const InputSecret = ({
         type="text"
         className={classNames(
           'block w-full shadow-sm sm:text-sm rounded-md',
-          errorMessage
+          errorOnCreate || errorOnUpdate
             ? 'focus:ring-red-500 focus:border-red-500 border-red-300 text-red-900 pr-10'
             : 'focus:ring-indigo-500 focus:border-indigo-500  border-gray-300'
         )}
@@ -46,7 +48,7 @@ const InputSecret = ({
         type="text"
         className={classNames(
           'block w-full shadow-sm sm:text-sm rounded-md',
-          errorMessage
+          errorOnCreate || errorOnUpdate
             ? 'focus:ring-red-500 focus:border-red-500 border-red-300 text-red-900 pr-10'
             : 'focus:ring-indigo-500 focus:border-indigo-500  border-gray-300'
         )}
@@ -55,14 +57,15 @@ const InputSecret = ({
         placeholder="Enter client secret"
         onChange={handleChange}
       />
-      {errorMessage && (
-        <div className="absolute pointer-events-none inset-y-0 right-0 pr-3 flex items-center">
-          <ExclamationCircleIcon
-            className="h-5 w-5 text-red-500"
-            aria-hidden="true"
-          />
-        </div>
-      )}
+      {errorOnCreate ||
+        (errorOnUpdate && (
+          <div className="absolute pointer-events-none inset-y-0 right-0 pr-3 flex items-center">
+            <ExclamationCircleIcon
+              className="h-5 w-5 text-red-500"
+              aria-hidden="true"
+            />
+          </div>
+        ))}
     </div>
   </React.Fragment>
 );
