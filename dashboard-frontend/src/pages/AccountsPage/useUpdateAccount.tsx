@@ -1,16 +1,19 @@
 import { useMutation } from 'react-query';
 import { useHistory } from 'react-router-dom';
+
 import useAuthenticatedApi from '../../hooks/useAuthenticatedApi';
 import {
-  SecretAccountResource,
   TokenAccountResource,
+  SecretAccountResource,
 } from '../../types/account';
 import { addAccountToCacheWhileRefetching } from './useAccounts';
 
-const useCreateAccount = () => {
+const useUpdateAccount = () => {
   const history = useHistory();
-  const { createAccount } = useAuthenticatedApi();
-  const [createAccountMutation, { isLoading, error }] = useMutation(
+
+  const { updateAccount } = useAuthenticatedApi();
+
+  const [updateAccountMutation, { isLoading, error }] = useMutation(
     ({
       name,
       authType,
@@ -19,7 +22,7 @@ const useCreateAccount = () => {
       name: string;
       authType: string;
       connectedAccount: TokenAccountResource | SecretAccountResource;
-    }) => createAccount({ name, authType, connectedAccount }),
+    }) => updateAccount({ name, authType, connectedAccount }),
     {
       onSuccess: ({ data: newAccount }) => {
         addAccountToCacheWhileRefetching(newAccount);
@@ -29,10 +32,10 @@ const useCreateAccount = () => {
   );
 
   return {
-    createAccount: createAccountMutation,
-    isCreating: isLoading,
-    errorOnCreate: error?.message,
+    updateAccount: updateAccountMutation,
+    isUpdating: isLoading,
+    errorOnUpdate: error?.message,
   };
 };
 
-export default useCreateAccount;
+export default useUpdateAccount;

@@ -295,7 +295,9 @@ export const makeServer = ({ environment = 'development' } = {}) => {
         const { name, authType, connectedAccount } = JSON.parse(
           request.requestBody
         );
+
         const credentialsEmpty = connectedAccount.credentials === {};
+
         if (credentialsEmpty) {
           return new Response(
             400,
@@ -332,6 +334,29 @@ export const makeServer = ({ environment = 'development' } = {}) => {
 
         return {
           data: accountResource,
+        };
+      });
+
+      this.put('/accounts/:name', ({ db }, request) => {
+        if (!isAuthenticatedRequest(request)) {
+          return unauthorizedResponse;
+        }
+
+        // TODO check for duplicates using prev credentials
+
+        let name = request.params.name;
+
+        const updatedAccountResource = JSON.parse(request.requestBody);
+
+        const account = db.accounts.findBy({ name: name });
+
+        db.accounts.update(
+          { connectedAccount: account.connectedAccount },
+          { connectedAccount: updatedAccountResource.connectedAccount }
+        );
+
+        return {
+          data: updatedAccountResource,
         };
       });
 
