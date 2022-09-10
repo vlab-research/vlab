@@ -70,6 +70,11 @@ const AccountListItem = ({
     });
   }
 
+  const validateCredentials = JSON.parse(
+    JSON.stringify(credentials),
+    (key, value) => (value === null || value === '' ? undefined : value)
+  );
+
   const handleSubmitForm = (e: any) => {
     e.preventDefault();
 
@@ -78,7 +83,7 @@ const AccountListItem = ({
       authType: account.authType,
       connectedAccount: {
         createdAt: Date.now(),
-        credentials: credentials,
+        credentials: validateCredentials,
       },
     });
   };

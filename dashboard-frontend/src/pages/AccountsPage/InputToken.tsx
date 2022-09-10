@@ -3,15 +3,15 @@ import React, { ChangeEventHandler } from 'react';
 import { classNames } from '../../helpers/strings';
 
 const InputToken = ({
-  token,
   errorMessage,
   handleChange,
   index,
+  token,
 }: {
-  token: string;
   index: number;
   errorMessage?: string;
   handleChange: ChangeEventHandler;
+  token: string;
 }) => (
   <React.Fragment>
     <div className="flex flex-col mb-4">
