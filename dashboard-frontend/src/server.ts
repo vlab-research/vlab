@@ -295,8 +295,8 @@ export const makeServer = ({ environment = 'development' } = {}) => {
         const { name, authType, connectedAccount } = JSON.parse(
           request.requestBody
         );
-        const isNameEmpty = name.trim() === '';
-        if (isNameEmpty) {
+        const credentialsEmpty = connectedAccount.credentials === {};
+        if (credentialsEmpty) {
           return new Response(
             400,
             { 'content-type': 'application/json' },
