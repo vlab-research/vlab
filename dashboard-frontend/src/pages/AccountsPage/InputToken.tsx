@@ -3,13 +3,15 @@ import React, { ChangeEventHandler } from 'react';
 import { classNames } from '../../helpers/strings';
 
 const InputToken = ({
-  errorMessage,
+  errorOnCreate,
+  errorOnUpdate,
   handleChange,
   index,
   token,
 }: {
   index: number;
-  errorMessage?: string;
+  errorOnCreate?: string;
+  errorOnUpdate?: string;
   handleChange: ChangeEventHandler;
   token: string;
 }) => (
@@ -24,7 +26,7 @@ const InputToken = ({
         type="text"
         className={classNames(
           'block w-full shadow-sm sm:text-sm rounded-md',
-          errorMessage
+          errorOnCreate
             ? 'focus:ring-red-500 focus:border-red-500 border-red-300 text-red-900 pr-10'
             : 'focus:ring-indigo-500 focus:border-indigo-500  border-gray-300'
         )}
@@ -33,7 +35,7 @@ const InputToken = ({
         onChange={handleChange}
         value={token}
       />
-      {errorMessage && (
+      {errorOnCreate && (
         <div className="absolute pointer-events-none inset-y-0 right-0 pr-3 flex items-center">
           <ExclamationCircleIcon
             className="h-5 w-5 text-red-500"

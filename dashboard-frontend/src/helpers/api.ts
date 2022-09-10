@@ -9,6 +9,7 @@ import {
 import querystring from "querystring"
 import { Cursor } from '../types/api';
 import {
+  AccountApiResponse,
   AccountsApiResponse,
   ConnectedAccountResource,
   CreateAccountApiResponse,
@@ -116,18 +117,37 @@ const fetchAccounts = ({
 const createAccount = ({
   name,
   authType,
-  accessToken,
   connectedAccount,
+  accessToken,
 }: {
   name: string;
   authType: string;
-  accessToken: string;
   connectedAccount: ConnectedAccountResource;
+  accessToken: string;
 }) =>
   apiRequest<CreateAccountApiResponse>('/api/accounts', {
     accessToken,
     method: 'POST',
     body: { name, authType, connectedAccount },
+  });
+
+const updateAccount = ({
+  name,
+  authType,
+  connectedAccount,
+  accessToken,
+  id,
+}: {
+  name: string;
+  authType: string;
+  connectedAccount: ConnectedAccountResource;
+  accessToken: string;
+  id?: string;
+}) =>
+  apiRequest<AccountApiResponse>(`/api/accounts/${name}`, {
+    accessToken,
+    method: 'PUT',
+    body: { name, authType, connectedAccount, id },
   });
 
 const apiRequest = async <ApiResponse>(
@@ -140,7 +160,7 @@ const apiRequest = async <ApiResponse>(
     expectedStatusCodes,
   }: {
     defaultErrorMessage?: string;
-    method?: 'GET' | 'POST';
+    method?: 'GET' | 'POST' | 'PUT';
     accessToken: string;
     body?: object;
     expectedStatusCodes?: number[];
@@ -205,4 +225,5 @@ export const authenticatedApiCalls = {
   createStudy,
   fetchAccounts,
   createAccount,
+  updateAccount,
 };

@@ -5,6 +5,7 @@ import PrimaryButton from '../../components/PrimaryButton';
 import InputSecret from './InputSecret';
 import InputToken from './InputToken';
 import useCreateAccount from './useCreateAccount';
+import useUpdateAccount from './useUpdateAccount';
 
 const staticAccountResources = [
   {
@@ -34,6 +35,7 @@ const AccountList = ({ accounts }: { accounts: AccountResource[] }) => {
           clientId={account.connectedAccount?.credentials.clientId}
           clientSecret={account.connectedAccount?.credentials.clientSecret}
           token={account.connectedAccount?.credentials.token}
+          id={account.id}
         />
       ))}
     </ListLayout>
@@ -46,14 +48,18 @@ const AccountListItem = ({
   clientId,
   clientSecret,
   token,
+  id,
 }: {
   account: AccountResource;
   index: number;
   clientId: string;
   clientSecret: string;
   token: string;
+  id: string | undefined;
 }) => {
-  const { isCreating, errorMessage, createAccount } = useCreateAccount();
+  const { isCreating, errorOnCreate, createAccount } = useCreateAccount();
+
+  const { isUpdating, errorOnUpdate, updateAccount } = useUpdateAccount();
 
   const [credentials, setCredentials] = useState({
     clientId: clientId ? clientId : '',
@@ -78,14 +84,16 @@ const AccountListItem = ({
   const handleSubmitForm = (e: any) => {
     e.preventDefault();
 
-    createAccount({
+    const data = {
       name: account.name,
       authType: account.authType,
       connectedAccount: {
         createdAt: Date.now(),
         credentials: validateCredentials,
       },
-    });
+    };
+
+    account.connectedAccount ? updateAccount(data) : createAccount(data);
   };
 
   return (
@@ -98,7 +106,8 @@ const AccountListItem = ({
           <form onSubmit={handleSubmitForm} className="col-span-3">
             {account.authType === 'secret' ? (
               <InputSecret
-                errorMessage={errorMessage}
+                errorOnCreate={errorOnCreate}
+                errorOnUpdate={errorOnUpdate}
                 handleChange={handleChange}
                 index={index}
                 clientId={credentials.clientId}
@@ -106,7 +115,8 @@ const AccountListItem = ({
               />
             ) : (
               <InputToken
-                errorMessage={errorMessage}
+                errorOnCreate={errorOnCreate}
+                errorOnUpdate={errorOnUpdate}
                 handleChange={handleChange}
                 index={index}
                 token={credentials.token}
@@ -117,7 +127,7 @@ const AccountListItem = ({
                 <PrimaryButton
                   type="submit"
                   testId={`existing-account-submit-button-${index}`}
-                  loading={isCreating}
+                  loading={isUpdating}
                 >
                   Update
                 </PrimaryButton>
@@ -134,7 +144,7 @@ const AccountListItem = ({
                 className="text-sm text-red-600 h-1 ml-4"
                 data-testid={`error-message-${index}`}
               >
-                {errorMessage}
+                {errorOnCreate || errorOnUpdate}
               </span>
             </div>
           </form>
