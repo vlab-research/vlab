@@ -59,4 +59,14 @@ describe('Given an authenticated user', () => {
       );
     });
   });
+
+  describe('When the user clicks connect with missing credentials', () => {
+    it('sees an error message', () => {
+      cy.get('[data-testid="new-account-submit-button-2"]').click();
+
+      cy.get('[data-testid="error-message-2"]').contains(
+        'Field cannot be empty'
+      );
+    });
+  });
 });
