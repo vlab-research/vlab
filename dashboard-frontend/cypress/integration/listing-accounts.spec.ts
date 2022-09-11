@@ -5,6 +5,7 @@ describe('Given an authenticated user', () => {
 
   beforeEach(() => {
     server = makeServer({ environment: 'test' });
+    cy.visit('/accounts');
   });
 
   afterEach(() => {
@@ -13,22 +14,14 @@ describe('Given an authenticated user', () => {
 
   describe('When no accounts are connected and the user visits the homepage', () => {
     it('shows three possible accounts to connect to', () => {
-      cy.visit('/accounts');
       cy.get('[data-testid="header"]').contains('Connected Accounts');
       cy.get('[data-testid="account-list-item"]').should('have.length', 3);
     });
 
     it('sees a connect button for each unconnected account', () => {
-      cy.get('[data-testid="new-account-submit-button"]')
-        .should('have.length', 3)
-        .contains('Connect');
-    });
-
-    it('sees no update buttons because all accounts are unconnected', () => {
-      cy.get('[data-testid="new-account-submit-button"]').should(
-        'not.contain',
-        'update'
-      );
+      cy.get('[data-testid="new-account-submit-button-0"]').contains('Connect');
+      cy.get('[data-testid="new-account-submit-button-1"]').contains('Connect');
+      cy.get('[data-testid="new-account-submit-button-2"]').contains('Connect');
     });
   });
 
@@ -46,8 +39,6 @@ describe('Given an authenticated user', () => {
       };
 
       createAccountResource(server, connectedAccounts);
-
-      cy.visit('/accounts');
     });
 
     it('sees the data associated with the connected account', () => {
@@ -62,15 +53,9 @@ describe('Given an authenticated user', () => {
     });
 
     it('sees an update button for the connected account', () => {
-      cy.get('[data-testid="existing-account-submit-button"]')
+      cy.get('[data-testid="existing-account-submit-button-2"]')
         .should('have.length', 1)
         .contains('Update');
-    });
-
-    it('sees a connect button for each unconnected account', () => {
-      cy.get('[data-testid="new-account-submit-button"]')
-        .should('have.length', 2)
-        .should('contain', 'Connect');
     });
   });
 
