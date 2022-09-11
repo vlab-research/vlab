@@ -24,8 +24,8 @@ const useUpdateAccount = () => {
       connectedAccount: TokenAccountResource | SecretAccountResource;
     }) => updateAccount({ name, authType, connectedAccount }),
     {
-      onSuccess: ({ data: newAccount }) => {
-        addAccountToCacheWhileRefetching(newAccount);
+      onSuccess: ({ data: updatedAccount }) => {
+        addAccountToCacheWhileRefetching(updatedAccount);
         history.push('/accounts');
       },
     }
