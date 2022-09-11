@@ -16,9 +16,7 @@ describe('Given an authenticated user', () => {
     it('shows three possible accounts to connect to', () => {
       cy.get('[data-testid="header"]').contains('Connected Accounts');
       cy.get('[data-testid="account-list-item"]').should('have.length', 3);
-    });
 
-    it('sees a connect button for each unconnected account', () => {
       cy.get('[data-testid="new-account-submit-button-0"]').contains('Connect');
       cy.get('[data-testid="new-account-submit-button-1"]').contains('Connect');
       cy.get('[data-testid="new-account-submit-button-2"]').contains('Connect');
@@ -50,9 +48,7 @@ describe('Given an authenticated user', () => {
         'have.value',
         'some token'
       );
-    });
 
-    it('sees an update button for the connected account', () => {
       cy.get('[data-testid="existing-account-submit-button-2"]')
         .should('have.length', 1)
         .contains('Update');
@@ -93,7 +89,7 @@ describe('Given an authenticated user', () => {
       cy.visit('/accounts');
     });
 
-    it('sees the data associated with the client id/secret account', () => {
+    it('sees the data associated with the account', () => {
       cy.get('[data-testid="input-client-id-0"]').should(
         'have.value',
         '123456'
@@ -104,10 +100,6 @@ describe('Given an authenticated user', () => {
         'qwertyuiop'
       );
 
-      cy.get('[data-testid="input-token-1"]').should('have.value', '!"·$%&/()');
-    });
-
-    it('sees the data associated with the token account', () => {
       cy.get('[data-testid="input-token-1"]').should('have.value', '!"·$%&/()');
     });
   });
