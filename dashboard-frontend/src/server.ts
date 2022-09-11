@@ -296,7 +296,8 @@ export const makeServer = ({ environment = 'development' } = {}) => {
           request.requestBody
         );
 
-        const credentialsEmpty = connectedAccount.credentials === {};
+        const credentialsEmpty =
+          JSON.stringify(connectedAccount.credentials) === JSON.stringify({});
 
         if (credentialsEmpty) {
           return new Response(
@@ -342,17 +343,35 @@ export const makeServer = ({ environment = 'development' } = {}) => {
           return unauthorizedResponse;
         }
 
-        // TODO check for duplicates using prev credentials
-
         let name = request.params.name;
-
         const updatedAccountResource = JSON.parse(request.requestBody);
-
         const account = db.accounts.findBy({ name: name });
 
+        const { authType, connectedAccount } = account;
+
+        const previousCredentials = account.connectedAccount.credentials;
+        const credentials = updatedAccountResource.connectedAccount.credentials;
+
+        const isAccountAlreadyConnected =
+          JSON.stringify(previousCredentials) === JSON.stringify(credentials);
+
+        if (isAccountAlreadyConnected) {
+          return new Response(
+            409,
+            { 'content-type': 'application/json' },
+            {
+              error: 'This account is already connected',
+            }
+          );
+        }
+
         db.accounts.update(
-          { connectedAccount: account.connectedAccount },
-          { connectedAccount: updatedAccountResource.connectedAccount }
+          { name: name, authType: authType, connectedAccount },
+          {
+            name: name,
+            authType: authType,
+            connectedAccount: updatedAccountResource.connectedAccount,
+          }
         );
 
         return {
