@@ -6,6 +6,7 @@ import InputSecret from './InputSecret';
 import InputToken from './InputToken';
 import useCreateAccount from './useCreateAccount';
 import useUpdateAccount from './useUpdateAccount';
+import { Toaster } from 'react-hot-toast';
 
 const staticAccountResources = [
   {
@@ -57,9 +58,9 @@ const AccountListItem = ({
   token: string;
   id: string | undefined;
 }) => {
-  const { isCreating, errorOnCreate, createAccount } = useCreateAccount();
+  const { isCreating, error, createAccount } = useCreateAccount();
 
-  const { isUpdating, errorOnUpdate, updateAccount } = useUpdateAccount();
+  const { isUpdating, updateAccount } = useUpdateAccount();
 
   const [credentials, setCredentials] = useState({
     clientId: clientId ? clientId : '',
@@ -106,8 +107,7 @@ const AccountListItem = ({
           <form onSubmit={handleSubmitForm} className="col-span-3">
             {account.authType === 'secret' ? (
               <InputSecret
-                errorOnCreate={errorOnCreate}
-                errorOnUpdate={errorOnUpdate}
+                error={error}
                 handleChange={handleChange}
                 index={index}
                 clientId={credentials.clientId}
@@ -115,8 +115,7 @@ const AccountListItem = ({
               />
             ) : (
               <InputToken
-                errorOnCreate={errorOnCreate}
-                errorOnUpdate={errorOnUpdate}
+                error={error}
                 handleChange={handleChange}
                 index={index}
                 token={credentials.token}
@@ -140,12 +139,7 @@ const AccountListItem = ({
                   Connect
                 </PrimaryButton>
               )}
-              <span
-                className="text-sm text-red-600 h-1 ml-4"
-                data-testid={`error-message-${index}`}
-              >
-                {errorOnCreate || errorOnUpdate}
-              </span>
+              <Toaster />
             </div>
           </form>
         </div>

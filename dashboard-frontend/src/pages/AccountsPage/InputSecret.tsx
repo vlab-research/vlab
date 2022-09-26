@@ -1,18 +1,15 @@
-import { ExclamationCircleIcon } from '@heroicons/react/solid';
 import React, { ChangeEventHandler } from 'react';
 import { classNames } from '../../helpers/strings';
 
 const InputSecret = ({
-  errorOnCreate,
-  errorOnUpdate,
+  error,
   handleChange,
   index,
   clientId,
   clientSecret,
 }: {
   index: number;
-  errorOnCreate?: string;
-  errorOnUpdate?: string;
+  error: string | undefined;
   handleChange: ChangeEventHandler;
   clientId: string;
   clientSecret: string;
@@ -28,14 +25,15 @@ const InputSecret = ({
         type="text"
         className={classNames(
           'block w-full shadow-sm sm:text-sm rounded-md',
-          errorOnCreate || errorOnUpdate
+          error
             ? 'focus:ring-red-500 focus:border-red-500 border-red-300 text-red-900 pr-10'
             : 'focus:ring-indigo-500 focus:border-indigo-500  border-gray-300'
         )}
         data-testid={`input-client-id-${index}`}
-        value={clientId}
-        placeholder="Enter client ID"
+        placeholder="Enter token"
         onChange={handleChange}
+        value={clientId}
+        required
       />
     </div>
     <div className="flex flex-col mb-4">
@@ -48,24 +46,16 @@ const InputSecret = ({
         type="text"
         className={classNames(
           'block w-full shadow-sm sm:text-sm rounded-md',
-          errorOnCreate || errorOnUpdate
+          error
             ? 'focus:ring-red-500 focus:border-red-500 border-red-300 text-red-900 pr-10'
             : 'focus:ring-indigo-500 focus:border-indigo-500  border-gray-300'
         )}
         data-testid={`input-client-secret-${index}`}
-        value={clientSecret}
-        placeholder="Enter client secret"
+        placeholder="Enter token"
         onChange={handleChange}
+        value={clientSecret}
+        required
       />
-      {errorOnCreate ||
-        (errorOnUpdate && (
-          <div className="absolute pointer-events-none inset-y-0 right-0 pr-3 flex items-center">
-            <ExclamationCircleIcon
-              className="h-5 w-5 text-red-500"
-              aria-hidden="true"
-            />
-          </div>
-        ))}
     </div>
   </React.Fragment>
 );
