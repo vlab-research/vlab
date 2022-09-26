@@ -18,7 +18,7 @@ const staticAccountResources = [
     authType: 'token',
   },
   {
-    name: 'Some other account',
+    name: 'Test',
     authType: 'token',
   },
 ];
