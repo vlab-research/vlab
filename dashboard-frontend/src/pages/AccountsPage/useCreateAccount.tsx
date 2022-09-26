@@ -1,5 +1,6 @@
 import { useMutation } from 'react-query';
 import { useHistory } from 'react-router-dom';
+import toast from 'react-hot-toast';
 import useAuthenticatedApi from '../../hooks/useAuthenticatedApi';
 import {
   SecretAccountResource,
@@ -21,9 +22,13 @@ const useCreateAccount = () => {
       connectedAccount: TokenAccountResource | SecretAccountResource;
     }) => createAccount({ name, authType, connectedAccount }),
     {
-      onSuccess: ({ data: newAccount }) => {
-        addAccountToCacheWhileRefetching(newAccount);
+      onSuccess: ({ data: account }) => {
+        addAccountToCacheWhileRefetching(account);
         history.push('/accounts');
+        toast.success(`Account connected`);
+      },
+      onError: error => {
+        toast.error(`Something went wrong: ${error.message}`);
       },
     }
   );
@@ -31,7 +36,7 @@ const useCreateAccount = () => {
   return {
     createAccount: createAccountMutation,
     isCreating: isLoading,
-    errorOnCreate: error?.message,
+    error: error?.message,
   };
 };
 
