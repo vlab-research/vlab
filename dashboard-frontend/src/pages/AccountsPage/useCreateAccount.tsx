@@ -25,7 +25,7 @@ const useCreateAccount = () => {
       onSuccess: ({ data: account }) => {
         addAccountToCacheWhileRefetching(account);
         history.push('/accounts');
-        toast.success(`Account connected`);
+        toast.success(`${account.name} account connected!`);
       },
       onError: error => {
         toast.error(`Something went wrong: ${error.message}`);
