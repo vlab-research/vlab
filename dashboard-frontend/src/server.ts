@@ -309,22 +309,6 @@ export const makeServer = ({ environment = 'development' } = {}) => {
           );
         }
 
-        const allAccounts = Array.from(db.accounts as any) as AccountResource[];
-        const isAccountAlreadyConnected =
-          allAccounts.filter(
-            account => account.name.toLowerCase() === name.toLowerCase()
-          ).length > 0;
-
-        if (isAccountAlreadyConnected) {
-          return new Response(
-            409,
-            { 'content-type': 'application/json' },
-            {
-              error: 'This account is already connected',
-            }
-          );
-        }
-
         const accountResource: AccountResource = {
           name,
           authType,
@@ -348,22 +332,6 @@ export const makeServer = ({ environment = 'development' } = {}) => {
         const account = db.accounts.findBy({ name: name });
 
         const { authType, connectedAccount } = account;
-
-        const previousCredentials = account.connectedAccount.credentials;
-        const credentials = updatedAccountResource.connectedAccount.credentials;
-
-        const isAccountAlreadyConnected =
-          JSON.stringify(previousCredentials) === JSON.stringify(credentials);
-
-        if (isAccountAlreadyConnected) {
-          return new Response(
-            409,
-            { 'content-type': 'application/json' },
-            {
-              error: 'This account is already connected',
-            }
-          );
-        }
 
         db.accounts.update(
           { name: name, authType: authType, connectedAccount },
