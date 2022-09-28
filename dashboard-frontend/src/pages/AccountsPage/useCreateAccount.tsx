@@ -1,6 +1,6 @@
 import { useMutation } from 'react-query';
 import { useHistory } from 'react-router-dom';
-import toast from 'react-hot-toast';
+import { Notyf } from 'notyf';
 import useAuthenticatedApi from '../../hooks/useAuthenticatedApi';
 import {
   SecretAccountResource,
@@ -9,6 +9,7 @@ import {
 import { addAccountToCacheWhileRefetching } from './useAccounts';
 
 const useCreateAccount = () => {
+  const notyf = new Notyf();
   const history = useHistory();
   const { createAccount } = useAuthenticatedApi();
   const [createAccountMutation, { isLoading, error }] = useMutation(
@@ -25,10 +26,10 @@ const useCreateAccount = () => {
       onSuccess: ({ data: account }) => {
         addAccountToCacheWhileRefetching(account);
         history.push('/accounts');
-        toast.success(`${account.name} account connected!`);
+        notyf.success(`${account.name} account connected!`);
       },
       onError: error => {
-        toast.error(`Something went wrong: ${error.message}`);
+        notyf.error({ message: `${error.message}`, dismissible: true });
       },
     }
   );
