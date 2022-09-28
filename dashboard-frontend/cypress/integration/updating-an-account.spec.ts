@@ -122,16 +122,17 @@ describe('Given an authenticated user', () => {
     });
   });
 
-  describe('When the tries to update an account with an empty credential', () => {
+  describe('When the user tries to update an account with an empty credential', () => {
     it('sees an error message', () => {
-      const clientId = '123456';
-      const errorMessage = 'Please fill in this field';
+      const errorMessage = 'Field cannot be empty';
+      const clientId = ' ';
 
-      cy.get('[data-testid="input-client-id-0"]')
-        .type(clientId)
-        .should('have.value', clientId)
-        .clear()
-        .should('have.value', '');
+      cy.get('[data-testid="input-client-id-0"]').clear();
+      cy.get('[data-testid="input-client-id-0"]').type(clientId);
+      cy.get('[data-testid="input-client-id-0"]').should(
+        'have.value',
+        clientId
+      );
 
       cy.get('[data-testid="existing-account-submit-button-0"]').click();
       cy.contains(errorMessage);

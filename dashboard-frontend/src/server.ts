@@ -336,7 +336,9 @@ export const makeServer = ({ environment = 'development' } = {}) => {
 
         const { authType, connectedAccount } = account;
 
-        const credentials = Object.values(connectedAccount.credentials);
+        const credentials = Object.values(
+          updatedAccountResource.connectedAccount.credentials
+        );
 
         const credentialsEmpty = credentials.some(
           (credential: any) => credential.trim() === ''
