@@ -6,7 +6,6 @@ import InputSecret from './InputSecret';
 import InputToken from './InputToken';
 import useCreateAccount from './useCreateAccount';
 import useUpdateAccount from './useUpdateAccount';
-import { Toaster } from 'react-hot-toast';
 
 const staticAccountResources = [
   {
@@ -59,7 +58,6 @@ const AccountListItem = ({
   id: string | undefined;
 }) => {
   const { isCreating, error, createAccount } = useCreateAccount();
-
   const { isUpdating, updateAccount } = useUpdateAccount();
 
   const [credentials, setCredentials] = useState({
@@ -139,7 +137,6 @@ const AccountListItem = ({
                   Connect
                 </PrimaryButton>
               )}
-              <Toaster />
             </div>
           </form>
         </div>

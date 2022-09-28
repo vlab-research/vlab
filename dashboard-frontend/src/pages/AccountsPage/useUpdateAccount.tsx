@@ -1,18 +1,17 @@
 import { useMutation } from 'react-query';
 import { useHistory } from 'react-router-dom';
-import toast from 'react-hot-toast';
 import useAuthenticatedApi from '../../hooks/useAuthenticatedApi';
 import {
   TokenAccountResource,
   SecretAccountResource,
 } from '../../types/account';
 import { addAccountToCacheWhileRefetching } from './useAccounts';
+import { Notyf } from 'notyf';
 
 const useUpdateAccount = () => {
   const history = useHistory();
-
+  const notyf = new Notyf();
   const { updateAccount } = useAuthenticatedApi();
-
   const [updateAccountMutation, { isLoading }] = useMutation(
     ({
       name,
@@ -27,10 +26,10 @@ const useUpdateAccount = () => {
       onSuccess: ({ data: account }) => {
         addAccountToCacheWhileRefetching(account);
         history.push('/accounts');
-        toast.success(`${account.name} account updated!`);
+        notyf.success(`${account.name} account updated!`);
       },
       onError: error => {
-        toast.error(`Something went wrong: ${error.message}`);
+        notyf.error({ message: `${error.message}`, dismissible: true });
       },
     }
   );
