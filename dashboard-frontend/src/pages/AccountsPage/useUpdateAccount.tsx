@@ -12,7 +12,7 @@ const useUpdateAccount = () => {
   const history = useHistory();
   const notyf = new Notyf();
   const { updateAccount } = useAuthenticatedApi();
-  const [updateAccountMutation, { isLoading }] = useMutation(
+  const [updateAccountMutation, { isLoading, error }] = useMutation(
     ({
       name,
       authType,
@@ -41,6 +41,7 @@ const useUpdateAccount = () => {
   return {
     updateAccount: updateAccountMutation,
     isUpdating: isLoading,
+    errorOnUpdate: error?.message,
   };
 };
 

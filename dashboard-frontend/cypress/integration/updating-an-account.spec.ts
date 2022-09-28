@@ -85,6 +85,10 @@ describe('Given an authenticated user', () => {
       );
 
       cy.get('[data-testid="input-token-1"]').should('have.value', token);
+      cy.get('[data-testid="input-token-2"]').should(
+        'have.class',
+        'focus:ring-indigo-500 focus:border-indigo-500 border-gray-300'
+      );
     });
 
     it('is able to update the same account again', () => {
@@ -133,8 +137,13 @@ describe('Given an authenticated user', () => {
         'have.value',
         clientId
       );
-
       cy.get('[data-testid="existing-account-submit-button-0"]').click();
+
+      cy.get('[data-testid="input-client-id-0"]').should(
+        'have.class',
+        'focus:ring-red-500 focus:border-red-500 border-red-300 text-red-900 pr-10'
+      );
+
       cy.contains(errorMessage);
     });
   });

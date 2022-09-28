@@ -58,11 +58,6 @@ describe('Given an authenticated user', () => {
       cy.get('[data-testid="input-token-2"]').type(token);
       cy.get('[data-testid="new-account-submit-button-2"]').dblclick();
 
-      cy.get('[data-testid="input-token-2"]').should(
-        'have.class',
-        'focus:ring-indigo-500 focus:border-indigo-500 border-gray-300'
-      );
-
       cy.contains(`${accountName} account connected!`);
     });
   });
@@ -74,6 +69,10 @@ describe('Given an authenticated user', () => {
 
       cy.get('[data-testid="input-token-2"]').type(token);
       cy.get('[data-testid="new-account-submit-button-2"]').click();
+      cy.get('[data-testid="input-token-2"]').should(
+        'have.class',
+        'focus:ring-red-500 focus:border-red-500 border-red-300 text-red-900 pr-10'
+      );
 
       cy.contains(errorMessage);
     });
