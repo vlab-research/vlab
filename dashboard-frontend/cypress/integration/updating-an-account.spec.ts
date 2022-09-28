@@ -43,12 +43,14 @@ describe('Given an authenticated user', () => {
   });
 
   describe('When the user visits the accounts page and updates an account successfully', () => {
+    const accountName = 'Fly';
     it('sees the updated credential(s) saved to the connected accounts list', () => {
       const clientId = 'test client id';
 
       cy.get('[data-testid="input-client-id-0"]').clear();
       cy.get('[data-testid="input-client-id-0"]').type(clientId);
       cy.get('[data-testid="existing-account-submit-button-0"]').click();
+      cy.contains(`${accountName} account updated!`);
 
       cy.get('[data-testid="input-client-id-0"]').should(
         'have.value',
@@ -65,6 +67,7 @@ describe('Given an authenticated user', () => {
       cy.get('[data-testid="input-token-1"]').clear();
       cy.get('[data-testid="input-token-1"]').type(token);
       cy.get('[data-testid="existing-account-submit-button-1"]').click();
+      cy.contains(`${accountName} account updated!`);
 
       cy.get('[data-testid="input-token-1"]').should('have.value', token);
 
@@ -90,6 +93,7 @@ describe('Given an authenticated user', () => {
       cy.get('[data-testid="input-client-id-0"]').clear();
       cy.get('[data-testid="input-client-id-0"]').type(clientId);
       cy.get('[data-testid="existing-account-submit-button-0"]').click();
+      cy.contains(`${accountName} account updated!`);
 
       cy.get('[data-testid="input-client-id-0"]').should(
         'have.value',
@@ -101,19 +105,36 @@ describe('Given an authenticated user', () => {
         'Update'
       );
     });
-  });
 
-  describe('When the user visits the accounts page and updates an account unsuccessfully', () => {
-    it('sees an error message', () => {
-      const clientId = '123456';
+    it('is able to update an account with the same credentials', () => {
+      const clientId = 'test client id 2';
 
       cy.get('[data-testid="input-client-id-0"]').clear();
       cy.get('[data-testid="input-client-id-0"]').type(clientId);
-      cy.get('[data-testid="existing-account-submit-button-0"]').click();
+      cy.get('[data-testid="existing-account-submit-button-0"]').dblclick();
 
-      cy.get('[data-testid="error-message-0"]').contains(
-        'This account is already connected'
+      cy.get('[data-testid="input-client-id-0"]').should(
+        'have.value',
+        clientId
       );
+
+      cy.contains(`${accountName} account updated!`);
+    });
+  });
+
+  describe('When the tries to update an account with an empty credential', () => {
+    it('sees an error message', () => {
+      const clientId = '123456';
+      const errorMessage = 'Please fill in this field';
+
+      cy.get('[data-testid="input-client-id-0"]')
+        .type(clientId)
+        .should('have.value', clientId)
+        .clear()
+        .should('have.value', '');
+
+      cy.get('[data-testid="existing-account-submit-button-0"]').click();
+      cy.contains(errorMessage);
     });
   });
 });

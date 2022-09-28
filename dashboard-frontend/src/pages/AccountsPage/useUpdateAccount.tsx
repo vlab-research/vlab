@@ -29,7 +29,11 @@ const useUpdateAccount = () => {
         notyf.success(`${account.name} account updated!`);
       },
       onError: error => {
-        notyf.error({ message: `${error.message}`, dismissible: true });
+        notyf.error({
+          message: `${error.message}`,
+          dismissible: true,
+          duration: 10000,
+        });
       },
     }
   );
