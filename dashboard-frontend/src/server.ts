@@ -296,8 +296,11 @@ export const makeServer = ({ environment = 'development' } = {}) => {
           request.requestBody
         );
 
-        const credentialsEmpty =
-          JSON.stringify(connectedAccount.credentials) === JSON.stringify({});
+        const credentials = Object.values(connectedAccount.credentials);
+
+        const credentialsEmpty = credentials.some(
+          (credential: any) => credential.trim() === ''
+        );
 
         if (credentialsEmpty) {
           return new Response(
@@ -332,6 +335,22 @@ export const makeServer = ({ environment = 'development' } = {}) => {
         const account = db.accounts.findBy({ name: name });
 
         const { authType, connectedAccount } = account;
+
+        const credentials = Object.values(connectedAccount.credentials);
+
+        const credentialsEmpty = credentials.some(
+          (credential: any) => credential.trim() === ''
+        );
+
+        if (credentialsEmpty) {
+          return new Response(
+            400,
+            { 'content-type': 'application/json' },
+            {
+              error: 'Field cannot be empty.',
+            }
+          );
+        }
 
         db.accounts.update(
           { name: name, authType: authType, connectedAccount },

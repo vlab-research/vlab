@@ -25,7 +25,7 @@ const InputToken = ({
           'block w-full shadow-sm sm:text-sm rounded-md',
           error
             ? 'focus:ring-red-500 focus:border-red-500 border-red-300 text-red-900 pr-10'
-            : 'focus:ring-indigo-500 focus:border-indigo-500  border-gray-300'
+            : 'focus:ring-indigo-500 focus:border-indigo-500 border-gray-300'
         )}
         data-testid={`input-token-${index}`}
         placeholder="Enter token"
