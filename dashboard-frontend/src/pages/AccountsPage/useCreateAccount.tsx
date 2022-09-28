@@ -29,7 +29,11 @@ const useCreateAccount = () => {
         notyf.success(`${account.name} account connected!`);
       },
       onError: error => {
-        notyf.error({ message: `${error.message}`, dismissible: true });
+        notyf.error({
+          message: `${error.message}`,
+          dismissible: true,
+          duration: 10000,
+        });
       },
     }
   );

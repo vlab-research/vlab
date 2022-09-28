@@ -16,11 +16,14 @@ describe('Given an authenticated user', () => {
     const clientId = '123456';
     const clientSecret = 'qwertyuiop';
     const token = '!"·$%&/()!';
+    const accountName = 'Fly';
 
     it('sees the credential(s) saved to the list of connected accounts', () => {
       cy.get('[data-testid="input-client-id-0"]').type(clientId);
       cy.get('[data-testid="input-client-secret-0"]').type(clientSecret);
       cy.get('[data-testid="new-account-submit-button-0"]').click();
+
+      cy.contains(`${accountName} account connected!`);
 
       cy.get('[data-testid="input-client-id-0"]').should(
         'have.value',
@@ -34,11 +37,13 @@ describe('Given an authenticated user', () => {
       cy.url().should('eq', `${Cypress.config().baseUrl}/accounts`);
 
       cy.get('[data-testid="new-account-submit-button-0"]').contains('Update');
-
       cy.get('[data-testid="input-token-2"]').type(token);
       cy.get('[data-testid="new-account-submit-button-2"]').click();
-
       cy.get('[data-testid="input-token-2"]').should('have.value', token);
+      cy.get('[data-testid="input-token-2"]').should(
+        'have.class',
+        'focus:ring-indigo-500 focus:border-indigo-500 border-gray-300'
+      );
 
       cy.url().should('eq', `${Cypress.config().baseUrl}/accounts`);
       cy.get('[data-testid="new-account-submit-button-2"]').contains('Update');
@@ -47,26 +52,30 @@ describe('Given an authenticated user', () => {
 
   describe('When the user clicks the connect button twice when creating a new account', () => {
     const token = '!"·$%&/()!';
+    const accountName = 'Test';
 
-    it('sees an error message', () => {
+    it('simply updates with the same credential(s) again', () => {
       cy.get('[data-testid="input-token-2"]').type(token);
+      cy.get('[data-testid="new-account-submit-button-2"]').dblclick();
 
-      cy.get('[data-testid="new-account-submit-button-2"]').click();
-      cy.get('[data-testid="new-account-submit-button-2"]').click();
-
-      cy.get('[data-testid="error-message-2"]').contains(
-        'This account is already connected'
+      cy.get('[data-testid="input-token-2"]').should(
+        'have.class',
+        'focus:ring-indigo-500 focus:border-indigo-500 border-gray-300'
       );
+
+      cy.contains(`${accountName} account connected!`);
     });
   });
 
-  describe('When the user clicks connect with missing credentials', () => {
+  describe('When the user tries to connect with an empty credential', () => {
     it('sees an error message', () => {
+      const errorMessage = 'Field cannot be empty';
+      const token = ' ';
+
+      cy.get('[data-testid="input-token-2"]').type(token);
       cy.get('[data-testid="new-account-submit-button-2"]').click();
 
-      cy.get('[data-testid="error-message-2"]').contains(
-        'Field cannot be empty'
-      );
+      cy.contains(errorMessage);
     });
   });
 });
