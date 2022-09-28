@@ -57,8 +57,8 @@ const AccountListItem = ({
   token: string;
   id: string | undefined;
 }) => {
-  const { isCreating, error, createAccount } = useCreateAccount();
-  const { isUpdating, updateAccount } = useUpdateAccount();
+  const { isCreating, errorOnCreate, createAccount } = useCreateAccount();
+  const { isUpdating, errorOnUpdate, updateAccount } = useUpdateAccount();
 
   const [credentials, setCredentials] = useState({
     clientId: clientId ? clientId : '',
@@ -105,7 +105,7 @@ const AccountListItem = ({
           <form onSubmit={handleSubmitForm} className="col-span-3">
             {account.authType === 'secret' ? (
               <InputSecret
-                error={error}
+                error={errorOnCreate || errorOnUpdate}
                 handleChange={handleChange}
                 index={index}
                 clientId={credentials.clientId}
@@ -113,7 +113,7 @@ const AccountListItem = ({
               />
             ) : (
               <InputToken
-                error={error}
+                error={errorOnCreate || errorOnUpdate}
                 handleChange={handleChange}
                 index={index}
                 token={credentials.token}

@@ -41,7 +41,7 @@ const useCreateAccount = () => {
   return {
     createAccount: createAccountMutation,
     isCreating: isLoading,
-    error: error?.message,
+    errorOnCreate: error?.message,
   };
 };
 
