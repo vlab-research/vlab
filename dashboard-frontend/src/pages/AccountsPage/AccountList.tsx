@@ -35,7 +35,6 @@ const AccountList = ({ accounts }: { accounts: AccountResource[] }) => {
           clientId={account.connectedAccount?.credentials.clientId}
           clientSecret={account.connectedAccount?.credentials.clientSecret}
           token={account.connectedAccount?.credentials.token}
-          id={account.id}
         />
       ))}
     </ListLayout>
@@ -48,14 +47,12 @@ const AccountListItem = ({
   clientId,
   clientSecret,
   token,
-  id,
 }: {
   account: AccountResource;
   index: number;
   clientId: string;
   clientSecret: string;
   token: string;
-  id: string | undefined;
 }) => {
   const { isCreating, errorOnCreate, createAccount } = useCreateAccount();
   const { isUpdating, errorOnUpdate, updateAccount } = useUpdateAccount();
