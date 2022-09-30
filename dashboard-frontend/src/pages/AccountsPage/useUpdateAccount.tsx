@@ -26,13 +26,16 @@ const useUpdateAccount = () => {
       onSuccess: ({ data: account }) => {
         addAccountToCacheWhileRefetching(account);
         history.push('/accounts');
-        notyf.success(`${account.name} account updated!`);
+        notyf.success({
+          message: `${account.name} account updated!`,
+          duration: 5000,
+        });
       },
       onError: error => {
         notyf.error({
           message: `${error.message}`,
+          duration: 5000,
           dismissible: true,
-          duration: 10000,
         });
       },
     }
