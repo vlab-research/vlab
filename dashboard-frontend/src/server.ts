@@ -257,7 +257,7 @@ export const makeServer = ({ environment = 'development' } = {}) => {
             400,
             { 'content-type': 'application/json' },
             {
-              error: 'The name cannot be empty.',
+              error: 'Study name cannot be empty.',
             }
           );
         }
@@ -273,7 +273,7 @@ export const makeServer = ({ environment = 'development' } = {}) => {
             409,
             { 'content-type': 'application/json' },
             {
-              error: 'Name already in use.',
+              error: 'Study name already in use.',
             }
           );
         }
