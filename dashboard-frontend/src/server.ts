@@ -31,27 +31,33 @@ export const makeServer = ({ environment = 'development' } = {}) => {
       const staticStudyResources = [
         {
           name: 'Weekly consume meat',
+          objective: 'Objective 1',
           slug: 'weekly-consume-meat',
           createdAt: today,
         },
         {
           name: 'An extra-uterine system to physiologically support the extreme premature lamb',
+          objective: 'Objective 2',
           createdAt: yesterday,
         },
         {
           name: 'Correction of pathogenic gene mutation in human embryos',
+          objective: 'Objective 3',
           createdAt: new Date('06/10/2021').getTime(),
         },
         {
           name: 'A Feathered Dinosaur Tail wih Primitive Plumage Trapped in Mid-Cretaceous Amber',
+          objective: 'Objective 4',
           createdAt: new Date('05/15/2021').getTime(),
         },
         {
           name: 'The meditteranean diet is the best one',
+          objective: 'Objective 5',
           createdAt: new Date('02/17/2021').getTime(),
         },
         {
           name: 'Efficacy and effectiveness of an rVSV-vectored vaccine in preventing Ebola virus disease',
+          objective: 'Objective 6',
           createdAt: new Date('01/02/2021').getTime(),
         },
       ].map(study =>
@@ -234,7 +240,17 @@ export const makeServer = ({ environment = 'development' } = {}) => {
           return unauthorizedResponse;
         }
 
-        const { name } = JSON.parse(request.requestBody);
+        const {
+          name,
+          objective,
+          optimizationGoal,
+          destinationType,
+          minBudget,
+          instagramId,
+          adAccount,
+          country,
+        } = JSON.parse(request.requestBody);
+
         const isNameEmpty = name.trim() === '';
         if (isNameEmpty) {
           return new Response(
@@ -251,12 +267,13 @@ export const makeServer = ({ environment = 'development' } = {}) => {
           allStudies.filter(
             study => study.name.toLowerCase() === name.toLowerCase()
           ).length > 0;
+
         if (isNameAlreadyInUse) {
           return new Response(
             409,
             { 'content-type': 'application/json' },
             {
-              error: 'The name is already in use.',
+              error: 'Name already in use.',
             }
           );
         }
@@ -264,6 +281,13 @@ export const makeServer = ({ environment = 'development' } = {}) => {
         const studyResource: StudyResource = {
           id: chance.guid({ version: 4 }),
           name,
+          objective,
+          optimizationGoal,
+          destinationType,
+          minBudget,
+          instagramId,
+          adAccount,
+          country,
           slug: createSlugFor(name),
           createdAt: Date.now(),
         };
@@ -389,10 +413,24 @@ export const createStudyResource = (
   server: InstanceType<typeof Server>,
   {
     name,
+    objective,
+    optimizationGoal,
+    destinationType,
+    minBudget,
+    instagramId,
+    adAccount,
+    country,
     slug,
     createdAt,
   }: {
     name?: string;
+    objective?: string;
+    optimizationGoal?: string;
+    destinationType?: string;
+    minBudget?: number;
+    instagramId?: string;
+    adAccount?: string;
+    country?: string;
     slug?: string;
     createdAt?: number;
   } = {}
@@ -408,6 +446,13 @@ export const createStudyResource = (
   const studyResource: StudyResource = {
     id: study.id,
     name: name || study.name,
+    objective: objective || study.objective,
+    optimizationGoal: optimizationGoal || study.optimizationGoal,
+    destinationType: destinationType || study.destinationType,
+    minBudget: minBudget || study.minBudget,
+    instagramId: instagramId || study.instagramId,
+    adAccount: adAccount || study.adAccount,
+    country: country || study.country,
     slug: slug || study.slug,
     createdAt: createdAt || study.createdAt,
   };

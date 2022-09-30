@@ -75,15 +75,38 @@ const createUser = ({ accessToken }: { accessToken: string }) => {
 
 const createStudy = ({
   name,
+  objective,
+  optimizationGoal,
+  destinationType,
+  minBudget,
+  instagramId,
+  adAccount,
+  country,
   accessToken,
 }: {
   name: string;
+  objective: string;
+  optimizationGoal: string;
+  destinationType: string;
+  minBudget: number;
+  instagramId: string;
+  adAccount: string;
+  country: string;
   accessToken: string;
 }) =>
   apiRequest<CreateStudyApiResponse>('/api/studies', {
     accessToken,
     method: 'POST',
-    body: { name },
+    body: {
+      name,
+      objective,
+      optimizationGoal,
+      destinationType,
+      minBudget,
+      instagramId,
+      adAccount,
+      country,
+    },
   });
 
 const fetchAccounts = ({

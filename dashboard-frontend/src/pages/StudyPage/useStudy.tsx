@@ -42,6 +42,13 @@ const useStudy = (slug: string) => {
 
   return {
     name: studyQuery.data?.name ?? '',
+    objective: studyQuery.data?.objective ?? '',
+    optimizationGoal: studyQuery.data?.optimizationGoal ?? '',
+    destinationType: studyQuery.data?.optimizationGoal ?? '',
+    minBudget: studyQuery.data?.minBudget ?? '',
+    instagramId: studyQuery.data?.instagramId ?? '',
+    adAccount: studyQuery.data?.adAccount ?? '',
+    country: studyQuery.data?.country ?? '',
     currentProgress,
     progressOverTime,
     currentSegmentsProgress: currentSegmentsProgress

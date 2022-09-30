@@ -18,17 +18,26 @@ const PageContent = () => {
   const [state, setState] = useState({
     name: '',
     objective: '',
-    optimization_goal: '',
-    destination_type: '',
-    min_budget: '',
-    instagram_id: '',
-    ad_account: '',
+    optimizationGoal: '',
+    destinationType: '',
+    minBudget: '',
+    instagramId: '',
+    adAccount: '',
     country: '',
   });
 
   const handleSubmitForm = (e: any) => {
     e.preventDefault();
-    createStudy({ name: e.target.elements.name.value });
+    createStudy({
+      name: e.target.elements.name.value,
+      objective: e.target.elements.objective.value,
+      optimizationGoal: e.target.elements.optimizationGoal.value,
+      destinationType: e.target.elements.destinationType.value,
+      minBudget: e.target.elements.minBudget.value,
+      instagramId: e.target.elements.instagramId.value,
+      country: e.target.elements.country.value,
+      adAccount: e.target.elements.adAccount.value,
+    });
   };
 
   const handleOnChange = (field: any) => (event: any) => {
