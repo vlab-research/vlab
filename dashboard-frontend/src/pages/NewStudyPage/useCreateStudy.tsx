@@ -47,7 +47,7 @@ const useCreateStudy = () => {
   return {
     createStudy: createStudyMutation,
     isCreating: isLoading,
-    errorMessage: error?.message,
+    errorOnCreate: error?.message,
   };
 };
 

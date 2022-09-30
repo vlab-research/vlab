@@ -3,8 +3,6 @@ import { Fragment } from 'react';
 const mapPropsToConfig = config => {
   const configWithProps = [];
 
-  console.log(config);
-
   config.forEach(item => {
     if (item.component) {
       const { component, ...props } = item;
@@ -18,7 +16,7 @@ const mapPropsToConfig = config => {
   return configWithProps;
 };
 
-export const Renderer = ({ config }) => {
+export const Renderer = ({ config, errorOnCreate }) => {
   if (!config) {
     throw new Error('You are calling Renderer with no config.');
   }
@@ -30,7 +28,7 @@ export const Renderer = ({ config }) => {
       const { Component, ...props } = item;
       return (
         <Fragment key={props.name}>
-          <Component {...props} />
+          <Component {...props} errorOnCreate={errorOnCreate} />
         </Fragment>
       );
     });
