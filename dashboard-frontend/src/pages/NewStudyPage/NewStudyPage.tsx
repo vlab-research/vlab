@@ -18,17 +18,21 @@ const PageContent = () => {
   const [state, setState] = useState({
     name: '',
     objective: '',
+    optimization_goal: '',
+    destination_type: '',
+    min_budget: '',
+    instagram_id: '',
+    ad_account: '',
+    country: '',
   });
 
   const handleSubmitForm = (e: any) => {
     e.preventDefault();
-    console.log('state', state);
     createStudy({ name: e.target.elements.name.value });
   };
 
   const handleOnChange = (field: any) => (event: any) => {
     const { value } = event.target;
-    console.log(value);
     setState(prevState => ({ ...prevState, [field]: value }));
   };
 

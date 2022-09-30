@@ -69,13 +69,13 @@ export const getConfig = ({ state, onChange }) => {
       onChange: onChange('ad_account'),
     },
     {
-      name: 'country_code',
-      id: 'country_code',
-      type: 'countryCode',
+      name: 'country',
+      id: 'country',
+      type: 'country',
       component: Dropdown,
       label: 'Country',
-      value: state['country_code'],
-      onChange: onChange('country_code'),
+      value: state['country'],
+      onChange: onChange('country'),
     },
   ];
 };
