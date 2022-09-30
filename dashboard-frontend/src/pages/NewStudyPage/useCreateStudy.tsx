@@ -7,7 +7,35 @@ const useCreateStudy = () => {
   const history = useHistory();
   const { createStudy } = useAuthenticatedApi();
   const [createStudyMutation, { isLoading, error }] = useMutation(
-    ({ name }: { name: string }) => createStudy({ name }),
+    ({
+      name,
+      objective,
+      optimizationGoal,
+      destinationType,
+      minBudget,
+      instagramId,
+      adAccount,
+      country,
+    }: {
+      name: string;
+      objective: string;
+      optimizationGoal: string;
+      destinationType: string;
+      minBudget: number;
+      instagramId: string;
+      adAccount: string;
+      country: string;
+    }) =>
+      createStudy({
+        name,
+        objective,
+        optimizationGoal,
+        destinationType,
+        minBudget,
+        instagramId,
+        adAccount,
+        country,
+      }),
     {
       onSuccess: ({ data: newStudy }) => {
         addStudyToCacheWhileRefetching(newStudy);

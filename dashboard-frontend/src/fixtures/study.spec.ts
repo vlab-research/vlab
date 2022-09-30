@@ -23,6 +23,13 @@ describe('FakeStudyBuilder', () => {
     expect(study).toEqual({
       id: expect.anything(),
       name: expect.anything(),
+      objective: expect.anything(),
+      optimizationGoal: expect.anything(),
+      destinationType: expect.anything(),
+      minBudget: expect.anything(),
+      instagramId: expect.anything(),
+      adAccount: expect.anything(),
+      country: expect.anything(),
       slug: expect.anything(),
       createdAt: studyCreationDate,
       studyProgressList: expect.anything(),

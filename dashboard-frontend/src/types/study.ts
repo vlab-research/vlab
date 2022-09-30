@@ -23,6 +23,13 @@ export interface CreateStudyApiResponse extends ApiResponse<StudyResource> {}
 export interface StudyResource {
   id: string;
   name: string;
+  objective: string;
+  optimizationGoal: string;
+  destinationType: string;
+  minBudget: number;
+  instagramId: string;
+  adAccount: string;
+  country: string;
   slug: string;
   createdAt: number;
 }
