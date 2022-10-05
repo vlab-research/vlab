@@ -177,7 +177,7 @@ def read_share_lookup(path, distribution_vars, tab_name):
 
     df = pd.read_excel(
         path,
-        header=header,
+        header=[0,1],
         index_col=0,
         sheet_name=tab_name,
     )
@@ -185,7 +185,6 @@ def read_share_lookup(path, distribution_vars, tab_name):
     df = df.dropna(axis=1)
     df.index.rename(distribution_vars[0], inplace=True)
     df = df.unstack()
-    df = df.reset_index(level=-2, drop=True)
 
     if isinstance(df.index, pd.MultiIndex):
         df.index = df.index.reorder_levels(distribution_vars)
