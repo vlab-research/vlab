@@ -1,81 +1,83 @@
-// config.js
-import TextInput from './TextInput';
-import Select from './Select';
-import Dropdown from './Dropdown';
+import { translator } from '../../helpers/translator';
+import countries from '../../fixtures/countries.json';
 
-export const getConfig = ({ state, onChange }) => {
-  return [
-    {
-      name: 'name',
-      id: 'name',
-      type: 'text',
-      label: 'Name',
-      component: TextInput,
-      value: state['name'],
-      onChange: onChange('name'),
-    },
-    {
-      name: 'objective',
-      id: 'objective',
-      type: 'option',
-      component: Select,
-      label: 'Objective',
-      value: state['objective'],
-      onChange: onChange('objective'),
-    },
-    {
-      name: 'optimizationGoal',
-      id: 'optimizationGoal',
-      type: 'option',
-      component: Select,
-      label: 'Optimization Goal',
-      value: state['optimizationGoal'],
-      onChange: onChange('optimizationGoal'),
-    },
-    {
-      name: 'destinationType',
-      id: 'destinationType',
-      type: 'option',
-      component: Select,
-      label: 'Destination Type',
-      value: state['destinationType'],
-      onChange: onChange('destinationType'),
-    },
-    {
-      name: 'minBudget',
-      id: 'minBudget',
-      type: 'text',
-      component: TextInput,
-      label: 'Minimum Budget',
-      value: state['minBudget'],
-      onChange: onChange('minBudget'),
-    },
-    {
-      name: 'instagramId',
-      id: 'instagramId',
-      type: 'text',
-      component: TextInput,
-      label: 'Instagram ID',
-      value: state['instagramId'],
-      onChange: onChange('instagramId'),
-    },
-    {
-      name: 'adAccount',
-      id: 'adAccount',
-      type: 'text',
-      component: TextInput,
-      label: 'Ad Account',
-      value: state['adAccount'],
-      onChange: onChange('adAccount'),
-    },
-    {
-      name: 'country',
-      id: 'country',
-      type: 'country',
-      component: Dropdown,
-      label: 'Country',
-      value: state['country'],
-      onChange: onChange('country'),
-    },
-  ];
+const config = [
+  {
+    name: 'name',
+    type: 'text',
+    label: 'Name',
+  },
+  {
+    name: 'objective',
+    type: 'select',
+    label: 'Objective',
+    options: [
+      {
+        name: 'objective 1',
+      },
+      {
+        name: 'objective 2',
+      },
+      {
+        name: 'objective 3',
+      },
+    ],
+  },
+  {
+    name: 'optimizationGoal',
+    type: 'select',
+    label: 'Optimization Goal',
+    options: [
+      {
+        name: 'optimization goal 1',
+      },
+      {
+        name: 'optimization goal 2',
+      },
+      {
+        name: 'optimization goal 3',
+      },
+    ],
+  },
+  {
+    name: 'destinationType',
+    type: 'select',
+    label: 'Destination Type',
+    options: [
+      {
+        name: 'destination type 1',
+      },
+      {
+        name: 'destination type 2',
+      },
+      {
+        name: 'destination type 3',
+      },
+    ],
+  },
+  {
+    name: 'minBudget',
+    type: 'text',
+    label: 'Minimum Budget',
+  },
+  {
+    name: 'instagramId',
+    type: 'text',
+    label: 'Instagram ID',
+  },
+  {
+    name: 'adAccount',
+    type: 'text',
+    label: 'Ad Account',
+  },
+  {
+    name: 'country',
+    type: 'select',
+    label: 'Country',
+    options: countries,
+  },
+];
+
+export const getConfig = () => {
+  return config.map(translator);
 };

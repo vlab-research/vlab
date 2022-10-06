@@ -6,6 +6,7 @@ const mapPropsToConfig = config => {
   config.forEach(item => {
     if (item.component) {
       const { component, ...props } = item;
+
       configWithProps.push({
         ...props,
         Component: component,
@@ -16,7 +17,7 @@ const mapPropsToConfig = config => {
   return configWithProps;
 };
 
-export const Renderer = ({ config, errorOnCreate }) => {
+export const Renderer = ({ config, erroroncreate, state, setstate }) => {
   if (!config) {
     throw new Error('You are calling Renderer with no config.');
   }
@@ -28,7 +29,12 @@ export const Renderer = ({ config, errorOnCreate }) => {
       const { Component, ...props } = item;
       return (
         <Fragment key={props.name}>
-          <Component {...props} errorOnCreate={errorOnCreate} />
+          <Component
+            {...props}
+            erroroncreate={erroroncreate}
+            state={state}
+            setstate={setstate}
+          />
         </Fragment>
       );
     });
