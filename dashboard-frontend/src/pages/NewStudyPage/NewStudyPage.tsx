@@ -1,10 +1,10 @@
+import { useCallback, useMemo, useState } from 'react';
 import useCreateStudy from './useCreateStudy';
 import PageLayout from '../../components/PageLayout';
 import PrimaryButton from '../../components/PrimaryButton';
 
 import { Renderer } from './Renderer';
 import { getConfig } from './config';
-import { useMemo, useState } from 'react';
 
 const NewStudyPage = () => (
   <PageLayout title={'New Study'} testId="new-study-page" showBackButton>
@@ -26,6 +26,14 @@ const PageContent = () => {
     country: '',
   });
 
+  // wrapper function to give to child
+  const wrapperSetState = useCallback(
+    val => {
+      setState(val);
+    },
+    [setState]
+  );
+
   const handleSubmitForm = (e: any) => {
     e.preventDefault();
     createStudy({
@@ -40,14 +48,9 @@ const PageContent = () => {
     });
   };
 
-  const handleOnChange = (field: any) => (event: any) => {
-    const { value } = event.target;
-    setState(prevState => ({ ...prevState, [field]: value }));
-  };
-
   const config = useMemo(() => {
-    return getConfig({ state, onChange: handleOnChange });
-  }, [state]);
+    return getConfig();
+  }, []);
 
   return (
     <div className="md:grid md:grid-cols-3 md:gap-6">
@@ -67,7 +70,12 @@ const PageContent = () => {
             <div className="px-4 py-5 bg-white sm:p-6">
               <div className="grid grid-cols-6 gap-6">
                 <div className="col-span-6 sm:col-span-4">
-                  <Renderer config={config} errorOnCreate={errorOnCreate} />
+                  <Renderer
+                    config={config}
+                    erroroncreate={errorOnCreate}
+                    state={state}
+                    setstate={wrapperSetState}
+                  />
                 </div>
               </div>
             </div>
