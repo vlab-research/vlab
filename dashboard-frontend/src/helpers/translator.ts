@@ -6,12 +6,14 @@ interface Obj {
   name: string;
   type: string;
   label: string;
-  options?: string[];
+  options?: Option[];
 }
 
 const str: keyof Obj = 'type';
+interface Option {
+  name: string;
+}
 
-// TO DO write tests
 export const translator = (obj: Obj) => {
   const lookup: any = {
     text: TextInput,
@@ -32,6 +34,6 @@ export const translator = (obj: Obj) => {
     type: type,
     component: component,
     label: obj.label,
-    options: obj.options,
+    options: obj.options ?? obj.options,
   };
 };
