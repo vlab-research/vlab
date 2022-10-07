@@ -1,5 +1,4 @@
-import React from 'react';
-import { createSlugFor, classNames } from './strings';
+import { createSlugFor, classNames, toCamelCase } from './strings';
 
 describe('createSlugFor', () => {
   it('returns a slug for the given string', () => {
@@ -24,5 +23,12 @@ describe('classNames', () => {
     expect(classNames('Button', 'Button--big')).toBe('Button Button--big');
     expect(classNames('Button', '')).toBe('Button');
     expect(classNames('Button')).toBe('Button');
+  });
+});
+
+describe('camelCase', () => {
+  it('returns a string in camelCase', () => {
+    expect(toCamelCase('')).toBe('');
+    expect(toCamelCase('min_budget')).toBe('minBudget');
   });
 });
