@@ -1,9 +1,11 @@
 import { useMutation } from 'react-query';
 import { useHistory } from 'react-router-dom';
+import { Notyf } from 'notyf';
 import useAuthenticatedApi from '../../hooks/useAuthenticatedApi';
 import { addStudyToCacheWhileRefetching } from '../../hooks/useStudies';
 
 const useCreateStudy = () => {
+  const notyf = new Notyf();
   const history = useHistory();
   const { createStudy } = useAuthenticatedApi();
   const [createStudyMutation, { isLoading, error }] = useMutation(
@@ -46,6 +48,7 @@ const useCreateStudy = () => {
       onSuccess: ({ data: newStudy }) => {
         addStudyToCacheWhileRefetching(newStudy);
         history.push('/');
+        notyf.success(`${newStudy.name} created!`);
       },
     }
   );
