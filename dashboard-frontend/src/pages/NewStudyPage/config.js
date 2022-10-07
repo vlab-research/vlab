@@ -24,7 +24,7 @@ const config = [
     ],
   },
   {
-    name: 'optimizationGoal',
+    name: 'optimization_goal',
     type: 'select',
     label: 'Optimization Goal',
     options: [
@@ -40,7 +40,7 @@ const config = [
     ],
   },
   {
-    name: 'destinationType',
+    name: 'destination_type',
     type: 'select',
     label: 'Destination Type',
     options: [
@@ -56,17 +56,27 @@ const config = [
     ],
   },
   {
-    name: 'minBudget',
+    name: 'page_id',
+    type: 'text',
+    label: 'Page ID',
+  },
+  {
+    name: 'min_budget',
     type: 'text',
     label: 'Minimum Budget',
   },
   {
-    name: 'instagramId',
+    name: 'opt_window',
+    type: 'text',
+    label: 'Opt-in Window',
+  },
+  {
+    name: 'instagram_id',
     type: 'text',
     label: 'Instagram ID',
   },
   {
-    name: 'adAccount',
+    name: 'ad_account',
     type: 'text',
     label: 'Ad Account',
   },

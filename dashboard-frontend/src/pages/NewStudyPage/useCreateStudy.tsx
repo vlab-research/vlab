@@ -12,8 +12,10 @@ const useCreateStudy = () => {
       objective,
       optimizationGoal,
       destinationType,
-      minBudget,
+      pageId,
       instagramId,
+      minBudget,
+      optWindow,
       adAccount,
       country,
     }: {
@@ -21,8 +23,10 @@ const useCreateStudy = () => {
       objective: string;
       optimizationGoal: string;
       destinationType: string;
-      minBudget: number;
+      pageId: string;
       instagramId: string;
+      minBudget: number;
+      optWindow: number;
       adAccount: string;
       country: string;
     }) =>
@@ -31,8 +35,10 @@ const useCreateStudy = () => {
         objective,
         optimizationGoal,
         destinationType,
-        minBudget,
+        pageId,
         instagramId,
+        minBudget,
+        optWindow,
         adAccount,
         country,
       }),

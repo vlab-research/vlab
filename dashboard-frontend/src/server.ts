@@ -245,8 +245,10 @@ export const makeServer = ({ environment = 'development' } = {}) => {
           objective,
           optimizationGoal,
           destinationType,
-          minBudget,
+          pageId,
           instagramId,
+          minBudget,
+          optWindow,
           adAccount,
           country,
         } = JSON.parse(request.requestBody);
@@ -284,8 +286,10 @@ export const makeServer = ({ environment = 'development' } = {}) => {
           objective,
           optimizationGoal,
           destinationType,
-          minBudget,
+          pageId,
           instagramId,
+          minBudget,
+          optWindow,
           adAccount,
           country,
           slug: createSlugFor(name),
@@ -416,7 +420,9 @@ export const createStudyResource = (
     objective,
     optimizationGoal,
     destinationType,
+    pageId,
     minBudget,
+    optWindow,
     instagramId,
     adAccount,
     country,
@@ -427,8 +433,10 @@ export const createStudyResource = (
     objective?: string;
     optimizationGoal?: string;
     destinationType?: string;
-    minBudget?: number;
+    pageId?: string;
     instagramId?: string;
+    minBudget?: number;
+    optWindow?: number;
     adAccount?: string;
     country?: string;
     slug?: string;
@@ -449,8 +457,10 @@ export const createStudyResource = (
     objective: objective || study.objective,
     optimizationGoal: optimizationGoal || study.optimizationGoal,
     destinationType: destinationType || study.destinationType,
-    minBudget: minBudget || study.minBudget,
+    pageId: pageId || study.pageId,
     instagramId: instagramId || study.instagramId,
+    minBudget: minBudget || study.minBudget,
+    optWindow: optWindow || study.optWindow,
     adAccount: adAccount || study.adAccount,
     country: country || study.country,
     slug: slug || study.slug,
