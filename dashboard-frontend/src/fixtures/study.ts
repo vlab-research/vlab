@@ -70,9 +70,11 @@ const createInitialStudyData = ({
   const objective = `Objective for ${studyName} Study`;
   const optimizationGoal = `Optimization goal for ${studyName} Study`;
   const destinationType = `Destination type for ${studyName} Study`;
-  const minBudget = 1000;
+  const pageId = chance.fbid();
   const instagramId = chance.fbid();
-  const adAccount = 'Facebook';
+  const minBudget = 1000;
+  const optWindow = chance.floating({ min: 0, max: 14 });
+  const adAccount = chance.fbid();
   const country = chance.country({ full: true });
   const studySlug = createSlugFor(studyName);
   const studyCreationDate = creationDate;
@@ -83,8 +85,10 @@ const createInitialStudyData = ({
     objective: objective,
     optimizationGoal: optimizationGoal,
     destinationType: destinationType,
-    minBudget: minBudget,
+    pageId: pageId,
     instagramId: instagramId,
+    minBudget: minBudget,
+    optWindow: optWindow,
     adAccount: adAccount,
     country: country,
     slug: studySlug,

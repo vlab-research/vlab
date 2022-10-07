@@ -20,8 +20,10 @@ const PageContent = () => {
     objective: '',
     optimizationGoal: '',
     destinationType: '',
-    minBudget: '',
+    pageId: '',
     instagramId: '',
+    minBudget: '',
+    optWindow: '',
     adAccount: '',
     country: '',
   });
@@ -41,8 +43,10 @@ const PageContent = () => {
       objective: e.target.elements.objective.value,
       optimizationGoal: e.target.elements.optimizationGoal.value,
       destinationType: e.target.elements.destinationType.value,
-      minBudget: e.target.elements.minBudget.value,
+      pageId: e.target.elements.pageId.value,
       instagramId: e.target.elements.instagramId.value,
+      minBudget: e.target.elements.minBudget.value,
+      optWindow: e.target.elements.optWindow.value,
       country: e.target.elements.country.value,
       adAccount: e.target.elements.adAccount.value,
     });

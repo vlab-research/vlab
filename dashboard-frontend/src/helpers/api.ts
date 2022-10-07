@@ -94,8 +94,10 @@ const createStudy = ({
   objective,
   optimizationGoal,
   destinationType,
-  minBudget,
+  pageId,
   instagramId,
+  minBudget,
+  optWindow,
   adAccount,
   country,
   accessToken,
@@ -104,8 +106,10 @@ const createStudy = ({
   objective: string;
   optimizationGoal: string;
   destinationType: string;
-  minBudget: number;
+  pageId: string;
   instagramId: string;
+  minBudget: number;
+  optWindow: number;
   adAccount: string;
   country: string;
   accessToken: string;
@@ -118,8 +122,10 @@ const createStudy = ({
       objective,
       optimizationGoal,
       destinationType,
-      minBudget,
+      pageId,
       instagramId,
+      minBudget,
+      optWindow,
       adAccount,
       country,
     },

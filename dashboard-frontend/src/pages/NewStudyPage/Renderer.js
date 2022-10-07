@@ -27,6 +27,7 @@ export const Renderer = ({ config, erroroncreate, state, setstate }) => {
   const renderComponents = items => {
     return items.map(item => {
       const { Component, ...props } = item;
+
       return (
         <Fragment key={props.name}>
           <Component

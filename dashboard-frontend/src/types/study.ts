@@ -26,8 +26,10 @@ export interface StudyResource {
   objective: string;
   optimizationGoal: string;
   destinationType: string;
-  minBudget: number;
+  pageId: string;
   instagramId: string;
+  minBudget: number;
+  optWindow: number;
   adAccount: string;
   country: string;
   slug: string;
