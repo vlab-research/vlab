@@ -64,6 +64,10 @@ func (p *VlabKVPairSelectFunctionParams) GetValue(dat json.RawMessage) ([]byte, 
 		return nil, fmt.Errorf("Bad KV Pair string: %s is not a string at all.", s)
 	}
 
+	if st == "" {
+		return nil, fmt.Errorf("Bad KV Pair string: %s was empty", st)
+	}
+
 	sli := strings.Split(st, ".")
 
 	if len(sli)%2 != 0 {

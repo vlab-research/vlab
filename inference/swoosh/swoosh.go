@@ -110,8 +110,15 @@ func main() {
 
 		mapping, err := GetInferenceDataConf(pool, study)
 		handle(err)
-		id, err := Reduce(events, mapping)
+
+		id, extractionErrors, err := Reduce(events, mapping)
 		handle(err)
+
+		// TODO: store extraction errors in database to show user!
+		log.Println(fmt.Printf("Swoosh had %d extractionErrors", len(extractionErrors)))
+		for _, err := range extractionErrors {
+			log.Println(fmt.Printf(err.Error()))
+		}
 
 		log.Println(fmt.Printf("Swoosh storing InferenceData from %d users", len(id)))
 		err = WriteInferenceData(pool, study, id)

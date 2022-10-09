@@ -146,8 +146,9 @@ func TestReduceInferenceData_SelectsVariablesAsPerConfAndSelectFunction(t *testi
 		},
 	}}
 
-	actual, err := Reduce(events, mapping)
+	actual, extractionErrors, err := Reduce(events, mapping)
 	assert.Nil(t, err)
+	assert.Equal(t, len(extractionErrors), 0)
 	assert.Equal(t, expected, actual)
 }
 
@@ -190,8 +191,9 @@ func TestReduceInferenceData_GroupsByUserAndOverwritesRepeatedValues(t *testing.
 		},
 	}}
 
-	actual, err := Reduce(events, mapping)
+	actual, extractionErrors, err := Reduce(events, mapping)
 	assert.Nil(t, err)
+	assert.Equal(t, len(extractionErrors), 0)
 	assert.Equal(t, expected, actual)
 }
 
@@ -246,9 +248,9 @@ func TestReduceInferenceData_CollectsMetadataWithTimestampFirstEventOfUniqueValu
 		},
 	}}
 
-	actual, err := Reduce(events, mapping)
-
+	actual, extractionErrors, err := Reduce(events, mapping)
 	assert.Nil(t, err)
+	assert.Equal(t, len(extractionErrors), 0)
 	assert.Equal(t, expected, actual)
 }
 
@@ -279,8 +281,9 @@ func TestReduceInferenceData_UsesExtractionMappingOfMetadata(t *testing.T) {
 		},
 	}}
 
-	actual, err := Reduce(events, mapping)
+	actual, extractionErrors, err := Reduce(events, mapping)
 	assert.Nil(t, err)
+	assert.Equal(t, len(extractionErrors), 0)
 	assert.Equal(t, expected, actual)
 }
 
@@ -310,8 +313,9 @@ func TestReduceInferenceData_WorksWithSelectKVPairFunction(t *testing.T) {
 		},
 	}}
 
-	actual, err := Reduce(events, mapping)
+	actual, extractionErrors, err := Reduce(events, mapping)
 	assert.Nil(t, err)
+	assert.Equal(t, len(extractionErrors), 0)
 	assert.Equal(t, expected, actual)
 }
 
@@ -340,8 +344,9 @@ func TestReduceInferenceData_WorksCastingStringsToContinuousValues(t *testing.T)
 		},
 	}}
 
-	actual, err := Reduce(events, mapping)
+	actual, extractionErrors, err := Reduce(events, mapping)
 	assert.Nil(t, err)
+	assert.Equal(t, len(extractionErrors), 0)
 	assert.Equal(t, expected, actual)
 }
 
@@ -363,14 +368,15 @@ func TestReduceInferenceData_ReturnsErrorWhenNonExistantDataSource(t *testing.T)
 		},
 	}}
 
-	_, err := Reduce(events, mapping)
+	_, extractionErrors, err := Reduce(events, mapping)
+	assert.Equal(t, len(extractionErrors), 0)
 	assert.NotNil(t, err)
 	assert.Contains(t, err.Error(), "lit_data")
 	assert.Contains(t, err.Error(), "foo")
 	assert.Contains(t, err.Error(), "bar")
 }
 
-func TestReduceInferenceData_ReturnsErrorWhenInvalidExtractionParamsForFunction(t *testing.T) {
+func TestReduceInferenceData_SkipsUsersWhenInvalidExtractionParamsForFunction(t *testing.T) {
 	events := testEvents("events_a.json")
 
 	mapping := &InferenceDataConf{map[string]*InferenceDataSource{
@@ -382,9 +388,10 @@ func TestReduceInferenceData_ReturnsErrorWhenInvalidExtractionParamsForFunction(
 		},
 	}}
 
-	_, err := Reduce(events, mapping)
-	assert.NotNil(t, err)
-	assert.Contains(t, err.Error(), "Path")
+	_, extractionErrors, err := Reduce(events, mapping)
+	assert.Nil(t, err)
+	e := extractionErrors[0]
+	assert.Contains(t, e.Error(), "Path")
 
 	mapping = &InferenceDataConf{map[string]*InferenceDataSource{
 		"lit_data": {
@@ -395,13 +402,14 @@ func TestReduceInferenceData_ReturnsErrorWhenInvalidExtractionParamsForFunction(
 		},
 	}}
 
-	_, err = Reduce(events, mapping)
-	assert.NotNil(t, err)
-	assert.Contains(t, err.Error(), "select")
-	assert.Contains(t, err.Error(), "notjson")
+	_, extractionErrors, err = Reduce(events, mapping)
+	assert.Nil(t, err)
+	e = extractionErrors[0]
+	assert.Contains(t, e.Error(), "select")
+	assert.Contains(t, e.Error(), "notjson")
 }
 
-func TestReduceInferenceData_ReturnsErrorWhenExtractionFunctionFails(t *testing.T) {
+func TestReduceInferenceData_ReturnsExtractionErrorsWhenExtractionFunctionFails(t *testing.T) {
 	events := testEvents("events_a.json")
 
 	mapping := &InferenceDataConf{map[string]*InferenceDataSource{
@@ -413,10 +421,12 @@ func TestReduceInferenceData_ReturnsErrorWhenExtractionFunctionFails(t *testing.
 		},
 	}}
 
-	_, err := Reduce(events, mapping)
-	assert.NotNil(t, err)
-	assert.Contains(t, err.Error(), "does.not.exist.in.json")
-	assert.Contains(t, err.Error(), "\"A\"")
+	_, extractionErrors, err := Reduce(events, mapping)
+	assert.Nil(t, err)
+	e := extractionErrors[0]
+
+	assert.Contains(t, e.Error(), "does.not.exist.in.json")
+	assert.Contains(t, e.Error(), "\"A\"")
 }
 
 func TestReduceInferenceData_ReturnsErrorWhenExtractionFunctionDoesNotExist(t *testing.T) {
@@ -431,7 +441,8 @@ func TestReduceInferenceData_ReturnsErrorWhenExtractionFunctionDoesNotExist(t *t
 		},
 	}}
 
-	_, err := Reduce(events, mapping)
-	assert.NotNil(t, err)
-	assert.Contains(t, err.Error(), "nopenotathing")
+	_, extractionErrors, err := Reduce(events, mapping)
+	assert.Nil(t, err)
+	e := extractionErrors[0]
+	assert.Contains(t, e.Error(), "nopenotathing")
 }

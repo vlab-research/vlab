@@ -112,3 +112,15 @@ func TestVlabKVPairSelectParams_ErrorsIfKVPairStringNotAString(t *testing.T) {
 	assert.NotNil(t, e)
 	assert.Contains(t, e.Error(), "100")
 }
+
+func TestVlabKVPairSelectParams_ErrorsIfKVPairStringEmpty(t *testing.T) {
+	s := "foo"
+	params := &VlabKVPairSelectFunctionParams{
+		&s,
+		"bar",
+	}
+
+	_, e := params.GetValue([]byte(`{"foo": ""}`))
+	assert.NotNil(t, e)
+	assert.Contains(t, e.Error(), "empty")
+}

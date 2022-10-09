@@ -190,15 +190,18 @@ func extractValue(id InferenceData, e *InferenceDataEvent, extractionConfs []*Ex
 	return id, nil
 }
 
-func Reduce(events []*InferenceDataEvent, c *InferenceDataConf) (InferenceData, error) {
+// TODO: need to differentiate between bad errors and skip e
+
+func Reduce(events []*InferenceDataEvent, c *InferenceDataConf) (InferenceData, []error, error) {
 	id := make(InferenceData)
+	extractionErrors := []error{}
 
 	for _, e := range events {
 
 		sourceConf, ok := c.DataSources[e.SourceConf.Name]
 
 		if !ok {
-			return nil, fmt.Errorf("Attempted to process event from data source not in SourceVariableMapping. "+
+			return nil, extractionErrors, fmt.Errorf("Attempted to process event from data source not in SourceVariableMapping. "+
 				"Data source: %s. Sources in mapping: %s",
 				e.SourceConf.Name,
 				c.Sources())
@@ -211,17 +214,17 @@ func Reduce(events []*InferenceDataEvent, c *InferenceDataConf) (InferenceData, 
 		id, err := extractValue(id, e, sourceConf.MetadataExtractionMapping, retrieveFromMetadata)
 
 		if err != nil {
-			return id, err
+			extractionErrors = append(extractionErrors, err)
+			continue
 		}
 
 		// attempt to extract the values from the event itself, according to config
 		id, err = extractValue(id, e, sourceConf.VariableExtractionMapping, retrieveFromVariable)
 		if err != nil {
-			bb, _ := json.Marshal(e)
-			fmt.Println("Error extracting value: " + string(bb))
-			return id, err
+			extractionErrors = append(extractionErrors, err)
+			continue
 		}
 	}
 
-	return id, nil
+	return id, extractionErrors, nil
 }
