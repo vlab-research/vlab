@@ -1,7 +1,6 @@
-import { translator } from '../../helpers/translator';
 import countries from '../../fixtures/countries.json';
 
-const config = [
+export const baseConfig = [
   {
     name: 'name',
     type: 'text',
@@ -87,7 +86,3 @@ const config = [
     options: countries,
   },
 ];
-
-export const getConfig = () => {
-  return config.map(translator);
-};
