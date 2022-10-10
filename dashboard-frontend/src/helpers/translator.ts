@@ -29,7 +29,7 @@ export const translator = (obj: Obj) => {
 
   return {
     id: obj.name,
-    name: obj.name, // this needs reversing again when sent back to server
+    name: obj.name,
     type: type,
     component: component,
     label: obj.label,
