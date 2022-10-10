@@ -12,36 +12,36 @@ const useCreateStudy = () => {
     ({
       name,
       objective,
-      optimizationGoal,
-      destinationType,
-      pageId,
-      instagramId,
-      minBudget,
-      optWindow,
-      adAccount,
+      optimization_goal,
+      destination_type,
+      page_id,
+      instagram_id,
+      min_budget,
+      opt_window,
+      ad_account,
       country,
     }: {
       name: string;
       objective: string;
-      optimizationGoal: string;
-      destinationType: string;
-      pageId: string;
-      instagramId: string;
-      minBudget: number;
-      optWindow: number;
-      adAccount: string;
+      optimization_goal: string;
+      destination_type: string;
+      page_id: string;
+      instagram_id: string;
+      min_budget: number;
+      opt_window: number;
+      ad_account: string;
       country: string;
     }) =>
       createStudy({
         name,
         objective,
-        optimizationGoal,
-        destinationType,
-        pageId,
-        instagramId,
-        minBudget,
-        optWindow,
-        adAccount,
+        optimization_goal,
+        destination_type,
+        page_id,
+        instagram_id,
+        min_budget,
+        opt_window,
+        ad_account,
         country,
       }),
     {

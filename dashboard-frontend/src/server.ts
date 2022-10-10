@@ -243,13 +243,13 @@ export const makeServer = ({ environment = 'development' } = {}) => {
         const {
           name,
           objective,
-          optimizationGoal,
-          destinationType,
-          pageId,
-          instagramId,
-          minBudget,
-          optWindow,
-          adAccount,
+          optimization_goal,
+          destination_type,
+          page_id,
+          instagram_id,
+          min_budget,
+          opt_window,
+          ad_account,
           country,
         } = JSON.parse(request.requestBody);
 
@@ -284,13 +284,13 @@ export const makeServer = ({ environment = 'development' } = {}) => {
           id: chance.guid({ version: 4 }),
           name,
           objective,
-          optimizationGoal,
-          destinationType,
-          pageId,
-          instagramId,
-          minBudget,
-          optWindow,
-          adAccount,
+          optimization_goal,
+          destination_type,
+          page_id,
+          instagram_id,
+          min_budget,
+          opt_window,
+          ad_account,
           country,
           slug: createSlugFor(name),
           createdAt: Date.now(),
@@ -418,26 +418,26 @@ export const createStudyResource = (
   {
     name,
     objective,
-    optimizationGoal,
-    destinationType,
-    pageId,
-    minBudget,
-    optWindow,
-    instagramId,
-    adAccount,
+    optimization_goal,
+    destination_type,
+    page_id,
+    min_budget,
+    opt_window,
+    instagram_id,
+    ad_account,
     country,
     slug,
     createdAt,
   }: {
     name?: string;
     objective?: string;
-    optimizationGoal?: string;
-    destinationType?: string;
-    pageId?: string;
-    instagramId?: string;
-    minBudget?: number;
-    optWindow?: number;
-    adAccount?: string;
+    optimization_goal?: string;
+    destination_type?: string;
+    page_id?: string;
+    instagram_id?: string;
+    min_budget?: number;
+    opt_window?: number;
+    ad_account?: string;
     country?: string;
     slug?: string;
     createdAt?: number;
@@ -455,13 +455,13 @@ export const createStudyResource = (
     id: study.id,
     name: name || study.name,
     objective: objective || study.objective,
-    optimizationGoal: optimizationGoal || study.optimizationGoal,
-    destinationType: destinationType || study.destinationType,
-    pageId: pageId || study.pageId,
-    instagramId: instagramId || study.instagramId,
-    minBudget: minBudget || study.minBudget,
-    optWindow: optWindow || study.optWindow,
-    adAccount: adAccount || study.adAccount,
+    optimization_goal: optimization_goal || study.optimization_goal,
+    destination_type: destination_type || study.destination_type,
+    page_id: page_id || study.page_id,
+    instagram_id: instagram_id || study.instagram_id,
+    min_budget: min_budget || study.min_budget,
+    opt_window: opt_window || study.opt_window,
+    ad_account: ad_account || study.ad_account,
     country: country || study.country,
     slug: slug || study.slug,
     createdAt: createdAt || study.createdAt,

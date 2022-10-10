@@ -17,6 +17,7 @@ describe('Given an authenticated user', () => {
       cy.visit('/new-study');
 
       cy.get('[data-testid="new-study-name-input"]').type(newStudyName);
+
       cy.get('[data-testid="new-study-submit-button"]').click();
 
       cy.url().should('eq', `${Cypress.config().baseUrl}/`);

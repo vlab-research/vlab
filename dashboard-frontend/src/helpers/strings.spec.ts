@@ -29,6 +29,6 @@ describe('classNames', () => {
 describe('camelCase', () => {
   it('returns a string in camelCase', () => {
     expect(toCamelCase('')).toBe('');
-    expect(toCamelCase('min_budget')).toBe('minBudget');
+    expect(toCamelCase('min_budget')).toBe('min_budget');
   });
 });

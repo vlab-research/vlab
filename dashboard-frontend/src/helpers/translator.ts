@@ -1,6 +1,5 @@
 import TextInput from '../pages/NewStudyPage/TextInput';
 import SelectInput from '../pages/NewStudyPage/Select';
-import { toCamelCase } from './strings';
 
 interface Obj {
   name: string;
@@ -30,7 +29,7 @@ export const translator = (obj: Obj) => {
 
   return {
     id: obj.name,
-    name: toCamelCase(obj.name),
+    name: obj.name, // this needs reversing again when sent back to server
     type: type,
     component: component,
     label: obj.label,
