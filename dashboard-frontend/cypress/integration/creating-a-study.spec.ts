@@ -12,12 +12,11 @@ describe('Given an authenticated user', () => {
   });
 
   describe('When he visits New Study page and creates a Study successfully', () => {
-    it("He's redirected to the Studies page which lists the created Study", () => {
+    it.only("He's redirected to the Studies page which lists the created Study", () => {
       const newStudyName = 'Example Study';
       cy.visit('/new-study');
 
       cy.get('[data-testid="new-study-name-input"]').type(newStudyName);
-
       cy.get('[data-testid="new-study-submit-button"]').click();
 
       cy.url().should('eq', `${Cypress.config().baseUrl}/`);

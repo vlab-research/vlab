@@ -4,7 +4,8 @@ import PageLayout from '../../components/PageLayout';
 import PrimaryButton from '../../components/PrimaryButton';
 
 import { Renderer } from './Renderer';
-import { getConfig } from './config';
+import { getConfig } from './getConfig';
+import { baseConfig } from './baseConfig';
 
 const NewStudyPage = () => (
   <PageLayout title={'New Study'} testId="new-study-page" showBackButton>
@@ -53,7 +54,7 @@ const PageContent = () => {
   };
 
   const config = useMemo(() => {
-    return getConfig();
+    return getConfig(baseConfig);
   }, []);
 
   return (
