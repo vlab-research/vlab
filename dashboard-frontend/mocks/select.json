@@ -1,0 +1,16 @@
+{
+  "name": "foo_bar",
+  "type": "select",
+  "label": "Foo",
+  "options": [
+    {
+      "name": "foo"
+    },
+    {
+      "name": "bar"
+    },
+    {
+      "name": "baz"
+    }
+  ]
+}

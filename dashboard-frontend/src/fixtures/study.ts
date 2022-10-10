@@ -68,13 +68,13 @@ const createInitialStudyData = ({
   const studyAuthorName = chance.first({ nationality: 'en' });
   const studyName = `${studyAuthorName} ${createRandomSuffix()} Study`;
   const objective = `Objective for ${studyName} Study`;
-  const optimizationGoal = `Optimization goal for ${studyName} Study`;
-  const destinationType = `Destination type for ${studyName} Study`;
-  const pageId = chance.fbid();
-  const instagramId = chance.fbid();
-  const minBudget = 1000;
-  const optWindow = chance.floating({ min: 0, max: 14 });
-  const adAccount = chance.fbid();
+  const optimization_goal = `Optimization goal for ${studyName} Study`;
+  const destination_type = `Destination type for ${studyName} Study`;
+  const page_id = chance.fbid();
+  const instagram_id = chance.fbid();
+  const min_budget = 1000;
+  const opt_window = chance.floating({ min: 0, max: 14 });
+  const ad_account = chance.fbid();
   const country = chance.country({ full: true });
   const studySlug = createSlugFor(studyName);
   const studyCreationDate = creationDate;
@@ -83,13 +83,13 @@ const createInitialStudyData = ({
     id: chance.guid({ version: 4 }),
     name: studyName,
     objective: objective,
-    optimizationGoal: optimizationGoal,
-    destinationType: destinationType,
-    pageId: pageId,
-    instagramId: instagramId,
-    minBudget: minBudget,
-    optWindow: optWindow,
-    adAccount: adAccount,
+    optimization_goal: optimization_goal,
+    destination_type: destination_type,
+    page_id: page_id,
+    instagram_id: instagram_id,
+    min_budget: min_budget,
+    opt_window: opt_window,
+    ad_account: ad_account,
     country: country,
     slug: studySlug,
     createdAt: studyCreationDate,

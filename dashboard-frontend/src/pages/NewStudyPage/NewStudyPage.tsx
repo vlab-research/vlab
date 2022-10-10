@@ -18,13 +18,13 @@ const PageContent = () => {
   const [state, setState] = useState({
     name: '',
     objective: '',
-    optimizationGoal: '',
-    destinationType: '',
-    pageId: '',
-    instagramId: '',
-    minBudget: '',
-    optWindow: '',
-    adAccount: '',
+    optimization_goal: '',
+    destination_type: '',
+    page_id: '',
+    instagram_id: '',
+    min_budget: '',
+    opt_window: '',
+    ad_account: '',
     country: '',
   });
 
@@ -41,14 +41,14 @@ const PageContent = () => {
     createStudy({
       name: e.target.elements.name.value,
       objective: e.target.elements.objective.value,
-      optimizationGoal: e.target.elements.optimizationGoal.value,
-      destinationType: e.target.elements.destinationType.value,
-      pageId: e.target.elements.pageId.value,
-      instagramId: e.target.elements.instagramId.value,
-      minBudget: e.target.elements.minBudget.value,
-      optWindow: e.target.elements.optWindow.value,
+      optimization_goal: e.target.elements.optimization_goal.value,
+      destination_type: e.target.elements.destination_type.value,
+      page_id: e.target.elements.page_id.value,
+      instagram_id: e.target.elements.instagram_id.value,
+      min_budget: e.target.elements.min_budget.value,
+      opt_window: e.target.elements.opt_window.value,
       country: e.target.elements.country.value,
-      adAccount: e.target.elements.adAccount.value,
+      ad_account: e.target.elements.ad_account.value,
     });
   };
 
