@@ -2,7 +2,7 @@ import Chance from 'chance';
 
 import { makeServer } from '../../src/server';
 import { getConfig } from './../../src/pages/NewStudyPage/getConfig';
-import { baseConfig } from './../../src/pages/NewStudyPage/baseConfig';
+import { general } from './../../src/pages/NewStudyPage/general';
 
 const chance = Chance();
 
@@ -19,7 +19,7 @@ describe('Given an authenticated user', () => {
 
   describe('When he visits New Study page and creates a Study successfully', () => {
     it.only("He's redirected to the Studies page which lists the created Study", () => {
-      const objs = getConfig(baseConfig);
+      const objs = getConfig(general);
 
       const getOptions = (index: number) => {
         return objs[index].options;

@@ -8,10 +8,11 @@ describe('translator', () => {
   it('takes an object and returns a new object configured for creating a form', () => {
     const expectation = {
       id: 'foo_bar',
-      name: 'fooBar',
+      name: 'foo_bar',
       type: 'text',
       component: TextInput,
       label: 'Foo',
+      helpertext: 'foo',
       options: undefined,
     };
 
@@ -20,10 +21,11 @@ describe('translator', () => {
 
     const expectation2 = {
       id: 'foo_bar',
-      name: 'fooBar',
+      name: 'foo_bar',
       type: 'select',
       component: SelectInput,
       label: 'Foo',
+      helpertext: undefined,
       options: [
         {
           name: 'foo',
