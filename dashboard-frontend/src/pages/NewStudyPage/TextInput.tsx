@@ -28,9 +28,10 @@ const TextInput = ({ state, setstate, ...props }: any) => {
             id={props.id}
             name={props.name}
             value={value}
+            required
+            placeholder={props.helperText}
             onChange={handleOnChange(name)}
             data-testid={`new-study-${props.id}-input`}
-            required
             className={classNames(
               'mt-1 block w-full shadow-sm sm:text-sm rounded-md',
               props.errorOnCreate
