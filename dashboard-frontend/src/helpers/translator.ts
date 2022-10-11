@@ -5,11 +5,12 @@ interface Obj {
   name: string;
   type: string;
   label: string;
-  helperText: string;
+  helpertext?: string;
   options?: Option[];
 }
 
 const str: keyof Obj = 'type';
+
 interface Option {
   name: string;
 }
@@ -34,7 +35,7 @@ export const translator = (obj: Obj) => {
     type: type,
     component: component,
     label: obj.label,
-    helperText: obj.helperText,
+    helpertext: obj.helpertext ?? obj.helpertext,
     options: obj.options ?? obj.options,
   };
 };
