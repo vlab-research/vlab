@@ -5,6 +5,7 @@ export const baseConfig = [
     name: 'name',
     type: 'text',
     label: 'Name',
+    helperText: 'E.g example-fly-conf',
   },
   {
     name: 'objective',
@@ -12,7 +13,7 @@ export const baseConfig = [
     label: 'Objective',
     options: [
       {
-        name: 'objective 1',
+        name: 'Messages',
       },
       {
         name: 'objective 2',
@@ -28,7 +29,7 @@ export const baseConfig = [
     label: 'Optimization Goal',
     options: [
       {
-        name: 'optimization goal 1',
+        name: 'Link clicks',
       },
       {
         name: 'optimization goal 2',
@@ -44,13 +45,13 @@ export const baseConfig = [
     label: 'Destination Type',
     options: [
       {
-        name: 'destination type 1',
+        name: 'Web',
       },
       {
-        name: 'destination type 2',
+        name: 'Messenger',
       },
       {
-        name: 'destination type 3',
+        name: 'App',
       },
     ],
   },
@@ -58,26 +59,31 @@ export const baseConfig = [
     name: 'page_id',
     type: 'text',
     label: 'Page ID',
+    helperText: 'E.g 1855355231229529',
   },
   {
     name: 'min_budget',
     type: 'text',
     label: 'Minimum Budget',
+    helperText: 'E.g 10',
   },
   {
     name: 'opt_window',
     type: 'text',
-    label: 'Opt-in Window',
+    label: 'Optional Window',
+    helperText: 'E.g 48',
   },
   {
     name: 'instagram_id',
     type: 'text',
     label: 'Instagram ID',
+    helperText: 'E.g 2327764173962588',
   },
   {
     name: 'ad_account',
     type: 'text',
     label: 'Ad Account',
+    helperText: 'E.g 1342820622846299',
   },
   {
     name: 'country',

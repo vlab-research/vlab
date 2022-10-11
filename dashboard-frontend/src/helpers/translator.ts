@@ -5,6 +5,7 @@ interface Obj {
   name: string;
   type: string;
   label: string;
+  helperText: string;
   options?: Option[];
 }
 
@@ -33,6 +34,7 @@ export const translator = (obj: Obj) => {
     type: type,
     component: component,
     label: obj.label,
+    helperText: obj.helperText,
     options: obj.options ?? obj.options,
   };
 };
