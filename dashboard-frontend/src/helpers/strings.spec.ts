@@ -1,4 +1,9 @@
-import { createSlugFor, classNames, toCamelCase } from './strings';
+import {
+  createSlugFor,
+  classNames,
+  toCamelCase,
+  createLabelFor,
+} from './strings';
 
 describe('createSlugFor', () => {
   it('returns a slug for the given string', () => {
@@ -29,6 +34,13 @@ describe('classNames', () => {
 describe('camelCase', () => {
   it('returns a string in camelCase', () => {
     expect(toCamelCase('')).toBe('');
-    expect(toCamelCase('min_budget')).toBe('min_budget');
+    expect(toCamelCase('min_budget')).toBe('minBudget');
+  });
+});
+
+describe('createLabelFor', () => {
+  it('returns a capitalised string with white space before every capital letter', () => {
+    expect(createLabelFor('')).toBe('');
+    expect(createLabelFor('min_budget')).toBe('Min Budget');
   });
 });

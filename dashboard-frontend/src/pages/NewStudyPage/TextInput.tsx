@@ -2,8 +2,8 @@ import React from 'react';
 import { classNames } from '../../helpers/strings';
 
 const TextInput = ({ state, setstate, ...props }: any) => {
-  const handleOnChange = (field: any) => (event: any) => {
-    const { value } = event.target;
+  const handleOnChange = (field: any) => (e: any) => {
+    const { value } = e.target;
     setstate((prevState: any) => ({ ...prevState, [field]: value }));
   };
 
@@ -29,7 +29,7 @@ const TextInput = ({ state, setstate, ...props }: any) => {
             name={props.name}
             value={value}
             required
-            placeholder={props.helperText}
+            placeholder={props.helpertext}
             onChange={handleOnChange(name)}
             data-testid={`new-study-${props.id}-input`}
             className={classNames(

@@ -3,8 +3,8 @@ import React from 'react';
 const SelectInput = ({ state, setstate, ...props }: any) => {
   const isCountryType = props.id === 'country';
 
-  const handleOnChange = (field: any) => (event: any) => {
-    const { value } = event.target;
+  const handleOnChange = (field: any) => (e: any) => {
+    const { value } = e.target;
     setstate((prevState: any) => ({ ...prevState, [field]: value }));
   };
 
