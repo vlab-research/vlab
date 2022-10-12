@@ -13,6 +13,7 @@ import { recruitment_pipeline_experiment } from './configs/recruitment_pipeline_
 import { creative } from './configs/creative';
 import { targeting } from './configs/targeting';
 import { targeting_distribution } from './configs/targeting_distribution';
+import { createLabelFor } from '../../helpers/strings';
 
 const NewStudyPage = () => (
   <PageLayout title={'New Study'} testId="new-study-page" showBackButton>
@@ -89,12 +90,14 @@ const PageContent = () => {
     return getConfig(config);
   }, [config]);
 
+  const configLabel = createLabelFor(config.configType);
+
   return (
     <div className="md:grid md:grid-cols-3 md:gap-6">
       <div className="md:col-span-1">
         <div className="px-4 sm:px-0">
           <h3 className="text-lg font-medium leading-6 text-gray-900">
-            General Information
+            {configLabel}
           </h3>
           <p className="mt-1 text-sm text-gray-600">
             Fill general information about the Study.
