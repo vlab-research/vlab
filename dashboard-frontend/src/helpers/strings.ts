@@ -10,3 +10,10 @@ export const toCamelCase = (str: string) => {
     return match[1].toUpperCase();
   });
 };
+
+export const createLabelFor = (str: string) => {
+  let res = toCamelCase(str)
+    .replace(/([A-Z])/g, ' $1')
+    .trim();
+  return res.charAt(0).toUpperCase() + res.slice(1);
+};
