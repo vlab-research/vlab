@@ -1,5 +1,7 @@
 export const recruitment_destination_experiment = {
   configType: 'recruitment_destination_experiment',
+  description:
+    ' Use this when you want to create a multi-arm randomized experiment (A/B test on Facebook) where some of your sample is sent to different "destinations".',
   fields: [
     {
       name: 'ad_campaign_name_base',

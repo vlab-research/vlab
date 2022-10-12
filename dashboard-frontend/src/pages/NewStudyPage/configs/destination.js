@@ -1,5 +1,7 @@
 export const destination = {
   configType: 'destination',
+  description:
+    'Every study needs a destination, where do the recruitment ads send the users?',
   fields: [
     {
       name: 'name',

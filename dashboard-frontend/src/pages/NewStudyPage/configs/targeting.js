@@ -1,5 +1,7 @@
 export const targeting = {
   configType: 'targeting',
+  description:
+    'Targeting describes the variables for stratification and the desired joint distribution of respondents.',
   fields: [
     {
       name: 'template_campaign_name',
