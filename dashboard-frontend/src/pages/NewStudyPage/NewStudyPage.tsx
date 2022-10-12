@@ -91,6 +91,7 @@ const PageContent = () => {
   }, [config]);
 
   const configLabel = createLabelFor(config.configType);
+  const configDescription = config.description;
 
   return (
     <div className="md:grid md:grid-cols-3 md:gap-6">
@@ -99,9 +100,7 @@ const PageContent = () => {
           <h3 className="text-lg font-medium leading-6 text-gray-900">
             {configLabel}
           </h3>
-          <p className="mt-1 text-sm text-gray-600">
-            Fill general information about the Study.
-          </p>
+          <p className="mt-1 text-sm text-gray-600">{configDescription}</p>
         </div>
       </div>
       <div className="mt-5 md:mt-0 md:col-span-2">

@@ -1,5 +1,6 @@
 export const recruitment_sample = {
   configType: 'recruitment_sample',
+  description: 'The "general" configuration consists of... General stuff?',
   fields: [
     {
       name: 'ad_campaign_name',
