@@ -1,4 +1,4 @@
-import countries from '../../fixtures/countries.json';
+import countries from '../../../fixtures/countries.json';
 
 export const general = {
   configType: 'general',
@@ -28,7 +28,7 @@ export const general = {
     {
       name: 'optimization_goal',
       type: 'select',
-      label: 'Optimization Goal',
+      label: 'Optimization goal',
       options: [
         {
           name: 'Link clicks',
@@ -44,7 +44,7 @@ export const general = {
     {
       name: 'destination_type',
       type: 'select',
-      label: 'Destination Type',
+      label: 'Destination type',
       options: [
         {
           name: 'Web',
@@ -72,7 +72,7 @@ export const general = {
     {
       name: 'opt_window',
       type: 'text',
-      label: 'Optional Window',
+      label: 'Optional window',
       helpertext: 'E.g 48',
     },
     {
@@ -84,7 +84,7 @@ export const general = {
     {
       name: 'ad_account',
       type: 'text',
-      label: 'Ad Account',
+      label: 'Ad account',
       helpertext: 'E.g 1342820622846299',
     },
     {

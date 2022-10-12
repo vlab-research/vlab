@@ -5,8 +5,14 @@ import PrimaryButton from '../../components/PrimaryButton';
 
 import { Renderer } from './Renderer';
 import { getConfig } from './getConfig';
-import { general } from './general';
-import { destination } from './destination';
+import { general } from './configs/general';
+import { destination } from './configs/destination';
+import { recruitment_sample } from './configs/recruitment_simple';
+import { recruitment_destination_experiment } from './configs/recruitment_destination_experiment';
+import { recruitment_pipeline_experiment } from './configs/recruitment_pipeline_experiment';
+import { creative } from './configs/creative';
+import { targeting } from './configs/targeting';
+import { targeting_distribution } from './configs/targeting_distribution';
 
 const NewStudyPage = () => (
   <PageLayout title={'New Study'} testId="new-study-page" showBackButton>
@@ -55,7 +61,16 @@ const PageContent = () => {
     });
   };
 
-  const configs = [general, destination];
+  const configs = [
+    general,
+    recruitment_sample,
+    recruitment_destination_experiment,
+    recruitment_pipeline_experiment,
+    destination,
+    creative,
+    targeting,
+    targeting_distribution,
+  ];
 
   const [index, setIndex] = useState(0);
 
