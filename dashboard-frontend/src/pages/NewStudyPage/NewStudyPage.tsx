@@ -5,7 +5,14 @@ import PrimaryButton from '../../components/PrimaryButton';
 
 import { Renderer } from './Renderer';
 import { getConfig } from './getConfig';
-import { baseConfig } from './baseConfig';
+import { general } from './configs/general';
+import { destination } from './configs/destination';
+import { recruitment_sample } from './configs/recruitment_simple';
+import { recruitment_destination_experiment } from './configs/recruitment_destination_experiment';
+import { recruitment_pipeline_experiment } from './configs/recruitment_pipeline_experiment';
+import { creative } from './configs/creative';
+import { targeting } from './configs/targeting';
+import { targeting_distribution } from './configs/targeting_distribution';
 
 const NewStudyPage = () => (
   <PageLayout title={'New Study'} testId="new-study-page" showBackButton>
@@ -39,6 +46,7 @@ const PageContent = () => {
 
   const handleSubmitForm = (e: any) => {
     e.preventDefault();
+
     createStudy({
       name: e.target.elements.name.value,
       objective: e.target.elements.objective.value,
@@ -53,9 +61,33 @@ const PageContent = () => {
     });
   };
 
-  const config = useMemo(() => {
-    return getConfig(baseConfig);
-  }, []);
+  const configs = [
+    general,
+    recruitment_sample,
+    recruitment_destination_experiment,
+    recruitment_pipeline_experiment,
+    destination,
+    creative,
+    targeting,
+    targeting_distribution,
+  ];
+
+  const [index, setIndex] = useState(0);
+
+  const config = configs[index];
+
+  const isLast = index === configs.length - 1 ? true : false;
+
+  const handleClick = () => {
+    if (isLast) {
+      return;
+    }
+    setIndex(prevCount => prevCount + 1);
+  };
+
+  const dynamicConfig = useMemo(() => {
+    return getConfig(config);
+  }, [config]);
 
   return (
     <div className="md:grid md:grid-cols-3 md:gap-6">
@@ -76,7 +108,7 @@ const PageContent = () => {
               <div className="grid grid-cols-6 gap-6">
                 <div className="col-span-6 sm:col-span-4">
                   <Renderer
-                    config={config}
+                    config={dynamicConfig}
                     erroroncreate={errorOnCreate}
                     state={state}
                     setstate={wrapperSetState}
@@ -86,13 +118,23 @@ const PageContent = () => {
             </div>
 
             <div className="px-4 py-3 bg-gray-50 text-right sm:px-6">
-              <PrimaryButton
-                type="submit"
-                loading={isCreating}
-                testId="new-study-submit-button"
-              >
-                Create
-              </PrimaryButton>
+              {!isLast ? (
+                <PrimaryButton
+                  type="submit"
+                  testId="new-study-next-button"
+                  onClick={() => handleClick()}
+                >
+                  Next
+                </PrimaryButton>
+              ) : (
+                <PrimaryButton
+                  type="submit"
+                  loading={isCreating}
+                  testId="new-study-submit-button"
+                >
+                  Create
+                </PrimaryButton>
+              )}
             </div>
           </div>
         </form>
