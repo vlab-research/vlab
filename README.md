@@ -13,7 +13,7 @@ All studies require the following configurations:
 3. Recruitment
 4. Creative
 5. Targeting
-
+6. Data Extraction
 
 ### General
 
@@ -61,3 +61,26 @@ Targeting describes the variables for stratification and the desired joint distr
 2. Distribution Variables. The variables that you are using for stratification.
 
 3. Distribution. What proportion of people do you want in your final sample from each stratum?
+
+
+### Data Extraction
+
+It's important to extract some data that the optimization engine can use. For example: variables that are used in stratification. In order to do so you must define how to pull these variables out of the data stream from the destination.
+
+Our data model is very simple. Each study has a set of "users", or study participants, and each user has a set of variables, represented as unique strings, and each variable has a value. Values are represented as pure JSON bytes, so they can be strings, numbers, booleans, arrays, objects, etc., anything that can be modelled as JSON.
+
+All data from supported destinations is modelled as individual events, where each event is associated to a user and each event has a "variable" and "metadata". Therefore, all that's left is for you to identify how to extract variables and values that you want to model from the events and their metadata.
+
+This can be thought of in three parts:
+
+1. Identification. For each variable, what events are associated with it.
+
+2. Extraction. Given the associated event, how to extract the value.
+
+3. Aggregation. How to compose values across events to have one final value for each variable. You can choose from the following aggregation functions: max, min, last, first. For example, if your destination is an app, which is a game, you might want to extract the level achieved and aggregate it with "max". If your variable is a piece of metadata that shows up in every event, you can choose first or last. If your variable is an answer to a question, you might choose last, to pick the last answer the user gave.
+
+
+Here's the documentation:
+1. [Python classes](https://github.com/vlab-research/vlab/blob/spike-recruitment-data/adopt/adopt/study_conf.py#L24-L39)
+
+2. [Go Types](https://github.com/vlab-research/vlab/blob/spike-recruitment-data/inference/swoosh/inference_data.go#L14-L31)
