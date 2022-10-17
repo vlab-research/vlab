@@ -1,0 +1,72 @@
+{
+    "items": [
+        {
+            "parent_surveyid": "uxvq29a69nmpmky9e55464fc8d9wnn39",
+            "parent_shortcode": "105",
+            "token": "uxvq29a69nmpmky9e55464fc8d9wnn39",
+            "surveyid": "j23iwawuvqanh2nfi9biv9xd4ui6rb3p",
+            "flowid": "100004",
+            "userid": "130",
+            "question_ref": "ref",
+            "question_idx": "10",
+            "question_text": "text",
+            "timestamp": "2021-07-20T02:44:15.072117Z",
+            "response": "first",
+            "metadata": null,
+            "pageid": null,
+            "hidden": {},
+            "translated_response": "primero"
+        },
+        {
+            "parent_surveyid": "gnvavgn7ta3xwqiw8n8m983pdcugtewt",
+            "parent_shortcode": "106",
+            "token": "gnvavgn7ta3xwqiw8n8m983pdcugtewt",
+            "surveyid": "mfyi6aqudpvz4hkqun6ekbe2rgch5xe9",
+            "flowid": "100001",
+            "userid": "131",
+            "question_ref": "ref",
+            "question_idx": "10",
+            "question_text": "text",
+            "response": "response",
+            "timestamp": "2021-07-20T02:44:15.072117Z",
+            "metadata": null,
+            "pageid": null,
+            "hidden": {},
+            "translated_response": "respuesta"
+        },
+        {
+            "parent_surveyid": "ajxgauyky6w28chrmgce8urfegm3fa23",
+            "parent_shortcode": "107",
+            "token": "69q432v7a5ftezhbfhc7cqdrgyicrmbb",
+            "surveyid": "ajxgauyky6w28chrmgce8urfegm3fa23",
+            "flowid": "100001",
+            "userid": "132",
+            "question_ref": "ref",
+            "question_idx": "10",
+            "question_text": "text",
+            "response": "test",
+            "timestamp": "2021-07-20T02:44:15.072117Z",
+            "metadata": null,
+            "pageid": null,
+            "hidden": {},
+            "translated_response": "prueba"
+        },
+        {
+            "parent_surveyid": "pgixf9jqwz3z2x2xy5tqw92d5dyz44nc",
+            "parent_shortcode": "108",
+            "token": "3btcnj9rrhzyttmghhapu6znz3y43i36",
+            "surveyid": "pgixf9jqwz3z2x2xy5tqw92d5dyz44nc",
+            "flowid": "100001",
+            "userid": "133",
+            "question_ref": "my_custom_dropdown_reference",
+            "question_idx": "10",
+            "question_text": "San Francisco",
+            "timestamp": "2021-07-20T02:44:15.072117Z",
+            "response": "hello",
+            "metadata": null,
+            "pageid": null,
+            "hidden": {},
+            "translated_response": "hola"
+        }
+    ]
+}

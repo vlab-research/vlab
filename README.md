@@ -24,7 +24,9 @@ The "general" configuration consists of... General stuff?
 
 Every study needs a destination, where do the recruitment ads send the users? Destinations need to be connected to Virtual Lab so that, not only does it know where to send people who click on the recruitment ads, but also so that it knows how to collect the information about those who become study participants and knows how to optimize ads.
 
-Towards that end, Virtual Lab supports a set a "destinations" and is written in such a way that it is easy to add a new destination. The following are currently supported along with their method of configuation:
+Towards that end, Virtual Lab supports a set a "destinations" and is written in such a way that it is easy to add a new destination. When configuring your study, you can create one or more destinations and each destination needs a unique name (key) that you can refer to it by.
+
+The following are currently supported along with their method of configuation:
 
 1. Fly Messenger Survey Destination. This creates "Messenger ads" in Facebook for when you want the user to be directed to a Fly Messenger Survey. It requires the following parameters:
    - `initial_shortcode: str` The shortcode of the initial form users should be sent to.
