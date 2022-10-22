@@ -2,7 +2,6 @@ package connector
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/stretchr/testify/assert"
@@ -18,6 +17,7 @@ const (
 	[{
             "name": "A1",
 	    "source": "literacy_data_api",
+            "credentials_key": "litkey",
 	    "config": {
 		"from": 0,
 		"app_id": "appid",
@@ -29,6 +29,7 @@ const (
 	[{
             "name": "B1",
 	    "source": "literacy_data_api",
+            "credentials_key": "litkey",
 	    "config": {
 		"from": 0,
 		"app_id": "appid",
@@ -38,6 +39,7 @@ const (
         {
             "name": "B2",
 	    "source": "another_source",
+            "credentials_key": "sourcekey",
 	    "config": {}
 	}]
        `
@@ -46,6 +48,7 @@ const (
 	[{
             "name": "C1",
 	    "source": "literacy_data_api",
+            "credentials_key": "litkey",
 	    "config": {
 		"from": 0,
 		"app_id": "appid",
@@ -58,6 +61,7 @@ const (
 	[{
             "name": "D1",
 	    "source": "literacy_data_api",
+            "credentials_key": "litkey",
 	    "config": {
 		"from": 0,
 		"app_id": "appid",
@@ -67,6 +71,7 @@ const (
         {
             "name": "D2",
 	    "source": "literacy_data_api",
+            "credentials_key": "litkey",
 	    "config": {
 		"from": 0,
 		"app_id": "appid2",
@@ -114,7 +119,9 @@ func TestGetStudyConfs_GetsOnlyActiveStudies(t *testing.T) {
 	resetDb(pool)
 
 	foo := CreateStudy(pool, "foo")
+	userFoo := "foo@email"
 	bar := CreateStudy(pool, "bar")
+	userBar := "bar@email"
 
 	MustExec(t, pool, insertConf, foo, "recruitment", futureDate)
 	MustExec(t, pool, insertConf, bar, "recruitment", pastDate)
@@ -122,11 +129,16 @@ func TestGetStudyConfs_GetsOnlyActiveStudies(t *testing.T) {
 	MustExec(t, pool, insertConf, foo, "data_sources", confA)
 	MustExec(t, pool, insertConf, bar, "data_sources", confA)
 
+	MustExec(t, pool, insertCredential, userFoo, "literacy_data_api", "litkey", `{}`)
+	MustExec(t, pool, insertCredential, userBar, "literacy_data_api", "litkey", `{}`)
+
 	confs, err := GetStudyConfs(pool, "literacy_data_api")
 
 	assert.Nil(t, err)
 	assert.Equal(t, 1, len(confs))
 	assert.Equal(t, foo, confs[0].StudyID)
+
+	assert.Equal(t, "litkey", confs[0].Credentials.Key)
 }
 
 func TestGetStudyConfs_GetsOnlyConfsWithCorrectSource(t *testing.T) {
@@ -136,8 +148,11 @@ func TestGetStudyConfs_GetsOnlyConfsWithCorrectSource(t *testing.T) {
 	resetDb(pool)
 
 	foo := CreateStudy(pool, "foo")
+	user := "foo@email"
 	MustExec(t, pool, insertConf, foo, "recruitment", futureDate)
 	MustExec(t, pool, insertConf, foo, "data_sources", confB)
+
+	MustExec(t, pool, insertCredential, user, "literacy_data_api", "litkey", `{"token": "abc"}`)
 
 	confs, err := GetStudyConfs(pool, "literacy_data_api")
 
@@ -146,6 +161,7 @@ func TestGetStudyConfs_GetsOnlyConfsWithCorrectSource(t *testing.T) {
 
 	value := gjson.Get(string(confs[0].Conf.Config), "attribution_id")
 	assert.Equal(t, "attribution", value.String())
+	assert.Equal(t, "litkey", confs[0].Credentials.Key)
 }
 
 func TestGetStudyConfs_GetsMultipleConfsFromTheSameSource(t *testing.T) {
@@ -155,9 +171,11 @@ func TestGetStudyConfs_GetsMultipleConfsFromTheSameSource(t *testing.T) {
 	resetDb(pool)
 
 	foo := CreateStudy(pool, "foo")
+	user := "foo@email"
 	MustExec(t, pool, insertConf, foo, "recruitment", futureDate)
-
 	MustExec(t, pool, insertConf, foo, "data_sources", confD)
+
+	MustExec(t, pool, insertCredential, user, "literacy_data_api", "litkey", `{"token": "abc"}`)
 
 	confs, err := GetStudyConfs(pool, "literacy_data_api")
 
@@ -165,7 +183,9 @@ func TestGetStudyConfs_GetsMultipleConfsFromTheSameSource(t *testing.T) {
 	assert.Equal(t, 2, len(confs))
 
 	assert.Equal(t, "D1", confs[0].Conf.Name)
+	assert.Equal(t, "litkey", confs[0].Credentials.Key)
 	assert.Equal(t, "D2", confs[1].Conf.Name)
+	assert.Equal(t, "litkey", confs[1].Credentials.Key)
 }
 
 func TestGetStudyConfs_GetsOnlyTheLatestConfPerStudy(t *testing.T) {
@@ -175,17 +195,37 @@ func TestGetStudyConfs_GetsOnlyTheLatestConfPerStudy(t *testing.T) {
 	resetDb(pool)
 
 	foo := CreateStudy(pool, "foo")
+	user := "foo@email"
 	MustExec(t, pool, insertConf, foo, "recruitment", futureDate)
 
 	MustExec(t, pool, insertConf, foo, "data_sources", confA)
 	MustExec(t, pool, insertConf, foo, "data_sources", confC)
 
+	MustExec(t, pool, insertCredential, user, "literacy_data_api", "litkey", `{"token": "abc"}`)
+
 	confs, err := GetStudyConfs(pool, "literacy_data_api")
 
 	assert.Nil(t, err)
 	assert.Equal(t, 1, len(confs))
+	assert.Equal(t, "litkey", confs[0].Credentials.Key)
 	value := gjson.Get(string(confs[0].Conf.Config), "attribution_id")
 	assert.Equal(t, "attribution_later", value.String())
+}
+
+func TestGetStudyConfs_SkipsRowAndFailsSilentlyIfCredentialsAreMissing(t *testing.T) {
+	pool := TestPool()
+	defer pool.Close()
+
+	resetDb(pool)
+
+	foo := CreateStudy(pool, "foo")
+	MustExec(t, pool, insertConf, foo, "recruitment", futureDate)
+	MustExec(t, pool, insertConf, foo, "data_sources", confA)
+
+	confs, err := GetStudyConfs(pool, "literacy_data_api")
+
+	assert.Nil(t, err)
+	assert.Equal(t, 0, len(confs))
 }
 
 func TestWriteEvents_DoesSomethingReasonable(t *testing.T) {
@@ -206,7 +246,7 @@ func eventChan(events ...*InferenceDataEvent) <-chan *InferenceDataEvent {
 func simpleEvent(study, sourceName string, idx int, pagination string) *InferenceDataEvent {
 	return &InferenceDataEvent{User{ID: "foo"},
 		study,
-		&SourceConf{sourceName, "source", []byte(`{"foo": "bar"}`)},
+		&SourceConf{sourceName, "source", []byte(`{"foo": "bar"}`), "credkey"},
 		time.Now(),
 		"foo",
 		[]byte("100"),
@@ -230,7 +270,11 @@ func TestLastEvent_GetsLatestPaginationToken(t *testing.T) {
 
 	WriteEvents(pool, foo, events)
 
-	source := &Source{foo, &SourceConf{"sourceA", "fly", []byte(`{"foo": "bar"}`)}}
+	source := &Source{
+		StudyID:     foo,
+		Conf:        &SourceConf{"sourceA", "fly", []byte(`{"foo": "bar"}`), "flykey"},
+		Credentials: &Credentials{"fly", "flykey", []byte(`{}`), time.Now().UTC()},
+	}
 	event, ok, err := LastEvent(pool, source, "timestamp")
 
 	assert.Nil(t, err)
@@ -248,24 +292,14 @@ func TestLastEvent_ReturnsFalseWhenNoEvents(t *testing.T) {
 	foo := CreateStudy(pool, "foo")
 	MustExec(t, pool, insertConf, foo, "recruitment", futureDate)
 
-	source := &Source{foo, &SourceConf{"sourceA", "fly", []byte(`{"foo": "bar"}`)}}
+	source := &Source{
+		StudyID:     foo,
+		Conf:        &SourceConf{"sourceA", "fly", []byte(`{"foo": "bar"}`), "flykey"},
+		Credentials: &Credentials{"fly", "flykey", []byte(`{}`), time.Now().UTC()},
+	}
 	event, ok, err := LastEvent(pool, source, "timestamp")
 
 	assert.Nil(t, err)
 	assert.False(t, ok)
 	assert.Nil(t, event)
-}
-
-func TestGetCredentials_ReturnsCredentialForUser(t *testing.T) {
-	pool := TestPool()
-	defer pool.Close()
-
-	resetDb(pool)
-	user := CreateUser(pool, "foo")
-	MustExec(t, pool, insertCredential, user, "fly", "key", `{"token": "abc"}`)
-
-	creds, err := GetCredentials(pool, user, "fly", "key")
-
-	assert.Nil(t, err)
-	assert.Equal(t, creds.Details, json.RawMessage([]byte(`{"token": "abc"}`)))
 }

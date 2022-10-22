@@ -32,6 +32,7 @@ func GetStudyConfs(pool *pgxpool.Pool, dataSource string) ([]*Source, error) {
         WITH tt AS (
 	  WITH t AS (
 	    SELECT conf,
+                   user_id,
 		   study_id,
 		   ROW_NUMBER() OVER (PARTITION BY study_id ORDER BY study_confs.created DESC) AS n
 	    FROM study_confs
@@ -39,13 +40,26 @@ func GetStudyConfs(pool *pgxpool.Pool, dataSource string) ([]*Source, error) {
 	    WHERE conf_type = 'data_sources'
             AND study_state.start_date < $1
             AND study_state.end_date > $1
+
 	  )
 	  SELECT json_array_elements(conf) as conf,
-		 study_id
+		 study_id,
+                 user_id
 	  FROM t
 	  WHERE n = 1
 	)
-        SELECT * from tt WHERE conf->>'source' = $2
+        SELECT conf,
+               study_id,
+               credentials.entity,
+               credentials.key,
+               credentials.details,
+               credentials.created
+        FROM tt
+        INNER JOIN credentials
+           ON credentials.user_id = tt.user_id
+           AND credentials.entity =  $2
+           AND credentials.key = tt.conf->>'credentials_key'
+        WHERE conf->>'source' = $2
         `
 
 	res := []*Source{}
@@ -58,13 +72,33 @@ func GetStudyConfs(pool *pgxpool.Pool, dataSource string) ([]*Source, error) {
 	for rows.Next() {
 		cnf := new(SourceConf)
 		var study string
-		err := rows.Scan(cnf, &study)
+		var entity string
+		var key string
+		details := new(json.RawMessage)
+		created := new(time.Time)
+
+		err := rows.Scan(cnf, &study, &entity, &key, details, created)
+
+		// TODO: make better error handling.
+		// one problem with putting the credentials in the query itself is that you will just
+		// get no results if credentials don't exist, which is a form of silent failure
+		// So while it seemed slick, maybe it's not as good as having a separate GetCredentials..
+		// with cnf.CredentialsKey, and dataSource, and study...
+
 		if err != nil {
 			return nil, err
 		}
 
-		// where do I put study??????
-		res = append(res, &Source{StudyID: study, Conf: cnf})
+		res = append(res, &Source{
+			StudyID: study,
+			Conf:    cnf,
+			Credentials: &Credentials{
+				Entity:  entity,
+				Key:     key,
+				Details: *details,
+				Created: *created,
+			},
+		})
 	}
 
 	return res, nil
@@ -97,26 +131,6 @@ func WriteEvents(pool *pgxpool.Pool, study string, events <-chan *InferenceDataE
 	}
 
 	return i, nil
-}
-
-func GetCredentials(pool *pgxpool.Pool, user, entity, key string) (*Credentials, error) {
-	query := `
-        SELECT details, created
-        FROM credentials
-        WHERE user_id = $1
-        AND entity = $2
-        AND key = $3
-        `
-
-	details := new(json.RawMessage)
-	created := new(time.Time)
-	err := pool.QueryRow(context.Background(), query, user, entity, key).Scan(details, created)
-
-	if err != nil {
-		return nil, err
-	}
-
-	return &Credentials{entity, key, *details, *created}, nil
 }
 
 func LastEvent(pool *pgxpool.Pool, source *Source, orderBy string) (*InferenceDataEvent, bool, error) {
@@ -163,13 +177,6 @@ type Config struct {
 	// Group            string        `env:"KAFKA_GROUP,required"`
 }
 
-type Credentials struct {
-	Entity  string          `json:"entity"`
-	Key     string          `json:"key"`
-	Details json.RawMessage `json:"details"`
-	Created time.Time       `json:"created"`
-}
-
 func (cfg *Config) load() *Config {
 	err := env.Parse(cfg)
 	handle(err)
@@ -191,6 +198,14 @@ func LoadEvents(connector Connector, dataSource string, orderColumn string) {
 	// this doesn't need to be done sequentially,
 	// make a go loop?
 	for _, source := range sources {
+
+		// for each source, get credentials?
+		// there will always be credentials... And they could be empty...
+		// source.StudyID,
+		// creds, err := GetCredentials(pool, source.StudyID, source.Conf.Source, source.Conf.CredentialsConf.Key)
+
+		// handle(err)
+		// source.Credentials = creds
 
 		e, _, err := LastEvent(pool, source, orderColumn)
 		handle(err)
