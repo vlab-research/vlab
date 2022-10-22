@@ -2,6 +2,7 @@ package connector
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/stretchr/testify/assert"
@@ -87,9 +88,10 @@ const (
         }
         `
 
-	selectUser  = `select id from users where email = $1`
-	insertStudy = `insert into studies(user_id, name) values($1, $2) returning id`
-	insertConf  = `insert into study_confs(study_id, conf_type, conf) values($1, $2, $3)`
+	selectUser       = `select id from users where email = $1`
+	insertStudy      = `insert into studies(user_id, name) values($1, $2) returning id`
+	insertConf       = `insert into study_confs(study_id, conf_type, conf) values($1, $2, $3)`
+	insertCredential = `insert into credentials(user_id, entity, key, details) values ($1, $2, $3, $4)`
 )
 
 func resetDb(pool *pgxpool.Pool) {
@@ -252,4 +254,18 @@ func TestLastEvent_ReturnsFalseWhenNoEvents(t *testing.T) {
 	assert.Nil(t, err)
 	assert.False(t, ok)
 	assert.Nil(t, event)
+}
+
+func TestGetCredentials_ReturnsCredentialForUser(t *testing.T) {
+	pool := TestPool()
+	defer pool.Close()
+
+	resetDb(pool)
+	user := CreateUser(pool, "foo")
+	MustExec(t, pool, insertCredential, user, "fly", "key", `{"token": "abc"}`)
+
+	creds, err := GetCredentials(pool, user, "fly", "key")
+
+	assert.Nil(t, err)
+	assert.Equal(t, creds.Details, json.RawMessage([]byte(`{"token": "abc"}`)))
 }

@@ -35,7 +35,7 @@ func GetStudyConfs(pool *pgxpool.Pool, dataSource string) ([]*Source, error) {
 		   study_id,
 		   ROW_NUMBER() OVER (PARTITION BY study_id ORDER BY study_confs.created DESC) AS n
 	    FROM study_confs
-	    INNER JOIN study_state on study_confs.study_id = study_state.id 
+	    INNER JOIN study_state on study_confs.study_id = study_state.id
 	    WHERE conf_type = 'data_sources'
             AND study_state.start_date < $1
             AND study_state.end_date > $1
@@ -99,6 +99,26 @@ func WriteEvents(pool *pgxpool.Pool, study string, events <-chan *InferenceDataE
 	return i, nil
 }
 
+func GetCredentials(pool *pgxpool.Pool, user, entity, key string) (*Credentials, error) {
+	query := `
+        SELECT details, created
+        FROM credentials
+        WHERE user_id = $1
+        AND entity = $2
+        AND key = $3
+        `
+
+	details := new(json.RawMessage)
+	created := new(time.Time)
+	err := pool.QueryRow(context.Background(), query, user, entity, key).Scan(details, created)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &Credentials{entity, key, *details, *created}, nil
+}
+
 func LastEvent(pool *pgxpool.Pool, source *Source, orderBy string) (*InferenceDataEvent, bool, error) {
 	match := false
 	for _, opt := range []string{"timestamp", "idx", "pagination"} {
@@ -141,6 +161,13 @@ type Config struct {
 	// KafkaPollTimeout time.Duration `env:"KAFKA_POLL_TIMEOUT,required"`
 	// Topic            string        `env:"KAFKA_TOPIC,required"`
 	// Group            string        `env:"KAFKA_GROUP,required"`
+}
+
+type Credentials struct {
+	Entity  string          `json:"entity"`
+	Key     string          `json:"key"`
+	Details json.RawMessage `json:"details"`
+	Created time.Time       `json:"created"`
 }
 
 func (cfg *Config) load() *Config {
