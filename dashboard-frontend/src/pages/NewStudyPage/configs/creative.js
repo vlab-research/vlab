@@ -1,5 +1,5 @@
 export const creative = {
-  configType: 'creative',
+  title: 'Creative',
   description: 'Recruitment needs ads and ads need creative.',
   fields: [
     {

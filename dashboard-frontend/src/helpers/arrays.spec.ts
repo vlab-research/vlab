@@ -1,4 +1,4 @@
-import { arrayMerge, lastValue } from './arrays';
+import { arrayMerge, arrToObj, lastValue, findByKey } from './arrays';
 
 describe('lastValue', () => {
   it('returns last value of a given array', () => {
@@ -49,5 +49,64 @@ describe('arrayMerge', () => {
     const res = arrayMerge(arr1, arr2, 'name');
 
     expect(res).toStrictEqual(expectation);
+  });
+});
+
+describe('arrToObj', () => {
+  it('returns an array if array is empty', () => {
+    const arr: any[] = [];
+    const key = 'name';
+    const val = '';
+    const res = arrToObj(arr, key, val);
+
+    expect(res).toEqual(arr);
+  });
+
+  it('takes an array of objects and returns each value as a key in a new object', () => {
+    const arr = [{ name: 'foo' }, { name: 'bar' }, { name: 'baz' }];
+    const key = 'name';
+    const val = '';
+    const res = arrToObj(arr, key, val);
+    const expectation = { foo: '', bar: '', baz: '' };
+
+    expect(res).toEqual(expectation);
+  });
+});
+
+describe('findByKey', () => {
+  it('recurses an array of objects to return all values for a given key', () => {
+    const arr: any[] = [
+      { name: 'foo' },
+      { name: 'bar' },
+      {
+        someOtherProp: {
+          name: 'baz',
+        },
+      },
+    ];
+    const key = 'name';
+    const res = arr.map(obj => findByKey(obj, key));
+
+    const expectation = [['foo'], ['bar'], [['baz']]];
+    expect(res).toEqual(expectation);
+  });
+
+  it('recurses an array of complex data objects to return all values for a given key', () => {
+    const arr: any = [
+      { name: 'foo' },
+      { name: 'bar' },
+      {
+        someOtherProp: {
+          a: { name: 'baz' },
+          b: { name: 'foobar' },
+          c: { name: 'foobaz' },
+        },
+      },
+    ];
+    const key = 'name';
+    const res = arr.map((obj: any) => findByKey(obj, key));
+
+    const expectation = [['foo'], ['bar'], [[['baz'], ['foobar'], ['foobaz']]]];
+    expect(res).toEqual(expectation);
   });
 });

@@ -1,7 +1,7 @@
 import countries from '../../../fixtures/countries.json';
 
 export const targeting_distribution = {
-  configType: 'targeting_distribution',
+  title: 'Targeting distribution',
   description:
     'What proportion of people do you want in your final sample from each stratum?',
   fields: [

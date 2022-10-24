@@ -1,7 +1,7 @@
 import React from 'react';
 import { classNames } from '../../helpers/strings';
 
-const TextInput = ({ state, setstate, ...props }: any) => {
+const TextInput = ({ state, setstate, getId, ...props }: any) => {
   const handleOnChange = (field: any) => (e: any) => {
     const { value } = e.target;
     setstate((prevState: any) => ({ ...prevState, [field]: value }));
@@ -9,6 +9,8 @@ const TextInput = ({ state, setstate, ...props }: any) => {
 
   const name = props.name;
   const value = state[name];
+
+  getId(props.id);
 
   return (
     <React.Fragment>

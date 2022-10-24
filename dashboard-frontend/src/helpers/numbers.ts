@@ -81,3 +81,7 @@ export const parseNumber = (formattedNumber: string) => {
 
   return parser.parse(formattedNumber);
 };
+
+export const addOne = (number: number) => {
+  return number + 1;
+};
