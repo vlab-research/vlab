@@ -1,4 +1,5 @@
 import {
+  addOne,
   calculateAverage,
   calculatePercentage,
   formatNumber,
@@ -122,5 +123,16 @@ describe('parseNumber', () => {
     expect(parseNumber(formatNumber(NaN))).toBe(NaN);
     expect(parseNumber(formatNumber(Infinity))).toBe(Infinity);
     expect(parseNumber(formatNumber(-Infinity))).toBe(-Infinity);
+  });
+});
+
+describe('addOne', () => {
+  it('adds 1 to a given number', () => {
+    const number = 1;
+
+    const res = addOne(number);
+
+    const expectation = 2;
+    expect(res).toEqual(expectation);
   });
 });

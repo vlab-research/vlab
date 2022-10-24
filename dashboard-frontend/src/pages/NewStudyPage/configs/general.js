@@ -1,7 +1,7 @@
 import countries from '../../../fixtures/countries.json';
 
 export const general = {
-  configType: 'general',
+  title: 'General',
   description: 'The "general" configuration consists of... General stuff?',
   fields: [
     {

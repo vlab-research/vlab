@@ -1,5 +1,5 @@
 export const recruitment_pipeline_experiment = {
-  configType: 'recruitment_pipeline_experiment',
+  title: 'Recruitment pipeline',
   description:
     'In this design, we generate an A/B test on Facebook but instead of sending your sample to different destinations, we run the ads at different times (a pipeline experiment design). You can set up how long each arm runs, and how long they are offset from the start of the previous arm.',
   fields: [

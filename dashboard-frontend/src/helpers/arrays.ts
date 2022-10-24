@@ -23,3 +23,28 @@ const matcher = (el: any, arr2: [], key: string) => {
   }
   return el;
 };
+
+export const arrToObj = (arr: any[], key: string, val: string): {} => {
+  if (arr.length > 0) {
+    const mapped = arr.map(el => ({ [el[key]]: val }));
+    return Object.assign({}, ...mapped);
+  }
+  return [];
+};
+
+export const findByKey = (obj: any, key: string) => {
+  let values: any[] = [];
+
+  Object.keys(obj).forEach(k => {
+    if (k === key) {
+      values.push(obj[k]);
+    } else {
+      if (typeof obj[k] === 'object') {
+        values.push(findByKey(obj[k], key));
+      }
+      return null;
+    }
+    return values;
+  });
+  return values;
+};

@@ -17,7 +17,7 @@ const mapPropsToConfig = config => {
   return configWithProps;
 };
 
-export const Renderer = ({ config, erroroncreate, state, setstate }) => {
+export const Renderer = ({ config, erroroncreate, state, setstate, getId }) => {
   if (!config) {
     throw new Error('You are calling Renderer with no config.');
   }
@@ -35,6 +35,7 @@ export const Renderer = ({ config, erroroncreate, state, setstate }) => {
             erroroncreate={erroroncreate}
             state={state}
             setstate={setstate}
+            getId={getId}
           />
         </Fragment>
       );

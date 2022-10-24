@@ -1,5 +1,5 @@
-export const recruitment_sample = {
-  configType: 'recruitment_sample',
+export const recruitment_simple = {
+  title: 'Recruitment simple',
   description: 'The "general" configuration consists of... General stuff?',
   fields: [
     {

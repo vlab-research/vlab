@@ -1,6 +1,6 @@
 import React from 'react';
 
-const SelectInput = ({ state, setstate, ...props }: any) => {
+const SelectInput = ({ state, setstate, getId, ...props }: any) => {
   const isCountryType = props.id === 'country';
 
   const handleOnChange = (field: any) => (e: any) => {
@@ -10,6 +10,8 @@ const SelectInput = ({ state, setstate, ...props }: any) => {
 
   const name = props.name;
   const value = state[name];
+
+  getId(props.id);
 
   return (
     <React.Fragment>
