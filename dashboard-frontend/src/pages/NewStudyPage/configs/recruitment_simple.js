@@ -10,13 +10,13 @@ export const recruitment_simple = {
     },
     {
       name: 'budget',
-      type: 'text',
+      type: 'number',
       label: 'Budget',
       helpertext: 'E.g 8400',
     },
     {
       name: 'max_sample',
-      type: 'text',
+      type: 'number',
       label: 'Maximum sample',
       helpertext: 'E.g 1000',
     },
