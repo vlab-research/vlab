@@ -11,13 +11,13 @@ export const recruitment_destination_experiment = {
     },
     {
       name: 'budget_per_arm',
-      type: 'text',
+      type: 'number',
       label: 'Budget per arm',
       helpertext: 'E.g 8400',
     },
     {
       name: 'max_sample_per_arm',
-      type: 'text',
+      type: 'number',
       label: 'Maximum sample per arm',
       helpertext: 'E.g 1000',
     },

@@ -18,6 +18,7 @@ interface Option {
 export const translator = (obj: Obj) => {
   const lookup: any = {
     text: TextInput,
+    number: TextInput,
     select: SelectInput,
   };
 

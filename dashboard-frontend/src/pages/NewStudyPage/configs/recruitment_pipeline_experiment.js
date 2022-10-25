@@ -11,13 +11,13 @@ export const recruitment_pipeline_experiment = {
     },
     {
       name: 'budget_per_arm',
-      type: 'text',
+      type: 'number',
       label: 'Budget per arm',
       helpertext: 'E.g 8400',
     },
     {
       name: 'max_sample_per_arm',
-      type: 'text',
+      type: 'number',
       label: 'Maximum sample per arm',
       helpertext: 'E.g 1000',
     },
@@ -48,19 +48,19 @@ export const recruitment_pipeline_experiment = {
     },
     {
       name: 'arms',
-      type: 'text',
+      type: 'number',
       label: 'Arms',
       helpertext: 'E.g 2',
     },
     {
       name: 'recruitment_days',
-      type: 'text',
+      type: 'number',
       label: 'Recruitment Days',
       helpertext: 'E.g 10',
     },
     {
       name: 'offset_days',
-      type: 'text',
+      type: 'number',
       label: 'Offset Days',
       helpertext: 'E.g 20',
     },
