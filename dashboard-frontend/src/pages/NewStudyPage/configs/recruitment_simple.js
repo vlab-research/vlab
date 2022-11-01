@@ -1,6 +1,6 @@
 export const recruitment_simple = {
   title: 'Recruitment simple',
-  description: 'The "general" configuration consists of... General stuff?',
+  description: 'Simple recruitment...',
   fields: [
     {
       name: 'ad_campaign_name',

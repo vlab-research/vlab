@@ -55,18 +55,16 @@ describe('arrayMerge', () => {
 describe('arrToObj', () => {
   it('returns an array if array is empty', () => {
     const arr: any[] = [];
-    const key = 'name';
     const val = '';
-    const res = arrToObj(arr, key, val);
+    const res = arrToObj(arr, val);
 
     expect(res).toEqual(arr);
   });
 
   it('takes an array of objects and returns each value as a key in a new object', () => {
-    const arr = [{ name: 'foo' }, { name: 'bar' }, { name: 'baz' }];
-    const key = 'name';
+    const arr = ['foo', 'bar', 'baz'];
     const val = '';
-    const res = arrToObj(arr, key, val);
+    const res = arrToObj(arr, val);
     const expectation = { foo: '', bar: '', baz: '' };
 
     expect(res).toEqual(expectation);

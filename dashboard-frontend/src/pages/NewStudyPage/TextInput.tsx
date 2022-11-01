@@ -4,6 +4,7 @@ import { classNames } from '../../helpers/strings';
 const TextInput = ({ state, setstate, getId, ...props }: any) => {
   const handleOnChange = (field: any) => (e: any) => {
     const { value } = e.target;
+    console.log(value);
     setstate((prevState: any) => ({ ...prevState, [field]: value }));
   };
 
