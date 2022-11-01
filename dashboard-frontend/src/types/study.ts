@@ -20,7 +20,7 @@ export interface CreateUserApiResponse
 
 export interface CreateStudyApiResponse extends ApiResponse<StudyResource> {}
 
-export interface CreateStudyConfig {
+export interface CreateStudyConfigData extends Record<string, any> {
   title: string;
   description: string;
   fields?: StudyFieldResource[];

@@ -7,17 +7,19 @@ import { Renderer } from './Renderer';
 
 import { getConfig } from './getConfig';
 import { createLabelFor } from '../../helpers/strings';
+import { addOne } from '../../helpers/numbers';
 
 import { general } from './configs/general';
 import { destination } from './configs/destination';
+import { recruitment } from './configs/recruitment';
 import { recruitment_simple } from './configs/recruitment_simple';
 import { recruitment_destination_experiment } from './configs/recruitment_destination_experiment';
 import { recruitment_pipeline_experiment } from './configs/recruitment_pipeline_experiment';
 import { creative } from './configs/creative';
 import { targeting } from './configs/targeting';
 import { targeting_distribution } from './configs/targeting_distribution';
-import { StudyFieldResource } from '../../types/study';
-import { addOne } from '../../helpers/numbers';
+import { CreateStudyConfigData } from '../../types/study';
+import { createStateFromArrayOfTuples } from '../../helpers/createState';
 
 const NewStudyPage = () => (
   <PageLayout title={'New Study'} testId="new-study-page" showBackButton>
@@ -25,19 +27,13 @@ const NewStudyPage = () => (
   </PageLayout>
 );
 
-interface ConfigData extends Record<string, any> {
-  title: string;
-  description: string;
-  fields?: StudyFieldResource[];
-}
-
 const PageContent = () => {
-  const configs: Record<string, ConfigData | any> = {
+  const configs: Record<string, CreateStudyConfigData | any> = {
     general,
     recruitment: {
-      recruitment_simple,
       recruitment_destination_experiment,
-      recruitment_pipeline_experiment,
+      // recruitment_simple,
+      // recruitment_pipeline_experiment,
     },
     destination,
     creative,
@@ -45,11 +41,17 @@ const PageContent = () => {
     targeting_distribution,
   };
 
-  const { isCreating, errorOnCreate, createStudy } = useCreateStudy();
-  const [index, setIndex] = useState(0);
-  const [state, setState] = useState(configs);
   const configsToArr = Object.entries(configs);
+
+  const megaState = createStateFromArrayOfTuples(configsToArr);
+
+  const [state, setState] = useState(megaState);
+
+  const [index, setIndex] = useState(0);
+  const { isCreating, errorOnCreate, createStudy } = useCreateStudy();
+
   const configKeys = Object.keys(configs);
+
   const config = configsToArr[index];
   const isLast = index === configsToArr.length - 1 ? true : false;
 
@@ -164,3 +166,6 @@ const PageContent = () => {
 };
 
 export default NewStudyPage;
+function createState(configs: Record<string, any>) {
+  throw new Error('Function not implemented.');
+}
