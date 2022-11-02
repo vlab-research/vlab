@@ -103,11 +103,11 @@ describe('createStateFromArrayOfTuples', () => {
       recruitment_simple,
     };
 
-    const arrayOfConfs2 = Object.entries(set2);
+    const arrayOfTuples2 = Object.entries(set2);
 
     const expectation2 = {
       destination: { name: '', initial_shortcode: '', destination: '' },
-      targeting: { template_campaign_name: '', distribution_vars: '' },
+      targeting: { template_campaign_name: '', distribution_vars: '' }, // TODO – make fn map state to recruitment then recruitment_simple
       recruitment_simple: {
         ad_campaign_name: '',
         budget: 0,
@@ -117,7 +117,7 @@ describe('createStateFromArrayOfTuples', () => {
       },
     };
 
-    const res2 = createStateFromArrayOfTuples(arrayOfConfs2);
+    const res2 = createStateFromArrayOfTuples(arrayOfTuples2);
     expect(res2).toStrictEqual(expectation2);
   });
 });
