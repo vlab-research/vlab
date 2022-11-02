@@ -11,119 +11,64 @@ import { destination } from './../pages/NewStudyPage/configs/destination';
 import { targeting } from './../pages/NewStudyPage/configs/targeting';
 
 describe('createInitialState', () => {
-  it('takes a single config data object and returns an initial state', () => {
-    const conf = {
-      title: 'General',
-      description: 'The "general" configuration consists of... General stuff?',
-      fields: [
-        {
-          name: 'name',
-          type: 'text',
-          label: 'Name',
-          helpertext: 'E.g example-fly-conf',
-        },
-        {
-          name: 'objective',
-          type: 'select',
-          label: 'Objective',
-          options: [
-            {
-              name: 'Messages',
-            },
-            {
-              name: 'objective 2',
-            },
-            {
-              name: 'objective 3',
-            },
-          ],
-        },
-        {
-          name: 'page_id',
-          type: 'number',
-          label: 'Page ID',
-          helpertext: 'E.g 1855355231229529',
-        },
-      ],
-    };
-
-    const confKey = 'general';
+  it('takes a single object and returns an initial state', () => {
+    const obj = general;
+    const key = 'general';
 
     const expectation = {
       general: {
         name: '',
         objective: '',
+        optimization_goal: '',
+        destination_type: '',
         page_id: 0,
+        min_budget: 0,
+        opt_window: 0,
+        instagram_id: 0,
+        ad_account: 0,
+        country: '',
       },
     };
 
-    const res = createInitialState(confKey, conf);
+    const res = createInitialState(key, obj);
     expect(res).toStrictEqual(expectation);
   });
 });
 
 describe('createStateFromTuple', () => {
-  it('takes a tuple made up of a config name and config data object and returns an initial state', () => {
-    const conf = [
-      'general',
-      {
-        title: 'General',
-        description:
-          'The "general" configuration consists of... General stuff?',
-        fields: [
-          {
-            name: 'name',
-            type: 'text',
-            label: 'Name',
-            helpertext: 'E.g example-fly-conf',
-          },
-          {
-            name: 'objective',
-            type: 'select',
-            label: 'Objective',
-            options: [
-              {
-                name: 'Messages',
-              },
-              {
-                name: 'objective 2',
-              },
-              {
-                name: 'objective 3',
-              },
-            ],
-          },
-          {
-            name: 'page_id',
-            type: 'number',
-            label: 'Page ID',
-            helpertext: 'E.g 1855355231229529',
-          },
-        ],
-      },
-    ];
+  it('takes a tuple made of key and object and returns an initial state', () => {
+    const obj = general;
+    const key = 'general';
+    const tuple = [key, obj];
 
     const expectation = {
       general: {
         name: '',
         objective: '',
+        optimization_goal: '',
+        destination_type: '',
         page_id: 0,
+        min_budget: 0,
+        opt_window: 0,
+        instagram_id: 0,
+        ad_account: 0,
+        country: '',
       },
     };
 
-    const res = createStateFromTuple(conf);
+    const res = createStateFromTuple(tuple);
     expect(res).toStrictEqual(expectation);
   });
 });
 
 describe('createStateFromArrayOfTuples', () => {
-  it('takes an array of tuples made up of a config name and data object and returns an initial megastate', () => {
+  it('takes an array of tuples made up of key and object and returns an initial megastate', () => {
     const set = {
       general,
       creative,
     };
 
-    const arrayOfConfs = Object.entries(set);
+    const arrayOfTuples = Object.entries(set);
 
     const expectation = {
       general: {
@@ -149,7 +94,7 @@ describe('createStateFromArrayOfTuples', () => {
       },
     };
 
-    const res = createStateFromArrayOfTuples(arrayOfConfs);
+    const res = createStateFromArrayOfTuples(arrayOfTuples);
     expect(res).toStrictEqual(expectation);
 
     const set2 = {
