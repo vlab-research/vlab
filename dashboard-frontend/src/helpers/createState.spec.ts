@@ -11,7 +11,7 @@ import { destination } from './../pages/NewStudyPage/configs/destination';
 import { targeting } from './../pages/NewStudyPage/configs/targeting';
 
 describe('createInitialState', () => {
-  it('takes a single object and returns an initial state', () => {
+  it('takes a single object and returns an initial state obj', () => {
     const obj = general;
     const key = 'general';
 
@@ -36,7 +36,7 @@ describe('createInitialState', () => {
 });
 
 describe('createStateFromTuple', () => {
-  it('takes a tuple made of key and object and returns an initial state', () => {
+  it('takes a tuple made up of key and object and returns an initial state obj', () => {
     const obj = general;
     const key = 'general';
     const tuple = [key, obj];
