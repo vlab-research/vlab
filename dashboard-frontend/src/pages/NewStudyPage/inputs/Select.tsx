@@ -1,17 +1,21 @@
 import React from 'react';
 
-const SelectInput = ({ state, setstate, getId, ...props }: any) => {
+const SelectInput = ({ config, state, setState, ...props }: any) => {
+  const configKey: string = config[0];
   const isCountryType = props.id === 'country';
 
-  const handleOnChange = (field: any) => (e: any) => {
+  console.log(config);
+
+  const handleChange = () => (e: any) => {
     const { value } = e.target;
-    setstate((prevState: any) => ({ ...prevState, [field]: value }));
+    setState((prevState: any) => ({
+      ...prevState,
+      [configKey]: { ...prevState[configKey], [props.id]: value },
+    }));
   };
 
-  const name = props.name;
-  const value = state[name];
-
-  getId(props.id);
+  const { id, name } = props;
+  const value: string = state[name];
 
   return (
     <React.Fragment>
@@ -27,10 +31,10 @@ const SelectInput = ({ state, setstate, getId, ...props }: any) => {
         <div className="relative">
           <select
             {...props}
-            id={props.id}
-            name={props.name}
+            id={`${configKey}_${id}`}
+            name={`${configKey}_${name}`}
             value={value}
-            onChange={handleOnChange(name)}
+            onChange={handleChange()}
             data-testid={`new-study-${props.id}-input`}
             required
             className="mt-1 block w-full shadow-sm sm:text-sm rounded-md"

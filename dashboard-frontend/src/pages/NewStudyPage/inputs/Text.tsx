@@ -1,17 +1,19 @@
 import React from 'react';
-import { classNames } from '../../helpers/strings';
+import { classNames } from '../../../helpers/strings';
 
-const TextInput = ({ state, setstate, getId, ...props }: any) => {
-  const handleOnChange = (field: any) => (e: any) => {
+const TextInput = ({ config, state, setState, ...props }: any) => {
+  const configKey: string = config[0];
+
+  const handleChange = () => (e: any) => {
     const { value } = e.target;
-    console.log(value);
-    setstate((prevState: any) => ({ ...prevState, [field]: value }));
+    setState((prevState: any) => ({
+      ...prevState,
+      [configKey]: { ...prevState[configKey], [props.id]: value },
+    }));
   };
 
-  const name = props.name;
-  const value = state[name];
-
-  getId(props.id);
+  const { id, name } = props;
+  const value: string = state[name];
 
   return (
     <React.Fragment>
@@ -28,12 +30,12 @@ const TextInput = ({ state, setstate, getId, ...props }: any) => {
         <div className="relative">
           <input
             {...props}
-            id={props.id}
-            name={props.name}
+            id={`${configKey}_${id}`}
+            name={`${configKey}_${name}`}
             value={value}
             required
             placeholder={props.helpertext}
-            onChange={handleOnChange(name)}
+            onChange={handleChange()}
             data-testid={`new-study-${props.id}-input`}
             className={classNames(
               'mt-1 block w-full shadow-sm sm:text-sm rounded-md',
