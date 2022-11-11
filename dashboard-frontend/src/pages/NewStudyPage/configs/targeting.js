@@ -1,4 +1,5 @@
 export const targeting = {
+  type: 'config-object',
   title: 'Targeting',
   description:
     'Targeting describes the variables for stratification and the desired joint distribution of respondents.',

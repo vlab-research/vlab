@@ -1,4 +1,14 @@
+import destinations from '../destinations/destinations';
+
+const mapDestinations = () => {
+  const { selector } = destinations;
+  return selector.options.map(option => {
+    return { name: option.name, label: option.label };
+  });
+};
+
 export const recruitment_destination_experiment = {
+  type: 'config-object',
   title: 'Recruitment destination',
   description:
     ' Use this when you want to create a multi-arm randomized experiment (A/B test on Facebook) where some of your sample is sent to different "destinations".',
@@ -35,16 +45,9 @@ export const recruitment_destination_experiment = {
     },
     {
       name: 'destinations',
-      type: 'select',
-      label: 'Destinations',
-      options: [
-        {
-          name: 'Lottery',
-        },
-        {
-          name: 'Top-up',
-        },
-      ],
+      type: 'list',
+      label: 'Saved destinations',
+      options: mapDestinations(),
     },
   ],
 };

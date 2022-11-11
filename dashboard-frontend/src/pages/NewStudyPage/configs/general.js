@@ -1,6 +1,7 @@
 import countries from '../../../fixtures/countries.json';
 
 export const general = {
+  type: 'config-object',
   title: 'General',
   description: 'The "general" configuration consists of... General stuff?',
   fields: [
@@ -16,13 +17,16 @@ export const general = {
       label: 'Objective',
       options: [
         {
-          name: 'Messages',
+          name: 'messages',
+          label: 'Messages',
         },
         {
-          name: 'objective 2',
+          name: 'objective_2',
+          label: 'Objective 2',
         },
         {
-          name: 'objective 3',
+          name: 'objective_3',
+          label: 'Objective 3',
         },
       ],
     },
@@ -32,13 +36,16 @@ export const general = {
       label: 'Optimization goal',
       options: [
         {
-          name: 'Link clicks',
+          name: 'link_clicks',
+          label: 'Link clicks',
         },
         {
-          name: 'optimization goal 2',
+          name: 'optimization_goal_2',
+          label: 'Optimization goal 2',
         },
         {
-          name: 'optimization goal 3',
+          name: 'optimization_goal_3',
+          label: 'Optimization goal 3',
         },
       ],
     },
@@ -48,13 +55,16 @@ export const general = {
       label: 'Destination type',
       options: [
         {
-          name: 'Web',
+          name: 'web',
+          label: 'Web',
         },
         {
-          name: 'Messenger',
+          name: 'messenger',
+          label: 'Messenger',
         },
         {
-          name: 'App',
+          name: 'app',
+          label: 'App',
         },
       ],
     },
@@ -73,7 +83,7 @@ export const general = {
     {
       name: 'opt_window',
       type: 'number',
-      label: 'Optional window',
+      label: 'Opt-in window',
       helpertext: 'E.g 48',
     },
     {

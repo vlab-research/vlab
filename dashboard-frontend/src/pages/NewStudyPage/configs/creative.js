@@ -1,4 +1,5 @@
 export const creative = {
+  type: 'config-object',
   title: 'Creative',
   description: 'Recruitment needs ads and ads need creative.',
   fields: [

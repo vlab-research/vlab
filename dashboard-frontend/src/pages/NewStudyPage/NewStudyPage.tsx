@@ -1,20 +1,16 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useState } from 'react';
 import useCreateStudy from './useCreateStudy';
 import PageLayout from '../../components/PageLayout';
 import PrimaryButton from '../../components/PrimaryButton';
 import Navbar from '../../components/NavBar';
 import { Renderer } from './Renderer';
 
-import { getConfig } from './getConfig';
 import { createLabelFor } from '../../helpers/strings';
 import { addOne } from '../../helpers/numbers';
 
 import { general } from './configs/general';
-import { destination } from './configs/destination';
-import { recruitment } from './configs/recruitment';
-import { recruitment_simple } from './configs/recruitment_simple';
-import { recruitment_destination_experiment } from './configs/recruitment_destination_experiment';
-import { recruitment_pipeline_experiment } from './configs/recruitment_pipeline_experiment';
+import { destinations } from './configs/destinations/destinations';
+import { recruitment } from './configs/recruitment/recruitment';
 import { creative } from './configs/creative';
 import { targeting } from './configs/targeting';
 import { targeting_distribution } from './configs/targeting_distribution';
@@ -30,12 +26,8 @@ const NewStudyPage = () => (
 const PageContent = () => {
   const configs: Record<string, CreateStudyConfigData | any> = {
     general,
-    recruitment: {
-      recruitment_destination_experiment,
-      // recruitment_simple,
-      // recruitment_pipeline_experiment,
-    },
-    destination,
+    destinations,
+    recruitment,
     creative,
     targeting,
     targeting_distribution,
@@ -57,10 +49,6 @@ const PageContent = () => {
 
   const getConfigType = () => {
     return config[0];
-  };
-
-  const getId = (obj: any) => {
-    return obj.id;
   };
 
   const handleClick = () => {
@@ -104,10 +92,6 @@ const PageContent = () => {
     [setState]
   );
 
-  const dynamicConfig = useMemo(() => {
-    return getConfig(config[1]);
-  }, [config]);
-
   const configLabel = createLabelFor(getConfigType());
 
   return (
@@ -115,24 +99,22 @@ const PageContent = () => {
       <Navbar configKeys={configKeys} setIndex={setIndex} />
       <div className="md:grid md:grid-cols-3 md:gap-6">
         <div className="md:col-span-1">
-          <div className="px-4 sm:px-0">
-            <h3 className="text-lg font-medium leading-6 text-gray-900">
-              {configLabel}
-            </h3>
-          </div>
+          <div className="px-4 sm:px-0"></div>
         </div>
         <div className="mt-5 md:mt-0 md:col-span-2">
           <form onSubmit={handleSubmitForm}>
             <div className="shadow overflow-hidden sm:rounded-md">
               <div className="px-4 py-5 bg-white sm:p-6">
                 <div className="grid grid-cols-6 gap-6">
-                  <div className="col-span-6 sm:col-span-4">
+                  <div className="col-span-6 sm:col-span-5">
+                    <h3 className="text-lg font-medium leading-6 text-gray-900">
+                      {configLabel}
+                    </h3>
                     <Renderer
-                      config={dynamicConfig}
+                      config={config}
                       erroroncreate={errorOnCreate}
                       state={state}
-                      setstate={wrapperSetState}
-                      getId={getId}
+                      setState={wrapperSetState}
                     />
                   </div>
                 </div>
@@ -166,6 +148,3 @@ const PageContent = () => {
 };
 
 export default NewStudyPage;
-function createState(configs: Record<string, any>) {
-  throw new Error('Function not implemented.');
-}

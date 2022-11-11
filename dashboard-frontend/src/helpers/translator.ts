@@ -1,42 +1,26 @@
-import TextInput from '../pages/NewStudyPage/TextInput';
-import SelectInput from '../pages/NewStudyPage/Select';
+import { CreateStudyConfigData } from '../types/study';
 
-interface Obj {
-  name: string;
-  type: string;
-  label: string;
-  helpertext?: string;
-  options?: Option[];
-}
+export const translator = (config: any) => {
+  const { type, title, description, selector } = config;
 
-const str: keyof Obj = 'type';
-
-interface Option {
-  name: string;
-}
-
-export const translator = (obj: Obj) => {
-  const lookup: any = {
-    text: TextInput,
-    number: TextInput,
-    select: SelectInput,
-  };
-
-  const type = obj[str];
-
-  const component = lookup[type];
-
-  if (!component) {
-    throw new Error(`Could not find component for type: ${obj.type}`);
+  if (type === 'config-select' || type === 'config-multi') {
+    const newConfig = {
+      type,
+      title,
+      description,
+      fields: [
+        {
+          name: selector.name,
+          type: selector.type,
+          label: selector.label,
+          options: selector.options.map(
+            (option: CreateStudyConfigData) => option
+          ),
+        },
+      ],
+    };
+    return newConfig;
   }
 
-  return {
-    id: obj.name,
-    name: obj.name,
-    type: type,
-    component: component,
-    label: obj.label,
-    helpertext: obj.helpertext ?? obj.helpertext,
-    options: obj.options ?? obj.options,
-  };
+  return config;
 };
