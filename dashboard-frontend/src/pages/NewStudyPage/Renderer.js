@@ -1,28 +1,37 @@
-import { Fragment } from 'react';
+import { Fragment, useMemo } from 'react';
+import { getFormFields } from '../../helpers/getFormFields';
+import { translator } from '../../helpers/translator';
 
-const mapPropsToConfig = config => {
-  const configWithProps = [];
+const mapPropsToFields = fields => {
+  const fieldsWithProps = [];
 
-  config.forEach(item => {
-    if (item.component) {
-      const { component, ...props } = item;
+  fields.forEach(field => {
+    if (field.component) {
+      const { component, ...props } = field;
 
-      configWithProps.push({
+      fieldsWithProps.push({
         ...props,
         Component: component,
       });
     }
   });
 
-  return configWithProps;
+  return fieldsWithProps;
 };
 
-export const Renderer = ({ config, erroroncreate, state, setstate, getId }) => {
-  if (!config) {
-    throw new Error('You are calling Renderer with no config.');
+export const Renderer = ({ config, erroroncreate, state, setState }) => {
+  const translatedConfig = translator(config[1]);
+
+  const fields = useMemo(() => {
+    const { fields } = translatedConfig;
+    return getFormFields(fields);
+  }, [translatedConfig]);
+
+  if (!fields) {
+    throw new Error('You are calling Renderer with no fields.');
   }
 
-  const configWithProps = mapPropsToConfig(config);
+  const fieldsWithProps = mapPropsToFields(fields);
 
   const renderComponents = items => {
     return items.map(item => {
@@ -31,16 +40,17 @@ export const Renderer = ({ config, erroroncreate, state, setstate, getId }) => {
       return (
         <Fragment key={props.name}>
           <Component
+            config={config}
+            fields={fields}
             {...props}
             erroroncreate={erroroncreate}
             state={state}
-            setstate={setstate}
-            getId={getId}
+            setState={setState}
           />
         </Fragment>
       );
     });
   };
 
-  return renderComponents(configWithProps);
+  return renderComponents(fieldsWithProps);
 };

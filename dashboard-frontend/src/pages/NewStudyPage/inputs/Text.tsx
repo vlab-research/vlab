@@ -2,41 +2,38 @@ import React from 'react';
 import { classNames } from '../../../helpers/strings';
 
 const TextInput = ({ config, state, setState, ...props }: any) => {
-  const configKey: string = config[0];
+  const { id, name, label, helperText } = props;
+  const configKey = config[0];
+  const value = state[configKey][id];
 
   const handleChange = () => (e: any) => {
     const { value } = e.target;
     setState((prevState: any) => ({
-      ...prevState,
-      [configKey]: { ...prevState[configKey], [props.id]: value },
+      [configKey]: { ...prevState[configKey], [id]: value },
     }));
   };
-
-  const { id, name } = props;
-  const value: string = state[name];
 
   return (
     <React.Fragment>
       <div className="sm:my-4">
-        {props.label ? (
+        {label && (
           <label
-            htmlFor={props.id}
+            htmlFor={id}
             className="block text-sm font-medium text-gray-700"
           >
-            {props.label}
+            {label}
           </label>
-        ) : null}
-
+        )}
         <div className="relative">
           <input
             {...props}
-            id={`${configKey}_${id}`}
-            name={`${configKey}_${name}`}
+            id={id}
+            name={name}
             value={value}
             required
-            placeholder={props.helpertext}
+            placeholder={helperText}
             onChange={handleChange()}
-            data-testid={`new-study-${props.id}-input`}
+            data-testid={`new-study-${id}-input`}
             className={classNames(
               'mt-1 block w-full shadow-sm sm:text-sm rounded-md',
               props.errorOnCreate

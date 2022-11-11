@@ -1,45 +1,87 @@
 import { translator } from './translator';
-import textField from '../../mocks/text.json';
-import selectField from '../../mocks/select.json';
-import TextInput from '../pages/NewStudyPage/TextInput';
-import SelectInput from '../pages/NewStudyPage/Select';
+import { recruitment } from '../pages/NewStudyPage/configs/recruitment/recruitment';
+import { recruitment_simple } from '../pages/NewStudyPage/configs/recruitment/recruitment_simple';
+import { recruitment_destination_experiment } from '../pages/NewStudyPage/configs/recruitment/recruitment_destination_experiment';
+import { recruitment_pipeline_experiment } from '../pages/NewStudyPage/configs/recruitment/recruitment_pipeline_experiment';
+import destinations from '../pages/NewStudyPage/configs/destinations/destinations';
+import { fly_messenger_destination } from '../pages/NewStudyPage/configs/destinations/fly_messenger_destination';
+import { typeform } from '../pages/NewStudyPage/configs/destinations/typeform';
+import { curious_learning } from '../pages/NewStudyPage/configs/destinations/curious_learning';
 
 describe('translator', () => {
-  it('takes an object and returns a new object configured for creating a form', () => {
-    const expectation = {
-      id: 'foo_bar',
-      name: 'foo_bar',
-      type: 'text',
-      component: TextInput,
-      label: 'Foo',
-      helpertext: 'foo',
-      options: undefined,
-    };
-
-    const res = translator(textField);
-    expect(res).toStrictEqual(expectation);
-
-    const expectation2 = {
-      id: 'foo_bar',
-      name: 'foo_bar',
-      type: 'select',
-      component: SelectInput,
-      label: 'Foo',
-      helpertext: undefined,
-      options: [
+  it('takes a config-object and based on its type returns the same config', () => {
+    const configObject = {
+      type: 'config-object',
+      title: 'foo',
+      description: 'foobaz',
+      fields: [
         {
-          name: 'foo',
-        },
-        {
-          name: 'bar',
-        },
-        {
-          name: 'baz',
+          name: 'bazzle',
+          type: 'select',
+          label: 'select an option',
+          options: [
+            {
+              name: 'foo',
+              label: 'Foo',
+            },
+            {
+              name: 'bar',
+              label: 'Bar',
+            },
+            {
+              name: 'baz',
+              label: 'Baz',
+            },
+          ],
         },
       ],
     };
 
-    const res2 = translator(selectField);
-    expect(res2).toStrictEqual(expectation2);
+    const expectation = configObject;
+
+    const res = translator(configObject);
+    expect(res).toStrictEqual(expectation);
   });
+
+  it('takes a config-select or config-multi and returns a new config in the format required for a form builder', () => {
+    const expectation = {
+      type: 'config-select',
+      title: 'Recruitment',
+      description:
+        'The "recruitment" configuration describes how/where recruitment will take place. Every study needs to recruit from somewhere.',
+      fields: [
+        {
+          name: 'recruitment',
+          type: 'select',
+          label: 'Select a recruitment type',
+          options: [
+            recruitment_simple,
+            recruitment_pipeline_experiment,
+            recruitment_destination_experiment,
+          ],
+        },
+      ],
+    };
+
+    const res = translator(recruitment);
+    expect(res).toStrictEqual(expectation);
+  });
+
+  const expectation2 = {
+    type: 'config-multi',
+    title: 'Destinations',
+    description:
+      'Every study needs a destination, where do the recruitment ads send the users?',
+    fields: [
+      {
+        name: 'destinations',
+        type: 'list',
+        label: 'Add new destination',
+        options: [fly_messenger_destination, typeform, curious_learning],
+      },
+    ],
+  };
+
+  const res = translator(destinations);
+  expect(res).toStrictEqual(expectation2);
 });

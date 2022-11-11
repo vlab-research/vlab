@@ -1,4 +1,5 @@
 export const recruitment_simple = {
+  type: 'config-object',
   title: 'Recruitment simple',
   description: 'Simple recruitment...',
   fields: [
