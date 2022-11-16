@@ -1,13 +1,10 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import useCreateStudy from './useCreateStudy';
 import PageLayout from '../../components/PageLayout';
 import PrimaryButton from '../../components/PrimaryButton';
 import Navbar from '../../components/NavBar';
 import { Renderer } from './Renderer';
-
-import { createLabelFor } from '../../helpers/strings';
 import { addOne } from '../../helpers/numbers';
-
 import { general } from './configs/general';
 import { destinations } from './configs/destinations/destinations';
 import { recruitment } from './configs/recruitment/recruitment';
@@ -15,7 +12,7 @@ import { creative } from './configs/creative';
 import { targeting } from './configs/targeting';
 import { targeting_distribution } from './configs/targeting_distribution';
 import { CreateStudyConfigData } from '../../types/study';
-import { createStateFromArrayOfTuples } from '../../helpers/createState';
+// import { createStateFromArrayOfTuples } from '../../helpers/createState';
 
 const NewStudyPage = () => (
   <PageLayout title={'New Study'} testId="new-study-page" showBackButton>
@@ -34,22 +31,20 @@ const PageContent = () => {
   };
 
   const configsToArr = Object.entries(configs);
-
-  const megaState = createStateFromArrayOfTuples(configsToArr);
-
-  const [state, setState] = useState(megaState);
-
+  const [formData, setFormData] = useState({});
   const [index, setIndex] = useState(0);
-  const { isCreating, errorOnCreate, createStudy } = useCreateStudy();
+  const config = configsToArr[index][1];
+  const [currentConfig, setCurrentConfig] = useState(config);
+  const { isCreating, errorOnCreate } = useCreateStudy();
+  const { title } = config;
+  // const megaState = createStateFromArrayOfTuples(some inital state);
+
+  useEffect(() => {
+    setCurrentConfig(config);
+  }, [config]);
 
   const configKeys = Object.keys(configs);
-
-  const config = configsToArr[index];
   const isLast = index === configsToArr.length - 1 ? true : false;
-
-  const getConfigType = () => {
-    return config[0];
-  };
 
   const handleClick = () => {
     if (isLast) {
@@ -68,35 +63,32 @@ const PageContent = () => {
     //   return Object.assign({}, ...mapped);
     // };
 
-    // console.log(allFields.map(arr => setInputVals(arr, 'name', e)));
-
-    createStudy({
-      name: e.target.elements.name.value,
-      objective: e.target.elements.objective.value,
-      optimization_goal: e.target.elements.optimization_goal.value,
-      destination_type: e.target.elements.destination_type.value,
-      page_id: e.target.elements.page_id.value,
-      instagram_id: e.target.elements.instagram_id.value,
-      min_budget: e.target.elements.min_budget.value,
-      opt_window: e.target.elements.opt_window.value,
-      country: e.target.elements.country.value,
-      ad_account: e.target.elements.ad_account.value,
-    });
+    // createStudy({
+    //   name: e.target.elements.name.value,
+    //   objective: e.target.elements.objective.value,
+    //   optimization_goal: e.target.elements.optimization_goal.value,
+    //   destination_type: e.target.elements.destination_type.value,
+    //   page_id: e.target.elements.page_id.value,
+    //   instagram_id: e.target.elements.instagram_id.value,
+    //   min_budget: e.target.elements.min_budget.value,
+    //   opt_window: e.target.elements.opt_window.value,
+    //   country: e.target.elements.country.value,
+    //   ad_account: e.target.elements.ad_account.value,
+    // });
   };
 
-  // wrapper function to give to child
-  const wrapperSetState = useCallback(
-    val => {
-      setState(val);
-    },
-    [setState]
-  );
-
-  const configLabel = createLabelFor(getConfigType());
+  const wrapperSetState = useCallback(val => {
+    setFormData(val);
+  }, []);
 
   return (
     <>
-      <Navbar configKeys={configKeys} setIndex={setIndex} />
+      <Navbar
+        configs={configsToArr}
+        configKeys={configKeys}
+        setIndex={setIndex}
+        setCurrentConfig={setCurrentConfig}
+      />
       <div className="md:grid md:grid-cols-3 md:gap-6">
         <div className="md:col-span-1">
           <div className="px-4 sm:px-0"></div>
@@ -108,13 +100,14 @@ const PageContent = () => {
                 <div className="grid grid-cols-6 gap-6">
                   <div className="col-span-6 sm:col-span-5">
                     <h3 className="text-lg font-medium leading-6 text-gray-900">
-                      {configLabel}
+                      {title}
                     </h3>
                     <Renderer
-                      config={config}
+                      config={currentConfig}
                       erroroncreate={errorOnCreate}
-                      state={state}
-                      setState={wrapperSetState}
+                      formData={formData}
+                      setFormData={wrapperSetState}
+                      setCurrentConfig={setCurrentConfig}
                     />
                   </div>
                 </div>

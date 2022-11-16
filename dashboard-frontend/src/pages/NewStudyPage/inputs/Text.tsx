@@ -1,16 +1,16 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { classNames } from '../../../helpers/strings';
 
-const TextInput = ({ config, state, setState, ...props }: any) => {
+const TextInput = ({ config, formData, setFormData, ...props }: any) => {
   const { id, name, label, helperText } = props;
-  const configKey = config[0];
-  const value = state[configKey][id];
+  const [input, setInput] = useState('');
 
   const handleChange = () => (e: any) => {
     const { value } = e.target;
-    setState((prevState: any) => ({
-      [configKey]: { ...prevState[configKey], [id]: value },
-    }));
+    setInput(value);
+    // setState((prevState: any) => ({
+    //   [configKey]: { ...prevState[configKey], [id]: value },
+    // }));
   };
 
   return (
@@ -29,7 +29,7 @@ const TextInput = ({ config, state, setState, ...props }: any) => {
             {...props}
             id={id}
             name={name}
-            value={value}
+            value={input}
             required
             placeholder={helperText}
             onChange={handleChange()}

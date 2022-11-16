@@ -1,3 +1,6 @@
+import destinations from '../destinations/destinations';
+import mapDestinations from '../../../../helpers/mapDestinations';
+
 export const recruitment_pipeline_experiment = {
   type: 'config-object',
   title: 'Recruitment pipeline',
@@ -36,16 +39,9 @@ export const recruitment_pipeline_experiment = {
     },
     {
       name: 'destinations',
-      type: 'select',
-      label: 'Destinations',
-      options: [
-        {
-          name: 'Lottery',
-        },
-        {
-          name: 'Top-up',
-        },
-      ],
+      type: 'list',
+      label: 'Add new destination',
+      options: mapDestinations(destinations), // TODO change this to a call to action prop?
     },
     {
       name: 'arms',

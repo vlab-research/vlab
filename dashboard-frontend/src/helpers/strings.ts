@@ -17,3 +17,7 @@ export const createLabelFor = (str: string) => {
     .trim();
   return res.charAt(0).toUpperCase() + res.slice(1);
 };
+
+export const createNameFor = (str: string) => {
+  return str.replace(/ /g, '_').toLowerCase();
+};

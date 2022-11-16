@@ -28,3 +28,16 @@ export const stringLookup = (str: string, arr: any[], key: string) => {
   const index = arr.findIndex(obj => obj[key] === str);
   return arr[index];
 };
+
+export const isJSON = (strData: any) => {
+  if (JSON.parse(strData)) {
+    return true;
+  } else {
+    return false;
+  }
+};
+
+export const checkPropertiesExist = (obj: any, prop: string, prop2: string) => {
+  const keys = Object.keys(obj);
+  return keys.some(key => key === prop) && keys.some(key => key === prop2);
+};

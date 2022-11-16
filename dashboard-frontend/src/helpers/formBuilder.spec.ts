@@ -29,12 +29,15 @@ describe('formBuilder', () => {
       options: [
         {
           name: 'foo',
+          label: 'Foo',
         },
         {
           name: 'bar',
+          label: 'Bar',
         },
         {
           name: 'baz',
+          label: 'Baz',
         },
       ],
     };

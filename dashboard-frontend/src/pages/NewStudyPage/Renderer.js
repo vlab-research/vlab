@@ -19,11 +19,18 @@ const mapPropsToFields = fields => {
   return fieldsWithProps;
 };
 
-export const Renderer = ({ config, erroroncreate, state, setState }) => {
-  const translatedConfig = translator(config[1]);
+export const Renderer = ({
+  config,
+  setCurrentConfig,
+  erroroncreate,
+  formData,
+  setFormData,
+}) => {
+  const translatedConfig = translator(config);
 
   const fields = useMemo(() => {
     const { fields } = translatedConfig;
+
     return getFormFields(fields);
   }, [translatedConfig]);
 
@@ -33,19 +40,25 @@ export const Renderer = ({ config, erroroncreate, state, setState }) => {
 
   const fieldsWithProps = mapPropsToFields(fields);
 
+  // user selects an option and state is updated at the child level
+  // the state is passed back up to the parent
+  // given some value from the state the renderer knows what to do with a new config
+  // fields and props are updated to display a new config
+
   const renderComponents = items => {
     return items.map(item => {
       const { Component, ...props } = item;
+      const { name } = props;
 
       return (
-        <Fragment key={props.name}>
+        <Fragment key={name}>
           <Component
             config={config}
+            setCurrentConfig={setCurrentConfig}
+            formData={formData}
             fields={fields}
             {...props}
             erroroncreate={erroroncreate}
-            state={state}
-            setState={setState}
           />
         </Fragment>
       );

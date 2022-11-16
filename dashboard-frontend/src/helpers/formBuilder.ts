@@ -1,6 +1,8 @@
 import ListInput from '../pages/NewStudyPage/inputs/List';
 import SelectInput from '../pages/NewStudyPage/inputs/Select';
 import TextInput from '../pages/NewStudyPage/inputs/Text';
+import { checkPropertiesExist } from './objects';
+import { jsonTranslator } from './translator';
 
 interface Obj {
   name: string;
@@ -10,11 +12,12 @@ interface Obj {
   options?: Option[];
 }
 
-const str: keyof Obj = 'type';
-
 interface Option {
   name: string;
+  label: string;
 }
+
+const str: keyof Obj = 'type';
 
 export const formBuilder = (obj: Obj) => {
   const lookup: any = {
@@ -39,6 +42,12 @@ export const formBuilder = (obj: Obj) => {
     component: component,
     label: obj.label,
     helpertext: obj.helpertext ?? obj.helpertext,
-    options: obj.options ?? obj.options,
+    options:
+      obj.options &&
+      obj.options.some((option: Option) =>
+        checkPropertiesExist(option, 'label', 'name')
+      )
+        ? obj.options
+        : obj.options?.map((option: Option) => jsonTranslator(option)),
   };
 };
