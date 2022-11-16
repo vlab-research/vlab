@@ -1,16 +1,22 @@
 import { createLabelFor } from '../helpers/strings';
 
 const Navbar = ({
+  configs,
   configKeys,
   setIndex,
+  setCurrentConfig,
 }: {
+  configs: any[];
   configKeys: string[];
   setIndex: any;
+  setCurrentConfig: any;
 }) => {
   const handleClick = (e: any, configKey: string) => {
     e.preventDefault();
     const newIndex = configKeys.indexOf(configKey);
     setIndex(() => newIndex);
+    const nextConfig = configs[newIndex][1];
+    setCurrentConfig(nextConfig);
   };
 
   return (

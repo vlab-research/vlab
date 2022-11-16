@@ -4,13 +4,16 @@
   "label": "Foo",
   "options": [
     {
-      "name": "foo"
+      "name": "foo",
+      "label": "Foo"
     },
     {
-      "name": "bar"
+      "name": "bar",
+      "label": "Bar"
     },
     {
-      "name": "baz"
+      "name": "baz",
+      "label": "Baz"
     }
   ]
 }

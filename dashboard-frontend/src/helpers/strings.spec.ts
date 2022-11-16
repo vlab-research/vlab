@@ -3,6 +3,7 @@ import {
   classNames,
   toCamelCase,
   createLabelFor,
+  createNameFor,
 } from './strings';
 
 describe('createSlugFor', () => {
@@ -42,5 +43,12 @@ describe('createLabelFor', () => {
   it('returns a capitalised string with white space before every capital letter', () => {
     expect(createLabelFor('')).toBe('');
     expect(createLabelFor('min_budget')).toBe('Min Budget');
+  });
+});
+
+describe('createNameFor', () => {
+  it('returns a lowercase string and replaces each white space with an underscore', () => {
+    expect(createNameFor('')).toBe('');
+    expect(createNameFor('Min Budget')).toBe('min_budget');
   });
 });

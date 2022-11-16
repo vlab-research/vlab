@@ -1,11 +1,5 @@
 import destinations from '../destinations/destinations';
-
-const mapDestinations = () => {
-  const { selector } = destinations;
-  return selector.options.map(option => {
-    return { name: option.name, label: option.label };
-  });
-};
+import mapDestinations from '../../../../helpers/mapDestinations';
 
 export const recruitment_destination_experiment = {
   type: 'config-object',
@@ -46,8 +40,8 @@ export const recruitment_destination_experiment = {
     {
       name: 'destinations',
       type: 'list',
-      label: 'Saved destinations',
-      options: mapDestinations(),
+      label: 'Add new destination', // TODO change this to a call to action prop?
+      options: mapDestinations(destinations),
     },
   ],
 };

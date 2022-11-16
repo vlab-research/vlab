@@ -1,4 +1,4 @@
-import countries from '../../../fixtures/countries.json';
+import countries from '../../../fixtures/countries';
 
 export const targeting_distribution = {
   type: 'config-object',

@@ -4,6 +4,7 @@ import {
   assignObject,
   getValueByProp,
   stringLookup,
+  isJSON,
 } from './objects';
 
 describe('mapValueToKey', () => {
@@ -109,6 +110,18 @@ describe('stringLookup', () => {
     const expectation = { name: 'foobar' };
 
     const res = stringLookup(str, arr, key);
+    expect(res).toStrictEqual(expectation);
+  });
+});
+
+describe('isJSONObject', () => {
+  it('takes an object and checks if its JSON', () => {
+    const obj = { name: 'John', age: 30, city: 'New York' };
+    const myJSON = JSON.stringify(obj);
+
+    const expectation = true;
+
+    const res = isJSON(myJSON);
     expect(res).toStrictEqual(expectation);
   });
 });

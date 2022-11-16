@@ -17,13 +17,16 @@ export const targeting = {
       label: 'Distribution variables',
       options: [
         {
-          name: 'Location',
+          name: 'location',
+          label: 'Location',
         },
         {
-          name: 'Gender',
+          name: 'gender',
+          label: 'Gender',
         },
         {
-          name: 'Age',
+          name: 'age',
+          label: 'Age',
         },
       ],
     },

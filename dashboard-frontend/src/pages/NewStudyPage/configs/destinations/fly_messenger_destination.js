@@ -5,20 +5,16 @@ export const fly_messenger_destination = {
   key: 'intial_shortcode', // tells us which field can be used as a unique key
   fields: [
     {
-      initial_shortcode: {
-        name: 'initial_shortcode',
-        type: 'text',
-        label: 'Initial shortcode',
-        helpertext: 'E.g 12345',
-      },
+      name: 'initial_shortcode',
+      type: 'text',
+      label: 'Initial shortcode',
+      helpertext: 'E.g 12345',
     },
     {
-      survey_name: {
-        name: 'survey_name',
-        type: 'text',
-        label: 'Survey Name',
-        helpertext: 'Eg. Fly',
-      },
+      name: 'survey_name',
+      type: 'text',
+      label: 'Survey Name',
+      helpertext: 'Eg. Fly',
     },
   ],
 };
