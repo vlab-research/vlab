@@ -30,75 +30,101 @@ func (t *LitDataTimestamp) UnmarshalJSON(b []byte) error {
 	if err != nil {
 		return err
 	}
-	*t = LitDataTimestamp{time.Unix(0, i*1000).UTC()}
+	*t = LitDataTimestamp{time.Unix(0, i/1000000).UTC()}
 	return nil
 }
 
+type LitDataEventParams struct {
+	Label string `json:"label"`
+	Value struct {
+		StringValue interface{} `json:"string_value"`
+		IntValue    string      `json:"int_value"`
+		FloatValue  interface{} `json:"float_value"`
+		DoubleValue interface{} `json:"double_value"`
+	} `json:"value"`
+	Action string `json:"action"`
+}
+
 type LitDataEvent struct {
-	AttributionURL json.RawMessage `json:"attribution_url" validate:"required"`
-	AppID          string          `json:"app_id" validate:"required"`
-	OrderedID      int64           `json:"ordered_id" validate:"required"`
-	User           struct {
-		ID            string                     `json:"id" validate:"required"`
-		Metadata      map[string]json.RawMessage `json:"metadata" validate:"required"`
-		AdAttribution struct {
-			Source string `json:"source"`
-			Data   struct {
-				AdvertisingID string `json:"advertising_id"`
-				// add other types of ids for other sources...
-			} `json:"data"`
-		} `json:"ad_attribution"`
-	} `json:"user" validate:"required"`
-	Event struct {
-		Name      string           `json:"name"`
-		Date      string           `json:"date"`
-		Timestamp LitDataTimestamp `json:"timestamp"`
-		ValueType string           `json:"value_type"`
-		Value     string           `json:"value"`
-		Level     string           `json:"level"`
-		Profile   string           `json:"profile"`
-		RawData   struct {
-			Action string `json:"action"`
-			Label  string `json:"label"`
-			Value  struct {
-				StringValue string  `json:"string_value"`
-				IntValue    int64   `json:"int_value"`
-				FloatValue  float32 `json:"float_value"`
-				DoubleValue float64 `json:"double_value"`
-			} `json:"value"`
-		} `json:"rawData"`
-	} `json:"event" validate:"required"`
+	UserPseudoID   string           `json:"user_pseudo_id"`
+	EventName      string           `json:"event_name"`
+	EventTimestamp LitDataTimestamp `json:"event_timestamp"`
+	TrafficSource  struct {
+		Name   string      `json:"name"`
+		Medium interface{} `json:"medium"`
+		Source string      `json:"source"`
+	} `json:"traffic_source"`
+	Device struct {
+		Category               string      `json:"category"`
+		MobileBrandName        string      `json:"mobile_brand_name"`
+		MobileModelName        string      `json:"mobile_model_name"`
+		MobileMarketingName    string      `json:"mobile_marketing_name"`
+		MobileOsHardwareModel  string      `json:"mobile_os_hardware_model"`
+		OperatingSystem        string      `json:"operating_system"`
+		OperatingSystemVersion string      `json:"operating_system_version"`
+		VendorID               interface{} `json:"vendor_id"`
+		AdvertisingID          interface{} `json:"advertising_id"`
+		Language               string      `json:"language"`
+		IsLimitedAdTracking    string      `json:"is_limited_ad_tracking"`
+		TimeZoneOffsetSeconds  string      `json:"time_zone_offset_seconds"`
+		Browser                interface{} `json:"browser"`
+		BrowserVersion         interface{} `json:"browser_version"`
+		WebInfo                interface{} `json:"web_info"`
+	} `json:"device"`
+	Geo struct {
+		Continent    string `json:"continent"`
+		Country      string `json:"country"`
+		Region       string `json:"region"`
+		City         string `json:"city"`
+		SubContinent string `json:"sub_continent"`
+		Metro        string `json:"metro"`
+	} `json:"geo"`
+	EventParams LitDataEventParams `json:"event_params"`
 }
 
 func marshalValue(lde *LitDataEvent) json.RawMessage {
-
-	v := LitDataValue{lde.Event.Value, lde.Event.ValueType, lde.Event.Level, lde.Event.Profile}
+	v := lde.EventParams
 	b, err := json.Marshal(v)
 	if err != nil {
 		// shouldn't happen, just string/json.RawMessage
 		panic(err)
 	}
-
 	return b
+}
+
+func marshalMetadata(el interface{}) map[string]json.RawMessage {
+	b, err := json.Marshal(el)
+	handle(err) // shouldn't happen
+
+	md := new(map[string]json.RawMessage)
+	err = json.Unmarshal(b, md)
+	handle(err)
+
+	return *md
 }
 
 func (lde *LitDataEvent) AsInferenceDataEvent(source *Source, idx int) *InferenceDataEvent {
 
 	md := map[string]json.RawMessage{}
-	for k, v := range lde.User.Metadata {
+	for k, v := range marshalMetadata(lde.Geo) {
 		md[k] = v
 	}
-	md["attribution_url"] = lde.AttributionURL
-	md["advertising_id"] = []byte(fmt.Sprintf(`"%s"`, lde.User.AdAttribution.Data.AdvertisingID))
+	for k, v := range marshalMetadata(lde.Device) {
+		md[k] = v
+	}
 
-	from := fmt.Sprintf("%d", lde.Event.Timestamp.Time.Unix())
+	// shouldn't error
+	md["traffice_source"], _ = json.Marshal(lde.TrafficSource.Source)
+
+	from := fmt.Sprintf("%d", lde.EventTimestamp.Time.Unix())
+	variable := lde.EventName + "_" + lde.EventParams.Action
 
 	return &InferenceDataEvent{
-		User:       User{lde.User.ID, md},
+		User:       User{ID: lde.UserPseudoID, Metadata: md},
 		Study:      source.StudyID,
 		SourceConf: source.Conf,
-		Timestamp:  lde.Event.Timestamp.Time,
-		Variable:   lde.Event.Name,
+		Timestamp:  lde.EventTimestamp.Time,
+		Variable:   variable,
 		Value:      marshalValue(lde),
 		Idx:        idx,
 		Pagination: from,
@@ -121,15 +147,17 @@ type LitDataResponse struct {
 
 type LitDataAPIParams struct {
 	From          int    `url:"from" json:"from,omitempty"`
-	Token         string `url:"token,omitempty" json:"token,omitempty"`
 	AppID         string `url:"app_id" json:"app_id"`
-	AttributionID string `url:"attribution_id,omitempty" json:"attribution_id"`
+	TrafficSource string `url:"traffic_source" json:"traffic_source"`
+	Limit         int    `url:"limit" json:"limit,omitempty"`
+	Country       string `url:"country,omitempty" json:"country"`
 }
 
 type LitDataConfig struct {
 	From          string `json:"from"`
 	AppID         string `json:"app_id"`
-	AttributionID string `json:"attribution_id"`
+	TrafficSource string `url:"traffic_source" json:"traffic_source"`
+	Country       string `url:"country,omitempty" json:"country"`
 }
 
 type LitDataError struct {
@@ -191,17 +219,21 @@ func GetEvents(source *Source, url string, params *LitDataAPIParams, i int) <-ch
 
 			for _, r := range response.Data {
 				i++
-				if i%10000 == 0 {
+				if i%1000 == 0 {
 					log.Println(fmt.Sprintf("Collected %d results.", i))
 				}
 
+				// For pagination
+				params.From = int(r.EventTimestamp.Time.Unix())
+
+				// push event
 				events <- r.AsInferenceDataEvent(source, i)
 			}
 
-			params.Token = response.NextCursor
-			if params.Token == "" {
+			if len(response.Data) < params.Limit {
 				break
 			}
+
 		}
 	}()
 
@@ -237,12 +269,13 @@ func (c LitDataApiConnector) Handler(source *Source, lastEvent *InferenceDataEve
 		idx = lastEvent.Idx
 	}
 
-	// NOTE: right now the config is the params, but that will change
+	// Note: thin abstraction layer...
 	params := &LitDataAPIParams{
-		from,
-		"", // no token
-		litDataConfig.AppID,
-		litDataConfig.AttributionID,
+		From:          from,
+		AppID:         litDataConfig.AppID,
+		Country:       litDataConfig.Country,
+		TrafficSource: litDataConfig.TrafficSource,
+		Limit:         1000,
 	}
 
 	events := GetEvents(source, c.LitDataUrl, params, idx)
