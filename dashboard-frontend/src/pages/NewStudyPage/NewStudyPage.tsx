@@ -105,9 +105,6 @@ const PageContent = () => {
                     <Renderer
                       config={currentConfig}
                       erroroncreate={errorOnCreate}
-                      formData={formData}
-                      setFormData={wrapperSetState}
-                      setCurrentConfig={setCurrentConfig}
                     />
                   </div>
                 </div>

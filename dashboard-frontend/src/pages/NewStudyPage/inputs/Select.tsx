@@ -1,21 +1,14 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useState } from 'react';
 
-const SelectInput = ({
-  config,
-  setCurrentConfig,
-  formData,
-  setFormData,
-  ...props
-}: any) => {
-  const { id, name, label, options } = props;
-  const { selector } = config;
+const Select = ({ selectedOption, setSelectedOption, ...props }: any) => {
+  const { id, name, label, options, defaultValue } = props;
 
-  const [selectedOption, setSelectedOption] = useState({
-    name: '',
-    label: '',
-  });
+  // const [selectedOption, setSelectedOption] = useState({
+  //   name: '',
+  //   label: defaultValue,
+  // });
 
-  const isCountryType = id === 'country';
+  // console.log(selectedOption);
 
   const handleChange = () => (e: any) => {
     const { value } = e.target;
@@ -25,17 +18,6 @@ const SelectInput = ({
     const option = options[findOption];
     setSelectedOption(option);
   };
-
-  const findNestedConfig = useCallback(() => {
-    const index = options.findIndex(
-      (option: any) => option.name === selectedOption.name
-    );
-    return selector?.options[index];
-  }, [options, selectedOption, selector]);
-
-  useEffect(() => {
-    selector && setCurrentConfig(findNestedConfig());
-  }, [findNestedConfig, selector, setCurrentConfig]);
 
   return (
     <React.Fragment>
@@ -53,15 +35,13 @@ const SelectInput = ({
             {...props}
             id={id}
             name={name}
-            value={selectedOption.label}
+            value={selectedOption?.label}
             onChange={handleChange()}
             data-testid={`new-study-${id}-input`}
             required
             className="mt-1 block w-full shadow-sm sm:text-sm rounded-md"
           >
-            {!isCountryType && (
-              <option value="">--Please choose an option--</option>
-            )}
+            {defaultValue && <option value="">{defaultValue}</option>}
             {options.map((option: any) => (
               <option key={option.name} value={option.label}>
                 {option.label}
@@ -74,4 +54,4 @@ const SelectInput = ({
   );
 };
 
-export default SelectInput;
+export default Select;

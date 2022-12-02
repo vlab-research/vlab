@@ -9,12 +9,13 @@ export const general = {
       name: 'name',
       type: 'text',
       label: 'Name',
-      helpertext: 'E.g example-fly-conf',
+      helperText: 'E.g example-fly-conf',
     },
     {
       name: 'objective',
       type: 'select',
       label: 'Objective',
+      defaultValue: 'Select an objective',
       options: [
         {
           name: 'messages',
@@ -34,6 +35,7 @@ export const general = {
       name: 'optimization_goal',
       type: 'select',
       label: 'Optimization goal',
+      defaultValue: 'Select an optimization goal',
       options: [
         {
           name: 'link_clicks',
@@ -53,6 +55,7 @@ export const general = {
       name: 'destination_type',
       type: 'select',
       label: 'Destination type',
+      defaultValue: 'Select a destination type',
       options: [
         {
           name: 'web',
@@ -72,36 +75,37 @@ export const general = {
       name: 'page_id',
       type: 'number',
       label: 'Page ID',
-      helpertext: 'E.g 1855355231229529',
+      helperText: 'E.g 1855355231229529',
     },
     {
       name: 'min_budget',
       type: 'number',
       label: 'Minimum Budget',
-      helpertext: 'E.g 10',
+      helperText: 'E.g 10',
     },
     {
       name: 'opt_window',
       type: 'number',
       label: 'Opt-in window',
-      helpertext: 'E.g 48',
+      helperText: 'E.g 48',
     },
     {
       name: 'instagram_id',
       type: 'number',
       label: 'Instagram ID',
-      helpertext: 'E.g 2327764173962588',
+      helperText: 'E.g 2327764173962588',
     },
     {
       name: 'ad_account',
       type: 'number',
       label: 'Ad account',
-      helpertext: 'E.g 1342820622846299',
+      helperText: 'E.g 1342820622846299',
     },
     {
       name: 'country',
       type: 'select',
       label: 'Country',
+      defaultValue: 'Select a country',
       options: countries,
     },
   ],

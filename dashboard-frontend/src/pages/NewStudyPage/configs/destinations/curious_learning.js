@@ -8,25 +8,38 @@ export const curious_learning = {
       name: 'from',
       type: 'number',
       label: 'From',
-      helpertext: 'E.g 17/12/22',
+      helperText: 'E.g 17/12/22',
     },
     {
       name: 'app_id',
       type: 'text',
       label: 'App id',
-      helpertext: 'E.g 12345',
+      helperText: 'E.g 12345',
     },
     {
       name: 'facebook_app_id',
       type: 'text',
       label: 'Facebook App id',
-      helpertext: 'E.g 12345',
+      helperText: 'E.g 12345',
     },
     {
       name: 'user_device',
       type: 'list',
-      label: 'Add a user device',
-      options: [],
+      label: 'Saved user devices',
+      options: [
+        {
+          name: 'user_device_1',
+          label: 'User Device 1',
+        },
+        {
+          name: 'user_device_2',
+          label: 'User Device 2',
+        },
+        {
+          name: 'user_device_3',
+          label: 'User Device 3',
+        },
+      ],
     },
   ],
 };

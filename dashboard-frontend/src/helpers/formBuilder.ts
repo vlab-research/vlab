@@ -1,6 +1,8 @@
-import ListInput from '../pages/NewStudyPage/inputs/List';
-import SelectInput from '../pages/NewStudyPage/inputs/Select';
-import TextInput from '../pages/NewStudyPage/inputs/Text';
+import ConfigList from '../pages/NewStudyPage/ConfigList';
+import ConfigSelect from '../pages/NewStudyPage/ConfigSelect';
+import List from '../pages/NewStudyPage/inputs/List';
+import Select from '../pages/NewStudyPage/inputs/Select';
+import Text from '../pages/NewStudyPage/inputs/Text';
 import { checkPropertiesExist } from './objects';
 import { jsonTranslator } from './translator';
 
@@ -8,7 +10,8 @@ interface Obj {
   name: string;
   type: string;
   label: string;
-  helpertext?: string;
+  helperText?: string;
+  defaultValue?: string;
   options?: Option[];
 }
 
@@ -21,10 +24,12 @@ const str: keyof Obj = 'type';
 
 export const formBuilder = (obj: Obj) => {
   const lookup: any = {
-    text: TextInput,
-    number: TextInput,
-    select: SelectInput,
-    list: ListInput,
+    text: Text,
+    number: Text,
+    select: Select,
+    list: List,
+    configSelect: ConfigSelect,
+    configList: ConfigList,
   };
 
   const type = obj[str];
@@ -41,7 +46,8 @@ export const formBuilder = (obj: Obj) => {
     type: type,
     component: component,
     label: obj.label,
-    helpertext: obj.helpertext ?? obj.helpertext,
+    helperText: obj.helperText ?? obj.helperText,
+    defaultValue: obj.defaultValue ?? obj.defaultValue,
     options:
       obj.options &&
       obj.options.some((option: Option) =>
