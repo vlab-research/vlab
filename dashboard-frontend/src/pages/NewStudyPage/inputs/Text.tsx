@@ -1,13 +1,13 @@
 import React, { useState } from 'react';
 import { classNames } from '../../../helpers/strings';
 
-const TextInput = ({ config, formData, setFormData, ...props }: any) => {
+const Text = ({ ...props }: any) => {
   const { id, name, label, helperText } = props;
-  const [input, setInput] = useState('');
+  const [inputText, setInputText] = useState('');
 
   const handleChange = () => (e: any) => {
     const { value } = e.target;
-    setInput(value);
+    setInputText(value);
     // setState((prevState: any) => ({
     //   [configKey]: { ...prevState[configKey], [id]: value },
     // }));
@@ -29,7 +29,7 @@ const TextInput = ({ config, formData, setFormData, ...props }: any) => {
             {...props}
             id={id}
             name={name}
-            value={input}
+            value={inputText}
             required
             placeholder={helperText}
             onChange={handleChange()}
@@ -47,4 +47,4 @@ const TextInput = ({ config, formData, setFormData, ...props }: any) => {
   );
 };
 
-export default TextInput;
+export default Text;

@@ -2,7 +2,7 @@ import { Fragment, useMemo } from 'react';
 import { getFormFields } from '../../helpers/getFormFields';
 import { translator } from '../../helpers/translator';
 
-const mapPropsToFields = fields => {
+export const mapPropsToFields = fields => {
   const fieldsWithProps = [];
 
   fields.forEach(field => {
@@ -19,13 +19,7 @@ const mapPropsToFields = fields => {
   return fieldsWithProps;
 };
 
-export const Renderer = ({
-  config,
-  setCurrentConfig,
-  erroroncreate,
-  formData,
-  setFormData,
-}) => {
+export const Renderer = ({ config, erroroncreate }) => {
   const translatedConfig = translator(config);
 
   const fields = useMemo(() => {
@@ -40,11 +34,6 @@ export const Renderer = ({
 
   const fieldsWithProps = mapPropsToFields(fields);
 
-  // user selects an option and state is updated at the child level
-  // the state is passed back up to the parent
-  // given some value from the state the renderer knows what to do with a new config
-  // fields and props are updated to display a new config
-
   const renderComponents = items => {
     return items.map(item => {
       const { Component, ...props } = item;
@@ -52,14 +41,7 @@ export const Renderer = ({
 
       return (
         <Fragment key={name}>
-          <Component
-            config={config}
-            setCurrentConfig={setCurrentConfig}
-            formData={formData}
-            fields={fields}
-            {...props}
-            erroroncreate={erroroncreate}
-          />
+          <Component config={config} {...props} erroroncreate={erroroncreate} />
         </Fragment>
       );
     });

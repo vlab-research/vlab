@@ -31,7 +31,7 @@ export interface StudyFieldResource {
   type: string;
   label: string;
   options?: string[];
-  helpertext?: string;
+  helperText?: string;
 }
 
 export interface StudyResource {

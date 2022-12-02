@@ -8,7 +8,7 @@ export const typeform = {
       name: 'form_id',
       type: 'text',
       label: 'Form id',
-      helpertext: 'E.g 12345',
+      helperText: 'E.g 12345',
     },
   ],
 };
