@@ -1,30 +1,20 @@
 import { CreateStudyConfigData } from '../types/study';
 import { createNameFor } from './strings';
 
-export const translator = (config: any) => {
-  const { type, title, description, selector, fields, list } = config;
-
-  const getFields = () => {
-    const mapped = fields.map(({ name, type, label, helperText }: any) => ({
-      name: name,
-      type: type,
-      label: label,
-      helperText: helperText,
-    }));
-    return Object.assign({}, ...mapped);
-  };
+export const translator = (config: CreateStudyConfigData) => {
+  const { type, title, description, selector, list } = config;
 
   if (type === 'config-multi') {
     const newConfig = {
       type,
       title,
       description,
-      list,
       fields: [
         {
           name: selector.name,
           type: selector.type,
           label: selector.label,
+          callToAction: selector.callToAction,
           options: selector.options.map((option: CreateStudyConfigData) => {
             return {
               name: createNameFor(option.title),
@@ -32,8 +22,8 @@ export const translator = (config: any) => {
             };
           }),
         },
-        fields && getFields(),
-      ],
+        list && list,
+      ].flat(1),
     };
     return newConfig;
   }

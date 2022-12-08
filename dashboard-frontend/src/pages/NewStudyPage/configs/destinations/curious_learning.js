@@ -22,24 +22,24 @@ export const curious_learning = {
       label: 'Facebook App id',
       helperText: 'E.g 12345',
     },
-    {
-      name: 'user_device',
-      type: 'list',
-      label: 'Saved user devices',
-      options: [
-        {
-          name: 'user_device_1',
-          label: 'User Device 1',
-        },
-        {
-          name: 'user_device_2',
-          label: 'User Device 2',
-        },
-        {
-          name: 'user_device_3',
-          label: 'User Device 3',
-        },
-      ],
-    },
+    // {
+    //   name: 'user_device',
+    //   type: 'list',
+    //   label: 'Saved user devices',
+    //   options: [
+    //     {
+    //       name: 'user_device_1',
+    //       label: 'User Device 1',
+    //     },
+    //     {
+    //       name: 'user_device_2',
+    //       label: 'User Device 2',
+    //     },
+    //     {
+    //       name: 'user_device_3',
+    //       label: 'User Device 3',
+    //     },
+    //   ],
+    // },
   ],
 };

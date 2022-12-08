@@ -12,6 +12,11 @@ const ConfigSelect = ({ config, ...props }: any) => {
     label: defaultValue ? defaultValue : options[0].label,
   });
 
+  const fields = useMemo(() => {
+    const { fields } = config;
+    return fields && getFormFields(fields);
+  }, [config]);
+
   const findNestedConfig = useCallback(() => {
     const index = options.findIndex(
       (option: any) => option.name === selectedOption.name
@@ -19,36 +24,39 @@ const ConfigSelect = ({ config, ...props }: any) => {
     return selector?.options[index];
   }, [options, selectedOption, selector]);
 
-  const fields = useMemo(() => {
+  const nestedFields = useMemo(() => {
     const { fields } = findNestedConfig();
-
-    return getFormFields(fields);
+    return fields && getFormFields(fields);
   }, [findNestedConfig]);
 
-  const fieldsWithProps = mapPropsToFields(fields);
+  const parentProps = fields && mapPropsToFields(fields);
+  const childProps = nestedFields && mapPropsToFields(nestedFields);
 
   const renderComponents = (items: any[]) => {
-    return items.map(item => {
-      const { Component, ...childProps } = item;
-      const { name } = childProps;
+    return (
+      items &&
+      items.map(item => {
+        const { Component, ...childProps } = item;
+        const { name } = childProps;
 
-      return (
-        <Fragment key={name}>
-          <Component config={config} {...childProps} />
-        </Fragment>
-      );
-    });
+        return (
+          <Fragment key={name}>
+            <Component config={config} {...childProps} />
+          </Fragment>
+        );
+      })
+    );
   };
 
   return (
     <>
-      {' '}
       <Select
         {...props}
         selectedOption={selectedOption}
         setSelectedOption={setSelectedOption}
       ></Select>
-      {renderComponents(fieldsWithProps)}
+      {renderComponents(childProps)}
+      {renderComponents(parentProps)}
     </>
   );
 };

@@ -1,6 +1,6 @@
 import { Fragment, useMemo } from 'react';
-import { getFormFields } from '../../helpers/getFormFields';
 import { translator } from '../../helpers/translator';
+import { getFormFields } from './../../helpers/getFormFields';
 
 export const mapPropsToFields = fields => {
   const fieldsWithProps = [];

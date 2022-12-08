@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { Fragment } from 'react';
 
 const Select = ({ selectedOption, setSelectedOption, ...props }: any) => {
   const { id, name, label, options, defaultValue } = props;
@@ -20,7 +20,7 @@ const Select = ({ selectedOption, setSelectedOption, ...props }: any) => {
   };
 
   return (
-    <React.Fragment>
+    <Fragment>
       <div className="sm:my-4">
         {label && (
           <label
@@ -50,7 +50,7 @@ const Select = ({ selectedOption, setSelectedOption, ...props }: any) => {
           </select>
         </div>
       </div>
-    </React.Fragment>
+    </Fragment>
   );
 };
 
