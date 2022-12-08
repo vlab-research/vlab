@@ -1,6 +1,3 @@
-import destinations from '../destinations/destinations';
-import mapDestinations from '../../../../helpers/mapDestinations';
-
 export const recruitment_destination_experiment = {
   type: 'config-object',
   title: 'Recruitment destination',
@@ -37,11 +34,11 @@ export const recruitment_destination_experiment = {
       label: 'End date',
       helperText: 'E.g 2022-01-31',
     },
-    {
-      name: 'destinations',
-      type: 'list',
-      label: 'Add new destination',
-      options: mapDestinations(destinations),
-    },
+    // {
+    //   name: 'destinations',
+    //   type: 'list',
+    //   label: 'Add new destination',
+    //   options: mapDestinations(destinations),
+    // },
   ],
 };

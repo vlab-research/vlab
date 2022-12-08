@@ -1,22 +1,20 @@
-import React, { useCallback, useState } from 'react';
-import Text from './inputs/Text';
+import { Fragment } from 'react';
+import PrimaryButton from '../../components/PrimaryButton';
 import ConfigSelect from './ConfigSelect';
-import List from './inputs/List';
-// import { PlusCircleIcon } from '@heroicons/react/solid';
-// import PrimaryButton from '../../components/PrimaryButton';
 
 const ConfigList = ({ config, ...props }: any) => {
-  const { id, label, options } = props;
-  const { selector } = config;
-  const { callToAction } = selector;
+  const { callToAction } = props;
 
-  return (
-    <React.Fragment>
-      {/* <ConfigSelect {...props}></ConfigSelect> */}
-      <Text {...props}></Text>
-      <List {...props}></List>
-    </React.Fragment>
-  );
+  const arr = [1];
+
+  return arr.map(() => {
+    return (
+      <Fragment>
+        <ConfigSelect config={config} {...props}></ConfigSelect>
+        <PrimaryButton>{callToAction}</PrimaryButton>
+      </Fragment>
+    );
+  });
 };
 
 export default ConfigList;

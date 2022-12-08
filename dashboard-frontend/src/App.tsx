@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { Fragment } from 'react';
 import { Auth0Provider } from '@auth0/auth0-react';
 import { ReactQueryConfigProvider, useQuery } from 'react-query';
 import { ReactQueryDevtools } from 'react-query-devtools';
@@ -11,13 +11,13 @@ import { ReactComponent as Logo } from './assets/logo.svg';
 import useAuth0 from './hooks/useAuth0';
 import useAuthenticatedApi from './hooks/useAuthenticatedApi';
 import AccountsPage from './pages/AccountsPage/AccountsPage';
-import 'notyf/notyf.min.css';
+// import 'notyf/notyf.min.css';
 
 const areTestsRunning =
   process.env.REACT_APP_RUNNING_IN_E2E_MODE || process.env.NODE_ENV === 'test';
 
 const App = () => (
-  <React.Fragment>
+  <Fragment>
     <ReactQueryConfigProvider
       config={{
         queries: {
@@ -36,7 +36,7 @@ const App = () => (
       </Auth0Provider>
     </ReactQueryConfigProvider>
     <ReactQueryDevtools />
-  </React.Fragment>
+  </Fragment>
 );
 
 const Routes = () => {

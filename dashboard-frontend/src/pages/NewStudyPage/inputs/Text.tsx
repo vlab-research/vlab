@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
+import { useState, Fragment } from 'react';
 import { classNames } from '../../../helpers/strings';
 
 const Text = ({ ...props }: any) => {
-  const { id, name, label, helperText } = props;
+  const { id, name, label, helperText, errorOnCreate } = props;
   const [inputText, setInputText] = useState('');
 
   const handleChange = () => (e: any) => {
@@ -14,7 +14,7 @@ const Text = ({ ...props }: any) => {
   };
 
   return (
-    <React.Fragment>
+    <Fragment>
       <div className="sm:my-4">
         {label && (
           <label
@@ -36,14 +36,14 @@ const Text = ({ ...props }: any) => {
             data-testid={`new-study-${id}-input`}
             className={classNames(
               'mt-1 block w-full shadow-sm sm:text-sm rounded-md',
-              props.errorOnCreate
+              errorOnCreate
                 ? 'focus:ring-red-500 focus:border-red-500 border-red-300 text-red-900 pr-10'
                 : 'focus:ring-indigo-500 focus:border-indigo-500 border-gray-300'
             )}
           />
         </div>
       </div>
-    </React.Fragment>
+    </Fragment>
   );
 };
 

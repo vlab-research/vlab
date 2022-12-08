@@ -1,6 +1,3 @@
-import destinations from '../destinations/destinations';
-import mapDestinations from '../../../../helpers/mapDestinations';
-
 export const recruitment_pipeline_experiment = {
   type: 'config-object',
   title: 'Recruitment pipeline',
@@ -37,12 +34,12 @@ export const recruitment_pipeline_experiment = {
       label: 'End date',
       helperText: 'E.g 2022-01-31',
     },
-    {
-      name: 'destinations',
-      type: 'list',
-      label: 'Saved destinations',
-      options: mapDestinations(destinations), // TODO change this to a call to action prop?
-    },
+    // {
+    //   name: 'destinations',
+    //   type: 'list',
+    //   label: 'Saved destinations',
+    //   options: mapDestinations(destinations), // TODO change this to a call to action prop?
+    // },
     {
       name: 'arms',
       type: 'number',

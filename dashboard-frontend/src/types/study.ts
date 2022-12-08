@@ -30,8 +30,13 @@ export interface StudyFieldResource {
   name: string;
   type: string;
   label: string;
-  options?: string[];
   helperText?: string;
+  defaultValue?: string;
+  options?: {
+    name: string;
+    label: string;
+  }[];
+  callToAction?: string;
 }
 
 export interface StudyResource {

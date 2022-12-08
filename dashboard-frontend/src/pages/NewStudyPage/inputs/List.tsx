@@ -1,25 +1,27 @@
-import React from 'react';
+import { Fragment } from 'react';
 import ListItem from '../../../components/ListItem';
+import { PlusCircleIcon } from '@heroicons/react/solid';
 
 const List = ({ ...props }: any) => {
-  const { id, list } = props;
-  const { label } = list;
+  const { label, id, callToAction } = props;
 
-  console.log(props);
+  const arr = [1, 2];
 
   return (
-    <React.Fragment>
+    <Fragment>
       <div className="sm:my-4">
         {label && (
           <label
             htmlFor={id}
-            className="block text-sm font-medium text-gray-700"
+            className="block text-sm font-medium text-gray-700 mb-2"
           >
             {label}
           </label>
         )}
         <ul className="flex flex-row items-center">
-          list items here
+          {arr.map(() => {
+            return <ListItem className="mr-2">list item</ListItem>;
+          })}
           {/* {selectedOptions &&
             selectedOptions.map((option: any) => (
               <ListItem
@@ -30,9 +32,20 @@ const List = ({ ...props }: any) => {
                 {option.label}
               </ListItem>
             ))} */}
+          {callToAction && (
+            <button className="flex flex-row items-center">
+              <PlusCircleIcon
+                className="mr-1.5 h-5 w-5 text-gray-400"
+                aria-hidden="true"
+              ></PlusCircleIcon>
+              <span className="block text-sm font-medium text-gray-700">
+                {callToAction}
+              </span>
+            </button>
+          )}
         </ul>
       </div>
-    </React.Fragment>
+    </Fragment>
   );
 };
 

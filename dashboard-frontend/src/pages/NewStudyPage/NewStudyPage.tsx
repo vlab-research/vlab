@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import useCreateStudy from './useCreateStudy';
 import PageLayout from '../../components/PageLayout';
 import PrimaryButton from '../../components/PrimaryButton';
@@ -31,7 +31,7 @@ const PageContent = () => {
   };
 
   const configsToArr = Object.entries(configs);
-  const [formData, setFormData] = useState({});
+  // const [formData, setFormData] = useState({});
   const [index, setIndex] = useState(0);
   const config = configsToArr[index][1];
   const [currentConfig, setCurrentConfig] = useState(config);
@@ -77,9 +77,9 @@ const PageContent = () => {
     // });
   };
 
-  const wrapperSetState = useCallback(val => {
-    setFormData(val);
-  }, []);
+  // const wrapperSetState = useCallback(val => {
+  //   setFormData(val);
+  // }, []);
 
   return (
     <>
