@@ -14,9 +14,7 @@ const Select = ({ setSelectedConfig, ...props }: any) => {
       (option: any) => option.label === value
     );
     const option = options[findOption];
-    type === 'configSelect'
-      ? setSelectedConfig(option)
-      : setSelectedOption(option);
+    type === 'select' ? setSelectedOption(option) : setSelectedConfig(option);
   };
 
   return (
