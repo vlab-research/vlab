@@ -1,14 +1,12 @@
-import { Fragment } from 'react';
+import { Fragment, useState } from 'react';
 
-const Select = ({ selectedOption, setSelectedOption, ...props }: any) => {
-  const { id, name, label, options, defaultValue } = props;
+const Select = ({ setSelectedConfig, ...props }: any) => {
+  const { id, type, name, label, options, defaultValue } = props;
 
-  // const [selectedOption, setSelectedOption] = useState({
-  //   name: '',
-  //   label: defaultValue,
-  // });
-
-  // console.log(selectedOption);
+  const [selectedOption, setSelectedOption] = useState({
+    name: defaultValue ? '' : options[0].name,
+    label: defaultValue ? defaultValue : options[0].label,
+  });
 
   const handleChange = () => (e: any) => {
     const { value } = e.target;
@@ -16,7 +14,9 @@ const Select = ({ selectedOption, setSelectedOption, ...props }: any) => {
       (option: any) => option.label === value
     );
     const option = options[findOption];
-    setSelectedOption(option);
+    type === 'configSelect'
+      ? setSelectedConfig(option)
+      : setSelectedOption(option);
   };
 
   return (

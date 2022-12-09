@@ -3,11 +3,11 @@ import { getFormFields } from '../../helpers/getFormFields';
 import Select from './inputs/Select';
 import { mapPropsToFields } from './Renderer';
 
-const ConfigSelect = ({ config, ...props }: any) => {
+const ConfigSelect = ({ config, setFormData, ...props }: any) => {
   const { options, defaultValue } = props;
   const { selector } = config;
 
-  const [selectedOption, setSelectedOption] = useState({
+  const [selectedConfig, setSelectedConfig] = useState({
     name: defaultValue ? '' : options[0].name,
     label: defaultValue ? defaultValue : options[0].label,
   });
@@ -19,10 +19,10 @@ const ConfigSelect = ({ config, ...props }: any) => {
 
   const findNestedConfig = useCallback(() => {
     const index = options.findIndex(
-      (option: any) => option.name === selectedOption.name
+      (option: any) => option.name === selectedConfig.name
     );
     return selector?.options[index];
-  }, [options, selectedOption, selector]);
+  }, [options, selectedConfig, selector]);
 
   const nestedFields = useMemo(() => {
     const { fields } = findNestedConfig();
@@ -41,7 +41,11 @@ const ConfigSelect = ({ config, ...props }: any) => {
 
         return (
           <Fragment key={name}>
-            <Component config={config} {...childProps} />
+            <Component
+              config={config}
+              setFormData={setFormData}
+              {...childProps}
+            />
           </Fragment>
         );
       })
@@ -50,11 +54,7 @@ const ConfigSelect = ({ config, ...props }: any) => {
 
   return (
     <>
-      <Select
-        {...props}
-        selectedOption={selectedOption}
-        setSelectedOption={setSelectedOption}
-      ></Select>
+      <Select {...props} setSelectedConfig={setSelectedConfig}></Select>
       {renderComponents(childProps)}
       {renderComponents(parentProps)}
     </>
