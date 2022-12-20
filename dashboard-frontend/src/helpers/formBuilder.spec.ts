@@ -12,7 +12,7 @@ describe('formBuilder', () => {
       type: 'text',
       component: TextInput,
       label: 'Foo',
-      helperText: 'foo',
+      helpertext: 'foo',
       options: undefined,
     };
 
@@ -25,7 +25,7 @@ describe('formBuilder', () => {
       type: 'select',
       component: SelectInput,
       label: 'Foo',
-      helperText: undefined,
+      helpertext: undefined,
       options: [
         {
           name: 'foo',

@@ -4,47 +4,47 @@ export const creative = {
   description: 'Recruitment needs ads and ads need creative.',
   fields: [
     {
-      name: 'destination',
+      name: 'destination_name',
       type: 'text',
-      label: 'Destination',
-      helperText: 'E.g fly',
+      label: 'Destination name',
+      helpertext: 'E.g fly',
     },
     {
       name: 'name',
       type: 'text',
       label: 'Name',
-      helperText: 'E.g vlab-vaping-pilot-banner-99',
+      helpertext: 'E.g vlab-vaping-pilot-banner-99',
     },
     {
       name: 'image_hash',
       type: 'text',
       label: 'Image hash',
-      helperText: 'E.g lk2j34',
+      helpertext: 'E.g lk2j34',
     },
     {
       name: 'body',
       type: 'text',
       label: 'Body',
-      helperText: 'E.g Take this 15-minute survey and win a gift card!',
+      helpertext: 'E.g Take this 15-minute survey and win a gift card!',
     },
     {
       name: 'link_text',
       type: 'text',
       label: 'Link text',
-      helperText: 'E.g Take the survey now!',
+      helpertext: 'E.g Take the survey now!',
     },
     {
       name: 'welcome_message',
       type: 'text',
       label: 'Welcome message',
-      helperText:
+      helpertext:
         "E.g Welcome! We're running a small survey and are looking for participants. You can win an Amazon gift card if you partcipate!",
     },
     {
       name: 'button_text',
       type: 'text',
       label: 'Button text',
-      helperText: 'E.g Continue',
+      helpertext: 'E.g Continue',
     },
   ],
 };

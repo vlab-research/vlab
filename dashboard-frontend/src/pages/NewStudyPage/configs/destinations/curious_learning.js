@@ -8,19 +8,19 @@ export const curious_learning = {
       name: 'from',
       type: 'number',
       label: 'From',
-      helperText: 'E.g 17/12/22',
+      helpertext: 'E.g 17/12/22',
     },
     {
       name: 'app_id',
       type: 'text',
       label: 'App id',
-      helperText: 'E.g 12345',
+      helpertext: 'E.g 12345',
     },
     {
       name: 'facebook_app_id',
       type: 'text',
       label: 'Facebook App id',
-      helperText: 'E.g 12345',
+      helpertext: 'E.g 12345',
     },
     // {
     //   name: 'user_device',

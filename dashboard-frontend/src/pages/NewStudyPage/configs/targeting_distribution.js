@@ -10,13 +10,13 @@ export const targeting_distribution = {
       name: 'age',
       type: 'text',
       label: 'Age',
-      helperText: 'E.g 18',
+      helpertext: 'E.g 18',
     },
     {
       name: 'gender',
       type: 'text',
       label: 'Gender',
-      helperText: 'E.g 1',
+      helpertext: 'E.g 1',
     },
     {
       name: 'location',

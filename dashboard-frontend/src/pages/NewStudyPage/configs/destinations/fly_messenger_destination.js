@@ -8,13 +8,13 @@ export const fly_messenger_destination = {
       name: 'initial_shortcode',
       type: 'text',
       label: 'Initial shortcode',
-      helperText: 'E.g 12345',
+      helpertext: 'E.g 12345',
     },
     {
       name: 'survey_name',
       type: 'text',
       label: 'Survey Name',
-      helperText: 'Eg. Fly',
+      helpertext: 'Eg. Fly',
     },
   ],
 };

@@ -17,7 +17,7 @@ describe('mapValueToKey', () => {
           name: 'foobar',
           type: 'text',
           label: 'Foobar',
-          helperText: 'foobar',
+          helpertext: 'foobar',
         },
       ],
     };

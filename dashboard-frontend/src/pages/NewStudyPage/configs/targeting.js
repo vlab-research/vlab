@@ -8,7 +8,7 @@ export const targeting = {
       name: 'template_campaign_name',
       type: 'text',
       label: 'Template campaign name',
-      helperText:
+      helpertext:
         'If you have created template ads to target certain variables, this is the name of the campaign that has those ads.',
     },
     {

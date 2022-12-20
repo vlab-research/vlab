@@ -14,7 +14,7 @@ export const translator = (config: CreateStudyConfigData) => {
           name: selector.name,
           type: selector.type,
           label: selector.label,
-          callToAction: selector.callToAction,
+          calltoaction: selector.calltoaction,
           options: selector.options.map((option: CreateStudyConfigData) => {
             return {
               name: createNameFor(option.title),

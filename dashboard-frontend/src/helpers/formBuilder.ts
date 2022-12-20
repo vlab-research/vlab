@@ -1,4 +1,5 @@
 import ConfigList from '../pages/NewStudyPage/ConfigList';
+import ConfigObject from '../pages/NewStudyPage/ConfigObject';
 import ConfigSelect from '../pages/NewStudyPage/ConfigSelect';
 import List from '../pages/NewStudyPage/inputs/List';
 import Select from '../pages/NewStudyPage/inputs/Select';
@@ -17,6 +18,7 @@ export const formBuilder = (field: StudyFieldResource) => {
     list: List,
     configSelect: ConfigSelect,
     configList: ConfigList,
+    configObject: ConfigObject,
   };
 
   const type = field[str];
@@ -33,9 +35,9 @@ export const formBuilder = (field: StudyFieldResource) => {
     type: type,
     component: component,
     label: field.label,
-    helperText: field.helperText ?? field.helperText,
+    helpertext: field.helpertext ?? field.helpertext,
     defaultValue: field.defaultValue ?? field.defaultValue,
-    callToAction: field.callToAction ?? field.callToAction,
+    calltoaction: field.calltoaction ?? field.calltoaction,
     options:
       field.options &&
       field.options.some((option: any) =>
