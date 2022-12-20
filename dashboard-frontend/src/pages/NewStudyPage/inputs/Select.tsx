@@ -1,20 +1,18 @@
 import { Fragment, useState } from 'react';
 
-const Select = ({ setSelectedConfig, ...props }: any) => {
-  const { id, type, name, label, options, defaultValue } = props;
+const Select = ({ onChange, ...props }: any) => {
+  const { id, name, label, options, defaultValue } = props;
 
-  const [selectedOption, setSelectedOption] = useState({
-    name: defaultValue ? '' : options[0].name,
-    label: defaultValue ? defaultValue : options[0].label,
-  });
+  const defaultConfig = options[0].name;
 
-  const handleChange = () => (e: any) => {
+  const [selectedOption, setSelectedOption] = useState(
+    defaultValue || defaultConfig
+  );
+
+  const handleChange = (e: any) => {
     const { value } = e.target;
-    const findOption = options.findIndex(
-      (option: any) => option.label === value
-    );
-    const option = options[findOption];
-    type === 'select' ? setSelectedOption(option) : setSelectedConfig(option);
+    setSelectedOption(value);
+    onChange(value); // cb
   };
 
   return (
@@ -33,13 +31,13 @@ const Select = ({ setSelectedConfig, ...props }: any) => {
             {...props}
             id={id}
             name={name}
-            value={selectedOption?.label}
-            onChange={handleChange()}
-            data-testid={`new-study-${id}-input`}
+            defaultValue={selectedOption}
             required
+            onChange={handleChange}
+            data-testid={`new-study-${id}-input`}
             className="mt-1 block w-full shadow-sm sm:text-sm rounded-md"
           >
-            {defaultValue && <option value="">{defaultValue}</option>}
+            {defaultValue && <option defaultValue="">{defaultValue}</option>}
             {options.map((option: any) => (
               <option key={option.name} value={option.label}>
                 {option.label}

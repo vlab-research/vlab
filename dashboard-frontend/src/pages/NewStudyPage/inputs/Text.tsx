@@ -1,16 +1,14 @@
 import { useState, Fragment } from 'react';
 import { classNames } from '../../../helpers/strings';
 
-const Text = ({ ...props }: any) => {
-  const { id, name, label, helperText, errorOnCreate } = props;
+const Text = ({ onChange, ...props }: any) => {
+  const { id, name, label, helpertext, errorOnCreate } = props;
   const [inputText, setInputText] = useState('');
 
-  const handleChange = () => (e: any) => {
+  const handleChange = (e: any) => {
     const { value } = e.target;
     setInputText(value);
-    // setState((prevState: any) => ({
-    //   [configKey]: { ...prevState[configKey], [id]: value },
-    // }));
+    onChange(value);
   };
 
   return (
@@ -31,8 +29,8 @@ const Text = ({ ...props }: any) => {
             name={name}
             value={inputText}
             required
-            placeholder={helperText}
-            onChange={handleChange()}
+            placeholder={helpertext}
+            onChange={handleChange}
             data-testid={`new-study-${id}-input`}
             className={classNames(
               'mt-1 block w-full shadow-sm sm:text-sm rounded-md',

@@ -1,16 +1,18 @@
-import { Fragment, useCallback, useMemo, useState } from 'react';
+import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
 import { getFormFields } from '../../helpers/getFormFields';
 import Select from './inputs/Select';
-import { mapPropsToFields } from './Renderer';
+import { mapPropsToFields } from './Form';
 
-const ConfigSelect = ({ config, setFormData, ...props }: any) => {
-  const { options, defaultValue } = props;
+const ConfigSelect = ({ config, onChange, ...props }: any) => {
   const { selector } = config;
+  const { options } = props;
+  const defaultConfig = options[0].name;
 
-  const [selectedConfig, setSelectedConfig] = useState({
-    name: defaultValue ? '' : options[0].name,
-    label: defaultValue ? defaultValue : options[0].label,
-  });
+  const [selectedOption, setSelectedOption] = useState(defaultConfig);
+
+  useEffect(() => {
+    setSelectedOption(defaultConfig);
+  }, [defaultConfig]);
 
   const fields = useMemo(() => {
     const { fields } = config;
@@ -19,10 +21,10 @@ const ConfigSelect = ({ config, setFormData, ...props }: any) => {
 
   const findNestedConfig = useCallback(() => {
     const index = options.findIndex(
-      (option: any) => option.name === selectedConfig.name
+      (option: any) => option.name === selectedOption
     );
     return selector?.options[index];
-  }, [options, selectedConfig, selector]);
+  }, [options, selectedOption, selector]);
 
   const nestedFields = useMemo(() => {
     const { fields } = findNestedConfig();
@@ -31,6 +33,8 @@ const ConfigSelect = ({ config, setFormData, ...props }: any) => {
 
   const parentProps = fields && mapPropsToFields(fields);
   const childProps = nestedFields && mapPropsToFields(nestedFields);
+
+  const [partialFormData, setPartialFormData] = useState({});
 
   const renderComponents = (items: any[]) => {
     return (
@@ -43,8 +47,10 @@ const ConfigSelect = ({ config, setFormData, ...props }: any) => {
           <Fragment key={name}>
             <Component
               config={config}
-              setFormData={setFormData}
               {...childProps}
+              onChange={(x: any) =>
+                setPartialFormData({ ...partialFormData, [name]: x })
+              }
             />
           </Fragment>
         );
@@ -54,7 +60,7 @@ const ConfigSelect = ({ config, setFormData, ...props }: any) => {
 
   return (
     <>
-      <Select {...props} setSelectedConfig={setSelectedConfig}></Select>
+      <Select {...props} onChange={onChange}></Select>
       {renderComponents(childProps)}
       {renderComponents(parentProps)}
     </>

@@ -8,7 +8,7 @@ export const recruitment = {
   description:
     'The "recruitment" configuration describes how/where recruitment will take place. Every study needs to recruit from somewhere.',
   selector: {
-    name: 'recruitment',
+    name: 'recruitment_type',
     type: 'configSelect',
     label: 'Select a recruitment type',
     options: [

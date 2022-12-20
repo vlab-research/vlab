@@ -8,25 +8,25 @@ export const destinations = {
   description:
     'Every study needs a destination, where do the recruitment ads send the users?',
   selector: {
-    name: 'destinations',
+    name: 'destination',
     type: 'configList',
-    label: 'Select a destination type',
+    label: 'Create a destination',
     options: [fly_messenger_destination, typeform, curious_learning], // these are just destination types
-    callToAction: 'Save destination',
+    calltoaction: 'Save destination',
   },
   fields: [
     {
       name: 'destination_name',
       type: 'text',
       label: 'Give your destination a name',
-      helperText: 'E.g example-fly-1',
+      helpertext: 'E.g example-fly-1',
     },
   ],
   list: {
     name: 'saved_destinations',
     type: 'list',
     label: 'Saved destinations',
-    callToAction: 'Add destination',
+    calltoaction: 'Add destination',
   },
 };
 
