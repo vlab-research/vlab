@@ -1,18 +1,19 @@
 import { Fragment, useState } from 'react';
+import PrimaryButton from '../../../components/PrimaryButton';
 
 const Select = ({ onChange, ...props }: any) => {
-  const { id, name, label, options, defaultValue } = props;
+  const { id, name, label, options, defaultValue, call_to_action } = props;
 
-  const defaultConfig = options[0].name;
-
-  const [selectedOption, setSelectedOption] = useState(
-    defaultValue || defaultConfig
-  );
+  const [selectedOption, setSelectedOption] = useState('');
 
   const handleChange = (e: any) => {
     const { value } = e.target;
     setSelectedOption(value);
-    onChange(value); // cb
+    onChange(value);
+  };
+
+  const handleClick = () => {
+    console.log('saved');
   };
 
   return (
@@ -39,13 +40,18 @@ const Select = ({ onChange, ...props }: any) => {
           >
             {defaultValue && <option defaultValue="">{defaultValue}</option>}
             {options.map((option: any) => (
-              <option key={option.name} value={option.label}>
-                {option.label}
+              <option key={option.name} value={option.label || option.name}>
+                {option.label || option.name}
               </option>
             ))}
           </select>
         </div>
       </div>
+      {call_to_action && (
+        <PrimaryButton onClick={() => handleClick()}>
+          {call_to_action}
+        </PrimaryButton>
+      )}
     </Fragment>
   );
 };

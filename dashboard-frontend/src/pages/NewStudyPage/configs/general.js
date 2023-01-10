@@ -1,7 +1,7 @@
 import countries from '../../../fixtures/countries';
 
 export const general = {
-  type: 'config-object',
+  type: 'configObject', // this is a form type
   title: 'General',
   description: 'The "general" configuration consists of... General stuff?',
   fields: [
@@ -9,7 +9,7 @@ export const general = {
       name: 'name',
       type: 'text',
       label: 'Name',
-      helpertext: 'E.g example-fly-conf',
+      helper_text: 'E.g example-fly-conf',
     },
     {
       name: 'objective',
@@ -75,31 +75,31 @@ export const general = {
       name: 'page_id',
       type: 'number',
       label: 'Page ID',
-      helpertext: 'E.g 1855355231229529',
+      helper_text: 'E.g 1855355231229529',
     },
     {
       name: 'min_budget',
       type: 'number',
       label: 'Minimum Budget',
-      helpertext: 'E.g 10',
+      helper_text: 'E.g 10',
     },
     {
       name: 'opt_window',
       type: 'number',
       label: 'Opt-in window',
-      helpertext: 'E.g 48',
+      helper_text: 'E.g 48',
     },
     {
       name: 'instagram_id',
       type: 'number',
       label: 'Instagram ID',
-      helpertext: 'E.g 2327764173962588',
+      helper_text: 'E.g 2327764173962588',
     },
     {
       name: 'ad_account',
       type: 'number',
       label: 'Ad account',
-      helpertext: 'E.g 1342820622846299',
+      helper_text: 'E.g 1342820622846299',
     },
     {
       name: 'country',

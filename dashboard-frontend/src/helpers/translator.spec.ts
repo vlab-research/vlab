@@ -4,9 +4,9 @@ import destinations from '../pages/NewStudyPage/configs/destinations/destination
 import countries from '../fixtures/countries.json';
 
 describe('translator', () => {
-  it('takes a config-object and based on its type returns the same config', () => {
+  it('takes a configObject and based on its type returns the same config', () => {
     const configObject = {
-      type: 'config-object',
+      type: 'configObject',
       title: 'foo',
       description: 'foobaz',
       fields: [

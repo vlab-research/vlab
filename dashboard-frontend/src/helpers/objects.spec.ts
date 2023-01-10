@@ -17,7 +17,7 @@ describe('mapValueToKey', () => {
           name: 'foobar',
           type: 'text',
           label: 'Foobar',
-          helpertext: 'foobar',
+          helper_text: 'foobar',
         },
       ],
     };
@@ -41,7 +41,7 @@ describe('getInitialValue', () => {
       name: 'foo',
       type: 'text',
       label: 'Foo',
-      helpertext: 'baz',
+      helper_text: 'baz',
     };
 
     const emptyString = '';
@@ -54,7 +54,7 @@ describe('getInitialValue', () => {
       name: 'bar',
       type: 'number',
       label: 'Bar',
-      helpertext: 'foobaz',
+      helper_text: 'foobaz',
     };
 
     const zero = 0;
@@ -67,7 +67,7 @@ describe('getInitialValue', () => {
       name: 'bar',
       type: 'select',
       label: 'Bar',
-      helpertext: 'foobaz',
+      helper_text: 'foobaz',
     };
 
     const emptyString2 = '';

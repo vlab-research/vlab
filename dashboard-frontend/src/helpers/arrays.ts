@@ -49,3 +49,10 @@ export const findByKey = (obj: any, key: string) => {
     });
   return values;
 };
+
+export const reorderArray = (arr: any[], start: number, numItems: number) => {
+  const duplicateArr = [...arr];
+  const target = duplicateArr.splice(start, numItems);
+  target.map((el: any) => duplicateArr.push(el));
+  return duplicateArr;
+};

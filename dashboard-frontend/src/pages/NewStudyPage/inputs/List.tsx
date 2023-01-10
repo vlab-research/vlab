@@ -1,28 +1,28 @@
 import { Fragment } from 'react';
-// import ListItem from '../../../components/ListItem';
+import ListItem from '../../../components/ListItem';
 import { PlusCircleIcon } from '@heroicons/react/solid';
+import { createNameFor } from '../../../helpers/strings';
+import { addOne } from '../../../helpers/numbers';
 
-const List = ({ formData, setFormData, ...props }: any) => {
-  const { label, id, calltoaction } = props;
-
-  const handleClick = () => {};
-
-  // const savedValues = [1, 2, 3];
+const List = ({ setCount, savedForms, list_label, call_to_action }: any) => {
+  const handleClick = () => {
+    setCount((prevCount: number) => addOne(prevCount));
+  };
 
   return (
     <Fragment>
       <div className="sm:my-4">
-        {label && (
+        {list_label && (
           <label
-            htmlFor={id}
-            className="block text-sm font-medium text-gray-700 mb-2"
+            htmlFor={createNameFor(list_label)}
+            className="text-sm font-medium text-gray-700 mb-2"
           >
-            {label}
+            {list_label}
           </label>
         )}
         <ul className="flex flex-row items-center">
-          {/* {savedValues &&
-            savedValues.map((val: any) => (
+          {savedForms &&
+            savedForms.map((val: any) => (
               <ListItem
                 testId="list-item"
                 key={val}
@@ -30,19 +30,18 @@ const List = ({ formData, setFormData, ...props }: any) => {
               >
                 {val}
               </ListItem>
-            ))} */}
-
-          {calltoaction && (
+            ))}
+          {call_to_action && (
             <button
               className="flex flex-row items-center"
-              onClick={() => handleClick()}
+              onClick={e => handleClick()}
             >
               <PlusCircleIcon
                 className="mr-1.5 h-5 w-5 text-gray-400"
                 aria-hidden="true"
               ></PlusCircleIcon>
               <span className="block text-sm font-medium text-gray-700">
-                {calltoaction}
+                {call_to_action}
               </span>
             </button>
           )}

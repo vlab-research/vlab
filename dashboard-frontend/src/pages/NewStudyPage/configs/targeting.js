@@ -1,5 +1,5 @@
 export const targeting = {
-  type: 'config-object',
+  type: 'configObject',
   title: 'Targeting',
   description:
     'Targeting describes the variables for stratification and the desired joint distribution of respondents.',
@@ -8,7 +8,7 @@ export const targeting = {
       name: 'template_campaign_name',
       type: 'text',
       label: 'Template campaign name',
-      helpertext:
+      helper_text:
         'If you have created template ads to target certain variables, this is the name of the campaign that has those ads.',
     },
     {

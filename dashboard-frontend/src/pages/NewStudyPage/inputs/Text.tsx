@@ -2,7 +2,8 @@ import { useState, Fragment } from 'react';
 import { classNames } from '../../../helpers/strings';
 
 const Text = ({ onChange, ...props }: any) => {
-  const { id, name, label, helpertext, errorOnCreate } = props;
+  const { id, name, label, helper_text, errorOnCreate } = props;
+
   const [inputText, setInputText] = useState('');
 
   const handleChange = (e: any) => {
@@ -29,7 +30,7 @@ const Text = ({ onChange, ...props }: any) => {
             name={name}
             value={inputText}
             required
-            placeholder={helpertext}
+            placeholder={helper_text}
             onChange={handleChange}
             data-testid={`new-study-${id}-input`}
             className={classNames(
