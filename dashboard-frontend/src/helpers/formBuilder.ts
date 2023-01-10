@@ -1,12 +1,8 @@
-import ConfigList from '../pages/NewStudyPage/ConfigList';
-import ConfigObject from '../pages/NewStudyPage/ConfigObject';
-import ConfigSelect from '../pages/NewStudyPage/ConfigSelect';
 import List from '../pages/NewStudyPage/inputs/List';
 import Select from '../pages/NewStudyPage/inputs/Select';
 import Text from '../pages/NewStudyPage/inputs/Text';
 import { StudyFieldResource } from '../types/study';
-import { checkPropertiesExist } from './objects';
-import { jsonTranslator } from './translator';
+import { createNameFor } from './strings';
 
 const str: keyof StudyFieldResource = 'type';
 
@@ -16,9 +12,6 @@ export const formBuilder = (field: StudyFieldResource) => {
     number: Text,
     select: Select,
     list: List,
-    configSelect: ConfigSelect,
-    configList: ConfigList,
-    configObject: ConfigObject,
   };
 
   const type = field[str];
@@ -35,15 +28,17 @@ export const formBuilder = (field: StudyFieldResource) => {
     type: type,
     component: component,
     label: field.label,
-    helpertext: field.helpertext ?? field.helpertext,
+    helper_text: field.helper_text ?? field.helper_text,
     defaultValue: field.defaultValue ?? field.defaultValue,
-    calltoaction: field.calltoaction ?? field.calltoaction,
-    options:
-      field.options &&
-      field.options.some((option: any) =>
-        checkPropertiesExist(option, 'label', 'name')
-      )
-        ? field.options
-        : field.options?.map((option: any) => jsonTranslator(option)),
+    call_to_action: field.call_to_action ?? field.call_to_action,
+    options: field.options?.map((option: any) =>
+      option.title
+        ? {
+            name: createNameFor(option.title),
+            label: option.title,
+            setNestedConfig: true,
+          }
+        : option
+    ),
   };
 };

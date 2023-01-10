@@ -1,7 +1,5 @@
-import { useMemo, useState, useEffect } from 'react';
-import { translator } from '../../helpers/translator';
+import { useState } from 'react';
 import { getFormFields } from '../../helpers/getFormFields';
-import { createInitialState } from '../../helpers/createState';
 import { addOne } from '../../helpers/numbers';
 import PrimaryButton from '../../components/PrimaryButton';
 
@@ -22,60 +20,46 @@ export const mapPropsToFields = (fields: any[]) => {
   return fieldsWithProps;
 };
 
-export const Form = ({ config, getFormData, isLast, setIndex, title }: any) => {
-  const translatedConfig = useMemo(() => {
-    return translator(config);
-  }, [config]);
-
-  const { fields } = translatedConfig;
-
-  const dynamicFields = useMemo(() => {
-    return fields && getFormFields(fields);
-  }, [fields]);
+export const Form = ({ fields, setNestedConfig, ...props }: any) => {
+  const { config, setIndex, isLast, setFormData } = props;
 
   if (!fields) {
-    throw new Error('You are calling Renderer with no fields.');
+    throw new Error('You are calling form with no fields.');
   }
 
-  const fieldsWithProps = dynamicFields && mapPropsToFields(dynamicFields);
-
-  const initialState = useMemo(() => {
-    return createInitialState(translatedConfig);
-  }, [translatedConfig]);
-
-  const [partialFormData, setPartialFormData] = useState(initialState);
-
-  useEffect(() => {
-    setPartialFormData(initialState);
-  }, [initialState]);
+  const formFields = getFormFields(fields);
+  const fieldsWithProps = formFields && mapPropsToFields(formFields);
+  const [partialFormData, setPartialFormData] = useState({});
 
   const handleSubmit = (e: any) => {
     e.preventDefault();
-    getFormData(partialFormData);
 
-    if (isLast) {
-      return;
+    if (!isLast) {
+      setIndex((prevCount: number) => addOne(prevCount));
     }
-    setIndex((prevCount: number) => addOne(prevCount));
+
+    setFormData(partialFormData);
   };
 
-  const renderComponents = (items: any[]) => {
-    return items.map(item => {
-      const { Component, ...props } = item;
-      const { name } = props;
+  const renderFields = (fields: any[]) => {
+    return fields.map(field => {
+      const { Component, ...props } = field;
+      const { name, type } = props;
 
       const handleChange = (x: any) => {
         setPartialFormData({ ...partialFormData, [name]: x });
+
+        // this means check if the field is a select component AND has the setNestedConfig property
+        // if yes then invoke the callback
+        // if no i.e. the field is a text field OR the select field is a regular select field then do not run
+        // we don't want the nested config to run on every input change!!
+        type === 'select' &&
+          field.options.forEach(
+            (option: any) => option.setNestedConfig && setNestedConfig(x)
+          );
       };
 
-      return (
-        <Component
-          key={name}
-          config={config}
-          {...props}
-          onChange={handleChange}
-        />
-      );
+      return <Component key={name} {...props} onChange={handleChange} />;
     });
   };
 
@@ -91,13 +75,12 @@ export const Form = ({ config, getFormData, isLast, setIndex, title }: any) => {
               <div className="grid grid-cols-6 gap-6">
                 <div className="col-span-6 sm:col-span-5">
                   <h3 className="text-lg font-medium leading-6 text-gray-900">
-                    {title}
+                    {config.title} {`I am a ${config.type}`}
                   </h3>
-                  {fieldsWithProps && renderComponents(fieldsWithProps)}
+                  {fieldsWithProps && renderFields(fieldsWithProps)}
                 </div>
               </div>
             </div>
-
             <div className="px-4 py-3 bg-gray-50 text-right sm:px-6">
               {!isLast ? (
                 <PrimaryButton type="submit" testId="new-study-next-button">

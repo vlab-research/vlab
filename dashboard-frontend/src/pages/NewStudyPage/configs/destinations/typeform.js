@@ -1,5 +1,5 @@
 export const typeform = {
-  type: 'config-object',
+  type: 'configObject',
   title: 'Typeform',
   description: 'Typeform...',
   key: 'form_id', // tells us which field can be used as a unique key
@@ -8,7 +8,7 @@ export const typeform = {
       name: 'form_id',
       type: 'text',
       label: 'Form id',
-      helpertext: 'E.g 12345',
+      helper_text: 'E.g 12345',
     },
   ],
 };

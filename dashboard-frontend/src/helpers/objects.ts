@@ -3,8 +3,11 @@ export const mapValueToKey = (value: string, key: string, config: any) => {
 };
 
 export const getInitialValue = (obj: any, key: string) => {
-  if (obj[key] === 'text' || obj[key] === 'select') {
+  if (obj[key] === 'text') {
     return '';
+  }
+  if (obj[key] === 'select') {
+    return {};
   }
   if (obj[key] === 'number') {
     return 0;
@@ -46,7 +49,8 @@ export const isJSON = (strData: any) => {
   }
 };
 
-export const checkPropertiesExist = (obj: any, prop: string, prop2: string) => {
+export const checkPropertyExists = (obj: any, prop: string) => {
   const keys = Object.keys(obj);
-  return keys.some(key => key === prop) && keys.some(key => key === prop2);
+  console.log(keys.some(key => key === prop));
+  return keys.some(key => key === prop);
 };

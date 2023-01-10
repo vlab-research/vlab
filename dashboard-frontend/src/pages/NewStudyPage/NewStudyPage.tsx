@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import PageLayout from '../../components/PageLayout';
 import Navbar from '../../components/NavBar';
-import { Form } from './Form';
 import { general } from './configs/general';
 import { destinations } from './configs/destinations/destinations';
 import { recruitment } from './configs/recruitment/recruitment';
@@ -9,6 +8,9 @@ import { creative } from './configs/creative';
 import { targeting } from './configs/targeting';
 import { targeting_distribution } from './configs/targeting_distribution';
 import { CreateStudyConfigData } from '../../types/study';
+import ConfigSelect from './forms/ConfigSelect';
+import ConfigList from './forms/ConfigList';
+import ConfigObject from './forms/ConfigObject';
 
 const NewStudyPage = () => (
   <PageLayout title={'New Study'} testId="new-study-page" showBackButton>
@@ -27,37 +29,43 @@ const PageContent = () => {
   };
 
   const configsToArr = Object.entries(configs);
-  const [index, setIndex] = useState(0);
+  const [index, setIndex] = useState<number>(0);
   const config = configsToArr[index][1];
-  const [currentConfig, setCurrentConfig] = useState(config);
-  const { title } = currentConfig;
+  const { title } = config;
   const configKeys = Object.keys(configs);
-  const [formData, setFormData] = useState({});
+  const [formData, setFormData] = useState<any>({});
 
-  const updateState = (x: any) => {
+  const lookup: any = {
+    configObject: ConfigObject,
+    configSelect: ConfigSelect,
+    configList: ConfigList,
+  };
+
+  const str: keyof CreateStudyConfigData = 'type';
+
+  const type = config[str];
+  const Component = lookup[type];
+
+  if (!Component) {
+    throw new Error(`Could not find form for config type: ${type}`);
+  }
+
+  const updateFormData = (x: any) => {
     setFormData({ ...formData, [title]: x });
   };
 
-  useEffect(() => {
-    setCurrentConfig(config);
-  }, [config]);
+  console.log(formData);
 
   const isLast = index === configsToArr.length - 1 ? true : false;
 
   return (
     <>
-      <Navbar
-        configs={configsToArr}
-        configKeys={configKeys}
+      <Navbar configKeys={configKeys} setIndex={setIndex} />
+      <Component
+        config={config}
         setIndex={setIndex}
-        setCurrentConfig={setCurrentConfig}
-      />
-
-      <Form
-        config={currentConfig}
-        getFormData={(x: any) => updateState(x)}
+        setFormData={updateFormData}
         isLast={isLast}
-        setIndex={setIndex}
         title={title}
       />
     </>
