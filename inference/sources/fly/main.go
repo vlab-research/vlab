@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/caarlos0/env/v6"
@@ -22,38 +23,53 @@ func handle(err error) {
 type GetResponsesParams struct {
 	PageSize int    `url:"pageSize"`
 	After    string `url:"after,omitempty"`
+	Survey   string `url:"survey"`
+}
+
+type FlyTime time.Time
+
+func (t *FlyTime) UnmarshalJSON(b []byte) error {
+	s := strings.Trim(string(b), "\"")
+
+	parsed, err := time.ParseInLocation("2006-01-02 15:04:05-07:00", s, time.UTC)
+
+	if err != nil {
+		return err
+	}
+
+	*t = FlyTime(parsed)
+	return nil
 }
 
 type GetResponsesResponse struct {
-	Items []struct {
-		Parent_surveyid  string    `json:"parent_surveyid"`
-		Token            string    `json:"token"`
-		Parent_shortcode string    `json:"parent_shortcode"`
-		Surveyid         string    `json:"surveyid"`
-		Flowid           string    `json:"flowid"`
-		Userid           string    `json:"userid"`
-		Question_ref     string    `json:"question_ref"`
-		Question_idx     string    `json:"question_idx"`
-		Question_text    string    `json:"question_text"`
-		Response         string    `json:"response"`
-		Timestamp        time.Time `json:"timestamp"`
-		Metadata         struct {
-			Text string `json:"type"`
-		} `json:"Metadata"`
-		Pageid              string                     `json:"pageid"`
-		Translated_response string                     `json:"translated_response"`
-		Hidden              map[string]json.RawMessage `json:"hidden"`
-	} `json:"items"`
+	Responses []struct {
+		ParentSurveyID     string                     `json:"parent_surveyid"`
+		Token              string                     `json:"token"`
+		ParentShortcode    string                     `json:"parent_shortcode"`
+		Shortcode          string                     `json:"shortcode"`
+		SurveyID           string                     `json:"surveyid"`
+		FlowID             string                     `json:"flowid"`
+		UserID             string                     `json:"userid"`
+		QuestionRef        string                     `json:"question_ref"`
+		QuestionIdx        string                     `json:"question_idx"`
+		QuestionText       string                     `json:"question_text"`
+		Response           string                     `json:"response"`
+		Timestamp          FlyTime                    `json:"timestamp"`
+		Metadata           map[string]json.RawMessage `json:"Metadata"`
+		Pageid             string                     `json:"pageid"`
+		TranslatedResponse string                     `json:"translated_response"`
+	} `json:"responses"`
 }
 
 type Answer struct {
-	Response            string
-	Translated_response string
+	Response           string `json:"response"`
+	TranslatedResponse string `json:"translated_response"`
+	SurveyID           string `json:"survey_id"`
+	Shortcode          string `json:"shortcode"`
 }
 
-type flyConnector struct {
+type FlyConnector struct {
 	BaseUrl  string `env:"FLY_BASE_URL,required"`
-	Key      string `env:"FLY_KEY,required"`
 	PageSize int    `env:"FLY_PAGE_SIZE,required"`
 }
 
@@ -69,21 +85,22 @@ func (e *FlyError) Error() string {
 	return e.Code
 }
 
-func (c flyConnector) loadEnv() flyConnector {
-	err := env.Parse(&c)
+func (c *FlyConnector) loadEnv() {
+	err := env.Parse(c)
 	handle(err)
-	return c
 }
 
-func Call(client *http.Client, baseUrl string, key string, form string, params *GetResponsesParams) (*GetResponsesResponse, error) {
+func Call(client *http.Client, baseUrl string, key string, params *GetResponsesParams) (*GetResponsesResponse, error) {
+
+	fmt.Printf("Making call to: %s", baseUrl)
+
 	sli := sling.New().Client(client).Base(baseUrl).Set("Accept", "application/json").Set("Authorization", fmt.Sprintf("Bearer %s", key))
+
 	res := new(GetResponsesResponse)
 	apiError := new(FlyError)
 
-	// fmt.Println("key ->", key)
-	// fmt.Println("params ->", params)
-	_, err := sli.Get("all?").QueryStruct(params).Receive(res, apiError)
-	// fmt.Println("resp: ", resp)
+	_, err := sli.Get("responses").QueryStruct(params).Receive(res, apiError)
+
 	if err != nil {
 		return nil, err
 	}
@@ -94,55 +111,90 @@ func Call(client *http.Client, baseUrl string, key string, form string, params *
 	return res, nil
 }
 
-func (c flyConnector) GetResponses(source *Source, form string, token string, idx int) <-chan *InferenceDataEvent {
+type FlyCredentials struct {
+	APIKey string `json:"api_key"`
+}
+
+type FlyConfig struct {
+	SurveyName string `json:"survey_name"`
+}
+
+func GetCredentials(source *Source) (*FlyCredentials, error) {
+	details := source.Credentials.Details
+	creds := new(FlyCredentials)
+	err := json.Unmarshal(details, creds)
+	return creds, err
+}
+
+func GetConfig(source *Source) (*FlyConfig, error) {
+	b := source.Conf.Config
+	conf := new(FlyConfig)
+	err := json.Unmarshal(b, conf)
+	return conf, err
+}
+
+func (c FlyConnector) GetResponses(source *Source, token string, idx int) <-chan *InferenceDataEvent {
+
+	fmt.Printf("Getting responses for: %s", source.StudyID)
+
 	events := make(chan *InferenceDataEvent)
-	params := &GetResponsesParams{PageSize: c.PageSize, After: token}
+
+	conf, err := GetConfig(source)
+	if err != nil {
+		handle(err)
+	}
+
+	params := &GetResponsesParams{PageSize: c.PageSize, After: token, Survey: conf.SurveyName}
 	client := &http.Client{}
 
-	// c.GetToken()
+	creds, err := GetCredentials(source)
+	if err != nil {
+		handle(err)
+	}
+
 	go func() {
 		defer close(events)
-		// TODO: for loop to paginate here?
 		params.After = token
+
 		for {
-			res, err := Call(client, c.BaseUrl, c.Key, form, params)
+			res, err := Call(client, c.BaseUrl, creds.APIKey, params)
 
 			if err != nil {
 				handle(err)
 			}
-			for _, item := range res.Items {
-				// for pagination
+			for _, item := range res.Responses {
+
 				params.After = item.Token
 
-				md := item.Hidden
-
+				// NOTE: putting shortcode/surveyid as value is a bit
+				// funky, one could imagine it as part of Variable...
 				p := Answer{
-					Response:            item.Response,
-					Translated_response: item.Translated_response,
+					Response:           item.Response,
+					TranslatedResponse: item.TranslatedResponse,
+					SurveyID:           item.SurveyID,
+					Shortcode:          item.Shortcode,
 				}
 
-				datosJson, err := json.Marshal(p)
+				dat, err := json.Marshal(p)
 				if err != nil {
 					log.Fatal(err)
 				}
 
 				idx++
 				event := &InferenceDataEvent{
-					User:       User{ID: item.Userid, Metadata: md},
+					User:       User{ID: item.UserID, Metadata: item.Metadata},
 					Study:      source.StudyID,
 					SourceConf: source.Conf,
-					Timestamp:  item.Timestamp,
+					Timestamp:  time.Time(item.Timestamp),
 					Idx:        idx,
 					Pagination: item.Token,
-					// Here I am not sure if it is the equivalent
-					Variable: item.Question_ref,
-					Value:    []byte(datosJson),
+					Variable:   item.QuestionRef,
+					Value:      []byte(dat),
 				}
 				events <- event
 			}
-			// }
 
-			if len(res.Items) < params.PageSize {
+			if len(res.Responses) < params.PageSize {
 				break
 			}
 
@@ -152,21 +204,22 @@ func (c flyConnector) GetResponses(source *Source, form string, token string, id
 	return events
 }
 
-func (c flyConnector) Handler(source *Source, lastEvent *InferenceDataEvent) <-chan *InferenceDataEvent {
-	return nil
+func (c FlyConnector) Handler(source *Source, lastEvent *InferenceDataEvent) <-chan *InferenceDataEvent {
+	token := ""
+	idx := 0
+
+	if lastEvent != nil {
+		token = lastEvent.Pagination
+		idx = lastEvent.Idx
+	}
+
+	events := c.GetResponses(source, token, idx)
+	return events
 }
 
 func main() {
-	c := flyConnector{}
+	c := FlyConnector{}
 	c.loadEnv()
+
 	connector.LoadEvents(c, "fly", "idx")
-	// credentials := connector.LoadEventsFlyCredentials(c, "fly", "idx")
-
-	// for i := range credentials {
-	// 	fmt.Println(credentials[i])
-	// }
-
-	// get fly credentials
-	// connector.getCredentials()
-
 }
