@@ -7,6 +7,7 @@ import (
 
 	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/stretchr/testify/assert"
+	. "github.com/vlab-research/vlab/inference/inference-data"
 	. "github.com/vlab-research/vlab/inference/test-helpers"
 )
 
@@ -89,4 +90,21 @@ func TestGetInferenceDataConf_GetsLatestConf(t *testing.T) {
 	actual, err := GetInferenceDataConf(pool, foo)
 	assert.Nil(t, err)
 	assert.Equal(t, expected, actual)
+}
+
+func TestGetEvents_WorksWithNoEvents(t *testing.T) {
+	pool := TestPool()
+	defer pool.Close()
+
+	resetDb(pool)
+
+	foo := CreateStudy(pool, "foo")
+	MustExec(t, pool, insertConf, foo, "inference_data", infConfA)
+
+	events, err := GetEvents(pool, foo)
+
+	expected := []*InferenceDataEvent([]*InferenceDataEvent{})
+
+	assert.Nil(t, err)
+	assert.Equal(t, expected, events)
 }

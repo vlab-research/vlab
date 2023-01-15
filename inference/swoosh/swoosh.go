@@ -45,8 +45,6 @@ func GetInferenceDataConf(pool *pgxpool.Pool, study string) (*InferenceDataConf,
 	conf := new(InferenceDataConf)
 	err := pool.QueryRow(context.Background(), q, study).Scan(conf)
 
-	fmt.Println(err)
-
 	if err != nil {
 		return nil, err
 	}
@@ -56,7 +54,14 @@ func GetInferenceDataConf(pool *pgxpool.Pool, study string) (*InferenceDataConf,
 
 func GetEvents(pool *pgxpool.Pool, study string) ([]*InferenceDataEvent, error) {
 	events := []*InferenceDataEvent{}
-	rows, err := pool.Query(context.Background(), "SELECT data from inference_data_events where study_id = $1", study)
+
+	query := `
+        SELECT data
+        FROM inference_data_events
+        WHERE study_id = $1
+        `
+
+	rows, err := pool.Query(context.Background(), query, study)
 	if err != nil {
 		return events, err
 	}
@@ -77,8 +82,9 @@ func GetEvents(pool *pgxpool.Pool, study string) ([]*InferenceDataEvent, error) 
 func GetActiveStudies(pool *pgxpool.Pool) ([]string, error) {
 	studies := []string{}
 
-	// TODO: get only active!
-	rows, err := pool.Query(context.Background(), "SELECT id from studies")
+	query := "select id from studies"
+	rows, err := pool.Query(context.Background(), query)
+
 	if err != nil {
 		return studies, err
 	}
@@ -109,7 +115,10 @@ func main() {
 		log.Println(fmt.Printf("Swoosh read %d events.", len(events)))
 
 		mapping, err := GetInferenceDataConf(pool, study)
-		handle(err)
+		if err != nil {
+			log.Println(fmt.Sprintf("Could not get inference_data conf for study %s", study))
+			continue
+		}
 
 		id, extractionErrors, err := Reduce(events, mapping)
 		handle(err)
