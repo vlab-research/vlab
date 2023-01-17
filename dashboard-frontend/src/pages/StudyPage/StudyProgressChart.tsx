@@ -23,10 +23,6 @@ const StudyProgressChart = ({
         label={label}
         data={data.map(resource => {
           const date = new Date(resource.datetime);
-          date.setUTCHours(0);
-          date.setUTCMinutes(0);
-          date.setUTCSeconds(0);
-          date.setUTCMilliseconds(0);
 
           return {
             primary: date,
