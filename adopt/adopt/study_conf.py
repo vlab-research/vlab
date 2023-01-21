@@ -18,6 +18,7 @@ Budget = dict[str, float]
 class SourceConf(BaseModel):
     name: str
     source: str
+    credentials_key: str
     config: Any
 
 

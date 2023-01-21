@@ -268,11 +268,13 @@ def create_location(lat, lng, rad):
     }
 
 
-def location_levels(name, rows):
+def location_levels(name, rows, exclude=False):
     locs = [create_location(r.lat, r.lng, r.rad) for _, r in rows]
 
+    key = Targeting.Field.excluded_geo_locations if exclude is True else Targeting.Field.geo_locations
+
     params = {
-        Targeting.Field.geo_locations: {
+        key: {
             TargetingGeoLocation.Field.location_types: ["home"],
             TargetingGeoLocation.Field.custom_locations: locs,
         }
