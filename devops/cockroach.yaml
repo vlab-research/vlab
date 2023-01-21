@@ -11,7 +11,7 @@ spec:
           - ReadWriteOnce
         resources:
           requests:
-            storage: "100Gi"
+            storage: "30Gi"
         volumeMode: Filesystem
   resources:
     requests:
@@ -23,7 +23,7 @@ spec:
       memory: 8Gi
   tlsEnabled: true
   image:
-    name: cockroachdb/cockroach:v21.2.6
+    name: cockroachdb/cockroach:v22.2.0
   nodes: 3
   # additionalLabels:
     # crdb: is-cool

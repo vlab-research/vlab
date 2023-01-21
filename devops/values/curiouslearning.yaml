@@ -4,15 +4,15 @@ env:
   - name: AUTH0_AUDIENCE
     value: "https://api-pro.vlab/"
 
-# get secret names in vprod
+
 envSecrets:
-  - gbv-bot-envs
-  - vlab-db-envs
-  - vlab-typeform-envs
+  - facebook-envs
+  - db-envs
 
 # shared ingress stuff
 ingress:
   annotations:
+    acme.cert-manager.io/http01-edit-in-place: "true"
     cert-manager.io/cluster-issuer: letsencrypt-prod
 
 dashboard:
@@ -23,33 +23,20 @@ dashboard:
     pullPolicy: Always
   resources: {}
   ingress:
-    host: vlab-dashboard-api.toixo.vlab.digital
+    host: vlab-dashboard-api.curious.vlab.digital
 
 
 # TODO: change to mapping to allow merging.
 cronjobs:
-  - name: source-typeform
+  - name: literacy-data-api
     schedule: "10 * * * *"
     image:
-      repository: "vlabresearch/source-typeform"
+      repository: "vlabresearch/source-literacy-data-api"
       tag: "latest"
       pullPolicy: Always
     env:
-      - name: TYPEFORM_BASE_URL
-        value: https://api.typeform.com
-      - name: TYPEFORM_PAGE_SIZE
-        value: "500"
-  - name: source-fly
-    schedule: "10 * * * *"
-    image:
-      repository: "vlabresearch/source-fly"
-      tag: "latest"
-      pullPolicy: Always
-    env:
-      - name: FLY_BASE_URL
-        value: http://gbv-dashboard/api/v1/
-      - name: FLY_PAGE_SIZE
-        value: "500"
+      - name: LITERACY_DATA_API_URL
+        value: http://lit-data-api.default.svc.cluster.local:80
   - name: swoosh
     schedule: "30 * * * *"
     image:
@@ -96,26 +83,3 @@ serviceAccount:
   create: true
   annotations: {}
   name: "" # use default
-
-
-# COMMIT TO COCKROACH OPERATOR???
-# cockroachdb:
-#   image:
-#     tag: v21.2.6
-#   statefulset:
-#     replicas: 2
-#     resources:
-#       requests:
-#         cpu: 100m
-#         memory: 1000Mi
-#   conf:
-#     cache: 3500Mi
-#     max-sql-memory: 3000Mi
-#     max-disk-temp-storage: 24GiB
-#     budget:
-#       maxUnavailable: 1
-#   tls:
-#     enabled: yes
-#     certs:
-#       selfSigner:
-#         enabled: yes
