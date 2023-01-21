@@ -199,14 +199,6 @@ func LoadEvents(connector Connector, dataSource string, orderColumn string) {
 	// make a go loop?
 	for _, source := range sources {
 
-		// for each source, get credentials?
-		// there will always be credentials... And they could be empty...
-		// source.StudyID,
-		// creds, err := GetCredentials(pool, source.StudyID, source.Conf.Source, source.Conf.CredentialsConf.Key)
-
-		// handle(err)
-		// source.Credentials = creds
-
 		e, _, err := LastEvent(pool, source, orderColumn)
 		handle(err)
 

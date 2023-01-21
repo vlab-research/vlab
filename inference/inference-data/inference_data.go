@@ -11,14 +11,23 @@ type User struct {
 }
 
 type SourceConf struct {
-	Name   string          `json:"name"`
-	Source string          `json:"source"`
-	Config json.RawMessage `json:"config"`
+	Name           string          `json:"name"`
+	Source         string          `json:"source"`
+	Config         json.RawMessage `json:"config"`
+	CredentialsKey string          `json:"credentials_key"`
+}
+
+type Credentials struct {
+	Entity  string          `json:"entity"`
+	Key     string          `json:"string"`
+	Details json.RawMessage `json:"details"`
+	Created time.Time       `json:"created"`
 }
 
 type Source struct {
-	StudyID string
-	Conf    *SourceConf
+	StudyID     string
+	Conf        *SourceConf
+	Credentials *Credentials
 }
 
 // DB reprsentation of configuration of data sources for a study
