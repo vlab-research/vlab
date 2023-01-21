@@ -30,17 +30,17 @@ func (t *LitDataTimestamp) UnmarshalJSON(b []byte) error {
 	if err != nil {
 		return err
 	}
-	*t = LitDataTimestamp{time.Unix(0, i/1000000).UTC()}
+	*t = LitDataTimestamp{time.Unix(0, i*1000).UTC()}
 	return nil
 }
 
 type LitDataEventParams struct {
 	Label string `json:"label"`
 	Value struct {
-		StringValue interface{} `json:"string_value"`
-		IntValue    string      `json:"int_value"`
-		FloatValue  interface{} `json:"float_value"`
-		DoubleValue interface{} `json:"double_value"`
+		StringValue string  `json:"string_value"`
+		IntValue    int64   `json:"int_value"`
+		FloatValue  float64 `json:"float_value"`
+		DoubleValue float64 `json:"double_value"`
 	} `json:"value"`
 	Action string `json:"action"`
 }
@@ -50,26 +50,26 @@ type LitDataEvent struct {
 	EventName      string           `json:"event_name"`
 	EventTimestamp LitDataTimestamp `json:"event_timestamp"`
 	TrafficSource  struct {
-		Name   string      `json:"name"`
-		Medium interface{} `json:"medium"`
-		Source string      `json:"source"`
+		Name   string `json:"name"`
+		Medium string `json:"medium"`
+		Source string `json:"source"`
 	} `json:"traffic_source"`
 	Device struct {
-		Category               string      `json:"category"`
-		MobileBrandName        string      `json:"mobile_brand_name"`
-		MobileModelName        string      `json:"mobile_model_name"`
-		MobileMarketingName    string      `json:"mobile_marketing_name"`
-		MobileOsHardwareModel  string      `json:"mobile_os_hardware_model"`
-		OperatingSystem        string      `json:"operating_system"`
-		OperatingSystemVersion string      `json:"operating_system_version"`
-		VendorID               interface{} `json:"vendor_id"`
-		AdvertisingID          interface{} `json:"advertising_id"`
-		Language               string      `json:"language"`
-		IsLimitedAdTracking    string      `json:"is_limited_ad_tracking"`
-		TimeZoneOffsetSeconds  string      `json:"time_zone_offset_seconds"`
-		Browser                interface{} `json:"browser"`
-		BrowserVersion         interface{} `json:"browser_version"`
-		WebInfo                interface{} `json:"web_info"`
+		Category               string `json:"category"`
+		MobileBrandName        string `json:"mobile_brand_name"`
+		MobileModelName        string `json:"mobile_model_name"`
+		MobileMarketingName    string `json:"mobile_marketing_name"`
+		MobileOsHardwareModel  string `json:"mobile_os_hardware_model"`
+		OperatingSystem        string `json:"operating_system"`
+		OperatingSystemVersion string `json:"operating_system_version"`
+		VendorID               string `json:"vendor_id"`
+		AdvertisingID          string `json:"advertising_id"`
+		Language               string `json:"language"`
+		IsLimitedAdTracking    string `json:"is_limited_ad_tracking"`
+		TimeZoneOffsetSeconds  int64  `json:"time_zone_offset_seconds"`
+		Browser                string `json:"browser"`
+		BrowserVersion         string `json:"browser_version"`
+		WebInfo                string `json:"web_info"`
 	} `json:"device"`
 	Geo struct {
 		Continent    string `json:"continent"`
@@ -153,6 +153,7 @@ type LitDataAPIParams struct {
 	Country       string `url:"country,omitempty" json:"country"`
 }
 
+// TODO: make required fields and validate not empty
 type LitDataConfig struct {
 	From          string `json:"from"`
 	AppID         string `json:"app_id"`
