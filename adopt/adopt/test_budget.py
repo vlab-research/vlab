@@ -37,8 +37,29 @@ def test_estimate_price_exponential_updating():
     res = estimate_price(3, 0)
     assert res == 8
 
-    res = estimate_price(40, 8)
-    assert round(res) == 5
+    res = estimate_price(5, 0)
+    assert res == 12
+
+    res = estimate_price(10, 0)
+    assert res == 22
+
+    res = estimate_price(10, 1)
+    assert res == 7.33
+
+    res = estimate_price(20, 1)
+    assert res == 14
+
+    res = estimate_price(50, 1)
+    assert res == 34
+
+    res = estimate_price(40, 2)
+    assert round(res) == 16
+
+    res = estimate_price(5, 40)
+    assert round(res, 2) == 0.15
+
+    res = estimate_price(10, 40)
+    assert round(res, 2) == 0.27
 
 
 def test_calc_price_pretends_as_if_found_fractional_user_when_no_user(cnf, df):
