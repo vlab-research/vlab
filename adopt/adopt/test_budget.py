@@ -37,7 +37,7 @@ def test_estimate_price_exponential_updating():
     res = estimate_price(3, 0)
     assert res == 8
 
-    res = estimate_price(40, 8)
+    res = estimate_price(100, 20)
     assert round(res) == 5
 
 
