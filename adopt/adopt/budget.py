@@ -34,20 +34,20 @@ class AdDataError(BaseException):
 
 
 def estimate_price(spend, found):
-    # Estimates # people/dollar as Exponential with Gamma prior
+    # Estimates # people/dollar as Poisson with Gamma prior
 
     spend = round(spend)
 
-    # implies Gamma(2, 2) -> lambda = 2 -> 1/2 mean -> 2/person
-    prior_k = 2
-    prior_theta = 2
+    # implies Gamma(1/2, 1) -> $2/person
+    prior_k = 0.5
+    prior_theta = 1
 
-    new_lambda = ((prior_k + spend) - 1) * (prior_theta / (1 + prior_theta * found))
+    prior_beta = 1 / prior_theta
+    new_lambda = (prior_k + found) / (prior_beta + spend)
 
     # round to pretty price
-    new_lambda = round(new_lambda, 2)
-
-    return new_lambda
+    price = round(1 / new_lambda, 2)
+    return price
 
 
 def calc_price(df, window: DateRange, spend):
