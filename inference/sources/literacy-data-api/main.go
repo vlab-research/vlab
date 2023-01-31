@@ -114,9 +114,9 @@ func (lde *LitDataEvent) AsInferenceDataEvent(source *Source, idx int) *Inferenc
 	}
 
 	// shouldn't error
-	md["traffice_source"], _ = json.Marshal(lde.TrafficSource.Source)
+	md["traffic_source"], _ = json.Marshal(lde.TrafficSource.Source)
 
-	from := fmt.Sprintf("%d", lde.EventTimestamp.Time.Unix())
+	from := fmt.Sprintf("%d", lde.EventTimestamp.Time.UnixMicro())
 	variable := lde.EventName + "_" + lde.EventParams.Action
 
 	return &InferenceDataEvent{
@@ -224,11 +224,17 @@ func GetEvents(source *Source, url string, params *LitDataAPIParams, i int) <-ch
 					log.Println(fmt.Sprintf("Collected %d results.", i))
 				}
 
+				ide := r.AsInferenceDataEvent(source, i)
+
 				// For pagination
-				params.From = int(r.EventTimestamp.Time.Unix())
+				pagination, err := strconv.Atoi(ide.Pagination)
+				if err != nil {
+					panic(err)
+				}
+				params.From = pagination
 
 				// push event
-				events <- r.AsInferenceDataEvent(source, i)
+				events <- ide
 			}
 
 			if len(response.Data) < params.Limit {
