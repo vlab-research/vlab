@@ -1,18 +1,19 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 
 import pandas as pd
 import pytest
 
-from .budget import (calc_price, get_budget_lookup, get_stats, make_report,
-                     prep_df_for_budget, proportional_budget)
+from .budget import (calc_price, estimate_price, get_budget_lookup, get_stats,
+                     make_report, prep_df_for_budget, proportional_budget)
 from .facebook.date_range import DateRange
 from .test_clustering import _format_df, cnf, conf, df
 
-DATE = datetime(2020, 1, 1)
+START_DATE = datetime(2020, 1, 1)
+UNTIL_DATE = datetime(2020, 1, 3)
 
 
 def test_get_stats_adds_zero_spend_when_no_info(cnf, df):
-    window = DateRange(DATE, DATE)
+    window = DateRange(START_DATE, UNTIL_DATE)
     spend = {"bar": 10.0, "baz": 10.0}
     df = prep_df_for_budget(df, cnf)
 
@@ -20,22 +21,42 @@ def test_get_stats_adds_zero_spend_when_no_info(cnf, df):
     assert spend == {"bar": 10.0, "baz": 10.0, "foo": 0.0}
 
 
-def test_calc_price_pretends_as_if_found_half_user_when_no_user(cnf, df):
-    window = DateRange(DATE, DATE)
+def test_estimate_price_exponential_updating():
+    res = estimate_price(0, 0)
+    assert res == 2
+
+    res = estimate_price(0.4, 0)
+    assert res == 2
+
+    res = estimate_price(0.6, 0)
+    assert res == 4
+
+    res = estimate_price(1, 0)
+    assert res == 4
+
+    res = estimate_price(3, 0)
+    assert res == 8
+
+    res = estimate_price(100, 20)
+    assert round(res) == 5
+
+
+def test_calc_price_pretends_as_if_found_fractional_user_when_no_user(cnf, df):
     spend = {"bar": 10.0, "baz": 10.0, "foo": 10.0}
     df = prep_df_for_budget(df, cnf)
 
+    window = DateRange(START_DATE, UNTIL_DATE)
     price = calc_price(df, window, spend)
-    assert price == {"bar": 10.0, "baz": 10.0, "foo": 20.0}
+    assert price == {"bar": 7.33, "baz": 7.33, "foo": 22.0}
 
 
-def test_calc_price_picks_mean_if_no_spend_(cnf, df):
-    window = DateRange(DATE, DATE)
+def test_calc_price_picks_prior_if_no_spend_(cnf, df):
+    window = DateRange(START_DATE, UNTIL_DATE)
     spend = {"bar": 10.0, "baz": 10.0, "foo": 0.0}
     df = prep_df_for_budget(df, cnf)
 
     price = calc_price(df, window, spend)
-    assert price == {"bar": 10.0, "baz": 10.0, "foo": 10.0}
+    assert price == {"bar": 7.33, "baz": 7.33, "foo": 2.0}
 
 
 def test_proportional_budget_optimizes_all_budget():
@@ -191,7 +212,7 @@ def test_proportional_budget_with_both_budget_and_max_recruits_picks_constraint(
 
 
 def test_get_budget_lookup(cnf, df):
-    window = DateRange(DATE, DATE)
+    window = DateRange(START_DATE, UNTIL_DATE)
     spend = {"bar": 10.0, "baz": 10.0, "foo": 10.0}
 
     budget, _ = get_budget_lookup(df, cnf, 60, 100, window, spend, 0.3)
@@ -201,7 +222,7 @@ def test_get_budget_lookup(cnf, df):
 
 
 def test_get_budget_lookup_with_proportional_budget_when_budget_is_spent(cnf, df):
-    window = DateRange(DATE, DATE)
+    window = DateRange(START_DATE, UNTIL_DATE)
     spend = {"bar": 10.0, "baz": 10.0, "foo": 10.0}
     budget, _ = get_budget_lookup(df, cnf, 30, 100, window, spend, 3.0)
     assert budget == {"bar": 0, "baz": 0, "foo": 0}
@@ -226,7 +247,7 @@ def test_get_budget_lookup_works_with_missing_data_from_clusters():
     df = _format_df(df)
 
     spend = {"bar": 10.0, "foo": 10.0, "baz": 10.0}
-    window = DateRange(DATE, DATE)
+    window = DateRange(START_DATE, UNTIL_DATE)
     res, _ = get_budget_lookup(df, cnf, 50, 100, window, spend, 0.40)
 
     assert res == {"foo": 5.0, "bar": 0.0, "baz": 5.0}

@@ -1,4 +1,5 @@
 import logging
+from math import ceil
 from statistics import mean
 from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
 
@@ -32,31 +33,33 @@ class AdDataError(BaseException):
     pass
 
 
-def calc_price(df, window, spend):
+def estimate_price(spend, found):
+    # Estimates # people/dollar as Exponential with Gamma prior
+
+    spend = round(spend)
+
+    # implies Gamma(2, 2) -> lambda = 2 -> 1/2 mean -> 2/person
+    prior_k = 2
+    prior_theta = 2
+
+    new_lambda = ((prior_k + spend) - 1) * (prior_theta / (1 + prior_theta * found))
+
+    # round to pretty price
+    new_lambda = round(new_lambda, 2)
+
+    return new_lambda
+
+
+def calc_price(df, window: DateRange, spend):
     # filter by time
     def pred(st):
         return st.timestamp >= window.start_date and st.timestamp <= window.until_date
 
     windowed = _filter_by_join_time(df, pred)
     counts = _users_per_cluster(windowed)
+    counts = {**{k: 0 for k in spend.keys()}, **counts}
 
-    counts = {**{k: 0.5 for k in spend.keys()}, **counts}
-    price = {k: spend[k] / v for k, v in counts.items() if k in spend}
-
-    # set to mean if we don't have info on the price
-    non_zeros = [p for p in price.values() if p != 0]
-    if not non_zeros:
-        raise AdDataError(
-            f"Could not calculate the price of any adset "
-            f"between {window.start} and {window.until}"
-        )
-
-    m = mean(non_zeros)
-
-    def make_mean(v):
-        return v if v != 0 else m
-
-    price = {k: make_mean(v) for k, v in price.items()}
+    price = {k: estimate_price(spend.get(k, 0), v) for k, v in counts.items()}
     return price
 
 
