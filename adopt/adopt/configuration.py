@@ -12,7 +12,7 @@ from facebook_business.adobjects.targetinggeolocationcity import \
 from facebook_business.adobjects.targetinggeolocationcustomlocation import \
     TargetingGeoLocationCustomLocation
 
-from adopt.study_conf import CreativeConf, GeneralConf
+from .study_conf import CreativeConf, GeneralConf
 
 
 class TargetingConf(NamedTuple):

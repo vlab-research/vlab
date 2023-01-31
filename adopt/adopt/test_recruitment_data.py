@@ -3,7 +3,7 @@ from datetime import date, datetime, timedelta
 from test.dbfix import cnf, _reset_db
 from unittest.mock import MagicMock, patch
 
-from adopt.campaign_queries import create_campaign_confs
+from .campaign_queries import create_campaign_confs
 
 from .db import _connect, execute, manyify, query
 from .facebook.date_range import DateRange
