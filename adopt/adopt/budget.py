@@ -252,6 +252,11 @@ def get_budget_lookup(
         logging.info("Failed to calculate budget due to lack of response data")
         return None, None
 
+    # TODO: fix total_spend and insights spend here
+    spend = {k: v * 100 for k, v in spend.items()}
+    total_spend = total_spend * 100
+    to_spend = max_budget - total_spend
+
     try:
         spend, tot, price = get_stats(df, strata, window, spend)
     except AdDataError as e:
@@ -259,10 +264,6 @@ def get_budget_lookup(
         return None, None
 
     share = _normalize_values(tot)
-
-    # TODO: fix total_spend and insights spend here
-    total_spend = total_spend * 100
-    to_spend = max_budget - total_spend
 
     if to_spend <= 0:
         logging.info("No money left in the budget!")
