@@ -224,22 +224,11 @@ def cast_strings(type_, dict_):
     return res
 
 
-def additional_ops(d):
-    ops = {"budget": lambda x: x * 100, "min_budget": lambda x: x * 100}
-
-    for k, fn in ops.items():
-        if k in d:
-            d[k] = fn(d[k])
-
-    return d
-
-
 def parse_kv_sheet(path, sheet_name, type_):
     df = pd.read_excel(path, sheet_name=sheet_name, index_col=[0])
     x = {k: v["value"] for k, v in df.to_dict(orient="index").items()}
 
     x = cast_strings(type_, x)
-    x = additional_ops(x)
     d = type_(**x)
     return d
 

@@ -387,6 +387,9 @@ def adset_instructions(
     status = "ACTIVE" if budget > 0 else "PAUSED"
     budget = budget if budget > 0 else study.general.min_budget
 
+    # Facebook budgets are in cents! We do everything in dollars.
+    budget = budget * 100
+
     ac = AdsetConf(
         state.campaign,
         stratum,

@@ -253,8 +253,6 @@ def get_budget_lookup(
         return None, None
 
     # TODO: fix total_spend and insights spend here
-    spend = {k: v * 100 for k, v in spend.items()}
-    total_spend = total_spend * 100
     to_spend = max_budget - total_spend
 
     try:
