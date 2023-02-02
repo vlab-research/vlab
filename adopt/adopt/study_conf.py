@@ -317,8 +317,8 @@ def _divide_among_days_left(budget: Budget, days_left) -> Budget:
 
 
 def _deal_with_mins(min_budget, budget):
-    budget = {k: floor(v) for k, v in budget.items()}
-    return {k: min_budget if v > 0 and v < min_budget else v for k, v in budget.items()}
+    budget = {k: floor(v * 100) / 100 for k, v in budget.items()}
+    return {k: 0 if v < min_budget else v for k, v in budget.items()}
 
 
 RecruitmentConf = Union[

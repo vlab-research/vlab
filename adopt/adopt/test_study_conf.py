@@ -1,8 +1,10 @@
 from datetime import datetime
 
+import pytest
+
 from .study_conf import (DestinationRecruitmentExperiment,
                          PipelineRecruitmentExperiment, SimpleRecruitment)
-import pytest
+
 
 def _dt(day, month=1, year=2022):
     return datetime(year, month, day)
@@ -147,9 +149,9 @@ def test_simple_spend_for_day_returns_budget_proposal_spread_over_days_and_floor
     now = _dt(8)
     r = _simple("study", start, end)
 
-    budget = {"foo": 2.2, "bar": 2.0, "baz": 3.5}  # quite a bit under budget!
+    budget = {"foo": 2.2, "bar": 2.0, "baz": 3.51}  # quite a bit under budget!
     res = r.spend_for_day(strata, 1, budget, now)
-    assert res == {"study": {"foo": 1.0, "bar": 1.0, "baz": 1.0}}
+    assert res == {"study": {"foo": 1.10, "bar": 1.0, "baz": 1.75}}
 
 
 def test_simple_spend_for_day_puts_budget_to_zero_if_under_min_budget():
@@ -202,13 +204,13 @@ def test_destination_spend_for_day_returns_budget_proposal_split_when_one_day_le
     now = _dt(1)
 
     r = _destination("study", start_date=start, end_date=end)
-    budget = {"foo": 4.3, "bar": 8.0, "baz": 13.5}
+    budget = {"foo": 4.31, "bar": 8.00, "baz": 13.51}
 
     res = r.spend_for_day(strata, 1, budget, now)
 
     assert res == {
-        "study-baz": {"foo": 2.0, "bar": 4.0, "baz": 6.0},
-        "study-qux": {"foo": 2.0, "bar": 4.0, "baz": 6.0},
+        "study-baz": {"foo": 2.15, "bar": 4.0, "baz": 6.75},
+        "study-qux": {"foo": 2.15, "bar": 4.0, "baz": 6.75},
     }
 
 
@@ -225,8 +227,8 @@ def test_destination_spend_for_day_returns_proposal_spread_over_days_and_floored
     res = r.spend_for_day(strata, 1, budget, now)
 
     assert res == {
-        "study-baz": {"foo": 1.0, "bar": 2.0, "baz": 3.0},
-        "study-qux": {"foo": 1.0, "bar": 2.0, "baz": 3.0},
+        "study-baz": {"foo": 1.07, "bar": 2.0, "baz": 3.37},
+        "study-qux": {"foo": 1.07, "bar": 2.0, "baz": 3.37},
     }
 
 
@@ -245,7 +247,12 @@ def test_pipeline_pick_active_campaign_picks_no_campaign_if_between_waves():
     end = _dt(7)
 
     r = _pipeline(
-        name="foo", start_date=start, end_date=end, arms=2, recruitment_days=2, offset_days=4
+        name="foo",
+        start_date=start,
+        end_date=end,
+        arms=2,
+        recruitment_days=2,
+        offset_days=4,
     )
     assert r.current_campaign(now) == (None, None)
 
@@ -256,7 +263,12 @@ def test_pipeline_pick_active_campaign_picks_next_campaign_when_it_starts():
     end = _dt(7)
 
     r = _pipeline(
-        name="foo", start_date=start, end_date=end, arms=2, recruitment_days=2, offset_days=4
+        name="foo",
+        start_date=start,
+        end_date=end,
+        arms=2,
+        recruitment_days=2,
+        offset_days=4,
     )
     assert r.current_campaign(now) == (1, 2)
 
@@ -267,7 +279,12 @@ def test_pipeline_pick_active_campaign_stops_when_finished():
     end = _dt(7)
 
     r = _pipeline(
-        name="foo", start_date=start, end_date=end, arms=2, recruitment_days=2, offset_days=4
+        name="foo",
+        start_date=start,
+        end_date=end,
+        arms=2,
+        recruitment_days=2,
+        offset_days=4,
     )
     assert r.current_campaign(now) == (None, None)
 
@@ -278,7 +295,12 @@ def test_pipeline_pick_active_campaign_keeps_going_recruitment_days_and_offset_s
     end = _dt(5)
 
     r = _pipeline(
-        name="foo", start_date=start, end_date=end, arms=2, recruitment_days=2, offset_days=2
+        name="foo",
+        start_date=start,
+        end_date=end,
+        arms=2,
+        recruitment_days=2,
+        offset_days=2,
     )
     assert r.current_campaign(now) == (1, 2)
 
@@ -290,7 +312,12 @@ def test_pipeline_spend_for_day_sets_budget_to_zero_if_no_more_days():
     end = _dt(7)
 
     r = _pipeline(
-        name="study", start_date=start, end_date=end, arms=2, recruitment_days=2, offset_days=4
+        name="study",
+        start_date=start,
+        end_date=end,
+        arms=2,
+        recruitment_days=2,
+        offset_days=4,
     )
 
     budget = {"foo": 1.0, "bar": 0.5, "baz": 1.0}
@@ -308,7 +335,12 @@ def test_pipeline_spend_for_day_sets_budget_to_base_if_no_budget():
     end = _dt(7)
 
     r = _pipeline(
-        name="study", start_date=start, end_date=end, arms=2, recruitment_days=2, offset_days=4
+        name="study",
+        start_date=start,
+        end_date=end,
+        arms=2,
+        recruitment_days=2,
+        offset_days=4,
     )
 
     res = r.spend_for_day(strata, 1, None, now)
@@ -325,13 +357,18 @@ def test_pipeline_spend_for_day_sets_to_budget_for_on_campaign_based_on_days_lef
     end = _dt(10)
 
     r = _pipeline(
-        name="study", start_date=start, end_date=end, arms=2, recruitment_days=3, offset_days=6
+        name="study",
+        start_date=start,
+        end_date=end,
+        arms=2,
+        recruitment_days=3,
+        offset_days=6,
     )
 
     budget = {"foo": 9.0, "bar": 12.0, "baz": 13.7}
     res = r.spend_for_day(strata, 1, budget, now)
     assert res == {
-        "study-1": {"foo": 3.0, "bar": 4.0, "baz": 4.0},
+        "study-1": {"foo": 3.0, "bar": 4.0, "baz": 4.56},
         "study-2": {"foo": 0.0, "bar": 0.0, "baz": 0.0},
     }
 
@@ -339,7 +376,7 @@ def test_pipeline_spend_for_day_sets_to_budget_for_on_campaign_based_on_days_lef
     now = _dt(2)
     res = r.spend_for_day(strata, 1, budget, now)
     assert res == {
-        "study-1": {"foo": 3.0, "bar": 4.0, "baz": 4.0},
+        "study-1": {"foo": 3.0, "bar": 4.0, "baz": 4.84},
         "study-2": {"foo": 0.0, "bar": 0.0, "baz": 0.0},
     }
 
@@ -347,7 +384,7 @@ def test_pipeline_spend_for_day_sets_to_budget_for_on_campaign_based_on_days_lef
     res = r.spend_for_day(strata, 1, budget, now)
     assert res == {
         "study-1": {"foo": 0.0, "bar": 0.0, "baz": 0.0},
-        "study-2": {"foo": 3.0, "bar": 4.0, "baz": 4.0},
+        "study-2": {"foo": 3.0, "bar": 4.0, "baz": 4.84},
     }
 
 
@@ -356,20 +393,35 @@ def test_pipeline_spend_can_check_validity_of_end_date():
     end = _dt(10)
 
     r = _pipeline(
-        name="study", start_date=start, end_date=end, arms=2, recruitment_days=3, offset_days=6
+        name="study",
+        start_date=start,
+        end_date=end,
+        arms=2,
+        recruitment_days=3,
+        offset_days=6,
     )
 
     r.validate_dates()
 
     start = _dt(1)
     r = _pipeline(
-        name="study", start_date=start, end_date=end, arms=3, recruitment_days=3, offset_days=3
+        name="study",
+        start_date=start,
+        end_date=end,
+        arms=3,
+        recruitment_days=3,
+        offset_days=3,
     )
 
     r.validate_dates()
 
     with pytest.raises(Exception):
         r = _pipeline(
-            name="study", start_date=start, end_date=end, arms=3, recruitment_days=3, offset_days=5
+            name="study",
+            start_date=start,
+            end_date=end,
+            arms=3,
+            recruitment_days=3,
+            offset_days=5,
         )
         r.validate_dates()
