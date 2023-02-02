@@ -1,15 +1,13 @@
 import logging
 import re
-from datetime import date, datetime, timezone
+from datetime import datetime, timedelta, timezone
 from functools import cache, cached_property
-from typing import Any, List, Optional, Tuple
-
+from typing import List, Optional, Tuple
 
 from facebook_business.adobjects.ad import Ad
 from facebook_business.adobjects.adaccount import AdAccount
 from facebook_business.adobjects.adcreative import AdCreative
 from facebook_business.adobjects.adset import AdSet
-from facebook_business.adobjects.adsinsights import AdsInsights
 from facebook_business.adobjects.campaign import Campaign
 from facebook_business.adobjects.customaudience import CustomAudience
 from facebook_business.api import FacebookAdsApi
@@ -232,9 +230,9 @@ class CampaignState:
     @cached_property
     def total_spend(self) -> float:
         # total time window
-        window = DateRange(datetime(2020, 1, 1), datetime.utcnow())
+        window = DateRange(datetime.utcnow() - timedelta(days=365), datetime.utcnow())
         params = {"time_range": {"since": window.start, "until": window.until}}
-        res = call(self.campaign.get_insights, params = params, fields=["spend"]) 
+        res = call(self.campaign.get_insights, params=params, fields=["spend"])
         if not res:
             return 0
         return float(res[0]["spend"])
