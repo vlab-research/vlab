@@ -165,13 +165,11 @@ func retrieveFromMetadata(e *InferenceDataEvent, conf *ExtractionConf) (json.Raw
 }
 
 func retrieveFromVariable(e *InferenceDataEvent, conf *ExtractionConf) (json.RawMessage, bool) {
+	if conf.Key == "*" {
+		return e.Value, true
+	}
 	ok := e.Variable == conf.Key
 	return e.Value, ok
-}
-
-func retrieveTimestamp(e *InferenceDataEvent, conf *ExtractionConf) (json.RawMessage, bool) {
-	ts, _ := json.Marshal(e.Timestamp)
-	return ts, true
 }
 
 func getRetrieveFunc(conf *ExtractionConf) (RetrieveFunc, error) {
@@ -180,8 +178,6 @@ func getRetrieveFunc(conf *ExtractionConf) (RetrieveFunc, error) {
 		return retrieveFromVariable, nil
 	case "metadata":
 		return retrieveFromMetadata, nil
-	case "timestamp":
-		return retrieveTimestamp, nil
 	}
 
 	return nil, fmt.Errorf("Could not find location function for location: %s", conf.Location)
