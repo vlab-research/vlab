@@ -12,6 +12,7 @@ import (
 
 // TODO: validate not empty fields...?
 type ExtractionConf struct {
+	Location  string          `json:"location"`
 	Key       string          `json:"key"`
 	Name      string          `json:"name"`
 	Function  string          `json:"function"`
@@ -21,13 +22,13 @@ type ExtractionConf struct {
 	fn        func(json.RawMessage) ([]byte, error)
 }
 
-type InferenceDataSource struct {
-	VariableExtractionMapping []*ExtractionConf `json:"variable_extraction"`
-	MetadataExtractionMapping []*ExtractionConf `json:"metadata_extraction"`
-}
+// type InferenceDataSource struct {
+// 	VariableExtractionMapping []*ExtractionConf `json:"variable_extraction"`
+// 	MetadataExtractionMapping []*ExtractionConf `json:"metadata_extraction"`
+// }
 
 type InferenceDataConf struct {
-	DataSources map[string]*InferenceDataSource `json:"data_sources"`
+	DataSources map[string][]*ExtractionConf `json:"data_sources"`
 }
 
 func (c InferenceDataConf) Sources() []string {
@@ -156,6 +157,8 @@ func addValue(conf *ExtractionConf, id InferenceData, user string, val *Inferenc
 	}
 }
 
+type RetrieveFunc func(*InferenceDataEvent, *ExtractionConf) (json.RawMessage, bool)
+
 func retrieveFromMetadata(e *InferenceDataEvent, conf *ExtractionConf) (json.RawMessage, bool) {
 	v, ok := e.User.Metadata[conf.Key]
 	return v, ok
@@ -166,15 +169,38 @@ func retrieveFromVariable(e *InferenceDataEvent, conf *ExtractionConf) (json.Raw
 	return e.Value, ok
 }
 
-func extractValue(id InferenceData, e *InferenceDataEvent, extractionConfs []*ExtractionConf, retrieve func(*InferenceDataEvent, *ExtractionConf) (json.RawMessage, bool)) (InferenceData, error) {
+func retrieveTimestamp(e *InferenceDataEvent, conf *ExtractionConf) (json.RawMessage, bool) {
+	ts, _ := json.Marshal(e.Timestamp)
+	return ts, true
+}
+
+func getRetrieveFunc(conf *ExtractionConf) (RetrieveFunc, error) {
+	switch conf.Location {
+	case "variable":
+		return retrieveFromVariable, nil
+	case "metadata":
+		return retrieveFromMetadata, nil
+	case "timestamp":
+		return retrieveTimestamp, nil
+	}
+
+	return nil, fmt.Errorf("Could not find location function for location: %s", conf.Location)
+}
+
+func extractValue(id InferenceData, e *InferenceDataEvent, extractionConfs []*ExtractionConf) (InferenceData, error) {
+
 	for _, conf := range extractionConfs {
+		retrieve, err := getRetrieveFunc(conf)
+		if err != nil {
+			return nil, err
+		}
 
 		val, ok := retrieve(e, conf)
 		if !ok {
 			continue
 		}
 
-		val, err := conf.Extract(val)
+		val, err = conf.Extract(val)
 		if err != nil {
 			return nil, err
 		}
@@ -211,19 +237,19 @@ func Reduce(events []*InferenceDataEvent, c *InferenceDataConf) (InferenceData, 
 		// TODO: should this have a nil check? Preferably not!
 
 		// add from metadata
-		id, err := extractValue(id, e, sourceConf.MetadataExtractionMapping, retrieveFromMetadata)
-
+		var err error
+		id, err = extractValue(id, e, sourceConf)
 		if err != nil {
 			extractionErrors = append(extractionErrors, err)
 			continue
 		}
 
 		// attempt to extract the values from the event itself, according to config
-		id, err = extractValue(id, e, sourceConf.VariableExtractionMapping, retrieveFromVariable)
-		if err != nil {
-			extractionErrors = append(extractionErrors, err)
-			continue
-		}
+		// id, err = extractValue(id, e, sourceConf.VariableExtractionMapping, retrieveFromVariable)
+		// if err != nil {
+		// 	extractionErrors = append(extractionErrors, err)
+		// 	continue
+		// }
 	}
 
 	return id, extractionErrors, nil

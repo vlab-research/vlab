@@ -41,6 +41,7 @@ func ti(day string) time.Time {
 
 func TestAddValue_PicksMax(t *testing.T) {
 	conf := &ExtractionConf{
+		Location:  "variable",
 		Key:       "key",
 		Name:      "name",
 		ValueType: "categorical",
@@ -132,16 +133,15 @@ func TestReduceInferenceData_SelectsVariablesAsPerConfAndSelectFunction(t *testi
 			}},
 	}
 
-	mapping := &InferenceDataConf{map[string]*InferenceDataSource{
-		"lit_data": {
-			VariableExtractionMapping: []*ExtractionConf{
-				{
-					Key:       "q1",
-					Name:      "renamed_q1",
-					ValueType: "categorical",
-					Function:  "select",
-					Params:    []byte(`{"path": "translated_response"}`),
-				},
+	mapping := &InferenceDataConf{map[string][]*ExtractionConf{
+		"lit_data": []*ExtractionConf{
+			{
+				Location:  "variable",
+				Key:       "q1",
+				Name:      "renamed_q1",
+				ValueType: "categorical",
+				Function:  "select",
+				Params:    []byte(`{"path": "translated_response"}`),
 			},
 		},
 	}}
@@ -167,27 +167,26 @@ func TestReduceInferenceData_GroupsByUserAndOverwritesRepeatedValues(t *testing.
 			}},
 	}
 
-	mapping := &InferenceDataConf{map[string]*InferenceDataSource{
+	mapping := &InferenceDataConf{map[string][]*ExtractionConf{
 		"lit_data": {
-			VariableExtractionMapping: []*ExtractionConf{
-				{
-					Key:       "q1",
-					Name:      "q1",
-					ValueType: "categorical",
-					Function:  "select",
-					Params:    []byte(`{"path": ""}`),
-					Aggregate: "last",
-				},
-				{
-					Key:       "q2",
-					Name:      "q2",
-					ValueType: "continuous",
-					Function:  "select",
-					Params:    []byte(`{"path": ""}`),
-					Aggregate: "last",
-				},
+			{
+				Location:  "variable",
+				Key:       "q1",
+				Name:      "q1",
+				ValueType: "categorical",
+				Function:  "select",
+				Params:    []byte(`{"path": ""}`),
+				Aggregate: "last",
 			},
-			MetadataExtractionMapping: nil,
+			{
+				Location:  "variable",
+				Key:       "q2",
+				Name:      "q2",
+				ValueType: "continuous",
+				Function:  "select",
+				Params:    []byte(`{"path": ""}`),
+				Aggregate: "last",
+			},
 		},
 	}}
 
@@ -215,35 +214,34 @@ func TestReduceInferenceData_CollectsMetadataWithTimestampFirstEventOfUniqueValu
 			}},
 	}
 
-	mapping := &InferenceDataConf{map[string]*InferenceDataSource{
+	mapping := &InferenceDataConf{map[string][]*ExtractionConf{
 		"lit_data": {
-			VariableExtractionMapping: []*ExtractionConf{
-				{
-					Key:       "q1",
-					Name:      "q1",
-					ValueType: "categorical",
-					Function:  "select",
-					Params:    []byte(`{"path": ""}`),
-					Aggregate: "last",
-				},
-				{
-					Key:       "q2",
-					Name:      "q2",
-					ValueType: "continuous",
-					Function:  "select",
-					Params:    []byte(`{"path": ""}`),
-					Aggregate: "last",
-				},
+			{
+				Location:  "variable",
+				Key:       "q1",
+				Name:      "q1",
+				ValueType: "categorical",
+				Function:  "select",
+				Params:    []byte(`{"path": ""}`),
+				Aggregate: "last",
 			},
-			MetadataExtractionMapping: []*ExtractionConf{
-				{
-					Key:       "user_md",
-					Name:      "some_md",
-					ValueType: "categorical",
-					Function:  "select",
-					Params:    []byte(`{"path": ""}`),
-					Aggregate: "last",
-				},
+			{
+				Location:  "variable",
+				Key:       "q2",
+				Name:      "q2",
+				ValueType: "continuous",
+				Function:  "select",
+				Params:    []byte(`{"path": ""}`),
+				Aggregate: "last",
+			},
+			{
+				Location:  "metadata",
+				Key:       "user_md",
+				Name:      "some_md",
+				ValueType: "categorical",
+				Function:  "select",
+				Params:    []byte(`{"path": ""}`),
+				Aggregate: "last",
 			},
 		},
 	}}
@@ -265,18 +263,16 @@ func TestReduceInferenceData_UsesExtractionMappingOfMetadata(t *testing.T) {
 			}},
 	}
 
-	mapping := &InferenceDataConf{map[string]*InferenceDataSource{
+	mapping := &InferenceDataConf{map[string][]*ExtractionConf{
 		"lit_data": {
-			VariableExtractionMapping: []*ExtractionConf{},
-			MetadataExtractionMapping: []*ExtractionConf{
-				{
-					Key:       "other_md",
-					Name:      "other_md",
-					ValueType: "categorical",
-					Function:  "select",
-					Params:    []byte(`{"path": "key"}`),
-					Aggregate: "last",
-				},
+			{
+				Location:  "metadata",
+				Key:       "other_md",
+				Name:      "other_md",
+				ValueType: "categorical",
+				Function:  "select",
+				Params:    []byte(`{"path": "key"}`),
+				Aggregate: "last",
 			},
 		},
 	}}
@@ -297,18 +293,16 @@ func TestReduceInferenceData_WorksWithSelectKVPairFunction(t *testing.T) {
 			}},
 	}
 
-	mapping := &InferenceDataConf{map[string]*InferenceDataSource{
+	mapping := &InferenceDataConf{map[string][]*ExtractionConf{
 		"lit_data": {
-			VariableExtractionMapping: []*ExtractionConf{},
-			MetadataExtractionMapping: []*ExtractionConf{
-				{
-					Key:       "other_md",
-					Name:      "other_md",
-					ValueType: "categorical",
-					Function:  "vlab-kv-pair-select",
-					Params:    []byte(`{"path": "", "key": "key"}`),
-					Aggregate: "last",
-				},
+			{
+				Location:  "metadata",
+				Key:       "other_md",
+				Name:      "other_md",
+				ValueType: "categorical",
+				Function:  "vlab-kv-pair-select",
+				Params:    []byte(`{"path": "", "key": "key"}`),
+				Aggregate: "last",
 			},
 		},
 	}}
@@ -329,17 +323,16 @@ func TestReduceInferenceData_WorksCastingStringsToContinuousValues(t *testing.T)
 			}},
 	}
 
-	mapping := &InferenceDataConf{map[string]*InferenceDataSource{
+	mapping := &InferenceDataConf{map[string][]*ExtractionConf{
 		"lit_data": {
-			VariableExtractionMapping: []*ExtractionConf{
-				{
-					Key:       "q1",
-					Name:      "q1",
-					ValueType: "continuous",
-					Function:  "select",
-					Params:    []byte(`{"path": ""}`),
-					Aggregate: "max",
-				},
+			{
+				Location:  "variable",
+				Key:       "q1",
+				Name:      "q1",
+				ValueType: "continuous",
+				Function:  "select",
+				Params:    []byte(`{"path": ""}`),
+				Aggregate: "max",
 			},
 		},
 	}}
@@ -353,19 +346,9 @@ func TestReduceInferenceData_WorksCastingStringsToContinuousValues(t *testing.T)
 func TestReduceInferenceData_ReturnsErrorWhenNonExistantDataSource(t *testing.T) {
 	events := testEvents("events_a.json")
 
-	mapping := &InferenceDataConf{map[string]*InferenceDataSource{
-		"foo": {
-			VariableExtractionMapping: []*ExtractionConf{
-				{},
-			},
-			MetadataExtractionMapping: nil,
-		},
-		"bar": {
-			VariableExtractionMapping: []*ExtractionConf{
-				{},
-			},
-			MetadataExtractionMapping: nil,
-		},
+	mapping := &InferenceDataConf{map[string][]*ExtractionConf{
+		"foo": {},
+		"bar": {},
 	}}
 
 	_, extractionErrors, err := Reduce(events, mapping)
@@ -379,12 +362,13 @@ func TestReduceInferenceData_ReturnsErrorWhenNonExistantDataSource(t *testing.T)
 func TestReduceInferenceData_SkipsUsersWhenInvalidExtractionParamsForFunction(t *testing.T) {
 	events := testEvents("events_a.json")
 
-	mapping := &InferenceDataConf{map[string]*InferenceDataSource{
+	mapping := &InferenceDataConf{map[string][]*ExtractionConf{
 		"lit_data": {
-			VariableExtractionMapping: []*ExtractionConf{
-				{Key: "q1", Function: "select", Params: []byte(`{"missing": "key"}`)},
-			},
-			MetadataExtractionMapping: nil,
+			{
+				Location: "variable",
+				Key:      "q1",
+				Function: "select",
+				Params:   []byte(`{"missing": "key"}`)},
 		},
 	}}
 
@@ -393,12 +377,13 @@ func TestReduceInferenceData_SkipsUsersWhenInvalidExtractionParamsForFunction(t 
 	e := extractionErrors[0]
 	assert.Contains(t, e.Error(), "Path")
 
-	mapping = &InferenceDataConf{map[string]*InferenceDataSource{
+	mapping = &InferenceDataConf{map[string][]*ExtractionConf{
 		"lit_data": {
-			VariableExtractionMapping: []*ExtractionConf{
-				{Key: "q1", Function: "select", Params: []byte(`notjson`)},
-			},
-			MetadataExtractionMapping: nil,
+			{
+				Location: "variable",
+				Key:      "q1",
+				Function: "select",
+				Params:   []byte(`notjson`)},
 		},
 	}}
 
@@ -412,12 +397,13 @@ func TestReduceInferenceData_SkipsUsersWhenInvalidExtractionParamsForFunction(t 
 func TestReduceInferenceData_ReturnsExtractionErrorsWhenExtractionFunctionFails(t *testing.T) {
 	events := testEvents("events_a.json")
 
-	mapping := &InferenceDataConf{map[string]*InferenceDataSource{
+	mapping := &InferenceDataConf{map[string][]*ExtractionConf{
 		"lit_data": {
-			VariableExtractionMapping: []*ExtractionConf{
-				{Key: "q1", Function: "select", Params: []byte(`{"path": "does.not.exist.in.json"}`)},
-			},
-			MetadataExtractionMapping: nil,
+			{
+				Location: "variable",
+				Key:      "q1",
+				Function: "select",
+				Params:   []byte(`{"path": "does.not.exist.in.json"}`)},
 		},
 	}}
 
@@ -432,12 +418,13 @@ func TestReduceInferenceData_ReturnsExtractionErrorsWhenExtractionFunctionFails(
 func TestReduceInferenceData_ReturnsErrorWhenExtractionFunctionDoesNotExist(t *testing.T) {
 	events := testEvents("events_a.json")
 
-	mapping := &InferenceDataConf{map[string]*InferenceDataSource{
+	mapping := &InferenceDataConf{map[string][]*ExtractionConf{
 		"lit_data": {
-			VariableExtractionMapping: []*ExtractionConf{
-				{Key: "q1", Function: "nopenotathing", Params: []byte(`{"path": "does.not.exist.in.json"}`)},
-			},
-			MetadataExtractionMapping: nil,
+			{
+				Location: "variable",
+				Key:      "q1",
+				Function: "nopenotathing",
+				Params:   []byte(`{"path": "does.not.exist.in.json"}`)},
 		},
 	}}
 
