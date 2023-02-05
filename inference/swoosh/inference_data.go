@@ -192,7 +192,7 @@ func extractValue(id InferenceData, e *InferenceDataEvent, extractionConfs []*Ex
 	for _, conf := range extractionConfs {
 		retrieve, err := getRetrieveFunc(conf)
 		if err != nil {
-			return nil, err
+			return id, err
 		}
 
 		val, ok := retrieve(e, conf)
@@ -202,12 +202,12 @@ func extractValue(id InferenceData, e *InferenceDataEvent, extractionConfs []*Ex
 
 		val, err = conf.Extract(val)
 		if err != nil {
-			return nil, err
+			return id, err
 		}
 
 		v := &InferenceDataValue{e.Timestamp, conf.Name, val, conf.ValueType}
 
-		id, err := addValue(conf, id, e.User.ID, v)
+		id, err = addValue(conf, id, e.User.ID, v)
 		if err != nil {
 			return id, err
 		}
@@ -233,9 +233,6 @@ func Reduce(events []*InferenceDataEvent, c *InferenceDataConf) (InferenceData, 
 				c.Sources())
 		}
 
-		// attempt to extract the values from the user metadata, according to config
-		// TODO: should this have a nil check? Preferably not!
-
 		// add from metadata
 		var err error
 		id, err = extractValue(id, e, sourceConf)
@@ -244,12 +241,6 @@ func Reduce(events []*InferenceDataEvent, c *InferenceDataConf) (InferenceData, 
 			continue
 		}
 
-		// attempt to extract the values from the event itself, according to config
-		// id, err = extractValue(id, e, sourceConf.VariableExtractionMapping, retrieveFromVariable)
-		// if err != nil {
-		// 	extractionErrors = append(extractionErrors, err)
-		// 	continue
-		// }
 	}
 
 	return id, extractionErrors, nil

@@ -252,6 +252,41 @@ func TestReduceInferenceData_CollectsMetadataWithTimestampFirstEventOfUniqueValu
 	assert.Equal(t, expected, actual)
 }
 
+func TestReduceInferenceData_CanExtractTimestamps(t *testing.T) {
+	// has json as metadata
+	events := testEvents("events_b.json")
+
+	expected := InferenceData{
+		"foo": {"foo",
+			map[string]*InferenceDataValue{
+				"start_time": {ti("07"), "start_time", []byte(`"2021-07-07T00:00:00Z"`), "categorical"},
+			}},
+		"bar": {"bar",
+			map[string]*InferenceDataValue{
+				"start_time": {ti("10"), "start_time", []byte(`"2021-07-10T00:00:00Z"`), "categorical"},
+			}},
+	}
+
+	mapping := &InferenceDataConf{map[string][]*ExtractionConf{
+		"lit_data": {
+			{
+				Location:  "timestamp",
+				Key:       "",
+				Name:      "start_time",
+				ValueType: "categorical",
+				Function:  "select",
+				Params:    []byte(`{"path": ""}`),
+				Aggregate: "first",
+			},
+		},
+	}}
+
+	actual, extractionErrors, err := Reduce(events, mapping)
+	assert.Nil(t, err)
+	assert.Equal(t, len(extractionErrors), 0)
+	assert.Equal(t, expected, actual)
+}
+
 func TestReduceInferenceData_UsesExtractionMappingOfMetadata(t *testing.T) {
 	// has json as metadata
 	events := testEvents("events_d.json")
