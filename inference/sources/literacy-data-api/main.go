@@ -117,7 +117,13 @@ func (lde *LitDataEvent) AsInferenceDataEvent(source *Source, idx int) *Inferenc
 	md["traffic_source"], _ = json.Marshal(lde.TrafficSource.Source)
 
 	from := fmt.Sprintf("%d", lde.EventTimestamp.Time.UnixMicro())
-	variable := lde.EventName + "_" + lde.EventParams.Action
+
+	var variable string
+	if lde.EventParams.Action != "" {
+		variable = lde.EventName + "_" + lde.EventParams.Action
+	} else {
+		variable = lde.EventName
+	}
 
 	return &InferenceDataEvent{
 		User:       User{ID: lde.UserPseudoID, Metadata: md},
