@@ -1,4 +1,4 @@
-import destinations from '../pages/NewStudyPage/configs/destinations/destinations';
+import destinations from '../pages/NewStudyPage/form/configs/destinations/destinations';
 import mapDestinations from './mapDestinations';
 
 describe('mapDestinations', () => {
