@@ -1,10 +1,10 @@
 import {
   mapValueToKey,
-  getInitialValue,
   assignObject,
   getValueByProp,
   stringLookup,
   isJSON,
+  reducer,
 } from './objects';
 
 describe('mapValueToKey', () => {
@@ -32,49 +32,6 @@ describe('mapValueToKey', () => {
 
     const res = mapValueToKey(value, key, config);
     expect(res).toStrictEqual(expectation);
-  });
-});
-
-describe('getInitialValue', () => {
-  it('takes an object and returns an initial value based on a given key', () => {
-    const textField = {
-      name: 'foo',
-      type: 'text',
-      label: 'Foo',
-      helper_text: 'baz',
-    };
-
-    const emptyString = '';
-
-    let res = getInitialValue(textField, 'type');
-
-    expect(res).toStrictEqual(emptyString);
-
-    const numberField = {
-      name: 'bar',
-      type: 'number',
-      label: 'Bar',
-      helper_text: 'foobaz',
-    };
-
-    const zero = 0;
-
-    res = getInitialValue(numberField, 'type');
-
-    expect(res).toStrictEqual(zero);
-
-    const selectField = {
-      name: 'bar',
-      type: 'select',
-      label: 'Bar',
-      helper_text: 'foobaz',
-    };
-
-    const emptyString2 = '';
-
-    res = getInitialValue(selectField, 'type');
-
-    expect(res).toStrictEqual(emptyString2);
   });
 });
 
@@ -122,6 +79,21 @@ describe('isJSONObject', () => {
     const expectation = true;
 
     const res = isJSON(myJSON);
+    expect(res).toStrictEqual(expectation);
+  });
+});
+
+describe('reducer', () => {
+  it('takes an array of objects and reduces to one single object', () => {
+    var arr = [
+      { name: 'foo', value: 'bar' },
+      { name: 'foobar', value: 'baz' },
+    ];
+
+    const expectation = { foo: 'bar', foobar: 'baz' };
+
+    const res = reducer(arr);
+
     expect(res).toStrictEqual(expectation);
   });
 });

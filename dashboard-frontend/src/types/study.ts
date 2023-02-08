@@ -20,26 +20,6 @@ export interface CreateUserApiResponse
 
 export interface CreateStudyApiResponse extends ApiResponse<StudyResource> {}
 
-export interface CreateStudyConfigData extends Record<string, any> {
-  title: string;
-  description: string;
-  fields?: StudyFieldResource[];
-}
-
-export interface StudyFieldResource {
-  name: string;
-  type: string;
-  label: string;
-  helper_text?: string;
-  defaultValue?: string;
-  options?: {
-    name: string;
-    label: string;
-  }[];
-  call_to_action?: string;
-  list_ref?: string;
-}
-
 export interface StudyResource {
   id: string;
   name: string;

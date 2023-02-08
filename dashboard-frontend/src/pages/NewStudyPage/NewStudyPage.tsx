@@ -1,16 +1,17 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import PageLayout from '../../components/PageLayout';
 import Navbar from '../../components/NavBar';
-import { general } from './configs/general';
-import { destinations } from './configs/destinations/destinations';
-import { recruitment } from './configs/recruitment/recruitment';
-import { creative } from './configs/creative';
-import { targeting } from './configs/targeting';
-import { targeting_distribution } from './configs/targeting_distribution';
-import { CreateStudyConfigData } from '../../types/study';
-import ConfigSelect from './forms/ConfigSelect';
-import ConfigList from './forms/ConfigList';
-import ConfigObject from './forms/ConfigObject';
+import Form from './form/components/Form';
+import { general } from './form/configs/general';
+import { destinations } from './form/configs/destinations/destinations';
+import { recruitment } from './form/configs/recruitment/recruitment';
+import { creative } from './form/configs/creative';
+import { targeting } from './form/configs/targeting';
+import { targeting_distribution } from './form/configs/targeting_distribution';
+import { ConfigBase } from '../../types/form';
+import simpleController from './form/controllers/simple';
+import recruitmentController from './form/controllers/recruitment';
+import destinationsController from './form/controllers/destinations';
 
 const NewStudyPage = () => (
   <PageLayout title={'New Study'} testId="new-study-page" showBackButton>
@@ -19,7 +20,7 @@ const NewStudyPage = () => (
 );
 
 const PageContent = () => {
-  const configs: Record<string, CreateStudyConfigData | any> = {
+  const configs: Record<string, ConfigBase | any> = {
     general,
     destinations,
     recruitment,
@@ -36,37 +37,37 @@ const PageContent = () => {
   const [formData, setFormData] = useState<any>({});
 
   const lookup: any = {
-    configObject: ConfigObject,
-    configSelect: ConfigSelect,
-    configList: ConfigList,
+    configObject: simpleController,
+    configSelect: recruitmentController,
+    configList: destinationsController,
   };
 
-  const str: keyof CreateStudyConfigData = 'type';
+  const str: keyof ConfigBase = 'type';
 
   const type = config[str];
-  const Component = lookup[type];
+  const controller = lookup[type];
 
-  if (!Component) {
-    throw new Error(`Could not find form for config type: ${type}`);
+  console.log(formData);
+
+  if (!controller) {
+    throw new Error(`Could not find form for controller type: ${type}`);
   }
 
   const updateFormData = (x: any) => {
     setFormData({ ...formData, [title]: x });
   };
 
-  console.log(formData);
-
   const isLast = index === configsToArr.length - 1 ? true : false;
 
   return (
     <>
       <Navbar configKeys={configKeys} setIndex={setIndex} />
-      <Component
+      <Form
+        controller={controller}
         config={config}
-        setIndex={setIndex}
-        setFormData={updateFormData}
         isLast={isLast}
-        title={title}
+        setIndex={setIndex}
+        updateFormData={updateFormData}
       />
     </>
   );
