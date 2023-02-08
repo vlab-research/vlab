@@ -1,17 +1,20 @@
-import List from '../pages/NewStudyPage/inputs/List';
-import Select from '../pages/NewStudyPage/inputs/Select';
-import Text from '../pages/NewStudyPage/inputs/Text';
-import { StudyFieldResource } from '../types/study';
+import Button from '../pages/NewStudyPage/form/buttons/Button';
+import List from '../pages/NewStudyPage/form/inputs/List';
+import Select from '../pages/NewStudyPage/form/inputs/Select';
+import Text from '../pages/NewStudyPage/form/inputs/Text';
+import { ConfigBase, FieldBase } from '../types/form';
+import { getInitialValue } from './getInitialValue';
 import { createNameFor } from './strings';
 
-const str: keyof StudyFieldResource = 'type';
+const str: keyof FieldBase = 'type';
 
-export const formBuilder = (field: StudyFieldResource) => {
+export const stateBuilder = (field: FieldBase) => {
   const lookup: any = {
     text: Text,
     number: Text,
     select: Select,
     list: List,
+    button: Button,
   };
 
   const type = field[str];
@@ -31,7 +34,7 @@ export const formBuilder = (field: StudyFieldResource) => {
     helper_text: field.helper_text ?? field.helper_text,
     defaultValue: field.defaultValue ?? field.defaultValue,
     call_to_action: field.call_to_action ?? field.call_to_action,
-    options: field.options?.map((option: any) =>
+    options: field.options?.map((option: ConfigBase | any) =>
       option.title
         ? {
             name: createNameFor(option.title),
@@ -40,5 +43,6 @@ export const formBuilder = (field: StudyFieldResource) => {
           }
         : option
     ),
+    value: getInitialValue(field, 'type'),
   };
 };

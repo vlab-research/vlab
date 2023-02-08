@@ -1,10 +1,10 @@
-import { CreateStudyConfigData } from '../types/study';
+import { ConfigBase } from '../types/form';
 import { createNameFor } from './strings';
 
-export const mapDestinations = (config: CreateStudyConfigData) => {
+export const mapDestinations = (config: ConfigBase) => {
   const { selector } = config;
 
-  return selector.options.map((option: any) => {
+  return selector?.options.map((option: ConfigBase) => {
     return { name: createNameFor(option.title), label: option.title };
   });
 };

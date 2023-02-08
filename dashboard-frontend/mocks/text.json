@@ -1,6 +1,6 @@
 {
-  "name": "foo_bar",
+  "name": "foo",
   "type": "text",
   "label": "Foo",
-  "helpertext": "foo"
+  "helper_text": "foo"
 }

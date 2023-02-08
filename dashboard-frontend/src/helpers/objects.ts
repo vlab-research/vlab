@@ -2,28 +2,6 @@ export const mapValueToKey = (value: string, key: string, config: any) => {
   return { value, key, config };
 };
 
-export const getInitialValue = (obj: any, key: string) => {
-  if (obj[key] === 'text') {
-    return '';
-  }
-  if (obj[key] === 'select') {
-    return {};
-  }
-  if (obj[key] === 'number') {
-    return 0;
-  }
-  if (obj[key] === 'list') {
-    return [];
-  }
-  if (obj[key] === 'configSelect') {
-    return {};
-  }
-  if (obj[key] === 'configList') {
-    return [];
-  }
-  return;
-};
-
 export const assignObject = (str: string, value: any) => {
   const object = {
     [str]: value,
@@ -50,7 +28,12 @@ export const isJSON = (strData: any) => {
 };
 
 export const checkPropertyExists = (obj: any, prop: string) => {
-  const keys = Object.keys(obj);
-  console.log(keys.some(key => key === prop));
-  return keys.some(key => key === prop);
+  return Object.keys(obj).some(key => key === prop);
+};
+
+export const reducer = (arr: any[]) => {
+  return arr.reduce(
+    (obj: any, item: any) => ({ ...obj, [item.name]: item.value }),
+    {}
+  );
 };
