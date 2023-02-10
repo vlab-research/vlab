@@ -23,6 +23,7 @@ class SourceConf(BaseModel):
 
 
 class ExtractionConf(BaseModel):
+    location: str
     key: str
     name: str
     function: str
@@ -31,13 +32,8 @@ class ExtractionConf(BaseModel):
     aggregate: str
 
 
-class InferenceDataSource(BaseModel):
-    variable_extraction: list[ExtractionConf]
-    metadata_extraction: list[ExtractionConf]
-
-
 class InferenceDataConf(BaseModel):
-    data_sources: dict[str, InferenceDataSource]
+    data_sources: dict[str, list[ExtractionConf]]
 
 
 class UserInfo(BaseModel):
@@ -317,6 +313,7 @@ def _divide_among_days_left(budget: Budget, days_left) -> Budget:
 
 
 def _deal_with_mins(min_budget, budget):
+    # round to nearest cent!
     budget = {k: floor(v * 100) / 100 for k, v in budget.items()}
     return {k: 0 if v < min_budget else v for k, v in budget.items()}
 
