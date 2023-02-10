@@ -1,45 +1,34 @@
-[tool.pdm]
-[tool.pdm.dev-dependencies]
-dev = [
-    "python-language-server[all]<1.0.0,>=0.36.2",
-    "pyls-black<1.0.0,>=0.4.6",
-    "pyls-isort<1.0.0,>=0.2.0",
-    "future<1.0.0,>=0.18.2",
-    "pylint<3.0.0,>=2.8.2",
-    "pytest<7.0.0,>=6.2.4",
-    "pytest-xdist<3.0.0,>=2.2.1",
-    "coverage<6.0,>=5.5",
-]
-
-[tool.pdm.build]
-includes = []
-[build-system]
-requires = ["pdm-pep517>=1.0.0"]
-build-backend = "pdm.pep517.api"
-
-[project]
+[tool.poetry]
 name = "adopt"
 version = "0.0.84"
 description = ""
-authors = [
-    {name = "Nandan Rao", email = "nandanmarkrao@gmail.com"},
-]
-dependencies = [
-    "PyYAML<6.0.0,>=5.4.1",
-    "backoff<2.0.0,>=1.10.0",
-    "environs<10.0.0,>=9.3.2",
-    "facebook-business>=14.0.0",
-    "numpy<2.0.0,>=1.20.2",
-    "pandas<2.0.0,>=1.2.4",
-    "psycopg2-binary<3.0.0,>=2.8.6",
-    "requests<3.0.0,>=2.25.1",
-    "scipy<2.0.0,>=1.6.3",
-    "toolz<1.0.0,>=0.11.1",
-    "pystache<1.0.0,>=0.6.0",
-    "setuptools<64.0.0,>=63.4.2",
-    "typedjson @ git+https://github.com/nandanrao/typedjson-python@353685be3b8b6d4c65eb345f388d3750072c9b10",
-]
-requires-python = ">=3.9,<3.10"
-license = {text = "MIT"}
+authors = ["Nandan Rao <nandanmarkrao@gmail.com>"]
 
-[project.urls]
+[tool.poetry.dependencies]
+python = ">=3.9,<3.10"
+PyYAML = "^5.4.1"
+backoff = "^1.10.0"
+environs = "^9.3.2"
+facebook-business = "^12.0.0"
+numpy = "^1.20.2"
+pandas = "^1.2.4"
+psycopg2-binary = "^2.8.6"
+pystache = "^0.5.4"
+requests = "^2.25.1"
+scipy = "^1.6.3"
+toolz = "^0.11.1"
+typedjson = {git = "https://github.com/nandanrao/typedjson-python", rev = "353685be3b8b6d4c65eb345f388d3750072c9b10"}
+
+[tool.poetry.dev-dependencies]
+python-language-server = {extras = ["all"], version = "^0.36.2"}
+pyls-black = "^0.4.6"
+pyls-isort = "^0.2.0"
+future = "^0.18.2"
+pylint = "^2.8.2"
+pytest = "^6.2.4"
+pytest-xdist = "^2.2.1"
+coverage = "^5.5"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"

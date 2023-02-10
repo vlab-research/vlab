@@ -2,16 +2,13 @@ FROM python:3.9
 
 WORKDIR /usr/src/app
 
-RUN pip install pdm
+RUN pip install --no-cache-dir poetry
 
-RUN pdm config python.use_venv false
+RUN poetry config virtualenvs.create false
+COPY poetry.lock pyproject.toml ./
 
-COPY pdm.lock pyproject.toml ./
-
-RUN pdm install --prod --no-lock --no-editable
-
-ENV PYTHONPATH=/usr/src/app/__pypackages__/3.9/lib
+RUN poetry install --no-dev
 
 COPY . .
 
-CMD [ "python", "./malaria_ads.py" ]
+CMD [ "python", "./malaria.py" ]
