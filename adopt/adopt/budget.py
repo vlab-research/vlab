@@ -1,7 +1,7 @@
 import logging
 from math import ceil
 from statistics import mean
-from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
+from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
 import pandas as pd
@@ -12,7 +12,7 @@ from .facebook.state import DateRange
 from .study_conf import Budget, Stratum, StratumConf
 
 
-def _filter_by_join_time(df, pred):
+def _filter_by_join_time(df: pd.DataFrame, pred: Callable[[pd.Series], bool]):
     initial_events = (
         df.groupby("user_id")
         .apply(lambda df: df.sort_values("timestamp").iloc[0])
@@ -23,7 +23,7 @@ def _filter_by_join_time(df, pred):
     return df[df.user_id.isin(users)].reset_index(drop=True)
 
 
-def _users_per_cluster(df):
+def _users_per_cluster(df: pd.DataFrame) -> dict[str, int]:
     return (
         df.groupby("cluster").apply(lambda df: df.user_id.unique().shape[0]).to_dict()
     )
@@ -33,7 +33,7 @@ class AdDataError(BaseException):
     pass
 
 
-def estimate_price(spend, found):
+def estimate_price(spend: float, found: int):
     # Estimates # people/dollar as Poisson with Gamma prior
 
     spend = round(spend)
@@ -50,7 +50,7 @@ def estimate_price(spend, found):
     return price
 
 
-def calc_price(df, window: DateRange, spend):
+def calc_price(df: pd.DataFrame, window: DateRange, spend: dict[str, float]):
     # filter by time
     def pred(st):
         return st.timestamp >= window.start_date and st.timestamp <= window.until_date
