@@ -20,13 +20,21 @@ def _filter_by_join_time(df: pd.DataFrame, pred: Callable[[pd.Series], bool]):
     )
 
     users = _users_by_predicate(initial_events, pred)
+
     return df[df.user_id.isin(users)].reset_index(drop=True)
 
 
 def _users_per_cluster(df: pd.DataFrame) -> dict[str, int]:
-    return (
-        df.groupby("cluster").apply(lambda df: df.user_id.unique().shape[0]).to_dict()
+    if df.shape[0] == 0:
+        return {}
+
+    x = (
+        df.groupby("cluster", group_keys=False)
+        .apply(lambda df: df.user_id.unique().shape[0])
+        .to_dict()
     )
+
+    return x
 
 
 class AdDataError(BaseException):

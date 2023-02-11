@@ -6,9 +6,9 @@ import pytest
 from .budget import (calc_price, estimate_price, get_budget_lookup, get_stats,
                      make_report, prep_df_for_budget, proportional_budget)
 from .facebook.date_range import DateRange
-from .test_clustering import _format_df, cnf, conf, df
+from .test_clustering import DATE, _format_df, cnf, conf, df
 
-START_DATE = datetime(2020, 1, 1)
+START_DATE = DATE
 UNTIL_DATE = datetime(2020, 1, 3)
 
 
@@ -71,13 +71,22 @@ def test_calc_price_pretends_as_if_found_fractional_user_when_no_user(cnf, df):
     assert price == {"bar": 7.33, "baz": 7.33, "foo": 22.0}
 
 
-def test_calc_price_picks_prior_if_no_spend_(cnf, df):
+def test_calc_price_picks_prior_if_no_spend(cnf, df):
     window = DateRange(START_DATE, UNTIL_DATE)
     spend = {"bar": 10.0, "baz": 10.0, "foo": 0.0}
     df = prep_df_for_budget(df, cnf)
 
     price = calc_price(df, window, spend)
     assert price == {"bar": 7.33, "baz": 7.33, "foo": 2.0}
+
+
+def test_calc_price_works_with_nobody_in_window(cnf, df):
+    window = DateRange(UNTIL_DATE + timedelta(days=2), UNTIL_DATE + timedelta(days=4))
+    spend = {"bar": 10.0, "baz": 10.0, "foo": 10.0}
+    df = prep_df_for_budget(df, cnf)
+
+    price = calc_price(df, window, spend)
+    assert price == {"bar": 22.0, "baz": 22.0, "foo": 22.0}
 
 
 def test_proportional_budget_optimizes_all_budget():
