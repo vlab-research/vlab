@@ -6,8 +6,8 @@ from .study_conf import (DestinationRecruitmentExperiment,
                          PipelineRecruitmentExperiment, SimpleRecruitment)
 
 
-def _dt(day, month=1, year=2022):
-    return datetime(year, month, day)
+def _dt(day, month=1, year=2022, hour=0, minute=0):
+    return datetime(year, month, day, hour=hour, minute=minute)
 
 
 def _simple(name="foo", start_date=_dt(1), end_date=_dt(3)):
@@ -114,10 +114,6 @@ def _strat(id_, quota=0.5):
     )
 
 
-def _dt(day, month=1, year=2022):
-    return datetime(year=year, month=month, day=day)
-
-
 def test_simple_spend_for_day_returns_base_budget_when_no_budget_proposal():
     strata = [_strat("foo"), _strat("bar"), _strat("baz")]
     start = _dt(1)
@@ -135,6 +131,19 @@ def test_simple_spend_for_day_returns_budget_proposal_when_one_day_left():
     start = _dt(1)
     end = _dt(10)
     now = _dt(9)
+    r = _simple("study", start, end)
+    budget = {"foo": 3.0, "bar": 1.0, "baz": 5.0}
+    res = r.spend_for_day(strata, 1, budget, now)
+    assert res == {"study": budget}
+
+
+def test_simple_spend_for_day_returns_budget_proposal_when_less_than_one_day_left():
+    strata = [_strat("foo"), _strat("bar"), _strat("baz")]
+
+    start = _dt(1)
+    end = _dt(10)
+    now = _dt(9, hour=12)
+
     r = _simple("study", start, end)
     budget = {"foo": 3.0, "bar": 1.0, "baz": 5.0}
     res = r.spend_for_day(strata, 1, budget, now)

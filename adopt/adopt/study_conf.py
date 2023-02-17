@@ -3,7 +3,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 # from dataclasses import dataclass, fields
 from dataclasses import fields
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 from math import floor
 from typing import Any, Dict, List, NamedTuple, Optional, Tuple, Union
 
@@ -110,6 +110,13 @@ class BaseRecruitmentConf(BaseModel, ABC):
         pass
 
 
+def get_days_left(end_date: datetime, now: datetime):
+    end_date = end_date.replace(hour=0, minute=0, second=0, microsecond=0)
+    now = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    delta = end_date - now
+    return delta.days
+
+
 class SimpleRecruitment(BaseRecruitmentConf):
     ad_campaign_name: str
     budget: int
@@ -146,7 +153,8 @@ class SimpleRecruitment(BaseRecruitmentConf):
         if budget is None:
             return {campaign: _base_budget(min_budget, strata)}
 
-        budget = _divide_among_days_left(budget, (self.end_date - now).days)
+        days_left = get_days_left(self.end_date, now)
+        budget = _divide_among_days_left(budget, days_left)
         return {campaign: _deal_with_mins(min_budget, budget)}
 
 
@@ -199,7 +207,7 @@ class PipelineRecruitmentExperiment(BaseRecruitmentConf):
         return self.ad_campaign_name_base
 
     def current_campaign(self, now: datetime) -> Tuple[Optional[int], Optional[int]]:
-        days_in = (now - self.start_date).days
+        days_in = get_days_left(now, self.start_date)
 
         if days_in < 0:
             return None, None
@@ -290,7 +298,8 @@ class DestinationRecruitmentExperiment(BaseRecruitmentConf):
             return {c: _base_budget(min_budget, strata) for c in self.campaign_names}
 
         arms = len(self.destinations)
-        budg = _divide_among_days_left(budget, (self.end_date - now).days)
+        days_left = get_days_left(self.end_date, now)
+        budg = _divide_among_days_left(budget, days_left)
         budg = {k: v / arms for k, v in budg.items()}
         budg = _deal_with_mins(min_budget, budg)
 
