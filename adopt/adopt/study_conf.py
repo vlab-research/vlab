@@ -346,7 +346,6 @@ class GeneralConf(BaseModel):
     min_budget: float
     opt_window: int
     ad_account: str
-    country_code: str
     extra_metadata: dict[str, str]
 
 
