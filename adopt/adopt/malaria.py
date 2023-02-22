@@ -180,6 +180,8 @@ def run_updates(fn: AdoptJob) -> None:
     for s in studies:
         study, state = load_basics(s, db_conf, env)
 
+        logging.info(f"Updating {study.general.name}")
+
         instructions, report = fn(db_conf, study, state)
 
         if instructions is None:
