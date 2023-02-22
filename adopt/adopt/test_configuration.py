@@ -69,3 +69,65 @@ def test_read_share_lookup_works_with_three_variables():
         share_lookup[["location", "gender", "age"]]
     )
     assert np.allclose(share_lookup.percentage.values, expect.percentage.values)
+
+
+def test_read_share_lookup_works_with_four_variables():
+    config_file = "test/targeting_distribution_test_sheet.xlsx"
+
+    share_lookup = read_share_lookup(
+        config_file, ["location", "gender", "age", "education"], "targeting_distribution_four"
+    )
+
+    expect = pd.DataFrame(
+        [
+            ("West", "1", "18", "a", 0.12),
+            ("East", "1", "18", "a", 0.08),
+            ("West", "2", "18", "a", 0.04),
+            ("East", "2", "18", "a", 0.16),
+            ("West", "1", "40", "a", 0.18),
+            ("East", "1", "40", "a", 0.12),
+            ("West", "2", "40", "a", 0.06),
+            ("East", "2", "40", "a", 0.24),
+            ("West", "1", "18", "b", 0.12),
+            ("East", "1", "18", "b", 0.08),
+            ("West", "2", "18", "b", 0.04),
+            ("East", "2", "18", "b", 0.16),
+            ("West", "1", "40", "b", 0.18),
+            ("East", "1", "40", "b", 0.12),
+            ("West", "2", "40", "b", 0.06),
+            ("East", "2", "40", "b", 0.24),
+        ],
+        columns=["location", "gender", "age", "education", "percentage"],
+    )
+
+    assert expect[["location", "gender", "age"]].equals(
+        share_lookup[["location", "gender", "age"]]
+    )
+    assert np.allclose(share_lookup.percentage.values, expect.percentage.values)
+
+
+def test_read_share_lookup_works_with_four_variables_and_one_location():
+    config_file = "test/targeting_distribution_test_sheet.xlsx"
+
+    share_lookup = read_share_lookup(
+        config_file, ["location", "gender", "age", "education"], "targeting_distribution_four_1"
+    )
+
+    expect = pd.DataFrame(
+        [
+            ("West", "1", "18", "a", 0.12),
+            ("West", "2", "18", "a", 0.04),
+            ("West", "1", "40", "a", 0.18),
+            ("West", "2", "40", "a", 0.06),
+            ("West", "1", "18", "b", 0.12),
+            ("West", "2", "18", "b", 0.04),
+            ("West", "1", "40", "b", 0.18),
+            ("West", "2", "40", "b", 0.06),
+        ],
+        columns=["location", "gender", "age", "education", "percentage"],
+    )
+
+    assert expect[["location", "gender", "age"]].equals(
+        share_lookup[["location", "gender", "age"]]
+    )
+    assert np.allclose(share_lookup.percentage.values, expect.percentage.values)

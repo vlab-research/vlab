@@ -172,24 +172,50 @@ def stringify_column(col):
     return str(col)
 
 
-def read_share_lookup(path, distribution_vars, tab_name):
-    header = list(range(0, len(distribution_vars)))
-
+def read_single_value_share_lookup(path, var_name, tab_name):
     df = pd.read_excel(
         path,
-        header=[0,1],
-        index_col=0,
         sheet_name=tab_name,
     )
-
     df = df.dropna(axis=1)
+    df.columns = [var_name, "percentage"]
+
+    return df
+
+
+def read_share_lookup(path, distribution_vars, tab_name):
+    if len(distribution_vars) == 1:
+        return read_single_value_share_lookup(path, distribution_vars[0], tab_name)
+
+    # 2 levels needs some level dropping. Who knows why.
+    if len(distribution_vars) == 2:
+        df = pd.read_excel(
+            path,
+            header=[0, 1],
+            index_col=0,
+            sheet_name=tab_name,
+        )
+        df = df.dropna(axis=1)
+        df.columns = df.columns.droplevel(1)
+
+    # should handle many levels
+    header = list(range(0, len(distribution_vars) - 1))
+
+    if len(distribution_vars) > 2:
+        df = pd.read_excel(
+            path,
+            header=header,
+            index_col=0,
+            sheet_name=tab_name,
+        )
+        df = df.dropna(axis=1)
+
+    # Crazy pandas magic. Probably worth redoing from scratch
     df.index.rename(distribution_vars[0], inplace=True)
     df = df.unstack()
-
-    if isinstance(df.index, pd.MultiIndex):
-        df.index = df.index.reorder_levels(distribution_vars)
-        stringified_vals = [tuple([str(v) for v in t]) for t in df.index]
-        df.index = pd.MultiIndex.from_tuples(stringified_vals, names=df.index.names)
+    df.index = df.index.reorder_levels(distribution_vars)
+    stringified_vals = [tuple([str(v) for v in t]) for t in df.index]
+    df.index = pd.MultiIndex.from_tuples(stringified_vals, names=df.index.names)
 
     return df.reset_index(name="percentage")
 
@@ -260,7 +286,11 @@ def create_location(lat, lng, rad):
 def location_levels(name, rows, exclude=False):
     locs = [create_location(r.lat, r.lng, r.rad) for _, r in rows]
 
-    key = Targeting.Field.excluded_geo_locations if exclude is True else Targeting.Field.geo_locations
+    key = (
+        Targeting.Field.excluded_geo_locations
+        if exclude is True
+        else Targeting.Field.geo_locations
+    )
 
     params = {
         key: {
