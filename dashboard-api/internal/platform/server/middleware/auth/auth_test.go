@@ -9,40 +9,56 @@ import (
 	"testing"
 
 	"github.com/gin-gonic/gin"
-	"github.com/stretchr/testify/assert"
-	"gopkg.in/go-jose/go-jose.v2"
-	"gopkg.in/go-jose/go-jose.v2/jwt"
+	"github.com/go-playground/assert/v2"
+	"gopkg.in/square/go-jose.v2"
+	"gopkg.in/square/go-jose.v2/jwt"
 )
 
 func TestEnsureValidTokenMiddleware(t *testing.T) {
-	domain := "example.com"
 	audience := "aud"
-	jwk := generateJWK(t)
-	testServer := setupTestServer(t, jwk)
+	jwk := GenerateJWK(t)
+	testServer := SetupTestJWKServer(t, jwk)
 	defer testServer.Close()
 
-	t.Run("invalid token", func(t *testing.T) {
-		token := buildJWTForTesting(
+	t.Run("invalid token due to audience", func(t *testing.T) {
+		token := BuildJWTForTesting(
 			t,
 			jwk,
 			testServer.URL,
 			"subject",
-			[]string{"aud"},
+			[]string{"test"},
 		)
-		req := httptest.NewRequest(http.MethodGet, "/", nil)
+		req, _ := http.NewRequest(http.MethodGet, "", nil)
 		req.Header.Set("Authorization", "Bearer "+token)
 		resp := httptest.NewRecorder()
-
 		c, _ := gin.CreateTestContext(resp)
-		EnsureValidTokenMiddleware(domain, audience)(c)
-
-		assert.Equal(t, http.StatusUnauthorized, resp.Code)
-		assert.JSONEq(t, `{"error": "Unauthorized"}`, resp.Body.String())
+		c.Request = req
+		EnsureValidTokenMiddleware(testServer.URL, audience)(c)
+		assert.Equal(t, resp.Code, 401)
+	})
+	t.Run("valid token", func(t *testing.T) {
+		token := BuildJWTForTesting(
+			t,
+			jwk,
+			testServer.URL,
+			"subject",
+			[]string{audience},
+		)
+		req, _ := http.NewRequest(http.MethodGet, "", nil)
+		req.Header.Set("Authorization", "Bearer "+token)
+		resp := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(resp)
+		c.Request = req
+		EnsureValidTokenMiddleware(testServer.URL, audience)(c)
+		assert.Equal(t, resp.Code, 200)
 	})
 
 }
 
-func generateJWK(t *testing.T) *jose.JSONWebKey {
+// GenerateJWK generates a JWK for testing purposes
+// TODO: Move to internal/testhelpers, currently not possible due to cycle
+// import
+func GenerateJWK(t *testing.T) *jose.JSONWebKey {
 	t.Helper()
 
 	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
@@ -58,13 +74,16 @@ func generateJWK(t *testing.T) *jose.JSONWebKey {
 	}
 }
 
-func setupTestServer(
+// SetupTestJWKServer creates a fake server to respond to JWK requests
+// TODO: Move to internal/testhelpers, currently not possible due to cycle
+// import
+func SetupTestJWKServer(
 	t *testing.T,
 	jwk *jose.JSONWebKey,
 ) (server *httptest.Server) {
 	t.Helper()
 
-	var handler http.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.String() {
 		case "/.well-known/openid-configuration":
 			wk := struct {
@@ -89,7 +108,10 @@ func setupTestServer(
 	return httptest.NewServer(handler)
 }
 
-func buildJWTForTesting(
+// BuildJWTForTesting helper to create a valid JWT
+// TODO: Move to internal/testhelpers, currently not possible due to cycle
+// import
+func BuildJWTForTesting(
 	t *testing.T,
 	jwk *jose.JSONWebKey,
 	issuer, subject string,

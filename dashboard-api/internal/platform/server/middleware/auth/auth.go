@@ -15,6 +15,7 @@ import (
 // EnsureValidTokenMiddleware is gin middleware to verify the authenticity of a JWT
 // token sent from a client to authenticated endpoints
 func EnsureValidTokenMiddleware(domain, audience string) gin.HandlerFunc {
+
 	issuerURL, err := url.Parse(domain)
 	if err != nil {
 		log.Fatalf("EnsureValidTokenMiddleware: failed to parse the issuer url: %v", err)
@@ -30,15 +31,20 @@ func EnsureValidTokenMiddleware(domain, audience string) gin.HandlerFunc {
 	)
 
 	if err != nil {
-		log.Fatalf("EnsureValidTokenMiddleware: failed to set up the josev2 validator: %v", err)
+		log.Fatalf(
+			"EnsureValidTokenMiddleware: failed to set up the JWT validator: %v", err,
+		)
 	}
 
 	/*
-		This error handler func is required to override the default behaviour of the jwtmiddleware
-		which writes to the headers and body of the response upon error.
+		This error handler func is required to override the default behaviour of the
+		jwtmiddleware which writes to the headers and body of the response upon error.
 	*/
 	noopErrorHandlerFunc := func(w http.ResponseWriter, r *http.Request, err error) {}
-	middleware := jwtmiddleware.New(validator.ValidateToken, jwtmiddleware.WithErrorHandler(noopErrorHandlerFunc))
+	middleware := jwtmiddleware.New(
+		validator.ValidateToken,
+		jwtmiddleware.WithErrorHandler(noopErrorHandlerFunc),
+	)
 
 	return func(ctx *gin.Context) {
 		var encounteredError = true
@@ -52,11 +58,15 @@ func EnsureValidTokenMiddleware(domain, audience string) gin.HandlerFunc {
 		middleware.CheckJWT(handler).ServeHTTP(ctx.Writer, ctx.Request)
 
 		if encounteredError {
-			ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "JWT is invalid"})
+			ctx.AbortWithStatusJSON(
+				http.StatusUnauthorized,
+				gin.H{"error": "JWT is invalid"},
+			)
 		}
 	}
 }
 
+// GetUserIdFrom gets the registered users ID from the gin context
 func GetUserIdFrom(ctx *gin.Context) string {
 	return ctx.Request.Context().Value(jwtmiddleware.ContextKey{}).(*validator.ValidatedClaims).RegisteredClaims.Subject
 }

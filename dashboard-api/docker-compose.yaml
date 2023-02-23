@@ -1,5 +1,25 @@
 version: '3'
 services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    environment:
+      API_HOST: 0.0.0.0
+      API_PORT: 80
+      DATABASE_NAME: vlab
+      DATABASE_HOST: cockroachdb
+      DATABASE_PORT: 26257
+      DATABASE_USER: root
+    ports:
+      - 80:80
+    depends_on:
+      - setup_cockroachdb
+    networks:
+      - dashboard-api
+    volumes:
+      - .:/app
+    entrypoint: air
   cockroachdb:
     image: cockroachdb/cockroach:v21.2.3
     entrypoint: cockroach start-single-node --insecure --advertise-addr localhost
