@@ -1,18 +1,11 @@
-import { createMockState, Seed } from '../../../../helpers/mockState';
 import { general } from '../configs/general';
 import simple from './simple';
-import {
-  initialiseGlobalState,
-  updateLocalState,
-} from '../../../../helpers/state';
+import { initialiseGlobalState } from '../../../../helpers/state';
+import { targeting } from '../configs/targeting';
+import Select from '../inputs/Select';
+import Text from '../inputs/Text';
 
 describe('simple controller', () => {
-  let seeds: any[] = [
-    { name: 'foo', type: 'text', helper_text: 'foo!' },
-    { name: 'bar', type: 'select' },
-    { name: 'baz', type: 'list' },
-  ];
-
   it('given a config it creates an initial state when no state is defined', () => {
     const config = general;
 
@@ -22,40 +15,65 @@ describe('simple controller', () => {
     expect(res).toStrictEqual(expectation);
   });
 
-  // it('given some local state and an event it updates the value of the target field', () => {
-  //   const config = general;
-  //   const state = createMockState(seeds);
-  //   const event = { name: 'foo', value: 'baz' };
+  it('given some local state and an event it updates the value of the target field', () => {
+    let config = targeting;
+    let state = initialiseGlobalState(config);
+    const event = { name: 'template_campaign_name', value: 'foo' };
 
-  //   const initialValue = state[0].value;
+    const initialValue =
+      state && state[state.findIndex(obj => obj.name === event.name)].value;
 
-  //   const expectation = updateLocalState(state, event);
-  //   const res = simple(config, state, event);
+    const expectation = [
+      {
+        id: 'template_campaign_name',
+        name: 'template_campaign_name',
+        type: 'text',
+        component: Text,
+        label: 'Template campaign name',
+        helper_text:
+          'If you have created template ads to target certain variables, this is the name of the campaign that has those ads.',
+        call_to_action: undefined,
+        options: undefined,
+        value: 'foo',
+      },
+      {
+        id: 'distribution_vars',
+        name: 'distribution_vars',
+        type: 'select',
+        component: Select,
+        label: 'Distribution variables',
+        helper_text: undefined,
+        call_to_action: undefined,
+        options: [
+          {
+            name: 'default',
+            label: 'Select a distribution variable',
+          },
+          {
+            name: 'location',
+            label: 'Location',
+          },
+          {
+            name: 'gender',
+            label: 'Gender',
+          },
+          {
+            name: 'age',
+            label: 'Age',
+          },
+        ],
+        value: 'default',
+      },
+    ];
 
-  //   const updatedValue = res && res[0].value;
+    const res = simple(config, state, event);
 
-  //   expect(res).toStrictEqual(expectation);
-  //   expect(updatedValue).toStrictEqual('baz');
-  //   expect(updatedValue).not.toEqual(initialValue);
-  // });
+    const updatedValue =
+      res && res[res.findIndex(obj => obj.name === event.name)].value;
 
-  // it('only updates the target field and not the values of any other fields', () => {
-  //   const config = general;
-  //   const state = createMockState(seeds);
-  //   const event = { name: 'foo', value: 'baz' };
-
-  //   const initialValue = state[1].value;
-  //   expect(initialValue).toEqual('');
-
-  //   const res = simple(config, state, event);
-
-  //   const updatedValue = res && res[1].value;
-  //   expect(updatedValue).toEqual('baz');
-
-  //   const initialValue2 = state[2].value;
-  //   expect(initialValue2).toEqual([]);
-
-  //   const updatedValue2 = res && res[2].value;
-  //   expect(updatedValue2).toEqual(initialValue2);
-  // });
+    expect(res).toStrictEqual(expectation);
+    expect(updatedValue).toStrictEqual(event.value);
+    expect(updatedValue).toStrictEqual('foo');
+    expect(updatedValue).not.toEqual(initialValue);
+  });
 });
