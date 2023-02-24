@@ -1,13 +1,9 @@
-export interface ConfigBase extends Record<string, any> {
+export interface Config extends Record<string, any> {
   title: string;
+  type: string;
   description: string;
   fields?: FieldBase[];
-  selector?: {
-    name: string;
-    type: string;
-    label: string;
-    options: ConfigBase[];
-  };
+  selector?: Selector;
 }
 
 export interface FieldBase {
@@ -15,18 +11,20 @@ export interface FieldBase {
   type: string;
   label: string;
   helper_text?: string;
-  defaultValue?: string;
-  options?: {
-    name: string;
-    label: string;
-  }[];
+  options?: any[];
   call_to_action?: string;
+}
+export interface Selector {
+  name: string;
+  type: string;
+  label: string;
+  options: Config[];
 }
 
 export interface FieldState extends FieldBase {
   id: string;
   component: any;
-  value: string | number;
+  value: any;
 }
 
 export interface Field extends FieldState {

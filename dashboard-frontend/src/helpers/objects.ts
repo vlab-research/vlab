@@ -22,8 +22,6 @@ export const stringLookup = (str: string, arr: any[], key: string) => {
 export const isJSON = (strData: any) => {
   if (JSON.parse(strData)) {
     return true;
-  } else {
-    return false;
   }
 };
 

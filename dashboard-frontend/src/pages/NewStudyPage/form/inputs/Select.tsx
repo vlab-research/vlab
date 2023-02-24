@@ -1,10 +1,9 @@
 import PrimaryButton from '../../../../components/PrimaryButton';
 
 const Select = ({ onChange, ...props }: any) => {
-  const { id, name, label, options, defaultValue, call_to_action, value } =
-    props;
+  const { id, name, label, options, call_to_action } = props;
 
-  const handleChange = (e: any) => onChange(e, value);
+  const handleChange = (e: any) => onChange(e);
 
   interface SelectOption {
     name: string;
@@ -32,9 +31,6 @@ const Select = ({ onChange, ...props }: any) => {
             data-testid={`new-study-select-input-${id}`}
             className="mt-1 block w-full shadow-sm sm:text-sm rounded-md"
           >
-            {defaultValue && (
-              <option value={defaultValue}>{defaultValue}</option>
-            )}
             {options.map((option: SelectOption, i: number) => (
               <option key={i} value={option.name}>
                 {option.label || option.name}
