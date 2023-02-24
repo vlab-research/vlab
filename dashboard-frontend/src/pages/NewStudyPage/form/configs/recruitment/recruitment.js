@@ -1,6 +1,6 @@
 import { recruitment_simple } from './recruitment_simple';
-import { recruitment_pipeline_experiment } from './recruitment_pipeline_experiment';
-import { recruitment_destination_experiment } from './recruitment_destination_experiment';
+import { recruitment_pipeline } from './recruitment_pipeline';
+import { recruitment_destination } from './recruitment_destination';
 
 export const recruitment = {
   type: 'configSelect',
@@ -13,9 +13,8 @@ export const recruitment = {
     label: 'Select a recruitment type',
     options: [
       recruitment_simple,
-      recruitment_pipeline_experiment,
-      recruitment_destination_experiment,
+      recruitment_pipeline,
+      recruitment_destination,
     ],
   },
-  fields: [],
 };

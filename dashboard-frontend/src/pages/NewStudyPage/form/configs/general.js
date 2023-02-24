@@ -15,8 +15,11 @@ export const general = {
       name: 'objective',
       type: 'select',
       label: 'Objective',
-      defaultValue: 'Select an objective',
       options: [
+        {
+          name: 'default',
+          label: 'Select an objective',
+        },
         {
           name: 'messages',
           label: 'Messages',
@@ -35,8 +38,11 @@ export const general = {
       name: 'optimization_goal',
       type: 'select',
       label: 'Optimization goal',
-      defaultValue: 'Select an optimization goal',
       options: [
+        {
+          name: 'default',
+          label: 'Select an optimization goal',
+        },
         {
           name: 'link_clicks',
           label: 'Link clicks',
@@ -57,6 +63,10 @@ export const general = {
       label: 'Destination type',
       defaultValue: 'Select a destination type',
       options: [
+        {
+          name: 'default',
+          label: 'Select a destination type',
+        },
         {
           name: 'web',
           label: 'Web',

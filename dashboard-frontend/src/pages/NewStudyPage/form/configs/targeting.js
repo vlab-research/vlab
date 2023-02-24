@@ -15,8 +15,11 @@ export const targeting = {
       name: 'distribution_vars',
       type: 'select',
       label: 'Distribution variables',
-      defaultValue: 'Select a distribution variable',
       options: [
+        {
+          name: 'default',
+          label: 'Select a distribution variable',
+        },
         {
           name: 'location',
           label: 'Location',

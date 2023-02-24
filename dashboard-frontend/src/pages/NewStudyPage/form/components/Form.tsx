@@ -1,22 +1,22 @@
 import { Fragment, useEffect, useState } from 'react';
-import { createInitialState } from '../../../../helpers/createInitialState';
 import { reducer } from '../../../../helpers/objects';
 import Fieldset from './Fieldset';
 import SubmitButton from '../buttons/SubmitButton';
+import { FieldState } from '../../../../types/form';
 
-export const FormNew = (props: any) => {
+export const Form = (props: any) => {
   const { config, controller, isLast, setIndex, updateFormData } = props;
 
-  const [state, setState] = useState<any[]>(); // global!
+  const [globalState, setGlobalState] = useState<FieldState[]>(); // global!
 
   useEffect(() => {
-    setState(createInitialState(config));
-  }, [config]);
+    setGlobalState(controller(config));
+  }, [config, controller]);
 
   const handleChange = (name: string, value: any) => {
     const event = { name, value };
-    const newState = controller(config, state, event);
-    setState(newState);
+    const newState = controller(config, globalState, event);
+    setGlobalState(newState);
   };
 
   const handleSubmit = (e: any) => {
@@ -26,12 +26,14 @@ export const FormNew = (props: any) => {
       setIndex((prevCount: number) => prevCount + 1);
     }
 
-    const formData = state && reducer(state);
+    const formData = globalState && reducer(globalState);
 
     updateFormData(formData);
   };
 
-  const isList = state && state.length > 1;
+  console.log(globalState);
+
+  const isList = globalState && globalState.length > 1;
 
   return (
     <div className="md:grid md:grid-cols-3 md:gap-6">
@@ -40,11 +42,11 @@ export const FormNew = (props: any) => {
       </div>
       <div className="mt-5 md:mt-0 md:col-span-2">
         <form onSubmit={handleSubmit}>
-          {state && (
+          {globalState && (
             <Fragment>
               <Fieldset
                 {...props}
-                state={state}
+                globalState={globalState}
                 handleChange={handleChange}
               ></Fieldset>
               {isList && <div className="px-2 bg-gray-400"></div>}
@@ -57,4 +59,4 @@ export const FormNew = (props: any) => {
   );
 };
 
-export default FormNew;
+export default Form;

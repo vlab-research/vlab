@@ -1,9 +1,9 @@
 import { Field, FieldState } from '../../../../types/form';
 
 const Fieldset = (props: any) => {
-  const { handleChange, state } = props;
+  const { globalState, handleChange } = props;
 
-  const mapPropsToState = (state: FieldState[]) => {
+  const mapStateToFields = (state: FieldState[]) => {
     const newState: any[] = [];
 
     state.forEach(stateObj => {
@@ -33,9 +33,9 @@ const Fieldset = (props: any) => {
     });
   };
 
-  const fields = mapPropsToState(state);
+  const fields = mapStateToFields(globalState);
 
-  return state && renderFields(fields);
+  return globalState && renderFields(fields);
 };
 
 export default Fieldset;
