@@ -6,11 +6,12 @@ import { recruitment_pipeline } from '../configs/recruitment/recruitment_pipelin
 import { translateConfig } from '../../../../helpers/translateConfig';
 import Select from '../inputs/Select';
 import Text from '../inputs/Text';
+import { getFieldIndex } from '../../../../helpers/getFieldIndex';
 
 describe('select controller', () => {
   const base = recruitment;
 
-  it('given a config it creates an initial global state when no state is defined', () => {
+  it('given a config it creates some initial state when no global state is defined', () => {
     const config = translateConfig(base, recruitment_simple);
     const expectation = initialiseGlobalState(config);
 
@@ -20,8 +21,7 @@ describe('select controller', () => {
   });
 
   it('given some local state and an event it creates a global state with a set of fields', () => {
-    const selectedConfig = recruitment_simple;
-    const config = translateConfig(base, selectedConfig);
+    const config = translateConfig(base, recruitment_simple);
     const state = initialiseGlobalState(config);
     const event = {
       name: 'recruitment_type',
@@ -30,7 +30,9 @@ describe('select controller', () => {
 
     const res = select(recruitment, state, event);
 
-    const staticExpectation = {
+    const baseField = res && res[0];
+
+    const baseExpectation = {
       id: 'recruitment_type',
       name: 'recruitment_type',
       type: 'select',
@@ -49,38 +51,46 @@ describe('select controller', () => {
       value: 'recruitment_simple',
     };
 
-    expect(res && res[0]).toStrictEqual(staticExpectation);
+    expect(baseField).toStrictEqual(baseExpectation);
 
-    const dynamicExpectation = res?.slice(1); // returns only the dynamic fields
+    const staticFieldPropsFromChosenConfig = recruitment_simple.fields.map(
+      f => {
+        return [f.name, f.type, f.label, f.helper_text];
+      }
+    );
 
-    const configProps = selectedConfig.fields.map(f => {
-      return [f.name, f.type, f.label, f.helper_text];
-    });
-    const stateProps = dynamicExpectation?.map(e => {
+    const fields = res?.slice(1); // returns only the dynamic fields
+
+    const dynamicStateProps = fields?.map(e => {
       return [e.name, e.type, e.label, e.helper_text];
     });
 
-    expect(configProps).toStrictEqual(stateProps);
+    expect(dynamicStateProps).toStrictEqual(staticFieldPropsFromChosenConfig);
+    expect(event.name).toStrictEqual(baseExpectation.name);
+    expect(baseExpectation.options.some(obj => obj.name === event.value)).toBe(
+      true
+    );
   });
 
   it('given some local state and an event it can update the global state with a new set of fields', () => {
-    let selectedConfig = recruitment_simple;
-    let config = translateConfig(base, selectedConfig);
-    let state = initialiseGlobalState(config);
-    let res = select(recruitment);
-    const prevFields = res?.slice(1);
+    const prevConfig = translateConfig(base, recruitment_simple);
+    const prevState = initialiseGlobalState(prevConfig);
+    const prevRes = select(recruitment);
 
-    selectedConfig = recruitment_pipeline;
-    config = translateConfig(base, selectedConfig);
-    state = initialiseGlobalState(config);
+    let prevFields = prevRes?.slice(1);
+
+    const config = translateConfig(base, recruitment_pipeline);
+    const state = initialiseGlobalState(config);
     const event = {
       name: 'recruitment_type',
       value: 'recruitment_pipeline',
     };
 
-    res = select(recruitment, state, event);
+    const res = select(recruitment, state, event);
 
-    const staticExpectation = {
+    const baseField = res && res[0];
+
+    const baseExpectation = {
       id: 'recruitment_type',
       name: 'recruitment_type',
       type: 'select',
@@ -99,23 +109,22 @@ describe('select controller', () => {
       value: 'recruitment_pipeline',
     };
 
-    expect(res && res[0]).toStrictEqual(staticExpectation);
+    const fields = res?.slice(1);
 
-    const dynamicExpectation = res?.slice(1);
-    expect(dynamicExpectation).not.toEqual(prevFields);
+    expect(baseField).toStrictEqual(baseExpectation);
+    expect(state).not.toEqual(prevState);
+    expect(fields).not.toEqual(prevFields);
   });
 
   it('given some local state and an event it can update the value of the target field', () => {
-    const selectedConfig = recruitment_simple;
-    const config = translateConfig(base, selectedConfig);
+    const config = translateConfig(base, recruitment_simple);
     const state = initialiseGlobalState(config);
     const event = { name: 'ad_campaign_name', value: 'foo' };
-    const previousValue =
-      state?.[state.findIndex(f => f.name === event.name)].value;
+    const previousValue = state?.[getFieldIndex(state, event)].value;
 
     const res = select(recruitment, state, event);
 
-    const targetField = res && res[res.findIndex(f => f.name === event.name)];
+    const targetField = res && state && res[getFieldIndex(state, event)];
 
     const expectation = {
       id: 'ad_campaign_name',
@@ -135,14 +144,13 @@ describe('select controller', () => {
   });
 
   it('given multiple events it can update more than one field within the same global state', () => {
-    const selectedConfig = recruitment_simple;
-    const config = translateConfig(base, selectedConfig);
+    const config = translateConfig(base, recruitment_simple);
     const state = initialiseGlobalState(config);
     const event = { name: 'ad_campaign_name', value: 'foo' };
 
     const res = select(recruitment, state, event);
 
-    const targetField = res && res[res.findIndex(f => f.name === event.name)];
+    const targetField = res && state && res[getFieldIndex(state, event)];
 
     const expectation = {
       id: 'ad_campaign_name',
@@ -156,14 +164,11 @@ describe('select controller', () => {
       value: 'foo',
     };
 
-    expect(targetField).toStrictEqual(expectation);
-    expect(expectation.value).toStrictEqual(event.value);
-
     const event2 = { name: 'max_sample', value: '12345' };
 
     const res2 = select(recruitment, state, event2);
 
-    const targetField2 = res && res[res.findIndex(f => f.name === event2.name)];
+    const targetField2 = res2 && state && res2[getFieldIndex(state, event2)];
 
     const expectation2 = {
       id: 'max_sample',
@@ -177,9 +182,6 @@ describe('select controller', () => {
       value: '12345',
     };
 
-    expect(targetField2).toStrictEqual(expectation2);
-    expect(expectation2.value).toStrictEqual(event2.value);
-
     const values = [expectation.value, expectation2.value];
 
     const check = values.every(v => res2?.map(f => f.value).includes(v));
@@ -192,6 +194,10 @@ describe('select controller', () => {
       res2?.map(f => f.value).includes(v)
     );
 
+    expect(targetField).toStrictEqual(expectation);
+    expect(expectation.value).toStrictEqual(event.value);
+    expect(targetField2).toStrictEqual(expectation2);
+    expect(expectation2.value).toStrictEqual(event2.value);
     expect(check2).toBe(false);
   });
 });

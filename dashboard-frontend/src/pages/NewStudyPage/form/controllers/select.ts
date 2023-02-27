@@ -16,46 +16,27 @@ const recruitment = (config: Config, state?: FieldState[], event?: Event) => {
     return dynamicConfig && translateConfig(baseConfig, dynamicConfig);
   };
 
-  const updateLocalStateWithoutGlobalEvent = (state: FieldState[]) => {
-    const clone = [...state];
-    clone[0].value = defaultConfig && createNameFor(defaultConfig.title);
-    return clone;
-  };
-
   if (config.selector && config.type === type) {
     if (!state) {
-      const newConfig = getConfig(config, defaultConfig);
-      return initialiseGlobalState(newConfig);
+      return initialiseGlobalState(getConfig(config, defaultConfig));
     }
 
-    if (state) {
-      if (event) {
-        if (event.name === config.selector.name) {
-          const index: number = config.selector.options.findIndex(
-            (option: Config) => createNameFor(option.title) === event?.value
-          );
+    if (state && event) {
+      if (event.name === config.selector.name) {
+        const index: number = config.selector.options.findIndex(
+          (option: Config) => createNameFor(option.title) === event?.value
+        );
 
-          const selectedConfig: Config = config.selector.options[index];
+        const selectedConfig: Config = config.selector.options[index];
 
-          const globalState = initialiseGlobalState(
-            getConfig(config, selectedConfig)
-          );
+        const globalState = initialiseGlobalState(
+          getConfig(config, selectedConfig)
+        );
 
-          globalState && updateLocalState(globalState, event);
-
-          return globalState;
-        }
-
-        return updateLocalState(state, event);
+        return globalState && updateLocalState(globalState, event);
       }
 
-      const newConfig = getConfig(config, defaultConfig);
-
-      const globalState = initialiseGlobalState(newConfig);
-
-      globalState && updateLocalStateWithoutGlobalEvent(globalState);
-
-      return globalState;
+      return updateLocalState(state, event);
     }
   }
 };

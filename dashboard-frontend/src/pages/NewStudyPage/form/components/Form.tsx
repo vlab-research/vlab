@@ -7,7 +7,7 @@ import { FieldState } from '../../../../types/form';
 export const Form = (props: any) => {
   const { config, controller, isLast, setIndex, updateFormData } = props;
 
-  const [globalState, setGlobalState] = useState<FieldState[]>(); // global!
+  const [globalState, setGlobalState] = useState<FieldState[]>();
 
   useEffect(() => {
     setGlobalState(controller(config));
@@ -30,8 +30,6 @@ export const Form = (props: any) => {
 
     updateFormData(formData);
   };
-
-  console.log(globalState);
 
   const isList = globalState && globalState.length > 1;
 

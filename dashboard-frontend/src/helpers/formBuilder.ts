@@ -1,4 +1,3 @@
-import { create } from 'domain';
 import Button from '../pages/NewStudyPage/form/buttons/Button';
 import List from '../pages/NewStudyPage/form/inputs/List';
 import Select from '../pages/NewStudyPage/form/inputs/Select';
