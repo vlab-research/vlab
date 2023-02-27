@@ -67,6 +67,7 @@ describe('select controller', () => {
 
     expect(dynamicStateProps).toStrictEqual(staticFieldPropsFromChosenConfig);
     expect(event.name).toStrictEqual(baseExpectation.name);
+    expect(event.value).toStrictEqual(baseExpectation.value);
     expect(baseExpectation.options.some(obj => obj.name === event.value)).toBe(
       true
     );
