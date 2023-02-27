@@ -114,20 +114,21 @@ def format_group_product(group, share_lookup, base_targeting, finish_filter=None
         if "params" in c:
             facebook_targeting = {**facebook_targeting, **c["params"]}
 
-        if source == "facebook":
+        if "facebook" in source:
             md_name = f"stratum_{name}"
-            qt = {
-                "op": "equal",
-                "vars": [
-                    {"type": "variable", "value": f"md:{md_name}"},
-                    {"type": "constant", "value": c["name"]},
-                ],
-            }
-            tvars.append(qt)
-
             md = {**md, md_name: c["name"]}
 
-        if source == "survey":
+            if source == "facebook":
+                qt = {
+                    "op": "equal",
+                    "vars": [
+                        {"type": "variable", "value": f"md:{md_name}"},
+                        {"type": "constant", "value": c["name"]},
+                    ],
+                }
+                tvars.append(qt)
+
+        if "survey" in source:
             tvars.append(c["question_targeting"])
             conf["audiences"] += c.get("audiences", [])
             conf["excluded_audiences"] += c.get("excluded_audiences", [])

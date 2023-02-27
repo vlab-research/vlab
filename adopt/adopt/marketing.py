@@ -308,11 +308,9 @@ def _create_creative(
     return c
 
 
-def create_creative(
-    study: StudyConf, stratum: Stratum, config: CreativeConf
-) -> AdCreative:
-    md = {**stratum.metadata, **study.general.extra_metadata}
-
+def get_destination_for_creative(
+    study: StudyConf, config: CreativeConf
+) -> DestinationConf:
     dest_lookup = {d.name: d for d in study.destinations}
 
     try:
@@ -322,6 +320,17 @@ def create_creative(
             f"Config Problem: destination {config.destination} is "
             f"not configured. Destination options: {list(dest_lookup.keys())}"
         ) from e
+
+    return destination
+
+
+def create_creative(
+    study: StudyConf,
+    stratum: Stratum,
+    config: CreativeConf,
+    destination: DestinationConf,
+) -> AdCreative:
+    md = {**stratum.metadata, **study.general.extra_metadata}
 
     if isinstance(destination, FlyMessengerDestination):
         md = {**md, "form": destination.initial_shortcode}
@@ -369,13 +378,17 @@ def adset_instructions(
     study: StudyConf, state: CampaignState, stratum: Stratum, budget: float
 ) -> Tuple[AdSet, List[Ad]]:
 
-    creatives = [create_creative(study, stratum, c) for c in stratum.creatives]
+    destinations = [get_destination_for_creative(study, c) for c in stratum.creatives]
+    creatives = [
+        create_creative(study, stratum, c, d)
+        for d, c in zip(destinations, stratum.creatives)
+    ]
 
-    # app destination needs to be set at adest, can't be multiple...
-    if len(study.destinations) == 1 and isinstance(
-        study.destinations[0], AppDestination
-    ):
-        d = study.destinations[0]
+    if isinstance(destinations[0], AppDestination):
+        # TODO: assert all destinations are the same
+        # and raise an exception if not the case
+
+        d = destinations[0]
         promoted_object = {
             AdPromotedObject.Field.application_id: d.facebook_app_id,
             AdPromotedObject.Field.object_store_url: d.app_install_link,
