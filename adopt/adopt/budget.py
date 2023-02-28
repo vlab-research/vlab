@@ -87,7 +87,7 @@ def budget_opt(S, goal, tot, price, budget):
     C = 1 / price
     s = S / S.sum()
     new_spend = s * budget
-    projection = C * new_spend + tot
+    projection = C * new_spend + tot + 1
     loss = np.sum(goal ** 2 / projection)
     return loss * tot.sum()
 
@@ -95,7 +95,7 @@ def budget_opt(S, goal, tot, price, budget):
 def recruits_opt(S, goal, tot, price, num_recruits):
     s = S / S.sum()
     recruits_per_strata = s * num_recruits
-    projection = recruits_per_strata + tot
+    projection = recruits_per_strata + tot + 1
     loss = np.sum(goal ** 2 / projection)
     return loss * 100
 

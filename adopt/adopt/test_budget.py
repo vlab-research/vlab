@@ -111,8 +111,8 @@ def test_proportional_budget_optimizes_for_weights():
     budget, expected = proportional_budget(goal, spend, tot, price, 10000)
 
     assert round(expected["foo"]) == 301
-    assert round(expected["bar"]) == 201
-    assert round(expected["baz"]) == 501
+    assert round(expected["bar"]) == 200
+    assert round(expected["baz"]) == 502
 
 
 def test_proportional_budget_drops_strata_under_min_to_min_budget():
@@ -143,9 +143,9 @@ def test_proportional_budget_prioritizes_underperforming_when_its_obvious():
     price = {"bar": 20.0, "baz": 20.0, "foo": 50.0}
     goal = {"foo": 1 / 3, "bar": 1 / 3, "baz": 1 / 3}
     budget, _ = proportional_budget(goal, spend, tot, price, 100)
-    assert round(budget["foo"]) == 77
-    assert round(budget["bar"]) == 12
-    assert round(budget["baz"]) == 12
+    assert round(budget["foo"]) == 66
+    assert round(budget["bar"]) == 17
+    assert round(budget["baz"]) == 17
 
 
 def test_proportional_budget_prioritizes_underperforming_even_at_high_cost():
@@ -157,6 +157,17 @@ def test_proportional_budget_prioritizes_underperforming_even_at_high_cost():
     assert budget["foo"] == 100
     assert budget["bar"] == 0
     assert budget["baz"] == 0
+
+
+def test_proportional_budget_works_to_turn_off_super_underperforming_and_unimportant():
+    spend = {"bar": 100.0, "baz": 100.0, "foo": 100.0}
+    tot = {"bar": 20, "baz": 20, "foo": 0}
+    price = {"bar": 5.0, "baz": 5.0, "foo": 500.0}
+    goal = {"foo": 1 / 10, "bar": 4 / 10, "baz": 5 / 10}
+    budget, _ = proportional_budget(goal, spend, tot, price, 100)
+    assert budget["foo"] == 0
+    assert round(budget["bar"]) == 33
+    assert round(budget["baz"]) == 67
 
 
 def test_proportional_budget_optimizes_even_if_already_pretty_good():
@@ -206,6 +217,20 @@ def test_proportional_budget_with_max_recruits_spends_on_missing_section():
     assert round(budget["foo"]) == 150
     assert round(budget["bar"]) == 0
     assert round(budget["baz"]) == 0
+
+
+def test_proportional_budget_with_max_recruits_can_turn_off_empty_groups_without_zero_divide_errors():
+    spend = {"bar": 100.0, "baz": 100.0, "foo": 100.0}
+    tot = {"bar": 25, "baz": 25, "foo": 0}
+    price = {"bar": 20.0, "baz": 20.0, "foo": 200.0}
+    goal = {"foo": 1 / 100, "bar": 39 / 100, "baz": 60 / 100}
+
+    budget, _ = proportional_budget(
+        goal, spend, tot, price, budget=None, max_recruits=60
+    )
+    assert round(budget["foo"]) == 0
+    assert round(budget["bar"]) == 0
+    assert round(budget["baz"]) == 200
 
 
 def test_proportional_budget_with_max_recruits_evenly_recruits_with_dif_prices():
