@@ -3,3 +3,14 @@
 [build]
 cmd = "go build -o /tmp/api cmd/api/main.go"
 bin = "/tmp/api"
+include_ext = ["go"]
+delay = 1000 # ms
+stop_on_error = true
+kill_delay = 500 # ms
+[log]
+time = true
+[color]
+main = "magenta"
+watcher = "cyan"
+build = "yellow"
+runner = "green"

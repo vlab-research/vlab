@@ -7,4 +7,5 @@ RUN apk add --no-cache \
 
 WORKDIR /app
 RUN go install github.com/cosmtrek/air@latest
-RUN go install github.com/nathany/looper@latest
+
+CMD ["air", "-c", ".air.toml"]

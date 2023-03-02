@@ -12,6 +12,8 @@ services:
       DATABASE_PORT: 26257
       DATABASE_USER: root
     ports:
+      # TODO change to a non root port ( > 1024)
+      # https://www.w3.org/Daemon/User/Installation/PrivilegedPorts.html
       - 80:80
     depends_on:
       - setup_cockroachdb
