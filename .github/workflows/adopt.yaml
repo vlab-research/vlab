@@ -1,0 +1,21 @@
+name: Adopt
+on:
+  push:
+    paths:
+      - "adopt/**"
+
+jobs:
+  tests:
+    name: Tests
+    runs-on: ubuntu-20.04
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-python@v4
+        with:
+          python-version: '3.9' 
+      - uses: Gr1N/setup-poetry@v8
+      - name: Setup Database
+        run: ./test_db.sh
+      - name: Tests
+        run:  poetry run pytest .
+        working-directory: ./adopt
