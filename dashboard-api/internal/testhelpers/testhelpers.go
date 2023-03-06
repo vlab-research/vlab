@@ -7,10 +7,9 @@ import (
 	"net/http"
 	"net/http/httptest"
 
-	jwtmiddleware "github.com/auth0/go-jwt-middleware"
-	"github.com/auth0/go-jwt-middleware/validate/josev2"
+	jwtmiddleware "github.com/auth0/go-jwt-middleware/v2"
+	"github.com/auth0/go-jwt-middleware/v2/validator"
 	"github.com/gin-gonic/gin"
-	"gopkg.in/square/go-jose.v2/jwt"
 
 	"github.com/vlab-research/vlab/dashboard-api/internal/platform/server"
 	"github.com/vlab-research/vlab/dashboard-api/internal/platform/storage"
@@ -63,8 +62,8 @@ func PerformRequest(path string, method string, repositories storage.Repositorie
 
 func FakeValidTokenMiddleware() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
-		userCtx := josev2.UserContext{
-			RegisteredClaims: jwt.Claims{
+		userCtx := validator.ValidatedClaims{
+			RegisteredClaims: validator.RegisteredClaims{
 				Subject: "fake-user-id",
 			},
 		}

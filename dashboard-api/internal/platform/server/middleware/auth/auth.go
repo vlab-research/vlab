@@ -6,42 +6,45 @@ import (
 	"net/url"
 	"time"
 
-	jwtmiddleware "github.com/auth0/go-jwt-middleware"
-	"github.com/auth0/go-jwt-middleware/validate/josev2"
+	jwtmiddleware "github.com/auth0/go-jwt-middleware/v2"
+	"github.com/auth0/go-jwt-middleware/v2/jwks"
+	"github.com/auth0/go-jwt-middleware/v2/validator"
 	"github.com/gin-gonic/gin"
-	"gopkg.in/square/go-jose.v2"
-	"gopkg.in/square/go-jose.v2/jwt"
 )
 
+// EnsureValidTokenMiddleware is gin middleware to verify the authenticity of a JWT
+// token sent from a client to authenticated endpoints
 func EnsureValidTokenMiddleware(domain, audience string) gin.HandlerFunc {
+
 	issuerURL, err := url.Parse(domain)
 	if err != nil {
 		log.Fatalf("EnsureValidTokenMiddleware: failed to parse the issuer url: %v", err)
 	}
 
-	keyFunc := josev2.NewCachingJWKSProvider(*issuerURL, 5*time.Minute).KeyFunc
-	expectedClaimsFunc := func() jwt.Expected {
-		return jwt.Expected{
-			Issuer:   domain,
-			Audience: []string{audience},
-		}
-	}
+	provider := jwks.NewCachingProvider(issuerURL, 5*time.Minute)
 
-	validator, err := josev2.New(
-		keyFunc,
-		jose.RS256,
-		josev2.WithExpectedClaims(expectedClaimsFunc),
+	validator, err := validator.New(
+		provider.KeyFunc,
+		validator.RS256,
+		issuerURL.String(),
+		[]string{audience},
 	)
+
 	if err != nil {
-		log.Fatalf("EnsureValidTokenMiddleware: failed to set up the josev2 validator: %v", err)
+		log.Fatalf(
+			"EnsureValidTokenMiddleware: failed to set up the JWT validator: %v", err,
+		)
 	}
 
 	/*
-		This error handler func is required to override the default behaviour of the jwtmiddleware
-		which writes to the headers and body of the response upon error.
+		This error handler func is required to override the default behaviour of the
+		jwtmiddleware which writes to the headers and body of the response upon error.
 	*/
 	noopErrorHandlerFunc := func(w http.ResponseWriter, r *http.Request, err error) {}
-	middleware := jwtmiddleware.New(validator.ValidateToken, jwtmiddleware.WithErrorHandler(noopErrorHandlerFunc))
+	middleware := jwtmiddleware.New(
+		validator.ValidateToken,
+		jwtmiddleware.WithErrorHandler(noopErrorHandlerFunc),
+	)
 
 	return func(ctx *gin.Context) {
 		var encounteredError = true
@@ -55,11 +58,15 @@ func EnsureValidTokenMiddleware(domain, audience string) gin.HandlerFunc {
 		middleware.CheckJWT(handler).ServeHTTP(ctx.Writer, ctx.Request)
 
 		if encounteredError {
-			ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "JWT is invalid"})
+			ctx.AbortWithStatusJSON(
+				http.StatusUnauthorized,
+				gin.H{"error": "JWT is invalid"},
+			)
 		}
 	}
 }
 
+// GetUserIdFrom gets the registered users ID from the gin context
 func GetUserIdFrom(ctx *gin.Context) string {
-	return ctx.Request.Context().Value(jwtmiddleware.ContextKey{}).(*josev2.UserContext).RegisteredClaims.Subject
+	return ctx.Request.Context().Value(jwtmiddleware.ContextKey{}).(*validator.ValidatedClaims).RegisteredClaims.Subject
 }
