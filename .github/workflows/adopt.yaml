@@ -16,6 +16,10 @@ jobs:
       - uses: Gr1N/setup-poetry@v8
       - name: Setup Database
         run: ./test_db.sh
+        working-directory: ./adopt
+      - name: Setup Dependencies
+        run: poetry install
+        working-directory: ./adopt
       - name: Tests
         run:  poetry run pytest .
         working-directory: ./adopt
