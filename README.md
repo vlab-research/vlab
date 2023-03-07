@@ -1,4 +1,8 @@
-# Virtual Lab
+![Virtual Labs Logo](dashboard-frontend/src/assets/auth0/logo.png)
+
+[![Dashboard Frontend](https://github.com/vlab-research/vlab/actions/workflows/dashboard-frontend-tests.yml/badge.svg)](https://github.com/vlab-research/vlab/actions/workflows/dashboard-frontend-tests.yml)
+[![Dashboard Api](https://github.com/vlab-research/vlab/actions/workflows/dashboard-api-tests.yml/badge.svg)](https://github.com/vlab-research/vlab/actions/workflows/dashboard-api-tests.yml)
+
 
 Virtual Lab is a platform for running experiments easily, efficiently, and iteratively.
 
