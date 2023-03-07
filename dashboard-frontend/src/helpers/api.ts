@@ -6,7 +6,7 @@ import {
   StudyApiResponse,
   StudySegmentsProgressApiResponse,
 } from '../types/study';
-import querystring from "querystring"
+import querystring from 'querystring';
 import { Cursor } from '../types/api';
 import {
   AccountApiResponse,
@@ -32,28 +32,23 @@ const fetchStudies = ({
   defaultErrorMessage: string;
   accessToken: string;
 }) => {
-
   // TODO: make general (move to useAuthenticatedAPI) -
   //       automatically remove null/undefined params
   //       which requires changing the current method
   //       of declaring the function params/defaults
   const route = `/studies`;
-  const params: any = {"number": studiesPerPage};
+  const params: any = { number: studiesPerPage };
   if (cursor) {
-    params["cursor"] = cursor;
+    params['cursor'] = cursor;
   }
   const q = querystring.encode(params);
-  const path = `${route}?${q}`
+  const path = `${route}?${q}`;
 
-  return apiRequest<StudiesApiResponse>(
-    path,
-    {
-      defaultErrorMessage,
-      accessToken,
-    }
-  );
-}
-
+  return apiRequest<StudiesApiResponse>(path, {
+    defaultErrorMessage,
+    accessToken,
+  });
+};
 
 const fetchStudy = ({
   slug,
@@ -96,7 +91,7 @@ const createStudy = ({
   name: string;
   accessToken: string;
 }) =>
-  apiRequest<CreateStudyApiResponse>('/api/studies', {
+  apiRequest<CreateStudyApiResponse>('/studies', {
     accessToken,
     method: 'POST',
     body: { name },
@@ -109,7 +104,7 @@ const fetchAccounts = ({
   defaultErrorMessage: string;
   accessToken: string;
 }) =>
-  apiRequest<AccountsApiResponse>(`/api/accounts`, {
+  apiRequest<AccountsApiResponse>(`/accounts`, {
     defaultErrorMessage,
     accessToken,
   });
@@ -125,7 +120,7 @@ const createAccount = ({
   connectedAccount: ConnectedAccountResource;
   accessToken: string;
 }) =>
-  apiRequest<CreateAccountApiResponse>('/api/accounts', {
+  apiRequest<CreateAccountApiResponse>('/accounts', {
     accessToken,
     method: 'POST',
     body: { name, authType, connectedAccount },
@@ -144,7 +139,7 @@ const updateAccount = ({
   accessToken: string;
   id?: string;
 }) =>
-  apiRequest<AccountApiResponse>(`/api/accounts/${name}`, {
+  apiRequest<AccountApiResponse>(`/accounts/${name}`, {
     accessToken,
     method: 'PUT',
     body: { name, authType, connectedAccount, id },
