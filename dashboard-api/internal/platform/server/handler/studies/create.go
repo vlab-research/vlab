@@ -2,7 +2,6 @@ package studies
 
 import (
 	"errors"
-	"fmt"
 	"net/http"
 	"strings"
 
