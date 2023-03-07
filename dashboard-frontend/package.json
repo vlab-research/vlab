@@ -8,6 +8,7 @@
     "@tailwindcss/forms": "0.4.0",
     "chance": "1.1.7",
     "d2l-intl": "2.1.0",
+    "notyf": "^3.10.0",
     "react": "17.0.2",
     "react-charts": "3.0.0-beta.26",
     "react-dom": "17.0.2",
