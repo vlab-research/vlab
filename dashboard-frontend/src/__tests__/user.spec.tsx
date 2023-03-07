@@ -3,7 +3,6 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import App from '../App';
 import * as moduleUseAuth0 from '../hooks/useAuth0';
-import { authenticatedApiCalls } from '../helpers/api';
 import { queryCache } from 'react-query';
 import { makeServer } from '../server';
 
