@@ -57,7 +57,7 @@
     "@types/react-router-dom": "5.1.7",
     "autoprefixer": "9.8.6",
     "cross-env": "7.0.3",
-    "cypress": "7.6.0",
+    "cypress": "^12.7.0",
     "miragejs": "0.1.41",
     "postcss": "7.0.35",
     "prettier": "2.3.0",

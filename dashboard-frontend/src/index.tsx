@@ -29,7 +29,6 @@ if (window.Cypress) {
   if (process.env.REACT_APP_DEV_SERVER) {
     makeServer();
   }
-  
 }
 
 ReactDOM.render(

@@ -123,6 +123,18 @@ export const makeServer = ({ environment = 'development' } = {}) => {
       this.namespace = 'api';
       this.timing = 750;
 
+      this.post('/users', ({ db }, request) => {
+        if (!isAuthenticatedRequest(request)) {
+          return unauthorizedResponse;
+        }
+
+        return {
+          data: {
+            id: 'auth0|61916c1dab79c900713936de',
+          },
+        };
+      });
+
       this.get('/studies', ({ db }, request) => {
         if (!isAuthenticatedRequest(request)) {
           return unauthorizedResponse;
@@ -214,18 +226,6 @@ export const makeServer = ({ environment = 'development' } = {}) => {
 
         return {
           data,
-        };
-      });
-
-      this.post('/users', ({ db }, request) => {
-        if (!isAuthenticatedRequest(request)) {
-          return unauthorizedResponse;
-        }
-
-        return {
-          data: {
-            id: 'auth0|61916c1dab79c900713936de',
-          },
         };
       });
 
