@@ -7,15 +7,16 @@ services:
     env_file:
       - .env
     ports:
-      # TODO change to a non root port ( > 1024)
-      # https://www.w3.org/Daemon/User/Installation/PrivilegedPorts.html
       - 8080:8080
     depends_on:
       - setup_cockroachdb
     networks:
       - dashboard-api
     volumes:
-      - .:/app
+      - .:/src/app
+      # Needed for the dependency on the inference modules
+      # for types
+      - ../inference:/src/inference
     entrypoint: air
   cockroachdb:
     image: cockroachdb/cockroach:v21.2.3
