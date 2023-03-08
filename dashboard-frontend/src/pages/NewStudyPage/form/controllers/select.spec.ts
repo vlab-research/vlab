@@ -11,7 +11,7 @@ import { getFieldIndex } from '../../../../helpers/getFieldIndex';
 describe('select controller', () => {
   const base = recruitment;
 
-  it('given a config it creates some initial state when no global state is defined', () => {
+  it('given a config of type select the controller can create some initial state when no global state is defined', () => {
     const config = translateConfig(base, recruitment_simple);
     const expectation = initialiseGlobalState(config);
 
@@ -20,11 +20,12 @@ describe('select controller', () => {
     expect(res).toStrictEqual(expectation);
   });
 
-  it('given some local state and an event it creates a global state with a set of fields', () => {
+  it('given some change to the local state of a field when the user introduces some input, the controller can update the value of that field with the user input', () => {
     const config = translateConfig(base, recruitment_simple);
     const state = initialiseGlobalState(config);
     const event = {
       name: 'recruitment_type',
+      type: 'change',
       value: 'recruitment_simple',
     };
 
@@ -73,7 +74,7 @@ describe('select controller', () => {
     );
   });
 
-  it('given some local state and an event it can update the global state with a new set of fields', () => {
+  it('given some global state and an event, the controller can interpret the event to update the global state with a new set of fields', () => {
     const prevConfig = translateConfig(base, recruitment_simple);
     const prevState = initialiseGlobalState(prevConfig);
     const prevRes = select(recruitment);
@@ -84,6 +85,7 @@ describe('select controller', () => {
     const state = initialiseGlobalState(config);
     const event = {
       name: 'recruitment_type',
+      type: 'change',
       value: 'recruitment_pipeline',
     };
 
@@ -120,7 +122,7 @@ describe('select controller', () => {
   it('given some local state and an event it can update the value of the target field', () => {
     const config = translateConfig(base, recruitment_simple);
     const state = initialiseGlobalState(config);
-    const event = { name: 'ad_campaign_name', value: 'foo' };
+    const event = { name: 'ad_campaign_name', type: 'change', value: 'foo' };
     const previousValue = state?.[getFieldIndex(state, event)].value;
 
     const res = select(recruitment, state, event);
@@ -144,10 +146,10 @@ describe('select controller', () => {
     expect(previousValue).not.toEqual(expectation.value);
   });
 
-  it('given multiple events it can update more than one field within the same global state', () => {
+  it('given multiple events the controller can update the values of more than one field within the same global state', () => {
     const config = translateConfig(base, recruitment_simple);
     const state = initialiseGlobalState(config);
-    const event = { name: 'ad_campaign_name', value: 'foo' };
+    const event = { name: 'ad_campaign_name', type: 'change', value: 'foo' };
 
     const res = select(recruitment, state, event);
 
@@ -165,7 +167,7 @@ describe('select controller', () => {
       value: 'foo',
     };
 
-    const event2 = { name: 'max_sample', value: '12345' };
+    const event2 = { name: 'max_sample', type: 'change', value: '12345' };
 
     const res2 = select(recruitment, state, event2);
 
