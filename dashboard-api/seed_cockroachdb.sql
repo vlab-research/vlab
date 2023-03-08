@@ -20,8 +20,8 @@ CREATE TABLE studies(
     created TIMESTAMP DEFAULT CURRENT_TIMESTAMP(),
     name string NOT NULL,
     slug string NOT NULL,
-    CONSTRAINT unique_name UNIQUE(name),
-    CONSTRAINT unique_slug UNIQUE(slug)
+    CONSTRAINT unique_study_name_for_user UNIQUE(user_id, name),
+    CONSTRAINT unique_study_slug_for_user UNIQUE(user_id, slug)
 );
 
 INSERT INTO studies
