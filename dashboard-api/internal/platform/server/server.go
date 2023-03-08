@@ -6,6 +6,7 @@ import (
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
+	"github.com/vlab-research/vlab/dashboard-api/internal/platform/server/handler/accounts"
 	"github.com/vlab-research/vlab/dashboard-api/internal/platform/server/handler/health"
 	"github.com/vlab-research/vlab/dashboard-api/internal/platform/server/handler/segmentsprogress"
 	"github.com/vlab-research/vlab/dashboard-api/internal/platform/server/handler/studies"
@@ -50,7 +51,6 @@ func (s *Server) registerRoutes() {
 
 	config := cors.DefaultConfig()
 	config.AllowAllOrigins = true
-	// config.AllowOrigins = []string{"http://google.com"}
 	config.AllowHeaders = []string{"Origin", "Content-Length", "Content-Type", "Authorization"}
 
 	s.Engine.Use(cors.New(config))
@@ -64,4 +64,5 @@ func (s *Server) registerRoutes() {
 	s.Engine.GET("/studies/:slug/segments-progress", s.ensureValidTokenMiddleware, segmentsprogress.ListHandler(s.repositories))
 
 	s.Engine.POST("/users", s.ensureValidTokenMiddleware, users.CreateHandler(s.repositories))
+	s.Engine.POST("/accounts", s.ensureValidTokenMiddleware, accounts.CreateHandler(s.repositories))
 }

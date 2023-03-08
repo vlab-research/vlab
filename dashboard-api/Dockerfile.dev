@@ -5,7 +5,7 @@ RUN apk add --no-cache \
     libc-dev \
     readline-dev
 
-WORKDIR /app
+WORKDIR /src/app
 RUN go install github.com/cosmtrek/air@latest
 
 CMD ["air", "-c", ".air.toml"]

@@ -16,7 +16,6 @@ func Run() error {
 	if err != nil {
 		return fmt.Errorf("envconfig.Process: %w", err)
 	}
-
 	srv := server.New(
 		cfg.Host,
 		cfg.Port,
