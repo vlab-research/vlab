@@ -1,5 +1,5 @@
 import { curious_learning } from './curious_learning';
-import { fly_messenger_destination } from './fly_messenger_destination';
+import { fly_messenger } from './fly_messenger';
 import { typeform } from './typeform';
 
 export const destinations = {
@@ -11,7 +11,7 @@ export const destinations = {
     name: 'destination',
     type: 'select',
     label: 'Create a destination',
-    options: [fly_messenger_destination, typeform, curious_learning], // could this be just a name and a source?
+    options: [fly_messenger, typeform, curious_learning], // could this be just a name and a source?
   },
   fields: [
     {

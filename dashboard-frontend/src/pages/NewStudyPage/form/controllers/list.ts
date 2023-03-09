@@ -7,8 +7,8 @@ import {
 import { createNameFor } from '../../../../helpers/strings';
 import { translateConfig } from '../../../../helpers/translateConfig';
 
-const recruitment = (config: Config, state?: FieldState[], event?: Event) => {
-  const type: string = 'configSelect';
+const list = (config: Config, state?: FieldState[], event?: Event) => {
+  const type: string = 'configList';
 
   const defaultConfig = config.selector?.options[0];
 
@@ -18,22 +18,29 @@ const recruitment = (config: Config, state?: FieldState[], event?: Event) => {
 
   if (config.selector && config.type === type) {
     if (!state) {
-      return initialiseGlobalState([getConfig(config, defaultConfig)]);
+      const globalState = initialiseGlobalState(
+        getConfig(config, defaultConfig)
+      );
+      return globalState;
     }
 
     if (state && event) {
       if (event.name === config.selector.name) {
         const index: number = config.selector.options.findIndex(
-          (option: Config) => createNameFor(option.title) === event?.value
+          (option: Config) => createNameFor(option.title) === event.value
         );
 
         const selectedConfig: Config = config.selector.options[index];
 
-        const globalState = initialiseGlobalState([
-          getConfig(config, selectedConfig),
-        ]);
+        const globalState = initialiseGlobalState(
+          getConfig(config, selectedConfig)
+        );
 
         return globalState && updateLocalState(globalState, event);
+      }
+
+      if (event.type === 'click') {
+        return [];
       }
 
       return updateLocalState(state, event);
@@ -41,4 +48,11 @@ const recruitment = (config: Config, state?: FieldState[], event?: Event) => {
   }
 };
 
-export default recruitment;
+export default list;
+
+// const i = event.fieldSet
+
+// const updatedDestination = {...state.destinations[i], ...createInitialState(config.selectorOptions[event.value])}
+
+// state.destinations[i] = updatedDestination
+// return state

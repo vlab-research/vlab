@@ -2,16 +2,9 @@ import { useState } from 'react';
 import { PlusCircleIcon } from '@heroicons/react/solid';
 
 const Button = (props: any) => {
-  const { label, onClick } = props;
+  const { label, onChange } = props;
 
-  const [count, setCount] = useState<number>(1);
-
-  // store the local state of the button in here
-  // state is how many times its been clicked
-  const handleClick = () => {
-    setCount((prevCount: number) => prevCount + 1);
-    onClick(count);
-  };
+  const handleClick = (e: any) => onChange(e);
 
   return (
     <div className="flex justify-center p-2 sm:my-4">

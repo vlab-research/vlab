@@ -1,3 +1,7 @@
+import { curious_learning } from '../pages/NewStudyPage/form/configs/destinations/curious_learning';
+import destinations from '../pages/NewStudyPage/form/configs/destinations/destinations';
+import { fly_messenger } from '../pages/NewStudyPage/form/configs/destinations/fly_messenger';
+import { typeform } from '../pages/NewStudyPage/form/configs/destinations/typeform';
 import { recruitment } from '../pages/NewStudyPage/form/configs/recruitment/recruitment';
 import { recruitment_destination } from '../pages/NewStudyPage/form/configs/recruitment/recruitment_destination';
 import { recruitment_pipeline } from '../pages/NewStudyPage/form/configs/recruitment/recruitment_pipeline';
@@ -5,7 +9,7 @@ import { recruitment_simple } from '../pages/NewStudyPage/form/configs/recruitme
 import { translateConfig } from './translateConfig';
 
 describe('translateConfig', () => {
-  it('given two configs it returns a single config with single set of fields', () => {
+  it('given a config of type select the translator returns a single config with a single set of fields', () => {
     const baseConfig = recruitment;
     const selectedConfig = recruitment_simple;
 
@@ -54,6 +58,53 @@ describe('translateConfig', () => {
           type: 'text',
           label: 'End date',
           helper_text: 'E.g 2022-01-31',
+        },
+      ],
+    };
+
+    const res = translateConfig(baseConfig, selectedConfig);
+
+    expect(res).toStrictEqual(expectation);
+  });
+
+  it('given a config of type list the translator returns a single config with a single set of fields', () => {
+    const baseConfig = destinations;
+    const selectedConfig = fly_messenger;
+
+    const expectation = {
+      type: 'configList',
+      title: 'Destinations',
+      description:
+        'Every study needs a destination, where do the recruitment ads send the users?',
+      fields: [
+        {
+          name: 'destination',
+          type: 'select',
+          label: 'Create a destination',
+          options: [fly_messenger, typeform, curious_learning],
+        },
+        {
+          name: 'initial_shortcode',
+          type: 'text',
+          label: 'Initial shortcode',
+          helper_text: 'E.g 12345',
+        },
+        {
+          name: 'survey_name',
+          type: 'text',
+          label: 'Survey Name',
+          helper_text: 'Eg. Fly',
+        },
+        {
+          name: 'destination_name',
+          type: 'text',
+          label: 'Give your destination a name',
+          helper_text: 'E.g example-fly-1',
+        },
+        {
+          name: 'add_destination',
+          type: 'button',
+          label: 'Add destination',
         },
       ],
     };

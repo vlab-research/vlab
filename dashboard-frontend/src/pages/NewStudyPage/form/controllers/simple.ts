@@ -10,7 +10,7 @@ const simple = (config: Config, state?: FieldState[], event?: Event) => {
 
   if (config.type === type) {
     if (!state) {
-      return initialiseGlobalState(config);
+      return initialiseGlobalState([config]);
     }
 
     if (state && event) {
