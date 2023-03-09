@@ -45,16 +45,19 @@ export const Form = (props: any) => {
       </div>
       <div className="mt-5 md:mt-0 md:col-span-2">
         <form onSubmit={handleSubmit}>
-          {globalState && (
-            <Fragment>
-              <Fieldset
-                {...props}
-                globalState={globalState}
-                handleChange={handleChange}
-              ></Fieldset>
-              <div className="px-2 bg-gray-400"></div>
-            </Fragment>
-          )}
+          {globalState &&
+            globalState.map(state => {
+              return (
+                <Fragment>
+                  <Fieldset
+                    {...props}
+                    globalState={state}
+                    handleChange={handleChange}
+                  ></Fieldset>
+                  <div className="px-2 bg-gray-400"></div>
+                </Fragment>
+              );
+            })}
           <SubmitButton isLast={isLast}></SubmitButton>
         </form>
       </div>

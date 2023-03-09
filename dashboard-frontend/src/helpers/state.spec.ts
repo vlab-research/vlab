@@ -8,11 +8,11 @@ import { translateConfig } from './translateConfig';
 import destinations from '../pages/NewStudyPage/form/configs/destinations/destinations';
 import { fly_messenger } from '../pages/NewStudyPage/form/configs/destinations/fly_messenger';
 import Button from '../pages/NewStudyPage/form/buttons/Button';
+import { FieldState } from '../types/form';
 
 describe('initialiseGlobalState', () => {
   it('given a config of type object it returns a global state when no state is defined', () => {
     const configObject = targeting;
-    const configs = [configObject];
 
     const expectation = [
       [
@@ -56,13 +56,12 @@ describe('initialiseGlobalState', () => {
       ],
     ];
 
-    const res = initialiseGlobalState(configs);
+    const res = initialiseGlobalState(configObject);
     expect(res).toStrictEqual(expectation);
   });
 
   it('given a config of type select it returns a global state when no state is defined', () => {
     const configSelect = translateConfig(recruitment, recruitment_simple);
-    const configs = [configSelect];
 
     const expectation = [
       [
@@ -148,7 +147,7 @@ describe('initialiseGlobalState', () => {
       ],
     ];
 
-    const res = initialiseGlobalState(configs);
+    const res = initialiseGlobalState(configSelect);
     expect(res).toStrictEqual(expectation);
     expect(res).toHaveLength(1);
   });
@@ -156,7 +155,6 @@ describe('initialiseGlobalState', () => {
 
 it('given a config of type list it returns a global state when no state is defined', () => {
   const configList = translateConfig(destinations, fly_messenger);
-  const configs = [configList];
 
   const expectation = [
     [
@@ -231,7 +229,7 @@ it('given a config of type list it returns a global state when no state is defin
     ],
   ];
 
-  const res = initialiseGlobalState(configs);
+  const res = initialiseGlobalState(configList);
   expect(res).toStrictEqual(expectation);
   expect(res).toHaveLength(1);
 });
@@ -239,11 +237,10 @@ it('given a config of type list it returns a global state when no state is defin
 describe('updateLocalState', () => {
   it('given a config of type object it can update the value of a given field when the user generates some input', () => {
     const configObject = targeting;
-    const configs = [configObject];
-    const state = initialiseGlobalState(configs);
+    const state = initialiseGlobalState(configObject);
     const event = {
       name: 'template_campaign_name',
-      value: 'foo',
+      value: 'foobar',
       type: 'change',
     };
 
@@ -257,64 +254,98 @@ describe('updateLocalState', () => {
         'If you have created template ads to target certain variables, this is the name of the campaign that has those ads.',
       call_to_action: undefined,
       options: undefined,
-      value: 'foo',
+      value: event.value,
     };
 
-    const resConfigObject = state && updateLocalState(state, event);
-    const newValue =
-      resConfigObject &&
-      resConfigObject[resConfigObject.findIndex(obj => obj.name === event.name)]
-        .value;
+    const res = state && updateLocalState(state, event);
+
+    const outerIndex = res.findIndex(fieldset =>
+      fieldset.map((obj: FieldState) => obj.name === event.name)
+    );
+
+    const innerIndex = res[outerIndex].findIndex(
+      (obj: FieldState) => obj.name === event.name
+    );
+
+    const newValue = res[outerIndex][innerIndex].value;
+
     expect(newValue).toStrictEqual(expectation.value);
+    expect(newValue).toStrictEqual(event.value);
+    expect(newValue).toStrictEqual('foobar');
+    expect(newValue).not.toEqual('');
   });
 
-  // it('given a config of type select it can update the value of a given field when the user generates some input', () => {
-  //   const configSelect = translateConfig(recruitment, recruitment_simple);
-  //   const state = initialiseGlobalState(configSelect);
-  //   const event = { name: 'ad_campaign_name', value: 'baz', type: 'change' };
+  it('given a config of type select it can update the value of a given field when the user generates some input', () => {
+    const configSelect = translateConfig(recruitment, recruitment_simple);
+    const state = initialiseGlobalState(configSelect);
+    const event = { name: 'ad_campaign_name', value: 'foobaz', type: 'change' };
 
-  //   const expectationConfigSelect = {
-  //     id: 'ad_campaign_name',
-  //     name: 'ad_campaign_name',
-  //     type: 'text',
-  //     component: Text,
-  //     label: 'Template campaign name',
-  //     helper_text: 'E.g vlab-vaping-pilot-2',
-  //     call_to_action: undefined,
-  //     options: undefined,
-  //     value: 'baz',
-  //   };
+    const expectation = {
+      id: 'ad_campaign_name',
+      name: 'ad_campaign_name',
+      type: 'text',
+      component: Text,
+      label: 'Template campaign name',
+      helper_text: 'E.g vlab-vaping-pilot-2',
+      call_to_action: undefined,
+      options: undefined,
+      value: event.value,
+    };
 
-  //   const resConfigSelect = state && updateLocalState(state, event);
-  //   const newValue =
-  //     resConfigSelect &&
-  //     resConfigSelect[resConfigSelect.findIndex(obj => obj.name === event.name)]
-  //       .value;
-  //   expect(newValue).toStrictEqual(expectationConfigSelect.value);
-  // });
+    const res = state && updateLocalState(state, event);
 
-  // it('given a config of type list it can update the value of a given field when the user generates some input', () => {
-  //   const configList = translateConfig(destinations, fly_messenger);
-  //   const state = initialiseGlobalState(configList);
-  //   const event = { name: 'ad_campaign_name', value: 'baz', type: 'change' };
+    const outerIndex = res.findIndex(fieldset =>
+      fieldset.map((obj: FieldState) => obj.name === event.name)
+    );
 
-  //   const expectationConfigList = {
-  //     id: 'initial_shortcode',
-  //     name: 'initial_shortcode',
-  //     type: 'text',
-  //     component: Text,
-  //     label: 'Initial shortcode',
-  //     helper_text: 'E.g 12345',
-  //     call_to_action: undefined,
-  //     options: undefined,
-  //     value: 'foobar',
-  //   };
+    const innerIndex = res[outerIndex].findIndex(
+      (obj: FieldState) => obj.name === event.name
+    );
 
-  //   const resConfigSelect = state && updateLocalState(state, event);
-  //   const newValue =
-  //     resConfigSelect &&
-  //     resConfigSelect[resConfigSelect.findIndex(obj => obj.name === event.name)]
-  //       .value;
-  //   expect(newValue).toStrictEqual(expectationConfigList.value);
-  // });
+    const newValue = res[outerIndex][innerIndex].value;
+
+    expect(newValue).toStrictEqual(expectation.value);
+    expect(newValue).toStrictEqual(event.value);
+    expect(newValue).toStrictEqual('foobaz');
+    expect(newValue).not.toEqual('');
+  });
+
+  it('given a config of type list it can update the value of a given field when the user generates some input', () => {
+    const configList = translateConfig(destinations, fly_messenger);
+    const state = initialiseGlobalState(configList);
+    const event = {
+      name: 'initial_shortcode',
+      value: 'foobazzle',
+      type: 'change',
+    };
+
+    const expectation = {
+      id: 'initial_shortcode',
+      name: 'initial_shortcode',
+      type: 'text',
+      component: Text,
+      label: 'Initial shortcode',
+      helper_text: '12345',
+      call_to_action: undefined,
+      options: undefined,
+      value: event.value,
+    };
+
+    const res = state && updateLocalState(state, event);
+
+    const outerIndex = res.findIndex(fieldset =>
+      fieldset.map((obj: FieldState) => obj.name === event.name)
+    );
+
+    const innerIndex = res[outerIndex].findIndex(
+      (obj: FieldState) => obj.name === event.name
+    );
+
+    const newValue = res[outerIndex][innerIndex].value;
+
+    expect(newValue).toStrictEqual(expectation.value);
+    expect(newValue).toStrictEqual(event.value);
+    expect(newValue).toStrictEqual('foobazzle');
+    expect(newValue).not.toEqual('');
+  });
 });

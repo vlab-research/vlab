@@ -7,7 +7,7 @@ import {
 import { createNameFor } from '../../../../helpers/strings';
 import { translateConfig } from '../../../../helpers/translateConfig';
 
-const recruitment = (config: Config, state?: FieldState[], event?: Event) => {
+const recruitment = (config: Config, state?: any[], event?: Event) => {
   const type: string = 'configSelect';
 
   const defaultConfig = config.selector?.options[0];
@@ -18,7 +18,7 @@ const recruitment = (config: Config, state?: FieldState[], event?: Event) => {
 
   if (config.selector && config.type === type) {
     if (!state) {
-      return initialiseGlobalState([getConfig(config, defaultConfig)]);
+      return initialiseGlobalState(getConfig(config, defaultConfig));
     }
 
     if (state && event) {
@@ -29,9 +29,9 @@ const recruitment = (config: Config, state?: FieldState[], event?: Event) => {
 
         const selectedConfig: Config = config.selector.options[index];
 
-        const globalState = initialiseGlobalState([
-          getConfig(config, selectedConfig),
-        ]);
+        const globalState = initialiseGlobalState(
+          getConfig(config, selectedConfig)
+        );
 
         return globalState && updateLocalState(globalState, event);
       }
