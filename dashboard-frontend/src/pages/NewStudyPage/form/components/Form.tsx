@@ -7,14 +7,21 @@ import { FieldState } from '../../../../types/form';
 export const Form = (props: any) => {
   const { config, controller, isLast, setIndex, updateFormData } = props;
 
-  const [globalState, setGlobalState] = useState<FieldState[]>();
+  const [globalState, setGlobalState] = useState<FieldState[][]>(); // fieldset
 
   useEffect(() => {
     setGlobalState(controller(config));
   }, [config, controller]);
 
-  const handleChange = (name: string, value: any) => {
-    const event = { name, value };
+  console.log(globalState);
+
+  const handleChange = (name: string, e: any) => {
+    const event = {
+      name,
+      type: e.type,
+      value: e.target.value,
+    };
+
     const newState = controller(config, globalState, event);
     setGlobalState(newState);
   };
@@ -31,8 +38,6 @@ export const Form = (props: any) => {
     updateFormData(formData);
   };
 
-  const isList = globalState && globalState.length > 1;
-
   return (
     <div className="md:grid md:grid-cols-3 md:gap-6">
       <div className="md:col-span-1">
@@ -47,7 +52,7 @@ export const Form = (props: any) => {
                 globalState={globalState}
                 handleChange={handleChange}
               ></Fieldset>
-              {isList && <div className="px-2 bg-gray-400"></div>}
+              <div className="px-2 bg-gray-400"></div>
             </Fragment>
           )}
           <SubmitButton isLast={isLast}></SubmitButton>

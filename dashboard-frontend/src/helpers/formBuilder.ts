@@ -57,8 +57,10 @@ export const getInitialValue = (obj: FieldBase) => {
         : createNameFor(obj.options && obj.options[0].title);
     case type === 'number':
       return 0;
-    case type === 'list' || type === 'configList':
+    case type === 'list':
       return [];
+    case type === 'button':
+      return '';
     default:
       console.log('Field type does not exist');
   }

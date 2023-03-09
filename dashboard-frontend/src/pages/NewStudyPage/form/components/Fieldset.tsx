@@ -26,7 +26,7 @@ const Fieldset = (props: any) => {
       const { name } = props;
 
       const callback = (e: any) => {
-        handleChange(name, e.target.value);
+        handleChange(name, e);
       };
 
       return <Component key={name} onChange={callback} {...props} />;

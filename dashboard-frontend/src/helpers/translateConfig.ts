@@ -17,7 +17,9 @@ export const translateConfig = (
 
   const clone = {
     ...config,
-    fields: base.fields.concat(selectedConfig?.fields),
+    fields: config.fields
+      ? base.fields.concat(selectedConfig?.fields).concat(config.fields)
+      : base.fields.concat(selectedConfig?.fields),
   };
 
   const { selector, ...newConfig } = clone;
