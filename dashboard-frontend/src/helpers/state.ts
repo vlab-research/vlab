@@ -17,6 +17,7 @@ export const updateLocalState = (state: any[], event: Event) => {
   // state is now a fieldset
   // so an arr of arrs
   // we need to map over the arr of arrs to get the indices of the field and the fieldset
+  // TODO create a helper for getting the inner and outer index!
 
   const outerIndex = clone.findIndex(fieldset =>
     fieldset.map((obj: FieldState) => obj.name === event.name)
