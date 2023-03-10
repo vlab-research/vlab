@@ -13,8 +13,6 @@ export const Form = (props: any) => {
     setGlobalState(controller(config));
   }, [config, controller]);
 
-  console.log(globalState);
-
   const handleChange = (name: string, e: any) => {
     const event = {
       name,
@@ -46,9 +44,9 @@ export const Form = (props: any) => {
       <div className="mt-5 md:mt-0 md:col-span-2">
         <form onSubmit={handleSubmit}>
           {globalState &&
-            globalState.map(state => {
+            globalState.map((state, i) => {
               return (
-                <Fragment>
+                <Fragment key={i}>
                   <Fieldset
                     {...props}
                     globalState={state}
