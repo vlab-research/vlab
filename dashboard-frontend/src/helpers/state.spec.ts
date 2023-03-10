@@ -9,6 +9,7 @@ import destinations from '../pages/NewStudyPage/form/configs/destinations/destin
 import { fly_messenger } from '../pages/NewStudyPage/form/configs/destinations/fly_messenger';
 import Button from '../pages/NewStudyPage/form/buttons/Button';
 import { FieldState } from '../types/form';
+import { getField } from './getField';
 
 describe('initialiseGlobalState', () => {
   it('given a config of type object it returns a global state when no state is defined', () => {
@@ -259,16 +260,7 @@ describe('updateLocalState', () => {
 
     const res = state && updateLocalState(state, event);
 
-    const outerIndex = res.findIndex(fieldset =>
-      fieldset.map((obj: FieldState) => obj.name === event.name)
-    );
-
-    const innerIndex = res[outerIndex].findIndex(
-      (obj: FieldState) => obj.name === event.name
-    );
-
-    const newValue = res[outerIndex][innerIndex].value;
-
+    const newValue = getField(res, event).value;
     expect(newValue).toStrictEqual(expectation.value);
     expect(newValue).toStrictEqual(event.value);
     expect(newValue).toStrictEqual('foobar');
@@ -294,15 +286,7 @@ describe('updateLocalState', () => {
 
     const res = state && updateLocalState(state, event);
 
-    const outerIndex = res.findIndex(fieldset =>
-      fieldset.map((obj: FieldState) => obj.name === event.name)
-    );
-
-    const innerIndex = res[outerIndex].findIndex(
-      (obj: FieldState) => obj.name === event.name
-    );
-
-    const newValue = res[outerIndex][innerIndex].value;
+    const newValue = getField(res, event).value;
 
     expect(newValue).toStrictEqual(expectation.value);
     expect(newValue).toStrictEqual(event.value);
@@ -333,15 +317,7 @@ describe('updateLocalState', () => {
 
     const res = state && updateLocalState(state, event);
 
-    const outerIndex = res.findIndex(fieldset =>
-      fieldset.map((obj: FieldState) => obj.name === event.name)
-    );
-
-    const innerIndex = res[outerIndex].findIndex(
-      (obj: FieldState) => obj.name === event.name
-    );
-
-    const newValue = res[outerIndex][innerIndex].value;
+    const newValue = getField(res, event).value;
 
     expect(newValue).toStrictEqual(expectation.value);
     expect(newValue).toStrictEqual(event.value);
