@@ -1,6 +1,6 @@
 # Sketch
 
-**When creating a new study the user will be served different forms depending on the choices they make. Each form has an underlying config file which can be one of three types: configObject, configSelect or configList. This means that some forms are made up of one config whereas others can be made up of several.**
+**When creating a new study the user will be served different forms depending on the choices they make. Each form has an underlying config file which can be one of three types: `configObject`, `configSelect` or `configList`. This means that some forms are made up of one config whereas others can be made up of several.**
 
 ## configObject
 
@@ -31,7 +31,7 @@ In contrast, a config of type `configSelect` or `configList` signals greater com
 
 [simple, experiment, pipeline]
 
-A `configSelect` form is where the user selects a nested form from a set of dropdown options. Think of it as a form within a form. Only one form can be selected which is what differentiates a `configSelecr` from a `configList`. To render each of the form options, the "parent" form makes use of the `fields` property within which there are `options`, one for each nested form.
+A `configSelect` form is where the user selects a nested form from a set of dropdown options. Think of it as a form within a form. Only one form can be selected which is what differentiates a `configSelect` from a `configList`. To render each of the form options, the "parent" form makes use of the `fields` property within which there are `options`, one for each nested form.
 
 So given an array of `options` for a config of type `configSelect` you might find the following structure.
 
@@ -47,9 +47,9 @@ const recruitment = {
       type: 'select',
       label: 'Select a recruitment type',
       options: [
-        recruitment_simple,
-        recruitment_pipeline_experiment,
-        recruitment_destination_experiment,
+        simple,
+        experiment,
+        experiment,
       ],
     },
   ],
@@ -173,7 +173,7 @@ const mapDestinations = () => {
 
 ## configList
 
-[typeform, fly, curious_learning]
+[typeform, fly_messenger, curious_learning]
 
 A `configList` form is where the user can select multiple forms from a set of options. Each form is built on top of any of the three config types, `configObject`, `configSelect`, and `configList`. Think of a `configList` as a union of multiple config types.
 
@@ -188,7 +188,7 @@ export const destinations = {
       name: 'destinations',
       type: 'list',
       label: 'Add destination',
-      options: [typeform, fly_messenger_destination, curious_learning],
+      options: [typeform, fly_messenger, curious_learning],
     },
   ],
 };
