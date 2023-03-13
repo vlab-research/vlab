@@ -2,7 +2,7 @@
 
 **When creating a new study the user will be served different forms depending on the choices they make. Each form has an underlying config file which can be one of three types: configObject, configSelect or configList. This means that some forms are made up of one config whereas others can be made up of several.**
 
-## Config-object
+## configObject
 
 User lands on new study page and sees a form of type object. The form is simply the output of a `formBuilder()` function
 which takes one argument – a single field object. It translates that field object into a new object with the additional properties required for creating a form.
