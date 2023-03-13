@@ -49,7 +49,7 @@ const recruitment = {
       options: [
         simple,
         experiment,
-        experiment,
+        pipeline,
       ],
     },
   ],
