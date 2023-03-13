@@ -29,7 +29,7 @@ In contrast, a config of type `configSelect` or `configList` signals greater com
 
 ## configSelect
 
-[simple, experiment, pipeline]
+[simple, destination, pipeline]
 
 A `configSelect` form is where the user selects a nested form from a set of dropdown options. Think of it as a form within a form. Only one form can be selected which is what differentiates a `configSelect` from a `configList`. To render each of the form options, the "parent" form makes use of the `fields` property within which there are `options`, one for each nested form.
 
@@ -48,7 +48,7 @@ const recruitment = {
       label: 'Select a recruitment type',
       options: [
         simple,
-        experiment,
+        destination,
         pipeline,
       ],
     },
