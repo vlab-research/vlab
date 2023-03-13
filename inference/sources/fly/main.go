@@ -12,6 +12,7 @@ import (
 	"github.com/dghubble/sling"
 	"github.com/vlab-research/vlab/inference/connector"
 	. "github.com/vlab-research/vlab/inference/inference-data"
+	"github.com/vlab-research/vlab/inference/sources/fly/types"
 )
 
 func handle(err error) {
@@ -111,17 +112,13 @@ func Call(client *http.Client, baseUrl string, key string, params *GetResponsesP
 	return res, nil
 }
 
-type FlyCredentials struct {
-	APIKey string `json:"api_key"`
-}
-
 type FlyConfig struct {
 	SurveyName string `json:"survey_name"`
 }
 
-func GetCredentials(source *Source) (*FlyCredentials, error) {
+func GetCredentials(source *Source) (*types.FlyCredentials, error) {
 	details := source.Credentials.Details
-	creds := new(FlyCredentials)
+	creds := new(types.FlyCredentials)
 	err := json.Unmarshal(details, creds)
 	return creds, err
 }
