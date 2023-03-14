@@ -90,7 +90,7 @@ const createStudy = ({
   name: string;
   accessToken: string;
 }) =>
-  apiRequest<CreateStudyApiResponse>('/api/studies', {
+  apiRequest<CreateStudyApiResponse>('/studies', {
     accessToken,
     method: 'POST',
     body: { name },

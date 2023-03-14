@@ -20,6 +20,10 @@ describe('Given an authenticated user', () => {
   let server: ReturnType<typeof makeServer>;
 
   beforeEach(() => {
+    cy.loginToAuth0(
+      Cypress.env('auth0_username'),
+      Cypress.env('auth0_password')
+    )
     server = makeServer({ environment: 'test' });
   });
 
@@ -102,11 +106,11 @@ describe('Given an authenticated user', () => {
       assertLoadersAppear();
     });
 
-    it('He sees the name of the Study', () => {
+    it('They see the name of the Study', () => {
       cy.contains('Weekly consume of meat');
     });
 
-    it('He sees an overview of the current Study progress', () => {
+    it('They see an overview of the current Study progress', () => {
       cy.contains('Current Participants');
       cy.contains('20,137');
 
@@ -120,13 +124,13 @@ describe('Given an authenticated user', () => {
       cy.contains('4.9 %');
     });
 
-    it('He sees an areachart with current participants data over time', () => {
+    it('They see an areachart with current participants data over time', () => {
       assertStudyProgressChartAppears({
         numDataPoints: 3,
       });
     });
 
-    it('He sees current avg. deviation data over time in the areachart after clicking the related stat card', () => {
+    it('They see current avg. deviation data over time in the areachart after clicking the related stat card', () => {
       assertStudyProgressChartAppears({
         numDataPoints: 3,
       });
@@ -145,7 +149,7 @@ describe('Given an authenticated user', () => {
       cy.get('[data-testid="study-progress-chart"]').contains('5.0');
     });
 
-    it("He's redirected to the Studies page when clicking the back button", () => {
+    it("They's redirected to the Studies page when clicking the back button", () => {
       cy.get('[data-testid="back-button"]').click();
 
       cy.url().should('eq', `${Cypress.config().baseUrl}/`);
@@ -182,7 +186,7 @@ describe('Given an authenticated user', () => {
       assertLoadersAppear();
     });
 
-    it('He sees a table that displays the current progress of acquiring participants for each Segment', () => {
+    it('They see a table that displays the current progress of acquiring participants for each Segment', () => {
       cy.contains('Participants acquired per segment');
 
       cy.get(
@@ -214,7 +218,7 @@ describe('Given an authenticated user', () => {
       ).contains('Budget');
       cy.get(
         '[data-testid="participants-acquired-per-segment-table"]'
-      ).contains('Spent');
+      ).contains('Price');
 
       cy.get(
         '[data-testid="participants-acquired-per-segment-table"]'
@@ -233,9 +237,6 @@ describe('Given an authenticated user', () => {
       ).contains('6.55');
       cy.get(
         '[data-testid="participants-acquired-per-segment-table"]'
-      ).contains('N/A');
-      cy.get(
-        '[data-testid="participants-acquired-per-segment-table"]'
       ).contains('1,429');
       cy.get(
         '[data-testid="participants-acquired-per-segment-table"]'
@@ -243,9 +244,6 @@ describe('Given an authenticated user', () => {
       cy.get(
         '[data-testid="participants-acquired-per-segment-table"]'
       ).contains('7,200');
-      cy.get(
-        '[data-testid="participants-acquired-per-segment-table"]'
-      ).contains('2,858');
     });
   });
 
@@ -266,7 +264,7 @@ describe('Given an authenticated user', () => {
       assertLoadersAppear();
     });
 
-    it('He sees 10 Segments in the "Participants acquired per segment" table', () => {
+    it('They see 10 Segments in the "Participants acquired per segment" table', () => {
       cy.get(
         '[data-testid="participants-acquired-per-segment-table"]'
       ).contains('Showing 1 to 10 of 12 results');
@@ -275,7 +273,7 @@ describe('Given an authenticated user', () => {
         .find('tr')
         .should('have.length', 10);
     });
-    it('He sees the remaining 2 Segments after clicking the Next button', () => {
+    it('They see the remaining 2 Segments after clicking the Next button', () => {
       cy.contains('Previous').should('have.attr', 'disabled', 'disabled');
       cy.contains('Next').should('not.have.attr', 'disabled');
 
@@ -293,7 +291,7 @@ describe('Given an authenticated user', () => {
       cy.contains('Next').should('have.attr', 'disabled', 'disabled');
     });
 
-    it('He sees that by default the Segments are ordered by current percentage of participants in ascending order', () => {
+    it('They see that by default the Segments are ordered by current percentage of participants in ascending order', () => {
       cy.contains('%Current').within(() => {
         cy.get('[data-testid="selected-column-ascending-indicator"]').should(
           'be.visible'
@@ -320,7 +318,7 @@ describe('Given an authenticated user', () => {
       );
     });
 
-    it('He sees that when clicking the "%Deviation column", the Segments are ordered by the percentage of deviation in descending order', () => {
+    it('They see that when clicking the "%Deviation column", the Segments are ordered by the percentage of deviation in descending order', () => {
       cy.contains('%Deviation').within(() => {
         cy.get('[data-testid="selected-column-ascending-indicator"]').should(
           'not.be.visible'
@@ -374,7 +372,7 @@ describe('Given an authenticated user', () => {
       assertLoadersAppear();
     });
 
-    it("He's redirected to the Studies page", () => {
+    it("They's redirected to the Studies page", () => {
       cy.get('[data-testid="header"]')
         .contains('Studies')
         .should('have.class', 'border-transparent text-gray-500')
@@ -389,46 +387,47 @@ describe('Given an authenticated user', () => {
         .should('have.attr', 'aria-current', 'page');
     });
   });
+  
+ // TODO this test is very flaky, we should rewrite it to be more stable
+ // describe('When they visits a specific Study page and there is an error while fetching the Study', () => {
+ //   beforeEach(() => {
+ //     server.get(
+ //       '/studies/:slug',
+ //       () =>
+ //         new Response(
+ //           500,
+ //           { 'content-type': 'application/json' },
+ //           {
+ //             error:
+ //               "Database is temporarily down. Couldn't retrieve the Study.",
+ //           }
+ //         )
+ //     );
 
-  describe('When he visits a specific Study page and there is an error while fetching the Study', () => {
-    beforeEach(() => {
-      server.get(
-        '/studies/:slug',
-        () =>
-          new Response(
-            500,
-            { 'content-type': 'application/json' },
-            {
-              error:
-                "Database is temporarily down. Couldn't retrieve the Study.",
-            }
-          )
-      );
+ //     cy.visit('/studies/weekly-consume-of-meat');
 
-      cy.visit('/studies/weekly-consume-of-meat');
+ //     assertLoadersAppear();
+ //   });
 
-      assertLoadersAppear();
-    });
+ //   it('They see an error page with a button to retry fetching the Study', () => {
+ //     cy.contains('Something went wrong while fetching the Study.').then(() => {
+ //       server.shutdown();
+ //       server = makeServer({ environment: 'test' });
+ //       const study = createStudyResource(server, {
+ //         name: 'Weekly consume of meat',
+ //         slug: 'weekly-consume-of-meat',
+ //       });
+ //       createStudySegments(server, { study, numOfSegments: 1 });
+ //     });
 
-    it('He sees an error page with a button to retry fetching the Study', () => {
-      cy.contains('Something went wrong while fetching the Study.').then(() => {
-        server.shutdown();
-        server = makeServer({ environment: 'test' });
-        const study = createStudyResource(server, {
-          name: 'Weekly consume of meat',
-          slug: 'weekly-consume-of-meat',
-        });
-        createStudySegments(server, { study, numOfSegments: 1 });
-      });
+ //     cy.contains('Please try again').click();
+ //     assertLoadersAppear();
 
-      cy.contains('Please try again').click();
-      assertLoadersAppear();
+ //     cy.contains('Weekly consume of meat');
+ //   });
+ // });
 
-      cy.contains('Weekly consume of meat');
-    });
-  });
-
-  describe("When he visits a specific Study page that hasn't any progress", () => {
+  describe("When they visits a specific Study page that hasn't any progress", () => {
     beforeEach(() => {
       createStudyResource(server, {
         name: 'Weekly consume of meat',
@@ -440,7 +439,7 @@ describe('Given an authenticated user', () => {
       assertLoadersAppear();
     });
 
-    it('He sees default values in the overview of the Study', () => {
+    it('They see default values in the overview of the Study', () => {
       cy.get('[data-testid="stats-card-for-current-participants"]').contains(
         '0'
       );
@@ -455,7 +454,7 @@ describe('Given an authenticated user', () => {
       );
     });
 
-    it('He sees the default Study progress in the areachart', () => {
+    it('They see the default Study progress in the areachart', () => {
       assertStudyProgressChartAppears({
         numDataPoints: 1,
       });

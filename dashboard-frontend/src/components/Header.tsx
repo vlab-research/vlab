@@ -3,7 +3,7 @@ import { matchPath, useLocation, Link } from 'react-router-dom';
 import { Menu, Transition } from '@headlessui/react';
 import { classNames } from '../helpers/strings';
 import { ReactComponent as Logo } from '../assets/logo.svg';
-import useAuth0 from '../hooks/useAuth0';
+import { useAuth0 } from '@auth0/auth0-react';
 
 const Header = ({ className = '' }: { className?: string }) => {
   const { user } = useAuth0();

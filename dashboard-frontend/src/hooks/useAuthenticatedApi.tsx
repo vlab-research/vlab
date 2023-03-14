@@ -1,4 +1,4 @@
-import useAuth0 from '../hooks/useAuth0';
+import { useAuth0  } from '@auth0/auth0-react';
 import { authenticatedApiCalls as apiCalls } from '../helpers/api';
 
 const useAuthenticatedApi = () => {
@@ -21,7 +21,6 @@ const useAuthenticatedApi = () => {
           ...params, 
           accessToken: await getAccessTokenSilently(),
         });
-
       return acc;
     },
     {} as any
