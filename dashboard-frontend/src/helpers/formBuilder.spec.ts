@@ -14,7 +14,6 @@ describe('formBuilder', () => {
       component: Text,
       label: 'Foo',
       helper_text: 'foo',
-      call_to_action: undefined,
       options: undefined,
       value: '',
     };
@@ -29,7 +28,6 @@ describe('formBuilder', () => {
       component: Select,
       label: 'Bar',
       helper_text: undefined,
-      call_to_action: undefined,
       options: [
         {
           name: 'foo',
