@@ -1,0 +1,1050 @@
+[
+  {
+    "conf_type": "audiences",
+    "conf": [
+      {
+        "lookalike": null,
+        "name": "unicef-bebbo-bulgaria-respondents",
+        "partitioning": null,
+        "question_targeting": null,
+        "subtype": "CUSTOM"
+      }
+    ]
+  },
+  {
+    "conf_type": "creatives",
+    "conf": [
+      {
+        "body": "Имате ли 10-15 минути? Искате ли да спечелите подаръчна карта VISA на стойност 7 лв.? Вашето участие може да повлияе на живота на родителите и децата в цялата страна. Попълнете анкетата.",
+        "button_text": "Продължете",
+        "destination": "fly",
+        "image_hash": "8ef11493ade6deced04f36b9e8cf3900",
+        "link_text": "Попълнете анкетата",
+        "name": "Ad1_Bebbo_Recruitment",
+        "tags": null,
+        "welcome_message": "Имате ли 10-15 минути? Искате ли да спечелите подаръчна карта VISA на стойност 7 лв.? Вашето участие може да повлияе на живота на родителите и децата в цялата страна. Попълнете анкетата."
+      },
+      {
+        "body": "Имате ли 10-15 минути? Искате ли да спечелите подаръчна карта VISA на стойност 7 лв.? Вашето участие може да повлияе на живота на родителите и децата в цялата страна. Попълнете анкетата.",
+        "button_text": "Продължете",
+        "destination": "fly",
+        "image_hash": "ceaaa08a35aa9347cc73286b89109285",
+        "link_text": "Попълнете анкетата",
+        "name": "Ad2_Bebbo_Recruitment",
+        "tags": null,
+        "welcome_message": "Имате ли 10-15 минути? Искате ли да спечелите подаръчна карта VISA на стойност 7 лв.? Вашето участие може да повлияе на живота на родителите и децата в цялата страна. Попълнете анкетата."
+      },
+      {
+        "body": "Имате ли 10-15 минути? Искате ли да спечелите подаръчна карта VISA на стойност 7 лв.? Вашето участие може да повлияе на живота на родителите и децата в цялата страна. Попълнете анкетата.",
+        "button_text": "Продължете",
+        "destination": "fly",
+        "image_hash": "f624e7e8dee12e058445a5d464a3f2b8",
+        "link_text": "Попълнете анкетата",
+        "name": "Ad3_Bebbo_Recruitment",
+        "tags": null,
+        "welcome_message": "Имате ли 10-15 минути? Искате ли да спечелите подаръчна карта VISA на стойност 7 лв.? Вашето участие може да повлияе на живота на родителите и децата в цялата страна. Попълнете анкетата."
+      }
+    ]
+  },
+  {
+    "conf_type": "data_sources",
+    "conf": [
+      {
+        "config": {
+          "survey_name": "UNICEF Bebbo Bulgaria"
+        },
+        "credentials_key": "toixo",
+        "name": "fly",
+        "source": "fly"
+      }
+    ]
+  },
+  {
+    "conf_type": "destinations",
+    "conf": [
+      {
+        "initial_shortcode": "bebbobgbasebul",
+        "name": "fly"
+      }
+    ]
+  },
+  {
+    "conf_type": "general",
+    "conf": {
+      "ad_account": "1342820622846299",
+      "destination_type": "MESSENGER",
+      "extra_metadata": {},
+      "instagram_id": "2118306904924018",
+      "min_budget": 1,
+      "name": "unicef-bebbo-bulgaria",
+      "objective": "MESSAGES",
+      "opt_window": 48,
+      "optimization_goal": "REPLIES",
+      "page_id": "1855355231229529"
+    }
+  },
+  {
+    "conf_type": "inference_data",
+    "conf": {
+      "data_sources": {
+        "fly": [
+          {
+            "aggregate": "last",
+            "function": "select",
+            "key": "followup_permission",
+            "location": "variable",
+            "name": "followup_permission",
+            "params": {
+              "path": "translated_response"
+            },
+            "value_type": "categorical"
+          },
+          {
+            "aggregate": "first",
+            "function": "select",
+            "key": "stratum_location",
+            "location": "metadata",
+            "name": "md:stratum_location",
+            "params": {
+              "path": ""
+            },
+            "value_type": "categorical"
+          },
+          {
+            "aggregate": "first",
+            "function": "select",
+            "key": "stratum_gender",
+            "location": "metadata",
+            "name": "md:stratum_gender",
+            "params": {
+              "path": ""
+            },
+            "value_type": "categorical"
+          },
+          {
+            "aggregate": "first",
+            "function": "select",
+            "key": "stratum_age",
+            "location": "metadata",
+            "name": "md:stratum_age",
+            "params": {
+              "path": ""
+            },
+            "value_type": "categorical"
+          }
+        ]
+      }
+    }
+  },
+  {
+    "conf_type": "recruitment",
+    "conf": {
+      "ad_campaign_name": "vlab-unicef-bebbo-bulgaria",
+      "budget": 1000,
+      "end_date": "2023-02-18T00:00:00",
+      "max_sample": 200,
+      "start_date": "2023-02-07T00:00:00"
+    }
+  },
+  {
+    "conf_type": "strata",
+    "conf": [
+      {
+        "audiences": [],
+        "creatives": [
+          "Ad1_Bebbo_Recruitment",
+          "Ad2_Bebbo_Recruitment",
+          "Ad3_Bebbo_Recruitment"
+        ],
+        "excluded_audiences": ["unicef-bebbo-bulgaria-respondents"],
+        "facebook_targeting": {
+          "age_max": 40,
+          "age_min": 27,
+          "flexible_spec": [
+            {
+              "family_statuses": [
+                {
+                  "id": "6023005372383",
+                  "name": "New Parents (0-12 months)"
+                },
+                {
+                  "id": "6023005458383",
+                  "name": "Parents with toddlers (01-02 years) "
+                },
+                {
+                  "id": "6023005529383",
+                  "name": "Parents with preschoolers (03-05 years) "
+                },
+                {
+                  "id": "6023005570783",
+                  "name": "Parents with early school-age children (06-08 years) "
+                }
+              ]
+            }
+          ],
+          "genders": [2],
+          "geo_locations": {
+            "cities": [
+              {
+                "country": "BG",
+                "distance_unit": "mile",
+                "key": "213989",
+                "name": "Sofia",
+                "radius": 25,
+                "region": "Sofia City Province",
+                "region_id": "348"
+              }
+            ],
+            "location_types": ["home", "recent"]
+          }
+        },
+        "id": "age-27-gender-2-location-sofia",
+        "metadata": {
+          "stratum_age": "27",
+          "stratum_gender": "2",
+          "stratum_location": "Sofia"
+        },
+        "question_targeting": {
+          "op": "and",
+          "vars": [
+            {
+              "op": "equal",
+              "vars": [
+                {
+                  "type": "variable",
+                  "value": "md:stratum_age"
+                },
+                {
+                  "type": "constant",
+                  "value": "27"
+                }
+              ]
+            },
+            {
+              "op": "equal",
+              "vars": [
+                {
+                  "type": "variable",
+                  "value": "md:stratum_gender"
+                },
+                {
+                  "type": "constant",
+                  "value": "2"
+                }
+              ]
+            },
+            {
+              "op": "equal",
+              "vars": [
+                {
+                  "type": "variable",
+                  "value": "md:stratum_location"
+                },
+                {
+                  "type": "constant",
+                  "value": "Sofia"
+                }
+              ]
+            },
+            {
+              "op": "answered",
+              "vars": [
+                {
+                  "type": "variable",
+                  "value": "followup_permission"
+                }
+              ]
+            }
+          ]
+        },
+        "quota": 1
+      },
+      {
+        "audiences": [],
+        "creatives": [
+          "Ad1_Bebbo_Recruitment",
+          "Ad2_Bebbo_Recruitment",
+          "Ad3_Bebbo_Recruitment"
+        ],
+        "excluded_audiences": ["unicef-bebbo-bulgaria-respondents"],
+        "facebook_targeting": {
+          "age_max": 40,
+          "age_min": 27,
+          "excluded_geo_locations": {
+            "cities": [
+              {
+                "country": "BG",
+                "distance_unit": "mile",
+                "key": "213989",
+                "name": "Sofia",
+                "radius": 25,
+                "region": "Sofia City Province",
+                "region_id": "348"
+              }
+            ],
+            "location_types": ["home"]
+          },
+          "flexible_spec": [
+            {
+              "family_statuses": [
+                {
+                  "id": "6023005372383",
+                  "name": "New Parents (0-12 months)"
+                },
+                {
+                  "id": "6023005458383",
+                  "name": "Parents with toddlers (01-02 years) "
+                },
+                {
+                  "id": "6023005529383",
+                  "name": "Parents with preschoolers (03-05 years) "
+                },
+                {
+                  "id": "6023005570783",
+                  "name": "Parents with early school-age children (06-08 years) "
+                }
+              ]
+            }
+          ],
+          "genders": [2],
+          "geo_locations": {
+            "countries": ["BG"],
+            "location_types": ["home", "recent"]
+          }
+        },
+        "id": "age-27-gender-2-location-not-sofia",
+        "metadata": {
+          "stratum_age": "27",
+          "stratum_gender": "2",
+          "stratum_location": "Not Sofia"
+        },
+        "question_targeting": {
+          "op": "and",
+          "vars": [
+            {
+              "op": "equal",
+              "vars": [
+                {
+                  "type": "variable",
+                  "value": "md:stratum_age"
+                },
+                {
+                  "type": "constant",
+                  "value": "27"
+                }
+              ]
+            },
+            {
+              "op": "equal",
+              "vars": [
+                {
+                  "type": "variable",
+                  "value": "md:stratum_gender"
+                },
+                {
+                  "type": "constant",
+                  "value": "2"
+                }
+              ]
+            },
+            {
+              "op": "equal",
+              "vars": [
+                {
+                  "type": "variable",
+                  "value": "md:stratum_location"
+                },
+                {
+                  "type": "constant",
+                  "value": "Not Sofia"
+                }
+              ]
+            },
+            {
+              "op": "answered",
+              "vars": [
+                {
+                  "type": "variable",
+                  "value": "followup_permission"
+                }
+              ]
+            }
+          ]
+        },
+        "quota": 1
+      },
+      {
+        "audiences": [],
+        "creatives": [
+          "Ad1_Bebbo_Recruitment",
+          "Ad2_Bebbo_Recruitment",
+          "Ad3_Bebbo_Recruitment"
+        ],
+        "excluded_audiences": ["unicef-bebbo-bulgaria-respondents"],
+        "facebook_targeting": {
+          "age_max": 40,
+          "age_min": 27,
+          "flexible_spec": [
+            {
+              "family_statuses": [
+                {
+                  "id": "6023005372383",
+                  "name": "New Parents (0-12 months)"
+                },
+                {
+                  "id": "6023005458383",
+                  "name": "Parents with toddlers (01-02 years) "
+                },
+                {
+                  "id": "6023005529383",
+                  "name": "Parents with preschoolers (03-05 years) "
+                },
+                {
+                  "id": "6023005570783",
+                  "name": "Parents with early school-age children (06-08 years) "
+                }
+              ]
+            }
+          ],
+          "genders": [1],
+          "geo_locations": {
+            "cities": [
+              {
+                "country": "BG",
+                "distance_unit": "mile",
+                "key": "213989",
+                "name": "Sofia",
+                "radius": 25,
+                "region": "Sofia City Province",
+                "region_id": "348"
+              }
+            ],
+            "location_types": ["home", "recent"]
+          }
+        },
+        "id": "age-27-gender-1-location-sofia",
+        "metadata": {
+          "stratum_age": "27",
+          "stratum_gender": "1",
+          "stratum_location": "Sofia"
+        },
+        "question_targeting": {
+          "op": "and",
+          "vars": [
+            {
+              "op": "equal",
+              "vars": [
+                {
+                  "type": "variable",
+                  "value": "md:stratum_age"
+                },
+                {
+                  "type": "constant",
+                  "value": "27"
+                }
+              ]
+            },
+            {
+              "op": "equal",
+              "vars": [
+                {
+                  "type": "variable",
+                  "value": "md:stratum_gender"
+                },
+                {
+                  "type": "constant",
+                  "value": "1"
+                }
+              ]
+            },
+            {
+              "op": "equal",
+              "vars": [
+                {
+                  "type": "variable",
+                  "value": "md:stratum_location"
+                },
+                {
+                  "type": "constant",
+                  "value": "Sofia"
+                }
+              ]
+            },
+            {
+              "op": "answered",
+              "vars": [
+                {
+                  "type": "variable",
+                  "value": "followup_permission"
+                }
+              ]
+            }
+          ]
+        },
+        "quota": 1
+      },
+      {
+        "audiences": [],
+        "creatives": [
+          "Ad1_Bebbo_Recruitment",
+          "Ad2_Bebbo_Recruitment",
+          "Ad3_Bebbo_Recruitment"
+        ],
+        "excluded_audiences": ["unicef-bebbo-bulgaria-respondents"],
+        "facebook_targeting": {
+          "age_max": 40,
+          "age_min": 27,
+          "excluded_geo_locations": {
+            "cities": [
+              {
+                "country": "BG",
+                "distance_unit": "mile",
+                "key": "213989",
+                "name": "Sofia",
+                "radius": 25,
+                "region": "Sofia City Province",
+                "region_id": "348"
+              }
+            ],
+            "location_types": ["home"]
+          },
+          "flexible_spec": [
+            {
+              "family_statuses": [
+                {
+                  "id": "6023005372383",
+                  "name": "New Parents (0-12 months)"
+                },
+                {
+                  "id": "6023005458383",
+                  "name": "Parents with toddlers (01-02 years) "
+                },
+                {
+                  "id": "6023005529383",
+                  "name": "Parents with preschoolers (03-05 years) "
+                },
+                {
+                  "id": "6023005570783",
+                  "name": "Parents with early school-age children (06-08 years) "
+                }
+              ]
+            }
+          ],
+          "genders": [1],
+          "geo_locations": {
+            "countries": ["BG"],
+            "location_types": ["home", "recent"]
+          }
+        },
+        "id": "age-27-gender-1-location-not-sofia",
+        "metadata": {
+          "stratum_age": "27",
+          "stratum_gender": "1",
+          "stratum_location": "Not Sofia"
+        },
+        "question_targeting": {
+          "op": "and",
+          "vars": [
+            {
+              "op": "equal",
+              "vars": [
+                {
+                  "type": "variable",
+                  "value": "md:stratum_age"
+                },
+                {
+                  "type": "constant",
+                  "value": "27"
+                }
+              ]
+            },
+            {
+              "op": "equal",
+              "vars": [
+                {
+                  "type": "variable",
+                  "value": "md:stratum_gender"
+                },
+                {
+                  "type": "constant",
+                  "value": "1"
+                }
+              ]
+            },
+            {
+              "op": "equal",
+              "vars": [
+                {
+                  "type": "variable",
+                  "value": "md:stratum_location"
+                },
+                {
+                  "type": "constant",
+                  "value": "Not Sofia"
+                }
+              ]
+            },
+            {
+              "op": "answered",
+              "vars": [
+                {
+                  "type": "variable",
+                  "value": "followup_permission"
+                }
+              ]
+            }
+          ]
+        },
+        "quota": 1
+      },
+      {
+        "audiences": [],
+        "creatives": [
+          "Ad1_Bebbo_Recruitment",
+          "Ad2_Bebbo_Recruitment",
+          "Ad3_Bebbo_Recruitment"
+        ],
+        "excluded_audiences": ["unicef-bebbo-bulgaria-respondents"],
+        "facebook_targeting": {
+          "age_max": 26,
+          "age_min": 18,
+          "flexible_spec": [
+            {
+              "family_statuses": [
+                {
+                  "id": "6023005372383",
+                  "name": "New Parents (0-12 months)"
+                },
+                {
+                  "id": "6023005458383",
+                  "name": "Parents with toddlers (01-02 years) "
+                },
+                {
+                  "id": "6023005529383",
+                  "name": "Parents with preschoolers (03-05 years) "
+                },
+                {
+                  "id": "6023005570783",
+                  "name": "Parents with early school-age children (06-08 years) "
+                }
+              ]
+            }
+          ],
+          "genders": [2],
+          "geo_locations": {
+            "cities": [
+              {
+                "country": "BG",
+                "distance_unit": "mile",
+                "key": "213989",
+                "name": "Sofia",
+                "radius": 25,
+                "region": "Sofia City Province",
+                "region_id": "348"
+              }
+            ],
+            "location_types": ["home", "recent"]
+          }
+        },
+        "id": "age-18-gender-2-location-sofia",
+        "metadata": {
+          "stratum_age": "18",
+          "stratum_gender": "2",
+          "stratum_location": "Sofia"
+        },
+        "question_targeting": {
+          "op": "and",
+          "vars": [
+            {
+              "op": "equal",
+              "vars": [
+                {
+                  "type": "variable",
+                  "value": "md:stratum_age"
+                },
+                {
+                  "type": "constant",
+                  "value": "18"
+                }
+              ]
+            },
+            {
+              "op": "equal",
+              "vars": [
+                {
+                  "type": "variable",
+                  "value": "md:stratum_gender"
+                },
+                {
+                  "type": "constant",
+                  "value": "2"
+                }
+              ]
+            },
+            {
+              "op": "equal",
+              "vars": [
+                {
+                  "type": "variable",
+                  "value": "md:stratum_location"
+                },
+                {
+                  "type": "constant",
+                  "value": "Sofia"
+                }
+              ]
+            },
+            {
+              "op": "answered",
+              "vars": [
+                {
+                  "type": "variable",
+                  "value": "followup_permission"
+                }
+              ]
+            }
+          ]
+        },
+        "quota": 1
+      },
+      {
+        "audiences": [],
+        "creatives": [
+          "Ad1_Bebbo_Recruitment",
+          "Ad2_Bebbo_Recruitment",
+          "Ad3_Bebbo_Recruitment"
+        ],
+        "excluded_audiences": ["unicef-bebbo-bulgaria-respondents"],
+        "facebook_targeting": {
+          "age_max": 26,
+          "age_min": 18,
+          "excluded_geo_locations": {
+            "cities": [
+              {
+                "country": "BG",
+                "distance_unit": "mile",
+                "key": "213989",
+                "name": "Sofia",
+                "radius": 25,
+                "region": "Sofia City Province",
+                "region_id": "348"
+              }
+            ],
+            "location_types": ["home"]
+          },
+          "flexible_spec": [
+            {
+              "family_statuses": [
+                {
+                  "id": "6023005372383",
+                  "name": "New Parents (0-12 months)"
+                },
+                {
+                  "id": "6023005458383",
+                  "name": "Parents with toddlers (01-02 years) "
+                },
+                {
+                  "id": "6023005529383",
+                  "name": "Parents with preschoolers (03-05 years) "
+                },
+                {
+                  "id": "6023005570783",
+                  "name": "Parents with early school-age children (06-08 years) "
+                }
+              ]
+            }
+          ],
+          "genders": [2],
+          "geo_locations": {
+            "countries": ["BG"],
+            "location_types": ["home", "recent"]
+          }
+        },
+        "id": "age-18-gender-2-location-not-sofia",
+        "metadata": {
+          "stratum_age": "18",
+          "stratum_gender": "2",
+          "stratum_location": "Not Sofia"
+        },
+        "question_targeting": {
+          "op": "and",
+          "vars": [
+            {
+              "op": "equal",
+              "vars": [
+                {
+                  "type": "variable",
+                  "value": "md:stratum_age"
+                },
+                {
+                  "type": "constant",
+                  "value": "18"
+                }
+              ]
+            },
+            {
+              "op": "equal",
+              "vars": [
+                {
+                  "type": "variable",
+                  "value": "md:stratum_gender"
+                },
+                {
+                  "type": "constant",
+                  "value": "2"
+                }
+              ]
+            },
+            {
+              "op": "equal",
+              "vars": [
+                {
+                  "type": "variable",
+                  "value": "md:stratum_location"
+                },
+                {
+                  "type": "constant",
+                  "value": "Not Sofia"
+                }
+              ]
+            },
+            {
+              "op": "answered",
+              "vars": [
+                {
+                  "type": "variable",
+                  "value": "followup_permission"
+                }
+              ]
+            }
+          ]
+        },
+        "quota": 1
+      },
+      {
+        "audiences": [],
+        "creatives": [
+          "Ad1_Bebbo_Recruitment",
+          "Ad2_Bebbo_Recruitment",
+          "Ad3_Bebbo_Recruitment"
+        ],
+        "excluded_audiences": ["unicef-bebbo-bulgaria-respondents"],
+        "facebook_targeting": {
+          "age_max": 26,
+          "age_min": 18,
+          "flexible_spec": [
+            {
+              "family_statuses": [
+                {
+                  "id": "6023005372383",
+                  "name": "New Parents (0-12 months)"
+                },
+                {
+                  "id": "6023005458383",
+                  "name": "Parents with toddlers (01-02 years) "
+                },
+                {
+                  "id": "6023005529383",
+                  "name": "Parents with preschoolers (03-05 years) "
+                },
+                {
+                  "id": "6023005570783",
+                  "name": "Parents with early school-age children (06-08 years) "
+                }
+              ]
+            }
+          ],
+          "genders": [1],
+          "geo_locations": {
+            "cities": [
+              {
+                "country": "BG",
+                "distance_unit": "mile",
+                "key": "213989",
+                "name": "Sofia",
+                "radius": 25,
+                "region": "Sofia City Province",
+                "region_id": "348"
+              }
+            ],
+            "location_types": ["home", "recent"]
+          }
+        },
+        "id": "age-18-gender-1-location-sofia",
+        "metadata": {
+          "stratum_age": "18",
+          "stratum_gender": "1",
+          "stratum_location": "Sofia"
+        },
+        "question_targeting": {
+          "op": "and",
+          "vars": [
+            {
+              "op": "equal",
+              "vars": [
+                {
+                  "type": "variable",
+                  "value": "md:stratum_age"
+                },
+                {
+                  "type": "constant",
+                  "value": "18"
+                }
+              ]
+            },
+            {
+              "op": "equal",
+              "vars": [
+                {
+                  "type": "variable",
+                  "value": "md:stratum_gender"
+                },
+                {
+                  "type": "constant",
+                  "value": "1"
+                }
+              ]
+            },
+            {
+              "op": "equal",
+              "vars": [
+                {
+                  "type": "variable",
+                  "value": "md:stratum_location"
+                },
+                {
+                  "type": "constant",
+                  "value": "Sofia"
+                }
+              ]
+            },
+            {
+              "op": "answered",
+              "vars": [
+                {
+                  "type": "variable",
+                  "value": "followup_permission"
+                }
+              ]
+            }
+          ]
+        },
+        "quota": 1
+      },
+      {
+        "audiences": [],
+        "creatives": [
+          "Ad1_Bebbo_Recruitment",
+          "Ad2_Bebbo_Recruitment",
+          "Ad3_Bebbo_Recruitment"
+        ],
+        "excluded_audiences": ["unicef-bebbo-bulgaria-respondents"],
+        "facebook_targeting": {
+          "age_max": 26,
+          "age_min": 18,
+          "excluded_geo_locations": {
+            "cities": [
+              {
+                "country": "BG",
+                "distance_unit": "mile",
+                "key": "213989",
+                "name": "Sofia",
+                "radius": 25,
+                "region": "Sofia City Province",
+                "region_id": "348"
+              }
+            ],
+            "location_types": ["home"]
+          },
+          "flexible_spec": [
+            {
+              "family_statuses": [
+                {
+                  "id": "6023005372383",
+                  "name": "New Parents (0-12 months)"
+                },
+                {
+                  "id": "6023005458383",
+                  "name": "Parents with toddlers (01-02 years) "
+                },
+                {
+                  "id": "6023005529383",
+                  "name": "Parents with preschoolers (03-05 years) "
+                },
+                {
+                  "id": "6023005570783",
+                  "name": "Parents with early school-age children (06-08 years) "
+                }
+              ]
+            }
+          ],
+          "genders": [1],
+          "geo_locations": {
+            "countries": ["BG"],
+            "location_types": ["home", "recent"]
+          }
+        },
+        "id": "age-18-gender-1-location-not-sofia",
+        "metadata": {
+          "stratum_age": "18",
+          "stratum_gender": "1",
+          "stratum_location": "Not Sofia"
+        },
+        "question_targeting": {
+          "op": "and",
+          "vars": [
+            {
+              "op": "equal",
+              "vars": [
+                {
+                  "type": "variable",
+                  "value": "md:stratum_age"
+                },
+                {
+                  "type": "constant",
+                  "value": "18"
+                }
+              ]
+            },
+            {
+              "op": "equal",
+              "vars": [
+                {
+                  "type": "variable",
+                  "value": "md:stratum_gender"
+                },
+                {
+                  "type": "constant",
+                  "value": "1"
+                }
+              ]
+            },
+            {
+              "op": "equal",
+              "vars": [
+                {
+                  "type": "variable",
+                  "value": "md:stratum_location"
+                },
+                {
+                  "type": "constant",
+                  "value": "Not Sofia"
+                }
+              ]
+            },
+            {
+              "op": "answered",
+              "vars": [
+                {
+                  "type": "variable",
+                  "value": "followup_permission"
+                }
+              ]
+            }
+          ]
+        },
+        "quota": 1
+      }
+    ]
+  }
+]
