@@ -1,5 +1,5 @@
 import React from 'react';
-import { Auth0Provider } from '@auth0/auth0-react';
+import { Auth0Provider, useAuth0 } from '@auth0/auth0-react';
 import { ReactQueryConfigProvider, useQuery } from 'react-query';
 import { ReactQueryDevtools } from 'react-query-devtools';
 import { BrowserRouter, Switch, Route, Redirect } from 'react-router-dom';
@@ -8,7 +8,6 @@ import StudyPage from './pages/StudyPage/StudyPage';
 import LoginPage from './pages/LoginPage/LoginPage';
 import NewStudyPage from './pages/NewStudyPage/NewStudyPage';
 import { ReactComponent as Logo } from './assets/logo.svg';
-import useAuth0 from './hooks/useAuth0';
 import useAuthenticatedApi from './hooks/useAuthenticatedApi';
 
 const areTestsRunning =
@@ -29,6 +28,7 @@ const App = () => (
         clientId={process.env.REACT_APP_AUTH0_CLIENT_ID!}
         redirectUri={window.location.origin}
         audience={process.env.REACT_APP_AUTH0_AUDIENCE!}
+        cacheLocation='localstorage'
       >
         <Routes />
       </Auth0Provider>
@@ -92,7 +92,6 @@ const AuthenticatedRoute = ({
   ...rest
 }: React.ComponentProps<typeof Route>) => {
   const { isAuthenticated } = useAuth0();
-
   return (
     <Route
       {...rest}

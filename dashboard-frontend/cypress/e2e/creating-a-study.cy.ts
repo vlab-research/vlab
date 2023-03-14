@@ -4,6 +4,10 @@ describe('Given an authenticated user', () => {
   let server: ReturnType<typeof makeServer>;
 
   beforeEach(() => {
+    cy.loginToAuth0(
+      Cypress.env('auth0_username'),
+      Cypress.env('auth0_password')
+    )
     server = makeServer({ environment: 'test' });
   });
 

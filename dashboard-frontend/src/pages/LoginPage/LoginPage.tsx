@@ -1,4 +1,4 @@
-import useAuth0 from '../../hooks/useAuth0';
+import { useAuth0 } from '@auth0/auth0-react';
 import PrimaryButton from '../../components/PrimaryButton';
 import { ReactComponent as Logo } from '../../assets/logo.svg';
 import { ReactComponent as WelcomeIllustration } from '../../assets/launching-illustration.svg';
@@ -37,7 +37,7 @@ const LoginPage = ({
               size="500"
               rounded
               onClick={loginWithRedirect}
-              className="mt-8 pl-32 pr-32 sm:pl-44 sm:pr-44"
+              className="mt-8 pl-32 pr-32 sm:pl-44 sm:pr-44 loginbtn"
             >
               Log in
             </PrimaryButton>
