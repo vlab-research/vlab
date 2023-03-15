@@ -17,6 +17,8 @@ import (
 	"github.com/vlab-research/vlab/dashboard-api/internal/platform/storage"
 )
 
+var CurrentUserId = "auth0|61916c1dab79c900713936de"
+
 type Response struct {
 	StatusCode int
 	Header     http.Header
@@ -92,7 +94,7 @@ func FakeValidTokenMiddleware() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		userCtx := validator.ValidatedClaims{
 			RegisteredClaims: validator.RegisteredClaims{
-				Subject: "fake-user-id",
+				Subject: CurrentUserId,
 			},
 		}
 
@@ -120,4 +122,26 @@ func DeleteAllStudies() {
 func DeleteAllAccounts() {
 	repositories := GetRepositories()
 	repositories.Db.Exec("DELETE FROM credentials")
+}
+
+func DeleteAllStudyConfs() {
+	repositories := GetRepositories()
+	repositories.Db.Exec("DELETE FROM study_conf")
+}
+
+func DeleteAllUsers() {
+	repositories := GetRepositories()
+	repositories.Db.Exec("DELETE FROM users")
+}
+
+func CreateStudy(slug, userID string) error {
+	r := GetRepositories()
+	q := "INSERT INTO studies (slug, name, user_id) VALUES ($1, $2, $3)"
+	_, err := r.Db.Exec(q, slug, slug, userID)
+	return err
+}
+
+func CreateUser() {
+	r := GetRepositories()
+	_, _ = r.Db.Exec("INSERT INTO users (id) VALUES ($1)", CurrentUserId)
 }

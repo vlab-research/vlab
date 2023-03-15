@@ -16,7 +16,7 @@ CREATE TABLE studies(
 
 CREATE TABLE study_confs(
        created TIMESTAMP DEFAULT CURRENT_TIMESTAMP(),
-       study_id UUID NOT NULL REFERENCES studies(id),
+       study_id UUID NOT NULL REFERENCES studies(id) ON DELETE CASCADE,
        conf_type string NOT NULL,
        conf JSON NOT NULL
 );
