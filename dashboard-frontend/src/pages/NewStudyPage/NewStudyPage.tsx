@@ -4,7 +4,7 @@ import Form from './form/components/Form';
 import { general } from './form/configs/general';
 import { targeting } from './form/configs/targeting';
 import { targeting_distribution } from './form/configs/targeting_distribution';
-import { Config } from '../../types/form';
+import { Config, FieldState } from '../../types/form';
 import simple from './form/controllers/simple';
 import Navbar from '../../components/NavBar';
 import { createNameFor } from '../../helpers/strings';
@@ -41,7 +41,7 @@ const PageContent = () => {
     throw new Error(`Could not find form for controller type: ${type}`);
   }
 
-  const updateFormData = (x: any) => {
+  const updateFormData = (x: FieldState) => {
     const title = createNameFor(config.title);
     setFormData({ ...formData, [title]: x });
   };
