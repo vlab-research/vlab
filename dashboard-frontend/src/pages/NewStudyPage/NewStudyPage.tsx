@@ -7,6 +7,7 @@ import { targeting_distribution } from './form/configs/targeting_distribution';
 import { Config } from '../../types/form';
 import simple from './form/controllers/simple';
 import Navbar from '../../components/NavBar';
+import { createNameFor } from '../../helpers/strings';
 
 const NewStudyPage = () => (
   <PageLayout title={'New Study'} testId="new-study-page" showBackButton>
@@ -41,7 +42,7 @@ const PageContent = () => {
   }
 
   const updateFormData = (x: any) => {
-    const { title } = config;
+    const title = createNameFor(config.title);
     setFormData({ ...formData, [title]: x });
   };
 
