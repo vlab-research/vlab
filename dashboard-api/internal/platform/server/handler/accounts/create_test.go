@@ -37,7 +37,7 @@ func TestHandler_Account_Create(t *testing.T) {
 					`),
 			},
 			expectedStatus: 201,
-			expectedRes:    "{\"data\":{\"id\":\"\",\"userId\":\"fake-user-id\",\"authType\":\"token\",\"name\":\"Fly\",\"connectedAccount\":{\"createdAt\":null,\"credentials\":{\"api_key\":\"supersecret\"}}}}",
+			expectedRes:    "{\"data\":{\"id\":\"\",\"userId\":\"auth0|61916c1dab79c900713936de\",\"authType\":\"token\",\"name\":\"Fly\",\"connectedAccount\":{\"createdAt\":null,\"credentials\":{\"api_key\":\"supersecret\"}}}}",
 			description:    "return 200 for valid fly account",
 		},
 		{
@@ -76,7 +76,7 @@ func TestHandler_Account_Create(t *testing.T) {
 		},
 		{
 			expectedStatus: 201,
-			expectedRes:    "{\"data\":{\"id\":\"\",\"userId\":\"fake-user-id\",\"authType\":\"token\",\"name\":\"Typeform\",\"connectedAccount\":{\"createdAt\":null,\"credentials\":{\"key\":\"supersecret\"}}}}",
+			expectedRes:    "{\"data\":{\"id\":\"\",\"userId\":\"auth0|61916c1dab79c900713936de\",\"authType\":\"token\",\"name\":\"Typeform\",\"connectedAccount\":{\"createdAt\":null,\"credentials\":{\"key\":\"supersecret\"}}}}",
 			description:    "return 201 for valid typeform account",
 			account: studiesmanager.Account{
 				UserID:   userId,
@@ -108,7 +108,7 @@ func TestHandler_Account_Create(t *testing.T) {
 
 func createAccountRequest(a interface{}) testhelpers.Response {
 	r := testhelpers.GetRepositories()
-	r.User.CreateUser(context.TODO(), "fake-user-id")
+	r.User.CreateUser(context.TODO(), testhelpers.CurrentUserId)
 	return testhelpers.PerformPostRequest(
 		"/accounts",
 		storage.Repositories{

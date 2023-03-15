@@ -87,7 +87,7 @@ func TestHandler_Create(t *testing.T) {
 
 func createStudyRequest(studyName string) testhelpers.Response {
 	r := testhelpers.GetRepositories()
-	r.User.CreateUser(context.TODO(), "fake-user-id")
+	r.User.CreateUser(context.TODO(), testhelpers.CurrentUserId)
 	return testhelpers.PerformPostRequest(
 		"/studies",
 		storage.Repositories{

@@ -7,6 +7,7 @@ import (
 
 	_ "github.com/jackc/pgx/v4/stdlib"
 	studiesmanager "github.com/vlab-research/vlab/dashboard-api/internal"
+	"github.com/vlab-research/vlab/dashboard-api/internal/types"
 )
 
 type Repositories struct {
@@ -15,6 +16,7 @@ type Repositories struct {
 	StudySegments studiesmanager.StudySegmentsRepository
 	User          studiesmanager.UserRepository
 	Account       studiesmanager.AccountRepository
+	StudyConf     types.StudyConfRepository
 }
 
 func InitializeRepositories(dbURI string) Repositories {
@@ -32,5 +34,6 @@ func InitializeRepositories(dbURI string) Repositories {
 		StudySegments: NewStudySegmentsRepository(db),
 		User:          NewUserRepository(db),
 		Account:       NewAccountRepository(db),
+		StudyConf:     NewStudyConfRepository(db),
 	}
 }
