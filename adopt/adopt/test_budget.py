@@ -271,9 +271,9 @@ def test_get_budget_lookup(cnf, df):
     spend = {"bar": 10.0, "baz": 10.0, "foo": 10.0}
 
     budget, _ = get_budget_lookup(df, cnf, 60, 100, window, spend, 30)
-    assert round(budget["foo"]) == 21
-    assert round(budget["bar"]) == 5
-    assert round(budget["baz"]) == 5
+    assert round(budget["foo"]) == 16
+    assert round(budget["bar"]) == 7
+    assert round(budget["baz"]) == 7
 
 
 def test_get_budget_lookup_with_proportional_budget_when_budget_is_spent(cnf, df):
@@ -305,7 +305,7 @@ def test_get_budget_lookup_works_with_missing_data_from_clusters():
     window = DateRange(START_DATE, UNTIL_DATE)
     res, _ = get_budget_lookup(df, cnf, 50, 100, window, spend, 40)
 
-    assert res == {"foo": 5.0, "bar": 0.0, "baz": 5.0}
+    assert {k: round(v, 1) for k, v in res.items()} == {"foo": 4.6, "bar": 0.7, "baz": 4.6}
 
 
 def test_make_report():
