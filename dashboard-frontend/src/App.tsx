@@ -28,7 +28,7 @@ const App = () => (
         clientId={process.env.REACT_APP_AUTH0_CLIENT_ID!}
         redirectUri={window.location.origin}
         audience={process.env.REACT_APP_AUTH0_AUDIENCE!}
-        cacheLocation='localstorage'
+        cacheLocation="localstorage"
       >
         <Routes />
       </Auth0Provider>
@@ -52,7 +52,7 @@ const Routes = () => {
   return (
     <BrowserRouter>
       <Switch>
-        <AuthenticatedRoute exact path="/">
+        <AuthenticatedRoute exact path="/studies">
           <StudiesPage />
         </AuthenticatedRoute>
 
@@ -61,6 +61,10 @@ const Routes = () => {
         </AuthenticatedRoute>
 
         <AuthenticatedRoute path="/new-study">
+          <NewStudyPage />
+        </AuthenticatedRoute>
+
+        <AuthenticatedRoute path="/studies/configuration">
           <NewStudyPage />
         </AuthenticatedRoute>
 

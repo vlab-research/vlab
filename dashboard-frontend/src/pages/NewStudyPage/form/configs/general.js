@@ -4,12 +4,6 @@ export const general = {
   description: 'The "general" configuration consists of... General stuff?',
   fields: [
     {
-      name: 'name',
-      type: 'text',
-      label: 'Name',
-      helper_text: 'E.g example-fly-conf',
-    },
-    {
       name: 'objective',
       type: 'select',
       label: 'Objective',

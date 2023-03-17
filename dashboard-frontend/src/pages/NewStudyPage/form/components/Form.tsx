@@ -3,11 +3,17 @@ import { reducer } from '../../../../helpers/objects';
 import Fieldset from './Fieldset';
 import Submit from './buttons/Submit';
 import { FieldState } from '../../../../types/form';
+import { createNameFor } from '../../../../helpers/strings';
+import useCreateStudy from '../../useCreateStudy';
 
 export const Form = (props: any) => {
-  const { config, controller, isLast, setIndex, updateFormData } = props;
+  const { config, controller, isLast, isCreateStudyForm, setIndex } = props;
+
+  const { createStudy } = useCreateStudy();
 
   const [globalState, setGlobalState] = useState<FieldState[]>();
+
+  const [formData, setFormData] = useState<any>({});
 
   useEffect(() => {
     setGlobalState(controller(config));
@@ -31,9 +37,17 @@ export const Form = (props: any) => {
       setIndex((prevCount: number) => prevCount + 1);
     }
 
-    const formData = globalState && reducer(globalState);
+    const state = globalState && reducer(globalState);
 
-    updateFormData(formData);
+    const title = createNameFor(config.title);
+
+    const updateFormData = (x: any) => {
+      setFormData({ ...formData, [title]: x });
+    };
+
+    updateFormData(state);
+
+    createStudy(formData[title]);
   };
 
   return (
@@ -52,7 +66,10 @@ export const Form = (props: any) => {
               ></Fieldset>
             </Fragment>
           )}
-          <Submit isLast={isLast}></Submit>
+          <Submit
+            isLast={isLast}
+            isCreateStudyForm={isCreateStudyForm}
+          ></Submit>
         </form>
       </div>
     </div>

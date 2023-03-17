@@ -11,7 +11,7 @@ const useCreateStudy = () => {
     {
       onSuccess: ({ data: newStudy }) => {
         addStudyToCacheWhileRefetching(newStudy);
-        history.push('/');
+        history.push('/studies');
       },
     }
   );

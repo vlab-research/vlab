@@ -1,12 +1,12 @@
 import PrimaryButton from '../../../../../components/PrimaryButton';
 
 const Submit = (props: any) => {
-  const { isLast } = props;
+  const { isLast, isCreateStudyForm } = props;
 
   return (
     <div className="p-6 text-right">
-      {!isLast ? (
-        <PrimaryButton type="submit" testId="new-study-next-button">
+      {!isCreateStudyForm && !isLast ? (
+        <PrimaryButton type="submit" testId="study-configuration-next-button">
           Next
         </PrimaryButton>
       ) : (
