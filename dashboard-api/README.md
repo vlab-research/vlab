@@ -14,13 +14,21 @@ your local environment
 ```bash
 $ make
 help:      Show help for each of the Makefile recipes
-dev:     Sets up local development environment
+dev:       Sets up local development environment
 stop:      Stops and cleans up all containers
 start:     Starts local containers
-test:   Runs the go tests 
+test:      Runs the go tests 
 ```
 
-In order to start the local development environment run:
+In order to start the local development environment run you will need to setup
+your environment variablse, you can do this by:
+
+```bash
+cp .env-exampl .env
+```
+
+You can now navigate to the `.env` file and make sure all required values are
+set. Once done you can run:
 
 ```bash
 make dev
@@ -28,7 +36,14 @@ make dev
 
 ### Running Tests
 
-To run tests you can run:
+To run tests you need to start up the test database:
+
+```
+cd ../devops
+./test_db.sh
+cd ../dashboard-api
+```
+Then you should be able to run the tests as usual
 
 ```bash
 make test

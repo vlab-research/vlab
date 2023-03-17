@@ -4,17 +4,12 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.dev
-    environment:
-      API_HOST: 0.0.0.0
-      API_PORT: 80
-      DATABASE_NAME: vlab
-      DATABASE_HOST: cockroachdb
-      DATABASE_PORT: 26257
-      DATABASE_USER: root
+    env_file:
+      - .env
     ports:
       # TODO change to a non root port ( > 1024)
       # https://www.w3.org/Daemon/User/Installation/PrivilegedPorts.html
-      - 80:80
+      - 8080:8080
     depends_on:
       - setup_cockroachdb
     networks:
@@ -32,11 +27,13 @@ services:
   setup_cockroachdb:
     image: cockroachdb/cockroach:v21.2.3
     volumes:
-      - ./seed_cockroachdb.sql:/tmp/seed_cockroachdb.sql
+      - ../devops/sql:/tmp/migrations
+      - ../devops/seed:/tmp/seed
     entrypoint: |
       sh -c '
         ./cockroach sql --host cockroachdb --insecure -e "CREATE DATABASE vlab"
-        ./cockroach sql --host cockroachdb --insecure --database=vlab < /tmp/seed_cockroachdb.sql
+        cat /tmp/migrations/* | ./cockroach sql --host cockroachdb --insecure --database=vlab
+        cat /tmp/seed/* | ./cockroach sql --host cockroachdb --insecure --database=vlab 
       '
     depends_on:
       - cockroachdb
