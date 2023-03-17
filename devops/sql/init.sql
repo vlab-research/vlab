@@ -14,16 +14,12 @@ CREATE TABLE studies(
        CONSTRAINT unique_slug UNIQUE(user_id, slug)
 );
 
-
-
 CREATE TABLE study_confs(
        created TIMESTAMP DEFAULT CURRENT_TIMESTAMP(),
        study_id UUID NOT NULL REFERENCES studies(id),
        conf_type string NOT NULL,
        conf JSON NOT NULL
 );
-
-
 
 CREATE TABLE inference_data(
        study_id UUID NOT NULL REFERENCES studies(id),
