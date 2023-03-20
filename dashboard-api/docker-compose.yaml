@@ -1,20 +1,15 @@
-version: '3'
+version: "3"
 services:
   api:
     build:
       context: .
       dockerfile: Dockerfile.dev
-    environment:
-      API_HOST: 0.0.0.0
-      API_PORT: 80
-      DATABASE_NAME: vlab
-      DATABASE_HOST: cockroachdb
-      DATABASE_PORT: 26257
-      DATABASE_USER: root
+    env_file:
+      - .env
     ports:
       # TODO change to a non root port ( > 1024)
       # https://www.w3.org/Daemon/User/Installation/PrivilegedPorts.html
-      - 80:80
+      - 8080:8080
     depends_on:
       - setup_cockroachdb
     networks:
