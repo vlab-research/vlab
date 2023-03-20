@@ -3,8 +3,7 @@ import PageLayout from '../../components/PageLayout';
 import Form from './form/components/Form';
 import { create_study } from './form/configs/create_study';
 import { general } from './form/configs/general';
-import { targeting } from './form/configs/targeting';
-import { targeting_distribution } from './form/configs/targeting_distribution';
+
 import { Config } from '../../types/form';
 import simple from './form/controllers/simple';
 import Navbar from '../../components/NavBar';
@@ -19,8 +18,6 @@ const PageContent = () => {
   const configs: Record<string, Config> = {
     create_study,
     general,
-    targeting,
-    targeting_distribution,
   };
 
   const configsToArr = Object.entries(configs);
