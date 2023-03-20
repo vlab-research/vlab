@@ -19,6 +19,8 @@ export const Form = (props: any) => {
     setGlobalState(controller(config));
   }, [config, controller]);
 
+  const title = createNameFor(config.title);
+
   const handleChange = (name: string, e: any) => {
     const event = {
       name,
@@ -28,6 +30,14 @@ export const Form = (props: any) => {
 
     const newState = controller(config, globalState, event);
     setGlobalState(newState);
+
+    const state = globalState && reducer(globalState);
+
+    const updateFormData = (x: any) => {
+      setFormData({ ...formData, [title]: x });
+    };
+
+    updateFormData(state);
   };
 
   const handleSubmit = (e: any) => {
@@ -36,16 +46,6 @@ export const Form = (props: any) => {
     if (!isLast) {
       setIndex((prevCount: number) => prevCount + 1);
     }
-
-    const state = globalState && reducer(globalState);
-
-    const title = createNameFor(config.title);
-
-    const updateFormData = (x: any) => {
-      setFormData({ ...formData, [title]: x });
-    };
-
-    updateFormData(state);
 
     createStudy(formData[title]);
   };
