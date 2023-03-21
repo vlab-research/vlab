@@ -24,5 +24,5 @@ start: 		## Starts local containers
 	@docker compose up --build
 
 test:	## Runs the go tests 
-	@go test ./... -v
+	@go test ./... -p 1 -v
 
