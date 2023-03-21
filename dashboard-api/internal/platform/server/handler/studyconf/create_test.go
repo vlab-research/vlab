@@ -1,10 +1,11 @@
-package studyconfig_test
+package studyconf_test
 
 import (
 	"context"
 	"fmt"
 	"testing"
 
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 	"github.com/vlab-research/vlab/dashboard-api/internal/platform/storage"
 	"github.com/vlab-research/vlab/dashboard-api/internal/testhelpers"
@@ -14,7 +15,8 @@ import (
 func TestHandler_StudyConfiguration_Create(t *testing.T) {
 	assert := require.New(t)
 	userId := "auth0|61916c1dab79c900713936de"
-	studyslug := "test-study"
+	id := uuid.New()
+	studyslug := id.String()
 	testcases := []struct {
 		studyconfig    types.StudyConf
 		studyslug      string
@@ -25,7 +27,7 @@ func TestHandler_StudyConfiguration_Create(t *testing.T) {
 		{
 			studyconfig: types.StudyConf{
 				UserID: userId,
-				General: types.GeneralConf{
+				General: &types.GeneralConf{
 					Name:             "Foo",
 					AdAccount:        "12345",
 					DestinationType:  "Web",
@@ -34,11 +36,11 @@ func TestHandler_StudyConfiguration_Create(t *testing.T) {
 					PageID:           "1",
 					MinBudget:        1,
 				},
-				Targeting: types.TargetingConf{
+				Targeting: &types.TargetingConf{
 					TemplateCampaignName: "Bar",
 					DistributionVars:     types.Location,
 				},
-				TargetingDistribution: types.TargetingDistributionConf{
+				TargetingDistribution: &types.TargetingDistributionConf{
 					Age:      "21",
 					Gender:   "F",
 					Location: "Spain",

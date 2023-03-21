@@ -15,6 +15,7 @@ import (
 	"github.com/vlab-research/vlab/dashboard-api/cmd/api/bootstrap"
 	"github.com/vlab-research/vlab/dashboard-api/internal/platform/server"
 	"github.com/vlab-research/vlab/dashboard-api/internal/platform/storage"
+	"github.com/vlab-research/vlab/dashboard-api/internal/types"
 )
 
 var CurrentUserId = "auth0|61916c1dab79c900713936de"
@@ -136,12 +137,20 @@ func DeleteAllUsers() {
 
 func CreateStudy(slug, userID string) error {
 	r := GetRepositories()
-	q := "INSERT INTO studies (slug, name, user_id) VALUES ($1, $2, $3)"
-	_, err := r.Db.Exec(q, slug, slug, userID)
+	q := "INSERT INTO studies (id, slug, name, user_id) VALUES ($1, $2, $3, $4)"
+	_, err := r.Db.Exec(q, slug, slug, slug, userID)
 	return err
 }
 
 func CreateUser() {
 	r := GetRepositories()
 	_, _ = r.Db.Exec("INSERT INTO users (id) VALUES ($1)", CurrentUserId)
+}
+
+func CreateDatabaseStudyConf(dsc types.DatabaseStudyConf) error {
+
+	r := GetRepositories()
+	q := "INSERT INTO study_confs (study_id, conf_type, conf) VALUES ($1, $2, $3)"
+	_, err := r.Db.Exec(q, dsc.StudyID, dsc.ConfType, dsc.Conf)
+	return err
 }

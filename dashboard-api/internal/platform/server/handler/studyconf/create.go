@@ -1,4 +1,4 @@
-package studyconfig
+package studyconf
 
 import (
 	"encoding/json"
