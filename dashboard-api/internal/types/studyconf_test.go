@@ -18,10 +18,14 @@ func TestStudyConfType_TransformForDatabase(t *testing.T) {
 			*testhelpers.NewDatabaseStudyConf(testhelpers.TypeGeneral()),
 			*testhelpers.NewDatabaseStudyConf(testhelpers.TypeTargeting()),
 			*testhelpers.NewDatabaseStudyConf(testhelpers.TypeTargetingDistribution()),
+			*testhelpers.NewDatabaseStudyConf(testhelpers.TypeRecruitment()),
+			*testhelpers.NewDatabaseStudyConf(testhelpers.TypeDestinations()),
+			*testhelpers.NewDatabaseStudyConf(testhelpers.TypeCreatives()),
 		}
 		s, err := input.TransformForDatabase()
 		assert.NoError(err)
-		for i, _ := range expected {
+		assert.Equal(6, len(s))
+		for i, _ := range s {
 			assert.Equal(expected[i], s[i])
 		}
 	})
@@ -31,11 +35,12 @@ func TestStudyConfType_TransformForDatabase(t *testing.T) {
 			*testhelpers.NewDatabaseStudyConf(testhelpers.TypeTargeting()),
 			*testhelpers.NewDatabaseStudyConf(testhelpers.TypeRecruitment()),
 			*testhelpers.NewDatabaseStudyConf(testhelpers.TypeDestinations()),
+			*testhelpers.NewDatabaseStudyConf(testhelpers.TypeCreatives()),
 		}
 		input := testhelpers.NewStudyConf(testhelpers.WithTargetingDistributionConf(nil))
 		s, err := input.TransformForDatabase()
 		assert.NoError(err)
-		assert.Equal(len(s), 4)
+		assert.Equal(len(s), 5)
 		for i, _ := range expected {
 			assert.Equal(expected[i], s[i])
 		}
@@ -51,6 +56,8 @@ func TestStudyConfType_TransformFromDatabase(t *testing.T) {
 			testhelpers.NewDatabaseStudyConf(testhelpers.TypeTargetingDistribution()),
 			testhelpers.NewDatabaseStudyConf(testhelpers.TypeDestinations()),
 			testhelpers.NewDatabaseStudyConf(testhelpers.TypeRecruitment()),
+			testhelpers.NewDatabaseStudyConf(testhelpers.TypeDestinations()),
+			testhelpers.NewDatabaseStudyConf(testhelpers.TypeCreatives()),
 		}
 		expected := testhelpers.NewStudyConf()
 		s := types.StudyConf{

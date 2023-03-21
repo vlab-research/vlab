@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"reflect"
 	"time"
 
@@ -37,6 +38,7 @@ type StudyConf struct {
 	TargetingDistribution *TargetingDistributionConf `json:"targeting_distribution"`
 	Recruitment           *RecruitmentConf           `json:"recruitment"`
 	Destinations          *DestinationConf           `json:"destinations"`
+	Creatives             []*CreativeConf            `json:"creatives"`
 	// add any new config structs here
 	// NOTE: Confs should be pointers as this allows JSON unmarshalling
 	// to null if they are not set
@@ -57,22 +59,22 @@ func (sc *StudyConf) TransformForDatabase() (res []DatabaseStudyConf, err error)
 		// service use to identify the config
 		fieldName := v.Type().Field(i).Tag.Get("json")
 		// if a field is not set we dont need to add it to our array
-		// as it will just have empty data as well as if it is not one of
-		// the confs which should all be pointers
-		if field.IsZero() || field.Kind() != reflect.Ptr {
+		if field.IsZero() {
 			continue
 		}
-
-		// we marshal the full config to json to be stored
-		conf, err := json.Marshal(field.Interface())
-		if err != nil {
-			return nil, err
+		// confs should all be pointers or slices
+		if field.Kind() == reflect.Ptr || field.Kind() == reflect.Slice {
+			// we marshal the full config to json to be stored
+			conf, err := json.Marshal(field.Interface())
+			if err != nil {
+				return nil, err
+			}
+			res = append(res, DatabaseStudyConf{
+				StudyID:  studyID,
+				ConfType: fieldName,
+				Conf:     conf,
+			})
 		}
-		res = append(res, DatabaseStudyConf{
-			StudyID:  studyID,
-			ConfType: fieldName,
-			Conf:     conf,
-		})
 	}
 	return res, nil
 }
@@ -84,16 +86,18 @@ func (sc *StudyConf) TransformFromDatabase(dcs []*DatabaseStudyConf) error {
 
 	unmarshalFuncs := map[string]unmarshalFunc{
 		"general":                json.Unmarshal,
+		"creatives":              json.Unmarshal,
 		"targeting":              json.Unmarshal,
 		"targeting_distribution": json.Unmarshal,
 		"recruitment":            json.Unmarshal,
 		"destinations":           json.Unmarshal,
 	}
 
+	errMsg := "there was an error fetching the %s configuration"
 	for _, d := range dcs {
 		if unmarshalFunc, ok := unmarshalFuncs[d.ConfType]; ok {
 			if err := unmarshalFunc(d.Conf, sc.getConfigValue(d.ConfType)); err != nil {
-				return err
+				return fmt.Errorf(errMsg, d.ConfType)
 			}
 		}
 	}
@@ -108,6 +112,8 @@ func (sc *StudyConf) getConfigValue(confType string) interface{} {
 		return &sc.General
 	case "destinations":
 		return &sc.Destinations
+	case "creatives":
+		return &sc.Creatives
 	case "targeting":
 		return &sc.Targeting
 	case "targeting_distribution":
@@ -245,6 +251,19 @@ type AppDestination struct {
 	AppInstallState  string   `json:"app_install_state"`
 	UserDevice       []string `json:"user_device"`
 	UserOS           []string `json:"user_os"`
+}
+
+// CreativeConf these are essential fields that relate to an ad
+// and link to a destination
+type CreativeConf struct {
+	Body           string   `json:"body"`
+	ButtonText     string   `json:"button_text"`
+	Destination    string   `json:"destination"`
+	ImageHash      string   `json:"image_hash"`
+	LinkText       string   `json:"link_text"`
+	Name           string   `json:"name"`
+	WelcomeMessage string   `json:"welcome_message"`
+	Tags           []string `json:"tags"`
 }
 
 // DatabaseStudyConf is the structure used to store data
