@@ -58,6 +58,14 @@ func TypeDestinations() databasestudyconfoptions {
 	}
 }
 
+func TypeCreatives() databasestudyconfoptions {
+	return func(d *types.DatabaseStudyConf) {
+		d.StudyID = StudyID
+		d.ConfType = "creatives"
+		d.Conf = []byte(`[{"body":"Foobar","button_text":"Foobar","destination":"fly","image_hash":"8ef11493ade6deced04f36b9e8cf3900","link_text":"Foobar","name":"Ad1_Recruitment","welcome_message":"welcome","tags":null}]`)
+	}
+}
+
 func CreateDatabaseStudyConf(t *testing.T, dsc types.DatabaseStudyConf) error {
 	t.Helper()
 	r := GetRepositories()

@@ -70,6 +70,17 @@ func NewStudyConf(opts ...studyconfigoptions) types.StudyConf {
 				InitialShortcode: "foobarbaz",
 			},
 		},
+		Creatives: []*types.CreativeConf{
+			{
+				Body:           "Foobar",
+				ButtonText:     "Foobar",
+				Destination:    "fly",
+				ImageHash:      "8ef11493ade6deced04f36b9e8cf3900",
+				LinkText:       "Foobar",
+				Name:           "Ad1_Recruitment",
+				WelcomeMessage: "welcome",
+			},
+		},
 	}
 
 	// Set any Overrides
