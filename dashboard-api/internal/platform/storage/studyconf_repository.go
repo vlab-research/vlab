@@ -43,3 +43,39 @@ func (r *StudyConfRepository) Create(
 
 	return nil
 }
+
+// GetConfsByStudy will return all the latest unique confs that are attached to
+// a study
+func (r *StudyConfRepository) GetByStudySlug(
+	ctx context.Context,
+	slug, userID string,
+) ([]*types.DatabaseStudyConf, error) {
+
+	var dscs []*types.DatabaseStudyConf
+
+	// We get the latest of each study conf by study slug so we join the studies
+	// table to handle the filtering
+	q := `
+	SELECT DISTINCT ON(conf_type) sc.study_id, sc.conf_type, sc.conf, sc.created
+	FROM study_confs sc
+	JOIN studies s on s.id = sc.study_id
+	WHERE s.slug = $1 AND s.user_id=$2
+	ORDER BY conf_type, created;
+	`
+
+	rows, err := r.db.QueryContext(ctx, q, slug, userID)
+	if err != nil {
+		return dscs, err
+	}
+
+	for rows.Next() {
+		d := new(types.DatabaseStudyConf)
+		err := rows.Scan(&d.StudyID, &d.ConfType, &d.Conf, &d.Created)
+		if err != nil {
+			return dscs, err
+		}
+		dscs = append(dscs, d)
+	}
+
+	return dscs, nil
+}

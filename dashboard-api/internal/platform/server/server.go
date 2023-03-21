@@ -67,8 +67,11 @@ func (s *Server) registerRoutes() {
 
 	//APIS for the study configurations resource
 	s.Engine.POST("/studies/:slug/conf", s.ensureValidTokenMiddleware, studyconf.CreateHandler(s.repositories))
+	s.Engine.GET("/studies/:slug/conf", s.ensureValidTokenMiddleware, studyconf.ReadHandler(s.repositories))
 
 	//APIS for users
 	s.Engine.POST("/users", s.ensureValidTokenMiddleware, users.CreateHandler(s.repositories))
+
+	//API for accounts
 	s.Engine.POST("/accounts", s.ensureValidTokenMiddleware, accounts.CreateHandler(s.repositories))
 }

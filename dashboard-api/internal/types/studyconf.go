@@ -17,18 +17,24 @@ const (
 
 type StudyConfRepository interface {
 	Create(ctx context.Context, dsc DatabaseStudyConf) error
+	GetByStudySlug(
+		ctx context.Context,
+		slug, userID string,
+	) ([]*DatabaseStudyConf, error)
 }
 
 // StudyConf is the root config that holds the various
 // different types of study configuration that can be
 // applied to a study that gets sent by the frontend
 type StudyConf struct {
-	StudyID               string                    `json:"-"`
-	UserID                string                    `json:"-"`
-	General               GeneralConf               `json:"general"`
-	Targeting             TargetingConf             `json:"targeting"`
-	TargetingDistribution TargetingDistributionConf `json:"targeting_distribution"`
+	StudyID               string                     `json:"-"`
+	UserID                string                     `json:"-"`
+	General               *GeneralConf               `json:"general"`
+	Targeting             *TargetingConf             `json:"targeting"`
+	TargetingDistribution *TargetingDistributionConf `json:"targeting_distribution"`
 	// add any new config structs here
+	// NOTE: Confs should be pointers as this allows JSON unmarshalling
+	// to null if they are not set
 }
 
 // TransformForDatabase will take the StudyConfig that is passed from the
@@ -46,26 +52,60 @@ func (sc *StudyConf) TransformForDatabase() (res []DatabaseStudyConf, err error)
 		// service use to identify the config
 		fieldName := v.Type().Field(i).Tag.Get("json")
 		// if a field is not set we dont need to add it to our array
-		// as it will just have empty data
-		if field.IsZero() {
+		// as it will just have empty data as well as if it is not one of
+		// the confs which should all be pointers
+		if field.IsZero() || field.Kind() != reflect.Ptr {
 			continue
 		}
 
-		switch field.Kind() {
-		case reflect.Struct, reflect.Slice:
-			// we marshal the full config to json to be stored
-			conf, err := json.Marshal(field.Interface())
-			if err != nil {
-				return nil, err
-			}
-			res = append(res, DatabaseStudyConf{
-				StudyID:  studyID,
-				ConfType: fieldName,
-				Conf:     conf,
-			})
+		// we marshal the full config to json to be stored
+		conf, err := json.Marshal(field.Interface())
+		if err != nil {
+			return nil, err
 		}
+		res = append(res, DatabaseStudyConf{
+			StudyID:  studyID,
+			ConfType: fieldName,
+			Conf:     conf,
+		})
 	}
 	return res, nil
+}
+
+// TransformFromDatabase gets a list of DatabaseStudyConf and iterates
+// through it, adding the relevant configs to the StudyConf struct
+func (sc *StudyConf) TransformFromDatabase(dcs []*DatabaseStudyConf) error {
+	type unmarshalFunc func([]byte, any) error
+
+	unmarshalFuncs := map[string]unmarshalFunc{
+		"general":                json.Unmarshal,
+		"targeting":              json.Unmarshal,
+		"targeting_distribution": json.Unmarshal,
+	}
+
+	for _, d := range dcs {
+		if unmarshalFunc, ok := unmarshalFuncs[d.ConfType]; ok {
+			if err := unmarshalFunc(d.Conf, sc.getConfigValue(d.ConfType)); err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
+// getConfigValue uses the config json string to the relevant pointer
+func (sc *StudyConf) getConfigValue(confType string) interface{} {
+	switch confType {
+	case "general":
+		return &sc.General
+	case "targeting":
+		return &sc.Targeting
+	case "targeting_distribution":
+		return &sc.TargetingDistribution
+	default:
+		return nil
+	}
 }
 
 // GeneralConf is used to hold all general configuration
@@ -101,8 +141,8 @@ type TargetingDistributionConf struct {
 // DatabaseStudyConf is the structure used to store data
 // in the database
 type DatabaseStudyConf struct {
-	CreatedAt time.Time
-	StudyID   string
-	ConfType  string
-	Conf      json.RawMessage
+	Created  time.Time
+	StudyID  string
+	ConfType string
+	Conf     json.RawMessage
 }
