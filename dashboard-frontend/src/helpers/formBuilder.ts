@@ -1,5 +1,5 @@
-import Select from '../pages/NewStudyPage/form/components/inputs/Select';
-import Text from '../pages/NewStudyPage/form/components/inputs/Text';
+import Select from '../pages/StudyConfPage/components/inputs/Select';
+import Text from '../pages/StudyConfPage/components/inputs/Text';
 import { FieldBase } from '../types/form';
 import { Config } from '../types/form';
 import { createNameFor } from './strings';
