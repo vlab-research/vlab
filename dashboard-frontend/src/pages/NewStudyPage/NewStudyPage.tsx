@@ -1,12 +1,9 @@
-import { useState } from 'react';
 import PageLayout from '../../components/PageLayout';
-import Form from './form/components/Form';
-import { create_study } from './form/configs/create_study';
-import { general } from './form/configs/general';
+import { create_study } from '../StudyConfPage/configs/create_study';
 
 import { Config } from '../../types/form';
-import simple from './form/controllers/simple';
-import Navbar from '../../components/NavBar';
+import simple from '../StudyConfPage/controllers/simple';
+import Form from '../StudyConfPage/components/form/Form';
 
 const NewStudyPage = () => (
   <PageLayout title={'New Study'} testId="new-study-page" showBackButton>
@@ -17,13 +14,10 @@ const NewStudyPage = () => (
 const PageContent = () => {
   const configs: Record<string, Config> = {
     create_study,
-    general,
   };
 
-  const configsToArr = Object.entries(configs);
-  const [index, setIndex] = useState<number>(0);
-  const config: Config = configsToArr[index][1];
-  const configKeys = Object.keys(configs);
+  const configToArr = Object.entries(configs);
+  const config: Config = configToArr[0][1];
 
   const lookup: any = {
     configObject: simple,
@@ -38,23 +32,14 @@ const PageContent = () => {
     throw new Error(`Could not find form for controller type: ${type}`);
   }
 
-  const isLast = index === configsToArr.length - 1 ? true : false;
-
   const isCreateStudyForm = config === create_study ? true : false;
 
   return (
-    <>
-      {!isCreateStudyForm && (
-        <Navbar configKeys={configKeys} setIndex={setIndex} />
-      )}
-      <Form
-        controller={controller}
-        config={config}
-        isLast={isLast}
-        isCreateStudyForm={isCreateStudyForm}
-        setIndex={setIndex}
-      />
-    </>
+    <Form
+      controller={controller}
+      config={config}
+      isCreateStudyForm={isCreateStudyForm}
+    />
   );
 };
 

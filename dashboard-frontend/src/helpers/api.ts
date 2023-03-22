@@ -1,6 +1,7 @@
 import { fetchWithTimeout } from './http';
 import {
   CreateStudyApiResponse,
+  CreateStudyConfApiResponse,
   CreateUserApiResponse,
   StudiesApiResponse,
   StudyApiResponse,
@@ -91,6 +92,23 @@ const createStudy = ({
     body: { name },
   });
 
+const createStudyConf = ({
+  config,
+  slug,
+  description,
+  accessToken,
+}: {
+  config: any;
+  slug: string;
+  description: string;
+  accessToken: string;
+}) =>
+  apiRequest<CreateStudyConfApiResponse>(`/studies/${slug}/conf`, {
+    accessToken,
+    method: 'POST',
+    body: { config, slug, description },
+  });
+
 const apiRequest = async <ApiResponse>(
   url: string,
   {
@@ -164,4 +182,5 @@ export const authenticatedApiCalls = {
   fetchStudySegmentsProgress,
   createUser,
   createStudy,
+  createStudyConf,
 };

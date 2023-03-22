@@ -9,6 +9,7 @@ import LoginPage from './pages/LoginPage/LoginPage';
 import NewStudyPage from './pages/NewStudyPage/NewStudyPage';
 import { ReactComponent as Logo } from './assets/logo.svg';
 import useAuthenticatedApi from './hooks/useAuthenticatedApi';
+import StudyConfPage from './pages/StudyConfPage/StudyConfPage';
 
 const areTestsRunning =
   process.env.REACT_APP_RUNNING_IN_E2E_MODE || process.env.NODE_ENV === 'test';
@@ -56,15 +57,15 @@ const Routes = () => {
           <StudiesPage />
         </AuthenticatedRoute>
 
-        <AuthenticatedRoute path="/studies/:studySlug">
+        <AuthenticatedRoute path="/studies/:slug/conf">
+          <StudyConfPage />
+        </AuthenticatedRoute>
+
+        <AuthenticatedRoute path="/studies/:slug">
           <StudyPage />
         </AuthenticatedRoute>
 
         <AuthenticatedRoute path="/new-study">
-          <NewStudyPage />
-        </AuthenticatedRoute>
-
-        <AuthenticatedRoute path="/studies/configuration">
           <NewStudyPage />
         </AuthenticatedRoute>
 
