@@ -1,4 +1,4 @@
-import { classNames } from '../../../../../helpers/strings';
+import { classNames } from '../../../../helpers/strings';
 
 const Text = ({ onChange, ...props }: any) => {
   const { id, name, label, helper_text, errorOnCreate, value } = props;
