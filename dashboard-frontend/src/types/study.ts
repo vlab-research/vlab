@@ -5,19 +5,6 @@ export interface StudiesApiResponse
 
 export interface StudyApiResponse extends ApiResponse<StudyResource> {}
 
-export interface StudySegmentsProgressApiResponse
-  extends ApiResponse<
-    {
-      segments: StudySegmentProgressResource[];
-      datetime: number;
-    }[]
-  > {}
-
-export interface CreateUserApiResponse
-  extends ApiResponse<{
-    id: string;
-  }> {}
-
 export interface CreateStudyApiResponse extends ApiResponse<StudyResource> {}
 
 export interface StudyResource {
@@ -26,6 +13,14 @@ export interface StudyResource {
   slug: string;
   createdAt: number;
 }
+
+export interface StudySegmentsProgressApiResponse
+  extends ApiResponse<
+    {
+      segments: StudySegmentProgressResource[];
+      datetime: number;
+    }[]
+  > {}
 
 export interface StudyProgressResource {
   id: string;
@@ -50,4 +45,18 @@ export interface StudySegmentProgressResource {
   currentParticipants: number;
   currentPricePerParticipant: number;
   percentageDeviationFromGoal: number;
+}
+
+export interface CreateUserApiResponse
+  extends ApiResponse<{
+    id: string;
+  }> {}
+
+export interface CreateStudyConfApiResponse
+  extends ApiResponse<StudyConfResource> {}
+
+export interface StudyConfResource {
+  config: any;
+  slug: string;
+  description: string;
 }

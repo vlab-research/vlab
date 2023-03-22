@@ -8,6 +8,7 @@ const Navbar = ({
   setIndex: any;
 }) => {
   const handleClick = (e: any, configKey: string) => {
+    console.log(confKeys);
     e.preventDefault();
     const newIndex = confKeys.indexOf(configKey);
     setIndex(() => newIndex);

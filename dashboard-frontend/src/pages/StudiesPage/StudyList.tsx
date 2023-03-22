@@ -1,9 +1,10 @@
 import React, { useCallback } from 'react';
 import { CalendarIcon } from '@heroicons/react/solid';
-import { Link } from 'react-router-dom';
+import { Link, useHistory } from 'react-router-dom';
 import { formatTimestamp } from '../../helpers/dates';
 import { StudyResource } from '../../types/study';
 import useInfiniteScrolling from './useInfiniteScrolling';
+import SecondaryButton from '../../components/SecondaryButton';
 
 const StudyList = ({
   studies,
@@ -49,20 +50,27 @@ const StudyListItem = ({
 }) => (
   <li data-testid="study-list-item" ref={elementRef}>
     <Link to={`/studies/${study.slug}`} className="block hover:bg-gray-50">
-      <div className="px-4 py-4 sm:px-6">
-        <div className="flex items-center">
-          <p className="text-sm font-medium text-indigo-600 truncate">
-            {study.name}
-          </p>
-        </div>
-        <div className="mt-2">
-          <div className="flex items-center text-sm text-gray-500">
-            <CalendarIcon
-              className="mr-1.5 h-5 w-5 text-gray-400"
-              aria-hidden="true"
-            />
-            <CreatedDate timestamp={study.createdAt} />
+      <div className="flex flex-row px-4 py-4 sm:px-6">
+        <div className="flex flex-1">
+          <div className="flex flex-col">
+            <div className="flex items-center">
+              <p className="text-sm font-medium text-indigo-600 truncate">
+                {study.name}
+              </p>
+            </div>
+            <div className="mt-2">
+              <div className="flex items-center text-sm text-gray-500">
+                <CalendarIcon
+                  className="mr-1.5 h-5 w-5 text-gray-400"
+                  aria-hidden="true"
+                />
+                <CreatedDate timestamp={study.createdAt} />
+              </div>
+            </div>
           </div>
+        </div>
+        <div className="my-2.5">
+          <StudyConfButton slug={study.slug} testId="study-conf-button" />
         </div>
       </div>
     </Link>
@@ -118,5 +126,26 @@ const ListLayout = ({ children }: { children: React.ReactNode }) => (
     <ul className="divide-y divide-gray-200">{children}</ul>
   </div>
 );
+
+const StudyConfButton = ({
+  testId,
+  slug,
+}: {
+  testId: string;
+  slug: string;
+}) => {
+  const history = useHistory();
+
+  console.log(slug);
+
+  return (
+    <SecondaryButton
+      testId={testId}
+      onClick={() => history.push(`/studies/${slug}/conf`)}
+    >
+      Configure study
+    </SecondaryButton>
+  );
+};
 
 export default StudyList;
