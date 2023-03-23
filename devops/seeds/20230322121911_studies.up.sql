@@ -1,19 +1,3 @@
-/*
- * This is a seed file that will be run AFTER the database
- * has been setup. There should be no altering of schemas in here
- * all updates should be done in the normal SQL file.
- *
- * Please try keep all resources pertaining to the demo user
- * unless there is specific value of testing with different users
- */
-
-INSERT INTO users
-  (id)
-VALUES
-  /*This is the demo@vlab.digital user*/
-  ('auth0|6412f8baa95e852045477d6e');
-
-
 INSERT INTO studies
   (name, slug, created, id, user_id)
 VALUES

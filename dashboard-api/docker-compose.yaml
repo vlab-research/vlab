@@ -9,7 +9,7 @@ services:
     ports:
       - 8080:8080
     depends_on:
-      - setup_cockroachdb
+      - migrations
     networks:
       - dashboard-api
     volumes:
@@ -25,17 +25,26 @@ services:
       - "26257:26257"
     networks:
       - dashboard-api
-  setup_cockroachdb:
-    image: cockroachdb/cockroach:v21.2.3
+  migrations:
+    image: migrate/migrate:v4.15.2
     volumes:
-      - ../devops/sql:/tmp/migrations
-      - ../devops/seed:/tmp/seed
+      - ../devops/migrations:/migrations
+      - ../devops/seeds:/seeds
     entrypoint: |
-      sh -c '
-        ./cockroach sql --host cockroachdb --insecure -e "CREATE DATABASE vlab"
-        cat /tmp/migrations/* | ./cockroach sql --host cockroachdb --insecure --database=vlab
-        cat /tmp/seed/* | ./cockroach sql --host cockroachdb --insecure --database=vlab 
-      '
+      ash -c '
+        migrate  \
+        -database cockroach://root@cockroachdb:26257/defaultdb?sslmode=disable \
+        -path /migrations/initvlab \
+        up 1
+        migrate  \
+        -database cockroach://root@cockroachdb:26257/vlab?sslmode=disable \
+        -path /migrations \
+        up
+        migrate  \
+        -database "cockroach://root@cockroachdb:26257/vlab?sslmode=disable&x-migrations-table=seeds" \
+        -path /seeds \
+        up
+        '
     depends_on:
       - cockroachdb
     networks:

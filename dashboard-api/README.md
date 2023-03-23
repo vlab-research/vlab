@@ -20,11 +20,11 @@ start:     Starts local containers
 test:      Runs the go tests 
 ```
 
-In order to start the local development environment run you will need to setup
-your environment variablse, you can do this by:
+In order to start the local development environment you will need to setup
+your environment variables, you can do this by:
 
 ```bash
-cp .env-exampl .env
+cp .env-example .env
 ```
 
 You can now navigate to the `.env` file and make sure all required values are
@@ -33,6 +33,8 @@ set. Once done you can run:
 ```bash
 make dev
 ```
+> Note this will start the development backend with seeded data. You will be
+able to access this when logging in with the `demo@vlab.digital` user
 
 ### Running Tests
 
