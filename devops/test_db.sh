@@ -1,9 +1,46 @@
+#/bin/bash -ex
+
 docker stop vlab-recruitment-test && docker rm vlab-recruitment-test
 
-docker run --name vlab-recruitment-test -d -p 5433:26257 cockroachdb/cockroach:v21.1.7 start-single-node --insecure
+# Starts the database in single cluster mode
+docker run \
+  --name vlab-recruitment-test \
+  -d \
+  -p 5433:26257 \
+  cockroachdb/cockroach:v21.1.7 \
+  start-single-node \
+  --insecure
 
-sleep 2
+# Runs the first migration that creates the database
+echo "Setting Up Database"
+docker run \
+  --net=host \
+  --rm \
+  --volume $PWD/migrations:/migrations \
+  migrate/migrate:v4.15.2 \
+  -database cockroach://root@localhost:5433/defaultdb?sslmode=disable \
+  -path /migrations/inittest \
+  up
 
-echo "create database test;" | docker run -i --net=host --rm cockroachdb/cockroach:v21.1.7 sql --insecure --host localhost --port 5433 --database test
+# Hack as docker run does not fail on errors
+if [ $? -ne 0 ];
+then
+  exit $?
+fi
 
-cat sql/* | docker run -i --net=host --rm cockroachdb/cockroach:v21.1.7 sql --insecure --host localhost --port 5433 --database test
+# Runs all migrations in order to setup the database
+echo "Running Migrations"
+docker run \
+  --net=host \
+  --rm \
+  --volume $PWD/migrations:/migrations \
+  migrate/migrate:v4.15.2 \
+  -database cockroach://root@localhost:5433/test?sslmode=disable \
+  -path /migrations \
+  up
+
+# Hack as docker run does not fail on errors
+if [ $? -ne 0 ];
+then
+  exit $?
+fi
