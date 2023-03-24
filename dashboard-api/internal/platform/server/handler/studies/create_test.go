@@ -46,7 +46,7 @@ func TestHandler_Create(t *testing.T) {
 	})
 
 	t.Run("should return a 201 with the created study", func(t *testing.T) {
-		testhelpers.DeleteAllStudies()
+		testhelpers.DeleteAllStudies(t)
 		studyName := "example study"
 
 		res := createStudyRequest(studyName)
@@ -57,7 +57,7 @@ func TestHandler_Create(t *testing.T) {
 	})
 
 	t.Run("should return a 409 when the study already exists", func(t *testing.T) {
-		testhelpers.DeleteAllStudies()
+		testhelpers.DeleteAllStudies(t)
 		studyName := "example study"
 		msg := "The name is already in use."
 		res := createStudyRequest(studyName)

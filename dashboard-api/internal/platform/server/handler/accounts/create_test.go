@@ -97,8 +97,8 @@ func TestHandler_Account_Create(t *testing.T) {
 	for _, tc := range testcases {
 		t.Run(fmt.Sprintf("should  %s", tc.description),
 			func(t *testing.T) {
-				testhelpers.DeleteAllAccounts()
-				res := createAccountRequest(tc.account)
+				testhelpers.DeleteAllAccounts(t)
+				res := createAccountRequest(t, tc.account)
 				assert.Contains(res.Body, tc.expectedRes)
 				assert.Equal(res.StatusCode, tc.expectedStatus)
 			})
@@ -106,7 +106,8 @@ func TestHandler_Account_Create(t *testing.T) {
 
 }
 
-func createAccountRequest(a interface{}) testhelpers.Response {
+func createAccountRequest(t *testing.T, a interface{}) testhelpers.Response {
+	t.Helper()
 	r := testhelpers.GetRepositories()
 	r.User.CreateUser(context.TODO(), testhelpers.CurrentUserId)
 	return testhelpers.PerformPostRequest(

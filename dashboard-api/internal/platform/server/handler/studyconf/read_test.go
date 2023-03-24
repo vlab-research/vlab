@@ -25,11 +25,7 @@ func TestHandler_StudyConfiguration_GetByStudySlug(t *testing.T) {
 	}{
 		{
 			databasestudyconfs: []*types.DatabaseStudyConf{
-				{
-					StudyID:  studyslug,
-					ConfType: "general",
-					Conf:     []byte(`{"name":"Foo","objective":"","optimization_goal":"link_clicks","destination_type":"Web","page_id":"1","min_budget":1,"opt_window":48,"instagram_id":"","ad_account":"12345"}`),
-				},
+				testhelpers.NewDatabaseStudyConf(testhelpers.TypeGeneral()),
 			},
 			expectedStatus: 200,
 			studyslug:      studyslug,
@@ -41,30 +37,31 @@ func TestHandler_StudyConfiguration_GetByStudySlug(t *testing.T) {
 	for _, tc := range testcases {
 		t.Run(fmt.Sprintf("should %s", tc.description),
 			func(t *testing.T) {
-				testhelpers.DeleteAllStudies()
-				testhelpers.DeleteAllUsers()
-				testhelpers.CreateUser()
-				err := testhelpers.CreateStudy(studyslug, testhelpers.CurrentUserId)
+				testhelpers.DeleteAllStudies(t)
+				testhelpers.DeleteAllStudyConfs(t)
+				testhelpers.DeleteAllUsers(t)
+				testhelpers.CreateUser(t)
+				err := testhelpers.CreateStudy(t, studyslug, testhelpers.CurrentUserId)
 				assert.NoError(err)
 				for _, dsc := range tc.databasestudyconfs {
-					err := testhelpers.CreateDatabaseStudyConf(*dsc)
+					err := testhelpers.CreateDatabaseStudyConf(t, *dsc)
 					assert.NoError(err)
 				}
-				res := getStudyConfRequest(tc.studyslug)
-				assert.Contains(res.Body, tc.expectedRes)
+				res := getStudyConfRequest(t, tc.studyslug)
+				assert.Equal(res.Body, tc.expectedRes)
 				assert.Equal(res.StatusCode, tc.expectedStatus)
 			})
 	}
 
 }
 
-func getStudyConfRequest(slug string) testhelpers.Response {
+func getStudyConfRequest(t *testing.T, slug string) testhelpers.Response {
+	t.Helper()
 	r := testhelpers.GetRepositories()
 	r.User.CreateUser(context.TODO(), testhelpers.CurrentUserId)
 	return testhelpers.PerformGetRequest(
 		fmt.Sprintf("/studies/%s/conf", slug),
 		storage.Repositories{
-			Study:     testhelpers.GetRepositories().Study,
 			StudyConf: testhelpers.GetRepositories().StudyConf,
 		},
 	)
