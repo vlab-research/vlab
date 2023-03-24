@@ -21,12 +21,10 @@ const (
 type AccountRepository interface {
 	Create(ctx context.Context, a Account) error
 	Delete(ctx context.Context, a Account) error
+	List(ctx context.Context, offset, limit int, userID string) ([]Account, error)
 }
 
 var ErrAccountAlreadyExists = errors.New("Account Already Exists")
-
-//go:generate mockery --case=snake --outpkg=storagemocks
-//--output=platform/storage/storagemocks --name=AccountRepository
 
 // ConnectedAccount is used to enable the frontend to not need complex
 // logic in order to determine if an account has been "connected".
@@ -36,7 +34,6 @@ type ConnectedAccount interface {
 }
 
 type Account struct {
-	ID       string      `json:"id" `
 	UserID   string      `json:"userId"`
 	AuthType string      `json:"authType" validate:"required"`
 	Name     AccountType `json:"name" validate:"required"`
