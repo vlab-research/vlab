@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/vlab-research/vlab/dashboard-api/internal/types"
 )
@@ -96,4 +97,51 @@ func handleCreateError(e error, a types.Account) error {
 		a.Name,
 		e,
 	)
+}
+
+// List is used to pull credentials from the database
+// and map them to an account
+func (r *AccountRepository) List(
+	ctx context.Context,
+	offset, limit int,
+	userId string,
+) ([]types.Account, error) {
+	accounts := []types.Account{}
+
+	q := `
+		SELECT user_id, entity, key, details, created
+		FROM credentials 
+		WHERE user_id = $3 
+		ORDER BY created DESC 
+		OFFSET $1 LIMIT $2
+		`
+	rows, err := r.db.Query(q, offset, limit, userId)
+	if err != nil {
+		return nil, err
+	}
+
+	defer rows.Close()
+
+	for rows.Next() {
+		var userID, entity, key string
+		var created time.Time
+		var details []byte
+		if err := rows.Scan(&userID, &entity, &key, &details, &created); err != nil {
+			return nil, err
+		}
+		var name = types.AccountType(entity)
+
+		accounts = append(accounts, types.Account{
+			Name:     name,
+			UserID:   userID,
+			AuthType: key,
+			RawConnectedAccount: []byte(fmt.Sprintf(
+				`{"createdAt": "%s", "credentials": %s}`,
+				created,
+				details,
+			)),
+		})
+	}
+
+	return accounts, nil
 }

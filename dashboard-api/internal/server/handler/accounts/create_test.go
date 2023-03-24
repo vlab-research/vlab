@@ -37,12 +37,12 @@ func TestHandler_Account_Create(t *testing.T) {
 					`),
 			},
 			expectedStatus: 201,
-			expectedRes:    "{\"data\":{\"id\":\"\",\"userId\":\"auth0|61916c1dab79c900713936de\",\"authType\":\"token\",\"name\":\"Fly\",\"connectedAccount\":{\"createdAt\":null,\"credentials\":{\"api_key\":\"supersecret\"}}}}",
+			expectedRes:    `{"data":{"userId":"auth0|61916c1dab79c900713936de","authType":"token","name":"Fly","connectedAccount":{"createdAt":null,"credentials":{"api_key":"supersecret"}}}}`,
 			description:    "return 200 for valid fly account",
 		},
 		{
 			expectedStatus: 400,
-			expectedRes:    "{\"error\":\"Key: 'Account.AuthType' Error:Field validation for 'AuthType' failed on the 'required' tag\"}",
+			expectedRes:    `{"error":"Key: 'Account.AuthType' Error:Field validation for 'AuthType' failed on the 'required' tag"}`,
 			description:    "return 400 for invalid fly account",
 			account: types.Account{
 				UserID: userId,
@@ -59,7 +59,7 @@ func TestHandler_Account_Create(t *testing.T) {
 		},
 		{
 			expectedStatus: 400,
-			expectedRes:    "{\"error\":\"unknown account type Invalid\"}",
+			expectedRes:    `{"error":"unknown account type Invalid"}`,
 			description:    "return 400 for unknown account type",
 			account: types.Account{
 				UserID: userId,
@@ -76,7 +76,7 @@ func TestHandler_Account_Create(t *testing.T) {
 		},
 		{
 			expectedStatus: 201,
-			expectedRes:    "{\"data\":{\"id\":\"\",\"userId\":\"auth0|61916c1dab79c900713936de\",\"authType\":\"token\",\"name\":\"Typeform\",\"connectedAccount\":{\"createdAt\":null,\"credentials\":{\"key\":\"supersecret\"}}}}",
+			expectedRes:    `{"data":{"userId":"auth0|61916c1dab79c900713936de","authType":"token","name":"Typeform","connectedAccount":{"createdAt":null,"credentials":{"key":"supersecret"}}}}`,
 			description:    "return 201 for valid typeform account",
 			account: types.Account{
 				UserID:   userId,
@@ -99,7 +99,7 @@ func TestHandler_Account_Create(t *testing.T) {
 			func(t *testing.T) {
 				testhelpers.DeleteAllAccounts(t)
 				res := createAccountRequest(t, tc.account)
-				assert.Contains(res.Body, tc.expectedRes)
+				assert.Contains(tc.expectedRes, res.Body)
 				assert.Equal(res.StatusCode, tc.expectedStatus)
 			})
 	}

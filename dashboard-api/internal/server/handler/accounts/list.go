@@ -1,4 +1,4 @@
-package studies
+package accounts
 
 import (
 	"net/http"
@@ -11,11 +11,11 @@ import (
 )
 
 type listResponse struct {
-	Data       []types.Study                  `json:"data"`
+	Data       []types.Account                `json:"data"`
 	Pagination helpers.ListResponsePagination `json:"pagination"`
 }
 
-func ListHandler(repositories storage.Repositories) gin.HandlerFunc {
+func ListHandler(r storage.Repositories) gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 
 		p := helpers.NewPagination()
@@ -25,24 +25,25 @@ func ListHandler(repositories storage.Repositories) gin.HandlerFunc {
 			return
 		}
 
-		studies, err := repositories.Study.GetStudies(
+		accounts, err := r.Account.List(
 			ctx,
 			p.Cursor,
 			p.Number,
 			auth.GetUserIdFrom(ctx),
 		)
+
 		if err != nil {
 			ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
 
 		var nextCursor *string
-		if len(studies) >= p.Number {
+		if len(accounts) >= p.Number {
 			nextCursor = p.CreateNextCursor()
 		}
 
 		ctx.JSON(http.StatusOK, listResponse{
-			Data: studies,
+			Data: accounts,
 			Pagination: helpers.ListResponsePagination{
 				NextCursor: nextCursor,
 			},

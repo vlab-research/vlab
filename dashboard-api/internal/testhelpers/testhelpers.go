@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	jwtmiddleware "github.com/auth0/go-jwt-middleware/v2"
 	"github.com/auth0/go-jwt-middleware/v2/validator"
@@ -16,6 +17,7 @@ import (
 	"github.com/vlab-research/vlab/dashboard-api/internal/config"
 	"github.com/vlab-research/vlab/dashboard-api/internal/server"
 	"github.com/vlab-research/vlab/dashboard-api/internal/storage"
+	"github.com/vlab-research/vlab/dashboard-api/internal/types"
 )
 
 const (
@@ -154,4 +156,16 @@ func CreateUser(t *testing.T) {
 	t.Helper()
 	r := GetRepositories()
 	_, _ = r.Db.Exec("INSERT INTO users (id) VALUES ($1)", CurrentUserId)
+}
+
+func CreateAccounts(t *testing.T, a types.Account, created time.Time) error {
+	t.Helper()
+	c, err := a.ConnectedAccount.MarshalCredentials()
+	if err != nil {
+		return err
+	}
+	r := GetRepositories()
+	q := "INSERT INTO credentials (user_id, entity, key, details, created) VALUES ($1, $2, $3, $4, $5)"
+	_, err = r.Db.Exec(q, a.UserID, a.Name, a.AuthType, c, created)
+	return err
 }
