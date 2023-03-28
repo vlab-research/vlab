@@ -55,7 +55,13 @@ export interface StudySegmentProgressResource {
   percentageDeviationFromGoal: number;
 }
 
+export interface Org {
+  name: string;
+  id: string;
+}
+
 export interface CreateUserApiResponse
   extends ApiResponse<{
     id: string;
+    orgs: Org[];
   }> {}

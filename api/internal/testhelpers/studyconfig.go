@@ -3,7 +3,7 @@ package testhelpers
 import (
 	"testing"
 
-	types "github.com/vlab-research/vlab/dashboard-api/internal/types"
+	types "github.com/vlab-research/vlab/api/internal/types"
 )
 
 const StudyID = "92b322df-9dac-4240-a88e-d3aa715be83d"
@@ -49,7 +49,7 @@ func NewStudyConf(opts ...studyconfigoptions) types.StudyConf {
 	// This is where we set the defaults for tests
 	sc := &types.StudyConf{
 		StudyID: StudyID,
-		UserID:  CurrentUserId,
+		UserID:  CurrentUserID,
 		General: &types.GeneralConf{
 			Name:             "Foo",
 			AdAccount:        "12345",

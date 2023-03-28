@@ -9,19 +9,20 @@ import (
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/stretchr/testify/require"
-	"github.com/vlab-research/vlab/dashboard-api/internal/types"
+	"github.com/vlab-research/vlab/api/internal/types"
 )
 
 const (
 	studyslug = "example-study"
 	userID    = "1234"
+	orgID     = "1234"
 	q         = `
 	SELECT a.created, a.details 
 	FROM adopt_reports a
 	JOIN studies s ON s.id = a.study_id 
 	WHERE a.report_type = 'FACEBOOK_ADOPT' 
 	AND s.slug = $1 
-	AND s.user_id = $2
+	AND (s.user_id = $2 OR s.org_id = $3)
 	ORDER BY created ASC
 	`
 )
@@ -32,16 +33,16 @@ func Test_StudySegmentsRepository_GetAllTimeSegmentsProgress_UnexpectedError_dur
 	assert.NoError(err)
 
 	sqlMock.ExpectQuery(q).
-		WithArgs(studyslug, userID).
+		WithArgs(studyslug, userID, orgID).
 		WillReturnError(errors.New("unexpected-error"))
 
 	r := NewStudySegmentsRepository(db)
 
-	_, err = r.GetByStudySlug(context.TODO(), studyslug, userID)
+	_, err = r.GetByStudySlug(context.TODO(), studyslug, userID, orgID)
 
 	assert.NoError(sqlMock.ExpectationsWereMet())
-	expected := errors.New("error trying to get all time segments progress: unexpected-error")
-	assert.Equal(expected, err)
+	expected := "error trying to get all time segments progress: unexpected-error"
+	assert.Equal(expected, err.Error())
 }
 
 func Test_StudySegmentsRepository_GetAllTimeSegmentsProgress_UnexpectedError_during_Scan(t *testing.T) {
@@ -53,15 +54,16 @@ func Test_StudySegmentsRepository_GetAllTimeSegmentsProgress_UnexpectedError_dur
 		AddRow(time.Now())
 
 	sqlMock.ExpectQuery(q).
-		WithArgs(studyslug, userID).
+		WithArgs(studyslug, userID, orgID).
 		WillReturnRows(rows)
 
 	r := NewStudySegmentsRepository(db)
 
-	_, err = r.GetByStudySlug(context.TODO(), studyslug, userID)
+	_, err = r.GetByStudySlug(context.TODO(), studyslug, userID, orgID)
 
 	assert.NoError(sqlMock.ExpectationsWereMet())
-	assert.Equal(errors.New("error trying to get all time segments progress: sql: expected 1 destination arguments in Scan, not 2"), err)
+	expected := "error trying to get all time segments progress: sql: expected 1 destination arguments in Scan, not 2"
+	assert.Equal(expected, err.Error())
 }
 
 func Test_StudySegmentsRepository_GetAllTimeSegmentsProgress_Succeed(t *testing.T) {
@@ -99,12 +101,12 @@ func Test_StudySegmentsRepository_GetAllTimeSegmentsProgress_Succeed(t *testing.
 		AddRow(time.Date(2020, time.November, 10, 23, 0, 0, 0, time.UTC), mostRecentDetailsInBytes)
 
 	sqlMock.ExpectQuery(q).
-		WithArgs(studyslug, userID).
+		WithArgs(studyslug, userID, orgID).
 		WillReturnRows(rows)
 
 	r := NewStudySegmentsRepository(db)
 
-	spList, err := r.GetByStudySlug(context.TODO(), studyslug, userID)
+	spList, err := r.GetByStudySlug(context.TODO(), studyslug, userID, orgID)
 
 	assert.NoError(sqlMock.ExpectationsWereMet())
 	assert.NoError(err)

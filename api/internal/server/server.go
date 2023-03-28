@@ -7,16 +7,16 @@ import (
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	fb "github.com/huandu/facebook/v2"
-	"github.com/vlab-research/vlab/dashboard-api/internal/config"
-	"github.com/vlab-research/vlab/dashboard-api/internal/server/handler/accounts"
-	"github.com/vlab-research/vlab/dashboard-api/internal/server/handler/facebook"
-	"github.com/vlab-research/vlab/dashboard-api/internal/server/handler/health"
-	"github.com/vlab-research/vlab/dashboard-api/internal/server/handler/segmentsprogress"
-	"github.com/vlab-research/vlab/dashboard-api/internal/server/handler/studies"
-	"github.com/vlab-research/vlab/dashboard-api/internal/server/handler/studyconf"
-	"github.com/vlab-research/vlab/dashboard-api/internal/server/handler/users"
-	"github.com/vlab-research/vlab/dashboard-api/internal/server/middleware/auth"
-	"github.com/vlab-research/vlab/dashboard-api/internal/storage"
+	"github.com/vlab-research/vlab/api/internal/config"
+	"github.com/vlab-research/vlab/api/internal/server/handler/accounts"
+	"github.com/vlab-research/vlab/api/internal/server/handler/facebook"
+	"github.com/vlab-research/vlab/api/internal/server/handler/health"
+	"github.com/vlab-research/vlab/api/internal/server/handler/segmentsprogress"
+	"github.com/vlab-research/vlab/api/internal/server/handler/studies"
+	"github.com/vlab-research/vlab/api/internal/server/handler/studyconf"
+	"github.com/vlab-research/vlab/api/internal/server/handler/users"
+	"github.com/vlab-research/vlab/api/internal/server/middleware/auth"
+	"github.com/vlab-research/vlab/api/internal/storage"
 )
 
 type Server struct {
@@ -55,21 +55,27 @@ func (s *Server) GetRouter() {
 
 	config := cors.DefaultConfig()
 	config.AllowAllOrigins = true
-	config.AllowHeaders = []string{"Origin", "Content-Length", "Content-Type", "Authorization"}
+	config.AllowHeaders = []string{
+		"Origin",
+		"Content-Length",
+		"Content-Type",
+		"Authorization",
+		"Vlab-Organization",
+	}
 	r.Use(cors.New(config))
 
 	// API for Health Check
 	r.GET("/health", health.CheckHandler(s.Repos, s.Cfg.Auth0.Domain))
 
 	//APIS used for the studies resource
-	r.GET("/studies/:slug", s.AuthMiddleware, studies.ReadHandler(s.Repos))
-	r.GET("/studies", s.AuthMiddleware, studies.ListHandler(s.Repos))
-	r.POST("/studies", s.AuthMiddleware, studies.CreateHandler(s.Repos))
-	r.GET("/studies/:slug/segments-progress", s.AuthMiddleware, segmentsprogress.ListHandler(s.Repos))
+	r.GET("/:org/studies/:slug", s.AuthMiddleware, studies.ReadHandler(s.Repos))
+	r.GET("/:org/studies", s.AuthMiddleware, studies.ListHandler(s.Repos))
+	r.POST("/:org/studies", s.AuthMiddleware, studies.CreateHandler(s.Repos))
+	r.GET("/:org/studies/:slug/segments-progress", s.AuthMiddleware, segmentsprogress.ListHandler(s.Repos))
 
 	//APIS for the study configurations resource
-	r.POST("/studies/:slug/conf", s.AuthMiddleware, studyconf.CreateHandler(s.Repos))
-	r.GET("/studies/:slug/conf", s.AuthMiddleware, studyconf.ReadHandler(s.Repos))
+	r.POST("/:org/studies/:slug/conf", s.AuthMiddleware, studyconf.CreateHandler(s.Repos))
+	r.GET("/:org/studies/:slug/conf", s.AuthMiddleware, studyconf.ReadHandler(s.Repos))
 
 	//APIS for users
 	r.POST("/users", s.AuthMiddleware, users.GetOrCreateHandler(s.Repos))

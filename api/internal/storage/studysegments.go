@@ -8,7 +8,7 @@ import (
 	"math"
 	"time"
 
-	"github.com/vlab-research/vlab/dashboard-api/internal/types"
+	"github.com/vlab-research/vlab/api/internal/types"
 )
 
 type StudySegmentsRepository struct {
@@ -32,9 +32,11 @@ type details map[string]struct {
 	CurrentPricePerParticipant float64 `json:"current_price_per_participant"`
 }
 
+// GetByStudySlug fetches the segment progress from the adopt_reports
+// table by the study slug
 func (r *StudySegmentsRepository) GetByStudySlug(
 	ctx context.Context,
-	slug, userID string,
+	slug, userID, orgID string,
 ) ([]types.SegmentsProgress, error) {
 	allTimeSegmentsProgress := []types.SegmentsProgress{}
 	errMsg := "error trying to get all time segments progress: %v"
@@ -44,10 +46,10 @@ func (r *StudySegmentsRepository) GetByStudySlug(
 	JOIN studies s ON s.id = a.study_id 
 	WHERE a.report_type = 'FACEBOOK_ADOPT' 
 	AND s.slug = $1 
-	AND s.user_id = $2
+	AND (s.user_id = $2 OR s.org_id = $3)
 	ORDER BY created ASC
 	`
-	rows, err := r.db.Query(q, slug, userID)
+	rows, err := r.db.Query(q, slug, userID, orgID)
 	if err != nil {
 		return nil, fmt.Errorf(errMsg, err)
 	}
@@ -95,7 +97,6 @@ func (r *StudySegmentsRepository) GetByStudySlug(
 					PercentageDeviationFromGoal: round(math.Abs(desiredPercentage - currentPercentage)),
 				})
 		}
-
 		allTimeSegmentsProgress = append(allTimeSegmentsProgress, segmentsProgress)
 
 	}

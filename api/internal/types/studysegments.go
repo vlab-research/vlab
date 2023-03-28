@@ -5,7 +5,7 @@ import "context"
 type StudySegmentsRepository interface {
 	GetByStudySlug(
 		ctx context.Context,
-		slug, userID string,
+		slug, userID, orgID string,
 	) ([]SegmentsProgress, error)
 }
 

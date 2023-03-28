@@ -5,9 +5,9 @@ import (
 
 	"github.com/gin-gonic/gin"
 	fb "github.com/huandu/facebook/v2"
-	"github.com/vlab-research/vlab/dashboard-api/internal/server/middleware/auth"
-	"github.com/vlab-research/vlab/dashboard-api/internal/storage"
-	"github.com/vlab-research/vlab/dashboard-api/internal/types"
+	"github.com/vlab-research/vlab/api/internal/server/middleware/auth"
+	"github.com/vlab-research/vlab/api/internal/storage"
+	"github.com/vlab-research/vlab/api/internal/types"
 )
 
 type request struct {

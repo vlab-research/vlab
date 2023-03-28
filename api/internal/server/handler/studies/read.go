@@ -5,26 +5,32 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"github.com/vlab-research/vlab/dashboard-api/internal/server/middleware/auth"
-	"github.com/vlab-research/vlab/dashboard-api/internal/storage"
-	"github.com/vlab-research/vlab/dashboard-api/internal/types"
+	"github.com/vlab-research/vlab/api/internal/server/middleware/auth"
+	"github.com/vlab-research/vlab/api/internal/storage"
+	"github.com/vlab-research/vlab/api/internal/types"
 )
 
 type readResponse struct {
 	Data types.Study `json:"data"`
 }
 
-func ReadHandler(repositories storage.Repositories) gin.HandlerFunc {
+func ReadHandler(r storage.Repositories) gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		var req struct {
 			Slug string `uri:"slug" binding:"required"`
+			Org  string `uri:"org" binding:"required"`
 		}
 		if err := ctx.ShouldBindUri(&req); err != nil {
 			ctx.Status(http.StatusInternalServerError)
 			return
 		}
 
-		study, err := repositories.Study.GetStudyBySlug(ctx, req.Slug, auth.GetUserIdFrom(ctx))
+		study, err := r.Study.GetStudyBySlug(
+			ctx,
+			req.Slug,
+			auth.GetUserIdFrom(ctx),
+			req.Org,
+		)
 
 		if err != nil {
 			switch {

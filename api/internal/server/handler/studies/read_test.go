@@ -1,48 +1,74 @@
 package studies_test
 
 import (
-	"errors"
-	"net/http"
+	"context"
+	"fmt"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
-	"github.com/vlab-research/vlab/dashboard-api/internal/storage"
-	"github.com/vlab-research/vlab/dashboard-api/internal/storage/storagemocks"
-	"github.com/vlab-research/vlab/dashboard-api/internal/testhelpers"
-	"github.com/vlab-research/vlab/dashboard-api/internal/types"
+	"github.com/stretchr/testify/require"
+	"github.com/vlab-research/vlab/api/internal/testhelpers"
+	"github.com/vlab-research/vlab/api/internal/types"
 )
 
+// TODO remove all these mocks for actual integration tests
 func TestHandler_Read(t *testing.T) {
-	t.Run("should return a 404 when the requested study does not exist", func(t *testing.T) {
-		studyRepository := new(storagemocks.StudyRepository)
-		studyRepository.On("GetStudyBySlug", mock.Anything, "example-study", mock.Anything).Return(types.Study{}, types.ErrStudyNotFound)
 
-		res := testhelpers.PerformGetRequest("/studies/example-study", storage.Repositories{Study: studyRepository})
+	assert := require.New(t)
+	testcases := []struct {
+		study          types.Study
+		description    string
+		slug           string
+		expectedStatus int
+		expectedRes    []string
+	}{
+		{
+			description: "return a 200 with with the requested study",
+			study: types.Study{
+				ID:        "5372ca9c-9fcd-42d4-a596-d90792909917",
+				Name:      "Example Study",
+				Slug:      "example-study",
+				CreatedAt: 1605049200000,
+			},
+			slug:           "example-study",
+			expectedRes:    []string{`"id":"5372ca9c-9fcd-42d4-a596-d90792909917","name":"Example Study","slug":"example-study"`},
+			expectedStatus: 200,
+		},
+		{
+			description: "return a 404 when study does not exist",
+			study: types.Study{
+				ID:        "5372ca9c-9fcd-42d4-a596-d90792909917",
+				Name:      "Example Study",
+				Slug:      "example-study",
+				CreatedAt: 1605049200000,
+			},
+			slug:           "not-found",
+			expectedRes:    []string{`{"error":"Study not found: not-found"}`},
+			expectedStatus: 404,
+		},
+	}
+	for _, tc := range testcases {
+		t.Run(fmt.Sprintf("should %s", tc.description),
+			func(t *testing.T) {
+				testhelpers.DeleteAllStudies(t)
+				testhelpers.DeleteAllUsers(t)
+				testhelpers.CreateUser(t)
+				err := testhelpers.CreateStudyFromStudy(t, tc.study)
+				assert.NoError(err)
+				res := getStudyRequest(t, tc.slug)
+				assert.Equal(res.StatusCode, tc.expectedStatus)
+				for _, e := range tc.expectedRes {
+					assert.Contains(res.Body, e)
+				}
+			})
+	}
+}
 
-		assert.Equal(t, http.StatusNotFound, res.StatusCode)
-		assert.Equal(t, "application/json; charset=utf-8", res.Header.Get("Content-Type"))
-		assert.Equal(t, "{\"error\":\"Study not found\"}", res.Body)
-	})
-
-	t.Run("should return a 500 when there is an error while processing the request", func(t *testing.T) {
-		studyRepository := new(storagemocks.StudyRepository)
-		studyRepository.On("GetStudyBySlug", mock.Anything, "example-study", mock.Anything).Return(types.Study{}, errors.New("db timeout error"))
-
-		res := testhelpers.PerformGetRequest("/studies/example-study", storage.Repositories{Study: studyRepository})
-
-		assert.Equal(t, http.StatusInternalServerError, res.StatusCode)
-	})
-
-	t.Run("should return a 200 with with the requested study when it exists", func(t *testing.T) {
-		studyRepository := new(storagemocks.StudyRepository)
-		study := types.NewStudy("5372ca9c-9fcd-42d4-a596-d90792909917", "Example Study", "example-study", 1605049200000)
-		studyRepository.On("GetStudyBySlug", mock.Anything, "example-study", mock.Anything).Return(study, nil)
-
-		res := testhelpers.PerformGetRequest("/studies/example-study", storage.Repositories{Study: studyRepository})
-
-		assert.Equal(t, http.StatusOK, res.StatusCode)
-		assert.Equal(t, "application/json; charset=utf-8", res.Header.Get("Content-Type"))
-		assert.Equal(t, "{\"data\":{\"id\":\"5372ca9c-9fcd-42d4-a596-d90792909917\",\"name\":\"Example Study\",\"slug\":\"example-study\",\"createdAt\":1605049200000}}", res.Body)
-	})
+func getStudyRequest(t *testing.T, slug string) testhelpers.Response {
+	t.Helper()
+	r := testhelpers.GetRepositories()
+	r.User.Create(context.TODO(), testhelpers.CurrentUserID)
+	return testhelpers.PerformGetRequest(
+		fmt.Sprintf("/%s/studies/%s", testhelpers.TestOrgID, slug),
+		r,
+	)
 }

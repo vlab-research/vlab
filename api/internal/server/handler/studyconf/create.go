@@ -9,9 +9,9 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
 	"github.com/hashicorp/go-multierror"
-	"github.com/vlab-research/vlab/dashboard-api/internal/server/middleware/auth"
-	"github.com/vlab-research/vlab/dashboard-api/internal/storage"
-	"github.com/vlab-research/vlab/dashboard-api/internal/types"
+	"github.com/vlab-research/vlab/api/internal/server/middleware/auth"
+	"github.com/vlab-research/vlab/api/internal/storage"
+	"github.com/vlab-research/vlab/api/internal/types"
 )
 
 // use a single instance , it caches struct info
@@ -29,6 +29,7 @@ func CreateHandler(r storage.Repositories) gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		var uriparams struct {
 			Slug string `uri:"slug" binding:"required"`
+			Org  string `uri:"org" binding:"required"`
 		}
 		if err := ctx.ShouldBindUri(&uriparams); err != nil {
 			ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -36,8 +37,10 @@ func CreateHandler(r storage.Repositories) gin.HandlerFunc {
 		}
 
 		uid := auth.GetUserIdFrom(ctx)
+
 		//fetch the related study
-		study, err := r.Study.GetStudyBySlug(ctx, uriparams.Slug, uid)
+		study, err := r.Study.GetStudyBySlug(
+			ctx, uriparams.Slug, uid, uriparams.Org)
 		if err != nil {
 			ctx.JSON(http.StatusBadRequest, gin.H{
 				"error": fmt.Sprintf(
@@ -56,7 +59,7 @@ func CreateHandler(r storage.Repositories) gin.HandlerFunc {
 
 		sc, err := parsePayload(b)
 		sc.UserID = uid
-		sc.StudyID = study.Id
+		sc.StudyID = study.ID
 
 		// We need to transform the data into what the database accepts
 		databaseStudyConfs, err := sc.TransformForDatabase()

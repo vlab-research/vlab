@@ -3,7 +3,7 @@ package testhelpers
 import (
 	"testing"
 
-	types "github.com/vlab-research/vlab/dashboard-api/internal/types"
+	types "github.com/vlab-research/vlab/api/internal/types"
 )
 
 type databasestudyconfoptions func(*types.DatabaseStudyConf)

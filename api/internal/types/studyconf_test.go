@@ -6,9 +6,9 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/vlab-research/vlab/dashboard-api/internal/testhelpers"
+	"github.com/vlab-research/vlab/api/internal/testhelpers"
 
-	"github.com/vlab-research/vlab/dashboard-api/internal/types"
+	"github.com/vlab-research/vlab/api/internal/types"
 )
 
 func TestStudyConfType_TransformForDatabase(t *testing.T) {
@@ -70,7 +70,7 @@ func TestStudyConfType_TransformFromDatabase(t *testing.T) {
 		expected := testhelpers.NewStudyConf()
 		s := types.StudyConf{
 			StudyID: testhelpers.StudyID,
-			UserID:  testhelpers.CurrentUserId,
+			UserID:  testhelpers.CurrentUserID,
 		}
 		err := s.TransformFromDatabase(input)
 		assert.NoError(err)

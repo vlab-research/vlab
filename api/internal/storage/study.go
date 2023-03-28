@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/gosimple/slug"
-	"github.com/vlab-research/vlab/dashboard-api/internal/types"
+	"github.com/vlab-research/vlab/api/internal/types"
 )
 
 type StudyRepository struct {
@@ -23,17 +23,25 @@ func NewStudyRepository(db *sql.DB) *StudyRepository {
 	}
 }
 
+// GetStudyBySlug fetches a study by using the slug
 func (r *StudyRepository) GetStudyBySlug(
 	ctx context.Context,
-	slug, userId string,
+	slug, userID, orgID string,
 ) (types.Study, error) {
 	var id, name string
 	var created time.Time
 
+	q := `
+		SELECT id, name, created 
+		FROM studies 
+		WHERE slug = $1 AND (user_id = $2 OR org_id = $3)
+		`
+
 	row := r.db.QueryRow(
-		"SELECT id, name, created FROM studies WHERE slug = $1 AND user_id = $2",
+		q,
 		slug,
-		userId,
+		userID,
+		orgID,
 	)
 
 	if err := row.Scan(&id, &name, &created); err != nil {
@@ -55,12 +63,24 @@ func (r *StudyRepository) GetStudyBySlug(
 	return types.NewStudy(id, name, slug, created.UnixMilli()), nil
 }
 
-func (r *StudyRepository) GetStudies(ctx context.Context, offset int, limit int, userId string) ([]types.Study, error) {
+// GetStudies returns a paginated list of studies
+// based on an offset and limit
+func (r *StudyRepository) GetStudies(
+	ctx context.Context,
+	offset int, limit int,
+	userID, orgID string,
+) ([]types.Study, error) {
 	studies := []types.Study{}
 
-	rows, err := r.db.Query("SELECT id, name, slug, created FROM studies WHERE user_id = $3 ORDER BY created DESC OFFSET $1 LIMIT $2", offset, limit, userId)
+	q := `
+	SELECT id, name, slug, created 
+	FROM studies 
+	WHERE user_id = $3 OR org_id = $4
+	ORDER BY created DESC OFFSET $1 LIMIT $2
+	`
+	rows, err := r.db.Query(q, offset, limit, userID, orgID)
 	if err != nil {
-		return nil, fmt.Errorf("(db.Query) error trying to get studies (offset: %d, limit: %d, userId: %s): %v", offset, limit, userId, err)
+		return nil, fmt.Errorf("(db.Query) error trying to get studies (offset: %d, limit: %d, userID: %s): %v", offset, limit, userID, err)
 	}
 
 	defer rows.Close()
@@ -70,7 +90,7 @@ func (r *StudyRepository) GetStudies(ctx context.Context, offset int, limit int,
 		var createdAt time.Time
 
 		if err := rows.Scan(&id, &name, &slug, &createdAt); err != nil {
-			return nil, fmt.Errorf("(rows.Scan) error trying to get studies (offset: %d, limit: %d, userId: %s): %v", offset, limit, userId, err)
+			return nil, fmt.Errorf("(rows.Scan) error trying to get studies (offset: %d, limit: %d, userID: %s): %v", offset, limit, userID, err)
 		}
 
 		study := types.NewStudy(id, name, slug, createdAt.UnixMilli())
@@ -85,16 +105,20 @@ func (r *StudyRepository) GetStudies(ctx context.Context, offset int, limit int,
 // objects
 func (r *StudyRepository) CreateStudy(
 	ctx context.Context,
-	name, userId string,
+	name, userID, orgID string,
 ) (types.Study, error) {
 
 	slug := slug.Make(name)
-
+	q := `
+		INSERT INTO studies (slug, name, user_id, org_id) 
+		VALUES ($1, $2, $3, $4) RETURNING id,created
+	`
 	row := r.db.QueryRow(
-		"INSERT INTO studies (slug, name, user_id) VALUES ($1, $2, $3) RETURNING id,created",
+		q,
 		slug,
 		name,
-		userId,
+		userID,
+		orgID,
 	)
 
 	var id string
@@ -104,10 +128,7 @@ func (r *StudyRepository) CreateStudy(
 		if strings.Contains(err.Error(), "violates unique constraint") {
 			return types.Study{}, fmt.Errorf("%w: %s", types.ErrStudyAlreadyExist, slug)
 		}
-
-		return types.Study{}, fmt.Errorf("study (slug: %s, name: %s, userId: %s) cannot be created: %v", slug, name, userId, err)
-
+		return types.Study{}, fmt.Errorf("study (slug: %s, name: %s, userId: %s) cannot be created: %v", slug, name, userID, err)
 	}
-
 	return types.NewStudy(id, name, slug, created.UnixMilli()), nil
 }

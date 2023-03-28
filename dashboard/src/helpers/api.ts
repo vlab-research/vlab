@@ -24,6 +24,9 @@ import {
  *    when reporting to Sentry or a similar service.
  */
 
+
+const orgPrefix = () => sessionStorage.getItem('current-vlab-org')
+
 const fetchStudies = ({
   studiesPerPage,
   cursor,
@@ -39,7 +42,7 @@ const fetchStudies = ({
   //       automatically remove null/undefined params
   //       which requires changing the current method
   //       of declaring the function params/defaults
-  const route = `/studies`;
+  const route = `/${orgPrefix()}/studies`;
   const params: any = { number: studiesPerPage };
   if (cursor) {
     params['cursor'] = cursor;
@@ -60,7 +63,9 @@ const fetchStudy = ({
   slug: string;
   accessToken: string;
 }) =>
-  apiRequest<StudyApiResponse>(`/studies/${slug}`, { accessToken }).then(
+  apiRequest<StudyApiResponse>(
+    `/${orgPrefix()}/studies/${slug}`, { accessToken }).then(
+           
     ({ data }) => data
   );
 
@@ -72,7 +77,7 @@ const fetchStudySegmentsProgress = ({
   accessToken: string;
 }) =>
   apiRequest<StudySegmentsProgressApiResponse>(
-    `/studies/${slug}/segments-progress`,
+    `/${orgPrefix()}/studies/${slug}/segments-progress`,
     { accessToken }
   );
 
@@ -109,7 +114,7 @@ const createStudy = ({
   name: string;
   accessToken: string;
 }) =>
-  apiRequest<CreateStudyApiResponse>('/studies', {
+  apiRequest<CreateStudyApiResponse>(`/${orgPrefix()}/studies`, {
     accessToken,
     method: 'POST',
     body: { name },
@@ -124,7 +129,7 @@ const createStudyConf = ({
   slug: string;
   accessToken: string;
 }) =>
-  apiRequest<CreateStudyConfApiResponse>(`/studies/${slug}/conf`, {
+  apiRequest<CreateStudyConfApiResponse>(`/${orgPrefix()}/studies/${slug}/conf`, {
     accessToken,
     method: 'POST',
     body: { ...data },
@@ -137,7 +142,7 @@ const fetchStudyConf = ({
   slug: string;
   accessToken: string;
 }) =>
-  apiRequest<StudyConfApiResponse>(`/studies/${slug}/conf`, {
+  apiRequest<StudyConfApiResponse>(`/${orgPrefix()}/studies/${slug}/conf`, {
     accessToken,
   }).then(({ data }) => data);
 
@@ -208,7 +213,6 @@ const apiRequest = async <ApiResponse>(
   if (requestBody) {
     requestHeaders['Content-Type'] = 'application/json';
   }
-
   try {
     const response = await fetchWithTimeout(url, {
       timeout: 10000,

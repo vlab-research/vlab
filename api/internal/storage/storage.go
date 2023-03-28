@@ -6,7 +6,7 @@ import (
 	"log"
 
 	_ "github.com/jackc/pgx/v4/stdlib"
-	"github.com/vlab-research/vlab/dashboard-api/internal/types"
+	"github.com/vlab-research/vlab/api/internal/types"
 )
 
 type Repositories struct {

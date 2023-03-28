@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Auth0Provider, useAuth0 } from '@auth0/auth0-react';
 import { ReactQueryConfigProvider, useQuery } from 'react-query';
 import { ReactQueryDevtools } from 'react-query-devtools';
@@ -125,6 +125,17 @@ const useCreateUserForCurrentAccessToken = () => {
     refetchOnWindowFocus: false,
     enabled: isAuthenticated,
   });
+
+  useEffect(() => {
+    if (query.data?.data) {
+      query.data.data.orgs.forEach((org) => {
+        // Defaults to the user personal org
+        if (org.name === query.data?.data.id) {
+          sessionStorage.setItem('current-vlab-org', org.id) 
+        }
+      })
+    }
+  }, [query.data])
 
   const inProgress = !query.isSuccess && !query.isError;
 

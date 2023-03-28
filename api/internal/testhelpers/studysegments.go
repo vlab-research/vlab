@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/vlab-research/vlab/dashboard-api/internal/types"
+	"github.com/vlab-research/vlab/api/internal/types"
 )
 
 type details map[string]segment

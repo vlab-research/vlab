@@ -6,9 +6,9 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
-	"github.com/vlab-research/vlab/dashboard-api/internal/server/middleware/auth"
-	"github.com/vlab-research/vlab/dashboard-api/internal/storage"
-	"github.com/vlab-research/vlab/dashboard-api/internal/types"
+	"github.com/vlab-research/vlab/api/internal/server/middleware/auth"
+	"github.com/vlab-research/vlab/api/internal/storage"
+	"github.com/vlab-research/vlab/api/internal/types"
 )
 
 type createRequest struct {
@@ -21,18 +21,26 @@ type createResponse struct {
 
 // CreateHandler is a gin handler that is used to create
 // a new Study object in the database
-func CreateHandler(repositories storage.Repositories) gin.HandlerFunc {
+func CreateHandler(r storage.Repositories) gin.HandlerFunc {
 	return func(ctx *gin.Context) {
+		var uri struct {
+			Org string `uri:"org" binding:"required"`
+		}
+		if err := ctx.ShouldBindUri(&uri); err != nil {
+			ctx.Status(http.StatusInternalServerError)
+			return
+		}
 		var req, err = parseRequest(ctx)
 		if err != nil {
 			ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
 		}
 
-		study, err := repositories.Study.CreateStudy(
+		study, err := r.Study.CreateStudy(
 			ctx,
 			req.StudyName,
 			auth.GetUserIdFrom(ctx),
+			uri.Org,
 		)
 
 		if err != nil {
@@ -44,7 +52,7 @@ func CreateHandler(repositories storage.Repositories) gin.HandlerFunc {
 				)
 				return
 			default:
-				ctx.Status(http.StatusInternalServerError)
+				ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 				return
 			}
 		}

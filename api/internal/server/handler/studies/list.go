@@ -4,10 +4,10 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"github.com/vlab-research/vlab/dashboard-api/internal/helpers"
-	"github.com/vlab-research/vlab/dashboard-api/internal/server/middleware/auth"
-	"github.com/vlab-research/vlab/dashboard-api/internal/storage"
-	"github.com/vlab-research/vlab/dashboard-api/internal/types"
+	"github.com/vlab-research/vlab/api/internal/helpers"
+	"github.com/vlab-research/vlab/api/internal/server/middleware/auth"
+	"github.com/vlab-research/vlab/api/internal/storage"
+	"github.com/vlab-research/vlab/api/internal/types"
 )
 
 type listResponse struct {
@@ -17,6 +17,13 @@ type listResponse struct {
 
 func ListHandler(repositories storage.Repositories) gin.HandlerFunc {
 	return func(ctx *gin.Context) {
+		var req struct {
+			Org string `uri:"org" binding:"required"`
+		}
+		if err := ctx.ShouldBindUri(&req); err != nil {
+			ctx.Status(http.StatusInternalServerError)
+			return
+		}
 
 		p := helpers.NewPagination()
 		err := p.ParseQueryParams(ctx)
@@ -30,6 +37,7 @@ func ListHandler(repositories storage.Repositories) gin.HandlerFunc {
 			p.Cursor,
 			p.Number,
 			auth.GetUserIdFrom(ctx),
+			req.Org,
 		)
 		if err != nil {
 			ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
