@@ -26,6 +26,14 @@ func TypeGeneral() databasestudyconfoptions {
 	}
 }
 
+func TypeRecruitment() databasestudyconfoptions {
+	return func(d *types.DatabaseStudyConf) {
+		d.StudyID = StudyID
+		d.ConfType = "recruitment"
+		d.Conf = []byte(`{"end_date":"2022-08-05T00:00:00","start_date":"2022-06-05T00:00:00","ad_campaign_name":"foobar-baz","budget":10000,"max_sample":1000}`)
+	}
+}
+
 func TypeTargeting() databasestudyconfoptions {
 	return func(d *types.DatabaseStudyConf) {
 		d.StudyID = StudyID

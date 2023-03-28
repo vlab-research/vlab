@@ -43,6 +43,18 @@ VALUES
   (
     'a5601576-08d9-486b-adc9-9b981b7f103b',
     '2023-03-21 13:13:21.132',
+    'recruitment',
+    '{
+      "ad_campaign_name": "vlab-most-used-prog-1",
+      "budget": 10000,
+      "end_date": "2022-08-05T00:00:00",
+      "max_sample": 1000,
+      "start_date": "2022-07-26T00:00:00"
+    }'
+  ),
+  (
+    'a5601576-08d9-486b-adc9-9b981b7f103b',
+    '2023-03-21 13:13:21.132',
     'creatives',
     '[{
         "body": "FooBar",

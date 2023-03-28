@@ -27,29 +27,31 @@ func TestHandler_StudyConfiguration_Create(t *testing.T) {
 			studyconfig:    testhelpers.NewStudyConf(),
 			expectedStatus: 201,
 			studyslug:      studyslug,
-			expectedRes:    "{\"data\":{\"general\":{\"name\":\"Foo\",\"objective\":\"\",\"optimization_goal\":\"link_clicks\",\"destination_type\":\"Web\",\"page_id\":\"1\",\"min_budget\":1,\"opt_window\":48,\"instagram_id\":\"\",\"ad_account\":\"12345\"},\"targeting\":{\"template_campaign_name\":\"Bar\",\"distribution_vars\":\"location\"},\"targeting_distribution\":{\"age\":\"21\",\"gender\":\"F\",\"location\":\"Spain\"}}}",
+			expectedRes:    `{"data":{"general":{"name":"Foo","objective":"","optimization_goal":"link_clicks","destination_type":"Web","page_id":"1","min_budget":1,"opt_window":48,"instagram_id":"","ad_account":"12345"},"targeting":{"template_campaign_name":"Bar","distribution_vars":"location"},"targeting_distribution":{"age":"21","gender":"F","location":"Spain"},"recruitment":{"end_date":"2022-08-05T00:00:00","start_date":"2022-06-05T00:00:00","ad_campaign_name":"foobar-baz","budget":10000,"max_sample":1000}}}`,
 			description:    "return 201 for valid studyconfig account",
 		},
 		{
 			studyconfig: testhelpers.NewStudyConf(
 				testhelpers.WithGeneralConf(nil),
+				testhelpers.WithRecruitmentConf(nil),
 				testhelpers.WithTargetingConf(nil),
 				testhelpers.WithTargetingDistributionConf(nil),
 			),
 			expectedStatus: 400,
 			studyslug:      "",
-			expectedRes:    "{\"error\":\"Key: 'Slug' Error:Field validation for 'Slug' failed on the 'required' tag\"}",
+			expectedRes:    `{"error":"Key: 'Slug' Error:Field validation for 'Slug' failed on the 'required' tag"}`,
 			description:    "return 400 with no slug",
 		},
 		{
 			studyconfig: testhelpers.NewStudyConf(
 				testhelpers.WithGeneralConf(nil),
+				testhelpers.WithRecruitmentConf(nil),
 				testhelpers.WithTargetingConf(nil),
 				testhelpers.WithTargetingDistributionConf(nil),
 			),
 			expectedStatus: 400,
 			studyslug:      "invalid",
-			expectedRes:    "{\"error\":\"failed finding study with identifier invalid\"}",
+			expectedRes:    `{"error":"failed finding study with identifier invalid"}`,
 			description:    "return 400 with invalid slug",
 		},
 	}
@@ -63,7 +65,7 @@ func TestHandler_StudyConfiguration_Create(t *testing.T) {
 				err := testhelpers.CreateStudy(t, studyslug, tc.studyconfig.UserID)
 				res := createStudyConfRequest(t, tc.studyslug, tc.studyconfig)
 				assert.NoError(err)
-				assert.Equal(res.Body, tc.expectedRes)
+				assert.Equal(tc.expectedRes, res.Body)
 				assert.Equal(res.StatusCode, tc.expectedStatus)
 			})
 	}

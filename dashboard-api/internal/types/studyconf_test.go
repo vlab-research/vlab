@@ -28,9 +28,12 @@ func TestStudyConfType_TransformForDatabase(t *testing.T) {
 	t.Run("does not transform null confs", func(t *testing.T) {
 		expected := []types.DatabaseStudyConf{
 			*testhelpers.NewDatabaseStudyConf(testhelpers.TypeGeneral()),
-			*testhelpers.NewDatabaseStudyConf(testhelpers.TypeTargeting()),
+			*testhelpers.NewDatabaseStudyConf(testhelpers.TypeRecruitment()),
 		}
-		input := testhelpers.NewStudyConf(testhelpers.WithTargetingDistributionConf(nil))
+		input := testhelpers.NewStudyConf(
+			testhelpers.WithTargetingConf(nil),
+			testhelpers.WithTargetingDistributionConf(nil),
+		)
 		s, err := input.TransformForDatabase()
 		assert.NoError(err)
 		assert.Equal(len(s), 2)
@@ -45,6 +48,7 @@ func TestStudyConfType_TransformFromDatabase(t *testing.T) {
 	t.Run("can transform an entire studyconf from databaseconfig", func(t *testing.T) {
 		input := []*types.DatabaseStudyConf{
 			testhelpers.NewDatabaseStudyConf(testhelpers.TypeGeneral()),
+			testhelpers.NewDatabaseStudyConf(testhelpers.TypeRecruitment()),
 			testhelpers.NewDatabaseStudyConf(testhelpers.TypeTargeting()),
 			testhelpers.NewDatabaseStudyConf(testhelpers.TypeTargetingDistribution()),
 		}

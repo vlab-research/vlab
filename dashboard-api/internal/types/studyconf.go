@@ -32,6 +32,7 @@ type StudyConf struct {
 	General               *GeneralConf               `json:"general"`
 	Targeting             *TargetingConf             `json:"targeting"`
 	TargetingDistribution *TargetingDistributionConf `json:"targeting_distribution"`
+	Recruitment           *RecruitmentConf           `json:"recruitment"`
 	// add any new config structs here
 	// NOTE: Confs should be pointers as this allows JSON unmarshalling
 	// to null if they are not set
@@ -81,6 +82,7 @@ func (sc *StudyConf) TransformFromDatabase(dcs []*DatabaseStudyConf) error {
 		"general":                json.Unmarshal,
 		"targeting":              json.Unmarshal,
 		"targeting_distribution": json.Unmarshal,
+		"recruitment":            json.Unmarshal,
 	}
 
 	for _, d := range dcs {
@@ -103,6 +105,8 @@ func (sc *StudyConf) getConfigValue(confType string) interface{} {
 		return &sc.Targeting
 	case "targeting_distribution":
 		return &sc.TargetingDistribution
+	case "recruitment":
+		return &sc.Recruitment
 	default:
 		return nil
 	}
@@ -136,6 +140,36 @@ type TargetingDistributionConf struct {
 	Age      string `json:"age"`
 	Gender   string `json:"gender"`
 	Location string `json:"location"`
+}
+
+// Recruitment is the configuration used to work with the facebook campaign
+type RecruitmentConf struct {
+	// Common Fields
+	// These are set to strings as they are in the following format
+	// 2022-08-05T00:00:00
+	// Which is none standard in Golang and makes it cumbersome to
+	// unmarshall to time.Time. We have no need for them to be
+	// unmarshalled for now
+	EndDate   string `json:"end_date"`
+	StartDate string `json:"start_date"`
+
+	// Simple Recruitment Fields
+	AdCampaignName string `json:"ad_campaign_name,omitempty"`
+	Budget         int    `json:"budget,omitempty"`
+	MaxSample      int    `json:"max_sample,omitempty"`
+
+	// Experiment Recruitment Fields
+	Arms            int `json:"arms,omitempty"`
+	RecruitmentDays int `json:"recruitment_days,omitempty"`
+	OffsetDays      int `json:"offset_days,omitempty"`
+
+	//Destination Recruitment Fields
+	Destinations []string `json:"destinations,omitempty"`
+
+	//Common Destination and Experiment Fields
+	AdCampaignNameBase string `json:"ad_campaign_name_base,omitempty"`
+	BudgetPerArm       int    `json:"budget_per_arm,omitempty"`
+	MaxSamplePerArm    int    `json:"max_sample_per_arm,omitempty"`
 }
 
 // DatabaseStudyConf is the structure used to store data
