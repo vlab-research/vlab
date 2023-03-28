@@ -29,8 +29,18 @@ func TestHandler_StudyConfiguration_GetByStudySlug(t *testing.T) {
 			},
 			expectedStatus: 200,
 			studyslug:      studyslug,
-			expectedRes:    "{\"data\":{\"general\":{\"name\":\"Foo\",\"objective\":\"\",\"optimization_goal\":\"link_clicks\",\"destination_type\":\"Web\",\"page_id\":\"1\",\"min_budget\":1,\"opt_window\":48,\"instagram_id\":\"\",\"ad_account\":\"12345\"},\"targeting\":null,\"targeting_distribution\":null}}",
-			description:    "return 200 for valid studyconfig account",
+			expectedRes:    `{"data":{"general":{"name":"Foo","objective":"","optimization_goal":"link_clicks","destination_type":"Web","page_id":"1","min_budget":1,"opt_window":48,"instagram_id":"","ad_account":"12345"},"targeting":null,"targeting_distribution":null,"recruitment":null}}`,
+			description:    "return 200 for valid studyconfig account with only general",
+		},
+		{
+			databasestudyconfs: []*types.DatabaseStudyConf{
+				testhelpers.NewDatabaseStudyConf(testhelpers.TypeGeneral()),
+				testhelpers.NewDatabaseStudyConf(testhelpers.TypeRecruitment()),
+			},
+			expectedStatus: 200,
+			studyslug:      studyslug,
+			expectedRes:    `{"data":{"general":{"name":"Foo","objective":"","optimization_goal":"link_clicks","destination_type":"Web","page_id":"1","min_budget":1,"opt_window":48,"instagram_id":"","ad_account":"12345"},"targeting":null,"targeting_distribution":null,"recruitment":{"end_date":"2022-08-05T00:00:00","start_date":"2022-06-05T00:00:00","ad_campaign_name":"foobar-baz","budget":10000,"max_sample":1000}}}`,
+			description:    "return 200 for valid studyconfig account with general and recruitment",
 		},
 	}
 

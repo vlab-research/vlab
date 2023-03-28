@@ -53,6 +53,13 @@ func NewStudyConf(opts ...studyconfigoptions) types.StudyConf {
 			Gender:   "F",
 			Location: "Spain",
 		},
+		Recruitment: &types.RecruitmentConf{
+			AdCampaignName: "foobar-baz",
+			Budget:         10000,
+			EndDate:        "2022-08-05T00:00:00",
+			StartDate:      "2022-06-05T00:00:00",
+			MaxSample:      1000,
+		},
 	}
 
 	// Set any Overrides
@@ -66,6 +73,13 @@ func NewStudyConf(opts ...studyconfigoptions) types.StudyConf {
 func WithGeneralConf(g *types.GeneralConf) studyconfigoptions {
 	return func(sc *types.StudyConf) {
 		sc.General = g
+	}
+}
+
+// WithRecruitmentConf is used to override the default RecruitmentConf
+func WithRecruitmentConf(r *types.RecruitmentConf) studyconfigoptions {
+	return func(sc *types.StudyConf) {
+		sc.Recruitment = r
 	}
 }
 
