@@ -4,10 +4,10 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"github.com/vlab-research/vlab/dashboard-api/internal/helpers"
-	"github.com/vlab-research/vlab/dashboard-api/internal/server/middleware/auth"
-	"github.com/vlab-research/vlab/dashboard-api/internal/storage"
-	"github.com/vlab-research/vlab/dashboard-api/internal/types"
+	"github.com/vlab-research/vlab/api/internal/helpers"
+	"github.com/vlab-research/vlab/api/internal/server/middleware/auth"
+	"github.com/vlab-research/vlab/api/internal/storage"
+	"github.com/vlab-research/vlab/api/internal/types"
 )
 
 type listResponse struct {

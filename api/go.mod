@@ -1,4 +1,4 @@
-module github.com/vlab-research/vlab/dashboard-api
+module github.com/vlab-research/vlab/api
 
 go 1.18
 

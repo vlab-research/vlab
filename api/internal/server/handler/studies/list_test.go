@@ -1,105 +1,126 @@
 package studies_test
 
 import (
-	"errors"
+	"context"
 	"fmt"
-	"net/http"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
-	"github.com/vlab-research/vlab/dashboard-api/internal/storage"
-	"github.com/vlab-research/vlab/dashboard-api/internal/storage/storagemocks"
-	"github.com/vlab-research/vlab/dashboard-api/internal/testhelpers"
-	"github.com/vlab-research/vlab/dashboard-api/internal/types"
+	"github.com/stretchr/testify/require"
+	"github.com/vlab-research/vlab/api/internal/testhelpers"
+	"github.com/vlab-research/vlab/api/internal/types"
 )
 
+// TODO remove all these mocks for actual integration tests
 func TestHandler_List(t *testing.T) {
-	t.Run("should return a 200 with the requested studies when the repository returns them", func(t *testing.T) {
-		defaultOffset := 0
-		defaultLimit := 20
-		studyRepository := new(storagemocks.StudyRepository)
-		study := types.NewStudy("5372ca9c-9fcd-42d4-a596-d90792909917", "Example Study", "example-study", 1605049200000)
-		studyRepository.On("GetStudies", mock.Anything, defaultOffset, defaultLimit, mock.Anything).Return([]types.Study{study}, nil)
-
-		res := testhelpers.PerformGetRequest("/studies", storage.Repositories{Study: studyRepository})
-
-		assert.Equal(t, http.StatusOK, res.StatusCode)
-		assert.Equal(t, "application/json; charset=utf-8", res.Header.Get("Content-Type"))
-		assert.Equal(t, "{\"data\":[{\"id\":\"5372ca9c-9fcd-42d4-a596-d90792909917\",\"name\":\"Example Study\",\"slug\":\"example-study\",\"createdAt\":1605049200000}],\"pagination\":{\"nextCursor\":null}}", res.Body)
-	})
-
-	t.Run("should return a 200 with an empty array when there are no studies yet", func(t *testing.T) {
-		defaultOffset := 0
-		defaultLimit := 20
-		studyRepository := new(storagemocks.StudyRepository)
-		studyRepository.On("GetStudies", mock.Anything, defaultOffset, defaultLimit, mock.Anything).Return([]types.Study{}, nil)
-
-		res := testhelpers.PerformGetRequest("/studies", storage.Repositories{Study: studyRepository})
-
-		assert.Equal(t, http.StatusOK, res.StatusCode)
-		assert.Equal(t, "application/json; charset=utf-8", res.Header.Get("Content-Type"))
-		assert.Equal(t, "{\"data\":[],\"pagination\":{\"nextCursor\":null}}", res.Body)
-	})
-
-	t.Run("should return a 400 when the cursor query parameter is invalid", func(t *testing.T) {
-		res := testhelpers.PerformGetRequest("/studies?cursor=invalid-cursor", storage.Repositories{Study: new(storagemocks.StudyRepository)})
-
-		assert.Equal(t, http.StatusBadRequest, res.StatusCode)
-		assert.Equal(t, "application/json; charset=utf-8", res.Header.Get("Content-Type"))
-		assert.Equal(t, "{\"error\":\"Key: 'paginationQueryParams.CursorInBase64url' Error:Field validation for 'CursorInBase64url' failed on the 'base64url' tag\"}", res.Body)
-	})
-
-	t.Run("should return a 400 when the number query parameter is invalid", func(t *testing.T) {
-		res := testhelpers.PerformGetRequest("/studies?number=101", storage.Repositories{Study: new(storagemocks.StudyRepository)})
-
-		assert.Equal(t, http.StatusBadRequest, res.StatusCode)
-		assert.Equal(t, "application/json; charset=utf-8", res.Header.Get("Content-Type"))
-		assert.Equal(t, "{\"error\":\"Key: 'paginationQueryParams.Number' Error:Field validation for 'Number' failed on the 'lte' tag\"}", res.Body)
-	})
-
-	t.Run("should return a 500 when the repository returns an error", func(t *testing.T) {
-		studyRepository := new(storagemocks.StudyRepository)
-		studyRepository.On("GetStudies", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return([]types.Study{}, errors.New("unexpected-error"))
-		res := testhelpers.PerformGetRequest("/studies", storage.Repositories{Study: studyRepository})
-
-		assert.Equal(t, http.StatusInternalServerError, res.StatusCode)
-	})
-
-	t.Run("should return a valid nextCursor when number of studies returned for the current page is equal to the requested ones", func(t *testing.T) {
-		numStudiesPerPage := 2
-		studyRepository := new(storagemocks.StudyRepository)
-		studyRepository.On("GetStudies", mock.Anything, 0, numStudiesPerPage, mock.Anything).
-			Return(
-				[]types.Study{
-					types.NewStudy("5372ca9c-9fcd-42d4-a596-d90792909917", "Example Study1", "example-study1", 1605049200000),
-					types.NewStudy("94259273-d64c-4e1f-9a67-9b283d5d84b5", "Example Study2", "example-study2", 1605049200000),
+	assert := require.New(t)
+	type params struct {
+		cursor string
+		number string
+	}
+	testcases := []struct {
+		studies        []types.Study
+		params         params
+		description    string
+		expectedStatus int
+		expectedRes    []string
+	}{
+		{
+			description:    "return a 200 with the requested studies",
+			expectedStatus: 200,
+			studies: []types.Study{
+				{
+					ID:        "5372ca9c-9fcd-42d4-a596-d90792909917",
+					Name:      "Example Study",
+					Slug:      "example-study",
+					CreatedAt: 1605049200000,
 				},
-				nil,
-			)
-
-		res := testhelpers.PerformGetRequest(fmt.Sprintf("/studies?number=%d", numStudiesPerPage), storage.Repositories{Study: studyRepository})
-
-		assert.Equal(t, http.StatusOK, res.StatusCode)
-		assert.Equal(t, "application/json; charset=utf-8", res.Header.Get("Content-Type"))
-		assert.Equal(t, "{\"data\":[{\"id\":\"5372ca9c-9fcd-42d4-a596-d90792909917\",\"name\":\"Example Study1\",\"slug\":\"example-study1\",\"createdAt\":1605049200000},{\"id\":\"94259273-d64c-4e1f-9a67-9b283d5d84b5\",\"name\":\"Example Study2\",\"slug\":\"example-study2\",\"createdAt\":1605049200000}],\"pagination\":{\"nextCursor\":\"Mg==\"}}", res.Body)
-	})
-
-	t.Run("should return a null nextCursor when number of studies returned for the current page is less than the requested ones", func(t *testing.T) {
-		numStudiesPerPage := 2
-		studyRepository := new(storagemocks.StudyRepository)
-		studyRepository.On("GetStudies", mock.Anything, 0, numStudiesPerPage, mock.Anything).
-			Return(
-				[]types.Study{
-					types.NewStudy("5372ca9c-9fcd-42d4-a596-d90792909917", "Example Study1", "example-study1", 1605049200000),
+			},
+			params: params{
+				cursor: "MA==",
+				number: "10",
+			},
+			expectedRes: []string{`"id":"5372ca9c-9fcd-42d4-a596-d90792909917","name":"Example Study","slug":"example-study"`, `"pagination":{"nextCursor":null}}`},
+		},
+		{
+			description:    "return a 200 with no studies",
+			expectedStatus: 200,
+			studies:        []types.Study{},
+			params: params{
+				cursor: "MA==",
+				number: "10",
+			},
+			expectedRes: []string{`{"data":[],"pagination":{"nextCursor":null}}`},
+		},
+		{
+			description:    "return a 400 with invalid cursor",
+			expectedStatus: 400,
+			studies:        []types.Study{},
+			params: params{
+				cursor: "not-valid",
+				number: "10",
+			},
+			expectedRes: []string{`{"error":"Key: 'paginationQueryParams.CursorInBase64url' Error:Field validation for 'CursorInBase64url' failed on the 'base64url' tag"}`},
+		},
+		{
+			description:    "return a 400 with invalid number",
+			expectedStatus: 400,
+			studies:        []types.Study{},
+			params: params{
+				cursor: "MA==",
+				number: "101",
+			},
+			expectedRes: []string{`{"error":"Key: 'paginationQueryParams.Number' Error:Field validation for 'Number' failed on the 'lte' tag"}`},
+		},
+		{
+			description:    "return a 200 with the requested studies",
+			expectedStatus: 200,
+			studies: []types.Study{
+				{
+					ID:        "5372ca9c-9fcd-42d4-a596-d90792909917",
+					Name:      "Example Study",
+					Slug:      "example-study",
+					CreatedAt: 1605049200000,
 				},
-				nil,
-			)
+				{
+					ID:        "94259273-d64c-4e1f-9a67-9b283d5d84b5",
+					Name:      "Example Study2",
+					Slug:      "example-study2",
+					CreatedAt: 1605049200000,
+				},
+			},
+			params: params{
+				cursor: "MA==",
+				number: "1",
+			},
+			expectedRes: []string{`"id":"5372ca9c-9fcd-42d4-a596-d90792909917","name":"Example Study","slug":"example-study"`, `"pagination":{"nextCursor":"MQ=="}`},
+		},
+	}
 
-		res := testhelpers.PerformGetRequest(fmt.Sprintf("/studies?number=%d", numStudiesPerPage), storage.Repositories{Study: studyRepository})
+	for _, tc := range testcases {
+		t.Run(fmt.Sprintf("should %s", tc.description),
+			func(t *testing.T) {
+				testhelpers.DeleteAllStudies(t)
+				testhelpers.DeleteAllUsers(t)
+				testhelpers.CreateUser(t)
+				for _, study := range tc.studies {
+					err := testhelpers.CreateStudyFromStudy(t, study)
+					assert.NoError(err)
+				}
+				res := getStudiesRequest(t, tc.params.cursor, tc.params.number)
+				assert.Equal(res.StatusCode, tc.expectedStatus)
+				for _, expected := range tc.expectedRes {
+					assert.Contains(res.Body, expected)
+				}
+			})
+	}
+}
 
-		assert.Equal(t, http.StatusOK, res.StatusCode)
-		assert.Equal(t, "application/json; charset=utf-8", res.Header.Get("Content-Type"))
-		assert.Equal(t, "{\"data\":[{\"id\":\"5372ca9c-9fcd-42d4-a596-d90792909917\",\"name\":\"Example Study1\",\"slug\":\"example-study1\",\"createdAt\":1605049200000}],\"pagination\":{\"nextCursor\":null}}", res.Body)
-	})
+func getStudiesRequest(t *testing.T, cursor, number string) testhelpers.Response {
+	t.Helper()
+	r := testhelpers.GetRepositories()
+	r.User.Create(context.TODO(), testhelpers.CurrentUserID)
+	return testhelpers.PerformGetRequest(
+		fmt.Sprintf("/%s/studies?cursor=%s&number=%s", testhelpers.TestOrgID, cursor, number),
+		r,
+	)
 }

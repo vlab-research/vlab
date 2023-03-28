@@ -7,8 +7,8 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
-	"github.com/vlab-research/vlab/dashboard-api/internal/testhelpers"
-	"github.com/vlab-research/vlab/dashboard-api/internal/types"
+	"github.com/vlab-research/vlab/api/internal/testhelpers"
+	"github.com/vlab-research/vlab/api/internal/types"
 )
 
 func TestHandler_StudyConfiguration_Create(t *testing.T) {
@@ -74,7 +74,7 @@ func TestHandler_StudyConfiguration_Create(t *testing.T) {
 func createStudyConfRequest(t *testing.T, slug string, sc types.StudyConf) testhelpers.Response {
 	t.Helper()
 	r := testhelpers.GetRepositories()
+	uri := fmt.Sprintf("/%s/studies/%s/conf", testhelpers.TestOrgID, slug)
 	r.User.Create(context.TODO(), sc.UserID)
-	uri := fmt.Sprintf("/studies/%s/conf", slug)
-	return testhelpers.PerformPostRequest(uri, testhelpers.CurrentUserId, r, sc)
+	return testhelpers.PerformPostRequest(uri, testhelpers.CurrentUserID, r, sc)
 }

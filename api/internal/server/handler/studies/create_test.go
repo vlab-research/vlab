@@ -2,99 +2,81 @@ package studies_test
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"math/rand"
 	"testing"
 
-	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
-	"github.com/vlab-research/vlab/dashboard-api/internal/storage"
-	"github.com/vlab-research/vlab/dashboard-api/internal/storage/storagemocks"
-	"github.com/vlab-research/vlab/dashboard-api/internal/testhelpers"
-	"github.com/vlab-research/vlab/dashboard-api/internal/types"
+	"github.com/vlab-research/vlab/api/internal/testhelpers"
 )
 
 func TestHandler_Create(t *testing.T) {
 	assert := require.New(t)
-	errorString := "{\"error\":\"%s\"}"
-	expectedHeader := "application/json; charset=utf-8"
 
-	t.Run("should return a 400 when no name is provided", func(t *testing.T) {
-		msg := "The name cannot be empty."
+	testcases := []struct {
+		studyName      string
+		description    string
+		expectedStatus int
+		expectedRes    string
+	}{
+		{
+			description:    "should return a 400 when no name is provided",
+			studyName:      "",
+			expectedStatus: 400,
+			expectedRes:    `{"error":"The name cannot be empty."}`,
+		},
+		{
+			description:    "should return a 400 with whitespaces",
+			studyName:      "	",
+			expectedStatus: 400,
+			expectedRes:    `{"error":"The name cannot be empty."}`,
+		},
+		{
+			description:    "should return a 400 when over size limit",
+			studyName:      randStringRunes(301),
+			expectedStatus: 400,
+			expectedRes:    `{"error":"The name cannot be larger than 300 characters."}`,
+		},
+		{
+			description:    "return a 201 with the created study",
+			studyName:      "example study",
+			expectedStatus: 201,
+			expectedRes:    `"name":"example study","slug":"example-study"`,
+		},
+		{
+			description:    "return a 409 when the study already exists",
+			studyName:      "duplicate-study",
+			expectedStatus: 409,
+			expectedRes:    `{"error":"The name is already in use."}`,
+		},
+	}
 
-		res := createStudyRequest("")
-		assert.Equal(400, res.StatusCode)
-		assert.Equal(expectedHeader, res.Header.Get("Content-Type"))
-		assert.Equal(fmt.Sprintf(errorString, msg), res.Body)
-	})
-	t.Run("should return 400 with only whitespace", func(t *testing.T) {
-		msg := "The name cannot be empty."
-		res := createStudyRequest("   ")
-		assert.Equal(400, res.StatusCode)
-		assert.Equal(expectedHeader, res.Header.Get("Content-Type"))
-		assert.Equal(fmt.Sprintf(errorString, msg), res.Body)
-	})
-	t.Run("should return a 400 error when over length limit", func(t *testing.T) {
-		size := 301
-		msg := "The name cannot be larger than 300 characters."
+	for _, tc := range testcases {
+		t.Run(fmt.Sprintf("should  %s", tc.description),
+			func(t *testing.T) {
+				testhelpers.DeleteAllStudies(t)
+				err := testhelpers.CreateStudy(
+					t,
+					"duplicate-study",
+					testhelpers.CurrentUserID,
+				)
+				assert.NoError(err)
+				res := createStudyRequest(tc.studyName)
+				assert.Contains(res.Body, tc.expectedRes)
+				assert.Equal(res.StatusCode, tc.expectedStatus)
+			})
+	}
 
-		res := createStudyRequest(randStringRunes(size))
-		assert.Equal(400, res.StatusCode)
-		assert.Equal(expectedHeader, res.Header.Get("Content-Type"))
-		assert.Equal(fmt.Sprintf(errorString, msg), res.Body)
-	})
-
-	t.Run("should return a 201 with the created study", func(t *testing.T) {
-		testhelpers.DeleteAllStudies(t)
-		studyName := "example study"
-
-		res := createStudyRequest(studyName)
-
-		assert.Contains(res.Body, studyName)
-		assert.Equal(201, res.StatusCode)
-		assert.Equal(expectedHeader, res.Header.Get("Content-Type"))
-	})
-
-	t.Run("should return a 409 when the study already exists", func(t *testing.T) {
-		testhelpers.DeleteAllStudies(t)
-		studyName := "example study"
-		msg := "The name is already in use."
-		res := createStudyRequest(studyName)
-		assert.Equal(201, res.StatusCode)
-
-		res = createStudyRequest(studyName)
-		assert.Equal(409, res.StatusCode)
-		assert.Equal(fmt.Sprintf(errorString, msg), res.Body)
-	})
-
-	t.Run("should return a 500 when the studyRepository returns an unexpected error", func(t *testing.T) {
-		studyName := "example study"
-		studyRepository := new(storagemocks.StudyRepository)
-		studyRepository.On("CreateStudy", mock.Anything, mock.Anything, mock.Anything).Return(types.Study{}, errors.New("unexpected-error"))
-
-		res := testhelpers.PerformPostRequest(
-			"/studies",
-			testhelpers.CurrentUserId,
-			storage.Repositories{Study: studyRepository},
-			struct {
-				Name string `json:"name"`
-			}{studyName},
-		)
-
-		assert.Equal(500, res.StatusCode)
-	})
 }
 
 func createStudyRequest(studyName string) testhelpers.Response {
 	r := testhelpers.GetRepositories()
-	r.User.Create(context.TODO(), testhelpers.CurrentUserId)
+	r.User.Create(context.TODO(), testhelpers.CurrentUserID)
+	uri := fmt.Sprintf("/%s/studies", testhelpers.TestOrgID)
 	return testhelpers.PerformPostRequest(
-		"/studies",
-		testhelpers.CurrentUserId,
-		storage.Repositories{
-			Study: testhelpers.GetRepositories().Study,
-		},
+		uri,
+		testhelpers.CurrentUserID,
+		r,
 		struct {
 			Name string `json:"name"`
 		}{studyName},

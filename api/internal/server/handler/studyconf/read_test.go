@@ -7,8 +7,8 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
-	"github.com/vlab-research/vlab/dashboard-api/internal/testhelpers"
-	"github.com/vlab-research/vlab/dashboard-api/internal/types"
+	"github.com/vlab-research/vlab/api/internal/testhelpers"
+	"github.com/vlab-research/vlab/api/internal/types"
 )
 
 func TestHandler_StudyConfiguration_GetByStudySlug(t *testing.T) {
@@ -69,7 +69,7 @@ func TestHandler_StudyConfiguration_GetByStudySlug(t *testing.T) {
 				testhelpers.DeleteAllStudyConfs(t)
 				testhelpers.DeleteAllUsers(t)
 				testhelpers.CreateUser(t)
-				err := testhelpers.CreateStudy(t, studyslug, testhelpers.CurrentUserId)
+				err := testhelpers.CreateStudy(t, studyslug, testhelpers.CurrentUserID)
 				assert.NoError(err)
 				for _, dsc := range tc.databasestudyconfs {
 					err := testhelpers.CreateDatabaseStudyConf(t, *dsc)
@@ -86,6 +86,7 @@ func TestHandler_StudyConfiguration_GetByStudySlug(t *testing.T) {
 func getStudyConfRequest(t *testing.T, slug string) testhelpers.Response {
 	t.Helper()
 	r := testhelpers.GetRepositories()
-	r.User.Create(context.TODO(), testhelpers.CurrentUserId)
-	return testhelpers.PerformGetRequest(fmt.Sprintf("/studies/%s/conf", slug), r)
+	r.User.Create(context.TODO(), testhelpers.CurrentUserID)
+	uri := fmt.Sprintf("/%s/studies/%s/conf", testhelpers.TestOrgID, slug)
+	return testhelpers.PerformGetRequest(uri, r)
 }

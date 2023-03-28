@@ -6,8 +6,8 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"github.com/vlab-research/vlab/dashboard-api/internal/storage"
-	"github.com/vlab-research/vlab/dashboard-api/internal/testhelpers"
+	"github.com/vlab-research/vlab/api/internal/storage"
+	"github.com/vlab-research/vlab/api/internal/testhelpers"
 )
 
 func TestGenerateTokenHandler(t *testing.T) {
@@ -44,10 +44,10 @@ func TestGenerateTokenHandler(t *testing.T) {
 func generateTokenRequest(t *testing.T, code string) testhelpers.Response {
 	t.Helper()
 	r := testhelpers.GetRepositories()
-	r.User.Create(context.TODO(), testhelpers.CurrentUserId)
+	r.User.Create(context.TODO(), testhelpers.CurrentUserID)
 	return testhelpers.PerformPostRequest(
 		"/facebook/token",
-		testhelpers.CurrentUserId,
+		testhelpers.CurrentUserID,
 		storage.Repositories{
 			Account: testhelpers.GetRepositories().Account,
 		},

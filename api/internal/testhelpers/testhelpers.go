@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"log"
 	"net/http"
@@ -14,15 +15,16 @@ import (
 	jwtmiddleware "github.com/auth0/go-jwt-middleware/v2"
 	"github.com/auth0/go-jwt-middleware/v2/validator"
 	"github.com/gin-gonic/gin"
-	"github.com/vlab-research/vlab/dashboard-api/internal/config"
-	"github.com/vlab-research/vlab/dashboard-api/internal/server"
-	"github.com/vlab-research/vlab/dashboard-api/internal/storage"
-	"github.com/vlab-research/vlab/dashboard-api/internal/types"
+	"github.com/vlab-research/vlab/api/internal/config"
+	"github.com/vlab-research/vlab/api/internal/server"
+	"github.com/vlab-research/vlab/api/internal/storage"
+	"github.com/vlab-research/vlab/api/internal/types"
 )
 
 const (
-	CurrentUserId = "auth0|61916c1dab79c900713936de"
+	CurrentUserID = "auth0|61916c1dab79c900713936de"
 	StudySlug     = "test-study"
+	TestOrgID     = "fda19390-d1e7-4893-a13a-d14c88cc737b"
 )
 
 type Response struct {
@@ -32,7 +34,7 @@ type Response struct {
 }
 
 func PerformGetRequest(path string, repositories storage.Repositories) Response {
-	return PerformRequest(path, CurrentUserId, http.MethodGet, repositories, nil)
+	return PerformRequest(path, CurrentUserID, http.MethodGet, repositories, nil)
 }
 
 func PerformPostRequest(
@@ -123,6 +125,9 @@ func FakeValidTokenMiddleware(userID string) gin.HandlerFunc {
 	}
 }
 
+// TODO this depends on a package that we want to test
+// using the testhelper, we should remove alle dependencies in this helper
+// to avoid circular dependency errors
 func GetRepositories() storage.Repositories {
 	//TODO we should probably set some environment variables here
 	//that testing depends on in order for tests to have less external
@@ -150,20 +155,42 @@ func DeleteAllUsers(t *testing.T) {
 	t.Helper()
 	repositories := GetRepositories()
 	repositories.Db.Exec("DELETE FROM users")
+	repositories.Db.Exec("DELETE FROM orgs")
 }
 
 func CreateStudy(t *testing.T, slug, userID string) error {
 	t.Helper()
 	r := GetRepositories()
-	q := "INSERT INTO studies (id, slug, name, user_id) VALUES ($1, $2, $3, $4)"
-	_, err := r.Db.Exec(q, StudyID, slug, slug, userID)
+	q := "INSERT INTO studies (id, slug, name, user_id, org_id) VALUES ($1, $2, $3, $4, $5)"
+	_, err := r.Db.Exec(q, StudyID, slug, slug, userID, TestOrgID)
+	return err
+}
+
+func CreateStudyFromStudy(t *testing.T, study types.Study) error {
+	t.Helper()
+	r := GetRepositories()
+	q := "INSERT INTO studies (id, slug, name, user_id, org_id, created) VALUES ($1, $2, $3, $4, $5, $6)"
+	_, err := r.Db.Exec(
+		q,
+		study.ID,
+		study.Slug,
+		study.Name,
+		CurrentUserID,
+		TestOrgID,
+		time.Unix(study.CreatedAt, 0),
+	)
 	return err
 }
 
 func CreateUser(t *testing.T) {
 	t.Helper()
 	r := GetRepositories()
-	_, _ = r.Db.Exec("INSERT INTO users (id) VALUES ($1)", CurrentUserId)
+	_, _ = r.Db.Exec("INSERT INTO orgs (id, name) VALUES ($1, $2)", TestOrgID, CurrentUserID)
+	q := "INSERT INTO users (id) VALUES ($1)"
+	_, _ = r.Db.Exec(q, CurrentUserID)
+	q = "INSERT INTO orgs_lookup (user_id, org_id) VALUES ($1, $2)"
+	_, err := r.Db.Exec(q, CurrentUserID, TestOrgID)
+	fmt.Printf("HERE: %v", err)
 }
 
 func CreateAccounts(t *testing.T, a types.Account, created time.Time) error {

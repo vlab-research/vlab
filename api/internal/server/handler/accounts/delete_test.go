@@ -7,8 +7,8 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
-	"github.com/vlab-research/vlab/dashboard-api/internal/testhelpers"
-	"github.com/vlab-research/vlab/dashboard-api/internal/types"
+	"github.com/vlab-research/vlab/api/internal/testhelpers"
+	"github.com/vlab-research/vlab/api/internal/types"
 )
 
 func TestHandler_Account_Delete(t *testing.T) {
@@ -25,18 +25,18 @@ func TestHandler_Account_Delete(t *testing.T) {
 	}{
 		{
 			account: types.Account{
-				UserID:   testhelpers.CurrentUserId,
+				UserID:   testhelpers.CurrentUserID,
 				Name:     "fly",
 				AuthType: authType,
 			},
-			userID:         testhelpers.CurrentUserId,
+			userID:         testhelpers.CurrentUserID,
 			expectedStatus: 204,
 			description:    "return 204 with no content",
 			expectedRes:    ``,
 		},
 		{
 			account: types.Account{
-				UserID:   testhelpers.CurrentUserId,
+				UserID:   testhelpers.CurrentUserID,
 				Name:     "fly",
 				AuthType: authType,
 			},

@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"github.com/vlab-research/vlab/dashboard-api/internal/testhelpers"
+	"github.com/vlab-research/vlab/api/internal/testhelpers"
 )
 
 func TestHandler_GetOrCreate(t *testing.T) {
@@ -14,19 +14,19 @@ func TestHandler_GetOrCreate(t *testing.T) {
 		userID         string
 		description    string
 		expectedStatus int
-		expectedRes    string
+		expectedRes    []string
 	}{
 		{
-			userID:         testhelpers.CurrentUserId,
-			description:    "return 200 when user exists with user",
-			expectedStatus: 200,
-			expectedRes:    `{"data":{"id":"auth0|61916c1dab79c900713936de"}}`,
+			userID:         testhelpers.CurrentUserID,
+			description:    "return 200 when user exists with user and orgs",
+			expectedStatus: 201,
+			expectedRes:    []string{`{"data":{"id":"auth0|61916c1dab79c900713936de","orgs":[{"id":"fda19390-d1e7-4893-a13a-d14c88cc737b","name":"auth0|61916c1dab79c900713936de"}]}}`},
 		},
 		{
 			userID:         "new-user",
-			description:    "return 201 when user is created with user",
+			description:    "return 201 when user is created with user and no orgs",
 			expectedStatus: 201,
-			expectedRes:    `{"data":{"id":"new-user"}}`,
+			expectedRes:    []string{`"id":"new-user"`, `"name":"new-user"`},
 		},
 	}
 	for _, tc := range testcases {
@@ -37,7 +37,9 @@ func TestHandler_GetOrCreate(t *testing.T) {
 				testhelpers.CreateUser(t)
 				res := getorCreateUserRequest(t, tc.userID)
 				assert.Equal(res.StatusCode, tc.expectedStatus)
-				assert.Equal(tc.expectedRes, res.Body)
+				for _, e := range tc.expectedRes {
+					assert.Contains(res.Body, e)
+				}
 			})
 	}
 }

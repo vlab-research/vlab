@@ -9,8 +9,8 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/vlab-research/vlab/dashboard-api/internal/config"
-	"github.com/vlab-research/vlab/dashboard-api/internal/server"
+	"github.com/vlab-research/vlab/api/internal/config"
+	"github.com/vlab-research/vlab/api/internal/server"
 )
 
 func main() {

@@ -6,8 +6,8 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"github.com/vlab-research/vlab/dashboard-api/internal/testhelpers"
-	"github.com/vlab-research/vlab/dashboard-api/internal/types"
+	"github.com/vlab-research/vlab/api/internal/testhelpers"
+	"github.com/vlab-research/vlab/api/internal/types"
 )
 
 func TestHandler_List(t *testing.T) {
@@ -62,7 +62,7 @@ func TestHandler_List(t *testing.T) {
 			testhelpers.DeleteAllUsers(t)
 			testhelpers.DeleteAllStudySegments(t)
 			testhelpers.CreateUser(t)
-			err := testhelpers.CreateStudy(t, testhelpers.StudySlug, testhelpers.CurrentUserId)
+			err := testhelpers.CreateStudy(t, testhelpers.StudySlug, testhelpers.CurrentUserID)
 			assert.NoError(err)
 			err = testhelpers.CreateSegment(t, tc.segmentsprogress)
 			assert.NoError(err)
@@ -77,9 +77,9 @@ func TestHandler_List(t *testing.T) {
 func getStudySegmentRequest(t *testing.T, slug string) testhelpers.Response {
 	t.Helper()
 	r := testhelpers.GetRepositories()
-	r.User.Create(context.TODO(), testhelpers.CurrentUserId)
+	r.User.Create(context.TODO(), testhelpers.CurrentUserID)
 	return testhelpers.PerformGetRequest(
-		fmt.Sprintf("/studies/%s/segments-progress", slug),
-		testhelpers.GetRepositories(),
+		fmt.Sprintf("/%s/studies/%s/segments-progress", testhelpers.TestOrgID, slug),
+		r,
 	)
 }

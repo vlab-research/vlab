@@ -6,9 +6,8 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"github.com/vlab-research/vlab/dashboard-api/internal/storage"
-	"github.com/vlab-research/vlab/dashboard-api/internal/testhelpers"
-	"github.com/vlab-research/vlab/dashboard-api/internal/types"
+	"github.com/vlab-research/vlab/api/internal/testhelpers"
+	"github.com/vlab-research/vlab/api/internal/types"
 )
 
 func TestHandler_Account_Create(t *testing.T) {
@@ -128,13 +127,11 @@ func TestHandler_Account_Create(t *testing.T) {
 func createAccountRequest(t *testing.T, a interface{}) testhelpers.Response {
 	t.Helper()
 	r := testhelpers.GetRepositories()
-	r.User.Create(context.TODO(), testhelpers.CurrentUserId)
+	r.User.Create(context.TODO(), testhelpers.CurrentUserID)
 	return testhelpers.PerformPostRequest(
 		"/accounts",
-		testhelpers.CurrentUserId,
-		storage.Repositories{
-			Account: testhelpers.GetRepositories().Account,
-		},
+		testhelpers.CurrentUserID,
+		r,
 		a,
 	)
 }

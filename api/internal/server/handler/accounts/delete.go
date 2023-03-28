@@ -6,9 +6,9 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"github.com/vlab-research/vlab/dashboard-api/internal/server/middleware/auth"
-	"github.com/vlab-research/vlab/dashboard-api/internal/storage"
-	"github.com/vlab-research/vlab/dashboard-api/internal/types"
+	"github.com/vlab-research/vlab/api/internal/server/middleware/auth"
+	"github.com/vlab-research/vlab/api/internal/storage"
+	"github.com/vlab-research/vlab/api/internal/types"
 )
 
 // DeleteHandler is a gin handler that is used to delete

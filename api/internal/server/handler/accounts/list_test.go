@@ -7,9 +7,9 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
-	"github.com/vlab-research/vlab/dashboard-api/internal/storage"
-	"github.com/vlab-research/vlab/dashboard-api/internal/testhelpers"
-	"github.com/vlab-research/vlab/dashboard-api/internal/types"
+	"github.com/vlab-research/vlab/api/internal/storage"
+	"github.com/vlab-research/vlab/api/internal/testhelpers"
+	"github.com/vlab-research/vlab/api/internal/types"
 	sourcetypes "github.com/vlab-research/vlab/inference/sources/types"
 )
 
@@ -30,7 +30,7 @@ func TestHandler_Account_List(t *testing.T) {
 		{
 			accounts: []types.Account{
 				{
-					UserID:   testhelpers.CurrentUserId,
+					UserID:   testhelpers.CurrentUserID,
 					Name:     "Fly",
 					AuthType: authType,
 					ConnectedAccount: types.FlyConnectedAccount{
@@ -40,7 +40,7 @@ func TestHandler_Account_List(t *testing.T) {
 					},
 				},
 				{
-					UserID:   testhelpers.CurrentUserId,
+					UserID:   testhelpers.CurrentUserID,
 					Name:     "Typeform",
 					AuthType: authType,
 					ConnectedAccount: types.TypeformConnectedAccount{
@@ -50,7 +50,7 @@ func TestHandler_Account_List(t *testing.T) {
 					},
 				},
 				{
-					UserID:   testhelpers.CurrentUserId,
+					UserID:   testhelpers.CurrentUserID,
 					Name:     "Alchemer",
 					AuthType: authType,
 					ConnectedAccount: types.AlchemerConnectedAccount{
@@ -95,7 +95,7 @@ func TestHandler_Account_List(t *testing.T) {
 
 func listAccountRequest() testhelpers.Response {
 	r := testhelpers.GetRepositories()
-	r.User.Create(context.TODO(), testhelpers.CurrentUserId)
+	r.User.Create(context.TODO(), testhelpers.CurrentUserID)
 	return testhelpers.PerformGetRequest(
 		"/accounts",
 		storage.Repositories{
