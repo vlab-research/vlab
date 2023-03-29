@@ -18,7 +18,10 @@ import (
 	"github.com/vlab-research/vlab/dashboard-api/internal/platform/storage"
 )
 
-var CurrentUserId = "auth0|61916c1dab79c900713936de"
+const (
+	CurrentUserId = "auth0|61916c1dab79c900713936de"
+	StudySlug     = "test-study"
+)
 
 type Response struct {
 	StatusCode int
