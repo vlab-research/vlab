@@ -3,7 +3,10 @@ package studiesmanager
 import "context"
 
 type StudySegmentsRepository interface {
-	GetAllTimeSegmentsProgress(ctx context.Context, studyId string) ([]SegmentsProgress, error)
+	GetByStudySlug(
+		ctx context.Context,
+		slug, userID string,
+	) ([]SegmentsProgress, error)
 }
 
 //go:generate mockery --case=snake --outpkg=storagemocks --output=platform/storage/storagemocks --name=StudySegmentsRepository
@@ -14,7 +17,7 @@ type SegmentsProgress struct {
 }
 
 type SegmentProgress struct {
-	Id                          string  `json:"id"`
+	ID                          string  `json:"id"`
 	Name                        string  `json:"name"`
 	Datetime                    int64   `json:"datetime"`
 	CurrentBudget               float64 `json:"currentBudget"`

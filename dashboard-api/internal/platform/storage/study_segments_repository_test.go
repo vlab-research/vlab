@@ -8,54 +8,66 @@ import (
 	"time"
 
 	"github.com/DATA-DOG/go-sqlmock"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	studiesmanager "github.com/vlab-research/vlab/dashboard-api/internal"
 )
 
-func Test_StudySegmentsRepository_GetAllTimeSegmentsProgress_UnexpectedError_during_Query(t *testing.T) {
-	studyId := "c463c577-a3d1-482e-b638-10e6733e2325"
-	db, sqlMock, err := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherEqual))
-	require.NoError(t, err)
+const (
+	studyslug = "example-study"
+	userID    = "1234"
+	q         = `
+	SELECT a.created, a.details 
+	FROM adopt_reports a
+	JOIN studies s ON s.id = a.study_id 
+	WHERE a.report_type = 'FACEBOOK_ADOPT' 
+	AND s.slug = $1 
+	AND s.user_id = $2
+	ORDER BY created ASC
+	`
+)
 
-	sqlMock.ExpectQuery(
-		"SELECT created, details FROM adopt_reports WHERE report_type = 'FACEBOOK_ADOPT' and study_id = $1 ORDER BY created ASC").
-		WithArgs(studyId).
+func Test_StudySegmentsRepository_GetAllTimeSegmentsProgress_UnexpectedError_during_Query(t *testing.T) {
+	assert := require.New(t)
+	db, sqlMock, err := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherEqual))
+	assert.NoError(err)
+
+	sqlMock.ExpectQuery(q).
+		WithArgs(studyslug, userID).
 		WillReturnError(errors.New("unexpected-error"))
 
-	repo := NewStudySegmentsRepository(db)
+	r := NewStudySegmentsRepository(db)
 
-	_, err = repo.GetAllTimeSegmentsProgress(context.Background(), studyId)
+	_, err = r.GetByStudySlug(context.TODO(), studyslug, userID)
 
-	assert.NoError(t, sqlMock.ExpectationsWereMet())
-	assert.Equal(t, errors.New("(db.Query) error trying to get all time segments progress (studyId: c463c577-a3d1-482e-b638-10e6733e2325): unexpected-error"), err)
+	assert.NoError(sqlMock.ExpectationsWereMet())
+	expected := errors.New("error trying to get all time segments progress: unexpected-error")
+	assert.Equal(expected, err)
 }
 
 func Test_StudySegmentsRepository_GetAllTimeSegmentsProgress_UnexpectedError_during_Scan(t *testing.T) {
-	studyId := "c463c577-a3d1-482e-b638-10e6733e2325"
+	assert := require.New(t)
 	db, sqlMock, err := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherEqual))
-	require.NoError(t, err)
+	assert.NoError(err)
 
 	rows := sqlMock.NewRows([]string{"created"}).
 		AddRow(time.Now())
 
-	sqlMock.ExpectQuery(
-		"SELECT created, details FROM adopt_reports WHERE report_type = 'FACEBOOK_ADOPT' and study_id = $1 ORDER BY created ASC").
-		WithArgs(studyId).
+	sqlMock.ExpectQuery(q).
+		WithArgs(studyslug, userID).
 		WillReturnRows(rows)
 
-	repo := NewStudySegmentsRepository(db)
+	r := NewStudySegmentsRepository(db)
 
-	_, err = repo.GetAllTimeSegmentsProgress(context.Background(), studyId)
+	_, err = r.GetByStudySlug(context.TODO(), studyslug, userID)
 
-	assert.NoError(t, sqlMock.ExpectationsWereMet())
-	assert.Equal(t, errors.New("(rows.Scan) error trying to get all time segments progress (studyId: c463c577-a3d1-482e-b638-10e6733e2325); sql: expected 1 destination arguments in Scan, not 2"), err)
+	assert.NoError(sqlMock.ExpectationsWereMet())
+	assert.Equal(errors.New("error trying to get all time segments progress: sql: expected 1 destination arguments in Scan, not 2"), err)
 }
 
 func Test_StudySegmentsRepository_GetAllTimeSegmentsProgress_Succeed(t *testing.T) {
-	studyId := "c463c577-a3d1-482e-b638-10e6733e2325"
+	assert := require.New(t)
 	db, sqlMock, err := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherEqual))
-	require.NoError(t, err)
+	assert.NoError(err)
 
 	oldestDetails := details{"25-spain-male": {
 		CurrentBudget:              72000,
@@ -86,25 +98,23 @@ func Test_StudySegmentsRepository_GetAllTimeSegmentsProgress_Succeed(t *testing.
 		AddRow(time.Date(2020, time.November, 10, 22, 0, 0, 0, time.UTC), oldestDetailsInBytes).
 		AddRow(time.Date(2020, time.November, 10, 23, 0, 0, 0, time.UTC), mostRecentDetailsInBytes)
 
-	sqlMock.ExpectQuery(
-		"SELECT created, details FROM adopt_reports WHERE report_type = 'FACEBOOK_ADOPT' and study_id = $1 ORDER BY created ASC").
-		WithArgs(studyId).
+	sqlMock.ExpectQuery(q).
+		WithArgs(studyslug, userID).
 		WillReturnRows(rows)
 
-	repo := NewStudySegmentsRepository(db)
+	r := NewStudySegmentsRepository(db)
 
-	allTimeSegmentsProgress, err := repo.GetAllTimeSegmentsProgress(context.Background(), studyId)
+	spList, err := r.GetByStudySlug(context.TODO(), studyslug, userID)
 
-	assert.NoError(t, sqlMock.ExpectationsWereMet())
-	assert.NoError(t, err)
+	assert.NoError(sqlMock.ExpectationsWereMet())
+	assert.NoError(err)
 	assert.Equal(
-		t,
 		[]studiesmanager.SegmentsProgress(
 			[]studiesmanager.SegmentsProgress{
 				{
 					Segments: []studiesmanager.SegmentProgress{
 						{
-							Id:                          "25-spain-male",
+							ID:                          "25-spain-male",
 							Name:                        "25-spain-male",
 							Datetime:                    1605045600000,
 							CurrentBudget:               72000,
@@ -123,7 +133,7 @@ func Test_StudySegmentsRepository_GetAllTimeSegmentsProgress_Succeed(t *testing.
 				{
 					Segments: []studiesmanager.SegmentProgress{
 						{
-							Id:                          "25-spain-male",
+							ID:                          "25-spain-male",
 							Name:                        "25-spain-male",
 							Datetime:                    1605049200000,
 							CurrentBudget:               72000,
@@ -141,6 +151,6 @@ func Test_StudySegmentsRepository_GetAllTimeSegmentsProgress_Succeed(t *testing.
 				},
 			},
 		),
-		allTimeSegmentsProgress,
+		spList,
 	)
 }

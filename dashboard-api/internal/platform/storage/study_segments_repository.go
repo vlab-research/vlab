@@ -32,12 +32,24 @@ type details map[string]struct {
 	CurrentPricePerParticipant float64 `json:"current_price_per_participant"`
 }
 
-func (r *StudySegmentsRepository) GetAllTimeSegmentsProgress(ctx context.Context, studyId string) ([]studiesmanager.SegmentsProgress, error) {
+func (r *StudySegmentsRepository) GetByStudySlug(
+	ctx context.Context,
+	slug, userID string,
+) ([]studiesmanager.SegmentsProgress, error) {
 	allTimeSegmentsProgress := []studiesmanager.SegmentsProgress{}
-
-	rows, err := r.db.Query("SELECT created, details FROM adopt_reports WHERE report_type = 'FACEBOOK_ADOPT' and study_id = $1 ORDER BY created ASC", studyId)
+	errMsg := "error trying to get all time segments progress: %v"
+	q := `
+	SELECT a.created, a.details 
+	FROM adopt_reports a
+	JOIN studies s ON s.id = a.study_id 
+	WHERE a.report_type = 'FACEBOOK_ADOPT' 
+	AND s.slug = $1 
+	AND s.user_id = $2
+	ORDER BY created ASC
+	`
+	rows, err := r.db.Query(q, slug, userID)
 	if err != nil {
-		return nil, fmt.Errorf("(db.Query) error trying to get all time segments progress (studyId: %s): %v", studyId, err)
+		return nil, fmt.Errorf(errMsg, err)
 	}
 
 	defer rows.Close()
@@ -48,12 +60,12 @@ func (r *StudySegmentsRepository) GetAllTimeSegmentsProgress(ctx context.Context
 		var details details
 
 		if err := rows.Scan(&created, &detailsInBytes); err != nil {
-			return nil, fmt.Errorf("(rows.Scan) error trying to get all time segments progress (studyId: %s); %v", studyId, err)
+			return nil, fmt.Errorf(errMsg, err)
 		}
 
 		err = json.Unmarshal(detailsInBytes, &details)
 		if err != nil {
-			return nil, fmt.Errorf("(json.Unmarshal) error trying to get all time segments progress (studyId: %s); %v", studyId, err)
+			return nil, fmt.Errorf(errMsg, err)
 		}
 
 		datetimeInMilliseconds := created.UnixMilli()
@@ -63,23 +75,25 @@ func (r *StudySegmentsRepository) GetAllTimeSegmentsProgress(ctx context.Context
 		}
 
 		for segmentName, segmentProgress := range details {
+
 			desiredPercentage := round(segmentProgress.DesiredPercentage)
 			currentPercentage := round(segmentProgress.CurrentPercentage)
 
-			segmentsProgress.Segments = append(segmentsProgress.Segments, studiesmanager.SegmentProgress{
-				Id:                          segmentName,
-				Name:                        segmentName,
-				Datetime:                    datetimeInMilliseconds,
-				CurrentBudget:               segmentProgress.CurrentBudget,
-				DesiredPercentage:           desiredPercentage,
-				CurrentPercentage:           currentPercentage,
-				ExpectedPercentage:          round(segmentProgress.ExpectedPercentage),
-				DesiredParticipants:         segmentProgress.DesiredParticipants,
-				ExpectedParticipants:        int64(segmentProgress.ExpectedParticipants),
-				CurrentParticipants:         segmentProgress.CurrentParticipants,
-				CurrentPricePerParticipant:  segmentProgress.CurrentPricePerParticipant,
-				PercentageDeviationFromGoal: round(math.Abs(desiredPercentage - currentPercentage)),
-			})
+			segmentsProgress.Segments = append(segmentsProgress.Segments,
+				studiesmanager.SegmentProgress{
+					ID:                          segmentName,
+					Name:                        segmentName,
+					Datetime:                    datetimeInMilliseconds,
+					CurrentBudget:               segmentProgress.CurrentBudget,
+					DesiredPercentage:           desiredPercentage,
+					CurrentPercentage:           currentPercentage,
+					ExpectedPercentage:          round(segmentProgress.ExpectedPercentage),
+					DesiredParticipants:         segmentProgress.DesiredParticipants,
+					ExpectedParticipants:        int64(segmentProgress.ExpectedParticipants),
+					CurrentParticipants:         segmentProgress.CurrentParticipants,
+					CurrentPricePerParticipant:  segmentProgress.CurrentPricePerParticipant,
+					PercentageDeviationFromGoal: round(math.Abs(desiredPercentage - currentPercentage)),
+				})
 		}
 
 		allTimeSegmentsProgress = append(allTimeSegmentsProgress, segmentsProgress)
