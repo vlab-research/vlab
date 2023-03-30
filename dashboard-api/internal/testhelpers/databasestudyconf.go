@@ -50,6 +50,14 @@ func TypeTargetingDistribution() databasestudyconfoptions {
 	}
 }
 
+func TypeDestinations() databasestudyconfoptions {
+	return func(d *types.DatabaseStudyConf) {
+		d.StudyID = StudyID
+		d.ConfType = "destinations"
+		d.Conf = []byte(`[{"name":"typeform","url_template":"https://example.typeform.com/to/ABCDEF?ref={ref}"},{"name":"fly","initial_shortcode":"foobarbaz"}]`)
+	}
+}
+
 func CreateDatabaseStudyConf(t *testing.T, dsc types.DatabaseStudyConf) error {
 	t.Helper()
 	r := GetRepositories()
