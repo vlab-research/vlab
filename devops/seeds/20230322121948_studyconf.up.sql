@@ -86,4 +86,20 @@ VALUES
         "tags": null,
         "welcome_message": "welcome"
       }]'
+  ),
+  (
+    
+    'a5601576-08d9-486b-adc9-9b981b7f103b',
+    '2023-03-21 13:13:21.132',
+    'destinations',
+    '[
+      {
+        "name": "typeform",
+        "url_template": "https://example.typeform.com/to/ABCDEF?ref={ref}"
+      },
+      {
+        "initial_shortcode": "foobarbaz",
+        "name": "fly"
+      }
+    ]'
   );

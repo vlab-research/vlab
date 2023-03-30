@@ -15,6 +15,7 @@ require (
 	github.com/jackc/pgx/v4 v4.18.1
 	github.com/kelseyhightower/envconfig v1.4.0
 	github.com/stretchr/testify v1.8.2
+	github.com/tidwall/gjson v1.14.4
 	github.com/vlab-research/vlab/inference v0.0.0-20230315140907-942934e8d081
 	gopkg.in/square/go-jose.v2 v2.6.0
 )
@@ -46,6 +47,8 @@ require (
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/stretchr/objx v0.5.0 // indirect
+	github.com/tidwall/match v1.1.1 // indirect
+	github.com/tidwall/pretty v1.2.0 // indirect
 	github.com/twitchyliquid64/golang-asm v0.15.1 // indirect
 	github.com/ugorji/go/codec v1.2.9 // indirect
 	golang.org/x/arch v0.0.0-20210923205945-b76863e36670 // indirect

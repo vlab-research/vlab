@@ -3,8 +3,11 @@ package types
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"reflect"
 	"time"
+
+	"github.com/tidwall/gjson"
 )
 
 type DistributionVar string
@@ -33,6 +36,7 @@ type StudyConf struct {
 	Targeting             *TargetingConf             `json:"targeting"`
 	TargetingDistribution *TargetingDistributionConf `json:"targeting_distribution"`
 	Recruitment           *RecruitmentConf           `json:"recruitment"`
+	Destinations          *DestinationConf           `json:"destinations"`
 	// add any new config structs here
 	// NOTE: Confs should be pointers as this allows JSON unmarshalling
 	// to null if they are not set
@@ -83,6 +87,7 @@ func (sc *StudyConf) TransformFromDatabase(dcs []*DatabaseStudyConf) error {
 		"targeting":              json.Unmarshal,
 		"targeting_distribution": json.Unmarshal,
 		"recruitment":            json.Unmarshal,
+		"destinations":           json.Unmarshal,
 	}
 
 	for _, d := range dcs {
@@ -101,6 +106,8 @@ func (sc *StudyConf) getConfigValue(confType string) interface{} {
 	switch confType {
 	case "general":
 		return &sc.General
+	case "destinations":
+		return &sc.Destinations
 	case "targeting":
 		return &sc.Targeting
 	case "targeting_distribution":
@@ -170,6 +177,74 @@ type RecruitmentConf struct {
 	AdCampaignNameBase string `json:"ad_campaign_name_base,omitempty"`
 	BudgetPerArm       int    `json:"budget_per_arm,omitempty"`
 	MaxSamplePerArm    int    `json:"max_sample_per_arm,omitempty"`
+}
+
+// Destination is where to send a recruitee to
+// we use a blank interface as it could be different types
+type Destination interface{}
+
+// DestinationConf as we have multiple types of destination
+type DestinationConf []Destination
+
+// UnmarshalJSON is a custom unmarshaller to handle the different types
+// of destinations
+func (d *DestinationConf) UnmarshalJSON(data []byte) error {
+	dests := []Destination{}
+	for _, item := range gjson.Parse(string(data)).Array() {
+		switch {
+		//WebDestination should always have URLTemplate
+		//set
+		case item.Get("url_template").Exists():
+			d := &WebDestination{}
+			if err := json.Unmarshal([]byte(item.Raw), d); err != nil {
+				return err
+			}
+			dests = append(dests, d)
+		//FlyDestination should always have InitialShortcode
+		//set
+		case item.Get("initial_shortcode").Exists():
+			d := &FlyDestination{}
+			if err := json.Unmarshal([]byte(item.Raw), d); err != nil {
+				return err
+			}
+			dests = append(dests, d)
+		//AppDestination should always have FacebookAppID
+		case item.Get("facebook_app_id").Exists():
+			d := &AppDestination{}
+			if err := json.Unmarshal([]byte(item.Raw), d); err != nil {
+				return err
+			}
+			dests = append(dests, d)
+		default:
+			return errors.New("invalid destination found when unmarshalling")
+		}
+	}
+	*d = dests
+	return nil
+}
+
+// WebDestination is a destination that you can pass a url to
+// in order to redirect users to a specific survey platform
+type WebDestination struct {
+	Name        string `json:"name"`
+	URLTemplate string `json:"url_template"`
+}
+
+// FlyDestination is used to direct users to the Fly survey
+type FlyDestination struct {
+	Name             string `json:"name"`
+	InitialShortcode string `json:"initial_shortcode"`
+}
+
+// AppDestination
+type AppDestination struct {
+	Name             string   `json:"name"`
+	FacebookAppID    string   `json:"facebook_app_id"`
+	AppInstallLink   string   `json:"app_install_link"`
+	DeeplinkTemplate string   `json:"deeplink_template"`
+	AppInstallState  string   `json:"app_install_state"`
+	UserDevice       []string `json:"user_device"`
+	UserOS           []string `json:"user_os"`
 }
 
 // DatabaseStudyConf is the structure used to store data

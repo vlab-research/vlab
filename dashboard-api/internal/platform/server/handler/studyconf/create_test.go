@@ -27,8 +27,8 @@ func TestHandler_StudyConfiguration_Create(t *testing.T) {
 			studyconfig:    testhelpers.NewStudyConf(),
 			expectedStatus: 201,
 			studyslug:      studyslug,
-			expectedRes:    `{"data":{"general":{"name":"Foo","objective":"","optimization_goal":"link_clicks","destination_type":"Web","page_id":"1","min_budget":1,"opt_window":48,"instagram_id":"","ad_account":"12345"},"targeting":{"template_campaign_name":"Bar","distribution_vars":"location"},"targeting_distribution":{"age":"21","gender":"F","location":"Spain"},"recruitment":{"end_date":"2022-08-05T00:00:00","start_date":"2022-06-05T00:00:00","ad_campaign_name":"foobar-baz","budget":10000,"max_sample":1000}}}`,
-			description:    "return 201 for valid studyconfig account",
+			expectedRes:    `{"data":{"general":{"name":"Foo","objective":"","optimization_goal":"link_clicks","destination_type":"Web","page_id":"1","min_budget":1,"opt_window":48,"instagram_id":"","ad_account":"12345"},"targeting":{"template_campaign_name":"Bar","distribution_vars":"location"},"targeting_distribution":{"age":"21","gender":"F","location":"Spain"},"recruitment":{"end_date":"2022-08-05T00:00:00","start_date":"2022-06-05T00:00:00","ad_campaign_name":"foobar-baz","budget":10000,"max_sample":1000},"destinations":[{"name":"typeform","url_template":"https://example.typeform.com/to/ABCDEF?ref={ref}"},{"name":"fly","initial_shortcode":"foobarbaz"}]}}`,
+			description:    "return 201 for valid studyconfig",
 		},
 		{
 			studyconfig: testhelpers.NewStudyConf(

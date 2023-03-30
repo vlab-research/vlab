@@ -60,6 +60,16 @@ func NewStudyConf(opts ...studyconfigoptions) types.StudyConf {
 			StartDate:      "2022-06-05T00:00:00",
 			MaxSample:      1000,
 		},
+		Destinations: &types.DestinationConf{
+			&types.WebDestination{
+				Name:        "typeform",
+				URLTemplate: "https://example.typeform.com/to/ABCDEF?ref={ref}",
+			},
+			&types.FlyDestination{
+				Name:             "fly",
+				InitialShortcode: "foobarbaz",
+			},
+		},
 	}
 
 	// Set any Overrides
@@ -80,6 +90,13 @@ func WithGeneralConf(g *types.GeneralConf) studyconfigoptions {
 func WithRecruitmentConf(r *types.RecruitmentConf) studyconfigoptions {
 	return func(sc *types.StudyConf) {
 		sc.Recruitment = r
+	}
+}
+
+// WithDestinationConf is used to override the default DestinationConf
+func WithDestinationConf(d *types.DestinationConf) studyconfigoptions {
+	return func(sc *types.StudyConf) {
+		sc.Destinations = d
 	}
 }
 
