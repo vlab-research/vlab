@@ -7,7 +7,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 	studiesmanager "github.com/vlab-research/vlab/dashboard-api/internal"
-	"github.com/vlab-research/vlab/dashboard-api/internal/platform/storage"
+	"github.com/vlab-research/vlab/dashboard-api/internal/storage"
 	"github.com/vlab-research/vlab/dashboard-api/internal/testhelpers"
 )
 

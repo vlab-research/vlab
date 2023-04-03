@@ -7,7 +7,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
-	"github.com/vlab-research/vlab/dashboard-api/internal/platform/storage"
+	"github.com/vlab-research/vlab/dashboard-api/internal/storage"
 	"github.com/vlab-research/vlab/dashboard-api/internal/testhelpers"
 	"github.com/vlab-research/vlab/dashboard-api/internal/types"
 )

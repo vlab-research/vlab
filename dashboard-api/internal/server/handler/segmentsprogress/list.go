@@ -4,9 +4,9 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"github.com/vlab-research/vlab/dashboard-api/internal/platform/storage"
+	"github.com/vlab-research/vlab/dashboard-api/internal/storage"
 
-	"github.com/vlab-research/vlab/dashboard-api/internal/platform/server/middleware/auth"
+	"github.com/vlab-research/vlab/dashboard-api/internal/server/middleware/auth"
 )
 
 // ListHandler will return a list of segment progresses
