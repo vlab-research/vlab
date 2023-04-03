@@ -57,7 +57,7 @@ func Test_StudyConfRepository_GetByStudyID(t *testing.T) {
 			FROM study_confs sc
 			JOIN studies s on s.id = sc.study_id
 			WHERE s.slug = $1 AND s.user_id=$2
-			ORDER BY conf_type, created;
+			ORDER BY conf_type, created DESC;
 			`
 
 		columns := []string{"study_id", "conf_type", "conf", "created"}

@@ -60,7 +60,7 @@ func (r *StudyConfRepository) GetByStudySlug(
 	FROM study_confs sc
 	JOIN studies s on s.id = sc.study_id
 	WHERE s.slug = $1 AND s.user_id=$2
-	ORDER BY conf_type, created;
+	ORDER BY conf_type, created DESC;
 	`
 
 	rows, err := r.db.QueryContext(ctx, q, slug, userID)
