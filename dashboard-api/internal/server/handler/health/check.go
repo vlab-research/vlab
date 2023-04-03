@@ -5,7 +5,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"github.com/vlab-research/vlab/dashboard-api/internal/platform/storage"
+	"github.com/vlab-research/vlab/dashboard-api/internal/storage"
 )
 
 type checkResponse struct {

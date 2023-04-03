@@ -14,8 +14,8 @@ import (
 	"github.com/auth0/go-jwt-middleware/v2/validator"
 	"github.com/gin-gonic/gin"
 	"github.com/vlab-research/vlab/dashboard-api/cmd/api/bootstrap"
-	"github.com/vlab-research/vlab/dashboard-api/internal/platform/server"
-	"github.com/vlab-research/vlab/dashboard-api/internal/platform/storage"
+	"github.com/vlab-research/vlab/dashboard-api/internal/server"
+	"github.com/vlab-research/vlab/dashboard-api/internal/storage"
 )
 
 const (

@@ -9,8 +9,8 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
 	"github.com/hashicorp/go-multierror"
-	"github.com/vlab-research/vlab/dashboard-api/internal/platform/server/middleware/auth"
-	"github.com/vlab-research/vlab/dashboard-api/internal/platform/storage"
+	"github.com/vlab-research/vlab/dashboard-api/internal/server/middleware/auth"
+	"github.com/vlab-research/vlab/dashboard-api/internal/storage"
 	"github.com/vlab-research/vlab/dashboard-api/internal/types"
 )
 
