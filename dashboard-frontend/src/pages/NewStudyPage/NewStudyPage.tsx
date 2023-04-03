@@ -1,7 +1,7 @@
 import PageLayout from '../../components/PageLayout';
 import { ConfBase } from '../../types/form';
 import Form from './components/form/Form';
-import simple from './controllers/simple';
+import simple from '../StudyConfPage/controllers/simple';
 import { create_study } from './configs/create_study';
 
 const NewStudyPage = () => (

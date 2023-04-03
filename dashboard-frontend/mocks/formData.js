@@ -12,6 +12,13 @@ const formData = {
     instagram_id: '123',
     ad_account: 'some account',
   },
+  recruitment: {
+    end_date: '2022-08-05T00:00:00',
+    start_date: '2022-07-26T00:00:00',
+    ad_campaign_name: 'vlab-most-used-prog-1',
+    budget: 10000,
+    max_sample: 1000,
+  },
 };
 
 export default formData;

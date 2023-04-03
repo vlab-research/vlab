@@ -1,12 +1,12 @@
-import simple from './simple';
 import { initialiseFieldState } from '../../../helpers/state';
-import { general } from '../../StudyConfPage/configs/general';
+import { general } from '../configs/general';
 import { getField } from '../../../helpers/getField';
-import { create_study } from '../configs/create_study';
-import state from '../../../../mocks/state';
+import { create_study } from '../../NewStudyPage/configs/create_study';
+import initialState from '../../../../mocks/initialState';
 import Text from '../../NewStudyPage/components/form/inputs/Text';
 import { translateField } from '../../../helpers/translateField';
 import formData from '../../../../mocks/formData';
+import simple from './simple';
 
 describe('simple controller', () => {
   it('given a conf it returns some initial fields when no state is defined', () => {
@@ -22,9 +22,7 @@ describe('simple controller', () => {
   it('given a conf and some form data it returns a set of fields with their existing state', () => {
     const conf = create_study;
 
-    const localFormData = {
-      name: 'baz',
-    };
+    const localFormData = formData['create_study'];
 
     const res = simple(conf, localFormData);
 
@@ -37,7 +35,7 @@ describe('simple controller', () => {
         label: 'Give your study a name',
         helper_text: 'E.g example-fly-conf',
         options: undefined,
-        value: 'baz',
+        value: 'foo',
       },
     ];
 
@@ -67,7 +65,7 @@ describe('simple controller', () => {
       type: 'change',
     };
 
-    const fieldState = state[0].create_study;
+    const fieldState = initialState[0].create_study;
 
     const newValue = event.value;
     const prevValue = 'foo';
@@ -86,7 +84,7 @@ describe('simple controller', () => {
 
     const localFormData = formData['general'];
 
-    const initialState = state[0].general;
+    const state = initialState[0].general;
 
     const event = {
       name: `instagram_id`,
@@ -95,14 +93,13 @@ describe('simple controller', () => {
     };
 
     const newValue = event.value;
-    const prevValue = 'foo';
+    const prevValue = formData['general']['instagram_id'];
 
-    const res = simple(conf, localFormData, event, initialState);
+    const res = simple(conf, localFormData, event, state);
 
     const targetField = res && getField(res, event);
     expect(targetField?.value).toStrictEqual(newValue);
-    expect(targetField?.value).toStrictEqual('baz');
-    expect(targetField?.value).toStrictEqual(event.value);
     expect(targetField?.value).not.toEqual(prevValue);
+    expect(targetField?.value).toStrictEqual('baz');
   });
 });

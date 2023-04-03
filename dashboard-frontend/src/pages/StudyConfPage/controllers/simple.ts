@@ -4,8 +4,8 @@ import {
   Event,
   getFieldState,
 } from '../../../helpers/state';
+import { FieldState, ConfBase } from '../../../types/form';
 import { Conf } from '../../../types/conf';
-import { ConfBase, FieldState } from '../../../types/form';
 
 const simple = (
   conf: ConfBase,
