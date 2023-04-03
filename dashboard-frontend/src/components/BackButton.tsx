@@ -8,7 +8,7 @@ const BackButton = () => {
     const currentRouteIsLastOne = history.location.key === undefined;
 
     if (currentRouteIsLastOne) {
-      return history.push('/');
+      return history.push('/studies');
     }
 
     return history.goBack();
