@@ -1,9 +1,10 @@
 import React, { useCallback } from 'react';
 import { CalendarIcon } from '@heroicons/react/solid';
-import { Link } from 'react-router-dom';
+import { Link, useHistory } from 'react-router-dom';
 import { formatTimestamp } from '../../helpers/dates';
 import { StudyResource } from '../../types/study';
 import useInfiniteScrolling from './useInfiniteScrolling';
+import SecondaryButton from '../../components/SecondaryButton';
 
 const StudyList = ({
   studies,
@@ -28,7 +29,7 @@ const StudyList = ({
     <ListLayout>
       {studies.map((study, index) => (
         <StudyListItem
-          key={study.id}
+          key={`${study.id}-${index}`}
           study={study}
           elementRef={studies.length === index + 1 ? lastElementRef : undefined}
         />
@@ -48,8 +49,8 @@ const StudyListItem = ({
   elementRef?: ReturnType<typeof useCallback>;
 }) => (
   <li data-testid="study-list-item" ref={elementRef}>
-    <Link to={`/studies/${study.slug}`} className="block hover:bg-gray-50">
-      <div className="px-4 py-4 sm:px-6">
+    <div className="flex flex-row justify-between px-4 py-4 block hover:bg-gray-50 sm:px-6">
+      <Link to={`/studies/${study.slug}`} className="w-full block">
         <div className="flex items-center">
           <p className="text-sm font-medium text-indigo-600 truncate">
             {study.name}
@@ -64,8 +65,11 @@ const StudyListItem = ({
             <CreatedDate timestamp={study.createdAt} />
           </div>
         </div>
+      </Link>
+      <div className="flex flex-row items-center my-2.5">
+        <StudyConfButton slug={study.slug} testId="study-conf-button" />
       </div>
-    </Link>
+    </div>
   </li>
 );
 
@@ -118,5 +122,25 @@ const ListLayout = ({ children }: { children: React.ReactNode }) => (
     <ul className="divide-y divide-gray-200">{children}</ul>
   </div>
 );
+
+const StudyConfButton = ({
+  testId,
+  slug,
+}: {
+  testId: string;
+  slug: string;
+}) => {
+  const history = useHistory();
+
+  return (
+    <SecondaryButton
+      testId={testId}
+      icon="CogIcon"
+      onClick={() => history.push(`/studies/${slug}/conf`)}
+    >
+      {''}
+    </SecondaryButton>
+  );
+};
 
 export default StudyList;

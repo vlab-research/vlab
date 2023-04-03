@@ -1,9 +1,26 @@
 import { ApiResponse, PaginatedApiResponse } from './api';
+import { General } from './conf';
 
 export interface StudiesApiResponse
   extends PaginatedApiResponse<StudyResource[]> {}
 
 export interface StudyApiResponse extends ApiResponse<StudyResource> {}
+
+export interface StudyConfApiResponse extends ApiResponse<StudyConfResource> {}
+
+export interface CreateStudyApiResponse extends ApiResponse<StudyResource> {}
+
+export interface CreateStudyConfApiResponse
+  extends ApiResponse<StudyConfResource> {}
+
+export type StudyConfResource = Record<string, General>;
+
+export interface StudyResource {
+  id: string;
+  name: string;
+  slug: string;
+  createdAt: number;
+}
 
 export interface StudySegmentsProgressApiResponse
   extends ApiResponse<
@@ -12,20 +29,6 @@ export interface StudySegmentsProgressApiResponse
       datetime: number;
     }[]
   > {}
-
-export interface CreateUserApiResponse
-  extends ApiResponse<{
-    id: string;
-  }> {}
-
-export interface CreateStudyApiResponse extends ApiResponse<StudyResource> {}
-
-export interface StudyResource {
-  id: string;
-  name: string;
-  slug: string;
-  createdAt: number;
-}
 
 export interface StudyProgressResource {
   id: string;
@@ -51,3 +54,8 @@ export interface StudySegmentProgressResource {
   currentPricePerParticipant: number;
   percentageDeviationFromGoal: number;
 }
+
+export interface CreateUserApiResponse
+  extends ApiResponse<{
+    id: string;
+  }> {}

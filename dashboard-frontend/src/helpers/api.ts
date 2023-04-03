@@ -1,12 +1,15 @@
 import { fetchWithTimeout } from './http';
 import {
   CreateStudyApiResponse,
+  CreateStudyConfApiResponse,
   CreateUserApiResponse,
   StudiesApiResponse,
   StudyApiResponse,
+  StudyConfApiResponse,
+  StudyConfResource,
   StudySegmentsProgressApiResponse,
 } from '../types/study';
-import querystring from "querystring"
+import querystring from 'querystring';
 import { Cursor } from '../types/api';
 
 /**
@@ -26,28 +29,23 @@ const fetchStudies = ({
   defaultErrorMessage: string;
   accessToken: string;
 }) => {
-
   // TODO: make general (move to useAuthenticatedAPI) -
   //       automatically remove null/undefined params
   //       which requires changing the current method
   //       of declaring the function params/defaults
   const route = `/studies`;
-  const params: any = {"number": studiesPerPage};
+  const params: any = { number: studiesPerPage };
   if (cursor) {
-    params["cursor"] = cursor;
+    params['cursor'] = cursor;
   }
   const q = querystring.encode(params);
-  const path = `${route}?${q}`
+  const path = `${route}?${q}`;
 
-  return apiRequest<StudiesApiResponse>(
-    path,
-    {
-      defaultErrorMessage,
-      accessToken,
-    }
-  );
-}
-
+  return apiRequest<StudiesApiResponse>(path, {
+    defaultErrorMessage,
+    accessToken,
+  });
+};
 
 const fetchStudy = ({
   slug,
@@ -95,6 +93,32 @@ const createStudy = ({
     method: 'POST',
     body: { name },
   });
+
+const createStudyConf = ({
+  data,
+  slug,
+  accessToken,
+}: {
+  data: StudyConfResource;
+  slug: string;
+  accessToken: string;
+}) =>
+  apiRequest<CreateStudyConfApiResponse>(`/studies/${slug}/conf`, {
+    accessToken,
+    method: 'POST',
+    body: { ...data },
+  });
+
+const fetchStudyConf = ({
+  slug,
+  accessToken,
+}: {
+  slug: string;
+  accessToken: string;
+}) =>
+  apiRequest<StudyConfApiResponse>(`/studies/${slug}/conf`, {
+    accessToken,
+  }).then(({ data }) => data);
 
 const apiRequest = async <ApiResponse>(
   url: string,
@@ -169,4 +193,6 @@ export const authenticatedApiCalls = {
   fetchStudySegmentsProgress,
   createUser,
   createStudy,
+  createStudyConf,
+  fetchStudyConf,
 };

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useParams } from 'react-router-dom';
-import useStudy from './useStudy';
+import useStudy from '../../hooks/useStudy';
 import StudyProgressStats from './StudyProgressStats';
 import StudyProgressChart from './StudyProgressChart';
 import ParticipantsAcquiredPerSegmentTable from './ParticipantsAcquiredPerSegmentTable';

@@ -9,6 +9,7 @@ import LoginPage from './pages/LoginPage/LoginPage';
 import NewStudyPage from './pages/NewStudyPage/NewStudyPage';
 import { ReactComponent as Logo } from './assets/logo.svg';
 import useAuthenticatedApi from './hooks/useAuthenticatedApi';
+import StudyConfPage from './pages/StudyConfPage/StudyConfPage';
 
 const areTestsRunning =
   process.env.REACT_APP_RUNNING_IN_E2E_MODE || process.env.NODE_ENV === 'test';
@@ -28,7 +29,7 @@ const App = () => (
         clientId={process.env.REACT_APP_AUTH0_CLIENT_ID!}
         redirectUri={window.location.origin}
         audience={process.env.REACT_APP_AUTH0_AUDIENCE!}
-        cacheLocation='localstorage'
+        cacheLocation="localstorage"
       >
         <Routes />
       </Auth0Provider>
@@ -52,8 +53,12 @@ const Routes = () => {
   return (
     <BrowserRouter>
       <Switch>
-        <AuthenticatedRoute exact path="/">
+        <AuthenticatedRoute exact path="/studies">
           <StudiesPage />
+        </AuthenticatedRoute>
+
+        <AuthenticatedRoute path="/studies/:studySlug/conf">
+          <StudyConfPage />
         </AuthenticatedRoute>
 
         <AuthenticatedRoute path="/studies/:studySlug">
@@ -66,7 +71,9 @@ const Routes = () => {
 
         <Route
           path="/login"
-          render={() => (isAuthenticated ? <Redirect to="/" /> : <LoginPage />)}
+          render={() =>
+            isAuthenticated ? <Redirect to="/studies" /> : <LoginPage />
+          }
         />
       </Switch>
     </BrowserRouter>

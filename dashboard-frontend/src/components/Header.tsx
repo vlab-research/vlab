@@ -40,9 +40,9 @@ const Navbar = () => {
   const navigation = [
     {
       name: 'Studies',
-      href: '/',
+      href: '/studies',
       current: matchPath(pathname, {
-        path: '/',
+        path: '/studies',
         exact: true,
       })?.isExact,
     },
