@@ -33,7 +33,7 @@ seed:		## Create new seed file [name: required]
 test-db: start-db-container setup-database run-migrations
 
 start-db-container:
-	@docker stop vlab-recruitment-test && docker rm vlab-recruitment-test
+	@-docker stop vlab-recruitment-test && docker rm vlab-recruitment-test
 	@docker run \
   	--name vlab-recruitment-test \
   	-d \
@@ -45,7 +45,7 @@ setup-database:
 	@docker run \
   	--net=host \
   	--rm \
-  	--volume ./migrations:/migrations \
+  	--volume $(shell pwd)/migrations:/migrations \
   	migrate/migrate:v4.15.2 \
   	-database cockroach://root@localhost:5433/defaultdb?sslmode=disable \
   	-path /migrations/inittest \
@@ -54,7 +54,7 @@ run-migrations:
 	@docker run \
   	--net=host \
   	--rm \
-  	--volume ./migrations:/migrations \
+  	--volume $(shell pwd)/migrations:/migrations \
   	migrate/migrate:v4.15.2 \
   	-database cockroach://root@localhost:5433/test?sslmode=disable \
   	-path /migrations \

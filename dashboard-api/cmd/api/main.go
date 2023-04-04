@@ -25,20 +25,26 @@ func main() {
 
 	srv := server.New(cfg)
 	go func() {
-		if err := srv.Run(); err != nil && err != http.ErrServerClosed {
-			log.Fatal("Server Start Fail")
+		log.Printf("running server on %v", srv.Addr)
+		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			log.Fatalf("listen: %s\n", err)
 		}
 	}()
 
 	<-termChan
-	// Any Code to Gracefully Shutdown should be done here
+	// Graceful shutdown, when a SIGTERM is recieved for shutdown it will
+	// run the following code which will gracefully stop all connections
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer func() {
-		cancel()
-	}()
-	if err := srv.Engine.Shutdown(ctx); err != nil {
+	defer cancel()
+
+	if err := srv.Shutdown(ctx); err != nil {
 		log.Fatal("Graceful Shutdown Failed")
 	}
-	log.Info("Shutting Down Gracefully")
+	// catching ctx.Done(). timeout of 5 seconds.
+	select {
+	case <-ctx.Done():
+		log.Println("timeout of 5 seconds.")
+	}
+	log.Print("Shutting Down Gracefully")
 
 }

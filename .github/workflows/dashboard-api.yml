@@ -27,8 +27,8 @@ jobs:
         with:
           go-version: '^1.18'
       - name: Setup Database
-        run: ./test_db.sh
-        working-directory: ./devops
+        run: make test-db
+        working-directory: ./dashboard-api
       - name: Run Tests
         run: make test
         working-directory: ./dashboard-api

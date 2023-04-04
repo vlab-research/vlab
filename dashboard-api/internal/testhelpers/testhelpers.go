@@ -13,7 +13,7 @@ import (
 	jwtmiddleware "github.com/auth0/go-jwt-middleware/v2"
 	"github.com/auth0/go-jwt-middleware/v2/validator"
 	"github.com/gin-gonic/gin"
-	"github.com/vlab-research/vlab/dashboard-api/cmd/api/bootstrap"
+	"github.com/vlab-research/vlab/dashboard-api/internal/config"
 	"github.com/vlab-research/vlab/dashboard-api/internal/server"
 	"github.com/vlab-research/vlab/dashboard-api/internal/storage"
 )
@@ -47,18 +47,21 @@ func PerformRequest(
 	repositories storage.Repositories,
 	body interface{},
 ) Response {
+
 	gin.SetMode(gin.TestMode)
+	a, teardown := GetFBTestApp()
+	defer teardown()
 
-	noopString := ""
-	noopUint := uint(0)
+	cfg, _ := config.Setup()
+	srv := server.Server{
+		Cfg:            cfg,
+		FacebookApp:    a,
+		Repos:          repositories,
+		AuthMiddleware: FakeValidTokenMiddleware(),
+	}
 
-	srv := server.New(
-		noopString,
-		noopUint,
-		repositories,
-		FakeValidTokenMiddleware(),
-		noopString,
-	)
+	srv.GetRouter()
+
 	var req *http.Request
 	var err error
 
@@ -77,7 +80,7 @@ func PerformRequest(
 	}
 
 	rec := httptest.NewRecorder()
-	srv.Engine.ServeHTTP(rec, req)
+	srv.Handler.ServeHTTP(rec, req)
 
 	res := rec.Result()
 	resBody, err := io.ReadAll(res.Body)
@@ -111,7 +114,10 @@ func FakeValidTokenMiddleware() gin.HandlerFunc {
 }
 
 func GetRepositories() storage.Repositories {
-	cfg, err := bootstrap.GetConfig()
+	//TODO we should probably set some environment variables here
+	//that testing depends on in order for tests to have less external
+	//dependencies
+	cfg, err := config.Setup()
 	if err != nil {
 		log.Fatal(err)
 	}

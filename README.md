@@ -3,6 +3,7 @@
 [![Dashboard Frontend](https://github.com/vlab-research/vlab/actions/workflows/dashboard-frontend-tests.yml/badge.svg)](https://github.com/vlab-research/vlab/actions/workflows/dashboard-frontend-tests.yml)
 [![Dashboard Api](https://github.com/vlab-research/vlab/actions/workflows/dashboard-api-tests.yml/badge.svg)](https://github.com/vlab-research/vlab/actions/workflows/dashboard-api-tests.yml)
 [![Adopt](https://github.com/vlab-research/vlab/actions/workflows/adopt.yaml/badge.svg)](https://github.com/vlab-research/vlab/actions/workflows/adopt.yaml)
+[![Netlify Status](https://api.netlify.com/api/v1/badges/f6a7c27f-0ee6-4444-949e-a4ec411bbc09/deploy-status)](https://app.netlify.com/sites/vlab-dashboard/deploys)
 
 Virtual Lab is a platform for running experiments easily, efficiently, and iteratively.
 
