@@ -3,6 +3,7 @@ package storage
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -53,6 +54,34 @@ func (r *AccountRepository) Create(
 
 	if err != nil {
 		return handleCreateError(err, a)
+	}
+
+	return nil
+}
+
+// Delete will delete a credential based on its three unique
+// fields user_id, entity and key
+func (r *AccountRepository) Delete(
+	ctx context.Context,
+	a studiesmanager.Account,
+) error {
+
+	q := `
+		DELETE FROM credentials 
+		WHERE user_id = $1
+		AND entity = $2 
+		AND key = $3
+		`
+	_, err := r.db.ExecContext(
+		ctx,
+		q,
+		a.UserID,
+		a.Name,
+		a.AuthType,
+	)
+
+	if err != nil {
+		return errors.New("failed to delete credential")
 	}
 
 	return nil

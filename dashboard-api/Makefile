@@ -23,8 +23,8 @@ start: 		## Starts local containers
 	@echo "\n>>> STARTING API IN DEV MODE <<<\n"
 	@docker compose up --build
 
-test:	## Runs the go tests 
+test:		## Runs the go tests 
 	@go test ./... -p 1
 
-test-db:  ## Starts up the test database in the devops directory
+test-db: 	## Starts up the test database in the devops directory
 	$(MAKE) -C ../devops test-db

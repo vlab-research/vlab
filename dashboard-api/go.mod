@@ -12,6 +12,7 @@ require (
 	github.com/google/uuid v1.3.0
 	github.com/gosimple/slug v1.12.0
 	github.com/hashicorp/go-multierror v1.1.1
+	github.com/huandu/facebook/v2 v2.7.0
 	github.com/jackc/pgx/v4 v4.18.1
 	github.com/kelseyhightower/envconfig v1.4.0
 	github.com/stretchr/testify v1.8.2

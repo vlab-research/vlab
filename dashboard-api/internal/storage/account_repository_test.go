@@ -45,3 +45,34 @@ func Test_AccountRepository_Create_Account(t *testing.T) {
 		assert.NoError(sqlMock.ExpectationsWereMet())
 	})
 }
+
+func Test_AccountRepository_Delete_Account(t *testing.T) {
+	assert := require.New(t)
+
+	t.Run("deletes valid account", func(t *testing.T) {
+		a := studiesmanager.Account{
+			UserID:   "auth0|61916c1dab79c900713936de",
+			Name:     "Fly",
+			AuthType: "token",
+		}
+
+		db, sqlMock, err := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherEqual))
+		assert.NoError(err)
+		q := `
+		DELETE FROM credentials 
+		WHERE user_id = $1
+		AND entity = $2 
+		AND key = $3
+		`
+		sqlMock.ExpectExec(q).
+			WithArgs(a.UserID, a.Name, a.AuthType).
+			WillReturnResult(sqlmock.NewResult(1, 1))
+
+		repo := NewAccountRepository(db)
+
+		err = repo.Delete(context.Background(), a)
+
+		assert.NoError(err)
+		assert.NoError(sqlMock.ExpectationsWereMet())
+	})
+}

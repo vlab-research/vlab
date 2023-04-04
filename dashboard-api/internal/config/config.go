@@ -16,6 +16,7 @@ type Config struct {
 	Facebook struct {
 		ClientID     string `envconfig:"FACEBOOK_CLIENT_ID"`
 		ClientSecret string `envconfig:"FACEBOOK_CLIENT_SECRET"`
+		RedirectURI  string `envconfig:"FACEBOOK_REDIRECT_URI"`
 	}
 }
 

@@ -18,6 +18,7 @@ dev:       Sets up local development environment
 stop:      Stops and cleans up all containers
 start:     Starts local containers
 test:      Runs the go tests 
+test-db: 	 Starts up the test database in the devops directory
 ```
 
 In order to start the local development environment you will need to setup
@@ -41,14 +42,14 @@ able to access this when logging in with the `demo@vlab.digital` user
 To run tests you need to start up the test database:
 
 ```
-cd ../devops
-./test_db.sh
-cd ../dashboard-api
+make test-db
 ```
+
 Then you should be able to run the tests as usual
 
 ```bash
 make test
 ```
-> This will run all go tests for this application with verbose output
+> This will run all go tests for this application however it runs them
+synchronously as we have tests that affect each other when run in parallel
 
