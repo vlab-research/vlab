@@ -75,6 +75,10 @@ const Routes = () => {
             isAuthenticated ? <Redirect to="/studies" /> : <LoginPage />
           }
         />
+
+        <AuthenticatedRoute exact path="/">
+          <StudiesPage />
+        </AuthenticatedRoute>
       </Switch>
     </BrowserRouter>
   );
