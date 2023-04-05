@@ -6,9 +6,9 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	studiesmanager "github.com/vlab-research/vlab/dashboard-api/internal"
 	"github.com/vlab-research/vlab/dashboard-api/internal/storage"
 	"github.com/vlab-research/vlab/dashboard-api/internal/testhelpers"
+	"github.com/vlab-research/vlab/dashboard-api/internal/types"
 )
 
 func TestHandler_Account_Create(t *testing.T) {
@@ -17,13 +17,13 @@ func TestHandler_Account_Create(t *testing.T) {
 	authType := "token"
 
 	testcases := []struct {
-		account        studiesmanager.Account
+		account        types.Account
 		description    string
 		expectedStatus int
 		expectedRes    string
 	}{
 		{
-			account: studiesmanager.Account{
+			account: types.Account{
 				UserID:   userId,
 				Name:     "Fly",
 				AuthType: authType,
@@ -44,7 +44,7 @@ func TestHandler_Account_Create(t *testing.T) {
 			expectedStatus: 400,
 			expectedRes:    "{\"error\":\"Key: 'Account.AuthType' Error:Field validation for 'AuthType' failed on the 'required' tag\"}",
 			description:    "return 400 for invalid fly account",
-			account: studiesmanager.Account{
+			account: types.Account{
 				UserID: userId,
 				Name:   "Fly",
 				RawConnectedAccount: []byte(`
@@ -61,7 +61,7 @@ func TestHandler_Account_Create(t *testing.T) {
 			expectedStatus: 400,
 			expectedRes:    "{\"error\":\"unknown account type Invalid\"}",
 			description:    "return 400 for unknown account type",
-			account: studiesmanager.Account{
+			account: types.Account{
 				UserID: userId,
 				Name:   "Invalid",
 				RawConnectedAccount: []byte(`
@@ -78,7 +78,7 @@ func TestHandler_Account_Create(t *testing.T) {
 			expectedStatus: 201,
 			expectedRes:    "{\"data\":{\"id\":\"\",\"userId\":\"auth0|61916c1dab79c900713936de\",\"authType\":\"token\",\"name\":\"Typeform\",\"connectedAccount\":{\"createdAt\":null,\"credentials\":{\"key\":\"supersecret\"}}}}",
 			description:    "return 201 for valid typeform account",
-			account: studiesmanager.Account{
+			account: types.Account{
 				UserID:   userId,
 				Name:     "Typeform",
 				AuthType: authType,

@@ -1,4 +1,4 @@
-package studiesmanager
+package types
 
 import (
 	"context"

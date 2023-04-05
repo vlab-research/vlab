@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"strings"
 
-	studiesmanager "github.com/vlab-research/vlab/dashboard-api/internal"
+	"github.com/vlab-research/vlab/dashboard-api/internal/types"
 )
 
 type UserRepository struct {
@@ -19,18 +19,18 @@ func NewUserRepository(db *sql.DB) *UserRepository {
 	}
 }
 
-func (r *UserRepository) CreateUser(ctx context.Context, userId string) (studiesmanager.User, error) {
+func (r *UserRepository) CreateUser(ctx context.Context, userId string) (types.User, error) {
 	_, err := r.db.Exec("INSERT INTO users (id) VALUES ($1)", userId)
 
 	if err != nil {
 		if strings.Contains(err.Error(), "(SQLSTATE 23505)") {
-			return studiesmanager.User{}, fmt.Errorf("%w: %s", studiesmanager.ErrUserAlreadyExists, userId)
+			return types.User{}, fmt.Errorf("%w: %s", types.ErrUserAlreadyExists, userId)
 		}
 
-		return studiesmanager.User{}, fmt.Errorf("user with id '%s' cannot be created: %v", userId, err)
+		return types.User{}, fmt.Errorf("user with id '%s' cannot be created: %v", userId, err)
 	}
 
-	return studiesmanager.User{
+	return types.User{
 		Id: userId,
 	}, nil
 }

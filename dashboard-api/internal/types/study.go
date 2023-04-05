@@ -1,4 +1,4 @@
-package studiesmanager
+package types
 
 import (
 	"context"
@@ -13,8 +13,6 @@ type StudyRepository interface {
 
 var ErrStudyNotFound = errors.New("Study not found")
 var ErrStudyAlreadyExist = errors.New("Study already exist")
-
-//go:generate mockery --case=snake --outpkg=storagemocks --output=platform/storage/storagemocks --name=StudyRepository
 
 type Study struct {
 	Id        string `json:"id"`

@@ -6,9 +6,9 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
-	studiesmanager "github.com/vlab-research/vlab/dashboard-api/internal"
 	"github.com/vlab-research/vlab/dashboard-api/internal/server/middleware/auth"
 	"github.com/vlab-research/vlab/dashboard-api/internal/storage"
+	"github.com/vlab-research/vlab/dashboard-api/internal/types"
 )
 
 type createRequest struct {
@@ -16,7 +16,7 @@ type createRequest struct {
 }
 
 type createResponse struct {
-	Data studiesmanager.Study `json:"data"`
+	Data types.Study `json:"data"`
 }
 
 // CreateHandler is a gin handler that is used to create
@@ -37,7 +37,7 @@ func CreateHandler(repositories storage.Repositories) gin.HandlerFunc {
 
 		if err != nil {
 			switch {
-			case errors.Is(err, studiesmanager.ErrStudyAlreadyExist):
+			case errors.Is(err, types.ErrStudyAlreadyExist):
 				ctx.JSON(
 					http.StatusConflict,
 					gin.H{"error": "The name is already in use."},

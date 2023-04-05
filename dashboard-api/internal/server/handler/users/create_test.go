@@ -7,16 +7,16 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	studiesmanager "github.com/vlab-research/vlab/dashboard-api/internal"
 	"github.com/vlab-research/vlab/dashboard-api/internal/storage"
 	"github.com/vlab-research/vlab/dashboard-api/internal/storage/storagemocks"
 	"github.com/vlab-research/vlab/dashboard-api/internal/testhelpers"
+	"github.com/vlab-research/vlab/dashboard-api/internal/types"
 )
 
 func TestHandler_Read(t *testing.T) {
 	t.Run("should return a 422 when the user already exists", func(t *testing.T) {
 		userRepository := new(storagemocks.UserRepository)
-		userRepository.On("CreateUser", mock.Anything, mock.Anything).Return(studiesmanager.User{}, studiesmanager.ErrUserAlreadyExists)
+		userRepository.On("CreateUser", mock.Anything, mock.Anything).Return(types.User{}, types.ErrUserAlreadyExists)
 
 		res := testhelpers.PerformPostRequest("/users", storage.Repositories{User: userRepository}, nil)
 
@@ -27,7 +27,7 @@ func TestHandler_Read(t *testing.T) {
 
 	t.Run("should return a 500 when there is an error while processing the request", func(t *testing.T) {
 		userRepository := new(storagemocks.UserRepository)
-		userRepository.On("CreateUser", mock.Anything, mock.Anything).Return(studiesmanager.User{}, errors.New("db timeout error"))
+		userRepository.On("CreateUser", mock.Anything, mock.Anything).Return(types.User{}, errors.New("db timeout error"))
 
 		res := testhelpers.PerformPostRequest("/users", storage.Repositories{User: userRepository}, nil)
 
@@ -36,7 +36,7 @@ func TestHandler_Read(t *testing.T) {
 
 	t.Run("should return a 201 with the created user", func(t *testing.T) {
 		userRepository := new(storagemocks.UserRepository)
-		userRepository.On("CreateUser", mock.Anything, mock.Anything).Return(studiesmanager.User{Id: "auth0|61916c1dab79c900713936de"}, nil)
+		userRepository.On("CreateUser", mock.Anything, mock.Anything).Return(types.User{Id: "auth0|61916c1dab79c900713936de"}, nil)
 
 		res := testhelpers.PerformPostRequest("/users", storage.Repositories{User: userRepository}, nil)
 

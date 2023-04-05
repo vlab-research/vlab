@@ -6,9 +6,9 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	studiesmanager "github.com/vlab-research/vlab/dashboard-api/internal"
 	"github.com/vlab-research/vlab/dashboard-api/internal/server/middleware/auth"
 	"github.com/vlab-research/vlab/dashboard-api/internal/storage"
+	"github.com/vlab-research/vlab/dashboard-api/internal/types"
 )
 
 type createResponse struct {
@@ -22,7 +22,7 @@ func CreateHandler(repositories storage.Repositories) gin.HandlerFunc {
 
 		if err != nil {
 			switch {
-			case errors.Is(err, studiesmanager.ErrUserAlreadyExists):
+			case errors.Is(err, types.ErrUserAlreadyExists):
 				ctx.JSON(http.StatusUnprocessableEntity, gin.H{"error": "User already exists"})
 				return
 			default:

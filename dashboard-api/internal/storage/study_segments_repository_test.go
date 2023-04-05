@@ -9,7 +9,7 @@ import (
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/stretchr/testify/require"
-	studiesmanager "github.com/vlab-research/vlab/dashboard-api/internal"
+	"github.com/vlab-research/vlab/dashboard-api/internal/types"
 )
 
 const (
@@ -109,10 +109,10 @@ func Test_StudySegmentsRepository_GetAllTimeSegmentsProgress_Succeed(t *testing.
 	assert.NoError(sqlMock.ExpectationsWereMet())
 	assert.NoError(err)
 	assert.Equal(
-		[]studiesmanager.SegmentsProgress(
-			[]studiesmanager.SegmentsProgress{
+		[]types.SegmentsProgress(
+			[]types.SegmentsProgress{
 				{
-					Segments: []studiesmanager.SegmentProgress{
+					Segments: []types.SegmentProgress{
 						{
 							ID:                          "25-spain-male",
 							Name:                        "25-spain-male",
@@ -131,7 +131,7 @@ func Test_StudySegmentsRepository_GetAllTimeSegmentsProgress_Succeed(t *testing.
 					Datetime: 1605045600000,
 				},
 				{
-					Segments: []studiesmanager.SegmentProgress{
+					Segments: []types.SegmentProgress{
 						{
 							ID:                          "25-spain-male",
 							Name:                        "25-spain-male",

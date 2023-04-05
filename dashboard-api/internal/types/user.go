@@ -1,4 +1,4 @@
-package studiesmanager
+package types
 
 import (
 	"context"
@@ -10,8 +10,6 @@ type UserRepository interface {
 }
 
 var ErrUserAlreadyExists = errors.New("User Already Exists")
-
-//go:generate mockery --case=snake --outpkg=storagemocks --output=platform/storage/storagemocks --name=UserRepository
 
 type User struct {
 	Id string `json:"id"`

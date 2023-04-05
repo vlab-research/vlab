@@ -1,4 +1,4 @@
-package studiesmanager
+package types
 
 import "context"
 
@@ -8,8 +8,6 @@ type StudySegmentsRepository interface {
 		slug, userID string,
 	) ([]SegmentsProgress, error)
 }
-
-//go:generate mockery --case=snake --outpkg=storagemocks --output=platform/storage/storagemocks --name=StudySegmentsRepository
 
 type SegmentsProgress struct {
 	Segments []SegmentProgress `json:"segments"`

@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/gosimple/slug"
-	studiesmanager "github.com/vlab-research/vlab/dashboard-api/internal"
+	"github.com/vlab-research/vlab/dashboard-api/internal/types"
 )
 
 type StudyRepository struct {
@@ -26,7 +26,7 @@ func NewStudyRepository(db *sql.DB) *StudyRepository {
 func (r *StudyRepository) GetStudyBySlug(
 	ctx context.Context,
 	slug, userId string,
-) (studiesmanager.Study, error) {
+) (types.Study, error) {
 	var id, name string
 	var created time.Time
 
@@ -38,25 +38,25 @@ func (r *StudyRepository) GetStudyBySlug(
 
 	if err := row.Scan(&id, &name, &created); err != nil {
 		if err == sql.ErrNoRows {
-			return studiesmanager.Study{}, fmt.Errorf(
+			return types.Study{}, fmt.Errorf(
 				"%w: %s",
-				studiesmanager.ErrStudyNotFound,
+				types.ErrStudyNotFound,
 				slug,
 			)
 		}
 
-		return studiesmanager.Study{}, fmt.Errorf(
+		return types.Study{}, fmt.Errorf(
 			"error trying to search a study with slug '%s' on the database: %v",
 			slug,
 			err,
 		)
 	}
 
-	return studiesmanager.NewStudy(id, name, slug, created.UnixMilli()), nil
+	return types.NewStudy(id, name, slug, created.UnixMilli()), nil
 }
 
-func (r *StudyRepository) GetStudies(ctx context.Context, offset int, limit int, userId string) ([]studiesmanager.Study, error) {
-	studies := []studiesmanager.Study{}
+func (r *StudyRepository) GetStudies(ctx context.Context, offset int, limit int, userId string) ([]types.Study, error) {
+	studies := []types.Study{}
 
 	rows, err := r.db.Query("SELECT id, name, slug, created FROM studies WHERE user_id = $3 ORDER BY created DESC OFFSET $1 LIMIT $2", offset, limit, userId)
 	if err != nil {
@@ -73,7 +73,7 @@ func (r *StudyRepository) GetStudies(ctx context.Context, offset int, limit int,
 			return nil, fmt.Errorf("(rows.Scan) error trying to get studies (offset: %d, limit: %d, userId: %s): %v", offset, limit, userId, err)
 		}
 
-		study := studiesmanager.NewStudy(id, name, slug, createdAt.UnixMilli())
+		study := types.NewStudy(id, name, slug, createdAt.UnixMilli())
 
 		studies = append(studies, study)
 	}
@@ -86,7 +86,7 @@ func (r *StudyRepository) GetStudies(ctx context.Context, offset int, limit int,
 func (r *StudyRepository) CreateStudy(
 	ctx context.Context,
 	name, userId string,
-) (studiesmanager.Study, error) {
+) (types.Study, error) {
 
 	slug := slug.Make(name)
 
@@ -102,12 +102,12 @@ func (r *StudyRepository) CreateStudy(
 
 	if err := row.Scan(&id, &created); err != nil {
 		if strings.Contains(err.Error(), "violates unique constraint") {
-			return studiesmanager.Study{}, fmt.Errorf("%w: %s", studiesmanager.ErrStudyAlreadyExist, slug)
+			return types.Study{}, fmt.Errorf("%w: %s", types.ErrStudyAlreadyExist, slug)
 		}
 
-		return studiesmanager.Study{}, fmt.Errorf("study (slug: %s, name: %s, userId: %s) cannot be created: %v", slug, name, userId, err)
+		return types.Study{}, fmt.Errorf("study (slug: %s, name: %s, userId: %s) cannot be created: %v", slug, name, userId, err)
 
 	}
 
-	return studiesmanager.NewStudy(id, name, slug, created.UnixMilli()), nil
+	return types.NewStudy(id, name, slug, created.UnixMilli()), nil
 }
