@@ -31,6 +31,21 @@ type studyconfigoptions func(*types.StudyConf)
 // sc := NewStudyConf(WithGeneralConf(general))
 func NewStudyConf(opts ...studyconfigoptions) types.StudyConf {
 
+	// This is used to mock out the questioning target
+	// which has a recursive structure that is difficult to reproduce
+	// we need to have a type of []interface{}
+	// however you can not do a composite literal (inline initialize)
+	// with these values
+	vars := make([]interface{}, 0)
+	vars = append(vars, map[string]interface{}{
+		"type":  "variable",
+		"value": "hcw",
+	})
+	vars = append(vars, map[string]interface{}{
+		"type":  "constant",
+		"value": "E",
+	})
+
 	// This is where we set the defaults for tests
 	sc := &types.StudyConf{
 		StudyID: StudyID,
@@ -81,6 +96,16 @@ func NewStudyConf(opts ...studyconfigoptions) types.StudyConf {
 				WelcomeMessage: "welcome",
 			},
 		},
+		Audiences: []*types.AudienceConf{
+			{
+				Name:    "Foobar",
+				SubType: "LOOKALIKE",
+				QuestionTargeting: &types.QuestionTargeting{
+					"op":   "not_equal",
+					"vars": vars,
+				},
+			},
+		},
 	}
 
 	// Set any Overrides
@@ -124,6 +149,13 @@ func WithTargetingDistributionConf(
 ) studyconfigoptions {
 	return func(sc *types.StudyConf) {
 		sc.TargetingDistribution = t
+	}
+}
+
+// WithAudiences is used to override the default AudienceConf
+func WithAudiences(as []*types.AudienceConf) studyconfigoptions {
+	return func(sc *types.StudyConf) {
+		sc.Audiences = as
 	}
 }
 

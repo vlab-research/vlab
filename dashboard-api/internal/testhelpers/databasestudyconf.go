@@ -66,6 +66,14 @@ func TypeCreatives() databasestudyconfoptions {
 	}
 }
 
+func TypeAudiences() databasestudyconfoptions {
+	return func(d *types.DatabaseStudyConf) {
+		d.StudyID = StudyID
+		d.ConfType = "audiences"
+		d.Conf = []byte(`[{"name":"Foobar","subtype":"LOOKALIKE","question_targeting":{"op":"not_equal","vars":[{"type":"variable","value":"hcw"},{"type":"constant","value":"E"}]}}]`)
+	}
+}
+
 func CreateDatabaseStudyConf(t *testing.T, dsc types.DatabaseStudyConf) error {
 	t.Helper()
 	r := GetRepositories()
