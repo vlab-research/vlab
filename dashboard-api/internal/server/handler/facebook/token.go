@@ -5,9 +5,9 @@ import (
 
 	"github.com/gin-gonic/gin"
 	fb "github.com/huandu/facebook/v2"
-	studiesmanager "github.com/vlab-research/vlab/dashboard-api/internal"
 	"github.com/vlab-research/vlab/dashboard-api/internal/server/middleware/auth"
 	"github.com/vlab-research/vlab/dashboard-api/internal/storage"
+	"github.com/vlab-research/vlab/dashboard-api/internal/types"
 )
 
 type request struct {
@@ -15,7 +15,7 @@ type request struct {
 }
 
 type createResponse struct {
-	Data studiesmanager.Account `json:"data"`
+	Data types.Account `json:"data"`
 }
 
 // GenerateToken takes a code that is generated from the facebook
@@ -33,12 +33,12 @@ func GenerateToken(a *fb.App, r storage.Repositories) gin.HandlerFunc {
 			ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
 		}
-		a := studiesmanager.Account{
+		a := types.Account{
 			UserID:   auth.GetUserIdFrom(ctx),
 			AuthType: "bearer",
 			Name:     "facebook",
-			ConnectedAccount: &studiesmanager.FacebookConnectedAccount{
-				Credentials: studiesmanager.FacebookCredentials{
+			ConnectedAccount: &types.FacebookConnectedAccount{
+				Credentials: types.FacebookCredentials{
 					AccessToken: token,
 					ExpiresIn:   expire,
 					TokenType:   "bearer",

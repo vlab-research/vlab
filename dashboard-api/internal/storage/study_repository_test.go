@@ -10,7 +10,7 @@ import (
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	studiesmanager "github.com/vlab-research/vlab/dashboard-api/internal"
+	"github.com/vlab-research/vlab/dashboard-api/internal/types"
 )
 
 func Test_StudyRepository_GetStudyBySlug_StudyNotFoundError(t *testing.T) {
@@ -30,7 +30,7 @@ func Test_StudyRepository_GetStudyBySlug_StudyNotFoundError(t *testing.T) {
 	_, err = repo.GetStudyBySlug(context.Background(), studySlug, userId)
 
 	assert.NoError(t, sqlMock.ExpectationsWereMet())
-	assert.ErrorIs(t, err, studiesmanager.ErrStudyNotFound)
+	assert.ErrorIs(t, err, types.ErrStudyNotFound)
 }
 
 func Test_StudyRepository_GetStudyBySlug_UnexpectedError(t *testing.T) {
@@ -50,7 +50,7 @@ func Test_StudyRepository_GetStudyBySlug_UnexpectedError(t *testing.T) {
 	_, err = repo.GetStudyBySlug(context.Background(), studySlug, userId)
 
 	assert.NoError(t, sqlMock.ExpectationsWereMet())
-	if assert.NotErrorIs(t, err, studiesmanager.ErrStudyNotFound) {
+	if assert.NotErrorIs(t, err, types.ErrStudyNotFound) {
 		assert.Equal(t, errors.New("error trying to search a study with slug 'example-study' on the database: unexpected-error"), err)
 	}
 }
@@ -76,7 +76,7 @@ func Test_StudyRepository_GetStudyBySlug_Succeed(t *testing.T) {
 
 	assert.NoError(t, sqlMock.ExpectationsWereMet())
 	assert.NoError(t, err)
-	expectedStudy := studiesmanager.NewStudy("7261456a-77b7-4731-a499-629f9f49abe8", "Example Study", "example-study", 1605049200000)
+	expectedStudy := types.NewStudy("7261456a-77b7-4731-a499-629f9f49abe8", "Example Study", "example-study", 1605049200000)
 	assert.Equal(t, expectedStudy, study)
 }
 
@@ -151,5 +151,5 @@ func Test_StudyRepository_GetStudies_Succeed(t *testing.T) {
 
 	assert.NoError(t, sqlMock.ExpectationsWereMet())
 	assert.NoError(t, err)
-	assert.Equal(t, []studiesmanager.Study{studiesmanager.NewStudy(studyId, studyName, studySlug, 1605049200000)}, studies)
+	assert.Equal(t, []types.Study{types.NewStudy(studyId, studyName, studySlug, 1605049200000)}, studies)
 }

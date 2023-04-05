@@ -8,9 +8,9 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
-	studiesmanager "github.com/vlab-research/vlab/dashboard-api/internal"
 	"github.com/vlab-research/vlab/dashboard-api/internal/server/middleware/auth"
 	"github.com/vlab-research/vlab/dashboard-api/internal/storage"
+	"github.com/vlab-research/vlab/dashboard-api/internal/types"
 )
 
 // use a single instance , it caches struct info
@@ -19,7 +19,7 @@ var (
 )
 
 type createResponse struct {
-	Data studiesmanager.Account `json:"data"`
+	Data types.Account `json:"data"`
 }
 
 // CreateHandler is a gin handler that is used to create
@@ -49,16 +49,16 @@ func CreateHandler(repositories storage.Repositories) gin.HandlerFunc {
 
 // parsePayload is a simple parser to determine the type of account
 // TODO: Potentially move this to the accounts file closer to the types
-func parsePayload(b []byte) (a studiesmanager.Account, err error) {
+func parsePayload(b []byte) (a types.Account, err error) {
 	if err := json.Unmarshal(b, &a); err != nil {
 		return a, err
 	}
 
 	switch a.Name {
-	case studiesmanager.FlyAccount:
-		a.ConnectedAccount = &studiesmanager.FlyConnectedAccount{}
-	case studiesmanager.TypeformAccount:
-		a.ConnectedAccount = &studiesmanager.TypeformConnectedAccount{}
+	case types.FlyAccount:
+		a.ConnectedAccount = &types.FlyConnectedAccount{}
+	case types.TypeformAccount:
+		a.ConnectedAccount = &types.TypeformConnectedAccount{}
 	default:
 		return a, fmt.Errorf("unknown account type %v", a.Name)
 	}

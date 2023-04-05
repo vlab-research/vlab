@@ -1,12 +1,10 @@
 package studyconf
 
 import (
-	"errors"
 	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	studiesmanager "github.com/vlab-research/vlab/dashboard-api/internal"
 	"github.com/vlab-research/vlab/dashboard-api/internal/server/middleware/auth"
 	"github.com/vlab-research/vlab/dashboard-api/internal/storage"
 	"github.com/vlab-research/vlab/dashboard-api/internal/types"
@@ -46,9 +44,6 @@ func ReadHandler(r storage.Repositories) gin.HandlerFunc {
 
 func handleError(ctx *gin.Context, err error) {
 	switch {
-	case errors.Is(err, studiesmanager.ErrStudyNotFound):
-		ctx.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
-		return
 	default:
 		msg := fmt.Sprintf("an unexpected error occured - %v", err.Error())
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": msg})

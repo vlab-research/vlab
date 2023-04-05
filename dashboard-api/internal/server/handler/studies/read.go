@@ -5,13 +5,13 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	studiesmanager "github.com/vlab-research/vlab/dashboard-api/internal"
 	"github.com/vlab-research/vlab/dashboard-api/internal/server/middleware/auth"
 	"github.com/vlab-research/vlab/dashboard-api/internal/storage"
+	"github.com/vlab-research/vlab/dashboard-api/internal/types"
 )
 
 type readResponse struct {
-	Data studiesmanager.Study `json:"data"`
+	Data types.Study `json:"data"`
 }
 
 func ReadHandler(repositories storage.Repositories) gin.HandlerFunc {
@@ -28,7 +28,7 @@ func ReadHandler(repositories storage.Repositories) gin.HandlerFunc {
 
 		if err != nil {
 			switch {
-			case errors.Is(err, studiesmanager.ErrStudyNotFound):
+			case errors.Is(err, types.ErrStudyNotFound):
 				ctx.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
 				return
 

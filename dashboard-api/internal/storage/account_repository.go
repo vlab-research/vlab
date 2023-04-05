@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"strings"
 
-	studiesmanager "github.com/vlab-research/vlab/dashboard-api/internal"
+	"github.com/vlab-research/vlab/dashboard-api/internal/types"
 )
 
 type AccountRepository struct {
@@ -34,7 +34,7 @@ func NewAccountRepository(db *sql.DB) *AccountRepository {
 // i.e You can only connect one Fly Instance
 func (r *AccountRepository) Create(
 	ctx context.Context,
-	a studiesmanager.Account,
+	a types.Account,
 ) error {
 
 	c, err := a.ConnectedAccount.MarshalCredentials()
@@ -63,7 +63,7 @@ func (r *AccountRepository) Create(
 // fields user_id, entity and key
 func (r *AccountRepository) Delete(
 	ctx context.Context,
-	a studiesmanager.Account,
+	a types.Account,
 ) error {
 
 	q := `
@@ -87,9 +87,9 @@ func (r *AccountRepository) Delete(
 	return nil
 }
 
-func handleCreateError(e error, a studiesmanager.Account) error {
+func handleCreateError(e error, a types.Account) error {
 	if strings.Contains(e.Error(), "(SQLSTATE 23505)") {
-		return fmt.Errorf("%w: %s", studiesmanager.ErrAccountAlreadyExists, a.Name)
+		return fmt.Errorf("%w: %s", types.ErrAccountAlreadyExists, a.Name)
 	}
 	return fmt.Errorf(
 		"account with name '%s' cannot be created: %v",

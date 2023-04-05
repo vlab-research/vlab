@@ -9,10 +9,10 @@ import (
 
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
-	studiesmanager "github.com/vlab-research/vlab/dashboard-api/internal"
 	"github.com/vlab-research/vlab/dashboard-api/internal/storage"
 	"github.com/vlab-research/vlab/dashboard-api/internal/storage/storagemocks"
 	"github.com/vlab-research/vlab/dashboard-api/internal/testhelpers"
+	"github.com/vlab-research/vlab/dashboard-api/internal/types"
 )
 
 func TestHandler_Create(t *testing.T) {
@@ -71,7 +71,7 @@ func TestHandler_Create(t *testing.T) {
 	t.Run("should return a 500 when the studyRepository returns an unexpected error", func(t *testing.T) {
 		studyName := "example study"
 		studyRepository := new(storagemocks.StudyRepository)
-		studyRepository.On("CreateStudy", mock.Anything, mock.Anything, mock.Anything).Return(studiesmanager.Study{}, errors.New("unexpected-error"))
+		studyRepository.On("CreateStudy", mock.Anything, mock.Anything, mock.Anything).Return(types.Study{}, errors.New("unexpected-error"))
 
 		res := testhelpers.PerformPostRequest(
 			"/studies",

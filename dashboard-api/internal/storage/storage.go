@@ -6,16 +6,15 @@ import (
 	"log"
 
 	_ "github.com/jackc/pgx/v4/stdlib"
-	studiesmanager "github.com/vlab-research/vlab/dashboard-api/internal"
 	"github.com/vlab-research/vlab/dashboard-api/internal/types"
 )
 
 type Repositories struct {
 	Db            *sql.DB
-	Study         studiesmanager.StudyRepository
-	StudySegments studiesmanager.StudySegmentsRepository
-	User          studiesmanager.UserRepository
-	Account       studiesmanager.AccountRepository
+	Study         types.StudyRepository
+	StudySegments types.StudySegmentsRepository
+	User          types.UserRepository
+	Account       types.AccountRepository
 	StudyConf     types.StudyConfRepository
 }
 

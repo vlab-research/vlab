@@ -8,7 +8,7 @@ import (
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/stretchr/testify/require"
 
-	studiesmanager "github.com/vlab-research/vlab/dashboard-api/internal"
+	"github.com/vlab-research/vlab/dashboard-api/internal/types"
 	flytypes "github.com/vlab-research/vlab/inference/sources/fly/types"
 )
 
@@ -16,11 +16,11 @@ func Test_AccountRepository_Create_Account(t *testing.T) {
 	assert := require.New(t)
 
 	t.Run("with valid fly credentials", func(t *testing.T) {
-		a := studiesmanager.Account{
+		a := types.Account{
 			UserID:   "auth0|61916c1dab79c900713936de",
 			Name:     "Fly",
 			AuthType: "token",
-			ConnectedAccount: studiesmanager.FlyConnectedAccount{
+			ConnectedAccount: types.FlyConnectedAccount{
 				CreatedAt: time.Date(2020, time.November, 10, 23, 0, 0, 0, time.UTC),
 				Credentials: flytypes.FlyCredentials{
 					APIKey: "supersecret",
@@ -50,7 +50,7 @@ func Test_AccountRepository_Delete_Account(t *testing.T) {
 	assert := require.New(t)
 
 	t.Run("deletes valid account", func(t *testing.T) {
-		a := studiesmanager.Account{
+		a := types.Account{
 			UserID:   "auth0|61916c1dab79c900713936de",
 			Name:     "Fly",
 			AuthType: "token",

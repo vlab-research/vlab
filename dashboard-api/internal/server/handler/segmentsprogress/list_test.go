@@ -6,14 +6,14 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	studiesmanager "github.com/vlab-research/vlab/dashboard-api/internal"
 	"github.com/vlab-research/vlab/dashboard-api/internal/testhelpers"
+	"github.com/vlab-research/vlab/dashboard-api/internal/types"
 )
 
 func TestHandler_List(t *testing.T) {
 
 	testcases := []struct {
-		segmentsprogress []studiesmanager.SegmentsProgress
+		segmentsprogress []types.SegmentsProgress
 		studyslug        string
 		description      string
 		expectedStatus   int
@@ -24,9 +24,9 @@ func TestHandler_List(t *testing.T) {
 			expectedStatus: 200,
 			studyslug:      testhelpers.StudySlug,
 			expectedRes:    `{"data":[{"segments":[{"id":"25-spain-male","name":"25-spain-male","datetime":1605045600000000,"currentBudget":72000,"desiredPercentage":5,"currentPercentage":0,"expectedPercentage":0,"desiredParticipants":null,"expectedParticipants":0,"currentParticipants":0,"currentPricePerParticipant":0,"percentageDeviationFromGoal":5}],"datetime":1605045600000000}]}`,
-			segmentsprogress: []studiesmanager.SegmentsProgress{
+			segmentsprogress: []types.SegmentsProgress{
 				{
-					Segments: []studiesmanager.SegmentProgress{
+					Segments: []types.SegmentProgress{
 						{
 							ID:                          "25-spain-male",
 							Name:                        "25-spain-male",
@@ -51,7 +51,7 @@ func TestHandler_List(t *testing.T) {
 			expectedStatus:   200,
 			studyslug:        testhelpers.StudySlug,
 			expectedRes:      `{"data":[]}`,
-			segmentsprogress: []studiesmanager.SegmentsProgress{},
+			segmentsprogress: []types.SegmentsProgress{},
 		},
 	}
 

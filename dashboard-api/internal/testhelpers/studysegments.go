@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	studiesmanager "github.com/vlab-research/vlab/dashboard-api/internal"
+	"github.com/vlab-research/vlab/dashboard-api/internal/types"
 )
 
 type details map[string]segment
@@ -27,7 +27,7 @@ func DeleteAllStudySegments(t *testing.T) {
 	r.Db.Exec("DELETE FROM adopt_reports")
 }
 
-func CreateSegment(t *testing.T, sp []studiesmanager.SegmentsProgress) error {
+func CreateSegment(t *testing.T, sp []types.SegmentsProgress) error {
 	t.Helper()
 	r := GetRepositories()
 	q := `

@@ -8,7 +8,7 @@ import (
 	"math"
 	"time"
 
-	studiesmanager "github.com/vlab-research/vlab/dashboard-api/internal"
+	"github.com/vlab-research/vlab/dashboard-api/internal/types"
 )
 
 type StudySegmentsRepository struct {
@@ -35,8 +35,8 @@ type details map[string]struct {
 func (r *StudySegmentsRepository) GetByStudySlug(
 	ctx context.Context,
 	slug, userID string,
-) ([]studiesmanager.SegmentsProgress, error) {
-	allTimeSegmentsProgress := []studiesmanager.SegmentsProgress{}
+) ([]types.SegmentsProgress, error) {
+	allTimeSegmentsProgress := []types.SegmentsProgress{}
 	errMsg := "error trying to get all time segments progress: %v"
 	q := `
 	SELECT a.created, a.details 
@@ -69,9 +69,9 @@ func (r *StudySegmentsRepository) GetByStudySlug(
 		}
 
 		datetimeInMilliseconds := created.UnixMilli()
-		segmentsProgress := studiesmanager.SegmentsProgress{
+		segmentsProgress := types.SegmentsProgress{
 			Datetime: datetimeInMilliseconds,
-			Segments: []studiesmanager.SegmentProgress{},
+			Segments: []types.SegmentProgress{},
 		}
 
 		for segmentName, segmentProgress := range details {
@@ -80,7 +80,7 @@ func (r *StudySegmentsRepository) GetByStudySlug(
 			currentPercentage := round(segmentProgress.CurrentPercentage)
 
 			segmentsProgress.Segments = append(segmentsProgress.Segments,
-				studiesmanager.SegmentProgress{
+				types.SegmentProgress{
 					ID:                          segmentName,
 					Name:                        segmentName,
 					Datetime:                    datetimeInMilliseconds,

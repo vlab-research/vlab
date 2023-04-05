@@ -7,13 +7,13 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
-	studiesmanager "github.com/vlab-research/vlab/dashboard-api/internal"
 	"github.com/vlab-research/vlab/dashboard-api/internal/server/middleware/auth"
 	"github.com/vlab-research/vlab/dashboard-api/internal/storage"
+	"github.com/vlab-research/vlab/dashboard-api/internal/types"
 )
 
 type listResponse struct {
-	Data       []studiesmanager.Study `json:"data"`
+	Data       []types.Study          `json:"data"`
 	Pagination listResponsePagination `json:"pagination"`
 }
 
