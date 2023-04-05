@@ -39,6 +39,7 @@ type StudyConf struct {
 	Recruitment           *RecruitmentConf           `json:"recruitment"`
 	Destinations          *DestinationConf           `json:"destinations"`
 	Creatives             []*CreativeConf            `json:"creatives"`
+	Audiences             []*AudienceConf            `json:"audiences"`
 	// add any new config structs here
 	// NOTE: Confs should be pointers as this allows JSON unmarshalling
 	// to null if they are not set
@@ -91,6 +92,7 @@ func (sc *StudyConf) TransformFromDatabase(dcs []*DatabaseStudyConf) error {
 		"targeting_distribution": json.Unmarshal,
 		"recruitment":            json.Unmarshal,
 		"destinations":           json.Unmarshal,
+		"audiences":              json.Unmarshal,
 	}
 
 	errMsg := "there was an error fetching the %s configuration"
@@ -120,6 +122,8 @@ func (sc *StudyConf) getConfigValue(confType string) interface{} {
 		return &sc.TargetingDistribution
 	case "recruitment":
 		return &sc.Recruitment
+	case "audiences":
+		return &sc.Audiences
 	default:
 		return nil
 	}
@@ -264,6 +268,43 @@ type CreativeConf struct {
 	Name           string   `json:"name"`
 	WelcomeMessage string   `json:"welcome_message"`
 	Tags           []string `json:"tags"`
+}
+
+// AudienceConf is how the audience is configured for the
+// study
+type AudienceConf struct {
+	Name              string             `json:"name"`
+	SubType           string             `json:"subtype"`
+	Lookalike         *Lookalike         `json:"lookalike,omitempty"`
+	QuestionTargeting *QuestionTargeting `json:"question_targeting,omitempty"`
+	Partioning        *Partioning        `json:"partioning,omitempty"`
+}
+
+// QuestionTargeting is set as an interface as it allows for a
+// nested type structure with various types
+// we use map[string]interface{} as we should be dealing with json
+type QuestionTargeting map[string]interface{}
+
+// Lookalike is reflective of the lookalike capabilities in
+// facebook ads
+type Lookalike struct {
+	Target int           `json:"target"`
+	Spec   LookalikeSpec `json:"spec"`
+}
+
+// LookalikeSpec is the specifications used in a lookalike
+type LookalikeSpec struct {
+	Country       string  `json:"country"`
+	Ratio         float64 `json:"ratio"`
+	StartingRatio float64 `json:"starting_ratio"`
+}
+
+// Partioning
+type Partioning struct {
+	MinUsers *int `json:"min_users"`
+	MinDays  *int `json:"min_days,omitempty"`
+	MaxDays  *int `json:"max_days,omitempty"`
+	MaxUsers *int `json:"max_users,omitempty"`
 }
 
 // DatabaseStudyConf is the structure used to store data
