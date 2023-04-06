@@ -1,16 +1,18 @@
 import { useState } from 'react';
+import { useParams } from 'react-router-dom';
 import PageLayout from '../../components/PageLayout';
-import { general } from './configs/general';
-import { recruitment } from './configs/recruitment/base';
 import Form from '../NewStudyPage/components/form/Form';
 import Navbar from './components/NavBar';
-import { useParams } from 'react-router-dom';
-import useStudyConf from '../../hooks/useStudyConf';
 import ErrorPlaceholder from '../../components/ErrorPlaceholder';
+import useStudyConf from '../../hooks/useStudyConf';
 import useStudy from '../../hooks/useStudy';
 import { ConfBase, ConfSelectBase } from '../../types/form';
 import simple from './controllers/simple';
 import select from './controllers/select';
+import list from './controllers/list';
+import { general } from './configs/general';
+import { recruitment } from './configs/recruitment/base';
+import { destinations } from './configs/destinations/base';
 
 const StudyConfPage = () => {
   const params = useParams<{ studySlug: string }>();
@@ -46,6 +48,7 @@ const PageContent = (data: any) => {
   const confStore: Record<string, ConfBase | ConfSelectBase> = {
     general,
     recruitment,
+    destinations,
   };
 
   const confKeys = Object.keys(confStore);
@@ -56,6 +59,7 @@ const PageContent = (data: any) => {
   const lookup: any = {
     confObject: simple,
     confSelect: select,
+    confList: list,
   };
 
   const str: keyof ConfBase = 'type';
