@@ -4,103 +4,51 @@
 [![Dashboard Api](https://github.com/vlab-research/vlab/actions/workflows/dashboard-api-tests.yml/badge.svg)](https://github.com/vlab-research/vlab/actions/workflows/dashboard-api-tests.yml)
 [![Adopt](https://github.com/vlab-research/vlab/actions/workflows/adopt.yaml/badge.svg)](https://github.com/vlab-research/vlab/actions/workflows/adopt.yaml)
 [![Netlify Status](https://api.netlify.com/api/v1/badges/f6a7c27f-0ee6-4444-949e-a4ec411bbc09/deploy-status)](https://app.netlify.com/sites/vlab-dashboard/deploys?branch=main)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://github.com/vlab-research/vlab/blob/main/LICENSE)
 
 Virtual Lab is a platform for running experiments easily, efficiently, and iteratively.
 
-## Creating a Study
+## Getting Started
 
-Creating a study consists of configuring a lot of different variables, separated into groups.
-
-All studies require the following configurations:
-
-1. General
-2. Destination
-3. Recruitment
-4. Creative
-5. Targeting
-6. Data Extraction
-
-### General
-
-The "general" configuration consists of... General stuff?
+For comprehensive documentation on how the platform works please [read our docs](1)
 
 
-### Destination
+## Project Layout
 
-Every study needs a destination, where do the recruitment ads send the users? Destinations need to be connected to Virtual Lab so that, not only does it know where to send people who click on the recruitment ads, but also so that it knows how to collect the information about those who become study participants and knows how to optimize ads.
+We have opted to use a Monorepo in order to keep all relevant components
+together, the following should explain the different directories
 
-Towards that end, Virtual Lab supports a set a "destinations" and is written in such a way that it is easy to add a new destination. When configuring your study, you can create one or more destinations and each destination needs a unique name (key) that you can refer to it by.
+### Adopt
 
-The following are currently supported along with their method of configuation:
+Found in the [adopt](./adopt) directory is our recruitment engine, this is the
+codebase responsible for handling all the recruitment logic and statistic
+analysis for the Vlabs Platform. This is our source of truth for studies and
+study configurations
 
-1. Fly Messenger Survey Destination. This creates "Messenger ads" in Facebook for when you want the user to be directed to a Fly Messenger Survey. It requires the following parameters:
-   - `initial_shortcode: str` The shortcode of the initial form users should be sent to.
-   - `survey_name: str` The survey that contains all the forms with data of interest.
+### Dashboard API
 
-2. Typeform. Each Typeform destination needs the following parameters:
-    - `form_id: str` The Form ID of the Typeform you wish to send users to.
+Found in the [dashboard-api](./dashboard-api) is the API layer that is used to
+provide an interface to configure the Vlabs Platform. The purpose is to handle
+Configuration and Validation
 
-3. Curious Learning Literacy Apps. Requires the following parameters:
-   - `from: int` Starting timestamp for retrieving app events from Literacy Data API.
-   - `app_id: str` The app ID for the Google Play store.
-   - `facebook_app_id: str` he app ID for Facebook.
-   - `deeplink_template: str`
-   - `app_install_state: str`
-   - `user_device: list[str]`
-   - `user_os: list[str]`
-   - `attribution_id: str`
+### Dashboard Frontend
 
+Found in the [dashboard-frontend](./dashboard-frontend) is our UI components
+written in react, this is the User interface for the Vlabs Platform. The
+purpose is to offer a user friendly way to maintain a study and see feedback on
+how well a study is performing
 
-### Recruitment
+### Inference
 
-The "recruitment" configuration describes how/where recruitment will take place. Every study needs to recruit from somewhere.
+The [inference](./inference) directroy handles a couple of periodic jobs that
+help with the task of extracting and transforming the various data points that
+the Vlab platform requires to operate
 
-There are currently 3 types of recruitments:
+### Devops
 
-1. Simple.
+The [devops](./devops) directory is where we keep our database setup and
+database seeds, as well as all relevant kubernetes manifests used to deploy the
+Vlab platform.
 
-2. Destination Experiment. Use this when you want to create a multi-arm randomized experiment (A/B test on Facebook) where some of your sample is sent to different "destinations".
+[1]: https://docs.vlab.digital/
 
-3. Pipeline Experiment. In this design, we generate an A/B test on Facebook but instead of sending your sample to different destinations, we run the ads at different times (a pipeline experiment design). You can set up how long each arm runs, and how long they are offset from the start of the rpevious arm.
-
-
-### Creative
-
-Recruitment needs ads and ads need creative. Each creative consists of one of several fields:
-
-[fields]
-
-Each creative also needs to be linked to a particular "destination". If you only have one destination (simple recruitment or pipeline experiment), they will all link to the same destination. If you have multiple destinations (Destination Experiment), then you need to specify different creative for each destination.
-
-### Targeting
-
-Targeting describes the variables for stratification and the desired joint distribution of respondents.
-
-1. Template Campaign Name. If you have created template ads to target certain variables, this is the name of the campaign that has those ads.
-
-2. Distribution Variables. The variables that you are using for stratification.
-
-3. Distribution. What proportion of people do you want in your final sample from each stratum?
-
-
-### Data Extraction
-
-It's important to extract some data that the optimization engine can use. For example: variables that are used in stratification. In order to do so you must define how to pull these variables out of the data stream from the destination.
-
-Our data model is very simple. Each study has a set of "users", or study participants, and each user has a set of variables, represented as unique strings, and each variable has a value. Values are represented as pure JSON bytes, so they can be strings, numbers, booleans, arrays, objects, etc., anything that can be modelled as JSON.
-
-All data from supported destinations is modelled as individual events, where each event is associated to a user and each event has a "variable" and "metadata". Therefore, all that's left is for you to identify how to extract variables and values that you want to model from the events and their metadata.
-
-This can be thought of in three parts:
-
-1. Identification. For each variable, what events are associated with it.
-
-2. Extraction. Given the associated event, how to extract the value.
-
-3. Aggregation. How to compose values across events to have one final value for each variable. You can choose from the following aggregation functions: max, min, last, first. For example, if your destination is an app, which is a game, you might want to extract the level achieved and aggregate it with "max". If your variable is a piece of metadata that shows up in every event, you can choose first or last. If your variable is an answer to a question, you might choose last, to pick the last answer the user gave.
-
-
-Here's the documentation:
-1. [Python classes](https://github.com/vlab-research/vlab/blob/spike-recruitment-data/adopt/adopt/study_conf.py#L24-L39)
-
-2. [Go Types](https://github.com/vlab-research/vlab/blob/spike-recruitment-data/inference/swoosh/inference_data.go#L14-L31)
