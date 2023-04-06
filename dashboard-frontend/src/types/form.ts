@@ -5,6 +5,13 @@ export interface ConfBase extends Record<string, any> {
   fields: FieldBase[];
 }
 
+export interface ConfSelectBase extends Record<string, any> {
+  title: string;
+  type: string;
+  description: string;
+  selector: any;
+}
+
 export interface FieldBase {
   name: string;
   type: string;

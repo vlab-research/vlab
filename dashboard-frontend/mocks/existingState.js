@@ -1,7 +1,7 @@
-import Select from './../src/pages/NewStudyPage/components/form/inputs/Select';
-import Text from './../src/pages/NewStudyPage/components/form/inputs/Text';
+import Select from '../src/pages/NewStudyPage/components/form/inputs/Select';
+import Text from '../src/pages/NewStudyPage/components/form/inputs/Text';
 
-const state = [
+const existingState = [
   {
     create_study: [
       {
@@ -12,7 +12,7 @@ const state = [
         label: 'Give your study a name',
         helper_text: 'E.g example-fly-conf',
         options: undefined,
-        value: '',
+        value: 'foo',
       },
     ],
     general: [
@@ -85,7 +85,7 @@ const state = [
             label: 'Store visits',
           },
         ],
-        value: 'default',
+        value: 'reach',
       },
       {
         id: 'optimization_goal',
@@ -200,7 +200,7 @@ const state = [
             label: 'Visit instagram profile',
           },
         ],
-        value: 'default',
+        value: 'social_impressions',
       },
       {
         id: 'destination_type',
@@ -227,7 +227,7 @@ const state = [
             label: 'App',
           },
         ],
-        value: 'default',
+        value: 'app',
       },
       {
         id: 'page_id',
@@ -237,7 +237,7 @@ const state = [
         label: 'Page Id',
         helper_text: 'E.g 1855355231229529',
         options: undefined,
-        value: '',
+        value: '12345',
       },
       {
         id: 'min_budget',
@@ -267,7 +267,7 @@ const state = [
         label: 'Instagram Id',
         helper_text: 'E.g 2327764173962588',
         options: undefined,
-        value: '',
+        value: '54321',
       },
       {
         id: 'ad_account',
@@ -277,10 +277,76 @@ const state = [
         label: 'Ad account',
         helper_text: 'E.g 1342820622846299',
         options: undefined,
-        value: '',
+        value: '111111',
+      },
+    ],
+    recruitment: [
+      {
+        id: 'recruitment_type',
+        name: 'recruitment_type',
+        type: 'select',
+        component: Select,
+        label: 'Select a recruitment type',
+        helper_text: undefined,
+        options: [
+          { name: 'recruitment_simple', label: 'Recruitment simple' },
+          { name: 'recruitment_pipeline', label: 'Recruitment pipeline' },
+          { name: 'recruitment_destination', label: 'Recruitment destination' },
+        ],
+        value: 'recruitment_simple',
+      },
+      {
+        id: 'ad_campaign_name',
+        name: 'ad_campaign_name',
+        type: 'text',
+        component: Text,
+        label: 'Ad campaign name',
+        helper_text: 'E.g vlab-vaping-pilot-2',
+        options: undefined,
+        value: 'vlab-most-used-prog-1',
+      },
+      {
+        id: 'budget',
+        name: 'budget',
+        type: 'number',
+        component: Text,
+        label: 'Budget',
+        helper_text: 'E.g 8400',
+        options: undefined,
+        value: 10000,
+      },
+      {
+        id: 'max_sample',
+        name: 'max_sample',
+        type: 'number',
+        component: Text,
+        label: 'Maximum sample',
+        helper_text: 'E.g 1000',
+        options: undefined,
+        value: 1000,
+      },
+      {
+        id: 'start_date',
+        name: 'start_date',
+        type: 'text',
+        component: Text,
+        label: 'Start date',
+        helper_text: 'E.g 2022-01-10',
+        options: undefined,
+        value: '2022-07-26T00:00:00',
+      },
+      {
+        id: 'end_date',
+        name: 'end_date',
+        type: 'text',
+        component: Text,
+        label: 'End date',
+        helper_text: 'E.g 2022-01-31',
+        options: undefined,
+        value: '2022-08-05T00:00:00',
       },
     ],
   },
 ];
 
-export default state;
+export default existingState;

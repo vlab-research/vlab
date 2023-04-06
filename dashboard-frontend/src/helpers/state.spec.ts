@@ -2,14 +2,14 @@ import { getFieldState, initialiseFieldState, updateFieldState } from './state';
 import { getField } from './getField';
 import { general } from '../pages/StudyConfPage/configs/general';
 import { create_study } from '../pages/NewStudyPage/configs/create_study';
-import state from '../../mocks/state';
+import initialState from '../../mocks/initialState';
 import formData from '../../mocks/formData';
 
 describe('initialiseFieldState', () => {
   it('given a conf it returns some initial field state when no state is defined', () => {
     const conf = create_study;
 
-    const expectation = state[0]['create_study'];
+    const expectation = initialState[0]['create_study'];
 
     const res = initialiseFieldState(conf);
 
@@ -19,7 +19,7 @@ describe('initialiseFieldState', () => {
   it('works for a study conf too', () => {
     const conf = general;
 
-    const expectation = state[0]['general'];
+    const expectation = initialState[0]['general'];
 
     const res = initialiseFieldState(conf);
 
@@ -44,7 +44,7 @@ describe('getFieldState', () => {
 
 describe('updateFieldState', () => {
   it('given some field state and an event it can update the target field with the value from that event', () => {
-    const fieldState = state[0]['general'];
+    const fieldState = initialState[0]['general'];
 
     const event = {
       name: 'instagram_id',
@@ -62,7 +62,7 @@ describe('updateFieldState', () => {
   });
 
   it('works when the event occurrs on a select component', () => {
-    const fieldState = state[0]['general'];
+    const fieldState = initialState[0]['general'];
 
     const event = {
       name: 'objective',
@@ -76,6 +76,24 @@ describe('updateFieldState', () => {
 
     expect(updatedField.value).toEqual('link_clicks');
     expect(updatedField.value).not.toEqual('link_clicks!');
+    expect(updatedField.value).toEqual(event.value);
+  });
+
+  it('works when the event occurs on a select component with nested confs', () => {
+    const fieldState = initialState[0]['recruitment'];
+
+    const event = {
+      name: 'recruitment_type',
+      value: 'recruitment_pipeline',
+      type: 'change',
+    };
+
+    const res = updateFieldState(fieldState, event);
+
+    const updatedField = getField(res, event);
+
+    expect(updatedField.value).toEqual('recruitment_pipeline');
+    expect(updatedField.value).not.toEqual('recruitment_simple');
     expect(updatedField.value).toEqual(event.value);
   });
 });

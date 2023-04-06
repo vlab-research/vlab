@@ -5,8 +5,8 @@ import { general } from '../pages/StudyConfPage/configs/general';
 
 describe('getField', () => {
   it('given some fields and an event it returns the field on which the event occurred', () => {
-    const config = general;
-    const fields = initialiseFieldState(config);
+    const conf = general;
+    const fields = initialiseFieldState(conf);
     const event = {
       name: 'instagram_id',
       value: 'foo',
