@@ -128,15 +128,15 @@ func (sc *StudyConf) getConfigValue(confType string) interface{} {
 // GeneralConf is used to hold all general configuration
 // for a study
 type GeneralConf struct {
-	Name             string `json:"name"`
-	Objective        string `json:"objective"`
-	OptimizationGoal string `json:"optimization_goal"`
-	DestinationType  string `json:"destination_type"`
-	PageID           string `json:"page_id"`
-	MinBudget        int    `json:"min_budget"`
-	OptInWindow      int    `json:"opt_window"`
-	InstagramID      string `json:"instagram_id"`
-	AdAccount        string `json:"ad_account"`
+	Name             string  `json:"name"`
+	Objective        string  `json:"objective"`
+	OptimizationGoal string  `json:"optimization_goal"`
+	DestinationType  string  `json:"destination_type"`
+	PageID           string  `json:"page_id"`
+	MinBudget        float32 `json:"min_budget"`
+	OptInWindow      int     `json:"opt_window"`
+	InstagramID      string  `json:"instagram_id"`
+	AdAccount        string  `json:"ad_account"`
 }
 
 // TargetingConf describes the variables for stratification and the
