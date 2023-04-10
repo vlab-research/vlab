@@ -22,7 +22,7 @@ func TypeGeneral() databasestudyconfoptions {
 	return func(d *types.DatabaseStudyConf) {
 		d.StudyID = StudyID
 		d.ConfType = "general"
-		d.Conf = []byte(`{"name":"Foo","objective":"","optimization_goal":"link_clicks","destination_type":"Web","page_id":"1","min_budget":1,"opt_window":48,"instagram_id":"","ad_account":"12345"}`)
+		d.Conf = []byte(`{"name":"Foo","objective":"","optimization_goal":"link_clicks","destination_type":"Web","page_id":"1","min_budget":1.5,"opt_window":48,"instagram_id":"","ad_account":"12345"}`)
 	}
 }
 

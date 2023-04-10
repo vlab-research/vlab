@@ -42,7 +42,7 @@ func NewStudyConf(opts ...studyconfigoptions) types.StudyConf {
 			OptInWindow:      48,
 			OptimizationGoal: "link_clicks",
 			PageID:           "1",
-			MinBudget:        1,
+			MinBudget:        1.5,
 		},
 		Targeting: &types.TargetingConf{
 			TemplateCampaignName: "Bar",
