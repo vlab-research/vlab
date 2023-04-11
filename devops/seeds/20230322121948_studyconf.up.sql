@@ -15,7 +15,7 @@ VALUES
         "destination_type": "MESSENGER",
         "extra_metadata": {},
         "instagram_id": "",
-        "min_budget": 1,
+        "min_budget": 1.50,
         "name": "most-used-programming-language-for-api-development",
         "objective": "MESSAGES",
         "opt_window": 48,
@@ -32,7 +32,7 @@ VALUES
         "destination_type": "MESSENGER",
         "extra_metadata": {},
         "instagram_id": "123456789",
-        "min_budget": 1,
+        "min_budget": 1.50,
         "name": "most-used-programming-language-for-api-development",
         "objective": "MESSAGES",
         "opt_window": 48,
@@ -100,6 +100,46 @@ VALUES
       {
         "initial_shortcode": "foobarbaz",
         "name": "fly"
+      }
+    ]'
+  ),
+  (
+    'a5601576-08d9-486b-adc9-9b981b7f103b',
+    '2023-03-21 13:13:21.132',
+    'audiences',
+    '[
+      {
+        "lookalike": null,
+        "name": "foobar-baz",
+        "partitioning": null,
+        "question_targeting": null,
+        "subtype": "CUSTOM"
+      },
+      {
+        "lookalike": {
+          "spec": {
+            "country": "US",
+            "ratio": 0.1,
+            "starting_ratio": 0.0
+          },
+          "target": 100
+          },
+        "name": "foobar-baz-qux",
+        "partitioning": null,
+        "question_targeting": {
+          "op": "not_equal",
+          "vars": [
+            {
+              "type": "variable",
+              "value": "hcw"
+            },
+            {
+              "type": "constant",
+              "value": "E"
+            }
+          ]
+        },
+        "subtype": "LOOKALIKE"
       }
     ]'
   );
