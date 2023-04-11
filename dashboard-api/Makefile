@@ -5,6 +5,9 @@ help: 		## Show help for each of the Makefile recipes
 	 	| fgrep -v fgrep \
 		| fgrep -v internal | sed -e 's/\\$$//' | sed -e 's/##//'
 
+build:		## Used to build the binary
+	@CGO_ENABLED=0 go build cmd/api/main.go	
+
 # A bit of a Hack in order to force cleanup
 # after stopping or exiting
 dev:		## Sets up local development environment
