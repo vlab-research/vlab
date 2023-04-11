@@ -3,7 +3,6 @@ import { FieldState } from '../../../../types/form';
 import { createNameFor } from '../../../../helpers/strings';
 import useCreateStudy from '../../../../hooks/useCreateStudy';
 import Fieldset from './Fieldset';
-import { reduceFieldStateToAnObject } from '../../../../helpers/arrays';
 import PrimaryButton from '../../../../components/PrimaryButton';
 import useCreateStudyConf from '../../../../hooks/useCreateStudyConf';
 import { useParams } from 'react-router-dom';
@@ -25,7 +24,7 @@ export const Form = (props: any) => {
     isLoadingOnCreateStudyConf,
   } = useCreateStudyConf();
 
-  const [fieldState, setFieldState] = useState<FieldState[]>();
+
   const [globalFormData, setFormGlobalFormData] = useState<
     StudyConfResource | any
   >({
@@ -34,23 +33,8 @@ export const Form = (props: any) => {
 
   const localFormData = fetchedConfData && fetchedConfData[title];
 
-  useEffect(() => {
-    setFieldState(controller(conf, localFormData));
-  }, [conf, controller, localFormData]);
 
-  const handleChange = (name: string, fieldType: string, e: any) => {
-    const event = {
-      name,
-      fieldType,
-      type: e.type,
-      value: fieldType === 'number' ? e.target.valueAsNumber : e.target.value,
-    };
-
-    const newState = controller(conf, localFormData, event, fieldState);
-
-    setFieldState(newState);
-
-    const formData = fieldState && reduceFieldStateToAnObject(fieldState);
+  const handleChange = (formData: any) => {
 
     const updateFormData = (x: any) => {
       setFormGlobalFormData({ ...formData, [title]: x });
@@ -81,6 +65,8 @@ export const Form = (props: any) => {
     ? isLoadingOnCreateStudy
     : isLoadingOnCreateStudyConf;
 
+
+
   return (
     <div className="md:grid md:grid-cols-3 md:gap-6">
       <div className="md:col-span-1">
@@ -88,15 +74,15 @@ export const Form = (props: any) => {
       </div>
       <div className="mt-5 md:mt-0 md:col-span-2">
         <form onSubmit={handleSubmit}>
-          {fieldState && (
+          {(
             <div className="px-4 py-3 bg-gray-50 sm:px-6">
               <Fieldset
-                fields={fieldState}
+                controller={controller}
+                conf={conf}
                 localFormData={localFormData}
                 handleChange={handleChange}
-                error={errorMessage}
-                {...props}
-              ></Fieldset>
+                error_message={errorMessage}
+              />
               <div className="p-6 text-right">
                 <PrimaryButton
                   type="submit"

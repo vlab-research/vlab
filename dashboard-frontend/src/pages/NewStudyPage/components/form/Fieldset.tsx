@@ -1,48 +1,70 @@
-import { Field, FieldState } from '../../../../types/form';
+import { FieldState } from '../../../../types/form';
+import { useState, useEffect } from 'react';
+import { reduceFieldStateToAnObject } from '../../../../helpers/arrays';
 
-const Fieldset = (props: any) => {
-  const { fields, handleChange, error_message } = props;
+type Props = {
+  controller: any;
+  conf: any;
+  localFormData: any;
+  handleChange: any;
+  error_message: any;
 
-  const mapComponentToFields = (fields: FieldState[]) => {
-    const newState: any[] = [];
-
-    fields.forEach(field => {
-      if (field.component) {
-        const { component, ...props } = field;
-
-        newState.push({
-          ...props,
-          Component: component,
-        });
-      }
-    });
-
-    return newState;
-  };
-
-  const renderFields = (fields: Field[]) => {
-    return fields.map(field => {
-      const { Component, ...props } = field;
-      const { name, type } = props;
-
-      const callback = (e: any) => {
-        handleChange(name, type, e);
-      };
-
-      return (
-        <Component
-          key={name}
-          onChange={callback}
-          error_message={error_message}
-          {...props}
-        />
-      );
-    });
-  };
-
-  const f = mapComponentToFields(fields);
-
-  return fields && renderFields(f);
 };
+
+// Fieldset is now inception ready - you can have a fieldset inside your fieldset
+// because it kicks out (handleChange) pure data, you can have that nest.
+const Fieldset: React.FC<Props> = ({ handleChange, error_message, controller, conf, localFormData }) => {
+
+  // FieldState[] is the state of a FieldSet
+  const [state, setState] = useState<FieldState[]>();
+
+
+  useEffect(() => {
+    setState(controller(conf, localFormData));
+  }, [conf, controller, localFormData]);
+
+
+  const onChange = (name: any, fieldType: any, e: any) => {
+
+    const event = {
+      name,
+      fieldType,
+      type: e.type,
+      value: fieldType === 'number' ? e.target.valueAsNumber : e.target.value,
+    };
+
+    // controller creates state and creates "newLocalFormData"
+    // const [newState, newLocalFormData] = controller(conf, localFormData, event, state);
+    const newState = controller(conf, localFormData, event, state);
+    const newLocalFormData = reduceFieldStateToAnObject(newState)
+
+    // state is a local concept, only the Fieldset needs to care about it
+    setState(newState);
+
+    // Send form data to form, that's all it cares about
+    handleChange(newLocalFormData)
+  }
+
+  if (!state) return null
+
+  return (
+    <>
+      {state.map(f => {
+        const { component: Component, ...props } = f;
+
+        return (
+          <Component
+            key={f.name}
+            onChange={(e: any) => onChange(f.name, f.type, e)}
+            error_message={error_message}
+            {...props}
+          />
+        )
+      })}
+
+    </>
+
+  )
+}
 
 export default Fieldset;
