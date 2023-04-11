@@ -32,19 +32,19 @@ type Response struct {
 }
 
 func PerformGetRequest(path string, repositories storage.Repositories) Response {
-	return PerformRequest(path, http.MethodGet, repositories, nil)
+	return PerformRequest(path, CurrentUserId, http.MethodGet, repositories, nil)
 }
 
 func PerformPostRequest(
-	path string,
+	path, userID string,
 	repositories storage.Repositories,
 	body interface{},
 ) Response {
-	return PerformRequest(path, http.MethodPost, repositories, body)
+	return PerformRequest(path, userID, http.MethodPost, repositories, body)
 }
 
 func PerformRequest(
-	path string,
+	path, userID string,
 	method string,
 	repositories storage.Repositories,
 	body interface{},
@@ -59,7 +59,7 @@ func PerformRequest(
 		Cfg:            cfg,
 		FacebookApp:    a,
 		Repos:          repositories,
-		AuthMiddleware: FakeValidTokenMiddleware(),
+		AuthMiddleware: FakeValidTokenMiddleware(userID),
 	}
 
 	srv.GetRouter()
@@ -99,11 +99,11 @@ func PerformRequest(
 	}
 }
 
-func FakeValidTokenMiddleware() gin.HandlerFunc {
+func FakeValidTokenMiddleware(userID string) gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		userCtx := validator.ValidatedClaims{
 			RegisteredClaims: validator.RegisteredClaims{
-				Subject: CurrentUserId,
+				Subject: userID,
 			},
 		}
 

@@ -86,7 +86,7 @@ func TestHandler_StudyConfiguration_GetByStudySlug(t *testing.T) {
 func getStudyConfRequest(t *testing.T, slug string) testhelpers.Response {
 	t.Helper()
 	r := testhelpers.GetRepositories()
-	r.User.CreateUser(context.TODO(), testhelpers.CurrentUserId)
+	r.User.Create(context.TODO(), testhelpers.CurrentUserId)
 	return testhelpers.PerformGetRequest(
 		fmt.Sprintf("/studies/%s/conf", slug),
 		storage.Repositories{

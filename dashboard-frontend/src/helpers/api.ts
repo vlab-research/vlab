@@ -72,7 +72,7 @@ const fetchStudySegmentsProgress = ({
 
 const createUser = ({ accessToken }: { accessToken: string }) => {
   const userCreatedStatusCode = 201;
-  const userAlreadyExistsStatusCode = 422;
+  const userAlreadyExistsStatusCode = 200;
 
   return apiRequest<CreateUserApiResponse>('/users', {
     accessToken,
@@ -161,7 +161,7 @@ const apiRequest = async <ApiResponse>(
     }
 
     return response.json() as Promise<ApiResponse>;
-  } catch (err) {
+  } catch (err: any) {
     if (err.name === 'AbortError') {
       throw new Error(defaultErrorMessage);
     }

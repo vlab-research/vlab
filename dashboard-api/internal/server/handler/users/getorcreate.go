@@ -2,7 +2,6 @@ package users
 
 import (
 	"errors"
-	"log"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -11,29 +10,29 @@ import (
 	"github.com/vlab-research/vlab/dashboard-api/internal/types"
 )
 
-type createResponse struct {
+type response struct {
 	Data interface{} `json:"data"`
 }
 
-func CreateHandler(repositories storage.Repositories) gin.HandlerFunc {
-
+// GetOrCreateHandler tries to create a user, if successful it will return the
+// user with a status 201, if user already exists it will return the user with a
+// status of 200
+func GetOrCreateHandler(repositories storage.Repositories) gin.HandlerFunc {
 	return func(ctx *gin.Context) {
-		user, err := repositories.User.CreateUser(ctx, auth.GetUserIdFrom(ctx))
-
+		user, err := repositories.User.Create(ctx, auth.GetUserIdFrom(ctx))
 		if err != nil {
 			switch {
+			// In the case of a user already existing we just return the user
+			// with a status of 200
 			case errors.Is(err, types.ErrUserAlreadyExists):
-				ctx.JSON(http.StatusUnprocessableEntity, gin.H{"error": "User already exists"})
+				ctx.JSON(http.StatusOK, response{Data: user})
 				return
 			default:
-				log.Printf(err.Error())
 				ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 				return
 			}
 		}
 
-		ctx.JSON(http.StatusCreated, createResponse{
-			Data: user,
-		})
+		ctx.JSON(http.StatusCreated, response{Data: user})
 	}
 }

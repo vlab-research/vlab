@@ -84,7 +84,7 @@ func TestHandler_Account_List(t *testing.T) {
 
 func listAccountRequest() testhelpers.Response {
 	r := testhelpers.GetRepositories()
-	r.User.CreateUser(context.TODO(), testhelpers.CurrentUserId)
+	r.User.Create(context.TODO(), testhelpers.CurrentUserId)
 	return testhelpers.PerformGetRequest(
 		"/accounts",
 		storage.Repositories{

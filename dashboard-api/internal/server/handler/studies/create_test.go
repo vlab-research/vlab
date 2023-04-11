@@ -75,6 +75,7 @@ func TestHandler_Create(t *testing.T) {
 
 		res := testhelpers.PerformPostRequest(
 			"/studies",
+			testhelpers.CurrentUserId,
 			storage.Repositories{Study: studyRepository},
 			struct {
 				Name string `json:"name"`
@@ -87,9 +88,10 @@ func TestHandler_Create(t *testing.T) {
 
 func createStudyRequest(studyName string) testhelpers.Response {
 	r := testhelpers.GetRepositories()
-	r.User.CreateUser(context.TODO(), testhelpers.CurrentUserId)
+	r.User.Create(context.TODO(), testhelpers.CurrentUserId)
 	return testhelpers.PerformPostRequest(
 		"/studies",
+		testhelpers.CurrentUserId,
 		storage.Repositories{
 			Study: testhelpers.GetRepositories().Study,
 		},

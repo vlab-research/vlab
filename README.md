@@ -10,7 +10,7 @@ Virtual Lab is a platform for running experiments easily, efficiently, and itera
 
 ## Getting Started
 
-For comprehensive documentation on how the platform works please [read our docs](1)
+For comprehensive documentation on how the platform works please [read our docs][1]
 
 
 ## Project Layout

@@ -44,9 +44,10 @@ func TestGenerateTokenHandler(t *testing.T) {
 func generateTokenRequest(t *testing.T, code string) testhelpers.Response {
 	t.Helper()
 	r := testhelpers.GetRepositories()
-	r.User.CreateUser(context.TODO(), testhelpers.CurrentUserId)
+	r.User.Create(context.TODO(), testhelpers.CurrentUserId)
 	return testhelpers.PerformPostRequest(
 		"/facebook/token",
+		testhelpers.CurrentUserId,
 		storage.Repositories{
 			Account: testhelpers.GetRepositories().Account,
 		},

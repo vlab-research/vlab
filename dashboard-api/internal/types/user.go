@@ -6,11 +6,11 @@ import (
 )
 
 type UserRepository interface {
-	CreateUser(ctx context.Context, userId string) (User, error)
+	Create(ctx context.Context, userID string) (User, error)
 }
 
 var ErrUserAlreadyExists = errors.New("User Already Exists")
 
 type User struct {
-	Id string `json:"id"`
+	ID string `json:"id"`
 }
