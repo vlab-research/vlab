@@ -19,18 +19,18 @@ func NewUserRepository(db *sql.DB) *UserRepository {
 	}
 }
 
-func (r *UserRepository) CreateUser(ctx context.Context, userId string) (types.User, error) {
-	_, err := r.db.Exec("INSERT INTO users (id) VALUES ($1)", userId)
+func (r *UserRepository) Create(ctx context.Context, userID string) (types.User, error) {
+	_, err := r.db.Exec("INSERT INTO users (id) VALUES ($1)", userID)
 
 	if err != nil {
 		if strings.Contains(err.Error(), "(SQLSTATE 23505)") {
-			return types.User{}, fmt.Errorf("%w: %s", types.ErrUserAlreadyExists, userId)
+			return types.User{ID: userID}, types.ErrUserAlreadyExists
 		}
 
-		return types.User{}, fmt.Errorf("user with id '%s' cannot be created: %v", userId, err)
+		return types.User{}, fmt.Errorf("user with id '%s' cannot be created: %v", userID, err)
 	}
 
 	return types.User{
-		Id: userId,
+		ID: userID,
 	}, nil
 }

@@ -72,7 +72,7 @@ func (s *Server) GetRouter() {
 	r.GET("/studies/:slug/conf", s.AuthMiddleware, studyconf.ReadHandler(s.Repos))
 
 	//APIS for users
-	r.POST("/users", s.AuthMiddleware, users.CreateHandler(s.Repos))
+	r.POST("/users", s.AuthMiddleware, users.GetOrCreateHandler(s.Repos))
 
 	//API for accounts
 	r.POST("/accounts", s.AuthMiddleware, accounts.CreateHandler(s.Repos))
