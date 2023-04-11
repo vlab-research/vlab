@@ -29,3 +29,9 @@ export interface FieldState extends FieldBase {
 export interface Field extends FieldState {
   Component: React.FunctionComponent<any>;
 }
+
+
+export interface DataEvent {
+  type: string; // can restrict to enum
+  value: any;
+}

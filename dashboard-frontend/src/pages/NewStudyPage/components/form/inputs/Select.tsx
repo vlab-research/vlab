@@ -3,7 +3,7 @@ import { createNameFor } from '../../../../../helpers/strings';
 const Select = ({ onChange, ...props }: any) => {
   const { id, name, label, options, value } = props;
 
-  const handleChange = (e: any) => onChange(e);
+  const handleChange = (e: any) => onChange({ type: e.type, value: e.value });
 
   interface SelectOption {
     name: string;

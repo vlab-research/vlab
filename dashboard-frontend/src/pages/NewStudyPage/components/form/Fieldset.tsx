@@ -1,4 +1,4 @@
-import { FieldState } from '../../../../types/form';
+import { FieldState, DataEvent } from '../../../../types/form';
 import { useState, useEffect } from 'react';
 import { reduceFieldStateToAnObject } from '../../../../helpers/arrays';
 
@@ -6,7 +6,7 @@ type Props = {
   controller: any;
   conf: any;
   localFormData: any;
-  handleChange: any;
+  handleChange: (e: DataEvent) => void;
   error_message: any;
 
 };
@@ -24,13 +24,13 @@ const Fieldset: React.FC<Props> = ({ handleChange, error_message, controller, co
   }, [conf, controller, localFormData]);
 
 
-  const onChange = (name: any, fieldType: any, e: any) => {
+  const onChange = (name: any, fieldType: any, e: DataEvent) => {
 
     const event = {
       name,
       fieldType,
       type: e.type,
-      value: fieldType === 'number' ? e.target.valueAsNumber : e.target.value,
+      value: e.value,
     };
 
     // controller creates state and creates "newLocalFormData"
@@ -42,7 +42,7 @@ const Fieldset: React.FC<Props> = ({ handleChange, error_message, controller, co
     setState(newState);
 
     // Send form data to form, that's all it cares about
-    handleChange(newLocalFormData)
+    handleChange({ type: 'change', value: newLocalFormData })
   }
 
   if (!state) return null

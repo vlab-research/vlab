@@ -3,7 +3,7 @@ import { classNames } from '../../../../../helpers/strings';
 const Text = ({ onChange, ...props }: any) => {
   const { id, name, label, helper_text, value, error } = props;
 
-  const handleChange = (e: any) => onChange(e);
+  const handleChange = (e: any) => onChange({ type: e.type, value: e.value });
 
   return (
     <div className="sm:my-4">
