@@ -1,48 +1,88 @@
-import { Field, FieldState } from '../../../../types/form';
+import { useEffect, useState } from 'react';
+import { reduceFieldStateToAnObject } from '../../../../helpers/arrays';
+import {
+  ConfBase,
+  DataEvent,
+  EventInterface,
+  FieldState,
+} from '../../../../types/form';
+import list from '../../../StudyConfPage/controllers/list';
+import select from '../../../StudyConfPage/controllers/select';
+import simple from '../../../StudyConfPage/controllers/simple';
 
-const Fieldset = (props: any) => {
-  const { fields, handleChange, error_message } = props;
+type Props = {
+  conf: ConfBase;
+  localFormData: any;
+  handleChange: (e: DataEvent) => void;
+  error: any;
+};
 
-  const mapComponentToFields = (fields: FieldState[]) => {
-    const newState: any[] = [];
+const Fieldset: React.FC<Props> = ({
+  conf,
+  localFormData,
+  handleChange,
+  error,
+}) => {
+  const [state, setState] = useState<FieldState[]>();
 
-    fields.forEach(field => {
-      if (field.component) {
-        const { component, ...props } = field;
+  const str: keyof ConfBase = 'type';
 
-        newState.push({
-          ...props,
-          Component: component,
-        });
-      }
-    });
+  const type = conf[str];
 
-    return newState;
+  const lookup: any = {
+    confObject: simple,
+    confSelect: select,
+    confList: list,
   };
 
-  const renderFields = (fields: Field[]) => {
-    return fields.map(field => {
-      const { Component, ...props } = field;
-      const { name, type } = props;
+  const controller = lookup[type];
 
-      const callback = (e: any) => {
-        handleChange(name, type, e);
-      };
+  if (!controller) {
+    throw new Error(`Could not find form for controller type: ${type}`);
+  }
 
-      return (
-        <Component
-          key={name}
-          onChange={callback}
-          error_message={error_message}
-          {...props}
-        />
-      );
-    });
+  useEffect(() => {
+    setState(controller(conf, localFormData));
+  }, [conf, controller, localFormData]);
+
+  const onChange = (name: string, fieldType: string, e: DataEvent) => {
+    const event: EventInterface = {
+      name,
+      fieldType,
+      type: e.type,
+      value: e.value,
+    };
+
+    // controller creates state and creates "newLocalFormData"
+    // const [newState, newLocalFormData] = controller(conf, localFormData, event, state);
+    const newState = controller(conf, localFormData, event, state);
+    const newLocalFormData = reduceFieldStateToAnObject(newState);
+
+    // state is a local concept, only the Fieldset needs to care about it
+    setState(newState);
+
+    // Send form data to form, that's all it cares about
+    handleChange({ type: 'change', value: newLocalFormData });
   };
 
-  const f = mapComponentToFields(fields);
+  if (!state) return null;
 
-  return fields && renderFields(f);
+  return (
+    <>
+      {state.map(f => {
+        const { component: Component, ...props } = f;
+
+        return (
+          <Component
+            key={f.name}
+            onChange={(e: any) => onChange(f.name, f.type, e)}
+            error={error}
+            {...props}
+          />
+        );
+      })}
+    </>
+  );
 };
 
 export default Fieldset;

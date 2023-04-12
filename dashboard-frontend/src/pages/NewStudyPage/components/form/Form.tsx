@@ -1,16 +1,19 @@
-import { useEffect, useState } from 'react';
-import { FieldState } from '../../../../types/form';
+import React, { useState } from 'react';
+import { ConfBase } from '../../../../types/form';
 import { createNameFor } from '../../../../helpers/strings';
 import useCreateStudy from '../../../../hooks/useCreateStudy';
 import Fieldset from './Fieldset';
-import { reduceFieldStateToAnObject } from '../../../../helpers/arrays';
 import PrimaryButton from '../../../../components/PrimaryButton';
 import useCreateStudyConf from '../../../../hooks/useCreateStudyConf';
 import { useParams } from 'react-router-dom';
 import { StudyConfResource } from '../../../../types/study';
 
-export const Form = (props: any) => {
-  const { conf, controller, data } = props;
+type Props = {
+  conf: ConfBase;
+  data?: any;
+};
+
+export const Form: React.FC<Props> = ({ conf, data }) => {
   const fetchedConfData = data?.data;
   const params = useParams<{ studySlug: string }>();
   const title = createNameFor(conf.title);
@@ -25,7 +28,6 @@ export const Form = (props: any) => {
     isLoadingOnCreateStudyConf,
   } = useCreateStudyConf();
 
-  const [fieldState, setFieldState] = useState<FieldState[]>();
   const [globalFormData, setFormGlobalFormData] = useState<
     StudyConfResource | any
   >({
@@ -34,26 +36,9 @@ export const Form = (props: any) => {
 
   const localFormData = fetchedConfData && fetchedConfData[title];
 
-  useEffect(() => {
-    setFieldState(controller(conf, localFormData));
-  }, [conf, controller, localFormData]);
-
-  const handleChange = (name: string, fieldType: string, e: any) => {
-    const event = {
-      name,
-      fieldType,
-      type: e.type,
-      value: fieldType === 'number' ? e.target.valueAsNumber : e.target.value,
-    };
-
-    const newState = controller(conf, localFormData, event, fieldState);
-
-    setFieldState(newState);
-
-    const formData = fieldState && reduceFieldStateToAnObject(fieldState);
-
+  const handleChange = (formData: any) => {
     const updateFormData = (x: any) => {
-      setFormGlobalFormData({ ...formData, [title]: x });
+      setFormGlobalFormData({ ...formData, [title]: x.value });
     };
 
     updateFormData(formData);
@@ -73,9 +58,7 @@ export const Form = (props: any) => {
       : createStudyConf({ data, slug });
   };
 
-  const errorMessage = isCreateStudyForm
-    ? errorOnCreateStudy
-    : errorOnCreateStudyConf;
+  const error = isCreateStudyForm ? errorOnCreateStudy : errorOnCreateStudyConf;
 
   const isLoading = isCreateStudyForm
     ? isLoadingOnCreateStudy
@@ -88,14 +71,13 @@ export const Form = (props: any) => {
       </div>
       <div className="mt-5 md:mt-0 md:col-span-2">
         <form onSubmit={handleSubmit}>
-          {fieldState && (
+          {
             <div className="px-4 py-3 bg-gray-50 sm:px-6">
               <Fieldset
-                fields={fieldState}
+                conf={conf}
                 localFormData={localFormData}
                 handleChange={handleChange}
-                error={errorMessage}
-                {...props}
+                error={error}
               ></Fieldset>
               <div className="p-6 text-right">
                 <PrimaryButton
@@ -107,7 +89,7 @@ export const Form = (props: any) => {
                 </PrimaryButton>
               </div>
             </div>
-          )}
+          }
         </form>
       </div>
     </div>

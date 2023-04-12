@@ -3,7 +3,8 @@ import { classNames } from '../../../../../helpers/strings';
 const Text = ({ onChange, ...props }: any) => {
   const { id, name, label, helper_text, value, error } = props;
 
-  const handleChange = (e: any) => onChange(e);
+  const eventHandler = (e: any) =>
+    onChange({ type: e.type, value: e.target.value });
 
   return (
     <div className="sm:my-4">
@@ -20,7 +21,7 @@ const Text = ({ onChange, ...props }: any) => {
           value={value}
           required
           placeholder={helper_text}
-          onChange={handleChange}
+          onChange={eventHandler}
           data-testid={`new-study-${id}-input`}
           className={classNames(
             'mt-1 block w-4/5 shadow-sm sm:text-sm rounded-md',

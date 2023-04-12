@@ -3,15 +3,19 @@ import Select from '../pages/NewStudyPage/components/form/inputs/Select';
 import { FieldBase } from '../types/form';
 import { createNameFor } from './strings';
 import { Conf } from '../types/conf';
-
-const str: keyof FieldBase = 'type';
+import Fieldset from '../pages/NewStudyPage/components/form/Fieldset';
+import SecondaryButton from '../components/SecondaryButton';
 
 export const translateField = (field: FieldBase, localFormData?: any) => {
   const lookup: any = {
     text: Text,
     number: Text,
     select: Select,
+    fieldset: Fieldset,
+    button: SecondaryButton,
   };
+
+  const str: keyof FieldBase = 'type';
 
   const type = field[str];
 
@@ -37,6 +41,7 @@ export const translateField = (field: FieldBase, localFormData?: any) => {
         : option
     ),
     value: localFormData ? localFormData[field.name] : getInitialValue(field),
+    conf: field.conf ?? field.conf,
   };
 };
 
@@ -52,6 +57,10 @@ export const getInitialValue = (obj: FieldBase) => {
         : createNameFor(obj.options && obj.options[0].title);
     case type === 'number':
       return 1;
+    case type === 'fieldset':
+      return [];
+    case type === 'button':
+      return '';
     default:
       console.log('Field type does not exist');
   }

@@ -1,10 +1,14 @@
-import { ConfBase, ConfSelectBase, FieldState } from '../../../types/form';
+import {
+  ConfBase,
+  ConfSelectBase,
+  EventInterface,
+  FieldState,
+} from '../../../types/form';
 import { translateConf } from '../../../helpers/translateConf';
 import {
   getFieldState,
   initialiseFieldState,
   updateFieldState,
-  Event,
 } from '../../../helpers/state';
 import { createNameFor } from '../../../helpers/strings';
 import { Conf } from '../../../types/conf';
@@ -13,7 +17,7 @@ import { getSelectedConf } from '../../../helpers/getSelectedConf';
 const recruitment = (
   conf: ConfSelectBase,
   localFormData?: Conf,
-  event?: Event,
+  event?: EventInterface,
   fieldState?: FieldState[]
 ) => {
   const getConf = (baseConf: ConfSelectBase, dynamicConf: any) => {
@@ -59,6 +63,8 @@ const recruitment = (
 
       return globalState && updateFieldState(globalState, event);
     }
+
+    return updateFieldState(fieldState, event);
   }
 
   if (localFormData && fieldState && event) {

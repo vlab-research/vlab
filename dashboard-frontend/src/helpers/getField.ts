@@ -1,7 +1,6 @@
-import { FieldState } from '../types/form';
-import { Event } from './state';
+import { FieldState, EventInterface } from '../types/form';
 
-export const getField = (fields: FieldState[], event: Event) => {
+export const getField = (fields: FieldState[], event: EventInterface) => {
   const index = fields.findIndex(
     (field: FieldState) => field.name === event.name
   );

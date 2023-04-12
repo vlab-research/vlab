@@ -1,16 +1,19 @@
 import {
   initialiseFieldState,
   updateFieldState,
-  Event,
   getFieldState,
 } from '../../../helpers/state';
-import { FieldState, ConfBase } from '../../../types/form';
+import {
+  FieldState,
+  ConfObjectBase,
+  EventInterface,
+} from '../../../types/form';
 import { Conf } from '../../../types/conf';
 
 const simple = (
-  conf: ConfBase,
+  conf: ConfObjectBase,
   localFormData?: Conf,
-  event?: Event,
+  event?: EventInterface,
   fieldState?: FieldState[]
 ) => {
   if (!localFormData && !fieldState && !event) {

@@ -23,7 +23,7 @@ export interface RecruitmentSimple {
   start_date: string;
 }
 
-export interface Destination {
+export interface RecruitmentDestination {
   ad_campaign_name_base: string;
   budget_per_arm: number;
   end_date: string;
@@ -31,10 +31,24 @@ export interface Destination {
   start_date: string;
 }
 
-export interface PipelineExperiment extends Destination {
+export interface PipelineExperiment extends RecruitmentDestination {
   arms: number;
   recruitment_days: number;
   offset_days: number;
 }
 
-export type Conf = CreateStudy | General | Recruitment;
+export interface Messenger {
+  initial_shortcode: string;
+  name: string;
+}
+
+export interface Web {
+  name: string;
+  url_template: string;
+}
+
+export type Destination = Messenger | Web;
+
+export type Destinations = Destination[];
+
+export type Conf = CreateStudy | General | Recruitment | Destinations;

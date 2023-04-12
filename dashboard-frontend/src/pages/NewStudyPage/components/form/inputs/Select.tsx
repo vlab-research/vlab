@@ -3,7 +3,8 @@ import { createNameFor } from '../../../../../helpers/strings';
 const Select = ({ onChange, ...props }: any) => {
   const { id, name, label, options, value } = props;
 
-  const handleChange = (e: any) => onChange(e);
+  const eventHandler = (e: any) =>
+    onChange({ type: e.type, value: e.target.value });
 
   interface SelectOption {
     name: string;
@@ -24,7 +25,7 @@ const Select = ({ onChange, ...props }: any) => {
           name={name}
           value={value && createNameFor(value)}
           required
-          onChange={handleChange}
+          onChange={eventHandler}
           data-testid={`new-study-select-input-${id}`}
           className="w-4/5 mt-1 block shadow-sm sm:text-sm rounded-md"
         >
