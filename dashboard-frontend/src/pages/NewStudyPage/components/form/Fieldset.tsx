@@ -1,11 +1,10 @@
 import { useEffect, useState } from 'react';
-import { reduceFieldStateToAnObject } from '../../../../helpers/arrays';
 import {
-  ConfBase,
-  DataEvent,
-  EventInterface,
-  FieldState,
-} from '../../../../types/form';
+  nestedState,
+  reduceFieldStateToAnObject,
+} from '../../../../helpers/arrays';
+import { ConfBase, FieldState } from '../../../../types/conf';
+import { DataEvent, EventInterface } from '../../../../types/form';
 import list from '../../../StudyConfPage/controllers/list';
 import select from '../../../StudyConfPage/controllers/select';
 import simple from '../../../StudyConfPage/controllers/simple';
@@ -23,7 +22,7 @@ const Fieldset: React.FC<Props> = ({
   handleChange,
   error,
 }) => {
-  const [state, setState] = useState<FieldState[]>();
+  const [state, setState] = useState<FieldState[] | any>();
 
   const str: keyof ConfBase = 'type';
 
@@ -50,7 +49,7 @@ const Fieldset: React.FC<Props> = ({
       name,
       fieldType,
       type: e.type,
-      value: e.value,
+      value: e.value ?? e.value,
     };
 
     // controller creates state and creates "newLocalFormData"
@@ -67,9 +66,26 @@ const Fieldset: React.FC<Props> = ({
 
   if (!state) return null;
 
+  if (nestedState(state)) {
+    state.map((s: FieldState[]) =>
+      s.map((f: FieldState) => {
+        const { component: Component, ...props } = f;
+
+        return (
+          <Component
+            key={f.name}
+            onChange={(e: any) => onChange(f.name, f.type, e)}
+            error={error}
+            {...props}
+          />
+        );
+      })
+    );
+  }
+
   return (
     <>
-      {state.map(f => {
+      {state.map((f: FieldState) => {
         const { component: Component, ...props } = f;
 
         return (

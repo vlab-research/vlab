@@ -3,16 +3,12 @@ import {
   updateFieldState,
   getFieldState,
 } from '../../../helpers/state';
-import {
-  FieldState,
-  ConfObjectBase,
-  EventInterface,
-} from '../../../types/form';
-import { Conf } from '../../../types/conf';
+import { ConfObjectBase, FieldState } from '../../../types/conf';
+import { EventInterface } from '../../../types/form';
 
 const simple = (
   conf: ConfObjectBase,
-  localFormData?: Conf,
+  localFormData?: FormData,
   event?: EventInterface,
   fieldState?: FieldState[]
 ) => {
@@ -25,11 +21,11 @@ const simple = (
   }
 
   if (!localFormData && fieldState && event) {
-    return updateFieldState(fieldState, event);
+    return updateFieldState(conf, fieldState, event);
   }
 
   if (localFormData && fieldState && event) {
-    return updateFieldState(fieldState, event);
+    return updateFieldState(conf, fieldState, event);
   }
 
   return;

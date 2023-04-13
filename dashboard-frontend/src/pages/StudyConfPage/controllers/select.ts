@@ -1,9 +1,4 @@
-import {
-  ConfBase,
-  ConfSelectBase,
-  EventInterface,
-  FieldState,
-} from '../../../types/form';
+import { EventInterface } from '../../../types/form';
 import { translateConf } from '../../../helpers/translateConf';
 import {
   getFieldState,
@@ -11,12 +6,12 @@ import {
   updateFieldState,
 } from '../../../helpers/state';
 import { createNameFor } from '../../../helpers/strings';
-import { Conf } from '../../../types/conf';
 import { getSelectedConf } from '../../../helpers/getSelectedConf';
+import { ConfSelectBase, FieldState, ConfBase } from '../../../types/conf';
 
-const recruitment = (
+const select = (
   conf: ConfSelectBase,
-  localFormData?: Conf,
+  localFormData?: FormData,
   event?: EventInterface,
   fieldState?: FieldState[]
 ) => {
@@ -61,10 +56,12 @@ const recruitment = (
 
       const globalState = initialiseFieldState(translatedConf);
 
-      return globalState && updateFieldState(globalState, event);
+      return (
+        globalState && updateFieldState(translatedConf, globalState, event)
+      );
     }
 
-    return updateFieldState(fieldState, event);
+    return updateFieldState(conf, fieldState, event);
   }
 
   if (localFormData && fieldState && event) {
@@ -79,11 +76,13 @@ const recruitment = (
 
       const globalState = initialiseFieldState(translatedConf);
 
-      return globalState && updateFieldState(globalState, event);
+      return (
+        globalState && updateFieldState(translatedConf, globalState, event)
+      );
     }
 
-    return updateFieldState(fieldState, event);
+    return updateFieldState(conf, fieldState, event);
   }
 };
 
-export default recruitment;
+export default select;

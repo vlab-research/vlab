@@ -1,7 +1,7 @@
 import PageLayout from '../../components/PageLayout';
-import { ConfBase } from '../../types/form';
 import Form from './components/form/Form';
 import { create_study } from './configs/create_study';
+import { ConfBase } from '../../types/conf';
 
 const NewStudyPage = () => (
   <PageLayout title={'New Study'} testId="new-study-page" showBackButton>

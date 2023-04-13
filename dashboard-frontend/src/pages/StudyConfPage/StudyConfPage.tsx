@@ -6,10 +6,10 @@ import Navbar from './components/NavBar';
 import ErrorPlaceholder from '../../components/ErrorPlaceholder';
 import useStudyConf from '../../hooks/useStudyConf';
 import useStudy from '../../hooks/useStudy';
-import { ConfBase, ConfListBase, ConfSelectBase } from '../../types/form';
 import { general } from './configs/general';
 import { recruitment } from './configs/recruitment/base';
 import { destinations } from './configs/destinations/base';
+import { ConfBase, ConfSelectBase, ConfListBase } from '../../types/conf';
 
 const StudyConfPage = () => {
   const params = useParams<{ studySlug: string }>();

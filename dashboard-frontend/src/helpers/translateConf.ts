@@ -1,4 +1,4 @@
-import { ConfBase, ConfSelectBase } from '../types/form';
+import { ConfSelectBase, ConfBase } from '../types/conf';
 
 export const translateConf = (
   conf: ConfSelectBase,

@@ -1,19 +1,19 @@
 import React, { useState } from 'react';
-import { ConfBase } from '../../../../types/form';
-import { createNameFor } from '../../../../helpers/strings';
-import useCreateStudy from '../../../../hooks/useCreateStudy';
+import { useParams } from 'react-router-dom';
 import Fieldset from './Fieldset';
 import PrimaryButton from '../../../../components/PrimaryButton';
+import { createNameFor } from '../../../../helpers/strings';
+import useCreateStudy from '../../../../hooks/useCreateStudy';
 import useCreateStudyConf from '../../../../hooks/useCreateStudyConf';
-import { useParams } from 'react-router-dom';
 import { StudyConfResource } from '../../../../types/study';
+import { ConfBase } from '../../../../types/conf';
 
 type Props = {
   conf: ConfBase;
   data?: any;
 };
 
-export const Form: React.FC<Props> = ({ conf, data }) => {
+const Form: React.FC<Props> = ({ conf, data }) => {
   const fetchedConfData = data?.data;
   const params = useParams<{ studySlug: string }>();
   const title = createNameFor(conf.title);

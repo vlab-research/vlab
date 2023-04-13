@@ -20,7 +20,7 @@ const SecondaryButton = ({
   rounded?: boolean;
   icon?: keyof typeof icons;
   loading?: boolean;
-  onClick?: () => void;
+  onClick?: any;
 }) => {
   const classNamePerSize = {
     100: 'inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md shadow-sm text-white bg-gray-500 hover:bg-gray-600 focus:outline-none',

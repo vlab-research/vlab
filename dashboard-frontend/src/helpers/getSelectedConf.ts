@@ -1,4 +1,4 @@
-export const getSelectedConf = (conf: any, localFormData: any | any[]) => {
+export const getSelectedConf = (conf: any, localFormData: any) => {
   const formDataKeys = Object.keys(localFormData);
 
   const getFieldKeys = (conf: any) => {

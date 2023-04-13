@@ -1,10 +1,9 @@
 import Text from '../pages/NewStudyPage/components/form/inputs/Text';
 import Select from '../pages/NewStudyPage/components/form/inputs/Select';
-import { FieldBase } from '../types/form';
-import { createNameFor } from './strings';
-import { Conf } from '../types/conf';
 import Fieldset from '../pages/NewStudyPage/components/form/Fieldset';
-import SecondaryButton from '../components/SecondaryButton';
+import Button from '../pages/NewStudyPage/components/form/inputs/Button';
+import { ConfBase, FieldBase } from '../types/conf';
+import { createNameFor } from './strings';
 
 export const translateField = (field: FieldBase, localFormData?: any) => {
   const lookup: any = {
@@ -12,7 +11,7 @@ export const translateField = (field: FieldBase, localFormData?: any) => {
     number: Text,
     select: Select,
     fieldset: Fieldset,
-    button: SecondaryButton,
+    button: Button,
   };
 
   const str: keyof FieldBase = 'type';
@@ -32,7 +31,7 @@ export const translateField = (field: FieldBase, localFormData?: any) => {
     component: component,
     label: field.label,
     helper_text: field.helper_text ?? field.helper_text,
-    options: field.options?.map((option: Conf | any) =>
+    options: field.options?.map((option: ConfBase | any) =>
       option.title
         ? {
             name: createNameFor(option.title),

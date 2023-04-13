@@ -37,6 +37,7 @@ describe('select controller', () => {
       name: `ad_campaign_name`,
       value: 'foo',
       type: 'change',
+      fieldType: 'text',
     };
 
     const newValue = event.value;

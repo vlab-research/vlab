@@ -6,3 +6,7 @@ export const reduceFieldStateToAnObject = (arr: any[]) => {
     {}
   );
 };
+
+export const nestedState = (arr: any[]) => {
+  return arr.every(item => Array.isArray(item));
+};

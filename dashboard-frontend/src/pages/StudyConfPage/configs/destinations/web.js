@@ -1,5 +1,5 @@
 export const web = {
-  type: 'configObject',
+  type: 'confObject',
   title: 'Web',
   description: 'Web...',
   key: 'name',

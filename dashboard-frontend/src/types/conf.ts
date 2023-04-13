@@ -1,54 +1,48 @@
-export interface CreateStudy {
+export interface ConfObjectBase extends Record<string, any> {
+  title: string;
+  type: string;
+  description: string;
+  fields: FieldBase[];
+}
+
+export interface ConfSelectBase extends Record<string, any> {
+  title: string;
+  type: string;
+  description: string;
+  selector: Selector;
+}
+
+export interface ConfListBase extends Record<string, any> {
+  title: string;
+  type: string;
+  description: string;
+  fields: FieldBase[];
+}
+
+export interface Selector {
   name: string;
+  type: string;
+  label: string;
+  options: any[];
 }
 
-export interface General {
-  objective: string;
-  optimization_goal: string;
-  destination_type: string;
-  page_id: string;
-  min_budget: number;
-  opt_window: number;
-  instagram_id: string;
-  ad_account: string;
-}
-
-export type Recruitment = RecruitmentSimple | Destination | PipelineExperiment;
-
-export interface RecruitmentSimple {
-  ad_campaign_name: string;
-  budget: number;
-  end_date: string;
-  max_sample: number;
-  start_date: string;
-}
-
-export interface RecruitmentDestination {
-  ad_campaign_name_base: string;
-  budget_per_arm: number;
-  end_date: string;
-  max_sample_per_arm: number;
-  start_date: string;
-}
-
-export interface PipelineExperiment extends RecruitmentDestination {
-  arms: number;
-  recruitment_days: number;
-  offset_days: number;
-}
-
-export interface Messenger {
-  initial_shortcode: string;
+export interface FieldBase {
   name: string;
+  type: string;
+  label: string;
+  helper_text?: string;
+  options?: any[];
+  conf?: any;
 }
 
-export interface Web {
-  name: string;
-  url_template: string;
+export interface FieldState extends FieldBase {
+  id: string;
+  component: any;
+  value: any;
 }
 
-export type Destination = Messenger | Web;
+export interface Field extends FieldState {
+  Component: React.FunctionComponent<any>;
+}
 
-export type Destinations = Destination[];
-
-export type Conf = CreateStudy | General | Recruitment | Destinations;
+export type ConfBase = ConfObjectBase | ConfSelectBase | ConfListBase;

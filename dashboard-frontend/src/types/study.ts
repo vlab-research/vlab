@@ -1,5 +1,5 @@
 import { ApiResponse, PaginatedApiResponse } from './api';
-import { General } from './conf';
+import { Destination, General, Recruitment } from './form';
 
 export interface StudiesApiResponse
   extends PaginatedApiResponse<StudyResource[]> {}
@@ -13,7 +13,10 @@ export interface CreateStudyApiResponse extends ApiResponse<StudyResource> {}
 export interface CreateStudyConfApiResponse
   extends ApiResponse<StudyConfResource> {}
 
-export type StudyConfResource = Record<string, General>;
+export type StudyConfResource = Record<
+  string,
+  General | Recruitment | Destination
+>;
 
 export interface StudyResource {
   id: string;
