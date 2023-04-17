@@ -19,6 +19,7 @@ export const makeServer = ({ environment = 'development' } = {}) => {
 
     models: {
       study: Model,
+      studyconf: Model,
       studyProgress: Model,
       segmentProgress: Model,
       account: Model,
@@ -116,6 +117,30 @@ export const makeServer = ({ environment = 'development' } = {}) => {
       ];
 
       connectedAccounts.map(account => createAccountResource(server, account));
+
+      const studyconf = {
+        general: {
+          name: 'most-used-programming-language-for-api-development',
+          objective: 'MESSAGES',
+          optimization_goal: 'REPLIES',
+          destination_type: 'MESSENGER',
+          page_id: '1234567898765432',
+          min_budget: 1.5,
+          opt_window: 48,
+          instagram_id: '123456789',
+          ad_account: '123456789',
+        },
+        targeting: null,
+        targeting_distribution: null,
+        recruitment: {
+          end_date: '2022-08-05T00:00:00',
+          start_date: '2022-07-26T00:00:00',
+          ad_campaign_name: 'vlab-most-used-prog-1',
+          budget: 10000,
+          max_sample: 1000,
+        },
+      };
+      createStudyConf(server, studyconf);
     },
 
     routes() {
@@ -180,6 +205,18 @@ export const makeServer = ({ environment = 'development' } = {}) => {
 
         return {
           data: study,
+        };
+      });
+
+      this.get('/studies/:slug/conf', ({ db }, request) => {
+        if (!isAuthenticatedRequest(request)) {
+          return unauthorizedResponse;
+        }
+
+        const studyconf = (db.studyconfs as any);
+
+        return {
+          data: studyconf[0],
         };
       });
 
@@ -323,8 +360,6 @@ export const makeServer = ({ environment = 'development' } = {}) => {
           data: account,
         };
       });
-
-      this.passthrough(`https://${process.env.REACT_APP_AUTH0_DOMAIN}/**`);
     },
   });
 
@@ -340,6 +375,15 @@ export const createStudyResources = (
       createdAt: 1604530800000,
     })
   );
+
+export const createStudyConf = (
+  server: InstanceType<typeof Server>,
+  studyconf: any
+) => {
+  server.create('studyconf', {
+    ...studyconf,
+  });
+};
 
 export const createStudyResource = (
   server: InstanceType<typeof Server>,
@@ -417,7 +461,7 @@ export const createAccountResource = (
 };
 
 const isAuthenticatedRequest = (request: Request) =>
-  (request.requestHeaders.authorization || '').slice(7) !== '';
+  (request.requestHeaders.Authorization || '').slice(7) !== '';
 
 const unauthorizedResponse = new Response(
   401,
