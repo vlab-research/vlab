@@ -77,6 +77,7 @@ func (s *Server) GetRouter() {
 	//API for accounts
 	r.POST("/accounts", s.AuthMiddleware, accounts.CreateHandler(s.Repos))
 	r.GET("/accounts", s.AuthMiddleware, accounts.ListHandler(s.Repos))
+	r.DELETE("/accounts", s.AuthMiddleware, accounts.DeleteHandler(s.Repos))
 
 	//API for facebook connections
 	r.POST("/facebook/token", s.AuthMiddleware, facebook.GenerateToken(s.FacebookApp, s.Repos))
