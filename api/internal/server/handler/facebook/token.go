@@ -35,7 +35,7 @@ func GenerateToken(a *fb.App, r storage.Repositories) gin.HandlerFunc {
 		}
 		a := types.Account{
 			UserID:   auth.GetUserIdFrom(ctx),
-			AuthType: "bearer",
+			AuthType: "facebook app connection",
 			Name:     "facebook",
 			ConnectedAccount: &types.FacebookConnectedAccount{
 				Credentials: types.FacebookCredentials{

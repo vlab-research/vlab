@@ -2,7 +2,7 @@ import React, { Fragment, useState } from 'react';
 import { Dialog, Transition, Listbox } from '@headlessui/react';
 import PrimaryButton from '../../components/PrimaryButton';
 import SecondaryButton from '../../components/SecondaryButton';
-
+import { InfoBanner } from '../../components/InfoBanner';
 import { Account } from '../../types/account';
 import { CheckIcon } from '@heroicons/react/solid';
 import { ChevronDownIcon } from '@heroicons/react/solid';
@@ -34,6 +34,15 @@ const accountTypes = [
       api_token_secret: '',
     },
   },
+  {
+    name: 'Facebook',
+    type: 'facebook',
+    credentials: {
+      access_token: '',
+      expires_in: 0,
+      token_type: 'bearer',
+    },
+  },
 ];
 
 type createAccountModalProps = {
@@ -55,7 +64,7 @@ const CreateAccountModal: React.FC<createAccountModalProps> = ({
       name: selected.type,
       authType: e.target.identifier.value,
       connectedAccount: {
-        createdAt: Date.now(),
+        createdAt: 0,
         credentials: selected.credentials,
       },
     };
@@ -134,33 +143,34 @@ const AccountForm: React.FC<accountFormProps> = ({
   return (
     <form onSubmit={handleSubmit} className="col-span-3">
       <div className="bg-white px-4 pb-4 pt-5 sm:p-6 sm:pb-4">
-        <div className="flex flex-col mb-4">
-          <label className="block mb-2 text-sm font-medium text-gray-900 dark:text-gray-300">
-            Name
-          </label>
-          <input
-            id="name"
-            name="identifier"
-            data-testid="account-name"
-            type="text"
-            className="block w-full rounded-md border-0 py-1.5 pl-7 pr-20 text-gray-900 ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
-            placeholder="Give your connected account a name"
-          />
-        </div>
+        {selected.type !== 'facebook' && (
+          <div className="flex flex-col mb-4">
+            <label className="block mb-2 text-sm font-medium text-gray-900 dark:text-gray-300">
+              Name
+            </label>
+            <input
+              id="name"
+              name="identifier"
+              data-testid="account-name"
+              type="text"
+              className="block w-full rounded-md border-0 py-1.5 pl-7 pr-20 text-gray-900 ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
+              placeholder="Give your connected account a name"
+            />
+          </div>
+        )}
         <div className="flex flex-col mb-4"></div>
         <AccountListBox
           selected={selected}
           setSelected={setSelected}
           open={open}
         />
+        {selected.type === 'facebook' && (
+          <div className="mt-3">
+            <InfoBanner message="Please note this will note be functional until Facebook approves our application" />
+          </div>
+        )}
         <div className="bg-gray-50 px-4 py-3 sm:flex sm:flex-row-reverse sm:px-6">
-          <PrimaryButton
-            leftIcon="PlusIcon"
-            type="submit"
-            testId="add-account-modal"
-          >
-            Add
-          </PrimaryButton>
+          <CreateButton accountType={selected.type} />
           &nbsp;&nbsp;&nbsp;
           <SecondaryButton onClick={() => setOpen(false)}>
             cancel
@@ -259,6 +269,38 @@ const AccountListBoxOptions: React.FC<accountListBoxOptionsProps> = ({
         </Listbox.Option>
       ))}
     </Listbox.Options>
+  );
+};
+
+type createButtonProps = {
+  accountType: string;
+};
+
+const CreateButton: React.FC<createButtonProps> = ({ accountType }) => {
+  const facebookHandler = () => {
+    const clientID = process.env.REACT_APP_FACEBOOK_CLIENT_ID;
+    const scopes = `ads_management,ads_read`;
+    const redirect = `${window.location.href}?type=facebook`;
+    const fb = `https://www.facebook.com/v16.0/dialog/oauth`;
+    const params = `client_id=${clientID}&scope=${scopes}&redirect_uri=${redirect}`;
+    window.location.replace(`${fb}?${params}`);
+  };
+
+  if (accountType === 'facebook') {
+    return (
+      <PrimaryButton
+        leftIcon="PlusIcon"
+        testId="add-account-modal"
+        onClick={facebookHandler}
+      >
+        Connect
+      </PrimaryButton>
+    );
+  }
+  return (
+    <PrimaryButton leftIcon="PlusIcon" type="submit" testId="add-account-modal">
+      Add
+    </PrimaryButton>
   );
 };
 
