@@ -13,7 +13,11 @@ const AcccountsPage: React.FC<any> = () => {
   return (
     <PageLayout
       title={'Connected Accounts'}
-      topRightElements={<NewAccountButton open={open} setOpen={setOpen} />}
+      topRightElements={<NewAccountButton 
+                          open={open} 
+                          setOpen={setOpen} 
+                          testId="new-account-button" 
+                        />}
     >
       <PageContent open={open} setOpen={setOpen} />
     </PageLayout>
@@ -45,7 +49,7 @@ const PageContent: React.FC<pageContentProps> = ({ open, setOpen }) => {
   const { query, queryKey, accounts, errorMessage } = useAccounts();
 
   if (query.isLoading) {
-    return <AccountListSkeleton numberItems={accounts.length} />;
+    return <AccountListSkeleton number={accounts.length} />;
   }
 
   if (query.isError) {
@@ -80,7 +84,7 @@ type newAccountButtonProps = {
 };
 
 // Component to open modal to create a new connected account
-const NewAccountButton: React.FC<newAccountButtonsProps> = ({
+const NewAccountButton: React.FC<newAccountButtonProps> = ({
   testId,
   open,
   setOpen,
