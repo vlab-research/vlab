@@ -18,8 +18,9 @@ const InputAccountCredentials: React.FC<inputAccountCredentials> = ({
   credentials,
 }) => (
   <React.Fragment>
-    <NameInput name={entity} index={index} />
+    <NameInput name={entity} index={index}  error={error}/>
     <CredentialsInputList
+      index={index}
       credentials={credentials}
       error={error}
       handleCredentialChange={handleCredentialChange}
@@ -76,6 +77,7 @@ const CredentialsInputList: React.FC<credentialsInputListProp> = ({
       {Object.keys(credentials).map(key => (
         <CredentialsInput
           key={`${key}-${index}`}
+          index={index}
           name={key}
           value={credentials[key]}
           error={error}
