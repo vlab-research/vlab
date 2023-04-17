@@ -13,6 +13,7 @@ import querystring from 'querystring';
 import { Cursor } from '../types/api';
 import {
   AccountsApiResponse,
+  AccountApiResponse,
   ConnectedAccount,
   CreateAccountApiResponse,
 } from '../types/account';
@@ -83,6 +84,21 @@ const createUser = ({ accessToken }: { accessToken: string }) => {
     accessToken,
     method: 'POST',
     expectedStatusCodes: [userCreatedStatusCode, userAlreadyExistsStatusCode],
+  });
+};
+
+const generateFacebookAccount = ({
+  accessToken,
+  code,
+}: {
+  accessToken: string;
+  code: string;
+}) => {
+  return apiRequest<AccountApiResponse>('/facebook/token', {
+    accessToken,
+    method: 'POST',
+    expectedStatusCodes: [201],
+    body: { code },
   });
 };
 
@@ -253,4 +269,5 @@ export const authenticatedApiCalls = {
   fetchAccounts,
   createAccount,
   deleteAccount,
+  generateFacebookAccount,
 };

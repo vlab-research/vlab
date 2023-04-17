@@ -1,12 +1,14 @@
 import ErrorPlaceholder from '../../components/ErrorPlaceholder';
 import PageLayout from '../../components/PageLayout';
 import { queryCache } from 'react-query';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import AccountList, { AccountListSkeleton } from './AccountList';
 import { Account } from '../../types/account';
 import CreateAccountModal from './AccountCreateModal';
 import PrimaryButton from '../../components/PrimaryButton';
 import useAccounts from './useAccounts';
+import useGenerateFacebookAccount from './generateFacebookAccount';
+import { useLocation } from 'react-router-dom';
 
 const AcccountsPage: React.FC<any> = () => {
   const [open, setOpen] = useState(false);
@@ -32,6 +34,17 @@ type pageContentProps = {
 };
 
 const PageContent: React.FC<pageContentProps> = ({ open, setOpen }) => {
+  const { search } = useLocation();
+  const { generateFacebookAccount } = useGenerateFacebookAccount();
+
+  useEffect(() => {
+    const values = new URLSearchParams(search.substring(search.indexOf('?')));
+    if (values.get('type') === 'facebook' && values.get('code')) {
+      // generate facebook account
+      generateFacebookAccount({ code: values.get('code') });
+    }
+  }, [generateFacebookAccount, search]);
+
   // createAccounts is used to hold a list of accounts that has not been
   // added to the database, but instead is in an "intermediary" phase
   const [createAccounts, setCreateAccounts] = useState<Account[]>([]);

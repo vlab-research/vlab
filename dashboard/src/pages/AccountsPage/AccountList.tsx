@@ -1,10 +1,6 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Account } from '../../types/account';
-import PrimaryButton from '../../components/PrimaryButton';
-import DeleteButton from '../../components/DeleteButton';
 import InputAccountCredentials from './InputAccountCredentials';
-import useCreateAccount from './useCreateAccount';
-import useDeleteAccount from './useDeleteAccount';
 
 type accountListProps = {
   accounts: Account[];
@@ -43,46 +39,6 @@ const AccountListItem: React.FC<accountListItemProps> = ({
   credentials,
   clearCreateAccounts,
 }) => {
-  const { isCreating, errorOnCreate, createAccount } = useCreateAccount();
-  const { isDeleting, deleteAccount } = useDeleteAccount();
-  const [credential, setCredential] = useState(credentials);
-  // used to handle the state of the credentials attached
-  // to the account
-  function handleCredentialChange(e: any): void {
-    setCredential({
-      ...credential,
-      [e.target.name]: e.target.value,
-    });
-  }
-
-  const validateCredentials = JSON.parse(
-    JSON.stringify(credential),
-    (key, value) => value ?? value
-  );
-
-  const handleSubmitForm = (e: any): void => {
-    e.preventDefault();
-
-    clearCreateAccounts();
-    if (e.nativeEvent.submitter.name === 'delete') {
-      deleteAccount({
-        name: account.name,
-        authType: account.authType,
-      });
-    } else {
-      // We only ever create accounts as the endpoint is
-      // idempotent
-      createAccount({
-        name: account.name,
-        authType: account.authType,
-        connectedAccount: {
-          createdAt: Date.now(),
-          credentials: validateCredentials,
-        },
-      });
-    }
-  };
-
   return (
     <li data-testid="account-list-item">
       <div className="px-4 py-4 sm:px-6 py-6">
@@ -90,25 +46,11 @@ const AccountListItem: React.FC<accountListItemProps> = ({
           <h2 className="mb-4 text-sm font-medium text-indigo-600 truncate sm:mb-0 sm:col-span-1">
             {account.name}
           </h2>
-          <form onSubmit={handleSubmitForm} className="col-span-3">
-            <InputAccountCredentials
-              error={errorOnCreate}
-              handleCredentialChange={handleCredentialChange}
-              index={index}
-              entity={account.authType}
-              credentials={credential}
-            />
-            <div className="bg-gray-50 px-4 py-3 sm:flex sm:flex-row-reverse sm:px-6">
-              <DeleteButton type="submit" loading={isDeleting} />
-              <PrimaryButton
-                type="submit"
-                testId={`existing-account-submit-button-${index}`}
-                loading={isCreating}
-              >
-                {account.connectedAccount ? 'Update' : 'Connect'}
-              </PrimaryButton>
-            </div>
-          </form>
+          <InputAccountCredentials
+            clearCreateAccounts={clearCreateAccounts}
+            index={index}
+            account={account}
+          />
         </div>
       </div>
     </li>
