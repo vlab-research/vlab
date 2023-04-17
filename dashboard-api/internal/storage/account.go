@@ -73,7 +73,7 @@ func (r *AccountRepository) Delete(
 		AND entity = $2 
 		AND key = $3
 		`
-	_, err := r.db.ExecContext(
+	rows, err := r.db.ExecContext(
 		ctx,
 		q,
 		a.UserID,
@@ -85,7 +85,13 @@ func (r *AccountRepository) Delete(
 		return errors.New("failed to delete credential")
 	}
 
-	return nil
+	rowsAffected, err := rows.RowsAffected()
+
+	if rowsAffected == 0 {
+		return types.ErrAccountDoesNotExists
+	}
+
+	return err
 }
 
 func handleCreateError(e error, a types.Account) error {

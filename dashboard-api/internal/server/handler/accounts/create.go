@@ -41,7 +41,7 @@ func CreateHandler(r storage.Repositories) gin.HandlerFunc {
 		// We first delete the old credentials
 		// due to the problem of duplicating credential keys
 		err = r.Account.Delete(ctx, a)
-		if err != nil {
+		if err != nil && err != types.ErrAccountDoesNotExists {
 			ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
 		}
