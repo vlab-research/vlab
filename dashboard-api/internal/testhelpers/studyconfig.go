@@ -96,6 +96,33 @@ func NewStudyConf(opts ...studyconfigoptions) types.StudyConf {
 				WelcomeMessage: "welcome",
 			},
 		},
+		Strata: []*types.StratumConf{
+			{
+				ID:                "foobar",
+				Quota:             1.0,
+				Audiences:         []string{"foobar"},
+				Creatives:         []string{"foobar"},
+				ExcludedAudiences: []string{"bazqux"},
+				FacebookTargeting: &types.FacebookTargeting{
+					"age_max": float64(65),
+					"age_min": float64(40),
+					"genders": []interface{}{float64(2)},
+					"geo_locations": map[string]interface{}{
+						"countries":      []interface{}{"US"},
+						"location_types": []interface{}{"home"},
+					},
+				},
+				Metadata: &types.Metadata{
+					"stratum_age":      "40",
+					"stratum_gender":   "2",
+					"stratum_location": "US",
+				},
+				QuestionTargeting: &types.QuestionTargeting{
+					"op":   "not_equal",
+					"vars": vars,
+				},
+			},
+		},
 		Audiences: []*types.AudienceConf{
 			{
 				Name:    "Foobar",

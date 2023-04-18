@@ -142,4 +142,45 @@ VALUES
         "subtype": "LOOKALIKE"
       }
     ]'
+  ),
+  (
+    'a5601576-08d9-486b-adc9-9b981b7f103b',
+    '2023-03-21 13:13:21.132',
+    'strata',
+    '[
+      {
+        "id":"foobar",
+        "quota":1,
+        "audiences":["foobar"],
+        "excluded_audiences":["bazqux"],
+        "creatives":["foobar"],
+        "facebook_targeting":{
+          "age_max":65,
+          "age_min":40,
+          "genders":[2],
+          "geo_locations":{
+            "countries":["US"],
+            "location_types":["home"]
+          }
+        },
+        "question_targeting":{
+          "op":"not_equal",
+          "vars":[
+            {
+              "type":"variable",
+              "value":"hcw"
+            },
+            {
+              "type":"constant",
+              "value":"E"
+            }
+          ]
+        },
+        "metadata":{
+          "stratum_age":"40",
+          "stratum_gender":"2",
+          "stratum_location":"US"
+        }
+      }
+    ]'
   );
