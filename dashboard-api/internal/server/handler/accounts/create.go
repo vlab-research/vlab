@@ -24,7 +24,7 @@ type createResponse struct {
 
 // CreateHandler is a gin handler that is used to create
 // a new account object in the database
-func CreateHandler(repositories storage.Repositories) gin.HandlerFunc {
+func CreateHandler(r storage.Repositories) gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		b, err := ioutil.ReadAll(ctx.Request.Body)
 		if err != nil {
@@ -38,7 +38,14 @@ func CreateHandler(repositories storage.Repositories) gin.HandlerFunc {
 		}
 		uid := auth.GetUserIdFrom(ctx)
 		a.UserID = uid
-		err = repositories.Account.Create(ctx, a)
+		// We first delete the old credentials
+		// due to the problem of duplicating credential keys
+		err = r.Account.Delete(ctx, a)
+		if err != nil {
+			ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+		err = r.Account.Create(ctx, a)
 		if err != nil {
 			ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return

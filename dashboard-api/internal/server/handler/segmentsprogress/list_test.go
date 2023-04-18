@@ -77,7 +77,7 @@ func TestHandler_List(t *testing.T) {
 func getStudySegmentRequest(t *testing.T, slug string) testhelpers.Response {
 	t.Helper()
 	r := testhelpers.GetRepositories()
-	r.User.CreateUser(context.TODO(), testhelpers.CurrentUserId)
+	r.User.Create(context.TODO(), testhelpers.CurrentUserId)
 	return testhelpers.PerformGetRequest(
 		fmt.Sprintf("/studies/%s/segments-progress", slug),
 		testhelpers.GetRepositories(),

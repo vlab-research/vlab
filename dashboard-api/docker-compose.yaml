@@ -22,7 +22,7 @@ services:
     image: cockroachdb/cockroach:v21.2.3
     entrypoint: cockroach start-single-node --insecure --advertise-addr localhost
     ports:
-      - "26257:26257"
+      - "5432:26257"
     networks:
       - dashboard-api
   migrations:

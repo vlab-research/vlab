@@ -25,7 +25,7 @@ func TestHandler_Account_Create(t *testing.T) {
 		{
 			account: types.Account{
 				UserID:   userId,
-				Name:     "Fly",
+				Name:     "fly",
 				AuthType: authType,
 				RawConnectedAccount: []byte(`
 					{
@@ -37,7 +37,7 @@ func TestHandler_Account_Create(t *testing.T) {
 					`),
 			},
 			expectedStatus: 201,
-			expectedRes:    `{"data":{"userId":"auth0|61916c1dab79c900713936de","authType":"token","name":"Fly","connectedAccount":{"createdAt":null,"credentials":{"api_key":"supersecret"}}}}`,
+			expectedRes:    `{"data":{"userId":"auth0|61916c1dab79c900713936de","authType":"token","name":"fly","connectedAccount":{"createdAt":null,"credentials":{"api_key":"supersecret"}}}}`,
 			description:    "return 200 for valid fly account",
 		},
 		{
@@ -46,7 +46,7 @@ func TestHandler_Account_Create(t *testing.T) {
 			description:    "return 400 for invalid fly account",
 			account: types.Account{
 				UserID: userId,
-				Name:   "Fly",
+				Name:   "fly",
 				RawConnectedAccount: []byte(`
 					{
 						"createdAt": null,
@@ -76,11 +76,11 @@ func TestHandler_Account_Create(t *testing.T) {
 		},
 		{
 			expectedStatus: 201,
-			expectedRes:    `{"data":{"userId":"auth0|61916c1dab79c900713936de","authType":"token","name":"Typeform","connectedAccount":{"createdAt":null,"credentials":{"key":"supersecret"}}}}`,
+			expectedRes:    `{"data":{"userId":"auth0|61916c1dab79c900713936de","authType":"token","name":"typeform","connectedAccount":{"createdAt":null,"credentials":{"key":"supersecret"}}}}`,
 			description:    "return 201 for valid typeform account",
 			account: types.Account{
 				UserID:   userId,
-				Name:     "Typeform",
+				Name:     "typeform",
 				AuthType: authType,
 				RawConnectedAccount: []byte(`
 					{
@@ -109,9 +109,10 @@ func TestHandler_Account_Create(t *testing.T) {
 func createAccountRequest(t *testing.T, a interface{}) testhelpers.Response {
 	t.Helper()
 	r := testhelpers.GetRepositories()
-	r.User.CreateUser(context.TODO(), testhelpers.CurrentUserId)
+	r.User.Create(context.TODO(), testhelpers.CurrentUserId)
 	return testhelpers.PerformPostRequest(
 		"/accounts",
+		testhelpers.CurrentUserId,
 		storage.Repositories{
 			Account: testhelpers.GetRepositories().Account,
 		},

@@ -16,22 +16,3 @@
 // Import commands.js using ES2015 syntax:
 import './commands';
 
-Cypress.on('window:before:load', (window: any) => {
-  window.handleFromCypress = async (
-    request: import('miragejs').Request & { method: string }
-  ) => {
-    const response = await fetch(request.url, {
-      method: request.method,
-      headers: request.requestHeaders,
-      body: request.requestBody,
-    });
-
-    const responseBody = await response.json();
-
-    return {
-      status: response.status,
-      headers: response.headers,
-      body: responseBody,
-    };
-  };
-});

@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"time"
 
 	flytypes "github.com/vlab-research/vlab/inference/sources/fly/types"
 )
@@ -14,8 +13,8 @@ type AccountType string
 // We currently Only Support a Limited amount of Accounts
 // Through the API
 const (
-	TypeformAccount AccountType = "Typeform"
-	FlyAccount      AccountType = "Fly"
+	TypeformAccount AccountType = "typeform"
+	FlyAccount      AccountType = "fly"
 )
 
 type AccountRepository interface {
@@ -56,7 +55,7 @@ func (a *Account) SetRawConnectedAccount() error {
 }
 
 type FlyConnectedAccount struct {
-	CreatedAt   time.Time               `json:"createdAt"`
+	CreatedAt   int                     `json:"createdAt"`
 	Credentials flytypes.FlyCredentials `json:"credentials" validate:"required"`
 }
 
@@ -71,7 +70,7 @@ func (f FlyConnectedAccount) MarshalCredentials() (string, error) {
 }
 
 type TypeformConnectedAccount struct {
-	CreatedAt   time.Time           `json:"createdAt"`
+	CreatedAt   int                 `json:"createdAt"`
 	Credentials TypeformCredentials `json:"credentials" validate:"required"`
 }
 
@@ -91,7 +90,7 @@ func (t TypeformConnectedAccount) MarshalCredentials() (string, error) {
 
 // FacebookConnectedAccount is used to connect Vlabs to a facebook ad account
 type FacebookConnectedAccount struct {
-	CreatedAt   time.Time           `json:"createdAt"`
+	CreatedAt   int                 `json:"createdAt"`
 	Credentials FacebookCredentials `json:"credentials" validate:"required"`
 }
 

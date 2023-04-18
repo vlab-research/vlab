@@ -4,16 +4,16 @@ VALUES
   (
     'auth0|6412f8baa95e852045477d6e',
     'typeform',
-    'token',
+    'Foo Bar TypeForm',
     '{
-        "api_key": "supersecret"
+        "key": "supersecret"
     }'
   ),
   (
     'auth0|6412f8baa95e852045477d6e',
     'fly',
-    'token',
+    'Fly Credentials',
     '{
-        "key": "supersecret"
+        "api_key": "supersecret"
     }'
   );

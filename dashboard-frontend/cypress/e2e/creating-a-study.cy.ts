@@ -1,18 +1,9 @@
-import { makeServer } from '../../src/server';
-
 describe('Given an authenticated user', () => {
-  let server: ReturnType<typeof makeServer>;
-
   beforeEach(() => {
     cy.loginToAuth0(
       Cypress.env('auth0_username'),
       Cypress.env('auth0_password')
-    )
-    server = makeServer({ environment: 'test' });
-  });
-
-  afterEach(() => {
-    server.shutdown();
+    );
   });
 
   describe('When he visits New Study page and creates a Study successfully', () => {
@@ -21,9 +12,9 @@ describe('Given an authenticated user', () => {
       cy.visit('/new-study');
 
       cy.get('[data-testid="new-study-name-input"]').type(newStudyName);
-      cy.get('[data-testid="new-study-submit-button"]').click();
+      cy.get('[data-testid="form-submit-button"]').click();
 
-      cy.url().should('eq', `${Cypress.config().baseUrl}/`);
+      cy.url().should('eq', `${Cypress.config().baseUrl}/studies`);
       cy.contains(newStudyName);
     });
   });
@@ -34,7 +25,7 @@ describe('Given an authenticated user', () => {
 
       cy.get('[data-testid="back-button"]').click();
 
-      cy.url().should('eq', `${Cypress.config().baseUrl}/`);
+      cy.url().should('eq', `${Cypress.config().baseUrl}/studies`);
     });
   });
 });

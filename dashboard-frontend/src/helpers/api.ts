@@ -11,6 +11,11 @@ import {
 } from '../types/study';
 import querystring from 'querystring';
 import { Cursor } from '../types/api';
+import {
+  AccountsApiResponse,
+  ConnectedAccount,
+  CreateAccountApiResponse,
+} from '../types/account';
 
 /**
  * TODO:
@@ -72,7 +77,7 @@ const fetchStudySegmentsProgress = ({
 
 const createUser = ({ accessToken }: { accessToken: string }) => {
   const userCreatedStatusCode = 201;
-  const userAlreadyExistsStatusCode = 422;
+  const userAlreadyExistsStatusCode = 200;
 
   return apiRequest<CreateUserApiResponse>('/users', {
     accessToken,
@@ -120,6 +125,35 @@ const fetchStudyConf = ({
     accessToken,
   }).then(({ data }) => data);
 
+const fetchAccounts = ({
+  defaultErrorMessage,
+  accessToken,
+}: {
+  defaultErrorMessage: string;
+  accessToken: string;
+}) =>
+  apiRequest<AccountsApiResponse>(`/accounts`, {
+    defaultErrorMessage,
+    accessToken,
+  });
+
+const createAccount = ({
+  name,
+  authType,
+  connectedAccount,
+  accessToken,
+}: {
+  name: string;
+  authType: string;
+  connectedAccount: ConnectedAccount;
+  accessToken: string;
+}) =>
+  apiRequest<CreateAccountApiResponse>('/accounts', {
+    accessToken,
+    method: 'POST',
+    body: { name, authType, connectedAccount },
+  });
+
 const apiRequest = async <ApiResponse>(
   url: string,
   {
@@ -161,7 +195,7 @@ const apiRequest = async <ApiResponse>(
     }
 
     return response.json() as Promise<ApiResponse>;
-  } catch (err) {
+  } catch (err: any) {
     if (err.name === 'AbortError') {
       throw new Error(defaultErrorMessage);
     }
@@ -195,4 +229,6 @@ export const authenticatedApiCalls = {
   createStudy,
   createStudyConf,
   fetchStudyConf,
+  fetchAccounts,
+  createAccount,
 };
