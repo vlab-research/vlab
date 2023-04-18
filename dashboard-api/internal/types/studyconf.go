@@ -40,6 +40,7 @@ type StudyConf struct {
 	Destinations          *DestinationConf           `json:"destinations"`
 	Creatives             []*CreativeConf            `json:"creatives"`
 	Audiences             []*AudienceConf            `json:"audiences"`
+	Strata                []*StratumConf             `json:"strata"`
 	// add any new config structs here
 	// NOTE: Confs should be pointers as this allows JSON unmarshalling
 	// to null if they are not set
@@ -93,6 +94,7 @@ func (sc *StudyConf) TransformFromDatabase(dcs []*DatabaseStudyConf) error {
 		"recruitment":            json.Unmarshal,
 		"destinations":           json.Unmarshal,
 		"audiences":              json.Unmarshal,
+		"strata":                 json.Unmarshal,
 	}
 
 	errMsg := "there was an error fetching the %s configuration"
@@ -124,6 +126,8 @@ func (sc *StudyConf) getConfigValue(confType string) interface{} {
 		return &sc.Recruitment
 	case "audiences":
 		return &sc.Audiences
+	case "strata":
+		return &sc.Strata
 	default:
 		return nil
 	}
@@ -306,6 +310,24 @@ type Partioning struct {
 	MaxDays  *int `json:"max_days,omitempty"`
 	MaxUsers *int `json:"max_users,omitempty"`
 }
+
+// StratumConf is groups that we divide our targeting groups into
+type StratumConf struct {
+	ID                string             `json:"id"`
+	Quota             float64            `json:"quota"`
+	Audiences         []string           `json:"audiences"`
+	ExcludedAudiences []string           `json:"excluded_audiences"`
+	Creatives         []string           `json:"creatives"`
+	FacebookTargeting *FacebookTargeting `json:"facebook_targeting"`
+	QuestionTargeting *QuestionTargeting `json:"question_targeting,omitempty"`
+	Metadata          *Metadata          `json:"metadata"`
+}
+
+// FacebookTargeting
+type FacebookTargeting map[string]interface{}
+
+// Metadata used to keep instance information
+type Metadata map[string]string
 
 // DatabaseStudyConf is the structure used to store data
 // in the database

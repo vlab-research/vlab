@@ -1,6 +1,7 @@
 package types_test
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -22,11 +23,13 @@ func TestStudyConfType_TransformForDatabase(t *testing.T) {
 			*testhelpers.NewDatabaseStudyConf(testhelpers.TypeDestinations()),
 			*testhelpers.NewDatabaseStudyConf(testhelpers.TypeCreatives()),
 			*testhelpers.NewDatabaseStudyConf(testhelpers.TypeAudiences()),
+			*testhelpers.NewDatabaseStudyConf(testhelpers.TypeStrata()),
 		}
 		s, err := input.TransformForDatabase()
 		assert.NoError(err)
-		assert.Equal(7, len(s))
+		assert.Equal(8, len(s))
 		for i, _ := range s {
+			fmt.Printf("%s\n", s[i].Conf)
 			assert.Equal(expected[i], s[i])
 		}
 	})
@@ -38,11 +41,12 @@ func TestStudyConfType_TransformForDatabase(t *testing.T) {
 			*testhelpers.NewDatabaseStudyConf(testhelpers.TypeDestinations()),
 			*testhelpers.NewDatabaseStudyConf(testhelpers.TypeCreatives()),
 			*testhelpers.NewDatabaseStudyConf(testhelpers.TypeAudiences()),
+			*testhelpers.NewDatabaseStudyConf(testhelpers.TypeStrata()),
 		}
 		input := testhelpers.NewStudyConf(testhelpers.WithTargetingDistributionConf(nil))
 		s, err := input.TransformForDatabase()
 		assert.NoError(err)
-		assert.Equal(len(s), 6)
+		assert.Equal(len(s), 7)
 		for i, _ := range expected {
 			assert.Equal(expected[i], s[i])
 		}
@@ -61,6 +65,7 @@ func TestStudyConfType_TransformFromDatabase(t *testing.T) {
 			testhelpers.NewDatabaseStudyConf(testhelpers.TypeDestinations()),
 			testhelpers.NewDatabaseStudyConf(testhelpers.TypeCreatives()),
 			testhelpers.NewDatabaseStudyConf(testhelpers.TypeAudiences()),
+			testhelpers.NewDatabaseStudyConf(testhelpers.TypeStrata()),
 		}
 		expected := testhelpers.NewStudyConf()
 		s := types.StudyConf{

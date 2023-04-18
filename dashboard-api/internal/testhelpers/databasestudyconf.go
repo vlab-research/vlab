@@ -74,6 +74,14 @@ func TypeAudiences() databasestudyconfoptions {
 	}
 }
 
+func TypeStrata() databasestudyconfoptions {
+	return func(d *types.DatabaseStudyConf) {
+		d.StudyID = StudyID
+		d.ConfType = "strata"
+		d.Conf = []byte(`[{"id":"foobar","quota":1,"audiences":["foobar"],"excluded_audiences":["bazqux"],"creatives":["foobar"],"facebook_targeting":{"age_max":65,"age_min":40,"genders":[2],"geo_locations":{"countries":["US"],"location_types":["home"]}},"question_targeting":{"op":"not_equal","vars":[{"type":"variable","value":"hcw"},{"type":"constant","value":"E"}]},"metadata":{"stratum_age":"40","stratum_gender":"2","stratum_location":"US"}}]`)
+	}
+}
+
 func CreateDatabaseStudyConf(t *testing.T, dsc types.DatabaseStudyConf) error {
 	t.Helper()
 	r := GetRepositories()
