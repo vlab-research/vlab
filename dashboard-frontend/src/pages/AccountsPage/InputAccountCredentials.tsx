@@ -1,4 +1,4 @@
-import React, { type ChangeEventHandler } from 'react';
+import React, { ChangeEventHandler } from 'react';
 import { classNames } from '../../helpers/strings';
 import startCase from 'lodash/startCase';
 
@@ -18,7 +18,7 @@ const InputAccountCredentials: React.FC<inputAccountCredentials> = ({
   credentials,
 }) => (
   <React.Fragment>
-    <NameInput name={entity} index={index}  error={error}/>
+    <NameInput name={entity} index={index} error={error} />
     <CredentialsInputList
       index={index}
       credentials={credentials}

@@ -1,5 +1,5 @@
 import { queryCache, useQuery } from 'react-query';
-import { type Account, type AccountsApiResponse } from '../../types/account';
+import { Account, AccountsApiResponse } from '../../types/account';
 import useAuthenticatedApi from '../../hooks/useAuthenticatedApi';
 
 const defaultErrorMessage = 'Something went wrong while fetching the accounts.';

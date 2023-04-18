@@ -139,6 +139,19 @@ export const makeServer = ({ environment = 'development' } = {}) => {
           budget: 10000,
           max_sample: 1000,
         },
+        destinations: [
+          {
+            name: 'fly',
+            initial_shortcode: '12345',
+          },
+          {
+            name: 'typeform',
+            url_template: 'typeform/some-url',
+          },
+        ],
+        simple_list: ['foo', 'bar', 'baz'],
+        // { bar: 'foobaz' }, // this is like any other form data it just happens to have one field
+        // { baz: 'foobazzle' }, // same here
       };
       createStudyConf(server, studyconf);
     },
@@ -213,7 +226,7 @@ export const makeServer = ({ environment = 'development' } = {}) => {
           return unauthorizedResponse;
         }
 
-        const studyconf = (db.studyconfs as any);
+        const studyconf = db.studyconfs as any;
 
         return {
           data: studyconf[0],

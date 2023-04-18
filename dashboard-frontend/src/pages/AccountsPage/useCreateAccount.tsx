@@ -2,7 +2,7 @@ import { useMutation } from 'react-query';
 import { useHistory } from 'react-router-dom';
 import { Notyf } from 'notyf';
 import useAuthenticatedApi from '../../hooks/useAuthenticatedApi';
-import { type FlyAccount, type TypeformAccount } from '../../types/account';
+import { FlyAccount, TypeformAccount } from '../../types/account';
 import { addAccountToCacheWhileRefetching } from './useAccounts';
 
 // used to create account
