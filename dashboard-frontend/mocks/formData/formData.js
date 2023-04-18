@@ -13,12 +13,24 @@ const formData = {
     ad_account: 'some account',
   },
   recruitment: {
-    end_date: '2022-08-05T00:00:00',
-    start_date: '2022-07-26T00:00:00',
+    recruitment_type: 'recruitment_simple',
     ad_campaign_name: 'vlab-most-used-prog-1',
     budget: 10000,
     max_sample: 1000,
+    start_date: '2022-07-26T00:00:00',
+    end_date: '2022-08-05T00:00:00',
   },
+  destinations: [
+    {
+      name: 'fly',
+      initial_shortcode: '12345',
+    },
+    {
+      name: 'typeform',
+      url_template: 'typeform/some-url',
+    },
+  ],
+  simple_list: [{ foo: 'foobar' }, { bar: 'foobaz' }, { baz: 'foobazzle' }],
 };
 
 export default formData;

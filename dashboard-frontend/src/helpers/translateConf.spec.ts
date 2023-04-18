@@ -1,7 +1,7 @@
 import { translateConf } from './translateConf';
-import { recruitment } from '../pages/StudyConfPage/configs/recruitment/base';
-import { simple } from '../pages/StudyConfPage/configs/recruitment/simple';
-import translatedConf from '../../mocks/translatedConf';
+import recruitment from '../pages/StudyConfPage/confs/recruitment/base';
+import simple from '../pages/StudyConfPage/confs/recruitment/simple';
+import translatedConf from '../../mocks/confs/translatedConf';
 
 describe('translateConf', () => {
   it('given two confs it translates them into one', () => {

@@ -1,4 +1,4 @@
-export const general = {
+const general = {
   type: 'confObject',
   title: 'General',
   description: 'The "general" configuration consists of... General stuff?',
@@ -237,3 +237,5 @@ export const general = {
     },
   ],
 };
+
+export default general;

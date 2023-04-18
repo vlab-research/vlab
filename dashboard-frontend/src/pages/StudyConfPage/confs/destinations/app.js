@@ -1,4 +1,4 @@
-export const app = {
+const app = {
   type: 'confObject',
   title: 'App',
   description: 'App...',
@@ -8,7 +8,7 @@ export const app = {
       name: 'name',
       type: 'text',
       label: 'Name',
-      helper_text: 'Curious Learning',
+      helper_text: 'E.g Curious Learning',
     },
     {
       name: 'facebook_app_id',
@@ -74,3 +74,5 @@ export const app = {
     },
   ],
 };
+
+export default app;

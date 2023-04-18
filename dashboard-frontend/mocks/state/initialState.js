@@ -1,5 +1,10 @@
-import Select from '../src/pages/NewStudyPage/components/form/inputs/Select';
-import Text from '../src/pages/NewStudyPage/components/form/inputs/Text';
+import Select from '../../src/pages/NewStudyPage/components/form/inputs/Select';
+import Text from '../../src/pages/NewStudyPage/components/form/inputs/Text';
+import Button from '../../src/pages/NewStudyPage/components/form/inputs/Button';
+import Fieldset from '../../src/pages/NewStudyPage/components/form/Fieldset';
+import app from '../../src/pages/StudyConfPage/confs/destinations/app';
+import messenger from '../../src/pages/StudyConfPage/confs/destinations/messenger';
+import web from '../../src/pages/StudyConfPage/confs/destinations/web';
 
 const initialState = [
   {
@@ -13,6 +18,7 @@ const initialState = [
         helper_text: 'E.g example-fly-conf',
         options: undefined,
         value: '',
+        conf: undefined,
       },
     ],
     general: [
@@ -86,6 +92,7 @@ const initialState = [
           },
         ],
         value: 'default',
+        conf: undefined,
       },
       {
         id: 'optimization_goal',
@@ -201,6 +208,7 @@ const initialState = [
           },
         ],
         value: 'default',
+        conf: undefined,
       },
       {
         id: 'destination_type',
@@ -228,6 +236,7 @@ const initialState = [
           },
         ],
         value: 'default',
+        conf: undefined,
       },
       {
         id: 'page_id',
@@ -238,6 +247,7 @@ const initialState = [
         helper_text: 'E.g 1855355231229529',
         options: undefined,
         value: '',
+        conf: undefined,
       },
       {
         id: 'min_budget',
@@ -248,6 +258,7 @@ const initialState = [
         helper_text: 'E.g 10',
         options: undefined,
         value: 1,
+        conf: undefined,
       },
       {
         id: 'opt_window',
@@ -258,6 +269,7 @@ const initialState = [
         helper_text: 'E.g 48',
         options: undefined,
         value: 1,
+        conf: undefined,
       },
       {
         id: 'instagram_id',
@@ -268,6 +280,7 @@ const initialState = [
         helper_text: 'E.g 2327764173962588',
         options: undefined,
         value: '',
+        conf: undefined,
       },
       {
         id: 'ad_account',
@@ -278,6 +291,7 @@ const initialState = [
         helper_text: 'E.g 1342820622846299',
         options: undefined,
         value: '',
+        conf: undefined,
       },
     ],
     recruitment: [
@@ -294,6 +308,7 @@ const initialState = [
           { name: 'recruitment_destination', label: 'Recruitment destination' },
         ],
         value: 'recruitment_simple',
+        conf: undefined,
       },
       {
         id: 'ad_campaign_name',
@@ -304,6 +319,7 @@ const initialState = [
         helper_text: 'E.g vlab-vaping-pilot-2',
         options: undefined,
         value: '',
+        conf: undefined,
       },
       {
         id: 'budget',
@@ -314,6 +330,7 @@ const initialState = [
         helper_text: 'E.g 8400',
         options: undefined,
         value: 1,
+        conf: undefined,
       },
       {
         id: 'max_sample',
@@ -324,6 +341,7 @@ const initialState = [
         helper_text: 'E.g 1000',
         options: undefined,
         value: 1,
+        conf: undefined,
       },
       {
         id: 'start_date',
@@ -334,6 +352,7 @@ const initialState = [
         helper_text: 'E.g 2022-01-10',
         options: undefined,
         value: '',
+        conf: undefined,
       },
       {
         id: 'end_date',
@@ -344,6 +363,99 @@ const initialState = [
         helper_text: 'E.g 2022-01-31',
         options: undefined,
         value: '',
+        conf: undefined,
+      },
+    ],
+    destinations: [
+      {
+        id: 'destination_create',
+        name: 'destination_create',
+        type: 'fieldset',
+        component: Fieldset,
+        label: 'Create a destination',
+        helper_text: undefined,
+        options: undefined,
+        value: [],
+        conf: {
+          type: 'confSelect',
+          title: 'Destinations',
+          description:
+            'Every study needs a destination, where do the recruitment ads send the users?',
+          selector: {
+            name: 'destination_type',
+            type: 'select',
+            label: 'Destination type',
+            options: [messenger, web, app],
+          },
+        },
+      },
+      {
+        id: 'name',
+        name: 'name',
+        type: 'text',
+        component: Text,
+        label: 'Give your destination a name',
+        helper_text: 'E.g example-fly-1',
+        options: undefined,
+        value: '',
+        conf: undefined,
+      },
+      {
+        id: 'add_destination',
+        name: 'add_destination',
+        type: 'button',
+        component: Button,
+        label: 'Add destination',
+        helper_text: undefined,
+        options: undefined,
+        value: '',
+        conf: undefined,
+      },
+    ],
+    simple_list: [
+      {
+        id: 'foo',
+        name: 'foo',
+        type: 'text',
+        component: Text,
+        label: 'Foo',
+        helper_text: 'Foo',
+        options: undefined,
+        value: '',
+        conf: undefined,
+      },
+      {
+        id: 'bar',
+        name: 'bar',
+        type: 'text',
+        component: Text,
+        label: 'Bar',
+        helper_text: 'Bar',
+        options: undefined,
+        value: '',
+        conf: undefined,
+      },
+      {
+        id: 'baz',
+        name: 'baz',
+        type: 'text',
+        component: Text,
+        label: 'Baz',
+        helper_text: 'Baz',
+        options: undefined,
+        value: '',
+        conf: undefined,
+      },
+      {
+        id: 'add_button',
+        name: 'add_button',
+        type: 'button',
+        component: Button,
+        label: 'Add',
+        helper_text: undefined,
+        options: undefined,
+        value: '',
+        conf: undefined,
       },
     ],
   },

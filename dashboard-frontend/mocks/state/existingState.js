@@ -1,5 +1,6 @@
-import Select from '../src/pages/NewStudyPage/components/form/inputs/Select';
-import Text from '../src/pages/NewStudyPage/components/form/inputs/Text';
+import Select from '../../src/pages/NewStudyPage/components/form/inputs/Select';
+import Text from '../../src/pages/NewStudyPage/components/form/inputs/Text';
+import Button from '../../src/pages/NewStudyPage/components/form/inputs/Button';
 
 const existingState = [
   {
@@ -13,6 +14,7 @@ const existingState = [
         helper_text: 'E.g example-fly-conf',
         options: undefined,
         value: 'foo',
+        conf: undefined,
       },
     ],
     general: [
@@ -86,6 +88,7 @@ const existingState = [
           },
         ],
         value: 'reach',
+        conf: undefined,
       },
       {
         id: 'optimization_goal',
@@ -201,6 +204,7 @@ const existingState = [
           },
         ],
         value: 'social_impressions',
+        conf: undefined,
       },
       {
         id: 'destination_type',
@@ -228,6 +232,7 @@ const existingState = [
           },
         ],
         value: 'app',
+        conf: undefined,
       },
       {
         id: 'page_id',
@@ -238,6 +243,7 @@ const existingState = [
         helper_text: 'E.g 1855355231229529',
         options: undefined,
         value: '12345',
+        conf: undefined,
       },
       {
         id: 'min_budget',
@@ -248,6 +254,7 @@ const existingState = [
         helper_text: 'E.g 10',
         options: undefined,
         value: 1,
+        conf: undefined,
       },
       {
         id: 'opt_window',
@@ -258,6 +265,7 @@ const existingState = [
         helper_text: 'E.g 48',
         options: undefined,
         value: 1,
+        conf: undefined,
       },
       {
         id: 'instagram_id',
@@ -268,6 +276,7 @@ const existingState = [
         helper_text: 'E.g 2327764173962588',
         options: undefined,
         value: '54321',
+        conf: undefined,
       },
       {
         id: 'ad_account',
@@ -278,6 +287,7 @@ const existingState = [
         helper_text: 'E.g 1342820622846299',
         options: undefined,
         value: '111111',
+        conf: undefined,
       },
     ],
     recruitment: [
@@ -294,6 +304,7 @@ const existingState = [
           { name: 'recruitment_destination', label: 'Recruitment destination' },
         ],
         value: 'recruitment_simple',
+        conf: undefined,
       },
       {
         id: 'ad_campaign_name',
@@ -304,6 +315,7 @@ const existingState = [
         helper_text: 'E.g vlab-vaping-pilot-2',
         options: undefined,
         value: 'vlab-most-used-prog-1',
+        conf: undefined,
       },
       {
         id: 'budget',
@@ -314,6 +326,7 @@ const existingState = [
         helper_text: 'E.g 8400',
         options: undefined,
         value: 10000,
+        conf: undefined,
       },
       {
         id: 'max_sample',
@@ -324,6 +337,7 @@ const existingState = [
         helper_text: 'E.g 1000',
         options: undefined,
         value: 1000,
+        conf: undefined,
       },
       {
         id: 'start_date',
@@ -334,6 +348,7 @@ const existingState = [
         helper_text: 'E.g 2022-01-10',
         options: undefined,
         value: '2022-07-26T00:00:00',
+        conf: undefined,
       },
       {
         id: 'end_date',
@@ -344,7 +359,110 @@ const existingState = [
         helper_text: 'E.g 2022-01-31',
         options: undefined,
         value: '2022-08-05T00:00:00',
+        conf: undefined,
       },
+    ],
+    destinations: [
+      [
+        {
+          id: 'destination_type',
+          name: 'destination_type',
+          type: 'fieldset',
+          component: Select,
+          label: 'Destination type',
+          helper_text: undefined,
+          options: [
+            { name: 'messenger', label: 'Messenger' },
+            { name: 'web', label: 'Web' },
+            { name: 'app', label: 'App' },
+          ],
+          value: 'messenger',
+          conf: undefined,
+        },
+        {
+          id: 'initial_shortcode',
+          name: 'initial_shortcode',
+          type: 'text',
+          component: Text,
+          label: 'Initial shortcode',
+          helper_text: 'E.g abcdef',
+          options: undefined,
+          value: '12345',
+          conf: undefined,
+        },
+        {
+          id: 'name',
+          name: 'name',
+          type: 'text',
+          component: Text,
+          label: 'Survey name',
+          helper_text: 'E.g fly survey',
+          options: undefined,
+          value: 'Fly survey',
+          conf: undefined,
+        },
+        {
+          id: 'add_destination',
+          name: 'add_destination',
+          type: 'button',
+          component: Button,
+          label: 'Add destination',
+          helper_text: undefined,
+          options: undefined,
+          value: undefined,
+          conf: undefined,
+        },
+      ],
+      [
+        {
+          id: 'destination_type',
+          name: 'destination_type',
+          type: 'fieldset',
+          component: Select,
+          label: 'Destination type',
+          helper_text: undefined,
+          options: [
+            { name: 'messenger', label: 'Messenger' },
+            { name: 'web', label: 'Web' },
+            { name: 'app', label: 'App' },
+          ],
+          value: 'web',
+          conf: undefined,
+        },
+        {
+          id: 'name',
+          name: 'name',
+          type: 'text',
+          component: Text,
+          label: 'Survey name',
+          helper_text: 'E.g Malaria study',
+          options: undefined,
+          value: 'typeform',
+          conf: undefined,
+        },
+        {
+          id: 'url_template',
+          name: 'url_template',
+          type: 'text',
+          component: Text,
+          label: 'URL template',
+          helper_text: 'E.g https://survey.typeform.com/to/Wm94iUUB',
+          options: undefined,
+          value: 'typeform/some-url',
+          conf: undefined,
+        },
+        {
+          id: 'add_destination',
+          name: 'add_destination',
+          type: 'button',
+          component: Button,
+          label: 'Add destination',
+          helper_text: undefined,
+          options: undefined,
+          value: undefined,
+          conf: undefined,
+        },
+      ],
     ],
   },
 ];

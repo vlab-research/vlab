@@ -1,6 +1,6 @@
-import { simple } from '../src/pages/StudyConfPage/configs/recruitment/simple';
-import { pipeline_experiment } from '../src/pages/StudyConfPage/configs/recruitment/pipeline_experiment';
-import { destination } from '../src/pages/StudyConfPage/configs/recruitment/destination';
+import simple from '../../src/pages/StudyConfPage/confs/recruitment/simple';
+import pipeline_experiment from '../../src/pages/StudyConfPage/confs/recruitment/pipeline_experiment';
+import destination from '../../src/pages/StudyConfPage/confs/recruitment/destination';
 
 const translatedConf = {
   type: 'confSelect',

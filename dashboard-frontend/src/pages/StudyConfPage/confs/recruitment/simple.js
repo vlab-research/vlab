@@ -1,25 +1,24 @@
-export const destination = {
+const simple = {
   type: 'confObject',
-  title: 'Recruitment destination',
-  description:
-    ' Use this when you want to create a multi-arm randomized experiment (A/B test on Facebook) where some of your sample is sent to different "destinations".',
+  title: 'Recruitment simple',
+  description: 'Simple recruitment...',
   fields: [
     {
-      name: 'ad_campaign_name_base',
+      name: 'ad_campaign_name',
       type: 'text',
-      label: 'Ad campaign name base',
+      label: 'Ad campaign name',
       helper_text: 'E.g vlab-vaping-pilot-2',
     },
     {
-      name: 'budget_per_arm',
+      name: 'budget',
       type: 'number',
-      label: 'Budget per arm',
+      label: 'Budget',
       helper_text: 'E.g 8400',
     },
     {
-      name: 'max_sample_per_arm',
+      name: 'max_sample',
       type: 'number',
-      label: 'Maximum sample per arm',
+      label: 'Maximum sample',
       helper_text: 'E.g 1000',
     },
     {
@@ -36,3 +35,5 @@ export const destination = {
     },
   ],
 };
+
+export default simple;

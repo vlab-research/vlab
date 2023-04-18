@@ -1,8 +1,8 @@
-import { recruitment } from '../pages/StudyConfPage/configs/recruitment/base';
 import { getSelectedConf } from './getSelectedConf';
-import { pipeline_experiment } from '../pages/StudyConfPage/configs/recruitment/pipeline_experiment';
-import { simple } from '../pages/StudyConfPage/configs/recruitment/simple';
-import { destination } from '../pages/StudyConfPage/configs/recruitment/destination';
+import recruitment from '../pages/StudyConfPage/confs/recruitment/base';
+import pipeline_experiment from '../pages/StudyConfPage/confs/recruitment/pipeline_experiment';
+import simple from '../pages/StudyConfPage/confs/recruitment/simple';
+import destination from '../pages/StudyConfPage/confs/recruitment/destination';
 
 describe('getSelectedConf', () => {
   it('given a recruitment conf and some form data it returns the nested conf from which the form data derives', () => {

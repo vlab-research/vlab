@@ -1,4 +1,4 @@
-import { EventInterface } from '../../../types/form';
+import { EventInterface, FormData } from '../../../types/form';
 import { translateConf } from '../../../helpers/translateConf';
 import {
   getFieldState,
@@ -57,11 +57,11 @@ const select = (
       const globalState = initialiseFieldState(translatedConf);
 
       return (
-        globalState && updateFieldState(translatedConf, globalState, event)
+        globalState && updateFieldState(globalState, event, translatedConf)
       );
     }
 
-    return updateFieldState(conf, fieldState, event);
+    return updateFieldState(fieldState, event, conf);
   }
 
   if (localFormData && fieldState && event) {
@@ -77,11 +77,11 @@ const select = (
       const globalState = initialiseFieldState(translatedConf);
 
       return (
-        globalState && updateFieldState(translatedConf, globalState, event)
+        globalState && updateFieldState(globalState, event, translatedConf)
       );
     }
 
-    return updateFieldState(conf, fieldState, event);
+    return updateFieldState(fieldState, event, conf);
   }
 };
 

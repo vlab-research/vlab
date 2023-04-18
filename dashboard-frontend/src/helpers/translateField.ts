@@ -1,7 +1,7 @@
 import Text from '../pages/NewStudyPage/components/form/inputs/Text';
 import Select from '../pages/NewStudyPage/components/form/inputs/Select';
-import Fieldset from '../pages/NewStudyPage/components/form/Fieldset';
 import Button from '../pages/NewStudyPage/components/form/inputs/Button';
+import Fieldset from '../pages/NewStudyPage/components/form/Fieldset';
 import { ConfBase, FieldBase } from '../types/conf';
 import { createNameFor } from './strings';
 
@@ -23,7 +23,6 @@ export const translateField = (field: FieldBase, localFormData?: any) => {
   if (!component) {
     throw new Error(`Could not find component for type: ${field.type}`);
   }
-
   return {
     id: field.name,
     name: field.name,

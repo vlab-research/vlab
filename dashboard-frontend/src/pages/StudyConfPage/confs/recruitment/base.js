@@ -1,8 +1,8 @@
-import { simple } from './simple';
-import { pipeline_experiment } from './pipeline_experiment';
-import { destination } from './destination';
+import simple from './simple';
+import pipeline_experiment from './pipeline_experiment';
+import destination from './destination';
 
-export const recruitment = {
+const recruitment = {
   type: 'confSelect',
   title: 'Recruitment',
   description:
@@ -14,3 +14,5 @@ export const recruitment = {
     options: [simple, pipeline_experiment, destination],
   },
 };
+
+export default recruitment;

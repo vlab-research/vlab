@@ -1,11 +1,11 @@
-import { initialiseFieldState } from '../../../helpers/state';
-import { general } from '../configs/general';
-import { getField } from '../../../helpers/getField';
-import { create_study } from '../../NewStudyPage/configs/create_study';
-import initialState from '../../../../mocks/initialState';
 import Text from '../../NewStudyPage/components/form/inputs/Text';
 import { translateField } from '../../../helpers/translateField';
-import formData from '../../../../mocks/formData';
+import { initialiseFieldState } from '../../../helpers/state';
+import { getField } from '../../../helpers/getField';
+import general from '../confs/general';
+import create_study from '../../NewStudyPage/confs/create_study';
+import initialState from '../../../../mocks/state/initialState';
+import formData from '../../../../mocks/formData/formData';
 import simple from './simple';
 
 describe('simple controller', () => {
@@ -63,6 +63,7 @@ describe('simple controller', () => {
       name: 'name',
       value: 'baz',
       type: 'change',
+      fieldType: 'text',
     };
 
     const fieldState = initialState[0].create_study;
@@ -90,6 +91,7 @@ describe('simple controller', () => {
       name: `instagram_id`,
       value: 'baz',
       type: 'change',
+      fieldType: 'text',
     };
 
     const newValue = event.value;

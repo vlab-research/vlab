@@ -1,4 +1,4 @@
-export const pipeline_experiment = {
+const pipeline_experiment = {
   type: 'confObject',
   title: 'Recruitment pipeline',
   description:
@@ -54,3 +54,5 @@ export const pipeline_experiment = {
     },
   ],
 };
+
+export default pipeline_experiment;

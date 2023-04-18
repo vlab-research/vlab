@@ -6,9 +6,10 @@ import Navbar from './components/NavBar';
 import ErrorPlaceholder from '../../components/ErrorPlaceholder';
 import useStudyConf from '../../hooks/useStudyConf';
 import useStudy from '../../hooks/useStudy';
-import { general } from './configs/general';
-import { recruitment } from './configs/recruitment/base';
-import { destinations } from './configs/destinations/base';
+import general from './confs/general';
+import recruitment from './confs/recruitment/base';
+import destinations from './confs/destinations/base';
+import simpleList from './confs/simpleList';
 import { ConfBase, ConfSelectBase, ConfListBase } from '../../types/conf';
 
 const StudyConfPage = () => {
@@ -46,6 +47,7 @@ const PageContent = (data: any) => {
     general,
     recruitment,
     destinations,
+    simpleList,
   };
 
   const confKeys = Object.keys(confStore);

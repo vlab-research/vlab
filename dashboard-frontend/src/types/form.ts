@@ -47,11 +47,21 @@ export interface Web {
   url_template: string;
 }
 
-export type Destination = Messenger | Web;
+export interface App {
+  name: string;
+  facebook_app_id: string;
+  app_install_link: string;
+  deeplink_template: string;
+  app_install_state: string;
+  user_device: any[];
+  user_os: any[];
+}
+
+export type Destination = Messenger | Web | App;
 
 export type Destinations = Destination[];
 
-export type FormData = CreateStudy | General | Recruitment | Destinations;
+export type FormData = CreateStudy | General | Recruitment | Destinations | any;
 
 export interface DataEvent {
   type: string; // can restrict to enum

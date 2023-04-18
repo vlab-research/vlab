@@ -1,8 +1,5 @@
 import { useEffect, useState } from 'react';
-import {
-  nestedState,
-  reduceFieldStateToAnObject,
-} from '../../../../helpers/arrays';
+import { reduceFieldStateToAnObject } from '../../../../helpers/arrays';
 import { ConfBase, FieldState } from '../../../../types/conf';
 import { DataEvent, EventInterface } from '../../../../types/form';
 import list from '../../../StudyConfPage/controllers/list';
@@ -22,7 +19,7 @@ const Fieldset: React.FC<Props> = ({
   handleChange,
   error,
 }) => {
-  const [state, setState] = useState<FieldState[] | any>();
+  const [fieldState, setState] = useState<FieldState[] | any>();
 
   const str: keyof ConfBase = 'type';
 
@@ -54,7 +51,7 @@ const Fieldset: React.FC<Props> = ({
 
     // controller creates state and creates "newLocalFormData"
     // const [newState, newLocalFormData] = controller(conf, localFormData, event, state);
-    const newState = controller(conf, localFormData, event, state);
+    const newState = controller(conf, localFormData, event, fieldState);
     const newLocalFormData = reduceFieldStateToAnObject(newState);
 
     // state is a local concept, only the Fieldset needs to care about it
@@ -64,37 +61,32 @@ const Fieldset: React.FC<Props> = ({
     handleChange({ type: 'change', value: newLocalFormData });
   };
 
-  if (!state) return null;
-
-  if (nestedState(state)) {
-    state.map((s: FieldState[]) =>
-      s.map((f: FieldState) => {
-        const { component: Component, ...props } = f;
-
-        return (
-          <Component
-            key={f.name}
-            onChange={(e: any) => onChange(f.name, f.type, e)}
-            error={error}
-            {...props}
-          />
-        );
-      })
-    );
-  }
+  if (!fieldState) return null;
 
   return (
     <>
-      {state.map((f: FieldState) => {
+      {fieldState.map((f: FieldState | any) => {
         const { component: Component, ...props } = f;
 
-        return (
+        return f.component ? (
           <Component
             key={f.name}
             onChange={(e: any) => onChange(f.name, f.type, e)}
             error={error}
             {...props}
           />
+        ) : (
+          f.map((s: FieldState) => {
+            const { component: Component, ...props } = s;
+            return (
+              <Component
+                key={s.name}
+                onChange={(e: any) => onChange(s.name, s.type, e)}
+                error={error}
+                {...props}
+              />
+            );
+          })
         );
       })}
     </>

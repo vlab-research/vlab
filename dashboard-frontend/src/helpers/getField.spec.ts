@@ -1,7 +1,7 @@
+import Text from './../pages/NewStudyPage/components/form/inputs/Text';
+import general from '../pages/StudyConfPage/confs/general';
 import { getField } from './getField';
 import { initialiseFieldState } from './state';
-import Text from './../pages/NewStudyPage/components/form/inputs/Text';
-import { general } from '../pages/StudyConfPage/configs/general';
 
 describe('getField', () => {
   it('given some fields and an event it returns the field on which the event occurred', () => {
@@ -11,6 +11,7 @@ describe('getField', () => {
       name: 'instagram_id',
       value: 'foo',
       type: 'change',
+      fieldType: 'text',
     };
 
     const expectation = {
@@ -22,6 +23,7 @@ describe('getField', () => {
       helper_text: 'E.g 2327764173962588',
       options: undefined,
       value: '',
+      conf: undefined,
     };
 
     const res = getField(fields, event);

@@ -1,20 +1,22 @@
-import initialState from '../../../../mocks/initialState';
-import { recruitment } from '../configs/recruitment/base';
-import select from './select';
-import formData from '../../../../mocks/formData';
-import existingState from '../../../../mocks/existingState';
 import { getField } from '../../../helpers/getField';
+import recruitment from '../../StudyConfPage/confs/recruitment/base';
+import initialState from '../../../../mocks/state/initialState';
+import existingState from '../../../../mocks/state/existingState';
+import formData from '../../../../mocks/formData/formData';
+import select from './select';
 
 describe('select controller', () => {
-  it('given a recruitment conf it returns some initial fields when no state is defined', () => {
+  it('given a select conf it returns some initial fields when no state is defined', () => {
+    const conf = recruitment;
+
     const expectation = initialState[0].recruitment;
 
-    const res = select(recruitment);
+    const res = select(conf);
 
     expect(res).toStrictEqual(expectation);
   });
 
-  it('given a recruitment conf and some form data it returns a set of fields with their existing state', () => {
+  it('given a select conf and some form data it returns a set of fields with their existing state', () => {
     const conf = recruitment;
 
     const localFormData = formData['recruitment'];
@@ -26,7 +28,7 @@ describe('select controller', () => {
     expect(res).toEqual(expectation);
   });
 
-  it('given a recruitment conf, some form data and an event it updates the value of the field on which the event occurred', () => {
+  it('given a select conf some form data and an event, it updates the value of the field on which the event occurred', () => {
     const conf = recruitment;
 
     const localFormData = formData['recruitment'];

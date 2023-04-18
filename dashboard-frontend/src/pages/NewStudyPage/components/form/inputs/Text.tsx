@@ -9,7 +9,10 @@ const Text = ({ onChange, ...props }: any) => {
   return (
     <div className="sm:my-4">
       {label && (
-        <label htmlFor={id} className="block text-sm font-medium text-gray-700">
+        <label
+          htmlFor={id}
+          className="block mb-1 text-sm font-medium text-gray-700"
+        >
           {label}
         </label>
       )}
@@ -22,9 +25,9 @@ const Text = ({ onChange, ...props }: any) => {
           required
           placeholder={helper_text}
           onChange={eventHandler}
-          data-testid={`new-study-${id}-input`}
+          data-testid={`${id}-${name}-input`}
           className={classNames(
-            'mt-1 block w-4/5 shadow-sm sm:text-sm rounded-md',
+            'block w-4/5 shadow-sm sm:text-sm rounded-md',
             error
               ? 'focus:ring-red-500 focus:border-red-500 border-red-300 text-red-900 pr-10'
               : 'focus:ring-indigo-500 focus:border-indigo-500 border-gray-300'

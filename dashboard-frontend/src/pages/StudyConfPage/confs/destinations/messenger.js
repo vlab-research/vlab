@@ -1,4 +1,4 @@
-export const messenger = {
+const messenger = {
   type: 'confObject',
   title: 'Fly Messenger',
   description: 'Fly...',
@@ -14,7 +14,9 @@ export const messenger = {
       name: 'name',
       type: 'text',
       label: 'Survey Name',
-      helper_text: 'Eg. vlab-vaping',
+      helper_text: 'E.g example-fly-1',
     },
   ],
 };
+
+export default messenger;
