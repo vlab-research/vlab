@@ -22,7 +22,7 @@ export const updateFieldState = (
   const clone = [...state];
 
   if (event.type === 'click' && conf) {
-    return [clone, initialiseFieldState(conf)];
+    return [...clone, initialiseFieldState(conf)];
   }
 
   getField(state, event).value = event.value;

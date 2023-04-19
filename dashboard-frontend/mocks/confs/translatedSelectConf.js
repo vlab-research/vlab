@@ -2,7 +2,7 @@ import simple from '../../src/pages/StudyConfPage/confs/recruitment/simple';
 import pipeline_experiment from '../../src/pages/StudyConfPage/confs/recruitment/pipeline_experiment';
 import destination from '../../src/pages/StudyConfPage/confs/recruitment/destination';
 
-const translatedConf = {
+const translatedSelectConf = {
   type: 'confSelect',
   title: 'Recruitment',
   description:
@@ -47,4 +47,4 @@ const translatedConf = {
   ],
 };
 
-export default translatedConf;
+export default translatedSelectConf;

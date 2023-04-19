@@ -16,7 +16,8 @@ export interface ConfListBase extends Record<string, any> {
   title: string;
   type: string;
   description: string;
-  fields: FieldBase[];
+  input: FieldBase;
+  button: Button;
 }
 
 export interface Selector {
@@ -26,10 +27,15 @@ export interface Selector {
   options: any[];
 }
 
+export interface Button {
+  name: string;
+  type: string;
+}
+
 export interface FieldBase {
   name: string;
   type: string;
-  label: string;
+  label?: string;
   helper_text?: string;
   options?: any[];
   conf?: any;

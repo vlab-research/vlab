@@ -31,30 +31,30 @@ export const makeServer = ({ environment = 'development' } = {}) => {
 
       const staticStudyResources = [
         {
-          name: 'Weekly consume meat',
-          slug: 'weekly-consume-meat',
+          name: 'Most used programming language for api development',
+          slug: 'most-used-programming-language-for-api-development',
           createdAt: today,
         },
-        {
-          name: 'An extra-uterine system to physiologically support the extreme premature lamb',
-          createdAt: yesterday,
-        },
-        {
-          name: 'Correction of pathogenic gene mutation in human embryos',
-          createdAt: new Date('06/10/2021').getTime(),
-        },
-        {
-          name: 'A Feathered Dinosaur Tail wih Primitive Plumage Trapped in Mid-Cretaceous Amber',
-          createdAt: new Date('05/15/2021').getTime(),
-        },
-        {
-          name: 'The meditteranean diet is the best one',
-          createdAt: new Date('02/17/2021').getTime(),
-        },
-        {
-          name: 'Efficacy and effectiveness of an rVSV-vectored vaccine in preventing Ebola virus disease',
-          createdAt: new Date('01/02/2021').getTime(),
-        },
+        // {
+        //   name: 'An extra-uterine system to physiologically support the extreme premature lamb',
+        //   createdAt: yesterday,
+        // },
+        // {
+        //   name: 'Correction of pathogenic gene mutation in human embryos',
+        //   createdAt: new Date('06/10/2021').getTime(),
+        // },
+        // {
+        //   name: 'A Feathered Dinosaur Tail wih Primitive Plumage Trapped in Mid-Cretaceous Amber',
+        //   createdAt: new Date('05/15/2021').getTime(),
+        // },
+        // {
+        //   name: 'The meditteranean diet is the best one',
+        //   createdAt: new Date('02/17/2021').getTime(),
+        // },
+        // {
+        //   name: 'Efficacy and effectiveness of an rVSV-vectored vaccine in preventing Ebola virus disease',
+        //   createdAt: new Date('01/02/2021').getTime(),
+        // },
       ].map(study =>
         createStudyResource(server, {
           ...study,
@@ -149,9 +149,7 @@ export const makeServer = ({ environment = 'development' } = {}) => {
             url_template: 'typeform/some-url',
           },
         ],
-        simple_list: ['foo', 'bar', 'baz'],
-        // { bar: 'foobaz' }, // this is like any other form data it just happens to have one field
-        // { baz: 'foobazzle' }, // same here
+        simple_list: null,
       };
       createStudyConf(server, studyconf);
     },

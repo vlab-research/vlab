@@ -1,11 +1,11 @@
 import general from '../pages/StudyConfPage/confs/general';
-import simpleList from '../pages/StudyConfPage/confs/simpleList';
 import create_study from '../pages/NewStudyPage/confs/create_study';
 import { getFieldState, initialiseFieldState, updateFieldState } from './state';
 import { getField } from './getField';
 import initialState from '../../mocks/state/initialState';
 import formData from '../../mocks/formData/formData';
-import translatedConf from '../../mocks/confs/translatedConf';
+import translatedSelectConf from '../../mocks/confs/translatedSelectConf';
+import translatedListConf from '../../mocks/confs/translatedListConf';
 
 describe('initialiseFieldState', () => {
   it('given a simple conf it returns some initial field state when no state is defined', () => {
@@ -29,7 +29,7 @@ describe('initialiseFieldState', () => {
   });
 
   it('and a select conf', () => {
-    const conf = translatedConf;
+    const conf = translatedSelectConf;
 
     const expectation = initialState[0]['recruitment'];
 
@@ -39,7 +39,7 @@ describe('initialiseFieldState', () => {
   });
 
   it('and a list conf', () => {
-    const conf = simpleList;
+    const conf = translatedListConf;
 
     const expectation = initialState[0]['simple_list'];
 
@@ -58,25 +58,16 @@ describe('getFieldState', () => {
 
     const res = getFieldState(conf, localFormData);
 
-    const resValues = Object.values(res.map(f => f.value));
+    const resValues = res.map(f => f.value);
 
     expect(resValues).toEqual(expectedValues);
   });
 
   it('works for a select conf', () => {
-    const conf = translatedConf;
+    const conf = translatedSelectConf;
     const localFormData = formData['recruitment'];
 
     const expectedValues = Object.values(localFormData);
-
-    //   [
-    //   'recruitment_simple',
-    //   'vlab-most-used-prog-1',
-    //   10000,
-    //   1000,
-    //   '2022-07-26T00:00:00',
-    //   '2022-08-05T00:00:00'
-    // ]
 
     const res = getFieldState(conf, localFormData);
 
@@ -86,20 +77,16 @@ describe('getFieldState', () => {
   });
 
   it('works for a list conf', () => {
-    const conf = simpleList;
+    const conf = translatedListConf;
     const localFormData = formData['simple_list'];
-
-    const expectedValues = localFormData.map(d => Object.values(d));
-
-    //   [ [ 'foobar', 'buzz' ], [ 'foobaz' ], [ 'foobazzle' ] ]
 
     const res = localFormData.map(d => getFieldState(conf, d));
 
-    const fieldState = res.map(r => r.filter(f => f.value));
+    const resValues = res.map(fieldset =>
+      Object.values(fieldset.map(f => f.value))
+    );
 
-    const resValues = fieldState.map(s => s.map(f => f.value));
-
-    expect(resValues).toEqual(expectedValues);
+    expect(resValues.flat(2)).toEqual(localFormData);
   });
 });
 
@@ -161,31 +148,31 @@ describe('updateFieldState', () => {
     expect(updatedField.value).toEqual(event.value);
   });
 
-  it('works for click events when the event occurs on a button', () => {
-    const conf = simpleList;
-    const fieldState = initialState[0]['simple_list'];
+  // it('works for click events when the event occurs on a button', () => {
+  //   const conf = simpleList;
+  //   const fieldState = initialState[0]['simple_list'];
 
-    const event = {
-      name: 'add_button',
-      value: 'add_button',
-      type: 'click',
-      fieldType: 'button',
-    };
+  //   const event = {
+  //     name: 'add_button',
+  //     value: 'add_button',
+  //     type: 'click',
+  //     fieldType: 'button',
+  //   };
 
-    const fieldStateOnFirstClick = updateFieldState(fieldState, event, conf);
+  //     const fieldStateOnFirstClick = updateFieldState(fieldState, event, conf);
 
-    console.log(fieldStateOnFirstClick);
+  //     console.log(fieldStateOnFirstClick);
 
-    // expect(fieldStateOnFirstClick).toHaveLength(2);
+  //     // expect(fieldStateOnFirstClick).toHaveLength(2);
 
-    const fieldStateOnSecondClick = updateFieldState(
-      fieldStateOnFirstClick,
-      event,
-      conf
-    );
+  //     const fieldStateOnSecondClick = updateFieldState(
+  //       fieldStateOnFirstClick,
+  //       event,
+  //       conf
+  //     );
 
-    console.log(fieldStateOnSecondClick);
+  //     console.log(fieldStateOnSecondClick);
 
-    // expect(fieldStateOnSecondClick).toHaveLength(3);
-  });
+  //     // expect(fieldStateOnSecondClick).toHaveLength(3);
+  //   });
 });

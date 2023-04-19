@@ -7,6 +7,6 @@ export const reduceFieldStateToAnObject = (arr: any[]) => {
   );
 };
 
-export const nestedState = (arr: any[]) => {
-  return arr.every(item => Array.isArray(item));
+export const reorderArray = (prevArr: any[], element: any) => {
+  return [...prevArr.filter(a => a !== element), element];
 };

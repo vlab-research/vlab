@@ -1,5 +1,5 @@
 import { EventInterface, FormData } from '../../../types/form';
-import { translateConf } from '../../../helpers/translateConf';
+import { mergeConfs } from '../../../helpers/translateConf';
 import {
   getFieldState,
   initialiseFieldState,
@@ -16,7 +16,7 @@ const select = (
   fieldState?: FieldState[]
 ) => {
   const getConf = (baseConf: ConfSelectBase, dynamicConf: any) => {
-    return dynamicConf && translateConf(baseConf, dynamicConf);
+    return dynamicConf && mergeConfs(baseConf, dynamicConf);
   };
 
   if (!localFormData && !fieldState && !event) {

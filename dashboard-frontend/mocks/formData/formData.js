@@ -30,7 +30,7 @@ const formData = {
       url_template: 'typeform/some-url',
     },
   ],
-  simple_list: [{ foo: 'foobar' }, { bar: 'foobaz' }, { baz: 'foobazzle' }],
+  simple_list: ['foobar', 'foobaz', 'foobazzle'],
 };
 
 export default formData;

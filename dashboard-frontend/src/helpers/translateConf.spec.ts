@@ -1,16 +1,43 @@
-import { translateConf } from './translateConf';
+import { mergeConfs, translateListConf } from './translateConf';
 import recruitment from '../pages/StudyConfPage/confs/recruitment/base';
 import simple from '../pages/StudyConfPage/confs/recruitment/simple';
-import translatedConf from '../../mocks/confs/translatedConf';
+import translatedConf from '../../mocks/confs/translatedSelectConf';
+import simpleList from '../pages/StudyConfPage/confs/simpleList';
 
-describe('translateConf', () => {
+describe('mergeConfs', () => {
   it('given two confs it translates them into one', () => {
     const baseConf = recruitment;
     const dynamicConf = simple;
 
     const expectation = translatedConf;
 
-    const res = translateConf(baseConf, dynamicConf);
+    const res = mergeConfs(baseConf, dynamicConf);
+
+    expect(res).toStrictEqual(expectation);
+  });
+});
+
+describe('translateListConf', () => {
+  it('given a conf of type list it returns a conf with a set of fields', () => {
+    const conf = simpleList;
+
+    const expectation = {
+      type: 'confList',
+      title: 'Test',
+      description: 'test...',
+      key: 'foo',
+      button: { name: 'add_button', type: 'button', label: 'Add' },
+      fields: [
+        {
+          name: 'foo',
+          type: 'text',
+          label: 'Foo',
+          helper_text: 'Foo',
+        },
+      ],
+    };
+
+    const res = translateListConf(conf);
 
     expect(res).toStrictEqual(expectation);
   });

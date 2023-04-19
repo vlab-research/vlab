@@ -23,12 +23,23 @@ export const translateField = (field: FieldBase, localFormData?: any) => {
   if (!component) {
     throw new Error(`Could not find component for type: ${field.type}`);
   }
+
+  const getValue = (f: FieldBase) => {
+    if (localFormData) {
+      if (localFormData[f.name]) {
+        return localFormData[f.name];
+      }
+      return localFormData;
+    }
+    return getInitialValue(f);
+  };
+
   return {
     id: field.name,
     name: field.name,
     type: type,
     component: component,
-    label: field.label,
+    label: field.label ?? field.label,
     helper_text: field.helper_text ?? field.helper_text,
     options: field.options?.map((option: ConfBase | any) =>
       option.title
@@ -38,7 +49,7 @@ export const translateField = (field: FieldBase, localFormData?: any) => {
           }
         : option
     ),
-    value: localFormData ? localFormData[field.name] : getInitialValue(field),
+    value: getValue(field),
     conf: field.conf ?? field.conf,
   };
 };

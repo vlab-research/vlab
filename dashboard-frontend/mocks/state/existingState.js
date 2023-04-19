@@ -456,7 +456,7 @@ const existingState = [
           name: 'add_destination',
           type: 'button',
           component: Button,
-          label: 'Add destination',
+          label: '',
           helper_text: undefined,
           options: undefined,
           value: undefined,
