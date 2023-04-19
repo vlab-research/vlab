@@ -270,7 +270,7 @@ def test_get_budget_lookup(cnf, df):
     window = DateRange(START_DATE, UNTIL_DATE)
     spend = {"bar": 10.0, "baz": 10.0, "foo": 10.0}
 
-    budget, _ = get_budget_lookup(df, cnf, 60, 100, window, spend, 30)
+    budget, _ = get_budget_lookup(df, cnf, 60, 100, window, spend, spend)
     assert round(budget["foo"]) == 16
     assert round(budget["bar"]) == 7
     assert round(budget["baz"]) == 7
@@ -279,7 +279,8 @@ def test_get_budget_lookup(cnf, df):
 def test_get_budget_lookup_with_proportional_budget_when_budget_is_spent(cnf, df):
     window = DateRange(START_DATE, UNTIL_DATE)
     spend = {"bar": 10.0, "baz": 10.0, "foo": 10.0}
-    budget, _ = get_budget_lookup(df, cnf, 30, 100, window, spend, 30)
+    lifetime_spend = spend
+    budget, _ = get_budget_lookup(df, cnf, 30, 100, window, spend, lifetime_spend)
     assert budget == {"bar": 0, "baz": 0, "foo": 0}
 
 
@@ -303,7 +304,8 @@ def test_get_budget_lookup_works_with_missing_data_from_clusters():
 
     spend = {"bar": 10.0, "foo": 10.0, "baz": 10.0}
     window = DateRange(START_DATE, UNTIL_DATE)
-    res, _ = get_budget_lookup(df, cnf, 50, 100, window, spend, 40)
+    lifetime_spend = spend
+    res, _ = get_budget_lookup(df, cnf, 40, 100, window, spend, lifetime_spend)
 
     assert {k: round(v, 1) for k, v in res.items()} == {"foo": 4.6, "bar": 0.7, "baz": 4.6}
 

@@ -71,10 +71,6 @@ def run_instructions(instructions: Sequence[Instruction], state: FacebookState):
         logging.info(report)
 
 
-def calculate_total_spend(rd: list[RecruitmentData]) -> float:
-    spend = calculate_stat(rd, "spend")
-    return sum(spend.values())
-
 
 # in pipeline design, this manages a single campaign,
 # but takes a study id. That's ok ->
@@ -98,7 +94,7 @@ def update_ads_for_campaign(
 
     spend = calculate_stat(rd, "spend", window)
 
-    total_spend = calculate_total_spend(rd)
+    lifetime_spend = calculate_stat(rd, "spend")
 
     budget_lookup, report = get_budget_lookup(
         df,
@@ -107,7 +103,7 @@ def update_ads_for_campaign(
         study.recruitment.opt_sample_size,
         window,
         spend,
-        total_spend,
+        lifetime_spend,
     )
 
     min_budget = study.general.min_budget
