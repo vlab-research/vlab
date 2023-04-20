@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
 import { Account } from '../../types/account';
 import PrimaryButton from '../../components/PrimaryButton';
+import DeleteButton from '../../components/DeleteButton';
 import InputAccountCredentials from './InputAccountCredentials';
 import useCreateAccount from './useCreateAccount';
+import useDeleteAccount from './useDeleteAccount';
 
 type accountListProps = {
   accounts: Account[];
@@ -42,8 +44,8 @@ const AccountListItem: React.FC<accountListItemProps> = ({
   clearCreateAccounts,
 }) => {
   const { isCreating, errorOnCreate, createAccount } = useCreateAccount();
+  const { isDeleting, deleteAccount } = useDeleteAccount();
   const [credential, setCredential] = useState(credentials);
-
   // used to handle the state of the credentials attached
   // to the account
   function handleCredentialChange(e: any): void {
@@ -61,18 +63,24 @@ const AccountListItem: React.FC<accountListItemProps> = ({
   const handleSubmitForm = (e: any): void => {
     e.preventDefault();
 
-    const data = {
-      name: account.name,
-      authType: account.authType,
-      connectedAccount: {
-        createdAt: Date.now(),
-        credentials: validateCredentials,
-      },
-    };
     clearCreateAccounts();
-    // We only ever create accounts as the endpoint is
-    // idempotent
-    createAccount(data);
+    if (e.nativeEvent.submitter.name === 'delete') {
+      deleteAccount({
+        name: account.name,
+        authType: account.authType,
+      });
+    } else {
+      // We only ever create accounts as the endpoint is
+      // idempotent
+      createAccount({
+        name: account.name,
+        authType: account.authType,
+        connectedAccount: {
+          createdAt: Date.now(),
+          credentials: validateCredentials,
+        },
+      });
+    }
   };
 
   return (
@@ -90,7 +98,8 @@ const AccountListItem: React.FC<accountListItemProps> = ({
               entity={account.authType}
               credentials={credential}
             />
-            <div className="flex items-baseline">
+            <div className="bg-gray-50 px-4 py-3 sm:flex sm:flex-row-reverse sm:px-6">
+              <DeleteButton type="submit" loading={isDeleting} />
               <PrimaryButton
                 type="submit"
                 testId={`existing-account-submit-button-${index}`}
