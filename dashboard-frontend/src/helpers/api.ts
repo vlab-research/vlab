@@ -154,6 +154,21 @@ const createAccount = ({
     body: { name, authType, connectedAccount },
   });
 
+const deleteAccount = ({
+  name,
+  authType,
+  accessToken,
+}: {
+  name: string;
+  authType: string;
+  accessToken: string;
+}) =>
+  apiRequest<void>('/accounts', {
+    accessToken,
+    method: 'DELETE',
+    body: { name, authType },
+  });
+
 const apiRequest = async <ApiResponse>(
   url: string,
   {
@@ -164,7 +179,7 @@ const apiRequest = async <ApiResponse>(
     expectedStatusCodes,
   }: {
     defaultErrorMessage?: string;
-    method?: 'GET' | 'POST';
+    method?: 'GET' | 'POST' | 'DELETE';
     accessToken: string;
     body?: object;
     expectedStatusCodes?: number[];
@@ -192,6 +207,12 @@ const apiRequest = async <ApiResponse>(
 
     if (!isExpectedResponse) {
       throw new Error(await getErrorMessageFor(response, defaultErrorMessage));
+    }
+
+    // 204 is no content so we just return and empty
+    // type
+    if (response.status === 204) {
+      return {} as Promise<ApiResponse>;
     }
 
     return response.json() as Promise<ApiResponse>;
@@ -231,4 +252,5 @@ export const authenticatedApiCalls = {
   fetchStudyConf,
   fetchAccounts,
   createAccount,
+  deleteAccount,
 };

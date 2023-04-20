@@ -45,4 +45,8 @@ export const addAccountToCacheWhileRefetching: any = (account: Account) => {
   queryCache.invalidateQueries(queryKey);
 };
 
+export const clearCacheWhileRefetching = () => {
+  queryCache.invalidateQueries(queryKey);
+}
+
 export default useAccounts;
