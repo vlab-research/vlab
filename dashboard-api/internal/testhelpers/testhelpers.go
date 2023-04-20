@@ -43,6 +43,14 @@ func PerformPostRequest(
 	return PerformRequest(path, userID, http.MethodPost, repositories, body)
 }
 
+func PerformDeleteRequest(
+	path, userID string,
+	repositories storage.Repositories,
+	body interface{},
+) Response {
+	return PerformRequest(path, userID, http.MethodDelete, repositories, body)
+}
+
 func PerformRequest(
 	path, userID string,
 	method string,
@@ -67,7 +75,7 @@ func PerformRequest(
 	var req *http.Request
 	var err error
 
-	if method == http.MethodPost {
+	if method != http.MethodGet {
 		reqBodyAsString, _ := json.Marshal(body)
 		req, err = http.NewRequest(
 			method,
@@ -160,9 +168,16 @@ func CreateUser(t *testing.T) {
 
 func CreateAccounts(t *testing.T, a types.Account, created time.Time) error {
 	t.Helper()
-	c, err := a.ConnectedAccount.MarshalCredentials()
-	if err != nil {
-		return err
+	var c string
+	var err error
+	var i interface{}
+	if a.ConnectedAccount != i {
+		c, err = a.ConnectedAccount.MarshalCredentials()
+		if err != nil {
+			return err
+		}
+	} else {
+		c = "{}"
 	}
 	r := GetRepositories()
 	q := "INSERT INTO credentials (user_id, entity, key, details, created) VALUES ($1, $2, $3, $4, $5)"

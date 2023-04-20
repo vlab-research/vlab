@@ -251,7 +251,7 @@ def get_budget_lookup(
     max_sample_size: int,
     window: DateRange,
     spend: Dict[str, float],
-    total_spend: float,
+    lifetime_spend: Dict[str, float],
 ) -> Tuple[Optional[Budget], Optional[AdOptReport]]:
 
     df = prep_df_for_budget(df, strata) if df is not None else None
@@ -261,6 +261,7 @@ def get_budget_lookup(
         return None, None
 
     # TODO: fix total_spend and insights spend here
+    total_spend = sum(lifetime_spend.values())
     to_spend = max_budget - total_spend
 
     try:
@@ -284,6 +285,7 @@ def get_budget_lookup(
         [
             ("current_price_per_participant", price),
             ("total_spent", spend),
+            ("lifetime_spent", lifetime_spend),
             ("desired_percentage", goal),
             ("current_participants", tot),
             ("current_percentage", share),

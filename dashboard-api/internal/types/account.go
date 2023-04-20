@@ -24,6 +24,7 @@ type AccountRepository interface {
 }
 
 var ErrAccountAlreadyExists = errors.New("Account Already Exists")
+var ErrAccountDoesNotExists = errors.New("account does not exist")
 
 // ConnectedAccount is used to enable the frontend to not need complex
 // logic in order to determine if an account has been "connected".
