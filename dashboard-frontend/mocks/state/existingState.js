@@ -464,6 +464,60 @@ const existingState = [
         },
       ],
     ],
+    simple_list: [
+      [
+        {
+          id: 'foo',
+          name: 'foo',
+          type: 'text',
+          component: Text,
+          label: 'I am a list item',
+          helper_text: 'Foo',
+          options: undefined,
+          value: 'Foo',
+          conf: undefined,
+        },
+      ],
+      [
+        {
+          id: 'foo',
+          name: 'foo',
+          type: 'text',
+          component: Text,
+          label: 'I am a list item',
+          helper_text: 'Foo',
+          options: undefined,
+          value: 'Bar',
+          conf: undefined,
+        },
+      ],
+      [
+        {
+          id: 'foo',
+          name: 'foo',
+          type: 'text',
+          component: Text,
+          label: 'I am a list item',
+          helper_text: 'Foo',
+          options: undefined,
+          value: 'Baz',
+          conf: undefined,
+        },
+      ],
+      [
+        {
+          id: 'foo',
+          name: 'foo',
+          type: 'text',
+          component: Text,
+          label: 'I am a list item',
+          helper_text: 'Foo',
+          options: undefined,
+          value: '',
+          conf: undefined,
+        },
+      ],
+    ],
   },
 ];
 
