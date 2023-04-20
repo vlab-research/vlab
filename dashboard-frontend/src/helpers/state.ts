@@ -15,17 +15,15 @@ export const getFieldState = (
 };
 
 export const updateFieldState = (
-  state: FieldState[],
+  state: FieldState[] | any,
   event: EventInterface,
   conf?: ConfBase
 ) => {
-  const clone = [...state];
-
   if (event.type === 'click' && conf) {
-    return [...clone, initialiseFieldState(conf)];
+    return [...state, ...initialiseFieldState(conf)];
   }
 
   getField(state, event).value = event.value;
 
-  return clone;
+  return state;
 };

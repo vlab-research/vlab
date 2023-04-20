@@ -19,21 +19,28 @@ const list = (
 
   if (!localFormData && !fieldState && !event) {
     const fieldset = initialiseFieldState(translatedConf);
+
     const translatedButton = translateField(conf.button);
+
     return [[...fieldset], [translatedButton]];
   }
 
   if (localFormData && !fieldState && !event) {
     const translatedButton = translateField(conf.button);
+
     const fieldset = localFormData.map(d => getFieldState(translatedConf, d));
+
     return [...fieldset, [translatedButton]];
   }
 
   if (!localFormData && fieldState && event) {
-    const fieldset = updateFieldState(fieldState, event, translatedConf);
+    const fieldset = fieldState.map(s =>
+      updateFieldState(s, event, translatedConf)
+    );
 
-    const index = fieldset.findIndex(fields => fields[0].type === 'button');
-
+    const index = fieldset.findIndex((s: any) =>
+      s.map((f: FieldState) => f.type === 'button')
+    );
     const button = fieldset[index];
 
     return reorderArray(fieldset, button);

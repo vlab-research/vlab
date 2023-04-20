@@ -129,6 +129,25 @@ describe('updateFieldState', () => {
     expect(updatedField.value).toEqual(event.value);
   });
 
+  it('works when the event occurrs on a list component', () => {
+    const fieldState = initialState[0]['simple_list'];
+
+    const event = {
+      name: 'foo',
+      value: 'baz',
+      type: 'change',
+      fieldType: 'text',
+    };
+
+    const res = updateFieldState(fieldState, event);
+
+    const updatedField = getField(res, event);
+
+    expect(updatedField.value).toEqual('baz');
+    expect(updatedField.value).not.toEqual('baz!');
+    expect(updatedField.value).toEqual(event.value);
+  });
+
   it('works when the event occurs on a select component with nested confs', () => {
     const fieldState = initialState[0]['recruitment'];
 
@@ -148,31 +167,27 @@ describe('updateFieldState', () => {
     expect(updatedField.value).toEqual(event.value);
   });
 
-  // it('works for click events when the event occurs on a button', () => {
-  //   const conf = simpleList;
-  //   const fieldState = initialState[0]['simple_list'];
+  it('works for click events when the event occurs on a button', () => {
+    const conf = translatedListConf;
+    const fieldState = initialState[0]['simple_list'];
 
-  //   const event = {
-  //     name: 'add_button',
-  //     value: 'add_button',
-  //     type: 'click',
-  //     fieldType: 'button',
-  //   };
+    const event = {
+      name: 'add_button',
+      value: 'add_button',
+      type: 'click',
+      fieldType: 'button',
+    };
 
-  //     const fieldStateOnFirstClick = updateFieldState(fieldState, event, conf);
+    const fieldStateOnFirstClick = updateFieldState(fieldState, event, conf);
 
-  //     console.log(fieldStateOnFirstClick);
+    expect(fieldStateOnFirstClick).toHaveLength(2);
 
-  //     // expect(fieldStateOnFirstClick).toHaveLength(2);
+    const fieldStateOnSecondClick = updateFieldState(
+      fieldStateOnFirstClick,
+      event,
+      conf
+    );
 
-  //     const fieldStateOnSecondClick = updateFieldState(
-  //       fieldStateOnFirstClick,
-  //       event,
-  //       conf
-  //     );
-
-  //     console.log(fieldStateOnSecondClick);
-
-  //     // expect(fieldStateOnSecondClick).toHaveLength(3);
-  //   });
+    expect(fieldStateOnSecondClick).toHaveLength(3);
+  });
 });
