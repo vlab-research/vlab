@@ -27,7 +27,7 @@
     "eject": "craco eject",
     "check-types": "tsc -w --noEmit",
     "lint": "eslint --ext .js,.ts,.jsx,.tsx src",
-    "format": "npm run lint --fix & npx prettier --write 'src/**/*.{js,jsx,ts,tsx}'"
+    "format": "prettier --write 'src/**/*.{js,jsx,ts,tsx}'"
   },
   "eslintConfig": {
     "extends": [
