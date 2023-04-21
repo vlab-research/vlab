@@ -1,14 +1,13 @@
 import Text from './../pages/NewStudyPage/components/form/inputs/Text';
-import general from '../pages/StudyConfPage/confs/general';
 import { getField } from './getField';
-import { initialiseFieldState } from './state';
+import initialState from '../../mocks/state/initialState';
 
 describe('getField', () => {
   it('given some fields and an event it returns the field on which the event occurred', () => {
-    const conf = general;
-    const fields = initialiseFieldState(conf);
+    const fieldState = initialState[0]['general'];
+
     const event = {
-      name: 'instagram_id',
+      name: 'instagram_id-6',
       value: 'foo',
       type: 'change',
       fieldType: 'text',
@@ -26,7 +25,7 @@ describe('getField', () => {
       conf: undefined,
     };
 
-    const res = getField(fields, event);
+    const res = getField(fieldState, event);
 
     expect(res).toStrictEqual(expectation);
   });

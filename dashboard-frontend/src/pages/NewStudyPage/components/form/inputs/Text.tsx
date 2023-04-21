@@ -3,8 +3,9 @@ import { classNames } from '../../../../../helpers/strings';
 const Text = ({ onChange, ...props }: any) => {
   const { id, name, label, helper_text, value, error } = props;
 
-  const eventHandler = (e: any) =>
+  const eventHandler = (e: any) => {
     onChange({ type: e.type, value: e.target.value });
+  };
 
   return (
     <div className="sm:my-4">

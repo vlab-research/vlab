@@ -9,7 +9,7 @@ import formData from '../../../../mocks/formData/formData';
 import simple from './simple';
 
 describe('simple controller', () => {
-  it('given a conf it returns some initial fields when no state is defined', () => {
+  it('given a simple conf it returns some initial fields when no state is defined', () => {
     const confs = [create_study, general];
 
     const expectation = confs.map(conf => initialiseFieldState(conf));
@@ -19,7 +19,7 @@ describe('simple controller', () => {
     expect(res).toStrictEqual(expectation);
   });
 
-  it('given a conf and some form data it returns a set of fields with their existing state', () => {
+  it('given a simple conf and some form data it returns a set of fields with their existing state', () => {
     const conf = create_study;
 
     const localFormData = formData['create_study'];
@@ -42,7 +42,7 @@ describe('simple controller', () => {
     expect(res).toEqual(expectation);
   });
 
-  it('works for study confs too', () => {
+  it('works for a simple study conf too', () => {
     const conf = general;
 
     const localFormData = formData['general'];
@@ -60,7 +60,7 @@ describe('simple controller', () => {
     const localFormData = formData['create_study'];
 
     const event = {
-      name: 'name',
+      name: 'name-0',
       value: 'baz',
       type: 'change',
       fieldType: 'text',
@@ -80,7 +80,7 @@ describe('simple controller', () => {
     expect(targetField?.value).not.toEqual(prevValue);
   });
 
-  it('works for updating study confs too', () => {
+  it('works for updating simple study confs too', () => {
     const conf = general;
 
     const localFormData = formData['general'];
@@ -88,7 +88,7 @@ describe('simple controller', () => {
     const state = initialState[0].general;
 
     const event = {
-      name: `instagram_id`,
+      name: `instagram_id-6`,
       value: 'baz',
       type: 'change',
       fieldType: 'text',

@@ -8,7 +8,7 @@ import useStudyConf from '../../hooks/useStudyConf';
 import useStudy from '../../hooks/useStudy';
 import general from './confs/general';
 import recruitment from './confs/recruitment/base';
-import destinations from './confs/destinations/base';
+// import destinations from './confs/destinations/base';
 import simpleList from './confs/simpleList';
 import { ConfBase, ConfSelectBase, ConfListBase } from '../../types/conf';
 
@@ -46,7 +46,7 @@ const PageContent = (data: any) => {
   const confStore: Record<string, ConfBase | ConfSelectBase | ConfListBase> = {
     general,
     recruitment,
-    destinations,
+    // destinations,
     simpleList,
   };
 

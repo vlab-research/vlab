@@ -68,27 +68,13 @@ const Fieldset: React.FC<Props> = ({
       {fieldState.map((f: FieldState | any, i: number) => {
         const { component: Component, ...props } = f;
 
-        return f.component ? (
+        return (
           <Component
             key={`${f.name}-${i}`}
-            onChange={(e: any) => onChange(f.name, f.type, e)}
+            onChange={(e: any) => onChange(`${f.name}-${i}`, f.type, e)}
             error={error}
             {...props}
           />
-        ) : (
-          f.map((s: FieldState, i: number) => {
-            const { component: Component, ...props } = s;
-            return (
-              <>
-                <Component
-                  key={`${s.name}-${i}`}
-                  onChange={(e: any) => onChange(s.name, s.type, e)}
-                  error={error}
-                  {...props}
-                />
-              </>
-            );
-          })
         );
       })}
     </>

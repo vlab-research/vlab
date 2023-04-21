@@ -56,12 +56,10 @@ const select = (
 
       const globalState = initialiseFieldState(translatedConf);
 
-      return (
-        globalState && updateFieldState(globalState, event, translatedConf)
-      );
+      return globalState && updateFieldState(globalState, event);
     }
 
-    return updateFieldState(fieldState, event, conf);
+    return updateFieldState(fieldState, event);
   }
 
   if (localFormData && fieldState && event) {
@@ -76,12 +74,10 @@ const select = (
 
       const globalState = initialiseFieldState(translatedConf);
 
-      return (
-        globalState && updateFieldState(globalState, event, translatedConf)
-      );
+      return globalState && updateFieldState(globalState, event);
     }
 
-    return updateFieldState(fieldState, event, conf);
+    return updateFieldState(fieldState, event);
   }
 };
 

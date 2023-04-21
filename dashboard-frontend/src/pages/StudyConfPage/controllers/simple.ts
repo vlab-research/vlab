@@ -21,11 +21,11 @@ const simple = (
   }
 
   if (!localFormData && fieldState && event) {
-    return updateFieldState(fieldState, event, conf);
+    return updateFieldState(fieldState, event);
   }
 
   if (localFormData && fieldState && event) {
-    return updateFieldState(fieldState, event, conf);
+    return updateFieldState(fieldState, event);
   }
 
   return;

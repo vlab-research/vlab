@@ -1,11 +1,17 @@
 import general from '../pages/StudyConfPage/confs/general';
 import create_study from '../pages/NewStudyPage/confs/create_study';
-import { getFieldState, initialiseFieldState, updateFieldState } from './state';
+import {
+  getFieldState,
+  initialiseFieldState,
+  updateFieldState,
+  updateGlobalState,
+} from './state';
 import { getField } from './getField';
 import initialState from '../../mocks/state/initialState';
 import formData from '../../mocks/formData/formData';
 import translatedSelectConf from '../../mocks/confs/translatedSelectConf';
 import translatedListConf from '../../mocks/confs/translatedListConf';
+import Text from '../../mocks/components/text';
 
 describe('initialiseFieldState', () => {
   it('given a simple conf it returns some initial field state when no state is defined', () => {
@@ -95,7 +101,7 @@ describe('updateFieldState', () => {
     const fieldState = initialState[0]['general'];
 
     const event = {
-      name: 'instagram_id',
+      name: 'instagram_id-6',
       value: 'baz',
       type: 'change',
       fieldType: 'text',
@@ -114,7 +120,7 @@ describe('updateFieldState', () => {
     const fieldState = initialState[0]['general'];
 
     const event = {
-      name: 'objective',
+      name: 'objective-0',
       value: 'link_clicks',
       type: 'change',
       fieldType: 'select',
@@ -133,7 +139,7 @@ describe('updateFieldState', () => {
     const fieldState = initialState[0]['simple_list'];
 
     const event = {
-      name: 'foo',
+      name: 'foo-0',
       value: 'baz',
       type: 'change',
       fieldType: 'text',
@@ -152,7 +158,7 @@ describe('updateFieldState', () => {
     const fieldState = initialState[0]['recruitment'];
 
     const event = {
-      name: 'recruitment_type',
+      name: 'recruitment_type-0',
       value: 'recruitment_pipeline',
       type: 'change',
       fieldType: 'select',
@@ -165,29 +171,5 @@ describe('updateFieldState', () => {
     expect(updatedField.value).toEqual('recruitment_pipeline');
     expect(updatedField.value).not.toEqual('recruitment_simple');
     expect(updatedField.value).toEqual(event.value);
-  });
-
-  it('works for click events when the event occurs on a button', () => {
-    const conf = translatedListConf;
-    const fieldState = initialState[0]['simple_list'];
-
-    const event = {
-      name: 'add_button',
-      value: 'add_button',
-      type: 'click',
-      fieldType: 'button',
-    };
-
-    const fieldStateOnFirstClick = updateFieldState(fieldState, event, conf);
-
-    expect(fieldStateOnFirstClick).toHaveLength(2);
-
-    const fieldStateOnSecondClick = updateFieldState(
-      fieldStateOnFirstClick,
-      event,
-      conf
-    );
-
-    expect(fieldStateOnSecondClick).toHaveLength(3);
   });
 });

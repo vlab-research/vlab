@@ -18,20 +18,20 @@ describe('mergeConfs', () => {
 });
 
 describe('translateListConf', () => {
-  it('given a conf of type list it returns a conf with a set of fields', () => {
+  it('given a conf of type list it returns a simple conf with a set of fields', () => {
     const conf = simpleList;
 
     const expectation = {
       type: 'confList',
-      title: 'Test',
-      description: 'test...',
+      title: 'Simple List',
+      description: 'simple list conf...',
       key: 'foo',
-      button: { name: 'add_button', type: 'button', label: 'Add' },
+      button: { name: 'add_button', type: 'button' },
       fields: [
         {
           name: 'foo',
           type: 'text',
-          label: 'Foo',
+          label: 'I am a list item',
           helper_text: 'Foo',
         },
       ],

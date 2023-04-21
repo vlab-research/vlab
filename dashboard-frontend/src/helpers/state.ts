@@ -15,15 +15,17 @@ export const getFieldState = (
 };
 
 export const updateFieldState = (
-  state: FieldState[] | any,
-  event: EventInterface,
-  conf?: ConfBase
+  state: FieldState[],
+  event: EventInterface
 ) => {
-  if (event.type === 'click' && conf) {
-    return [...state, ...initialiseFieldState(conf)];
+  if (getField(state, event)) {
+    getField(state, event).value = event.value;
   }
 
-  getField(state, event).value = event.value;
-
   return state;
+};
+
+export const updateGlobalState = (state: FieldState[], conf: ConfBase) => {
+  // TODO add delete functionality
+  return [...state, ...initialiseFieldState(conf)];
 };

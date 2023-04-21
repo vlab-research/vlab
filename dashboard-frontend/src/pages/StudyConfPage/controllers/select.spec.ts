@@ -36,7 +36,7 @@ describe('select controller', () => {
     const state = existingState[0].recruitment;
 
     const event = {
-      name: `ad_campaign_name`,
+      name: `ad_campaign_name-1`,
       value: 'foo',
       type: 'change',
       fieldType: 'text',
