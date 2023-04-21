@@ -13,11 +13,13 @@ const AcccountsPage: React.FC<any> = () => {
   return (
     <PageLayout
       title={'Connected Accounts'}
-      topRightElements={<NewAccountButton 
-                          open={open} 
-                          setOpen={setOpen} 
-                          testId="new-account-button" 
-                        />}
+      topRightElements={
+        <NewAccountButton
+          open={open}
+          setOpen={setOpen}
+          testId="new-account-button"
+        />
+      }
     >
       <PageContent open={open} setOpen={setOpen} />
     </PageLayout>

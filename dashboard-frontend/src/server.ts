@@ -213,7 +213,7 @@ export const makeServer = ({ environment = 'development' } = {}) => {
           return unauthorizedResponse;
         }
 
-        const studyconf = (db.studyconfs as any);
+        const studyconf = db.studyconfs as any;
 
         return {
           data: studyconf[0],

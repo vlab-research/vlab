@@ -26,4 +26,3 @@ describe('reduceFieldStateToAnObject', () => {
     expect(res).toStrictEqual(expectation);
   });
 });
-
