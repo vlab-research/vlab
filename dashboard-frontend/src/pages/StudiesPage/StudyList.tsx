@@ -118,8 +118,10 @@ const StudyListSkeletonItems = ({ number }: { number: number }) => (
 );
 
 const ListLayout = ({ children }: { children: React.ReactNode }) => (
-  <div className="bg-white shadow overflow-hidden sm:rounded-md" >
-    <ul className="divide-y divide-gray-200" data-testid="studies-list">{children}</ul>
+  <div className="bg-white shadow overflow-hidden sm:rounded-md">
+    <ul className="divide-y divide-gray-200" data-testid="studies-list">
+      {children}
+    </ul>
   </div>
 );
 

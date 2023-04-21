@@ -1,4 +1,4 @@
-import { useAuth0  } from '@auth0/auth0-react';
+import { useAuth0 } from '@auth0/auth0-react';
 import { authenticatedApiCalls as apiCalls } from '../helpers/api';
 
 const useAuthenticatedApi = () => {
@@ -6,8 +6,8 @@ const useAuthenticatedApi = () => {
 
   type AuthenticatedApiCalls = {
     [Property in keyof typeof apiCalls]: (
-      params: Omit<Parameters<typeof apiCalls[Property]>[0], 'accessToken'>
-    ) => ReturnType<typeof apiCalls[Property]>;
+      params: Omit<Parameters<(typeof apiCalls)[Property]>[0], 'accessToken'>
+    ) => ReturnType<(typeof apiCalls)[Property]>;
   };
 
   const apiCallNames: Array<keyof typeof apiCalls> = Object.keys(
@@ -18,7 +18,7 @@ const useAuthenticatedApi = () => {
     (acc, apiCallName) => {
       acc[apiCallName] = async (params: any) =>
         apiCalls[apiCallName]({
-          ...params, 
+          ...params,
           accessToken: await getAccessTokenSilently(),
         });
       return acc;
