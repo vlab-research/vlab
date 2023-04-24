@@ -11,7 +11,7 @@ services:
     depends_on:
       - migrations
     networks:
-      - dashboard-api
+      - api
     volumes:
       - .:/src/app
       # Needed for the dependency on the inference modules
@@ -24,7 +24,7 @@ services:
     ports:
       - "5432:26257"
     networks:
-      - dashboard-api
+      - api
   migrations:
     image: migrate/migrate:v4.15.2
     volumes:
@@ -48,6 +48,6 @@ services:
     depends_on:
       - cockroachdb
     networks:
-      - dashboard-api
+      - api
 networks:
-  dashboard-api:
+  api:

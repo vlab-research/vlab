@@ -1,4 +1,4 @@
-name: Dashboard Api
+name: Api
 on:
   push: 
     # We should always build and test on main
@@ -10,7 +10,7 @@ on:
     - 'dashboard-*'
   pull_request:
     paths:
-     - "dashboard-api/**"
+     - "api/**"
 
 jobs:
   # Runs the Dashboard API Tests
@@ -28,10 +28,10 @@ jobs:
           go-version: '^1.18'
       - name: Setup Database
         run: make test-db
-        working-directory: ./dashboard-api
+        working-directory: ./api
       - name: Run Tests
         run: make test
-        working-directory: ./dashboard-api
+        working-directory: ./api
   # Builds the Dashboard API
   build:
     runs-on: ubuntu-latest
@@ -62,7 +62,7 @@ jobs:
       - name: Build and push
         uses: docker/build-push-action@v2
         with:
-          file: dashboard-api/Dockerfile
+          file: api/Dockerfile
           # We only push to docker on tag with `dashboard-x.x.x`
           push: ${{ startsWith(github.ref, 'refs/tags/dashboard') }}
           cache-from: type=gha

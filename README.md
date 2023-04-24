@@ -1,7 +1,7 @@
 ![Virtual Labs Logo](dashboard-frontend/src/assets/auth0/logo.png)
 
-[![Dashboard Frontend](https://github.com/vlab-research/vlab/actions/workflows/dashboard-frontend-tests.yml/badge.svg)](https://github.com/vlab-research/vlab/actions/workflows/dashboard-frontend.yml)
-[![Dashboard Api](https://github.com/vlab-research/vlab/actions/workflows/dashboard-api-tests.yml/badge.svg)](https://github.com/vlab-research/vlab/actions/workflows/dashboard-api-tests.yml)
+[![Dashboard](https://github.com/vlab-research/vlab/actions/workflows/dashboard.yml/badge.svg)](https://github.com/vlab-research/vlab/actions/workflows/dashboard.yml)
+[![Api](https://github.com/vlab-research/vlab/actions/workflows/api.yml/badge.svg)](https://github.com/vlab-research/vlab/actions/workflows/api.yml)
 [![Adopt](https://github.com/vlab-research/vlab/actions/workflows/adopt.yaml/badge.svg)](https://github.com/vlab-research/vlab/actions/workflows/adopt.yaml)
 [![Netlify Status](https://api.netlify.com/api/v1/badges/f6a7c27f-0ee6-4444-949e-a4ec411bbc09/deploy-status)](https://app.netlify.com/sites/vlab-dashboard/deploys?branch=main)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://github.com/vlab-research/vlab/blob/main/LICENSE)
@@ -25,15 +25,15 @@ codebase responsible for handling all the recruitment logic and statistic
 analysis for the Vlabs Platform. This is our source of truth for studies and
 study configurations
 
-### Dashboard API
+### API
 
-Found in the [dashboard-api](./dashboard-api) is the API layer that is used to
+Found in the [api](./api) is the API layer that is used to
 provide an interface to configure the Vlabs Platform. The purpose is to handle
 Configuration and Validation
 
-### Dashboard Frontend
+### Dashboard
 
-Found in the [dashboard-frontend](./dashboard-frontend) is our UI components
+Found in the [dashboard](./dashboard) directory is our UI components
 written in react, this is the User interface for the Vlabs Platform. The
 purpose is to offer a user friendly way to maintain a study and see feedback on
 how well a study is performing
