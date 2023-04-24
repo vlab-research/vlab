@@ -36,7 +36,6 @@ const Fieldset: React.FC<Props> = ({
   if (!controller) {
     throw new Error(`Could not find form for controller type: ${type}`);
   }
-
   useEffect(() => {
     setState(controller(conf, localFormData));
   }, [conf, controller, localFormData]);
@@ -58,7 +57,7 @@ const Fieldset: React.FC<Props> = ({
     setState(newState);
 
     // Send form data to form, that's all it cares about
-    handleChange({ type: 'change', value: newLocalFormData });
+    handleChange(newLocalFormData);
   };
 
   if (!fieldState) return null;

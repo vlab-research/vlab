@@ -38,7 +38,7 @@ const Form: React.FC<Props> = ({ conf, data }) => {
 
   const handleChange = (formData: any) => {
     const updateFormData = (x: any) => {
-      setFormGlobalFormData({ ...formData, [title]: x.value });
+      setFormGlobalFormData({ ...x });
     };
 
     updateFormData(formData);
@@ -48,7 +48,7 @@ const Form: React.FC<Props> = ({ conf, data }) => {
     e.preventDefault();
 
     const data = {
-      [title]: globalFormData[title],
+      [title]: globalFormData,
     };
 
     const slug = params.studySlug;
