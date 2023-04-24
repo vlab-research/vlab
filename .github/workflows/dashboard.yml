@@ -1,9 +1,9 @@
-name: Dashboard Frontend
+name: Dashboard
 
 on:
   push:
     paths:
-      - "dashboard-frontend/**"
+      - "dashboard/**"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -25,7 +25,7 @@ jobs:
       REACT_APP_SERVER_URL: http://localhost:8080
     defaults:
       run:
-        working-directory: ./dashboard-frontend
+        working-directory: ./dashboard
     steps:
       - uses: actions/checkout@v2
       - uses: actions/setup-node@v2
