@@ -5,7 +5,7 @@ import {
   updateGlobalState,
 } from '../../../helpers/state';
 import { EventInterface, FormData } from '../../../types/form';
-import { ConfListBase } from '../../../types/conf';
+import { ConfListBase, FieldState } from '../../../types/conf';
 import { translateListConf } from '../../../helpers/translateConf';
 import { translateField } from '../../../helpers/translateField';
 import { reorderArray } from '../../../helpers/arrays';
@@ -17,6 +17,19 @@ const list = (
   fieldState?: any[]
 ) => {
   const translatedConf = translateListConf(conf);
+
+  const getButton = (arr: any[]) => {
+    const index = arr.findIndex(f => f.type === 'button');
+    return arr[index];
+  };
+
+  const translateFieldState = (state: FieldState[]) => {
+    const button = getButton(state);
+
+    const updatedFieldState = updateGlobalState(state, translatedConf);
+
+    return reorderArray(updatedFieldState, button);
+  };
 
   if (!localFormData && !fieldState && !event) {
     const inputs = initialiseFieldState(translatedConf);
@@ -37,28 +50,26 @@ const list = (
   }
 
   if (!localFormData && fieldState && event) {
-    const getButton = (arr: any[]) => {
-      const index = arr.findIndex(f => f.type === 'button');
-      return arr[index];
-    };
-
-    const button = getButton(fieldState);
-
     if (event.type === 'click' && conf) {
-      const updatedFieldState = updateGlobalState(fieldState, translatedConf);
-
-      const button = getButton(updatedFieldState);
-
-      return reorderArray(updatedFieldState, button);
+      return translateFieldState(fieldState);
     }
 
     updateFieldState(fieldState, event);
+
+    const button = getButton(fieldState);
 
     return reorderArray(fieldState, button);
   }
 
   if (localFormData && fieldState && event) {
-    return updateFieldState(fieldState, event);
+    if (event.type === 'click' && conf) {
+      return translateFieldState(fieldState);
+    }
+    updateFieldState(fieldState, event);
+
+    const button = getButton(fieldState);
+
+    return reorderArray(fieldState, button);
   }
 
   return;

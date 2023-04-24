@@ -103,4 +103,38 @@ describe('list controller', () => {
     expect(targetField?.value).not.toEqual(prevValue);
     expect(targetField?.value).toStrictEqual('bazzy');
   });
+
+  it('works for click events too by adding a new field to the global state', () => {
+    const conf = simpleList;
+
+    const localFormData = formData['simple_list'];
+
+    const state = [
+      ...existingState[0]['simple_list'],
+      {
+        id: 'add_button',
+        name: 'add_button',
+        type: 'button',
+        component: Button,
+        label: undefined,
+        helper_text: undefined,
+        options: undefined,
+        value: '',
+        conf: undefined,
+      },
+    ];
+
+    const event = {
+      name: `add_button-3`,
+      value: '',
+      type: 'click',
+      fieldType: 'button',
+    };
+
+    const prevLength = state.length; // 4
+
+    const res = list(conf, localFormData, event, state);
+
+    expect(res?.length).toStrictEqual(prevLength + 1); // 5
+  });
 });
