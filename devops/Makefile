@@ -30,7 +30,8 @@ seed:		## Create new seed file [name: required]
 		-ext sql \
 		$(name)
 
-test-db: start-db-container setup-database run-migrations
+test-db: 	## Runs a test db used for the API tests 
+	@ $(MAKE) start-db-container setup-database run-migrations
 
 start-db-container:
 	@-docker stop vlab-recruitment-test && docker rm vlab-recruitment-test
