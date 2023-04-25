@@ -8,9 +8,10 @@ schema changes in an ordered manner.
 
 ```bash
 $ make
-help:      Show help for each of the Makefile recipes
-migration: Create a new migration file [name: required]
-seed:      Create new seed file [name: required]
+help:       Show help for each of the Makefile recipes
+migration:  Create a new migration file [name: required]
+seed:       Create new seed file [name: required]
+test-db:    Runs a test db used for the API tests 
 ```
 
 ### Creating a new migration
