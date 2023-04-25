@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/vlab-research/vlab/dashboard-api/internal/types"
-	flytypes "github.com/vlab-research/vlab/inference/sources/fly/types"
+	sourcetypes "github.com/vlab-research/vlab/inference/sources/types"
 )
 
 func Test_AccountRepository_Create_Account(t *testing.T) {
@@ -21,7 +21,7 @@ func Test_AccountRepository_Create_Account(t *testing.T) {
 			AuthType: "token",
 			ConnectedAccount: types.FlyConnectedAccount{
 				CreatedAt: 0,
-				Credentials: flytypes.FlyCredentials{
+				Credentials: sourcetypes.FlyCredentials{
 					APIKey: "supersecret",
 				},
 			},

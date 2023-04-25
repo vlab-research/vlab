@@ -3,16 +3,18 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"log"
+	"net/http"
+	"net/url"
+	"time"
+
 	"github.com/caarlos0/env/v6"
 	"github.com/dghubble/sling"
 	"github.com/tidwall/gjson"
 	"github.com/tidwall/sjson"
 	"github.com/vlab-research/vlab/inference/connector"
 	. "github.com/vlab-research/vlab/inference/inference-data"
-	"log"
-	"net/http"
-	"net/url"
-	"time"
+	"github.com/vlab-research/vlab/inference/sources/types"
 )
 
 func handle(err error) {
@@ -141,11 +143,6 @@ func (c *AlchemerConnector) loadEnv() *AlchemerConnector {
 	return c
 }
 
-type AlchemerCreds struct {
-	ApiToken       string `json:"api_token"`
-	ApiTokenSecret string `json:"api_token_secret"`
-}
-
 func parseTimestamp(config *AlchemerConfig, s string) (*time.Time, error) {
 	loc, e := time.LoadLocation(config.TimeZone)
 	if e != nil {
@@ -172,8 +169,8 @@ func makeFilterQuery(filters []Filter) url.Values {
 	return v
 }
 
-func parseCreds(b json.RawMessage) *AlchemerCreds {
-	creds := new(AlchemerCreds)
+func parseCreds(b json.RawMessage) *types.AlchemerCreds {
+	creds := new(types.AlchemerCreds)
 	err := json.Unmarshal(b, creds)
 	handle(err)
 	return creds

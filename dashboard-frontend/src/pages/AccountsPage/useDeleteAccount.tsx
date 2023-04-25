@@ -13,7 +13,7 @@ const useDeleteAccount: any = () => {
       await deleteAccount({ name, authType }),
     {
       onSuccess: () => {
-        clearCacheWhileRefetching()
+        clearCacheWhileRefetching();
         history.push('/accounts');
         notyf.success({
           message: `account deleted!`,

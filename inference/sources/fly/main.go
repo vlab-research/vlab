@@ -12,7 +12,7 @@ import (
 	"github.com/dghubble/sling"
 	"github.com/vlab-research/vlab/inference/connector"
 	. "github.com/vlab-research/vlab/inference/inference-data"
-	"github.com/vlab-research/vlab/inference/sources/fly/types"
+	"github.com/vlab-research/vlab/inference/sources/types"
 )
 
 func handle(err error) {

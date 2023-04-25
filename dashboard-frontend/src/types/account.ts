@@ -28,3 +28,10 @@ export interface FlyAccount extends ConnectedAccount {
     api_key: string;
   };
 }
+
+export interface AlchemerAccount extends ConnectedAccount {
+  credentials: {
+    api_token: string;
+    api_token_secret: string;
+  };
+}

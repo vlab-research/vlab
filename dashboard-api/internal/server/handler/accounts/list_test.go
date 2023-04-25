@@ -10,7 +10,7 @@ import (
 	"github.com/vlab-research/vlab/dashboard-api/internal/storage"
 	"github.com/vlab-research/vlab/dashboard-api/internal/testhelpers"
 	"github.com/vlab-research/vlab/dashboard-api/internal/types"
-	flytypes "github.com/vlab-research/vlab/inference/sources/fly/types"
+	sourcetypes "github.com/vlab-research/vlab/inference/sources/types"
 )
 
 func TestHandler_Account_List(t *testing.T) {
@@ -34,7 +34,7 @@ func TestHandler_Account_List(t *testing.T) {
 					Name:     "Fly",
 					AuthType: authType,
 					ConnectedAccount: types.FlyConnectedAccount{
-						Credentials: flytypes.FlyCredentials{
+						Credentials: sourcetypes.FlyCredentials{
 							APIKey: "supersecret",
 						},
 					},
@@ -44,14 +44,25 @@ func TestHandler_Account_List(t *testing.T) {
 					Name:     "Typeform",
 					AuthType: authType,
 					ConnectedAccount: types.TypeformConnectedAccount{
-						Credentials: types.TypeformCredentials{
+						Credentials: sourcetypes.TypeformCredentials{
 							Key: "supersecret",
+						},
+					},
+				},
+				{
+					UserID:   testhelpers.CurrentUserId,
+					Name:     "Alchemer",
+					AuthType: authType,
+					ConnectedAccount: types.AlchemerConnectedAccount{
+						Credentials: sourcetypes.AlchemerCreds{
+							ApiToken:       "supersecret",
+							ApiTokenSecret: "supersecret",
 						},
 					},
 				},
 			},
 			expectedStatus: 200,
-			expectedRes:    []string{`{"key":"supersecret"}`, `{"api_key":"supersecret"}`},
+			expectedRes:    []string{`{"key":"supersecret"}`, `{"api_key":"supersecret"}`, `{"api_token":"supersecret","api_token_secret":"supersecret"}`},
 			description:    "return 200 with a list of accounts",
 		},
 		{

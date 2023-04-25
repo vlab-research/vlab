@@ -17,7 +17,7 @@ jobs:
   build:
     strategy:
       matrix:
-        connector: ['fly', 'typeform']
+        connector: ['fly', 'typeform', 'alchemer']
     runs-on: ubuntu-latest
     name: Build Image
     steps:

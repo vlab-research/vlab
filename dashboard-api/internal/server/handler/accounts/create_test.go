@@ -92,6 +92,25 @@ func TestHandler_Account_Create(t *testing.T) {
 					`),
 			},
 		},
+		{
+			expectedStatus: 201,
+			expectedRes:    `{"data":{"userId":"auth0|61916c1dab79c900713936de","authType":"token","name":"alchemer","connectedAccount":{"createdAt":null,"credentials":{"api_token":"supersecret","api_token_secret":"supersecret"}}}}`,
+			description:    "return 201 for valid alchemer account",
+			account: types.Account{
+				UserID:   userId,
+				Name:     "alchemer",
+				AuthType: authType,
+				RawConnectedAccount: []byte(`
+					{
+						"createdAt": null,
+						"credentials": {
+							"api_token": "supersecret",
+							"api_token_secret": "supersecret"
+						}
+					}
+					`),
+			},
+		},
 	}
 
 	for _, tc := range testcases {
