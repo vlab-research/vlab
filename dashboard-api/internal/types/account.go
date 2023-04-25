@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 
-	flytypes "github.com/vlab-research/vlab/inference/sources/fly/types"
+	sourcetypes "github.com/vlab-research/vlab/inference/sources/types"
 )
 
 type AccountType string
@@ -15,6 +15,7 @@ type AccountType string
 const (
 	TypeformAccount AccountType = "typeform"
 	FlyAccount      AccountType = "fly"
+	AlchemerAccount AccountType = "alchemer"
 )
 
 type AccountRepository interface {
@@ -56,8 +57,8 @@ func (a *Account) SetRawConnectedAccount() error {
 }
 
 type FlyConnectedAccount struct {
-	CreatedAt   int                     `json:"createdAt"`
-	Credentials flytypes.FlyCredentials `json:"credentials" validate:"required"`
+	CreatedAt   int                        `json:"createdAt"`
+	Credentials sourcetypes.FlyCredentials `json:"credentials" validate:"required"`
 }
 
 // MarshalsCredentials is used to input data into the database
@@ -71,12 +72,8 @@ func (f FlyConnectedAccount) MarshalCredentials() (string, error) {
 }
 
 type TypeformConnectedAccount struct {
-	CreatedAt   int                 `json:"createdAt"`
-	Credentials TypeformCredentials `json:"credentials" validate:"required"`
-}
-
-type TypeformCredentials struct {
-	Key string `json:"key" validate:"required"`
+	CreatedAt   int                             `json:"createdAt"`
+	Credentials sourcetypes.TypeformCredentials `json:"credentials" validate:"required"`
 }
 
 // MarshalsCredentials is used to input data into the database
@@ -105,6 +102,22 @@ type FacebookCredentials struct {
 // as a JSONB field
 func (f FacebookConnectedAccount) MarshalCredentials() (string, error) {
 	b, err := json.Marshal(f.Credentials)
+	if err != nil {
+		return "", err
+	}
+	return string(b), nil
+}
+
+// AlchemerConnectedAccount is used to connect Vlabs to a facebook ad account
+type AlchemerConnectedAccount struct {
+	CreatedAt   int                       `json:"createdAt"`
+	Credentials sourcetypes.AlchemerCreds `json:"credentials" validate:"required"`
+}
+
+// MarshalsCredentials is used to input data into the database
+// as a JSONB field
+func (a AlchemerConnectedAccount) MarshalCredentials() (string, error) {
+	b, err := json.Marshal(a.Credentials)
 	if err != nil {
 		return "", err
 	}

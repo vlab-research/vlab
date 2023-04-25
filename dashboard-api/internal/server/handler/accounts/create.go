@@ -66,6 +66,8 @@ func parsePayload(b []byte) (a types.Account, err error) {
 		a.ConnectedAccount = &types.FlyConnectedAccount{}
 	case types.TypeformAccount:
 		a.ConnectedAccount = &types.TypeformConnectedAccount{}
+	case types.AlchemerAccount:
+		a.ConnectedAccount = &types.AlchemerConnectedAccount{}
 	default:
 		return a, fmt.Errorf("unknown account type %v", a.Name)
 	}
