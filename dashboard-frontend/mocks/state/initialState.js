@@ -31,10 +31,6 @@ const initialState = [
         helper_text: undefined,
         options: [
           {
-            name: 'default',
-            label: 'Select an objective',
-          },
-          {
             name: 'app_installs',
             label: 'App installs',
           },
@@ -91,7 +87,7 @@ const initialState = [
             label: 'Store visits',
           },
         ],
-        value: 'default',
+        value: 'app_installs',
         conf: undefined,
       },
       {
@@ -102,10 +98,6 @@ const initialState = [
         label: 'Optimization goal',
         helper_text: undefined,
         options: [
-          {
-            name: 'default',
-            label: 'Select an optimization goal',
-          },
           {
             name: 'ad_recall_lift',
             label: 'Ad recall lift',
@@ -207,7 +199,7 @@ const initialState = [
             label: 'Visit instagram profile',
           },
         ],
-        value: 'default',
+        value: 'ad_recall_lift',
         conf: undefined,
       },
       {
@@ -218,10 +210,6 @@ const initialState = [
         label: 'Destination type',
         helper_text: undefined,
         options: [
-          {
-            name: 'default',
-            label: 'Select a destination type',
-          },
           {
             name: 'web',
             label: 'Web',
@@ -235,7 +223,7 @@ const initialState = [
             label: 'App',
           },
         ],
-        value: 'default',
+        value: 'web',
         conf: undefined,
       },
       {
