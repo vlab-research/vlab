@@ -9,10 +9,6 @@ const general = {
       label: 'Objective',
       options: [
         {
-          name: 'default',
-          label: 'Select an objective',
-        },
-        {
           name: 'app_installs',
           label: 'App installs',
         },
@@ -75,10 +71,6 @@ const general = {
       type: 'select',
       label: 'Optimization goal',
       options: [
-        {
-          name: 'default',
-          label: 'Select an optimization goal',
-        },
         {
           name: 'ad_recall_lift',
           label: 'Ad recall lift',
@@ -187,10 +179,6 @@ const general = {
       label: 'Destination type',
       defaultValue: 'Select a destination type',
       options: [
-        {
-          name: 'default',
-          label: 'Select a destination type',
-        },
         {
           name: 'web',
           label: 'Web',

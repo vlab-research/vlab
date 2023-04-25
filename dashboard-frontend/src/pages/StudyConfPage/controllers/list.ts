@@ -5,13 +5,13 @@ import {
   updateGlobalState,
 } from '../../../helpers/state';
 import { EventInterface, FormData } from '../../../types/form';
-import { ConfListBase, FieldState } from '../../../types/conf';
+import { ConfList, FieldState } from '../../../types/conf';
 import { translateListConf } from '../../../helpers/translateConf';
 import { translateField } from '../../../helpers/translateField';
 import { reorderArray } from '../../../helpers/arrays';
 
 const list = (
-  conf: ConfListBase,
+  conf: ConfList,
   localFormData?: FormData[],
   event?: EventInterface,
   fieldState?: any[]
@@ -23,11 +23,10 @@ const list = (
     return arr[index];
   };
 
-  const translateFieldState = (state: FieldState[]) => {
-    const button = getButton(state);
+  const button = fieldState && getButton(fieldState);
 
-    const updatedFieldState = updateGlobalState(state, translatedConf);
-
+  const translateFieldState = (fieldState: FieldState[]) => {
+    const updatedFieldState = updateGlobalState(fieldState, translatedConf);
     return reorderArray(updatedFieldState, button);
   };
 
@@ -50,24 +49,20 @@ const list = (
   }
 
   if (!localFormData && fieldState && event) {
-    if (event.type === 'click' && conf) {
+    if (event.type === 'click') {
       return translateFieldState(fieldState);
     }
 
     updateFieldState(fieldState, event);
-
-    const button = getButton(fieldState);
 
     return reorderArray(fieldState, button);
   }
 
   if (localFormData && fieldState && event) {
-    if (event.type === 'click' && conf) {
+    if (event.type === 'click') {
       return translateFieldState(fieldState);
     }
     updateFieldState(fieldState, event);
-
-    const button = getButton(fieldState);
 
     return reorderArray(fieldState, button);
   }

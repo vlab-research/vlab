@@ -16,7 +16,7 @@ describe('reduceFieldStateToAnObject', () => {
   it('takes an array of field states and reduces them to a single object. Each name becomes a key and and each key is assigned to a value', () => {
     const states = [
       { name: 'foo', value: 'foobar' },
-      { name: 'baz', someFieldName: 'bazza', value: 'bazzle' },
+      { name: 'baz', someOtherFieldName: 'bazza', value: 'bazzle' },
     ];
 
     const expectation = { foo: 'foobar', baz: 'bazzle' };

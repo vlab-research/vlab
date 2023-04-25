@@ -8,9 +8,10 @@ import useStudyConf from '../../hooks/useStudyConf';
 import useStudy from '../../hooks/useStudy';
 import general from './confs/general';
 import recruitment from './confs/recruitment/base';
-// import destinations from './confs/destinations/base';
+import destinations from './confs/destinations/base';
 import simpleList from './confs/simpleList';
-import { ConfBase, ConfSelectBase, ConfListBase } from '../../types/conf';
+import selectList from './confs/selectList';
+import { ConfBase } from '../../types/conf';
 
 const StudyConfPage = () => {
   const params = useParams<{ studySlug: string }>();
@@ -43,11 +44,12 @@ const StudyConfPage = () => {
 };
 
 const PageContent = (data: any) => {
-  const confStore: Record<string, ConfBase | ConfSelectBase | ConfListBase> = {
+  const confStore: Record<string, ConfBase> = {
     general,
     recruitment,
-    // destinations,
     simpleList,
+    selectList,
+    destinations,
   };
 
   const confKeys = Object.keys(confStore);

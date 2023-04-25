@@ -28,9 +28,7 @@ const Form: React.FC<Props> = ({ conf, data }) => {
     isLoadingOnCreateStudyConf,
   } = useCreateStudyConf();
 
-  const [globalFormData, setFormGlobalFormData] = useState<
-    StudyConfResource | any
-  >({
+  const [globalFormData, setGlobalFormData] = useState<any>({
     fetchedConfData,
   });
 
@@ -38,7 +36,7 @@ const Form: React.FC<Props> = ({ conf, data }) => {
 
   const handleChange = (formData: any) => {
     const updateFormData = (x: any) => {
-      setFormGlobalFormData({ ...x });
+      setGlobalFormData(x);
     };
 
     updateFormData(formData);
@@ -47,7 +45,7 @@ const Form: React.FC<Props> = ({ conf, data }) => {
   const handleSubmit = (e: any) => {
     e.preventDefault();
 
-    const data = {
+    const data: StudyConfResource = {
       [title]: globalFormData,
     };
 

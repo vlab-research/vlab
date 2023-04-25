@@ -1,17 +1,12 @@
 import general from '../pages/StudyConfPage/confs/general';
 import create_study from '../pages/NewStudyPage/confs/create_study';
-import {
-  getFieldState,
-  initialiseFieldState,
-  updateFieldState,
-  updateGlobalState,
-} from './state';
+import { getFieldState, initialiseFieldState, updateFieldState } from './state';
 import { getField } from './getField';
 import initialState from '../../mocks/state/initialState';
 import formData from '../../mocks/formData/formData';
 import translatedSelectConf from '../../mocks/confs/translatedSelectConf';
 import translatedListConf from '../../mocks/confs/translatedListConf';
-import Text from '../../mocks/components/text';
+import { FieldState } from '../types/conf';
 
 describe('initialiseFieldState', () => {
   it('given a simple conf it returns some initial field state when no state is defined', () => {
@@ -64,7 +59,7 @@ describe('getFieldState', () => {
 
     const res = getFieldState(conf, localFormData);
 
-    const resValues = res.map(f => f.value);
+    const resValues = res.map((f: FieldState) => f.value);
 
     expect(resValues).toEqual(expectedValues);
   });
@@ -77,7 +72,7 @@ describe('getFieldState', () => {
 
     const res = getFieldState(conf, localFormData);
 
-    const resValues = Object.values(res.map(f => f.value));
+    const resValues = Object.values(res.map((f: FieldState) => f.value));
 
     expect(resValues).toEqual(expectedValues);
   });
@@ -86,13 +81,13 @@ describe('getFieldState', () => {
     const conf = translatedListConf;
     const localFormData = formData['simple_list'];
 
-    const res = localFormData.map(d => getFieldState(conf, d));
+    const expectedValues = Object.values(localFormData);
 
-    const resValues = res.map(fieldset =>
-      Object.values(fieldset.map(f => f.value))
-    );
+    const res = localFormData.map(d => getFieldState(conf, d)).flat(1);
 
-    expect(resValues.flat(2)).toEqual(localFormData);
+    const resValues = Object.values(res.map((f: FieldState) => f.value));
+
+    expect(resValues).toEqual(expectedValues);
   });
 });
 

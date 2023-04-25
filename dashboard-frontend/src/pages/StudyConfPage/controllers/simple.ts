@@ -3,11 +3,11 @@ import {
   updateFieldState,
   getFieldState,
 } from '../../../helpers/state';
-import { ConfObjectBase, FieldState } from '../../../types/conf';
+import { ConfObject, FieldState } from '../../../types/conf';
 import { EventInterface, FormData } from '../../../types/form';
 
 const simple = (
-  conf: ConfObjectBase,
+  conf: ConfObject,
   localFormData?: FormData,
   event?: EventInterface,
   fieldState?: FieldState[]

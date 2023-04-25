@@ -1,17 +1,14 @@
 import { getField } from './getField';
 import { translateField } from './translateField';
 import { EventInterface, FormData } from '../types/form';
-import { ConfBase, ConfObjectBase, Field, FieldState } from '../types/conf';
+import { ConfBase, ConfObject, FieldBase, FieldState } from '../types/conf';
 
 export const initialiseFieldState = (conf: ConfBase) => {
-  return conf.fields.map((f: Field) => translateField(f));
+  return conf.fields.map((f: FieldBase) => translateField(f));
 };
 
-export const getFieldState = (
-  conf: ConfObjectBase,
-  localFormData: FormData
-) => {
-  return conf.fields.map(f => translateField(f, localFormData));
+export const getFieldState = (conf: ConfObject, localFormData: FormData) => {
+  return conf.fields.map((f: FieldBase) => translateField(f, localFormData));
 };
 
 export const updateFieldState = (

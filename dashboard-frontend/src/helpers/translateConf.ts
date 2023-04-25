@@ -1,6 +1,6 @@
-import { ConfSelectBase, ConfBase, ConfListBase } from '../types/conf';
+import { ConfSelect, ConfBase, ConfList } from '../types/conf';
 
-export const mergeConfs = (conf: ConfSelectBase, selectedConfig: ConfBase) => {
+export const mergeConfs = (conf: ConfSelect, selectedConf: ConfBase) => {
   const base: any = {
     fields: [
       {
@@ -15,8 +15,8 @@ export const mergeConfs = (conf: ConfSelectBase, selectedConfig: ConfBase) => {
   const clone = {
     ...conf,
     fields: conf.fields
-      ? base.fields.concat(selectedConfig.fields).concat(conf.fields)
-      : base.fields.concat(selectedConfig.fields),
+      ? base.fields.concat(selectedConf.fields).concat(conf.fields)
+      : base.fields.concat(selectedConf.fields),
   };
 
   const { selector, ...newConfig } = clone;
@@ -24,13 +24,15 @@ export const mergeConfs = (conf: ConfSelectBase, selectedConfig: ConfBase) => {
   return newConfig;
 };
 
-export const translateListConf = (conf: ConfListBase) => {
+export const translateListConf = (conf: ConfList, selectedConf?: any) => {
   const fields = [
     {
       name: conf.input.name,
       type: conf.input.type,
       label: conf.input.label,
-      helper_text: conf.input.helper_text,
+      helper_text: conf.input.helper_text && conf.input.helper_text,
+      options: conf.input.options && conf.input.options,
+      conf: conf.input.conf && mergeConfs(conf.input.conf, selectedConf),
     },
   ];
 

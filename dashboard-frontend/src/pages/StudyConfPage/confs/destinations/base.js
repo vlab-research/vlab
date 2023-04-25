@@ -6,7 +6,9 @@ const destinations = {
   type: 'confList',
   title: 'Destinations',
   description: '',
-  fields: [
+  key: 'destination_create',
+  input:
+    // input is the only thing that repeats here
     {
       name: 'destination_create',
       label: 'Create a destination',
@@ -22,20 +24,20 @@ const destinations = {
           label: 'Destination type',
           options: [messenger, web, app],
         },
+        fields: [
+          {
+            name: 'destination_name',
+            type: 'text',
+            label: 'Destination name',
+            helper_text: 'E.g example-fly-1',
+          },
+        ],
       },
     },
-    {
-      name: 'name',
-      type: 'text',
-      label: 'Give your destination a name',
-      helper_text: 'E.g example-fly-1',
-    },
-    {
-      name: 'add_destination',
-      type: 'button',
-      label: 'Add destination',
-    },
-  ],
+  button: {
+    name: 'add_button',
+    type: 'button',
+  },
 };
 
 export default destinations;

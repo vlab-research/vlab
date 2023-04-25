@@ -7,15 +7,15 @@ import {
 } from '../../../helpers/state';
 import { createNameFor } from '../../../helpers/strings';
 import { getSelectedConf } from '../../../helpers/getSelectedConf';
-import { ConfSelectBase, FieldState, ConfBase } from '../../../types/conf';
+import { ConfSelect, FieldState, ConfBase } from '../../../types/conf';
 
 const select = (
-  conf: ConfSelectBase,
+  conf: ConfSelect,
   localFormData?: FormData,
   event?: EventInterface,
   fieldState?: FieldState[]
 ) => {
-  const getConf = (baseConf: ConfSelectBase, dynamicConf: any) => {
+  const getConf = (baseConf: ConfSelect, dynamicConf: ConfBase) => {
     return dynamicConf && mergeConfs(baseConf, dynamicConf);
   };
 

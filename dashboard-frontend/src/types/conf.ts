@@ -1,18 +1,18 @@
-export interface ConfObjectBase extends Record<string, any> {
+export interface ConfObject extends Record<string, any> {
   title: string;
   type: string;
   description: string;
   fields: FieldBase[];
 }
 
-export interface ConfSelectBase extends Record<string, any> {
+export interface ConfSelect extends Record<string, any> {
   title: string;
   type: string;
   description: string;
   selector: Selector;
 }
 
-export interface ConfListBase extends Record<string, any> {
+export interface ConfList extends Record<string, any> {
   title: string;
   type: string;
   description: string;
@@ -51,4 +51,4 @@ export interface Field extends FieldState {
   Component: React.FunctionComponent<any>;
 }
 
-export type ConfBase = ConfObjectBase | ConfSelectBase | ConfListBase;
+export type ConfBase = ConfObject | ConfSelect | ConfList;

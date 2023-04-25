@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react';
-import { reduceFieldStateToAnObject } from '../../../../helpers/arrays';
 import { ConfBase, FieldState } from '../../../../types/conf';
 import { DataEvent, EventInterface } from '../../../../types/form';
 import list from '../../../StudyConfPage/controllers/list';
 import select from '../../../StudyConfPage/controllers/select';
 import simple from '../../../StudyConfPage/controllers/simple';
+import { getFormData } from '../../../../helpers/getFormData';
 
 type Props = {
   conf: ConfBase;
@@ -51,7 +51,8 @@ const Fieldset: React.FC<Props> = ({
     // controller creates state and creates "newLocalFormData"
     // const [newState, newLocalFormData] = controller(conf, localFormData, event, state);
     const newState = controller(conf, localFormData, event, fieldState);
-    const newLocalFormData = reduceFieldStateToAnObject(newState);
+
+    const newLocalFormData = getFormData(conf, fieldState);
 
     // state is a local concept, only the Fieldset needs to care about it
     setState(newState);
