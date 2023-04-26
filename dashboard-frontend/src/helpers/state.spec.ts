@@ -81,11 +81,11 @@ describe('getFieldState', () => {
     const conf = translatedListConf;
     const localFormData = formData['simple_list'];
 
-    const expectedValues = Object.values(localFormData);
+    const expectedValues = localFormData;
 
     const res = localFormData.map(d => getFieldState(conf, d)).flat(1);
 
-    const resValues = Object.values(res.map((f: FieldState) => f.value));
+    const resValues = res.map((f: FieldState) => f.value);
 
     expect(resValues).toEqual(expectedValues);
   });
