@@ -21,7 +21,7 @@ const destinations = {
         selector: {
           name: 'destination_type',
           type: 'select',
-          label: 'Destination type',
+          label: 'Select a destination type',
           options: [messenger, web, app],
         },
         fields: [

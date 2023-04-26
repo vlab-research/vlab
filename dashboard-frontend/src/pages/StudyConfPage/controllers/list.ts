@@ -16,7 +16,9 @@ const list = (
   event?: EventInterface,
   fieldState?: any[]
 ) => {
-  const translatedConf = translateListConf(conf);
+  const defaultConf = conf.input.conf?.selector?.options[0];
+
+  const translatedConf = translateListConf(conf, defaultConf);
 
   const getButton = (arr: any[]) => {
     const index = arr.findIndex(f => f.type === 'button');

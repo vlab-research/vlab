@@ -5,12 +5,6 @@ const app = {
   key: 'name',
   fields: [
     {
-      name: 'name',
-      type: 'text',
-      label: 'Name',
-      helper_text: 'E.g Curious Learning',
-    },
-    {
       name: 'facebook_app_id',
       type: 'text',
       label: 'Facebook app id',

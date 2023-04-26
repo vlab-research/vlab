@@ -36,6 +36,7 @@ describe('simple controller', () => {
         helper_text: 'E.g example-fly-conf',
         options: undefined,
         value: 'foo',
+        conf: null,
       },
     ];
 

@@ -5,12 +5,6 @@ const web = {
   key: 'name',
   fields: [
     {
-      name: 'name',
-      type: 'text',
-      label: 'Survey name',
-      helper_text: 'E.g Malaria study',
-    },
-    {
       name: 'url_template',
       type: 'text',
       label: 'URL template',

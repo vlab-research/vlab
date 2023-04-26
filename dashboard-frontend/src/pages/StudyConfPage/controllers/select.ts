@@ -15,8 +15,8 @@ const select = (
   event?: EventInterface,
   fieldState?: FieldState[]
 ) => {
-  const getConf = (baseConf: ConfSelect, dynamicConf: ConfBase) => {
-    return dynamicConf && mergeConfs(baseConf, dynamicConf);
+  const getConf = (baseConf: ConfSelect, selectedConf: ConfBase) => {
+    return selectedConf && mergeConfs(baseConf, selectedConf);
   };
 
   if (!localFormData && !fieldState && !event) {

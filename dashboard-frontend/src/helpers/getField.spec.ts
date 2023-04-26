@@ -22,7 +22,7 @@ describe('getField', () => {
       helper_text: 'E.g 2327764173962588',
       options: undefined,
       value: '',
-      conf: undefined,
+      conf: null,
     };
 
     const res = getField(fieldState, event);

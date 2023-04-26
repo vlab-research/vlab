@@ -177,7 +177,6 @@ const general = {
       name: 'destination_type',
       type: 'select',
       label: 'Destination type',
-      defaultValue: 'Select a destination type',
       options: [
         {
           name: 'web',

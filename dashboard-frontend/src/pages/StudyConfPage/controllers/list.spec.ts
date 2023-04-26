@@ -1,10 +1,15 @@
 import list from './list';
 import simpleList from '../confs/simpleList';
+import destinations from '../confs/destinations/base';
 import formData from '../../../../mocks/formData/formData';
 import existingState from '../../../../mocks/state/existingState';
 import Button from '../../NewStudyPage/components/form/inputs/Button';
 import Text from '../../NewStudyPage/components/form/inputs/Text';
 import { getField } from '../../../helpers/getField';
+import Fieldset from '../../NewStudyPage/components/form/Fieldset';
+import app from '../confs/destinations/app';
+import messenger from '../confs/destinations/messenger';
+import web from '../confs/destinations/web';
 
 describe('list controller', () => {
   it('given a list conf it returns some initial fields when no state is defined', () => {
@@ -20,7 +25,7 @@ describe('list controller', () => {
         helper_text: 'Foo',
         options: undefined,
         value: '',
-        conf: undefined,
+        conf: null,
       },
       {
         id: 'add_button',
@@ -31,7 +36,65 @@ describe('list controller', () => {
         helper_text: undefined,
         options: undefined,
         value: '',
-        conf: undefined,
+        conf: null,
+      },
+    ];
+
+    const res = list(conf);
+
+    expect(res).toStrictEqual(expectation);
+  });
+
+  it('works for a list conf with nested confs', () => {
+    const conf = destinations;
+
+    const expectation = [
+      {
+        id: 'destination_create',
+        name: 'destination_create',
+        type: 'fieldset',
+        component: Fieldset,
+        label: 'Create a destination',
+        helper_text: undefined,
+        options: undefined,
+        value: [],
+        conf: {
+          type: 'confSelect',
+          title: 'Destinations',
+          description:
+            'Every study needs a destination, where do the recruitment ads send the users?',
+          fields: [
+            {
+              name: 'destination_type',
+              type: 'select',
+              label: 'Select a destination type',
+              options: [messenger, web, app],
+            },
+            {
+              name: 'initial_shortcode',
+              type: 'text',
+              label: 'Initial shortcode',
+              helper_text: 'E.g 12345',
+            },
+            {
+              name: 'destination_name',
+              type: 'text',
+              label: 'Destination name',
+              helper_text: 'E.g example-fly-1',
+            },
+          ],
+        },
+      },
+      {
+        id: 'add_button',
+        name: 'add_button',
+        type: 'button',
+        component: Button,
+        label: undefined,
+        helper_text: undefined,
+        options: undefined,
+        value: '',
+        conf: null,
       },
     ];
 
@@ -58,7 +121,7 @@ describe('list controller', () => {
         helper_text: undefined,
         options: undefined,
         value: '',
-        conf: undefined,
+        conf: null,
       },
     ];
 
@@ -81,7 +144,7 @@ describe('list controller', () => {
         helper_text: undefined,
         options: undefined,
         value: '',
-        conf: undefined,
+        conf: null,
       },
     ];
 
@@ -120,7 +183,7 @@ describe('list controller', () => {
         helper_text: undefined,
         options: undefined,
         value: '',
-        conf: undefined,
+        conf: null,
       },
     ];
 

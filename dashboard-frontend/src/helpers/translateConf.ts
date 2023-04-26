@@ -30,9 +30,9 @@ export const translateListConf = (conf: ConfList, selectedConf?: any) => {
       name: conf.input.name,
       type: conf.input.type,
       label: conf.input.label,
-      helper_text: conf.input.helper_text && conf.input.helper_text,
-      options: conf.input.options && conf.input.options,
-      conf: conf.input.conf && mergeConfs(conf.input.conf, selectedConf),
+      helper_text: conf.input.helper_text ?? conf.input.helper_text,
+      options: conf.input.options ?? conf.input.options,
+      conf: conf.input.conf ? mergeConfs(conf.input.conf, selectedConf) : null,
     },
   ];
 

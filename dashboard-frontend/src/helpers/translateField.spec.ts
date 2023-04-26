@@ -6,6 +6,10 @@ import text from '../../mocks/components/text';
 import select from '../../mocks/components/select';
 import number from '../../mocks/components/number';
 import button from '../../mocks/components/button';
+import Fieldset from '../pages/NewStudyPage/components/form/Fieldset';
+import app from '../pages/StudyConfPage/confs/destinations/app';
+import messenger from '../pages/StudyConfPage/confs/destinations/messenger';
+import web from '../pages/StudyConfPage/confs/destinations/web';
 
 describe('translateField', () => {
   it('given a field it returns a new object configured for rendering a form', () => {
@@ -18,7 +22,7 @@ describe('translateField', () => {
       helper_text: 'foo...',
       options: undefined,
       value: '',
-      conf: undefined,
+      conf: null,
     };
 
     const res = translateField(text);
@@ -46,7 +50,7 @@ describe('translateField', () => {
         },
       ],
       value: 'foo',
-      conf: undefined,
+      conf: null,
     };
 
     const res2 = translateField(select);
@@ -61,7 +65,7 @@ describe('translateField', () => {
       helper_text: 'baz...',
       options: undefined,
       value: 1,
-      conf: undefined,
+      conf: null,
     };
     const res3 = translateField(number);
     expect(res3).toStrictEqual(numberExpectation);
@@ -75,10 +79,101 @@ describe('translateField', () => {
       helper_text: undefined,
       options: undefined,
       value: '',
-      conf: undefined,
+      conf: null,
     };
     const res4 = translateField(button);
     expect(res4).toStrictEqual(buttonExpectation);
+
+    const fieldsetExpectation = {
+      id: 'destination_create',
+      name: 'destination_create',
+      type: 'fieldset',
+      component: Fieldset,
+      label: 'Create a destination',
+      helper_text: undefined,
+      options: undefined,
+      value: [],
+      conf: {
+        type: 'confSelect',
+        title: 'Destinations',
+        description:
+          'Every study needs a destination, where do the recruitment ads send the users?',
+        fields: [
+          {
+            name: 'destination_type',
+            type: 'select',
+            label: 'Select a destination type',
+            options: [
+              {
+                name: 'messenger',
+                label: 'Messenger',
+              },
+              {
+                name: 'web',
+                label: 'Web',
+              },
+              {
+                name: 'app',
+                label: 'App',
+              },
+            ],
+          },
+          {
+            name: 'initial_shortcode',
+            type: 'text',
+            label: 'Initial shortcode',
+            helper_text: 'E.g 12345',
+          },
+          {
+            name: 'destination_name',
+            type: 'text',
+            label: 'Destination name',
+            helper_text: 'E.g example-fly-1',
+          },
+        ],
+      },
+    };
+
+    const fieldset = {
+      id: 'destination_create',
+      name: 'destination_create',
+      type: 'fieldset',
+      component: Fieldset,
+      label: 'Create a destination',
+      helper_text: undefined,
+      options: undefined,
+      value: [],
+      conf: {
+        type: 'confSelect',
+        title: 'Destinations',
+        description:
+          'Every study needs a destination, where do the recruitment ads send the users?',
+        fields: [
+          {
+            name: 'destination_type',
+            type: 'select',
+            label: 'Select a destination type',
+            options: [messenger, web, app],
+          },
+          {
+            name: 'initial_shortcode',
+            type: 'text',
+            label: 'Initial shortcode',
+            helper_text: 'E.g 12345',
+          },
+          {
+            name: 'destination_name',
+            type: 'text',
+            label: 'Destination name',
+            helper_text: 'E.g example-fly-1',
+          },
+        ],
+      },
+    };
+
+    const res5 = translateField(fieldset);
+
+    // expect(res5).toStrictEqual(fieldsetExpectation);
   });
 });
 

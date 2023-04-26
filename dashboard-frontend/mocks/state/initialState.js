@@ -18,7 +18,7 @@ const initialState = [
         helper_text: 'E.g example-fly-conf',
         options: undefined,
         value: '',
-        conf: undefined,
+        conf: null,
       },
     ],
     general: [
@@ -88,7 +88,7 @@ const initialState = [
           },
         ],
         value: 'app_installs',
-        conf: undefined,
+        conf: null,
       },
       {
         id: 'optimization_goal',
@@ -200,7 +200,7 @@ const initialState = [
           },
         ],
         value: 'ad_recall_lift',
-        conf: undefined,
+        conf: null,
       },
       {
         id: 'destination_type',
@@ -224,7 +224,7 @@ const initialState = [
           },
         ],
         value: 'web',
-        conf: undefined,
+        conf: null,
       },
       {
         id: 'page_id',
@@ -235,7 +235,7 @@ const initialState = [
         helper_text: 'E.g 1855355231229529',
         options: undefined,
         value: '',
-        conf: undefined,
+        conf: null,
       },
       {
         id: 'min_budget',
@@ -246,7 +246,7 @@ const initialState = [
         helper_text: 'E.g 10',
         options: undefined,
         value: 1,
-        conf: undefined,
+        conf: null,
       },
       {
         id: 'opt_window',
@@ -257,7 +257,7 @@ const initialState = [
         helper_text: 'E.g 48',
         options: undefined,
         value: 1,
-        conf: undefined,
+        conf: null,
       },
       {
         id: 'instagram_id',
@@ -268,7 +268,7 @@ const initialState = [
         helper_text: 'E.g 2327764173962588',
         options: undefined,
         value: '',
-        conf: undefined,
+        conf: null,
       },
       {
         id: 'ad_account',
@@ -279,7 +279,7 @@ const initialState = [
         helper_text: 'E.g 1342820622846299',
         options: undefined,
         value: '',
-        conf: undefined,
+        conf: null,
       },
     ],
     recruitment: [
@@ -296,7 +296,7 @@ const initialState = [
           { name: 'recruitment_destination', label: 'Recruitment destination' },
         ],
         value: 'recruitment_simple',
-        conf: undefined,
+        conf: null,
       },
       {
         id: 'ad_campaign_name',
@@ -307,7 +307,7 @@ const initialState = [
         helper_text: 'E.g vlab-vaping-pilot-2',
         options: undefined,
         value: '',
-        conf: undefined,
+        conf: null,
       },
       {
         id: 'budget',
@@ -318,7 +318,7 @@ const initialState = [
         helper_text: 'E.g 8400',
         options: undefined,
         value: 1,
-        conf: undefined,
+        conf: null,
       },
       {
         id: 'max_sample',
@@ -329,7 +329,7 @@ const initialState = [
         helper_text: 'E.g 1000',
         options: undefined,
         value: 1,
-        conf: undefined,
+        conf: null,
       },
       {
         id: 'start_date',
@@ -340,7 +340,7 @@ const initialState = [
         helper_text: 'E.g 2022-01-10',
         options: undefined,
         value: '',
-        conf: undefined,
+        conf: null,
       },
       {
         id: 'end_date',
@@ -351,7 +351,7 @@ const initialState = [
         helper_text: 'E.g 2022-01-31',
         options: undefined,
         value: '',
-        conf: undefined,
+        conf: null,
       },
     ],
     destinations: [
@@ -386,7 +386,7 @@ const initialState = [
         helper_text: 'E.g example-fly-1',
         options: undefined,
         value: '',
-        conf: undefined,
+        conf: null,
       },
       {
         id: 'add_destination',
@@ -397,7 +397,7 @@ const initialState = [
         helper_text: undefined,
         options: undefined,
         value: '',
-        conf: undefined,
+        conf: null,
       },
     ],
     simple_list: [
@@ -410,7 +410,7 @@ const initialState = [
         helper_text: 'Foo',
         options: undefined,
         value: '',
-        conf: undefined,
+        conf: null,
       },
     ],
   },

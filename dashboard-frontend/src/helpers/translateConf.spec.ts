@@ -19,6 +19,42 @@ describe('mergeConfs', () => {
 
     expect(res).toStrictEqual(expectation);
   });
+
+  it('works when the base conf is nested within another', () => {
+    const baseConf = destinations.input.conf;
+    const selectedConf = messenger;
+
+    const expectation = {
+      type: 'confSelect',
+      title: 'Destinations',
+      description:
+        'Every study needs a destination, where do the recruitment ads send the users?',
+      fields: [
+        {
+          name: 'destination_type',
+          type: 'select',
+          label: 'Select a destination type',
+          options: [messenger, web, app],
+        },
+        {
+          name: 'initial_shortcode',
+          type: 'text',
+          label: 'Initial shortcode',
+          helper_text: 'E.g 12345',
+        },
+        {
+          name: 'destination_name',
+          type: 'text',
+          label: 'Destination name',
+          helper_text: 'E.g example-fly-1',
+        },
+      ],
+    };
+
+    const res = mergeConfs(baseConf, selectedConf);
+
+    expect(res).toStrictEqual(expectation);
+  });
 });
 
 describe('translateListConf', () => {
@@ -38,11 +74,10 @@ describe('translateListConf', () => {
           label: 'I am a list item',
           helper_text: 'Foo',
           options: undefined,
-          conf: undefined,
+          conf: null,
         },
       ],
     };
-
     const res = translateListConf(conf);
 
     expect(res).toStrictEqual(expectation);
@@ -50,6 +85,7 @@ describe('translateListConf', () => {
 
   it('works for more complex lists with nested confs', () => {
     const conf = destinations;
+
     const selectedConf = messenger;
 
     const expectation = {
@@ -74,7 +110,7 @@ describe('translateListConf', () => {
               {
                 name: 'destination_type',
                 type: 'select',
-                label: 'Destination type',
+                label: 'Select a destination type',
                 options: [messenger, web, app],
               },
               {
@@ -82,12 +118,6 @@ describe('translateListConf', () => {
                 type: 'text',
                 label: 'Initial shortcode',
                 helper_text: 'E.g 12345',
-              },
-              {
-                name: 'name',
-                type: 'text',
-                label: 'Survey Name',
-                helper_text: 'E.g example-fly-1',
               },
               {
                 name: 'destination_name',

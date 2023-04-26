@@ -1,7 +1,7 @@
 const messenger = {
   type: 'confObject',
-  title: 'Fly Messenger',
-  description: 'Fly...',
+  title: 'Messenger',
+  description: 'Messenger...',
   key: 'intial_shortcode',
   fields: [
     {
@@ -9,12 +9,6 @@ const messenger = {
       type: 'text',
       label: 'Initial shortcode',
       helper_text: 'E.g 12345',
-    },
-    {
-      name: 'name',
-      type: 'text',
-      label: 'Survey Name',
-      helper_text: 'E.g example-fly-1',
     },
   ],
 };

@@ -44,20 +44,20 @@ export const translateField = (field: FieldBase, localFormData?: any) => {
         ? localFormData[field.name]
         : localFormData
       : getInitialValue(field),
-    conf: field.conf ?? field.conf,
+    conf: field.conf ? field.conf : null,
   };
 };
 
-export const getInitialValue = (obj: FieldBase) => {
-  let { type } = obj;
+export const getInitialValue = (f: FieldBase) => {
+  let { type } = f;
 
   switch (true) {
     case type === 'text':
       return '';
     case type === 'select':
-      return obj.options && obj.options[0].name
-        ? obj.options[0].name
-        : createNameFor(obj.options && obj.options[0].title);
+      return f.options && f.options[0].name
+        ? f.options[0].name
+        : createNameFor(f.options && f.options[0].title);
     case type === 'number':
       return 1;
     case type === 'fieldset':
