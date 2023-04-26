@@ -137,14 +137,22 @@ def get_forms(survey_user, shortcodes, timestamp, cnf):
     return (json.loads(r) for r in res)
 
 
-def get_inference_data(survey_user, study_id, database_cnf) -> Optional[pd.DataFrame]:
+def get_inference_data(
+    survey_user, study_id, database_cnf, inf_start=None, inf_end=None
+) -> Optional[pd.DataFrame]:
+
     q = """
     select user_id, variable, value_type, value, timestamp
     from inference_data
     where study_id = %s
     """
 
-    res = query(database_cnf, q, [study_id], as_dict=True)
+    if inf_start is not None:
+        q += """ and timestamp >= %s and timestamp <= %s """
+        res = query(database_cnf, q, [study_id, inf_start, inf_end], as_dict=True)
+    else:
+        res = query(database_cnf, q, [study_id], as_dict=True)
+
     dat = list(res)
     if not dat:
         print(

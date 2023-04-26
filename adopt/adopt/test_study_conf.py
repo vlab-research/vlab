@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 
 import pytest
 
@@ -434,3 +434,29 @@ def test_pipeline_spend_can_check_validity_of_end_date():
             offset_days=5,
         )
         r.validate_dates()
+
+
+def test_pipeline_get_inference_window():
+    start = _dt(1)
+    now = _dt(1)
+    end = _dt(10)
+
+    r = _pipeline(
+        name="study",
+        start_date=start,
+        end_date=end,
+        arms=2,
+        recruitment_days=3,
+        offset_days=6,
+    )
+
+    inf_start, inf_end = r.get_inference_window(now)
+
+    assert inf_start == start
+    assert inf_end == start + timedelta(days=3)
+
+    now = _dt(7)
+    inf_start, inf_end = r.get_inference_window(now)
+
+    assert inf_start == start + timedelta(days=6)
+    assert inf_end == inf_start + timedelta(days=3)

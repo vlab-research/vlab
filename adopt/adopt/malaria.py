@@ -86,10 +86,12 @@ def update_ads_for_campaign(
     rd = get_recruitment_data(db_conf, study.id)
 
     strata = hydrate_strata(state, study.strata, study.creatives)
-
-    df = get_df(db_conf, study.user.survey_user, study.id)
-
     now = datetime.utcnow()
+
+    inf_start, inf_end = study.recruitment.get_inference_window(now)
+
+    df = get_inference_data(study.user.survey_user, study.id, db_conf, inf_start, inf_end)
+
     window = make_window(study.general.opt_window, now)
 
     spend = calculate_stat(rd, "spend", window)
@@ -118,6 +120,8 @@ def update_ads_for_campaign(
 def update_audience_for_campaign(
     db_conf: DBConf, study: StudyConf, state: FacebookState
 ) -> Tuple[Sequence[Instruction], Optional[AdOptReport]]:
+
+    # NOTE: audience ignores inference_window from recruitment... Odd???
 
     df = get_df(db_conf, study.user.survey_user, study.id)
 

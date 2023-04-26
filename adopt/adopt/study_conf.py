@@ -100,6 +100,10 @@ class BaseRecruitmentConf(BaseModel, ABC):
         pass
 
     @abstractmethod
+    def get_inference_window(self, now: datetime) -> Tuple[datetime, datetime]:
+        pass
+
+    @abstractmethod
     def spend_for_day(
         self,
         strata: list[Union[Stratum, StratumConf]],
@@ -139,6 +143,9 @@ class SimpleRecruitment(BaseRecruitmentConf):
     @property
     def base_campaign_name(self) -> str:
         return self.ad_campaign_name
+
+    def get_inference_window(self, now: datetime) -> Tuple[datetime, datetime]:
+        return self.start_date, self.end_date
 
     def spend_for_day(
         self,
@@ -206,16 +213,25 @@ class PipelineRecruitmentExperiment(BaseRecruitmentConf):
     def base_campaign_name(self) -> str:
         return self.ad_campaign_name_base
 
-    def current_campaign(self, now: datetime) -> Tuple[Optional[int], Optional[int]]:
+    def _get_wave_markers(self, now):
         days_in = get_days_left(now, self.start_date)
 
         if days_in < 0:
             return None, None
 
         wave = floor(days_in / self.offset_days)
-
         wave_start = wave * self.offset_days
         wave_end = wave_start + self.recruitment_days
+        return wave, wave_start, wave_end, days_in
+
+    def get_inference_window(self, now: datetime) -> Tuple[datetime, datetime]:
+        _, wave_start, wave_end, _ = self._get_wave_markers(now)
+        s = self.start_date + timedelta(wave_start)
+        e = self.start_date + timedelta(wave_end)
+        return s, e
+
+    def current_campaign(self, now: datetime) -> Tuple[Optional[int], Optional[int]]:
+        wave, wave_start, wave_end, days_in = self._get_wave_markers(now)
 
         if days_in > wave_end:
             return None, None
@@ -285,6 +301,9 @@ class DestinationRecruitmentExperiment(BaseRecruitmentConf):
     @property
     def base_campaign_name(self) -> str:
         return self.ad_campaign_name_base
+
+    def get_inference_window(self, now: datetime) -> Tuple[datetime, datetime]:
+        return self.start_date, self.end_date
 
     def spend_for_day(
         self,
