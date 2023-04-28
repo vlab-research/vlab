@@ -7,9 +7,9 @@ WORKDIR /src/app
 # We have a dependency on some types in inference
 COPY inference /src/inference
 # First download dependencies in order to help with caching
-COPY dashboard-api/go.* .
+COPY api/go.* .
 RUN go mod download
-COPY dashboard-api/ .
+COPY api/ .
 RUN CGO_ENABLED=0 go build -o /src/app/api /src/app/cmd/api/main.go
 
 # Building image with the binary
