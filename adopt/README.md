@@ -23,12 +23,12 @@ poetry install
 The tests currently depend on a database running, to start the database
 
 ```bash
-./test_db.sh
+make test-db
 ```
 
 Then to run the tests
 ```bash
-poetry run pytest .
+make test
 ```
 
 

@@ -15,11 +15,11 @@ jobs:
           python-version: '3.9' 
       - uses: Gr1N/setup-poetry@v8
       - name: Setup Database
-        run: ./test_db.sh
+        run: make test-db
         working-directory: ./adopt
       - name: Setup Dependencies
         run: poetry install
         working-directory: ./adopt
       - name: Tests
-        run:  poetry run pytest .
+        run:  make test
         working-directory: ./adopt
