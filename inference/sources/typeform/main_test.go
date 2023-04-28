@@ -88,7 +88,7 @@ func TestGetResponses_WorksWithSinglePageFromExampleJson(t *testing.T) {
 		Config: []byte(`foo`),
 	}
 
-	events := tc.GetResponses(&Source{"mystudy", cnf}, "formfoo", "", 0)
+	events := tc.GetResponses(&Source{"mystudy", cnf, nil}, "formfoo", "", 0)
 
 	e := Sliceit(events)
 	dataAssertions(t, e)
@@ -129,7 +129,7 @@ func TestGetResponses_PaginatesWhenPageIsFull(t *testing.T) {
 		Config: []byte(`foo`),
 	}
 
-	events := tc.GetResponses(&Source{"mystudy", cnf}, "formfoo", "oldtoken", 0)
+	events := tc.GetResponses(&Source{"mystudy", cnf, nil}, "formfoo", "oldtoken", 0)
 
 	e := Sliceit(events)
 	dataAssertions(t, e)
@@ -154,7 +154,7 @@ func TestGetResponses_AddsHiddenFieldsAsUserMetadata(t *testing.T) {
 		Config: []byte(`foo`),
 	}
 
-	events := tc.GetResponses(&Source{"mystudy", cnf}, "formfoo", "", 0)
+	events := tc.GetResponses(&Source{"mystudy", cnf, nil}, "formfoo", "", 0)
 
 	e := Sliceit(events)
 
@@ -187,7 +187,7 @@ func TestGetResponses_StartsFromOldIdxAndIterates(t *testing.T) {
 		Config: []byte(`foo`),
 	}
 
-	events := tc.GetResponses(&Source{"mystudy", cnf}, "formfoo", "oldtoken", 350)
+	events := tc.GetResponses(&Source{"mystudy", cnf, nil}, "formfoo", "oldtoken", 350)
 
 	e := Sliceit(events)
 

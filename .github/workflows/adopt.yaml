@@ -4,6 +4,10 @@ on:
     paths:
       - "adopt/**"
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   tests:
     name: Tests

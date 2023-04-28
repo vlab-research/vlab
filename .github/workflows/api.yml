@@ -12,6 +12,10 @@ on:
     paths:
      - "api/**"
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   # Runs the Dashboard API Tests
   tests:
