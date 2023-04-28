@@ -9,6 +9,7 @@ envSecrets:
   - gbv-bot-envs
   - vlab-db-envs
   - vlab-typeform-envs
+  - facebook-env
 
 # shared ingress stuff
 ingress:
