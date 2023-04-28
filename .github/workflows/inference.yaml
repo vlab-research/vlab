@@ -12,7 +12,30 @@ on:
     paths:
      - "inference/**"
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
+  # Runs test for the inference connectors
+  test:
+    name: Tests
+    runs-on: ubuntu-20.04
+    env:
+      PG_URL: postgres://root@localhost:5433/test
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+      - name: Setup Golang
+        uses: actions/setup-go@v3
+        with:
+          go-version: '^1.18'
+      - name: Setup Database
+        run: make test-db
+        working-directory: ./inference
+      - name: Run Tests
+        run: make test
+        working-directory: ./inference
   # Builds the Inference Containers
   build:
     strategy:
@@ -20,6 +43,8 @@ jobs:
         connector: ['fly', 'typeform', 'alchemer']
     runs-on: ubuntu-latest
     name: Build Image
+    needs:
+      - test
     steps:
       - uses: actions/checkout@v3
       - name: Set up QEMU
@@ -42,7 +67,7 @@ jobs:
             type=sha,format=long,prefix=,priority=200
             type=raw,value=latest,enable=${{ startsWith(github.ref, 'refs/tags/connectors') }},priority=100
       - name: Build and push
-        uses: docker/build-push-action@v2
+        uses: docker/build-push-action@v4
         with:
           file: inference/Dockerfile
           context: inference/

@@ -13,3 +13,8 @@ fly:
 typeform:
 	@go build -o typeform sources/typeform/main.go
 
+test:		## Runs the go tests 
+	@go test ./... -p 1
+
+test-db: 	## Starts up the test database in the devops directory
+	$(MAKE) -C ../devops test-db
