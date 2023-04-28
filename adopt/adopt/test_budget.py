@@ -2,7 +2,7 @@ from datetime import datetime, timedelta
 
 import pandas as pd
 import pytest
-
+import numpy as np
 from .budget import (calc_price, estimate_price, get_budget_lookup, get_stats,
                      make_report, prep_df_for_budget, proportional_budget)
 from .facebook.date_range import DateRange
@@ -194,15 +194,15 @@ def test_proportional_budget_with_max_recuits_optimizes_for_weights():
     spend = {"bar": 10.0, "baz": 10.0, "foo": 10.0}
     tot = {"bar": 1, "baz": 1, "foo": 1}
     price = {"bar": 10.0, "baz": 10.0, "foo": 10.0}
-    goal = {"foo": 0.3, "bar": 0.2, "baz": 0.5}
+    goal = {"foo": 0.3, "bar": 0.5, "baz": 0.2}
 
     budget, expected = proportional_budget(
         goal, spend, tot, price, budget=None, max_recruits=100
     )
 
     assert round(expected["foo"]) == 30
-    assert round(expected["bar"]) == 20
-    assert round(expected["baz"]) == 50
+    assert round(expected["bar"]) == 50
+    assert round(expected["baz"]) == 20
 
 
 def test_proportional_budget_with_max_recruits_spends_on_missing_section():
