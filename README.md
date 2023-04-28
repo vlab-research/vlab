@@ -1,4 +1,4 @@
-![Virtual Labs Logo](dashboard-frontend/src/assets/auth0/logo.png)
+![Virtual Labs Logo](dashboard/src/assets/auth0/logo.png)
 
 [![Dashboard](https://github.com/vlab-research/vlab/actions/workflows/dashboard.yml/badge.svg)](https://github.com/vlab-research/vlab/actions/workflows/dashboard.yml)
 [![Api](https://github.com/vlab-research/vlab/actions/workflows/api.yml/badge.svg)](https://github.com/vlab-research/vlab/actions/workflows/api.yml)
