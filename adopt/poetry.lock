@@ -411,14 +411,14 @@ testing = ["pre-commit"]
 
 [[package]]
 name = "facebook-business"
-version = "14.0.0"
+version = "16.0.2"
 description = "Facebook Business SDK"
 category = "main"
 optional = false
 python-versions = "*"
 files = [
-    {file = "facebook_business-14.0.0-py3-none-any.whl", hash = "sha256:813771213a79e77ec16bba45343f6fc6ea64b71f3e75e116896e84ae2986d29f"},
-    {file = "facebook_business-14.0.0.tar.gz", hash = "sha256:526a14ee574ec0ab83988758482c32e572818f0fb0a9040f4ad6e649b70e6cd5"},
+    {file = "facebook_business-16.0.2-py3-none-any.whl", hash = "sha256:83a51073e2c908a17dddebdb04d7c28c02df9643d8965e80c596519aa11476a0"},
+    {file = "facebook_business-16.0.2.tar.gz", hash = "sha256:29418b469fd31235a6084cb5168445a8a4e90c56ebb15646d77df5fbea4af739"},
 ]
 
 [package.dependencies]
@@ -1950,4 +1950,4 @@ multidict = ">=4.0"
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.9,<3.11"
-content-hash = "caad1483c5431391bcbd1789bc4d42e696b574d4776c95a05fa8317ddf5a15ae"
+content-hash = "9d15c7830d8ffe0662f286b7b445108346e49ceb74d3a2b4ee8e20035aeba8ce"
