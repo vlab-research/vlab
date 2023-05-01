@@ -1,7 +1,7 @@
 import { getFieldState, initialiseFieldState, updateFieldState } from './state';
 import { getField } from './getField';
 import { general } from '../pages/StudyConfPage/configs/general';
-import { create_study } from '../pages/NewStudyPage/configs/create_study';
+import { create_study } from '../pages/NewStudyPage/confs/create_study';
 import initialState from '../../mocks/initialState';
 import formData from '../../mocks/formData';
 

@@ -6,7 +6,7 @@ export const create_study = {
     {
       name: 'name',
       type: 'text',
-      label: 'Give your study a name',
+      label: 'Study name',
       helper_text: 'E.g example-fly-conf',
     },
   ],

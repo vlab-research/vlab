@@ -1,16 +1,13 @@
 import { useState } from 'react';
-import PageLayout from '../../components/PageLayout';
-import { general } from './configs/general';
-import { recruitment } from './configs/recruitment/base';
-import Form from '../NewStudyPage/components/form/Form';
-import Navbar from './components/NavBar';
 import { useParams } from 'react-router-dom';
-import useStudyConf from '../../hooks/useStudyConf';
+import PageLayout from '../../components/PageLayout';
+import Navbar from './components/NavBar';
 import ErrorPlaceholder from '../../components/ErrorPlaceholder';
+import { general } from './configs/general';
+import useStudyConf from '../../hooks/useStudyConf';
 import useStudy from '../../hooks/useStudy';
-import { ConfBase, ConfSelectBase } from '../../types/form';
-import simple from './controllers/simple';
-import select from './controllers/select';
+import { ConfBase } from '../../types/form';
+import { assignComponentToConf } from '../../helpers/assignComponentToConf';
 
 const StudyConfPage = () => {
   const params = useParams<{ studySlug: string }>();
@@ -43,36 +40,23 @@ const StudyConfPage = () => {
 };
 
 const PageContent = (data: any) => {
-  const confStore: Record<string, ConfBase | ConfSelectBase> = {
+  const confStore: Record<string, ConfBase> = {
     general,
-    recruitment,
   };
 
   const confKeys = Object.keys(confStore);
   const confsToArr = Object.entries(confStore);
   const [index, setIndex] = useState<number>(0);
-  const conf = confsToArr[index][1];
+  const conf = assignComponentToConf(confsToArr[index][1]);
 
-  const lookup: any = {
-    confObject: simple,
-    confSelect: select,
-  };
-
-  const str: keyof ConfBase = 'type';
-
-  const type = conf[str];
-  const controller = lookup[type];
-
-  if (!controller) {
-    throw new Error(`Could not find form for controller type: ${type}`);
-  }
+  const { Component } = conf;
 
   const isLast = index === confsToArr.length - 1 ? true : false;
 
   return (
     <>
       <Navbar confKeys={confKeys} setIndex={setIndex} />
-      <Form controller={controller} conf={conf} isLast={isLast} data={data} />
+      <Component {...conf} isLast={isLast} data={data} />
     </>
   );
 };

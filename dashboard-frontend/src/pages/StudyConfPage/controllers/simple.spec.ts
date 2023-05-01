@@ -1,7 +1,7 @@
 import { initialiseFieldState } from '../../../helpers/state';
 import { general } from '../configs/general';
 import { getField } from '../../../helpers/getField';
-import { create_study } from '../../NewStudyPage/configs/create_study';
+import { create_study } from '../../NewStudyPage/confs/create_study';
 import initialState from '../../../../mocks/initialState';
 import Text from '../../NewStudyPage/components/form/inputs/Text';
 import { translateField } from '../../../helpers/translateField';
