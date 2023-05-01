@@ -60,7 +60,7 @@ cronjobs:
     schedule: "30 */4 * * *"
     image:
       repository: "vlabresearch/adopt"
-      tag: "v0.0.94"
+      tag: "v0.0.95"
       pullPolicy: Always
     args:
       - python
@@ -69,7 +69,7 @@ cronjobs:
     schedule: "10 */4 * * *"
     image:
       repository: "vlabresearch/adopt"
-      tag: "v0.0.94"
+      tag: "v0.0.95"
       pullPolicy: Always
     args:
       - python
@@ -78,7 +78,7 @@ cronjobs:
     schedule: "50 */4 * * *"
     image:
       repository: "vlabresearch/adopt"
-      tag: "v0.0.94"
+      tag: "v0.0.95"
       pullPolicy: Always
     args:
       - python
