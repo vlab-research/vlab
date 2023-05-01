@@ -9,9 +9,9 @@ import LoginPage from './pages/LoginPage/LoginPage';
 import NewStudyPage from './pages/NewStudyPage/NewStudyPage';
 import { ReactComponent as Logo } from './assets/logo.svg';
 import useAuthenticatedApi from './hooks/useAuthenticatedApi';
-import StudyConfPage from './pages/StudyConfPage/StudyConfPage';
 import AccountsPage from './pages/AccountsPage/AccountsPage';
 import 'notyf/notyf.min.css';
+import StudyConfPage from './pages/StudyConfPage/StudyConfPage';
 
 const areTestsRunning =
   process.env.REACT_APP_RUNNING_IN_E2E_MODE || process.env.NODE_ENV === 'test';

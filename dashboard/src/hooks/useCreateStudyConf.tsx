@@ -1,20 +1,34 @@
-import { useMutation } from 'react-query';
+import { useMutation, queryCache } from 'react-query';
+import { Notyf } from 'notyf';
 import { useHistory } from 'react-router-dom';
-import { StudyConfResource } from '../types/study';
 import useAuthenticatedApi from './useAuthenticatedApi';
-import { addStudyConfToCacheWhileRefetching } from './useStudies';
+import { StudyConfData } from '../types/study';
+
+const queryKey = 'studyConf';
 
 const useCreateStudyConf = () => {
+  const notyf = new Notyf();
   const history = useHistory();
   const { createStudyConf } = useAuthenticatedApi();
 
   const [createStudyConfMutation, { isLoading, error }] = useMutation(
-    ({ data, slug }: { data: StudyConfResource; slug: string }) =>
-      createStudyConf({ data, slug }),
+    async ({ data, slug }: { data: any; slug: string }) =>
+      await createStudyConf({ data, slug }),
     {
-      onSuccess: ({ data: studyConf }) => {
-        addStudyConfToCacheWhileRefetching(studyConf);
+      onSuccess: ({ data: conf }) => {
+        addStudyConfToCacheWhileRefetching(conf);
         history.push(`/studies`);
+        notyf.success({
+          message: `Study configuration saved`,
+          duration: 5000,
+        });
+      },
+      onError: error => {
+        notyf.error({
+          message: `${error.message}`,
+          duration: 5000,
+          dismissible: true,
+        });
       },
     }
   );
@@ -24,6 +38,21 @@ const useCreateStudyConf = () => {
     isLoadingOnCreateStudyConf: isLoading,
     errorOnCreateStudyConf: error?.message,
   };
+};
+
+export const addStudyConfToCacheWhileRefetching = (conf: StudyConfData) => {
+  // Add a conf to the cache
+  queryCache.setQueryData(queryKey, (confsCache: any) => {
+    confsCache = conf;
+    return confsCache;
+  });
+
+  // Refetch the study conf by invalidating the query
+  queryCache.invalidateQueries(queryKey);
+};
+
+export const clearCacheWhileRefetching = () => {
+  queryCache.invalidateQueries(queryKey);
 };
 
 export default useCreateStudyConf;

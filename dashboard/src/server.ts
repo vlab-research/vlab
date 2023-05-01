@@ -1,6 +1,6 @@
 import Chance from 'chance';
 import { Model, Server, Response, Request } from 'miragejs';
-import { createFakeStudy } from './fixtures/study';
+import { createFakeStudy } from './helpers/studyData';
 import {
   StudyProgressResource,
   StudySegmentProgressResource,

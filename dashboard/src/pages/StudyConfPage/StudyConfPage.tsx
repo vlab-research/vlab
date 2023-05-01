@@ -1,16 +1,12 @@
 import { useState } from 'react';
-import PageLayout from '../../components/PageLayout';
-import { general } from './configs/general';
-import { recruitment } from './configs/recruitment/base';
-import Form from '../NewStudyPage/components/form/Form';
-import Navbar from './components/NavBar';
 import { useParams } from 'react-router-dom';
-import useStudyConf from '../../hooks/useStudyConf';
+import PageLayout from '../../components/PageLayout';
 import ErrorPlaceholder from '../../components/ErrorPlaceholder';
+import Navbar from './components/NavBar';
+import General from './forms/General';
+import useStudyConf from '../../hooks/useStudyConf';
 import useStudy from '../../hooks/useStudy';
-import { ConfBase, ConfSelectBase } from '../../types/form';
-import simple from './controllers/simple';
-import select from './controllers/select';
+import Form from './components/Form';
 
 const StudyConfPage = () => {
   const params = useParams<{ studySlug: string }>();
@@ -43,36 +39,16 @@ const StudyConfPage = () => {
 };
 
 const PageContent = (data: any) => {
-  const confStore: Record<string, ConfBase | ConfSelectBase> = {
-    general,
-    recruitment,
-  };
-
-  const confKeys = Object.keys(confStore);
-  const confsToArr = Object.entries(confStore);
+  const formKeys = ['general'];
   const [index, setIndex] = useState<number>(0);
-  const conf = confsToArr[index][1];
-
-  const lookup: any = {
-    confObject: simple,
-    confSelect: select,
-  };
-
-  const str: keyof ConfBase = 'type';
-
-  const type = conf[str];
-  const controller = lookup[type];
-
-  if (!controller) {
-    throw new Error(`Could not find form for controller type: ${type}`);
-  }
-
-  const isLast = index === confsToArr.length - 1 ? true : false;
+  const id = formKeys[index];
+  const lookup = [General];
+  const component = lookup[index];
 
   return (
     <>
-      <Navbar confKeys={confKeys} setIndex={setIndex} />
-      <Form controller={controller} conf={conf} isLast={isLast} data={data} />
+      <Navbar formKeys={formKeys} setIndex={setIndex} />
+      <Form id={id} component={component} data={data.data[id]} />
     </>
   );
 };

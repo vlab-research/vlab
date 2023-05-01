@@ -1,4 +1,4 @@
-import { createFakeStudy } from './study';
+import { createFakeStudy } from './studyData';
 
 type Study = ReturnType<typeof createFakeStudy>;
 type StratumProgress = Study['stratumProgressList'][number];
