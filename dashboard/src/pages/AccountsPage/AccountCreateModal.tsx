@@ -166,7 +166,7 @@ const AccountForm: React.FC<accountFormProps> = ({
         />
         {selected.type === 'facebook' && (
           <div className="mt-3">
-            <InfoBanner message="Please note this will note be functional until Facebook approves our application" />
+            <InfoBanner message="Please note this will not be functional until Facebook approves Virtual Labs application" />
           </div>
         )}
         <div className="bg-gray-50 px-4 py-3 sm:flex sm:flex-row-reverse sm:px-6">

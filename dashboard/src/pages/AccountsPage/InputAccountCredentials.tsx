@@ -79,7 +79,7 @@ const InputAccountCredentials: React.FC<inputAccountCredentials> = ({
           />
         )}
         {account.name === 'facebook' && (
-          <InfoBanner message="Please note this will note be functional until Facebook approves our application" />
+          <InfoBanner message="Please note this will not be functional until Facebook approves the Virtual Labs application" />
         )}
         <div className="bg-gray-50 px-4 py-3 sm:flex sm:flex-row-reverse sm:px-6">
           <DeleteButton type="submit" loading={isDeleting} />
