@@ -1,7 +1,7 @@
 import { useInfiniteQuery, queryCache } from 'react-query';
 import {
   StudiesApiResponse,
-  StudyConfResource,
+  StudyConfData,
   StudyResource,
 } from '../types/study';
 import { Cursor } from '../types/api';
@@ -58,7 +58,7 @@ export const addStudyToCacheWhileRefetching = (study: StudyResource) => {
   queryCache.invalidateQueries(queryKey);
 };
 
-export const addStudyConfToCacheWhileRefetching = (conf: StudyConfResource) => {
+export const addStudyConfToCacheWhileRefetching = (conf: StudyConfData) => {
   // Add a conf to the cache
   queryCache.setQueryData(queryKey, (confsCache: any) => {
     const confsCacheExists =
