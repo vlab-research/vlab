@@ -6,7 +6,7 @@ import {
   StudiesApiResponse,
   StudyApiResponse,
   StudyConfApiResponse,
-  StudyConfResource,
+  StudyConfData,
   StudySegmentsProgressApiResponse,
 } from '../types/study';
 import querystring from 'querystring';
@@ -116,28 +116,28 @@ const createStudy = ({
   });
 
 const createStudyConf = ({
-  data,
-  slug,
+  studySlug,
   accessToken,
+  data,
 }: {
-  data: StudyConfResource;
-  slug: string;
+  data: StudyConfData;
+  studySlug: string;
   accessToken: string;
 }) =>
-  apiRequest<CreateStudyConfApiResponse>(`/studies/${slug}/conf`, {
+  apiRequest<CreateStudyConfApiResponse>(`/studies/${studySlug}/conf`, {
     accessToken,
     method: 'POST',
-    body: { ...data },
+    body: data,
   });
 
 const fetchStudyConf = ({
-  slug,
+  studySlug,
   accessToken,
 }: {
-  slug: string;
+  studySlug: string;
   accessToken: string;
 }) =>
-  apiRequest<StudyConfApiResponse>(`/studies/${slug}/conf`, {
+  apiRequest<StudyConfApiResponse>(`/studies/${studySlug}/conf`, {
     accessToken,
   }).then(({ data }) => data);
 

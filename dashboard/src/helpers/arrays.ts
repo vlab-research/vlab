@@ -6,3 +6,7 @@ export const reduceFieldStateToAnObject = (arr: any[]) => {
     {}
   );
 };
+
+export const getFirstOption = (arr: any[]) => {
+  return arr[0].name;
+};
