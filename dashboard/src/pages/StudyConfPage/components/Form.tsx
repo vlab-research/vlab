@@ -1,5 +1,5 @@
 import React from 'react';
-import { GlobalFormData } from '../../../../types/conf';
+import { GlobalFormData } from '../../../types/conf';
 
 interface Props {
   id: string;

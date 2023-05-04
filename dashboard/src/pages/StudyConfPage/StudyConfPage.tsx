@@ -6,7 +6,7 @@ import Navbar from './components/NavBar';
 import General from './forms/General';
 import useStudyConf from '../../hooks/useStudyConf';
 import useStudy from '../../hooks/useStudy';
-import Form from '../NewStudyPage/components/form/Form';
+import Form from './components/Form';
 
 const StudyConfPage = () => {
   const params = useParams<{ studySlug: string }>();

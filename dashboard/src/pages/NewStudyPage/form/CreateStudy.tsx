@@ -1,7 +1,7 @@
 import { useForm, SubmitHandler, UseFormRegister, Path } from 'react-hook-form';
-import PrimaryButton from '../../../../components/PrimaryButton';
-import { classNames } from '../../../../helpers/strings';
-import useCreateStudy from '../../useCreateStudy';
+import PrimaryButton from '../../../components/PrimaryButton';
+import { classNames } from '../../../helpers/strings';
+import useCreateStudy from '../../../hooks/useCreateStudy';
 
 interface FormData {
   name: string;
