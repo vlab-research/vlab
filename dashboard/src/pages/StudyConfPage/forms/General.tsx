@@ -152,7 +152,6 @@ const General: React.FC<Props> = ({ id, data }: Props) => {
       [id]: formData,
     };
 
-
     createStudyConf({ data, studySlug });
   };
 
