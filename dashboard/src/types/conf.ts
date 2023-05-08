@@ -61,7 +61,7 @@ export type Destination = Messenger | Web | App;
 
 export type Destinations = Destination[];
 
-export type LocalFormData = CreateStudy | General | Recruitment | Destinations;
+// export type LocalFormData = CreateStudy | General | Recruitment | Destinations;
 
 export type GlobalFormData = {
   general: General;

@@ -116,28 +116,28 @@ const createStudy = ({
   });
 
 const createStudyConf = ({
-  studySlug,
+  slug,
   accessToken,
   data,
 }: {
   data: StudyConfData;
-  studySlug: string;
+  slug: string;
   accessToken: string;
 }) =>
-  apiRequest<CreateStudyConfApiResponse>(`/studies/${studySlug}/conf`, {
+  apiRequest<CreateStudyConfApiResponse>(`/studies/${slug}/conf`, {
     accessToken,
     method: 'POST',
     body: data,
   });
 
 const fetchStudyConf = ({
-  studySlug,
+  slug,
   accessToken,
 }: {
-  studySlug: string;
+  slug: string;
   accessToken: string;
 }) =>
-  apiRequest<StudyConfApiResponse>(`/studies/${studySlug}/conf`, {
+  apiRequest<StudyConfApiResponse>(`/studies/${slug}/conf`, {
     accessToken,
   }).then(({ data }) => data);
 

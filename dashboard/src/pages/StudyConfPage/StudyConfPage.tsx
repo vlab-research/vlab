@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import PageLayout from '../../components/PageLayout';
 import ErrorPlaceholder from '../../components/ErrorPlaceholder';
@@ -12,7 +12,11 @@ const StudyConfPage = () => {
   const params = useParams<{ studySlug: string }>();
   const study = useStudy(params.studySlug);
   const studyConf = useStudyConf(params.studySlug);
-  const data = studyConf.data;
+  const [data, setData] = useState(studyConf.data);
+
+  useEffect(() => {
+    setData(studyConf.data);
+  }, [studyConf]);
 
   if (studyConf.errorOnLoad) {
     return (
@@ -40,7 +44,6 @@ const StudyConfPage = () => {
 };
 
 const PageContent = (data: any) => {
-  // TODO swap out "any" for a global form data type
   const formKeys = ['general'];
   const [index, setIndex] = useState<number>(0);
   const id = formKeys[index];
@@ -50,7 +53,8 @@ const PageContent = (data: any) => {
   return (
     <>
       <Navbar formKeys={formKeys} setIndex={setIndex} />
-      <Form id={id} component={component} {...data} />
+      <Form id={id} component={component} data={data.data[id]} />
+      {/* <Test /> */}
     </>
   );
 };

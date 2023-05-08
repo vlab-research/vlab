@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useForm, SubmitHandler, UseFormRegister, Path } from 'react-hook-form';
 import PrimaryButton from '../../../components/PrimaryButton';
@@ -103,13 +103,13 @@ const Select: React.FC<SelectProps> = ({
 
 interface Props {
   id: string;
-  data: any;
+  data: FormData;
 }
 
 const General: React.FC<Props> = ({ id, data }: Props) => {
-  const localFormData = data[id];
+  // console.log('data', data);
 
-  const defaultValues = {
+  const initialValues = {
     objective: getFirstOption(objectives),
     optimization_goal: getFirstOption(optimizationGoals),
     destination_type: getFirstOption(destinations),
@@ -122,37 +122,25 @@ const General: React.FC<Props> = ({ id, data }: Props) => {
 
   const {
     register,
+    formState: { errors, isLoading, defaultValues },
     handleSubmit,
-    setValue,
-    formState: { errors },
   } = useForm<FormData>({
-    defaultValues,
+    defaultValues: data ? data : initialValues,
   });
-
-  useEffect(() => {
-    const fields = [
-      'objective',
-      'optimization_goal',
-      'destination_type',
-      'page_id',
-      'opt_window',
-      'instagram_id',
-      'ad_account',
-    ];
-    localFormData && fields.map((f: any) => setValue(f, localFormData[f]));
-  }, [setValue, localFormData]);
 
   const { createStudyConf } = useCreateStudyConf();
   const params = useParams<{ studySlug: string }>();
 
   const onSubmit: SubmitHandler<FormData> = formData => {
-    const studySlug = params.studySlug;
+    const slug = params.studySlug;
 
     const data = {
       [id]: formData,
     };
 
-    createStudyConf({ data, studySlug });
+    console.log('data on submit', data, 'default values', defaultValues);
+
+    createStudyConf({ data, slug });
   };
 
   return (
