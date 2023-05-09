@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/tidwall/gjson"
+	"regexp"
 	"strconv"
 	"strings"
 )
@@ -48,20 +49,14 @@ func JsonSelect(dat json.RawMessage, path string) ([]byte, error) {
 // ---------------------------
 
 type VlabKVPairSelectFunctionParams struct {
-	Path *string `json:"path" validate:"required"` // use pointer because "" is valid
-	Key  string  `json:"key" validate:"required"`
+	Key string `json:"key" validate:"required"`
 }
 
 func (p *VlabKVPairSelectFunctionParams) GetValue(dat json.RawMessage) ([]byte, error) {
-	s, err := JsonSelect(dat, *p.Path)
-	if err != nil {
-		return s, err
-	}
-
 	var st string
-	err = json.Unmarshal(s, &st)
+	err := json.Unmarshal(dat, &st)
 	if err != nil {
-		return nil, fmt.Errorf("Bad KV Pair string: %s is not a string at all.", s)
+		return nil, fmt.Errorf("Bad KV Pair string: %s is not a string at all.", dat)
 	}
 
 	if st == "" {
@@ -94,6 +89,41 @@ func (p *VlabKVPairSelectFunctionParams) GetValue(dat json.RawMessage) ([]byte, 
 	b, _ := json.Marshal(v)
 
 	return b, nil
+}
+
+// ---------------------------
+// regexp-extract
+// ---------------------------
+
+type RegexpExtractParams struct {
+	Regexp string `json:"regexp" validate:"required"`
+}
+
+func (p *RegexpExtractParams) GetValue(dat json.RawMessage) ([]byte, error) {
+	m, err := regexp.Compile(p.Regexp)
+	if err != nil {
+		return nil, err
+	}
+
+	// This function only works if the value can be parsed as a json string
+	var s string
+	err = json.Unmarshal(dat, &s)
+	if err != nil {
+		return nil, fmt.Errorf("regexp-extract failed, the value could not be parsed as a string: %s. Original error: %s", dat, err)
+	}
+
+	res := m.FindString(s)
+
+	if res == "" {
+		return nil, fmt.Errorf("regexp-extract failed to find any value in the string: %s. For regular expression: %s", dat, p.Regexp)
+	}
+
+	// marshal back to JSON representation of a string
+	ss, err := json.Marshal(res)
+	if err != nil {
+		return nil, err
+	}
+	return ss, nil
 }
 
 // ---------------------------

@@ -57,3 +57,5 @@ type InferenceDataRow struct {
 }
 
 type InferenceData map[string]*InferenceDataRow
+
+type IntermediateInferenceData map[string]InferenceData
