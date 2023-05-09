@@ -16,11 +16,10 @@ const useCreateStudyConf = () => {
       await createStudyConf({ data, slug }),
     {
       onSuccess: ({ data: conf }) => {
-        console.log('conf', conf);
         addStudyConfToCacheWhileRefetching(conf);
         history.push(`/studies`);
         notyf.success({
-          message: `Study conf updated`,
+          message: `Study configuration saved`,
           duration: 5000,
         });
       },
@@ -45,7 +44,6 @@ export const addStudyConfToCacheWhileRefetching = (conf: StudyConfData) => {
   // Add a conf to the cache
   queryCache.setQueryData(queryKey, (confsCache: any) => {
     confsCache = conf;
-    console.log('confs cache', confsCache);
     return confsCache;
   });
 

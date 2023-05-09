@@ -8,6 +8,9 @@ import optimizationGoals from '../../../fixtures/general/optimizationGoals';
 import useCreateStudyConf from '../../../hooks/useCreateStudyConf';
 import { classNames, createLabelFor } from '../../../helpers/strings';
 import { getFirstOption } from '../../../helpers/arrays';
+import useStudyConf, {
+  clearCacheWhileRefetching,
+} from '../../../hooks/useStudyConf';
 
 interface FormData {
   objective: string;
@@ -107,8 +110,6 @@ interface Props {
 }
 
 const General: React.FC<Props> = ({ id, data }: Props) => {
-  // console.log('data', data);
-
   const initialValues = {
     objective: getFirstOption(objectives),
     optimization_goal: getFirstOption(optimizationGoals),
@@ -120,13 +121,21 @@ const General: React.FC<Props> = ({ id, data }: Props) => {
     ad_account: '',
   };
 
+  const [formData, setFormData] = useState(initialValues);
+
   const {
     register,
+    reset,
     formState: { errors, isLoading, defaultValues },
     handleSubmit,
   } = useForm<FormData>({
-    defaultValues: data ? data : initialValues,
+    defaultValues: async () => data,
   });
+
+  useEffect(() => {
+    setFormData(data);
+    reset(data);
+  }, [data, reset]);
 
   const { createStudyConf } = useCreateStudyConf();
   const params = useParams<{ studySlug: string }>();
@@ -138,9 +147,8 @@ const General: React.FC<Props> = ({ id, data }: Props) => {
       [id]: formData,
     };
 
-    console.log('data on submit', data, 'default values', defaultValues);
-
     createStudyConf({ data, slug });
+    clearCacheWhileRefetching();
   };
 
   return (

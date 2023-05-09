@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useParams } from 'react-router-dom';
 import PageLayout from '../../components/PageLayout';
 import ErrorPlaceholder from '../../components/ErrorPlaceholder';
@@ -50,13 +50,7 @@ const PageContent = (data: any) => {
   return (
     <>
       <Navbar formKeys={formKeys} setIndex={setIndex} />
-      <Form
-        id={id}
-        component={component}
-        data={data.data[id]}
-        studyConf={studyConf}
-      />
-      {/* <Test /> */}
+      <Form id={id} component={component} data={data.data[id]} />
     </>
   );
 };

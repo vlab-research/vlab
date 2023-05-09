@@ -12,7 +12,6 @@ const useStudyConf = (slug: string) => {
     async () => await fetchStudyConf({ slug }),
     {
       onSuccess: data => {
-        console.log('use study conf', data);
         addStudyConfToCacheWhileRefetching(data);
       },
     }
