@@ -8,9 +8,7 @@ import optimizationGoals from '../../../fixtures/general/optimizationGoals';
 import useCreateStudyConf from '../../../hooks/useCreateStudyConf';
 import { classNames, createLabelFor } from '../../../helpers/strings';
 import { getFirstOption } from '../../../helpers/arrays';
-import useStudyConf, {
-  clearCacheWhileRefetching,
-} from '../../../hooks/useStudyConf';
+import { clearCacheWhileRefetching } from '../../../hooks/useStudyConf';
 
 interface FormData {
   objective: string;
@@ -26,6 +24,7 @@ interface FormData {
 interface TextProps {
   name: Path<FormData>;
   type?: string;
+  valueAsNumber?: boolean;
   autoComplete: string;
   placeholder: string;
   required: boolean;
@@ -49,6 +48,7 @@ interface SelectOption {
 const TextInput: React.FC<TextProps> = ({
   name,
   type,
+  valueAsNumber,
   register,
   required,
   autoComplete,
@@ -63,7 +63,7 @@ const TextInput: React.FC<TextProps> = ({
       type={type}
       autoComplete={autoComplete}
       placeholder={placeholder}
-      {...register(name, { required })}
+      {...register(name, { required, valueAsNumber })}
       className={classNames(
         'block w-4/5 shadow-sm sm:text-sm rounded-md',
         errors
@@ -126,10 +126,10 @@ const General: React.FC<Props> = ({ id, data }: Props) => {
   const {
     register,
     reset,
-    formState: { errors, isLoading, defaultValues },
+    formState: { errors },
     handleSubmit,
   } = useForm<FormData>({
-    defaultValues: async () => data,
+    defaultValues: formData,
   });
 
   useEffect(() => {
@@ -189,6 +189,7 @@ const General: React.FC<Props> = ({ id, data }: Props) => {
             <TextInput
               name="min_budget"
               type="number"
+              valueAsNumber={true}
               register={register}
               required
               autoComplete="on"
@@ -197,6 +198,7 @@ const General: React.FC<Props> = ({ id, data }: Props) => {
             <TextInput
               name="opt_window"
               type="number"
+              valueAsNumber={true}
               register={register}
               required
               autoComplete="on"
