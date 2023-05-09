@@ -22,11 +22,11 @@ COPY sources/types sources/types
 
 # Build the app by copying only its files
 COPY ${APP_PATH}/ ${APP_PATH}/
-RUN go build -o main ./${APP_PATH}
+RUN CGO_ENABLED=0 go build -o /app/main ./${APP_PATH}
 
 # Final Image using a distroless images
 FROM gcr.io/distroless/static-debian11
-WORKDIR /app
-COPY --from=build /app/main /app/
 
-CMD ["/app/main"]
+COPY --from=build /app/main /
+
+ENTRYPOINT ["/main"]
