@@ -12,11 +12,6 @@ const StudyConfPage = () => {
   const params = useParams<{ studySlug: string }>();
   const study = useStudy(params.studySlug);
   const studyConf = useStudyConf(params.studySlug);
-  const [data, setData] = useState(studyConf.data);
-
-  useEffect(() => {
-    setData(studyConf.data);
-  }, [studyConf]);
 
   if (studyConf.errorOnLoad) {
     return (
@@ -38,7 +33,7 @@ const StudyConfPage = () => {
       testId="study-conf-page"
       showBackButton
     >
-      <PageContent data={data} />
+      <PageContent data={studyConf.data} />
     </PageLayout>
   );
 };
@@ -49,11 +44,18 @@ const PageContent = (data: any) => {
   const id = formKeys[index];
   const lookup = [General];
   const component = lookup[index];
+  const params = useParams<{ studySlug: string }>();
+  const studyConf = useStudyConf(params.studySlug);
 
   return (
     <>
       <Navbar formKeys={formKeys} setIndex={setIndex} />
-      <Form id={id} component={component} data={data.data[id]} />
+      <Form
+        id={id}
+        component={component}
+        data={data.data[id]}
+        studyConf={studyConf}
+      />
       {/* <Test /> */}
     </>
   );
