@@ -15,14 +15,15 @@ const (
 	infConfA = `
         {
            "data_sources": {
-               "fly": [{
+               "fly": {
+                   "extraction_confs": [{
                           "location": "variable",
                           "key": "foo_raw",
 			  "name": "foo",
-			  "function": "select",
-			  "params": { "path": "value" },
+                          "functions": [{"function": "select", "params": { "path": "value" }}],
 			  "value_type": "existence"
                       }]
+                }
            }
         }
        `
@@ -30,14 +31,15 @@ const (
 	infConfB = `
         {
            "data_sources": {
-               "fly": [{
+               "fly": {
+                   "extraction_confs": [{
                           "location": "variable",
                           "key": "foo_raw",
 			  "name": "bar",
-			  "function": "select",
-			  "params": { "path": "value" },
+                          "functions": [{"function": "select", "params": { "path": "value" }}],
 			  "value_type": "existence"
                       }]
+             }
           }
         }
        `
@@ -70,15 +72,22 @@ func TestGetInferenceDataConf_GetsLatestConf(t *testing.T) {
 	MustExec(t, pool, insertConf, foo, "inference_data", infConfB)
 	MustExec(t, pool, insertConf, foo, "inference_data", infConfA)
 
-	expected := &InferenceDataConf{map[string][]*ExtractionConf{
+	expected := &InferenceDataConf{map[string]*DataSource{
 		"fly": {
-			{
-				Location:  "variable",
-				Key:       "foo_raw",
-				Name:      "foo",
-				ValueType: "existence",
-				Function:  "select",
-				Params:    []byte(`{"path": "value"}`)},
+			ExtractionConfs: []*ExtractionConf{
+				{
+					Location:  "variable",
+					Key:       "foo_raw",
+					Name:      "foo",
+					ValueType: "existence",
+					Functions: []ExtractionFunctionConf{
+						{
+							Function: "select",
+							Params:   []byte(`{"path": "value"}`),
+						},
+					},
+				},
+			},
 		},
 	}}
 

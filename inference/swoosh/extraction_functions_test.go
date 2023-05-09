@@ -53,74 +53,89 @@ func TestCastContinuous_ErrorsWhenNotPossible(t *testing.T) {
 }
 
 func TestVlabKVPairSelectParams_SplitAndGetIfExists(t *testing.T) {
-	s := "foo"
 	params := &VlabKVPairSelectFunctionParams{
-		&s,
 		"bar",
 	}
 
-	v, e := params.GetValue([]byte(`{"foo": "not.value.bar.baz"}`))
+	v, e := params.GetValue([]byte(` "not.value.bar.baz"`))
 	assert.Nil(t, e)
 	assert.Equal(t, []byte(`"baz"`), v)
 }
 
 func TestVlabKVPairSelectParams_ErrorsIfNotExists(t *testing.T) {
-	s := "foo"
 	params := &VlabKVPairSelectFunctionParams{
-		&s,
 		"bar",
 	}
 
-	_, e := params.GetValue([]byte(`{"foo": "not.value"}`))
+	_, e := params.GetValue([]byte(` "not.value"`))
 	assert.NotNil(t, e)
 	assert.Contains(t, e.Error(), "not.value")
 	assert.Contains(t, e.Error(), "bar")
 }
 
 func TestVlabKVPairSelectParams_GetsNumbersAsStrings(t *testing.T) {
-	s := "foo"
 	params := &VlabKVPairSelectFunctionParams{
-		&s,
 		"bar",
 	}
 
-	v, e := params.GetValue([]byte(`{"foo": "bar.5"}`))
+	v, e := params.GetValue([]byte(` "bar.5"`))
 	assert.Nil(t, e)
 	assert.Equal(t, []byte(`"5"`), v)
 }
 
 func TestVlabKVPairSelectParams_ErrorsIfBadKVPairString(t *testing.T) {
-	s := "foo"
 	params := &VlabKVPairSelectFunctionParams{
-		&s,
 		"bar",
 	}
 
-	_, e := params.GetValue([]byte(`{"foo": "baz.bar.foo"}`))
+	_, e := params.GetValue([]byte(`"baz.bar.foo"`))
 	assert.NotNil(t, e)
 	assert.Contains(t, e.Error(), "baz.bar.foo")
 }
 
 func TestVlabKVPairSelectParams_ErrorsIfKVPairStringNotAString(t *testing.T) {
-	s := "foo"
 	params := &VlabKVPairSelectFunctionParams{
-		&s,
 		"bar",
 	}
 
-	_, e := params.GetValue([]byte(`{"foo": 100}`))
+	_, e := params.GetValue([]byte(`100`))
 	assert.NotNil(t, e)
 	assert.Contains(t, e.Error(), "100")
 }
 
 func TestVlabKVPairSelectParams_ErrorsIfKVPairStringEmpty(t *testing.T) {
-	s := "foo"
 	params := &VlabKVPairSelectFunctionParams{
-		&s,
 		"bar",
 	}
 
-	_, e := params.GetValue([]byte(`{"foo": ""}`))
+	_, e := params.GetValue([]byte(`""`))
 	assert.NotNil(t, e)
 	assert.Contains(t, e.Error(), "empty")
+}
+
+func TestRegexpExtractParams_ExtractsViaExpression(t *testing.T) {
+	params := &RegexpExtractParams{Regexp: `\d+`}
+
+	v, e := params.GetValue([]byte(`"123)"`))
+
+	assert.Nil(t, e)
+	assert.Equal(t, []byte(`"123"`), v)
+}
+
+func TestRegexpExtractParams_ErrorsIfNoValueExtracted(t *testing.T) {
+	params := &RegexpExtractParams{Regexp: `\d+`}
+
+	_, e := params.GetValue([]byte(`"abcd"`))
+
+	assert.NotNil(t, e)
+	assert.Contains(t, e.Error(), "failed to find")
+}
+
+func TestRegexpExtractParams_RaisesErrorIfValueNotAString(t *testing.T) {
+	params := &RegexpExtractParams{Regexp: `\d+`}
+
+	_, e := params.GetValue([]byte(`{"foo": "bar"}`))
+
+	assert.NotNil(t, e)
+	assert.Contains(t, e.Error(), "could not be parsed as a string")
 }

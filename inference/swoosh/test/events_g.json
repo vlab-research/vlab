@@ -1,0 +1,62 @@
+[
+  {
+    "user": {
+      "id": "foo",
+      "metadata": {}
+    },
+    "study": "foo",
+    "source_conf": {
+      "config": null,
+      "name": "source1",
+      "source": "literacy_data_api"
+    },
+    "timestamp": "2021-07-07T00:00:00.000000000Z",
+    "variable": "q1",
+    "value": "A"
+  },
+  {
+    "user": {
+      "id": "bar",
+      "metadata": {}
+    },
+    "study": "foo",
+    "source_conf": {
+      "config": null,
+      "name": "source1",
+      "source": "literacy_data_api"
+    },
+    "timestamp": "2021-07-07T00:00:00.000000000Z",
+    "variable": "q1",
+    "value": "C"
+  },
+  {
+    "user": {
+      "id": "foo2",
+      "metadata": {}
+    },
+    "study": "foo",
+    "source_conf": {
+      "config": null,
+      "name": "source2",
+      "source": "alchemer"
+    },
+    "timestamp": "2021-07-07T00:00:00.000000000Z",
+    "variable": "q2",
+    "value": "B"
+  },
+  {
+    "user": {
+      "id": "foo2",
+      "metadata": {}
+    },
+    "study": "foo",
+    "source_conf": {
+      "config": null,
+      "name": "source2",
+      "source": "alchemer"
+    },
+    "timestamp": "2021-07-07T00:00:00.000000000Z",
+    "variable": "custom_user_variable",
+    "value": "foo"
+  }
+]

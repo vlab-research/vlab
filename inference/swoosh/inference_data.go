@@ -10,25 +10,31 @@ import (
 	. "github.com/vlab-research/vlab/inference/inference-data"
 )
 
-// TODO: validate not empty fields...?
-type ExtractionConf struct {
-	Location  string          `json:"location"`
-	Key       string          `json:"key"`
-	Name      string          `json:"name"`
-	Function  string          `json:"function"`
-	Params    json.RawMessage `json:"params"`
-	ValueType string          `json:"value_type"`
-	Aggregate string          `json:"aggregate"` // first, last, max, min
-	fn        func(json.RawMessage) ([]byte, error)
+type ExtractionFunctionConf struct {
+	Function string          `json:"function"`
+	Params   json.RawMessage `json:"params"`
 }
 
-// type InferenceDataSource struct {
-// 	VariableExtractionMapping []*ExtractionConf `json:"variable_extraction"`
-// 	MetadataExtractionMapping []*ExtractionConf `json:"metadata_extraction"`
-// }
+type ExtractionFunction func(json.RawMessage) ([]byte, error)
+
+// TODO: validate not empty fields...?
+type ExtractionConf struct {
+	Location  string                   `json:"location"`
+	Key       string                   `json:"key"`
+	Name      string                   `json:"name"`
+	Functions []ExtractionFunctionConf `json:"functions"`
+	ValueType string                   `json:"value_type"`
+	Aggregate string                   `json:"aggregate"` // first, last, max, min
+	fns       []ExtractionFunction
+}
+
+type DataSource struct {
+	ExtractionConfs []*ExtractionConf `json:"extraction_confs"`
+	UserVariable    string            `json:"user_variable"`
+}
 
 type InferenceDataConf struct {
-	DataSources map[string][]*ExtractionConf `json:"data_sources"`
+	DataSources map[string]*DataSource `json:"data_sources"`
 }
 
 func (c InferenceDataConf) Sources() []string {
@@ -43,41 +49,62 @@ func (c InferenceDataConf) Sources() []string {
 }
 
 func (conf *ExtractionConf) Extract(dat json.RawMessage) ([]byte, error) {
-	if conf.fn == nil {
+	// Chainable extraction functions???
+	fns := []ExtractionFunction{}
 
-		var p ExtractionFunctionParams
-		switch conf.Function {
+	if conf.fns == nil {
+		// for each func in funcs
+		for _, c := range conf.Functions {
 
-		case "select":
-			p = new(SelectFunctionParams)
+			var p ExtractionFunctionParams
+			switch c.Function {
 
-		case "vlab-kv-pair-select":
-			p = new(VlabKVPairSelectFunctionParams)
+			// Add regexp select
 
+			case "select":
+				p = new(SelectFunctionParams)
+
+			case "vlab-kv-pair-select":
+				p = new(VlabKVPairSelectFunctionParams)
+
+			case "regexp-extract":
+				p = new(RegexpExtractParams)
+
+			default:
+				return nil, fmt.Errorf("Could not find function: %s", c.Function)
+
+			}
+
+			err := json.Unmarshal(c.Params, p)
+			if err != nil {
+				return nil, fmt.Errorf(
+					"Could not parse function params for function %s. Param json: %s. Parsing error: %s.",
+					c.Function,
+					string(c.Params),
+					err)
+			}
+
+			v := validator.New()
+			err = v.Struct(p)
+			if err != nil {
+				return nil, err
+			}
+
+			// append func to funcs
+			fns = append(fns, p.GetValue)
 		}
 
-		err := json.Unmarshal(conf.Params, p)
-		if err != nil {
-			return nil, fmt.Errorf(
-				"Could not parse function params for function %s. Param json: %s. Parsing error: %s.",
-				conf.Function,
-				string(conf.Params),
-				err)
-		}
+		conf.fns = fns
+	}
 
-		v := validator.New()
-		err = v.Struct(p)
+	// go through slice and apply each func
+	raw := []byte(dat)
+	for _, f := range conf.fns {
+		var err error
+		raw, err = f(raw)
 		if err != nil {
 			return nil, err
 		}
-
-		conf.fn = p.GetValue
-
-	}
-
-	raw, err := conf.fn(dat)
-	if err != nil {
-		return nil, err
 	}
 
 	return CastValue(conf, raw)
@@ -98,17 +125,22 @@ func getNumericValues(oldVal, val *InferenceDataValue) (float64, float64, error)
 	return o, n, nil
 }
 
-func addValue(conf *ExtractionConf, id InferenceData, user string, val *InferenceDataValue) (InferenceData, error) {
-	_, ok := id[user]
+func addValue(conf *ExtractionConf, id IntermediateInferenceData, user string, source string, val *InferenceDataValue) (IntermediateInferenceData, error) {
 
+	_, ok := id[source]
 	if !ok {
-		id[user] = &InferenceDataRow{user, make(map[string]*InferenceDataValue)}
+		id[source] = make(InferenceData)
 	}
 
-	oldVal, ok := id[user].Data[val.Variable]
+	_, ok = id[source][user]
+	if !ok {
+		id[source][user] = &InferenceDataRow{user, make(map[string]*InferenceDataValue)}
+	}
+
+	oldVal, ok := id[source][user].Data[val.Variable]
 
 	if !ok {
-		id[user].Data[val.Variable] = val
+		id[source][user].Data[val.Variable] = val
 		return id, nil
 	}
 
@@ -119,13 +151,13 @@ func addValue(conf *ExtractionConf, id InferenceData, user string, val *Inferenc
 	switch conf.Aggregate {
 	case "last":
 		if oldVal.Timestamp.Before(val.Timestamp) {
-			id[user].Data[val.Variable] = val
+			id[source][user].Data[val.Variable] = val
 		}
 		return id, nil
 
 	case "first":
 		if oldVal.Timestamp.After(val.Timestamp) {
-			id[user].Data[val.Variable] = val
+			id[source][user].Data[val.Variable] = val
 		}
 		return id, nil
 
@@ -137,7 +169,7 @@ func addValue(conf *ExtractionConf, id InferenceData, user string, val *Inferenc
 		}
 
 		if o < n {
-			id[user].Data[val.Variable] = val
+			id[source][user].Data[val.Variable] = val
 		}
 		return id, nil
 
@@ -148,7 +180,7 @@ func addValue(conf *ExtractionConf, id InferenceData, user string, val *Inferenc
 		}
 
 		if o > n {
-			id[user].Data[val.Variable] = val
+			id[source][user].Data[val.Variable] = val
 		}
 		return id, nil
 
@@ -183,7 +215,7 @@ func getRetrieveFunc(conf *ExtractionConf) (RetrieveFunc, error) {
 	return nil, fmt.Errorf("Could not find location function for location: %s", conf.Location)
 }
 
-func extractValue(id InferenceData, e *InferenceDataEvent, extractionConfs []*ExtractionConf) (InferenceData, error) {
+func extractValue(id IntermediateInferenceData, e *InferenceDataEvent, extractionConfs []*ExtractionConf) (IntermediateInferenceData, error) {
 
 	for _, conf := range extractionConfs {
 		retrieve, err := getRetrieveFunc(conf)
@@ -203,7 +235,7 @@ func extractValue(id InferenceData, e *InferenceDataEvent, extractionConfs []*Ex
 
 		v := &InferenceDataValue{e.Timestamp, conf.Name, val, conf.ValueType}
 
-		id, err = addValue(conf, id, e.User.ID, v)
+		id, err = addValue(conf, id, e.User.ID, e.SourceConf.Name, v)
 		if err != nil {
 			return id, err
 		}
@@ -212,10 +244,61 @@ func extractValue(id InferenceData, e *InferenceDataEvent, extractionConfs []*Ex
 	return id, nil
 }
 
+func JoinSources(intermediateData IntermediateInferenceData, confs map[string]*DataSource) (InferenceData, []error) {
+
+	errs := []error{}
+	infData := make(InferenceData)
+
+	for source, val := range intermediateData {
+
+		conf := confs[source] // has to exist by now
+
+		// map user names
+		for user, row := range val {
+			var newUser string
+
+			if conf.UserVariable == "" {
+				newUser = user
+			} else {
+				// translate with user variable to get newUser
+				newUserVar, ok := row.Data[conf.UserVariable]
+
+				if !ok {
+					errs = append(errs, fmt.Errorf("Could not find user variable %s for user previously known as %s", conf.UserVariable, user))
+					continue
+				}
+
+				// hope the user variable is a string...
+				// if not, make it one???
+				// make simple UnmarshalAsString func
+				err := json.Unmarshal(newUserVar.Value, &newUser)
+
+				if err != nil {
+					errs = append(errs, err)
+				}
+			}
+
+			// First time we see a new user, make a Row
+			_, ok := infData[newUser]
+			if !ok {
+				idv := make(map[string]*InferenceDataValue)
+				infData[newUser] = &InferenceDataRow{User: newUser, Data: idv}
+			}
+
+			// Add all data to the user
+			for v, val := range row.Data {
+				infData[newUser].Data[v] = val
+			}
+		}
+	}
+
+	return infData, errs
+}
+
 // TODO: need to differentiate between bad errors and skip e
 
 func Reduce(events []*InferenceDataEvent, c *InferenceDataConf) (InferenceData, []error, error) {
-	id := make(InferenceData)
+	intermediateData := make(IntermediateInferenceData)
 	extractionErrors := []error{}
 
 	for _, e := range events {
@@ -231,7 +314,7 @@ func Reduce(events []*InferenceDataEvent, c *InferenceDataConf) (InferenceData, 
 
 		// add from metadata
 		var err error
-		id, err = extractValue(id, e, sourceConf)
+		intermediateData, err = extractValue(intermediateData, e, sourceConf.ExtractionConfs)
 		if err != nil {
 			extractionErrors = append(extractionErrors, err)
 			continue
@@ -239,5 +322,14 @@ func Reduce(events []*InferenceDataEvent, c *InferenceDataConf) (InferenceData, 
 
 	}
 
-	return id, extractionErrors, nil
+	// create intermediate datastructure, with user > source > variable > value
+	// add step to join sources within each user, taking some config
+	// (which points to the "user" (join) value for each source)
+
+	res, errs := JoinSources(intermediateData, c.DataSources)
+	for _, err := range errs {
+		extractionErrors = append(extractionErrors, err)
+	}
+
+	return res, extractionErrors, nil
 }
