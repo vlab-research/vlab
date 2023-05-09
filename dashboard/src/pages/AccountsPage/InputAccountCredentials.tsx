@@ -72,7 +72,7 @@ const InputAccountCredentials: React.FC<inputAccountCredentials> = ({
         {account.name !== 'facebook' && (
           <CredentialsInputList
             index={index}
-            credentials={credentials}
+            credentials={credential}
             error={errorOnCreate}
             type={account.name}
             handleCredentialChange={handleCredentialChange}
