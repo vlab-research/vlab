@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useParams } from 'react-router-dom';
 import PageLayout from '../../components/PageLayout';
 import ErrorPlaceholder from '../../components/ErrorPlaceholder';
@@ -44,19 +44,11 @@ const PageContent = (data: any) => {
   const id = formKeys[index];
   const lookup = [General];
   const component = lookup[index];
-  const params = useParams<{ studySlug: string }>();
-  const studyConf = useStudyConf(params.studySlug);
 
   return (
     <>
       <Navbar formKeys={formKeys} setIndex={setIndex} />
-      <Form
-        id={id}
-        component={component}
-        data={data.data[id]}
-        studyConf={studyConf}
-      />
-      {/* <Test /> */}
+      <Form id={id} component={component} data={data.data[id]} />
     </>
   );
 };
