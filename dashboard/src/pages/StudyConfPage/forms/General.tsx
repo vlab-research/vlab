@@ -5,9 +5,9 @@ import PrimaryButton from '../../../components/PrimaryButton';
 import objectives from '../../../fixtures/general/objectives';
 import destinations from '../../../fixtures/general/destinations';
 import optimizationGoals from '../../../fixtures/general/optimizationGoals';
-import useCreateStudyConf from '../../../hooks/useCreateStudyConf';
 import { classNames, createLabelFor } from '../../../helpers/strings';
 import { getFirstOption } from '../../../helpers/arrays';
+import useCreateStudyConf from '../../../hooks/useCreateStudyConf';
 import { clearCacheWhileRefetching } from '../../../hooks/useStudyConf';
 
 interface FormData {
@@ -63,7 +63,10 @@ const TextInput: React.FC<TextProps> = ({
       type={type}
       autoComplete={autoComplete}
       placeholder={placeholder}
-      {...register(name, { required, valueAsNumber })}
+      {...register(name, {
+        required,
+        valueAsNumber,
+      })}
       className={classNames(
         'block w-4/5 shadow-sm sm:text-sm rounded-md',
         errors
@@ -188,13 +191,13 @@ const General: React.FC<Props> = ({ id, data }: Props) => {
             />
             <TextInput
               name="min_budget"
-              type="number"
+              type="text"
               valueAsNumber={true}
               register={register}
               required
               autoComplete="on"
               placeholder="E.g 10"
-            />
+            ></TextInput>
             <TextInput
               name="opt_window"
               type="number"
