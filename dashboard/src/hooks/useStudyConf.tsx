@@ -1,21 +1,10 @@
 import { useQuery, queryCache } from 'react-query';
 import useAuthenticatedApi from './useAuthenticatedApi';
-import { addStudyConfToCacheWhileRefetching } from './useCreateStudyConf';
 
 const queryKey = 'studyConf';
 
 const useStudyConf = (slug: string) => {
-  const { fetchStudyConf } = useAuthenticatedApi();
-
-  const studyConfQuery = useQuery(
-    ['studyConf', slug],
-    async () => await fetchStudyConf({ slug }),
-    {
-      onSuccess: data => {
-        addStudyConfToCacheWhileRefetching(data);
-      },
-    }
-  );
+  const studyConfQuery = useStudyConfQuery(slug);
 
   const isLoading = !studyConfQuery.data;
 
@@ -29,6 +18,11 @@ const useStudyConf = (slug: string) => {
       queryCache.invalidateQueries(queryKey);
     },
   };
+};
+
+const useStudyConfQuery = (slug: string) => {
+  const { fetchStudyConf } = useAuthenticatedApi();
+  return useQuery([queryKey, slug], () => fetchStudyConf({ slug }));
 };
 
 export const clearCacheWhileRefetching = () => {
