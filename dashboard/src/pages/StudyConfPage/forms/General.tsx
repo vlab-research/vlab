@@ -8,7 +8,6 @@ import optimizationGoals from '../../../fixtures/general/optimizationGoals';
 import { classNames, createLabelFor } from '../../../helpers/strings';
 import { getFirstOption } from '../../../helpers/arrays';
 import useCreateStudyConf from '../../../hooks/useCreateStudyConf';
-import { clearCacheWhileRefetching } from '../../../hooks/useStudyConf';
 
 interface FormData {
   objective: string;
@@ -151,7 +150,6 @@ const General: React.FC<Props> = ({ id, data }: Props) => {
     };
 
     createStudyConf({ data, slug });
-    clearCacheWhileRefetching();
   };
 
   return (
@@ -197,6 +195,7 @@ const General: React.FC<Props> = ({ id, data }: Props) => {
               required
               autoComplete="on"
               placeholder="E.g 10"
+              errors={errors['min_budget']}
             ></TextInput>
             <TextInput
               name="opt_window"
@@ -206,6 +205,7 @@ const General: React.FC<Props> = ({ id, data }: Props) => {
               required
               autoComplete="on"
               placeholder="E.g 48"
+              errors={errors['opt_window']}
             />
             <TextInput
               name="instagram_id"

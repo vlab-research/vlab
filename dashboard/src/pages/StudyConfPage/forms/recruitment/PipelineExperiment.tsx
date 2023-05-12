@@ -6,10 +6,15 @@ import { classNames, createLabelFor } from '../../../../helpers/strings';
 import useCreateStudyConf from '../../../../hooks/useCreateStudyConf';
 import { clearCacheWhileRefetching } from '../../../../hooks/useStudyConf';
 
-interface FormData {
+export interface FormData {
   ad_campaign_name_base: string;
   budget_per_arm: number;
   max_sample_per_arm: number;
+  start_date: string;
+  end_date: string;
+  arms: number;
+  recruitment_days: number;
+  offset_days: number;
 }
 
 interface TextProps {
@@ -67,7 +72,7 @@ interface Props {
   data: FormData;
 }
 
-const Simple: React.FC<Props> = ({ id, data }: Props) => {
+const PipelineExperiment: React.FC<Props> = ({ id, data }: Props) => {
   const initialValues = {};
 
   const [formData, setFormData] = useState(initialValues);
@@ -101,52 +106,91 @@ const Simple: React.FC<Props> = ({ id, data }: Props) => {
   };
 
   return (
-    <div className="md:grid md:grid-cols-3 md:gap-6">
-      <div className="md:col-span-1">
-        <div className="px-4 sm:px-0"></div>
+    <form onSubmit={handleSubmit(onSubmit)}>
+      <TextInput
+        name="ad_campaign_name_base"
+        type="text"
+        register={register}
+        required
+        autoComplete="on"
+        placeholder="E.g vlab-vaping-pilot-2"
+        errors={errors['ad_campaign_name_base']}
+      />
+      <TextInput
+        name="budget_per_arm"
+        type="text"
+        valueAsNumber={true}
+        register={register}
+        required
+        autoComplete="on"
+        placeholder="E.g 8400"
+        errors={errors['budget_per_arm']}
+      />
+      <TextInput
+        name="max_sample_per_arm"
+        type="text"
+        valueAsNumber={true}
+        register={register}
+        required
+        autoComplete="on"
+        placeholder="E.g 1000"
+        errors={errors['max_sample_per_arm']}
+      />
+      <TextInput
+        name="start_date"
+        type="text"
+        register={register}
+        required
+        autoComplete="on"
+        placeholder="E.g 2022-07-26T00:00:00"
+        errors={errors['start_date']}
+      />
+      <TextInput
+        name="end_date"
+        type="text"
+        register={register}
+        required
+        autoComplete="on"
+        placeholder="E.g 2022-07-26T00:00:00"
+        errors={errors['end_date']}
+      />
+      <TextInput
+        name="arms"
+        type="text"
+        valueAsNumber={true}
+        register={register}
+        required
+        autoComplete="on"
+        placeholder="E.g 2"
+        errors={errors['arms']}
+      ></TextInput>
+      <TextInput
+        name="recruitment_days"
+        type="text"
+        valueAsNumber={true}
+        register={register}
+        required
+        autoComplete="on"
+        placeholder="E.g 2"
+        errors={errors['recruitment_days']}
+      ></TextInput>
+      <TextInput
+        name="offset_days"
+        type="text"
+        valueAsNumber={true}
+        register={register}
+        required
+        autoComplete="on"
+        placeholder="E.g 2"
+        errors={errors['offset_days']}
+      ></TextInput>
+      <div className="p-6 text-right">
+        <PrimaryButton type="submit" testId="form-submit-button">
+          Create
+        </PrimaryButton>
       </div>
-      <div className="mt-5 md:mt-0 md:col-span-2">
-        <form onSubmit={handleSubmit(onSubmit)}>
-          <div className="px-4 py-3 bg-gray-50 sm:px-6">
-            <TextInput
-              name="ad_campaign_name_base"
-              type="text"
-              register={register}
-              required
-              autoComplete="on"
-              placeholder="E.g vlab-vaping-pilot-2"
-              errors={errors['ad_campaign_name_base']}
-            />
-            <TextInput
-              name="budget_per_arm"
-              type="text"
-              valueAsNumber={true}
-              register={register}
-              required
-              autoComplete="on"
-              placeholder="E.g 8400"
-              errors={errors['budget_per_arm']}
-            />
-            <TextInput
-              name="max_sample_per_arm"
-              type="text"
-              valueAsNumber={true}
-              register={register}
-              required
-              autoComplete="on"
-              placeholder="E.g 1000"
-              errors={errors['max_sample_per_arm']}
-            />
-            <div className="p-6 text-right">
-              <PrimaryButton type="submit" testId="form-submit-button">
-                Create
-              </PrimaryButton>
-            </div>
-          </div>
-        </form>
-      </div>
-    </div>
+    </form>
   );
 };
 
-export default Simple;
+export default PipelineExperiment;

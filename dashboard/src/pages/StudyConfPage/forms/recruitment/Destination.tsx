@@ -7,9 +7,9 @@ import useCreateStudyConf from '../../../../hooks/useCreateStudyConf';
 import { clearCacheWhileRefetching } from '../../../../hooks/useStudyConf';
 
 export interface FormData {
-  ad_campaign_name: string;
-  budget: number;
-  max_sample: number;
+  ad_campaign_name_base: string;
+  budget_per_arm: number;
+  max_sample_per_arm: number;
   start_date: string;
   end_date: string;
 }
@@ -18,7 +18,6 @@ interface TextProps {
   name: Path<FormData>;
   type?: string;
   valueAsNumber?: boolean;
-  valueAsDate?: boolean;
   autoComplete: string;
   placeholder: string;
   required: boolean;
@@ -70,12 +69,8 @@ interface Props {
   data: FormData;
 }
 
-const Simple: React.FC<Props> = ({ id, data }: Props) => {
-  const initialValues = {
-    ad_campaign_name: '',
-    budget: 0,
-    max_sample: 0,
-  };
+const Destination: React.FC<Props> = ({ id, data }: Props) => {
+  const initialValues = {};
 
   const [formData, setFormData] = useState(initialValues);
 
@@ -110,33 +105,33 @@ const Simple: React.FC<Props> = ({ id, data }: Props) => {
   return (
     <form onSubmit={handleSubmit(onSubmit)}>
       <TextInput
-        name="ad_campaign_name"
+        name="ad_campaign_name_base"
         type="text"
         register={register}
         required
         autoComplete="on"
         placeholder="E.g vlab-vaping-pilot-2"
-        errors={errors['ad_campaign_name']}
+        errors={errors['ad_campaign_name_base']}
       />
       <TextInput
-        name="budget"
+        name="budget_per_arm"
         type="text"
         valueAsNumber={true}
         register={register}
         required
         autoComplete="on"
         placeholder="E.g 8400"
-        errors={errors['budget']}
+        errors={errors['budget_per_arm']}
       />
       <TextInput
-        name="max_sample"
+        name="max_sample_per_arm"
         type="text"
         valueAsNumber={true}
         register={register}
         required
         autoComplete="on"
         placeholder="E.g 1000"
-        errors={errors['max_sample']}
+        errors={errors['max_sample_per_arm']}
       />
       <TextInput
         name="start_date"
@@ -153,7 +148,7 @@ const Simple: React.FC<Props> = ({ id, data }: Props) => {
         register={register}
         required
         autoComplete="on"
-        placeholder="E.g 2022-07-26T00:00:00"
+        placeholder="E.g 2022-08-05T00:00:00"
         errors={errors['end_date']}
       />
       <div className="p-6 text-right">
@@ -165,4 +160,4 @@ const Simple: React.FC<Props> = ({ id, data }: Props) => {
   );
 };
 
-export default Simple;
+export default Destination;
