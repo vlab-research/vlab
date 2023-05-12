@@ -11,6 +11,7 @@ import AccountsPage from './pages/AccountsPage/AccountsPage';
 import StudyConfPage from './pages/StudyConfPage/StudyConfPage';
 import useAuthenticatedApi from './hooks/useAuthenticatedApi';
 import { ReactComponent as Logo } from './assets/logo.svg';
+import 'notyf/notyf.min.css';
 
 const areTestsRunning =
   process.env.REACT_APP_RUNNING_IN_E2E_MODE || process.env.NODE_ENV === 'test';
