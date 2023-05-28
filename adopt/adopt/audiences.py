@@ -68,6 +68,8 @@ def partitioning_view(
 
         return msk(include), msk(~include)
 
+    raise Exception(f"Impossible partitioning: {part}")
+
 
 def partition_users(
     df: Optional[pd.DataFrame], aud: AudienceConf, now: datetime
@@ -77,6 +79,11 @@ def partition_users(
 
     if df is None:
         return partitions
+
+    if not aud.partitioning:
+        raise Exception(
+            f"Trying to partition users on a non-partitioned Audience: {aud}"
+        )
 
     while True:
         if df.empty:

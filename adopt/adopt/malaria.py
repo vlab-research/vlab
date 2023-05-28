@@ -48,16 +48,6 @@ def get_study_conf(db_conf, study_id: str) -> StudyConf:
     return StudyConf(**params)
 
 
-def days_left(config: GeneralConf):
-    if not config.end_date:
-        return None
-
-    dt = config.end_date
-    td = dt - datetime.now()
-    days = td.days
-    return days
-
-
 def make_window(hours, now):
     start = now - timedelta(hours=hours)
     start = day_start(start)
@@ -69,7 +59,6 @@ def run_instructions(instructions: Sequence[Instruction], state: FacebookState):
     for i in instructions:
         report = updater.execute(i)
         logging.info(report)
-
 
 
 # in pipeline design, this manages a single campaign,
@@ -90,7 +79,9 @@ def update_ads_for_campaign(
 
     inf_start, inf_end = study.recruitment.get_inference_window(now)
 
-    df = get_inference_data(study.user.survey_user, study.id, db_conf, inf_start, inf_end)
+    df = get_inference_data(
+        study.user.survey_user, study.id, db_conf, inf_start, inf_end
+    )
 
     window = make_window(study.general.opt_window, now)
 

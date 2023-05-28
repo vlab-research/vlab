@@ -22,18 +22,27 @@ class SourceConf(BaseModel):
     config: Any
 
 
+class ExtractionFunctionConf(BaseModel):
+    function: str
+    params: Any
+
+
 class ExtractionConf(BaseModel):
     location: str
     key: str
     name: str
-    function: str
-    params: Any
+    functions: list[ExtractionFunctionConf]
     value_type: str
     aggregate: str
 
 
+class DataSource(BaseModel):
+    extraction_confs: list[ExtractionConf]
+    user_variable: Optional[str]
+
+
 class InferenceDataConf(BaseModel):
-    data_sources: dict[str, list[ExtractionConf]]
+    data_sources: dict[str, DataSource]
 
 
 class UserInfo(BaseModel):
@@ -106,7 +115,7 @@ class BaseRecruitmentConf(BaseModel, ABC):
     @abstractmethod
     def spend_for_day(
         self,
-        strata: list[Union[Stratum, StratumConf]],
+        strata: Union[List[Stratum], List[StratumConf]],
         min_budget: float,
         budget: Optional[Budget],
         now: datetime,
