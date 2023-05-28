@@ -168,7 +168,6 @@ def load_basics(
 
 
 def run_updates(fn: AdoptJob) -> None:
-
     env = Env()
     db_conf = get_db_conf(env)
 
@@ -178,21 +177,24 @@ def run_updates(fn: AdoptJob) -> None:
     logging.info(f"Got {len(studies)} active studies to update")
 
     for s in studies:
-        study, state = load_basics(s, db_conf, env)
+        try:
+            study, state = load_basics(s, db_conf, env)
+            logging.info(f"Updating {study.general.name}")
 
-        logging.info(f"Updating {study.general.name}")
+            instructions, report = fn(db_conf, study, state)
 
-        instructions, report = fn(db_conf, study, state)
+            if instructions is None:
+                continue
 
-        if instructions is None:
-            continue
+            if report:
+                create_adopt_report(s, "FACEBOOK_ADOPT", report, db_conf)
 
-        if report:
-            create_adopt_report(s, "FACEBOOK_ADOPT", report, db_conf)
+                # TODO: update needs to be updated for different states and
+                #       multiple campaigns!
+                run_instructions(instructions, state)
 
-        # TODO: update needs to be updated for different states and
-        #       multiple campaigns!
-        run_instructions(instructions, state)
+        except BaseException as e:
+            logging.error(f"Error updating campaign {s}. Error: {e}")
 
 
 def update_audience() -> None:
