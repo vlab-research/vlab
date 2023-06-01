@@ -1,14 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useForm, SubmitHandler, UseFormRegister, Path } from 'react-hook-form';
-import PrimaryButton from '../../../components/PrimaryButton';
-import objectives from '../../../fixtures/general/objectives';
-import destinations from '../../../fixtures/general/destinations';
-import optimizationGoals from '../../../fixtures/general/optimizationGoals';
-import { classNames, createLabelFor } from '../../../helpers/strings';
-import { getFirstOption } from '../../../helpers/arrays';
-import useCreateStudyConf from '../../../hooks/useCreateStudyConf';
-import { clearCacheWhileRefetching } from '../../../hooks/useStudyConf';
+import PrimaryButton from '../../../../components/PrimaryButton';
+import objectives from '../../../../fixtures/general/objectives';
+import destinations from '../../../../fixtures/general/destinations';
+import optimizationGoals from '../../../../fixtures/general/optimizationGoals';
+import { classNames, createLabelFor } from '../../../../helpers/strings';
+import { getFirstOption } from '../../../../helpers/arrays';
+import useCreateStudyConf from '../../../../hooks/useCreateStudyConf';
 
 interface FormData {
   objective: string;
@@ -27,15 +26,12 @@ interface TextProps {
   valueAsNumber?: boolean;
   autoComplete: string;
   placeholder: string;
-  required: boolean;
   register: UseFormRegister<FormData>;
-  errors?: any;
 }
 
 interface SelectProps {
   name: Path<FormData>;
   options: SelectOption[];
-  required: boolean;
   register: UseFormRegister<FormData>;
 }
 
@@ -50,37 +46,23 @@ const TextInput: React.FC<TextProps> = ({
   type,
   valueAsNumber,
   register,
-  required,
   autoComplete,
   placeholder,
-  errors,
 }) => (
   <div className="sm:my-4">
     <label className="my-2 block text-sm font-medium text-gray-700">
       {createLabelFor(name)}
     </label>
     <input
+      required
       type={type}
       autoComplete={autoComplete}
       placeholder={placeholder}
       {...register(name, {
-        required,
         valueAsNumber,
       })}
-      className={classNames(
-        'block w-4/5 shadow-sm sm:text-sm rounded-md',
-        errors
-          ? 'focus:ring-red-500 focus:border-red-500 border-red-300 text-red-900 pr-10'
-          : 'focus:ring-indigo-500 focus:border-indigo-500 border-gray-300'
-      )}
+      className={classNames('block w-4/5 shadow-sm sm:text-sm rounded-md')}
     />
-    <div className="sm:my-2">
-      {errors && (
-        <span className="my-2 block text-sm font-medium text-red-500">
-          {`${createLabelFor(name)} is required`}
-        </span>
-      )}
-    </div>
   </div>
 );
 
@@ -88,14 +70,13 @@ const Select: React.FC<SelectProps> = ({
   name,
   options,
   register,
-  required,
 }: SelectProps) => (
   <div className="sm:my-4">
     <label className="my-2 block text-sm font-medium text-gray-700">
       {createLabelFor(name)}
     </label>
     <select
-      {...register(name, { required })}
+      {...register(name)}
       className="w-4/5 mt-1 block shadow-sm sm:text-sm rounded-md"
     >
       {options.map((option: SelectOption, i: number) => (
@@ -126,12 +107,7 @@ const General: React.FC<Props> = ({ id, data }: Props) => {
 
   const [formData, setFormData] = useState(initialValues);
 
-  const {
-    register,
-    reset,
-    formState: { errors },
-    handleSubmit,
-  } = useForm<FormData>({
+  const { register, reset, handleSubmit } = useForm<FormData>({
     defaultValues: formData,
   });
 
@@ -140,7 +116,7 @@ const General: React.FC<Props> = ({ id, data }: Props) => {
     reset(data);
   }, [data, reset]);
 
-  const { createStudyConf } = useCreateStudyConf();
+  const { createStudyConf, isLoadingOnCreateStudyConf } = useCreateStudyConf();
   const params = useParams<{ studySlug: string }>();
 
   const onSubmit: SubmitHandler<FormData> = formData => {
@@ -151,7 +127,6 @@ const General: React.FC<Props> = ({ id, data }: Props) => {
     };
 
     createStudyConf({ data, slug });
-    clearCacheWhileRefetching();
   };
 
   return (
@@ -166,44 +141,37 @@ const General: React.FC<Props> = ({ id, data }: Props) => {
               name="objective"
               options={objectives}
               register={register}
-              required
             ></Select>
             <Select
               name="optimization_goal"
               options={optimizationGoals}
               register={register}
-              required
             ></Select>
             <Select
               name="destination_type"
               options={destinations}
               register={register}
-              required
             ></Select>
             <TextInput
               name="page_id"
               type="text"
               register={register}
-              required
               autoComplete="on"
               placeholder="E.g 1855355231229529"
-              errors={errors['page_id']}
             />
             <TextInput
               name="min_budget"
               type="text"
               valueAsNumber={true}
               register={register}
-              required
               autoComplete="on"
-              placeholder="E.g 10"
-            ></TextInput>
+              placeholder="E.g 8400"
+            />
             <TextInput
               name="opt_window"
-              type="number"
+              type="text"
               valueAsNumber={true}
               register={register}
-              required
               autoComplete="on"
               placeholder="E.g 48"
             />
@@ -211,22 +179,22 @@ const General: React.FC<Props> = ({ id, data }: Props) => {
               name="instagram_id"
               type="text"
               register={register}
-              required
               autoComplete="on"
               placeholder="E.g 2327764173962588"
-              errors={errors['instagram_id']}
             />
             <TextInput
               name="ad_account"
               type="text"
               register={register}
-              required
               autoComplete="on"
               placeholder="E.g 1342820622846299"
-              errors={errors['ad_account']}
             />
             <div className="p-6 text-right">
-              <PrimaryButton type="submit" testId="form-submit-button">
+              <PrimaryButton
+                type="submit"
+                testId="form-submit-button"
+                loading={isLoadingOnCreateStudyConf}
+              >
                 Create
               </PrimaryButton>
             </div>

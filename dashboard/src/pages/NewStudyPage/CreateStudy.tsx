@@ -1,7 +1,7 @@
 import { useForm, SubmitHandler, UseFormRegister, Path } from 'react-hook-form';
-import PrimaryButton from '../../../components/PrimaryButton';
-import { classNames } from '../../../helpers/strings';
-import useCreateStudy from '../../../hooks/useCreateStudy';
+import PrimaryButton from '../../components/PrimaryButton';
+import { classNames } from '../../helpers/strings';
+import useCreateStudy from '../../hooks/useCreateStudy';
 
 interface FormData {
   name: string;
@@ -11,7 +11,6 @@ type TextProps = {
   name: Path<FormData>;
   label: string;
   register: UseFormRegister<FormData>;
-  required: boolean;
   autoComplete: string;
   placeholder: string;
 };
@@ -19,7 +18,6 @@ type TextProps = {
 const TextInput = ({
   name,
   label,
-  required,
   autoComplete,
   placeholder,
   register,
@@ -29,9 +27,10 @@ const TextInput = ({
       {label}
     </label>
     <input
+      required
       autoComplete={autoComplete}
       placeholder={placeholder}
-      {...register(name, { required })}
+      {...register(name)}
       className={classNames(
         'p-2.5 block w-4/5 shadow-sm sm:text-sm rounded-md'
       )}
@@ -46,7 +45,7 @@ const CreateStudy: React.FC<any> = () => {
     },
   });
 
-  const { createStudy } = useCreateStudy();
+  const { createStudy, isLoadingOnCreateStudy } = useCreateStudy();
 
   const onSubmit: SubmitHandler<FormData> = data => createStudy(data);
 
@@ -61,13 +60,16 @@ const CreateStudy: React.FC<any> = () => {
             <TextInput
               name={'name'}
               label={'Give your study a name'}
-              required
               autoComplete="on"
               placeholder="E.g example-fly-conf"
               register={register}
             />
             <div className="p-6 text-right">
-              <PrimaryButton type="submit" testId="form-submit-button">
+              <PrimaryButton
+                type="submit"
+                testId="form-submit-button"
+                loading={isLoadingOnCreateStudy}
+              >
                 Create
               </PrimaryButton>
             </div>

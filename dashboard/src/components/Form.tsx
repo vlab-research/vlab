@@ -1,9 +1,10 @@
 import React from 'react';
+import { GlobalFormData } from '../types/conf';
 
 interface Props {
   id: string;
   component: any;
-  data: any;
+  data: GlobalFormData;
 }
 const Form: React.FC<Props> = (props: Props) => {
   const { id, component, data } = props;

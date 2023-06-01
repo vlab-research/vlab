@@ -10,3 +10,7 @@ export const reduceFieldStateToAnObject = (arr: any[]) => {
 export const getFirstOption = (arr: any[]) => {
   return arr[0].name;
 };
+
+export const compareArrays = (a: any[], b: any[]) =>
+  a.length === b.length &&
+  a.every((element: any, index: number) => element === b[index]);

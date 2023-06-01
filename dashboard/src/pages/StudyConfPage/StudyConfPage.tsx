@@ -3,10 +3,11 @@ import { useParams } from 'react-router-dom';
 import PageLayout from '../../components/PageLayout';
 import ErrorPlaceholder from '../../components/ErrorPlaceholder';
 import Navbar from './components/NavBar';
-import General from './forms/General';
+import Form from '../../components/Form';
+import General from './forms/general/General';
+import Recruitment from './forms/recruitment/Recruitment';
 import useStudyConf from '../../hooks/useStudyConf';
 import useStudy from '../../hooks/useStudy';
-import Form from './components/Form';
 
 const StudyConfPage = () => {
   const params = useParams<{ studySlug: string }>();
@@ -27,6 +28,7 @@ const StudyConfPage = () => {
       </PageLayout>
     );
   }
+
   return (
     <PageLayout
       title={studyConf.isLoading ? 'Loading...' : study.name}
@@ -38,11 +40,11 @@ const StudyConfPage = () => {
   );
 };
 
-const PageContent = (data: any) => {
-  const formKeys = ['general'];
+const PageContent = (data: any, isLoading: boolean) => {
+  const formKeys = ['general', 'recruitment'];
+  const lookup = [General, Recruitment];
   const [index, setIndex] = useState<number>(0);
   const id = formKeys[index];
-  const lookup = [General];
   const component = lookup[index];
 
   return (

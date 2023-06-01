@@ -19,14 +19,14 @@ const useCreateStudyConf = () => {
         addStudyConfToCacheWhileRefetching(conf);
         history.push(`/studies`);
         notyf.success({
-          message: `Study configuration saved`,
-          duration: 5000,
+          message: `Study updated!`,
+          duration: 2000,
         });
       },
       onError: error => {
         notyf.error({
           message: `${error.message}`,
-          duration: 5000,
+          duration: 2000,
           dismissible: true,
         });
       },

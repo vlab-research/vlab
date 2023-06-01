@@ -1,4 +1,4 @@
-import { lastValue, reduceFieldStateToAnObject } from './arrays';
+import { compareArrays, lastValue, reduceFieldStateToAnObject } from './arrays';
 
 describe('lastValue', () => {
   it('returns last value of a given array', () => {
@@ -24,5 +24,16 @@ describe('reduceFieldStateToAnObject', () => {
     const res = reduceFieldStateToAnObject(states);
 
     expect(res).toStrictEqual(expectation);
+  });
+});
+
+describe('compareArrays', () => {
+  it('takes two arrays and checks for equality', () => {
+    const arr1 = [1, 2, 3];
+    const arr2 = [1, 2, 3];
+
+    const res = compareArrays(arr1, arr2);
+
+    expect(res).toBe(true);
   });
 });

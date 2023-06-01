@@ -7,11 +7,11 @@ import StudiesPage from './pages/StudiesPage/StudiesPage';
 import StudyPage from './pages/StudyPage/StudyPage';
 import LoginPage from './pages/LoginPage/LoginPage';
 import NewStudyPage from './pages/NewStudyPage/NewStudyPage';
-import { ReactComponent as Logo } from './assets/logo.svg';
-import useAuthenticatedApi from './hooks/useAuthenticatedApi';
 import AccountsPage from './pages/AccountsPage/AccountsPage';
-import 'notyf/notyf.min.css';
 import StudyConfPage from './pages/StudyConfPage/StudyConfPage';
+import useAuthenticatedApi from './hooks/useAuthenticatedApi';
+import { ReactComponent as Logo } from './assets/logo.svg';
+import 'notyf/notyf.min.css';
 
 const areTestsRunning =
   process.env.REACT_APP_RUNNING_IN_E2E_MODE || process.env.NODE_ENV === 'test';
@@ -128,14 +128,14 @@ const useCreateUserForCurrentAccessToken = () => {
 
   useEffect(() => {
     if (query.data?.data) {
-      query.data.data.orgs.forEach((org) => {
+      query.data.data.orgs.forEach(org => {
         // Defaults to the user personal org
         if (org.name === query.data?.data.id) {
-          sessionStorage.setItem('current-vlab-org', org.id) 
+          sessionStorage.setItem('current-vlab-org', org.id);
         }
-      })
+      });
     }
-  }, [query.data])
+  }, [query.data]);
 
   const inProgress = !query.isSuccess && !query.isError;
 

@@ -1,4 +1,3 @@
-import React from 'react';
 import { createSlugFor, classNames } from './strings';
 
 describe('createSlugFor', () => {

@@ -1,5 +1,5 @@
 import PageLayout from '../../components/PageLayout';
-import CreateStudy from './form/CreateStudy';
+import CreateStudy from './CreateStudy';
 
 const NewStudyPage = () => (
   <PageLayout title={'New Study'} testId="new-study-page" showBackButton>
