@@ -1,19 +1,18 @@
 import { ApiResponse, PaginatedApiResponse } from './api';
-import { General } from './conf';
 
 export interface StudiesApiResponse
   extends PaginatedApiResponse<StudyResource[]> {}
 
 export interface StudyApiResponse extends ApiResponse<StudyResource> {}
 
-export interface StudyConfApiResponse extends ApiResponse<StudyConfResource> {}
+export interface StudyConfApiResponse extends ApiResponse<StudyConfData> {}
 
 export interface CreateStudyApiResponse extends ApiResponse<StudyResource> {}
 
 export interface CreateStudyConfApiResponse
-  extends ApiResponse<StudyConfResource> {}
+  extends ApiResponse<StudyConfData> {}
 
-export type StudyConfResource = Record<string, General>;
+export type StudyConfData = Record<string, any>;
 
 export interface StudyResource {
   id: string;

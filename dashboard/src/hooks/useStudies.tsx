@@ -1,9 +1,5 @@
 import { useInfiniteQuery, queryCache } from 'react-query';
-import {
-  StudiesApiResponse,
-  StudyConfResource,
-  StudyResource,
-} from '../types/study';
+import { StudiesApiResponse, StudyResource } from '../types/study';
 import { Cursor } from '../types/api';
 import useAuthenticatedApi from './useAuthenticatedApi';
 
@@ -52,25 +48,6 @@ export const addStudyToCacheWhileRefetching = (study: StudyResource) => {
     }
 
     return studiesCache;
-  });
-
-  // Refetch the studies by invalidating the query
-  queryCache.invalidateQueries(queryKey);
-};
-
-export const addStudyConfToCacheWhileRefetching = (conf: StudyConfResource) => {
-  // Add a conf to the cache
-  queryCache.setQueryData(queryKey, (confsCache: any) => {
-    const confsCacheExists =
-      Array.isArray(confsCache) &&
-      confsCache[0] &&
-      Array.isArray(confsCache[0].data);
-
-    if (confsCacheExists) {
-      confsCache[0].data = [conf, ...confsCache[0].data];
-    }
-
-    return confsCache;
   });
 
   // Refetch the studies by invalidating the query
