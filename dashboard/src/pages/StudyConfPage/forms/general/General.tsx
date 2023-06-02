@@ -80,7 +80,7 @@ const Select: React.FC<SelectProps> = ({
       className="w-4/5 mt-1 block shadow-sm sm:text-sm rounded-md"
     >
       {options.map((option: SelectOption, i: number) => (
-        <option key={i} value={option.name}>
+        <option key={i} value={option.name.toUpperCase()}>
           {option.label || option.name}
         </option>
       ))}
@@ -95,9 +95,9 @@ interface Props {
 
 const General: React.FC<Props> = ({ id, data }: Props) => {
   const initialValues = {
-    objective: getFirstOption(objectives),
-    optimization_goal: getFirstOption(optimizationGoals),
-    destination_type: getFirstOption(destinations),
+    objective: getFirstOption(objectives).toUpperCase(),
+    optimization_goal: getFirstOption(optimizationGoals).toUpperCase(),
+    destination_type: getFirstOption(destinations).toUpperCase(),
     page_id: '',
     min_budget: 0,
     opt_window: 0,
