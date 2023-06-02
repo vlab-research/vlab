@@ -40,7 +40,7 @@ const StudyConfPage = () => {
   );
 };
 
-const PageContent = (data: any, isLoading: boolean) => {
+const PageContent = (data: any) => {
   const formKeys = ['general', 'recruitment'];
   const lookup = [General, Recruitment];
   const [index, setIndex] = useState<number>(0);
