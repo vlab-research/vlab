@@ -45,7 +45,7 @@ type Filter struct {
 type GetResponsesParams struct {
 	ApiToken       string `url:"api_token"`
 	ApiTokenSecret string `url:"api_token_secret"`
-	Page           int    `url:"page",omitempty`
+	Page           int    `url:"page,omitempty"`
 	ResultsPerPage int    `url:"resultsperpage,omitempty"`
 }
 
@@ -126,11 +126,11 @@ type GetResponsesResponse struct {
 type AlchemerError struct {
 	ResultOk bool   `json:"result_ok"`
 	Message  string `json:"message"`
-	Code     string `json:"code"`
+	Code     int    `json:"code"`
 }
 
 func (e *AlchemerError) Empty() bool {
-	return e.Code == ""
+	return e.Code == 0
 }
 
 func (e *AlchemerError) Error() string {
@@ -194,7 +194,7 @@ func Call(client *http.Client, baseUrl string, survey int, params *GetResponsesP
 	res := new(GetResponsesResponse)
 	apiError := new(AlchemerError)
 
-	_, err := sli.New().Get(fmt.Sprintf("/survey/%d/surveyresponse?%s", survey, filterQuery)).QueryStruct(params).Receive(res, apiError)
+	_, err := sli.New().Get(fmt.Sprintf("/v5/survey/%d/surveyresponse?%s", survey, filterQuery)).QueryStruct(params).Receive(res, apiError)
 
 	if err != nil {
 		return nil, err
@@ -240,7 +240,9 @@ func (c AlchemerConnector) GetResponses(source *Source, config *AlchemerConfig, 
 				// by date submitted? If not, this doesn't work.
 				token = item.DateSubmitted
 
-				b, _ := json.Marshal(item)
+				b, err := json.Marshal(item)
+				handle(err)
+
 				toDelete := []string{"url_variables", "survey_data", "date_submitted"}
 				for _, v := range toDelete {
 					b, err = sjson.DeleteBytes(b, v)
@@ -248,7 +250,7 @@ func (c AlchemerConnector) GetResponses(source *Source, config *AlchemerConfig, 
 				}
 
 				var md map[string]json.RawMessage
-				err := json.Unmarshal(b, &md)
+				err = json.Unmarshal(b, &md)
 				handle(err)
 
 				user := User{ID: item.ID, Metadata: md}
@@ -259,13 +261,16 @@ func (c AlchemerConnector) GetResponses(source *Source, config *AlchemerConfig, 
 				for _, value := range item.URLVariables {
 					idx++
 
+					valueBytes, err := json.Marshal(value.Value) // should we take more?
+					handle(err)
+
 					event := &InferenceDataEvent{
 						User:       user,
 						Study:      source.StudyID,
 						SourceConf: source.Conf,
 						Timestamp:  *timestamp,
 						Variable:   value.Key,
-						Value:      []byte(value.Value), // should we take more?
+						Value:      valueBytes,
 						Idx:        idx,
 						Pagination: item.DateSubmitted,
 					}

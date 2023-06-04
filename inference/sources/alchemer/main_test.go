@@ -64,7 +64,7 @@ func dataAssertions(t *testing.T, e []*InferenceDataEvent) {
 	assert.Equal(t, 2, len(lookup["1"]))
 
 	// Chck first user data looks good
-	assert.Equal(t, "CARMA0005", string(lookup["1"]["ticket"].Value))
+	assert.Equal(t, `"CARMA0005"`, string(lookup["1"]["ticket"].Value))
 	assert.Equal(t, "1", string(lookup["1"]["3"].User.ID))
 	assert.Equal(t, `"Armenia"`, string(lookup["1"]["3"].User.Metadata["country"]))
 	assert.Equal(t, `"0"`, getString(lookup["1"]["3"].Value, "answer"))
@@ -85,7 +85,7 @@ func TestGetResponses_WorksWithSinglePageFromExampleJson(t *testing.T) {
 	ts, _ := TestServer(func(w http.ResponseWriter, r *http.Request) {
 
 		if count == 0 {
-			assert.Equal(t, "/survey/135/surveyresponse", r.URL.Path)
+			assert.Equal(t, "/v5/survey/135/surveyresponse", r.URL.Path)
 			v := r.URL.Query()
 
 			// Authentication goes in query params
@@ -145,7 +145,7 @@ func TestGetResponses_PaginatesProperlyFromNothing(t *testing.T) {
 	count := 0
 
 	ts, _ := TestServer(func(w http.ResponseWriter, r *http.Request) {
-		assert.Equal(t, "/survey/135/surveyresponse", r.URL.Path)
+		assert.Equal(t, "/v5/survey/135/surveyresponse", r.URL.Path)
 		v := r.URL.Query()
 
 		if count == 0 {
