@@ -9,7 +9,7 @@ envSecrets:
   - gbv-bot-envs
   - vlab-db-envs
   - vlab-typeform-envs
-  - facebook-env
+  - facebook-envs
 
 # shared ingress stuff
 ingress:
@@ -51,6 +51,17 @@ cronjobs:
         value: http://gbv-dashboard/api/v1/
       - name: FLY_PAGE_SIZE
         value: "500"
+  - name: source-alchemer
+    schedule: "10 * * * *"
+    image:
+      repository: "vlabresearch/source-alchemer"
+      tag: "latest"
+      pullPolicy: Always
+    env:
+      - name: ALCHEMER_BASE_URL
+        value: https://api.alchemer.com
+      - name: ALCHEMER_PAGE_SIZE
+        value: "100"
   - name: swoosh
     schedule: "30 * * * *"
     image:
@@ -61,7 +72,7 @@ cronjobs:
     schedule: "30 */4 * * *"
     image:
       repository: "vlabresearch/adopt"
-      tag: "v0.0.95"
+      tag: "v0.0.97"
       pullPolicy: Always
     args:
       - python
@@ -70,7 +81,7 @@ cronjobs:
     schedule: "10 */4 * * *"
     image:
       repository: "vlabresearch/adopt"
-      tag: "v0.0.95"
+      tag: "v0.0.97"
       pullPolicy: Always
     args:
       - python
@@ -79,7 +90,7 @@ cronjobs:
     schedule: "50 */4 * * *"
     image:
       repository: "vlabresearch/adopt"
-      tag: "v0.0.95"
+      tag: "v0.0.97"
       pullPolicy: Always
     args:
       - python
