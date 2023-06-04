@@ -478,7 +478,7 @@ func TestReduceInferenceData_WorksWithSelectKVPairFunction(t *testing.T) {
 					Functions: []ExtractionFunctionConf{
 						{
 							Function: "vlab-kv-pair-select",
-							Params:   []byte(`{"path": "", "key": "key"}`),
+							Params:   []byte(`{"key": "key"}`),
 						},
 					},
 					Aggregate: "last",
