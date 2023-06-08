@@ -110,7 +110,7 @@ const NewAccountButton: React.FC<newAccountButtonProps> = ({
       testId="create-account"
       onClick={() => setOpen(!open)}
     >
-      New Connected Account
+      Connect Account
     </PrimaryButton>
   );
 };

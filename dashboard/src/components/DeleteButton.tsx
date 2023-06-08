@@ -1,30 +1,27 @@
-import { TrashIcon } from '@heroicons/react/solid';
-import LoadingSpinner from './LoadingSpinner';
+import SecondaryButton from './SecondaryButton';
 
-type props = {
-  onClick?: (e: any) => void;
-  type?: 'button' | 'submit';
+type Props = {
+  name?: string;
+  type?: 'button' | 'submit' | undefined;
+  onClick?: () => void;
   loading?: boolean;
+  className?: string;
 };
 
-const DeleteButton: React.FC<props> = ({ onClick, type, loading }) => {
+const DeleteButton = ({ name, type, onClick, loading, className }: Props) => {
   return (
-    <button
-      onClick={onClick}
+    <SecondaryButton
+      name={name}
+      size="100"
       type={type}
-      name="delete"
-      disabled={loading}
-      className="flex px-5 py-5 border border-transparent text-base font-medium rounded-md shadow-sm bg-red-600 hover:bg-red-700 text-white text-sm font-medium rounded-md ml-3 mr-3 h-5 w-5 content-evenly"
+      className={className}
+      testId={`delete-button`}
+      icon="TrashIcon"
+      loading={loading}
+      onClick={onClick}
     >
-      <span className="absolute">
-        <TrashIcon className="-ml-2.5 -my-2.5 mr-5 h-5 w-5" />
-      </span>
-      {loading && (
-        <span className="absolute">
-          <LoadingSpinner />
-        </span>
-      )}
-    </button>
+      {''}
+    </SecondaryButton>
   );
 };
 

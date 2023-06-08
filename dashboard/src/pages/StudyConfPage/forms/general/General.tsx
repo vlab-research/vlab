@@ -5,7 +5,7 @@ import PrimaryButton from '../../../../components/PrimaryButton';
 import objectives from '../../../../fixtures/general/objectives';
 import destinations from '../../../../fixtures/general/destinations';
 import optimizationGoals from '../../../../fixtures/general/optimizationGoals';
-import { classNames, createLabelFor } from '../../../../helpers/strings';
+import { createLabelFor } from '../../../../helpers/strings';
 import { getFirstOption } from '../../../../helpers/arrays';
 import useCreateStudyConf from '../../../../hooks/useCreateStudyConf';
 
@@ -61,7 +61,7 @@ const TextInput: React.FC<TextProps> = ({
       {...register(name, {
         valueAsNumber,
       })}
-      className={classNames('block w-4/5 shadow-sm sm:text-sm rounded-md')}
+      className="block w-4/5 shadow-sm sm:text-sm rounded-md"
     />
   </div>
 );
@@ -81,7 +81,7 @@ const Select: React.FC<SelectProps> = ({
     >
       {options.map((option: SelectOption, i: number) => (
         <option key={i} value={option.name.toUpperCase()}>
-          {option.label || option.name}
+          {option.label}
         </option>
       ))}
     </select>
@@ -90,10 +90,10 @@ const Select: React.FC<SelectProps> = ({
 
 interface Props {
   id: string;
-  data: FormData;
+  localData: FormData;
 }
 
-const General: React.FC<Props> = ({ id, data }: Props) => {
+const General: React.FC<Props> = ({ id, localData }: Props) => {
   const initialValues = {
     objective: getFirstOption(objectives).toUpperCase(),
     optimization_goal: getFirstOption(optimizationGoals).toUpperCase(),
@@ -112,21 +112,24 @@ const General: React.FC<Props> = ({ id, data }: Props) => {
   });
 
   useEffect(() => {
-    setFormData(data);
-    reset(data);
-  }, [data, reset]);
+    setFormData(localData);
+    reset(localData);
+  }, [localData, reset]);
 
-  const { createStudyConf, isLoadingOnCreateStudyConf } = useCreateStudyConf();
+  const { createStudyConf, isLoadingOnCreateStudyConf } = useCreateStudyConf(
+    true,
+    'Study settings saved'
+  );
   const params = useParams<{ studySlug: string }>();
 
   const onSubmit: SubmitHandler<FormData> = formData => {
-    const slug = params.studySlug;
+    const studySlug = params.studySlug;
 
     const data = {
       [id]: formData,
     };
 
-    createStudyConf({ data, slug });
+    createStudyConf({ data, studySlug });
   };
 
   return (
@@ -195,7 +198,7 @@ const General: React.FC<Props> = ({ id, data }: Props) => {
                 testId="form-submit-button"
                 loading={isLoadingOnCreateStudyConf}
               >
-                Create
+                Save
               </PrimaryButton>
             </div>
           </div>

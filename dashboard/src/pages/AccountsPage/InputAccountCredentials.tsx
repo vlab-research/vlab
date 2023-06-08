@@ -8,13 +8,13 @@ import { Account } from '../../types/account';
 import useCreateAccount from './useCreateAccount';
 import useDeleteAccount from './useDeleteAccount';
 
-type inputAccountCredentials = {
+type Props = {
   index: number;
   clearCreateAccounts: () => void;
   account: Account;
 };
 
-const InputAccountCredentials: React.FC<inputAccountCredentials> = ({
+const InputAccountCredentials: React.FC<Props> = ({
   clearCreateAccounts,
   index,
   account,
@@ -33,6 +33,7 @@ const InputAccountCredentials: React.FC<inputAccountCredentials> = ({
     e.preventDefault();
 
     clearCreateAccounts();
+
     if (e.nativeEvent.submitter.name === 'delete') {
       deleteAccount({
         name: account.name,
@@ -81,15 +82,24 @@ const InputAccountCredentials: React.FC<inputAccountCredentials> = ({
         {account.name === 'facebook' && (
           <InfoBanner message="Please note this will not be functional until Facebook approves the Virtual Labs application" />
         )}
-        <div className="bg-gray-50 px-4 py-3 sm:flex sm:flex-row-reverse sm:px-6">
-          <DeleteButton type="submit" loading={isDeleting} />
-          <PrimaryButton
-            type="submit"
-            testId={`existing-account-submit-button-${index}`}
-            loading={isCreating}
-          >
-            {account.connectedAccount?.createdAt !== 0 ? 'Update' : 'Connect'}
-          </PrimaryButton>
+        <div className="flex px-4 py-3 sm:justify-end">
+          <div className="sm:mr-1">
+            <DeleteButton
+              name="delete"
+              type="submit"
+              loading={isDeleting}
+              className={'bg-red-500 hover:bg-red-600'}
+            />
+          </div>
+          <div className="sm:ml-1">
+            <PrimaryButton
+              type="submit"
+              testId={`existing-account-submit-button-${index}`}
+              loading={isCreating}
+            >
+              {account.connectedAccount?.createdAt !== 0 ? 'Update' : 'Connect'}
+            </PrimaryButton>
+          </div>
         </div>
       </form>
     </React.Fragment>
