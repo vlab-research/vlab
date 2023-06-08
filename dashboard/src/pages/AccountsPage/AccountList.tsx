@@ -13,15 +13,26 @@ const AccountList: React.FC<accountListProps> = ({
 }) => {
   return (
     <ListLayout>
-      {accounts.map((account, index) => (
-        <AccountListItem
-          key={account.authType}
-          account={account}
-          index={index}
-          credentials={account.connectedAccount?.credentials}
-          clearCreateAccounts={clearCreateAccounts}
-        />
-      ))}
+      {!accounts.length ? (
+        <>
+          <div className="p-2 m-4"></div>
+          <div className="flex items-center justify-center h-40">
+            <p className="text-lg font-medium text-indigo-600 m-4">
+              You currently have no connected accounts...
+            </p>
+          </div>
+        </>
+      ) : (
+        accounts.map((account, index) => (
+          <AccountListItem
+            key={account.authType}
+            account={account}
+            index={index}
+            credentials={account.connectedAccount?.credentials}
+            clearCreateAccounts={clearCreateAccounts}
+          />
+        ))
+      )}
     </ListLayout>
   );
 };
@@ -36,7 +47,6 @@ type accountListItemProps = {
 const AccountListItem: React.FC<accountListItemProps> = ({
   account,
   index,
-  credentials,
   clearCreateAccounts,
 }) => {
   return (

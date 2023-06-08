@@ -7,10 +7,10 @@ const types = [
     name: 'pipeline_experiment',
     label: 'Pipeline experiment',
   },
-  // {
-  //   name: 'destination', // factored out until destinations is implemented
-  //   label: 'Destination',
-  // },
+  {
+    name: 'destination',
+    label: 'Destination',
+  },
 ];
 
 export default types;

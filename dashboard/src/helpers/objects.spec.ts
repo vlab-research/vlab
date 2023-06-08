@@ -1,6 +1,6 @@
-import { findMatch } from './objects';
+import { validate } from './objects';
 
-describe('findMatch', () => {
+describe('validate', () => {
   it('takes two objects and checks for a match between keys', () => {
     const obj1 = {
       a: 1,
@@ -13,7 +13,7 @@ describe('findMatch', () => {
       c: 6,
     };
 
-    const res = findMatch(obj1, obj2);
+    const res = validate(obj1, obj2);
 
     expect(res).toBe(true);
 
@@ -28,7 +28,7 @@ describe('findMatch', () => {
       a: 6,
     };
 
-    const res2 = findMatch(obj3, obj4);
+    const res2 = validate(obj3, obj4);
 
     expect(res2).toBe(false);
   });

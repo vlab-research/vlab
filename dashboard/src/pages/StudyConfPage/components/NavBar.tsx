@@ -14,7 +14,7 @@ const Navbar = ({
   };
 
   return (
-    <div className="w-60 h-full shadow-md bg-white px-1 absolute">
+    <div className="w-60 h-80 shadow-md bg-white px-1 absolute">
       <ul className="relative">
         {formKeys.map((key: string) => (
           <li className="relative" key={key}>

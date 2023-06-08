@@ -24,8 +24,7 @@ import {
  *    when reporting to Sentry or a similar service.
  */
 
-
-const orgPrefix = () => sessionStorage.getItem('current-vlab-org')
+const orgPrefix = () => sessionStorage.getItem('current-vlab-org');
 
 const fetchStudies = ({
   studiesPerPage,
@@ -63,11 +62,9 @@ const fetchStudy = ({
   slug: string;
   accessToken: string;
 }) =>
-  apiRequest<StudyApiResponse>(
-    `/${orgPrefix()}/studies/${slug}`, { accessToken }).then(
-           
-    ({ data }) => data
-  );
+  apiRequest<StudyApiResponse>(`/${orgPrefix()}/studies/${slug}`, {
+    accessToken,
+  }).then(({ data }) => data);
 
 const fetchStudySegmentsProgress = ({
   slug,
@@ -121,30 +118,54 @@ const createStudy = ({
   });
 
 const createStudyConf = ({
-  slug,
-  accessToken,
   data,
+  studySlug,
+  accessToken,
 }: {
   data: StudyConfData;
-  slug: string;
+  studySlug: string;
   accessToken: string;
 }) =>
-  apiRequest<CreateStudyConfApiResponse>(`/${orgPrefix()}/studies/${slug}/conf`, {
-    accessToken,
-    method: 'POST',
-    body: data,
-  });
+  apiRequest<CreateStudyConfApiResponse>(
+    `/${orgPrefix()}/studies/${studySlug}/conf`,
+    {
+      accessToken,
+      method: 'POST',
+      body: data,
+    }
+  );
 
-const fetchStudyConf = ({
-  slug,
+const deleteDestination = ({
+  data,
+  studySlug,
   accessToken,
 }: {
-  slug: string;
+  data: StudyConfData;
+  studySlug: string;
   accessToken: string;
 }) =>
-  apiRequest<StudyConfApiResponse>(`/${orgPrefix()}/studies/${slug}/conf`, {
-    accessToken,
-  }).then(({ data }) => data);
+  apiRequest<CreateStudyConfApiResponse>(
+    `/${orgPrefix()}/studies/${studySlug}/conf`,
+    {
+      accessToken,
+      method: 'POST',
+      body: data,
+    }
+  );
+
+const fetchStudyConf = ({
+  studySlug,
+  accessToken,
+}: {
+  studySlug: string;
+  accessToken: string;
+}) =>
+  apiRequest<StudyConfApiResponse>(
+    `/${orgPrefix()}/studies/${studySlug}/conf`,
+    {
+      accessToken,
+    }
+  ).then(({ data }) => data);
 
 const fetchAccounts = ({
   defaultErrorMessage,
@@ -269,6 +290,7 @@ export const authenticatedApiCalls = {
   createUser,
   createStudy,
   createStudyConf,
+  deleteDestination,
   fetchStudyConf,
   fetchAccounts,
   createAccount,

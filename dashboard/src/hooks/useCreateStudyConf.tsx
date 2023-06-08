@@ -6,20 +6,22 @@ import { StudyConfData } from '../types/study';
 
 const queryKey = 'studyConf';
 
-const useCreateStudyConf = () => {
+const useCreateStudyConf = (redirect: boolean, message: string) => {
   const notyf = new Notyf();
   const history = useHistory();
   const { createStudyConf } = useAuthenticatedApi();
 
   const [createStudyConfMutation, { isLoading, error }] = useMutation(
-    async ({ data, slug }: { data: any; slug: string }) =>
-      await createStudyConf({ data, slug }),
+    async ({ data, studySlug }: { data: any; studySlug: string }) =>
+      await createStudyConf({ data, studySlug }),
     {
       onSuccess: ({ data: conf }) => {
         addStudyConfToCacheWhileRefetching(conf);
-        history.push(`/studies`);
+        if (redirect === true) {
+          history.push(`/studies`);
+        }
         notyf.success({
-          message: `Study updated!`,
+          message: message,
           duration: 2000,
         });
       },

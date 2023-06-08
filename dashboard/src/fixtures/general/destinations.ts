@@ -1,11 +1,11 @@
 const destinations = [
   {
-    name: 'web',
-    label: 'Web',
-  },
-  {
     name: 'messenger',
     label: 'Messenger',
+  },
+  {
+    name: 'web',
+    label: 'Web',
   },
   {
     name: 'app',
