@@ -36,32 +36,33 @@ export interface PipelineExperiment extends RecruitmentDestination {
   recruitment_days: number;
   offset_days: number;
 }
-
 export interface Messenger {
-  initial_shortcode: string;
   name: string;
+  initial_shortcode: string;
+  type: string;
 }
 
 export interface Web {
   name: string;
   url_template: string;
+  type: string;
 }
-
 export interface App {
   name: string;
-  facebook_app_id: string;
-  app_install_link: string;
-  deeplink_template: string;
   app_install_state: string;
-  user_device: any[];
-  user_os: any[];
+  app_install_link: string;
+  facebook_app_id: string;
+  deeplink_template: string;
+  user_device: string[];
+  user_os: string[];
+  type: string;
 }
 
 export type Destination = Messenger | Web | App;
 
 export type Destinations = Destination[];
 
-// export type LocalFormData = CreateStudy | General | Recruitment | Destinations;
+export type LocalFormData = CreateStudy | General | Recruitment | Destinations;
 
 export type GlobalFormData = {
   general: General;

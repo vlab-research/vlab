@@ -2,9 +2,10 @@ import React, { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useForm, SubmitHandler, UseFormRegister, Path } from 'react-hook-form';
 import PrimaryButton from '../../../../components/PrimaryButton';
-import { classNames, createLabelFor } from '../../../../helpers/strings';
-import { findMatch } from '../../../../helpers/objects';
+import { createLabelFor } from '../../../../helpers/strings';
+import { validate } from '../../../../helpers/objects';
 import useCreateStudyConf from '../../../../hooks/useCreateStudyConf';
+import { Destinations } from '../../../../types/conf';
 
 export interface FormData {
   ad_campaign_name_base: string;
@@ -43,7 +44,7 @@ const TextInput: React.FC<TextProps> = ({
       {...register(name, {
         valueAsNumber,
       })}
-      className={classNames('block w-4/5 shadow-sm sm:text-sm rounded-md')}
+      className="block w-4/5 shadow-sm sm:text-sm rounded-md"
     />
     <div className="sm:my-2"></div>
   </div>
@@ -52,9 +53,10 @@ const TextInput: React.FC<TextProps> = ({
 interface Props {
   id: string;
   data: FormData;
+  destinations: Destinations;
 }
 
-const Destination: React.FC<Props> = ({ id, data }: Props) => {
+const Destination: React.FC<Props> = ({ id, data, destinations }: Props) => {
   const initialValues = {
     end_date: '',
     start_date: '',
@@ -69,7 +71,7 @@ const Destination: React.FC<Props> = ({ id, data }: Props) => {
     defaultValues: formData,
   });
 
-  const isMatch = findMatch(data, initialValues);
+  const isMatch = validate(data, initialValues);
 
   useEffect(() => {
     if (isMatch) {
@@ -78,21 +80,31 @@ const Destination: React.FC<Props> = ({ id, data }: Props) => {
     }
   }, [data, isMatch, reset]);
 
-  const { createStudyConf, isLoadingOnCreateStudyConf } = useCreateStudyConf();
+  const { createStudyConf, isLoadingOnCreateStudyConf } = useCreateStudyConf(
+    true,
+    'Study settings saved'
+  );
   const params = useParams<{ studySlug: string }>();
 
   const onSubmit: SubmitHandler<FormData> = formData => {
-    const slug = params.studySlug;
+    const studySlug = params.studySlug;
 
     const data = {
       [id]: formData,
     };
 
-    createStudyConf({ data, slug });
+    createStudyConf({ data, studySlug });
   };
 
   return (
     <form onSubmit={handleSubmit(onSubmit)}>
+      {/* Select component be commented back in once destination field supported by the API */}
+
+      {/* <Select
+        name="destination"
+        options={destinations}
+        register={register}
+      ></Select> */}
       <TextInput
         name="ad_campaign_name_base"
         type="text"
@@ -136,7 +148,7 @@ const Destination: React.FC<Props> = ({ id, data }: Props) => {
           testId="form-submit-button"
           loading={isLoadingOnCreateStudyConf}
         >
-          Create
+          Save
         </PrimaryButton>
       </div>
     </form>

@@ -3,8 +3,8 @@ import useAuthenticatedApi from './useAuthenticatedApi';
 
 const queryKey = 'studyConf';
 
-const useStudyConf = (slug: string) => {
-  const studyConfQuery = useStudyConfQuery(slug);
+const useStudyConf = (studySlug: string) => {
+  const studyConfQuery = useStudyConfQuery(studySlug);
 
   const isLoading = !studyConfQuery.data;
 
@@ -20,9 +20,9 @@ const useStudyConf = (slug: string) => {
   };
 };
 
-const useStudyConfQuery = (slug: string) => {
+const useStudyConfQuery = (studySlug: string) => {
   const { fetchStudyConf } = useAuthenticatedApi();
-  return useQuery([queryKey, slug], () => fetchStudyConf({ slug }));
+  return useQuery([queryKey, studySlug], () => fetchStudyConf({ studySlug }));
 };
 
 export const clearCacheWhileRefetching = () => {

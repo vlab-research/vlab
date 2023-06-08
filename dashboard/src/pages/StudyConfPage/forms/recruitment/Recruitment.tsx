@@ -3,6 +3,7 @@ import Simple from './Simple';
 import Destination from './Destination';
 import PipelineExperiment from './PipelineExperiment';
 import recruitmentTypes from '../../../../fixtures/recruitment/types';
+import { GlobalFormData } from '../../../../types/conf';
 
 interface SelectOption {
   name: string;
@@ -11,23 +12,24 @@ interface SelectOption {
 
 interface Props {
   id: string;
-  data: any;
+  globalData: GlobalFormData;
+  localData: any;
 }
 
-const Recruitment: React.FC<Props> = ({ id, data }: Props) => {
+const Recruitment: React.FC<Props> = ({ id, globalData, localData }: Props) => {
   const [recruitmentType, setRecruitmentType] = useState('simple');
 
   useEffect(() => {
-    if (data) {
-      if (data.arms) {
+    if (localData) {
+      if (localData.arms) {
         setRecruitmentType('pipeline_experiment');
-      } else if (data.ad_campaign_name_base) {
+      } else if (localData.ad_campaign_name_base) {
         setRecruitmentType('destination');
       } else {
         setRecruitmentType('simple');
       }
     }
-  }, [data]);
+  }, [localData]);
 
   const handleChange = (e: any) => {
     setRecruitmentType(e.target.value);
@@ -56,12 +58,16 @@ const Recruitment: React.FC<Props> = ({ id, data }: Props) => {
               ))}
             </select>
           </div>
-          {recruitmentType === 'simple' && <Simple id={id} data={data} />}
+          {recruitmentType === 'simple' && <Simple id={id} data={localData} />}
           {recruitmentType === 'pipeline_experiment' && (
-            <PipelineExperiment id={id} data={data} />
+            <PipelineExperiment id={id} data={localData} />
           )}
           {recruitmentType === 'destination' && (
-            <Destination id={id} data={data} />
+            <Destination
+              id={id}
+              data={localData}
+              destinations={globalData.destinations}
+            />
           )}
         </div>
       </div>

@@ -2,8 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useForm, SubmitHandler, UseFormRegister, Path } from 'react-hook-form';
 import PrimaryButton from '../../../../components/PrimaryButton';
-import { classNames, createLabelFor } from '../../../../helpers/strings';
-import { findMatch } from '../../../../helpers/objects';
+import { createLabelFor } from '../../../../helpers/strings';
+import { validate } from '../../../../helpers/objects';
 import useCreateStudyConf from '../../../../hooks/useCreateStudyConf';
 
 export interface FormData {
@@ -48,20 +48,8 @@ const TextInput: React.FC<TextProps> = ({
       {...register(name, {
         valueAsNumber,
       })}
-      className={classNames(
-        'block w-4/5 shadow-sm sm:text-sm rounded-md',
-        errors
-          ? 'focus:ring-red-500 focus:border-red-500 border-red-300 text-red-900 pr-10'
-          : 'focus:ring-indigo-500 focus:border-indigo-500 border-gray-300'
-      )}
+      className="block w-4/5 shadow-sm sm:text-sm rounded-md"
     />
-    <div className="sm:my-2">
-      {errors && (
-        <span className="my-2 block text-sm font-medium text-red-500">
-          {`${createLabelFor(name)} is required`}
-        </span>
-      )}
-    </div>
   </div>
 );
 
@@ -88,7 +76,7 @@ const PipelineExperiment: React.FC<Props> = ({ id, data }: Props) => {
     defaultValues: formData,
   });
 
-  const isMatch = findMatch(data, initialValues);
+  const isMatch = validate(data, initialValues);
 
   useEffect(() => {
     if (isMatch) {
@@ -97,17 +85,20 @@ const PipelineExperiment: React.FC<Props> = ({ id, data }: Props) => {
     }
   }, [data, isMatch, reset]);
 
-  const { createStudyConf, isLoadingOnCreateStudyConf } = useCreateStudyConf();
+  const { createStudyConf, isLoadingOnCreateStudyConf } = useCreateStudyConf(
+    true,
+    'Study settings saved'
+  );
   const params = useParams<{ studySlug: string }>();
 
   const onSubmit: SubmitHandler<FormData> = formData => {
-    const slug = params.studySlug;
+    const studySlug = params.studySlug;
 
     const data = {
       [id]: formData,
     };
 
-    createStudyConf({ data, slug });
+    createStudyConf({ data, studySlug });
   };
 
   return (
@@ -179,7 +170,7 @@ const PipelineExperiment: React.FC<Props> = ({ id, data }: Props) => {
           testId="form-submit-button"
           loading={isLoadingOnCreateStudyConf}
         >
-          Create
+          Save
         </PrimaryButton>
       </div>
     </form>

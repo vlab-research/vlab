@@ -104,7 +104,7 @@ const CreateAccountModal: React.FC<createAccountModalProps> = ({
                         as="h3"
                         className="text-base font-semibold leading-6 text-gray-900"
                       >
-                        New Connected Account
+                        Add a connected account
                       </Dialog.Title>
                       <AccountForm
                         open={open}
@@ -153,8 +153,9 @@ const AccountForm: React.FC<accountFormProps> = ({
               name="identifier"
               data-testid="account-name"
               type="text"
-              className="block w-full rounded-md border-0 py-1.5 pl-7 pr-20 text-gray-900 ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
-              placeholder="Give your connected account a name"
+              className="block w-full rounded-md border-0 py-1.5 text-gray-900 ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
+              placeholder="E.g Typeform"
+              required
             />
           </div>
         )}
@@ -166,14 +167,14 @@ const AccountForm: React.FC<accountFormProps> = ({
         />
         {selected.type === 'facebook' && (
           <div className="mt-3">
-            <InfoBanner message="Please note this will not be functional until Facebook approves Virtual Labs application" />
+            <InfoBanner message="Please note this will not be functional until Facebook approves the Virtual Lab application." />
           </div>
         )}
-        <div className="bg-gray-50 px-4 py-3 sm:flex sm:flex-row-reverse sm:px-6">
+        <div className="py-2 mt-4 sm:flex sm:flex-row-reverse sm:px-6">
           <CreateButton accountType={selected.type} />
           &nbsp;&nbsp;&nbsp;
           <SecondaryButton onClick={() => setOpen(false)}>
-            cancel
+            Cancel
           </SecondaryButton>
         </div>
       </div>
@@ -201,7 +202,7 @@ const AccountListBox: React.FC<accountListBoxProps> = ({
           </Listbox.Label>
           <div className="relative mt-2">
             <Listbox.Button
-              className="relative w-full cursor-default rounded-md bg-white py-1.5 pl-3 pr-10 text-left text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 sm:text-sm sm:leading-6"
+              className="relative w-full cursor-default rounded-md bg-white py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 sm:text-sm sm:leading-6"
               data-testid="account-type"
             >
               <span className="flex items-center">

@@ -1,8 +1,10 @@
 import * as icons from '@heroicons/react/solid';
 import { classNames } from '../helpers/strings';
+import LoadingSpinner from './LoadingSpinner';
 
 const SecondaryButton = ({
   children,
+  name = '',
   size = '300',
   type = 'button',
   className = '',
@@ -13,6 +15,7 @@ const SecondaryButton = ({
   onClick = () => {},
 }: {
   children: string;
+  name?: string;
   size?: '100' | '200' | '300' | '400' | '500';
   type?: 'button' | 'submit';
   className?: string;
@@ -23,8 +26,8 @@ const SecondaryButton = ({
   onClick?: () => void;
 }) => {
   const classNamePerSize = {
-    100: 'inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md shadow-sm text-white bg-gray-500 hover:bg-gray-600 focus:outline-none',
-    200: 'inline-flex items-center px-3.5 py-2 border border-transparent text-sm leading-4 font-medium rounded-md shadow-sm text-white bg-gray-500 hover:bg-indigo-600 focus:outline-none',
+    100: 'inline-flex items-center px-3 py-2.5 border border-transparent text-xs font-medium rounded-md shadow-sm text-white bg-gray-500 hover:bg-gray-600 focus:outline-none',
+    200: 'inline-flex items-center px-3.5 py-2.5 border border-transparent text-sm leading-4 font-medium rounded-md shadow-sm text-white bg-gray-500 hover:bg-gray-600 focus:outline-none',
     300: 'inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-gray-500 hover:bg-gray-600 focus:outline-none',
     400: 'inline-flex items-center px-5 py-2 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-gray-500 hover:bg-gray-600 focus:outline-none',
     500: 'inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-gray-500 hover:bg-gray-600 focus:outline-none',
@@ -40,6 +43,7 @@ const SecondaryButton = ({
 
   return (
     <button
+      name={name}
       data-testid={testId}
       type={type}
       onClick={onClick}
@@ -54,6 +58,11 @@ const SecondaryButton = ({
         {icon && <Icon name={icon} className={iconClassNamePerSize[size]} />}
         {children}
       </span>
+      {loading && (
+        <span className="absolute">
+          <LoadingSpinner />
+        </span>
+      )}
     </button>
   );
 };

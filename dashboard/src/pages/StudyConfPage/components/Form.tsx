@@ -1,19 +1,17 @@
 import React from 'react';
-import { GlobalFormData, LocalFormData } from '../types/conf';
+import { LocalFormData } from '../../../types/conf';
 
 interface Props {
   id: string;
-  component: any;
-  globalData: GlobalFormData;
-  localData: LocalFormData;
+  data: LocalFormData;
+  component: React.FC<any>;
 }
 const Form: React.FC<Props> = (props: Props) => {
-  const { id, component, globalData, localData } = props;
+  const { id, data, component } = props;
 
   const form = {
     id,
-    globalData,
-    localData,
+    data,
     Component: component,
   };
   const { Component, ...childProps } = form;
