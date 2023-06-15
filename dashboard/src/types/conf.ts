@@ -62,7 +62,25 @@ export type Destination = Messenger | Web | App;
 
 export type Destinations = Destination[];
 
-export type LocalFormData = CreateStudy | General | Recruitment | Destinations;
+export type Creative = {
+  name: string;
+  body: string;
+  button_text: string;
+  destination: string;
+  image_hash: string;
+  link_text: string;
+  welcome_message: string;
+  tags: null;
+};
+
+export type Creatives = Creative[];
+
+export type LocalFormData =
+  | CreateStudy
+  | General
+  | Recruitment
+  | Destinations
+  | Creatives;
 
 export type GlobalFormData = {
   general: General;
