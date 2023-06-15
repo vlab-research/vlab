@@ -54,7 +54,7 @@ func TypeDestinations() databasestudyconfoptions {
 	return func(d *types.DatabaseStudyConf) {
 		d.StudyID = StudyID
 		d.ConfType = "destinations"
-		d.Conf = []byte(`[{"name":"typeform","url_template":"https://example.typeform.com/to/ABCDEF?ref={ref}"},{"name":"fly","initial_shortcode":"foobarbaz"}]`)
+		d.Conf = []byte(`[{"type":"web","name":"typeform","url_template":"https://example.typeform.com/to/ABCDEF?ref={ref}"},{"type":"messenger","name":"fly","initial_shortcode":"foobarbaz"}]`)
 	}
 }
 

@@ -77,10 +77,12 @@ func NewStudyConf(opts ...studyconfigoptions) types.StudyConf {
 		},
 		Destinations: &types.DestinationConf{
 			&types.WebDestination{
+				Type:        "web",
 				Name:        "typeform",
 				URLTemplate: "https://example.typeform.com/to/ABCDEF?ref={ref}",
 			},
 			&types.FlyDestination{
+				Type:             "messenger",
 				Name:             "fly",
 				InitialShortcode: "foobarbaz",
 			},

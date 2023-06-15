@@ -213,6 +213,7 @@ func (d *DestinationConf) UnmarshalJSON(data []byte) error {
 			if err := json.Unmarshal([]byte(item.Raw), d); err != nil {
 				return err
 			}
+			d.Type = "web"
 			dests = append(dests, d)
 		//FlyDestination should always have InitialShortcode
 		//set
@@ -221,6 +222,7 @@ func (d *DestinationConf) UnmarshalJSON(data []byte) error {
 			if err := json.Unmarshal([]byte(item.Raw), d); err != nil {
 				return err
 			}
+			d.Type = "messenger"
 			dests = append(dests, d)
 		//AppDestination should always have FacebookAppID
 		case item.Get("facebook_app_id").Exists():
@@ -228,6 +230,7 @@ func (d *DestinationConf) UnmarshalJSON(data []byte) error {
 			if err := json.Unmarshal([]byte(item.Raw), d); err != nil {
 				return err
 			}
+			d.Type = "app"
 			dests = append(dests, d)
 		default:
 			return errors.New("invalid destination found when unmarshalling")
@@ -240,18 +243,21 @@ func (d *DestinationConf) UnmarshalJSON(data []byte) error {
 // WebDestination is a destination that you can pass a url to
 // in order to redirect users to a specific survey platform
 type WebDestination struct {
+	Type        string `json:"type"`
 	Name        string `json:"name"`
 	URLTemplate string `json:"url_template"`
 }
 
 // FlyDestination is used to direct users to the Fly survey
 type FlyDestination struct {
+	Type             string `json:"type"`
 	Name             string `json:"name"`
 	InitialShortcode string `json:"initial_shortcode"`
 }
 
 // AppDestination
 type AppDestination struct {
+	Type             string   `json:"type"`
 	Name             string   `json:"name"`
 	FacebookAppID    string   `json:"facebook_app_id"`
 	AppInstallLink   string   `json:"app_install_link"`
