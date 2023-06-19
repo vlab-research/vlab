@@ -58,6 +58,10 @@ func CreateHandler(r storage.Repositories) gin.HandlerFunc {
 		}
 
 		sc, err := parsePayload(b)
+		if err != nil {
+			ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
 		sc.UserID = uid
 		sc.StudyID = study.ID
 

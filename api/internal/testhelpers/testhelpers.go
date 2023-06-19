@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"fmt"
 	"io"
 	"log"
 	"net/http"
@@ -189,8 +188,7 @@ func CreateUser(t *testing.T) {
 	q := "INSERT INTO users (id) VALUES ($1)"
 	_, _ = r.Db.Exec(q, CurrentUserID)
 	q = "INSERT INTO orgs_lookup (user_id, org_id) VALUES ($1, $2)"
-	_, err := r.Db.Exec(q, CurrentUserID, TestOrgID)
-	fmt.Printf("HERE: %v", err)
+	_, _ = r.Db.Exec(q, CurrentUserID, TestOrgID)
 }
 
 func CreateAccounts(t *testing.T, a types.Account, created time.Time) error {
