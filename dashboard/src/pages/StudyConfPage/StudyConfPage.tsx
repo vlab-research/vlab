@@ -6,10 +6,11 @@ import Navbar from './components/NavBar';
 import Form from '../../components/Form';
 import General from './forms/general/General';
 import Recruitment from './forms/recruitment/Recruitment';
-import useStudyConf from '../../hooks/useStudyConf';
-import useStudy from '../../hooks/useStudy';
 import Destinations from './forms/destinations/Destinations';
 import Creatives from './forms/creatives/Creatives';
+import Strata from './forms/strata/Strata';
+import useStudyConf from '../../hooks/useStudyConf';
+import useStudy from '../../hooks/useStudy';
 
 const StudyConfPage = () => {
   const params = useParams<{ studySlug: string }>();
@@ -43,12 +44,17 @@ const StudyConfPage = () => {
 };
 
 const PageContent = (data: any) => {
-  const formKeys = ['general', 'recruitment', 'destinations', 'creatives'];
-  const lookup = [General, Recruitment, Destinations, Creatives];
+  const formKeys = [
+    'general',
+    'recruitment',
+    'destinations',
+    'creatives',
+    'strata',
+  ];
+  const lookup = [General, Recruitment, Destinations, Creatives, Strata];
   const [index, setIndex] = useState<number>(0);
   const id = formKeys[index];
   const component = lookup[index];
-
 
   return (
     <>
