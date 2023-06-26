@@ -8,7 +8,7 @@ type Props = {
 const AddButton = ({ onClick, loading }: Props) => {
   return (
     <SecondaryButton
-      size="200"
+      size="100"
       testId={`add-button`}
       rounded={true}
       icon="PlusIcon"

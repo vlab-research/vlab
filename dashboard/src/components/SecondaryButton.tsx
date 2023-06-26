@@ -26,11 +26,11 @@ const SecondaryButton = ({
   onClick?: () => void;
 }) => {
   const classNamePerSize = {
-    100: 'inline-flex items-center px-3 py-2.5 border border-transparent text-xs font-medium rounded-md shadow-sm text-white bg-gray-500 hover:bg-gray-600 focus:outline-none',
-    200: 'inline-flex items-center px-3.5 py-2.5 border border-transparent text-sm leading-4 font-medium rounded-md shadow-sm text-white bg-gray-500 hover:bg-gray-600 focus:outline-none',
-    300: 'inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-gray-500 hover:bg-gray-600 focus:outline-none',
-    400: 'inline-flex items-center px-5 py-2 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-gray-500 hover:bg-gray-600 focus:outline-none',
-    500: 'inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-gray-500 hover:bg-gray-600 focus:outline-none',
+    100: 'inline-flex items-center px-3 py-2.5 border border-transparent text-xs font-medium rounded-md shadow-sm text-white bg-gray-500 hover:bg-gray-600 focus:outline-none transition duration-300 ease-in-out',
+    200: 'inline-flex items-center px-3.5 py-2.5 border border-transparent text-sm leading-4 font-medium rounded-md shadow-sm text-white bg-gray-500 hover:bg-gray-600 focus:outline-none  transition duration-300 ease-in-out',
+    300: 'inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-gray-500 hover:bg-gray-600 focus:outline-none  transition duration-300 ease-in-out',
+    400: 'inline-flex items-center px-5 py-2 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-gray-500 hover:bg-gray-600 focus:outline-none  transition duration-300 ease-in-out',
+    500: 'inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-gray-500 hover:bg-gray-600 focus:outline-none  transition duration-300 ease-in-out',
   };
 
   const iconClassNamePerSize = {

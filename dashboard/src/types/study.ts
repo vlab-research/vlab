@@ -4,6 +4,9 @@ import { LocalFormData } from './conf';
 export interface StudiesApiResponse
   extends PaginatedApiResponse<StudyResource[]> {}
 
+export interface StudiesApiResponse
+  extends PaginatedApiResponse<StudyResource[]> {}
+
 export interface StudyApiResponse extends ApiResponse<StudyResource> {}
 
 export interface StudyConfApiResponse extends ApiResponse<StudyConfData> {}
@@ -65,3 +68,11 @@ export interface CreateUserApiResponse
     id: string;
     orgs: Org[];
   }> {}
+
+export interface CampaignsApiResponse
+  extends PaginatedApiResponse<Campaign[]> {}
+
+export interface Campaign {
+  id: string;
+  name: string;
+}

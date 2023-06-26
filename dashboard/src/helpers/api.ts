@@ -1,5 +1,6 @@
 import { fetchWithTimeout } from './http';
 import {
+  CampaignsApiResponse,
   CreateStudyApiResponse,
   CreateStudyConfApiResponse,
   CreateUserApiResponse,
@@ -212,7 +213,7 @@ const deleteAccount = ({
   });
 
 const apiRequest = async <ApiResponse>(
-  url: string,
+  path: string,
   {
     defaultErrorMessage = 'Something went wrong.',
     method = 'GET',
@@ -235,7 +236,7 @@ const apiRequest = async <ApiResponse>(
     requestHeaders['Content-Type'] = 'application/json';
   }
   try {
-    const response = await fetchWithTimeout(url, {
+    const response = await fetchWithTimeout(path, {
       timeout: 10000,
       headers: requestHeaders,
       method,
@@ -250,8 +251,7 @@ const apiRequest = async <ApiResponse>(
       throw new Error(await getErrorMessageFor(response, defaultErrorMessage));
     }
 
-    // 204 is no content so we just return and empty
-    // type
+    // 204 is no content so we just return an empty type
     if (response.status === 204) {
       return {} as Promise<ApiResponse>;
     }
@@ -264,6 +264,87 @@ const apiRequest = async <ApiResponse>(
 
     throw err;
   }
+};
+
+const facebookRequest = async <ApiResponse>(
+  path: string,
+  {
+    defaultErrorMessage = 'Something went wrong.',
+    method = 'GET',
+    body,
+    expectedStatusCodes,
+  }: {
+    defaultErrorMessage?: string;
+    method?: 'GET' | 'POST' | 'DELETE';
+    body?: object;
+    expectedStatusCodes?: number[];
+  }
+) => {
+  const requestBody = body ? JSON.stringify(body) : undefined;
+  const requestHeaders: HeadersInit = {};
+  if (requestBody) {
+    requestHeaders['Content-Type'] = 'application/json';
+  }
+
+  try {
+    const response = await fetchWithTimeout(path, {
+      timeout: 10000,
+      headers: requestHeaders,
+      method,
+      body: requestBody,
+      baseURL: path,
+    });
+
+    const isExpectedResponse = expectedStatusCodes
+      ? expectedStatusCodes.includes(response.status)
+      : response.ok;
+
+    if (!isExpectedResponse) {
+      throw new Error(await getErrorMessageFor(response, defaultErrorMessage));
+    }
+
+    // 204 is no content so we just return an empty type
+    if (response.status === 204) {
+      return {} as Promise<ApiResponse>;
+    }
+
+    return response.json() as Promise<ApiResponse>;
+  } catch (err: any) {
+    if (err.name === 'AbortError') {
+      throw new Error(defaultErrorMessage);
+    }
+
+    throw err;
+  }
+};
+
+export const fetchCampaigns = ({
+  campaignsPerPage,
+  cursor,
+  accessToken,
+  defaultErrorMessage,
+}: {
+  campaignsPerPage: number;
+  cursor: Cursor;
+  accessToken: string;
+  defaultErrorMessage: string;
+}) => {
+  const baseURL = `https://graph.facebook.com/v17.0/act_1342820622846299/campaigns`;
+  const params: any = {
+    limit: campaignsPerPage,
+    pretty: 0,
+    fields: 'name, id',
+    access_token: accessToken,
+  };
+  if (cursor) {
+    params['cursor'] = cursor;
+  }
+  const q = querystring.encode(params);
+  const path = `${baseURL}?${q}`;
+
+  return facebookRequest<CampaignsApiResponse>(path, {
+    defaultErrorMessage,
+  });
 };
 
 const getErrorMessageFor = async (
