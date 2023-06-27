@@ -24,12 +24,13 @@ func ListHandler(r storage.Repositories) gin.HandlerFunc {
 			ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
 		}
-
+		accType := ctx.DefaultQuery("type", "not set")
 		accounts, err := r.Account.List(
 			ctx,
 			p.Cursor,
 			p.Number,
 			auth.GetUserIdFrom(ctx),
+			accType,
 		)
 
 		if err != nil {

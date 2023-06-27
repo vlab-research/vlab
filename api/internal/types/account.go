@@ -21,7 +21,7 @@ const (
 type AccountRepository interface {
 	Create(ctx context.Context, a Account) error
 	Delete(ctx context.Context, a Account) error
-	List(ctx context.Context, offset, limit int, userID string) ([]Account, error)
+	List(ctx context.Context, offset, limit int, userID, accType string) ([]Account, error)
 }
 
 var ErrAccountAlreadyExists = errors.New("Account Already Exists")
