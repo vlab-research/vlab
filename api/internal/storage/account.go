@@ -110,7 +110,7 @@ func handleCreateError(e error, a types.Account) error {
 func (r *AccountRepository) List(
 	ctx context.Context,
 	offset, limit int,
-	userId string,
+	userId, accType string,
 ) ([]types.Account, error) {
 	accounts := []types.Account{}
 
@@ -118,14 +118,17 @@ func (r *AccountRepository) List(
 		SELECT user_id, entity, key, details, created
 		FROM credentials 
 		WHERE user_id = $3 
-		ORDER BY created DESC 
-		OFFSET $1 LIMIT $2
 		`
-	rows, err := r.db.Query(q, offset, limit, userId)
+	args := []any{offset, limit, userId}
+	if accType != "not set" {
+		args = append(args, accType)
+		q = fmt.Sprintf("%s%s\n", q, "AND entity = $4")
+	}
+	q = fmt.Sprintf("%s%s", q, `ORDER BY created DESC OFFSET $1 LIMIT $2`)
+	rows, err := r.db.Query(q, args...)
 	if err != nil {
 		return nil, err
 	}
-
 	defer rows.Close()
 
 	for rows.Next() {
