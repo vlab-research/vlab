@@ -1,8 +1,12 @@
 import { queryCache, useQuery } from 'react-query';
-import { type Account, type AccountsApiResponse } from '../../../../types/account';
+import {
+  type Account,
+  type AccountsApiResponse,
+} from '../../../../types/account';
 import useAuthenticatedApi from '../../../../hooks/useAuthenticatedApi';
 
-const defaultErrorMessage = 'Could Not Find Facebook Connection, please see connected accounts';
+const defaultErrorMessage =
+  'Could Not Find Facebook Connection, please see connected accounts';
 
 const queryKey = 'facebook-accounts';
 
@@ -15,7 +19,7 @@ const useAccounts: any = () => {
     async () =>
       await fetchAccounts({
         // In this instance we only want facebook connections
-        type: "facebook", 
+        type: 'facebook',
         defaultErrorMessage,
       })
   );
