@@ -7,6 +7,7 @@ const campaignsPerPage = 100;
 const queryKey = 'campaigns';
 const accessToken = '';
 const defaultErrorMessage = 'Something went wrong while fetching the campaigns';
+const accountNumber = '1342820622846299';
 
 const useCampaigns = () => {
   const query = useInfiniteQuery<CampaignsApiResponse, string, Cursor>(
@@ -14,6 +15,7 @@ const useCampaigns = () => {
     (_: unknown, cursor: Cursor = null) =>
       fetchCampaigns({
         campaignsPerPage,
+        accountNumber,
         cursor,
         accessToken,
         defaultErrorMessage,
