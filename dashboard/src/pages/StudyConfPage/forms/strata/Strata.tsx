@@ -4,6 +4,7 @@ import DeleteButton from '../../../../components/DeleteButton';
 import AddButton from '../../../../components/AddButton';
 import Variable from './Variable';
 import { createLabelFor } from '../../../../helpers/strings';
+import useAccounts from './useAccounts';
 import useCampaigns from './useCampaigns';
 
 interface Props {
@@ -19,6 +20,12 @@ const Strata: React.FC<Props> = ({ id, localData }: Props) => {
     },
   ];
 
+  //TODO handle errorMessage
+  const {account, errorMessage } = useAccounts()
+  if (account == undefined) {
+    // TODO: We should show an error message here
+    // as none of the following logic will work without this
+  }
   const [formData, setFormData] = useState<any[]>(
     localData ? localData : initialState
   );
