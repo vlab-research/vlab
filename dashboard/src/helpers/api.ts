@@ -171,12 +171,15 @@ const fetchStudyConf = ({
 const fetchAccounts = ({
   defaultErrorMessage,
   accessToken,
+  type,
 }: {
   defaultErrorMessage: string;
   accessToken: string;
+  type?: string;
 }) =>
   apiRequest<AccountsApiResponse>(`/accounts`, {
     defaultErrorMessage,
+    queryParams: {type},
     accessToken,
   });
 
@@ -219,12 +222,14 @@ const apiRequest = async <ApiResponse>(
     method = 'GET',
     accessToken = '',
     body,
+    queryParams,
     expectedStatusCodes,
   }: {
     defaultErrorMessage?: string;
     method?: 'GET' | 'POST' | 'DELETE';
     accessToken: string;
     body?: object;
+    queryParams?: any;
     expectedStatusCodes?: number[];
   }
 ) => {
@@ -234,6 +239,9 @@ const apiRequest = async <ApiResponse>(
   };
   if (requestBody) {
     requestHeaders['Content-Type'] = 'application/json';
+  }
+  if (queryParams) {
+    path = `${path}?${querystring.encode(queryParams)}`;
   }
   try {
     const response = await fetchWithTimeout(path, {
