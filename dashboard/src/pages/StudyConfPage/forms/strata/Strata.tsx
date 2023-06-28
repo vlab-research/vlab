@@ -21,8 +21,8 @@ const Strata: React.FC<Props> = ({ id, localData }: Props) => {
   ];
 
   //TODO handle errorMessage
-  const {account, errorMessage } = useAccounts()
-  if (account == undefined) {
+  const { account, errorMessage } = useAccounts();
+  if (account === undefined) {
     // TODO: We should show an error message here
     // as none of the following logic will work without this
   }
