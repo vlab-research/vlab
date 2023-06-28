@@ -7,11 +7,11 @@ import { Creative as CreativeType } from '../../../../types/conf';
 interface FormData {
   name: string;
   body: string;
-  button_text: string;
+  button_text?: string | undefined;
   destination: string;
   image_hash: string;
   link_text: string;
-  welcome_message: string;
+  welcome_message?: string | undefined;
   tags: null;
 }
 
@@ -22,6 +22,7 @@ interface TextProps {
   autoComplete: string;
   placeholder: string;
   value: any;
+  required?: boolean;
 }
 const TextInput: React.FC<TextProps> = ({
   name,
@@ -30,6 +31,7 @@ const TextInput: React.FC<TextProps> = ({
   autoComplete,
   placeholder,
   value,
+  required = true,
 }) => (
   <div className="sm:my-4">
     <label className="my-2 block text-sm font-medium text-gray-700">
@@ -41,10 +43,13 @@ const TextInput: React.FC<TextProps> = ({
       autoComplete={autoComplete}
       placeholder={placeholder}
       value={value}
-      required
+      required={required}
       onChange={e => handleChange(e)}
       className="block w-4/5 shadow-sm sm:text-sm rounded-md"
     />
+    {required === false && (
+      <span className="m-4 italic text-gray-700 text-xs">Optional</span>
+    )}
   </div>
 );
 
@@ -131,7 +136,7 @@ const Creative: React.FC<Props> = ({
         type="text"
         handleChange={handleChange}
         autoComplete="on"
-        placeholder="hello world"
+        placeholder="E.g. hello world..."
         value={data.body}
       />
       <TextInput
@@ -139,8 +144,9 @@ const Creative: React.FC<Props> = ({
         type="text"
         handleChange={handleChange}
         autoComplete="on"
-        placeholder="E.g test"
+        placeholder="Add some helpful text to your button"
         value={data.button_text}
+        required={false}
       />
       {destinations ? (
         <Select
@@ -175,7 +181,7 @@ const Creative: React.FC<Props> = ({
         type="text"
         handleChange={handleChange}
         autoComplete="on"
-        placeholder="E.g hello world"
+        placeholder="Add some text to your link"
         value={data.link_text}
       />
       <TextInput
@@ -183,8 +189,9 @@ const Creative: React.FC<Props> = ({
         type="text"
         handleChange={handleChange}
         autoComplete="on"
-        placeholder="E.g hi!"
+        placeholder="E.g hi there!"
         value={data.welcome_message}
+        required={false}
       />
     </>
   );

@@ -9,7 +9,7 @@ export interface General {
   page_id: string;
   min_budget: number;
   opt_window: number;
-  instagram_id: string;
+  instagram_id?: string | undefined;
   ad_account: string;
 }
 
@@ -65,11 +65,11 @@ export type Destinations = Destination[];
 export type Creative = {
   name: string;
   body: string;
-  button_text: string;
+  button_text?: string | undefined;
   destination: string;
   image_hash: string;
   link_text: string;
-  welcome_message: string;
+  welcome_message?: string | undefined;
   tags: null;
 };
 
@@ -86,4 +86,5 @@ export type GlobalFormData = {
   general: General;
   recruitment: Recruitment;
   destinations: Destinations;
+  creatives: Creatives;
 };

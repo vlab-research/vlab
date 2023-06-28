@@ -8,6 +8,7 @@ import useCreateStudyConf from '../../../../hooks/useCreateStudyConf';
 import { Destinations } from '../../../../types/conf';
 
 export interface FormData {
+  destination: string;
   ad_campaign_name_base: string;
   budget_per_arm: number;
   max_sample_per_arm: number;
@@ -47,6 +48,41 @@ const TextInput: React.FC<TextProps> = ({
       className="block w-4/5 shadow-sm sm:text-sm rounded-md"
     />
     <div className="sm:my-2"></div>
+  </div>
+);
+
+interface SelectProps {
+  name: Path<FormData>;
+  options: SelectOption[];
+  register: UseFormRegister<FormData>;
+  label?: string;
+  value: string;
+}
+
+interface SelectOption {
+  name: string;
+}
+
+const Select: React.FC<SelectProps> = ({
+  name,
+  options,
+  register,
+  label,
+}: SelectProps) => (
+  <div className="sm:my-4">
+    <label className="my-2 block text-sm font-medium text-gray-700">
+      {label}
+    </label>
+    <select
+      {...register(name)}
+      className="w-4/5 mt-1 block shadow-sm sm:text-sm rounded-md"
+    >
+      {options.map((option: SelectOption, i: number) => (
+        <option key={i} value={option.name}>
+          {option.name}
+        </option>
+      ))}
+    </select>
   </div>
 );
 
@@ -98,13 +134,13 @@ const Destination: React.FC<Props> = ({ id, data, destinations }: Props) => {
 
   return (
     <form onSubmit={handleSubmit(onSubmit)}>
-      {/* Select component be commented back in once destination field supported by the API */}
-
-      {/* <Select
+      <Select
         name="destination"
         options={destinations}
         register={register}
-      ></Select> */}
+        label="Choose a destination"
+        value={data.destination}
+      ></Select>
       <TextInput
         name="ad_campaign_name_base"
         type="text"

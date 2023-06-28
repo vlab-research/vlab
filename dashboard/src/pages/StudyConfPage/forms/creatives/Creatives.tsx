@@ -71,7 +71,7 @@ const Creatives: React.FC<Props> = ({ id, globalData, localData }: Props) => {
     createStudyConf({ data, studySlug });
   };
 
-  const addDestination = (): void => {
+  const addCreative = (): void => {
     setFormData([...formData, ...initialState]);
   };
 
@@ -126,7 +126,12 @@ const Creatives: React.FC<Props> = ({ id, globalData, localData }: Props) => {
                     </>
                   );
                 })}
-                <AddButton onClick={addDestination} />
+                <div className="flex flex-row items-center">
+                  <AddButton onClick={addCreative} />
+                  <label className="ml-4 italic text-gray-700 text-sm">
+                    Add a new creative
+                  </label>
+                </div>
               </div>
 
               <div className="p-6 text-right">
