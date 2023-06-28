@@ -272,11 +272,15 @@ const facebookRequest = async <ApiResponse>(
     defaultErrorMessage = 'Something went wrong.',
     method = 'GET',
     body,
+    queryParams,
+    accessToken,
     expectedStatusCodes,
   }: {
     defaultErrorMessage?: string;
     method?: 'GET' | 'POST' | 'DELETE';
     body?: object;
+    accessToken: string;
+    queryParams?: any;
     expectedStatusCodes?: number[];
   }
 ) => {
@@ -285,6 +289,14 @@ const facebookRequest = async <ApiResponse>(
   if (requestBody) {
     requestHeaders['Content-Type'] = 'application/json';
   }
+ 
+  //TODO Handle when access token is not set
+  queryParams['access_token'] = accessToken;
+  const q = querystring.encode(queryParams);
+  path = `${path}?${q}`;
+
+  //TODO make this configurabel (i.e ENV variable)
+  const baseURL = `https://graph.facebook.com/v17.0`;
 
   try {
     const response = await fetchWithTimeout(path, {
@@ -292,7 +304,7 @@ const facebookRequest = async <ApiResponse>(
       headers: requestHeaders,
       method,
       body: requestBody,
-      baseURL: path,
+      baseURL: baseURL,
     });
 
     const isExpectedResponse = expectedStatusCodes
@@ -322,14 +334,15 @@ export const fetchCampaigns = ({
   campaignsPerPage,
   cursor,
   accessToken,
+  accountNumber, //TODO Make use of AccountNumber
   defaultErrorMessage,
 }: {
   campaignsPerPage: number;
   cursor: Cursor;
   accessToken: string;
+  accountNumber: string;
   defaultErrorMessage: string;
 }) => {
-  const baseURL = `https://graph.facebook.com/v17.0/act_1342820622846299/campaigns`;
   const params: any = {
     limit: campaignsPerPage,
     pretty: 0,
@@ -339,10 +352,11 @@ export const fetchCampaigns = ({
   if (cursor) {
     params['cursor'] = cursor;
   }
-  const q = querystring.encode(params);
-  const path = `${baseURL}?${q}`;
 
+  const path = `/act_${accountNumber}/campaigns`
   return facebookRequest<CampaignsApiResponse>(path, {
+    queryParams: params,
+    accessToken,
     defaultErrorMessage,
   });
 };
