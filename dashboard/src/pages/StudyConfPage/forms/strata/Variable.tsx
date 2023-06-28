@@ -1,8 +1,9 @@
 import { Path } from 'react-hook-form';
-import { createLabelFor } from '../../../../helpers/strings';
+import { classNames, createLabelFor } from '../../../../helpers/strings';
 import { useState } from 'react';
 import AddButton from '../../../../components/AddButton';
 import Level from './Level';
+import DeleteButton from '../../../../components/DeleteButton';
 
 export interface FormData {
   name: string;
@@ -107,11 +108,17 @@ const MultiSelect: React.FC<MultiSelectProps> = ({
 
 interface Props {
   data: any;
+  formData: any[];
   index: number;
   updateFormData: (d: any, index: number) => void;
 }
 
-const Variable: React.FC<Props> = ({ data, index, updateFormData }: Props) => {
+const Variable: React.FC<Props> = ({
+  data,
+  formData,
+  index,
+  updateFormData,
+}: Props) => {
   const initialState = [{ name: '', properties: [], levels: [] }];
 
   const [levels, setLevels] = useState<any[]>(
@@ -147,6 +154,12 @@ const Variable: React.FC<Props> = ({ data, index, updateFormData }: Props) => {
     setLevels([...levels, level]);
   };
 
+  const deleteLevel = (index: number): void => {
+    const newArr = levels.filter((d: any, i: number) => index !== i);
+
+    setLevels(newArr);
+  };
+
   const properties = [
     { name: 'genders', label: 'Genders' },
     { name: 'min_age', label: 'Minimum age' },
@@ -154,7 +167,7 @@ const Variable: React.FC<Props> = ({ data, index, updateFormData }: Props) => {
   ];
 
   return (
-    <>
+    <div className={classNames(index === 0 ? 'mt-4' : 'mt-8')}>
       <TextInput
         name="name"
         type="text"
@@ -171,23 +184,39 @@ const Variable: React.FC<Props> = ({ data, index, updateFormData }: Props) => {
         value={data.user_os}
         label="Select a set of properties from Facebook"
       ></MultiSelect>
+      <ul>
+        {levels.map((l, index) => {
+          return (
+            <>
+              <Level
+                data={l}
+                index={index}
+                updateFormData={updateFormData}
+              ></Level>
 
-      {levels.map(() => {
-        return (
-          <Level
-            data={data}
-            index={index}
-            updateFormData={updateFormData}
-          ></Level>
-        );
-      })}
-
-      <div className="flex flex-row items-center">
-        {' '}
+              <>
+                <div key={`${l.name}-${index}`}>
+                  <div className="flex flex-row w-4/5 justify-between items-center">
+                    <div className="w-4/5 h-0.5 mr-8 my-4 rounded-md bg-gray-400"></div>
+                    <DeleteButton
+                      onClick={() => deleteLevel(index)}
+                    ></DeleteButton>
+                  </div>
+                  <div />
+                </div>
+              </>
+            </>
+          );
+        })}
+      </ul>
+      <div className="flex flex-row items-center mb-4">
         <AddButton onClick={addLevel} />
-        <label className="ml-4 italic text-gray-700 text-sm">Add a level</label>
+        <span className="ml-4 italic text-gray-700 text-sm">Add a level</span>
       </div>
-    </>
+      {index !== formData.length - 1 && (
+        <div className="w-4/5 h-0.5 mr-8 my-4 rounded-md bg-gray-400"></div>
+      )}
+    </div>
   );
 };
 

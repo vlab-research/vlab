@@ -92,25 +92,30 @@ const Level: React.FC<Props> = ({ data, index, updateFormData }: Props) => {
   ];
 
   return (
-    <>
-      <TextInput
-        name="name"
-        type="text"
-        handleChange={handleChange}
-        autoComplete="on"
-        placeholder="Give your level a name"
-        value={data.name}
-      />
-      <Select name="adset" options={adsets} value={data.adset}></Select>
-      <TextInput
-        name="quota"
-        type="number"
-        handleChange={handleChange}
-        autoComplete="on"
-        placeholder="Give your level a name"
-        value={data.quota}
-      />
-    </>
+    <li>
+      <label className="mt-4 block text-ml font-medium text-gray-700">
+        {`Level ${data.name}`}
+      </label>
+      <div className="m-4">
+        <TextInput
+          name="name"
+          type="text"
+          handleChange={handleChange}
+          autoComplete="on"
+          placeholder="Give your level a name"
+          value={data.name}
+        />
+        <Select name="adset" options={adsets} value={data.adset}></Select>
+        <TextInput
+          name="quota"
+          type="number"
+          handleChange={handleChange}
+          autoComplete="on"
+          placeholder="Give your level a name"
+          value={data.quota}
+        />
+      </div>
+    </li>
   );
 };
 

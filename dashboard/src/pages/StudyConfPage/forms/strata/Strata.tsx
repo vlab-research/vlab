@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import PrimaryButton from '../../../../components/PrimaryButton';
-import DeleteButton from '../../../../components/DeleteButton';
 import AddButton from '../../../../components/AddButton';
 import Variable from './Variable';
 import { createLabelFor } from '../../../../helpers/strings';
@@ -42,12 +41,6 @@ const Strata: React.FC<Props> = ({ id, localData }: Props) => {
 
   const addVariable = (): void => {
     setFormData([...formData, ...initialState]);
-  };
-
-  const deleteDestination = (index: number): void => {
-    const newArr = formData.filter((d: any, i: number) => index !== i);
-
-    setFormData(newArr);
   };
 
   interface SelectProps {
@@ -115,30 +108,17 @@ const Strata: React.FC<Props> = ({ id, localData }: Props) => {
                 ></Select>
                 {formData.map((d: any, index: number) => {
                   return (
-                    <>
-                      <Variable
-                        key={index}
-                        data={d}
-                        index={index}
-                        updateFormData={updateFormData}
-                      />
-                      {formData.length > 1 && (
-                        <div key={`${d.name}-${index}`}>
-                          <div className="flex flex-row w-4/5 justify-between items-center mb-4">
-                            <div className="w-full h-0.5 mr-8 rounded-md bg-gray-400"></div>
-                            <DeleteButton
-                              onClick={() => deleteDestination(index)}
-                            ></DeleteButton>
-                          </div>
-                          <div />
-                        </div>
-                      )}
-                    </>
+                    <Variable
+                      key={index}
+                      data={d}
+                      formData={formData}
+                      index={index}
+                      updateFormData={updateFormData}
+                    />
                   );
                 })}
-                {formData.length === 1 && (
-                  <div className="w-full h-0.5 mr-8 my-6 rounded-md bg-gray-400"></div>
-                )}
+
+                <div className="w-4/5 h-0.5 mr-8 my-6 rounded-md bg-gray-400"></div>
                 <div className="flex flex-row items-center">
                   <AddButton onClick={addVariable} />
                   <label className="ml-4 italic text-gray-700 text-sm">
