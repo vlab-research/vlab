@@ -11,6 +11,7 @@ import Creatives from './forms/creatives/Creatives';
 import Strata from './forms/strata/Strata';
 import useStudyConf from '../../hooks/useStudyConf';
 import useStudy from '../../hooks/useStudy';
+import Audiences from './forms/audience/Audiences';
 
 const StudyConfPage = () => {
   const params = useParams<{ studySlug: string }>();
@@ -49,9 +50,17 @@ const PageContent = (data: any) => {
     'recruitment',
     'destinations',
     'creatives',
+    'audiences',
     'strata',
   ];
-  const lookup = [General, Recruitment, Destinations, Creatives, Strata];
+  const lookup = [
+    General,
+    Recruitment,
+    Destinations,
+    Creatives,
+    Audiences,
+    Strata,
+  ];
   const [index, setIndex] = useState<number>(0);
   const id = formKeys[index];
   const component = lookup[index];
