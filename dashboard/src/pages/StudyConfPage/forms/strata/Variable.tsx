@@ -10,7 +10,6 @@ export interface FormData {
   levels: any[];
 }
 
-
 interface MultiSelectProps {
   name: Path<FormData>;
   options: SelectOption[];
@@ -78,7 +77,6 @@ const Variable: React.FC<Props> = ({
   adsets,
   updateFormData,
 }: Props) => {
-
   interface LevelType {
     name: string;
     adset_id: string;
@@ -88,18 +86,29 @@ const Variable: React.FC<Props> = ({
 
   // Function to help get targeting params out of adset
   const getTargeting = (data: any, adset_id: string) => {
-    if (!adset_id) return {}
-    const adset = adsets.find((a) => adset_id == a.id);
-    return data.properties.reduce((obj: any, key: string) => ({ ...obj, [key]: adset.targeting[key] }), {});
-  }
+    if (!adset_id) return {};
+    const adset = adsets.find(a => adset_id == a.id);
+    return data.properties.reduce(
+      (obj: any, key: string) => ({ ...obj, [key]: adset.targeting[key] }),
+      {}
+    );
+  };
 
-  const level: LevelType = { name: '', adset_id: adsets[0]?.id, facebook_targeting: getTargeting(data, adsets[0]?.id), quota: 0 };
+  const level: LevelType = {
+    name: '',
+    adset_id: adsets[0]?.id,
+    facebook_targeting: getTargeting(data, adsets[0]?.id),
+    quota: 0,
+  };
 
   // update will always update targeting to keep it current
   const update = (data: any) => {
-    data['levels'] = data.levels.map((l: any) => ({ ...l, facebook_targeting: getTargeting(data, l.adset_id) }))
+    data['levels'] = data.levels.map((l: any) => ({
+      ...l,
+      facebook_targeting: getTargeting(data, l.adset_id),
+    }));
     updateFormData(data, index);
-  }
+  };
 
   const handleChange = (e: any) => {
     const { name, value } = e.target;
@@ -107,22 +116,22 @@ const Variable: React.FC<Props> = ({
   };
 
   const handleLevelChange = (d: any, i: number) => {
-    const copy = [...data.levels]
-    copy[i] = { ...copy[i], ...d }
-    update({ ...data, levels: copy })
-  }
+    const copy = [...data.levels];
+    copy[i] = { ...copy[i], ...d };
+    update({ ...data, levels: copy });
+  };
 
   const handleMultiSelectChange = (selected: string[], name: string) => {
     update({ ...data, [name]: selected });
   };
 
   const addLevel = (): void => {
-    update({ ...data, levels: [...data.levels, level] })
+    update({ ...data, levels: [...data.levels, level] });
   };
 
   const deleteLevel = (i: number): void => {
     const newArr = data.levels.filter((_: any, ii: number) => ii !== i);
-    update({ ...data, levels: [...newArr] })
+    update({ ...data, levels: [...newArr] });
   };
 
   const properties = [
@@ -132,7 +141,6 @@ const Variable: React.FC<Props> = ({
     { name: 'geo_locations', label: 'Geo Locations' },
     { name: 'excluded_geo_locations', label: 'Excluded Geo Locations' },
     { name: 'flexible_spec', label: 'Flexible Spec' },
-
   ];
 
   return (
@@ -154,7 +162,7 @@ const Variable: React.FC<Props> = ({
         label="Select a set of properties from Facebook"
       ></MultiSelect>
       <ul>
-        {data.levels.map((l: any, levelIndex: number) => {
+        {data.levels?.map((l: any, levelIndex: number) => {
           return (
             <div key={levelIndex}>
               <Level
@@ -165,7 +173,7 @@ const Variable: React.FC<Props> = ({
                 handleChange={handleLevelChange}
               ></Level>
 
-              <div >
+              <div>
                 <div className="flex flex-row w-4/5 justify-between items-center">
                   <div className="w-4/5 h-0.5 mr-8 my-4 rounded-md bg-gray-400"></div>
                   <DeleteButton

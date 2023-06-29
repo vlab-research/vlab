@@ -21,14 +21,17 @@ interface SelectOption {
   id: string;
 }
 
-const Select: React.FC<SelectProps> = ({ options, value, onChange }: SelectProps) => {
-
+const Select: React.FC<SelectProps> = ({
+  options,
+  value,
+  onChange,
+}: SelectProps) => {
   const onSelect = (e: any) => {
-    onChange(e.target.value)
-  }
+    onChange(e.target.value);
+  };
 
   return (
-    <div className="sm:my-4" >
+    <div className="sm:my-4">
       <label className="my-2 block text-sm font-medium text-gray-700">
         Pick a campaign template
       </label>
@@ -43,8 +46,8 @@ const Select: React.FC<SelectProps> = ({ options, value, onChange }: SelectProps
           </option>
         ))}
       </select>
-    </div >
-  )
+    </div>
+  );
 };
 
 interface Props {
@@ -54,47 +57,56 @@ interface Props {
   globalData: any;
 }
 
-const Strata: React.FC<Props> = ({ account, id, globalData, localData }: Props) => {
+const Strata: React.FC<Props> = ({
+  account,
+  id,
+  globalData,
+  localData,
+}: Props) => {
   const initialState = [
     {
       name: '',
       id: '',
       properties: [],
-      levels: []
+      levels: [],
     },
   ];
 
   const params = useParams<{ studySlug: string }>();
   const studySlug = params.studySlug;
 
-  const { createStudyConf } = useCreateStudyConf(
-    true,
-    'Study settings saved'
-  );
+  const { createStudyConf } = useCreateStudyConf(true, 'Study settings saved');
 
   const [formData, setFormData] = useState<any[]>(
     localData ? localData : initialState
   );
 
-  console.log('FormData: ', formData)
+  console.log('FormData: ', formData);
 
   const [templateCampaign, setTemplateCampaign] = useState<string>();
 
-  const accessToken = account?.connectedAccount.credentials.access_token
-  const adAccount = globalData.general?.ad_account
+  const accessToken = account?.connectedAccount.credentials.access_token;
+  const adAccount = globalData.general?.ad_account;
 
-  const { query: campaignQuery, campaigns } = useCampaigns(adAccount, accessToken);
+  const { query: campaignQuery, campaigns } = useCampaigns(
+    adAccount,
+    accessToken
+  );
 
   // TODO:
   // store template campaign? Hm. Probably...
   useEffect(() => {
-    campaigns.length > 0 && setTemplateCampaign(campaigns[0].id)
-  }, [campaigns.length > 0 && campaigns[0].id])
+    campaigns.length > 0 && setTemplateCampaign(campaigns[0].id);
+  }, [campaigns.length > 0 && campaigns[0].id]);
 
-  const { query: adsetsQuery, adsets } = useAdsets(adAccount, templateCampaign!, accessToken);
+  const { query: adsetsQuery, adsets } = useAdsets(
+    adAccount,
+    templateCampaign!,
+    accessToken
+  );
 
   if (campaignQuery.isLoading) {
-    return null // spinner
+    return null; // spinner
     // Something with adsetsQuery isLoading or error?
   }
 
@@ -112,27 +124,27 @@ const Strata: React.FC<Props> = ({ account, id, globalData, localData }: Props) 
       : [];
 
     const d = formData
-      .flatMap((x: any) => x.levels.map((y: any) => ({ ...y, id: `${x.name}-${y.name}` })))
-      .map(data => (
-        {
-          audiences: [],
-          excluded_audiences: [],
-          metadata: {},
-          creatives: creatives,
+      .flatMap((x: any) =>
+        x.levels.map((y: any) => ({ ...y, id: `${x.name}-${y.name}` }))
+      )
+      .map(data => ({
+        audiences: [],
+        excluded_audiences: [],
+        metadata: {},
+        creatives: creatives,
 
-          ...data,
-          quota: +data.quota, // TODO: cast to number earlier in the process
-        }))
+        ...data,
+        quota: +data.quota, // TODO: cast to number earlier in the process
+      }))
       .map(d => {
-        delete d.name
+        delete d.name;
         // delete d.adset_id
-        return d
-      })
+        return d;
+      });
 
+    console.log('Submit Data: ', d);
 
-    console.log('Submit Data: ', d)
-
-    createStudyConf({ data: d, studySlug })
+    createStudyConf({ data: d, studySlug });
   };
 
   const addVariable = (): void => {
@@ -190,11 +202,11 @@ const Strata: React.FC<Props> = ({ account, id, globalData, localData }: Props) 
   );
 };
 
-const StrataWrapper: React.FC<Props> = (props) => {
+const StrataWrapper: React.FC<Props> = props => {
   const { query, account, errorMessage } = useAccounts();
 
   if (query.isLoading) {
-    return null // spinner
+    return null; // spinner
   }
 
   // if not account, show an error message and a button to
@@ -202,9 +214,7 @@ const StrataWrapper: React.FC<Props> = (props) => {
 
   // if there is an account, continue
 
-  return (
-    <Strata {...props} account={account} />
-  )
-}
+  return <Strata {...props} account={account} />;
+};
 
 export default StrataWrapper;

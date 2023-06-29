@@ -2,17 +2,19 @@ import { useMutation } from 'react-query';
 import { Notyf } from 'notyf';
 import { useHistory } from 'react-router-dom';
 import useAuthenticatedApi from './useAuthenticatedApi';
-import { addStudyToCacheWhileRefetching } from './useStudies';
+import { addToCache } from '../helpers/cache';
 
 const useCreateStudy = () => {
   const notyf = new Notyf();
   const history = useHistory();
+  const queryKey = 'study';
   const { createStudy } = useAuthenticatedApi();
+
   const [createStudyMutation, { isLoading, error }] = useMutation(
     ({ name }: { name: string }) => createStudy({ name }),
     {
       onSuccess: ({ data: newStudy }) => {
-        addStudyToCacheWhileRefetching(newStudy);
+        addToCache(newStudy, queryKey);
         history.push(`/studies`);
         notyf.success({
           message: `Study created!`,
