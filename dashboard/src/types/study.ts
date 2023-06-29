@@ -69,10 +69,28 @@ export interface CreateUserApiResponse
     orgs: Org[];
   }> {}
 
-export interface CampaignsApiResponse
-  extends PaginatedApiResponse<Campaign[]> {}
+
+interface PaginatedFacebookResponse<Data> {
+  data: Data;
+  paging: {
+    before: string;
+    after: string;
+  }
+}
+
 
 export interface Campaign {
   id: string;
   name: string;
 }
+
+
+export interface Adset {
+  id: string;
+  name: string;
+  targeting: any;
+}
+
+export interface CampaignsApiResponse extends PaginatedFacebookResponse<Campaign[]> {}
+
+export interface AdsetsApiResponse extends PaginatedFacebookResponse<Adset[]> {}

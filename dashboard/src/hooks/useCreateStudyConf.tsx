@@ -17,9 +17,9 @@ const useCreateStudyConf = (redirect: boolean, message: string) => {
     {
       onSuccess: ({ data: conf }) => {
         addStudyConfToCacheWhileRefetching(conf);
-        if (redirect === true) {
-          history.push(`/studies`);
-        }
+        // if (redirect === true) {
+        //   history.push(`/studies`);
+        // }
         notyf.success({
           message: message,
           duration: 2000,

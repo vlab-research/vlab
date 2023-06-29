@@ -1,33 +1,102 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useParams } from 'react-router-dom';
 import PrimaryButton from '../../../../components/PrimaryButton';
 import AddButton from '../../../../components/AddButton';
 import Variable from './Variable';
 import { createLabelFor } from '../../../../helpers/strings';
 import useAccounts from './useAccounts';
 import useCampaigns from './useCampaigns';
+import useAdsets from './useAdsets';
+import useCreateStudyConf from '../../../../hooks/useCreateStudyConf';
 
-interface Props {
-  id: string;
-  localData: any;
+interface SelectProps {
+  name: string;
+  options: SelectOption[];
+  onChange: any;
+  value?: string;
 }
 
-const Strata: React.FC<Props> = ({ id, localData }: Props) => {
+interface SelectOption {
+  name: string;
+  id: string;
+}
+
+const Select: React.FC<SelectProps> = ({ options, value, onChange }: SelectProps) => {
+
+  const onSelect = (e: any) => {
+    onChange(e.target.value)
+  }
+
+  return (
+    <div className="sm:my-4" >
+      <label className="my-2 block text-sm font-medium text-gray-700">
+        Pick a campaign template
+      </label>
+      <select
+        className="w-4/5 mt-1 block shadow-sm sm:text-sm rounded-md"
+        onChange={onSelect}
+        value={value}
+      >
+        {options.map((option: SelectOption, i: number) => (
+          <option key={i} value={option.id}>
+            {createLabelFor(option.name)}
+          </option>
+        ))}
+      </select>
+    </div >
+  )
+};
+
+interface Props {
+  account: any;
+  id: string;
+  localData: any;
+  globalData: any;
+}
+
+const Strata: React.FC<Props> = ({ account, id, globalData, localData }: Props) => {
   const initialState = [
     {
       name: '',
       id: '',
+      properties: [],
+      levels: []
     },
   ];
 
-  //TODO handle errorMessage
-  const { account, errorMessage } = useAccounts();
-  if (account === undefined) {
-    // TODO: We should show an error message here
-    // as none of the following logic will work without this
-  }
+  const params = useParams<{ studySlug: string }>();
+  const studySlug = params.studySlug;
+
+  const { createStudyConf } = useCreateStudyConf(
+    true,
+    'Study settings saved'
+  );
+
   const [formData, setFormData] = useState<any[]>(
     localData ? localData : initialState
   );
+
+  console.log('FormData: ', formData)
+
+  const [templateCampaign, setTemplateCampaign] = useState<string>();
+
+  const accessToken = account?.connectedAccount.credentials.access_token
+  const adAccount = globalData.general?.ad_account
+
+  const { query: campaignQuery, campaigns } = useCampaigns(adAccount, accessToken);
+
+  // TODO:
+  // store template campaign? Hm. Probably...
+  useEffect(() => {
+    campaigns.length > 0 && setTemplateCampaign(campaigns[0].id)
+  }, [campaigns.length > 0 && campaigns[0].id])
+
+  const { query: adsetsQuery, adsets } = useAdsets(templateCampaign!, accessToken);
+
+  if (campaignQuery.isLoading) {
+    return null // spinner
+    // Something with adsetsQuery isLoading or error?
+  }
 
   const updateFormData = (d: any, index: number): void => {
     const clone = [...formData];
@@ -37,59 +106,38 @@ const Strata: React.FC<Props> = ({ id, localData }: Props) => {
 
   const onSubmit = (e: any): void => {
     e.preventDefault();
+
+    const creatives = globalData.creatives
+      ? globalData.creatives.map((c: any) => c.name)
+      : [];
+
+    const d = formData
+      .flatMap((x: any) => x.levels.map((y: any) => ({ ...y, id: `${x.name}-${y.name}` })))
+      .map(data => (
+        {
+          audiences: [],
+          excluded_audiences: [],
+          metadata: {},
+          creatives: creatives,
+
+          ...data,
+          quota: +data.quota, // TODO: cast to number earlier in the process
+        }))
+      .map(d => {
+        delete d.name
+        // delete d.adset_id
+        return d
+      })
+
+
+    console.log('Submit Data: ', d)
+
+    createStudyConf({ data: d, studySlug })
   };
 
   const addVariable = (): void => {
     setFormData([...formData, ...initialState]);
   };
-
-  interface SelectProps {
-    name: string;
-    options: SelectOption[];
-    value: string;
-  }
-
-  interface SelectOption {
-    name: string;
-    id: string;
-  }
-
-  const Select: React.FC<SelectProps> = ({ options, value }: SelectProps) => (
-    <div className="sm:my-4">
-      <label className="my-2 block text-sm font-medium text-gray-700">
-        Pick a campaign template
-      </label>
-      <select
-        className="w-4/5 mt-1 block shadow-sm sm:text-sm rounded-md"
-        value={value}
-      >
-        {options.map((option: SelectOption, i: number) => (
-          <option key={i} value={option.id}>
-            {createLabelFor(option.name)}
-          </option>
-        ))}
-      </select>
-    </div>
-  );
-
-  const campaignsData = useCampaigns();
-
-  const campaignsExist = campaignsData.campaigns.length > 0;
-
-  const campaigns = [
-    {
-      name: 'vlab-vaping-pilot-2',
-      id: '23849532279040149',
-    },
-    {
-      name: 'Dante - Test',
-      id: '23855338456650149',
-    },
-    {
-      name: 'vlab-unicef-bebbo-v2-bulgaria-3',
-      id: '23855151863270149',
-    },
-  ];
 
   return (
     <div className="md:grid md:grid-cols-3 md:gap-6">
@@ -104,11 +152,13 @@ const Strata: React.FC<Props> = ({ id, localData }: Props) => {
                 <Select
                   name="campaign"
                   options={campaigns}
-                  value={localData.id}
+                  onChange={setTemplateCampaign}
+                  value={templateCampaign}
                 ></Select>
                 {formData.map((d: any, index: number) => {
                   return (
                     <Variable
+                      adsets={adsets}
                       key={index}
                       data={d}
                       formData={formData}
@@ -140,4 +190,21 @@ const Strata: React.FC<Props> = ({ id, localData }: Props) => {
   );
 };
 
-export default Strata;
+const StrataWrapper: React.FC<Props> = (props) => {
+  const { query, account, errorMessage } = useAccounts();
+
+  if (query.isLoading) {
+    return null // spinner
+  }
+
+  // if not account, show an error message and a button to
+  // connect an account
+
+  // if there is an account, continue
+
+  return (
+    <Strata {...props} account={account} />
+  )
+}
+
+export default StrataWrapper;

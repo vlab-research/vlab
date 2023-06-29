@@ -1,6 +1,7 @@
 import { fetchWithTimeout } from './http';
 import {
   CampaignsApiResponse,
+  AdsetsApiResponse,
   CreateStudyApiResponse,
   CreateStudyConfApiResponse,
   CreateUserApiResponse,
@@ -179,7 +180,7 @@ const fetchAccounts = ({
 }) =>
   apiRequest<AccountsApiResponse>(`/accounts`, {
     defaultErrorMessage,
-    queryParams: {type},
+    queryParams: { type },
     accessToken,
   });
 
@@ -297,7 +298,7 @@ const facebookRequest = async <ApiResponse>(
   if (requestBody) {
     requestHeaders['Content-Type'] = 'application/json';
   }
- 
+
   //TODO Handle when access token is not set
   queryParams['access_token'] = accessToken;
   const q = querystring.encode(queryParams);
@@ -339,20 +340,20 @@ const facebookRequest = async <ApiResponse>(
 };
 
 export const fetchCampaigns = ({
-  campaignsPerPage,
+  limit,
   cursor,
   accessToken,
-  accountNumber, //TODO Make use of AccountNumber
+  accountNumber,
   defaultErrorMessage,
 }: {
-  campaignsPerPage: number;
+  limit: number;
   cursor: Cursor;
   accessToken: string;
   accountNumber: string;
   defaultErrorMessage: string;
 }) => {
   const params: any = {
-    limit: campaignsPerPage,
+    limit,
     pretty: 0,
     fields: 'name, id',
     access_token: accessToken,
@@ -362,7 +363,40 @@ export const fetchCampaigns = ({
   }
 
   const path = `/act_${accountNumber}/campaigns`
+
   return facebookRequest<CampaignsApiResponse>(path, {
+    queryParams: params,
+    accessToken,
+    defaultErrorMessage,
+  });
+};
+
+export const fetchAdsets = async ({
+  limit,
+  cursor,
+  accessToken,
+  campaign,
+  defaultErrorMessage,
+}: {
+  limit: number;
+  cursor: Cursor;
+  accessToken: string;
+  campaign: string;
+  defaultErrorMessage: string;
+}) => {
+  const params: any = {
+    limit,
+    pretty: 0,
+    fields: 'name, id, targeting',
+    access_token: accessToken,
+  };
+  if (cursor) {
+    params['cursor'] = cursor;
+  }
+
+  const path = `/${campaign}/adsets`
+
+  return facebookRequest<AdsetsApiResponse>(path, {
     queryParams: params,
     accessToken,
     defaultErrorMessage,

@@ -103,3 +103,10 @@ export type GlobalFormData = {
   creatives: Creatives;
   strata: Strata;
 };
+
+export type Audience = {
+  name: string;
+  subtype: string;
+};
+
+export type Audiences = Audience[];

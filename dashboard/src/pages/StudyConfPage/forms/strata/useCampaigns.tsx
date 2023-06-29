@@ -3,33 +3,29 @@ import { fetchCampaigns } from '../../../../helpers/api';
 import { Cursor } from '../../../../types/api';
 import { CampaignsApiResponse } from '../../../../types/study';
 
-const campaignsPerPage = 100;
-const queryKey = 'campaigns';
-const accessToken = '';
+const limit = 100;
 const defaultErrorMessage = 'Something went wrong while fetching the campaigns';
-const accountNumber = '1342820622846299';
 
-const useCampaigns = () => {
+const useCampaigns = (accountNumber: string, accessToken: string) => {
   const query = useInfiniteQuery<CampaignsApiResponse, string, Cursor>(
-    queryKey,
+    "campaigns" + accountNumber + accessToken,
     (_: unknown, cursor: Cursor = null) =>
       fetchCampaigns({
-        campaignsPerPage,
+        limit,
         accountNumber,
         cursor,
         accessToken,
         defaultErrorMessage,
       })
+    ,
+    {
+      getFetchMore: lastPage => lastPage.paging.after,
+    }
   );
 
   return {
     query,
-    queryKey,
-    campaignsPerPage,
-    campaigns: (query.data || [])
-      .flatMap(page => page)
-      .map(facebookResponse => facebookResponse.data)
-      .flatMap(campaignData => campaignData),
+    campaigns: (query.data || []).flatMap(page => page.data),
     errorMessage: query.error?.message,
   };
 };

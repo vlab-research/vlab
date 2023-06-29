@@ -1,8 +1,7 @@
 import { Path } from 'react-hook-form';
 import { classNames, createLabelFor } from '../../../../helpers/strings';
-import { useState } from 'react';
 import AddButton from '../../../../components/AddButton';
-import Level from './Level';
+import Level, { TextInput } from './Level';
 import DeleteButton from '../../../../components/DeleteButton';
 
 export interface FormData {
@@ -11,39 +10,6 @@ export interface FormData {
   levels: any[];
 }
 
-interface TextProps {
-  name: Path<FormData>;
-  type?: string;
-  handleChange: (e: any) => void;
-  autoComplete: string;
-  placeholder: string;
-  required: boolean;
-  value: any;
-}
-const TextInput: React.FC<TextProps> = ({
-  name,
-  type,
-  handleChange,
-  autoComplete,
-  placeholder,
-  value,
-}) => (
-  <div className="sm:my-4">
-    <label className="my-2 block text-sm font-medium text-gray-700">
-      {createLabelFor(name)}
-    </label>
-    <input
-      name={name}
-      type={type}
-      autoComplete={autoComplete}
-      placeholder={placeholder}
-      value={value}
-      required
-      onChange={e => handleChange(e)}
-      className="block w-2/5 shadow-sm sm:text-sm rounded-md"
-    />
-  </div>
-);
 
 interface MultiSelectProps {
   name: Path<FormData>;
@@ -65,17 +31,10 @@ const MultiSelect: React.FC<MultiSelectProps> = ({
   value,
   label,
 }: MultiSelectProps) => {
-  const [selectedValues, setSelectedValues] = useState<string[]>(
-    value ? value : []
-  );
-
   const onChange = (e: any) => {
     const selected = Array.from(e.target.selectedOptions).map(
       (option: any) => option.value
     );
-
-    setSelectedValues(selected);
-
     handleMultiSelectChange(selected, name);
   };
 
@@ -86,20 +45,18 @@ const MultiSelect: React.FC<MultiSelectProps> = ({
       </label>
       <select
         multiple
-        value={selectedValues}
+        value={value}
         onChange={onChange}
         className="w-4/5 block shadow-sm sm:text-sm rounded-md"
       >
         {options.map((option: SelectOption, i: number) => (
-          <>
-            <option
-              key={i}
-              value={option.name}
-              className="px-4 py-2 text-gray-700 sm:text-sm rounded-md cursor-pointer hover:text-gray-900 hover:bg-gray-100 transition duration-300 ease-in-out focus:outline-none"
-            >
-              {option.label}
-            </option>
-          </>
+          <option
+            key={i}
+            value={option.name}
+            className="px-4 py-2 text-gray-700 sm:text-sm rounded-md cursor-pointer hover:text-gray-900 hover:bg-gray-100 transition duration-300 ease-in-out focus:outline-none"
+          >
+            {option.label}
+          </option>
         ))}
       </select>
     </div>
@@ -110,6 +67,7 @@ interface Props {
   data: any;
   formData: any[];
   index: number;
+  adsets: any[];
   updateFormData: (d: any, index: number) => void;
 }
 
@@ -117,53 +75,64 @@ const Variable: React.FC<Props> = ({
   data,
   formData,
   index,
+  adsets,
   updateFormData,
 }: Props) => {
-  const initialState = [{ name: '', properties: [], levels: [] }];
-
-  const [levels, setLevels] = useState<any[]>(
-    data.levels
-      ? data.levels
-      : [
-          {
-            name: 'foo',
-            adset: [{ name: 'adset_1' }],
-            quota: 100,
-          },
-        ]
-  );
 
   interface LevelType {
     name: string;
-    adset: any[];
+    adset_id: string;
+    facebook_targeting: any;
     quota: number;
   }
 
-  const level: LevelType = { name: '', adset: [], quota: 0 };
+  // Function to help get targeting params out of adset
+  const getTargeting = (data: any, adset_id: string) => {
+    if (!adset_id) return {}
+    const adset = adsets.find((a) => adset_id == a.id);
+    return data.properties.reduce((obj: any, key: string) => ({ ...obj, [key]: adset.targeting[key] }), {});
+  }
+
+  const level: LevelType = { name: '', adset_id: adsets[0]?.id, facebook_targeting: getTargeting(data, adsets[0]?.id), quota: 0 };
+
+  // update will always update targeting to keep it current
+  const update = (data: any) => {
+    data['levels'] = data.levels.map((l: any) => ({ ...l, facebook_targeting: getTargeting(data, l.adset_id) }))
+    updateFormData(data, index);
+  }
 
   const handleChange = (e: any) => {
     const { name, value } = e.target;
-    updateFormData({ ...data, [name]: value }, index);
+    update({ ...data, [name]: value });
   };
 
+  const handleLevelChange = (d: any, i: number) => {
+    const copy = [...data.levels]
+    copy[i] = { ...copy[i], ...d }
+    update({ ...data, levels: copy })
+  }
+
   const handleMultiSelectChange = (selected: string[], name: string) => {
-    updateFormData({ ...data, [name]: selected }, index);
+    update({ ...data, [name]: selected });
   };
 
   const addLevel = (): void => {
-    setLevels([...levels, level]);
+    update({ ...data, levels: [...data.levels, level] })
   };
 
-  const deleteLevel = (index: number): void => {
-    const newArr = levels.filter((d: any, i: number) => index !== i);
-
-    setLevels(newArr);
+  const deleteLevel = (i: number): void => {
+    const newArr = data.levels.filter((_: any, ii: number) => ii !== i);
+    update({ ...data, levels: [...newArr] })
   };
 
   const properties = [
     { name: 'genders', label: 'Genders' },
-    { name: 'min_age', label: 'Minimum age' },
-    { name: 'max_age', label: 'Maximum age' },
+    { name: 'age_min', label: 'Minimum age' },
+    { name: 'age_max', label: 'Maximum age' },
+    { name: 'geo_locations', label: 'Geo Locations' },
+    { name: 'excluded_geo_locations', label: 'Excluded Geo Locations' },
+    { name: 'flexible_spec', label: 'Flexible Spec' },
+
   ];
 
   return (
@@ -181,31 +150,31 @@ const Variable: React.FC<Props> = ({
         name="properties"
         options={properties}
         handleMultiSelectChange={handleMultiSelectChange}
-        value={data.user_os}
+        value={data.properties}
         label="Select a set of properties from Facebook"
       ></MultiSelect>
       <ul>
-        {levels.map((l, index) => {
+        {data.levels.map((l: any, levelIndex: number) => {
           return (
-            <>
+            <div key={levelIndex}>
               <Level
                 data={l}
-                index={index}
-                updateFormData={updateFormData}
+                adsets={adsets}
+                properties={data.properties}
+                index={levelIndex}
+                handleChange={handleLevelChange}
               ></Level>
 
-              <>
-                <div key={`${l.name}-${index}`}>
-                  <div className="flex flex-row w-4/5 justify-between items-center">
-                    <div className="w-4/5 h-0.5 mr-8 my-4 rounded-md bg-gray-400"></div>
-                    <DeleteButton
-                      onClick={() => deleteLevel(index)}
-                    ></DeleteButton>
-                  </div>
-                  <div />
+              <div >
+                <div className="flex flex-row w-4/5 justify-between items-center">
+                  <div className="w-4/5 h-0.5 mr-8 my-4 rounded-md bg-gray-400"></div>
+                  <DeleteButton
+                    onClick={() => deleteLevel(index)}
+                  ></DeleteButton>
                 </div>
-              </>
-            </>
+                <div />
+              </div>
+            </div>
           );
         })}
       </ul>
