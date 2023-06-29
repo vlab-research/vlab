@@ -158,6 +158,13 @@ func WithRecruitmentConf(r *types.RecruitmentConf) studyconfigoptions {
 	}
 }
 
+// WithStratumConf is used to override the default StrataConf
+func WithStratumConf(s []*types.StratumConf) studyconfigoptions {
+	return func(sc *types.StudyConf) {
+		sc.Strata = s
+	}
+}
+
 // WithDestinationConf is used to override the default DestinationConf
 func WithDestinationConf(d *types.DestinationConf) studyconfigoptions {
 	return func(sc *types.StudyConf) {

@@ -5,15 +5,17 @@ import { AdsetsApiResponse } from '../../../../types/study';
 
 const limit = 100;
 
-const useAdsets = (campaign: string, accessToken: string) => {
+const useAdsets = (accountNumber: string, campaign: string, accessToken: string) => {
 
   const defaultErrorMessage = 'Something went wrong while fetching the adsets for the campaign ';
+  console.log("campaign: ", campaign);
 
   const query = useInfiniteQuery<AdsetsApiResponse, string, Cursor>(
     "adsets" + campaign + accessToken,
     (_: unknown, cursor: Cursor = null) =>
       fetchAdsets({
         limit,
+        accountNumber,
         campaign,
         cursor,
         accessToken,

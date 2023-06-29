@@ -91,7 +91,7 @@ const Strata: React.FC<Props> = ({ account, id, globalData, localData }: Props) 
     campaigns.length > 0 && setTemplateCampaign(campaigns[0].id)
   }, [campaigns.length > 0 && campaigns[0].id])
 
-  const { query: adsetsQuery, adsets } = useAdsets(templateCampaign!, accessToken);
+  const { query: adsetsQuery, adsets } = useAdsets(adAccount, templateCampaign!, accessToken);
 
   if (campaignQuery.isLoading) {
     return null // spinner
