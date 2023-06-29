@@ -4,10 +4,11 @@ import PrimaryButton from '../../../../components/PrimaryButton';
 import AddButton from '../../../../components/AddButton';
 import Variable from './Variable';
 import { createLabelFor } from '../../../../helpers/strings';
-import useAccounts from './useAccounts';
+import useCreateStudyConf from '../../../../hooks/useCreateStudyConf';
+import useFacebookAccounts from './useFacebookAccounts';
 import useCampaigns from './useCampaigns';
 import useAdsets from './useAdsets';
-import useCreateStudyConf from '../../../../hooks/useCreateStudyConf';
+import ErrorPlaceholder from '../../../../components/ErrorPlaceholder';
 
 interface SelectProps {
   name: string;
@@ -88,25 +89,36 @@ const Strata: React.FC<Props> = ({
   const accessToken = account?.connectedAccount.credentials.access_token;
   const adAccount = globalData.general?.ad_account;
 
-  const { query: campaignQuery, campaigns } = useCampaigns(
-    adAccount,
-    accessToken
-  );
+  const { campaigns, loadingCampaigns, errorLoadingCampaigns, refetchData } =
+    useCampaigns(adAccount, accessToken);
 
   // TODO:
   // store template campaign? Hm. Probably...
   useEffect(() => {
     campaigns.length > 0 && setTemplateCampaign(campaigns[0].id);
-  }, [campaigns.length > 0 && campaigns[0].id]);
+  }, [campaigns]);
 
-  const { query: adsetsQuery, adsets } = useAdsets(
+  const { query, adsets } = useAdsets(
     adAccount,
     templateCampaign!,
     accessToken
   );
 
-  if (campaignQuery.isLoading) {
-    return null; // spinner
+  if (errorLoadingCampaigns) {
+    return (
+      <ErrorPlaceholder
+        message="Something went wrong while fetching your campaigns."
+        onClickTryAgain={refetchData}
+      />
+    );
+  }
+
+  if (loadingCampaigns) {
+    return (
+      <h1 className="text-3xl font-bold leading-tight text-gray-900 flex-1">
+        Loading...{' '}
+      </h1>
+    );
     // Something with adsetsQuery isLoading or error?
   }
 
@@ -203,16 +215,26 @@ const Strata: React.FC<Props> = ({
 };
 
 const StrataWrapper: React.FC<Props> = props => {
-  const { query, account, errorMessage } = useAccounts();
+  const { account, accountsLoading, errorLoadingAccounts, refetchData } =
+    useFacebookAccounts();
 
-  if (query.isLoading) {
-    return null; // spinner
+  if (errorLoadingAccounts) {
+    return (
+      <ErrorPlaceholder
+        message="Something went wrong while fetching your account."
+        onClickTryAgain={refetchData}
+      />
+      // TODO add connect button
+    );
   }
 
-  // if not account, show an error message and a button to
-  // connect an account
-
-  // if there is an account, continue
+  if (accountsLoading) {
+    return (
+      <h1 className="text-3xl font-bold leading-tight text-gray-900 flex-1">
+        Loading Facebook account...
+      </h1>
+    );
+  }
 
   return <Strata {...props} account={account} />;
 };

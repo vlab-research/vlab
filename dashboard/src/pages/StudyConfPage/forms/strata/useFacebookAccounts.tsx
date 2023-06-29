@@ -1,4 +1,4 @@
-import { useQuery } from 'react-query';
+import { queryCache, useQuery } from 'react-query';
 import { type AccountsApiResponse } from '../../../../types/account';
 import useAuthenticatedApi from '../../../../hooks/useAuthenticatedApi';
 
@@ -7,7 +7,7 @@ const defaultErrorMessage =
 
 const queryKey = 'facebook-accounts';
 
-const useAccounts: any = () => {
+const useFacebookAccounts: any = () => {
   const { fetchAccounts } = useAuthenticatedApi();
 
   //TODO this is a hanging promise, we should handle it accordingly
@@ -21,14 +21,22 @@ const useAccounts: any = () => {
       })
   );
 
+  const isLoading = !query.data;
+
+  const errorOnLoad = isLoading && query.isError;
+
   return {
     query,
-    queryKey,
     //TODO for now we just return the first connected account that exists
     //as you can currently only connect one facebook account per user
     account: query.data?.data[0] || undefined,
-    errorMessage: query.error?.message || defaultErrorMessage,
+    loadingAccounts: isLoading,
+    errorLoadingAccounts: errorOnLoad,
+    errorMessage: query.error || defaultErrorMessage,
+    refetchData: () => {
+      queryCache.invalidateQueries([queryKey]);
+    },
   };
 };
 
-export default useAccounts;
+export default useFacebookAccounts;
