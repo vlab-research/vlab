@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Path } from 'react-hook-form';
 import { createLabelFor } from '../../../../helpers/strings';
 
@@ -12,7 +12,7 @@ interface TextProps {
   name: Path<FormData>;
   type?: string;
   handleChange: (e: any) => void;
-  autoComplete: string;
+  autoComplete?: string;
   placeholder: string;
   required?: boolean;
   value: any;
@@ -97,9 +97,9 @@ const Level: React.FC<Props> = ({ adsets, data, index, handleChange, properties 
   const onAdsetChange = (e: any) => {
 
     // select the adset and the targeting properties of interest
-    const adset = adsets.find((a) => a.id == e.target.value);
+    const adset = adsets.find((a) => a.id === e.target.value);
     const targeting = properties.reduce((obj, key) => ({ ...obj, [key]: adset.targeting[key] }), {});
-    handleChange({ facebook_targeting: targeting, adset_id: adset.id }, index);
+    handleChange({ facebook_targeting: targeting, template_adset: adset.id }, index);
   };
 
   return (
@@ -113,12 +113,11 @@ const Level: React.FC<Props> = ({ adsets, data, index, handleChange, properties 
           placeholder="Give your level a name"
           value={data.name}
         />
-        <Select name="adset" options={adsets} onChange={onAdsetChange} value={data.adset_id}></Select>
+        <Select name="adset" options={adsets} onChange={onAdsetChange} value={data.template_adset}></Select>
         <TextInput
           name="quota"
-          type="number"
+          type="text"
           handleChange={onChange}
-          autoComplete="on"
           placeholder="Give your level a name"
           value={data.quota}
         />

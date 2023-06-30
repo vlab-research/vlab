@@ -375,7 +375,6 @@ export const fetchAdsets = async ({
   limit,
   cursor,
   accessToken,
-  accountNumber,
   campaign,
   defaultErrorMessage,
 }: {
@@ -383,7 +382,6 @@ export const fetchAdsets = async ({
   cursor: Cursor;
   accessToken: string;
   campaign: string;
-  accountNumber: string;
   defaultErrorMessage: string;
 }) => {
   const params: any = {
@@ -391,13 +389,12 @@ export const fetchAdsets = async ({
     pretty: 0,
     fields: 'name, id, targeting',
     access_token: accessToken,
-    campaign_id: campaign
   };
   if (cursor) {
     params['cursor'] = cursor;
   }
 
-  const path = `/act_${accountNumber}/adsets`
+  const path = `/${campaign}/adsets`
 
   return facebookRequest<AdsetsApiResponse>(path, {
     queryParams: params,

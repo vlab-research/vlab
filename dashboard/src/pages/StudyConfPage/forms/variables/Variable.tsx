@@ -1,6 +1,7 @@
 import { Path } from 'react-hook-form';
-import { classNames, createLabelFor } from '../../../../helpers/strings';
+import { classNames } from '../../../../helpers/strings';
 import AddButton from '../../../../components/AddButton';
+import { Level as LevelType } from '../../../../types/conf';
 import Level, { TextInput } from './Level';
 import DeleteButton from '../../../../components/DeleteButton';
 
@@ -67,6 +68,7 @@ interface Props {
   formData: any[];
   index: number;
   adsets: any[];
+  campaignId: string;
   updateFormData: (d: any, index: number) => void;
 }
 
@@ -75,19 +77,20 @@ const Variable: React.FC<Props> = ({
   formData,
   index,
   adsets,
+  campaignId,
   updateFormData,
 }: Props) => {
-  interface LevelType {
-    name: string;
-    adset_id: string;
-    facebook_targeting: any;
-    quota: number;
-  }
+
 
   // Function to help get targeting params out of adset
-  const getTargeting = (data: any, adset_id: string) => {
-    if (!adset_id) return {};
-    const adset = adsets.find(a => adset_id == a.id);
+  const getTargeting = (data: any, adsetId: string) => {
+    if (!adsetId) return {};
+    const adset = adsets.find(a => adsetId === a.id);
+
+    if (!adset) {
+      return {}
+    }
+
     return data.properties.reduce(
       (obj: any, key: string) => ({ ...obj, [key]: adset.targeting[key] }),
       {}
@@ -96,7 +99,8 @@ const Variable: React.FC<Props> = ({
 
   const level: LevelType = {
     name: '',
-    adset_id: adsets[0]?.id,
+    template_adset: adsets[0]?.id,
+    template_campaign: campaignId,
     facebook_targeting: getTargeting(data, adsets[0]?.id),
     quota: 0,
   };
@@ -105,7 +109,7 @@ const Variable: React.FC<Props> = ({
   const update = (data: any) => {
     data['levels'] = data.levels.map((l: any) => ({
       ...l,
-      facebook_targeting: getTargeting(data, l.adset_id),
+      facebook_targeting: getTargeting(data, l.template_adset),
     }));
     updateFormData(data, index);
   };

@@ -40,6 +40,7 @@ type StudyConf struct {
 	Destinations          *DestinationConf           `json:"destinations"`
 	Creatives             []*CreativeConf            `json:"creatives"`
 	Audiences             []*AudienceConf            `json:"audiences"`
+	Variables             []*VariableConf            `json:"variables"`
 	Strata                []*StratumConf             `json:"strata"`
 	// add any new config structs here
 	// NOTE: Confs should be pointers as this allows JSON unmarshalling
@@ -94,6 +95,7 @@ func (sc *StudyConf) TransformFromDatabase(dcs []*DatabaseStudyConf) error {
 		"recruitment":            json.Unmarshal,
 		"destinations":           json.Unmarshal,
 		"audiences":              json.Unmarshal,
+		"variables":              json.Unmarshal,
 		"strata":                 json.Unmarshal,
 	}
 
@@ -126,6 +128,8 @@ func (sc *StudyConf) getConfigValue(confType string) interface{} {
 		return &sc.Recruitment
 	case "audiences":
 		return &sc.Audiences
+	case "variables":
+		return &sc.Variables
 	case "strata":
 		return &sc.Strata
 	default:
@@ -315,6 +319,21 @@ type Partioning struct {
 	MinDays  *int `json:"min_days,omitempty"`
 	MaxDays  *int `json:"max_days,omitempty"`
 	MaxUsers *int `json:"max_users,omitempty"`
+}
+
+type Level struct {
+	Name              string             `json:"name"`
+	TemplateCampaign  string             `json:"template_campaign"`
+	TemplateAdset     string             `json:"template_adset"`
+	FacebookTargeting *FacebookTargeting `json:"facebook_targeting"`
+	Quota             float64            `json:"quota"`
+}
+
+// Variables is used to create strata
+type VariableConf struct {
+	Name       string   `json:"name"`
+	Properties []string `json:"properties"`
+	Levels     []*Level `json:"levels"`
 }
 
 // StratumConf is groups that we divide our targeting groups into

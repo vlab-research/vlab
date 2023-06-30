@@ -88,12 +88,29 @@ export type Stratum = {
 
 export type Strata = Stratum[];
 
+export type Level = {
+  name: string;
+  template_campaign: string;
+  template_adset: string;
+  facebook_targeting: any;
+  quota: number;
+}
+
+export type Variable = {
+  name: string;
+  properties: string[];
+  levels: Level[];
+}
+
+export type Variables = Variable[]
+
 export type LocalFormData =
   | CreateStudy
   | General
   | Recruitment
   | Destinations
   | Creatives
+  | Variables
   | Strata;
 
 export type GlobalFormData = {
@@ -101,6 +118,7 @@ export type GlobalFormData = {
   recruitment: Recruitment;
   destinations: Destinations;
   creatives: Creatives;
+  variables: Variables;
   strata: Strata;
 };
 

@@ -74,6 +74,14 @@ func TypeAudiences() databasestudyconfoptions {
 	}
 }
 
+func TypeVariables() databasestudyconfoptions {
+	return func(d *types.DatabaseStudyConf) {
+		d.StudyID = StudyID
+		d.ConfType = "variables"
+		d.Conf = []byte(`[{"name": "foo", "properties": ["age_min"], "levels": [{"name": "bar", "template_campaign": "234", "template_adset": "123498", "facebook_targeting": {}, quota: 1}, {"name": "baz", "template_campaign": "234", "template_adset": "123498", "facebook_targeting": {}, quota: 1}]}]`)
+	}
+}
+
 func TypeStrata() databasestudyconfoptions {
 	return func(d *types.DatabaseStudyConf) {
 		d.StudyID = StudyID

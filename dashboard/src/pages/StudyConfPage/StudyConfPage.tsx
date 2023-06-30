@@ -8,10 +8,11 @@ import General from './forms/general/General';
 import Recruitment from './forms/recruitment/Recruitment';
 import Destinations from './forms/destinations/Destinations';
 import Creatives from './forms/creatives/Creatives';
-import Strata from './forms/strata/Strata';
+import Variables from './forms/variables/Variables';
 import useStudyConf from '../../hooks/useStudyConf';
 import useStudy from '../../hooks/useStudy';
 import Audiences from './forms/audience/Audiences';
+import Strata from './forms/strata/Strata';
 
 const StudyConfPage = () => {
   const params = useParams<{ studySlug: string }>();
@@ -51,6 +52,7 @@ const PageContent = (data: any) => {
     'destinations',
     'creatives',
     'audiences',
+    'variables',
     'strata',
   ];
   const lookup = [
@@ -59,6 +61,7 @@ const PageContent = (data: any) => {
     Destinations,
     Creatives,
     Audiences,
+    Variables,
     Strata,
   ];
   const [index, setIndex] = useState<number>(0);

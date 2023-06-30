@@ -195,6 +195,12 @@ func WithAudiences(as []*types.AudienceConf) studyconfigoptions {
 	}
 }
 
+func WithVariables(as []*types.VariableConf) studyconfigoptions {
+	return func(sc *types.StudyConf) {
+		sc.Variables = as
+	}
+}
+
 // DeleteAllStudyConfs Helper function that clears the study_confs table
 func DeleteAllStudyConfs(t *testing.T) {
 	t.Helper()
