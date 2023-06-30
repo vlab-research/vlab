@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import { useParams } from 'react-router-dom';
-import useStudy from '../../hooks/useStudy';
-import StudyProgressStats from './StudyProgressStats';
-import StudyProgressChart from './StudyProgressChart';
-import ParticipantsAcquiredPerSegmentTable from './ParticipantsAcquiredPerSegmentTable';
+import useStudy from './hooks/useStudy';
+import StudyProgressStats from './components/StudyProgressStats';
+import StudyProgressChart from './components/StudyProgressChart';
+import ParticipantsAcquiredPerSegmentTable from './components/ParticipantsAcquiredPerSegmentTable';
 import PageLayout from '../../components/PageLayout';
 import ErrorPlaceholder from '../../components/ErrorPlaceholder';
 

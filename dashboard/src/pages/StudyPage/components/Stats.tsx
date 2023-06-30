@@ -1,4 +1,4 @@
-import { classNames, createSlugFor } from '../../helpers/strings';
+import { classNames, createSlugFor } from '../../../helpers/strings';
 
 const Stats = ({
   testId,

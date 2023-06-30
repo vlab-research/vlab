@@ -4,7 +4,7 @@ import { useForm, SubmitHandler, UseFormRegister, Path } from 'react-hook-form';
 import PrimaryButton from '../../../../components/PrimaryButton';
 import { createLabelFor } from '../../../../helpers/strings';
 import { validate } from '../../../../helpers/objects';
-import useCreateStudyConf from '../../../../hooks/useCreateStudyConf';
+import useCreateStudyConf from '../../hooks/useCreateStudyConf';
 
 export interface FormData {
   ad_campaign_name_base: string;
@@ -24,7 +24,6 @@ interface TextProps {
   autoComplete: string;
   placeholder: string;
   register: UseFormRegister<FormData>;
-  errors?: any;
 }
 
 const TextInput: React.FC<TextProps> = ({
@@ -34,7 +33,6 @@ const TextInput: React.FC<TextProps> = ({
   register,
   autoComplete,
   placeholder,
-  errors,
 }) => (
   <div className="sm:my-4">
     <label className="my-2 block text-sm font-medium text-gray-700">
@@ -87,7 +85,7 @@ const PipelineExperiment: React.FC<Props> = ({ id, data }: Props) => {
 
   const { createStudyConf, isLoadingOnCreateStudyConf } = useCreateStudyConf(
     true,
-    'Study settings saved'
+    'Recruitment settings saved'
   );
   const params = useParams<{ studySlug: string }>();
 
@@ -166,6 +164,7 @@ const PipelineExperiment: React.FC<Props> = ({ id, data }: Props) => {
       ></TextInput>
       <div className="p-6 text-right">
         <PrimaryButton
+          leftIcon="CheckCircleIcon"
           type="submit"
           testId="form-submit-button"
           loading={isLoadingOnCreateStudyConf}

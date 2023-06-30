@@ -1,7 +1,14 @@
+<<<<<<< HEAD:dashboard/src/hooks/useStudies.tsx
 import { useInfiniteQuery } from 'react-query';
 import { StudiesApiResponse } from '../types/study';
 import { Cursor } from '../types/api';
 import useAuthenticatedApi from './useAuthenticatedApi';
+=======
+import { useInfiniteQuery, queryCache } from 'react-query';
+import { StudiesApiResponse, StudyResource } from '../../../types/study';
+import { Cursor } from '../../../types/api';
+import useAuthenticatedApi from '../../../hooks/useAuthenticatedApi';
+>>>>>>> 5c21eae (fix: connected accounts):dashboard/src/pages/StudiesPage/hooks/useStudies.tsx
 
 const studiesPerPage = 10;
 const queryKey = 'studies';

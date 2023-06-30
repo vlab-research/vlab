@@ -2,7 +2,6 @@ package facebook
 
 import (
 	"net/http"
-
 	"github.com/gin-gonic/gin"
 	fb "github.com/huandu/facebook/v2"
 	"github.com/vlab-research/vlab/api/internal/server/middleware/auth"
@@ -18,9 +17,8 @@ type createResponse struct {
 	Data types.Account `json:"data"`
 }
 
-// GenerateToken takes a code that is generated from the facebook
-// Auth0 flow where a user gives permission for our app
-// and generates a set of credentials for use by Vlabs
+// GenerateToken takes a code that is generated from the Facebook Auth0 flow 
+// The token gives permission and generates a set of credentials for Virtual Lab's use
 func GenerateToken(a *fb.App, r storage.Repositories) gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		req := &request{}
@@ -45,10 +43,9 @@ func GenerateToken(a *fb.App, r storage.Repositories) gin.HandlerFunc {
 				},
 			},
 		}
-		// We first delete the old facebook credentials
-		// due to the problem of duplicating credential keys
+		// Old Facebook credentials are deleted to avoid duplication
 		err = r.Account.Delete(ctx, a)
-		if err != nil && err != types.ErrAccountDoesNotExists {
+		if err != nil && err != types.ErrAccountDoesNotExist {
 			ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
 		}

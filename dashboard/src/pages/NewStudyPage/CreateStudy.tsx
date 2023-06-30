@@ -1,7 +1,7 @@
 import { useForm, SubmitHandler, UseFormRegister, Path } from 'react-hook-form';
 import PrimaryButton from '../../components/PrimaryButton';
 import { classNames } from '../../helpers/strings';
-import useCreateStudy from '../../hooks/useCreateStudy';
+import useCreateStudy from './hooks/useCreateStudy';
 
 interface FormData {
   name: string;
@@ -66,6 +66,7 @@ const CreateStudy: React.FC<any> = () => {
             />
             <div className="p-6 text-right">
               <PrimaryButton
+                leftIcon="PencilAltIcon"
                 type="submit"
                 testId="form-submit-button"
                 loading={isLoadingOnCreateStudy}

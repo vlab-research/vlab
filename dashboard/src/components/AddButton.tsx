@@ -1,22 +1,26 @@
-import SecondaryButton from './SecondaryButton';
+import { PlusCircleIcon } from '@heroicons/react/solid';
 
 type Props = {
   onClick?: () => void;
-  loading?: boolean;
+  label?: string;
 };
 
-const AddButton = ({ onClick, loading }: Props) => {
+const AddButton = ({ onClick, label }: Props) => {
   return (
-    <SecondaryButton
-      size="100"
-      testId={`add-button`}
-      rounded={true}
-      icon="PlusIcon"
-      loading={loading}
-      onClick={onClick}
-    >
-      {''}
-    </SecondaryButton>
+    <div className="flex flex-row items-center mt-2">
+      <button
+        onClick={onClick}
+        className="flex items-center focus:outline-none"
+      >
+        <PlusCircleIcon
+          className="h-8 w-8 text-gray-500 hover:text-gray-600 transition duration-300 ease-in-out focus:outline-none"
+          aria-hidden="true"
+        />
+        <span className="ml-2 italic text-gray-700 text-sm cursor-pointer">
+          {label}
+        </span>
+      </button>
+    </div>
   );
 };
 

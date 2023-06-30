@@ -1,17 +1,20 @@
+import React, { useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
+import { queryCache } from 'react-query';
 import ErrorPlaceholder from '../../components/ErrorPlaceholder';
 import PageLayout from '../../components/PageLayout';
-import { queryCache } from 'react-query';
-import React, { useState, useEffect } from 'react';
-import AccountList, { AccountListSkeleton } from './AccountList';
+import CreateAccountModal from './components/modal/CreateAccountModal';
+import NewAccountButton from './components/accounts/NewAccountButton';
+import AccountList, {
+  AccountListSkeleton,
+} from './components/accounts/AccountList';
+import useAccounts from './hooks/useAccounts';
+import useCreateFacebookAccount from './hooks/useCreateFacebookAccount';
 import { Account } from '../../types/account';
-import CreateAccountModal from './AccountCreateModal';
-import PrimaryButton from '../../components/PrimaryButton';
-import useAccounts from './useAccounts';
-import useGenerateFacebookAccount from './generateFacebookAccount';
-import { useLocation } from 'react-router-dom';
 
 const AcccountsPage: React.FC<any> = () => {
   const [open, setOpen] = useState(false);
+
   return (
     <PageLayout
       title={'Connected Accounts'}
@@ -28,40 +31,40 @@ const AcccountsPage: React.FC<any> = () => {
   );
 };
 
-type pageContentProps = {
+type PageContentProps = {
   open: boolean;
   setOpen: React.Dispatch<React.SetStateAction<boolean>>;
 };
 
-const PageContent: React.FC<pageContentProps> = ({ open, setOpen }) => {
+const PageContent: React.FC<PageContentProps> = ({ open, setOpen }) => {
   const { search } = useLocation();
-  const { generateFacebookAccount } = useGenerateFacebookAccount();
+  const { createFacebookAccount } = useCreateFacebookAccount();
 
   useEffect(() => {
     const values = new URLSearchParams(search.substring(search.indexOf('?')));
-    if (values.get('type') === 'facebook' && values.get('code')) {
-      // generate facebook account
-      generateFacebookAccount({ code: values.get('code') });
+    if (values.get('authType') === 'facebook' && values.get('code')) {
+      createFacebookAccount({ code: values.get('code') });
     }
-  }, [generateFacebookAccount, search]);
+  }, [createFacebookAccount, search]);
 
-  // createAccounts is used to hold a list of accounts that has not been
-  // added to the database, but instead is in an "intermediary" phase
-  const [createAccounts, setCreateAccounts] = useState<Account[]>([]);
+  const { query, queryKey, accounts, errorMessage } = useAccounts();
 
-  const addAccountHandler = (account: Account) => {
-    const newList = createAccounts.concat(account);
-    setCreateAccounts(newList);
+  const [state, setAccounts] = useState<Account[]>(accounts);
+
+  useEffect(() => {
+    setAccounts(accounts);
+  }, [accounts]);
+
+  const handleModal = (account: Account) => {
+    const newArr = [account, ...state];
+    setAccounts(newArr);
     setOpen(false);
   };
 
-  // We need to clear the create accounts list once the account has been added
-  // to the database
-  const clearCreateAccounts = () => {
-    setCreateAccounts([]);
+  const updateAccounts = (index: number) => {
+    const newArr = accounts.filter((a: Account, i: number) => index !== i);
+    setAccounts(newArr);
   };
-
-  const { query, queryKey, accounts, errorMessage } = useAccounts();
 
   if (query.isLoading) {
     return <AccountListSkeleton number={accounts.length} />;
@@ -77,41 +80,19 @@ const PageContent: React.FC<pageContentProps> = ({ open, setOpen }) => {
       />
     );
   }
+
   return (
-    <div>
+    <>
       <CreateAccountModal
         open={open}
         setOpen={setOpen}
-        addAccountHandler={addAccountHandler}
+        handleModal={handleModal}
       />
       <AccountList
-        accounts={[...createAccounts, ...accounts]}
-        clearCreateAccounts={clearCreateAccounts}
+        accounts={state}
+        updateAccounts={updateAccounts}
       ></AccountList>
-    </div>
-  );
-};
-
-type newAccountButtonProps = {
-  testId: string;
-  open: boolean;
-  setOpen: React.Dispatch<React.SetStateAction<boolean>>;
-};
-
-// Component to open modal to create a new connected account
-const NewAccountButton: React.FC<newAccountButtonProps> = ({
-  testId,
-  open,
-  setOpen,
-}) => {
-  return (
-    <PrimaryButton
-      leftIcon="PlusIcon"
-      testId="create-account"
-      onClick={() => setOpen(!open)}
-    >
-      Connect Account
-    </PrimaryButton>
+    </>
   );
 };
 

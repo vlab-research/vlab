@@ -1,30 +1,29 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { useParams } from 'react-router-dom';
-import Creative from './Creative';
 import PrimaryButton from '../../../../components/PrimaryButton';
 import AddButton from '../../../../components/AddButton';
 import DeleteButton from '../../../../components/DeleteButton';
-import useCreateStudyConf from '../../../../hooks/useCreateStudyConf';
-import { GlobalFormData } from '../../../../types/conf';
+import useCreateStudyConf from '../../hooks/useCreateStudyConf';
+import Creative from './Creative';
+import {
+  Creatives as CreativesType,
+  GlobalFormData,
+} from '../../../../types/conf';
 import { Creative as CreativeType } from '../../../../types/conf';
-import { Creatives as CreativesType } from '../../../../types/conf';
-import { getFirstOption } from '../../../../helpers/arrays';
 
 interface Props {
   id: string;
-  globalData: GlobalFormData;
   localData: CreativesType;
+  globalData: GlobalFormData;
 }
 
-const Creatives: React.FC<Props> = ({ id, globalData, localData }: Props) => {
+const Creatives: React.FC<Props> = ({ id, localData, globalData }: Props) => {
   const initialState = [
     {
       name: '',
       body: '',
       button_text: '',
-      destination: globalData.destinations
-        ? getFirstOption(globalData.destinations)
-        : 'Create a destination',
+      destination: '',
       image_hash: '',
       link_text: '',
       welcome_message: '',
@@ -36,26 +35,16 @@ const Creatives: React.FC<Props> = ({ id, globalData, localData }: Props) => {
     localData ? localData : initialState
   );
 
-  useEffect(() => {
-    if (localData) {
-      setFormData(localData);
-    }
-  }, [localData]);
-
-  const updateFormData = (d: CreativeType, index: number): void => {
+  const updateFormData = (c: CreativeType, index: number): void => {
     const clone = [...formData];
-    clone[index] = d;
+    clone[index] = c;
     setFormData(clone);
   };
 
   const { createStudyConf, isLoadingOnCreateStudyConf } = useCreateStudyConf(
     true,
-    'Study settings saved'
+    'Creatives saved'
   );
-  const {
-    createStudyConf: deleteStudyConf,
-    isLoadingOnCreateStudyConf: isDeleting,
-  } = useCreateStudyConf(false, 'Creative deleted');
 
   const params = useParams<{ studySlug: string }>();
 
@@ -75,16 +64,8 @@ const Creatives: React.FC<Props> = ({ id, globalData, localData }: Props) => {
     setFormData([...formData, ...initialState]);
   };
 
-  const deleteCreatives = (index: number): void => {
-    const newArr = formData.filter((d: CreativeType, i: number) => index !== i);
-
-    const data = {
-      [id]: newArr,
-    };
-
-    const studySlug = params.studySlug;
-
-    deleteStudyConf({ data, studySlug });
+  const deleteCreative = (index: number): void => {
+    const newArr = formData.filter((c: CreativeType, i: number) => index !== i);
 
     setFormData(newArr);
   };
@@ -101,7 +82,7 @@ const Creatives: React.FC<Props> = ({ id, globalData, localData }: Props) => {
               <div className="mb-8">
                 {formData.map((d: CreativeType, index: number) => {
                   return (
-                    <>
+                    <ul>
                       <Creative
                         key={index}
                         data={d}
@@ -113,29 +94,24 @@ const Creatives: React.FC<Props> = ({ id, globalData, localData }: Props) => {
                       />
                       {formData.length > 1 && (
                         <div key={`${d.name}-${index}`}>
-                          <div className="flex flex-row w-4/5 justify-between items-center mb-4">
-                            <div className="w-full h-0.5 mr-8 rounded-md bg-gray-400"></div>
+                          <div className="flex flex-row w-4/5 justify-between items-center">
+                            <div className="flex w-full h-0.5 mr-4 rounded-md bg-gray-400"></div>
                             <DeleteButton
-                              loading={isDeleting}
-                              onClick={() => deleteCreatives(index)}
+                              onClick={() => deleteCreative(index)}
                             ></DeleteButton>
                           </div>
                           <div />
                         </div>
                       )}
-                    </>
+                    </ul>
                   );
                 })}
-                <div className="flex flex-row items-center">
-                  <AddButton onClick={addCreative} />
-                  <label className="ml-4 italic text-gray-700 text-sm">
-                    Add a new creative
-                  </label>
-                </div>
+                <AddButton onClick={addCreative} label="Add a new creative" />
               </div>
 
               <div className="p-6 text-right">
                 <PrimaryButton
+                  leftIcon="CheckCircleIcon"
                   type="submit"
                   testId="form-submit-button"
                   loading={isLoadingOnCreateStudyConf}

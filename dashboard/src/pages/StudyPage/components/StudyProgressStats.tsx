@@ -1,6 +1,6 @@
 import Stats, { StatsSkeleton } from './Stats';
-import { StudyProgressResource } from '../../types/study';
-import { formatNumber } from '../../helpers/numbers';
+import { StudyProgressResource } from '../../../types/study';
+import { formatNumber } from '../../../helpers/numbers';
 
 const StudyProgressStats = ({
   currentProgress,

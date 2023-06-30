@@ -1,10 +1,10 @@
 import React, { useCallback } from 'react';
 import { CalendarIcon } from '@heroicons/react/solid';
 import { Link, useHistory } from 'react-router-dom';
-import { formatTimestamp } from '../../helpers/dates';
-import { StudyResource } from '../../types/study';
-import useInfiniteScrolling from './useInfiniteScrolling';
-import SecondaryButton from '../../components/SecondaryButton';
+import { formatTimestamp } from '../../../helpers/dates';
+import { StudyResource } from '../../../types/study';
+import useInfiniteScrolling from '../hooks/useInfiniteScrolling';
+import SecondaryButton from '../../../components/SecondaryButton';
 
 const StudyList = ({
   studies,
@@ -49,7 +49,7 @@ const StudyListItem = ({
   elementRef?: ReturnType<typeof useCallback>;
 }) => (
   <li data-testid="study-list-item" ref={elementRef}>
-    <div className="flex flex-row justify-between px-4 py-4 block hover:bg-gray-50 sm:px-6">
+    <div className="flex flex-row justify-between sm:px-6 px-4 py-4 block hover:bg-gray-50 transition duration-300 ease-in-out">
       <Link to={`/studies/${study.slug}`} className="w-full block">
         <div className="flex items-center">
           <p className="text-sm font-medium text-indigo-600 truncate">
@@ -137,7 +137,7 @@ const StudyConfButton = ({
   return (
     <SecondaryButton
       testId={testId}
-      icon="CogIcon"
+      icon="AdjustmentsIcon"
       onClick={() => history.push(`/studies/${slug}/conf`)}
     >
       {''}

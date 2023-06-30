@@ -2,7 +2,6 @@ package accounts
 
 import (
 	"net/http"
-
 	"github.com/gin-gonic/gin"
 	"github.com/vlab-research/vlab/api/internal/helpers"
 	"github.com/vlab-research/vlab/api/internal/server/middleware/auth"

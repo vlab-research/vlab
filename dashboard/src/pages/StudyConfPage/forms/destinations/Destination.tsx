@@ -62,7 +62,7 @@ const Destination: React.FC<Props> = ({
   };
 
   return (
-    <>
+    <li>
       <label className="my-2 block text-sm font-medium text-gray-700">
         Select a destination type
       </label>
@@ -91,7 +91,7 @@ const Destination: React.FC<Props> = ({
       {destinationType === 'messenger' && (
         <Messenger data={data} handleChange={handleChange} />
       )}
-    </>
+    </li>
   );
 };
 

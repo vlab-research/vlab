@@ -7,7 +7,7 @@ import destinations from '../../../../fixtures/general/destinations';
 import optimizationGoals from '../../../../fixtures/general/optimizationGoals';
 import { createLabelFor } from '../../../../helpers/strings';
 import { getFirstOption } from '../../../../helpers/arrays';
-import useCreateStudyConf from '../../../../hooks/useCreateStudyConf';
+import useCreateStudyConf from '../../hooks/useCreateStudyConf';
 
 interface FormData {
   objective: string;
@@ -43,19 +43,21 @@ const TextInput: React.FC<TextProps> = ({
     <label className="my-2 block text-sm font-medium text-gray-700">
       {createLabelFor(name)}
     </label>
-    <input
-      required={required}
-      type={type}
-      autoComplete={autoComplete}
-      placeholder={placeholder}
-      {...register(name, {
-        valueAsNumber,
-      })}
-      className="block w-4/5 shadow-sm sm:text-sm rounded-md"
-    />
-    {required === false && (
-      <span className="m-4 italic text-gray-700 text-xs">Optional</span>
-    )}
+    <div className="flex flex-row items-center">
+      <input
+        required={required}
+        type={type}
+        autoComplete={autoComplete}
+        placeholder={placeholder}
+        {...register(name, {
+          valueAsNumber,
+        })}
+        className="block w-4/5 shadow-sm sm:text-sm rounded-md"
+      />
+      {required === false && (
+        <span className="ml-4 italic text-gray-700 text-xs">Optional</span>
+      )}
+    </div>
   </div>
 );
 
@@ -122,7 +124,7 @@ const General: React.FC<Props> = ({ id, localData }: Props) => {
 
   const { createStudyConf, isLoadingOnCreateStudyConf } = useCreateStudyConf(
     true,
-    'Study settings saved'
+    'General settings saved'
   );
   const params = useParams<{ studySlug: string }>();
 
@@ -199,6 +201,7 @@ const General: React.FC<Props> = ({ id, localData }: Props) => {
             />
             <div className="p-6 text-right">
               <PrimaryButton
+                leftIcon="CheckCircleIcon"
                 type="submit"
                 testId="form-submit-button"
                 loading={isLoadingOnCreateStudyConf}

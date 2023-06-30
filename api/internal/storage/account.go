@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"strings"
 	"time"
-
 	"github.com/vlab-research/vlab/api/internal/types"
 )
 
@@ -21,18 +20,16 @@ func NewAccountRepository(db *sql.DB) *AccountRepository {
 	}
 }
 
-// Create creates a new account object in the database
-//
-// Accounts Map to the Credentials table in the database in the following way:
-//
-// Name -> entity (This is used as the "Source")
+// Creates a new account object in the database
+
+// Accounts map to the credentials table in the database in the following way:
+
+// authType -> entity (this is used as the "Source")
 // ConnectedAccount.Credentials -> details
-// AuthType -> key
+// Name -> key
 // UserId -> user_id
-//
-// user_id, entity, key need to be unique, therefore currently
-// we will not allow more than one instance of an account Type
-// i.e You can only connect one Fly Instance
+
+// user_id, name i.e key need to be unique
 func (r *AccountRepository) Create(
 	ctx context.Context,
 	a types.Account,
@@ -48,8 +45,8 @@ func (r *AccountRepository) Create(
 		ctx,
 		q,
 		a.UserID,
-		a.Name,
 		a.AuthType,
+		a.Name,
 		c,
 	)
 
@@ -60,8 +57,7 @@ func (r *AccountRepository) Create(
 	return nil
 }
 
-// Delete will delete a credential based on its three unique
-// fields user_id, entity and key
+// deletes a credential based on its three unique sfields user_id, entity and key
 func (r *AccountRepository) Delete(
 	ctx context.Context,
 	a types.Account,
@@ -77,18 +73,18 @@ func (r *AccountRepository) Delete(
 		ctx,
 		q,
 		a.UserID,
-		a.Name,
 		a.AuthType,
+		a.Name,
 	)
 
 	if err != nil {
-		return errors.New("failed to delete credential")
+		return errors.New("Failed to delete credential")
 	}
 
 	rowsAffected, err := rows.RowsAffected()
 
 	if rowsAffected == 0 {
-		return types.ErrAccountDoesNotExists
+		return types.ErrAccountDoesNotExist
 	}
 
 	return err
@@ -96,17 +92,17 @@ func (r *AccountRepository) Delete(
 
 func handleCreateError(e error, a types.Account) error {
 	if strings.Contains(e.Error(), "(SQLSTATE 23505)") {
-		return fmt.Errorf("%w: %s", types.ErrAccountAlreadyExists, a.Name)
+
+		return fmt.Errorf("%w: %s", types.ErrAccountAlreadyExists, a.AuthType)
 	}
 	return fmt.Errorf(
-		"account with name '%s' cannot be created: %v",
+		"A '%s' account with name '%s' already exists",
 		a.Name,
-		e,
+		a.AuthType,
 	)
 }
 
-// List is used to pull credentials from the database
-// and map them to an account
+// List is used to pull credentials from the database and map them to an account
 func (r *AccountRepository) List(
 	ctx context.Context,
 	offset, limit int,
@@ -138,12 +134,12 @@ func (r *AccountRepository) List(
 		if err := rows.Scan(&userID, &entity, &key, &details, &created); err != nil {
 			return nil, err
 		}
-		var name = types.AccountType(entity)
+		var authType = types.AccountType(entity)
 
 		accounts = append(accounts, types.Account{
-			Name:     name,
+			Name:     key,
 			UserID:   userID,
-			AuthType: key,
+			AuthType: authType,
 			RawConnectedAccount: []byte(fmt.Sprintf(
 				`{"createdAt": "%s", "credentials": %s}`,
 				created,

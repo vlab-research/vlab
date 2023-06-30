@@ -1,9 +1,9 @@
 import React from 'react';
 import { useParams } from 'react-router-dom';
 import Table, { TableSkeleton } from './Table';
-import useStudy from '../../hooks/useStudy';
-import { formatNumber, parseNumber } from '../../helpers/numbers';
-import { StudySegmentProgressResource } from '../../types/study';
+import useStudy from '../hooks/useStudy';
+import { formatNumber, parseNumber } from '../../../helpers/numbers';
+import { StudySegmentProgressResource } from '../../../types/study';
 
 const segmentsPerPage = 10;
 

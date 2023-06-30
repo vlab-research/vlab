@@ -1,13 +1,13 @@
+import Chance from 'chance';
 import { useMemo } from 'react';
 import { useQuery, queryCache } from 'react-query';
-import Chance from 'chance';
-import { lastValue } from '../../helpers/arrays';
-import { computeStudyProgressDataFrom } from '../../helpers/study';
-import useAuthenticatedApi from '../../hooks/useAuthenticatedApi';
+import { lastValue } from '../../../helpers/arrays';
+import { computeStudyProgressDataFrom } from '../../../helpers/study';
+import useAuthenticatedApi from '../../../hooks/useAuthenticatedApi';
 import {
   StudyProgressResource,
   StudySegmentProgressResource,
-} from '../../types/study';
+} from '../../../types/study';
 
 const chance = Chance();
 

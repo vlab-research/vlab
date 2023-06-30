@@ -1,4 +1,4 @@
-import { StudyProgressResource } from '../../types/study';
+import { StudyProgressResource } from '../../../types/study';
 import SingleAreaChart, { SingleAreaChartSkeleton } from './SingleAreaChart';
 
 const StudyProgressChart = ({

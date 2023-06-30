@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
-
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
 	"github.com/vlab-research/vlab/api/internal/server/middleware/auth"
@@ -13,8 +12,8 @@ import (
 	"github.com/vlab-research/vlab/api/internal/types"
 )
 
-// use a single instance , it caches struct info
 var (
+	// uses a single instance and caches struct info
 	validate *validator.Validate
 )
 
@@ -22,8 +21,7 @@ type createResponse struct {
 	Data types.Account `json:"data"`
 }
 
-// CreateHandler is a gin handler that is used to create
-// a new account object in the database
+// CreateHandler is a gin handler that is used to create a new account object in the database
 func CreateHandler(r storage.Repositories) gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		b, err := ioutil.ReadAll(ctx.Request.Body)
@@ -38,10 +36,9 @@ func CreateHandler(r storage.Repositories) gin.HandlerFunc {
 		}
 		uid := auth.GetUserIdFrom(ctx)
 		a.UserID = uid
-		// We first delete the old credentials
-		// due to the problem of duplicating credential keys
+		// old credentials are deleted to avoid duplicating credential keys
 		err = r.Account.Delete(ctx, a)
-		if err != nil && err != types.ErrAccountDoesNotExists {
+		if err != nil && err != types.ErrAccountDoesNotExist {
 			ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
 		}
@@ -55,13 +52,13 @@ func CreateHandler(r storage.Repositories) gin.HandlerFunc {
 }
 
 // parsePayload is a simple parser to determine the type of account
-// TODO: Potentially move this to the accounts file closer to the types
+// TODO: move this to account.go closer to types
 func parsePayload(b []byte) (a types.Account, err error) {
 	if err := json.Unmarshal(b, &a); err != nil {
 		return a, err
 	}
 
-	switch a.Name {
+	switch a.AuthType {
 	case types.FlyAccount:
 		a.ConnectedAccount = &types.FlyConnectedAccount{}
 	case types.TypeformAccount:
@@ -69,15 +66,14 @@ func parsePayload(b []byte) (a types.Account, err error) {
 	case types.AlchemerAccount:
 		a.ConnectedAccount = &types.AlchemerConnectedAccount{}
 	default:
-		return a, fmt.Errorf("unknown account type %v", a.Name)
+		return a, fmt.Errorf("%v is an unknown account type", a.AuthType)
 	}
 
 	if err = json.Unmarshal(a.RawConnectedAccount, a.ConnectedAccount); err != nil {
 		return a, err
 	}
 
-	// runs validation against required fields
-	//TODO: make error messages more readable
+	// Runs validation against required fields
 	validate = validator.New()
 	if err = validate.Struct(a); err != nil {
 		return a, err

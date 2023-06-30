@@ -9,10 +9,10 @@ import Recruitment from './forms/recruitment/Recruitment';
 import Destinations from './forms/destinations/Destinations';
 import Creatives from './forms/creatives/Creatives';
 import Variables from './forms/variables/Variables';
-import useStudyConf from '../../hooks/useStudyConf';
-import useStudy from '../../hooks/useStudy';
 import Audiences from './forms/audience/Audiences';
 import Strata from './forms/strata/Strata';
+import useStudyConf from './hooks/useStudyConf';
+import useStudy from '../StudyPage/hooks/useStudy';
 import { CreateStudy as StudyType } from '../../types/conf';
 
 const StudyConfPage = () => {
@@ -45,7 +45,6 @@ const StudyConfPage = () => {
     </PageLayout>
   );
 };
-
 
 interface PageContentProps {
   data: any;

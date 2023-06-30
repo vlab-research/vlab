@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"testing"
 	"time"
-
 	"github.com/stretchr/testify/require"
 	"github.com/vlab-research/vlab/api/internal/testhelpers"
 	"github.com/vlab-research/vlab/api/internal/types"
@@ -13,8 +12,8 @@ import (
 
 func TestHandler_Account_Delete(t *testing.T) {
 	assert := require.New(t)
-
-	authType := "token"
+	entity := "fly"
+	authType := types.AccountType(entity)
 	created := time.Date(2020, time.November, 10, 23, 0, 0, 0, time.UTC)
 	testcases := []struct {
 		account        types.Account
@@ -26,7 +25,7 @@ func TestHandler_Account_Delete(t *testing.T) {
 		{
 			account: types.Account{
 				UserID:   testhelpers.CurrentUserID,
-				Name:     "fly",
+				Name:     "fly123",
 				AuthType: authType,
 			},
 			userID:         testhelpers.CurrentUserID,
@@ -37,7 +36,7 @@ func TestHandler_Account_Delete(t *testing.T) {
 		{
 			account: types.Account{
 				UserID:   testhelpers.CurrentUserID,
-				Name:     "fly",
+				Name:     "fly123",
 				AuthType: authType,
 			},
 			userID:         "fake-user",

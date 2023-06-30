@@ -5,7 +5,7 @@ export interface AccountApiResponse extends ApiResponse<Account> {}
 
 export interface CreateAccountApiResponse extends ApiResponse<Account> {}
 
-export interface GenerateFacebookAccount {
+export interface CreateFacebookAccount {
   code: string;
 }
 
