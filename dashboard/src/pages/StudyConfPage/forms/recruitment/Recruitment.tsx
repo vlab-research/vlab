@@ -35,6 +35,13 @@ const Recruitment: React.FC<Props> = ({ id, globalData, localData }: Props) => {
     setRecruitmentType(e.target.value);
   };
 
+  const filterRecruitmentTypes = (arr: any[]) => {
+    if (!globalData.destinations) {
+      return arr.filter((t, i) => t.name !== 'destination');
+    }
+    return arr;
+  };
+
   return (
     <div className="md:grid md:grid-cols-3 md:gap-6">
       <div className="md:col-span-1">
@@ -51,11 +58,13 @@ const Recruitment: React.FC<Props> = ({ id, globalData, localData }: Props) => {
               onChange={handleChange}
               value={recruitmentType}
             >
-              {recruitmentTypes.map((option: SelectOption, i: number) => (
-                <option key={i} value={option.name}>
-                  {option.label || option.name}
-                </option>
-              ))}
+              {filterRecruitmentTypes(recruitmentTypes).map(
+                (option: SelectOption, i: number) => (
+                  <option key={i} value={option.name}>
+                    {option.label || option.name}
+                  </option>
+                )
+              )}
             </select>
           </div>
           {recruitmentType === 'simple' && <Simple id={id} data={localData} />}

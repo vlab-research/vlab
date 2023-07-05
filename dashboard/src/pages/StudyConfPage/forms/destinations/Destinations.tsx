@@ -110,7 +110,12 @@ const Destinations: React.FC<Props> = ({ id, localData }: Props) => {
                     </>
                   );
                 })}
-                <AddButton onClick={addDestination} />
+                <div className="flex flex-row items-center">
+                  <AddButton onClick={addDestination} />
+                  <label className="ml-4 italic text-gray-700 text-sm">
+                    Add a new destination
+                  </label>
+                </div>
               </div>
 
               <div className="p-6 text-right">

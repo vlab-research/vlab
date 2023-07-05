@@ -16,7 +16,7 @@ interface FormData {
   page_id: string;
   min_budget: number;
   opt_window: number;
-  instagram_id: string;
+  instagram_id?: string | undefined;
   ad_account: string;
 }
 
@@ -27,7 +27,37 @@ interface TextProps {
   autoComplete: string;
   placeholder: string;
   register: UseFormRegister<FormData>;
+  required?: boolean;
 }
+
+const TextInput: React.FC<TextProps> = ({
+  name,
+  type,
+  valueAsNumber,
+  register,
+  autoComplete,
+  placeholder,
+  required = true,
+}) => (
+  <div className="sm:my-4">
+    <label className="my-2 block text-sm font-medium text-gray-700">
+      {createLabelFor(name)}
+    </label>
+    <input
+      required={required}
+      type={type}
+      autoComplete={autoComplete}
+      placeholder={placeholder}
+      {...register(name, {
+        valueAsNumber,
+      })}
+      className="block w-4/5 shadow-sm sm:text-sm rounded-md"
+    />
+    {required === false && (
+      <span className="m-4 italic text-gray-700 text-xs">Optional</span>
+    )}
+  </div>
+);
 
 interface SelectProps {
   name: Path<FormData>;
@@ -40,31 +70,6 @@ interface SelectOption {
   label?: string;
   code?: string;
 }
-
-const TextInput: React.FC<TextProps> = ({
-  name,
-  type,
-  valueAsNumber,
-  register,
-  autoComplete,
-  placeholder,
-}) => (
-  <div className="sm:my-4">
-    <label className="my-2 block text-sm font-medium text-gray-700">
-      {createLabelFor(name)}
-    </label>
-    <input
-      required
-      type={type}
-      autoComplete={autoComplete}
-      placeholder={placeholder}
-      {...register(name, {
-        valueAsNumber,
-      })}
-      className="block w-4/5 shadow-sm sm:text-sm rounded-md"
-    />
-  </div>
-);
 
 const Select: React.FC<SelectProps> = ({
   name,
@@ -101,7 +106,6 @@ const General: React.FC<Props> = ({ id, localData }: Props) => {
     page_id: '',
     min_budget: 0,
     opt_window: 0,
-    instagram_id: '',
     ad_account: '',
   };
 
@@ -184,6 +188,7 @@ const General: React.FC<Props> = ({ id, localData }: Props) => {
               register={register}
               autoComplete="on"
               placeholder="E.g 2327764173962588"
+              required={false}
             />
             <TextInput
               name="ad_account"
