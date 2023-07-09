@@ -34,22 +34,6 @@ func TypeRecruitment() databasestudyconfoptions {
 	}
 }
 
-func TypeTargeting() databasestudyconfoptions {
-	return func(d *types.DatabaseStudyConf) {
-		d.StudyID = StudyID
-		d.ConfType = "targeting"
-		d.Conf = []byte(`{"template_campaign_name":"Bar","distribution_vars":"location"}`)
-	}
-}
-
-func TypeTargetingDistribution() databasestudyconfoptions {
-	return func(d *types.DatabaseStudyConf) {
-		d.StudyID = StudyID
-		d.ConfType = "targeting_distribution"
-		d.Conf = []byte(`{"age":"21","gender":"F","location":"Spain"}`)
-	}
-}
-
 func TypeDestinations() databasestudyconfoptions {
 	return func(d *types.DatabaseStudyConf) {
 		d.StudyID = StudyID
@@ -78,7 +62,7 @@ func TypeVariables() databasestudyconfoptions {
 	return func(d *types.DatabaseStudyConf) {
 		d.StudyID = StudyID
 		d.ConfType = "variables"
-		d.Conf = []byte(`[{"name": "foo", "properties": ["age_min"], "levels": [{"name": "bar", "template_campaign": "234", "template_adset": "123498", "facebook_targeting": {}, quota: 1}, {"name": "baz", "template_campaign": "234", "template_adset": "123498", "facebook_targeting": {}, quota: 1}]}]`)
+		d.Conf = []byte(`[{"name":"age","properties":["age_min","age_max"],"levels":[{"name":"18","template_campaign":"template","template_adset":"18","facebook_targeting":{"genders":[2]},"quota":0.5}]}]`)
 	}
 }
 
