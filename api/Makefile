@@ -6,7 +6,7 @@ help: 		## Show help for each of the Makefile recipes
 		| fgrep -v internal | sed -e 's/\\$$//' | sed -e 's/##//'
 
 build:		## Used to build the binary
-	@CGO_ENABLED=0 go build cmd/api/main.go	
+	@CGO_ENABLED=0 go build cmd/api/main.go
 
 # A bit of a Hack in order to force cleanup
 # after stopping or exiting
@@ -30,8 +30,8 @@ start-ci:	## Starts local containers
 	@echo "\n>>> STARTING API IN DEV MODE <<<\n"
 	@docker compose up --build -d
 
-test:		## Runs the go tests 
-	@go test ./... -p 1
+test:		## Runs the go tests
+	@bash -c "PG_URL=postgres://root@127.0.0.1:5433/test go test ./... -p 1"
 
 
 reset-seed:	## Resets the seeds in the database
@@ -56,7 +56,7 @@ seed-up:	## Adds the seed data to the database
     -database "cockroach://root@localhost:5432/vlab?sslmode=disable&x-migrations-table=seeds" \
 		-path /seeds \
 		up
-		
+
 
 test-db: 	## Starts up the test database in the devops directory
 	$(MAKE) -C ../devops test-db
