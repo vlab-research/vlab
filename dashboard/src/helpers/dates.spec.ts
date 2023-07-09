@@ -1,3 +1,4 @@
+
 import { formatTimestamp } from './dates';
 
 describe('formatTimestamp', () => {
@@ -10,10 +11,10 @@ describe('formatTimestamp', () => {
       'Yesterday'
     );
     expect(
-      formatTimestamp(new Date('Tue, 09 Mar 2021 01:39:09 GMT').getTime())
+      formatTimestamp(new Date('Tue, 09 Mar 2021 12:39:09 GMT').getTime())
     ).toBe('March 09, 2021');
     expect(
-      formatTimestamp(new Date('Tue, 09 Mar 9000 01:39:09 GMT').getTime())
+      formatTimestamp(new Date('Tue, 09 Mar 9000 12:39:09 GMT').getTime())
     ).toBe('March 09, 9000');
   });
 });

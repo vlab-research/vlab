@@ -35,7 +35,7 @@ const Select: React.FC<SelectProps> = ({
   return (
     <div className="sm:my-4">
       <label className="my-2 block text-sm font-medium text-gray-700">
-        Pick a campaign template
+        Pick a template campaign
       </label>
       <select
         className="w-4/5 mt-1 block shadow-sm sm:text-sm rounded-md"
@@ -105,7 +105,7 @@ const Variables: React.FC<Props> = ({
   if (errorLoadingCampaigns) {
     return (
       <ErrorPlaceholder
-        message="Something went wrong while fetching your campaigns."
+        message='Something went wrong while fetching your campaigns. Have you connected a Facebook account under "Connected Accounts"?'
         onClickTryAgain={refetchData}
       />
     );

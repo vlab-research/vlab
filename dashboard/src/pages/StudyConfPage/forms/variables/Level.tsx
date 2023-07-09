@@ -1,4 +1,5 @@
 import React from 'react';
+import { GenericTextInput, TextInputI } from '../../components/TextInput';
 import { Path } from 'react-hook-form';
 import { createLabelFor } from '../../../../helpers/strings';
 
@@ -8,40 +9,7 @@ export interface FormData {
   quota: number;
 }
 
-interface TextProps {
-  name: Path<FormData>;
-  type?: string;
-  handleChange: (e: any) => void;
-  autoComplete?: string;
-  placeholder: string;
-  required?: boolean;
-  value: any;
-}
-export const TextInput: React.FC<TextProps> = ({
-  name,
-  type,
-  handleChange,
-  autoComplete,
-  placeholder,
-  value,
-  required = true,
-}) => (
-  <div className="sm:my-4">
-    <label className="my-2 block text-sm font-medium text-gray-700">
-      {createLabelFor(name)}
-    </label>
-    <input
-      name={name}
-      type={type}
-      autoComplete={autoComplete}
-      placeholder={placeholder}
-      value={value}
-      required={required}
-      onChange={e => handleChange(e)}
-      className="block w-2/5 shadow-sm sm:text-sm rounded-md"
-    />
-  </div>
-);
+export const TextInput = GenericTextInput as TextInputI<FormData>
 
 interface SelectProps {
   name: Path<FormData>;

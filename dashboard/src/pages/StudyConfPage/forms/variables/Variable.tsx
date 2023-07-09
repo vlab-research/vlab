@@ -1,3 +1,4 @@
+import React, { useEffect } from 'react';
 import { Path } from 'react-hook-form';
 import { classNames } from '../../../../helpers/strings';
 import AddButton from '../../../../components/AddButton';
@@ -81,7 +82,6 @@ const Variable: React.FC<Props> = ({
   updateFormData,
 }: Props) => {
 
-
   // Function to help get targeting params out of adset
   const getTargeting = (data: any, adsetId: string) => {
     if (!adsetId) return {};
@@ -97,22 +97,21 @@ const Variable: React.FC<Props> = ({
     );
   };
 
-  const level: LevelType = {
-    name: '',
-    template_adset: adsets[0]?.id,
-    template_campaign: campaignId,
-    facebook_targeting: getTargeting(data, adsets[0]?.id),
-    quota: 0,
-  };
-
   // update will always update targeting to keep it current
   const update = (data: any) => {
     data['levels'] = data.levels.map((l: any) => ({
       ...l,
       facebook_targeting: getTargeting(data, l.template_adset),
+      template_campaign: campaignId,
     }));
     updateFormData(data, index);
   };
+
+
+  // trigger update on campaignId change
+  useEffect(() => {
+    update(data)
+  }, [campaignId])
 
   const handleChange = (e: any) => {
     const { name, value } = e.target;
@@ -130,10 +129,19 @@ const Variable: React.FC<Props> = ({
   };
 
   const addLevel = (): void => {
+    const level: LevelType = {
+      name: '',
+      template_adset: adsets[0]?.id,
+      template_campaign: campaignId,
+      facebook_targeting: getTargeting(data, adsets[0]?.id),
+      quota: 0,
+    };
+
     update({ ...data, levels: [...data.levels, level] });
   };
 
   const deleteLevel = (i: number): void => {
+    console.log('delete ', i)
     const newArr = data.levels.filter((_: any, ii: number) => ii !== i);
     update({ ...data, levels: [...newArr] });
   };
@@ -181,7 +189,7 @@ const Variable: React.FC<Props> = ({
                 <div className="flex flex-row w-4/5 justify-between items-center">
                   <div className="w-4/5 h-0.5 mr-8 my-4 rounded-md bg-gray-400"></div>
                   <DeleteButton
-                    onClick={() => deleteLevel(index)}
+                    onClick={() => deleteLevel(levelIndex)}
                   ></DeleteButton>
                 </div>
                 <div />
