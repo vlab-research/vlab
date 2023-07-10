@@ -10,33 +10,33 @@ export interface FormData {
   id: string;
   quota: number;
 }
-const TextInput = GenericTextInput as TextInputI<FormData>
+const TextInput = GenericTextInput as TextInputI<FormData>;
 
-const Stratum: React.FC<{ stratum: StratumType; onChange: (e: any) => void; }> = ({ stratum, onChange }) => {
-
-
+const Stratum: React.FC<{
+  stratum: StratumType;
+  onChange: (e: any) => void;
+}> = ({ stratum, onChange }) => {
   return (
     <>
       <TextInput
-        name='id'
-        type='text'
+        name="id"
+        type="text"
         value={stratum.id}
         disabled={true}
         placeholder="name"
         handleChange={onChange}
       />
       <TextInput
-        name='quota'
-        type='text'
+        name="quota"
+        type="text"
         value={stratum.quota}
         placeholder="quota"
         handleChange={onChange}
       />
       <div className="w-4/5 h-0.5 mr-8 my-6 rounded-md bg-gray-400"></div>
     </>
-  )
-}
-
+  );
+};
 
 interface Props {
   id: string;
@@ -46,8 +46,6 @@ interface Props {
 const Variables: React.FC<Props> = ({ globalData, id, localData }: Props) => {
   const { variables, creatives } = globalData;
 
-  console.log(localData)
-
   const params = useParams<{ studySlug: string }>();
   const studySlug = params.studySlug;
 
@@ -56,7 +54,7 @@ const Variables: React.FC<Props> = ({ globalData, id, localData }: Props) => {
   const regenerate = () => {
     const strata = createStrataFromVariables(variables, creatives);
     setFormData(strata);
-  }
+  };
 
   const updateFormData = (e: any, index: number): void => {
     const clone = [...formData];
@@ -69,9 +67,9 @@ const Variables: React.FC<Props> = ({ globalData, id, localData }: Props) => {
     e.preventDefault();
 
     // caste quotas
-    const data = { [id]: formData.map(s => ({ ...s, quota: +s.quota })) }
+    const data = { [id]: formData.map(s => ({ ...s, quota: +s.quota })) };
     createStudyConf({ data, studySlug });
-  }
+  };
 
   const { createStudyConf } = useCreateStudyConf(true, 'Study settings saved');
 
@@ -90,11 +88,17 @@ const Variables: React.FC<Props> = ({ globalData, id, localData }: Props) => {
             </div>
             <form onSubmit={onSubmit}>
               <div className="mb-8">
-                {formData.length === 0
-                  ? <p> First create some variables! </p>
-                  : formData.map((s, i) => (<Stratum key={i} stratum={s} onChange={(e: any) => updateFormData(e, i)} />))
-                }
-
+                {formData.length === 0 ? (
+                  <p> First create some variables! </p>
+                ) : (
+                  formData.map((s, i) => (
+                    <Stratum
+                      key={i}
+                      stratum={s}
+                      onChange={(e: any) => updateFormData(e, i)}
+                    />
+                  ))
+                )}
               </div>
 
               <div className="p-6 text-right">

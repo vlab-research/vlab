@@ -139,7 +139,6 @@ const Variable: React.FC<Props> = ({
   };
 
   const deleteLevel = (i: number): void => {
-    console.log('delete ', i);
     const newArr = data.levels.filter((_: any, ii: number) => ii !== i);
     update({ ...data, levels: [...newArr] });
   };

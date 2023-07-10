@@ -86,8 +86,6 @@ const Variables: React.FC<Props> = ({
     localData ? localData : initialState
   );
 
-  console.log('FormData: ', formData);
-
   const accessToken = account?.connectedAccount.credentials.access_token;
   const adAccount = globalData.general?.ad_account;
 
@@ -131,13 +129,11 @@ const Variables: React.FC<Props> = ({
   const onSubmit = (e: any): void => {
     e.preventDefault();
 
-    console.log('submit formData', formData);
     const formatted = formData.map(v => ({
       ...v,
       levels: v.levels.map((l: any) => ({ ...l, quota: +l.quota })),
     }));
 
-    console.log('formatted', formatted);
     const data = { [id]: formatted };
     createStudyConf({ data, studySlug });
   };
