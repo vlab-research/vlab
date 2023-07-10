@@ -129,6 +129,7 @@ const CreateAccountModal: React.FC<CreateAccountModalProps> = ({
                       accounts={accounts}
                       selected={selected}
                       setOpen={setOpen}
+                      open={open}
                       handleSubmit={handleSubmit}
                       handleOnChange={handleOnChange}
                       handleSelectChange={handleSelectChange}

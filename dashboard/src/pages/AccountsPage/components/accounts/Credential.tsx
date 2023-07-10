@@ -22,7 +22,7 @@ const Credential: React.FC<CredentialProps> = ({
 }) => {
   return (
     <div className="flex flex-col mb-4">
-      <label className="block mb-2 text-sm font-medium text-gray-900 dark:text-gray-300">
+      <label className="block mb-2 text-sm font-medium text-gray-900">
         {createLabelFor(name)}
       </label>
       <input

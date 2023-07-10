@@ -19,7 +19,7 @@ const Account: React.FC<AccountProps> = ({
         <div className="sm:grid sm:grid-cols-5 sm:gap-4">
           <div>
             <h2 className="mb-4 text-l font-medium text-indigo-600 truncate sm:mb-0 sm:col-span-1">
-              {createLabelFor(account.name)}
+              {account.name}
             </h2>
             <p className="mt-1 italic text-gray-700 text-xs">
               {createLabelFor(account.authType)}

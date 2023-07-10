@@ -29,7 +29,7 @@ const useCreateAccount = () => {
         addAccountToCacheWhileRefetching(account);
         history.push('/accounts');
         notyf.success({
-          message: `${createLabelFor(account.authType)} account saved`,
+          message: `${createLabelFor(account.authType)} account connected`,
           background: 'rgb(67 56 202)',
         });
       },

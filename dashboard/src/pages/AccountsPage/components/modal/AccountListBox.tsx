@@ -22,8 +22,8 @@ const AccountListBox: React.FC<Props> = ({
       data-testid="account-type"
     >
       {() => (
-        <>
-          <Listbox.Label className="block mb-2 text-sm font-medium leading-6 text-gray-700">
+        <div className="mb-2.5">
+          <Listbox.Label className="block mb-1 text-sm font-medium leading-6 text-gray-700">
             Account type
           </Listbox.Label>
           <Listbox.Button
@@ -43,7 +43,7 @@ const AccountListBox: React.FC<Props> = ({
             </span>
           </Listbox.Button>
           <AccountListBoxOptions accounts={accounts} />
-        </>
+        </div>
       )}
     </Listbox>
   );
