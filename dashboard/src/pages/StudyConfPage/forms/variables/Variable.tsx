@@ -81,14 +81,13 @@ const Variable: React.FC<Props> = ({
   campaignId,
   updateFormData,
 }: Props) => {
-
   // Function to help get targeting params out of adset
   const getTargeting = (data: any, adsetId: string) => {
     if (!adsetId) return {};
     const adset = adsets.find(a => adsetId === a.id);
 
     if (!adset) {
-      return {}
+      return {};
     }
 
     return data.properties.reduce(
@@ -107,11 +106,10 @@ const Variable: React.FC<Props> = ({
     updateFormData(data, index);
   };
 
-
   // trigger update on campaignId change
   useEffect(() => {
-    update(data)
-  }, [campaignId])
+    update(data);
+  }, [campaignId]);
 
   const handleChange = (e: any) => {
     const { name, value } = e.target;
@@ -141,7 +139,7 @@ const Variable: React.FC<Props> = ({
   };
 
   const deleteLevel = (i: number): void => {
-    console.log('delete ', i)
+    console.log('delete ', i);
     const newArr = data.levels.filter((_: any, ii: number) => ii !== i);
     update({ ...data, levels: [...newArr] });
   };
@@ -185,15 +183,13 @@ const Variable: React.FC<Props> = ({
                 handleChange={handleLevelChange}
               ></Level>
 
-              <div>
-                <div className="flex flex-row w-4/5 justify-between items-center">
-                  <div className="w-4/5 h-0.5 mr-8 my-4 rounded-md bg-gray-400"></div>
-                  <DeleteButton
-                    onClick={() => deleteLevel(levelIndex)}
-                  ></DeleteButton>
-                </div>
-                <div />
+              <div className="flex flex-row w-4/5 justify-between items-center">
+                <div className="w-4/5 h-0.5 mr-8 my-4 rounded-md bg-gray-400"></div>
+                <DeleteButton
+                  onClick={() => deleteLevel(levelIndex)}
+                ></DeleteButton>
               </div>
+              <div />
             </div>
           );
         })}
@@ -202,9 +198,6 @@ const Variable: React.FC<Props> = ({
         <AddButton onClick={addLevel} />
         <span className="ml-4 italic text-gray-700 text-sm">Add a level</span>
       </div>
-      {index !== formData.length - 1 && (
-        <div className="w-4/5 h-0.5 mr-8 my-4 rounded-md bg-gray-400"></div>
-      )}
     </div>
   );
 };

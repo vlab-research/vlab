@@ -9,7 +9,7 @@ export interface FormData {
   quota: number;
 }
 
-export const TextInput = GenericTextInput as TextInputI<FormData>
+export const TextInput = GenericTextInput as TextInputI<FormData>;
 
 interface SelectProps {
   name: Path<FormData>;
@@ -56,18 +56,29 @@ interface Props {
   handleChange: (d: any, index: number) => void;
 }
 
-const Level: React.FC<Props> = ({ adsets, data, index, handleChange, properties }: Props) => {
+const Level: React.FC<Props> = ({
+  adsets,
+  data,
+  index,
+  handleChange,
+  properties,
+}: Props) => {
   const onChange = (e: any) => {
     const { name, value } = e.target;
-    handleChange({ [name]: value }, index)
+    handleChange({ [name]: value }, index);
   };
 
   const onAdsetChange = (e: any) => {
-
     // select the adset and the targeting properties of interest
-    const adset = adsets.find((a) => a.id === e.target.value);
-    const targeting = properties.reduce((obj, key) => ({ ...obj, [key]: adset.targeting[key] }), {});
-    handleChange({ facebook_targeting: targeting, template_adset: adset.id }, index);
+    const adset = adsets.find(a => a.id === e.target.value);
+    const targeting = properties.reduce(
+      (obj, key) => ({ ...obj, [key]: adset.targeting[key] }),
+      {}
+    );
+    handleChange(
+      { facebook_targeting: targeting, template_adset: adset.id },
+      index
+    );
   };
 
   return (
@@ -81,12 +92,17 @@ const Level: React.FC<Props> = ({ adsets, data, index, handleChange, properties 
           placeholder="Give your level a name"
           value={data.name}
         />
-        <Select name="adset" options={adsets} onChange={onAdsetChange} value={data.template_adset}></Select>
+        <Select
+          name="adset"
+          options={adsets}
+          onChange={onAdsetChange}
+          value={data.template_adset}
+        ></Select>
         <TextInput
           name="quota"
           type="text"
           handleChange={onChange}
-          placeholder="Give your level a name"
+          placeholder="Give your a quota"
           value={data.quota}
         />
       </div>

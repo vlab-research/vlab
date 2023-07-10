@@ -9,7 +9,11 @@ import useFacebookAccounts from './useFacebookAccounts';
 import useCampaigns from './useCampaigns';
 import useAdsets from './useAdsets';
 import ErrorPlaceholder from '../../../../components/ErrorPlaceholder';
-import { Variable as VariableType, GlobalFormData } from '../../../../types/conf';
+import {
+  Variable as VariableType,
+  GlobalFormData,
+} from '../../../../types/conf';
+import DeleteButton from '../../../../components/DeleteButton';
 
 interface SelectProps {
   name: string;
@@ -84,7 +88,6 @@ const Variables: React.FC<Props> = ({
 
   console.log('FormData: ', formData);
 
-
   const accessToken = account?.connectedAccount.credentials.access_token;
   const adAccount = globalData.general?.ad_account;
 
@@ -94,13 +97,12 @@ const Variables: React.FC<Props> = ({
   // TODO:
   // store template campaign? Hm. Probably...
 
-  const tc = localData ? localData[0].levels[0]?.template_campaign : campaigns[0]?.id;
+  const tc = localData
+    ? localData[0].levels[0]?.template_campaign
+    : campaigns[0]?.id;
   const [templateCampaign, setTemplateCampaign] = useState<string>(tc);
 
-  const { adsets } = useAdsets(
-    templateCampaign!,
-    accessToken
-  );
+  const { adsets } = useAdsets(templateCampaign!, accessToken);
 
   if (errorLoadingCampaigns) {
     return (
@@ -129,16 +131,24 @@ const Variables: React.FC<Props> = ({
   const onSubmit = (e: any): void => {
     e.preventDefault();
 
-    console.log('submit formData', formData)
-    const formatted = formData.map(v => ({ ...v, levels: v.levels.map((l: any) => ({ ...l, quota: +l.quota })) }))
+    console.log('submit formData', formData);
+    const formatted = formData.map(v => ({
+      ...v,
+      levels: v.levels.map((l: any) => ({ ...l, quota: +l.quota })),
+    }));
 
-    console.log('formatted', formatted)
-    const data = { [id]: formatted }
+    console.log('formatted', formatted);
+    const data = { [id]: formatted };
     createStudyConf({ data, studySlug });
   };
 
   const addVariable = (): void => {
     setFormData([...formData, ...initialState]);
+  };
+
+  const deleteVariable = (i: number): void => {
+    const newArr = localData.filter((_: any, ii: number) => ii !== i);
+    setFormData(newArr);
   };
 
   return (
@@ -159,19 +169,28 @@ const Variables: React.FC<Props> = ({
                 ></Select>
                 {formData.map((d: any, index: number) => {
                   return (
-                    <Variable
-                      adsets={adsets}
-                      key={index}
-                      data={d}
-                      formData={formData}
-                      campaignId={templateCampaign}
-                      index={index}
-                      updateFormData={updateFormData}
-                    />
+                    <>
+                      <Variable
+                        adsets={adsets}
+                        key={index}
+                        data={d}
+                        formData={formData}
+                        campaignId={templateCampaign}
+                        index={index}
+                        updateFormData={updateFormData}
+                      />
+                      <div>
+                        <div className="flex flex-row w-4/5 justify-between items-center">
+                          <div className="w-4/5 h-0.5 mr-8 my-4 rounded-md bg-gray-400"></div>
+                          <DeleteButton
+                            onClick={() => deleteVariable(index)}
+                          ></DeleteButton>
+                        </div>
+                        <div />
+                      </div>
+                    </>
                   );
                 })}
-
-                <div className="w-4/5 h-0.5 mr-8 my-6 rounded-md bg-gray-400"></div>
                 <div className="flex flex-row items-center">
                   <AddButton onClick={addVariable} />
                   <label className="ml-4 italic text-gray-700 text-sm">
