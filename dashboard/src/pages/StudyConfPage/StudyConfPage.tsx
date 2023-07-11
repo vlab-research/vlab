@@ -13,7 +13,7 @@ import useStudyConf from '../../hooks/useStudyConf';
 import useStudy from '../../hooks/useStudy';
 import Audiences from './forms/audience/Audiences';
 import Strata from './forms/strata/Strata';
-import { CreateStudy as StudyType, GlobalFormData } from '../../types/conf';
+import { CreateStudy as StudyType } from '../../types/conf';
 
 const StudyConfPage = () => {
   const params = useParams<{ studySlug: string }>();

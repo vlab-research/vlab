@@ -1,5 +1,5 @@
 import { ApiResponse, PaginatedApiResponse } from './api';
-import { GlobalFormData, LocalFormData } from './conf';
+import { GlobalFormData } from './conf';
 
 export interface StudiesApiResponse
   extends PaginatedApiResponse<StudyResource[]> {}
