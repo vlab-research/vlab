@@ -31,16 +31,15 @@ type StudyConfRepository interface {
 // different types of study configuration that can be
 // applied to a study that gets sent by the frontend
 type StudyConf struct {
-	StudyID               string                     `json:"-"`
-	UserID                string                     `json:"-"`
-	General               *GeneralConf               `json:"general"`
-	Targeting             *TargetingConf             `json:"targeting"`
-	TargetingDistribution *TargetingDistributionConf `json:"targeting_distribution"`
-	Recruitment           *RecruitmentConf           `json:"recruitment"`
-	Destinations          *DestinationConf           `json:"destinations"`
-	Creatives             []*CreativeConf            `json:"creatives"`
-	Audiences             []*AudienceConf            `json:"audiences"`
-	Strata                []*StratumConf             `json:"strata"`
+	StudyID      string           `json:"-"`
+	UserID       string           `json:"-"`
+	General      *GeneralConf     `json:"general"`
+	Recruitment  *RecruitmentConf `json:"recruitment"`
+	Destinations *DestinationConf `json:"destinations"`
+	Creatives    []*CreativeConf  `json:"creatives"`
+	Audiences    []*AudienceConf  `json:"audiences"`
+	Variables    []*VariableConf  `json:"variables"`
+	Strata       []*StratumConf   `json:"strata"`
 	// add any new config structs here
 	// NOTE: Confs should be pointers as this allows JSON unmarshalling
 	// to null if they are not set
@@ -87,14 +86,13 @@ func (sc *StudyConf) TransformFromDatabase(dcs []*DatabaseStudyConf) error {
 	type unmarshalFunc func([]byte, any) error
 
 	unmarshalFuncs := map[string]unmarshalFunc{
-		"general":                json.Unmarshal,
-		"creatives":              json.Unmarshal,
-		"targeting":              json.Unmarshal,
-		"targeting_distribution": json.Unmarshal,
-		"recruitment":            json.Unmarshal,
-		"destinations":           json.Unmarshal,
-		"audiences":              json.Unmarshal,
-		"strata":                 json.Unmarshal,
+		"general":      json.Unmarshal,
+		"creatives":    json.Unmarshal,
+		"recruitment":  json.Unmarshal,
+		"destinations": json.Unmarshal,
+		"audiences":    json.Unmarshal,
+		"variables":    json.Unmarshal,
+		"strata":       json.Unmarshal,
 	}
 
 	errMsg := "there was an error fetching the %s configuration"
@@ -118,14 +116,12 @@ func (sc *StudyConf) getConfigValue(confType string) interface{} {
 		return &sc.Destinations
 	case "creatives":
 		return &sc.Creatives
-	case "targeting":
-		return &sc.Targeting
-	case "targeting_distribution":
-		return &sc.TargetingDistribution
 	case "recruitment":
 		return &sc.Recruitment
 	case "audiences":
 		return &sc.Audiences
+	case "variables":
+		return &sc.Variables
 	case "strata":
 		return &sc.Strata
 	default:
@@ -145,22 +141,6 @@ type GeneralConf struct {
 	OptInWindow      int     `json:"opt_window"`
 	InstagramID      string  `json:"instagram_id"`
 	AdAccount        string  `json:"ad_account"`
-}
-
-// TargetingConf describes the variables for stratification and the
-// desired joint distribution of respondents.
-type TargetingConf struct {
-	TemplateCampaignName string          `json:"template_campaign_name"`
-	DistributionVars     DistributionVar `json:"distribution_vars"`
-}
-
-// TargetingDistributionConf proportion of people do you want in
-// your final sample from each stratum
-type TargetingDistributionConf struct {
-	//TODO verify if age should be a string
-	Age      string `json:"age"`
-	Gender   string `json:"gender"`
-	Location string `json:"location"`
 }
 
 // Recruitment is the configuration used to work with the facebook campaign
@@ -315,6 +295,21 @@ type Partioning struct {
 	MinDays  *int `json:"min_days,omitempty"`
 	MaxDays  *int `json:"max_days,omitempty"`
 	MaxUsers *int `json:"max_users,omitempty"`
+}
+
+type Level struct {
+	Name              string             `json:"name"`
+	TemplateCampaign  string             `json:"template_campaign"`
+	TemplateAdset     string             `json:"template_adset"`
+	FacebookTargeting *FacebookTargeting `json:"facebook_targeting"`
+	Quota             float64            `json:"quota"`
+}
+
+// Variables is used to create strata
+type VariableConf struct {
+	Name       string   `json:"name"`
+	Properties []string `json:"properties"`
+	Levels     []*Level `json:"levels"`
 }
 
 // StratumConf is groups that we divide our targeting groups into

@@ -6,10 +6,14 @@ import Navbar from './components/NavBar';
 import Form from '../../components/Form';
 import General from './forms/general/General';
 import Recruitment from './forms/recruitment/Recruitment';
-import useStudyConf from '../../hooks/useStudyConf';
-import useStudy from '../../hooks/useStudy';
 import Destinations from './forms/destinations/Destinations';
 import Creatives from './forms/creatives/Creatives';
+import Variables from './forms/variables/Variables';
+import useStudyConf from '../../hooks/useStudyConf';
+import useStudy from '../../hooks/useStudy';
+import Audiences from './forms/audience/Audiences';
+import Strata from './forms/strata/Strata';
+import { CreateStudy as StudyType, GlobalFormData } from '../../types/conf';
 
 const StudyConfPage = () => {
   const params = useParams<{ studySlug: string }>();
@@ -37,27 +41,47 @@ const StudyConfPage = () => {
       testId="study-conf-page"
       showBackButton
     >
-      <PageContent data={studyConf.data} />
+      <PageContent data={studyConf.data} study={study} />
     </PageLayout>
   );
 };
 
-const PageContent = (data: any) => {
-  const formKeys = ['general', 'recruitment', 'destinations', 'creatives'];
-  const lookup = [General, Recruitment, Destinations, Creatives];
+
+interface PageContentProps {
+  data: any;
+  study: StudyType;
+}
+const PageContent: React.FC<PageContentProps> = ({ data, study }) => {
+  const formKeys = [
+    'general',
+    'recruitment',
+    'destinations',
+    'creatives',
+    'audiences',
+    'variables',
+    'strata',
+  ];
+  const lookup = [
+    General,
+    Recruitment,
+    Destinations,
+    Creatives,
+    Audiences,
+    Variables,
+    Strata,
+  ];
   const [index, setIndex] = useState<number>(0);
   const id = formKeys[index];
   const component = lookup[index];
-
-
   return (
     <>
       <Navbar formKeys={formKeys} setIndex={setIndex} />
       <Form
         id={id}
         component={component}
-        globalData={data.data}
-        localData={data.data[id]}
+        globalData={data}
+        localData={data[id]}
+        study={study}
       />
     </>
   );

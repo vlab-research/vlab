@@ -1,5 +1,5 @@
-import { queryCache, useQuery } from 'react-query';
-import { type Account, type AccountsApiResponse } from '../../types/account';
+import { useQuery } from 'react-query';
+import { type AccountsApiResponse } from '../../types/account';
 import useAuthenticatedApi from '../../hooks/useAuthenticatedApi';
 
 const defaultErrorMessage = 'Something went wrong while fetching the accounts.';
@@ -24,29 +24,6 @@ const useAccounts: any = () => {
     accounts: query.data?.data || [],
     errorMessage: query.error?.message || defaultErrorMessage,
   };
-};
-
-export const addAccountToCacheWhileRefetching: any = (account: Account) => {
-  // Add account to cache
-  queryCache.setQueryData(queryKey, (accountsCache: any) => {
-    const accountsCacheExists =
-      Array.isArray(accountsCache) &&
-      accountsCache[0] !== undefined &&
-      Array.isArray(accountsCache[0].data);
-
-    if (accountsCacheExists === true) {
-      accountsCache[0].data = [account, ...accountsCache[0].data];
-    }
-
-    return accountsCache;
-  });
-
-  // Refetch the accounts by invalidating the query
-  queryCache.invalidateQueries(queryKey);
-};
-
-export const clearCacheWhileRefetching = () => {
-  queryCache.invalidateQueries(queryKey);
 };
 
 export default useAccounts;

@@ -25,8 +25,4 @@ const useStudyConfQuery = (studySlug: string) => {
   return useQuery([queryKey, studySlug], () => fetchStudyConf({ studySlug }));
 };
 
-export const clearCacheWhileRefetching = () => {
-  queryCache.invalidateQueries(queryKey);
-};
-
 export default useStudyConf;

@@ -2,16 +2,23 @@
  * TODO: Add tests
  */
 
-const BASE = process.env.REACT_APP_SERVER_URL;
-
 export const fetchWithTimeout = async (
-  url: string,
-  { timeout, ...requestInit }: { timeout: number } & RequestInit
+  path: string,
+  {
+    timeout,
+    baseURL,
+    ...requestInit
+  }: { timeout: number; baseURL?: string } & RequestInit
 ) => {
+  const localHost = process.env.REACT_APP_SERVER_URL;
   const controller = new AbortController();
   const id = setTimeout(() => controller.abort(), timeout);
 
-  const response = await fetch(`${BASE}${url}`, {
+  if (!baseURL) {
+    baseURL = localHost;
+  }
+
+  const response = await fetch(`${baseURL}${path}`, {
     ...requestInit,
     signal: controller.signal,
   });

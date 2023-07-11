@@ -7,13 +7,15 @@ import {
   TypeformAccount,
   AlchemerAccount,
 } from '../../types/account';
-import { addAccountToCacheWhileRefetching } from './useAccounts';
+import { addToCache } from '../../helpers/cache';
 
 // used to create account
 // TODO specify return type instead of using any
 const useCreateAccount: any = () => {
   const notyf = new Notyf();
   const history = useHistory();
+  const queryKey = 'accounts';
+
   const { createAccount } = useAuthenticatedApi();
   const [createAccountMutation, { isLoading, error }] = useMutation(
     async ({
@@ -27,7 +29,7 @@ const useCreateAccount: any = () => {
     }) => await createAccount({ name, authType, connectedAccount }),
     {
       onSuccess: ({ data: account }) => {
-        addAccountToCacheWhileRefetching(account);
+        addToCache(account, queryKey);
         history.push('/accounts');
         notyf.success({
           message: `${account.name} account connected!`,

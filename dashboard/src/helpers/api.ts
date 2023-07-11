@@ -1,5 +1,7 @@
 import { fetchWithTimeout } from './http';
 import {
+  CampaignsApiResponse,
+  AdsetsApiResponse,
   CreateStudyApiResponse,
   CreateStudyConfApiResponse,
   CreateUserApiResponse,
@@ -170,12 +172,15 @@ const fetchStudyConf = ({
 const fetchAccounts = ({
   defaultErrorMessage,
   accessToken,
+  type,
 }: {
   defaultErrorMessage: string;
   accessToken: string;
+  type?: string;
 }) =>
   apiRequest<AccountsApiResponse>(`/accounts`, {
     defaultErrorMessage,
+    queryParams: { type },
     accessToken,
   });
 
@@ -212,18 +217,20 @@ const deleteAccount = ({
   });
 
 const apiRequest = async <ApiResponse>(
-  url: string,
+  path: string,
   {
     defaultErrorMessage = 'Something went wrong.',
     method = 'GET',
     accessToken = '',
     body,
+    queryParams,
     expectedStatusCodes,
   }: {
     defaultErrorMessage?: string;
     method?: 'GET' | 'POST' | 'DELETE';
     accessToken: string;
     body?: object;
+    queryParams?: any;
     expectedStatusCodes?: number[];
   }
 ) => {
@@ -234,8 +241,11 @@ const apiRequest = async <ApiResponse>(
   if (requestBody) {
     requestHeaders['Content-Type'] = 'application/json';
   }
+  if (queryParams) {
+    path = `${path}?${querystring.encode(queryParams)}`;
+  }
   try {
-    const response = await fetchWithTimeout(url, {
+    const response = await fetchWithTimeout(path, {
       timeout: 10000,
       headers: requestHeaders,
       method,
@@ -250,8 +260,7 @@ const apiRequest = async <ApiResponse>(
       throw new Error(await getErrorMessageFor(response, defaultErrorMessage));
     }
 
-    // 204 is no content so we just return and empty
-    // type
+    // 204 is no content so we just return an empty type
     if (response.status === 204) {
       return {} as Promise<ApiResponse>;
     }
@@ -264,6 +273,134 @@ const apiRequest = async <ApiResponse>(
 
     throw err;
   }
+};
+
+const facebookRequest = async <ApiResponse>(
+  path: string,
+  {
+    defaultErrorMessage = 'Something went wrong.',
+    method = 'GET',
+    body,
+    queryParams,
+    accessToken,
+    expectedStatusCodes,
+  }: {
+    defaultErrorMessage?: string;
+    method?: 'GET' | 'POST' | 'DELETE';
+    body?: object;
+    accessToken: string;
+    queryParams?: any;
+    expectedStatusCodes?: number[];
+  }
+) => {
+  const requestBody = body ? JSON.stringify(body) : undefined;
+  const requestHeaders: HeadersInit = {};
+  if (requestBody) {
+    requestHeaders['Content-Type'] = 'application/json';
+  }
+
+  //TODO Handle when access token is not set
+  queryParams['access_token'] = accessToken;
+  const q = querystring.encode(queryParams);
+  path = `${path}?${q}`;
+
+  //TODO make this configurabel (i.e ENV variable)
+  const baseURL = `https://graph.facebook.com/v17.0`;
+
+  try {
+    const response = await fetchWithTimeout(path, {
+      timeout: 10000,
+      headers: requestHeaders,
+      method,
+      body: requestBody,
+      baseURL: baseURL,
+    });
+
+    const isExpectedResponse = expectedStatusCodes
+      ? expectedStatusCodes.includes(response.status)
+      : response.ok;
+
+    if (!isExpectedResponse) {
+      throw new Error(await getErrorMessageFor(response, defaultErrorMessage));
+    }
+
+    // 204 is no content so we just return an empty type
+    if (response.status === 204) {
+      return {} as Promise<ApiResponse>;
+    }
+
+    return response.json() as Promise<ApiResponse>;
+  } catch (err: any) {
+    if (err.name === 'AbortError') {
+      throw new Error(defaultErrorMessage);
+    }
+
+    throw err;
+  }
+};
+
+export const fetchCampaigns = ({
+  limit,
+  cursor,
+  accessToken,
+  accountNumber,
+  defaultErrorMessage,
+}: {
+  limit: number;
+  cursor: Cursor;
+  accessToken: string;
+  accountNumber: string;
+  defaultErrorMessage: string;
+}) => {
+  const params: any = {
+    limit,
+    pretty: 0,
+    fields: 'name, id',
+    access_token: accessToken,
+  };
+  if (cursor) {
+    params['cursor'] = cursor;
+  }
+
+  const path = `/act_${accountNumber}/campaigns`
+
+  return facebookRequest<CampaignsApiResponse>(path, {
+    queryParams: params,
+    accessToken,
+    defaultErrorMessage,
+  });
+};
+
+export const fetchAdsets = async ({
+  limit,
+  cursor,
+  accessToken,
+  campaign,
+  defaultErrorMessage,
+}: {
+  limit: number;
+  cursor: Cursor;
+  accessToken: string;
+  campaign: string;
+  defaultErrorMessage: string;
+}) => {
+  const params: any = {
+    limit,
+    pretty: 0,
+    fields: 'name, id, targeting',
+    access_token: accessToken,
+  };
+  if (cursor) {
+    params['cursor'] = cursor;
+  }
+
+  const path = `/${campaign}/adsets`
+
+  return facebookRequest<AdsetsApiResponse>(path, {
+    queryParams: params,
+    accessToken,
+    defaultErrorMessage,
+  });
 };
 
 const getErrorMessageFor = async (

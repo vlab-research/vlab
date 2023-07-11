@@ -1,14 +1,14 @@
-import { useMutation, queryCache } from 'react-query';
+import { useMutation } from 'react-query';
 import { Notyf } from 'notyf';
 import { useHistory } from 'react-router-dom';
 import useAuthenticatedApi from './useAuthenticatedApi';
-import { StudyConfData } from '../types/study';
-
-const queryKey = 'studyConf';
+import { addToCache } from '../helpers/cache';
 
 const useCreateStudyConf = (redirect: boolean, message: string) => {
   const notyf = new Notyf();
   const history = useHistory();
+  const queryKey = 'studyConf';
+
   const { createStudyConf } = useAuthenticatedApi();
 
   const [createStudyConfMutation, { isLoading, error }] = useMutation(
@@ -16,7 +16,7 @@ const useCreateStudyConf = (redirect: boolean, message: string) => {
       await createStudyConf({ data, studySlug }),
     {
       onSuccess: ({ data: conf }) => {
-        addStudyConfToCacheWhileRefetching(conf);
+        addToCache(conf, queryKey);
         if (redirect === true) {
           history.push(`/studies`);
         }
@@ -40,21 +40,6 @@ const useCreateStudyConf = (redirect: boolean, message: string) => {
     isLoadingOnCreateStudyConf: isLoading,
     errorOnCreateStudyConf: error?.message,
   };
-};
-
-export const addStudyConfToCacheWhileRefetching = (conf: StudyConfData) => {
-  // Add a conf to the cache
-  queryCache.setQueryData(queryKey, (confsCache: any) => {
-    confsCache = conf;
-    return confsCache;
-  });
-
-  // Refetch the study conf by invalidating the query
-  queryCache.invalidateQueries(queryKey);
-};
-
-export const clearCacheWhileRefetching = () => {
-  queryCache.invalidateQueries(queryKey);
 };
 
 export default useCreateStudyConf;

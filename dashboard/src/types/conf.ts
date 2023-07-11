@@ -75,16 +75,58 @@ export type Creative = {
 
 export type Creatives = Creative[];
 
+export type Stratum = {
+  id: string;
+  quota: number;
+  creatives: string[];
+  audiences: string[];
+  excluded_audiences: string[];
+  facebook_targeting: any; // TODO create a type for facebook targeting
+  question_targeting?: any; // TODO create a type for question targeting
+  metadata: [string, string];
+};
+
+export type Strata = Stratum[];
+
+export type Level = {
+  name: string;
+  template_campaign: string;
+  template_adset: string;
+  facebook_targeting: any;
+  quota: number;
+}
+
+export type Variable = {
+  name: string;
+  properties: string[];
+  levels: Level[];
+}
+
+export type Variables = Variable[]
+
 export type LocalFormData =
   | CreateStudy
   | General
   | Recruitment
+  | Audiences
   | Destinations
-  | Creatives;
+  | Creatives
+  | Variables
+  | Strata;
 
 export type GlobalFormData = {
   general: General;
   recruitment: Recruitment;
   destinations: Destinations;
+  audiences: Audiences;
   creatives: Creatives;
+  variables: Variables;
+  strata: Strata;
 };
+
+export type Audience = {
+  name: string;
+  subtype: string;
+};
+
+export type Audiences = Audience[];

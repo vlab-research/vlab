@@ -1,5 +1,8 @@
 import { ApiResponse, PaginatedApiResponse } from './api';
-import { LocalFormData } from './conf';
+import { GlobalFormData, LocalFormData } from './conf';
+
+export interface StudiesApiResponse
+  extends PaginatedApiResponse<StudyResource[]> {}
 
 export interface StudiesApiResponse
   extends PaginatedApiResponse<StudyResource[]> {}
@@ -13,7 +16,7 @@ export interface CreateStudyApiResponse extends ApiResponse<StudyResource> {}
 export interface CreateStudyConfApiResponse
   extends ApiResponse<StudyConfData> {}
 
-export type StudyConfData = Record<string, LocalFormData>;
+export type StudyConfData = GlobalFormData;
 
 export interface StudyResource {
   id: string;
@@ -65,3 +68,29 @@ export interface CreateUserApiResponse
     id: string;
     orgs: Org[];
   }> {}
+
+
+interface PaginatedFacebookResponse<Data> {
+  data: Data;
+  paging: {
+    before: string;
+    after: string;
+  }
+}
+
+
+export interface Campaign {
+  id: string;
+  name: string;
+}
+
+
+export interface Adset {
+  id: string;
+  name: string;
+  targeting: any;
+}
+
+export interface CampaignsApiResponse extends PaginatedFacebookResponse<Campaign[]> {}
+
+export interface AdsetsApiResponse extends PaginatedFacebookResponse<Adset[]> {}

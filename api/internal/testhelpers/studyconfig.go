@@ -59,15 +59,6 @@ func NewStudyConf(opts ...studyconfigoptions) types.StudyConf {
 			PageID:           "1",
 			MinBudget:        1.5,
 		},
-		Targeting: &types.TargetingConf{
-			TemplateCampaignName: "Bar",
-			DistributionVars:     types.Location,
-		},
-		TargetingDistribution: &types.TargetingDistributionConf{
-			Age:      "21",
-			Gender:   "F",
-			Location: "Spain",
-		},
 		Recruitment: &types.RecruitmentConf{
 			AdCampaignName: "foobar-baz",
 			Budget:         10000,
@@ -96,6 +87,23 @@ func NewStudyConf(opts ...studyconfigoptions) types.StudyConf {
 				LinkText:       "Foobar",
 				Name:           "Ad1_Recruitment",
 				WelcomeMessage: "welcome",
+			},
+		},
+		Variables: []*types.VariableConf{
+			{
+				Name:       "age",
+				Properties: []string{"age_min", "age_max"},
+				Levels: []*types.Level{
+					{
+						Name:             "18",
+						TemplateCampaign: "template",
+						TemplateAdset:    "18",
+						FacebookTargeting: &types.FacebookTargeting{
+							"genders": []interface{}{float64(2)},
+						},
+						Quota: 0.5,
+					},
+				},
 			},
 		},
 		Strata: []*types.StratumConf{
@@ -158,6 +166,13 @@ func WithRecruitmentConf(r *types.RecruitmentConf) studyconfigoptions {
 	}
 }
 
+// WithStratumConf is used to override the default StrataConf
+func WithStratumConf(s []*types.StratumConf) studyconfigoptions {
+	return func(sc *types.StudyConf) {
+		sc.Strata = s
+	}
+}
+
 // WithDestinationConf is used to override the default DestinationConf
 func WithDestinationConf(d *types.DestinationConf) studyconfigoptions {
 	return func(sc *types.StudyConf) {
@@ -165,26 +180,16 @@ func WithDestinationConf(d *types.DestinationConf) studyconfigoptions {
 	}
 }
 
-// WithTargetingConf is used to overide the default TargetingConf
-func WithTargetingConf(t *types.TargetingConf) studyconfigoptions {
-	return func(sc *types.StudyConf) {
-		sc.Targeting = t
-	}
-}
-
-// WithTargetingDistributionConf is used to override the default TargetingDistributionConf
-func WithTargetingDistributionConf(
-	t *types.TargetingDistributionConf,
-) studyconfigoptions {
-	return func(sc *types.StudyConf) {
-		sc.TargetingDistribution = t
-	}
-}
-
 // WithAudiences is used to override the default AudienceConf
 func WithAudiences(as []*types.AudienceConf) studyconfigoptions {
 	return func(sc *types.StudyConf) {
 		sc.Audiences = as
+	}
+}
+
+func WithVariables(as []*types.VariableConf) studyconfigoptions {
+	return func(sc *types.StudyConf) {
+		sc.Variables = as
 	}
 }
 
