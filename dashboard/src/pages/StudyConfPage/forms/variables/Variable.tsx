@@ -1,8 +1,8 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import { Path } from 'react-hook-form';
 import { classNames } from '../../../../helpers/strings';
 import AddButton from '../../../../components/AddButton';
-import { Level as LevelType } from '../../../../types/conf';
+import { Level as LevelType, Variable as VariableType } from '../../../../types/conf';
 import Level, { TextInput } from './Level';
 import DeleteButton from '../../../../components/DeleteButton';
 
@@ -65,8 +65,7 @@ const MultiSelect: React.FC<MultiSelectProps> = ({
 };
 
 interface Props {
-  data: any;
-  formData: any[];
+  data: VariableType;
   index: number;
   adsets: any[];
   campaignId: string;
@@ -75,12 +74,12 @@ interface Props {
 
 const Variable: React.FC<Props> = ({
   data,
-  formData,
   index,
   adsets,
   campaignId,
   updateFormData,
 }: Props) => {
+
   // Function to help get targeting params out of adset
   const getTargeting = (data: any, adsetId: string) => {
     if (!adsetId) return {};
@@ -96,20 +95,23 @@ const Variable: React.FC<Props> = ({
     );
   };
 
-  // update will always update targeting to keep it current
-  const update = (data: any) => {
+  const reformulateData = (data: VariableType) => {
     data['levels'] = data.levels.map((l: any) => ({
       ...l,
       facebook_targeting: getTargeting(data, l.template_adset),
       template_campaign: campaignId,
     }));
-    updateFormData(data, index);
+    return data;
   };
 
-  // trigger update on campaignId change
-  useEffect(() => {
-    update(data);
-  }, [campaignId]);
+  // Make sure all levels are current on each render
+  data = reformulateData(data);
+
+
+  const update = (data: any) => {
+    const d = reformulateData(data)
+    updateFormData(d, index);
+  };
 
   const handleChange = (e: any) => {
     const { name, value } = e.target;

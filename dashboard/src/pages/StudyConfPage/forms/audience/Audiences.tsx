@@ -5,19 +5,20 @@ import PrimaryButton from '../../../../components/PrimaryButton';
 import AddButton from '../../../../components/AddButton';
 import DeleteButton from '../../../../components/DeleteButton';
 import useCreateStudyConf from '../../../../hooks/useCreateStudyConf';
-import { Audiences as AudiencesType } from '../../../../types/conf';
-import { Audience as AudienceType } from '../../../../types/conf';
+import { CreateStudy as StudyType, Audience as AudienceType, Audiences as AudiencesType } from '../../../../types/conf';
 
 interface Props {
   id: string;
+  study: StudyType;
   localData: AudiencesType;
 }
 
-const Audiences: React.FC<Props> = ({ id, localData }: Props) => {
+const Audiences: React.FC<Props> = ({ id, study, localData }: Props) => {
+
   const initialState = [
     {
-      name: '',
-      subtype: '',
+      name: `${study.name} Respondents`,
+      subtype: 'CUSTOM',
     },
   ];
 
@@ -85,7 +86,7 @@ const Audiences: React.FC<Props> = ({ id, localData }: Props) => {
                 <ul>
                   {formData.map((d: AudienceType, index: number) => {
                     return (
-                      <li>
+                      <li key={index}>
                         <Audience
                           key={index}
                           data={d}

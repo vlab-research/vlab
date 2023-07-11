@@ -108,6 +108,7 @@ export type LocalFormData =
   | CreateStudy
   | General
   | Recruitment
+  | Audiences
   | Destinations
   | Creatives
   | Variables
@@ -117,6 +118,7 @@ export type GlobalFormData = {
   general: General;
   recruitment: Recruitment;
   destinations: Destinations;
+  audiences: Audiences;
   creatives: Creatives;
   variables: Variables;
   strata: Strata;

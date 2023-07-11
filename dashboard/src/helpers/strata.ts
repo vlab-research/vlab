@@ -1,4 +1,4 @@
-import { Stratum, Variables, Creatives, Level } from '../types/conf';
+import { Stratum, Variables, Creatives, Audiences, Level } from '../types/conf';
 
 interface IntermediateLevel extends Level {
   variableName: string;
@@ -41,10 +41,11 @@ const cartesianProduct = (a: any[]) => {
   return a.reduce((a, b) => a.flatMap((d: any) => b.map((e: any) => [d, e].flat())));
 }
 
-export const createStrataFromVariables = (variables: Variables, creatives?: Creatives) => {
+export const createStrataFromVariables = (variables: Variables, creatives?: Creatives, audiences?: Audiences) => {
   if (!variables.length) return [];
 
   const allCreatives = creatives ? creatives.map((c: any) => c.name) : [];
+  const allAudiences = audiences ? audiences.map((c: any) => c.name) : [];
 
   let res = variables
     .map((v: any) =>
@@ -54,7 +55,7 @@ export const createStrataFromVariables = (variables: Variables, creatives?: Crea
   const strata: Stratum[] = cartesianProduct(res)
     .map(formatGroupProduct)
     .map((data: Level) => ({
-      audiences: [],
+      audiences: allAudiences,
       excluded_audiences: [],
       metadata: {},
       creatives: allCreatives,

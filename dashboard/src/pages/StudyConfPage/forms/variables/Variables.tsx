@@ -92,12 +92,11 @@ const Variables: React.FC<Props> = ({
   const { campaigns, loadingCampaigns, errorLoadingCampaigns, refetchData } =
     useCampaigns(adAccount, accessToken);
 
-  // TODO:
-  // store template campaign? Hm. Probably...
 
   const tc = localData
     ? localData[0].levels[0]?.template_campaign
     : campaigns[0]?.id;
+
   const [templateCampaign, setTemplateCampaign] = useState<string>(tc);
 
   const { adsets } = useAdsets(templateCampaign!, accessToken);
@@ -165,12 +164,11 @@ const Variables: React.FC<Props> = ({
                 ></Select>
                 {formData.map((d: any, index: number) => {
                   return (
-                    <>
+                    <div key={index}>
                       <Variable
                         adsets={adsets}
                         key={index}
                         data={d}
-                        formData={formData}
                         campaignId={templateCampaign}
                         index={index}
                         updateFormData={updateFormData}
@@ -184,7 +182,7 @@ const Variables: React.FC<Props> = ({
                         </div>
                         <div />
                       </div>
-                    </>
+                    </div>
                   );
                 })}
                 <div className="flex flex-row items-center">

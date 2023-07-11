@@ -44,7 +44,7 @@ interface Props {
   globalData: GlobalFormData;
 }
 const Variables: React.FC<Props> = ({ globalData, id, localData }: Props) => {
-  const { variables, creatives } = globalData;
+  const { variables, creatives, audiences } = globalData;
 
   const params = useParams<{ studySlug: string }>();
   const studySlug = params.studySlug;
@@ -52,7 +52,7 @@ const Variables: React.FC<Props> = ({ globalData, id, localData }: Props) => {
   const [formData, setFormData] = useState(localData);
 
   const regenerate = () => {
-    const strata = createStrataFromVariables(variables, creatives);
+    const strata = createStrataFromVariables(variables, creatives, audiences);
     setFormData(strata);
   };
 
