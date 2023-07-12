@@ -42,7 +42,7 @@ const PageContent: React.FC<PageContentProps> = ({ open, setOpen }) => {
 
   useEffect(() => {
     const values = new URLSearchParams(search.substring(search.indexOf('?')));
-    if (values.get('authType') === 'facebook' && values.get('code')) {
+    if (values.get('type') === 'facebook' && values.get('code')) {
       createFacebookAccount({ code: values.get('code') });
     }
   }, [createFacebookAccount, search]);

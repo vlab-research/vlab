@@ -28,7 +28,7 @@ VALUES
   ),
   (
     'auth0|6412f8baa95e852045477d6e',
-    'facebook app connection',
+    'facebook',
     'Facebook',
     '{
         "token": "supersecret"

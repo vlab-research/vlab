@@ -18,7 +18,7 @@ type createResponse struct {
 }
 
 // GenerateToken takes a code that is generated from the Facebook Auth0 flow 
-// The token gives permission and generates a set of credentials for Virtual Lab's use
+// the token gives permission and generates a set of credentials for Virtual Lab's use
 func GenerateToken(a *fb.App, r storage.Repositories) gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		req := &request{}
@@ -33,8 +33,8 @@ func GenerateToken(a *fb.App, r storage.Repositories) gin.HandlerFunc {
 		}
 		a := types.Account{
 			UserID:   auth.GetUserIdFrom(ctx),
-			AuthType: "facebook app connection",
-			Name:     "facebook",
+			AuthType: "facebook", 
+			Name:     "Facebook",
 			ConnectedAccount: &types.FacebookConnectedAccount{
 				Credentials: types.FacebookCredentials{
 					AccessToken: token,
@@ -43,7 +43,7 @@ func GenerateToken(a *fb.App, r storage.Repositories) gin.HandlerFunc {
 				},
 			},
 		}
-		// Old Facebook credentials are deleted to avoid duplication
+		// old Facebook credentials are deleted to avoid duplication
 		err = r.Account.Delete(ctx, a)
 		if err != nil && err != types.ErrAccountDoesNotExist {
 			ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
