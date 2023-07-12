@@ -92,7 +92,6 @@ const Variables: React.FC<Props> = ({
   const { campaigns, loadingCampaigns, errorLoadingCampaigns, refetchData } =
     useCampaigns(adAccount, accessToken);
 
-
   const tc = localData
     ? localData[0].levels[0]?.template_campaign
     : campaigns[0]?.id;
@@ -142,7 +141,7 @@ const Variables: React.FC<Props> = ({
   };
 
   const deleteVariable = (i: number): void => {
-    const newArr = localData.filter((_: any, ii: number) => ii !== i);
+    const newArr = formData.filter((_: any, ii: number) => ii !== i);
     setFormData(newArr);
   };
 
