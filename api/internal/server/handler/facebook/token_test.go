@@ -22,7 +22,7 @@ func TestGenerateTokenHandler(t *testing.T) {
 			description:    "201 with valid code",
 			code:           "valid",
 			expectedStatus: 201,
-			expectedRes:    `{"data":{"userId":"auth0|61916c1dab79c900713936de","authType":"facebook app connection","name":"facebook","connectedAccount":{"createdAt":0,"credentials":{"expires_in":5181452,"access_token":"supersecret","token_type":"bearer"}}}}`,
+			expectedRes:    `{"data":{"userId":"auth0|61916c1dab79c900713936de","authType":"facebook app connection","name":"Facebook","connectedAccount":{"createdAt":0,"credentials":{"expires_in":5181452,"access_token":"supersecret","token_type":"bearer"}}}}`,
 		},
 		{
 			description:    "400 with invalid code",

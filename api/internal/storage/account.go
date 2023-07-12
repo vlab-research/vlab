@@ -57,7 +57,7 @@ func (r *AccountRepository) Create(
 	return nil
 }
 
-// deletes a credential based on its three unique sfields user_id, entity and key
+// Deletes a credential based on three fields user_id, entity and key (unique)
 func (r *AccountRepository) Delete(
 	ctx context.Context,
 	a types.Account,

@@ -11,7 +11,7 @@ import (
 )
 
 // DeleteHandler is a gin handler that is used to delete an account object in the database
-// Due to the nature of the resource, authType and account name is required in the body of the request
+// due to the nature of the account resource name and authType are required in the body of the request
 func DeleteHandler(r storage.Repositories) gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		b, err := ioutil.ReadAll(ctx.Request.Body)

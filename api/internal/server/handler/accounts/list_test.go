@@ -85,7 +85,7 @@ func TestHandler_Account_List(t *testing.T) {
 				},
 				{
 					UserID:   testhelpers.CurrentUserID,
-					Name:     "facebook-abc",
+					Name:     "alchemer*!",
 					AuthType: authType,
 					ConnectedAccount: types.AlchemerConnectedAccount{
 						Credentials: sourcetypes.AlchemerCreds{
@@ -96,8 +96,8 @@ func TestHandler_Account_List(t *testing.T) {
 				},
 			},
 			expectedStatus: 200,
-			expectedRes:    []string{`"name":"facebook-abc"`},
-			params:         map[string]string{"authType": "Facebook"},
+			expectedRes:    []string{`"name":"alchemer*!"`},
+			params:         map[string]string{"authType": "alchemer"},
 			description:    "return 200 with a filtered list",
 		},
 	}
