@@ -13,7 +13,7 @@ import (
 )
 
 var (
-	// uses a single instance and caches struct info
+	// Uses a single instance and caches struct info
 	validate *validator.Validate
 )
 
@@ -21,7 +21,7 @@ type createResponse struct {
 	Data types.Account `json:"data"`
 }
 
-// CreateHandler is a gin handler that is used to create a new account object in the database
+// Gin handler used to create a new account object in the db
 func CreateHandler(r storage.Repositories) gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		b, err := ioutil.ReadAll(ctx.Request.Body)
@@ -36,7 +36,8 @@ func CreateHandler(r storage.Repositories) gin.HandlerFunc {
 		}
 		uid := auth.GetUserIdFrom(ctx)
 		a.UserID = uid
-		// old credentials are deleted to avoid duplicating credential keys
+
+		// Stale credentials are deleted to avoid duplicating credential keys
 		err = r.Account.Delete(ctx, a)
 		if err != nil && err != types.ErrAccountDoesNotExist {
 			ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -51,12 +52,13 @@ func CreateHandler(r storage.Repositories) gin.HandlerFunc {
 	}
 }
 
-// parsePayload is a simple parser to determine the type of account
-// TODO: move this to account.go closer to types
+// parsePayload() is a simple parser to determine account type
 func parsePayload(b []byte) (a types.Account, err error) {
 	if err := json.Unmarshal(b, &a); err != nil {
 		return a, err
 	}
+
+	// TODO: move this to account.go closer to types
 
 	switch a.AuthType {
 	case types.FlyAccount:
@@ -65,11 +67,13 @@ func parsePayload(b []byte) (a types.Account, err error) {
 		a.ConnectedAccount = &types.TypeformConnectedAccount{}
 	case types.AlchemerAccount:
 		a.ConnectedAccount = &types.AlchemerConnectedAccount{}
+	case types.FacebookAccount:
+		a.ConnectedAccount = &types.FacebookConnectedAccount{}
 	default:
 		return a, fmt.Errorf("%v is an unknown account type", a.AuthType)
 	}
 
-	if err = json.Unmarshal(a.RawConnectedAccount, a.ConnectedAccount); err != nil {
+	if err = json.Unmarshal(a.Account, a.ConnectedAccount); err != nil {
 		return a, err
 	}
 

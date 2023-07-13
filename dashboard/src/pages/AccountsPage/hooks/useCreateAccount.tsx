@@ -6,6 +6,7 @@ import {
   FlyAccount,
   TypeformAccount,
   AlchemerAccount,
+  FacebookAccount,
 } from '../../../types/account';
 import { addAccountToCacheWhileRefetching } from './useAccounts';
 import { createLabelFor } from '../../../helpers/strings';
@@ -22,7 +23,11 @@ const useCreateAccount = () => {
     }: {
       name: string;
       authType: string;
-      connectedAccount: FlyAccount | TypeformAccount | AlchemerAccount;
+      connectedAccount:
+        | FlyAccount
+        | TypeformAccount
+        | AlchemerAccount
+        | FacebookAccount;
     }) => await createAccount({ name, authType, connectedAccount }),
     {
       onSuccess: ({ data: account }) => {

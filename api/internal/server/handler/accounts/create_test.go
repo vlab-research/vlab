@@ -27,7 +27,7 @@ func TestHandler_Account_Create(t *testing.T) {
 				UserID:   userId,
 				Name:     "fly123",
 				AuthType: authType,
-				RawConnectedAccount: []byte(`
+				Account: []byte(`
 					{
 						"createdAt": null,
 						"credentials": {
@@ -47,7 +47,7 @@ func TestHandler_Account_Create(t *testing.T) {
 			account: types.Account{
 				UserID: userId,
 				Name:   "fly123",
-				RawConnectedAccount: []byte(`
+				Account: []byte(`
 					{
 						"createdAt": null,
 						"credentials": {
@@ -64,7 +64,7 @@ func TestHandler_Account_Create(t *testing.T) {
 			account: types.Account{
 				UserID: userId,
 				Name:   "Invalid",
-				RawConnectedAccount: []byte(`
+				Account: []byte(`
 					{
 						"createdAt": null,
 						"credentials": {
@@ -82,7 +82,7 @@ func TestHandler_Account_Create(t *testing.T) {
 				UserID:   userId,
 				Name:     "typeform-test",
 				AuthType: authType,
-				RawConnectedAccount: []byte(`
+				Account: []byte(`
 					{
 						"createdAt": null,
 						"credentials": {
@@ -100,12 +100,30 @@ func TestHandler_Account_Create(t *testing.T) {
 				UserID:   userId,
 				Name:     "alchemer*!",
 				AuthType: authType,
-				RawConnectedAccount: []byte(`
+				Account: []byte(`
 					{
 						"createdAt": null,
 						"credentials": {
 							"api_token": "supersecret",
 							"api_token_secret": "supersecret"
+						}
+					}
+					`),
+			},
+		},
+		{
+			expectedStatus: 201,
+			expectedRes:    `{"data":{"userId":"auth0|61916c1dab79c900713936de","name":"Facebook","authType":"facebook","connectedAccount":{"createdAt":null,"credentials":{"token":"supersecret"}}}}`,
+			description:    "return 201 for valid Facebook account",
+			account: types.Account{
+				UserID:   userId,
+				Name:     "Facebook",
+				AuthType: authType,
+				Account: []byte(`
+					{
+						"createdAt": null,
+						"credentials": {
+							"token": "supersecret",
 						}
 					}
 					`),

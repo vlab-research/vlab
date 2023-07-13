@@ -10,8 +10,8 @@ import (
 	"github.com/vlab-research/vlab/api/internal/types"
 )
 
-// DeleteHandler is a gin handler that is used to delete an account object in the database
-// due to the nature of the account resource name and authType are required in the body of the request
+// Gin handler used to delete an account object in the db
+// Name and authType are required in the body of the request due to the interface of the account resource
 func DeleteHandler(r storage.Repositories) gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		b, err := ioutil.ReadAll(ctx.Request.Body)

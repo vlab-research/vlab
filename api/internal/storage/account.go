@@ -140,7 +140,7 @@ func (r *AccountRepository) List(
 			Name:     key,
 			UserID:   userID,
 			AuthType: authType,
-			RawConnectedAccount: []byte(fmt.Sprintf(
+			Account: []byte(fmt.Sprintf(
 				`{"createdAt": "%s", "credentials": %s}`,
 				created,
 				details,
