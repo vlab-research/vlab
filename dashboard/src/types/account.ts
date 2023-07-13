@@ -40,7 +40,6 @@ export interface AlchemerAccount extends ConnectedAccount {
   };
 }
 
-
 export interface FacebookAccount extends ConnectedAccount {
   credentials: {
     token: string;

@@ -27,18 +27,21 @@ const CredentialsList: React.FC<Props> = ({
 
   useEffect(() => {
     setCredentials(initialState);
-  }, [initialState]);
+
+    if (account.name) {
+      setIsDirty(true);
+    }
+  }, [account.name, initialState]);
 
   const validatedCredentials = JSON.parse(
     JSON.stringify(credentials),
-    (key, value) => value ?? value
+    (_, value) => value ?? value
   );
 
   const handleSubmitForm = (e: any): void => {
     e.preventDefault();
 
-    // we only ever create accounts as the endpoint is idempotent
-    // there is no concept of update/PUT
+    // We only ever create accounts as the endpoint is idempotent i.e there is no concept of update/PUT
     createAccount({
       name: account.name,
       authType: account.authType,
