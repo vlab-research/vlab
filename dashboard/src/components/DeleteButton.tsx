@@ -1,6 +1,7 @@
 import { TrashIcon } from '@heroicons/react/solid';
 
 type Props = {
+  loading?: boolean;
   onClick?: () => void;
 };
 

@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { GlobalFormData, Stratum as StratumType } from '../../../../types/conf';
-import useCreateStudyConf from '../../../../hooks/useCreateStudyConf';
-import { createStrataFromVariables } from '../../../../helpers/strata';
 import { GenericTextInput, TextInputI } from '../../components/TextInput';
 import PrimaryButton from '../../../../components/PrimaryButton';
+import useCreateStudyConf from '../../hooks/useCreateStudyConf';
+import { createStrataFromVariables } from '../../../../helpers/strata';
+import { GlobalFormData, Stratum as StratumType } from '../../../../types/conf';
 
 export interface FormData {
   id: string;
@@ -71,7 +71,7 @@ const Variables: React.FC<Props> = ({ globalData, id, localData }: Props) => {
     createStudyConf({ data, studySlug });
   };
 
-  const { createStudyConf } = useCreateStudyConf(true, 'Study settings saved');
+  const { createStudyConf } = useCreateStudyConf(true, 'Strata saved');
 
   return (
     <div className="md:grid md:grid-cols-3 md:gap-6">

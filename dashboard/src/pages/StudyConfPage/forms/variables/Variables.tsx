@@ -4,7 +4,6 @@ import PrimaryButton from '../../../../components/PrimaryButton';
 import AddButton from '../../../../components/AddButton';
 import Variable from './Variable';
 import { createLabelFor } from '../../../../helpers/strings';
-import useCreateStudyConf from '../../../../hooks/useCreateStudyConf';
 import useFacebookAccounts from './useFacebookAccounts';
 import useCampaigns from './useCampaigns';
 import useAdsets from './useAdsets';
@@ -14,6 +13,7 @@ import {
   GlobalFormData,
 } from '../../../../types/conf';
 import DeleteButton from '../../../../components/DeleteButton';
+import useCreateStudyConf from '../../hooks/useCreateStudyConf';
 
 interface SelectProps {
   name: string;
@@ -80,7 +80,7 @@ const Variables: React.FC<Props> = ({
   const params = useParams<{ studySlug: string }>();
   const studySlug = params.studySlug;
 
-  const { createStudyConf } = useCreateStudyConf(true, 'Study settings saved');
+  const { createStudyConf } = useCreateStudyConf(true, 'Variables saved');
 
   const [formData, setFormData] = useState<any[]>(
     localData ? localData : initialState
@@ -185,10 +185,7 @@ const Variables: React.FC<Props> = ({
                   );
                 })}
                 <div className="flex flex-row items-center">
-                  <AddButton onClick={addVariable} />
-                  <label className="ml-4 italic text-gray-700 text-sm">
-                    Add a new variable
-                  </label>
+                  <AddButton onClick={addVariable} label="Add a new variable" />
                 </div>
               </div>
 

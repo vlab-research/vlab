@@ -1,13 +1,8 @@
 import { useMutation } from 'react-query';
 import { Notyf } from 'notyf';
 import { useHistory } from 'react-router-dom';
-<<<<<<< HEAD:dashboard/src/hooks/useCreateStudy.tsx
-import useAuthenticatedApi from './useAuthenticatedApi';
-import { addToCache } from '../helpers/cache';
-=======
+import { addToCache } from '../../../helpers/cache';
 import useAuthenticatedApi from '../../../hooks/useAuthenticatedApi';
-import { addStudyToCacheWhileRefetching } from '../../StudiesPage/hooks/useStudies';
->>>>>>> 5c21eae (fix: connected accounts):dashboard/src/pages/NewStudyPage/hooks/useCreateStudy.tsx
 
 const useCreateStudy = () => {
   const notyf = new Notyf();

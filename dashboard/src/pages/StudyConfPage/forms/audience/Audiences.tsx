@@ -4,8 +4,12 @@ import Audience from './Audience';
 import PrimaryButton from '../../../../components/PrimaryButton';
 import AddButton from '../../../../components/AddButton';
 import DeleteButton from '../../../../components/DeleteButton';
-import useCreateStudyConf from '../../../../hooks/useCreateStudyConf';
-import { CreateStudy as StudyType, Audience as AudienceType, Audiences as AudiencesType } from '../../../../types/conf';
+import useCreateStudyConf from '../../hooks/useCreateStudyConf';
+import {
+  CreateStudy as StudyType,
+  Audience as AudienceType,
+  Audiences as AudiencesType,
+} from '../../../../types/conf';
 
 interface Props {
   id: string;
@@ -14,7 +18,6 @@ interface Props {
 }
 
 const Audiences: React.FC<Props> = ({ id, study, localData }: Props) => {
-
   const initialState = [
     {
       name: `${study.name} Respondents`,
@@ -34,7 +37,7 @@ const Audiences: React.FC<Props> = ({ id, study, localData }: Props) => {
 
   const { createStudyConf, isLoadingOnCreateStudyConf } = useCreateStudyConf(
     true,
-    'Study settings saved'
+    'Audiences saved'
   );
   const {
     createStudyConf: deleteStudyConf,
@@ -108,10 +111,7 @@ const Audiences: React.FC<Props> = ({ id, study, localData }: Props) => {
                       </li>
                     );
                   })}
-                  <AddButton onClick={addAudience} />
-                  <span className="ml-4 italic text-gray-700 text-sm">
-                    Add a new audience
-                  </span>
+                  <AddButton onClick={addAudience} label="Add a new audience" />
                 </ul>
               </div>
 

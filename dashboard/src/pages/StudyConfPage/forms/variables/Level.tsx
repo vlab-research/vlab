@@ -69,7 +69,7 @@ const Level: React.FC<Props> = ({
   };
 
   const onAdsetChange = (e: any) => {
-    // select the adset and the targeting properties of interest
+    // selects the adset and the targeting properties of interest
     const adset = adsets.find(a => a.id === e.target.value);
     const targeting = properties.reduce(
       (obj, key) => ({ ...obj, [key]: adset.targeting[key] }),
