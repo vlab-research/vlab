@@ -180,9 +180,10 @@ const fetchAccounts = ({
 }) =>
   apiRequest<AccountsApiResponse>(`/accounts`, {
     defaultErrorMessage,
-    queryParams: { type },
+    queryParams: type ? { type } : undefined,
     accessToken,
   });
+
 
 const createAccount = ({
   name,
