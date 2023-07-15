@@ -49,7 +49,7 @@ const Variables: React.FC<Props> = ({ globalData, id, localData }: Props) => {
   const params = useParams<{ studySlug: string }>();
   const studySlug = params.studySlug;
 
-  const [formData, setFormData] = useState(localData);
+  const [formData, setFormData] = useState(localData || []);
 
   const regenerate = () => {
     const strata = createStrataFromVariables(variables, creatives, audiences);
