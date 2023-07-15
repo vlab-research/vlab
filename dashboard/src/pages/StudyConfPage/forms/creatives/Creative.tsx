@@ -37,19 +37,21 @@ const TextInput: React.FC<TextProps> = ({
     <label className="my-2 block text-sm font-medium text-gray-700">
       {createLabelFor(name)}
     </label>
-    <input
-      name={name}
-      type={type}
-      autoComplete={autoComplete}
-      placeholder={placeholder}
-      value={value}
-      required={required}
-      onChange={e => handleChange(e)}
-      className="block w-4/5 shadow-sm sm:text-sm rounded-md"
-    />
-    {required === false && (
-      <span className="m-4 italic text-gray-700 text-xs">Optional</span>
-    )}
+    <div className="flex flex-row items-center">
+      <input
+        name={name}
+        type={type}
+        autoComplete={autoComplete}
+        placeholder={placeholder}
+        value={value}
+        required={required}
+        onChange={e => handleChange(e)}
+        className="block w-4/5 shadow-sm sm:text-sm rounded-md"
+      />
+      {required === false && (
+        <span className="ml-4 italic text-gray-700 text-xs">Optional</span>
+      )}
+    </div>
   </div>
 );
 
@@ -122,7 +124,7 @@ const Creative: React.FC<Props> = ({
   };
 
   return (
-    <>
+    <li>
       <TextInput
         name="name"
         type="text"
@@ -193,7 +195,7 @@ const Creative: React.FC<Props> = ({
         value={data.welcome_message}
         required={false}
       />
-    </>
+    </li>
   );
 };
 

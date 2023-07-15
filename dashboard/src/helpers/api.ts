@@ -91,7 +91,7 @@ const createUser = ({ accessToken }: { accessToken: string }) => {
   });
 };
 
-const generateFacebookAccount = ({
+const createFacebookAccount = ({
   accessToken,
   code,
 }: {
@@ -180,9 +180,10 @@ const fetchAccounts = ({
 }) =>
   apiRequest<AccountsApiResponse>(`/accounts`, {
     defaultErrorMessage,
-    queryParams: { type },
+    queryParams: type ? { type } : undefined,
     accessToken,
   });
+
 
 const createAccount = ({
   name,
@@ -362,7 +363,7 @@ export const fetchCampaigns = ({
     params['cursor'] = cursor;
   }
 
-  const path = `/act_${accountNumber}/campaigns`
+  const path = `/act_${accountNumber}/campaigns`;
 
   return facebookRequest<CampaignsApiResponse>(path, {
     queryParams: params,
@@ -394,7 +395,7 @@ export const fetchAdsets = async ({
     params['cursor'] = cursor;
   }
 
-  const path = `/${campaign}/adsets`
+  const path = `/${campaign}/adsets`;
 
   return facebookRequest<AdsetsApiResponse>(path, {
     queryParams: params,
@@ -432,5 +433,5 @@ export const authenticatedApiCalls = {
   fetchAccounts,
   createAccount,
   deleteAccount,
-  generateFacebookAccount,
+  createFacebookAccount,
 };

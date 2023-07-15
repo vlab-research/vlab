@@ -4,7 +4,7 @@ import { useForm, SubmitHandler, UseFormRegister, Path } from 'react-hook-form';
 import PrimaryButton from '../../../../components/PrimaryButton';
 import { createLabelFor } from '../../../../helpers/strings';
 import { validate } from '../../../../helpers/objects';
-import useCreateStudyConf from '../../../../hooks/useCreateStudyConf';
+import useCreateStudyConf from '../../hooks/useCreateStudyConf';
 import { Destinations } from '../../../../types/conf';
 
 export interface FormData {
@@ -118,7 +118,7 @@ const Destination: React.FC<Props> = ({ id, data, destinations }: Props) => {
 
   const { createStudyConf, isLoadingOnCreateStudyConf } = useCreateStudyConf(
     true,
-    'Study settings saved'
+    'Recruitment settings saved'
   );
   const params = useParams<{ studySlug: string }>();
 
@@ -180,6 +180,7 @@ const Destination: React.FC<Props> = ({ id, data, destinations }: Props) => {
       />
       <div className="p-6 text-right">
         <PrimaryButton
+          leftIcon="CheckCircleIcon"
           type="submit"
           testId="form-submit-button"
           loading={isLoadingOnCreateStudyConf}

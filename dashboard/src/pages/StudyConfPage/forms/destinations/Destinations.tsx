@@ -3,7 +3,7 @@ import { useParams } from 'react-router-dom';
 import PrimaryButton from '../../../../components/PrimaryButton';
 import AddButton from '../../../../components/AddButton';
 import DeleteButton from '../../../../components/DeleteButton';
-import useCreateStudyConf from '../../../../hooks/useCreateStudyConf';
+import useCreateStudyConf from '../../hooks/useCreateStudyConf';
 import Destination from './Destination';
 import { Destinations as DestinationTypes } from '../../../../types/conf';
 import { Destination as DestinationType } from '../../../../types/conf';
@@ -34,12 +34,8 @@ const Destinations: React.FC<Props> = ({ id, localData }: Props) => {
 
   const { createStudyConf, isLoadingOnCreateStudyConf } = useCreateStudyConf(
     true,
-    'Study settings saved'
+    'Destinations saved'
   );
-  const {
-    createStudyConf: deleteStudyConf,
-    isLoadingOnCreateStudyConf: isDeleting,
-  } = useCreateStudyConf(false, 'Destination deleted');
 
   const params = useParams<{ studySlug: string }>();
 
@@ -64,14 +60,6 @@ const Destinations: React.FC<Props> = ({ id, localData }: Props) => {
       (d: DestinationType, i: number) => index !== i
     );
 
-    const data = {
-      [id]: newArr,
-    };
-
-    const studySlug = params.studySlug;
-
-    deleteStudyConf({ data, studySlug });
-
     setFormData(newArr);
   };
 
@@ -87,7 +75,7 @@ const Destinations: React.FC<Props> = ({ id, localData }: Props) => {
               <div className="mb-8">
                 {formData.map((d: DestinationType, index: number) => {
                   return (
-                    <>
+                    <ul>
                       <Destination
                         key={index}
                         data={d}
@@ -97,29 +85,27 @@ const Destinations: React.FC<Props> = ({ id, localData }: Props) => {
                       />
                       {formData.length > 1 && (
                         <div key={`${d.name}-${index}`}>
-                          <div className="flex flex-row w-4/5 justify-between items-center mb-4">
-                            <div className="w-full h-0.5 mr-8 rounded-md bg-gray-400"></div>
+                          <div className="flex flex-row w-4/5 justify-between items-center">
+                            <div className="flex w-full h-0.5 mr-4 rounded-md bg-gray-400"></div>
                             <DeleteButton
-                              loading={isDeleting}
                               onClick={() => deleteDestination(index)}
                             ></DeleteButton>
                           </div>
                           <div />
                         </div>
                       )}
-                    </>
+                    </ul>
                   );
                 })}
-                <div className="flex flex-row items-center">
-                  <AddButton onClick={addDestination} />
-                  <label className="ml-4 italic text-gray-700 text-sm">
-                    Add a new destination
-                  </label>
-                </div>
+                <AddButton
+                  onClick={addDestination}
+                  label="Add a new destination"
+                />
               </div>
 
               <div className="p-6 text-right">
                 <PrimaryButton
+                  leftIcon="CheckCircleIcon"
                   type="submit"
                   testId="form-submit-button"
                   loading={isLoadingOnCreateStudyConf}

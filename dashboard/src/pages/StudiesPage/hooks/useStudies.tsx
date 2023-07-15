@@ -1,7 +1,7 @@
 import { useInfiniteQuery } from 'react-query';
-import { StudiesApiResponse } from '../types/study';
-import { Cursor } from '../types/api';
-import useAuthenticatedApi from './useAuthenticatedApi';
+import useAuthenticatedApi from '../../../hooks/useAuthenticatedApi';
+import { Cursor } from '../../../types/api';
+import { StudiesApiResponse } from '../../../types/study';
 
 const studiesPerPage = 10;
 const queryKey = 'studies';

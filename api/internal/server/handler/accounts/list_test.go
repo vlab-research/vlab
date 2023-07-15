@@ -6,7 +6,6 @@ import (
 	"net/url"
 	"testing"
 	"time"
-
 	"github.com/stretchr/testify/require"
 	"github.com/vlab-research/vlab/api/internal/storage"
 	"github.com/vlab-research/vlab/api/internal/testhelpers"
@@ -16,17 +15,15 @@ import (
 
 func TestHandler_Account_List(t *testing.T) {
 	assert := require.New(t)
-
-	authType := "token"
+	entity := "fly"
+	authType := types.AccountType(entity)
 	created := time.Date(2020, time.November, 10, 23, 0, 0, 0, time.UTC)
 	testcases := []struct {
 		accounts []types.Account
-
 		description    string
 		expectedStatus int
-		//because of timezone issues we  cant do exact matching
-		//so we just check that response contains a list of
-		//characters
+		// we  can't do exact matching due to timezones 
+		// so we just check that the response contains a list of characters
 		expectedRes []string
 		params      map[string]string
 	}{
@@ -34,7 +31,7 @@ func TestHandler_Account_List(t *testing.T) {
 			accounts: []types.Account{
 				{
 					UserID:   testhelpers.CurrentUserID,
-					Name:     "Fly",
+					Name:     "fly123",
 					AuthType: authType,
 					ConnectedAccount: types.FlyConnectedAccount{
 						Credentials: sourcetypes.FlyCredentials{
@@ -44,7 +41,7 @@ func TestHandler_Account_List(t *testing.T) {
 				},
 				{
 					UserID:   testhelpers.CurrentUserID,
-					Name:     "Typeform",
+					Name:     "typeform-test",
 					AuthType: authType,
 					ConnectedAccount: types.TypeformConnectedAccount{
 						Credentials: sourcetypes.TypeformCredentials{
@@ -54,7 +51,7 @@ func TestHandler_Account_List(t *testing.T) {
 				},
 				{
 					UserID:   testhelpers.CurrentUserID,
-					Name:     "Alchemer",
+					Name:     "alchemer*!",
 					AuthType: authType,
 					ConnectedAccount: types.AlchemerConnectedAccount{
 						Credentials: sourcetypes.AlchemerCreds{
@@ -78,7 +75,7 @@ func TestHandler_Account_List(t *testing.T) {
 			accounts: []types.Account{
 				{
 					UserID:   testhelpers.CurrentUserID,
-					Name:     "Typeform",
+					Name:     "typeform-test",
 					AuthType: authType,
 					ConnectedAccount: types.TypeformConnectedAccount{
 						Credentials: sourcetypes.TypeformCredentials{
@@ -88,7 +85,7 @@ func TestHandler_Account_List(t *testing.T) {
 				},
 				{
 					UserID:   testhelpers.CurrentUserID,
-					Name:     "Facebook",
+					Name:     "alchemer*!",
 					AuthType: authType,
 					ConnectedAccount: types.AlchemerConnectedAccount{
 						Credentials: sourcetypes.AlchemerCreds{
@@ -99,8 +96,8 @@ func TestHandler_Account_List(t *testing.T) {
 				},
 			},
 			expectedStatus: 200,
-			expectedRes:    []string{`"name":"Facebook"`},
-			params:         map[string]string{"type": "Facebook"},
+			expectedRes:    []string{`"name":"alchemer*!"`},
+			params:         map[string]string{"authType": "alchemer"},
 			description:    "return 200 with a filtered list",
 		},
 	}

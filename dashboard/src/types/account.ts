@@ -5,7 +5,7 @@ export interface AccountApiResponse extends ApiResponse<Account> {}
 
 export interface CreateAccountApiResponse extends ApiResponse<Account> {}
 
-export interface GenerateFacebookAccount {
+export interface CreateFacebookAccount {
   code: string;
 }
 
@@ -37,5 +37,11 @@ export interface AlchemerAccount extends ConnectedAccount {
   credentials: {
     api_token: string;
     api_token_secret: string;
+  };
+}
+
+export interface FacebookAccount extends ConnectedAccount {
+  credentials: {
+    token: string;
   };
 }

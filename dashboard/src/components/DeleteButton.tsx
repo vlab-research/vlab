@@ -1,27 +1,20 @@
-import SecondaryButton from './SecondaryButton';
+import { TrashIcon } from '@heroicons/react/solid';
 
 type Props = {
-  name?: string;
-  type?: 'button' | 'submit' | undefined;
-  onClick?: () => void;
   loading?: boolean;
-  className?: string;
+  onClick?: () => void;
 };
 
-const DeleteButton = ({ name, type, onClick, loading, className }: Props) => {
+const DeleteButton = ({ onClick }: Props) => {
   return (
-    <SecondaryButton
-      name={name}
-      size="100"
-      type={type}
-      className={className}
-      testId={`delete-button`}
-      icon="TrashIcon"
-      loading={loading}
-      onClick={onClick}
-    >
-      {''}
-    </SecondaryButton>
+    <button onClick={onClick} className="flex focus:outline-none" type="button">
+      <span className="flex items-center justify-center">
+        <TrashIcon
+          className="h-8 w-8 text-gray-500 hover:text-gray-600 transition duration-300 ease-in-out"
+          aria-hidden="true"
+        />
+      </span>
+    </button>
   );
 };
 

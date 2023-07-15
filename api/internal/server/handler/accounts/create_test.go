@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"testing"
-
 	"github.com/stretchr/testify/require"
 	"github.com/vlab-research/vlab/api/internal/testhelpers"
 	"github.com/vlab-research/vlab/api/internal/types"
@@ -13,7 +12,9 @@ import (
 func TestHandler_Account_Create(t *testing.T) {
 	assert := require.New(t)
 	userId := "auth0|61916c1dab79c900713936de"
-	authType := "token"
+	entity := "fly"
+	authType := types.AccountType(entity)
+
 
 	testcases := []struct {
 		account        types.Account
@@ -24,9 +25,9 @@ func TestHandler_Account_Create(t *testing.T) {
 		{
 			account: types.Account{
 				UserID:   userId,
-				Name:     "fly",
+				Name:     "fly123",
 				AuthType: authType,
-				RawConnectedAccount: []byte(`
+				Account: []byte(`
 					{
 						"createdAt": null,
 						"credentials": {
@@ -36,7 +37,7 @@ func TestHandler_Account_Create(t *testing.T) {
 					`),
 			},
 			expectedStatus: 201,
-			expectedRes:    `{"data":{"userId":"auth0|61916c1dab79c900713936de","authType":"token","name":"fly","connectedAccount":{"createdAt":null,"credentials":{"api_key":"supersecret"}}}}`,
+			expectedRes:    `{"data":{"userId":"auth0|61916c1dab79c900713936de","name":"fly123","authType":"fly","connectedAccount":{"createdAt":null,"credentials":{"api_key":"supersecret"}}}}`,
 			description:    "return 200 for valid fly account",
 		},
 		{
@@ -45,8 +46,8 @@ func TestHandler_Account_Create(t *testing.T) {
 			description:    "return 400 for invalid fly account",
 			account: types.Account{
 				UserID: userId,
-				Name:   "fly",
-				RawConnectedAccount: []byte(`
+				Name:   "fly123",
+				Account: []byte(`
 					{
 						"createdAt": null,
 						"credentials": {
@@ -58,12 +59,12 @@ func TestHandler_Account_Create(t *testing.T) {
 		},
 		{
 			expectedStatus: 400,
-			expectedRes:    `{"error":"unknown account type Invalid"}`,
+			expectedRes:    `{"error":"Invalid is an unknown account type"}`,
 			description:    "return 400 for unknown account type",
 			account: types.Account{
 				UserID: userId,
 				Name:   "Invalid",
-				RawConnectedAccount: []byte(`
+				Account: []byte(`
 					{
 						"createdAt": null,
 						"credentials": {
@@ -75,13 +76,13 @@ func TestHandler_Account_Create(t *testing.T) {
 		},
 		{
 			expectedStatus: 201,
-			expectedRes:    `{"data":{"userId":"auth0|61916c1dab79c900713936de","authType":"token","name":"typeform","connectedAccount":{"createdAt":null,"credentials":{"key":"supersecret"}}}}`,
+			expectedRes:    `{"data":{"userId":"auth0|61916c1dab79c900713936de","name":"typeform-test","authType":"typeform","connectedAccount":{"createdAt":null,"credentials":{"key":"supersecret"}}}}`,
 			description:    "return 201 for valid typeform account",
 			account: types.Account{
 				UserID:   userId,
-				Name:     "typeform",
+				Name:     "typeform-test",
 				AuthType: authType,
-				RawConnectedAccount: []byte(`
+				Account: []byte(`
 					{
 						"createdAt": null,
 						"credentials": {
@@ -93,18 +94,36 @@ func TestHandler_Account_Create(t *testing.T) {
 		},
 		{
 			expectedStatus: 201,
-			expectedRes:    `{"data":{"userId":"auth0|61916c1dab79c900713936de","authType":"token","name":"alchemer","connectedAccount":{"createdAt":null,"credentials":{"api_token":"supersecret","api_token_secret":"supersecret"}}}}`,
+			expectedRes:    `{"data":{"userId":"auth0|61916c1dab79c900713936de","name":"alchemer*!","authType":"alchemer","connectedAccount":{"createdAt":null,"credentials":{"api_token":"supersecret","api_token_secret":"supersecret"}}}}`,
 			description:    "return 201 for valid alchemer account",
 			account: types.Account{
 				UserID:   userId,
-				Name:     "alchemer",
+				Name:     "alchemer*!",
 				AuthType: authType,
-				RawConnectedAccount: []byte(`
+				Account: []byte(`
 					{
 						"createdAt": null,
 						"credentials": {
 							"api_token": "supersecret",
 							"api_token_secret": "supersecret"
+						}
+					}
+					`),
+			},
+		},
+		{
+			expectedStatus: 201,
+			expectedRes:    `{"data":{"userId":"auth0|61916c1dab79c900713936de","name":"Facebook","authType":"facebook","connectedAccount":{"createdAt":null,"credentials":{"token":"supersecret"}}}}`,
+			description:    "return 201 for valid Facebook account",
+			account: types.Account{
+				UserID:   userId,
+				Name:     "Facebook",
+				AuthType: authType,
+				Account: []byte(`
+					{
+						"createdAt": null,
+						"credentials": {
+							"token": "supersecret",
 						}
 					}
 					`),

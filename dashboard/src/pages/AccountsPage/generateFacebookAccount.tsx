@@ -11,10 +11,10 @@ const useGenerateFacebookAccount: any = () => {
   const history = useHistory();
   const queryKey = 'accounts';
 
-  const { generateFacebookAccount } = useAuthenticatedApi();
+  const { createFacebookAccount } = useAuthenticatedApi();
   const [generateFacebookAccountMutation, { isLoading, error }] = useMutation(
     async ({ code }: { code: string }) =>
-      await generateFacebookAccount({ code }),
+      await createFacebookAccount({ code }),
     {
       onSuccess: ({ data: account }) => {
         addToCache(account, queryKey);

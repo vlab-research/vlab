@@ -4,7 +4,7 @@ VALUES
   (
     'auth0|6412f8baa95e852045477d6e',
     'typeform',
-    'Foo Bar TypeForm',
+    'typeform-test',
     '{
         "key": "supersecret"
     }'
@@ -12,7 +12,7 @@ VALUES
   (
     'auth0|6412f8baa95e852045477d6e',
     'alchemer',
-    'Foo Bar Alchemer',
+    'alchemer*!',
     '{
         "api_token": "supersecret",
         "api_token_secret": "supersecret"
@@ -21,8 +21,16 @@ VALUES
   (
     'auth0|6412f8baa95e852045477d6e',
     'fly',
-    'Fly Credentials',
+    'fly 123',
     '{
         "api_key": "supersecret"
+    }'
+  ),
+  (
+    'auth0|6412f8baa95e852045477d6e',
+    'facebook',
+    'Facebook',
+    '{
+        "token": "supersecret"
     }'
   );

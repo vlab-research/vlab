@@ -1,8 +1,8 @@
 import { useMutation } from 'react-query';
 import { Notyf } from 'notyf';
 import { useHistory } from 'react-router-dom';
-import useAuthenticatedApi from './useAuthenticatedApi';
-import { addToCache } from '../helpers/cache';
+import { addToCache } from '../../../helpers/cache';
+import useAuthenticatedApi from '../../../hooks/useAuthenticatedApi';
 
 const useCreateStudyConf = (redirect: boolean, message: string) => {
   const notyf = new Notyf();
@@ -22,13 +22,13 @@ const useCreateStudyConf = (redirect: boolean, message: string) => {
         }
         notyf.success({
           message: message,
-          duration: 2000,
+          background: 'rgb(67 56 202)',
         });
       },
       onError: error => {
         notyf.error({
           message: `${error.message}`,
-          duration: 2000,
+          background: 'rgb(67 56 202)',
           dismissible: true,
         });
       },

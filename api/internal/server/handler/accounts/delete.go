@@ -4,17 +4,14 @@ import (
 	"encoding/json"
 	"io/ioutil"
 	"net/http"
-
 	"github.com/gin-gonic/gin"
 	"github.com/vlab-research/vlab/api/internal/server/middleware/auth"
 	"github.com/vlab-research/vlab/api/internal/storage"
 	"github.com/vlab-research/vlab/api/internal/types"
 )
 
-// DeleteHandler is a gin handler that is used to delete
-// a account object in the database. Because of the nature of the resource
-// we require to send a body with some data through, including
-// authType and name of account
+// Gin handler used to delete an account object in the db
+// Name and authType are required in the body of the request due to the interface of the account resource
 func DeleteHandler(r storage.Repositories) gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		b, err := ioutil.ReadAll(ctx.Request.Body)
@@ -35,7 +32,7 @@ func DeleteHandler(r storage.Repositories) gin.HandlerFunc {
 		if err != nil {
 			var status int
 			switch err {
-			case types.ErrAccountDoesNotExists:
+			case types.ErrAccountDoesNotExist:
 				status = http.StatusNotFound
 			default:
 				status = http.StatusBadRequest

@@ -1,7 +1,7 @@
 import { queryCache } from 'react-query';
 import { useHistory } from 'react-router-dom';
-import StudyList, { StudyListSkeleton } from './StudyList';
-import useStudies from '../../hooks/useStudies';
+import StudyList, { StudyListSkeleton } from './components/StudyList';
+import useStudies from './hooks/useStudies';
 import PageLayout from '../../components/PageLayout';
 import PrimaryButton from '../../components/PrimaryButton';
 import ErrorPlaceholder from '../../components/ErrorPlaceholder';
@@ -96,7 +96,7 @@ const NewStudyButton = ({ testId }: { testId: string }) => {
 
   return (
     <PrimaryButton
-      leftIcon="PlusIcon"
+      leftIcon="PlusCircleIcon"
       testId={testId}
       onClick={() => history.push('/new-study')}
     >

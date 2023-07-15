@@ -2,7 +2,10 @@ import React from 'react';
 import { Path } from 'react-hook-form';
 import { classNames } from '../../../../helpers/strings';
 import AddButton from '../../../../components/AddButton';
-import { Level as LevelType, Variable as VariableType } from '../../../../types/conf';
+import {
+  Level as LevelType,
+  Variable as VariableType,
+} from '../../../../types/conf';
 import Level, { TextInput } from './Level';
 import DeleteButton from '../../../../components/DeleteButton';
 
@@ -79,7 +82,6 @@ const Variable: React.FC<Props> = ({
   campaignId,
   updateFormData,
 }: Props) => {
-
   // Function to help get targeting params out of adset
   const getTargeting = (data: any, adsetId: string) => {
     if (!adsetId) return {};
@@ -107,9 +109,8 @@ const Variable: React.FC<Props> = ({
   // Make sure all levels are current on each render
   data = reformulateData(data);
 
-
   const update = (data: any) => {
-    const d = reformulateData(data)
+    const d = reformulateData(data);
     updateFormData(d, index);
   };
 
@@ -196,8 +197,7 @@ const Variable: React.FC<Props> = ({
         })}
       </ul>
       <div className="flex flex-row items-center mb-4">
-        <AddButton onClick={addLevel} />
-        <span className="ml-4 italic text-gray-700 text-sm">Add a level</span>
+        <AddButton onClick={addLevel} label="Add a level" />
       </div>
     </div>
   );

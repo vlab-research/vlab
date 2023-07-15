@@ -17,8 +17,8 @@ func Test_AccountRepository_Create_Account(t *testing.T) {
 	t.Run("with valid fly credentials", func(t *testing.T) {
 		a := types.Account{
 			UserID:   "auth0|61916c1dab79c900713936de",
-			Name:     "Fly",
-			AuthType: "token",
+			Name:     "fly123",
+			AuthType: "fly",
 			ConnectedAccount: types.FlyConnectedAccount{
 				CreatedAt: 0,
 				Credentials: sourcetypes.FlyCredentials{
@@ -51,8 +51,8 @@ func Test_AccountRepository_Delete_Account(t *testing.T) {
 	t.Run("deletes valid account", func(t *testing.T) {
 		a := types.Account{
 			UserID:   "auth0|61916c1dab79c900713936de",
-			Name:     "Fly",
-			AuthType: "token",
+			Name:     "fly123",
+			AuthType: "fly",
 		}
 
 		db, sqlMock, err := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherEqual))

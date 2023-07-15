@@ -1,5 +1,5 @@
 import { useQuery, queryCache } from 'react-query';
-import useAuthenticatedApi from './useAuthenticatedApi';
+import useAuthenticatedApi from '../../../hooks/useAuthenticatedApi';
 
 const queryKey = 'studyConf';
 

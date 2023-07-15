@@ -1,5 +1,5 @@
 import { ArrowSmUpIcon, ArrowSmDownIcon } from '@heroicons/react/solid';
-import { classNames, createSlugFor } from '../../helpers/strings';
+import { classNames, createSlugFor } from '../../../helpers/strings';
 
 interface PaginationProps {
   from: number;
