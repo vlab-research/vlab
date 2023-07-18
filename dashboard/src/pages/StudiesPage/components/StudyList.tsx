@@ -138,7 +138,7 @@ const StudyConfButton = ({
     <SecondaryButton
       testId={testId}
       icon="AdjustmentsIcon"
-      onClick={() => history.push(`/studies/${slug}/conf`)}
+      onClick={() => history.push(`/studies/${slug}/general`)}
     >
       {''}
     </SecondaryButton>
