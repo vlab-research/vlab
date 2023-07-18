@@ -59,7 +59,7 @@ const Routes = () => {
           <StudiesPage />
         </AuthenticatedRoute>
 
-        <AuthenticatedRoute path="/studies/:studySlug/conf">
+        <AuthenticatedRoute path="/studies/:studySlug/:conf">
           <StudyConfPage />
         </AuthenticatedRoute>
 
