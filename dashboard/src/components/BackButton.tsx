@@ -5,13 +5,7 @@ const BackButton = () => {
   const history = useHistory();
 
   const handleBackNavigation = () => {
-    const currentRouteIsLastOne = history.location.key === undefined;
-
-    if (currentRouteIsLastOne) {
-      return history.push('/studies');
-    }
-
-    return history.goBack();
+    return history.push('/studies');
   };
 
   return (

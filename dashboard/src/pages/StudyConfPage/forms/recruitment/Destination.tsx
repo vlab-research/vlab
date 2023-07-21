@@ -90,9 +90,15 @@ interface Props {
   id: string;
   data: FormData;
   destinations: Destinations;
+  confKeys: string[];
 }
 
-const Destination: React.FC<Props> = ({ id, data, destinations }: Props) => {
+const Destination: React.FC<Props> = ({
+  id,
+  data,
+  destinations,
+  confKeys,
+}: Props) => {
   const initialValues = {
     end_date: '',
     start_date: '',
@@ -116,15 +122,19 @@ const Destination: React.FC<Props> = ({ id, data, destinations }: Props) => {
     }
   }, [data, isMatch, reset]);
 
-  const { createStudyConf, isLoadingOnCreateStudyConf } = useCreateStudyConf(
-    true,
-    'Recruitment settings saved'
-  );
   const params = useParams<{ studySlug: string }>();
 
-  const onSubmit: SubmitHandler<FormData> = formData => {
-    const studySlug = params.studySlug;
+  const studySlug = params.studySlug;
 
+  const { createStudyConf, isLoadingOnCreateStudyConf } = useCreateStudyConf(
+    true,
+    'Recruitment settings saved',
+    studySlug,
+    confKeys,
+    'recruitment'
+  );
+
+  const onSubmit: SubmitHandler<FormData> = formData => {
     const data = {
       [id]: formData,
     };
@@ -185,7 +195,7 @@ const Destination: React.FC<Props> = ({ id, data, destinations }: Props) => {
           testId="form-submit-button"
           loading={isLoadingOnCreateStudyConf}
         >
-          Save
+          Next
         </PrimaryButton>
       </div>
     </form>

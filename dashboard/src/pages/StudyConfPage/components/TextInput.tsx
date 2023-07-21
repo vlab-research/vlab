@@ -12,7 +12,7 @@ interface TextProps<T> {
   required?: boolean;
 }
 
-export type TextInputI<T = any> = React.FC<TextProps<T>>
+export type TextInputI<T = any> = React.FC<TextProps<T>>;
 
 export const GenericTextInput: TextInputI = ({
   name,
@@ -40,10 +40,9 @@ export const GenericTextInput: TextInputI = ({
       {...props}
       onChange={e => handleChange(e)}
       className={classNames(
-        "block w-2/5 shadow-sm sm:text-sm rounded-md",
+        'block w-4/5 shadow-sm sm:text-sm rounded-md',
         disabled ? 'opacity-50 cursor-not-allowed' : ''
       )}
-
     />
   </div>
 );

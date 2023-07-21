@@ -98,9 +98,10 @@ const Select: React.FC<SelectProps> = ({
 interface Props {
   id: string;
   localData: FormData;
+  confKeys: string[];
 }
 
-const General: React.FC<Props> = ({ id, localData }: Props) => {
+const General: React.FC<Props> = ({ id, localData, confKeys }: Props) => {
   const initialValues = {
     objective: getFirstOption(objectives).toUpperCase(),
     optimization_goal: getFirstOption(optimizationGoals).toUpperCase(),
@@ -122,15 +123,19 @@ const General: React.FC<Props> = ({ id, localData }: Props) => {
     reset(localData);
   }, [localData, reset]);
 
-  const { createStudyConf, isLoadingOnCreateStudyConf } = useCreateStudyConf(
-    true,
-    'General settings saved'
-  );
   const params = useParams<{ studySlug: string }>();
 
-  const onSubmit: SubmitHandler<FormData> = formData => {
-    const studySlug = params.studySlug;
+  const studySlug = params.studySlug;
 
+  const { createStudyConf, isLoadingOnCreateStudyConf } = useCreateStudyConf(
+    true,
+    'General settings saved',
+    studySlug,
+    confKeys,
+    'general'
+  );
+
+  const onSubmit: SubmitHandler<FormData> = formData => {
     const data = {
       [id]: formData,
     };
@@ -206,7 +211,7 @@ const General: React.FC<Props> = ({ id, localData }: Props) => {
                 testId="form-submit-button"
                 loading={isLoadingOnCreateStudyConf}
               >
-                Save
+                Next
               </PrimaryButton>
             </div>
           </div>

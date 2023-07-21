@@ -15,9 +15,15 @@ interface Props {
   id: string;
   localData: CreativesType;
   globalData: GlobalFormData;
+  confKeys: string[];
 }
 
-const Creatives: React.FC<Props> = ({ id, localData, globalData }: Props) => {
+const Creatives: React.FC<Props> = ({
+  id,
+  localData,
+  globalData,
+  confKeys,
+}: Props) => {
   const initialState = [
     {
       name: '',
@@ -41,17 +47,20 @@ const Creatives: React.FC<Props> = ({ id, localData, globalData }: Props) => {
     setFormData(clone);
   };
 
+  const params = useParams<{ studySlug: string }>();
+
+  const studySlug = params.studySlug;
+
   const { createStudyConf, isLoadingOnCreateStudyConf } = useCreateStudyConf(
     true,
-    'Creatives saved'
+    'Creatives saved',
+    studySlug,
+    confKeys,
+    'creatives'
   );
-
-  const params = useParams<{ studySlug: string }>();
 
   const onSubmit = (e: any): void => {
     e.preventDefault();
-
-    const studySlug = params.studySlug;
 
     const data = {
       [id]: formData,
@@ -64,8 +73,8 @@ const Creatives: React.FC<Props> = ({ id, localData, globalData }: Props) => {
     setFormData([...formData, ...initialState]);
   };
 
-  const deleteCreative = (index: number): void => {
-    const newArr = formData.filter((c: CreativeType, i: number) => index !== i);
+  const deleteCreative = (i: number): void => {
+    const newArr = formData.filter((_: CreativeType, ii: number) => ii !== i);
 
     setFormData(newArr);
   };
@@ -116,7 +125,7 @@ const Creatives: React.FC<Props> = ({ id, localData, globalData }: Props) => {
                   testId="form-submit-button"
                   loading={isLoadingOnCreateStudyConf}
                 >
-                  Save
+                  Next
                 </PrimaryButton>
               </div>
             </form>

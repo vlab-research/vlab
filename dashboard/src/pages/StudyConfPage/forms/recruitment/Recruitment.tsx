@@ -14,9 +14,15 @@ interface Props {
   id: string;
   globalData: GlobalFormData;
   localData: any;
+  confKeys: string[];
 }
 
-const Recruitment: React.FC<Props> = ({ id, globalData, localData }: Props) => {
+const Recruitment: React.FC<Props> = ({
+  id,
+  globalData,
+  localData,
+  confKeys,
+}: Props) => {
   const [recruitmentType, setRecruitmentType] = useState('simple');
 
   useEffect(() => {
@@ -37,7 +43,7 @@ const Recruitment: React.FC<Props> = ({ id, globalData, localData }: Props) => {
 
   const filterRecruitmentTypes = (arr: any[]) => {
     if (!globalData.destinations) {
-      return arr.filter((t, i) => t.name !== 'destination');
+      return arr.filter(t => t.name !== 'destination');
     }
     return arr;
   };
@@ -67,15 +73,18 @@ const Recruitment: React.FC<Props> = ({ id, globalData, localData }: Props) => {
               )}
             </select>
           </div>
-          {recruitmentType === 'simple' && <Simple id={id} data={localData} />}
+          {recruitmentType === 'simple' && (
+            <Simple id={id} data={localData} confKeys={confKeys} />
+          )}
           {recruitmentType === 'pipeline_experiment' && (
-            <PipelineExperiment id={id} data={localData} />
+            <PipelineExperiment id={id} data={localData} confKeys={confKeys} />
           )}
           {recruitmentType === 'destination' && (
             <Destination
               id={id}
               data={localData}
               destinations={globalData.destinations}
+              confKeys={confKeys}
             />
           )}
         </div>

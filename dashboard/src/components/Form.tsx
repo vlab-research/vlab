@@ -1,5 +1,9 @@
 import React from 'react';
-import { CreateStudy as StudyType, GlobalFormData, LocalFormData } from '../types/conf';
+import {
+  CreateStudy as StudyType,
+  GlobalFormData,
+  LocalFormData,
+} from '../types/conf';
 
 interface Props {
   id: string;
@@ -7,6 +11,7 @@ interface Props {
   globalData: GlobalFormData;
   localData: LocalFormData;
   study: StudyType;
+  confKeys: string[];
 }
 const Form: React.FC<Props> = (props: Props) => {
   const { component: Component, ...childProps } = props;
