@@ -1,65 +1,18 @@
 import React, { useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { GenericTextInput, TextInputI } from '../../components/TextInput';
-import { GenericMultiSelect, MultiSelectI } from '../../components/MultiSelect';
+import Stratum from './Stratum';
 import PrimaryButton from '../../../../components/PrimaryButton';
 import useCreateStudyConf from '../../hooks/useCreateStudyConf';
 import { createStrataFromVariables } from '../../../../helpers/strata';
 import { GlobalFormData, Stratum as StratumType } from '../../../../types/conf';
-
-export interface StratumFormData {
-  id: string;
-  quota: number;
-}
-const StratumTextInput = GenericTextInput as TextInputI<StratumFormData>;
-
-
-const MultiSelect = GenericMultiSelect as MultiSelectI<StratumType>;
-
-const Stratum: React.FC<{
-  stratum: StratumType;
-  creativeOptions: string[];
-  onChange: (e: any) => void;
-}> = ({ stratum, creativeOptions, onChange }) => {
-
-  const handleMultiSelectChange = (selected: any[], name: string) => {
-    onChange({ target: { name, value: selected } })
-  }
-
-  return (
-    <>
-      <StratumTextInput
-        name="id"
-        type="text"
-        value={stratum.id}
-        disabled={true}
-        placeholder="name"
-        handleChange={onChange}
-      />
-      <StratumTextInput
-        name="quota"
-        type="text"
-        value={stratum.quota}
-        placeholder="quota"
-        handleChange={onChange}
-      />
-      <MultiSelect
-        name="creatives"
-        options={creativeOptions.map((c) => ({ label: c, value: c }))}
-        handleMultiSelectChange={handleMultiSelectChange}
-        value={stratum.creatives}
-        label="Select which creatives to show to this stratum"
-      ></MultiSelect>
-      <div className="w-4/5 h-0.5 mr-8 my-6 rounded-md bg-gray-400"></div>
-    </>
-  );
-};
+import { GenericTextInput, TextInputI } from '../../components/TextInput';
 
 
 export interface AdditionalStrataFormData {
   finishQuestionRef: string;
 }
 const AdditionalStrataTextInput = GenericTextInput as TextInputI<AdditionalStrataFormData>;
+
 
 interface Props {
   id: string;
@@ -136,33 +89,50 @@ const Variables: React.FC<Props> = ({
             </div>
             <form onSubmit={onSubmit}>
               <div className="mb-8">
-                {formData.length === 0 ? (
-                  <>
-                    <div className="p-2 m-4"></div>
-                    <div className="flex items-center justify-center h-40">
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        viewBox="0 0 24 24"
-                        className="flex-none fill-current text-gray-500 h-4 w-4"
-                      >
-                        <path d="M12 0c-6.627 0-12 5.373-12 12s5.373 12 12 12 12-5.373 12-12-5.373-12-12-12zm-.001 5.75c.69 0 1.251.56 1.251 1.25s-.561 1.25-1.251 1.25-1.249-.56-1.249-1.25.559-1.25 1.249-1.25zm2.001 12.25h-4v-1c.484-.179 1-.201 1-.735v-4.467c0-.534-.516-.618-1-.797v-1h3v6.265c0 .535.517.558 1 .735v.999z" />
-                      </svg>
-                      <p className="text-ml font-medium text-gray-700 ml-2">
-                        First create some variables...
-                      </p>
-                    </div>
-                  </>
-                ) : (
-                  formData.map((s, i) => (
-                    <Stratum
-                      key={i}
-                      stratum={s}
-                      creativeOptions={allCreatives}
-                      onChange={(e: any) => updateFormData(e, i)}
-                    />
-                  ))
-                )}
+                <ul>
+                  {formData.length === 0 ? (
+                    <li>
+                      <div className="p-2 m-4"></div>
+                      <div className="flex items-center justify-center h-40">
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          viewBox="0 0 24 24"
+                          className="flex-none fill-current text-gray-500 h-4 w-4"
+                        >
+                          <path d="M12 0c-6.627 0-12 5.373-12 12s5.373 12 12 12 12-5.373 12-12-5.373-12-12-12zm-.001 5.75c.69 0 1.251.56 1.251 1.25s-.561 1.25-1.251 1.25-1.249-.56-1.249-1.25.559-1.25 1.249-1.25zm2.001 12.25h-4v-1c.484-.179 1-.201 1-.735v-4.467c0-.534-.516-.618-1-.797v-1h3v6.265c0 .535.517.558 1 .735v.999z" />
+                        </svg>
+                        <p className="text-ml font-medium text-gray-700 ml-2">
+                          First create some variables...
+                        </p>
+                      </div>
+                    </li>
+                  ) : (
+                    formData.map((s, i) => (
+                      <Stratum
+                        key={i}
+                        stratum={s}
+                        onChange={(e: any) => updateFormData(e, i)}
+                      />
+                    ))
+                  )}
+                  {formData.length > 1 && (
+                    <div className="flex w-full h-0.5 mr-4 rounded-md bg-gray-400"></div>
+                  )}
+                </ul>
               </div>
+
+              {formData.length !== 0 && (
+                <div className="flex flex-row items-center">
+                  <div className="text-left">
+                    <PrimaryButton type="button" onClick={regenerate}>
+                      Generate from variables
+                    </PrimaryButton>
+                  </div>
+                  <span className="ml-4 italic text-gray-700 text-sm">
+                    Generates strata from a set of variables
+                  </span>
+                </div>
+              )}
 
               {formData.length !== 0 && (
                 <div className="p-6 text-right">
@@ -174,8 +144,8 @@ const Variables: React.FC<Props> = ({
             </form>
           </div>
         </div>
-      </div>
-    </div>
+      </div >
+    </div >
   );
 };
 
