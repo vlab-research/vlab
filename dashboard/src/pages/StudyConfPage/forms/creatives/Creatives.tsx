@@ -99,6 +99,7 @@ const Creatives: React.FC<Props> = ({
                           globalData.destinations && globalData.destinations
                         }
                         updateFormData={updateFormData}
+                        studySlug={studySlug}
                       />
                       {formData.length > 1 && (
                         <div key={`${d.name}-${index}`}>

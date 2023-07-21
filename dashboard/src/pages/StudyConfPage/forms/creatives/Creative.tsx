@@ -3,6 +3,8 @@ import { Destinations as DestinationTypes } from '../../../../types/conf';
 import { Path } from 'react-hook-form';
 import { createLabelFor } from '../../../../helpers/strings';
 import { Creative as CreativeType } from '../../../../types/conf';
+import AddButton from '../../../../components/AddButton';
+import { useHistory } from 'react-router-dom';
 
 interface FormData {
   name: string;
@@ -96,6 +98,7 @@ interface Props {
   index: number;
   destinations: DestinationTypes;
   updateFormData: (e: CreativeType, index: number) => void;
+  studySlug: string;
 }
 
 const Creative: React.FC<Props> = ({
@@ -103,6 +106,7 @@ const Creative: React.FC<Props> = ({
   index,
   destinations,
   updateFormData,
+  studySlug,
 }: Props) => {
   const handleChange = (e: any) => {
     const { name, value } = e.target;
@@ -122,6 +126,8 @@ const Creative: React.FC<Props> = ({
     const clone = { ...data, destination: value };
     updateFormData(clone, index);
   };
+
+  const history = useHistory();
 
   return (
     <li>
@@ -162,11 +168,10 @@ const Creative: React.FC<Props> = ({
           <label className="my-2 block text-sm font-medium text-gray-700">
             Destination
           </label>
-          <div className="p-2 block w-4/5 sm:text-sm">
-            <span className="sm:text-sm text-gray-700">
-              Add a destination...
-            </span>
-          </div>
+          <AddButton
+            label="Add a destination"
+            onClick={() => history.push(`/studies/${studySlug}/destinations`)}
+          />
         </>
       )}
 
