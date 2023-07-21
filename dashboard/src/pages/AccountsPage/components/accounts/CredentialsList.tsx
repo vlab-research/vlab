@@ -127,7 +127,7 @@ const NameInput: React.FC<NameInputProps> = ({ name, index, error }) => {
           name={name}
           type="text"
           className={classNames(
-            'block w-full shadow-sm sm:text-sm rounded-md text-gray-600',
+            'block w-full shadow-sm sm:text-sm rounded-md text-gray-700 opacity-50 cursor-not-allowed',
             (error ?? '').trim() !== ''
               ? 'focus:ring-red-500 focus:border-red-500 border-red-300 text-red-900 pr-10'
               : 'focus:ring-indigo-500 focus:border-indigo-500 border-gray-300'
