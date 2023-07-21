@@ -24,17 +24,9 @@ const Audiences: React.FC<Props> = ({
   localData,
   confKeys,
 }: Props) => {
-  const [studyName, setStudyName] = useState<string>(
-    study.name ? study.name : ''
-  );
-
-  useEffect(() => {
-    setStudyName(study.name);
-  }, [study.name]);
-
   const initialState = [
     {
-      name: `${studyName} respondents`,
+      name: study.name && `${study.name} respondents`,
       subtype: 'CUSTOM',
     },
   ];
