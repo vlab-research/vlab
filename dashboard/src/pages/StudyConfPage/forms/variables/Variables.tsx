@@ -61,6 +61,7 @@ interface Props {
   id: string;
   localData: VariableType[];
   globalData: GlobalFormData;
+  confKeys: string[];
 }
 
 const Variables: React.FC<Props> = ({
@@ -68,6 +69,7 @@ const Variables: React.FC<Props> = ({
   id,
   globalData,
   localData,
+  confKeys,
 }: Props) => {
   const initialState: VariableType[] = [
     {
@@ -80,7 +82,13 @@ const Variables: React.FC<Props> = ({
   const params = useParams<{ studySlug: string }>();
   const studySlug = params.studySlug;
 
-  const { createStudyConf } = useCreateStudyConf(true, 'Variables saved');
+  const { createStudyConf } = useCreateStudyConf(
+    true,
+    'Variables saved',
+    studySlug,
+    confKeys,
+    'variables'
+  );
 
   const [formData, setFormData] = useState<any[]>(
     localData ? localData : initialState
@@ -185,13 +193,13 @@ const Variables: React.FC<Props> = ({
                   );
                 })}
                 <div className="flex flex-row items-center">
-                  <AddButton onClick={addVariable} label="Add a new variable" />
+                  <AddButton onClick={addVariable} label="Add a variable" />
                 </div>
               </div>
 
               <div className="p-6 text-right">
                 <PrimaryButton type="submit" testId="form-submit-button">
-                  Save
+                  Next
                 </PrimaryButton>
               </div>
             </form>

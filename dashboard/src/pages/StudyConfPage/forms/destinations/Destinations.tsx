@@ -11,9 +11,10 @@ import { Destination as DestinationType } from '../../../../types/conf';
 interface Props {
   id: string;
   localData: DestinationTypes;
+  confKeys: string[];
 }
 
-const Destinations: React.FC<Props> = ({ id, localData }: Props) => {
+const Destinations: React.FC<Props> = ({ id, localData, confKeys }: Props) => {
   const initialState = [
     {
       name: '',
@@ -32,17 +33,20 @@ const Destinations: React.FC<Props> = ({ id, localData }: Props) => {
     setFormData(clone);
   };
 
+  const params = useParams<{ studySlug: string }>();
+
+  const studySlug = params.studySlug;
+
   const { createStudyConf, isLoadingOnCreateStudyConf } = useCreateStudyConf(
     true,
-    'Destinations saved'
+    'Destinations saved',
+    studySlug,
+    confKeys,
+    'destinations'
   );
-
-  const params = useParams<{ studySlug: string }>();
 
   const onSubmit = (e: any): void => {
     e.preventDefault();
-
-    const studySlug = params.studySlug;
 
     const data = {
       [id]: formData,
@@ -55,9 +59,9 @@ const Destinations: React.FC<Props> = ({ id, localData }: Props) => {
     setFormData([...formData, ...initialState]);
   };
 
-  const deleteDestination = (index: number): void => {
+  const deleteDestination = (i: number): void => {
     const newArr = formData.filter(
-      (d: DestinationType, i: number) => index !== i
+      (_: DestinationType, ii: number) => ii !== i
     );
 
     setFormData(newArr);
@@ -110,7 +114,7 @@ const Destinations: React.FC<Props> = ({ id, localData }: Props) => {
                   testId="form-submit-button"
                   loading={isLoadingOnCreateStudyConf}
                 >
-                  Save
+                  Next
                 </PrimaryButton>
               </div>
             </form>

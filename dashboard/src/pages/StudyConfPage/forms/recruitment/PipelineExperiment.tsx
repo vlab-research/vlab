@@ -54,9 +54,10 @@ const TextInput: React.FC<TextProps> = ({
 interface Props {
   id: string;
   data: FormData;
+  confKeys: string[];
 }
 
-const PipelineExperiment: React.FC<Props> = ({ id, data }: Props) => {
+const PipelineExperiment: React.FC<Props> = ({ id, data, confKeys }: Props) => {
   const initialValues = {
     end_date: '',
     start_date: '',
@@ -83,15 +84,19 @@ const PipelineExperiment: React.FC<Props> = ({ id, data }: Props) => {
     }
   }, [data, isMatch, reset]);
 
-  const { createStudyConf, isLoadingOnCreateStudyConf } = useCreateStudyConf(
-    true,
-    'Recruitment settings saved'
-  );
   const params = useParams<{ studySlug: string }>();
 
-  const onSubmit: SubmitHandler<FormData> = formData => {
-    const studySlug = params.studySlug;
+  const studySlug = params.studySlug;
 
+  const { createStudyConf, isLoadingOnCreateStudyConf } = useCreateStudyConf(
+    true,
+    'Recruitment settings saved',
+    studySlug,
+    confKeys,
+    'recruitment'
+  );
+
+  const onSubmit: SubmitHandler<FormData> = formData => {
     const data = {
       [id]: formData,
     };
@@ -169,7 +174,7 @@ const PipelineExperiment: React.FC<Props> = ({ id, data }: Props) => {
           testId="form-submit-button"
           loading={isLoadingOnCreateStudyConf}
         >
-          Save
+          Next
         </PrimaryButton>
       </div>
     </form>

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import Audience from './Audience';
 import PrimaryButton from '../../../../components/PrimaryButton';
@@ -15,12 +15,26 @@ interface Props {
   id: string;
   study: StudyType;
   localData: AudiencesType;
+  confKeys: string[];
 }
 
-const Audiences: React.FC<Props> = ({ id, study, localData }: Props) => {
+const Audiences: React.FC<Props> = ({
+  id,
+  study,
+  localData,
+  confKeys,
+}: Props) => {
+  const [studyName, setStudyName] = useState<string>(
+    study.name ? study.name : ''
+  );
+
+  useEffect(() => {
+    setStudyName(study.name);
+  }, [study.name]);
+
   const initialState = [
     {
-      name: `${study.name} Respondents`,
+      name: `${studyName} respondents`,
       subtype: 'CUSTOM',
     },
   ];
@@ -29,27 +43,26 @@ const Audiences: React.FC<Props> = ({ id, study, localData }: Props) => {
     localData ? localData : initialState
   );
 
-  const updateFormData = (d: AudienceType, index: number): void => {
+  const updateFormData = (a: AudienceType, index: number): void => {
     const clone = [...formData];
-    clone[index] = d;
+    clone[index] = a;
     setFormData(clone);
   };
 
+  const params = useParams<{ studySlug: string }>();
+
+  const studySlug = params.studySlug;
+
   const { createStudyConf, isLoadingOnCreateStudyConf } = useCreateStudyConf(
     true,
-    'Audiences saved'
+    'Audiences saved',
+    studySlug,
+    confKeys,
+    'audiences'
   );
-  const {
-    createStudyConf: deleteStudyConf,
-    isLoadingOnCreateStudyConf: isDeleting,
-  } = useCreateStudyConf(false, 'Audience deleted');
-
-  const params = useParams<{ studySlug: string }>();
 
   const onSubmit = (e: any): void => {
     e.preventDefault();
-
-    const studySlug = params.studySlug;
 
     const data = {
       [id]: formData,
@@ -62,16 +75,8 @@ const Audiences: React.FC<Props> = ({ id, study, localData }: Props) => {
     setFormData([...formData, ...initialState]);
   };
 
-  const deleteAudience = (index: number): void => {
-    const newArr = formData.filter((d: AudienceType, i: number) => index !== i);
-
-    const data = {
-      [id]: newArr,
-    };
-
-    const studySlug = params.studySlug;
-
-    deleteStudyConf({ data, studySlug });
+  const deleteAudience = (i: number): void => {
+    const newArr = formData.filter((_: AudienceType, ii: number) => ii !== i);
 
     setFormData(newArr);
   };
@@ -86,42 +91,40 @@ const Audiences: React.FC<Props> = ({ id, study, localData }: Props) => {
           <div className="sm:my-4">
             <form onSubmit={onSubmit}>
               <div className="mb-8">
-                <ul>
-                  {formData.map((d: AudienceType, index: number) => {
-                    return (
-                      <li key={index}>
-                        <Audience
-                          key={index}
-                          data={d}
-                          index={index}
-                          updateFormData={updateFormData}
-                        />
-                        {formData.length > 1 && (
-                          <div key={`${d.name}-${index}`}>
-                            <div className="flex flex-row w-4/5 justify-between items-center mb-4">
-                              <div className="w-full h-0.5 mr-8 rounded-md bg-gray-400"></div>
-                              <DeleteButton
-                                loading={isDeleting}
-                                onClick={() => deleteAudience(index)}
-                              ></DeleteButton>
-                            </div>
-                            <div />
+                {formData.map((d: AudienceType, index: number) => {
+                  return (
+                    <ul>
+                      <Audience
+                        key={index}
+                        data={d}
+                        index={index}
+                        updateFormData={updateFormData}
+                      />
+                      {formData.length > 1 && (
+                        <div key={`${d.name}-${index}`}>
+                          <div className="flex flex-row w-4/5 justify-between items-center">
+                            <div className="flex w-full h-0.5 mr-4 rounded-md bg-gray-400"></div>
+                            <DeleteButton
+                              onClick={() => deleteAudience(index)}
+                            ></DeleteButton>
                           </div>
-                        )}
-                      </li>
-                    );
-                  })}
-                  <AddButton onClick={addAudience} label="Add a new audience" />
-                </ul>
+                          <div />
+                        </div>
+                      )}
+                    </ul>
+                  );
+                })}
+                <AddButton onClick={addAudience} label="Add a new audience" />
               </div>
 
               <div className="p-6 text-right">
                 <PrimaryButton
+                  leftIcon="CheckCircleIcon"
                   type="submit"
                   testId="form-submit-button"
                   loading={isLoadingOnCreateStudyConf}
                 >
-                  Save
+                  Next
                 </PrimaryButton>
               </div>
             </form>

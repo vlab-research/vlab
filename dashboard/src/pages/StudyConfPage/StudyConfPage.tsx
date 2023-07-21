@@ -65,6 +65,8 @@ const PageContent: React.FC<PageContentProps> = ({ data, study }) => {
   const id = conf;
   const index = lookup.findIndex(c => c[0] === conf);
   const component = lookup[index][1];
+  const confKeys = lookup.map((c: any[]) => c[0]);
+
   return (
     <>
       <Sidebar />
@@ -74,6 +76,7 @@ const PageContent: React.FC<PageContentProps> = ({ data, study }) => {
         globalData={data}
         localData={data[id]}
         study={study}
+        confKeys={confKeys}
       />
     </>
   );
