@@ -52,7 +52,6 @@ const Creatives: React.FC<Props> = ({
   const studySlug = params.studySlug;
 
   const { createStudyConf, isLoadingOnCreateStudyConf } = useCreateStudyConf(
-    true,
     'Creatives saved',
     studySlug,
     confKeys,

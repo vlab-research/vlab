@@ -128,7 +128,6 @@ const General: React.FC<Props> = ({ id, localData, confKeys }: Props) => {
   const studySlug = params.studySlug;
 
   const { createStudyConf, isLoadingOnCreateStudyConf } = useCreateStudyConf(
-    true,
     'General settings saved',
     studySlug,
     confKeys,

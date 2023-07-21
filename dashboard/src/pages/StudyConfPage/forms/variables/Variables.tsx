@@ -83,7 +83,6 @@ const Variables: React.FC<Props> = ({
   const studySlug = params.studySlug;
 
   const { createStudyConf } = useCreateStudyConf(
-    true,
     'Variables saved',
     studySlug,
     confKeys,

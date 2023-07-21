@@ -6,7 +6,6 @@ import useAuthenticatedApi from '../../../hooks/useAuthenticatedApi';
 import getNextConf from '../../../helpers/getNextConf';
 
 const useCreateStudyConf = (
-  redirect: boolean,
   message: string,
   studySlug: string,
   confKeys: string[],
@@ -24,11 +23,12 @@ const useCreateStudyConf = (
     {
       onSuccess: ({ data: conf }) => {
         addToCache(conf, queryKey);
-        if (redirect === true) {
-          history.push(`/studies`);
+        if (getNextConf(confKeys, confKey)) {
           history.push(
             `/studies/${studySlug}/${getNextConf(confKeys, confKey)}`
           );
+        } else {
+          history.push(`/studies/`);
         }
         notyf.success({
           message: message,
