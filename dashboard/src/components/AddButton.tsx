@@ -11,6 +11,7 @@ const AddButton = ({ onClick, label }: Props) => {
       <button
         onClick={onClick}
         className="flex items-center focus:outline-none"
+        type="button"
       >
         <PlusCircleIcon
           className="h-8 w-8 text-gray-500 hover:text-gray-600 transition duration-300 ease-in-out focus:outline-none"
