@@ -38,7 +38,6 @@ const Destinations: React.FC<Props> = ({ id, localData, confKeys }: Props) => {
   const studySlug = params.studySlug;
 
   const { createStudyConf, isLoadingOnCreateStudyConf } = useCreateStudyConf(
-    true,
     'Destinations saved',
     studySlug,
     confKeys,

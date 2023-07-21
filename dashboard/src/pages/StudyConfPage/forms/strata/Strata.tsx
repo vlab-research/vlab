@@ -46,7 +46,6 @@ const Variables: React.FC<Props> = ({
   };
 
   const { createStudyConf } = useCreateStudyConf(
-    true,
     'Strata saved',
     studySlug,
     confKeys,

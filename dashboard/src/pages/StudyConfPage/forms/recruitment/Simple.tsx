@@ -84,7 +84,6 @@ const Simple: React.FC<Props> = ({ id, data, confKeys }: Props) => {
   const studySlug = params.studySlug;
 
   const { createStudyConf, isLoadingOnCreateStudyConf } = useCreateStudyConf(
-    true,
     'Recruitment settings saved',
     studySlug,
     confKeys,
