@@ -46,7 +46,6 @@ const Audiences: React.FC<Props> = ({
   const studySlug = params.studySlug;
 
   const { createStudyConf, isLoadingOnCreateStudyConf } = useCreateStudyConf(
-    true,
     'Audiences saved',
     studySlug,
     confKeys,
