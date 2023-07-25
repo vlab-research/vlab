@@ -27,32 +27,30 @@ const StudyProgressStats = ({
   }
 
   return (
-    <div>
-      <Stats
-        testId="study-page-stats"
-        selectedStat={selectedStat}
-        onSelectStat={onSelectStat}
-        stats={[
-          {
-            name: 'Current Participants',
-            stat: formatNumber(currentProgress.currentParticipants),
-          },
-          {
-            name: 'Expected Participants',
-            stat: formatNumber(currentProgress.expectedParticipants),
-          },
+    <Stats
+      testId="study-page-stats"
+      selectedStat={selectedStat}
+      onSelectStat={onSelectStat}
+      stats={[
+        {
+          name: 'Current Participants',
+          stat: formatNumber(currentProgress.currentParticipants),
+        },
+        {
+          name: 'Expected Participants',
+          stat: formatNumber(currentProgress.expectedParticipants),
+        },
 
-          {
-            name: 'Current Avg. Deviation',
-            stat: `${currentProgress.currentAverageDeviation} %`,
-          },
-          {
-            name: 'Expected Avg. Deviation',
-            stat: `${currentProgress.expectedAverageDeviation} %`,
-          },
-        ]}
-      />
-    </div>
+        {
+          name: 'Current Avg. Deviation',
+          stat: `${currentProgress.currentAverageDeviation} %`,
+        },
+        {
+          name: 'Expected Avg. Deviation',
+          stat: `${currentProgress.expectedAverageDeviation} %`,
+        },
+      ]}
+    />
   );
 };
 

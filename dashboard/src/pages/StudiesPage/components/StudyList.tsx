@@ -125,7 +125,7 @@ const ListLayout = ({ children }: { children: React.ReactNode }) => (
   </div>
 );
 
-const StudyConfButton = ({
+export const StudyConfButton = ({
   testId,
   slug,
 }: {
