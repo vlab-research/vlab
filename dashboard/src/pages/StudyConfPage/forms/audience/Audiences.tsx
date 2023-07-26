@@ -105,7 +105,7 @@ const Audiences: React.FC<Props> = ({
                     </ul>
                   );
                 })}
-                <AddButton onClick={addAudience} label="Add a new audience" />
+                <AddButton onClick={addAudience} label="Add audience" />
               </div>
 
               <div className="p-6 text-right">

@@ -4,7 +4,7 @@ import { useHistory } from 'react-router-dom';
 import { addToCache } from '../../../helpers/cache';
 import useAuthenticatedApi from '../../../hooks/useAuthenticatedApi';
 
-const useCreateStudy = () => {
+const useCreateStudy = (name: string) => {
   const notyf = new Notyf();
   const history = useHistory();
   const queryKey = 'study';
@@ -15,7 +15,7 @@ const useCreateStudy = () => {
     {
       onSuccess: ({ data: newStudy }) => {
         addToCache(newStudy, queryKey);
-        history.push(`/studies`);
+        history.push(`/studies/${name}/general`); // study conf
         notyf.success({
           message: `Study created`,
           background: 'rgb(67 56 202)',

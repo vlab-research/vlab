@@ -1,153 +1,62 @@
-import React, { useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
-import { useForm, SubmitHandler, UseFormRegister, Path } from 'react-hook-form';
-import PrimaryButton from '../../../../components/PrimaryButton';
-import { createLabelFor } from '../../../../helpers/strings';
-import { validate } from '../../../../helpers/objects';
-import useCreateStudyConf from '../../hooks/useCreateStudyConf';
+import React from 'react';
+import { GenericTextInput, TextInputI } from '../../components/TextInput';
+import { RecruitmentSimple as FormData } from '../../../../types/conf';
 
-export interface FormData {
-  ad_campaign_name: string;
-  budget: number;
-  max_sample: number;
-  start_date: string;
-  end_date: string;
-}
-
-interface TextProps {
-  name: Path<FormData>;
-  type?: string;
-  valueAsNumber?: boolean;
-  valueAsDate?: boolean;
-  autoComplete: string;
-  placeholder: string;
-  register: UseFormRegister<FormData>;
-}
-
-const TextInput: React.FC<TextProps> = ({
-  name,
-  type,
-  valueAsNumber,
-  register,
-  autoComplete,
-  placeholder,
-}) => (
-  <div className="sm:my-4">
-    <label className="my-2 block text-sm font-medium text-gray-700">
-      {createLabelFor(name)}
-    </label>
-    <input
-      required
-      type={type}
-      autoComplete={autoComplete}
-      placeholder={placeholder}
-      {...register(name, {
-        valueAsNumber,
-      })}
-      className="block w-4/5 shadow-sm sm:text-sm rounded-md"
-    />
-  </div>
-);
+const TextInput = GenericTextInput as TextInputI<FormData>;
 
 interface Props {
-  id: string;
-  data: FormData;
-  confKeys: string[];
+  formData: FormData;
+  updateFormData: (e: any) => void;
 }
 
-const Simple: React.FC<Props> = ({ id, data, confKeys }: Props) => {
-  const initialValues = {
-    end_date: '',
-    start_date: '',
-    ad_campaign_name: '',
-    budget: 0,
-    max_sample: 0,
-  };
-
-  const [formData, setFormData] = useState(initialValues);
-
-  const { register, reset, handleSubmit } = useForm<FormData>({
-    defaultValues: formData,
-  });
-
-  const isMatch = validate(data, initialValues);
-
-  useEffect(() => {
-    if (isMatch) {
-      setFormData(data);
-      reset(data);
+const validateInput = (name: string, value: any) => {
+  if (name === 'budget' || name === 'max_sample') {
+    if (!value) {
+      return parseInt('0');
     }
-  }, [data, isMatch, reset]);
+    return parseInt(value);
+  } else return value;
+};
 
-  const params = useParams<{ studySlug: string }>();
-
-  const studySlug = params.studySlug;
-
-  const { createStudyConf, isLoadingOnCreateStudyConf } = useCreateStudyConf(
-    'Recruitment settings saved',
-    studySlug,
-    confKeys,
-    'recruitment'
-  );
-
-  const onSubmit: SubmitHandler<FormData> = formData => {
-    const data = {
-      [id]: formData,
-    };
-
-    createStudyConf({ data, studySlug });
+const Simple: React.FC<Props> = ({ formData, updateFormData }: Props) => {
+  const handleChange = (e: any) => {
+    const { name, value } = e.target;
+    updateFormData({ ...formData, [name]: validateInput(name, value) });
   };
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)}>
+    <>
       <TextInput
         name="ad_campaign_name"
-        type="text"
-        register={register}
-        autoComplete="on"
+        handleChange={handleChange}
         placeholder="E.g vlab-vaping-pilot-2"
+        value={formData.ad_campaign_name}
       />
       <TextInput
         name="budget"
-        type="text"
-        valueAsNumber={true}
-        register={register}
-        autoComplete="on"
+        handleChange={handleChange}
         placeholder="E.g 8400"
+        value={formData.budget}
       />
       <TextInput
         name="max_sample"
-        type="number"
-        valueAsNumber={true}
-        register={register}
-        autoComplete="on"
+        handleChange={handleChange}
         placeholder="E.g 1000"
+        value={formData.max_sample}
       />
       <TextInput
         name="start_date"
-        type="text"
-        register={register}
-        autoComplete="on"
+        handleChange={handleChange}
         placeholder="E.g 2022-07-26T00:00:00"
+        value={formData.start_date}
       />
       <TextInput
         name="end_date"
-        type="text"
-        register={register}
-        autoComplete="on"
+        handleChange={handleChange}
         placeholder="E.g 2022-07-26T00:00:00"
+        value={formData.end_date}
       />
-      <div className="p-6 text-right">
-        <PrimaryButton
-          leftIcon="CheckCircleIcon"
-          type="submit"
-          testId="form-submit-button"
-          loading={isLoadingOnCreateStudyConf}
-        >
-          Next
-        </PrimaryButton>
-      </div>
-    </form>
+    </>
   );
 };
 

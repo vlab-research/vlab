@@ -86,7 +86,6 @@ const Level: React.FC<Props> = ({
       <div className="m-4">
         <TextInput
           name="name"
-          type="text"
           handleChange={onChange}
           autoComplete="on"
           placeholder="Give your level a name"
@@ -100,7 +99,6 @@ const Level: React.FC<Props> = ({
         ></Select>
         <TextInput
           name="quota"
-          type="text"
           handleChange={onChange}
           placeholder="Give your a quota"
           value={data.quota}

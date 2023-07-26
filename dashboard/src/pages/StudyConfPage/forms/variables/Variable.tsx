@@ -159,7 +159,6 @@ const Variable: React.FC<Props> = ({
     <div className={classNames(index === 0 ? 'mt-4' : 'mt-8')}>
       <TextInput
         name="name"
-        type="text"
         handleChange={handleChange}
         required
         autoComplete="on"

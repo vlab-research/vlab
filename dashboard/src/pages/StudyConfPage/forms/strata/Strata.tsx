@@ -12,6 +12,7 @@ interface Props {
   globalData: GlobalFormData;
   confKeys: string[];
 }
+
 const Variables: React.FC<Props> = ({
   globalData,
   id,
