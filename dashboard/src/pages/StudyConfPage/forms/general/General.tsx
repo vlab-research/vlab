@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { useForm, SubmitHandler, UseFormRegister, Path } from 'react-hook-form';
+import { useForm, UseFormRegister, Path } from 'react-hook-form';
+import { GenericTextInput, TextInputI } from '../../components/TextInput';
 import PrimaryButton from '../../../../components/PrimaryButton';
 import objectives from '../../../../fixtures/general/objectives';
 import destinations from '../../../../fixtures/general/destinations';
@@ -8,69 +9,20 @@ import optimizationGoals from '../../../../fixtures/general/optimizationGoals';
 import { createLabelFor } from '../../../../helpers/strings';
 import { getFirstOption } from '../../../../helpers/arrays';
 import useCreateStudyConf from '../../hooks/useCreateStudyConf';
+import { General as FormData } from '../../../../types/conf';
 
-interface FormData {
-  objective: string;
-  optimization_goal: string;
-  destination_type: string;
-  page_id: string;
-  min_budget: number;
-  opt_window: number;
-  instagram_id?: string | undefined;
-  ad_account: string;
+const TextInput = GenericTextInput as TextInputI<FormData>;
+
+interface Props {
+  id: string;
+  localData: FormData;
+  confKeys: string[];
 }
-
-interface TextProps {
-  name: Path<FormData>;
-  type?: string;
-  valueAsNumber?: boolean;
-  autoComplete: string;
-  placeholder: string;
-  register: UseFormRegister<FormData>;
-  required?: boolean;
-}
-
-const TextInput: React.FC<TextProps> = ({
-  name,
-  type,
-  valueAsNumber,
-  register,
-  autoComplete,
-  placeholder,
-  required = true,
-}) => (
-  <div className="sm:my-4">
-    <label className="my-2 block text-sm font-medium text-gray-700">
-      {createLabelFor(name)}
-    </label>
-    <div className="flex flex-row items-center">
-      <input
-        required={required}
-        type={type}
-        autoComplete={autoComplete}
-        placeholder={placeholder}
-        {...register(name, {
-          valueAsNumber,
-        })}
-        className="block w-4/5 shadow-sm sm:text-sm rounded-md"
-      />
-      {required === false && (
-        <span className="ml-4 italic text-gray-700 text-xs">Optional</span>
-      )}
-    </div>
-  </div>
-);
 
 interface SelectProps {
   name: Path<FormData>;
-  options: SelectOption[];
+  options: { name: string; label: string }[];
   register: UseFormRegister<FormData>;
-}
-
-interface SelectOption {
-  name: string;
-  label?: string;
-  code?: string;
 }
 
 const Select: React.FC<SelectProps> = ({
@@ -86,7 +38,7 @@ const Select: React.FC<SelectProps> = ({
       {...register(name)}
       className="w-4/5 mt-1 block shadow-sm sm:text-sm rounded-md"
     >
-      {options.map((option: SelectOption, i: number) => (
+      {options.map((option: { name: string; label: string }, i: number) => (
         <option key={i} value={option.name.toUpperCase()}>
           {option.label}
         </option>
@@ -95,33 +47,29 @@ const Select: React.FC<SelectProps> = ({
   </div>
 );
 
-interface Props {
-  id: string;
-  localData: FormData;
-  confKeys: string[];
-}
-
 const General: React.FC<Props> = ({ id, localData, confKeys }: Props) => {
-  const initialValues = {
+  const initialState = {
     objective: getFirstOption(objectives).toUpperCase(),
     optimization_goal: getFirstOption(optimizationGoals).toUpperCase(),
     destination_type: getFirstOption(destinations).toUpperCase(),
     page_id: '',
     min_budget: 0,
     opt_window: 0,
+    instagram_id: '',
     ad_account: '',
   };
 
-  const [formData, setFormData] = useState(initialValues);
+  const { register } = useForm<FormData>({});
 
-  const { register, reset, handleSubmit } = useForm<FormData>({
-    defaultValues: formData,
-  });
+  const [formData, setFormData] = useState<FormData>(initialState);
 
   useEffect(() => {
-    setFormData(localData);
-    reset(localData);
-  }, [localData, reset]);
+    localData && setFormData(localData);
+  }, [localData]);
+
+  const updateFormData = (d: FormData): void => {
+    setFormData(d);
+  };
 
   const params = useParams<{ studySlug: string }>();
 
@@ -134,12 +82,36 @@ const General: React.FC<Props> = ({ id, localData, confKeys }: Props) => {
     'general'
   );
 
-  const onSubmit: SubmitHandler<FormData> = formData => {
+  const onSubmit = (e: any): void => {
+    e.preventDefault();
+
     const data = {
       [id]: formData,
     };
 
     createStudyConf({ data, studySlug });
+  };
+
+  const validateInput = (name: string, value: any) => {
+    if (name === 'min_budget') {
+      if (!value) {
+        return parseFloat('0');
+      }
+      return parseFloat(value);
+    }
+    if (name === 'opt_window') {
+      if (!value) {
+        return parseInt('0');
+      }
+      return parseInt(value);
+    }
+    return value;
+  };
+
+  const handleChange = (e: any) => {
+    const { name, value } = e.target;
+
+    updateFormData({ ...formData, [name]: validateInput(name, value) });
   };
 
   return (
@@ -148,7 +120,7 @@ const General: React.FC<Props> = ({ id, localData, confKeys }: Props) => {
         <div className="px-4 sm:px-0"></div>
       </div>
       <div className="mt-5 md:mt-0 md:col-span-2">
-        <form onSubmit={handleSubmit(onSubmit)}>
+        <form onSubmit={onSubmit}>
           <div className="px-4 py-3 bg-gray-50 sm:px-6">
             <Select
               name="objective"
@@ -167,41 +139,34 @@ const General: React.FC<Props> = ({ id, localData, confKeys }: Props) => {
             ></Select>
             <TextInput
               name="page_id"
-              type="text"
-              register={register}
-              autoComplete="on"
+              handleChange={handleChange}
               placeholder="E.g 1855355231229529"
+              value={formData.page_id}
             />
             <TextInput
               name="min_budget"
-              type="text"
-              valueAsNumber={true}
-              register={register}
-              autoComplete="on"
+              handleChange={handleChange}
               placeholder="E.g 8400"
+              value={formData.min_budget}
             />
             <TextInput
               name="opt_window"
-              type="text"
-              valueAsNumber={true}
-              register={register}
-              autoComplete="on"
+              handleChange={handleChange}
               placeholder="E.g 48"
+              value={formData.opt_window}
             />
             <TextInput
               name="instagram_id"
-              type="text"
-              register={register}
-              autoComplete="on"
-              placeholder="E.g 2327764173962588"
+              handleChange={handleChange}
               required={false}
+              placeholder="E.g 2327764173962588"
+              value={formData.instagram_id}
             />
             <TextInput
               name="ad_account"
-              type="text"
-              register={register}
-              autoComplete="on"
+              handleChange={handleChange}
               placeholder="E.g 1342820622846299"
+              value={formData.ad_account}
             />
             <div className="p-6 text-right">
               <PrimaryButton

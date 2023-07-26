@@ -7,7 +7,7 @@ export interface General {
   optimization_goal: string;
   destination_type: string;
   page_id: string;
-  min_budget: number;
+  min_budget: number | string;
   opt_window: number;
   instagram_id?: string | undefined;
   ad_account: string;
@@ -24,6 +24,7 @@ export interface RecruitmentSimple {
 }
 
 export interface RecruitmentDestination {
+  destination: string;
   ad_campaign_name_base: string;
   budget_per_arm: number;
   end_date: string;
@@ -31,11 +32,17 @@ export interface RecruitmentDestination {
   start_date: string;
 }
 
-export interface PipelineExperiment extends RecruitmentDestination {
+export interface PipelineExperiment {
+  ad_campaign_name_base: string;
+  budget_per_arm: number;
+  end_date: string;
+  max_sample_per_arm: number;
+  start_date: string;
   arms: number;
   recruitment_days: number;
   offset_days: number;
 }
+
 export interface Messenger {
   name: string;
   initial_shortcode: string;
@@ -94,15 +101,22 @@ export type Level = {
   template_adset: string;
   facebook_targeting: any;
   quota: number;
-}
+};
 
 export type Variable = {
   name: string;
   properties: string[];
   levels: Level[];
-}
+};
 
-export type Variables = Variable[]
+export type Variables = Variable[];
+
+export type Audience = {
+  name: string;
+  subtype: string;
+};
+
+export type Audiences = Audience[];
 
 export type LocalFormData =
   | CreateStudy
@@ -123,10 +137,3 @@ export type GlobalFormData = {
   variables: Variables;
   strata: Strata;
 };
-
-export type Audience = {
-  name: string;
-  subtype: string;
-};
-
-export type Audiences = Audience[];

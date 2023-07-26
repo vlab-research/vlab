@@ -6,6 +6,7 @@ export interface FormData {
   id: string;
   quota: number;
 }
+
 const TextInput = GenericTextInput as TextInputI<FormData>;
 
 const Stratum: React.FC<{
@@ -16,7 +17,6 @@ const Stratum: React.FC<{
     <li>
       <TextInput
         name="id"
-        type="text"
         value={stratum.id}
         disabled={true}
         placeholder="name"
@@ -24,7 +24,6 @@ const Stratum: React.FC<{
       />
       <TextInput
         name="quota"
-        type="text"
         value={stratum.quota}
         placeholder="Give your stratum a quota e.g 5"
         handleChange={onChange}

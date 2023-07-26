@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import destinationTypes from '../../../../fixtures/general/destinations';
 import Messenger from './Messenger';
 import Web from './Web';
 import App from './App';
-import { Destination as DestinationType } from '../../../../types/conf';
 import { createLabelFor } from '../../../../helpers/strings';
+import destinationTypes from '../../../../fixtures/general/destinations';
+import { Destination as DestinationType } from '../../../../types/conf';
 
 interface Props {
   data: any;
@@ -19,11 +19,6 @@ const Destination: React.FC<Props> = ({
   index,
   updateFormData,
 }: Props) => {
-  interface SelectOption {
-    name: string;
-    label: string;
-  }
-
   const [destinationType, setDestinationType] = useState<string>(type);
 
   useEffect(() => {
@@ -45,20 +40,11 @@ const Destination: React.FC<Props> = ({
     },
   ];
 
-  const handleChange = (e: any) => {
-    const { name, value } = e.target;
-    updateFormData({ ...data, [name]: value }, index);
-  };
-
   const handleSelectChange = (e: any) => {
     const { value } = e.target;
     setDestinationType(value);
     const fields = initialState.find((obj: any) => obj.type === value);
     updateFormData(fields, index);
-  };
-
-  const handleMultiSelectChange = (selected: string[], name: string) => {
-    updateFormData({ ...data, [name]: selected }, index);
   };
 
   return (
@@ -71,7 +57,7 @@ const Destination: React.FC<Props> = ({
         onChange={e => handleSelectChange(e)}
         value={destinationType}
       >
-        {destinationTypes.map((option: SelectOption, i: number) => (
+        {destinationTypes.map((option: { name: string }, i: number) => (
           <option key={i} value={option.name}>
             {createLabelFor(option.name)}
           </option>
@@ -79,17 +65,13 @@ const Destination: React.FC<Props> = ({
       </select>
 
       {destinationType === 'web' && (
-        <Web data={data} handleChange={handleChange} />
+        <Web data={data} updateFormData={updateFormData} index={index} />
       )}
       {destinationType === 'app' && (
-        <App
-          data={data}
-          handleChange={handleChange}
-          handleMultiSelectChange={handleMultiSelectChange}
-        />
+        <App data={data} updateFormData={updateFormData} index={index} />
       )}
       {destinationType === 'messenger' && (
-        <Messenger data={data} handleChange={handleChange} />
+        <Messenger data={data} updateFormData={updateFormData} index={index} />
       )}
     </li>
   );

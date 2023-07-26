@@ -1,10 +1,13 @@
 import React, { useEffect, useState } from 'react';
-import { Destinations as DestinationTypes } from '../../../../types/conf';
+import { useHistory } from 'react-router-dom';
 import { Path } from 'react-hook-form';
+import AddButton from '../../../../components/AddButton';
+import { GenericTextInput, TextInputI } from '../../components/TextInput';
 import { createLabelFor } from '../../../../helpers/strings';
 import { Creative as CreativeType } from '../../../../types/conf';
-import AddButton from '../../../../components/AddButton';
-import { useHistory } from 'react-router-dom';
+import { Destinations as DestinationTypes } from '../../../../types/conf';
+
+const TextInput = GenericTextInput as TextInputI<CreativeType>;
 
 interface FormData {
   name: string;
@@ -16,46 +19,6 @@ interface FormData {
   welcome_message?: string | undefined;
   tags: null;
 }
-
-interface TextProps {
-  name: Path<FormData>;
-  type?: string;
-  handleChange: (e: any) => void;
-  autoComplete: string;
-  placeholder: string;
-  value: any;
-  required?: boolean;
-}
-const TextInput: React.FC<TextProps> = ({
-  name,
-  type,
-  handleChange,
-  autoComplete,
-  placeholder,
-  value,
-  required = true,
-}) => (
-  <div className="sm:my-4">
-    <label className="my-2 block text-sm font-medium text-gray-700">
-      {createLabelFor(name)}
-    </label>
-    <div className="flex flex-row items-center">
-      <input
-        name={name}
-        type={type}
-        autoComplete={autoComplete}
-        placeholder={placeholder}
-        value={value}
-        required={required}
-        onChange={e => handleChange(e)}
-        className="block w-4/5 shadow-sm sm:text-sm rounded-md"
-      />
-      {required === false && (
-        <span className="ml-4 italic text-gray-700 text-xs">Optional</span>
-      )}
-    </div>
-  </div>
-);
 
 interface SelectProps {
   name: Path<FormData>;
@@ -133,9 +96,7 @@ const Creative: React.FC<Props> = ({
     <li>
       <TextInput
         name="name"
-        type="text"
         handleChange={handleChange}
-        autoComplete="on"
         placeholder="E.g Ad_campaign_2"
         value={data.name}
       />
@@ -150,7 +111,6 @@ const Creative: React.FC<Props> = ({
       />
       <TextInput
         name="body"
-        type="text"
         handleChange={handleChange}
         autoComplete="on"
         placeholder="This is the text of the post that will be the ad."
@@ -178,15 +138,13 @@ const Creative: React.FC<Props> = ({
             Destination
           </label>
           <AddButton
-            label="Add a destination"
+            label="Add destination"
             onClick={() => history.push(`/studies/${studySlug}/destinations`)}
           />
         </>
       )}
-
       <TextInput
         name="welcome_message"
-        type="text"
         handleChange={handleChange}
         autoComplete="on"
         placeholder="This is a message the user will see in the chat."

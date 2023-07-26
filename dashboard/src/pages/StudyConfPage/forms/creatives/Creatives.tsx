@@ -115,7 +115,7 @@ const Creatives: React.FC<Props> = ({
                     </ul>
                   );
                 })}
-                <AddButton onClick={addCreative} label="Add a new creative" />
+                <AddButton onClick={addCreative} label="Add creative" />
               </div>
 
               <div className="p-6 text-right">

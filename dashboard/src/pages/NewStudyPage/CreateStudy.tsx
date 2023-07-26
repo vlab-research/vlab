@@ -1,55 +1,39 @@
-import { useForm, SubmitHandler, UseFormRegister, Path } from 'react-hook-form';
+import { useState } from 'react';
 import PrimaryButton from '../../components/PrimaryButton';
-import { classNames } from '../../helpers/strings';
 import useCreateStudy from './hooks/useCreateStudy';
+import {
+  GenericTextInput,
+  TextInputI,
+} from '../StudyConfPage/components/TextInput';
 
 interface FormData {
   name: string;
 }
 
-type TextProps = {
-  name: Path<FormData>;
-  label: string;
-  register: UseFormRegister<FormData>;
-  autoComplete: string;
-  placeholder: string;
-};
-
-const TextInput = ({
-  name,
-  label,
-  autoComplete,
-  placeholder,
-  register,
-}: TextProps) => (
-  <div className="sm:my-4">
-    <label className="my-2 block text-sm font-medium text-gray-700">
-      {label}
-    </label>
-    <input
-      required
-      autoComplete={autoComplete}
-      placeholder={placeholder}
-      {...register(name)}
-      className={classNames(
-        'p-2.5 block w-4/5 shadow-sm sm:text-sm rounded-md'
-      )}
-    />
-  </div>
-);
+const TextInput = GenericTextInput as TextInputI<FormData>;
 
 const CreateStudy: React.FC<any> = () => {
-  const { register, handleSubmit, watch } = useForm({
-    defaultValues: {
-      name: '',
-    },
-  });
+  const initialState = { name: '' };
 
-  const name = watch('name');
+  const [formData, setFormData] = useState<FormData>(initialState);
 
-  const { createStudy, isLoadingOnCreateStudy } = useCreateStudy(name);
+  const updateFormData = (d: FormData): void => {
+    setFormData(d);
+  };
 
-  const onSubmit: SubmitHandler<FormData> = data => createStudy(data);
+  const { createStudy, isLoadingOnCreateStudy } = useCreateStudy(formData.name);
+
+  const onSubmit = (e: any): void => {
+    e.preventDefault();
+
+    createStudy(formData);
+  };
+
+  const handleChange = (e: any) => {
+    const { name, value } = e.target;
+
+    updateFormData({ ...formData, [name]: value });
+  };
 
   return (
     <div className="md:grid md:grid-cols-3 md:gap-6">
@@ -57,14 +41,13 @@ const CreateStudy: React.FC<any> = () => {
         <div className="px-4 sm:px-0"></div>
       </div>
       <div className="mt-5 md:mt-0 md:col-span-2">
-        <form onSubmit={handleSubmit(onSubmit)}>
+        <form onSubmit={onSubmit}>
           <div className="px-4 py-3 bg-gray-50 sm:px-6">
             <TextInput
-              name={'name'}
-              label={'Give your study a name'}
-              autoComplete="on"
-              placeholder="E.g example-fly-conf"
-              register={register}
+              name="name"
+              handleChange={handleChange}
+              placeholder="E.g example-fly"
+              value={formData.name}
             />
             <div className="p-6 text-right">
               <PrimaryButton

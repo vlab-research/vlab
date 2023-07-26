@@ -100,10 +100,7 @@ const Destinations: React.FC<Props> = ({ id, localData, confKeys }: Props) => {
                     </ul>
                   );
                 })}
-                <AddButton
-                  onClick={addDestination}
-                  label="Add a new destination"
-                />
+                <AddButton onClick={addDestination} label="Add destination" />
               </div>
 
               <div className="p-6 text-right">

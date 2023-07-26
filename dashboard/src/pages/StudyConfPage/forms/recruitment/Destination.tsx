@@ -1,55 +1,16 @@
-import React, { useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
-import { useForm, SubmitHandler, UseFormRegister, Path } from 'react-hook-form';
-import PrimaryButton from '../../../../components/PrimaryButton';
-import { createLabelFor } from '../../../../helpers/strings';
-import { validate } from '../../../../helpers/objects';
-import useCreateStudyConf from '../../hooks/useCreateStudyConf';
-import { Destinations } from '../../../../types/conf';
+import React from 'react';
+import { useForm, UseFormRegister, Path } from 'react-hook-form';
+import { GenericTextInput, TextInputI } from '../../components/TextInput';
+import { RecruitmentDestination as FormData } from '../../../../types/conf';
+import { Destination as DestinationType } from '../../../../types/conf';
 
-export interface FormData {
-  destination: string;
-  ad_campaign_name_base: string;
-  budget_per_arm: number;
-  max_sample_per_arm: number;
-  start_date: string;
-  end_date: string;
+const TextInput = GenericTextInput as TextInputI<FormData>;
+
+interface Props {
+  formData: FormData;
+  updateFormData: (e: any) => void;
+  destinations: DestinationType[];
 }
-
-interface TextProps {
-  name: Path<FormData>;
-  type?: string;
-  valueAsNumber?: boolean;
-  autoComplete: string;
-  placeholder: string;
-  register: UseFormRegister<FormData>;
-}
-
-const TextInput: React.FC<TextProps> = ({
-  name,
-  type,
-  valueAsNumber,
-  register,
-  autoComplete,
-  placeholder,
-}) => (
-  <div className="sm:my-4">
-    <label className="my-2 block text-sm font-medium text-gray-700">
-      {createLabelFor(name)}
-    </label>
-    <input
-      required
-      type={type}
-      autoComplete={autoComplete}
-      placeholder={placeholder}
-      {...register(name, {
-        valueAsNumber,
-      })}
-      className="block w-4/5 shadow-sm sm:text-sm rounded-md"
-    />
-    <div className="sm:my-2"></div>
-  </div>
-);
 
 interface SelectProps {
   name: Path<FormData>;
@@ -86,118 +47,67 @@ const Select: React.FC<SelectProps> = ({
   </div>
 );
 
-interface Props {
-  id: string;
-  data: FormData;
-  destinations: Destinations;
-  confKeys: string[];
-}
+const validateInput = (name: string, value: any) => {
+  if (name === 'max_sample_per_arm' || name === 'budget_per_arm') {
+    if (!value) {
+      return parseInt('0');
+    }
+    return parseInt(value);
+  } else return value;
+};
 
 const Destination: React.FC<Props> = ({
-  id,
-  data,
+  formData,
+  updateFormData,
   destinations,
-  confKeys,
 }: Props) => {
-  const initialValues = {
-    end_date: '',
-    start_date: '',
-    ad_campaign_name_base: '',
-    budget_per_arm: 0,
-    max_sample_per_arm: 0,
-  };
+  const { register } = useForm<FormData>({});
 
-  const [formData, setFormData] = useState(initialValues);
-
-  const { register, reset, handleSubmit } = useForm<FormData>({
-    defaultValues: formData,
-  });
-
-  const isMatch = validate(data, initialValues);
-
-  useEffect(() => {
-    if (isMatch) {
-      setFormData(data);
-      reset(data);
-    }
-  }, [data, isMatch, reset]);
-
-  const params = useParams<{ studySlug: string }>();
-
-  const studySlug = params.studySlug;
-
-  const { createStudyConf, isLoadingOnCreateStudyConf } = useCreateStudyConf(
-    'Recruitment settings saved',
-    studySlug,
-    confKeys,
-    'recruitment'
-  );
-
-  const onSubmit: SubmitHandler<FormData> = formData => {
-    const data = {
-      [id]: formData,
-    };
-
-    createStudyConf({ data, studySlug });
+  const handleChange = (e: any) => {
+    const { name, value } = e.target;
+    updateFormData({ ...formData, [name]: validateInput(name, value) });
   };
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)}>
+    <>
       <Select
         name="destination"
         options={destinations}
         register={register}
         label="Choose a destination"
-        value={data.destination}
+        value={formData.destination}
       ></Select>
       <TextInput
         name="ad_campaign_name_base"
-        type="text"
-        register={register}
-        autoComplete="on"
+        handleChange={handleChange}
         placeholder="E.g vlab-vaping-pilot-2"
+        value={formData.ad_campaign_name_base}
       />
       <TextInput
         name="budget_per_arm"
-        type="text"
-        valueAsNumber={true}
-        register={register}
-        autoComplete="on"
+        handleChange={handleChange}
         placeholder="E.g 8400"
+        value={formData.budget_per_arm}
       />
       <TextInput
         name="max_sample_per_arm"
-        type="number"
-        valueAsNumber={true}
-        register={register}
-        autoComplete="on"
+        handleChange={handleChange}
         placeholder="E.g 1000"
+        value={formData.max_sample_per_arm}
       />
       <TextInput
         name="start_date"
-        type="text"
-        register={register}
-        autoComplete="on"
+        handleChange={handleChange}
         placeholder="E.g 2022-07-26T00:00:00"
+        value={formData.start_date}
       />
       <TextInput
         name="end_date"
-        type="text"
-        register={register}
-        autoComplete="on"
+        handleChange={handleChange}
         placeholder="E.g 2022-08-05T00:00:00"
+        value={formData.end_date}
       />
-      <div className="p-6 text-right">
-        <PrimaryButton
-          leftIcon="CheckCircleIcon"
-          type="submit"
-          testId="form-submit-button"
-          loading={isLoadingOnCreateStudyConf}
-        >
-          Next
-        </PrimaryButton>
-      </div>
-    </form>
+    </>
   );
 };
 
