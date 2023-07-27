@@ -27,7 +27,7 @@ const Web: React.FC<Props> = ({ data, updateFormData, index }: Props) => {
       <TextInput
         name="name"
         handleChange={handleChange}
-        placeholder="E.g fly"
+        placeholder="E.g web app 123"
         value={data.name}
       />
     </>

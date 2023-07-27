@@ -1,51 +1,23 @@
 import React, { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { useForm, UseFormRegister, Path } from 'react-hook-form';
 import { GenericTextInput, TextInputI } from '../../components/TextInput';
+import { GenericSelect, SelectI } from '../../components/Select';
 import PrimaryButton from '../../../../components/PrimaryButton';
 import objectives from '../../../../fixtures/general/objectives';
 import destinations from '../../../../fixtures/general/destinations';
 import optimizationGoals from '../../../../fixtures/general/optimizationGoals';
-import { createLabelFor } from '../../../../helpers/strings';
 import { getFirstOption } from '../../../../helpers/arrays';
 import useCreateStudyConf from '../../hooks/useCreateStudyConf';
 import { General as FormData } from '../../../../types/conf';
 
 const TextInput = GenericTextInput as TextInputI<FormData>;
+const Select = GenericSelect as SelectI<FormData>;
 
 interface Props {
   id: string;
   localData: FormData;
   confKeys: string[];
 }
-
-interface SelectProps {
-  name: Path<FormData>;
-  options: { name: string; label: string }[];
-  register: UseFormRegister<FormData>;
-}
-
-const Select: React.FC<SelectProps> = ({
-  name,
-  options,
-  register,
-}: SelectProps) => (
-  <div className="sm:my-4">
-    <label className="my-2 block text-sm font-medium text-gray-700">
-      {createLabelFor(name)}
-    </label>
-    <select
-      {...register(name)}
-      className="w-4/5 mt-1 block shadow-sm sm:text-sm rounded-md"
-    >
-      {options.map((option: { name: string; label: string }, i: number) => (
-        <option key={i} value={option.name.toUpperCase()}>
-          {option.label}
-        </option>
-      ))}
-    </select>
-  </div>
-);
 
 const General: React.FC<Props> = ({ id, localData, confKeys }: Props) => {
   const initialState = {
@@ -59,17 +31,11 @@ const General: React.FC<Props> = ({ id, localData, confKeys }: Props) => {
     ad_account: '',
   };
 
-  const { register } = useForm<FormData>({});
-
   const [formData, setFormData] = useState<FormData>(initialState);
 
   useEffect(() => {
     localData && setFormData(localData);
   }, [localData]);
-
-  const updateFormData = (d: FormData): void => {
-    setFormData(d);
-  };
 
   const params = useParams<{ studySlug: string }>();
 
@@ -81,16 +47,6 @@ const General: React.FC<Props> = ({ id, localData, confKeys }: Props) => {
     confKeys,
     'general'
   );
-
-  const onSubmit = (e: any): void => {
-    e.preventDefault();
-
-    const data = {
-      [id]: formData,
-    };
-
-    createStudyConf({ data, studySlug });
-  };
 
   const validateInput = (name: string, value: any) => {
     if (name === 'min_budget') {
@@ -108,10 +64,24 @@ const General: React.FC<Props> = ({ id, localData, confKeys }: Props) => {
     return value;
   };
 
+  const updateFormData = (d: FormData): void => {
+    setFormData(d);
+  };
+
   const handleChange = (e: any) => {
     const { name, value } = e.target;
 
     updateFormData({ ...formData, [name]: validateInput(name, value) });
+  };
+
+  const onSubmit = (e: any): void => {
+    e.preventDefault();
+
+    const data = {
+      [id]: formData,
+    };
+
+    createStudyConf({ data, studySlug });
   };
 
   return (
@@ -125,17 +95,23 @@ const General: React.FC<Props> = ({ id, localData, confKeys }: Props) => {
             <Select
               name="objective"
               options={objectives}
-              register={register}
+              handleChange={handleChange}
+              value={formData.objective}
+              toUpperCase={true}
             ></Select>
             <Select
               name="optimization_goal"
               options={optimizationGoals}
-              register={register}
+              handleChange={handleChange}
+              value={formData.optimization_goal}
+              toUpperCase={true}
             ></Select>
             <Select
               name="destination_type"
               options={destinations}
-              register={register}
+              handleChange={handleChange}
+              value={formData.destination_type}
+              toUpperCase={true}
             ></Select>
             <TextInput
               name="page_id"

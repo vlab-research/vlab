@@ -1,67 +1,37 @@
 import React from 'react';
-import { useForm, UseFormRegister, Path } from 'react-hook-form';
+import { useHistory } from 'react-router-dom';
 import { GenericTextInput, TextInputI } from '../../components/TextInput';
+import { GenericSelect, SelectI } from '../../components/Select';
 import { RecruitmentDestination as FormData } from '../../../../types/conf';
 import { Destination as DestinationType } from '../../../../types/conf';
+import AddButton from '../../../../components/AddButton';
 
 const TextInput = GenericTextInput as TextInputI<FormData>;
+const Select = GenericSelect as SelectI<FormData>;
 
 interface Props {
   formData: FormData;
   updateFormData: (e: any) => void;
   destinations: DestinationType[];
+  studySlug: string;
 }
-
-interface SelectProps {
-  name: Path<FormData>;
-  options: SelectOption[];
-  register: UseFormRegister<FormData>;
-  label?: string;
-  value: string;
-}
-
-interface SelectOption {
-  name: string;
-}
-
-const Select: React.FC<SelectProps> = ({
-  name,
-  options,
-  register,
-  label,
-}: SelectProps) => (
-  <div className="sm:my-4">
-    <label className="my-2 block text-sm font-medium text-gray-700">
-      {label}
-    </label>
-    <select
-      {...register(name)}
-      className="w-4/5 mt-1 block shadow-sm sm:text-sm rounded-md"
-    >
-      {options.map((option: SelectOption, i: number) => (
-        <option key={i} value={option.name}>
-          {option.name}
-        </option>
-      ))}
-    </select>
-  </div>
-);
-
-const validateInput = (name: string, value: any) => {
-  if (name === 'max_sample_per_arm' || name === 'budget_per_arm') {
-    if (!value) {
-      return parseInt('0');
-    }
-    return parseInt(value);
-  } else return value;
-};
 
 const Destination: React.FC<Props> = ({
   formData,
   updateFormData,
   destinations,
+  studySlug,
 }: Props) => {
-  const { register } = useForm<FormData>({});
+  const history = useHistory();
+
+  const validateInput = (name: string, value: any) => {
+    if (name === 'max_sample_per_arm' || name === 'budget_per_arm') {
+      if (!value) {
+        return parseInt('0');
+      }
+      return parseInt(value);
+    } else return value;
+  };
 
   const handleChange = (e: any) => {
     const { name, value } = e.target;
@@ -70,13 +40,25 @@ const Destination: React.FC<Props> = ({
 
   return (
     <>
-      <Select
-        name="destination"
-        options={destinations}
-        register={register}
-        label="Choose a destination"
-        value={formData.destination}
-      ></Select>
+      {destinations ? (
+        <Select
+          name="destination"
+          options={destinations}
+          handleChange={handleChange}
+          value={formData.destination}
+        ></Select>
+      ) : (
+        <div className="my-4">
+          <label className="my-2 block text-sm font-medium text-gray-700">
+            Destination
+          </label>
+          <AddButton
+            label="Add destination"
+            onClick={() => history.push(`/studies/${studySlug}/destinations`)}
+          />
+        </div>
+      )}
+
       <TextInput
         name="ad_campaign_name_base"
         handleChange={handleChange}
