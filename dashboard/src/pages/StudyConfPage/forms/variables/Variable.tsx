@@ -1,20 +1,23 @@
 import React from 'react';
-import { classNames } from '../../../../helpers/strings';
 import AddButton from '../../../../components/AddButton';
+import DeleteButton from '../../../../components/DeleteButton';
+import { GenericTextInput, TextInputI } from '../../components/TextInput';
 import { GenericMultiSelect, MultiSelectI } from '../../components/MultiSelect';
-import { 
+import Level from './Level';
+import { classNames } from '../../../../helpers/strings';
+import { Variable as FormData } from '../../../../types/conf';
+import {
   Level as LevelType,
   Variable as VariableType,
 } from '../../../../types/conf';
-import Level, { TextInput } from './Level';
-import DeleteButton from '../../../../components/DeleteButton';
 
 export interface FormData {
   name: string;
   properties: string[];
   levels: any[];
 }
- 
+
+const TextInput = GenericTextInput as TextInputI<FormData>;
 const MultiSelect = GenericMultiSelect as MultiSelectI<FormData>;
 
 interface Props {
@@ -75,8 +78,9 @@ const Variable: React.FC<Props> = ({
     update({ ...data, levels: copy });
   };
 
-  const handleMultiSelectChange = (selected: string[], name: string) => {
-    update({ ...data, [name]: selected });
+  const handleMultiSelectChange = (e: any) => {
+    const { name, value } = e;
+    update({ ...data, [name]: value });
   };
 
   const addLevel = (): void => {
@@ -117,8 +121,10 @@ const Variable: React.FC<Props> = ({
       />
       <MultiSelect
         name="properties"
-        options={properties.map((p:any) => ({label: p.label, value: p.name}))}
+        options={properties.map((p: any) => ({ label: p.label, value: p.name }))}
         handleMultiSelectChange={handleMultiSelectChange}
+        options={properties}
+        handleChange={handleMultiSelectChange}
         value={data.properties}
         label="Select a set of properties from Facebook"
       ></MultiSelect>

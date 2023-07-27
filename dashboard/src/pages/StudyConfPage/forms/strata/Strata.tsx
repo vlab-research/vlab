@@ -124,8 +124,12 @@ const Variables: React.FC<Props> = ({
               {formData.length !== 0 && (
                 <div className="flex flex-row items-center">
                   <div className="text-left">
-                    <PrimaryButton type="button" onClick={regenerate}>
-                      Generate from variables
+                    <PrimaryButton
+                      type="button"
+                      leftIcon="RefreshIcon"
+                      onClick={regenerate}
+                    >
+                      Generate
                     </PrimaryButton>
                   </div>
                   <span className="ml-4 italic text-gray-700 text-sm">

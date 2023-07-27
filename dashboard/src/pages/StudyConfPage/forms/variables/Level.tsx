@@ -8,7 +8,7 @@ export interface FormData {
   quota: number;
 }
 
-export const TextInput = GenericTextInput as TextInputI<FormData>;
+const TextInput = GenericTextInput as TextInputI<FormData>;
 const Select = GenericSelect as SelectI<FormData>;
 
 interface Props {
