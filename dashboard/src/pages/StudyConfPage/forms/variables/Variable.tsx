@@ -1,71 +1,18 @@
 import React from 'react';
-import { Path } from 'react-hook-form';
-import { classNames } from '../../../../helpers/strings';
 import AddButton from '../../../../components/AddButton';
+import DeleteButton from '../../../../components/DeleteButton';
+import { GenericTextInput, TextInputI } from '../../components/TextInput';
+import { GenericMultiSelect, MultiSelectI } from '../../components/MultiSelect';
+import Level from './Level';
+import { classNames } from '../../../../helpers/strings';
+import { Variable as FormData } from '../../../../types/conf';
 import {
   Level as LevelType,
   Variable as VariableType,
 } from '../../../../types/conf';
-import Level, { TextInput } from './Level';
-import DeleteButton from '../../../../components/DeleteButton';
 
-export interface FormData {
-  name: string;
-  properties: string[];
-  levels: any[];
-}
-
-interface MultiSelectProps {
-  name: Path<FormData>;
-  options: SelectOption[];
-  handleMultiSelectChange: (selectedValues: string[], name: string) => void;
-  value: string[];
-  label: string;
-}
-
-interface SelectOption {
-  name: string;
-  label: string;
-}
-
-const MultiSelect: React.FC<MultiSelectProps> = ({
-  name,
-  options,
-  handleMultiSelectChange,
-  value,
-  label,
-}: MultiSelectProps) => {
-  const onChange = (e: any) => {
-    const selected = Array.from(e.target.selectedOptions).map(
-      (option: any) => option.value
-    );
-    handleMultiSelectChange(selected, name);
-  };
-
-  return (
-    <div className="sm:my-4">
-      <label className="my-2 block text-sm font-medium text-gray-700">
-        {label}
-      </label>
-      <select
-        multiple
-        value={value}
-        onChange={onChange}
-        className="w-4/5 block shadow-sm sm:text-sm rounded-md"
-      >
-        {options.map((option: SelectOption, i: number) => (
-          <option
-            key={i}
-            value={option.name}
-            className="px-4 py-2 text-gray-700 sm:text-sm rounded-md cursor-pointer hover:text-gray-900 hover:bg-gray-100 transition duration-300 ease-in-out focus:outline-none"
-          >
-            {option.label}
-          </option>
-        ))}
-      </select>
-    </div>
-  );
-};
+const TextInput = GenericTextInput as TextInputI<FormData>;
+const MultiSelect = GenericMultiSelect as MultiSelectI<FormData>;
 
 interface Props {
   data: VariableType;
@@ -125,8 +72,9 @@ const Variable: React.FC<Props> = ({
     update({ ...data, levels: copy });
   };
 
-  const handleMultiSelectChange = (selected: string[], name: string) => {
-    update({ ...data, [name]: selected });
+  const handleMultiSelectChange = (e: any) => {
+    const { name, value } = e;
+    update({ ...data, [name]: value });
   };
 
   const addLevel = (): void => {
@@ -168,7 +116,7 @@ const Variable: React.FC<Props> = ({
       <MultiSelect
         name="properties"
         options={properties}
-        handleMultiSelectChange={handleMultiSelectChange}
+        handleChange={handleMultiSelectChange}
         value={data.properties}
         label="Select a set of properties from Facebook"
       ></MultiSelect>

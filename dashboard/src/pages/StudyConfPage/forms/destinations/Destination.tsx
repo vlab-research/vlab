@@ -3,7 +3,6 @@ import Messenger from './Messenger';
 import Web from './Web';
 import App from './App';
 import { GenericSelect, SelectI } from '../../components/Select';
-import { createLabelFor } from '../../../../helpers/strings';
 import destinationTypes from '../../../../fixtures/general/destinations';
 import { Destination as DestinationType } from '../../../../types/conf';
 
