@@ -24,6 +24,8 @@ const Creatives: React.FC<Props> = ({
   globalData,
   confKeys,
 }: Props) => {
+  const destinations = globalData.destinations && globalData.destinations;
+
   const initialState = [
     {
       name: '',
@@ -40,12 +42,6 @@ const Creatives: React.FC<Props> = ({
   const [formData, setFormData] = useState<CreativeType[]>(
     localData ? localData : initialState
   );
-
-  const updateFormData = (c: CreativeType, index: number): void => {
-    const clone = [...formData];
-    clone[index] = c;
-    setFormData(clone);
-  };
 
   const params = useParams<{ studySlug: string }>();
 
@@ -78,6 +74,12 @@ const Creatives: React.FC<Props> = ({
     setFormData(newArr);
   };
 
+  const updateFormData = (c: CreativeType, index: number): void => {
+    const clone = [...formData];
+    clone[index] = c;
+    setFormData(clone);
+  };
+
   return (
     <div className="md:grid md:grid-cols-3 md:gap-6">
       <div className="md:col-span-1">
@@ -95,9 +97,7 @@ const Creatives: React.FC<Props> = ({
                         key={index}
                         data={d}
                         index={index}
-                        destinations={
-                          globalData.destinations && globalData.destinations
-                        }
+                        destinations={destinations}
                         updateFormData={updateFormData}
                         studySlug={studySlug}
                       />

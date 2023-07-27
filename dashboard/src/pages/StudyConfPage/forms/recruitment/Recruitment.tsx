@@ -4,9 +4,12 @@ import Simple from './Simple';
 import Destination from './Destination';
 import PipelineExperiment from './PipelineExperiment';
 import PrimaryButton from '../../../../components/PrimaryButton';
+import { GenericSelect, SelectI } from '../../components/Select';
 import recruitmentTypes from '../../../../fixtures/recruitment/types';
 import { GlobalFormData } from '../../../../types/conf';
 import useCreateStudyConf from '../../hooks/useCreateStudyConf';
+
+const Select = GenericSelect as SelectI<any>;
 
 interface Props {
   id: string;
@@ -111,40 +114,30 @@ const Recruitment: React.FC<Props> = ({
         <div className="px-4 py-3 bg-gray-50 sm:px-6">
           <div className="sm:my-4">
             <form onSubmit={onSubmit}>
-              <div className="mb-8">
-                <label className="my-2 block text-sm font-medium text-gray-700">
-                  Select a recruitment type
-                </label>
-                <select
-                  className="w-4/5 mt-1 block shadow-sm sm:text-sm rounded-md"
-                  onChange={e => handleSelectChange(e)}
-                  value={recruitmentType}
-                >
-                  {recruitmentTypes.map(
-                    (option: { name: string; label: string }, i: number) => (
-                      <option key={i} value={option.name}>
-                        {option.label}
-                      </option>
-                    )
-                  )}
-                </select>
-                {recruitmentType === 'simple' && (
-                  <Simple formData={formData} updateFormData={updateFormData} />
-                )}
-                {recruitmentType === 'pipeline_experiment' && (
-                  <PipelineExperiment
-                    formData={formData}
-                    updateFormData={updateFormData}
-                  />
-                )}
-                {recruitmentType === 'destination' && (
-                  <Destination
-                    formData={formData}
-                    updateFormData={updateFormData}
-                    destinations={globalData.destinations}
-                  />
-                )}
-              </div>
+              <Select
+                name="destination"
+                options={recruitmentTypes}
+                handleChange={handleSelectChange}
+                value={recruitmentType}
+                label="Select a recruitment type"
+              ></Select>
+              {recruitmentType === 'simple' && (
+                <Simple formData={formData} updateFormData={updateFormData} />
+              )}
+              {recruitmentType === 'pipeline_experiment' && (
+                <PipelineExperiment
+                  formData={formData}
+                  updateFormData={updateFormData}
+                />
+              )}
+              {recruitmentType === 'destination' && (
+                <Destination
+                  formData={formData}
+                  updateFormData={updateFormData}
+                  destinations={globalData.destinations}
+                  studySlug={studySlug}
+                />
+              )}
               <div className="p-6 text-right">
                 <PrimaryButton
                   leftIcon="CheckCircleIcon"

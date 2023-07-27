@@ -2,9 +2,12 @@ import React, { useEffect, useState } from 'react';
 import Messenger from './Messenger';
 import Web from './Web';
 import App from './App';
+import { GenericSelect, SelectI } from '../../components/Select';
 import { createLabelFor } from '../../../../helpers/strings';
 import destinationTypes from '../../../../fixtures/general/destinations';
 import { Destination as DestinationType } from '../../../../types/conf';
+
+const Select = GenericSelect as SelectI<any>;
 
 interface Props {
   data: any;
@@ -49,20 +52,13 @@ const Destination: React.FC<Props> = ({
 
   return (
     <li>
-      <label className="my-2 block text-sm font-medium text-gray-700">
-        Select a destination type
-      </label>
-      <select
-        className="w-4/5 block shadow-sm sm:text-sm rounded-md"
-        onChange={e => handleSelectChange(e)}
+      <Select
+        name="destination_type"
+        options={destinationTypes}
+        handleChange={handleSelectChange}
         value={destinationType}
-      >
-        {destinationTypes.map((option: { name: string }, i: number) => (
-          <option key={i} value={option.name}>
-            {createLabelFor(option.name)}
-          </option>
-        ))}
-      </select>
+        label="Select a destination type"
+      ></Select>
 
       {destinationType === 'web' && (
         <Web data={data} updateFormData={updateFormData} index={index} />

@@ -119,7 +119,7 @@ const App: React.FC<Props> = ({ data, updateFormData, index }: Props) => {
       <TextInput
         name="name"
         handleChange={handleChange}
-        placeholder="E.g Curious Learning "
+        placeholder="E.g curious learning"
         value={data.name}
       />
     </>

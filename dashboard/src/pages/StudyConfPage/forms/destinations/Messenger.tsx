@@ -27,7 +27,7 @@ const Messenger: React.FC<Props> = ({ data, updateFormData, index }: Props) => {
       <TextInput
         name="name"
         handleChange={handleChange}
-        placeholder="E.g fly"
+        placeholder="E.g fly messenger"
         value={data.name}
       />
     </>

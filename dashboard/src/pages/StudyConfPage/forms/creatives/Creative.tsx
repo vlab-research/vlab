@@ -1,60 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import { useHistory } from 'react-router-dom';
-import { Path } from 'react-hook-form';
 import AddButton from '../../../../components/AddButton';
+import { GenericSelect, SelectI } from '../../components/Select';
 import { GenericTextInput, TextInputI } from '../../components/TextInput';
-import { createLabelFor } from '../../../../helpers/strings';
 import { Creative as CreativeType } from '../../../../types/conf';
 import { Destinations as DestinationTypes } from '../../../../types/conf';
+import { Creative as FormData } from '../../../../types/conf';
 
 const TextInput = GenericTextInput as TextInputI<CreativeType>;
-
-interface FormData {
-  name: string;
-  body: string;
-  button_text?: string | undefined;
-  destination: string;
-  image_hash: string;
-  link_text: string;
-  welcome_message?: string | undefined;
-  tags: null;
-}
-
-interface SelectProps {
-  name: Path<FormData>;
-  value: string;
-  options: DestinationTypes;
-  handleSelectChange: (e: any) => void;
-}
-
-interface SelectOption {
-  name: string;
-}
-
-const Select: React.FC<SelectProps> = ({
-  name,
-  value,
-  options,
-  handleSelectChange,
-}: SelectProps) => (
-  <div className="sm:my-4">
-    <label className="my-2 block text-sm font-medium text-gray-700">
-      {createLabelFor(name)}
-    </label>
-    <select
-      required
-      value={value}
-      onChange={handleSelectChange}
-      className="w-4/5 block shadow-sm sm:text-sm rounded-md"
-    >
-      {options.map((option: SelectOption, i: number) => (
-        <option key={i} value={option.name}>
-          {option.name}
-        </option>
-      ))}
-    </select>
-  </div>
-);
+const Select = GenericSelect as SelectI<FormData>;
 
 interface Props {
   data: FormData;
@@ -71,17 +25,17 @@ const Creative: React.FC<Props> = ({
   updateFormData,
   studySlug,
 }: Props) => {
-  const handleChange = (e: any) => {
-    const { name, value } = e.target;
-    const d = { ...data, [name]: value };
-    updateFormData(d, index);
-  };
-
   const [destination, setDestination] = useState<string>(data.destination);
 
   useEffect(() => {
     setDestination(data.destination);
   }, [data, destination]);
+
+  const handleChange = (e: any) => {
+    const { name, value } = e.target;
+    const d = { ...data, [name]: value };
+    updateFormData(d, index);
+  };
 
   const handleSelectChange = (e: any) => {
     const { value } = e.target;
@@ -129,8 +83,8 @@ const Creative: React.FC<Props> = ({
         <Select
           name="destination"
           options={destinations}
-          value={data.destination}
-          handleSelectChange={handleSelectChange}
+          handleChange={handleSelectChange}
+          value={destination}
         ></Select>
       ) : (
         <>

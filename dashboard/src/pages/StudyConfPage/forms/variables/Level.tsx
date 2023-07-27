@@ -1,7 +1,6 @@
 import React from 'react';
 import { GenericTextInput, TextInputI } from '../../components/TextInput';
-import { Path } from 'react-hook-form';
-import { createLabelFor } from '../../../../helpers/strings';
+import { GenericSelect, SelectI } from '../../components/Select';
 
 export interface FormData {
   name: string;
@@ -10,43 +9,7 @@ export interface FormData {
 }
 
 export const TextInput = GenericTextInput as TextInputI<FormData>;
-
-interface SelectProps {
-  name: Path<FormData>;
-  options: SelectOption[];
-  value: string;
-  onChange: any;
-}
-
-interface SelectOption {
-  name: string;
-  id: string;
-  targeting: any;
-}
-
-const Select: React.FC<SelectProps> = ({
-  name,
-  options,
-  value,
-  onChange,
-}: SelectProps) => (
-  <div className="sm:my-4">
-    <label className="my-2 block text-sm font-medium text-gray-700">
-      {createLabelFor(name)}
-    </label>
-    <select
-      className="w-4/5 mt-1 block shadow-sm sm:text-sm rounded-md"
-      value={value}
-      onChange={onChange}
-    >
-      {options.map((option: SelectOption, i: number) => (
-        <option key={i} value={option.id}>
-          {option.name}
-        </option>
-      ))}
-    </select>
-  </div>
-);
+const Select = GenericSelect as SelectI<FormData>;
 
 interface Props {
   data: any;
@@ -94,7 +57,7 @@ const Level: React.FC<Props> = ({
         <Select
           name="adset"
           options={adsets}
-          onChange={onAdsetChange}
+          handleChange={onAdsetChange}
           value={data.template_adset}
         ></Select>
         <TextInput
