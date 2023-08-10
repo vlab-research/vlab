@@ -374,7 +374,7 @@ class GeneralConf(BaseModel):
     min_budget: float
     opt_window: int
     ad_account: str
-    extra_metadata: dict[str, str]
+    extra_metadata: dict[str, str] = {} #Pydantic handles mutable default
 
 
 class CreativeConf(BaseModel):

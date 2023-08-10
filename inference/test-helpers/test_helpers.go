@@ -2,17 +2,18 @@ package connector
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
-	"log"
-	"testing"
-
+	"github.com/dghubble/sling"
 	"github.com/jackc/pgconn"
 	"github.com/jackc/pgx/v4"
 	"github.com/jackc/pgx/v4/pgxpool"
-
-	"github.com/dghubble/sling"
+	"github.com/tidwall/gjson"
+	. "github.com/vlab-research/vlab/inference/inference-data"
+	"log"
 	"net/http"
 	"net/http/httptest"
+	"testing"
 )
 
 const (
@@ -30,6 +31,30 @@ func Sliceit[T any](c <-chan T) []T {
 		s = append(s, x)
 	}
 	return s
+}
+
+func GetString(d json.RawMessage, path string) string {
+	s := gjson.GetBytes(d, path).Raw
+	return s
+}
+
+func MakeUserMap(e []*InferenceDataEvent) map[string]map[string]*InferenceDataEvent {
+
+	lookup := map[string]map[string]*InferenceDataEvent{}
+
+	for _, event := range e {
+		_, ok := lookup[event.User.ID]
+		if ok {
+			lookup[event.User.ID][event.Variable] = event
+
+		} else {
+			lookup[event.User.ID] = map[string]*InferenceDataEvent{
+				event.Variable: event,
+			}
+		}
+	}
+
+	return lookup
 }
 
 // NOTE: should we move the http helpers elsewhere???

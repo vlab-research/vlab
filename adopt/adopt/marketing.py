@@ -19,7 +19,7 @@ from facebook_business.adobjects.targeting import Targeting
 
 from .budget import Budget
 from .facebook.reconciliation import adset_dif
-from .facebook.state import CampaignState, FacebookState, split
+from .facebook.state import CampaignState, FacebookState, StateNameError, split
 from .facebook.update import Instruction
 from .study_conf import (AppDestination, Audience, CreativeConf,
                          DestinationConf, FlyMessengerDestination, GeneralConf,
@@ -421,16 +421,34 @@ def adset_instructions(
     return (adset, ads)
 
 
+def create_campaign(name, objective) -> Instruction:
+    params = {
+        "name": name,
+        "objective": objective,
+        "status": "PAUSED",
+        "special_ad_categories": [],
+    }
+
+    return Instruction("campaign", "create", params)
+
+
 def update_instructions_for_campaign(
     study: StudyConf,
-    state: CampaignState,
+    state: FacebookState,
+    campaign_name: str,
     strata: List[Stratum],
     budget: Dict[str, float],
 ) -> Sequence[Instruction]:
 
+    try:
+        campaign_state = state.campaign_state(campaign_name)
+        campaign_state.campaign_state
+    except StateNameError:
+        return [create_campaign(campaign_name, study.general.objective)]
+
     sb = [(s, budget[s.id]) for s in strata]
-    new_state = [adset_instructions(study, state, s, b) for s, b in sb]
-    return adset_dif(state.campaign_state, new_state)
+    new_state = [adset_instructions(study, campaign_state, s, b) for s, b in sb]
+    return adset_dif(campaign_state.campaign_state, new_state)
 
 
 def update_instructions(
@@ -444,6 +462,6 @@ def update_instructions(
         i
         for campaign_name, budg in budget.items()
         for i in update_instructions_for_campaign(
-            study, state.campaign_state(campaign_name), strata, budg
+            study, state, campaign_name, strata, budg
         )
     ]
