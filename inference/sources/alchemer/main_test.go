@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/stretchr/testify/assert"
-	"github.com/tidwall/gjson"
+
 	. "github.com/vlab-research/vlab/inference/inference-data"
 	. "github.com/vlab-research/vlab/inference/test-helpers"
 	"io/ioutil"
@@ -34,31 +34,15 @@ func normalizeSpace(s string) string {
 	return strings.Join(r, " ")
 }
 
-func getString(d json.RawMessage, path string) string {
-	s := gjson.GetBytes(d, path).Raw
-	return s
-}
-
 func dataAssertions(t *testing.T, e []*InferenceDataEvent) {
+
 	// Total number of responses and url variables
 	assert.Equal(t, 67, len(e))
 
 	// first element should have index of 1
 	assert.Equal(t, 1, e[0].Idx)
 
-	lookup := map[string]map[string]*InferenceDataEvent{}
-
-	for _, event := range e {
-		_, ok := lookup[event.User.ID]
-		if ok {
-			lookup[event.User.ID][event.Variable] = event
-
-		} else {
-			lookup[event.User.ID] = map[string]*InferenceDataEvent{
-				event.Variable: event,
-			}
-		}
-	}
+	lookup := MakeUserMap(e)
 
 	// first is URL variables, second is answered questions
 	assert.Equal(t, 2, len(lookup["1"]))
@@ -67,7 +51,7 @@ func dataAssertions(t *testing.T, e []*InferenceDataEvent) {
 	assert.Equal(t, `"CARMA0005"`, string(lookup["1"]["ticket"].Value))
 	assert.Equal(t, "1", string(lookup["1"]["3"].User.ID))
 	assert.Equal(t, `"Armenia"`, string(lookup["1"]["3"].User.Metadata["country"]))
-	assert.Equal(t, `"0"`, getString(lookup["1"]["3"].Value, "answer"))
+	assert.Equal(t, `"0"`, GetString(lookup["1"]["3"].Value, "answer"))
 
 	// Assert timestamp
 	EDT, _ := time.LoadLocation("America/New_York")
@@ -75,7 +59,7 @@ func dataAssertions(t *testing.T, e []*InferenceDataEvent) {
 	assert.Equal(t, timestamp, lookup["1"]["3"].Timestamp)
 
 	// Options is a bit funky, probably need to work on it.
-	assert.Equal(t, `"1"`, getString(lookup["4"]["11"].Value, "options.10101.answer"))
+	assert.Equal(t, `"1"`, GetString(lookup["4"]["11"].Value, "options.10101.answer"))
 }
 
 func TestGetResponses_WorksWithSinglePageFromExampleJson(t *testing.T) {

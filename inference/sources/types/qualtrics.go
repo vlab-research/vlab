@@ -5,6 +5,7 @@ package types
 // NOTE: This is an API interface that is depended on
 // externally. Please take care when changing
 type QualtricsCredentials struct {
-	ClientID     string `json:"client_id" validate:"required"`
-	ClientSecret string `json:"client_secret" validate:"required"`
+	APIKey       string `json:"api_key"`
+	ClientID     string `json:"client_id"`
+	ClientSecret string `json:"client_secret"`
 }

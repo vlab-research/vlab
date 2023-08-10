@@ -2,17 +2,18 @@ package main
 
 import (
 	"archive/zip"
-	"encoding/csv"
 	"encoding/json"
 	"fmt"
 	"github.com/caarlos0/env/v6"
 	"github.com/dghubble/sling"
+	"io"
 	"log"
-	"time"
-	// "github.com/vlab-research/vlab/inference/connector"
+	// "strings"
+	"github.com/vlab-research/vlab/inference/connector"
 	. "github.com/vlab-research/vlab/inference/inference-data"
 	"github.com/vlab-research/vlab/inference/sources/types"
 	"net/http"
+	"time"
 )
 
 func handle(err error) {
@@ -61,7 +62,7 @@ type ExportProgressResponse struct {
 	} `json:"result"`
 }
 
-func CreateExport(client *http.Client, baseUrl string, survey string, apiToken string) (string, error) {
+func CreateExport(client *http.Client, baseUrl string, survey string, apiToken string, wait float64, maxAttempts int) (string, error) {
 
 	// TODO: move out of here and into TypeformConnector
 	sli := sling.New().Client(client).Base(baseUrl).Set("Accept", "application/json").Set("X-API-TOKEN", apiToken)
@@ -74,7 +75,6 @@ func CreateExport(client *http.Client, baseUrl string, survey string, apiToken s
 
 	_, err := sli.New().Post(url).BodyJSON(body).Receive(res, apiError)
 
-	fmt.Println(err)
 	if err != nil {
 		return "", err
 	}
@@ -92,6 +92,7 @@ func CreateExport(client *http.Client, baseUrl string, survey string, apiToken s
 	url = fmt.Sprintf("/API/v3/surveys/%s/export-responses/%s", survey, progressID)
 
 	progressRes := new(ExportProgressResponse)
+	attempts := 1
 	for {
 
 		apiError = new(QualtricsError)
@@ -110,7 +111,12 @@ func CreateExport(client *http.Client, baseUrl string, survey string, apiToken s
 			break
 		}
 
-		time.Sleep(time.Second)
+		if attempts >= maxAttempts {
+			return "", fmt.Errorf("Giving up on file export for survey %s after %d attempts", survey, attempts)
+		}
+
+		attempts++
+		time.Sleep(time.Duration(wait) * time.Second)
 	}
 
 	// Add base urL??
@@ -119,33 +125,155 @@ func CreateExport(client *http.Client, baseUrl string, survey string, apiToken s
 	return path, nil
 }
 
-func ReadZippedCSV(path string) {
+type RawQualtricsResponse struct {
+	ResponseID      string                     `json:"responseId"`
+	Values          map[string]json.RawMessage `json:"values,omitempty"`
+	Labels          map[string]string          `json:"labels,omitempty"`
+	DisplayedFields []string                   `json:"displayedFields"`
+	DisplayedValues map[string][]int           `json:"displayedValues,omitempty"`
+	RecordedDate    time.Time
+	StartDate       time.Time
+}
+
+type QualtricsResponse RawQualtricsResponse
+
+func parseDates(m map[string]json.RawMessage, keys []string) (map[string]time.Time, error) {
+	format := time.RFC3339
+
+	res := map[string]time.Time{}
+
+	for _, key := range keys {
+		b, ok := m[key]
+
+		if !ok {
+			continue
+		}
+
+		var s string
+		err := json.Unmarshal(b, &s)
+		if err != nil {
+			return res, err
+		}
+
+		parsed, err := time.Parse(format, s)
+		if err != nil {
+			return res, err
+		}
+
+		res[key] = parsed
+	}
+
+	return res, nil
+}
+
+func (q *QualtricsResponse) UnmarshalJSON(b []byte) error {
+	qq := new(RawQualtricsResponse)
+	err := json.Unmarshal(b, qq)
+	if err != nil {
+		return err
+	}
+
+	keys := []string{"recordedDate", "startDate"}
+
+	parsed, err := parseDates(qq.Values, keys)
+	if err != nil {
+		return err
+	}
+
+	qq.RecordedDate = parsed["recordedDate"]
+	qq.StartDate = parsed["startDate"]
+
+	*q = QualtricsResponse(*qq)
+	return nil
+}
+
+type QualtricsResponseFile struct {
+	Responses []QualtricsResponse `json:"responses"`
+}
+
+func parseJSONResponse(f *zip.File) (*QualtricsResponseFile, error) {
+	rc, err := f.Open()
+	defer rc.Close()
+
+	if err != nil {
+		return nil, err
+	}
+
+	s, err := io.ReadAll(rc)
+	if err != nil {
+		return nil, err
+	}
+
+	res := new(QualtricsResponseFile)
+	err = json.Unmarshal(s, res)
+	if err != nil {
+		return nil, err
+	}
+
+	return res, nil
+}
+
+func DownloadFile(url string) (string, error) {
+	// download from url
+	// write output to path
+	// return path of file
+
+	return "", nil
+}
+
+func ReadZippedJSON(path string) (*QualtricsResponseFile, error) {
 	r, err := zip.OpenReader(path)
 	if err != nil {
-		log.Fatal(err)
+		return nil, err
 	}
 	defer r.Close()
 
 	for _, f := range r.File {
-		rc, err := f.Open()
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		reader := csv.NewReader(rc)
-		rows, err := reader.ReadAll()
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		_ = rows[0]
-
-		for _, r := range rows[1:] {
-			fmt.Println(r)
-		}
-
-		rc.Close()
+		return parseJSONResponse(f)
 	}
+
+	return nil, fmt.Errorf("No files found in %s", path)
+}
+
+func GetResponsesFromFile(source *Source, path string, idx int) <-chan *InferenceDataEvent {
+	events := make(chan *InferenceDataEvent)
+
+	responseFile, err := ReadZippedJSON(path)
+
+	if err != nil {
+		handle(err)
+	}
+
+	go func() {
+		defer close(events)
+		for _, r := range responseFile.Responses {
+
+			user := User{ID: r.ResponseID}
+			timestamp := r.RecordedDate
+
+			for k, v := range r.Values {
+				idx++
+
+				event := &InferenceDataEvent{
+					User:       user,
+					Study:      source.StudyID,
+					SourceConf: source.Conf,
+					Timestamp:  timestamp,
+					Variable:   k,
+					Value:      v,
+					Idx:        idx,
+
+					// NOTE: We have no pagination.
+					// WHAT TO DO ????????????????
+					Pagination: "",
+				}
+				events <- event
+			}
+
+		}
+	}()
+
+	return events
 }
 
 func GetCredentials(source *Source) (*types.QualtricsCredentials, error) {
@@ -163,11 +291,13 @@ func GetConfig(source *Source) (*QualtricsConfig, error) {
 }
 
 type QualtricsConfig struct {
-	SurveyName string `json:"survey_name"`
+	SurveyID string `json:"survey_id"`
 }
 
 type QualtricsConnector struct {
-	BaseURL string `env:"QUALTRICS_BASE_URL,required"`
+	BaseURL     string  `env:"QUALTRICS_BASE_URL,required"`
+	WaitTime    float64 `env:"EXPORT_POLLING_WAIT_TIME,required"`
+	MaxAttempts int     `env:"EXPORT_POLLING_MAX_ATTEMPTS,required"`
 }
 
 func (c *QualtricsConnector) loadEnv() *QualtricsConnector {
@@ -176,10 +306,49 @@ func (c *QualtricsConnector) loadEnv() *QualtricsConnector {
 	return c
 }
 
+func parseCreds(b json.RawMessage) *types.QualtricsCredentials {
+	creds := new(types.QualtricsCredentials)
+	err := json.Unmarshal(b, creds)
+	handle(err)
+	return creds
+}
+
+func (c *QualtricsConnector) GetResponses(source *Source, config *QualtricsConfig, token string, idx int) <-chan *InferenceDataEvent {
+
+	client := &http.Client{}
+
+	creds := parseCreds(source.Credentials.Details)
+
+	fileUrl, err := CreateExport(client, c.BaseURL, config.SurveyID, creds.APIKey, c.WaitTime, c.MaxAttempts)
+	handle(err)
+
+	path, err := DownloadFile(fileUrl)
+	handle(err)
+
+	return GetResponsesFromFile(source, path, idx)
+}
+
+func (c QualtricsConnector) Handler(source *Source, lastEvent *InferenceDataEvent) <-chan *InferenceDataEvent {
+	config := new(QualtricsConfig)
+	err := json.Unmarshal(source.Conf.Config, config)
+	handle(err)
+
+	log.Println("Qualtrics connector getting data for: ", config)
+
+	token := ""
+	idx := 0
+
+	if lastEvent != nil {
+		token = lastEvent.Pagination
+		idx = lastEvent.Idx
+	}
+
+	events := c.GetResponses(source, config, token, idx)
+	return events
+}
+
 func main() {
 	c := QualtricsConnector{}
 	c.loadEnv()
-	// connector.LoadEvents(c, "qualtrics", "idx")
-
-	// https://stoplight.io/mocks/qualtricsv2/publicapidocs/60934
+	connector.LoadEvents(c, "qualtrics", "idx")
 }
