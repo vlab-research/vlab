@@ -97,21 +97,21 @@ const General: React.FC<Props> = ({ id, localData, confKeys }: Props) => {
               options={objectives}
               handleChange={handleChange}
               value={formData.objective}
-              toUpperCase={true}
+              getValue={(o:any) => o.name.toUpperCase()}
             ></Select>
             <Select
               name="optimization_goal"
               options={optimizationGoals}
               handleChange={handleChange}
               value={formData.optimization_goal}
-              toUpperCase={true}
+              getValue={(o:any) => o.name.toUpperCase()}
             ></Select>
             <Select
               name="destination_type"
               options={destinations}
               handleChange={handleChange}
               value={formData.destination_type}
-              toUpperCase={true}
+              getValue={(o:any) => o.name.toUpperCase()}
             ></Select>
             <TextInput
               name="page_id"

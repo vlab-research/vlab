@@ -26,6 +26,7 @@ const Level: React.FC<Props> = ({
   handleChange,
   properties,
 }: Props) => {
+
   const onChange = (e: any) => {
     const { name, value } = e.target;
     handleChange({ [name]: value }, index);
@@ -34,6 +35,10 @@ const Level: React.FC<Props> = ({
   const onAdsetChange = (e: any) => {
     // selects the adset and the targeting properties of interest
     const adset = adsets.find(a => a.id === e.target.value);
+
+    if (!adset) {
+        throw new Error(`adset not found. Looking for ${e.target.value}. Adset: ${adsets}`)
+    }
     const targeting = properties.reduce(
       (obj, key) => ({ ...obj, [key]: adset.targeting[key] }),
       {}
@@ -59,6 +64,7 @@ const Level: React.FC<Props> = ({
           options={adsets}
           handleChange={onAdsetChange}
           value={data.template_adset}
+          getValue={(o:any) => o.id} 
         ></Select>
         <TextInput
           name="quota"

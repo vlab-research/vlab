@@ -10,6 +10,7 @@ interface SelectProps<T> {
   required?: boolean;
   label?: string;
   toUpperCase?: boolean;
+  getValue?: any;
 }
 
 export type SelectI<T = any> = React.FC<SelectProps<T>>;
@@ -22,7 +23,7 @@ export const GenericSelect: SelectI = ({
   disabled = false,
   required = true,
   label,
-  toUpperCase = false,
+  getValue = (option: any) => option.name,
   ...props
 }) => {
   return (
@@ -41,7 +42,7 @@ export const GenericSelect: SelectI = ({
           {options.map((option: { name: string; label: string }, i: number) => (
             <option
               key={i}
-              value={toUpperCase ? option.name.toUpperCase() : option.name}
+              value={getValue(option)}
             >
               {option.label || option.name}
             </option>

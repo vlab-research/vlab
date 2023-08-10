@@ -16,6 +16,7 @@ const useCreateStudy = (name: string) => {
     {
       onSuccess: ({ data: newStudy }) => {
         addToCache(newStudy, queryKey);
+
         history.push(`/studies/${createSlugFor(name)}/general`);
         notyf.success({
           message: `Study created`,

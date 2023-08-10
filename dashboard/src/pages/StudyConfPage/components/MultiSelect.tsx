@@ -38,9 +38,10 @@ export const GenericMultiSelect: MultiSelectI = ({
       </label>
       <div className="flex flex-row items-center">
         <select
+          multiple 
           name={name}
           value={value}
-          onChange={e => handleChange(e)}
+          onChange={handleChange}
           className="w-4/5 mt-1 block shadow-sm sm:text-sm rounded-md"
           {...props}
         >
