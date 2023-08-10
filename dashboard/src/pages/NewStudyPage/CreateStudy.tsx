@@ -39,13 +39,15 @@ const TextInput = ({
 );
 
 const CreateStudy: React.FC<any> = () => {
-  const { register, handleSubmit } = useForm({
+  const { register, handleSubmit, watch } = useForm({
     defaultValues: {
       name: '',
     },
   });
 
-  const { createStudy, isLoadingOnCreateStudy } = useCreateStudy();
+  const name = watch('name');
+
+  const { createStudy, isLoadingOnCreateStudy } = useCreateStudy(name);
 
   const onSubmit: SubmitHandler<FormData> = data => createStudy(data);
 
