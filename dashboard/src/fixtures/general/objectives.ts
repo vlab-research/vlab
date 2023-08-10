@@ -12,6 +12,10 @@ const objectives = [
     label: 'Conversions',
   },
   {
+    name: 'OUTCOME_ENGAGEMENT',
+    label: 'Outcome Engagement',
+  },
+  {
     name: 'event_responses',
     label: 'Event responses',
   },
