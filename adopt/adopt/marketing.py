@@ -442,6 +442,7 @@ def update_instructions_for_campaign(
 
     try:
         campaign_state = state.campaign_state(campaign_name)
+        campaign_state.campaign_state
     except StateNameError:
         return [create_campaign(campaign_name, study.general.objective)]
 
