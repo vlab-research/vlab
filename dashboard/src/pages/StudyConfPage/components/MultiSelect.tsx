@@ -1,5 +1,4 @@
 import { Path } from 'react-hook-form';
-import { createLabelFor } from '../../../helpers/strings';
 
 
 interface SelectOption {

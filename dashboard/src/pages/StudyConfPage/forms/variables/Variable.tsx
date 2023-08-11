@@ -1,9 +1,8 @@
 import React from 'react';
-import { Path } from 'react-hook-form';
 import { classNames } from '../../../../helpers/strings';
 import AddButton from '../../../../components/AddButton';
 import { GenericMultiSelect, MultiSelectI } from '../../components/MultiSelect';
-import {
+import { 
   Level as LevelType,
   Variable as VariableType,
 } from '../../../../types/conf';

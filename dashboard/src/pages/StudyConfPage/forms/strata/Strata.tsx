@@ -5,7 +5,7 @@ import { GenericMultiSelect, MultiSelectI } from '../../components/MultiSelect';
 import PrimaryButton from '../../../../components/PrimaryButton';
 import useCreateStudyConf from '../../hooks/useCreateStudyConf';
 import { createStrataFromVariables } from '../../../../helpers/strata';
-import { GlobalFormData, Stratum as StratumType, Creative } from '../../../../types/conf';
+import { GlobalFormData, Stratum as StratumType } from '../../../../types/conf';
 
 export interface FormData {
   id: string;
