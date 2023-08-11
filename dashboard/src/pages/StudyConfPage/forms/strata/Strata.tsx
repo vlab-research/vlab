@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { GenericTextInput, TextInputI } from '../../components/TextInput';
+import { GenericMultiSelect, MultiSelectI } from '../../components/MultiSelect';
 import PrimaryButton from '../../../../components/PrimaryButton';
 import useCreateStudyConf from '../../hooks/useCreateStudyConf';
 import { createStrataFromVariables } from '../../../../helpers/strata';
-import { GlobalFormData, Stratum as StratumType } from '../../../../types/conf';
+import { GlobalFormData, Stratum as StratumType, Creative } from '../../../../types/conf';
 
 export interface FormData {
   id: string;
@@ -12,10 +13,19 @@ export interface FormData {
 }
 const TextInput = GenericTextInput as TextInputI<FormData>;
 
+
+const MultiSelect = GenericMultiSelect as MultiSelectI<StratumType>;
+
 const Stratum: React.FC<{
   stratum: StratumType;
+  creativeOptions: string[];
   onChange: (e: any) => void;
-}> = ({ stratum, onChange }) => {
+}> = ({ stratum, creativeOptions, onChange }) => {
+
+  const handleMultiSelectChange = (selected: any[], name: string) => {
+        onChange({target: {name, value: selected}})
+  }  
+
   return (
     <>
       <TextInput
@@ -33,6 +43,13 @@ const Stratum: React.FC<{
         placeholder="quota"
         handleChange={onChange}
       />
+      <MultiSelect
+        name="creatives"
+        options={creativeOptions.map((c) => ({label: c, value: c}))} 
+        handleMultiSelectChange={handleMultiSelectChange}
+        value={stratum.creatives}
+        label="Select which creatives to show to this stratum"
+      ></MultiSelect>
       <div className="w-4/5 h-0.5 mr-8 my-6 rounded-md bg-gray-400"></div>
     </>
   );
@@ -73,6 +90,8 @@ const Variables: React.FC<Props> = ({ globalData, id, localData }: Props) => {
 
   const { createStudyConf } = useCreateStudyConf(true, 'Strata saved');
 
+  const allCreatives = creatives ? creatives.map((c: any) => c.name) : [];
+
   return (
     <div className="md:grid md:grid-cols-3 md:gap-6">
       <div className="md:col-span-1">
@@ -95,6 +114,7 @@ const Variables: React.FC<Props> = ({ globalData, id, localData }: Props) => {
                     <Stratum
                       key={i}
                       stratum={s}
+                      creativeOptions={allCreatives}
                       onChange={(e: any) => updateFormData(e, i)}
                     />
                   ))

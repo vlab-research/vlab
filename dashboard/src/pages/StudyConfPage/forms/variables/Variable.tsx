@@ -2,6 +2,7 @@ import React from 'react';
 import { Path } from 'react-hook-form';
 import { classNames } from '../../../../helpers/strings';
 import AddButton from '../../../../components/AddButton';
+import { GenericMultiSelect, MultiSelectI } from '../../components/MultiSelect';
 import {
   Level as LevelType,
   Variable as VariableType,
@@ -14,58 +15,8 @@ export interface FormData {
   properties: string[];
   levels: any[];
 }
-
-interface MultiSelectProps {
-  name: Path<FormData>;
-  options: SelectOption[];
-  handleMultiSelectChange: (selectedValues: string[], name: string) => void;
-  value: string[];
-  label: string;
-}
-
-interface SelectOption {
-  name: string;
-  label: string;
-}
-
-const MultiSelect: React.FC<MultiSelectProps> = ({
-  name,
-  options,
-  handleMultiSelectChange,
-  value,
-  label,
-}: MultiSelectProps) => {
-  const onChange = (e: any) => {
-    const selected = Array.from(e.target.selectedOptions).map(
-      (option: any) => option.value
-    );
-    handleMultiSelectChange(selected, name);
-  };
-
-  return (
-    <div className="sm:my-4">
-      <label className="my-2 block text-sm font-medium text-gray-700">
-        {label}
-      </label>
-      <select
-        multiple
-        value={value}
-        onChange={onChange}
-        className="w-4/5 block shadow-sm sm:text-sm rounded-md"
-      >
-        {options.map((option: SelectOption, i: number) => (
-          <option
-            key={i}
-            value={option.name}
-            className="px-4 py-2 text-gray-700 sm:text-sm rounded-md cursor-pointer hover:text-gray-900 hover:bg-gray-100 transition duration-300 ease-in-out focus:outline-none"
-          >
-            {option.label}
-          </option>
-        ))}
-      </select>
-    </div>
-  );
-};
+ 
+const MultiSelect = GenericMultiSelect as MultiSelectI<FormData>;
 
 interface Props {
   data: VariableType;
@@ -168,7 +119,7 @@ const Variable: React.FC<Props> = ({
       />
       <MultiSelect
         name="properties"
-        options={properties}
+        options={properties.map((p:any) => ({label: p.label, value: p.name}))}
         handleMultiSelectChange={handleMultiSelectChange}
         value={data.properties}
         label="Select a set of properties from Facebook"
