@@ -23,7 +23,7 @@ const Creatives: React.FC<Props> = ({ id, localData, globalData }: Props) => {
       name: '',
       body: '',
       button_text: '',
-      destination: '',
+      destination: globalData.destinations && globalData.destinations[0].name,
       image_hash: '',
       link_text: '',
       welcome_message: '',
