@@ -1,4 +1,4 @@
-package main
+package main 
 
 import (
 	"archive/zip"
@@ -8,7 +8,9 @@ import (
 	"github.com/dghubble/sling"
 	"io"
 	"log"
+	"os"
 	// "strings"
+	"github.com/google/uuid" 
 	"github.com/vlab-research/vlab/inference/connector"
 	. "github.com/vlab-research/vlab/inference/inference-data"
 	"github.com/vlab-research/vlab/inference/sources/types"
@@ -214,11 +216,27 @@ func parseJSONResponse(f *zip.File) (*QualtricsResponseFile, error) {
 }
 
 func DownloadFile(url string) (string, error) {
-	// download from url
-	// write output to path
-	// return path of file
+	filePath := fmt.Sprintf("/tmp/%s",uuid.New())
 
-	return "", nil
+	resp, err := http.Get(url)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+
+	// Create the file
+	out, err := os.Create(filePath)
+	if err != nil {
+		return "", err
+	}
+	defer out.Close()
+
+	_, err = io.Copy(out, resp.Body)
+	if err != nil {
+		return "", err
+	}
+
+	return filePath, nil
 }
 
 func ReadZippedJSON(path string) (*QualtricsResponseFile, error) {
