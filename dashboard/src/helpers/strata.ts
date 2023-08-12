@@ -16,6 +16,8 @@ export const formatGroupProduct = (levels: IntermediateLevel[]) => {
     }
   })
 
+  const metadata = levels.map(l => ({[l.variableName]: l.name})).reduce((a,b) => ({...a, ...b}))
+
   const idString = levels.map(l => `${l.variableName}:${l.name}`).join(",")
 
   const targeting = levels.reduce((a: any, l) => ({ ...a, ...l.facebook_targeting }), {}) // add baseTargeting
@@ -23,10 +25,11 @@ export const formatGroupProduct = (levels: IntermediateLevel[]) => {
   const quota = levels.reduce((a: number, l) => a * l.quota, 1);
 
 
-  return {
+ return {
     id: idString,
     quota: quota,
     facebook_targeting: targeting,
+    metadata: metadata,
     question_targeting: { "op": "and", "vars": [...tvars] }, // add finishFilter
   };
 
@@ -55,9 +58,8 @@ export const createStrataFromVariables = (variables: Variables, creatives?: Crea
   const strata: Stratum[] = cartesianProduct(res)
     .map(formatGroupProduct)
     .map((data: Level) => ({
-      audiences: allAudiences,
-      excluded_audiences: [],
-      metadata: {},
+      audiences: [], // TODO: ADD AUDIENCES SOMEHOW??
+      excluded_audiences: allAudiences[0] ? [allAudiences[0]] : [], // TODO: ADD EXLUDED AUDIENCE SOMEHOW??
       creatives: allCreatives,
       ...data,
     }));

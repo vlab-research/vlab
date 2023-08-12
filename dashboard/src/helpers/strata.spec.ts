@@ -31,7 +31,7 @@ describe('createStrataFromVariables', () => {
       {
         audiences: [],
         excluded_audiences: [],
-        metadata: {},
+        metadata: {gender: "men"},
         creatives: [],
         facebook_targeting: { genders: [1] },
         question_targeting: {
@@ -58,7 +58,7 @@ describe('createStrataFromVariables', () => {
       {
         audiences: [],
         excluded_audiences: [],
-        metadata: {},
+        metadata: {gender:"women"},
         creatives: [],
         facebook_targeting: { genders: [2] },
         question_targeting: {
@@ -113,7 +113,7 @@ describe('createStrataFromVariables', () => {
       {
         audiences: [],
         excluded_audiences: [],
-        metadata: {},
+        metadata: {gender:"men", age: "18"},
         creatives: [],
         facebook_targeting: { genders: [1], age_min: 18, age_max: 34 },
         question_targeting: {
@@ -153,7 +153,7 @@ describe('createStrataFromVariables', () => {
       {
         audiences: [],
         excluded_audiences: [],
-        metadata: {},
+        metadata: {gender:"men", age: "35"},
         creatives: [],
         facebook_targeting: { genders: [1], age_min: 35, age_max: 65 },
         question_targeting: {
@@ -192,8 +192,8 @@ describe('createStrataFromVariables', () => {
       },
       {
         audiences: [],
-        excluded_audiences: [],
-        metadata: {},
+        excluded_audiences: [],        
+        metadata: {gender:"women", age: "18"},
         creatives: [],
         facebook_targeting: { genders: [2], age_min: 18, age_max: 34 },
         question_targeting: {
@@ -233,7 +233,7 @@ describe('createStrataFromVariables', () => {
       {
         audiences: [],
         excluded_audiences: [],
-        metadata: {},
+        metadata: {gender:"women", age: "35"},
         creatives: [],
         facebook_targeting: { genders: [2], age_min: 35, age_max: 65 },
         question_targeting: {
