@@ -7,11 +7,11 @@ import useCreateStudyConf from '../../hooks/useCreateStudyConf';
 import { createStrataFromVariables } from '../../../../helpers/strata';
 import { GlobalFormData, Stratum as StratumType } from '../../../../types/conf';
 
-export interface FormData {
+export interface StratumFormData {
   id: string;
   quota: number;
 }
-const TextInput = GenericTextInput as TextInputI<FormData>;
+const StratumTextInput = GenericTextInput as TextInputI<StratumFormData>;
 
 
 const MultiSelect = GenericMultiSelect as MultiSelectI<StratumType>;
@@ -28,7 +28,7 @@ const Stratum: React.FC<{
 
   return (
     <>
-      <TextInput
+      <StratumTextInput
         name="id"
         type="text"
         value={stratum.id}
@@ -36,7 +36,7 @@ const Stratum: React.FC<{
         placeholder="name"
         handleChange={onChange}
       />
-      <TextInput
+      <StratumTextInput
         name="quota"
         type="text"
         value={stratum.quota}
@@ -55,6 +55,12 @@ const Stratum: React.FC<{
   );
 };
 
+
+export interface AdditionalStrataFormData {
+    finishQuestionRef: string; 
+}
+const AdditionalStrataTextInput = GenericTextInput as TextInputI<AdditionalStrataFormData>;
+
 interface Props {
   id: string;
   localData: StratumType[];
@@ -68,9 +74,11 @@ const Variables: React.FC<Props> = ({ globalData, id, localData }: Props) => {
 
   const [formData, setFormData] = useState(localData || []);
 
+  const [finishQuestionRef, setFinishQuestionRef] = useState();
+
   const regenerate = () => {
-    const strata = createStrataFromVariables(variables, creatives, audiences);
-    setFormData(strata);
+    const strata = createStrataFromVariables(variables, finishQuestionRef, creatives, audiences);
+    setFormData(strata); 
   };
 
   const updateFormData = (e: any, index: number): void => {
@@ -100,11 +108,21 @@ const Variables: React.FC<Props> = ({ globalData, id, localData }: Props) => {
       <div className="mt-5 md:mt-0 md:col-span-2">
         <div className="px-4 py-3 bg-gray-50 sm:px-6">
           <div className="sm:my-4">
+          <div className="py-2 text-left">
+            <AdditionalStrataTextInput 
+               name="finishQuestionRef"
+               type="text"
+               value={finishQuestionRef}
+               placeholder="The question ref of final question"
+               handleChange={(e: any) => setFinishQuestionRef(e.target.value)}
+            />
+          </div>
             <div className="py-8 text-left">
               <PrimaryButton type="button" onClick={regenerate}>
                 Generate from variables
               </PrimaryButton>
             </div>
+          
             <form onSubmit={onSubmit}>
               <div className="mb-8">
                 {formData.length === 0 ? (

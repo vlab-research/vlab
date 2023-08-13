@@ -4,7 +4,7 @@ interface IntermediateLevel extends Level {
   variableName: string;
 }
 
-export const formatGroupProduct = (levels: IntermediateLevel[]) => {
+export const formatGroupProduct = (levels: IntermediateLevel[], finishQuestionRef: string) => {
 
   const tvars = levels.map(l => {
     return {
@@ -24,13 +24,18 @@ export const formatGroupProduct = (levels: IntermediateLevel[]) => {
 
   const quota = levels.reduce((a: number, l) => a * l.quota, 1);
 
+ const finishFilter = {
+   "op": "answered",
+   "vars": [{"type": "variable", "value": finishQuestionRef}],
+ }
+
 
  return {
     id: idString,
     quota: quota,
     facebook_targeting: targeting,
     metadata: metadata,
-    question_targeting: { "op": "and", "vars": [...tvars] }, // add finishFilter
+    question_targeting: { "op": "and", "vars": [...tvars, finishFilter] },
   };
 
 };
@@ -44,8 +49,12 @@ const cartesianProduct = (a: any[]) => {
   return a.reduce((a, b) => a.flatMap((d: any) => b.map((e: any) => [d, e].flat())));
 }
 
-export const createStrataFromVariables = (variables: Variables, creatives?: Creatives, audiences?: Audiences) => {
+export const createStrataFromVariables = (variables: Variables, finishQuestionRef?: string, creatives?: Creatives, audiences?: Audiences) => {
   if (!variables.length) return [];
+
+  if (!finishQuestionRef) {
+      return []
+  }
 
   const allCreatives = creatives ? creatives.map((c: any) => c.name) : [];
   const allAudiences = audiences ? audiences.map((c: any) => c.name) : [];
@@ -56,7 +65,7 @@ export const createStrataFromVariables = (variables: Variables, creatives?: Crea
     );
 
   const strata: Stratum[] = cartesianProduct(res)
-    .map(formatGroupProduct)
+    .map((l: IntermediateLevel[]) => formatGroupProduct(l, finishQuestionRef))
     .map((data: Level) => ({
       audiences: [], // TODO: ADD AUDIENCES SOMEHOW??
       excluded_audiences: allAudiences[0] ? [allAudiences[0]] : [], // TODO: ADD EXLUDED AUDIENCE SOMEHOW??
