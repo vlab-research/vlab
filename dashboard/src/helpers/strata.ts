@@ -10,7 +10,7 @@ export const formatGroupProduct = (levels: IntermediateLevel[], finishQuestionRe
     return {
       "op": "equal",
       "vars": [
-        { "type": "stratum", "value": `stratum_${l.variableName}` },
+        { "type": "variable", "value": `stratum_${l.variableName}` },
         { "type": "constant", "value": l.name },
       ],
     }
