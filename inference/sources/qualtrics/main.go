@@ -1,21 +1,24 @@
-package main 
+package main
 
 import (
 	"archive/zip"
 	"encoding/json"
 	"fmt"
-	"github.com/caarlos0/env/v6"
-	"github.com/dghubble/sling"
 	"io"
 	"log"
 	"os"
+
+	"github.com/caarlos0/env/v6"
+	"github.com/dghubble/sling"
+
 	// "strings"
-	"github.com/google/uuid" 
+	"net/http"
+	"time"
+
+	"github.com/google/uuid"
 	"github.com/vlab-research/vlab/inference/connector"
 	. "github.com/vlab-research/vlab/inference/inference-data"
 	"github.com/vlab-research/vlab/inference/sources/types"
-	"net/http"
-	"time"
 )
 
 func handle(err error) {
@@ -46,13 +49,17 @@ func (e *QualtricsError) Error() string {
 }
 
 type CreateExportRequest struct {
-	Format string `json:"format"`
+	Format                 string `json:"format"`
+	SortByLastModifiedDate bool   `json:"sortByLastModifiedDate"`
+	AllowContinuation      bool   `json:"allowContinuation,omitempty"`
+	ContinuationToken      string `json:"continuationToken,omitempty"`
 }
+
 type CreateExportResponse struct {
 	Result struct {
-		ProgressID      string  `json:"progressId"`
-		PercentComplete float64 `json:"percentComplete"`
-		Status          string  `json:"status"`
+		ProgressID        string  `json:"progressId"`
+		PercentComplete   float64 `json:"percentComplete"`
+		Status            string  `json:"status"`
 	} `json:"result"`
 }
 
@@ -61,35 +68,47 @@ type ExportProgressResponse struct {
 		PercentComplete float64 `json:"percentComplete"`
 		FileID          string  `json:"fileId"`
 		Status          string  `json:"status"`
+		ContinuationToken string  `json:"continuationToken"`
 	} `json:"result"`
 }
 
-func CreateExport(client *http.Client, baseUrl string, survey string, apiToken string, wait float64, maxAttempts int) (string, error) {
+func CreateExport(sli *sling.Sling, survey string, wait float64, maxAttempts int, pagination string) (string, string, error) {
 
 	// TODO: move out of here and into TypeformConnector
-	sli := sling.New().Client(client).Base(baseUrl).Set("Accept", "application/json").Set("X-API-TOKEN", apiToken)
 
 	res := new(CreateExportResponse)
 	apiError := new(QualtricsError)
 
 	url := fmt.Sprintf("/API/v3/surveys/%s/export-responses", survey)
-	body := &CreateExportRequest{"json"}
+
+	body := &CreateExportRequest{
+		Format:                 "json",
+		SortByLastModifiedDate: true,
+	}
+
+	if pagination != "" {
+		body.ContinuationToken = pagination
+	} else  {
+		body.AllowContinuation = true 
+	}
 
 	_, err := sli.New().Post(url).BodyJSON(body).Receive(res, apiError)
 
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 
 	if !apiError.Empty() {
-		return "", apiError
+		return "", "", apiError
 	}
 
 	progressID := res.Result.ProgressID
 
 	if progressID == "" {
-		return "", fmt.Errorf("Error creating export, progress ID came out empty")
+		return "", "", fmt.Errorf("Error creating export, progress ID came out empty")
 	}
+
+	log.Println(fmt.Sprintf("Created export with progress ID: %s", progressID))
 
 	url = fmt.Sprintf("/API/v3/surveys/%s/export-responses/%s", survey, progressID)
 
@@ -97,16 +116,18 @@ func CreateExport(client *http.Client, baseUrl string, survey string, apiToken s
 	attempts := 1
 	for {
 
+		log.Println(fmt.Sprintf("Polling for response export. Attempt: %d", attempts))
+
 		apiError = new(QualtricsError)
 
 		_, err = sli.New().Get(url).Receive(progressRes, apiError)
 
 		if err != nil {
-			return "", err
+			return "", "", err
 		}
 
 		if !apiError.Empty() {
-			return "", apiError
+			return "", "", apiError
 		}
 
 		if progressRes.Result.Status == "complete" {
@@ -114,17 +135,19 @@ func CreateExport(client *http.Client, baseUrl string, survey string, apiToken s
 		}
 
 		if attempts >= maxAttempts {
-			return "", fmt.Errorf("Giving up on file export for survey %s after %d attempts", survey, attempts)
+			return "", "", fmt.Errorf("Giving up on file export for survey %s after %d attempts", survey, attempts)
 		}
 
 		attempts++
 		time.Sleep(time.Duration(wait) * time.Second)
 	}
 
-	// Add base urL??
+	// Add balse urL??
 	path := fmt.Sprintf("/API/v3/surveys/%s/export-responses/%s/file", survey, progressRes.Result.FileID)
 
-	return path, nil
+	log.Println(fmt.Sprintf("Export complete. Path to file: %s", path))
+
+	return progressRes.Result.ContinuationToken, path, nil
 }
 
 type RawQualtricsResponse struct {
@@ -215,13 +238,21 @@ func parseJSONResponse(f *zip.File) (*QualtricsResponseFile, error) {
 	return res, nil
 }
 
-func DownloadFile(url string) (string, error) {
-	filePath := fmt.Sprintf("/tmp/%s",uuid.New())
+func DownloadFile(client *http.Client, sli *sling.Sling, path string) (string, error) {
 
-	resp, err := http.Get(url)
+	log.Println(fmt.Sprintf("Download file from path: %s", path))
+
+	filePath := fmt.Sprintf("/tmp/%s.zip", uuid.New())
+
+	req, err := sli.New().Get(path).Request()
 	if err != nil {
 		return "", err
 	}
+	resp, err := client.Do(req)
+	if err != nil {
+		return "", err
+	}
+
 	defer resp.Body.Close()
 
 	// Create the file
@@ -235,6 +266,8 @@ func DownloadFile(url string) (string, error) {
 	if err != nil {
 		return "", err
 	}
+
+	log.Println("Downloaded zip file")
 
 	return filePath, nil
 }
@@ -253,7 +286,12 @@ func ReadZippedJSON(path string) (*QualtricsResponseFile, error) {
 	return nil, fmt.Errorf("No files found in %s", path)
 }
 
-func GetResponsesFromFile(source *Source, path string, idx int) <-chan *InferenceDataEvent {
+type QualtricsValue struct {
+	Label string `json:"label"`
+	Value json.RawMessage `json:"value"`
+}
+
+func GetResponsesFromFile(source *Source, path string, idx int, pagination string) <-chan *InferenceDataEvent {
 	events := make(chan *InferenceDataEvent)
 
 	responseFile, err := ReadZippedJSON(path)
@@ -272,18 +310,31 @@ func GetResponsesFromFile(source *Source, path string, idx int) <-chan *Inferenc
 			for k, v := range r.Values {
 				idx++
 
+				label, ok := r.Labels[k]
+
+				if !ok {
+					label = ""
+				}
+
+				qv := QualtricsValue{Label: label, Value: v}
+
+				b, err := json.Marshal(qv) 
+
+				if err != nil {
+					handle(err)
+				}
+				
+
 				event := &InferenceDataEvent{
 					User:       user,
 					Study:      source.StudyID,
 					SourceConf: source.Conf,
 					Timestamp:  timestamp,
 					Variable:   k,
-					Value:      v,
+					Value:      b,
 					Idx:        idx,
 
-					// NOTE: We have no pagination.
-					// WHAT TO DO ????????????????
-					Pagination: "",
+					Pagination: pagination,
 				}
 				events <- event
 			}
@@ -331,19 +382,26 @@ func parseCreds(b json.RawMessage) *types.QualtricsCredentials {
 	return creds
 }
 
-func (c *QualtricsConnector) GetResponses(source *Source, config *QualtricsConfig, token string, idx int) <-chan *InferenceDataEvent {
+func MakeSling(client *http.Client, baseURL string, apiKey string) *sling.Sling {
 
-	client := &http.Client{}
+	sli := sling.New().Client(client).Base(baseURL).Set("Accept", "application/json").Set("X-API-TOKEN", apiKey)
+	return sli
+}
+
+func (c *QualtricsConnector) GetResponses(source *Source, config *QualtricsConfig, pagination string, idx int) <-chan *InferenceDataEvent {
+
+	client := http.DefaultClient
 
 	creds := parseCreds(source.Credentials.Details)
+	sli := MakeSling(client, c.BaseURL, creds.APIKey)
 
-	fileUrl, err := CreateExport(client, c.BaseURL, config.SurveyID, creds.APIKey, c.WaitTime, c.MaxAttempts)
+	newPagination, filePath, err := CreateExport(sli, config.SurveyID, c.WaitTime, c.MaxAttempts, pagination)
 	handle(err)
 
-	path, err := DownloadFile(fileUrl)
+	path, err := DownloadFile(client, sli, filePath)
 	handle(err)
 
-	return GetResponsesFromFile(source, path, idx)
+	return GetResponsesFromFile(source, path, idx, newPagination)
 }
 
 func (c QualtricsConnector) Handler(source *Source, lastEvent *InferenceDataEvent) <-chan *InferenceDataEvent {

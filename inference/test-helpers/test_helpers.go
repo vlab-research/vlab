@@ -10,6 +10,7 @@ import (
 	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/tidwall/gjson"
 	. "github.com/vlab-research/vlab/inference/inference-data"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"net/http/httptest"
@@ -36,6 +37,20 @@ func Sliceit[T any](c <-chan T) []T {
 func GetString(d json.RawMessage, path string) string {
 	s := gjson.GetBytes(d, path).Raw
 	return s
+}
+
+func GetBodyAs(r *http.Request, t interface{}) (interface{}, error) {
+	b, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	err = json.Unmarshal(b, t)
+	if err != nil {
+		return nil, err
+	}
+
+	return t, nil 
 }
 
 func MakeUserMap(e []*InferenceDataEvent) map[string]map[string]*InferenceDataEvent {

@@ -6,6 +6,4 @@ package types
 // externally. Please take care when changing
 type QualtricsCredentials struct {
 	APIKey       string `json:"api_key"`
-	ClientID     string `json:"client_id"`
-	ClientSecret string `json:"client_secret"`
 }
