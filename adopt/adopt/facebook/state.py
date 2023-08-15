@@ -61,7 +61,7 @@ def get_adsets(campaign: Campaign) -> List[AdSet]:
             AdSet.Field.end_time,
             AdSet.Field.bid_strategy,
             AdSet.Field.promoted_object,
-            AdSet.Field.dsa_beneficiary,
+            # AdSet.Field.dsa_beneficiary,
         ],
     )
 
