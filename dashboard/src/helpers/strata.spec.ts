@@ -25,7 +25,7 @@ describe('createStrataFromVariables', () => {
     ];
 
     const creatives: Creatives = [];
-    const strata = createStrataFromVariables(variables, creatives);
+    const strata = createStrataFromVariables(variables, "foo", creatives);
 
     expect(strata).toEqual([
       {
@@ -41,8 +41,8 @@ describe('createStrataFromVariables', () => {
               op: "equal",
               vars: [
                 {
-                  type: "stratum",
-                  value: "stratum_gender"
+                  type: "variable",
+                  value: "gender"
                 },
                 {
                   type: "constant",
@@ -50,6 +50,15 @@ describe('createStrataFromVariables', () => {
                 }
               ]
             },
+            {
+              op: "answered",
+              vars: [
+                {
+                  type: "variable", 
+                  value: "foo"
+                }
+              ]
+            }
           ]
         },
         quota: 0.5,
@@ -68,8 +77,8 @@ describe('createStrataFromVariables', () => {
               op: "equal",
               vars: [
                 {
-                  type: "stratum",
-                  value: "stratum_gender"
+                  type: "variable",
+                  value: "gender"
                 },
                 {
                   type: "constant",
@@ -77,6 +86,15 @@ describe('createStrataFromVariables', () => {
                 }
               ]
             },
+            {
+              op: "answered",
+              vars: [
+                {
+                  type: "variable", 
+                  value: "foo"
+                }
+              ]
+            }
           ]
         },
         quota: 0.5,
@@ -107,7 +125,7 @@ describe('createStrataFromVariables', () => {
     ];
 
     const creatives = undefined;
-    const strata = createStrataFromVariables(variables, creatives);
+    const strata = createStrataFromVariables(variables, "foo", creatives);
 
     expect(strata).toEqual([
       {
@@ -123,8 +141,8 @@ describe('createStrataFromVariables', () => {
               op: "equal",
               vars: [
                 {
-                  type: "stratum",
-                  value: "stratum_gender"
+                  type: "variable",
+                  value: "gender"
                 },
                 {
                   type: "constant",
@@ -136,12 +154,21 @@ describe('createStrataFromVariables', () => {
               op: "equal",
               vars: [
                 {
-                  type: "stratum",
-                  value: "stratum_age"
+                  type: "variable",
+                  value: "age"
                 },
                 {
                   type: "constant",
                   value: "18"
+                }
+              ]
+            },
+            {
+              op: "answered",
+              vars: [
+                {
+                  type: "variable", 
+                  value: "foo"
                 }
               ]
             }
@@ -163,8 +190,8 @@ describe('createStrataFromVariables', () => {
               op: "equal",
               vars: [
                 {
-                  type: "stratum",
-                  value: "stratum_gender"
+                  type: "variable",
+                  value: "gender"
                 },
                 {
                   type: "constant",
@@ -176,12 +203,21 @@ describe('createStrataFromVariables', () => {
               op: "equal",
               vars: [
                 {
-                  type: "stratum",
-                  value: "stratum_age"
+                  type: "variable",
+                  value: "age"
                 },
                 {
                   type: "constant",
                   value: "35"
+                }
+              ]
+            },
+            {
+              op: "answered",
+              vars: [
+                {
+                  type: "variable", 
+                  value: "foo"
                 }
               ]
             }
@@ -203,8 +239,8 @@ describe('createStrataFromVariables', () => {
               op: "equal",
               vars: [
                 {
-                  type: "stratum",
-                  value: "stratum_gender"
+                  type: "variable",
+                  value: "gender"
                 },
                 {
                   type: "constant",
@@ -216,12 +252,21 @@ describe('createStrataFromVariables', () => {
               op: "equal",
               vars: [
                 {
-                  type: "stratum",
-                  value: "stratum_age"
+                  type: "variable",
+                  value: "age"
                 },
                 {
                   type: "constant",
                   value: "18"
+                }
+              ]
+            },
+            {
+              op: "answered",
+              vars: [
+                {
+                  type: "variable", 
+                  value: "foo"
                 }
               ]
             }
@@ -243,8 +288,8 @@ describe('createStrataFromVariables', () => {
               op: "equal",
               vars: [
                 {
-                  type: "stratum",
-                  value: "stratum_gender"
+                  type: "variable",
+                  value: "gender"
                 },
                 {
                   type: "constant",
@@ -256,12 +301,21 @@ describe('createStrataFromVariables', () => {
               op: "equal",
               vars: [
                 {
-                  type: "stratum",
-                  value: "stratum_age"
+                  type: "variable",
+                  value: "age"
                 },
                 {
                   type: "constant",
                   value: "35"
+                }
+              ]
+            },
+            {
+              op: "answered",
+              vars: [
+                {
+                  type: "variable", 
+                  value: "foo"
                 }
               ]
             }
@@ -306,7 +360,7 @@ describe('createStrataFromVariables', () => {
 
 
     const creatives = undefined;
-    const strata = createStrataFromVariables(variables, creatives);
+    const strata = createStrataFromVariables(variables, "foo", creatives);
 
     expect(strata.length).toBe(12)
     expect(strata.filter(s => s.facebook_targeting.age_min === 35).length).toBe(6)
