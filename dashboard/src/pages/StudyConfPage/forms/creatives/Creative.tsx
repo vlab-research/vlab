@@ -133,23 +133,32 @@ const Creative: React.FC<Props> = ({
         placeholder="E.g Ad_campaign_2"
         value={data.name}
       />
+
+      <TextInput
+        name="image_hash"
+        type="text"
+        handleChange={handleChange}
+        autoComplete="on"
+        placeholder="E.g 8ef11493ade6deced04f36b9e8cf3900"
+        value={data.image_hash}
+      />
       <TextInput
         name="body"
         type="text"
         handleChange={handleChange}
         autoComplete="on"
-        placeholder="E.g. hello world..."
+        placeholder="This is the text of the post that will be the ad."
         value={data.body}
       />
       <TextInput
-        name="button_text"
+        name="link_text"
         type="text"
         handleChange={handleChange}
         autoComplete="on"
-        placeholder="Add some helpful text to your button"
-        value={data.button_text}
-        required={false}
+        placeholder="This is the 'headline' text next to the CTA button."
+        value={data.link_text}
       />
+
       {destinations ? (
         <Select
           name="destination"
@@ -171,28 +180,21 @@ const Creative: React.FC<Props> = ({
       )}
 
       <TextInput
-        name="image_hash"
-        type="text"
-        handleChange={handleChange}
-        autoComplete="on"
-        placeholder="E.g 8ef11493ade6deced04f36b9e8cf3900"
-        value={data.image_hash}
-      />
-      <TextInput
-        name="link_text"
-        type="text"
-        handleChange={handleChange}
-        autoComplete="on"
-        placeholder="Add some text to your link"
-        value={data.link_text}
-      />
-      <TextInput
         name="welcome_message"
         type="text"
         handleChange={handleChange}
         autoComplete="on"
-        placeholder="E.g hi there!"
+        placeholder="This is a message the user will see in the chat."
         value={data.welcome_message}
+        required={false}
+      />
+      <TextInput
+        name="button_text"
+        type="text"
+        handleChange={handleChange}
+        autoComplete="on"
+        placeholder="This is the button the user will see in the chat."
+        value={data.button_text}
         required={false}
       />
     </li>
