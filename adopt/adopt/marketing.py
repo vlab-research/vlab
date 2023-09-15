@@ -1,4 +1,5 @@
 import json
+import logging 
 import random
 from dataclasses import asdict, dataclass, fields
 from datetime import datetime, timedelta
@@ -9,6 +10,8 @@ from urllib.parse import quote
 from facebook_business.adobjects.ad import Ad
 from facebook_business.adobjects.adcreative import AdCreative
 from facebook_business.adobjects.adcreativelinkdata import AdCreativeLinkData
+# from facebookads.adobjects.adcreativevideodata \
+#     import AdCreativeVideoData
 from facebook_business.adobjects.adcreativeobjectstoryspec import \
     AdCreativeObjectStorySpec
 from facebook_business.adobjects.adpromotedobject import AdPromotedObject
@@ -279,6 +282,16 @@ def _create_creative(
 
     c = AdCreative()
 
+    # if video, do video data 
+
+    # video_data = {
+    #     AdCreativeVideoData.Field.description : 'My Description',
+    #     AdCreativeVideoData.Field.video_id : '<VIDEO_ID>',
+    #     AdCreativeVideoData.Field.image_url : '<IMAGE_URL>',
+    #     AdCreativeVideoData.Field.call_to_action : config.link_text,
+    # }
+
+
     link_data = {
         AdCreativeLinkData.Field.call_to_action: call_to_action,
         AdCreativeLinkData.Field.image_hash: config.image_hash,
@@ -300,10 +313,14 @@ def _create_creative(
 
     c[AdCreative.Field.name] = config.name
     c[AdCreative.Field.actor_id] = page_id
+
     c[AdCreative.Field.object_story_spec] = {
-        AdCreativeObjectStorySpec.Field.link_data: link_data,
         AdCreativeObjectStorySpec.Field.page_id: page_id,
+        AdCreativeObjectStorySpec.Field.link_data: link_data,
     }
+
+    # if link_data
+    # if video_data
 
     return c
 
@@ -443,7 +460,9 @@ def update_instructions_for_campaign(
     try:
         campaign_state = state.campaign_state(campaign_name)
         campaign_state.campaign_state
-    except StateNameError:
+    except StateNameError as e:
+        print(e)
+        logging.info(f"Could not find campaign with name {campaign_name}. Creating.")
         return [create_campaign(campaign_name, study.general.objective)]
 
     sb = [(s, budget[s.id]) for s in strata]
