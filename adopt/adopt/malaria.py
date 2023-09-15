@@ -180,9 +180,7 @@ def run_updates(fn: AdoptJob) -> None:
             if report:
                 create_adopt_report(s, "FACEBOOK_ADOPT", report, db_conf)
 
-                # TODO: update needs to be updated for different states and
-                #       multiple campaigns!
-                run_instructions(instructions, state)
+            run_instructions(instructions, state)
 
         except BaseException as e:
             logging.error(f"Error updating campaign {s}. Error: {e}")
