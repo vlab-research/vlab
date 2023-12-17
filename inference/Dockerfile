@@ -25,7 +25,7 @@ COPY ${APP_PATH}/ ${APP_PATH}/
 RUN CGO_ENABLED=0 go build -o /app/main ./${APP_PATH}
 
 # Final Image using a distroless images
-FROM gcr.io/distroless/static-debian11
+FROM golang:alpine
 
 COPY --from=build /app/main /
 

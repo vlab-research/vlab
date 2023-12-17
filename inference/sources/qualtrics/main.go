@@ -50,7 +50,7 @@ func (e *QualtricsError) Error() string {
 
 type CreateExportRequest struct {
 	Format                 string `json:"format"`
-	SortByLastModifiedDate bool   `json:"sortByLastModifiedDate"`
+	SortByLastModifiedDate bool   `json:"sortByLastModifiedDate,omitempty"`
 	AllowContinuation      bool   `json:"allowContinuation,omitempty"`
 	ContinuationToken      string `json:"continuationToken,omitempty"`
 }
@@ -82,14 +82,14 @@ func CreateExport(sli *sling.Sling, survey string, wait float64, maxAttempts int
 	url := fmt.Sprintf("/API/v3/surveys/%s/export-responses", survey)
 
 	body := &CreateExportRequest{
-		Format:                 "json",
-		SortByLastModifiedDate: true,
+		Format: "json", 
 	}
 
 	if pagination != "" {
 		body.ContinuationToken = pagination
 	} else  {
 		body.AllowContinuation = true 
+		body.SortByLastModifiedDate = true
 	}
 
 	_, err := sli.New().Post(url).BodyJSON(body).Receive(res, apiError)

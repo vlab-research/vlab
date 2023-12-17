@@ -110,7 +110,7 @@ func TestCreateExport_SendsContinuationTokenIfItHasOneAndGetsNewOneBack(t *testi
 			b, _ := ioutil.ReadAll(r.Body)
 			s := strings.TrimSpace(string(b))
 
-			exp := `{"format":"json","sortByLastModifiedDate":true,"continuationToken":"foo-continue"}`
+			exp := `{"format":"json","continuationToken":"foo-continue"}` 
 			assert.Equal(t, s, exp)
 
 			res := `{"result":{"progressId":"PROGRESSID","percentComplete":0.0,"status":"inProgress"},"meta":{"requestId":"92abd129-c221-4231-beb6-be81b9e49dc3","httpStatus":"200 - OK"}}`
