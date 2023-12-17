@@ -20,6 +20,10 @@ psycopg = {extras = ["binary", "pool"], version = "^3.0.9"}
 openpyxl = "^3.0.9"
 orjson = "^3.6.6"
 pydantic = "^2.5.2"
+fastapi = "^0.105.0"
+unicorn = {extras = ["standard"], version = "^2.0.1.post1"}
+python-jose = {extras = ["cryptography"], version = "^3.3.0"}
+httpx = "^0.25.2"
 
 [tool.poetry.dev-dependencies]
 future = "^0.18.2"
@@ -33,6 +37,9 @@ mypy = "^0.931"
 pylsp-mypy = "^0.5.7"
 python-lsp-black = "^1.0.1"
 pyls-isort = "^0.2.2"
+
+[tool.poetry.group.dev.dependencies]
+types-requests = "^2.31.0.10"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
