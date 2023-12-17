@@ -1,13 +1,12 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-# from dataclasses import dataclass, fields
 from dataclasses import fields
 from datetime import date, datetime, timedelta
 from math import floor
 from typing import Any, Dict, List, NamedTuple, Optional, Tuple, Union
 
-from pydantic import BaseModel, ValidationError, root_validator
+from pydantic import model_validator, BaseModel, ValidationError
 from pydantic.dataclasses import dataclass
 from toolz import groupby
 
@@ -19,12 +18,12 @@ class SourceConf(BaseModel):
     name: str
     source: str
     credentials_key: str
-    config: Any
+    config: Any = None
 
 
 class ExtractionFunctionConf(BaseModel):
     function: str
-    params: Any
+    params: Any = None
 
 
 class ExtractionConf(BaseModel):
@@ -38,7 +37,7 @@ class ExtractionConf(BaseModel):
 
 class DataSource(BaseModel):
     extraction_confs: list[ExtractionConf]
-    user_variable: Optional[str]
+    user_variable: Optional[str] = None
 
 
 class InferenceDataConf(BaseModel):
@@ -67,6 +66,8 @@ class QuestionTargeting(BaseModel):
 class FlyMessengerDestination(BaseModel):
     name: str
     initial_shortcode: str
+    # initial message body
+    # initial message button text
 
 
 class WebDestination(BaseModel):
@@ -370,7 +371,7 @@ class GeneralConf(BaseModel):
     optimization_goal: str
     destination_type: str
     page_id: str
-    instagram_id: Optional[str]
+    instagram_id: Optional[str] = None
     min_budget: float
     opt_window: int
     ad_account: str
@@ -395,7 +396,7 @@ class StratumConf(BaseModel):
     audiences: List[str]
     excluded_audiences: List[str]
     facebook_targeting: FacebookTargeting
-    question_targeting: Optional[QuestionTargeting]
+    question_targeting: Optional[QuestionTargeting] = None
     metadata: Dict[str, str]
 
 
@@ -425,7 +426,8 @@ class Partitioning(BaseModel):
     def scenario(self):
         return {name for name, _ in self.__fields__.items() if getattr(self, name)}
 
-    @root_validator(pre=False)
+    @model_validator(mode="before")
+    @classmethod
     def validate_scenario(cls, values):
         valid_scenarios = [
             {"min_users"},
@@ -496,7 +498,8 @@ class AudienceConf(BaseModel):
     lookalike: Optional[Lookalike] = None
     partitioning: Optional[Partitioning] = None
 
-    @root_validator(pre=False)
+    @model_validator(mode="before")
+    @classmethod
     def __post_init__(cls, values):
         subtype_confs = {
             "CUSTOM": None,
@@ -528,7 +531,7 @@ class Stratum(BaseModel):
     quota: float
     creatives: List[CreativeConf]
     facebook_targeting: FacebookTargeting
-    question_targeting: Optional[QuestionTargeting]
+    question_targeting: Optional[QuestionTargeting] = None
     metadata: dict[str, str]
 
 

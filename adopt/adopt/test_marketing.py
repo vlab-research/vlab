@@ -2,7 +2,6 @@ import random
 from typing import TypeVar
 
 import pytest
-import typedjson
 from facebook_business.adobjects.customaudience import CustomAudience
 
 from .facebook.update import Instruction
@@ -227,7 +226,6 @@ def test_partitioning_valid_scenarios():
         Partitioning(min_users=100, min_days=100, max_days=100)
 
 
-# Note: not a unit test, testing typedjson implicitly
 def test_load_partitioning_works_with_errors():
     raw = {"min_users": 100}
     pt = Partitioning(**raw)

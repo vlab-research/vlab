@@ -3,8 +3,6 @@ from itertools import product
 from test.dbfix import _reset_db
 from test.dbfix import cnf as db_conf
 
-import typedjson
-
 from .campaign_queries import (create_campaign_confs,
                                     create_campaign_for_user,
                                     get_campaigns_for_user)
