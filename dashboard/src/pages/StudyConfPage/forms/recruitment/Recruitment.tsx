@@ -8,7 +8,7 @@ import { GenericSelect, SelectI } from '../../components/Select';
 import recruitmentTypes from '../../../../fixtures/recruitment/types';
 import { GlobalFormData } from '../../../../types/conf';
 import useCreateStudyConf from '../../hooks/useCreateStudyConf';
-
+import ConfWrapper from '../../components/ConfWrapper';
 const Select = GenericSelect as SelectI<any>;
 
 interface Props {
@@ -106,53 +106,44 @@ const Recruitment: React.FC<Props> = ({
   };
 
   return (
-    <div className="md:grid md:grid-cols-3 md:gap-6">
-      <div className="md:col-span-1">
-        <div className="px-4 sm:px-0"></div>
-      </div>
-      <div className="mt-5 md:mt-0 md:col-span-2">
-        <div className="px-4 py-3 bg-gray-50 sm:px-6">
-          <div className="sm:my-4">
-            <form onSubmit={onSubmit}>
-              <Select
-                name="destination"
-                options={recruitmentTypes}
-                handleChange={handleSelectChange}
-                value={recruitmentType}
-                label="Select a recruitment type"
-              ></Select>
-              {recruitmentType === 'simple' && (
-                <Simple formData={formData} updateFormData={updateFormData} />
-              )}
-              {recruitmentType === 'pipeline_experiment' && (
-                <PipelineExperiment
-                  formData={formData}
-                  updateFormData={updateFormData}
-                />
-              )}
-              {recruitmentType === 'destination' && (
-                <Destination
-                  formData={formData}
-                  updateFormData={updateFormData}
-                  destinations={globalData.destinations}
-                  studySlug={studySlug}
-                />
-              )}
-              <div className="p-6 text-right">
-                <PrimaryButton
-                  leftIcon="CheckCircleIcon"
-                  type="submit"
-                  testId="form-submit-button"
-                  loading={isLoadingOnCreateStudyConf}
-                >
-                  Next
-                </PrimaryButton>
-              </div>
-            </form>
-          </div>
+    <ConfWrapper>
+      <form onSubmit={onSubmit}>
+        <Select
+          name="destination"
+          options={recruitmentTypes}
+          handleChange={handleSelectChange}
+          value={recruitmentType}
+          label="Select a recruitment type"
+        ></Select>
+        {recruitmentType === 'simple' && (
+          <Simple formData={formData} updateFormData={updateFormData} />
+        )}
+        {recruitmentType === 'pipeline_experiment' && (
+          <PipelineExperiment
+            formData={formData}
+            updateFormData={updateFormData}
+          />
+        )}
+        {recruitmentType === 'destination' && (
+          <Destination
+            formData={formData}
+            updateFormData={updateFormData}
+            destinations={globalData.destinations}
+            studySlug={studySlug}
+          />
+        )}
+        <div className="p-6 text-right">
+          <PrimaryButton
+            leftIcon="CheckCircleIcon"
+            type="submit"
+            testId="form-submit-button"
+            loading={isLoadingOnCreateStudyConf}
+          >
+            Next
+          </PrimaryButton>
         </div>
-      </div>
-    </div>
+      </form>
+    </ConfWrapper>
   );
 };
 

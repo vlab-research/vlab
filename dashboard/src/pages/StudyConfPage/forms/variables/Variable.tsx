@@ -11,11 +11,6 @@ import {
   Variable as VariableType,
 } from '../../../../types/conf';
 
-export interface FormData {
-  name: string;
-  properties: string[];
-  levels: any[];
-}
 
 const TextInput = GenericTextInput as TextInputI<FormData>;
 const MultiSelect = GenericMultiSelect as MultiSelectI<FormData>;

@@ -38,7 +38,7 @@ export const GenericTextInput: TextInputI = ({
           required={required}
           disabled={disabled}
           {...props}
-          onChange={e => handleChange(e)}
+          onChange={handleChange}
           className={classNames(
             'block w-4/5 shadow-sm sm:text-sm rounded-md',
             disabled ? 'opacity-50 cursor-not-allowed' : ''

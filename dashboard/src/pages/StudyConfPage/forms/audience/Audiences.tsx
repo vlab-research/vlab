@@ -10,6 +10,7 @@ import {
   Audience as AudienceType,
   Audiences as AudiencesType,
 } from '../../../../types/conf';
+import ConfWrapper from '../../components/ConfWrapper';
 
 interface Props {
   id: string;
@@ -73,56 +74,46 @@ const Audiences: React.FC<Props> = ({
   };
 
   return (
-    <div className="md:grid md:grid-cols-3 md:gap-6">
-      <div className="md:col-span-1">
-        <div className="px-4 sm:px-0"></div>
-      </div>
-      <div className="mt-5 md:mt-0 md:col-span-2">
-        <div className="px-4 py-3 bg-gray-50 sm:px-6">
-          <div className="sm:my-4">
-            <form onSubmit={onSubmit}>
-              <div className="mb-8">
-                {formData.map((d: AudienceType, index: number) => {
-                  return (
-                    <ul>
-                      <Audience
-                        key={index}
-                        data={d}
-                        index={index}
-                        updateFormData={updateFormData}
-                      />
-                      {formData.length > 1 && (
-                        <div key={`${d.name}-${index}`}>
-                          <div className="flex flex-row w-4/5 justify-between items-center">
-                            <div className="flex w-full h-0.5 mr-4 rounded-md bg-gray-400"></div>
-                            <DeleteButton
-                              onClick={() => deleteAudience(index)}
-                            ></DeleteButton>
-                          </div>
-                          <div />
-                        </div>
-                      )}
-                    </ul>
-                  );
-                })}
-                <AddButton onClick={addAudience} label="Add audience" />
-              </div>
-
-              <div className="p-6 text-right">
-                <PrimaryButton
-                  leftIcon="CheckCircleIcon"
-                  type="submit"
-                  testId="form-submit-button"
-                  loading={isLoadingOnCreateStudyConf}
-                >
-                  Next
-                </PrimaryButton>
-              </div>
-            </form>
-          </div>
+    <ConfWrapper>
+      <form onSubmit={onSubmit}>
+        <div className="mb-8">
+          {formData.map((d: AudienceType, index: number) => {
+            return (
+              <ul key={index}>
+                <Audience
+                  data={d}
+                  index={index}
+                  updateFormData={updateFormData}
+                />
+                {formData.length > 1 && (
+                  <div key={`${d.name}-${index}`}>
+                    <div className="flex flex-row w-4/5 justify-between items-center">
+                      <div className="flex w-full h-0.5 mr-4 rounded-md bg-gray-400"></div>
+                      <DeleteButton
+                        onClick={() => deleteAudience(index)}
+                      ></DeleteButton>
+                    </div>
+                    <div />
+                  </div>
+                )}
+              </ul>
+            );
+          })}
+          <AddButton onClick={addAudience} label="Add audience" />
         </div>
-      </div>
-    </div>
+
+        <div className="p-6 text-right">
+          <PrimaryButton
+            leftIcon="CheckCircleIcon"
+            type="submit"
+            testId="form-submit-button"
+            loading={isLoadingOnCreateStudyConf}
+          >
+            Next
+          </PrimaryButton>
+        </div>
+      </form>
+    </ConfWrapper>
   );
 };
 

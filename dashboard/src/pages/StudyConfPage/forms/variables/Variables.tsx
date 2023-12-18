@@ -101,7 +101,7 @@ const Variables: React.FC<Props> = ({
     useCampaigns(adAccount, accessToken);
 
   const tc = localData
-    ? localData[0].levels[0]?.template_campaign
+    ? localData[0]?.levels[0]?.template_campaign
     : campaigns[0]?.id;
 
   const [templateCampaign, setTemplateCampaign] = useState<string>(tc);

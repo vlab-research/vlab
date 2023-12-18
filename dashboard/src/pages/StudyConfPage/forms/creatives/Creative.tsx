@@ -57,7 +57,6 @@ const Creative: React.FC<Props> = ({
 
       <TextInput
         name="image_hash"
-        type="text"
         handleChange={handleChange}
         autoComplete="on"
         placeholder="E.g 8ef11493ade6deced04f36b9e8cf3900"
@@ -72,7 +71,6 @@ const Creative: React.FC<Props> = ({
       />
       <TextInput
         name="link_text"
-        type="text"
         handleChange={handleChange}
         autoComplete="on"
         placeholder="This is the 'headline' text next to the CTA button."
@@ -107,7 +105,6 @@ const Creative: React.FC<Props> = ({
       />
       <TextInput
         name="button_text"
-        type="text"
         handleChange={handleChange}
         autoComplete="on"
         placeholder="This is the button the user will see in the chat."

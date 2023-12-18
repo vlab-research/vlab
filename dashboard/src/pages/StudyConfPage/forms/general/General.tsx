@@ -9,7 +9,7 @@ import optimizationGoals from '../../../../fixtures/general/optimizationGoals';
 import { getFirstOption } from '../../../../helpers/arrays';
 import useCreateStudyConf from '../../hooks/useCreateStudyConf';
 import { General as FormData } from '../../../../types/conf';
-
+import ConfWrapper from '../../components/ConfWrapper';
 const TextInput = GenericTextInput as TextInputI<FormData>;
 const Select = GenericSelect as SelectI<FormData>;
 
@@ -85,79 +85,72 @@ const General: React.FC<Props> = ({ id, localData, confKeys }: Props) => {
   };
 
   return (
-    <div className="md:grid md:grid-cols-3 md:gap-6">
-      <div className="md:col-span-1">
-        <div className="px-4 sm:px-0"></div>
-      </div>
-      <div className="mt-5 md:mt-0 md:col-span-2">
-        <form onSubmit={onSubmit}>
-          <div className="px-4 py-3 bg-gray-50 sm:px-6">
-            <Select
-              name="objective"
-              options={objectives}
-              handleChange={handleChange}
-              value={formData.objective}
-              getValue={(o:any) => o.name.toUpperCase()}
-            ></Select>
-            <Select
-              name="optimization_goal"
-              options={optimizationGoals}
-              handleChange={handleChange}
-              value={formData.optimization_goal}
-              getValue={(o:any) => o.name.toUpperCase()}
-            ></Select>
-            <Select
-              name="destination_type"
-              options={destinations}
-              handleChange={handleChange}
-              value={formData.destination_type}
-              getValue={(o:any) => o.name.toUpperCase()}
-            ></Select>
-            <TextInput
-              name="page_id"
-              handleChange={handleChange}
-              placeholder="E.g 1855355231229529"
-              value={formData.page_id}
-            />
-            <TextInput
-              name="min_budget"
-              handleChange={handleChange}
-              placeholder="E.g 8400"
-              value={formData.min_budget}
-            />
-            <TextInput
-              name="opt_window"
-              handleChange={handleChange}
-              placeholder="E.g 48"
-              value={formData.opt_window}
-            />
-            <TextInput
-              name="instagram_id"
-              handleChange={handleChange}
-              required={false}
-              placeholder="E.g 2327764173962588"
-              value={formData.instagram_id}
-            />
-            <TextInput
-              name="ad_account"
-              handleChange={handleChange}
-              placeholder="E.g 1342820622846299"
-              value={formData.ad_account}
-            />
-            <div className="p-6 text-right">
-              <PrimaryButton
-                leftIcon="CheckCircleIcon"
-                type="submit"
-                testId="form-submit-button"
-                loading={isLoadingOnCreateStudyConf}
-              >
-                Next
-              </PrimaryButton>
-            </div>
-          </div>
-        </form>
-      </div>
-    </div>
+    <ConfWrapper>
+      <form onSubmit={onSubmit}>
+        <Select
+          name="objective"
+          options={objectives}
+          handleChange={handleChange}
+          value={formData.objective}
+          getValue={(o: any) => o.name.toUpperCase()}
+        ></Select>
+        <Select
+          name="optimization_goal"
+          options={optimizationGoals}
+          handleChange={handleChange}
+          value={formData.optimization_goal}
+          getValue={(o: any) => o.name.toUpperCase()}
+        ></Select>
+        <Select
+          name="destination_type"
+          options={destinations}
+          handleChange={handleChange}
+          value={formData.destination_type}
+          getValue={(o: any) => o.name.toUpperCase()}
+        ></Select>
+        <TextInput
+          name="page_id"
+          handleChange={handleChange}
+          placeholder="E.g 1855355231229529"
+          value={formData.page_id}
+        />
+        <TextInput
+          name="min_budget"
+          handleChange={handleChange}
+          placeholder="E.g 8400"
+          value={formData.min_budget}
+        />
+        <TextInput
+          name="opt_window"
+          handleChange={handleChange}
+          placeholder="E.g 48"
+          value={formData.opt_window}
+        />
+        <TextInput
+          name="instagram_id"
+          handleChange={handleChange}
+          required={false}
+          placeholder="E.g 2327764173962588"
+          value={formData.instagram_id}
+        />
+        <TextInput
+          name="ad_account"
+          handleChange={handleChange}
+          placeholder="E.g 1342820622846299"
+          value={formData.ad_account}
+        />
+        <div className="p-6 text-right">
+          <PrimaryButton
+            leftIcon="CheckCircleIcon"
+            type="submit"
+            testId="form-submit-button"
+            loading={isLoadingOnCreateStudyConf}
+          >
+            Next
+          </PrimaryButton>
+        </div>
+      </form>
+    </ConfWrapper>
   );
 };
 
