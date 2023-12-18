@@ -6,7 +6,7 @@ authors = ["Nandan Rao <nandanmarkrao@gmail.com>"]
 
 [tool.poetry.dependencies]
 python = ">=3.9,<3.11"
-PyYAML = "^5.4.1"
+PyYAML = "^6.0.1"
 backoff = "^1.10.0"
 environs = "^9.3.2"
 facebook-business = "^16.0.2"
