@@ -1,5 +1,10 @@
 import { Path } from 'react-hook-form';
-import { createLabelFor } from '../../../helpers/strings';
+
+
+interface SelectOption {
+  value: string;
+  label: string;
+}
 
 
 interface SelectOption {
@@ -12,53 +17,47 @@ interface MultiSelectProps<T> {
   name: Path<T>;
   options: SelectOption[];
   handleMultiSelectChange: (selectedValues: string[], name: string) => void;
-  handleChange: (e: any) => void;
-  value: any;
-  disabled?: boolean;
-  required?: boolean;
-  label?: string;
+  value: string[];
+  label: string;
 }
 
-export type MultiSelectI<T = any> = React.FC<MultiSelectProps<T>>;
+export type MultiSelectI<T = any> = React.FC<MultiSelectProps<T>>
 
 export const GenericMultiSelect: MultiSelectI = ({
   name,
   options,
-  handleChange,
+  handleMultiSelectChange,
   value,
-  disabled = false,
-  required = true,
   label,
-  ...props
 }) => {
+  const onChange = (e: any) => {
+    const selected = Array.from(e.target.selectedOptions).map(
+      (option: any) => option.value
+    );
+    handleMultiSelectChange(selected, name);
+  };
+
   return (
     <div className="sm:my-4">
       <label className="my-2 block text-sm font-medium text-gray-700">
-        {label ? label : createLabelFor(name)}
+        {label}
       </label>
-      <div className="flex flex-row items-center">
-        <select
-          multiple 
-          name={name}
-          value={value}
-          onChange={handleChange}
-          className="w-4/5 mt-1 block shadow-sm sm:text-sm rounded-md"
-          {...props}
-        >
-          {options.map((option: { name: string; label: string }, i: number) => (
-            <option
-              key={i}
-              value={option.name.toUpperCase()}
-              className="px-4 py-2 text-gray-700 sm:text-sm rounded-md cursor-pointer hover:text-gray-900 hover:bg-gray-100 transition duration-300 ease-in-out focus:outline-none"
-            >
-              {option.label || option.name}
-            </option>
-          ))}
-        </select>
-        {required === false && (
-          <span className="ml-4 italic text-gray-700 text-sm">Optional</span>
-        )}
-      </div>
+      <select
+        multiple
+        value={value}
+        onChange={onChange}
+        className="w-4/5 block shadow-sm sm:text-sm rounded-md"
+      >
+        {options.map((option: SelectOption, i: number) => (
+          <option
+            key={i}
+            value={option.value}
+            className="px-4 py-2 text-gray-700 sm:text-sm rounded-md cursor-pointer hover:text-gray-900 hover:bg-gray-100 transition duration-300 ease-in-out focus:outline-none"
+          >
+            {option.label}
+          </option>
+        ))}
+      </select>
     </div>
   );
 };

@@ -8,6 +8,7 @@ import useFacebookAccounts from './useFacebookAccounts';
 import useCampaigns from './useCampaigns';
 import useAdsets from './useAdsets';
 import ErrorPlaceholder from '../../../../components/ErrorPlaceholder';
+import ConfWrapper from '../../components/ConfWrapper';
 import {
   Variable as VariableType,
   GlobalFormData,
@@ -109,10 +110,12 @@ const Variables: React.FC<Props> = ({
 
   if (errorLoadingCampaigns) {
     return (
-      <ErrorPlaceholder
-        message='Something went wrong while fetching your campaigns. Have you connected a Facebook account under "Connected Accounts"?'
-        onClickTryAgain={refetchData}
-      />
+      <ConfWrapper>
+        <ErrorPlaceholder
+          message='Something went wrong while fetching your campaigns. Have you connected a Facebook account under "Connected Accounts"?'
+          onClickTryAgain={refetchData}
+        />
+      </ConfWrapper>
     );
   }
 
@@ -153,59 +156,50 @@ const Variables: React.FC<Props> = ({
   };
 
   return (
-    <div className="md:grid md:grid-cols-3 md:gap-6">
-      <div className="md:col-span-1">
-        <div className="px-4 sm:px-0"></div>
-      </div>
-      <div className="mt-5 md:mt-0 md:col-span-2">
-        <div className="px-4 py-3 bg-gray-50 sm:px-6">
-          <div className="sm:my-4">
-            <form onSubmit={onSubmit}>
-              <div className="mb-8">
-                <Select
-                  name="campaign"
-                  options={campaigns}
-                  onChange={setTemplateCampaign}
-                  value={templateCampaign}
-                ></Select>
-                {formData.map((d: any, index: number) => {
-                  return (
-                    <div key={index}>
-                      <Variable
-                        adsets={adsets}
-                        key={index}
-                        data={d}
-                        campaignId={templateCampaign}
-                        index={index}
-                        updateFormData={updateFormData}
-                      />
-                      <div>
-                        <div className="flex flex-row w-4/5 justify-between items-center">
-                          <div className="w-4/5 h-0.5 mr-8 my-4 rounded-md bg-gray-400"></div>
-                          <DeleteButton
-                            onClick={() => deleteVariable(index)}
-                          ></DeleteButton>
-                        </div>
-                        <div />
-                      </div>
-                    </div>
-                  );
-                })}
-                <div className="flex flex-row items-center">
-                  <AddButton onClick={addVariable} label="Add a variable" />
+    <ConfWrapper>
+      <form onSubmit={onSubmit}>
+        <div className="mb-8">
+          <Select
+            name="campaign"
+            options={campaigns}
+            onChange={setTemplateCampaign}
+            value={templateCampaign}
+          ></Select>
+          {formData.map((d: any, index: number) => {
+            return (
+              <div key={index}>
+                <Variable
+                  adsets={adsets}
+                  key={index}
+                  data={d}
+                  campaignId={templateCampaign}
+                  index={index}
+                  updateFormData={updateFormData}
+                />
+                <div>
+                  <div className="flex flex-row w-4/5 justify-between items-center">
+                    <div className="w-4/5 h-0.5 mr-8 my-4 rounded-md bg-gray-400"></div>
+                    <DeleteButton
+                      onClick={() => deleteVariable(index)}
+                    ></DeleteButton>
+                  </div>
+                  <div />
                 </div>
               </div>
-
-              <div className="p-6 text-right">
-                <PrimaryButton type="submit" testId="form-submit-button">
-                  Next
-                </PrimaryButton>
-              </div>
-            </form>
+            );
+          })}
+          <div className="flex flex-row items-center">
+            <AddButton onClick={addVariable} label="Add a variable" />
           </div>
         </div>
-      </div>
-    </div>
+
+        <div className="p-6 text-right">
+          <PrimaryButton type="submit" testId="form-submit-button">
+            Next
+          </PrimaryButton>
+        </div>
+      </form>
+    </ConfWrapper>
   );
 };
 
@@ -214,12 +208,16 @@ const VariablesWrapper: React.FC<Props> = props => {
     useFacebookAccounts();
 
   if (errorLoadingAccounts) {
+
+    // TODO: add "connect" button
+
     return (
-      <ErrorPlaceholder
-        message="Something went wrong while fetching your account."
-        onClickTryAgain={refetchData}
-      />
-      // TODO add connect button
+      <ConfWrapper>
+        <ErrorPlaceholder
+          message="Something went wrong while fetching your account."
+          onClickTryAgain={refetchData}
+        />
+      </ConfWrapper>
     );
   }
 

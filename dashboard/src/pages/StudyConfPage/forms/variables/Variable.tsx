@@ -78,9 +78,8 @@ const Variable: React.FC<Props> = ({
     update({ ...data, levels: copy });
   };
 
-  const handleMultiSelectChange = (e: any) => {
-    const { name, value } = e;
-    update({ ...data, [name]: value });
+  const handleMultiSelectChange = (selected: string[], name: string) => {
+    update({ ...data, [name]: selected });
   };
 
   const addLevel = (): void => {
@@ -123,8 +122,6 @@ const Variable: React.FC<Props> = ({
         name="properties"
         options={properties.map((p: any) => ({ label: p.label, value: p.name }))}
         handleMultiSelectChange={handleMultiSelectChange}
-        options={properties}
-        handleChange={handleMultiSelectChange}
         value={data.properties}
         label="Select a set of properties from Facebook"
       ></MultiSelect>
