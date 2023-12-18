@@ -125,7 +125,7 @@ const ListLayout = ({ children }: { children: React.ReactNode }) => (
   </div>
 );
 
-const StudyConfButton = ({
+export const StudyConfButton = ({
   testId,
   slug,
 }: {
@@ -138,7 +138,7 @@ const StudyConfButton = ({
     <SecondaryButton
       testId={testId}
       icon="AdjustmentsIcon"
-      onClick={() => history.push(`/studies/${slug}/conf`)}
+      onClick={() => history.push(`/studies/${slug}/general`)}
     >
       {''}
     </SecondaryButton>

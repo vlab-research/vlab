@@ -3,8 +3,14 @@ import { Notyf } from 'notyf';
 import { useHistory } from 'react-router-dom';
 import { addToCache } from '../../../helpers/cache';
 import useAuthenticatedApi from '../../../hooks/useAuthenticatedApi';
+import getNextConf from '../../../helpers/getNextConf';
 
-const useCreateStudyConf = (redirect: boolean, message: string) => {
+const useCreateStudyConf = (
+  message: string,
+  studySlug: string,
+  confKeys: string[],
+  confKey: string
+) => {
   const notyf = new Notyf();
   const history = useHistory();
   const queryKey = 'studyConf';
@@ -17,8 +23,12 @@ const useCreateStudyConf = (redirect: boolean, message: string) => {
     {
       onSuccess: ({ data: conf }) => {
         addToCache(conf, queryKey);
-        if (redirect === true) {
-          history.push(`/studies`);
+        if (getNextConf(confKeys, confKey)) {
+          history.push(
+            `/studies/${studySlug}/${getNextConf(confKeys, confKey)}`
+          );
+        } else {
+          history.push(`/studies/`);
         }
         notyf.success({
           message: message,

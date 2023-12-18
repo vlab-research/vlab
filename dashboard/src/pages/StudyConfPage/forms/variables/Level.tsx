@@ -1,7 +1,6 @@
 import React from 'react';
 import { GenericTextInput, TextInputI } from '../../components/TextInput';
-import { Path } from 'react-hook-form';
-import { createLabelFor } from '../../../../helpers/strings';
+import { GenericSelect, SelectI } from '../../components/Select';
 
 export interface FormData {
   name: string;
@@ -9,44 +8,8 @@ export interface FormData {
   quota: number;
 }
 
-export const TextInput = GenericTextInput as TextInputI<FormData>;
-
-interface SelectProps {
-  name: Path<FormData>;
-  options: SelectOption[];
-  value: string;
-  onChange: any;
-}
-
-interface SelectOption {
-  name: string;
-  id: string;
-  targeting: any;
-}
-
-const Select: React.FC<SelectProps> = ({
-  name,
-  options,
-  value,
-  onChange,
-}: SelectProps) => (
-  <div className="sm:my-4">
-    <label className="my-2 block text-sm font-medium text-gray-700">
-      {createLabelFor(name)}
-    </label>
-    <select
-      className="w-4/5 mt-1 block shadow-sm sm:text-sm rounded-md"
-      value={value}
-      onChange={onChange}
-    >
-      {options.map((option: SelectOption, i: number) => (
-        <option key={i} value={option.id}>
-          {option.name}
-        </option>
-      ))}
-    </select>
-  </div>
-);
+const TextInput = GenericTextInput as TextInputI<FormData>;
+const Select = GenericSelect as SelectI<FormData>;
 
 interface Props {
   data: any;
@@ -63,6 +26,7 @@ const Level: React.FC<Props> = ({
   handleChange,
   properties,
 }: Props) => {
+
   const onChange = (e: any) => {
     const { name, value } = e.target;
     handleChange({ [name]: value }, index);
@@ -71,6 +35,10 @@ const Level: React.FC<Props> = ({
   const onAdsetChange = (e: any) => {
     // selects the adset and the targeting properties of interest
     const adset = adsets.find(a => a.id === e.target.value);
+
+    if (!adset) {
+        throw new Error(`adset not found. Looking for ${e.target.value}. Adset: ${adsets}`)
+    }
     const targeting = properties.reduce(
       (obj, key) => ({ ...obj, [key]: adset.targeting[key] }),
       {}
@@ -86,7 +54,6 @@ const Level: React.FC<Props> = ({
       <div className="m-4">
         <TextInput
           name="name"
-          type="text"
           handleChange={onChange}
           autoComplete="on"
           placeholder="Give your level a name"
@@ -95,12 +62,12 @@ const Level: React.FC<Props> = ({
         <Select
           name="adset"
           options={adsets}
-          onChange={onAdsetChange}
+          handleChange={onAdsetChange}
           value={data.template_adset}
+          getValue={(o:any) => o.id} 
         ></Select>
         <TextInput
           name="quota"
-          type="text"
           handleChange={onChange}
           placeholder="Give your a quota"
           value={data.quota}

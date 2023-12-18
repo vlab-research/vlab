@@ -6,6 +6,13 @@ interface SelectOption {
   label: string;
 }
 
+
+interface SelectOption {
+  value: string;
+  label: string;
+}
+
+
 interface MultiSelectProps<T> {
   name: Path<T>;
   options: SelectOption[];

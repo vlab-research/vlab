@@ -1,70 +1,33 @@
 import React from 'react';
-import { Path } from 'react-hook-form';
-import { createLabelFor } from '../../../../helpers/strings';
+import { GenericTextInput, TextInputI } from '../../components/TextInput';
+import { Web as FormData } from '../../../../types/conf';
 
-export interface FormData {
-  name: string;
-  url_template: string;
-}
-
-interface TextProps {
-  name: Path<FormData>;
-  type?: string;
-  handleChange: (e: any) => void;
-  autoComplete: string;
-  placeholder: string;
-  required: boolean;
-  value: any;
-}
-const TextInput: React.FC<TextProps> = ({
-  name,
-  type,
-  handleChange,
-  autoComplete,
-  placeholder,
-  value,
-}) => (
-  <div className="sm:my-4">
-    <label className="my-2 block text-sm font-medium text-gray-700">
-      {createLabelFor(name)}
-    </label>
-    <input
-      name={name}
-      type={type}
-      autoComplete={autoComplete}
-      placeholder={placeholder}
-      value={value}
-      required
-      onChange={e => handleChange(e)}
-      className="block w-4/5 shadow-sm sm:text-sm rounded-md"
-    />
-  </div>
-);
+const TextInput = GenericTextInput as TextInputI<FormData>;
 
 interface Props {
   data: FormData;
-  handleChange: (e: any) => void;
+  updateFormData: (e: any, index: number) => void;
+  index: number;
 }
 
-const Web: React.FC<Props> = ({ data, handleChange }: Props) => {
+const Web: React.FC<Props> = ({ data, updateFormData, index }: Props) => {
+  const handleChange = (e: any) => {
+    const { name, value } = e.target;
+    updateFormData({ ...data, [name]: value }, index);
+  };
+
   return (
     <>
       <TextInput
         name="url_template"
-        type="text"
         handleChange={handleChange}
-        required
-        autoComplete="on"
         placeholder="E.g 12345"
         value={data.url_template}
       />
       <TextInput
         name="name"
-        type="text"
         handleChange={handleChange}
-        required
-        autoComplete="on"
-        placeholder="E.g fly"
+        placeholder="E.g web app 123"
         value={data.name}
       />
     </>

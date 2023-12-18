@@ -1,8 +1,7 @@
-import { useState } from 'react';
 import { useParams } from 'react-router-dom';
 import PageLayout from '../../components/PageLayout';
 import ErrorPlaceholder from '../../components/ErrorPlaceholder';
-import Navbar from './components/NavBar';
+import Sidebar from '../../components/Sidebar';
 import Form from '../../components/Form';
 import General from './forms/general/General';
 import Recruitment from './forms/recruitment/Recruitment';
@@ -51,36 +50,33 @@ interface PageContentProps {
   study: StudyType;
 }
 const PageContent: React.FC<PageContentProps> = ({ data, study }) => {
-  const formKeys = [
-    'general',
-    'recruitment',
-    'destinations',
-    'creatives',
-    'audiences',
-    'variables',
-    'strata',
-  ];
+  const { conf } = useParams<{ conf: string }>();
+
   const lookup = [
-    General,
-    Recruitment,
-    Destinations,
-    Creatives,
-    Audiences,
-    Variables,
-    Strata,
+    ['general', General],
+    ['recruitment', Recruitment],
+    ['destinations', Destinations],
+    ['creatives', Creatives],
+    ['audiences', Audiences],
+    ['variables', Variables],
+    ['strata', Strata],
   ];
-  const [index, setIndex] = useState<number>(0);
-  const id = formKeys[index];
-  const component = lookup[index];
+
+  const id = conf;
+  const index = lookup.findIndex(c => c[0] === conf);
+  const component = lookup[index][1];
+  const confKeys = lookup.map((c: any[]) => c[0]);
+
   return (
     <>
-      <Navbar formKeys={formKeys} setIndex={setIndex} />
+      <Sidebar />
       <Form
         id={id}
         component={component}
         globalData={data}
         localData={data[id]}
         study={study}
+        confKeys={confKeys}
       />
     </>
   );
