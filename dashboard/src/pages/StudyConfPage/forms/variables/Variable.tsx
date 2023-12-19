@@ -101,6 +101,8 @@ const Variable: React.FC<Props> = ({
     { name: 'geo_locations', label: 'Geo Locations' },
     { name: 'excluded_geo_locations', label: 'Excluded Geo Locations' },
     { name: 'flexible_spec', label: 'Flexible Spec' },
+    { name: 'custom_audiences', label: 'Custom Audiences' },
+    { name: 'excluded_custom_audiences', label: 'Excluded Custom Audiences' },
   ];
 
   return (

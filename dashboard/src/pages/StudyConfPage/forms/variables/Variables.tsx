@@ -121,9 +121,11 @@ const Variables: React.FC<Props> = ({
 
   if (loadingCampaigns) {
     return (
-      <h1 className="text-3xl font-bold leading-tight text-gray-900 flex-1">
-        Loading...{' '}
-      </h1>
+      <ConfWrapper>
+        <h1 className="text-2xl leading-tight text-gray-900 flex-1">
+          Loading Template Campaign...
+        </h1>
+      </ConfWrapper>
     );
     // Something with adsetsQuery isLoading or error?
   }
@@ -223,9 +225,11 @@ const VariablesWrapper: React.FC<Props> = props => {
 
   if (accountsLoading) {
     return (
-      <h1 className="text-3xl font-bold leading-tight text-gray-900 flex-1">
-        Loading Facebook account...
-      </h1>
+      <ConfWrapper>
+        <h1 className="text-3xl font-bold leading-tight text-gray-900 flex-1">
+          Loading Facebook account...
+        </h1>
+      </ConfWrapper>
     );
   }
 
