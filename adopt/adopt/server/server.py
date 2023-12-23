@@ -159,3 +159,9 @@ async def get_conf(
 ):
     raw_config = get_study_conf(user.user_id, org_id, slug, conf_type)
     return {"data": raw_config}
+
+
+@app.get("/health", status_code=200)
+async def health():
+    # TODO: add DB ping
+    return "OK"

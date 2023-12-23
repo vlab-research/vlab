@@ -130,3 +130,8 @@ def test_server_create_and_get_recruitment_conf(verify_mock):
     )
     dat = json.loads(conf.json())
     _conf_create_and_get_happy_path("recruitment", dat)
+
+
+def test_health_check():
+    res = client.get("/health")
+    assert res.status_code == 200
