@@ -16,15 +16,23 @@ ingress:
   annotations:
     cert-manager.io/cluster-issuer: letsencrypt-prod
 
-dashboard:
-  replicaCount: 1
-  image:
-    repository: vlabresearch/vlab-dashboard-api
-    tag: latest
-    pullPolicy: Always
-  resources: {}
-  ingress:
-    host: vlab-dashboard-api.toixo.vlab.digital
+
+services:
+  - name: dashboard
+    replicaCount: 1
+    image:
+      repository: vlabresearch/vlab-dashboard-api
+      tag: latest
+      pullPolicy: Always
+    resources: {}
+    ingress:
+      host: vlab-dashboard-api.toixo.vlab.digital
+    containerPort: 8080
+    env:
+      - name: API_HOST
+        value: "0.0.0.0"
+      - name: API_PORT
+        value: "8080"
 
 
 # TODO: change to mapping to allow merging.
