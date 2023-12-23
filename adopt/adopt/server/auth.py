@@ -18,7 +18,7 @@ class AuthError(Exception):
 
 
 def verify_token(token: str) -> Any:
-    res = requests.get("https://" + AUTH0_DOMAIN + "/.well-known/jwks.json")
+    res = requests.get(AUTH0_DOMAIN + ".well-known/jwks.json")
     jwks = res.json()
     unverified_header = jwt.get_unverified_header(token)
     rsa_key = {}
@@ -38,7 +38,7 @@ def verify_token(token: str) -> Any:
                     rsa_key,
                     algorithms=ALGORITHMS,
                     audience=AUTH0_AUDIENCE,
-                    issuer="https://" + AUTH0_DOMAIN + "/",
+                    issuer=AUTH0_DOMAIN,
                 )
             except jwt.ExpiredSignatureError:
                 raise AuthError(

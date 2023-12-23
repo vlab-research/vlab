@@ -2,6 +2,7 @@ from typing import Annotated, Any, Union
 
 from environs import Env
 from fastapi import Depends, FastAPI, HTTPException, status
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import BaseModel
 
@@ -12,6 +13,17 @@ from .auth import AuthError, verify_token
 from .db import create_study_conf, get_study_conf
 
 app = FastAPI()
+
+
+origins = ["*"]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 env = Env()
@@ -88,7 +100,7 @@ async def create_destinations_conf(
     return await create_conf(user, org_id, slug, "destinations", config)
 
 
-@app.post("/{org_id}/studies/{slug}/confs/creative", status_code=201)
+@app.post("/{org_id}/studies/{slug}/confs/creatives", status_code=201)
 async def create_creative_conf(
     org_id: str,
     slug: str,
