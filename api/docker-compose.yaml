@@ -18,6 +18,22 @@ services:
       # for types
       - ../inference:/src/inference
     entrypoint: air
+  conf_api:
+    build:
+      context: ../adopt
+      dockerfile: Dockerfile
+    env_file:
+      - .env
+    ports:
+      - 3500:8000
+    depends_on:
+      - migrations
+    networks:
+      - api
+    entrypoint:
+      - uvicorn
+      - adopt.server.server:app
+      - "--host=0.0.0.0"
   cockroachdb:
     image: cockroachdb/cockroach:v21.2.3
     entrypoint: cockroach start-single-node --insecure --advertise-addr localhost

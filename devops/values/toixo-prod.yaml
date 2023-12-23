@@ -1,3 +1,5 @@
+versionAdopt: &vadopt v0.0.105
+
 env:
   - name: AUTH0_DOMAIN
     value: "https://vlab-pro.us.auth0.com/"
@@ -33,6 +35,22 @@ services:
         value: "0.0.0.0"
       - name: API_PORT
         value: "8080"
+
+  - name: conf-dashboard
+    replicaCount: 1
+    image:
+      repository: vlabresearch/adopt
+      tag: *vadopt
+      pullPolicy: Always
+    resources: {}
+    ingress:
+      host: vlab-study-conf-api.toixo.vlab.digital
+    containerPort: 8000
+    args:
+      - uvicorn
+      - adopt.server.server:app
+      - "--host=0.0.0.0"
+    env: {}
 
 
 # TODO: change to mapping to allow merging.
@@ -93,7 +111,7 @@ cronjobs:
     schedule: "30 */4 * * *"
     image:
       repository: "vlabresearch/adopt"
-      tag: "v0.0.103"
+      tag: *vadopt
       pullPolicy: Always
     args:
       - python
@@ -102,7 +120,7 @@ cronjobs:
     schedule: "10 */4 * * *"
     image:
       repository: "vlabresearch/adopt"
-      tag: "v0.0.103"
+      tag: *vadopt
       pullPolicy: Always
     args:
       - python
@@ -111,7 +129,7 @@ cronjobs:
     schedule: "50 */4 * * *"
     image:
       repository: "vlabresearch/adopt"
-      tag: "v0.0.103"
+      tag: *vadopt
       pullPolicy: Always
     args:
       - python
