@@ -9,6 +9,7 @@ import {
   StudyApiResponse,
   StudyConfApiResponse,
   StudyConfData,
+  SingleStudyConf,
   StudySegmentsProgressApiResponse,
 } from '../types/study';
 import querystring from 'querystring';
@@ -121,19 +122,23 @@ const createStudy = ({
 
 const createStudyConf = ({
   data,
+  confType,
   studySlug,
   accessToken,
 }: {
-  data: StudyConfData;
+  data: SingleStudyConf;
+  confType: string;
   studySlug: string;
   accessToken: string;
 }) =>
+
   apiRequest<CreateStudyConfApiResponse>(
-    `/${orgPrefix()}/studies/${studySlug}/conf`,
+    `/${orgPrefix()}/studies/${studySlug}/confs/${confType}`,
     {
       accessToken,
       method: 'POST',
       body: data,
+      baseURL: process.env.REACT_APP_CONF_SERVER_URL,
     }
   );
 
@@ -226,6 +231,7 @@ const apiRequest = async <ApiResponse>(
     body,
     queryParams,
     expectedStatusCodes,
+    baseURL,
   }: {
     defaultErrorMessage?: string;
     method?: 'GET' | 'POST' | 'DELETE';
@@ -233,6 +239,7 @@ const apiRequest = async <ApiResponse>(
     body?: object;
     queryParams?: any;
     expectedStatusCodes?: number[];
+    baseURL?: string;
   }
 ) => {
   const requestBody = body ? JSON.stringify(body) : undefined;
@@ -249,6 +256,7 @@ const apiRequest = async <ApiResponse>(
     const response = await fetchWithTimeout(path, {
       timeout: 10000,
       headers: requestHeaders,
+      baseURL,
       method,
       body: requestBody,
     });

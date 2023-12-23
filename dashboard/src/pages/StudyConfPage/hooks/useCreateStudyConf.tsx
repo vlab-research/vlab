@@ -18,8 +18,8 @@ const useCreateStudyConf = (
   const { createStudyConf } = useAuthenticatedApi();
 
   const [createStudyConfMutation, { isLoading, error }] = useMutation(
-    async ({ data, studySlug }: { data: any; studySlug: string }) =>
-      await createStudyConf({ data, studySlug }),
+    ({ data, confType, studySlug }: { data: any; confType: string; studySlug: string }) =>
+      createStudyConf({ data, studySlug, confType }),
     {
       onSuccess: ({ data: conf }) => {
         addToCache(conf, queryKey);
@@ -38,7 +38,6 @@ const useCreateStudyConf = (
       onError: error => {
         notyf.error({
           message: `${error.message}`,
-          background: 'rgb(67 56 202)',
           dismissible: true,
         });
       },

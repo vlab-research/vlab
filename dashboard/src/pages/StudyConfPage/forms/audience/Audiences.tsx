@@ -55,12 +55,7 @@ const Audiences: React.FC<Props> = ({
 
   const onSubmit = (e: any): void => {
     e.preventDefault();
-
-    const data = {
-      [id]: formData,
-    };
-
-    createStudyConf({ data, studySlug });
+    createStudyConf({ data: formData, studySlug, confType: id });
   };
 
   const addAudience = (): void => {

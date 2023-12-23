@@ -46,12 +46,7 @@ const Destinations: React.FC<Props> = ({ id, localData, confKeys }: Props) => {
 
   const onSubmit = (e: any): void => {
     e.preventDefault();
-
-    const data = {
-      [id]: formData,
-    };
-
-    createStudyConf({ data, studySlug });
+    createStudyConf({ data: formData, studySlug, confType: id });
   };
 
   const addDestination = (): void => {

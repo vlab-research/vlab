@@ -144,8 +144,7 @@ const Variables: React.FC<Props> = ({
       levels: v.levels.map((l: any) => ({ ...l, quota: +l.quota })),
     }));
 
-    const data = { [id]: formatted };
-    createStudyConf({ data, studySlug });
+    createStudyConf({ data: formatted, studySlug, confType: id });
   };
 
   const addVariable = (): void => {

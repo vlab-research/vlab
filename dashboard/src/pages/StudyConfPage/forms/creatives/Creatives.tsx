@@ -57,12 +57,7 @@ const Creatives: React.FC<Props> = ({
 
   const onSubmit = (e: any): void => {
     e.preventDefault();
-
-    const data = {
-      [id]: formData,
-    };
-
-    createStudyConf({ data, studySlug });
+    createStudyConf({ data: formData, studySlug, confType: id });
   };
 
   const addCreative = (): void => {

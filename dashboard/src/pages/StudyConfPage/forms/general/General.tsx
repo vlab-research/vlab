@@ -8,7 +8,7 @@ import destinations from '../../../../fixtures/general/destinations';
 import optimizationGoals from '../../../../fixtures/general/optimizationGoals';
 import { getFirstOption } from '../../../../helpers/arrays';
 import useCreateStudyConf from '../../hooks/useCreateStudyConf';
-import { General as FormData } from '../../../../types/conf';
+import { General as FormData, CreateStudy as StudyType } from '../../../../types/conf';
 import ConfWrapper from '../../components/ConfWrapper';
 const TextInput = GenericTextInput as TextInputI<FormData>;
 const Select = GenericSelect as SelectI<FormData>;
@@ -16,10 +16,11 @@ const Select = GenericSelect as SelectI<FormData>;
 interface Props {
   id: string;
   localData: FormData;
+  study: StudyType;
   confKeys: string[];
 }
 
-const General: React.FC<Props> = ({ id, localData, confKeys }: Props) => {
+const General: React.FC<Props> = ({ id, localData, study, confKeys }: Props) => {
   const initialState = {
     objective: getFirstOption(objectives).toUpperCase(),
     optimization_goal: getFirstOption(optimizationGoals).toUpperCase(),
@@ -76,12 +77,8 @@ const General: React.FC<Props> = ({ id, localData, confKeys }: Props) => {
 
   const onSubmit = (e: any): void => {
     e.preventDefault();
-
-    const data = {
-      [id]: formData,
-    };
-
-    createStudyConf({ data, studySlug });
+    const data = { ...formData, name: study.name }
+    createStudyConf({ data, studySlug, confType: id });
   };
 
   return (

@@ -7,6 +7,7 @@ interface TextProps<T> {
   autoComplete?: string;
   placeholder: string;
   value: any;
+  type?: string;
   disabled?: boolean;
   required?: boolean;
 }
@@ -19,6 +20,7 @@ export const GenericTextInput: TextInputI = ({
   autoComplete = 'on',
   placeholder,
   value,
+  type = "text",
   disabled = false,
   required = true,
   ...props
@@ -31,7 +33,7 @@ export const GenericTextInput: TextInputI = ({
       <div className="flex flex-row items-center">
         <input
           name={name}
-          type="text"
+          type={type}
           autoComplete={autoComplete}
           placeholder={placeholder}
           value={value}

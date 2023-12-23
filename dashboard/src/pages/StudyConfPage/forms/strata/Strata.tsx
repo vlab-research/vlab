@@ -52,8 +52,8 @@ const Variables: React.FC<Props> = ({
     e.preventDefault();
 
     // caste quotas
-    const data = { [id]: formData.map(s => ({ ...s, quota: +s.quota })) };
-    createStudyConf({ data, studySlug });
+    const data = formData.map(s => ({ ...s, quota: +s.quota }));
+    createStudyConf({ data, studySlug, confType: id });
   };
 
   const { createStudyConf } = useCreateStudyConf(
