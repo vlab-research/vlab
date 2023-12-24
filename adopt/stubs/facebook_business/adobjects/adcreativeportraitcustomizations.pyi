@@ -1,7 +1,8 @@
+from _typeshed import Incomplete
 from facebook_business.adobjects.abstractobject import AbstractObject as AbstractObject
-from typing import Any, Optional
 
 class AdCreativePortraitCustomizations(AbstractObject):
-    def __init__(self, api: Optional[Any] = ...) -> None: ...
+    def __init__(self, api: Incomplete | None = None) -> None: ...
     class Field(AbstractObject.Field):
-        specifications: str = ...
+        carousel_delivery_mode: str
+        specifications: str

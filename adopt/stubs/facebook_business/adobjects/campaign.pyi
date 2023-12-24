@@ -1,142 +1,413 @@
+from _typeshed import Incomplete
 from facebook_business.adobjects.abstractcrudobject import AbstractCrudObject as AbstractCrudObject
 from facebook_business.adobjects.abstractobject import AbstractObject as AbstractObject
 from facebook_business.adobjects.objectparser import ObjectParser as ObjectParser
 from facebook_business.api import FacebookRequest as FacebookRequest
 from facebook_business.mixins import CanValidate as CanValidate, HasAdLabels as HasAdLabels
 from facebook_business.typechecker import TypeChecker as TypeChecker
-from typing import Any, Optional
 
 class Campaign(AbstractCrudObject, HasAdLabels, CanValidate):
-    def __init__(self, fbid: Optional[Any] = ..., parent_id: Optional[Any] = ..., api: Optional[Any] = ...) -> None: ...
+    def __init__(self, fbid: Incomplete | None = None, parent_id: Incomplete | None = None, api: Incomplete | None = None) -> None: ...
     class Field(AbstractObject.Field):
-        account_id: str = ...
-        adlabels: str = ...
-        bid_strategy: str = ...
-        boosted_object_id: str = ...
-        brand_lift_studies: str = ...
-        budget_rebalance_flag: str = ...
-        budget_remaining: str = ...
-        buying_type: str = ...
-        can_create_brand_lift_study: str = ...
-        can_use_spend_cap: str = ...
-        configured_status: str = ...
-        created_time: str = ...
-        daily_budget: str = ...
-        effective_status: str = ...
-        id: str = ...
-        issues_info: str = ...
-        last_budget_toggling_time: str = ...
-        lifetime_budget: str = ...
-        name: str = ...
-        objective: str = ...
-        pacing_type: str = ...
-        promoted_object: str = ...
-        recommendations: str = ...
-        source_campaign: str = ...
-        source_campaign_id: str = ...
-        special_ad_categories: str = ...
-        special_ad_category: str = ...
-        spend_cap: str = ...
-        start_time: str = ...
-        status: str = ...
-        stop_time: str = ...
-        topline_id: str = ...
-        updated_time: str = ...
-        adbatch: str = ...
-        execution_options: str = ...
-        iterative_split_test_configs: str = ...
-        upstream_events: str = ...
+        account_id: str
+        adlabels: str
+        bid_strategy: str
+        boosted_object_id: str
+        brand_lift_studies: str
+        budget_rebalance_flag: str
+        budget_remaining: str
+        buying_type: str
+        campaign_group_active_time: str
+        can_create_brand_lift_study: str
+        can_use_spend_cap: str
+        configured_status: str
+        created_time: str
+        daily_budget: str
+        effective_status: str
+        has_secondary_skadnetwork_reporting: str
+        id: str
+        is_budget_schedule_enabled: str
+        is_skadnetwork_attribution: str
+        issues_info: str
+        last_budget_toggling_time: str
+        lifetime_budget: str
+        name: str
+        objective: str
+        pacing_type: str
+        primary_attribution: str
+        promoted_object: str
+        recommendations: str
+        smart_promotion_type: str
+        source_campaign: str
+        source_campaign_id: str
+        special_ad_categories: str
+        special_ad_category: str
+        special_ad_category_country: str
+        spend_cap: str
+        start_time: str
+        status: str
+        stop_time: str
+        topline_id: str
+        updated_time: str
+        adbatch: str
+        execution_options: str
+        iterative_split_test_configs: str
     class BidStrategy:
-        cost_cap: str = ...
-        lowest_cost_without_cap: str = ...
-        lowest_cost_with_bid_cap: str = ...
-        target_cost: str = ...
+        cost_cap: str
+        lowest_cost_without_cap: str
+        lowest_cost_with_bid_cap: str
     class ConfiguredStatus:
-        active: str = ...
-        archived: str = ...
-        deleted: str = ...
-        paused: str = ...
+        active: str
+        archived: str
+        deleted: str
+        paused: str
     class EffectiveStatus:
-        active: str = ...
-        archived: str = ...
-        deleted: str = ...
-        in_process: str = ...
-        paused: str = ...
-        with_issues: str = ...
+        active: str
+        archived: str
+        deleted: str
+        in_process: str
+        paused: str
+        with_issues: str
     class Status:
-        active: str = ...
-        archived: str = ...
-        deleted: str = ...
-        paused: str = ...
+        active: str
+        archived: str
+        deleted: str
+        paused: str
     class DatePreset:
-        last_14d: str = ...
-        last_28d: str = ...
-        last_30d: str = ...
-        last_3d: str = ...
-        last_7d: str = ...
-        last_90d: str = ...
-        last_month: str = ...
-        last_quarter: str = ...
-        last_week_mon_sun: str = ...
-        last_week_sun_sat: str = ...
-        last_year: str = ...
-        lifetime: str = ...
-        this_month: str = ...
-        this_quarter: str = ...
-        this_week_mon_today: str = ...
-        this_week_sun_today: str = ...
-        this_year: str = ...
-        today: str = ...
-        yesterday: str = ...
+        data_maximum: str
+        last_14d: str
+        last_28d: str
+        last_30d: str
+        last_3d: str
+        last_7d: str
+        last_90d: str
+        last_month: str
+        last_quarter: str
+        last_week_mon_sun: str
+        last_week_sun_sat: str
+        last_year: str
+        maximum: str
+        this_month: str
+        this_quarter: str
+        this_week_mon_today: str
+        this_week_sun_today: str
+        this_year: str
+        today: str
+        yesterday: str
     class ExecutionOptions:
-        include_recommendations: str = ...
-        validate_only: str = ...
+        include_recommendations: str
+        validate_only: str
     class Objective:
-        app_installs: str = ...
-        brand_awareness: str = ...
-        conversions: str = ...
-        event_responses: str = ...
-        lead_generation: str = ...
-        link_clicks: str = ...
-        local_awareness: str = ...
-        messages: str = ...
-        offer_claims: str = ...
-        page_likes: str = ...
-        post_engagement: str = ...
-        product_catalog_sales: str = ...
-        reach: str = ...
-        store_visits: str = ...
-        video_views: str = ...
+        app_installs: str
+        brand_awareness: str
+        conversions: str
+        event_responses: str
+        lead_generation: str
+        link_clicks: str
+        local_awareness: str
+        messages: str
+        offer_claims: str
+        outcome_app_promotion: str
+        outcome_awareness: str
+        outcome_engagement: str
+        outcome_leads: str
+        outcome_sales: str
+        outcome_traffic: str
+        page_likes: str
+        post_engagement: str
+        product_catalog_sales: str
+        reach: str
+        store_visits: str
+        video_views: str
+    class SmartPromotionType:
+        guided_creation: str
+        smart_app_promotion: str
     class SpecialAdCategories:
-        credit: str = ...
-        employment: str = ...
-        housing: str = ...
-        none: str = ...
+        credit: str
+        employment: str
+        housing: str
+        issues_elections_politics: str
+        none: str
+        online_gambling_and_gaming: str
+    class SpecialAdCategoryCountry:
+        ad: str
+        ae: str
+        af: str
+        ag: str
+        ai: str
+        al: str
+        am: str
+        an: str
+        ao: str
+        aq: str
+        ar: str
+        value_as: str
+        at: str
+        au: str
+        aw: str
+        ax: str
+        az: str
+        ba: str
+        bb: str
+        bd: str
+        be: str
+        bf: str
+        bg: str
+        bh: str
+        bi: str
+        bj: str
+        bl: str
+        bm: str
+        bn: str
+        bo: str
+        bq: str
+        br: str
+        bs: str
+        bt: str
+        bv: str
+        bw: str
+        by: str
+        bz: str
+        ca: str
+        cc: str
+        cd: str
+        cf: str
+        cg: str
+        ch: str
+        ci: str
+        ck: str
+        cl: str
+        cm: str
+        cn: str
+        co: str
+        cr: str
+        cu: str
+        cv: str
+        cw: str
+        cx: str
+        cy: str
+        cz: str
+        de: str
+        dj: str
+        dk: str
+        dm: str
+        do: str
+        dz: str
+        ec: str
+        ee: str
+        eg: str
+        eh: str
+        er: str
+        es: str
+        et: str
+        fi: str
+        fj: str
+        fk: str
+        fm: str
+        fo: str
+        fr: str
+        ga: str
+        gb: str
+        gd: str
+        ge: str
+        gf: str
+        gg: str
+        gh: str
+        gi: str
+        gl: str
+        gm: str
+        gn: str
+        gp: str
+        gq: str
+        gr: str
+        gs: str
+        gt: str
+        gu: str
+        gw: str
+        gy: str
+        hk: str
+        hm: str
+        hn: str
+        hr: str
+        ht: str
+        hu: str
+        id: str
+        ie: str
+        il: str
+        im: str
+        value_in: str
+        io: str
+        iq: str
+        ir: str
+        value_is: str
+        it: str
+        je: str
+        jm: str
+        jo: str
+        jp: str
+        ke: str
+        kg: str
+        kh: str
+        ki: str
+        km: str
+        kn: str
+        kp: str
+        kr: str
+        kw: str
+        ky: str
+        kz: str
+        la: str
+        lb: str
+        lc: str
+        li: str
+        lk: str
+        lr: str
+        ls: str
+        lt: str
+        lu: str
+        lv: str
+        ly: str
+        ma: str
+        mc: str
+        md: str
+        me: str
+        mf: str
+        mg: str
+        mh: str
+        mk: str
+        ml: str
+        mm: str
+        mn: str
+        mo: str
+        mp: str
+        mq: str
+        mr: str
+        ms: str
+        mt: str
+        mu: str
+        mv: str
+        mw: str
+        mx: str
+        my: str
+        mz: str
+        na: str
+        nc: str
+        ne: str
+        nf: str
+        ng: str
+        ni: str
+        nl: str
+        no: str
+        np: str
+        nr: str
+        nu: str
+        nz: str
+        om: str
+        pa: str
+        pe: str
+        pf: str
+        pg: str
+        ph: str
+        pk: str
+        pl: str
+        pm: str
+        pn: str
+        pr: str
+        ps: str
+        pt: str
+        pw: str
+        py: str
+        qa: str
+        re: str
+        ro: str
+        rs: str
+        ru: str
+        rw: str
+        sa: str
+        sb: str
+        sc: str
+        sd: str
+        se: str
+        sg: str
+        sh: str
+        si: str
+        sj: str
+        sk: str
+        sl: str
+        sm: str
+        sn: str
+        so: str
+        sr: str
+        ss: str
+        st: str
+        sv: str
+        sx: str
+        sy: str
+        sz: str
+        tc: str
+        td: str
+        tf: str
+        tg: str
+        th: str
+        tj: str
+        tk: str
+        tl: str
+        tm: str
+        tn: str
+        to: str
+        tr: str
+        tt: str
+        tv: str
+        tw: str
+        tz: str
+        ua: str
+        ug: str
+        um: str
+        us: str
+        uy: str
+        uz: str
+        va: str
+        vc: str
+        ve: str
+        vg: str
+        vi: str
+        vn: str
+        vu: str
+        wf: str
+        ws: str
+        xk: str
+        ye: str
+        yt: str
+        za: str
+        zm: str
+        zw: str
     class Operator:
-        all: str = ...
-        any: str = ...
+        all: str
+        any: str
     class SpecialAdCategory:
-        credit: str = ...
-        employment: str = ...
-        housing: str = ...
-        none: str = ...
+        credit: str
+        employment: str
+        housing: str
+        issues_elections_politics: str
+        none: str
+        online_gambling_and_gaming: str
     class StatusOption:
-        active: str = ...
-        inherited_from_source: str = ...
-        paused: str = ...
+        active: str
+        inherited_from_source: str
+        paused: str
     @classmethod
     def get_endpoint(cls): ...
-    def api_create(self, parent_id: Any, fields: Optional[Any] = ..., params: Optional[Any] = ..., batch: Optional[Any] = ..., success: Optional[Any] = ..., failure: Optional[Any] = ..., pending: bool = ...): ...
-    def api_delete(self, fields: Optional[Any] = ..., params: Optional[Any] = ..., batch: Optional[Any] = ..., success: Optional[Any] = ..., failure: Optional[Any] = ..., pending: bool = ...): ...
-    def api_get(self, fields: Optional[Any] = ..., params: Optional[Any] = ..., batch: Optional[Any] = ..., success: Optional[Any] = ..., failure: Optional[Any] = ..., pending: bool = ...): ...
-    def api_update(self, fields: Optional[Any] = ..., params: Optional[Any] = ..., batch: Optional[Any] = ..., success: Optional[Any] = ..., failure: Optional[Any] = ..., pending: bool = ...): ...
-    def get_ad_studies(self, fields: Optional[Any] = ..., params: Optional[Any] = ..., batch: Optional[Any] = ..., success: Optional[Any] = ..., failure: Optional[Any] = ..., pending: bool = ...): ...
-    def create_ad_label(self, fields: Optional[Any] = ..., params: Optional[Any] = ..., batch: Optional[Any] = ..., success: Optional[Any] = ..., failure: Optional[Any] = ..., pending: bool = ...): ...
-    def get_ad_rules_governed(self, fields: Optional[Any] = ..., params: Optional[Any] = ..., batch: Optional[Any] = ..., success: Optional[Any] = ..., failure: Optional[Any] = ..., pending: bool = ...): ...
-    def get_ads(self, fields: Optional[Any] = ..., params: Optional[Any] = ..., batch: Optional[Any] = ..., success: Optional[Any] = ..., failure: Optional[Any] = ..., pending: bool = ...): ...
-    def get_ad_sets(self, fields: Optional[Any] = ..., params: Optional[Any] = ..., batch: Optional[Any] = ..., success: Optional[Any] = ..., failure: Optional[Any] = ..., pending: bool = ...): ...
-    def get_content_delivery_report(self, fields: Optional[Any] = ..., params: Optional[Any] = ..., batch: Optional[Any] = ..., success: Optional[Any] = ..., failure: Optional[Any] = ..., pending: bool = ...): ...
-    def get_copies(self, fields: Optional[Any] = ..., params: Optional[Any] = ..., batch: Optional[Any] = ..., success: Optional[Any] = ..., failure: Optional[Any] = ..., pending: bool = ...): ...
-    def create_copy(self, fields: Optional[Any] = ..., params: Optional[Any] = ..., batch: Optional[Any] = ..., success: Optional[Any] = ..., failure: Optional[Any] = ..., pending: bool = ...): ...
-    def get_insights(self, fields: Optional[Any] = ..., params: Optional[Any] = ..., is_async: bool = ..., batch: Optional[Any] = ..., success: Optional[Any] = ..., failure: Optional[Any] = ..., pending: bool = ...): ...
-    def get_insights_async(self, fields: Optional[Any] = ..., params: Optional[Any] = ..., batch: Optional[Any] = ..., success: Optional[Any] = ..., failure: Optional[Any] = ..., pending: bool = ...): ...
+    def api_create(self, parent_id, fields: Incomplete | None = None, params: Incomplete | None = None, batch: Incomplete | None = None, success: Incomplete | None = None, failure: Incomplete | None = None, pending: bool = False): ...
+    def api_delete(self, fields: Incomplete | None = None, params: Incomplete | None = None, batch: Incomplete | None = None, success: Incomplete | None = None, failure: Incomplete | None = None, pending: bool = False): ...
+    def api_get(self, fields: Incomplete | None = None, params: Incomplete | None = None, batch: Incomplete | None = None, success: Incomplete | None = None, failure: Incomplete | None = None, pending: bool = False): ...
+    def api_update(self, fields: Incomplete | None = None, params: Incomplete | None = None, batch: Incomplete | None = None, success: Incomplete | None = None, failure: Incomplete | None = None, pending: bool = False): ...
+    def get_ad_studies(self, fields: Incomplete | None = None, params: Incomplete | None = None, batch: Incomplete | None = None, success: Incomplete | None = None, failure: Incomplete | None = None, pending: bool = False): ...
+    def create_ad_label(self, fields: Incomplete | None = None, params: Incomplete | None = None, batch: Incomplete | None = None, success: Incomplete | None = None, failure: Incomplete | None = None, pending: bool = False): ...
+    def get_ad_rules_governed(self, fields: Incomplete | None = None, params: Incomplete | None = None, batch: Incomplete | None = None, success: Incomplete | None = None, failure: Incomplete | None = None, pending: bool = False): ...
+    def get_ads(self, fields: Incomplete | None = None, params: Incomplete | None = None, batch: Incomplete | None = None, success: Incomplete | None = None, failure: Incomplete | None = None, pending: bool = False): ...
+    def get_ad_sets(self, fields: Incomplete | None = None, params: Incomplete | None = None, batch: Incomplete | None = None, success: Incomplete | None = None, failure: Incomplete | None = None, pending: bool = False): ...
+    def create_budget_schedule(self, fields: Incomplete | None = None, params: Incomplete | None = None, batch: Incomplete | None = None, success: Incomplete | None = None, failure: Incomplete | None = None, pending: bool = False): ...
+    def get_copies(self, fields: Incomplete | None = None, params: Incomplete | None = None, batch: Incomplete | None = None, success: Incomplete | None = None, failure: Incomplete | None = None, pending: bool = False): ...
+    def create_copy(self, fields: Incomplete | None = None, params: Incomplete | None = None, batch: Incomplete | None = None, success: Incomplete | None = None, failure: Incomplete | None = None, pending: bool = False): ...
+    def get_insights(self, fields: Incomplete | None = None, params: Incomplete | None = None, is_async: bool = False, batch: Incomplete | None = None, success: Incomplete | None = None, failure: Incomplete | None = None, pending: bool = False): ...
+    def get_insights_async(self, fields: Incomplete | None = None, params: Incomplete | None = None, batch: Incomplete | None = None, success: Incomplete | None = None, failure: Incomplete | None = None, pending: bool = False): ...

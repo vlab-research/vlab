@@ -1,0 +1,6 @@
+from _typeshed import Incomplete
+
+class RequestOptions:
+    ca_bundle_path: Incomplete
+    def __init__(self, ca_bundle_path: Incomplete | None = None) -> None: ...
+    def __eq__(self, other): ...

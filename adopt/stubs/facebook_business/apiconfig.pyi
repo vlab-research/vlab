@@ -1,3 +1,3 @@
-from typing import Any
+from _typeshed import Incomplete
 
-ads_api_config: Any
+ads_api_config: Incomplete

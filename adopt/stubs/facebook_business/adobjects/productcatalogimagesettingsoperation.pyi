@@ -1,7 +1,7 @@
+from _typeshed import Incomplete
 from facebook_business.adobjects.abstractobject import AbstractObject as AbstractObject
-from typing import Any, Optional
 
 class ProductCatalogImageSettingsOperation(AbstractObject):
-    def __init__(self, api: Optional[Any] = ...) -> None: ...
+    def __init__(self, api: Incomplete | None = None) -> None: ...
     class Field(AbstractObject.Field):
-        transformation_type: str = ...
+        transformation_type: str

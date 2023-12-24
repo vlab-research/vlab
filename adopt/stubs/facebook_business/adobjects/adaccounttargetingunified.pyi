@@ -1,205 +1,502 @@
+from _typeshed import Incomplete
 from facebook_business.adobjects.abstractcrudobject import AbstractCrudObject as AbstractCrudObject
 from facebook_business.adobjects.abstractobject import AbstractObject as AbstractObject
 from facebook_business.adobjects.objectparser import ObjectParser as ObjectParser
 from facebook_business.api import FacebookRequest as FacebookRequest
 from facebook_business.typechecker import TypeChecker as TypeChecker
-from typing import Any, Optional
 
 class AdAccountTargetingUnified(AbstractCrudObject):
-    def __init__(self, fbid: Optional[Any] = ..., parent_id: Optional[Any] = ..., api: Optional[Any] = ...) -> None: ...
+    def __init__(self, fbid: Incomplete | None = None, parent_id: Incomplete | None = None, api: Incomplete | None = None) -> None: ...
     class Field(AbstractObject.Field):
-        audience_size: str = ...
-        conversion_lift: str = ...
-        description: str = ...
-        id: str = ...
-        img: str = ...
-        info: str = ...
-        info_title: str = ...
-        is_recommendation: str = ...
-        key: str = ...
-        link: str = ...
-        name: str = ...
-        parent: str = ...
-        partner: str = ...
-        path: str = ...
-        performance_rating: str = ...
-        raw_name: str = ...
-        recommendation_model: str = ...
-        search_interest_id: str = ...
-        source: str = ...
-        spend: str = ...
-        type: str = ...
-        valid: str = ...
+        audience_size_lower_bound: str
+        audience_size_upper_bound: str
+        conversion_lift: str
+        description: str
+        id: str
+        img: str
+        info: str
+        info_title: str
+        is_recommendation: str
+        key: str
+        link: str
+        name: str
+        parent: str
+        partner: str
+        path: str
+        performance_rating: str
+        raw_name: str
+        recommendation_model: str
+        search_interest_id: str
+        source: str
+        spend: str
+        type: str
+        valid: str
     class LimitType:
-        behaviors: str = ...
-        college_years: str = ...
-        education_majors: str = ...
-        education_schools: str = ...
-        education_statuses: str = ...
-        ethnic_affinity: str = ...
-        family_statuses: str = ...
-        generation: str = ...
-        home_ownership: str = ...
-        home_type: str = ...
-        home_value: str = ...
-        household_composition: str = ...
-        income: str = ...
-        industries: str = ...
-        interested_in: str = ...
-        interests: str = ...
-        life_events: str = ...
-        location_categories: str = ...
-        moms: str = ...
-        net_worth: str = ...
-        office_type: str = ...
-        politics: str = ...
-        relationship_statuses: str = ...
-        user_adclusters: str = ...
-        work_employers: str = ...
-        work_positions: str = ...
+        behaviors: str
+        college_years: str
+        education_majors: str
+        education_schools: str
+        education_statuses: str
+        ethnic_affinity: str
+        family_statuses: str
+        generation: str
+        home_ownership: str
+        home_type: str
+        home_value: str
+        household_composition: str
+        income: str
+        industries: str
+        interested_in: str
+        interests: str
+        life_events: str
+        location_categories: str
+        moms: str
+        net_worth: str
+        office_type: str
+        politics: str
+        relationship_statuses: str
+        user_adclusters: str
+        work_employers: str
+        work_positions: str
     class RegulatedCategories:
-        credit: str = ...
-        employment: str = ...
-        housing: str = ...
-        none: str = ...
+        credit: str
+        employment: str
+        housing: str
+        issues_elections_politics: str
+        none: str
+        online_gambling_and_gaming: str
+    class RegulatedCountries:
+        ad: str
+        ae: str
+        af: str
+        ag: str
+        ai: str
+        al: str
+        am: str
+        an: str
+        ao: str
+        aq: str
+        ar: str
+        value_as: str
+        at: str
+        au: str
+        aw: str
+        ax: str
+        az: str
+        ba: str
+        bb: str
+        bd: str
+        be: str
+        bf: str
+        bg: str
+        bh: str
+        bi: str
+        bj: str
+        bl: str
+        bm: str
+        bn: str
+        bo: str
+        bq: str
+        br: str
+        bs: str
+        bt: str
+        bv: str
+        bw: str
+        by: str
+        bz: str
+        ca: str
+        cc: str
+        cd: str
+        cf: str
+        cg: str
+        ch: str
+        ci: str
+        ck: str
+        cl: str
+        cm: str
+        cn: str
+        co: str
+        cr: str
+        cu: str
+        cv: str
+        cw: str
+        cx: str
+        cy: str
+        cz: str
+        de: str
+        dj: str
+        dk: str
+        dm: str
+        do: str
+        dz: str
+        ec: str
+        ee: str
+        eg: str
+        eh: str
+        er: str
+        es: str
+        et: str
+        fi: str
+        fj: str
+        fk: str
+        fm: str
+        fo: str
+        fr: str
+        ga: str
+        gb: str
+        gd: str
+        ge: str
+        gf: str
+        gg: str
+        gh: str
+        gi: str
+        gl: str
+        gm: str
+        gn: str
+        gp: str
+        gq: str
+        gr: str
+        gs: str
+        gt: str
+        gu: str
+        gw: str
+        gy: str
+        hk: str
+        hm: str
+        hn: str
+        hr: str
+        ht: str
+        hu: str
+        id: str
+        ie: str
+        il: str
+        im: str
+        value_in: str
+        io: str
+        iq: str
+        ir: str
+        value_is: str
+        it: str
+        je: str
+        jm: str
+        jo: str
+        jp: str
+        ke: str
+        kg: str
+        kh: str
+        ki: str
+        km: str
+        kn: str
+        kp: str
+        kr: str
+        kw: str
+        ky: str
+        kz: str
+        la: str
+        lb: str
+        lc: str
+        li: str
+        lk: str
+        lr: str
+        ls: str
+        lt: str
+        lu: str
+        lv: str
+        ly: str
+        ma: str
+        mc: str
+        md: str
+        me: str
+        mf: str
+        mg: str
+        mh: str
+        mk: str
+        ml: str
+        mm: str
+        mn: str
+        mo: str
+        mp: str
+        mq: str
+        mr: str
+        ms: str
+        mt: str
+        mu: str
+        mv: str
+        mw: str
+        mx: str
+        my: str
+        mz: str
+        na: str
+        nc: str
+        ne: str
+        nf: str
+        ng: str
+        ni: str
+        nl: str
+        no: str
+        np: str
+        nr: str
+        nu: str
+        nz: str
+        om: str
+        pa: str
+        pe: str
+        pf: str
+        pg: str
+        ph: str
+        pk: str
+        pl: str
+        pm: str
+        pn: str
+        pr: str
+        ps: str
+        pt: str
+        pw: str
+        py: str
+        qa: str
+        re: str
+        ro: str
+        rs: str
+        ru: str
+        rw: str
+        sa: str
+        sb: str
+        sc: str
+        sd: str
+        se: str
+        sg: str
+        sh: str
+        si: str
+        sj: str
+        sk: str
+        sl: str
+        sm: str
+        sn: str
+        so: str
+        sr: str
+        ss: str
+        st: str
+        sv: str
+        sx: str
+        sy: str
+        sz: str
+        tc: str
+        td: str
+        tf: str
+        tg: str
+        th: str
+        tj: str
+        tk: str
+        tl: str
+        tm: str
+        tn: str
+        to: str
+        tr: str
+        tt: str
+        tv: str
+        tw: str
+        tz: str
+        ua: str
+        ug: str
+        um: str
+        us: str
+        uy: str
+        uz: str
+        va: str
+        vc: str
+        ve: str
+        vg: str
+        vi: str
+        vn: str
+        vu: str
+        wf: str
+        ws: str
+        xk: str
+        ye: str
+        yt: str
+        za: str
+        zm: str
+        zw: str
     class WhitelistedTypes:
-        adgroup_id: str = ...
-        age_max: str = ...
-        age_min: str = ...
-        alternate_auto_targeting_option: str = ...
-        app_install_state: str = ...
-        audience_network_positions: str = ...
-        behaviors: str = ...
-        brand_safety_content_filter_levels: str = ...
-        brand_safety_content_severity_levels: str = ...
-        catalog_based_targeting: str = ...
-        cities: str = ...
-        city_keys: str = ...
-        college_years: str = ...
-        conjunctive_user_adclusters: str = ...
-        connections: str = ...
-        contextual_targeting_categories: str = ...
-        countries: str = ...
-        country: str = ...
-        country_groups: str = ...
-        custom_audiences: str = ...
-        device_platforms: str = ...
-        direct_install_devices: str = ...
-        dynamic_audience_ids: str = ...
-        education_majors: str = ...
-        education_schools: str = ...
-        education_statuses: str = ...
-        effective_audience_network_positions: str = ...
-        effective_device_platforms: str = ...
-        effective_facebook_positions: str = ...
-        effective_instagram_positions: str = ...
-        effective_messenger_positions: str = ...
-        effective_publisher_platforms: str = ...
-        effective_whatsapp_positions: str = ...
-        engagement_specs: str = ...
-        ethnic_affinity: str = ...
-        exclude_previous_days: str = ...
-        exclude_reached_since: str = ...
-        excluded_brand_safety_content_types: str = ...
-        excluded_connections: str = ...
-        excluded_custom_audiences: str = ...
-        excluded_dynamic_audience_ids: str = ...
-        excluded_engagement_specs: str = ...
-        excluded_geo_locations: str = ...
-        excluded_mobile_device_model: str = ...
-        excluded_product_audience_specs: str = ...
-        excluded_publisher_categories: str = ...
-        excluded_publisher_list_ids: str = ...
-        excluded_user_adclusters: str = ...
-        excluded_user_device: str = ...
-        exclusions: str = ...
-        facebook_positions: str = ...
-        family_statuses: str = ...
-        fb_deal_id: str = ...
-        flexible_spec: str = ...
-        follow_profiles: str = ...
-        follow_profiles_negative: str = ...
-        format: str = ...
-        friends_of_connections: str = ...
-        gatekeepers: str = ...
-        genders: str = ...
-        generation: str = ...
-        geo_locations: str = ...
-        home_ownership: str = ...
-        home_type: str = ...
-        home_value: str = ...
-        household_composition: str = ...
-        id: str = ...
-        income: str = ...
-        industries: str = ...
-        instagram_hashtags: str = ...
-        instagram_positions: str = ...
-        instream_video_skippable_excluded: str = ...
-        instream_video_sponsorship_placements: str = ...
-        interest_defaults_source: str = ...
-        interested_in: str = ...
-        interests: str = ...
-        is_instagram_destination_ad: str = ...
-        is_whatsapp_destination_ad: str = ...
-        keywords: str = ...
-        life_events: str = ...
-        locales: str = ...
-        location_categories: str = ...
-        location_cluster_ids: str = ...
-        location_expansion: str = ...
-        marketplace_product_categories: str = ...
-        messenger_positions: str = ...
-        mobile_device_model: str = ...
-        moms: str = ...
-        net_worth: str = ...
-        office_type: str = ...
-        page_types: str = ...
-        place_page_set_ids: str = ...
-        political_views: str = ...
-        politics: str = ...
-        product_audience_specs: str = ...
-        prospecting_audience: str = ...
-        publisher_platforms: str = ...
-        radius: str = ...
-        region_keys: str = ...
-        regions: str = ...
-        relationship_statuses: str = ...
-        rtb_flag: str = ...
-        site_category: str = ...
-        targeting_optimization: str = ...
-        targeting_relaxation_types: str = ...
-        timezones: str = ...
-        topic: str = ...
-        trending: str = ...
-        user_adclusters: str = ...
-        user_device: str = ...
-        user_event: str = ...
-        user_os: str = ...
-        user_page_threads: str = ...
-        user_page_threads_excluded: str = ...
-        whatsapp_positions: str = ...
-        wireless_carrier: str = ...
-        work_employers: str = ...
-        work_positions: str = ...
-        zips: str = ...
-    class Mode:
-        best_performing: str = ...
-        recently_used: str = ...
-        related: str = ...
-        suggestions: str = ...
+        adgroup_id: str
+        age_max: str
+        age_min: str
+        age_range: str
+        alternate_auto_targeting_option: str
+        app_install_state: str
+        audience_network_positions: str
+        behaviors: str
+        brand_safety_content_filter_levels: str
+        brand_safety_content_severity_levels: str
+        cafe_ca_contraction_targeting_signal: str
+        cafe_ca_expansion_targeting_signal: str
+        catalog_based_targeting: str
+        cities: str
+        city_keys: str
+        college_years: str
+        conjunctive_user_adclusters: str
+        connections: str
+        contextual_targeting_categories: str
+        countries: str
+        country: str
+        country_groups: str
+        custom_audiences: str
+        device_platforms: str
+        direct_install_devices: str
+        dynamic_audience_ids: str
+        education_majors: str
+        education_schools: str
+        education_statuses: str
+        effective_audience_network_positions: str
+        effective_device_platforms: str
+        effective_facebook_positions: str
+        effective_instagram_positions: str
+        effective_messenger_positions: str
+        effective_oculus_positions: str
+        effective_publisher_platforms: str
+        effective_whatsapp_positions: str
+        engagement_specs: str
+        ethnic_affinity: str
+        exclude_previous_days: str
+        exclude_reached_since: str
+        excluded_brand_safety_content_types: str
+        excluded_connections: str
+        excluded_custom_audiences: str
+        excluded_dynamic_audience_ids: str
+        excluded_engagement_specs: str
+        excluded_geo_locations: str
+        excluded_mobile_device_model: str
+        excluded_product_audience_specs: str
+        excluded_publisher_categories: str
+        excluded_publisher_list_ids: str
+        excluded_user_adclusters: str
+        excluded_user_device: str
+        exclusions: str
+        expanded_implicit_custom_audiences: str
+        facebook_positions: str
+        family_statuses: str
+        fb_deal_id: str
+        flexible_spec: str
+        follow_profiles: str
+        follow_profiles_negative: str
+        format: str
+        friends_of_connections: str
+        gatekeepers: str
+        genders: str
+        generation: str
+        geo_locations: str
+        home_ownership: str
+        home_type: str
+        home_value: str
+        household_composition: str
+        id: str
+        income: str
+        industries: str
+        instagram_hashtags: str
+        instagram_positions: str
+        instream_video_skippable_excluded: str
+        instream_video_sponsorship_placements: str
+        interest_defaults_source: str
+        interested_in: str
+        interests: str
+        is_instagram_destination_ad: str
+        is_whatsapp_destination_ad: str
+        keywords: str
+        life_events: str
+        locales: str
+        location_categories: str
+        location_cluster_ids: str
+        location_expansion: str
+        marketing_message_targeting: str
+        marketplace_product_categories: str
+        messenger_positions: str
+        mobile_device_model: str
+        moms: str
+        net_worth: str
+        oculus_positions: str
+        office_type: str
+        page_types: str
+        place_page_set_ids: str
+        political_views: str
+        politics: str
+        product_audience_specs: str
+        prospecting_audience: str
+        publisher_platforms: str
+        radius: str
+        region_keys: str
+        regions: str
+        relationship_statuses: str
+        rtb_flag: str
+        site_category: str
+        tafe_ca_mitigation_strategy: str
+        targeting_automation: str
+        targeting_optimization: str
+        targeting_relaxation_types: str
+        timezones: str
+        topic: str
+        trending: str
+        user_adclusters: str
+        user_device: str
+        user_event: str
+        user_os: str
+        user_page_threads: str
+        user_page_threads_excluded: str
+        whatsapp_positions: str
+        wireless_carrier: str
+        work_employers: str
+        work_positions: str
+        zips: str
+    class AppStore:
+        amazon_app_store: str
+        apk_mirror: str
+        apk_monk: str
+        apk_pure: str
+        aptoide_a1_store: str
+        bemobi_mobile_store: str
+        digital_turbine_store: str
+        does_not_exist: str
+        fb_android_store: str
+        fb_canvas: str
+        fb_gameroom: str
+        galaxy_store: str
+        google_play: str
+        instant_game: str
+        itunes: str
+        itunes_ipad: str
+        neon_android_store: str
+        none: str
+        oculus_app_store: str
+        oppo: str
+        roku_channel_store: str
+        uptodown: str
+        vivo: str
+        windows_10_store: str
+        windows_store: str
+        xiaomi: str
     class Objective:
-        app_installs: str = ...
-        brand_awareness: str = ...
-        conversions: str = ...
-        event_responses: str = ...
-        lead_generation: str = ...
-        link_clicks: str = ...
-        local_awareness: str = ...
-        messages: str = ...
-        offer_claims: str = ...
-        page_likes: str = ...
-        post_engagement: str = ...
-        product_catalog_sales: str = ...
-        reach: str = ...
-        store_visits: str = ...
-        video_views: str = ...
+        app_installs: str
+        brand_awareness: str
+        conversions: str
+        event_responses: str
+        lead_generation: str
+        link_clicks: str
+        local_awareness: str
+        messages: str
+        offer_claims: str
+        outcome_app_promotion: str
+        outcome_awareness: str
+        outcome_engagement: str
+        outcome_leads: str
+        outcome_sales: str
+        outcome_traffic: str
+        page_likes: str
+        post_engagement: str
+        product_catalog_sales: str
+        reach: str
+        store_visits: str
+        video_views: str
+    class Mode:
+        best_performing: str
+        recently_used: str
+        related: str
+        suggestions: str

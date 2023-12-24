@@ -1,0 +1,62 @@
+from _typeshed import Incomplete
+from facebook_business.adobjects.abstractobject import AbstractObject as AbstractObject
+
+class ProductCatalogDiagnosticGroup(AbstractObject):
+    def __init__(self, api: Incomplete | None = None) -> None: ...
+    class Field(AbstractObject.Field):
+        affected_channels: str
+        affected_entity: str
+        affected_features: str
+        diagnostics: str
+        error_code: str
+        number_of_affected_entities: str
+        number_of_affected_items: str
+        severity: str
+        subtitle: str
+        title: str
+        type: str
+    class AffectedChannels:
+        business_inbox_in_messenger: str
+        shops: str
+        test_capability: str
+        universal_checkout: str
+        us_marketplace: str
+    class AffectedEntity:
+        product_catalog: str
+        product_item: str
+        product_set: str
+    class AffectedFeatures:
+        augmented_reality: str
+        checkout: str
+    class Severity:
+        must_fix: str
+        opportunity: str
+    class Type:
+        ar_visibility_issues: str
+        attributes_invalid: str
+        attributes_missing: str
+        category: str
+        checkout: str
+        da_visibility_issues: str
+        image_quality: str
+        low_quality_title_and_description: str
+        policy_violation: str
+        shops_visibility_issues: str
+    class AffectedEntities:
+        product_catalog: str
+        product_item: str
+        product_set: str
+    class Severities:
+        must_fix: str
+        opportunity: str
+    class Types:
+        ar_visibility_issues: str
+        attributes_invalid: str
+        attributes_missing: str
+        category: str
+        checkout: str
+        da_visibility_issues: str
+        image_quality: str
+        low_quality_title_and_description: str
+        policy_violation: str
+        shops_visibility_issues: str

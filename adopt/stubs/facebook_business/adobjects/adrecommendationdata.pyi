@@ -1,7 +1,7 @@
+from _typeshed import Incomplete
 from facebook_business.adobjects.abstractobject import AbstractObject as AbstractObject
-from typing import Any, Optional
 
 class AdRecommendationData(AbstractObject):
-    def __init__(self, api: Optional[Any] = ...) -> None: ...
+    def __init__(self, api: Incomplete | None = None) -> None: ...
     class Field(AbstractObject.Field):
-        link: str = ...
+        link: str
