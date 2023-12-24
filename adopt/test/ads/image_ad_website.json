@@ -1,0 +1,206 @@
+{
+  "id": "120204178098210150",
+  "account_id": "1342820622846299",
+  "actor_id": "1855355231229529",
+  "asset_feed_spec": {
+    "images": [
+      {
+        "adlabels": [
+          {
+            "name": "placement_asset_f1e6d9647b0664e_1703431658896",
+            "id": "120204178093570150"
+          }
+        ],
+        "hash": "52b2b89b22981caa8f838ae91609ef1d"
+      },
+      {
+        "adlabels": [
+          {
+            "name": "placement_asset_f2ccb7d74edc816_1703431658900",
+            "id": "120204178093550150"
+          }
+        ],
+        "hash": "52b2b89b22981caa8f838ae91609ef1d",
+        "image_crops": {
+          "191x100": [
+            [
+              0,
+              212
+            ],
+            [
+              1080,
+              777
+            ]
+          ]
+        }
+      }
+    ],
+    "bodies": [
+      {
+        "adlabels": [
+          {
+            "name": "placement_asset_f21e7e2fd745fc2_1703431658915",
+            "id": "120204178093490150"
+          },
+          {
+            "name": "placement_asset_f2eacaa0e1da082_1703431658904",
+            "id": "120204178093560150"
+          }
+        ],
+        "text": "this is a Primary text"
+      }
+    ],
+    "call_to_action_types": [
+      "APPLY_NOW"
+    ],
+    "descriptions": [
+      {
+        "text": "This is a Description"
+      }
+    ],
+    "link_urls": [
+      {
+        "adlabels": [
+          {
+            "name": "placement_asset_f1b62d2e54011b8_1703431658917",
+            "id": "120204178093580150"
+          },
+          {
+            "name": "placement_asset_f25958681e64b7c_1703431658912",
+            "id": "120204178093590150"
+          }
+        ],
+        "website_url": "https://vlab.digital/?foo=bar",
+        "display_url": ""
+      }
+    ],
+    "titles": [
+      {
+        "adlabels": [
+          {
+            "name": "placement_asset_f12c6cf111b0816_1703431658908",
+            "id": "120204178093600150"
+          },
+          {
+            "name": "placement_asset_f3ba9d669e7057e_1703431658916",
+            "id": "120204178093610150"
+          }
+        ],
+        "text": "This is a Headline"
+      }
+    ],
+    "ad_formats": [
+      "AUTOMATIC_FORMAT"
+    ],
+    "asset_customization_rules": [
+      {
+        "customization_spec": {
+          "age_max": 65,
+          "age_min": 13,
+          "publisher_platforms": [
+            "facebook"
+          ],
+          "facebook_positions": [
+            "right_hand_column",
+            "search"
+          ]
+        },
+        "image_label": {
+          "name": "placement_asset_f2ccb7d74edc816_1703431658900",
+          "id": "120204178093550150"
+        },
+        "body_label": {
+          "name": "placement_asset_f21e7e2fd745fc2_1703431658915",
+          "id": "120204178093490150"
+        },
+        "link_url_label": {
+          "name": "placement_asset_f1b62d2e54011b8_1703431658917",
+          "id": "120204178093580150"
+        },
+        "title_label": {
+          "name": "placement_asset_f3ba9d669e7057e_1703431658916",
+          "id": "120204178093610150"
+        },
+        "priority": 1
+      },
+      {
+        "customization_spec": {
+          "age_max": 65,
+          "age_min": 13
+        },
+        "image_label": {
+          "name": "placement_asset_f1e6d9647b0664e_1703431658896",
+          "id": "120204178093570150"
+        },
+        "body_label": {
+          "name": "placement_asset_f2eacaa0e1da082_1703431658904",
+          "id": "120204178093560150"
+        },
+        "link_url_label": {
+          "name": "placement_asset_f25958681e64b7c_1703431658912",
+          "id": "120204178093590150"
+        },
+        "title_label": {
+          "name": "placement_asset_f12c6cf111b0816_1703431658908",
+          "id": "120204178093600150"
+        },
+        "priority": 2
+      }
+    ],
+    "optimization_type": "PLACEMENT",
+    "additional_data": {
+      "multi_share_end_card": false,
+      "is_click_to_message": false
+    },
+    "reasons_to_shop": false,
+    "shops_bundle": false
+  },
+  "degrees_of_freedom_spec": {
+    "creative_features_spec": {
+      "advantage_plus_creative": {
+        "enroll_status": "OPT_OUT"
+      },
+      "cv_transformation": {
+        "enroll_status": "OPT_OUT"
+      },
+      "image_enhancement": {
+        "enroll_status": "OPT_OUT"
+      },
+      "image_templates": {
+        "enroll_status": "OPT_IN"
+      },
+      "image_touchups": {
+        "enroll_status": "OPT_IN"
+      },
+      "image_uncrop": {
+        "enroll_status": "OPT_OUT"
+      },
+      "inline_comment": {
+        "enroll_status": "OPT_IN"
+      },
+      "standard_enhancements": {
+        "enroll_status": "OPT_IN"
+      },
+      "text_optimizations": {
+        "enroll_status": "OPT_IN"
+      }
+    }
+  },
+  "effective_authorization_category": "NONE",
+  "effective_instagram_media_id": "18035518603678204",
+  "effective_instagram_story_id": "25353080350945911",
+  "effective_object_story_id": "1855355231229529_943307610576880",
+  "enable_direct_install": false,
+  "enable_launch_instant_app": false,
+  "instagram_actor_id": "2118306904924018",
+  "instagram_user_id": "17841411502070295",
+  "name": "{{product.name}} 2023-12-24-e527932e260fff64e0b4e672a984a4a0",
+  "object_story_spec": {
+    "page_id": "1855355231229529",
+    "instagram_actor_id": "2118306904924018"
+  },
+  "object_type": "SHARE",
+  "status": "ACTIVE",
+  "thumbnail_url": "https://scontent-lga3-1.xx.fbcdn.net/v/t45.1600-4/344782836_23854398233630149_2074964355699834253_n.png?_nc_cat=108&ccb=1-7&_nc_ohc=-6sa1YM2lbcAX_-B_ut&_nc_ht=scontent-lga3-1.xx&edm=AAT1rw8EAAAA&stp=c0.5000x0.5000f_dst-emg0_p64x64_q75&ur=46b8c0&_nc_sid=58080a&oh=00_AfAfh3uwojZwo5I6lp_7bsQeBzMNT8BO3Kun1cSrIDE39g&oe=658C751C",
+  "use_page_actor_override": false
+}

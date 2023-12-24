@@ -1,7 +1,7 @@
 import json
-import logging 
+import logging
 import random
-from dataclasses import asdict, dataclass, fields
+from dataclasses import asdict, dataclass, fields, is_dataclass
 from datetime import datetime, timedelta
 from typing import (Any, Dict, List, NamedTuple, Optional, Sequence, Tuple,
                     Union)
@@ -45,14 +45,10 @@ class AdsetConf(NamedTuple):
     stratum: Stratum
     budget: float
     status: str
-    instagram_id: Optional[str]
     hours: int
     optimization_goal: str
     destination_type: str
     promoted_object: Optional[dict[str, str]]
-
-
-from dataclasses import is_dataclass
 
 
 def dict_from_nested_type(d):
@@ -150,7 +146,7 @@ def manage_basic_aud(
     if ca is None:
         return [create_custom_audience(aud.name, "virtual lab auto-generated audience")]
 
-    return add_users_to_audience(aud.pageid, ca.get_id(), aud.users)
+    return add_users_to_audience(aud.page_ids, ca.get_id(), aud.users)
 
 
 def manage_lookalike_aud(
@@ -168,7 +164,6 @@ def manage_lookalike_aud(
 def manage_aud(
     old_auds: List[CustomAudience], aud: Union[Audience, LookalikeAudience]
 ) -> List[Instruction]:
-
     if isinstance(aud, Audience):
         return manage_basic_aud(old_auds, aud)
 
@@ -179,14 +174,12 @@ def manage_aud(
 def manage_audiences(
     state, new_auds: List[Union[Audience, LookalikeAudience]]
 ) -> List[Instruction]:
-
     return [i for aud in new_auds for i in manage_aud(state.custom_audiences, aud)]
 
 
 def create_lookalike_audience(
     name: str, spec: Dict[str, Any], source: CustomAudience
 ) -> Instruction:
-
     params = {
         CustomAudience.Field.name: name,
         CustomAudience.Field.subtype: CustomAudience.Subtype.lookalike,
@@ -198,7 +191,6 @@ def create_lookalike_audience(
 
 
 def create_custom_audience(name: str, desc: str) -> Instruction:
-
     params = {
         CustomAudience.Field.name: name,
         CustomAudience.Field.subtype: "CUSTOM",
@@ -210,13 +202,12 @@ def create_custom_audience(name: str, desc: str) -> Instruction:
 
 
 def add_users_to_audience(
-    pageid: str, aud_id: str, users: List[str]
+    page_ids: list[str], aud_id: str, users: List[str]
 ) -> List[Instruction]:
-
     params: Dict[str, Any] = {
         "schema": ["PAGEUID"],
         "is_raw": True,
-        "page_ids": [pageid],
+        "page_ids": page_ids,
     }
 
     session_id = random.randint(1, 1_000_000)
@@ -272,55 +263,79 @@ def web_call_to_action(link) -> dict:
 
 def _create_creative(
     config: CreativeConf,
-    page_id: str,
     call_to_action: dict[str, Any],
-    insta_id: Optional[str],
-    page_welcome_message: Optional[str] = None,
-    url_tags: Optional[str] = None,
-    link: Optional[str] = None,
+    page_welcome_message: str | None = None,
+    url_tags: str | None = None,
+    link: str | None = None,
 ) -> AdCreative:
-
     c = AdCreative()
 
-    # if video, do video data 
-
-    # video_data = {
-    #     AdCreativeVideoData.Field.description : 'My Description',
-    #     AdCreativeVideoData.Field.video_id : '<VIDEO_ID>',
-    #     AdCreativeVideoData.Field.image_url : '<IMAGE_URL>',
-    #     AdCreativeVideoData.Field.call_to_action : config.link_text,
-    # }
-
-
-    link_data = {
-        AdCreativeLinkData.Field.call_to_action: call_to_action,
-        AdCreativeLinkData.Field.image_hash: config.image_hash,
-        AdCreativeLinkData.Field.message: config.body,
-        AdCreativeLinkData.Field.name: config.link_text,
-    }
-
-    if page_welcome_message:
-        link_data[AdCreativeLinkData.Field.page_welcome_message] = page_welcome_message
-
-    if link:
-        link_data[AdCreativeLinkData.Field.link] = link
-
-    if insta_id:
-        c[AdCreative.Field.instagram_actor_id] = insta_id
+    c[AdCreative.Field.name] = config.name
 
     if url_tags:
         c[AdCreative.Field.url_tags] = url_tags
 
-    c[AdCreative.Field.name] = config.name
-    c[AdCreative.Field.actor_id] = page_id
+    fields_to_copy = [
+        AdCreative.Field.actor_id,
+        AdCreative.Field.degrees_of_freedom_spec,
+        AdCreative.Field.effective_instagram_media_id,
+        AdCreative.Field.effective_instagram_story_id,
+        AdCreative.Field.effective_object_story_id,
+        AdCreative.Field.instagram_actor_id,
+        AdCreative.Field.instagram_user_id,
+        AdCreative.Field.thumbnail_url,
+    ]
+
+    for field in fields_to_copy:
+        if field in config.template:
+            c[field] = config.template[field]
+
+    tld = config.template["object_story_spec"].get("link_data")
+
+    if tld:
+        link_data = {
+            AdCreativeLinkData.Field.call_to_action: call_to_action,
+            AdCreativeLinkData.Field.image_hash: tld["image_hash"],
+            AdCreativeLinkData.Field.message: tld["message"],
+            AdCreativeLinkData.Field.name: tld["name"],
+            AdCreativeLinkData.Field.description: tld["description"],
+        }
+
+        if page_welcome_message:
+            link_data[
+                AdCreativeLinkData.Field.page_welcome_message
+            ] = page_welcome_message
+
+        if link:
+            link_data[AdCreativeLinkData.Field.link] = link
+
+    toss = config.template["object_story_spec"]
 
     c[AdCreative.Field.object_story_spec] = {
-        AdCreativeObjectStorySpec.Field.page_id: page_id,
-        AdCreativeObjectStorySpec.Field.link_data: link_data,
+        AdCreativeObjectStorySpec.Field.page_id: toss.get("page_id"),
+        AdCreativeObjectStorySpec.Field.instagram_actor_id: toss.get(
+            "instagram_actor_id"
+        ),
+        AdCreativeObjectStorySpec.Field.link_data: link_data if tld else None,
     }
 
-    # if link_data
-    # if video_data
+    tafs = config.template.get(AdCreative.Field.asset_feed_spec)
+
+    if tafs:
+        c[AdCreative.Field.asset_feed_spec] = tafs
+
+        if page_welcome_message:
+            c[AdCreative.Field.asset_feed_spec]["additional_data"] = {
+                "page_welcome_message": page_welcome_message
+            }
+
+        if link:
+            c[AdCreative.Field.asset_feed_spec]["link_urls"] = [
+                {**url, "website_url": link}
+                for url in config.template[AdCreative.Field.asset_feed_spec][
+                    "link_urls"
+                ]
+            ]
 
     return c
 
@@ -352,14 +367,14 @@ def create_creative(
     if isinstance(destination, FlyMessengerDestination):
         md = {**md, "form": destination.initial_shortcode}
         ref = make_ref(config.name, md)
-        msg = make_welcome_message(config.welcome_message, config.button_text, ref)
+        msg = make_welcome_message(
+            destination.welcome_message, destination.button_text, ref
+        )
 
         return _create_creative(
             config,
-            study.general.page_id,
             call_to_action=messenger_call_to_action(),
             page_welcome_message=msg,
-            insta_id=study.general.instagram_id,
             url_tags=f"ref={ref}",
         )
 
@@ -370,9 +385,7 @@ def create_creative(
 
         return _create_creative(
             config,
-            study.general.page_id,
             call_to_action=app_download_call_to_action(deeplink),
-            insta_id=study.general.instagram_id,
             link=link,
         )
 
@@ -382,9 +395,7 @@ def create_creative(
 
         return _create_creative(
             config,
-            study.general.page_id,
             call_to_action=web_call_to_action(link),
-            insta_id=study.general.instagram_id,
             link=link,
         )
 
@@ -394,7 +405,6 @@ def create_creative(
 def adset_instructions(
     study: StudyConf, state: CampaignState, stratum: Stratum, budget: float
 ) -> Tuple[AdSet, List[Ad]]:
-
     destinations = [get_destination_for_creative(study, c) for c in stratum.creatives]
     creatives = [
         create_creative(study, stratum, c, d)
@@ -415,7 +425,7 @@ def adset_instructions(
 
     # make paused adset if we have 0 budget
     status = "ACTIVE" if budget > 0 else "PAUSED"
-    budget = budget if budget > 0 else study.general.min_budget
+    budget = budget if budget > 0 else study.recruitment.min_budget
 
     # Facebook budgets are in cents! We do everything in dollars.
     budget = round(budget * 100)
@@ -425,10 +435,9 @@ def adset_instructions(
         stratum,
         budget,
         status,
-        study.general.instagram_id,
         ADSET_HOURS,
-        study.general.optimization_goal,
-        study.general.destination_type,
+        study.recruitment.optimization_goal,
+        study.recruitment.destination_type,
         promoted_object,
     )
 
@@ -456,14 +465,13 @@ def update_instructions_for_campaign(
     strata: List[Stratum],
     budget: Dict[str, float],
 ) -> Sequence[Instruction]:
-
     try:
         campaign_state = state.campaign_state(campaign_name)
         campaign_state.campaign_state
     except StateNameError as e:
         print(e)
         logging.info(f"Could not find campaign with name {campaign_name}. Creating.")
-        return [create_campaign(campaign_name, study.general.objective)]
+        return [create_campaign(campaign_name, study.recruitment.objective)]
 
     sb = [(s, budget[s.id]) for s in strata]
     new_state = [adset_instructions(study, campaign_state, s, b) for s, b in sb]
@@ -476,7 +484,6 @@ def update_instructions(
     strata: List[Stratum],
     budget: dict[str, Budget],
 ) -> Sequence[Instruction]:
-
     return [
         i
         for campaign_name, budg in budget.items()

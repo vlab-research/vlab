@@ -10,9 +10,21 @@ def _dt(day, month=1, year=2022, hour=0, minute=0):
     return datetime(year, month, day, hour=hour, minute=minute)
 
 
-def _simple(name="foo", start_date=_dt(1), end_date=_dt(3)):
+def _simple(
+    name="foo",
+    start_date=_dt(1),
+    end_date=_dt(3),
+    objective="objective",
+    optimization_goal="goal",
+    destination_type="destination",
+    min_budget=1,
+):
     return SimpleRecruitment(
         ad_campaign_name=name,
+        objective=objective,
+        optimization_goal=optimization_goal,
+        destination_type=destination_type,
+        min_budget=min_budget,
         start_date=start_date,
         end_date=end_date,
         budget=10,
@@ -29,9 +41,17 @@ def _pipeline(
     arms=2,
     recruitment_days=2,
     offset_days=2,
+    objective="objective",
+    optimization_goal="goal",
+    destination_type="destination",
+    min_budget=1,
 ):
     return PipelineRecruitmentExperiment(
         ad_campaign_name_base=name,
+        objective=objective,
+        optimization_goal=optimization_goal,
+        destination_type=destination_type,
+        min_budget=min_budget,
         budget_per_arm=budget_per_arm,
         max_sample_per_arm=max_sample_per_arm,
         start_date=start_date,
@@ -49,9 +69,17 @@ def _destination(
     start_date=_dt(1),
     end_date=_dt(3),
     destinations=["baz", "qux"],
+    objective="objective",
+    optimization_goal="goal",
+    destination_type="destination",
+    min_budget=1,
 ):
     return DestinationRecruitmentExperiment(
         ad_campaign_name_base=name,
+        objective=objective,
+        optimization_goal=optimization_goal,
+        destination_type=destination_type,
+        min_budget=min_budget,
         budget_per_arm=budget_per_arm,
         max_sample_per_arm=max_sample_per_arm,
         start_date=start_date,

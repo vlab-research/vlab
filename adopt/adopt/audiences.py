@@ -17,7 +17,6 @@ def get_users(df) -> List[str]:
 def partitioning_view(
     df: pd.DataFrame, part: Partitioning, now: datetime
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
-
     d = (
         df.sort_values("timestamp")
         .drop_duplicates("user_id", keep="first")
@@ -55,7 +54,6 @@ def partitioning_view(
         return msk(include), msk(~include)
 
     if part.max_days and part.max_users:
-
         days_mask = d.delta <= timedelta(part.max_days)
 
         if days_mask.all():
@@ -74,7 +72,6 @@ def partitioning_view(
 def partition_users(
     df: Optional[pd.DataFrame], aud: AudienceConf, now: datetime
 ) -> list[pd.DataFrame]:
-
     partitions: list[pd.DataFrame] = []
 
     if df is None:
@@ -103,15 +100,14 @@ def partition_name(aud, i):
 # TODO: add context obj for country_code / page_id...
 # actually that's kind what Marketing is... !
 def hydrate_audience(
-    page_id: str, df: pd.DataFrame, aud: AudienceConf, now: datetime
+    page_ids: list[str], df: pd.DataFrame, aud: AudienceConf, now: datetime
 ) -> list[Union[Audience, LookalikeAudience]]:
-
     df = only_target_users(df, aud)
 
     audiences: list[Union[Audience, LookalikeAudience]] = []
     if aud.subtype == "LOOKALIKE" and aud.lookalike:
         users = get_users(df)
-        origin = Audience(name=aud.name + "-origin", pageid=page_id, users=users)
+        origin = Audience(name=aud.name + "-origin", page_ids=page_ids, users=users)
         audiences += [origin]
 
         if len(users) >= aud.lookalike.target:
@@ -125,13 +121,13 @@ def hydrate_audience(
 
     if aud.subtype == "CUSTOM":
         users = get_users(df)
-        return [Audience(name=aud.name, pageid=page_id, users=users)]
+        return [Audience(name=aud.name, page_ids=page_ids, users=users)]
 
     if aud.subtype == "PARTITIONED":
         partitions = partition_users(df, aud, now)
 
         return [
-            Audience(name=partition_name(aud, i), pageid=page_id, users=get_users(d))
+            Audience(name=partition_name(aud, i), page_ids=page_ids, users=get_users(d))
             for i, d in enumerate(partitions)
         ]
 
@@ -141,8 +137,15 @@ def hydrate_audience(
 def hydrate_audiences(
     study: StudyConf, df: pd.DataFrame, auds: List[AudienceConf]
 ) -> List[Union[Audience, LookalikeAudience]]:
-
     now = datetime.utcnow()
-    return [
-        i for aud in auds for i in hydrate_audience(study.general.page_id, df, aud, now)
-    ]
+
+    # can get pageid from the audience directly... If it needs it?
+    # Or should all ads be from the same page by construction?
+    page_ids = [c.template.actor_id for c in study.creatives if c.template is not None]
+
+    # if empty, fallback to old style
+    # TODO: deprecate from v0.0.105 and remove
+    if not page_ids:
+        page_ids = [study.general.page_id]
+
+    return [i for aud in auds for i in hydrate_audience(page_ids, df, aud, now)]

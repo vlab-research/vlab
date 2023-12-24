@@ -1,0 +1,252 @@
+{
+  "id": "120204171952130150",
+  "account_id": "1342820622846299",
+  "actor_id": "1855355231229529",
+  "asset_feed_spec": {
+    "videos": [
+      {
+        "adlabels": [
+          {
+            "name": "placement_asset_f35a64b46d72b3c_1703382523506",
+            "id": "120204171820350150"
+          }
+        ],
+        "video_id": "341307691945797",
+        "thumbnail_url": "https://scontent-lga3-2.xx.fbcdn.net/v/t15.13418-10/412935187_2461690604037308_8091908228769899722_n.jpg?_nc_cat=104&ccb=1-7&_nc_sid=e3495b&_nc_ad=z-m&_nc_cid=0&_nc_ht=scontent-lga3-2.xx&oh=00_AfDeyvAIHat-y0Igz0p2m_f7tsh9HjIMznLQMCO1VS4TUQ&oe=658B969F"
+      },
+      {
+        "adlabels": [
+          {
+            "name": "placement_asset_f1dc399d3b9300e_1703382523495",
+            "id": "120204171820340150"
+          }
+        ],
+        "video_id": "2972575422885542",
+        "thumbnail_url": "https://scontent-lga3-1.xx.fbcdn.net/v/t15.13418-10/412515045_1112160423487529_4377901938495837056_n.jpg?_nc_cat=103&ccb=1-7&_nc_sid=e3495b&_nc_ad=z-m&_nc_cid=0&_nc_ht=scontent-lga3-1.xx&oh=00_AfAhr9gMlBo6YLA8nCrd1zIG_aHeaVfLTWTM1EB5DKoOEw&oe=658BE91F"
+      },
+      {
+        "adlabels": [
+          {
+            "name": "placement_asset_f1944b345afb37_1703382523489",
+            "id": "120204171820330150"
+          }
+        ],
+        "video_id": "7342107105802181",
+        "thumbnail_url": "https://scontent-lga3-1.xx.fbcdn.net/v/t15.13418-10/341479673_1004708413829257_6212296547467445579_n.jpg?_nc_cat=108&ccb=1-7&_nc_sid=e3495b&_nc_ad=z-m&_nc_cid=0&_nc_ht=scontent-lga3-1.xx&oh=00_AfDS8gfOul6FNdsI8aFErW4WAldwcOpY8IAaWCKKtpnXLg&oe=658D2741"
+      }
+    ],
+    "bodies": [
+      {
+        "adlabels": [
+          {
+            "name": "placement_asset_f1e3e9662b35ac4_1703382523489",
+            "id": "120204171820420150"
+          },
+          {
+            "name": "placement_asset_f1cbbc495ccf5b2_1703382523512",
+            "id": "120204171820430150"
+          },
+          {
+            "name": "placement_asset_f18f43a9eccef34_1703382523500",
+            "id": "120204171820530150"
+          }
+        ],
+        "text": "This is a primary text!"
+      }
+    ],
+    "call_to_action_types": [
+      "MESSAGE_PAGE"
+    ],
+    "descriptions": [
+      {
+        "text": "This is a description"
+      }
+    ],
+    "link_urls": [
+      {
+        "adlabels": [
+          {
+            "name": "placement_asset_f1f1567530a4ae6_1703382523490",
+            "id": "120204171820390150"
+          },
+          {
+            "name": "placement_asset_f3b3e074431102c_1703382523503",
+            "id": "120204171820400150"
+          },
+          {
+            "name": "placement_asset_f11c41989d76a38_1703382523514",
+            "id": "120204171820410150"
+          }
+        ],
+        "website_url": "https://fb.com/messenger_doc/",
+        "display_url": ""
+      }
+    ],
+    "titles": [
+      {
+        "adlabels": [
+          {
+            "name": "placement_asset_f250a023f75fab2_1703382523502",
+            "id": "120204171820360150"
+          },
+          {
+            "name": "placement_asset_fb627e6ccf2fc_1703382523513",
+            "id": "120204171820370150"
+          },
+          {
+            "name": "placement_asset_f2a28c531b1784_1703382523489",
+            "id": "120204171820380150"
+          }
+        ],
+        "text": "Chat in Messenger"
+      }
+    ],
+    "ad_formats": [
+      "AUTOMATIC_FORMAT"
+    ],
+    "asset_customization_rules": [
+      {
+        "customization_spec": {
+          "age_max": 65,
+          "age_min": 13,
+          "publisher_platforms": [
+            "facebook"
+          ],
+          "facebook_positions": [
+            "search"
+          ]
+        },
+        "video_label": {
+          "name": "placement_asset_f1dc399d3b9300e_1703382523495",
+          "id": "120204171820340150"
+        },
+        "body_label": {
+          "name": "placement_asset_f18f43a9eccef34_1703382523500",
+          "id": "120204171820530150"
+        },
+        "link_url_label": {
+          "name": "placement_asset_f3b3e074431102c_1703382523503",
+          "id": "120204171820400150"
+        },
+        "title_label": {
+          "name": "placement_asset_f250a023f75fab2_1703382523502",
+          "id": "120204171820360150"
+        },
+        "priority": 1
+      },
+      {
+        "customization_spec": {
+          "age_max": 65,
+          "age_min": 13,
+          "publisher_platforms": [
+            "facebook",
+            "instagram",
+            "audience_network",
+            "messenger"
+          ],
+          "facebook_positions": [
+            "facebook_reels",
+            "facebook_reels_overlay",
+            "story"
+          ],
+          "instagram_positions": [
+            "story",
+            "reels"
+          ],
+          "messenger_positions": [
+            "story"
+          ],
+          "audience_network_positions": [
+            "classic",
+            "rewarded_video"
+          ]
+        },
+        "video_label": {
+          "name": "placement_asset_f35a64b46d72b3c_1703382523506",
+          "id": "120204171820350150"
+        },
+        "body_label": {
+          "name": "placement_asset_f1cbbc495ccf5b2_1703382523512",
+          "id": "120204171820430150"
+        },
+        "link_url_label": {
+          "name": "placement_asset_f11c41989d76a38_1703382523514",
+          "id": "120204171820410150"
+        },
+        "title_label": {
+          "name": "placement_asset_fb627e6ccf2fc_1703382523513",
+          "id": "120204171820370150"
+        },
+        "priority": 2
+      },
+      {
+        "customization_spec": {
+          "age_max": 65,
+          "age_min": 13
+        },
+        "video_label": {
+          "name": "placement_asset_f1944b345afb37_1703382523489",
+          "id": "120204171820330150"
+        },
+        "body_label": {
+          "name": "placement_asset_f1e3e9662b35ac4_1703382523489",
+          "id": "120204171820420150"
+        },
+        "link_url_label": {
+          "name": "placement_asset_f1f1567530a4ae6_1703382523490",
+          "id": "120204171820390150"
+        },
+        "title_label": {
+          "name": "placement_asset_f2a28c531b1784_1703382523489",
+          "id": "120204171820380150"
+        },
+        "priority": 3
+      }
+    ],
+    "optimization_type": "PLACEMENT",
+    "additional_data": {
+      "multi_share_end_card": false,
+      "page_welcome_message": "{\"type\":\"VISUAL_EDITOR\",\"version\":2,\"landing_screen_type\":\"ctm_lead_gen_new\",\"media_type\":\"text\",\"text_format\":{\"customer_action_type\":\"ice_breakers\",\"message\":{\"ice_breakers\":[{\"title\":\"Can I learn more about your business?\"},{\"title\":\"Can you tell me more about your ad?\"},{\"title\":\"Is anyone available to chat?\"}],\"quick_replies\":[],\"text\":\"Hi {{user_first_name}}! Please let us know how we can help you.\"}},\"image_format\":{\"customer_action_type\":\"quick_replies\",\"message\":{\"attachment\":{\"type\":\"template\",\"payload\":{\"template_type\":\"generic\",\"elements\":[{\"title\":\"\",\"buttons\":[]}]}},\"quick_replies\":[{\"title\":\"I'd like to learn more\",\"content_type\":\"text\"}],\"text\":\"Hi {{user_first_name}}! Please let us know how we can help you.\"}},\"video_format\":{\"customer_action_type\":\"quick_replies\",\"message\":{\"attachment\":{\"type\":\"video\",\"payload\":{\"attachment_id\":\"\"}},\"quick_replies\":[{\"title\":\"I'd like to learn more\",\"content_type\":\"text\"}],\"text\":\"Hi {{user_first_name}}! Please let us know how we can help you.\"}},\"user_edit\":false,\"surface\":\"visual_editor_new\",\"ctm_lead_gen_template_id\":\"6713914288706908\",\"template_id\":\"381796481062424\"}",
+      "is_click_to_message": false
+    },
+    "reasons_to_shop": false,
+    "shops_bundle": false
+  },
+  "authorization_category": "NONE",
+  "degrees_of_freedom_spec": {
+    "creative_features_spec": {
+      "advantage_plus_creative": {
+        "enroll_status": "OPT_OUT"
+      },
+      "inline_comment": {
+        "enroll_status": "OPT_OUT"
+      },
+      "standard_enhancements": {
+        "enroll_status": "OPT_OUT"
+      },
+      "text_optimizations": {
+        "enroll_status": "OPT_OUT"
+      },
+      "video_auto_crop": {
+        "enroll_status": "OPT_OUT"
+      }
+    }
+  },
+  "effective_authorization_category": "NONE",
+  "effective_instagram_media_id": "17982256163406553",
+  "effective_instagram_story_id": "6974383275962573",
+  "effective_object_story_id": "1855355231229529_942878140619827",
+  "enable_direct_install": false,
+  "enable_launch_instant_app": false,
+  "instagram_actor_id": "2118306904924018",
+  "instagram_user_id": "17841411502070295",
+  "name": "{{product.name}} 2023-12-23-e05ab70e8956820d70d97311cd63b6de",
+  "object_story_spec": {
+    "page_id": "1855355231229529",
+    "instagram_actor_id": "2118306904924018"
+  },
+  "object_type": "SHARE",
+  "status": "ACTIVE",
+  "thumbnail_url": "https://scontent-lga3-2.xx.fbcdn.net/v/t15.13418-10/412935187_2461690604037308_8091908228769899722_n.jpg?_nc_cat=104&ccb=1-7&_nc_ad=z-m&_nc_cid=0&_nc_ht=scontent-lga3-2.xx&stp=c0.5000x0.5000f_dst-emg0_p64x64_q75&ur=e3495b&_nc_sid=58080a&oh=00_AfDz4ab-kkwNxQlqNfxbODL-zxz806IXEiagIurg9FUZ3w&oe=658B969F",
+  "use_page_actor_override": false
+}

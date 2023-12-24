@@ -36,13 +36,24 @@ def get_creatives(api: FacebookAdsApi, ids: List[str]) -> List[AdCreative]:
     if not ids:
         return []
 
+    # For debugging purposes?
+    # blacklist = ["is_dco_internal", "image_file", "call_to_action"]
+    # fields = [f for f in dir(AdCreative.Field) if "__" not in f and f not in blacklist]
+
     fields = [
-        "url_tags",
-        "actor_id",
-        "instagram_actor_id",
-        "object_story_spec",
-        "link_deep_link_url",
+        AdCreative.Field.actor_id,
+        AdCreative.Field.asset_feed_spec,
+        AdCreative.Field.degrees_of_freedom_spec,
+        AdCreative.Field.effective_instagram_media_id,
+        AdCreative.Field.effective_instagram_story_id,
+        AdCreative.Field.effective_object_story_id,
+        AdCreative.Field.instagram_actor_id,
+        AdCreative.Field.instagram_user_id,
+        AdCreative.Field.object_story_spec,
+        AdCreative.Field.thumbnail_url,
+
     ]
+
     return call(AdCreative.get_by_ids, ids=ids, fields=fields, api=api)
 
 

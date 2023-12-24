@@ -1,14 +1,12 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from dataclasses import fields
-from datetime import date, datetime, timedelta
+from datetime import datetime, timedelta
 from math import floor
-from typing import Any, Dict, List, NamedTuple, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 
-from pydantic import model_validator, BaseModel, ValidationError
-from pydantic.dataclasses import dataclass
-from toolz import groupby
+from facebook_business.adobjects.adcreative import AdCreative
+from pydantic import BaseModel, ConfigDict, model_validator
 
 Params = Dict[str, Any]
 Budget = dict[str, float]
@@ -66,8 +64,8 @@ class QuestionTargeting(BaseModel):
 class FlyMessengerDestination(BaseModel):
     name: str
     initial_shortcode: str
-    # initial message body
-    # initial message button text
+    welcome_message: str
+    button_text: str
 
 
 class WebDestination(BaseModel):
@@ -133,6 +131,10 @@ def get_days_left(end_date: datetime, now: datetime):
 
 class SimpleRecruitment(BaseRecruitmentConf):
     ad_campaign_name: str
+    objective: str
+    optimization_goal: str
+    destination_type: str
+    min_budget: int
     budget: int
     max_sample: int
     start_date: datetime
@@ -164,7 +166,6 @@ class SimpleRecruitment(BaseRecruitmentConf):
         budget: Optional[Budget],
         now: datetime,
     ) -> dict[str, Budget]:
-
         campaign = self.base_campaign_name
 
         if budget is None:
@@ -192,6 +193,10 @@ def _pipeline_check_end_date(v):
 
 class PipelineRecruitmentExperiment(BaseRecruitmentConf):
     ad_campaign_name_base: str
+    objective: str
+    optimization_goal: str
+    destination_type: str
+    min_budget: int
     budget_per_arm: int
     max_sample_per_arm: int
     start_date: datetime
@@ -260,7 +265,6 @@ class PipelineRecruitmentExperiment(BaseRecruitmentConf):
         budget: Optional[Budget],
         now: datetime,
     ) -> dict[str, Budget]:
-
         # TODO: think through how to deal with re-optimization each time.
         #       right now the set up is based on running the algo again
         #       each time. Which is a bit random.
@@ -289,6 +293,10 @@ class PipelineRecruitmentExperiment(BaseRecruitmentConf):
 
 class DestinationRecruitmentExperiment(BaseRecruitmentConf):
     ad_campaign_name_base: str
+    objective: str
+    optimization_goal: str
+    destination_type: str
+    min_budget: int
     budget_per_arm: int
     max_sample_per_arm: int
     start_date: datetime
@@ -322,7 +330,6 @@ class DestinationRecruitmentExperiment(BaseRecruitmentConf):
         budget: Optional[Budget],
         now: datetime,
     ) -> dict[str, Budget]:
-
         if budget is None:
             return {c: _base_budget(min_budget, strata) for c in self.campaign_names}
 
@@ -342,7 +349,6 @@ def _base_budget(
 
 
 def _divide_among_days_left(budget: Budget, days_left) -> Budget:
-
     if days_left < 1:
         return {s: 0.0 for s in budget.keys()}
 
@@ -367,26 +373,20 @@ FacebookTargeting = Dict[str, Any]
 # TODO: alot of this is facebook-specific still!
 class GeneralConf(BaseModel):
     name: str
-    objective: str
-    optimization_goal: str
-    destination_type: str
-    page_id: str
-    instagram_id: Optional[str] = None
-    min_budget: float
-    opt_window: int
+    credentials_key: str
+    credentials_entity: str
     ad_account: str
-    extra_metadata: dict[str, str] = {} #Pydantic handles mutable default
+    opt_window: int
+    # add prior parameters ?
+    extra_metadata: dict[str, str] = {}  # Pydantic handles mutable default
 
 
 class CreativeConf(BaseModel):
+    model_config = ConfigDict(arbitrary_types_allowed=True)
     destination: str
     name: str
-    image_hash: str
-    body: str
-    link_text: str
-    welcome_message: Optional[str] = None  # messenger only
-    button_text: Optional[str] = None  # messenger only
-    tags: Optional[list[str]] = None
+    template: AdCreative
+    tags: list[str] | None = None
 
 
 class StratumConf(BaseModel):
@@ -397,6 +397,8 @@ class StratumConf(BaseModel):
     excluded_audiences: List[str]
     facebook_targeting: FacebookTargeting
     question_targeting: Optional[QuestionTargeting] = None
+
+    # template -- with page / insta.
     metadata: Dict[str, str]
 
 
@@ -513,8 +515,8 @@ class AudienceConf(BaseModel):
 
 class Audience(BaseModel):
     name: str
-    pageid: str
-    users: List[str]
+    page_ids: list[str]
+    users: list[str]
 
 
 class LookalikeAudience(BaseModel):

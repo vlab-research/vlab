@@ -1,7 +1,6 @@
 from datetime import datetime
 
 import pandas as pd
-import pytest
 
 from .audiences import hydrate_audience, partition_users, partitioning_view
 from .study_conf import AudienceConf, Lookalike, LookalikeSpec, Partitioning
@@ -183,7 +182,6 @@ def test_partitioning_view_min_users_max_days_max_users_when_not_min_users():
 
 
 def test_partitioning_view_min_users_max_days_max_users_when_past_days():
-
     df = _responses(
         [
             _resp("one", "yes", "foo", 1, 0),
@@ -258,7 +256,7 @@ def test_hydrate_audience_creates_partitioned_audiences():
     part = Partitioning(min_users=2)
 
     conf = AudienceConf(name="foo", subtype="PARTITIONED", partitioning=part)
-    audiences = hydrate_audience("page", df, conf, now)
+    audiences = hydrate_audience(["page"], df, conf, now)
 
     assert len(audiences) == 2
     assert audiences[0].name == "foo-cohort-1"
@@ -275,7 +273,7 @@ def test_hydrate_users_works_when_no_users_for_any_type():
     now = datetime(2021, 1, 4)
     part = Partitioning(min_users=2)
     conf = AudienceConf(name="foo", subtype="PARTITIONED", partitioning=part)
-    audiences = hydrate_audience("page", df, conf, now)
+    audiences = hydrate_audience(["page"], df, conf, now)
     assert len(audiences) == 0
 
     lookalike = Lookalike(
@@ -287,11 +285,11 @@ def test_hydrate_users_works_when_no_users_for_any_type():
         lookalike=lookalike,
     )
 
-    audiences = hydrate_audience("page", df, conf, now)
+    audiences = hydrate_audience(["page"], df, conf, now)
     assert len(audiences) == 1
 
     conf = AudienceConf(name="foo", subtype="CUSTOM")
-    audiences = hydrate_audience("page", df, conf, now)
+    audiences = hydrate_audience(["page"], df, conf, now)
     assert len(audiences) == 1
 
 
@@ -316,7 +314,7 @@ def test_hydrate_audience_creates_audience_and_lookalike_if_enough_users():
         lookalike=lookalike,
     )
 
-    audiences = hydrate_audience("page", df, conf, now)
+    audiences = hydrate_audience(["page"], df, conf, now)
 
     assert len(audiences) == 2
     assert audiences[0].name == "foo-lookalike-origin"
@@ -343,7 +341,7 @@ def test_hydrate_audience_creates_no_lookalike_if_not_enough_users():
         lookalike=lookalike,
     )
 
-    audiences = hydrate_audience("page", df, conf, now)
+    audiences = hydrate_audience(["page"], df, conf, now)
 
     assert len(audiences) == 1
     assert audiences[0].name == "foo-lookalike-origin"

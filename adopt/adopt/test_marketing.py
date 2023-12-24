@@ -1,11 +1,15 @@
+import json
 import random
 from typing import TypeVar
 
 import pytest
+from facebook_business.adobjects.adcreative import AdCreative
 from facebook_business.adobjects.customaudience import CustomAudience
 
 from .facebook.update import Instruction
-from .marketing import adset_instructions, make_ref, manage_aud
+from .marketing import (_create_creative, adset_instructions, make_ref,
+                        manage_aud, messenger_call_to_action,
+                        web_call_to_action)
 from .study_conf import (Audience, AudienceConf, CreativeConf,
                          FlyMessengerDestination, InvalidConfigError,
                          Lookalike, LookalikeAudience, LookalikeSpec,
@@ -41,7 +45,7 @@ def _lookalike_aud_params(name, origin_audience_id, spec):
 
 def test_manage_aud_creates_basic_aud_if_doesnt_exist():
     old = []
-    aud = Audience(name="foo", pageid="page", users=[])
+    aud = Audience(name="foo", page_ids=["page"], users=[])
 
     instructions = manage_aud(old, aud)
     assert instructions == [
@@ -82,7 +86,7 @@ def test_manage_aud_updates_basic_aud_if_exists():
         _adobject({"id": "foo", "name": "foo", "description": "bar"}, CustomAudience)
     ]
 
-    aud = Audience(name="foo", pageid="page", users=["bar"])
+    aud = Audience(name="foo", page_ids=["page"], users=["bar"])
 
     instructions = manage_aud(old, aud)
     assert instructions == [_update_instruction()]
@@ -98,7 +102,7 @@ def test_manage_aud_creates_lookalike_with_lookalike_and_lookalike_does_not_exis
         )
     ]
 
-    origin = Audience(name="foo-origin", pageid="page", users=["bar"])
+    origin = Audience(name="foo-origin", page_ids=["page"], users=["bar"])
 
     aud = LookalikeAudience(
         name="foo-lookalike",
@@ -125,7 +129,7 @@ def test_manage_aud_does_nothing_with_lookalike_when_origin_does_not_exist():
     random.seed(1)
     old = []
 
-    origin = Audience(name="foo-origin", pageid="page", users=["bar"])
+    origin = Audience(name="foo-origin", page_ids=["page"], users=["bar"])
 
     aud = LookalikeAudience(
         name="foo-lookalike",
@@ -151,7 +155,7 @@ def test_manage_aud_does_nothing_with_lookalike_and_lookalike_exists():
         ),
     ]
 
-    origin = Audience(name="foo-origin", pageid="page", users=["bar"])
+    origin = Audience(name="foo-origin", page_ids=["page"], users=["bar"])
 
     aud = LookalikeAudience(
         name="foo-lookalike",
@@ -300,3 +304,83 @@ def test_adset_instructions_creates_active_if_non_zero_budget():
 # get all associeted audiences.
 # For each audience, build campaign
 # based on end_date.
+
+
+def _load_template(filename):
+    with open(f"test/ads/{filename}") as f:
+        s = f.read()
+        dat = json.loads(s)
+
+    template = AdCreative()
+    template.set_data(dat)
+    return template
+
+
+def test_create_creative_from_template_image():
+    template = _load_template("image_ad_messenger.json")
+
+    conf = CreativeConf(destination="messenger", name="foo", template=template)
+    cta = messenger_call_to_action()
+    welcome_message = '{"foo": ""welcome message"}'
+    creative = _create_creative(conf, cta, welcome_message)
+
+    assert creative["actor_id"] == template["actor_id"]
+    assert creative["instagram_actor_id"] == template["instagram_actor_id"]
+
+    assert (
+        creative["object_story_spec"]["link_data"]["page_welcome_message"]
+        == welcome_message
+    )
+
+
+def test_create_creative_from_template_video_messenger():
+    template = _load_template("video_ad_messenger.json")
+
+    conf = CreativeConf(destination="messenger", name="foo", template=template)
+    cta = messenger_call_to_action()
+    welcome_message = '{"foo": ""welcome message"}'
+    creative = _create_creative(conf, cta, welcome_message)
+
+    assert creative["actor_id"] == template["actor_id"]
+    assert creative["instagram_actor_id"] == template["instagram_actor_id"]
+
+    assert (
+        creative["asset_feed_spec"]["additional_data"]["page_welcome_message"]
+        == welcome_message
+    )
+
+
+# TODO: this is the same as video. I can't make an image-to-web ad
+# that doesn't use asset_feed_spec...
+def test_create_creative_from_template_image_web():
+    template = _load_template("image_ad_website.json")
+
+    conf = CreativeConf(destination="web", name="foo", template=template)
+
+    link = "foo.com/?bar=baz"
+    cta = web_call_to_action(link)
+    creative = _create_creative(conf, cta, link=link)
+
+    assert creative["actor_id"] == template["actor_id"]
+    assert creative["instagram_actor_id"] == template["instagram_actor_id"]
+
+    assert "vlab.digital" not in json.dumps(creative.export_all_data())
+
+    assert creative["asset_feed_spec"]["link_urls"][0]["website_url"] == link
+
+
+def test_create_creative_from_template_video_web():
+    template = _load_template("video_ad_website.json")
+
+    conf = CreativeConf(destination="web", name="foo", template=template)
+
+    link = "foo.com/?bar=baz"
+    cta = web_call_to_action(link)
+    creative = _create_creative(conf, cta, link=link)
+
+    assert creative["actor_id"] == template["actor_id"]
+    assert creative["instagram_actor_id"] == template["instagram_actor_id"]
+
+    assert "vlab.digital" not in json.dumps(creative.export_all_data())
+
+    assert creative["asset_feed_spec"]["link_urls"][0]["website_url"] == link

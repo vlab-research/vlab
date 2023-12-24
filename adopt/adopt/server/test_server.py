@@ -10,6 +10,7 @@ from fastapi.testclient import TestClient
 
 from ..db import execute, query
 from ..study_conf import GeneralConf, SimpleRecruitment, WebDestination
+from ..test_study_conf import _simple
 
 os.environ["PG_URL"] = db_conf
 os.environ["AUTH0_DOMAIN"] = "_"
@@ -54,7 +55,6 @@ def _create_study(user_id, org_id, slug):
 
 
 def _conf_create_and_get_happy_path(path, dat):
-
     _create_user(user_id)
     org_id = _create_org(user_id, "test org")
 
@@ -87,13 +87,10 @@ def test_server_create_and_get_general_conf(verify_mock):
 
     conf = GeneralConf(
         name="foo",
-        objective="test",
-        optimization_goal="test",
-        destination_type="app",
-        page_id="123",
-        min_budget=1,
         opt_window=48,
         ad_account="234",
+        credentials_key="facebook",
+        credentials_entity="facebook",
     )
 
     dat = conf.dict()
@@ -121,13 +118,7 @@ def test_server_create_and_get_recruitment_conf(verify_mock):
 
     verify_mock.return_value = {"sub": user_id}
 
-    conf = SimpleRecruitment(
-        ad_campaign_name="foo",
-        start_date=_dt(1),
-        end_date=_dt(2),
-        budget=10,
-        max_sample=100,
-    )
+    conf = _simple()
     dat = json.loads(conf.json())
     _conf_create_and_get_happy_path("recruitment", dat)
 

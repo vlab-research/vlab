@@ -1,0 +1,21 @@
+{
+  "actor_id": "1855355231229529",
+  "id": "120203620539420150",
+  "instagram_actor_id": "2118306904924018",
+  "object_story_spec": {
+    "instagram_actor_id": "2118306904924018",
+    "link_data": {
+      "call_to_action": {
+        "type": "MESSAGE_PAGE",
+        "value": { "app_destination": "MESSENGER" }
+      },
+      "description": "This is an ad description",
+      "image_hash": "7fabd5c7072f2242195f6f5dbbfb512c",
+      "link": "https://fb.com/messenger_doc/",
+      "message": "This it he primary text",
+      "name": "Chat in Messenger",
+      "page_welcome_message": "phooey"
+    },
+    "page_id": "1855355231229529"
+  }
+}
