@@ -97,7 +97,7 @@ metadata:
   labels:
     app.kubernetes.io/service: {{ .name }}
     {{ include "vlab.labels" $ | nindent 4 }}
-  {{- with .ingress.annotations }}
+  {{- with $.Values.ingress.annotations }}
   annotations:
     {{- toYaml . | nindent 4 }}
   {{- end }}
