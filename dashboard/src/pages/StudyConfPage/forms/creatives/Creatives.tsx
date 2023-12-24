@@ -30,13 +30,8 @@ const Creatives: React.FC<Props> = ({
   const initialState = [
     {
       name: '',
-      body: '',
-      button_text: '',
       destination: globalData.destinations && globalData.destinations[0].name,
-      image_hash: '',
-      link_text: '',
-      welcome_message: '',
-      tags: null,
+      template: '',
     },
   ];
 

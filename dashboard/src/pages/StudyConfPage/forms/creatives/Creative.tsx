@@ -46,6 +46,8 @@ const Creative: React.FC<Props> = ({
 
   const history = useHistory();
 
+  // TODO: add template logic
+
   return (
     <li>
       <TextInput
@@ -53,28 +55,6 @@ const Creative: React.FC<Props> = ({
         handleChange={handleChange}
         placeholder="E.g Ad_campaign_2"
         value={data.name}
-      />
-
-      <TextInput
-        name="image_hash"
-        handleChange={handleChange}
-        autoComplete="on"
-        placeholder="E.g 8ef11493ade6deced04f36b9e8cf3900"
-        value={data.image_hash}
-      />
-      <TextInput
-        name="body"
-        handleChange={handleChange}
-        autoComplete="on"
-        placeholder="This is the text of the post that will be the ad."
-        value={data.body}
-      />
-      <TextInput
-        name="link_text"
-        handleChange={handleChange}
-        autoComplete="on"
-        placeholder="This is the 'headline' text next to the CTA button."
-        value={data.link_text}
       />
 
       {destinations ? (
@@ -95,22 +75,7 @@ const Creative: React.FC<Props> = ({
           />
         </>
       )}
-      <TextInput
-        name="welcome_message"
-        handleChange={handleChange}
-        autoComplete="on"
-        placeholder="This is a message the user will see in the chat."
-        value={data.welcome_message}
-        required={false}
-      />
-      <TextInput
-        name="button_text"
-        handleChange={handleChange}
-        autoComplete="on"
-        placeholder="This is the button the user will see in the chat."
-        value={data.button_text}
-        required={false}
-      />
+
     </li>
   );
 };

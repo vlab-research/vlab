@@ -8,7 +8,11 @@ import { GenericSelect, SelectI } from '../../components/Select';
 import recruitmentTypes from '../../../../fixtures/recruitment/types';
 import { GlobalFormData } from '../../../../types/conf';
 import useCreateStudyConf from '../../hooks/useCreateStudyConf';
+import { getFirstOption } from '../../../../helpers/arrays';
 import ConfWrapper from '../../components/ConfWrapper';
+import objectives from '../../../../fixtures/general/objectives';
+import destinationTypes from '../../../../fixtures/general/destinations';
+import optimizationGoals from '../../../../fixtures/general/optimizationGoals';
 const Select = GenericSelect as SelectI<any>;
 
 interface Props {
@@ -43,12 +47,20 @@ const Recruitment: React.FC<Props> = ({
       end_date: '',
       start_date: '',
       ad_campaign_name: '',
+      objective: getFirstOption(objectives).toUpperCase(),
+      optimization_goal: getFirstOption(optimizationGoals).toUpperCase(),
+      destination_type: getFirstOption(destinationTypes).toUpperCase(),
+      min_budget: 0,
       budget: 0,
       max_sample: 0,
       type: 'simple',
     },
     {
       ad_campaign_name_base: '',
+      objective: getFirstOption(objectives).toUpperCase(),
+      optimization_goal: getFirstOption(optimizationGoals).toUpperCase(),
+      destination_type: getFirstOption(destinationTypes).toUpperCase(),
+      min_budget: 0,
       budget_per_arm: 0,
       end_date: '',
       max_sample_per_arm: 0,
@@ -61,6 +73,10 @@ const Recruitment: React.FC<Props> = ({
     {
       destination: '',
       ad_campaign_name_base: '',
+      objective: getFirstOption(objectives).toUpperCase(),
+      optimization_goal: getFirstOption(optimizationGoals).toUpperCase(),
+      destination_type: getFirstOption(destinationTypes).toUpperCase(),
+      min_budget: 0,
       budget_per_arm: 0,
       end_date: '',
       max_sample_per_arm: 0,

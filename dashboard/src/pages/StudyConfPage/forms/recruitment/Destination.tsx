@@ -2,6 +2,9 @@ import React from 'react';
 import { useHistory } from 'react-router-dom';
 import { GenericTextInput, TextInputI } from '../../components/TextInput';
 import { GenericSelect, SelectI } from '../../components/Select';
+import objectives from '../../../../fixtures/general/objectives';
+import destinationTypes from '../../../../fixtures/general/destinations';
+import optimizationGoals from '../../../../fixtures/general/optimizationGoals';
 import { RecruitmentDestination as FormData } from '../../../../types/conf';
 import { Destination as DestinationType } from '../../../../types/conf';
 import AddButton from '../../../../components/AddButton';
@@ -64,6 +67,33 @@ const Destination: React.FC<Props> = ({
         handleChange={handleChange}
         placeholder="E.g vlab-vaping-pilot-2"
         value={formData.ad_campaign_name_base}
+      />
+      <Select
+        name="objective"
+        options={objectives}
+        handleChange={handleChange}
+        value={formData.objective}
+        getValue={(o: any) => o.name.toUpperCase()}
+      ></Select>
+      <Select
+        name="optimization_goal"
+        options={optimizationGoals}
+        handleChange={handleChange}
+        value={formData.optimization_goal}
+        getValue={(o: any) => o.name.toUpperCase()}
+      ></Select>
+      <Select
+        name="destination_type"
+        options={destinationTypes}
+        handleChange={handleChange}
+        value={formData.destination_type}
+        getValue={(o: any) => o.name.toUpperCase()}
+      ></Select>
+      <TextInput
+        name="min_budget"
+        handleChange={handleChange}
+        placeholder="E.g 8400"
+        value={formData.min_budget}
       />
       <TextInput
         name="budget_per_arm"

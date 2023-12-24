@@ -11,7 +11,7 @@ import Variables from './forms/variables/Variables';
 import Audiences from './forms/audience/Audiences';
 import Strata from './forms/strata/Strata';
 import useStudyConf from './hooks/useStudyConf';
-import useStudy from '../StudyPage/hooks/useStudy';
+import useStudy from './hooks/useStudy';
 import { CreateStudy as StudyType } from '../../types/conf';
 
 const StudyConfPage = () => {
@@ -36,7 +36,7 @@ const StudyConfPage = () => {
 
   return (
     <PageLayout
-      title={studyConf.isLoading ? 'Loading...' : study.name}
+      title={studyConf.isLoading ? 'Loading...' : (study.isLoading ? 'Loading...' : study.name!)}
       testId="study-conf-page"
       showBackButton
     >

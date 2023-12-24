@@ -55,7 +55,7 @@ const useStudy = (slug: string) => {
   };
 };
 
-const useStudyQuery = (slug: string) => {
+export const useStudyQuery = (slug: string) => {
   const { fetchStudy } = useAuthenticatedApi();
   return useQuery(['study', slug], () => fetchStudy({ slug }));
 };

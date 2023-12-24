@@ -3,10 +3,6 @@ import { useParams } from 'react-router-dom';
 import { GenericTextInput, TextInputI } from '../../components/TextInput';
 import { GenericSelect, SelectI } from '../../components/Select';
 import PrimaryButton from '../../../../components/PrimaryButton';
-import objectives from '../../../../fixtures/general/objectives';
-import destinations from '../../../../fixtures/general/destinations';
-import optimizationGoals from '../../../../fixtures/general/optimizationGoals';
-import { getFirstOption } from '../../../../helpers/arrays';
 import useCreateStudyConf from '../../hooks/useCreateStudyConf';
 import { General as FormData, CreateStudy as StudyType } from '../../../../types/conf';
 import ConfWrapper from '../../components/ConfWrapper';
@@ -22,14 +18,11 @@ interface Props {
 
 const General: React.FC<Props> = ({ id, localData, study, confKeys }: Props) => {
   const initialState = {
-    objective: getFirstOption(objectives).toUpperCase(),
-    optimization_goal: getFirstOption(optimizationGoals).toUpperCase(),
-    destination_type: getFirstOption(destinations).toUpperCase(),
-    page_id: '',
-    min_budget: 0,
-    opt_window: 0,
-    instagram_id: '',
+    name: study.name,
+    credentials_key: '',
+    credentials_entity: '',
     ad_account: '',
+    opt_window: 0,
   };
 
   const [formData, setFormData] = useState<FormData>(initialState);
@@ -37,6 +30,16 @@ const General: React.FC<Props> = ({ id, localData, study, confKeys }: Props) => 
   useEffect(() => {
     localData && setFormData(localData);
   }, [localData]);
+
+
+  // TODO: clean up this nonsense.
+  useEffect(() => {
+    if (localData) {
+      return setFormData({ ...localData, name: study.name });
+    }
+    setFormData({ ...initialState, name: study.name });
+
+  }, [study]);
 
   const params = useParams<{ studySlug: string }>();
 
@@ -81,54 +84,23 @@ const General: React.FC<Props> = ({ id, localData, study, confKeys }: Props) => 
     createStudyConf({ data, studySlug, confType: id });
   };
 
+  // get all credentials to get entity and key...
+
+  // or do on initial page?
+
+  // no reason it shouldn't be in general, really... all though it's higher level in a sense?
+
+  // Or should it have its own conf? AccountConf --> with creds, ad account, etc.?
+  // Page can come from creative, as can instagram ID, no more need for it.
+
   return (
     <ConfWrapper>
       <form onSubmit={onSubmit}>
-        <Select
-          name="objective"
-          options={objectives}
-          handleChange={handleChange}
-          value={formData.objective}
-          getValue={(o: any) => o.name.toUpperCase()}
-        ></Select>
-        <Select
-          name="optimization_goal"
-          options={optimizationGoals}
-          handleChange={handleChange}
-          value={formData.optimization_goal}
-          getValue={(o: any) => o.name.toUpperCase()}
-        ></Select>
-        <Select
-          name="destination_type"
-          options={destinations}
-          handleChange={handleChange}
-          value={formData.destination_type}
-          getValue={(o: any) => o.name.toUpperCase()}
-        ></Select>
         <TextInput
-          name="page_id"
+          name="name"
           handleChange={handleChange}
-          placeholder="E.g 1855355231229529"
-          value={formData.page_id}
-        />
-        <TextInput
-          name="min_budget"
-          handleChange={handleChange}
-          placeholder="E.g 8400"
-          value={formData.min_budget}
-        />
-        <TextInput
-          name="opt_window"
-          handleChange={handleChange}
-          placeholder="E.g 48"
-          value={formData.opt_window}
-        />
-        <TextInput
-          name="instagram_id"
-          handleChange={handleChange}
-          required={false}
-          placeholder="E.g 2327764173962588"
-          value={formData.instagram_id}
+          placeholder="E.g My Survey"
+          value={formData.name}
         />
         <TextInput
           name="ad_account"
@@ -136,6 +108,13 @@ const General: React.FC<Props> = ({ id, localData, study, confKeys }: Props) => 
           placeholder="E.g 1342820622846299"
           value={formData.ad_account}
         />
+        <TextInput
+          name="opt_window"
+          handleChange={handleChange}
+          placeholder="E.g 48"
+          value={formData.opt_window}
+        />
+
         <div className="p-6 text-right">
           <PrimaryButton
             leftIcon="CheckCircleIcon"
