@@ -3,20 +3,21 @@ export interface CreateStudy {
 }
 
 export interface General {
-  objective: string;
-  optimization_goal: string;
-  destination_type: string;
-  page_id: string;
-  min_budget: number | string;
-  opt_window: number;
-  instagram_id?: string | undefined;
+  name: string;
+  credentials_key: string;
+  credentials_entity: string;
   ad_account: string;
+  opt_window: number;
 }
 
 export type Recruitment = RecruitmentSimple | Destination | PipelineExperiment;
 
 export interface RecruitmentSimple {
   ad_campaign_name: string;
+  objective: string;
+  optimization_goal: string;
+  destination_type: string;
+  min_budget: number;
   budget: number;
   end_date: string;
   max_sample: number;
@@ -24,8 +25,12 @@ export interface RecruitmentSimple {
 }
 
 export interface RecruitmentDestination {
-  destination: string;
   ad_campaign_name_base: string;
+  destination: string;
+  objective: string;
+  optimization_goal: string;
+  destination_type: string;
+  min_budget: number;
   budget_per_arm: number;
   end_date: string;
   max_sample_per_arm: number;
@@ -34,6 +39,10 @@ export interface RecruitmentDestination {
 
 export interface PipelineExperiment {
   ad_campaign_name_base: string;
+  objective: string;
+  optimization_goal: string;
+  destination_type: string;
+  min_budget: number;
   budget_per_arm: number;
   end_date: string;
   max_sample_per_arm: number;
@@ -71,13 +80,8 @@ export type Destinations = Destination[];
 
 export type Creative = {
   name: string;
-  body: string;
-  button_text?: string | undefined;
   destination: string;
-  image_hash: string;
-  link_text: string;
-  welcome_message?: string | undefined;
-  tags: null;
+  template: any; // TODO: create a type for facebook adcreative (stubs?)
 };
 
 export type Creatives = Creative[];
