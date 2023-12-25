@@ -8,9 +8,9 @@ from pydantic import BaseModel
 
 from ..study_conf import (AudienceConf, CreativeConf, DestinationConf,
                           GeneralConf, InferenceDataConf, RecruitmentConf,
-                          SourceConf, StratumConf)
+                          SourceConf, StratumConf, VariableConf)
 from .auth import AuthError, verify_token
-from .db import create_study_conf, get_study_conf
+from .db import create_study_conf, get_all_study_confs, get_study_conf
 
 app = FastAPI()
 
@@ -39,7 +39,6 @@ security = HTTPBearer()
 async def get_current_user(
     credentials: Annotated[HTTPAuthorizationCredentials, Depends(security)]
 ) -> User:
-
     token = credentials.credentials
 
     credentials_exception = HTTPException(
@@ -107,7 +106,7 @@ async def create_creative_conf(
     config: list[CreativeConf],
     user: Annotated[User, Depends(get_current_user)],
 ):
-    return await create_conf(user, org_id, slug, "creative", config)
+    return await create_conf(user, org_id, slug, "creatives", config)
 
 
 @app.post("/{org_id}/studies/{slug}/confs/audiences", status_code=201)
@@ -118,6 +117,16 @@ async def create_audience_conf(
     user: Annotated[User, Depends(get_current_user)],
 ):
     return await create_conf(user, org_id, slug, "audiences", config)
+
+
+@app.post("/{org_id}/studies/{slug}/confs/variables", status_code=201)
+async def create_variables_conf(
+    org_id: str,
+    slug: str,
+    config: list[VariableConf],
+    user: Annotated[User, Depends(get_current_user)],
+):
+    return await create_conf(user, org_id, slug, "variables", config)
 
 
 @app.post("/{org_id}/studies/{slug}/confs/strata", status_code=201)
@@ -158,6 +167,16 @@ async def get_conf(
     user: Annotated[User, Depends(get_current_user)],
 ):
     raw_config = get_study_conf(user.user_id, org_id, slug, conf_type)
+    return {"data": raw_config}
+
+
+@app.get("/{org_id}/studies/{slug}/confs")
+async def get_all_confs(
+    org_id: str,
+    slug: str,
+    user: Annotated[User, Depends(get_current_user)],
+):
+    raw_config = get_all_study_confs(user.user_id, org_id, slug)
     return {"data": raw_config}
 
 
