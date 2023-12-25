@@ -62,6 +62,7 @@ class QuestionTargeting(BaseModel):
 
 
 class FlyMessengerDestination(BaseModel):
+    type: str
     name: str
     initial_shortcode: str
     welcome_message: str
@@ -69,11 +70,13 @@ class FlyMessengerDestination(BaseModel):
 
 
 class WebDestination(BaseModel):
+    type: str
     name: str
     url_template: str  # create variables, like ref, which can be used.
 
 
 class AppDestination(BaseModel):
+    type: str
     name: str
     facebook_app_id: str
     app_install_link: str
@@ -369,6 +372,8 @@ RecruitmentConf = Union[
 
 FacebookTargeting = Dict[str, Any]
 
+FacebookAdCreative = Dict[str, Any]
+
 
 # TODO: alot of this is facebook-specific still!
 class GeneralConf(BaseModel):
@@ -385,7 +390,8 @@ class CreativeConf(BaseModel):
     model_config = ConfigDict(arbitrary_types_allowed=True)
     destination: str
     name: str
-    template: AdCreative
+    template: FacebookAdCreative
+    template_campaign: str | None = None
     tags: list[str] | None = None
 
 
@@ -400,6 +406,20 @@ class StratumConf(BaseModel):
 
     # template -- with page / insta.
     metadata: Dict[str, str]
+
+
+class Level(BaseModel):
+    name: str
+    template_campaign: str
+    template_adset: str
+    facebook_targeting: FacebookTargeting
+    quota: float
+
+
+class VariableConf(BaseModel):
+    name: str
+    properties: list[str]
+    levels: list[Level]
 
 
 class InvalidConfigError(BaseException):
