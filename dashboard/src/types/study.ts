@@ -79,18 +79,41 @@ interface PaginatedFacebookResponse<Data> {
   }
 }
 
+export interface AdAccount {
+  account_id: string;
+  id: string;
+  name: string;
+}
 
 export interface Campaign {
   id: string;
   name: string;
 }
 
-
 export interface Adset {
   id: string;
   name: string;
   targeting: any;
 }
+
+export interface Ad {
+  id: string;
+  name: string;
+  actor_id: any;
+  asset_feed_spec: any;
+  degrees_of_freedom_spec: any;
+  effective_instagram_media_id: any;
+  effective_instagram_story_id: any;
+  effective_object_story_id: any;
+  instagram_actor_id: any;
+  instagram_user_id: any;
+  object_story_spec: any;
+  thumbnail_url: any;
+}
+
+export interface AdsApiResponse extends PaginatedFacebookResponse<Ad[]> {}
+
+export interface AdAccountsApiResponse extends PaginatedFacebookResponse<Campaign[]> {}
 
 export interface CampaignsApiResponse extends PaginatedFacebookResponse<Campaign[]> {}
 

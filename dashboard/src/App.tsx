@@ -11,6 +11,8 @@ import AccountsPage from './pages/AccountsPage/AccountsPage';
 import StudyConfPage from './pages/StudyConfPage/StudyConfPage';
 import useAuthenticatedApi from './hooks/useAuthenticatedApi';
 import { ReactComponent as Logo } from './assets/logo.svg';
+import LoadingPage from './components/LoadingPage';
+
 import 'notyf/notyf.min.css';
 
 const areTestsRunning =
@@ -89,20 +91,6 @@ const Routes = () => {
     </BrowserRouter>
   );
 };
-
-const LoadingPage = () => (
-  <div
-    className="h-screen flex justify-center bg-gray-100"
-    data-testid="loading-page"
-  >
-    <div className="self-center">
-      <Logo
-        className="h-12 self-center animate-pulse"
-        title="Virtual Lab logo"
-      />
-    </div>
-  </div>
-);
 
 const AuthenticatedRoute = ({
   children,

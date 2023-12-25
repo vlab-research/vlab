@@ -1,6 +1,7 @@
 import { fetchWithTimeout } from './http';
 import {
   CampaignsApiResponse,
+  AdsApiResponse,
   AdsetsApiResponse,
   CreateStudyApiResponse,
   CreateStudyConfApiResponse,
@@ -160,6 +161,10 @@ const deleteDestination = ({
     }
   );
 
+function timeout(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
 const fetchStudyConf = ({
   studySlug,
   accessToken,
@@ -168,9 +173,10 @@ const fetchStudyConf = ({
   accessToken: string;
 }) =>
   apiRequest<StudyConfApiResponse>(
-    `/${orgPrefix()}/studies/${studySlug}/conf`,
+    `/${orgPrefix()}/studies/${studySlug}/confs`,
     {
       accessToken,
+      baseURL: process.env.REACT_APP_CONF_SERVER_URL,
     }
   ).then(({ data }) => data);
 
@@ -187,7 +193,7 @@ const fetchAccounts = ({
     defaultErrorMessage,
     queryParams: type ? { type } : undefined,
     accessToken,
-  });
+  }).then(({ data }) => data);
 
 
 const createAccount = ({
@@ -348,6 +354,36 @@ const facebookRequest = async <ApiResponse>(
   }
 };
 
+export const fetchAdAccounts = ({
+  limit,
+  cursor,
+  accessToken,
+  defaultErrorMessage,
+}: {
+  limit: number;
+  cursor: Cursor;
+  accessToken: string;
+  defaultErrorMessage: string;
+}) => {
+  const params: any = {
+    limit,
+    pretty: 0,
+    fields: 'name, id, account_id',
+    access_token: accessToken,
+  };
+  if (cursor) {
+    params['cursor'] = cursor;
+  }
+
+  const path = `/me/adaccounts`;
+
+  return facebookRequest<CampaignsApiResponse>(path, {
+    queryParams: params,
+    accessToken,
+    defaultErrorMessage,
+  });
+};
+
 export const fetchCampaigns = ({
   limit,
   cursor,
@@ -412,6 +448,55 @@ export const fetchAdsets = async ({
   });
 };
 
+
+export const fetchAds = async ({
+  limit,
+  cursor,
+  accessToken,
+  campaign,
+  defaultErrorMessage,
+}: {
+  limit: number;
+  cursor: Cursor;
+  accessToken: string;
+  campaign: string;
+  defaultErrorMessage: string;
+}) => {
+
+  const creativeFields = [
+    "id",
+    "name",
+    "actor_id",
+    "asset_feed_spec",
+    "degrees_of_freedom_spec",
+    "effective_instagram_media_id",
+    "effective_instagram_story_id",
+    "effective_object_story_id",
+    "instagram_actor_id",
+    "instagram_user_id",
+    "object_story_spec",
+    "thumbnail_url",
+  ].join(",")
+
+  const params: any = {
+    limit,
+    pretty: 0,
+    fields: `id,name,creative{${creativeFields}}`,
+    access_token: accessToken,
+  };
+  if (cursor) {
+    params['cursor'] = cursor;
+  }
+
+  const path = `/${campaign}/ads`;
+
+  return facebookRequest<AdsApiResponse>(path, {
+    queryParams: params,
+    accessToken,
+    defaultErrorMessage,
+  });
+};
+
 const getErrorMessageFor = async (
   errorResponse: Response,
   defaultErrorMessage: string
@@ -425,6 +510,10 @@ const getErrorMessageFor = async (
   }
 
   const responseBody = await errorResponse.json();
+
+  if (errorResponse.status == 422) {
+    return "There was an error with the data submitted. Please check your information and try again or contact your administrator"
+  }
 
   return responseBody.error || defaultErrorMessage;
 };

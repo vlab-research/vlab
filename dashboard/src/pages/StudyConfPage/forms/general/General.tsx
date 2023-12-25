@@ -6,6 +6,10 @@ import PrimaryButton from '../../../../components/PrimaryButton';
 import useCreateStudyConf from '../../hooks/useCreateStudyConf';
 import { General as FormData, CreateStudy as StudyType } from '../../../../types/conf';
 import ConfWrapper from '../../components/ConfWrapper';
+import { Account } from '../../../../types/account';
+import ErrorPlaceholder from '../../../../components/ErrorPlaceholder';
+import useAdAccounts from '../../hooks/useAdAccounts';
+import LoadingPage from '../../../../components/LoadingPage';
 const TextInput = GenericTextInput as TextInputI<FormData>;
 const Select = GenericSelect as SelectI<FormData>;
 
@@ -13,16 +17,17 @@ interface Props {
   id: string;
   localData: FormData;
   study: StudyType;
+  facebookAccount: Account;
   confKeys: string[];
 }
 
-const General: React.FC<Props> = ({ id, localData, study, confKeys }: Props) => {
+const General: React.FC<Props> = ({ id, localData, study, confKeys, facebookAccount }: Props) => {
   const initialState = {
     name: study.name,
-    credentials_key: '',
-    credentials_entity: '',
+    credentials_key: 'Facebook', // hardcoded in API right now
+    credentials_entity: 'facebook', // hardcoded in API right now
     ad_account: '',
-    opt_window: 0,
+    opt_window: 48,
   };
 
   const [formData, setFormData] = useState<FormData>(initialState);
@@ -30,16 +35,6 @@ const General: React.FC<Props> = ({ id, localData, study, confKeys }: Props) => 
   useEffect(() => {
     localData && setFormData(localData);
   }, [localData]);
-
-
-  // TODO: clean up this nonsense.
-  useEffect(() => {
-    if (localData) {
-      return setFormData({ ...localData, name: study.name });
-    }
-    setFormData({ ...initialState, name: study.name });
-
-  }, [study]);
 
   const params = useParams<{ studySlug: string }>();
 
@@ -51,6 +46,29 @@ const General: React.FC<Props> = ({ id, localData, study, confKeys }: Props) => 
     confKeys,
     'general'
   );
+
+  const accessToken = facebookAccount.connectedAccount?.credentials?.access_token;
+  const { adAccounts, query, refetchData } = useAdAccounts(accessToken)
+
+  if (query.isLoading) {
+    return (
+      <ConfWrapper>
+        <LoadingPage text="(loading ad account information)" />
+      </ConfWrapper>
+    )
+  }
+
+  if (!adAccounts) {
+    return (
+      <ConfWrapper>
+        <ErrorPlaceholder
+          message='Something went wrong while fetching your Ad Accounts. Try again?'
+          onClickTryAgain={refetchData}
+        />
+      </ConfWrapper>
+    )
+  }
+
 
   const validateInput = (name: string, value: any) => {
     if (name === 'min_budget') {
@@ -84,15 +102,6 @@ const General: React.FC<Props> = ({ id, localData, study, confKeys }: Props) => 
     createStudyConf({ data, studySlug, confType: id });
   };
 
-  // get all credentials to get entity and key...
-
-  // or do on initial page?
-
-  // no reason it shouldn't be in general, really... all though it's higher level in a sense?
-
-  // Or should it have its own conf? AccountConf --> with creds, ad account, etc.?
-  // Page can come from creative, as can instagram ID, no more need for it.
-
   return (
     <ConfWrapper>
       <form onSubmit={onSubmit}>
@@ -102,10 +111,10 @@ const General: React.FC<Props> = ({ id, localData, study, confKeys }: Props) => 
           placeholder="E.g My Survey"
           value={formData.name}
         />
-        <TextInput
+        <Select
           name="ad_account"
           handleChange={handleChange}
-          placeholder="E.g 1342820622846299"
+          options={adAccounts.map(a => ({ name: a.account_id, label: a.name }))}
           value={formData.ad_account}
         />
         <TextInput

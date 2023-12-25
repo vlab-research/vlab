@@ -22,25 +22,24 @@ interface Props {
   confKeys: string[];
 }
 
+const duckTypeRecruitmentType = (localData: any) => {
+  if (localData?.arms) {
+    return 'pipeline_experiment'
+  } else if (localData?.ad_campaign_name_base) {
+    return 'destination'
+  } else {
+    return 'simple'
+  }
+}
+
 const Recruitment: React.FC<Props> = ({
   id,
   globalData,
   localData,
   confKeys,
 }: Props) => {
-  const [recruitmentType, setRecruitmentType] = useState<string>('simple');
 
-  useEffect(() => {
-    if (localData) {
-      if (localData.arms) {
-        setRecruitmentType('pipeline_experiment');
-      } else if (localData.ad_campaign_name_base) {
-        setRecruitmentType('destination');
-      } else {
-        setRecruitmentType('simple');
-      }
-    }
-  }, [localData]);
+  const [recruitmentType, setRecruitmentType] = useState<string>(duckTypeRecruitmentType(localData));
 
   const initialState: any[] = [
     {
@@ -86,18 +85,14 @@ const Recruitment: React.FC<Props> = ({
   ];
 
   const [formData, setFormData] = useState<any>(
-    localData ? localData : initialState
+    localData ? localData : initialState.find((obj: any) => obj.type === recruitmentType)
   );
-
-  const updateFormData = (d: any): void => {
-    setFormData(d);
-  };
 
   const handleSelectChange = (e: any) => {
     const { value } = e.target;
     setRecruitmentType(value);
     const fields = initialState.find((obj: any) => obj.type === value);
-    updateFormData(fields);
+    setFormData(fields);
   };
 
   const params = useParams<{ studySlug: string }>();
@@ -127,18 +122,18 @@ const Recruitment: React.FC<Props> = ({
           label="Select a recruitment type"
         ></Select>
         {recruitmentType === 'simple' && (
-          <Simple formData={formData} updateFormData={updateFormData} />
+          <Simple formData={formData} updateFormData={setFormData} />
         )}
         {recruitmentType === 'pipeline_experiment' && (
           <PipelineExperiment
             formData={formData}
-            updateFormData={updateFormData}
+            updateFormData={setFormData}
           />
         )}
         {recruitmentType === 'destination' && (
           <Destination
             formData={formData}
-            updateFormData={updateFormData}
+            updateFormData={setFormData}
             destinations={globalData.destinations}
             studySlug={studySlug}
           />

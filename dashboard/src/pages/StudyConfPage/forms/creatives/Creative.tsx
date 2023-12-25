@@ -16,6 +16,7 @@ interface Props {
   destinations: DestinationTypes;
   updateFormData: (e: CreativeType, index: number) => void;
   studySlug: string;
+  ads: any[];
 }
 
 const Creative: React.FC<Props> = ({
@@ -24,6 +25,7 @@ const Creative: React.FC<Props> = ({
   destinations,
   updateFormData,
   studySlug,
+  ads,
 }: Props) => {
   const [destination, setDestination] = useState<string>(data.destination);
 
@@ -44,9 +46,21 @@ const Creative: React.FC<Props> = ({
     updateFormData(clone, index);
   };
 
-  const history = useHistory();
+  const handleSelectTemplate = (e: any) => {
+    const { value } = e.target;
 
-  // TODO: add template logic
+    const ad = ads.find(a => a.id == value)
+    const template = ad["creative"]
+    updateFormData({ ...data, template }, index)
+  }
+
+  const adOptions = [
+    { name: '', label: 'Please choose an option' },
+    ...(ads || []).map(a => ({ name: a.id, label: a.name }))
+  ]
+
+  const chosenAd = ads.find(a => data.template.id === a.creative.id)
+  const history = useHistory();
 
   return (
     <li>
@@ -75,6 +89,14 @@ const Creative: React.FC<Props> = ({
           />
         </>
       )}
+      <Select
+        name="template"
+        options={adOptions}
+        handleChange={handleSelectTemplate}
+        value={chosenAd?.id || ""}
+      ></Select>
+
+
 
     </li>
   );
