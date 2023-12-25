@@ -4,71 +4,33 @@ import PrimaryButton from '../../../../components/PrimaryButton';
 import AddButton from '../../../../components/AddButton';
 import Variable from './Variable';
 import { createLabelFor } from '../../../../helpers/strings';
-import useFacebookAccounts from './useFacebookAccounts';
-import useCampaigns from './useCampaigns';
-import useAdsets from './useAdsets';
+import { TemplateCampaignContext, TemplateCampaignWrapper } from '../../components/TemplateCampaignWrapper'
+import useAdsets from '../../hooks/useAdsets';
 import ErrorPlaceholder from '../../../../components/ErrorPlaceholder';
 import ConfWrapper from '../../components/ConfWrapper';
+import LoadingPage from '../../../../components/LoadingPage';
 import {
   Variable as VariableType,
   GlobalFormData,
 } from '../../../../types/conf';
+import { Account } from '../../../../types/account';
 import DeleteButton from '../../../../components/DeleteButton';
 import useCreateStudyConf from '../../hooks/useCreateStudyConf';
+import { useContext } from 'react';
 
-interface SelectProps {
-  name: string;
-  options: SelectOption[];
-  onChange: any;
-  value?: string;
-}
-
-interface SelectOption {
-  name: string;
-  id: string;
-}
-
-const Select: React.FC<SelectProps> = ({
-  options,
-  value,
-  onChange,
-}: SelectProps) => {
-  const onSelect = (e: any) => {
-    onChange(e.target.value);
-  };
-
-  return (
-    <div className="sm:my-4">
-      <label className="my-2 block text-sm font-medium text-gray-700">
-        Pick a template campaign
-      </label>
-      <select
-        className="w-4/5 mt-1 block shadow-sm sm:text-sm rounded-md"
-        onChange={onSelect}
-        value={value}
-      >
-        {options.map((option: SelectOption, i: number) => (
-          <option key={i} value={option.id}>
-            {createLabelFor(option.name)}
-          </option>
-        ))}
-      </select>
-    </div>
-  );
-};
 
 interface Props {
   account: any;
   id: string;
   localData: VariableType[];
   globalData: GlobalFormData;
+  facebookAccount: Account;
   confKeys: string[];
 }
 
 const Variables: React.FC<Props> = ({
-  account,
+  facebookAccount,
   id,
-  globalData,
   localData,
   confKeys,
 }: Props) => {
@@ -94,40 +56,25 @@ const Variables: React.FC<Props> = ({
     localData ? localData : initialState
   );
 
-  const accessToken = account?.connectedAccount.credentials.access_token;
-  const adAccount = globalData.general?.ad_account;
+  const accessToken = facebookAccount.connectedAccount?.credentials?.access_token;
 
-  const { campaigns, loadingCampaigns, errorLoadingCampaigns, refetchData } =
-    useCampaigns(adAccount, accessToken);
+  const templateCampaign = useContext(TemplateCampaignContext)
 
-  const tc = localData
-    ? localData[0]?.levels[0]?.template_campaign
-    : campaigns[0]?.id;
+  const { adsets, query: adsetsQuery } = useAdsets(templateCampaign!, accessToken);
 
-  const [templateCampaign, setTemplateCampaign] = useState<string>(tc);
-
-  const { adsets } = useAdsets(templateCampaign!, accessToken);
-
-  if (errorLoadingCampaigns) {
+  if (adsetsQuery.isLoading) {
     return (
-      <ConfWrapper>
-        <ErrorPlaceholder
-          message='Something went wrong while fetching your campaigns. Have you connected a Facebook account under "Connected Accounts"?'
-          onClickTryAgain={refetchData}
-        />
-      </ConfWrapper>
+      <LoadingPage text="(loading ad account information)" />
     );
   }
 
-  if (loadingCampaigns) {
+  if (adsetsQuery.isError) {
     return (
-      <ConfWrapper>
-        <h1 className="text-2xl leading-tight text-gray-900 flex-1">
-          Loading Template Campaign...
-        </h1>
-      </ConfWrapper>
+      <ErrorPlaceholder
+        message='Something went wrong while fetching your campaigns. Have you connected a Facebook account under "Connected Accounts"?'
+        onClickTryAgain={() => window.location.reload()}
+      />
     );
-    // Something with adsetsQuery isLoading or error?
   }
 
   const updateFormData = (d: any, index: number): void => {
@@ -157,82 +104,63 @@ const Variables: React.FC<Props> = ({
   };
 
   return (
-    <ConfWrapper>
+    <div className="mb-8">
+
       <form onSubmit={onSubmit}>
-        <div className="mb-8">
-          <Select
-            name="campaign"
-            options={campaigns}
-            onChange={setTemplateCampaign}
-            value={templateCampaign}
-          ></Select>
-          {formData.map((d: any, index: number) => {
-            return (
-              <div key={index}>
-                <Variable
-                  adsets={adsets}
-                  key={index}
-                  data={d}
-                  campaignId={templateCampaign}
-                  index={index}
-                  updateFormData={updateFormData}
-                />
-                <div>
-                  <div className="flex flex-row w-4/5 justify-between items-center">
-                    <div className="w-4/5 h-0.5 mr-8 my-4 rounded-md bg-gray-400"></div>
-                    <DeleteButton
-                      onClick={() => deleteVariable(index)}
-                    ></DeleteButton>
-                  </div>
-                  <div />
+        {formData.map((d: any, index: number) => {
+          return (
+            <div key={index}>
+              <Variable
+                adsets={adsets}
+                key={index}
+                data={d}
+                campaignId={templateCampaign!}
+                index={index}
+                updateFormData={updateFormData}
+              />
+              <div>
+                <div className="flex flex-row w-4/5 justify-between items-center">
+                  <div className="w-4/5 h-0.5 mr-8 my-4 rounded-md bg-gray-400"></div>
+                  <DeleteButton
+                    onClick={() => deleteVariable(index)}
+                  ></DeleteButton>
                 </div>
+                <div />
               </div>
-            );
-          })}
-          <div className="flex flex-row items-center">
-            <AddButton onClick={addVariable} label="Add a variable" />
-          </div>
+            </div>
+          );
+        })}
+        <div className="flex flex-row items-center">
+          <AddButton onClick={addVariable} label="Add a variable" />
         </div>
 
         <div className="p-6 text-right">
           <PrimaryButton type="submit" testId="form-submit-button">
             Next
           </PrimaryButton>
+
         </div>
       </form>
-    </ConfWrapper>
+    </div>
   );
 };
 
+
+
 const VariablesWrapper: React.FC<Props> = props => {
-  const { account, accountsLoading, errorLoadingAccounts, refetchData } =
-    useFacebookAccounts();
+  const existingCampaign = props.localData && props.localData[0]?.levels[0]?.template_campaign;
 
-  if (errorLoadingAccounts) {
-
-    // TODO: add "connect" button
-
-    return (
-      <ConfWrapper>
-        <ErrorPlaceholder
-          message="Something went wrong while fetching your account."
-          onClickTryAgain={refetchData}
-        />
-      </ConfWrapper>
-    );
-  }
-
-  if (accountsLoading) {
-    return (
-      <ConfWrapper>
-        <h1 className="text-3xl font-bold leading-tight text-gray-900 flex-1">
-          Loading Facebook account...
-        </h1>
-      </ConfWrapper>
-    );
-  }
-
-  return <Variables {...props} account={account} />;
-};
+  return (
+    <ConfWrapper>
+      <TemplateCampaignWrapper
+        globalData={props.globalData}
+        facebookAccount={props.facebookAccount}
+        existingCampaign={existingCampaign}
+      >
+        <Variables {...props} />
+      </TemplateCampaignWrapper>
+    </ConfWrapper>
+  )
+}
 
 export default VariablesWrapper;

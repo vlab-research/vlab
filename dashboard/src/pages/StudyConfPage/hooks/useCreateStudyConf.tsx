@@ -36,6 +36,8 @@ const useCreateStudyConf = (
         });
       },
       onError: error => {
+        console.log(error)
+
         notyf.error({
           message: `${error.message}`,
           dismissible: true,

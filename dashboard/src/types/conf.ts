@@ -53,17 +53,21 @@ export interface PipelineExperiment {
 }
 
 export interface Messenger {
+  type: string;
   name: string;
   initial_shortcode: string;
-  type: string;
+  welcome_message: string;
+  button_text: string;
 }
 
 export interface Web {
+  type: string;
   name: string;
   url_template: string;
-  type: string;
+
 }
 export interface App {
+  type: string;
   name: string;
   app_install_state: string;
   app_install_link: string;
@@ -71,7 +75,6 @@ export interface App {
   deeplink_template: string;
   user_device: string[];
   user_os: string[];
-  type: string;
 }
 
 export type Destination = Messenger | Web | App;
@@ -82,6 +85,7 @@ export type Creative = {
   name: string;
   destination: string;
   template: any; // TODO: create a type for facebook adcreative (stubs?)
+  template_campaign: string;
 };
 
 export type Creatives = Creative[];

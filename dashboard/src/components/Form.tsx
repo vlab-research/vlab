@@ -5,11 +5,14 @@ import {
   LocalFormData,
 } from '../types/conf';
 
+import { Account } from '../types/account';
+
 interface Props {
   id: string;
   component: any;
   globalData: GlobalFormData;
   localData: LocalFormData;
+  facebookAccount: Account;
   study: StudyType;
   confKeys: string[];
 }

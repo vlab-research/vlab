@@ -4,16 +4,10 @@ import useAuthenticatedApi from '../../../hooks/useAuthenticatedApi';
 const queryKey = 'studyConf';
 
 const useStudyConf = (studySlug: string) => {
-  const studyConfQuery = useStudyConfQuery(studySlug);
-
-  const isLoading = !studyConfQuery.data;
-
-  const errorOnLoad = isLoading && studyConfQuery.isError;
+  const query = useStudyConfQuery(studySlug);
 
   return {
-    data: studyConfQuery.data ?? {},
-    isLoading,
-    errorOnLoad,
+    ...query,
     refetchData: () => {
       queryCache.invalidateQueries(queryKey);
     },
