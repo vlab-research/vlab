@@ -1,6 +1,5 @@
 import { createStrataFromVariables, getFinishQuestionRef } from './strata';
-import { Stratum } from '../../../../types/conf';
-import { Variables, Creatives } from '../types/conf';
+import { Stratum, Variables, Creatives } from '../../../../types/conf';
 
 describe('createStrataFromVariables', () => {
   it('Empty variables create empty strata', () => {
