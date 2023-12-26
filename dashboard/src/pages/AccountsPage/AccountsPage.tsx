@@ -46,7 +46,7 @@ const PageContent: React.FC<PageContentProps> = ({ open, setOpen }) => {
     }
   }, [createFacebookAccount, search]);
 
-  const { query, queryKey, accounts, errorMessage } = useAccounts();
+  const { query, accounts, errorMessage } = useAccounts();
 
   const [state, setAccounts] = useState<Account[]>(accounts);
 
