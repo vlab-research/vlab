@@ -59,7 +59,9 @@ const Creatives: React.FC<Props> = ({
     'creatives'
   );
 
-  const accessToken = facebookAccount.connectedAccount?.credentials?.access_token;
+
+  const credentials: any = facebookAccount.connectedAccount?.credentials
+  const accessToken = credentials?.access_token;
 
   const { ads, query: adsQuery } = useAds(templateCampaign!, accessToken);
 

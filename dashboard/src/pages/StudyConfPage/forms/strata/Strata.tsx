@@ -3,7 +3,7 @@ import { useParams } from 'react-router-dom';
 import Stratum from './Stratum';
 import PrimaryButton from '../../../../components/PrimaryButton';
 import useCreateStudyConf from '../../hooks/useCreateStudyConf';
-import { createStrataFromVariables } from '../../../../helpers/strata';
+import { createStrataFromVariables } from './strata';
 import { GlobalFormData, Stratum as StratumType } from '../../../../types/conf';
 import { GenericTextInput, TextInputI } from '../../components/TextInput';
 import ConfWrapper from '../../components/ConfWrapper';

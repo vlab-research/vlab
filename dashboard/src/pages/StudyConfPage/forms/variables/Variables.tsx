@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useContext } from 'react';
 import { useParams } from 'react-router-dom';
 import PrimaryButton from '../../../../components/PrimaryButton';
 import AddButton from '../../../../components/AddButton';
@@ -16,7 +16,6 @@ import {
 import { Account } from '../../../../types/account';
 import DeleteButton from '../../../../components/DeleteButton';
 import useCreateStudyConf from '../../hooks/useCreateStudyConf';
-import { useContext } from 'react';
 
 
 interface Props {
@@ -56,7 +55,8 @@ const Variables: React.FC<Props> = ({
     localData ? localData : initialState
   );
 
-  const accessToken = facebookAccount.connectedAccount?.credentials?.access_token;
+  const credentials: any = facebookAccount.connectedAccount?.credentials
+  const accessToken = credentials?.access_token;
 
   const templateCampaign = useContext(TemplateCampaignContext)
 

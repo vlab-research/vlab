@@ -47,7 +47,8 @@ const General: React.FC<Props> = ({ id, localData, study, confKeys, facebookAcco
     'general'
   );
 
-  const accessToken = facebookAccount.connectedAccount?.credentials?.access_token;
+  const credentials: any = facebookAccount.connectedAccount?.credentials
+  const accessToken = credentials?.access_token;
   const { adAccounts, query, refetchData } = useAdAccounts(accessToken)
 
   if (query.isLoading) {
