@@ -113,7 +113,7 @@ export interface Ad {
 
 export interface AdsApiResponse extends PaginatedFacebookResponse<Ad[]> {}
 
-export interface AdAccountsApiResponse extends PaginatedFacebookResponse<Campaign[]> {}
+export interface AdAccountsApiResponse extends PaginatedFacebookResponse<AdAccount[]> {}
 
 export interface CampaignsApiResponse extends PaginatedFacebookResponse<Campaign[]> {}
 

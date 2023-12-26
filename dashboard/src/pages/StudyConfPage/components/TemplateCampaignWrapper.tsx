@@ -25,7 +25,9 @@ export const TemplateCampaignWrapper: React.FC<Props> = ({
   children,
 }: Props) => {
 
-  const accessToken = facebookAccount.connectedAccount?.credentials?.access_token;
+
+  const credentials: any = facebookAccount.connectedAccount?.credentials
+  const accessToken = credentials?.access_token;
 
   const adAccount = globalData && globalData.general?.ad_account
 
