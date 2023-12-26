@@ -20,7 +20,7 @@ describe('calculatePercentage', () => {
     try {
       expect.assertions(2);
       calculatePercentage({ current: 0, total: 0 });
-    } catch (err) {
+    } catch (err: any) {
       expect(err).toBeInstanceOf(UnexpectedNumberError);
       expect(err.message).toBe('`total` cannot be 0');
     }
@@ -30,7 +30,7 @@ describe('calculatePercentage', () => {
     try {
       expect.assertions(2);
       calculatePercentage({ current: 100, total: 10 });
-    } catch (err) {
+    } catch (err: any) {
       expect(err).toBeInstanceOf(UnexpectedNumberError);
       expect(err.message).toBe('`current` cannot be greater than `total`');
     }

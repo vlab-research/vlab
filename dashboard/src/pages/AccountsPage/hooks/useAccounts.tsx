@@ -1,4 +1,4 @@
-import { queryCache, useQuery } from 'react-query';
+import { useQuery } from 'react-query';
 import useAuthenticatedApi from '../../../hooks/useAuthenticatedApi';
 import { type Account } from '../../../types/account';
 
@@ -22,31 +22,8 @@ const useAccounts: any = () => {
     query,
     queryKey,
     accounts: query.data || [],
-    errorMessage: query.error?.message || defaultErrorMessage,
+    errorMessage: defaultErrorMessage, // TODO: add api error
   };
-};
-
-export const addAccountToCacheWhileRefetching: any = (account: Account) => {
-  // Add account to cache
-  queryCache.setQueryData(queryKey, (accountsCache: any) => {
-    const accountsCacheExists =
-      Array.isArray(accountsCache) &&
-      accountsCache[0] !== undefined &&
-      Array.isArray(accountsCache[0].data);
-
-    if (accountsCacheExists === true) {
-      accountsCache[0].data = [account, ...accountsCache[0].data];
-    }
-
-    return accountsCache;
-  });
-
-  // Refetch the accounts by invalidating the query
-  queryCache.invalidateQueries(queryKey);
-};
-
-export const clearCacheWhileRefetching = () => {
-  queryCache.invalidateQueries(queryKey);
 };
 
 export default useAccounts;

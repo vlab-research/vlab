@@ -14,7 +14,6 @@ import {
   SingleStudyConf,
   StudySegmentsProgressApiResponse,
 } from '../types/study';
-import querystring from 'querystring';
 import { Cursor } from '../types/api';
 import {
   AccountsApiResponse,
@@ -51,7 +50,7 @@ const fetchStudies = ({
   if (cursor) {
     params['cursor'] = cursor;
   }
-  const q = querystring.encode(params);
+  const q = new URLSearchParams(params).toString();
   const path = `${route}?${q}`;
 
   return apiRequest<StudiesApiResponse>(path, {
@@ -253,7 +252,8 @@ const apiRequest = async <ApiResponse>(
     requestHeaders['Content-Type'] = 'application/json';
   }
   if (queryParams) {
-    path = `${path}?${querystring.encode(queryParams)}`;
+    const q = new URLSearchParams(queryParams).toString()
+    path = `${path}?${q}`;
   }
   try {
     const response = await fetchWithTimeout(path, {
@@ -313,7 +313,7 @@ const facebookRequest = async <ApiResponse>(
 
   //TODO Handle when access token is not set
   queryParams['access_token'] = accessToken;
-  const q = querystring.encode(queryParams);
+  const q = new URLSearchParams(queryParams).toString();
   path = `${path}?${q}`;
 
   //TODO make this configurabel (i.e ENV variable)

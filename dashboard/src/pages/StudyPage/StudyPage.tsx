@@ -30,7 +30,7 @@ const StudyPage = () => {
       <PageLayout title={''}>
         <ErrorPlaceholder
           message="Something went wrong while fetching the Study."
-          onClickTryAgain={study.refetchData}
+          onClickTryAgain={study.refetch}
         />
       </PageLayout>
     );

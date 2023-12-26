@@ -1,7 +1,6 @@
-import { queryCache, useInfiniteQuery } from 'react-query';
+import { useInfiniteQuery } from 'react-query';
 import { fetchAdAccounts } from '../../../helpers/api';
 import { Cursor } from '../../../types/api';
-import { AdAccountsApiResponse } from '../../../types/study';
 
 const limit = 100;
 const defaultErrorMessage =
@@ -10,7 +9,7 @@ const defaultErrorMessage =
 const useAdAccounts = (accessToken: string) => {
   const queryKey = `adAccounts${accessToken}`;
 
-  const query = useInfiniteQuery<AdAccountsApiResponse, string, Cursor>(
+  const query = useInfiniteQuery(
     queryKey,
     (_: unknown, cursor: Cursor = null) =>
       fetchAdAccounts({
@@ -20,17 +19,14 @@ const useAdAccounts = (accessToken: string) => {
         defaultErrorMessage,
       }),
     {
-      getFetchMore: lastPage => lastPage.paging.after,
+      getNextPageParam: lastPage => lastPage.paging.after,
     }
   );
 
   return {
     query,
-    adAccounts: (query.data || []).flatMap(page => page.data),
+    adAccounts: (query.data?.pages || []).flatMap(page => page.data),
     errorMessage: query.error || defaultErrorMessage,
-    refetchData: () => {
-      queryCache.invalidateQueries([queryKey]);
-    },
   };
 };
 

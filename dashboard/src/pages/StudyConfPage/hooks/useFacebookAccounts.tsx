@@ -1,4 +1,4 @@
-import { queryCache, useQuery } from 'react-query';
+import { useQuery } from 'react-query';
 import { Account } from '../../../types/account';
 import useAuthenticatedApi from '../../../hooks/useAuthenticatedApi';
 
@@ -20,12 +20,7 @@ const useFacebookAccounts: any = () => {
     }).then(data => data[0])
   );
 
-  return {
-    ...query,
-    refetchData: () => {
-      queryCache.invalidateQueries([queryKey]);
-    },
-  };
+  return query;
 };
 
 export default useFacebookAccounts;

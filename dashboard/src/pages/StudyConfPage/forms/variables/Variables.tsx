@@ -63,7 +63,7 @@ const Variables: React.FC<Props> = ({
 
   if (adsetsQuery.isLoading) {
     return (
-      <LoadingPage text="(loading ad account information)" />
+      <LoadingPage text="(loading ad sets from template campaign)" />
     );
   }
 

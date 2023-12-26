@@ -1,7 +1,6 @@
-import { queryCache, useInfiniteQuery } from 'react-query';
+import { useInfiniteQuery } from 'react-query';
 import { fetchAds } from '../../../helpers/api';
 import { Cursor } from '../../../types/api';
-import { AdsApiResponse } from '../../../types/study';
 
 const limit = 100;
 
@@ -17,7 +16,7 @@ const useAds = (
 
   const definiteCampaign = campaign!;
 
-  const query = useInfiniteQuery<AdsApiResponse, string, Cursor>(
+  const query = useInfiniteQuery(
     queryKey,
     (_: unknown, cursor: Cursor = null) =>
       fetchAds({
@@ -28,18 +27,15 @@ const useAds = (
         defaultErrorMessage,
       }),
     {
-      getFetchMore: lastPage => lastPage.paging.after,
+      getNextPageParam: lastPage => lastPage.paging.after,
       enabled: campaign !== undefined,
     }
   );
 
   return {
     query,
-    ads: (query.data || []).flatMap(page => page.data),
+    ads: (query.data?.pages || []).flatMap(page => page.data),
     errorMessage: query.error || defaultErrorMessage,
-    refetchData: () => {
-      queryCache.invalidateQueries(queryKey);
-    },
   };
 };
 

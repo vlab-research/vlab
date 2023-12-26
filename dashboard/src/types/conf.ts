@@ -98,7 +98,7 @@ export type Stratum = {
   excluded_audiences: string[];
   facebook_targeting: any; // TODO create a type for facebook targeting
   question_targeting?: any; // TODO create a type for question targeting
-  metadata: [string, string];
+  metadata: any;
 };
 
 export type Strata = Stratum[];

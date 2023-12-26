@@ -80,10 +80,6 @@ const optimizationGoals = [
     label: 'Replies',
   },
   {
-    name: 'replies',
-    label: 'Replies',
-  },
-  {
     name: 'social_impressions',
     label: 'Social impressions',
   },
