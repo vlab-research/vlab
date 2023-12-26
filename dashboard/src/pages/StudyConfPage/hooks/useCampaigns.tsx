@@ -1,7 +1,6 @@
-import { queryCache, useInfiniteQuery } from 'react-query';
+import { useInfiniteQuery } from 'react-query';
 import { fetchCampaigns } from '../../../helpers/api';
 import { Cursor } from '../../../types/api';
-import { CampaignsApiResponse } from '../../../types/study';
 
 const limit = 100;
 const defaultErrorMessage =
@@ -12,7 +11,7 @@ const useCampaigns = (accountNumber: string | undefined, accessToken: string) =>
 
   const account = accountNumber!
 
-  const query = useInfiniteQuery<CampaignsApiResponse, string, Cursor>(
+  const query = useInfiniteQuery(
     queryKey,
     (_: unknown, cursor: Cursor = null) =>
       fetchCampaigns({
@@ -23,18 +22,15 @@ const useCampaigns = (accountNumber: string | undefined, accessToken: string) =>
         defaultErrorMessage,
       }),
     {
-      getFetchMore: lastPage => lastPage.paging.after,
+      getNextPageParam: lastPage => lastPage.paging.after,
       enabled: accountNumber !== undefined,
     }
   );
 
   return {
     query,
-    campaigns: (query.data || []).flatMap(page => page.data),
+    campaigns: (query.data?.pages || []).flatMap(page => page.data),
     errorMessage: query.error || defaultErrorMessage,
-    refetchData: () => {
-      queryCache.invalidateQueries([queryKey]);
-    },
   };
 };
 

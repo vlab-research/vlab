@@ -1,6 +1,6 @@
 import Chance from 'chance';
 import { useMemo } from 'react';
-import { useQuery, queryCache } from 'react-query';
+import { useQuery } from 'react-query';
 import { lastValue } from '../../../helpers/arrays';
 import { computeStudyProgressDataFrom } from '../../../helpers/study';
 import useAuthenticatedApi from '../../../hooks/useAuthenticatedApi';
@@ -49,9 +49,7 @@ const useStudy = (slug: string) => {
       : [],
     isLoading,
     anyErrorDuringLoading,
-    refetchData: () => {
-      queryCache.invalidateQueries(['study', slug]);
-    },
+    refetch: studyQuery.refetch,
   };
 };
 

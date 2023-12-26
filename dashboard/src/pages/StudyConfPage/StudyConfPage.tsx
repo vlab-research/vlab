@@ -46,7 +46,7 @@ const StudyConfPage = () => {
       >
         <ErrorPlaceholder
           message="Something went wrong while fetching your study."
-          onClickTryAgain={studyConf.refetchData}
+          onClickTryAgain={studyConf.refetch}
         />
       </PageLayout>
     );
@@ -61,7 +61,7 @@ const StudyConfPage = () => {
       >
         <ErrorPlaceholder
           message="It seems you have not connected a Facebook account. Please do so from Connected Accounts or contact your administrator. "
-          onClickTryAgain={studyConf.refetchData}
+          onClickTryAgain={studyConf.refetch}
         />
       </PageLayout>
     );

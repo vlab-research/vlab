@@ -1,9 +1,10 @@
 import { useMutation } from 'react-query';
 import { Notyf } from 'notyf';
 import { useHistory } from 'react-router-dom';
-import { addToCache } from '../../../helpers/cache';
 import useAuthenticatedApi from '../../../hooks/useAuthenticatedApi';
 import getNextConf from '../../../helpers/getNextConf';
+import { useQueryClient } from 'react-query';
+import { queryKey } from './useStudyConf';
 
 const useCreateStudyConf = (
   message: string,
@@ -13,16 +14,15 @@ const useCreateStudyConf = (
 ) => {
   const notyf = new Notyf();
   const history = useHistory();
-  const queryKey = 'studyConf';
+  const queryClient = useQueryClient()
 
   const { createStudyConf } = useAuthenticatedApi();
 
-  const [createStudyConfMutation, { isLoading, error }] = useMutation(
+  const { mutate: createStudyConfMutation, isLoading, isError } = useMutation(
     ({ data, confType, studySlug }: { data: any; confType: string; studySlug: string }) =>
       createStudyConf({ data, studySlug, confType }),
     {
-      onSuccess: ({ data: conf }) => {
-        addToCache(conf, queryKey);
+      onSuccess: () => {
         if (getNextConf(confKeys, confKey)) {
           history.push(
             `/studies/${studySlug}/${getNextConf(confKeys, confKey)}`
@@ -35,13 +35,14 @@ const useCreateStudyConf = (
           background: 'rgb(67 56 202)',
         });
       },
-      onError: error => {
-        console.log(error)
-
+      onError: (error: any) => {
         notyf.error({
           message: `${error.message}`,
           dismissible: true,
         });
+      },
+      onSettled: () => {
+        queryClient.invalidateQueries(queryKey)
       },
     }
   );
@@ -49,7 +50,7 @@ const useCreateStudyConf = (
   return {
     createStudyConf: createStudyConfMutation,
     isLoadingOnCreateStudyConf: isLoading,
-    errorOnCreateStudyConf: error?.message,
+    errorOnCreateStudyConf: isError,
   };
 };
 

@@ -8,14 +8,14 @@ import {
   AlchemerAccount,
   FacebookAccount,
 } from '../../../types/account';
-import { addAccountToCacheWhileRefetching } from './useAccounts';
+// import { addAccountToCacheWhileRefetching } from './useAccounts';
 import { createLabelFor } from '../../../helpers/strings';
 
 const useCreateAccount = () => {
   const notyf = new Notyf();
   const history = useHistory();
   const { createAccount } = useAuthenticatedApi();
-  const [createAccountMutation, { isLoading, error }] = useMutation(
+  const { mutate: createAccountMutation, isLoading, error } = useMutation(
     async ({
       name,
       authType,
@@ -24,21 +24,21 @@ const useCreateAccount = () => {
       name: string;
       authType: string;
       connectedAccount:
-        | FlyAccount
-        | TypeformAccount
-        | AlchemerAccount
-        | FacebookAccount;
+      | FlyAccount
+      | TypeformAccount
+      | AlchemerAccount
+      | FacebookAccount;
     }) => await createAccount({ name, authType, connectedAccount }),
     {
       onSuccess: ({ data: account }) => {
-        addAccountToCacheWhileRefetching(account);
+        // addAccountToCacheWhileRefetching(account);
         history.push('/accounts');
         notyf.success({
           message: `${createLabelFor(account.authType)} account connected`,
           background: 'rgb(67 56 202)',
         });
       },
-      onError: error => {
+      onError: (error: any) => {
         notyf.error({
           message: `${error.message}`,
           background: 'rgb(67 56 202)',

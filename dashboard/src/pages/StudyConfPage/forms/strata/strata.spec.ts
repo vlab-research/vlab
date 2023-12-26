@@ -385,7 +385,7 @@ describe("getFinishQuestionRef", () => {
   })
 
   it("gets the ref in a basic case", () => {
-    const strata = [
+    const strata: Stratum[] = [
       {
         audiences: [],
         excluded_audiences: [],

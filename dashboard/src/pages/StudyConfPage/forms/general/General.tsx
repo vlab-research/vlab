@@ -49,7 +49,7 @@ const General: React.FC<Props> = ({ id, localData, study, confKeys, facebookAcco
 
   const credentials: any = facebookAccount.connectedAccount?.credentials
   const accessToken = credentials?.access_token;
-  const { adAccounts, query, refetchData } = useAdAccounts(accessToken)
+  const { adAccounts, query } = useAdAccounts(accessToken)
 
   if (query.isLoading) {
     return (
@@ -64,7 +64,7 @@ const General: React.FC<Props> = ({ id, localData, study, confKeys, facebookAcco
       <ConfWrapper>
         <ErrorPlaceholder
           message='Something went wrong while fetching your Ad Accounts. Try again?'
-          onClickTryAgain={refetchData}
+          onClickTryAgain={query.refetch}
         />
       </ConfWrapper>
     )
