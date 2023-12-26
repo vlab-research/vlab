@@ -3,7 +3,7 @@ import { useParams } from 'react-router-dom';
 import Stratum from './Stratum';
 import PrimaryButton from '../../../../components/PrimaryButton';
 import useCreateStudyConf from '../../hooks/useCreateStudyConf';
-import { createStrataFromVariables } from './strata';
+import { createStrataFromVariables, getFinishQuestionRef } from './strata';
 import { GlobalFormData, Stratum as StratumType } from '../../../../types/conf';
 import { GenericTextInput, TextInputI } from '../../components/TextInput';
 import ConfWrapper from '../../components/ConfWrapper';
@@ -34,7 +34,7 @@ const Variables: React.FC<Props> = ({
 
   const [formData, setFormData] = useState(localData || []);
 
-  const [finishQuestionRef, setFinishQuestionRef] = useState();
+  const [finishQuestionRef, setFinishQuestionRef] = useState(getFinishQuestionRef(formData));
 
   const regenerate = () => {
     const strata = createStrataFromVariables(variables, finishQuestionRef, creatives, audiences);

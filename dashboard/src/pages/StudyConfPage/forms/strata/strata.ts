@@ -16,7 +16,7 @@ export const formatGroupProduct = (levels: IntermediateLevel[], finishQuestionRe
     }
   })
 
-  const metadata = levels.map(l => ({[l.variableName]: l.name})).reduce((a,b) => ({...a, ...b}))
+  const metadata = levels.map(l => ({ [l.variableName]: l.name })).reduce((a, b) => ({ ...a, ...b }))
 
   const idString = levels.map(l => `${l.variableName}:${l.name}`).join(",")
 
@@ -24,13 +24,13 @@ export const formatGroupProduct = (levels: IntermediateLevel[], finishQuestionRe
 
   const quota = levels.reduce((a: number, l) => a * l.quota, 1);
 
- const finishFilter = {
-   "op": "answered",
-   "vars": [{"type": "variable", "value": finishQuestionRef}],
- }
+  const finishFilter = {
+    "op": "answered",
+    "vars": [{ "type": "variable", "value": finishQuestionRef }],
+  }
 
 
- return {
+  return {
     id: idString,
     quota: quota,
     facebook_targeting: targeting,
@@ -53,7 +53,7 @@ export const createStrataFromVariables = (variables: Variables, finishQuestionRe
   if (!variables.length) return [];
 
   if (!finishQuestionRef) {
-      return []
+    return []
   }
 
   const allCreatives = creatives ? creatives.map((c: any) => c.name) : [];
@@ -74,4 +74,14 @@ export const createStrataFromVariables = (variables: Variables, finishQuestionRe
     }));
 
   return strata
+}
+
+export const getFinishQuestionRef = (strata: Stratum[]): string => {
+  const s = strata[0]
+
+  if (!s) return ""
+
+  const finishFilter = s.question_targeting.vars.find((v: any) => v.op === "answered")
+  const ref = finishFilter.vars[0].value
+  return ref
 }

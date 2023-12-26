@@ -1,4 +1,5 @@
-import { createStrataFromVariables } from './strata';
+import { createStrataFromVariables, getFinishQuestionRef } from './strata';
+import { Stratum } from '../../../../types/conf';
 import { Variables, Creatives } from '../types/conf';
 
 describe('createStrataFromVariables', () => {
@@ -31,7 +32,7 @@ describe('createStrataFromVariables', () => {
       {
         audiences: [],
         excluded_audiences: [],
-        metadata: {gender: "men"},
+        metadata: { gender: "men" },
         creatives: [],
         facebook_targeting: { genders: [1] },
         question_targeting: {
@@ -54,7 +55,7 @@ describe('createStrataFromVariables', () => {
               op: "answered",
               vars: [
                 {
-                  type: "variable", 
+                  type: "variable",
                   value: "foo"
                 }
               ]
@@ -67,7 +68,7 @@ describe('createStrataFromVariables', () => {
       {
         audiences: [],
         excluded_audiences: [],
-        metadata: {gender:"women"},
+        metadata: { gender: "women" },
         creatives: [],
         facebook_targeting: { genders: [2] },
         question_targeting: {
@@ -90,7 +91,7 @@ describe('createStrataFromVariables', () => {
               op: "answered",
               vars: [
                 {
-                  type: "variable", 
+                  type: "variable",
                   value: "foo"
                 }
               ]
@@ -131,7 +132,7 @@ describe('createStrataFromVariables', () => {
       {
         audiences: [],
         excluded_audiences: [],
-        metadata: {gender:"men", age: "18"},
+        metadata: { gender: "men", age: "18" },
         creatives: [],
         facebook_targeting: { genders: [1], age_min: 18, age_max: 34 },
         question_targeting: {
@@ -167,7 +168,7 @@ describe('createStrataFromVariables', () => {
               op: "answered",
               vars: [
                 {
-                  type: "variable", 
+                  type: "variable",
                   value: "foo"
                 }
               ]
@@ -180,7 +181,7 @@ describe('createStrataFromVariables', () => {
       {
         audiences: [],
         excluded_audiences: [],
-        metadata: {gender:"men", age: "35"},
+        metadata: { gender: "men", age: "35" },
         creatives: [],
         facebook_targeting: { genders: [1], age_min: 35, age_max: 65 },
         question_targeting: {
@@ -216,7 +217,7 @@ describe('createStrataFromVariables', () => {
               op: "answered",
               vars: [
                 {
-                  type: "variable", 
+                  type: "variable",
                   value: "foo"
                 }
               ]
@@ -228,8 +229,8 @@ describe('createStrataFromVariables', () => {
       },
       {
         audiences: [],
-        excluded_audiences: [],        
-        metadata: {gender:"women", age: "18"},
+        excluded_audiences: [],
+        metadata: { gender: "women", age: "18" },
         creatives: [],
         facebook_targeting: { genders: [2], age_min: 18, age_max: 34 },
         question_targeting: {
@@ -265,7 +266,7 @@ describe('createStrataFromVariables', () => {
               op: "answered",
               vars: [
                 {
-                  type: "variable", 
+                  type: "variable",
                   value: "foo"
                 }
               ]
@@ -278,7 +279,7 @@ describe('createStrataFromVariables', () => {
       {
         audiences: [],
         excluded_audiences: [],
-        metadata: {gender:"women", age: "35"},
+        metadata: { gender: "women", age: "35" },
         creatives: [],
         facebook_targeting: { genders: [2], age_min: 35, age_max: 65 },
         question_targeting: {
@@ -314,7 +315,7 @@ describe('createStrataFromVariables', () => {
               op: "answered",
               vars: [
                 {
-                  type: "variable", 
+                  type: "variable",
                   value: "foo"
                 }
               ]
@@ -374,3 +375,58 @@ describe('createStrataFromVariables', () => {
 
 
 });
+
+describe("getFinishQuestionRef", () => {
+
+  it("gets null value in a basic case", () => {
+    const strata: Stratum[] = []
+    const res = getFinishQuestionRef(strata)
+    expect(res).toEqual('')
+
+  })
+
+  it("gets the ref in a basic case", () => {
+    const strata = [
+      {
+        audiences: [],
+        excluded_audiences: [],
+        metadata: { gender: "men" },
+        creatives: [],
+        facebook_targeting: { genders: [1] },
+        question_targeting: {
+          op: "and",
+          vars: [
+            {
+              op: "equal",
+              vars: [
+                {
+                  type: "variable",
+                  value: "gender"
+                },
+                {
+                  type: "constant",
+                  value: "men"
+                }
+              ]
+            },
+            {
+              op: "answered",
+              vars: [
+                {
+                  type: "variable",
+                  value: "foo"
+                }
+              ]
+            }
+          ]
+        },
+        quota: 0.5,
+        id: 'gender:men'
+      }]
+
+    const res = getFinishQuestionRef(strata)
+    expect(res).toEqual("foo")
+  })
+
+
+})
