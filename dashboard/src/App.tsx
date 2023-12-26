@@ -10,7 +10,6 @@ import NewStudyPage from './pages/NewStudyPage/NewStudyPage';
 import AccountsPage from './pages/AccountsPage/AccountsPage';
 import StudyConfPage from './pages/StudyConfPage/StudyConfPage';
 import useAuthenticatedApi from './hooks/useAuthenticatedApi';
-import { ReactComponent as Logo } from './assets/logo.svg';
 import LoadingPage from './components/LoadingPage';
 
 import 'notyf/notyf.min.css';

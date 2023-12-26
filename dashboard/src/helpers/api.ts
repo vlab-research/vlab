@@ -2,6 +2,7 @@ import { fetchWithTimeout } from './http';
 import {
   CampaignsApiResponse,
   AdsApiResponse,
+  AdAccountsApiResponse,
   AdsetsApiResponse,
   CreateStudyApiResponse,
   CreateStudyConfApiResponse,
@@ -160,10 +161,6 @@ const deleteDestination = ({
       body: data,
     }
   );
-
-function timeout(ms) {
-  return new Promise(resolve => setTimeout(resolve, ms));
-}
 
 const fetchStudyConf = ({
   studySlug,
@@ -377,7 +374,7 @@ export const fetchAdAccounts = ({
 
   const path = `/me/adaccounts`;
 
-  return facebookRequest<CampaignsApiResponse>(path, {
+  return facebookRequest<AdAccountsApiResponse>(path, {
     queryParams: params,
     accessToken,
     defaultErrorMessage,
@@ -511,7 +508,7 @@ const getErrorMessageFor = async (
 
   const responseBody = await errorResponse.json();
 
-  if (errorResponse.status == 422) {
+  if (errorResponse.status === 422) {
     return "There was an error with the data submitted. Please check your information and try again or contact your administrator"
   }
 

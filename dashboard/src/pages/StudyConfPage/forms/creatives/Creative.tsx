@@ -49,7 +49,7 @@ const Creative: React.FC<Props> = ({
   const handleSelectTemplate = (e: any) => {
     const { value } = e.target;
 
-    const ad = ads.find(a => a.id == value)
+    const ad = ads.find(a => a.id === value)
     const template = ad["creative"]
     updateFormData({ ...data, template }, index)
   }

@@ -1,4 +1,4 @@
-import { Stratum, Variables, Creatives, Audiences, Level } from '../types/conf';
+import { Stratum, Variables, Creatives, Audiences, Level } from '../../../../types/conf';
 
 interface IntermediateLevel extends Level {
   variableName: string;

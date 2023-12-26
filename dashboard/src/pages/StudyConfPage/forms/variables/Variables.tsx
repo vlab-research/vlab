@@ -3,7 +3,6 @@ import { useParams } from 'react-router-dom';
 import PrimaryButton from '../../../../components/PrimaryButton';
 import AddButton from '../../../../components/AddButton';
 import Variable from './Variable';
-import { createLabelFor } from '../../../../helpers/strings';
 import { TemplateCampaignContext, TemplateCampaignWrapper } from '../../components/TemplateCampaignWrapper'
 import useAdsets from '../../hooks/useAdsets';
 import ErrorPlaceholder from '../../../../components/ErrorPlaceholder';
