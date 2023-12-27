@@ -1,0 +1,130 @@
+versionAdopt: &vadopt v0.0.106
+
+env:
+  - name: AUTH0_DOMAIN
+    value: "https://vlab-dev.us.auth0.com/"
+  - name: AUTH0_AUDIENCE
+    value: "https://api-dev.vlab/"
+
+# get secret names in vprod
+envSecrets:
+  - gbv-bot-envs
+  - vlab-db-envs
+  - facebook-envs
+
+# shared ingress stuff
+ingress:
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+
+
+services:
+  - name: dashboard
+    replicaCount: 1
+    image:
+      repository: vlabresearch/vlab-dashboard-api
+      tag: latest
+      pullPolicy: Always
+    resources: {}
+    ingress:
+      host: staging.vlab-dashboard-api.toixo.vlab.digital
+    containerPort: 8080
+    env:
+      - name: API_HOST
+        value: "0.0.0.0"
+      - name: API_PORT
+        value: "8080"
+
+  - name: conf-dashboard
+    replicaCount: 1
+    image:
+      repository: vlabresearch/adopt
+      tag: *vadopt
+      pullPolicy: Always
+    resources: {}
+    ingress:
+      host: staging.vlab-study-conf-api.toixo.vlab.digital
+    containerPort: 8000
+    args:
+      - uvicorn
+      - adopt.server.server:app
+      - "--host=0.0.0.0"
+    env: {}
+
+
+# TODO: change to mapping to allow merging.
+cronjobs:
+  - name: source-fly
+    schedule: "10 * * * *"
+    image:
+      repository: "vlabresearch/source-fly"
+      tag: "latest"
+      pullPolicy: Always
+    env:
+      - name: FLY_BASE_URL
+        value: http://gbv-dashboard/api/v1/
+      - name: FLY_PAGE_SIZE
+        value: "500"
+  - name: source-alchemer
+    schedule: "10 * * * *"
+    image:
+      repository: "vlabresearch/source-alchemer"
+      tag: "latest"
+      pullPolicy: Always
+    env:
+      - name: ALCHEMER_BASE_URL
+        value: https://api.alchemer.com
+      - name: ALCHEMER_PAGE_SIZE
+        value: "100"
+  - name: source-qualtrics
+    schedule: "20 * * * *"
+    image:
+      repository: "vlabresearch/source-qualtrics"
+      tag: "latest"
+      pullPolicy: Always
+    env:
+      - name: QUALTRICS_BASE_URL
+        value: https://iad1.qualtrics.com
+      - name: EXPORT_POLLING_WAIT_TIME
+        value: "10"
+      - name: EXPORT_POLLING_MAX_ATTEMPTS
+        value: "12"
+  - name: swoosh
+    schedule: "30 * * * *"
+    image:
+      repository: "vlabresearch/swoosh"
+      tag: "latest"
+      pullPolicy: Always
+  - name: adopt-ads
+    schedule: "30 */4 * * *"
+    image:
+      repository: "vlabresearch/adopt"
+      tag: *vadopt
+      pullPolicy: Always
+    args:
+      - python
+      - malaria_ads.py
+  - name: adopt-recruitment-data
+    schedule: "10 */4 * * *"
+    image:
+      repository: "vlabresearch/adopt"
+      tag: *vadopt
+      pullPolicy: Always
+    args:
+      - python
+      - malaria_recruitment.py
+  - name: adopt-audience
+    schedule: "50 */4 * * *"
+    image:
+      repository: "vlabresearch/adopt"
+      tag: *vadopt
+      pullPolicy: Always
+    args:
+      - python
+      - malaria_audience.py
+
+
+serviceAccount:
+  create: true
+  annotations: {}
+  name: "" # use default

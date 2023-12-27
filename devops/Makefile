@@ -30,7 +30,7 @@ seed:		## Create new seed file [name: required]
 		-ext sql \
 		$(name)
 
-test-db: 	## Runs a test db used for the API tests 
+test-db: 	## Runs a test db used for the API tests
 	@ $(MAKE) start-db-container setup-database run-migrations
 
 start-db-container:
@@ -39,7 +39,7 @@ start-db-container:
   	--name vlab-recruitment-test \
   	-d \
   	-p 5433:26257 \
-  	cockroachdb/cockroach:v21.1.7 \
+  	cockroachdb/cockroach:v21.2.17 \
   	start-single-node \
   	--insecure
 setup-database:
@@ -60,4 +60,3 @@ run-migrations:
   	-database cockroach://root@localhost:5433/test?sslmode=disable \
   	-path /migrations \
   	up
-

@@ -1,6 +1,6 @@
 DB_HOST=$1
 DB_NAME=$2
-DB_VERSION="v20.1.4"
+DB_VERSION="v21.2.17"
 
 # NOTE: insecure version - need another script for secure...
 
