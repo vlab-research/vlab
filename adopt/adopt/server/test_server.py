@@ -9,7 +9,7 @@ from unittest.mock import patch
 from fastapi.testclient import TestClient
 
 from ..db import execute, query
-from ..study_conf import GeneralConf, SimpleRecruitment, WebDestination
+from ..study_conf import GeneralConf, WebDestination
 from ..test_study_conf import _simple
 
 os.environ["PG_URL"] = db_conf

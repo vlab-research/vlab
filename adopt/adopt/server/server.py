@@ -6,9 +6,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import BaseModel
 
-from ..study_conf import (AudienceConf, CreativeConf, DestinationConf,
-                          GeneralConf, InferenceDataConf, RecruitmentConf,
-                          SourceConf, StratumConf, VariableConf)
+from ..study_conf import (AudienceConf, CreativeConf, DataSourceConf,
+                          DestinationConf, GeneralConf, InferenceDataConf,
+                          RecruitmentConf, StratumConf, VariableConf)
 from .auth import AuthError, verify_token
 from .db import create_study_conf, get_all_study_confs, get_study_conf
 
@@ -143,7 +143,7 @@ async def create_strata_conf(
 async def create_data_sources_conf(
     org_id: str,
     slug: str,
-    config: list[SourceConf],
+    config: list[DataSourceConf],
     user: Annotated[User, Depends(get_current_user)],
 ):
     return await create_conf(user, org_id, slug, "data_sources", config)

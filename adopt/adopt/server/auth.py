@@ -3,6 +3,7 @@ from typing import Any
 import requests
 from environs import Env
 from jose import jwt
+from jose.exceptions import ExpiredSignatureError, JWTClaimsError
 
 env = Env()
 
@@ -40,11 +41,11 @@ def verify_token(token: str) -> Any:
                     audience=AUTH0_AUDIENCE,
                     issuer=AUTH0_DOMAIN,
                 )
-            except jwt.ExpiredSignatureError:
+            except ExpiredSignatureError:
                 raise AuthError(
                     {"code": "token_expired", "description": "token is expired"}, 401
                 )
-            except jwt.JWTClaimsError:
+            except JWTClaimsError:
                 raise AuthError(
                     {
                         "code": "invalid_claims",

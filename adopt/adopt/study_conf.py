@@ -5,14 +5,13 @@ from datetime import datetime, timedelta
 from math import floor
 from typing import Any, Dict, List, Optional, Tuple, Union
 
-from facebook_business.adobjects.adcreative import AdCreative
 from pydantic import BaseModel, ConfigDict, model_validator
 
 Params = Dict[str, Any]
 Budget = dict[str, float]
 
 
-class SourceConf(BaseModel):
+class DataSourceConf(BaseModel):
     name: str
     source: str
     credentials_key: str
@@ -33,13 +32,13 @@ class ExtractionConf(BaseModel):
     aggregate: str
 
 
-class DataSource(BaseModel):
+class SourceExtractionConf(BaseModel):
     extraction_confs: list[ExtractionConf]
     user_variable: Optional[str] = None
 
 
 class InferenceDataConf(BaseModel):
-    data_sources: dict[str, DataSource]
+    data_sources: dict[str, SourceExtractionConf]
 
 
 class UserInfo(BaseModel):
@@ -575,7 +574,7 @@ class StudyConf(BaseModel):
 
     # WAIT - not optional?
     inference_data: Optional[InferenceDataConf] = None
-    data_sources: Optional[list[SourceConf]] = None
+    data_sources: Optional[list[DataSourceConf]] = None
 
     @property
     def campaign_names(self) -> list[str]:
