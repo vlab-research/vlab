@@ -4,35 +4,28 @@ import { ReactComponent as PlaceholderIllustration } from '../assets/customer-su
 const ErrorPlaceholder = ({
   message,
   onClickTryAgain,
+  showImage = true,
 }: {
   message: string;
   onClickTryAgain: () => void;
+  showImage?: boolean;
 }) => (
-  <PlaceholderLayout>
-    <Explanation>{message}</Explanation>
-    <PrimaryButton
-      rounded
-      className="mt-8"
-      size="500"
-      onClick={onClickTryAgain}
-    >
-      Please try again
-    </PrimaryButton>
-  </PlaceholderLayout>
-);
-
-export const PlaceholderLayout = ({
-  children,
-}: {
-  children: JSX.Element | JSX.Element[];
-}) => (
-  <div className="bg-white shadow overflow-hidden rounded-none py-8 sm:rounded-md sm:py-20 lg:py-8 2xl:py-28">
+  <div className="bg-white shadow overflow-hidden rounded-none py-8 sm:rounded-md">
     <div className="flex flex-col justify-center items-center">
-      <PlaceholderIllustration
-        className="h-28 sm:h-40 lg:h-64 2xl:h-80"
-        title="Placeholder image"
-      />
-      {children}
+      {showImage &&
+        <PlaceholderIllustration
+          className="h-28 sm:h-40 lg:h-64 2xl:h-80 lg:py-10 2xl:py-10"
+          title="Placeholder image"
+        />}
+      <Explanation>{message}</Explanation>
+      <PrimaryButton
+        rounded
+        className="mt-8"
+        size="500"
+        onClick={onClickTryAgain}
+      >
+        Please try again
+      </PrimaryButton>
     </div>
   </div>
 );

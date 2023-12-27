@@ -27,7 +27,7 @@ const useAds = (
         defaultErrorMessage,
       }),
     {
-      getNextPageParam: lastPage => lastPage.paging.after,
+      getNextPageParam: lastPage => lastPage?.paging?.after,
       enabled: campaign !== undefined,
     }
   );

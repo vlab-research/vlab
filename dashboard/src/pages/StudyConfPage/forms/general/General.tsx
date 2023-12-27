@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { GenericTextInput, TextInputI } from '../../components/TextInput';
 import { GenericSelect, SelectI } from '../../components/Select';
-import PrimaryButton from '../../../../components/PrimaryButton';
+import SubmitButton from '../../components/SubmitButton';
 import useCreateStudyConf from '../../hooks/useCreateStudyConf';
 import { General as FormData, CreateStudy as StudyType } from '../../../../types/conf';
 import ConfWrapper from '../../components/ConfWrapper';
@@ -18,10 +18,9 @@ interface Props {
   localData: FormData;
   study: StudyType;
   facebookAccount: Account;
-  confKeys: string[];
 }
 
-const General: React.FC<Props> = ({ id, localData, study, confKeys, facebookAccount }: Props) => {
+const General: React.FC<Props> = ({ id, localData, study, facebookAccount }: Props) => {
   const initialState = {
     name: study.name,
     credentials_key: 'Facebook', // hardcoded in API right now
@@ -43,7 +42,6 @@ const General: React.FC<Props> = ({ id, localData, study, confKeys, facebookAcco
   const { createStudyConf, isLoadingOnCreateStudyConf } = useCreateStudyConf(
     'General settings saved',
     studySlug,
-    confKeys,
     'general'
   );
 
@@ -124,17 +122,7 @@ const General: React.FC<Props> = ({ id, localData, study, confKeys, facebookAcco
           placeholder="E.g 48"
           value={formData.opt_window}
         />
-
-        <div className="p-6 text-right">
-          <PrimaryButton
-            leftIcon="CheckCircleIcon"
-            type="submit"
-            testId="form-submit-button"
-            loading={isLoadingOnCreateStudyConf}
-          >
-            Next
-          </PrimaryButton>
-        </div>
+        <SubmitButton isLoading={isLoadingOnCreateStudyConf} />
       </form>
     </ConfWrapper>
   );

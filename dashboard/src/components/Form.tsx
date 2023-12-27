@@ -14,7 +14,6 @@ interface Props {
   localData: LocalFormData;
   facebookAccount: Account;
   study: StudyType;
-  confKeys: string[];
 }
 const Form: React.FC<Props> = (props: Props) => {
   const { component: Component, ...childProps } = props;

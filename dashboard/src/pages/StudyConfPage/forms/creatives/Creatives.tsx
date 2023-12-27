@@ -22,7 +22,6 @@ interface Props {
   localData: CreativesType;
   globalData: GlobalFormData;
   facebookAccount: Account;
-  confKeys: string[];
 }
 
 const Creatives: React.FC<Props> = ({
@@ -30,7 +29,6 @@ const Creatives: React.FC<Props> = ({
   localData,
   globalData,
   facebookAccount,
-  confKeys,
 }: Props) => {
   const destinations = globalData.destinations && globalData.destinations;
   const templateCampaign = useContext(TemplateCampaignContext)
@@ -55,10 +53,8 @@ const Creatives: React.FC<Props> = ({
   const { createStudyConf, isLoadingOnCreateStudyConf } = useCreateStudyConf(
     'Creatives saved',
     studySlug,
-    confKeys,
     'creatives'
   );
-
 
   const credentials: any = facebookAccount.connectedAccount?.credentials
   const accessToken = credentials?.access_token;
@@ -74,8 +70,20 @@ const Creatives: React.FC<Props> = ({
   if (adsQuery.isError) {
     return (
       <ErrorPlaceholder
+        showImage={false}
         message='Something went wrong while fetching your campaigns. Have you connected a Facebook account under "Connected Accounts"?'
         onClickTryAgain={() => window.location.reload()}
+      />
+    );
+  }
+
+
+  if (ads.length === 0) {
+    return (
+      <ErrorPlaceholder
+        showImage={true}
+        message={`Sorry, the select campaign ${templateCampaign}, does not seem to have any ads for us to use as template creatives. Make sure you published the ads and selected the correct campaign.`}
+        onClickTryAgain={adsQuery.refetch}
       />
     );
   }

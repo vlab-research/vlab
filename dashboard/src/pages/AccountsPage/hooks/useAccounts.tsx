@@ -6,16 +6,13 @@ const defaultErrorMessage = 'Something went wrong while fetching the accounts.';
 
 const queryKey = 'accounts';
 
-const useAccounts: any = () => {
+const useAccounts = () => {
   const { fetchAccounts } = useAuthenticatedApi();
 
   //TODO this is a hanging promise, we should handle it accordingly
   const query = useQuery<Account[], string>(
     queryKey,
-    async () =>
-      await fetchAccounts({
-        defaultErrorMessage,
-      })
+    () => fetchAccounts({ defaultErrorMessage })
   );
 
   return {

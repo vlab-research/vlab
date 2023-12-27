@@ -1,38 +1,42 @@
 import React, { useState } from 'react';
 import { useParams } from 'react-router-dom';
-import PrimaryButton from '../../../../components/PrimaryButton';
+import DataSource from './DataSource';
+import SubmitButton from '../../components/SubmitButton';
 import AddButton from '../../../../components/AddButton';
 import DeleteButton from '../../../../components/DeleteButton';
 import useCreateStudyConf from '../../hooks/useCreateStudyConf';
-import Destination from './Destination';
-import { Destinations as DestinationTypes } from '../../../../types/conf';
-import { Destination as DestinationType } from '../../../../types/conf';
+import {
+  CreateStudy as StudyType,
+  DataSource as DataSourceType,
+} from '../../../../types/conf';
 import ConfWrapper from '../../components/ConfWrapper';
+import useAccounts from '../../../AccountsPage/hooks/useAccounts';
+
 interface Props {
   id: string;
-  localData: DestinationTypes;
+  study: StudyType;
+  localData: DataSourceType[];
 }
 
-const Destinations: React.FC<Props> = ({ id, localData }: Props) => {
-
-  // TODO: add all the initial states ala Recruitment?
+const DataSources: React.FC<Props> = ({
+  id,
+  localData,
+}: Props) => {
   const initialState = [
     {
       name: '',
-      initial_shortcode: '',
-      welcome_message: '',
-      button_text: '',
-      type: 'messenger',
+      source: '',
+      credentials_key: '',
     },
   ];
 
-  const [formData, setFormData] = useState<DestinationType[]>(
+  const [formData, setFormData] = useState<DataSourceType[]>(
     localData ? localData : initialState
   );
 
-  const updateFormData = (d: DestinationType, index: number): void => {
+  const updateFormData = (a: DataSourceType, index: number): void => {
     const clone = [...formData];
-    clone[index] = d;
+    clone[index] = a;
     setFormData(clone);
   };
 
@@ -41,25 +45,25 @@ const Destinations: React.FC<Props> = ({ id, localData }: Props) => {
   const studySlug = params.studySlug;
 
   const { createStudyConf, isLoadingOnCreateStudyConf } = useCreateStudyConf(
-    'Destinations saved',
+    'Data sources saved',
     studySlug,
-    'destinations'
+    'data-sources'
   );
+
+  const { query } = useAccounts();
+  const accounts = query.data?.filter(a => a.authType !== 'facebook') || [];
 
   const onSubmit = (e: any): void => {
     e.preventDefault();
     createStudyConf({ data: formData, studySlug, confType: id });
   };
 
-  const addDestination = (): void => {
+  const addItem = (): void => {
     setFormData([...formData, ...initialState]);
   };
 
-  const deleteDestination = (i: number): void => {
-    const newArr = formData.filter(
-      (_: DestinationType, ii: number) => ii !== i
-    );
-
+  const deleteItem = (i: number): void => {
+    const newArr = formData.filter((_, ii) => ii !== i);
     setFormData(newArr);
   };
 
@@ -67,12 +71,12 @@ const Destinations: React.FC<Props> = ({ id, localData }: Props) => {
     <ConfWrapper>
       <form onSubmit={onSubmit}>
         <div className="mb-8">
-          {formData.map((d: DestinationType, index: number) => {
+          {formData.map((d, index) => {
             return (
               <ul key={index}>
-                <Destination
+                <DataSource
+                  accounts={accounts}
                   data={d}
-                  type={d.type}
                   index={index}
                   updateFormData={updateFormData}
                 />
@@ -81,7 +85,7 @@ const Destinations: React.FC<Props> = ({ id, localData }: Props) => {
                     <div className="flex flex-row w-4/5 justify-between items-center">
                       <div className="flex w-full h-0.5 mr-4 rounded-md bg-gray-400"></div>
                       <DeleteButton
-                        onClick={() => deleteDestination(index)}
+                        onClick={() => deleteItem(index)}
                       ></DeleteButton>
                     </div>
                     <div />
@@ -90,22 +94,13 @@ const Destinations: React.FC<Props> = ({ id, localData }: Props) => {
               </ul>
             );
           })}
-          <AddButton onClick={addDestination} label="Add destination" />
+          <AddButton onClick={addItem} label="Add data source" />
         </div>
 
-        <div className="p-6 text-right">
-          <PrimaryButton
-            leftIcon="CheckCircleIcon"
-            type="submit"
-            testId="form-submit-button"
-            loading={isLoadingOnCreateStudyConf}
-          >
-            Next
-          </PrimaryButton>
-        </div>
+        <SubmitButton isLoading={isLoadingOnCreateStudyConf} />
       </form>
     </ConfWrapper>
   );
 };
 
-export default Destinations;
+export default DataSources;

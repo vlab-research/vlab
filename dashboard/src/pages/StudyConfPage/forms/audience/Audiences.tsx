@@ -16,14 +16,12 @@ interface Props {
   id: string;
   study: StudyType;
   localData: AudiencesType;
-  confKeys: string[];
 }
 
 const Audiences: React.FC<Props> = ({
   id,
   study,
   localData,
-  confKeys,
 }: Props) => {
   const initialState = [
     {
@@ -49,7 +47,6 @@ const Audiences: React.FC<Props> = ({
   const { createStudyConf, isLoadingOnCreateStudyConf } = useCreateStudyConf(
     'Audiences saved',
     studySlug,
-    confKeys,
     'audiences'
   );
 

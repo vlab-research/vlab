@@ -1,5 +1,5 @@
 import { Path } from 'react-hook-form';
-import { createLabelFor } from '../../../helpers/strings';
+import { classNames, createLabelFor } from '../../../helpers/strings';
 
 interface SelectProps<T> {
   name: Path<T>;
@@ -35,8 +35,12 @@ export const GenericSelect: SelectI = ({
         <select
           name={name}
           value={value}
+          required={required}
           onChange={e => handleChange(e)}
-          className="w-4/5 mt-1 block shadow-sm sm:text-sm rounded-md"
+          className={classNames(
+            "w-4/5 mt-1 block shadow-sm sm:text-sm rounded-md",
+            disabled ? 'opacity-50 cursor-not-allowed' : ''
+          )}
           {...props}
         >
           {options.map((option: { name: string; label: string }, i: number) => (

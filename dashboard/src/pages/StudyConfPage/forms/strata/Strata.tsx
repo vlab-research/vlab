@@ -18,14 +18,12 @@ interface Props {
   id: string;
   localData: StratumType[];
   globalData: GlobalFormData;
-  confKeys: string[];
 }
 
 const Variables: React.FC<Props> = ({
   globalData,
   id,
   localData,
-  confKeys,
 }: Props) => {
   const { variables, creatives, audiences } = globalData;
 
@@ -59,7 +57,6 @@ const Variables: React.FC<Props> = ({
   const { createStudyConf } = useCreateStudyConf(
     'Strata saved',
     studySlug,
-    confKeys,
     'strata'
   );
 

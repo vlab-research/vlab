@@ -90,18 +90,14 @@ export type Creative = {
 
 export type Creatives = Creative[];
 
-export type Stratum = {
-  id: string;
-  quota: number;
-  creatives: string[];
-  audiences: string[];
-  excluded_audiences: string[];
-  facebook_targeting: any; // TODO create a type for facebook targeting
-  question_targeting?: any; // TODO create a type for question targeting
-  metadata: any;
+
+export type Audience = {
+  name: string;
+  subtype: string;
 };
 
-export type Strata = Stratum[];
+export type Audiences = Audience[];
+
 
 export type Level = {
   name: string;
@@ -119,12 +115,52 @@ export type Variable = {
 
 export type Variables = Variable[];
 
-export type Audience = {
-  name: string;
-  subtype: string;
+
+export type Stratum = {
+  id: string;
+  quota: number;
+  creatives: string[];
+  audiences: string[];
+  excluded_audiences: string[];
+  facebook_targeting: any; // TODO create a type for facebook targeting
+  question_targeting?: any; // TODO create a type for question targeting
+  metadata: any;
 };
 
-export type Audiences = Audience[];
+export type Strata = Stratum[];
+
+export type DataSource = {
+  name: string;
+  source: string;
+  credentials_key: string;
+  config?: any;
+};
+
+export type DataSources = DataSource[];
+
+export type ExtractionFunction = {
+  function: string;
+  params?: any;
+}
+
+export type Extraction = {
+  location: string
+  key: string
+  name: string
+  functions: ExtractionFunction[]
+  value_type: string
+  aggregate: string
+}
+
+export type SourceExtraction = {
+  extraction_confs: Extraction[];
+  user_variable?: string;
+}
+
+export type InferenceData = {
+  data_sources: Record<string, SourceExtraction>
+}
+
 
 export type LocalFormData =
   | CreateStudy
@@ -134,7 +170,19 @@ export type LocalFormData =
   | Destinations
   | Creatives
   | Variables
-  | Strata;
+  | Strata
+  | DataSources
+  | InferenceData;
+
+export type FormTypes =
+  | "general"
+  | "recruitment"
+  | "destinations"
+  | "audiences"
+  | "creatives"
+  | "variables"
+  | "strata"
+  | "data_sources"
 
 export type GlobalFormData = {
   general: General;
@@ -144,4 +192,5 @@ export type GlobalFormData = {
   creatives: Creatives;
   variables: Variables;
   strata: Strata;
+  data_sources: DataSources;
 };

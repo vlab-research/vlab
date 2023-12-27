@@ -2,14 +2,13 @@ import { useMutation } from 'react-query';
 import { Notyf } from 'notyf';
 import { useHistory } from 'react-router-dom';
 import useAuthenticatedApi from '../../../hooks/useAuthenticatedApi';
-import getNextConf from '../../../helpers/getNextConf';
+import { getNextConf } from '../shared';
 import { useQueryClient } from 'react-query';
 import { queryKey } from './useStudyConf';
 
 const useCreateStudyConf = (
   message: string,
   studySlug: string,
-  confKeys: string[],
   confKey: string
 ) => {
   const notyf = new Notyf();
@@ -20,12 +19,12 @@ const useCreateStudyConf = (
 
   const { mutate: createStudyConfMutation, isLoading, isError } = useMutation(
     ({ data, confType, studySlug }: { data: any; confType: string; studySlug: string }) =>
-      createStudyConf({ data, studySlug, confType }),
+      createStudyConf({ data, studySlug, confType: confType.replace("_", "-") }),
     {
       onSuccess: () => {
-        if (getNextConf(confKeys, confKey)) {
+        if (getNextConf(confKey)) {
           history.push(
-            `/studies/${studySlug}/${getNextConf(confKeys, confKey)}`
+            `/studies/${studySlug}/${getNextConf(confKey)}`
           );
         } else {
           history.push(`/studies/`);

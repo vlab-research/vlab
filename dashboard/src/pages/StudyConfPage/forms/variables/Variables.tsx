@@ -23,14 +23,12 @@ interface Props {
   localData: VariableType[];
   globalData: GlobalFormData;
   facebookAccount: Account;
-  confKeys: string[];
 }
 
 const Variables: React.FC<Props> = ({
   facebookAccount,
   id,
   localData,
-  confKeys,
 }: Props) => {
   const initialState: VariableType[] = [
     {
@@ -46,7 +44,6 @@ const Variables: React.FC<Props> = ({
   const { createStudyConf } = useCreateStudyConf(
     'Variables saved',
     studySlug,
-    confKeys,
     'variables'
   );
 

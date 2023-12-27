@@ -19,7 +19,6 @@ interface Props {
   id: string;
   globalData: GlobalFormData;
   localData: any;
-  confKeys: string[];
 }
 
 const duckTypeRecruitmentType = (localData: any) => {
@@ -36,7 +35,6 @@ const Recruitment: React.FC<Props> = ({
   id,
   globalData,
   localData,
-  confKeys,
 }: Props) => {
 
   const [recruitmentType, setRecruitmentType] = useState<string>(duckTypeRecruitmentType(localData));
@@ -102,12 +100,12 @@ const Recruitment: React.FC<Props> = ({
   const { createStudyConf, isLoadingOnCreateStudyConf } = useCreateStudyConf(
     'Recruitment settings saved',
     studySlug,
-    confKeys,
     'recruitment'
   );
 
   const onSubmit = (e: any): void => {
     e.preventDefault();
+    console.log(formData)
     createStudyConf({ data: formData, studySlug, confType: id });
   };
 
