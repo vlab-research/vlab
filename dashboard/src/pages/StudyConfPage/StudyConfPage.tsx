@@ -18,7 +18,7 @@ const StudyConfPage = () => {
   const facebookAccount = useFacebookAccounts();
   const studyConf = useStudyConf(params.studySlug);
 
-  if (study.isLoading || studyConf.isLoading || facebookAccount.isLoading) {
+  if (study.isLoading || studyConf.isLoading || facebookAccount.isLoading || studyConf.isRefetching) {
     return (
       <PageLayout
         title={'Study configuration'}

@@ -6,14 +6,14 @@ const TextInput = GenericTextInput as TextInputI<FormData>;
 
 interface Props {
   data: FormData;
-  updateFormData: (e: any, index: number) => void;
+  update: (e: any, index: number) => void;
   index: number;
 }
 
-const Audience: React.FC<Props> = ({ data, updateFormData, index }: Props) => {
+const Audience: React.FC<Props> = ({ data, update, index }: Props) => {
   const handleChange = (e: any) => {
     const { name, value } = e.target;
-    updateFormData({ ...data, [name]: value }, index);
+    update({ ...data, [name]: value }, index);
   };
 
   return (

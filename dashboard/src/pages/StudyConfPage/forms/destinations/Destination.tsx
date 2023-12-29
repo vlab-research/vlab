@@ -10,17 +10,18 @@ const Select = GenericSelect as SelectI<any>;
 
 interface Props {
   data: any;
-  type: string;
   index: number;
-  updateFormData: (d: DestinationType, index: number) => void;
+  update: (d: DestinationType, index: number) => void;
 }
 
 const Destination: React.FC<Props> = ({
   data,
-  type,
   index,
-  updateFormData,
+  update: updateFormData,
 }: Props) => {
+
+  const type = data.type;
+
   const [destinationType, setDestinationType] = useState<string>(type);
 
   useEffect(() => {

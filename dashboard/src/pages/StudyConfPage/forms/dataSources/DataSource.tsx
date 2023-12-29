@@ -3,7 +3,6 @@ import { GenericTextInput, TextInputI } from '../../components/TextInput';
 import { DataSource as FormData } from '../../../../types/conf';
 import { GenericSelect, SelectI } from '../../components/Select';
 import { type Account } from '../../../../types/account';
-import ErrorPlaceholder from '../../../../components/ErrorPlaceholder';
 
 const TextInput = GenericTextInput as TextInputI<FormData>;
 const Select = GenericSelect as SelectI<FormData>;
@@ -11,11 +10,11 @@ const Select = GenericSelect as SelectI<FormData>;
 interface Props {
   data: FormData;
   accounts: Account[];
-  updateFormData: (e: any, index: number) => void;
+  update: (e: any, index: number) => void;
   index: number;
 }
 
-const DataSource: React.FC<Props> = ({ data, updateFormData, index, accounts }: Props) => {
+const DataSource: React.FC<Props> = ({ data, update: updateFormData, index, accounts }: Props) => {
   const handleChange = (e: any) => {
     const { name, value } = e.target;
     updateFormData({ ...data, [name]: value }, index);

@@ -19,9 +19,17 @@ const useCreateStudyConf = (
 
   const { mutate: createStudyConfMutation, isLoading, isError } = useMutation(
     ({ data, confType, studySlug }: { data: any; confType: string; studySlug: string }) =>
+
+
       createStudyConf({ data, studySlug, confType: confType.replace("_", "-") }),
     {
+
+      onMutate: async () => {
+        // or push to globalData here for optimistic updating
+      },
       onSuccess: () => {
+        queryClient.invalidateQueries(queryKey)
+
         if (getNextConf(confKey)) {
           history.push(
             `/studies/${studySlug}/${getNextConf(confKey)}`
@@ -35,13 +43,16 @@ const useCreateStudyConf = (
         });
       },
       onError: (error: any) => {
+        queryClient.invalidateQueries([queryKey, studySlug])
+
+        // undo optimistic update...
         notyf.error({
           message: `${error.message}`,
           dismissible: true,
         });
       },
       onSettled: () => {
-        queryClient.invalidateQueries(queryKey)
+
       },
     }
   );

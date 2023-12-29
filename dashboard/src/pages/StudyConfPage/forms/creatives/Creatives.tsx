@@ -1,8 +1,6 @@
 import React, { useState, useContext } from 'react';
 import { useParams } from 'react-router-dom';
-import PrimaryButton from '../../../../components/PrimaryButton';
-import AddButton from '../../../../components/AddButton';
-import DeleteButton from '../../../../components/DeleteButton';
+import SubmitButton from '../../components/SubmitButton';
 import useCreateStudyConf from '../../hooks/useCreateStudyConf';
 import useAds from '../../hooks/useAds';
 import ErrorPlaceholder from '../../../../components/ErrorPlaceholder';
@@ -16,6 +14,9 @@ import {
 import { Creative as CreativeType } from '../../../../types/conf';
 import ConfWrapper from '../../components/ConfWrapper';
 import { TemplateCampaignContext, TemplateCampaignWrapper } from '../../components/TemplateCampaignWrapper'
+import { GenericListFactory } from '../../components/GenericList';
+
+const CreativeList = GenericListFactory<CreativeType>();
 
 interface Props {
   id: string;
@@ -93,63 +94,18 @@ const Creatives: React.FC<Props> = ({
     createStudyConf({ data: formData, studySlug, confType: id });
   };
 
-  const addCreative = (): void => {
-    setFormData([...formData, ...initialState]);
-  };
-
-  const deleteCreative = (i: number): void => {
-    const newArr = formData.filter((_: CreativeType, ii: number) => ii !== i);
-
-    setFormData(newArr);
-  };
-
-  const updateFormData = (c: CreativeType, index: number): void => {
-    const clone = [...formData];
-    clone[index] = c;
-    setFormData(clone);
-  };
 
   return (
     <form onSubmit={onSubmit}>
-      <div className="mb-8">
-        {formData.map((d: CreativeType, index: number) => {
-          return (
-            <ul key={index}>
-              <Creative
-                ads={ads}
-                data={d}
-                index={index}
-                destinations={destinations}
-                updateFormData={updateFormData}
-                studySlug={studySlug}
-              />
-              {formData.length > 1 && (
-                <div key={`${d.name}-${index}`}>
-                  <div className="flex flex-row w-4/5 justify-between items-center">
-                    <div className="flex w-full h-0.5 mr-4 rounded-md bg-gray-400"></div>
-                    <DeleteButton
-                      onClick={() => deleteCreative(index)}
-                    ></DeleteButton>
-                  </div>
-                  <div />
-                </div>
-              )}
-            </ul>
-          );
-        })}
-        <AddButton onClick={addCreative} label="Add creative" />
-      </div>
-
-      <div className="p-6 text-right">
-        <PrimaryButton
-          leftIcon="CheckCircleIcon"
-          type="submit"
-          testId="form-submit-button"
-          loading={isLoadingOnCreateStudyConf}
-        >
-          Next
-        </PrimaryButton>
-      </div>
+      <CreativeList
+        Element={Creative}
+        elementName="creative"
+        elementProps={{ ads: ads, destinations: destinations, studySlug: studySlug }}
+        data={formData}
+        setData={setFormData}
+        initialState={initialState}
+      />
+      <SubmitButton isLoading={isLoadingOnCreateStudyConf} />
     </form>
   );
 };

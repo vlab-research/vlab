@@ -14,7 +14,7 @@ interface Props {
   data: FormData;
   index: number;
   destinations: DestinationTypes;
-  updateFormData: (e: CreativeType, index: number) => void;
+  update: (e: CreativeType, index: number) => void;
   studySlug: string;
   ads: any[];
 }
@@ -23,7 +23,7 @@ const Creative: React.FC<Props> = ({
   data,
   index,
   destinations,
-  updateFormData,
+  update: updateFormData,
   studySlug,
   ads,
 }: Props) => {
