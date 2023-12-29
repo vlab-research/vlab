@@ -1,7 +1,7 @@
 import React from 'react';
 import { GenericTextInput, TextInputI } from '../../components/TextInput';
 import { GenericSelect, SelectI } from '../../components/Select';
-import { Extraction as FormData, ExtractionFunction as ExtractionFunctionType } from '../../../../types/conf'
+import { Extraction as FormData } from '../../../../types/conf'
 
 
 interface FlyExtractionForm extends FormData {

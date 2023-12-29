@@ -1,8 +1,5 @@
 import React, { useState } from 'react';
 import { useParams } from 'react-router-dom';
-import PrimaryButton from '../../../../components/PrimaryButton';
-import AddButton from '../../../../components/AddButton';
-import DeleteButton from '../../../../components/DeleteButton';
 import SubmitButton from '../../components/SubmitButton';
 import useCreateStudyConf from '../../hooks/useCreateStudyConf';
 import Destination from './Destination';
