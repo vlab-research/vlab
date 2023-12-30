@@ -16,20 +16,20 @@ interface Props {
   index: number;
   adsets: any[];
   properties: string[];
-  handleChange: (d: any, index: number) => void;
+  update: (d: any, index: number) => void;
 }
 
 const Level: React.FC<Props> = ({
   adsets,
   data,
   index,
-  handleChange,
+  update: handleChange,
   properties,
 }: Props) => {
 
   const onChange = (e: any) => {
     const { name, value } = e.target;
-    handleChange({ [name]: value }, index);
+    handleChange({ ...data, [name]: value }, index);
   };
 
   const onAdsetChange = (e: any) => {
@@ -37,7 +37,7 @@ const Level: React.FC<Props> = ({
     const adset = adsets.find(a => a.id === e.target.value);
 
     if (!adset) {
-        throw new Error(`adset not found. Looking for ${e.target.value}. Adset: ${adsets}`)
+      throw new Error(`adset not found. Looking for ${e.target.value}. Adset: ${adsets}`)
     }
     const targeting = properties.reduce(
       (obj, key) => ({ ...obj, [key]: adset.targeting[key] }),
@@ -64,7 +64,7 @@ const Level: React.FC<Props> = ({
           options={adsets}
           handleChange={onAdsetChange}
           value={data.template_adset}
-          getValue={(o:any) => o.id} 
+          getValue={(o: any) => o.id}
         ></Select>
         <TextInput
           name="quota"
