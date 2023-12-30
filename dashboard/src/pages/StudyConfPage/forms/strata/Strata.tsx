@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useParams } from 'react-router-dom';
 import Stratum from './Stratum';
 import PrimaryButton from '../../../../components/PrimaryButton';
+import SubmitButton from '../../components/SubmitButton';
 import useCreateStudyConf from '../../hooks/useCreateStudyConf';
 import { createStrataFromVariables, getFinishQuestionRef } from './strata';
 import { GlobalFormData, Stratum as StratumType } from '../../../../types/conf';
@@ -54,7 +55,7 @@ const Variables: React.FC<Props> = ({
     createStudyConf({ data, studySlug, confType: id });
   };
 
-  const { createStudyConf } = useCreateStudyConf(
+  const { createStudyConf, isLoadingOnCreateStudyConf } = useCreateStudyConf(
     'Strata saved',
     studySlug,
     'strata'
@@ -120,11 +121,7 @@ const Variables: React.FC<Props> = ({
         </div>
 
         {formData.length !== 0 && (
-          <div className="p-6 text-right">
-            <PrimaryButton type="submit" testId="form-submit-button">
-              Save
-            </PrimaryButton>
-          </div>
+          <SubmitButton isLoading={isLoadingOnCreateStudyConf} />
         )}
       </form>
     </ConfWrapper>

@@ -1,6 +1,6 @@
 import React, { useState, useContext } from 'react';
 import { useParams } from 'react-router-dom';
-import PrimaryButton from '../../../../components/PrimaryButton';
+import SubmitButton from '../../components/SubmitButton';
 import AddButton from '../../../../components/AddButton';
 import Variable from './Variable';
 import { TemplateCampaignContext, TemplateCampaignWrapper } from '../../components/TemplateCampaignWrapper'
@@ -15,7 +15,9 @@ import {
 import { Account } from '../../../../types/account';
 import DeleteButton from '../../../../components/DeleteButton';
 import useCreateStudyConf from '../../hooks/useCreateStudyConf';
+import { GenericListFactory } from '../../components/GenericList';
 
+const VariableList = GenericListFactory<VariableType>();
 
 interface Props {
   account: any;
@@ -41,7 +43,7 @@ const Variables: React.FC<Props> = ({
   const params = useParams<{ studySlug: string }>();
   const studySlug = params.studySlug;
 
-  const { createStudyConf } = useCreateStudyConf(
+  const { isLoadingOnCreateStudyConf, createStudyConf } = useCreateStudyConf(
     'Variables saved',
     studySlug,
     'variables'
@@ -73,12 +75,6 @@ const Variables: React.FC<Props> = ({
     );
   }
 
-  const updateFormData = (d: any, index: number): void => {
-    const clone = [...formData];
-    clone[index] = d;
-    setFormData(clone);
-  };
-
   const onSubmit = (e: any): void => {
     e.preventDefault();
 
@@ -90,52 +86,19 @@ const Variables: React.FC<Props> = ({
     createStudyConf({ data: formatted, studySlug, confType: id });
   };
 
-  const addVariable = (): void => {
-    setFormData([...formData, ...initialState]);
-  };
-
-  const deleteVariable = (i: number): void => {
-    const newArr = formData.filter((_: any, ii: number) => ii !== i);
-    setFormData(newArr);
-  };
 
   return (
     <div className="mb-8">
-
       <form onSubmit={onSubmit}>
-        {formData.map((d: any, index: number) => {
-          return (
-            <div key={index}>
-              <Variable
-                adsets={adsets}
-                key={index}
-                data={d}
-                campaignId={templateCampaign!}
-                index={index}
-                updateFormData={updateFormData}
-              />
-              <div>
-                <div className="flex flex-row w-4/5 justify-between items-center">
-                  <div className="w-4/5 h-0.5 mr-8 my-4 rounded-md bg-gray-400"></div>
-                  <DeleteButton
-                    onClick={() => deleteVariable(index)}
-                  ></DeleteButton>
-                </div>
-                <div />
-              </div>
-            </div>
-          );
-        })}
-        <div className="flex flex-row items-center">
-          <AddButton onClick={addVariable} label="Add a variable" />
-        </div>
-
-        <div className="p-6 text-right">
-          <PrimaryButton type="submit" testId="form-submit-button">
-            Next
-          </PrimaryButton>
-
-        </div>
+        <VariableList
+          Element={Variable}
+          elementName="variable"
+          elementProps={{ campaignId: templateCampaign, adsets: adsets }}
+          data={formData}
+          setData={setFormData}
+          initialState={initialState}
+        />
+        <SubmitButton isLoading={isLoadingOnCreateStudyConf} />
       </form>
     </div>
   );

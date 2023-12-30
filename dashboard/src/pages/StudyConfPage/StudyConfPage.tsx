@@ -8,6 +8,7 @@ import useStudyConf from './hooks/useStudyConf';
 import useStudy from './hooks/useStudy';
 import useFacebookAccounts from './hooks/useFacebookAccounts';
 import LoadingPage from '../../components/LoadingPage';
+import ConfWrapper from './components/ConfWrapper';
 import { CreateStudy as StudyType, GlobalFormData, FormTypes } from '../../types/conf';
 import { Account } from '../../types/account';
 
@@ -25,7 +26,12 @@ const StudyConfPage = () => {
         testId="study-conf-loading-page"
         showBackButton
       >
-        <LoadingPage text="(loading study configuration)" />
+        <>
+          <Sidebar />
+          <ConfWrapper>
+            <LoadingPage text="(loading study configuration)" />
+          </ConfWrapper>
+        </>
       </PageLayout>
     )
 
@@ -38,10 +44,15 @@ const StudyConfPage = () => {
         testId="study-conf-error-page"
         showBackButton
       >
-        <ErrorPlaceholder
-          message="Something went wrong while fetching your study."
-          onClickTryAgain={studyConf.refetch}
-        />
+        <>
+          <Sidebar />
+          <ConfWrapper>
+            <ErrorPlaceholder
+              message="Something went wrong while fetching your study."
+              onClickTryAgain={studyConf.refetch}
+            />
+          </ConfWrapper>
+        </>
       </PageLayout>
     );
   }
@@ -53,10 +64,15 @@ const StudyConfPage = () => {
         testId="study-conf-missing-facebook-account-error-page"
         showBackButton
       >
-        <ErrorPlaceholder
-          message="It seems you have not connected a Facebook account. Please do so from Connected Accounts or contact your administrator. "
-          onClickTryAgain={studyConf.refetch}
-        />
+        <>
+          <Sidebar />
+          <ConfWrapper>
+            <ErrorPlaceholder
+              message="It seems you have not connected a Facebook account. Please do so from Connected Accounts or contact your administrator. "
+              onClickTryAgain={studyConf.refetch}
+            />
+          </ConfWrapper>
+        </>
       </PageLayout>
     );
   }

@@ -59,7 +59,7 @@ const useCreateStudyConf = (
 
   return {
     createStudyConf: createStudyConfMutation,
-    isLoadingOnCreateStudyConf: isLoading,
+    isLoadingOnCreateStudyConf: isLoading || !!queryClient.isFetching(),
     errorOnCreateStudyConf: isError,
   };
 };

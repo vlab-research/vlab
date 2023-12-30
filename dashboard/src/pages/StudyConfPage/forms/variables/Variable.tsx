@@ -20,7 +20,7 @@ interface Props {
   index: number;
   adsets: any[];
   campaignId: string;
-  updateFormData: (d: any, index: number) => void;
+  update: (d: any, index: number) => void;
 }
 
 const Variable: React.FC<Props> = ({
@@ -28,7 +28,7 @@ const Variable: React.FC<Props> = ({
   index,
   adsets,
   campaignId,
-  updateFormData,
+  update: updateFormData,
 }: Props) => {
   // Function to help get targeting params out of adset
   const getTargeting = (data: any, adsetId: string) => {
