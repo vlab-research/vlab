@@ -1,7 +1,6 @@
 import React, { useState, useContext } from 'react';
 import { useParams } from 'react-router-dom';
 import SubmitButton from '../../components/SubmitButton';
-import AddButton from '../../../../components/AddButton';
 import Variable from './Variable';
 import { TemplateCampaignContext, TemplateCampaignWrapper } from '../../components/TemplateCampaignWrapper'
 import useAdsets from '../../hooks/useAdsets';
@@ -13,7 +12,6 @@ import {
   GlobalFormData,
 } from '../../../../types/conf';
 import { Account } from '../../../../types/account';
-import DeleteButton from '../../../../components/DeleteButton';
 import useCreateStudyConf from '../../hooks/useCreateStudyConf';
 import { GenericListFactory } from '../../components/GenericList';
 
