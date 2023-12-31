@@ -15,7 +15,6 @@ const optimizationGoals = [
     name: 'CONVERSATIONS',
     label: 'Conversations',
   },
-
   {
     name: 'ENGAGED_USERS',
     label: 'Engaged users',
@@ -45,7 +44,7 @@ const optimizationGoals = [
     label: 'Page engagement',
   },
   {
-    namE: 'PAGE_LIKES',
+    name: 'PAGE_LIKES',
     label: 'Page likes',
   },
   {
