@@ -110,6 +110,7 @@ const Variables: React.FC<Props> = ({
                 <Stratum
                   key={i}
                   stratum={s}
+                  creatives={creatives}
                   onChange={(e: any) => updateFormData(e, i)}
                 />
               ))

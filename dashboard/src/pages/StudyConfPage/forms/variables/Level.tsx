@@ -1,12 +1,7 @@
 import React from 'react';
 import { GenericTextInput, TextInputI } from '../../components/TextInput';
 import { GenericSelect, SelectI } from '../../components/Select';
-
-export interface FormData {
-  name: string;
-  adset: string;
-  quota: number;
-}
+import { Level as FormData } from '../../../../types/conf';
 
 const TextInput = GenericTextInput as TextInputI<FormData>;
 const Select = GenericSelect as SelectI<FormData>;
@@ -44,7 +39,7 @@ const Level: React.FC<Props> = ({
       {}
     );
     handleChange(
-      { facebook_targeting: targeting, template_adset: adset.id },
+      { ...data, facebook_targeting: targeting, template_adset: adset.id },
       index
     );
   };
@@ -60,7 +55,7 @@ const Level: React.FC<Props> = ({
           value={data.name}
         />
         <Select
-          name="adset"
+          name="template_adset"
           options={adsets}
           handleChange={onAdsetChange}
           value={data.template_adset}

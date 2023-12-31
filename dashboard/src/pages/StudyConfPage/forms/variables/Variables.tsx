@@ -47,7 +47,7 @@ const Variables: React.FC<Props> = ({
     'variables'
   );
 
-  const [formData, setFormData] = useState<any[]>(
+  const [formData, setFormData] = useState<VariableType[]>(
     localData ? localData : initialState
   );
 

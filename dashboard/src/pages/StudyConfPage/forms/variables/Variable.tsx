@@ -45,7 +45,7 @@ const Variable: React.FC<Props> = ({
   };
 
   const reformulateData = (data: VariableType) => {
-    data['levels'] = data.levels.map((l: any) => ({
+    data['levels'] = data.levels.map(l => ({
       ...l,
       facebook_targeting: getTargeting(data, l.template_adset),
       template_campaign: campaignId,
@@ -56,7 +56,7 @@ const Variable: React.FC<Props> = ({
   // Make sure all levels are current on each render
   data = reformulateData(data);
 
-  const update = (data: any) => {
+  const update = (data: VariableType) => {
     const d = reformulateData(data);
     updateFormData(d, index);
   };
