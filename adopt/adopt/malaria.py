@@ -10,17 +10,15 @@ from .audiences import hydrate_audiences
 from .budget import AdOptReport, get_budget_lookup
 from .campaign_queries import (DBConf, create_adopt_report,
                                get_campaign_configs, get_user_info)
-from .facebook.state import (CampaignState, DateRange, FacebookState,
-                             StateNameError, get_api)
+from .facebook.state import DateRange, FacebookState, StateNameError, get_api
 from .facebook.update import GraphUpdater, Instruction
 from .marketing import (manage_audiences, update_instructions,
                         validate_targeting)
-from .recruitment_data import (RecruitmentData, calculate_stat, day_start,
-                               get_active_studies, get_recruitment_data,
-                               load_recruitment_data)
+from .recruitment_data import (calculate_stat, day_start, get_active_studies,
+                               get_recruitment_data, load_recruitment_data)
 from .responses import get_inference_data
-from .study_conf import (CreativeConf, FacebookTargeting, GeneralConf, Stratum,
-                         StratumConf, StudyConf)
+from .study_conf import (CreativeConf, FacebookTargeting, Stratum, StratumConf,
+                         StudyConf)
 
 logging.basicConfig(level=logging.INFO)
 
@@ -30,7 +28,6 @@ def get_df(
     survey_user: str,
     study_id: str,
 ) -> Optional[pd.DataFrame]:
-
     return get_inference_data(survey_user, study_id, db_conf)
 
 
@@ -71,7 +68,6 @@ def run_instructions(instructions: Sequence[Instruction], state: FacebookState):
 def update_ads_for_campaign(
     db_conf: DBConf, study: StudyConf, state: FacebookState
 ) -> Tuple[Sequence[Instruction], Optional[AdOptReport]]:
-
     rd = get_recruitment_data(db_conf, study.id)
 
     strata = hydrate_strata(state, study.strata, study.creatives)
@@ -99,7 +95,7 @@ def update_ads_for_campaign(
         lifetime_spend,
     )
 
-    min_budget = study.general.min_budget
+    min_budget = study.recruitment.min_budget
     budget = study.recruitment.spend_for_day(strata, min_budget, budget_lookup, now)
 
     # budget is now str -> Budget, per campaign, which update_instructions
@@ -111,7 +107,6 @@ def update_ads_for_campaign(
 def update_audience_for_campaign(
     db_conf: DBConf, study: StudyConf, state: FacebookState
 ) -> Tuple[Sequence[Instruction], Optional[AdOptReport]]:
-
     # NOTE: audience ignores inference_window from recruitment... Odd???
 
     df = get_df(db_conf, study.user.survey_user, study.id)
@@ -217,7 +212,6 @@ def _add_aud(state, name) -> Optional[Dict[str, Any]]:
 def add_audience_targeting(
     state: FacebookState, stratum: StratumConf
 ) -> FacebookTargeting:
-
     targeting = stratum.facebook_targeting
 
     targeting[Targeting.Field.custom_audiences] = [
@@ -233,7 +227,6 @@ def add_audience_targeting(
 def hydrate_strata(
     state: FacebookState, strata: List[StratumConf], creatives: List[CreativeConf]
 ) -> List[Stratum]:
-
     # Validate strata
     uniqueness(strata)
     for s in strata:
