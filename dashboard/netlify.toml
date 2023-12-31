@@ -15,7 +15,7 @@
   REACT_APP_SERVER_URL = "https://staging.vlab-dashboard-api.toixo.vlab.digital"
   REACT_APP_CONF_SERVER_URL = "https://staging.vlab-study-conf-api.toixo.vlab.digital"
   REACT_APP_DEV_SERVER = ""
-  REACT_APP_FACEBOOK_CLIENT_ID="1286446848574966"
+  REACT_APP_FACEBOOK_CLIENT_ID="645693457482164"
 
 [context.deploy-preview.environment]
   REACT_APP_AUTH0_DOMAIN = "vlab-dev.us.auth0.com"
@@ -24,7 +24,7 @@
   REACT_APP_SERVER_URL = "https://staging.vlab-dashboard-api.toixo.vlab.digital"
   REACT_APP_CONF_SERVER_URL = "https://staging.vlab-study-conf-api.toixo.vlab.digital"
   REACT_APP_DEV_SERVER = ""
-  REACT_APP_FACEBOOK_CLIENT_ID="1286446848574966"
+  REACT_APP_FACEBOOK_CLIENT_ID="645693457482164"
 
 [context.production.environment]
   REACT_APP_AUTH0_DOMAIN = "vlab-pro.us.auth0.com"
