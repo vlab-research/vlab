@@ -15,9 +15,10 @@ interface Props {
   data: FormData;
   update: (e: any, index: number) => void;
   index: number;
+  nameOptions: string[];
 }
 
-const QualtricsExtraction: React.FC<Props> = ({ data, update: updateFormData, index }: Props) => {
+const QualtricsExtraction: React.FC<Props> = ({ data, nameOptions: names, update: updateFormData, index }: Props) => {
 
   const handleChange = (e: any) => {
     const { name, value } = e.target;
@@ -39,12 +40,17 @@ const QualtricsExtraction: React.FC<Props> = ({ data, update: updateFormData, in
     { name: 'variable', label: 'Variable' },
   ]
 
+  const nameOptions = [
+    { name: '', label: 'What name do you use to refer to this variable?' },
+    names.map(n => ({ name: n, label: n }))
+  ]
+
   return (
     <li>
-      <TextInput
+      <Select
         name="name"
         handleChange={handleChange}
-        placeholder="What name do you want to give this variable?"
+        options={nameOptions}
         value={data.name}
       />
       <Select

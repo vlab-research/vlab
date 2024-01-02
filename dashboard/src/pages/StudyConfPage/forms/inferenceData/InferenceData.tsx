@@ -9,6 +9,7 @@ import {
   SourceExtraction as SourceExtractionType,
   GlobalFormData,
 } from '../../../../types/conf';
+import { getFinishQuestionRef } from '../strata/strata';
 import ConfWrapper from '../../components/ConfWrapper';
 import ErrorPlaceholder from '../../../../components/ErrorPlaceholder';
 import SourceExtraction from './SourceExtraction';
@@ -75,6 +76,10 @@ const InferenceData: React.FC<Props> = ({
     return { source: source, sourceExtraction }
   })
 
+  const finishQuestionRef = getFinishQuestionRef(globalData.strata);
+  const variables = globalData.variables.map(v => v.name);
+  const nameOptions = [finishQuestionRef, ...variables];
+
   return (
     <ConfWrapper>
       <form onSubmit={onSubmit}>
@@ -85,6 +90,7 @@ const InferenceData: React.FC<Props> = ({
               key={index}
               source={source}
               dataSource={dataSource}
+              nameOptions={nameOptions}
               data={sourceExtraction}
               setData={updateFormData} />
           )

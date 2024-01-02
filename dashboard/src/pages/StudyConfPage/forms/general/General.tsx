@@ -106,6 +106,7 @@ const General: React.FC<Props> = ({ id, localData, study, facebookAccount }: Pro
       <form onSubmit={onSubmit}>
         <TextInput
           name="name"
+          disabled={true}
           handleChange={handleChange}
           placeholder="E.g My Survey"
           value={formData.name}

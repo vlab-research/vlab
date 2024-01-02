@@ -15,9 +15,10 @@ interface Props {
   data: FormData;
   update: (e: any, index: number) => void;
   index: number;
+  nameOptions: string[];
 }
 
-const FlyExtraction: React.FC<Props> = ({ data, update: updateFormData, index }: Props) => {
+const FlyExtraction: React.FC<Props> = ({ data, nameOptions: names, update: updateFormData, index }: Props) => {
 
 
   const getFunctions = (x: string) => {
@@ -68,13 +69,17 @@ const FlyExtraction: React.FC<Props> = ({ data, update: updateFormData, index }:
     { name: 'translated_response', label: 'Translated Response' },
   ]
 
+  const nameOptions = [
+    { name: '', label: 'What name do you use to refer to this variable?' },
+    ...names.map(n => ({ name: n, label: n }))
+  ]
 
   return (
     <li>
-      <TextInput
+      <Select
         name="name"
         handleChange={handleChange}
-        placeholder="What name do you want to give this variable?"
+        options={nameOptions}
         value={data.name}
       />
       <Select

@@ -14,11 +14,12 @@ const ExtractionList = GenericListFactory<ExtractionType>();
 interface Props {
   source: string;
   dataSource: DataSourceType;
+  nameOptions: string[];
   data: SourceExtractionType;
   setData: (s: string, a: SourceExtractionType) => void;
 }
 
-const SourceExtraction: React.FC<Props> = ({ source, dataSource, setData, data }) => {
+const SourceExtraction: React.FC<Props> = ({ source, dataSource, setData, nameOptions, data }) => {
   const initialState: ExtractionType[] = [{
     name: '',
     location: '',
@@ -55,7 +56,7 @@ const SourceExtraction: React.FC<Props> = ({ source, dataSource, setData, data }
         <ExtractionList
           Element={Element}
           elementName="variable to extract"
-          elementProps={{}}
+          elementProps={{ nameOptions: nameOptions }}
           data={data.extraction_confs}
           setData={handleExtractionChange}
           initialState={initialState}

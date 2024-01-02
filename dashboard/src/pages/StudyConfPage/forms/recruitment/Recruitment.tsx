@@ -41,8 +41,8 @@ const Recruitment: React.FC<Props> = ({
 
   const initialState: any[] = [
     {
-      end_date: '',
-      start_date: '',
+      end_date: '2024-01-07T00:00',
+      start_date: '2024-01-01T00:00',
       ad_campaign_name: '',
       objective: getFirstOption(objectives).toUpperCase(),
       optimization_goal: getFirstOption(optimizationGoals).toUpperCase(),
@@ -59,9 +59,9 @@ const Recruitment: React.FC<Props> = ({
       destination_type: getFirstOption(destinationTypes).toUpperCase(),
       min_budget: 0,
       budget_per_arm: 0,
-      end_date: '',
+      end_date: '2024-01-07T00:00',
+      start_date: '2024-01-01T00:00',
       max_sample_per_arm: 0,
-      start_date: '',
       arms: 0,
       recruitment_days: 0,
       offset_days: 0,
@@ -75,9 +75,9 @@ const Recruitment: React.FC<Props> = ({
       destination_type: getFirstOption(destinationTypes).toUpperCase(),
       min_budget: 0,
       budget_per_arm: 0,
-      end_date: '',
+      end_date: '2024-01-07T00:00',
+      start_date: '2024-01-01T00:00',
       max_sample_per_arm: 0,
-      start_date: '',
       type: 'destination',
     },
   ];
@@ -105,7 +105,6 @@ const Recruitment: React.FC<Props> = ({
 
   const onSubmit = (e: any): void => {
     e.preventDefault();
-    console.log(formData)
     createStudyConf({ data: formData, studySlug, confType: id });
   };
 
