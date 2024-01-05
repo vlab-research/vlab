@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
-import { queryCache } from 'react-query';
 import ErrorPlaceholder from '../../components/ErrorPlaceholder';
 import PageLayout from '../../components/PageLayout';
 import CreateAccountModal from './components/modal/CreateAccountModal';
@@ -47,7 +46,7 @@ const PageContent: React.FC<PageContentProps> = ({ open, setOpen }) => {
     }
   }, [createFacebookAccount, search]);
 
-  const { query, queryKey, accounts, errorMessage } = useAccounts();
+  const { query, accounts, errorMessage } = useAccounts();
 
   const [state, setAccounts] = useState<Account[]>(accounts);
 
@@ -73,9 +72,7 @@ const PageContent: React.FC<PageContentProps> = ({ open, setOpen }) => {
   if (query.isError) {
     return (
       <ErrorPlaceholder
-        onClickTryAgain={async () => {
-          await queryCache.invalidateQueries(queryKey);
-        }}
+        onClickTryAgain={query.refetch}
         message={errorMessage}
       />
     );

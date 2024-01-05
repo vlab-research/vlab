@@ -1,6 +1,4 @@
 import React from 'react';
-import AddButton from '../../../../components/AddButton';
-import DeleteButton from '../../../../components/DeleteButton';
 import { GenericTextInput, TextInputI } from '../../components/TextInput';
 import { GenericMultiSelect, MultiSelectI } from '../../components/MultiSelect';
 import Level from './Level';
@@ -10,8 +8,9 @@ import {
   Level as LevelType,
   Variable as VariableType,
 } from '../../../../types/conf';
+import { GenericListFactory } from '../../components/GenericList';
 
-
+const LevelList = GenericListFactory<LevelType>();
 const TextInput = GenericTextInput as TextInputI<FormData>;
 const MultiSelect = GenericMultiSelect as MultiSelectI<FormData>;
 
@@ -20,7 +19,7 @@ interface Props {
   index: number;
   adsets: any[];
   campaignId: string;
-  updateFormData: (d: any, index: number) => void;
+  update: (d: any, index: number) => void;
 }
 
 const Variable: React.FC<Props> = ({
@@ -28,7 +27,7 @@ const Variable: React.FC<Props> = ({
   index,
   adsets,
   campaignId,
-  updateFormData,
+  update: updateFormData,
 }: Props) => {
   // Function to help get targeting params out of adset
   const getTargeting = (data: any, adsetId: string) => {
@@ -46,7 +45,7 @@ const Variable: React.FC<Props> = ({
   };
 
   const reformulateData = (data: VariableType) => {
-    data['levels'] = data.levels.map((l: any) => ({
+    data['levels'] = data.levels.map(l => ({
       ...l,
       facebook_targeting: getTargeting(data, l.template_adset),
       template_campaign: campaignId,
@@ -57,7 +56,7 @@ const Variable: React.FC<Props> = ({
   // Make sure all levels are current on each render
   data = reformulateData(data);
 
-  const update = (data: any) => {
+  const update = (data: VariableType) => {
     const d = reformulateData(data);
     updateFormData(d, index);
   };
@@ -67,32 +66,21 @@ const Variable: React.FC<Props> = ({
     update({ ...data, [name]: value });
   };
 
-  const handleLevelChange = (d: any, i: number) => {
-    const copy = [...data.levels];
-    copy[i] = { ...copy[i], ...d };
-    update({ ...data, levels: copy });
-  };
-
   const handleMultiSelectChange = (selected: string[], name: string) => {
     update({ ...data, [name]: selected });
   };
 
-  const addLevel = (): void => {
-    const level: LevelType = {
-      name: '',
-      template_adset: adsets[0]?.id,
-      template_campaign: campaignId,
-      facebook_targeting: getTargeting(data, adsets[0]?.id),
-      quota: 0,
-    };
+  const initialState: LevelType[] = [{
+    name: '',
+    template_adset: adsets[0]?.id,
+    template_campaign: campaignId,
+    facebook_targeting: getTargeting(data, adsets[0]?.id),
+    quota: 0,
+  }]
 
-    update({ ...data, levels: [...data.levels, level] });
-  };
-
-  const deleteLevel = (i: number): void => {
-    const newArr = data.levels.filter((_: any, ii: number) => ii !== i);
-    update({ ...data, levels: [...newArr] });
-  };
+  const setData = (a: LevelType[]) => {
+    update({ ...data, levels: a })
+  }
 
   const properties = [
     { name: 'genders', label: 'Genders' },
@@ -122,32 +110,15 @@ const Variable: React.FC<Props> = ({
         value={data.properties}
         label="Select a set of properties from Facebook"
       ></MultiSelect>
-      <ul>
-        {data.levels?.map((l: any, levelIndex: number) => {
-          return (
-            <div key={levelIndex}>
-              <Level
-                data={l}
-                adsets={adsets}
-                properties={data.properties}
-                index={levelIndex}
-                handleChange={handleLevelChange}
-              ></Level>
+      <LevelList
+        Element={Level}
+        elementName="level"
+        elementProps={{ adsets: adsets, properties: data.properties }}
+        data={data.levels}
+        setData={setData}
+        initialState={initialState}
+      />
 
-              <div className="flex flex-row w-4/5 justify-between items-center">
-                <div className="w-4/5 h-0.5 mr-8 my-4 rounded-md bg-gray-400"></div>
-                <DeleteButton
-                  onClick={() => deleteLevel(levelIndex)}
-                ></DeleteButton>
-              </div>
-              <div />
-            </div>
-          );
-        })}
-      </ul>
-      <div className="flex flex-row items-center mb-4">
-        <AddButton onClick={addLevel} label="Add a level" />
-      </div>
     </div>
   );
 };

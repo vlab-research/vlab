@@ -1,31 +1,38 @@
 import { useMutation } from 'react-query';
 import { Notyf } from 'notyf';
 import { useHistory } from 'react-router-dom';
-import { addToCache } from '../../../helpers/cache';
 import useAuthenticatedApi from '../../../hooks/useAuthenticatedApi';
-import getNextConf from '../../../helpers/getNextConf';
+import { getNextConf } from '../shared';
+import { useQueryClient } from 'react-query';
+import { queryKey } from './useStudyConf';
 
 const useCreateStudyConf = (
   message: string,
   studySlug: string,
-  confKeys: string[],
   confKey: string
 ) => {
   const notyf = new Notyf();
   const history = useHistory();
-  const queryKey = 'studyConf';
+  const queryClient = useQueryClient()
 
   const { createStudyConf } = useAuthenticatedApi();
 
-  const [createStudyConfMutation, { isLoading, error }] = useMutation(
+  const { mutate: createStudyConfMutation, isLoading, isError } = useMutation(
     ({ data, confType, studySlug }: { data: any; confType: string; studySlug: string }) =>
-      createStudyConf({ data, studySlug, confType }),
+
+
+      createStudyConf({ data, studySlug, confType: confType.replace("_", "-") }),
     {
-      onSuccess: ({ data: conf }) => {
-        addToCache(conf, queryKey);
-        if (getNextConf(confKeys, confKey)) {
+
+      onMutate: async () => {
+        // or push to globalData here for optimistic updating
+      },
+      onSuccess: () => {
+        queryClient.invalidateQueries(queryKey)
+
+        if (getNextConf(confKey)) {
           history.push(
-            `/studies/${studySlug}/${getNextConf(confKeys, confKey)}`
+            `/studies/${studySlug}/${getNextConf(confKey)}`
           );
         } else {
           history.push(`/studies/`);
@@ -35,19 +42,25 @@ const useCreateStudyConf = (
           background: 'rgb(67 56 202)',
         });
       },
-      onError: error => {
+      onError: (error: any) => {
+        queryClient.invalidateQueries([queryKey, studySlug])
+
+        // undo optimistic update...
         notyf.error({
           message: `${error.message}`,
           dismissible: true,
         });
+      },
+      onSettled: () => {
+
       },
     }
   );
 
   return {
     createStudyConf: createStudyConfMutation,
-    isLoadingOnCreateStudyConf: isLoading,
-    errorOnCreateStudyConf: error?.message,
+    isLoadingOnCreateStudyConf: isLoading || !!queryClient.isFetching(),
+    errorOnCreateStudyConf: isError,
   };
 };
 

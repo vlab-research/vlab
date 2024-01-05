@@ -1,6 +1,11 @@
 import React from 'react';
 import { GenericTextInput, TextInputI } from '../../components/TextInput';
+import objectives from '../../../../fixtures/general/objectives';
+import destinationTypes from '../../../../fixtures/general/destinations';
+import optimizationGoals from '../../../../fixtures/general/optimizationGoals';
 import { RecruitmentSimple as FormData } from '../../../../types/conf';
+import { GenericSelect, SelectI } from '../../components/Select';
+const Select = GenericSelect as SelectI<FormData>;
 
 const TextInput = GenericTextInput as TextInputI<FormData>;
 
@@ -31,6 +36,33 @@ const Simple: React.FC<Props> = ({ formData, updateFormData }: Props) => {
         handleChange={handleChange}
         placeholder="E.g vlab-vaping-pilot-2"
         value={formData.ad_campaign_name}
+      />
+      <Select
+        name="objective"
+        options={objectives}
+        handleChange={handleChange}
+        value={formData.objective}
+        getValue={(o: any) => o.name.toUpperCase()}
+      ></Select>
+      <Select
+        name="optimization_goal"
+        options={optimizationGoals}
+        handleChange={handleChange}
+        value={formData.optimization_goal}
+        getValue={(o: any) => o.name.toUpperCase()}
+      ></Select>
+      <Select
+        name="destination_type"
+        options={destinationTypes}
+        handleChange={handleChange}
+        value={formData.destination_type}
+        getValue={(o: any) => o.name.toUpperCase()}
+      ></Select>
+      <TextInput
+        name="min_budget"
+        handleChange={handleChange}
+        placeholder="E.g 8400"
+        value={formData.min_budget}
       />
       <TextInput
         name="budget"

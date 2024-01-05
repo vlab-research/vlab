@@ -1,102 +1,70 @@
 const optimizationGoals = [
   {
-    name: 'ad_recall_lift',
+    name: 'AD_RECALL_LIFT',
     label: 'Ad recall lift',
   },
   {
-    name: 'app_downloads',
-    label: 'App downloads',
-  },
-  {
-    name: 'app_installs',
+    name: 'APP_INSTALLS',
     label: 'App installs',
   },
   {
-    name: 'brand_awareness',
-    label: 'Brand awareness',
-  },
-  {
-    name: 'clicks',
+    name: 'CLICKS',
     label: 'Clicks',
   },
   {
-    name: 'derived_events',
-    label: 'Derived events',
+    name: 'CONVERSATIONS',
+    label: 'Conversations',
   },
   {
-    name: 'engaged_users',
+    name: 'ENGAGED_USERS',
     label: 'Engaged users',
   },
   {
-    name: 'event_responses',
+    name: 'EVENT_RESPONSES',
     label: 'Event responses',
   },
   {
-    name: 'impressions',
+    name: 'IMPRESSIONS',
     label: 'Impressions',
   },
   {
-    name: 'landing_page_views',
-    label: 'Landing page views',
-  },
-  {
-    name: 'lead_generation',
+    name: 'LEAD_GENERATION',
     label: 'Lead generation',
   },
   {
-    name: 'link_clicks',
+    name: 'LINK_CLICKS',
     label: 'Link clicks',
   },
   {
-    name: 'none',
-    label: 'None',
-  },
-  {
-    name: 'offer_claims',
-    label: 'Offer claims',
-  },
-  {
-    name: 'offsite_conversions',
+    name: 'OFFSITE_CONVERSIONS',
     label: 'Offsite conversions',
   },
   {
-    name: 'page_engagement',
+    name: 'PAGE_ENGAGEMENT',
     label: 'Page engagement',
   },
   {
-    name: 'page_likes',
+    name: 'PAGE_LIKES',
     label: 'Page likes',
   },
   {
-    name: 'post_engagement',
+    name: 'POST_ENGAGEMENT',
     label: 'Post engagement',
   },
   {
-    name: 'reach',
+    name: 'REACH',
     label: 'Reach',
   },
   {
-    name: 'replies',
-    label: 'Replies',
+    name: 'LANDING_PAGE_VIEWS',
+    label: 'Landing Page Views',
   },
   {
-    name: 'replies',
-    label: 'Replies',
-  },
-  {
-    name: 'social_impressions',
-    label: 'Social impressions',
-  },
-  {
-    name: 'thruplay',
+    name: 'THRUPLAY',
     label: 'Thruplay',
   },
   {
-    name: 'two_second_continuous_video_views',
-    label: 'Two second continuous video views',
-  },
-  {
-    name: 'visit_instagram_profile',
+    name: 'VISIT_INSTAGRAM_PROFILE',
     label: 'Visit instagram profile',
   },
 ];

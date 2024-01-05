@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { useParams } from 'react-router-dom';
 import Simple from './Simple';
 import Destination from './Destination';
@@ -8,51 +8,60 @@ import { GenericSelect, SelectI } from '../../components/Select';
 import recruitmentTypes from '../../../../fixtures/recruitment/types';
 import { GlobalFormData } from '../../../../types/conf';
 import useCreateStudyConf from '../../hooks/useCreateStudyConf';
+import { getFirstOption } from '../../../../helpers/arrays';
 import ConfWrapper from '../../components/ConfWrapper';
+import objectives from '../../../../fixtures/general/objectives';
+import destinationTypes from '../../../../fixtures/general/destinations';
+import optimizationGoals from '../../../../fixtures/general/optimizationGoals';
 const Select = GenericSelect as SelectI<any>;
 
 interface Props {
   id: string;
   globalData: GlobalFormData;
   localData: any;
-  confKeys: string[];
+}
+
+const duckTypeRecruitmentType = (localData: any) => {
+  if (localData?.arms) {
+    return 'pipeline_experiment'
+  } else if (localData?.ad_campaign_name_base) {
+    return 'destination'
+  } else {
+    return 'simple'
+  }
 }
 
 const Recruitment: React.FC<Props> = ({
   id,
   globalData,
   localData,
-  confKeys,
 }: Props) => {
-  const [recruitmentType, setRecruitmentType] = useState<string>('simple');
 
-  useEffect(() => {
-    if (localData) {
-      if (localData.arms) {
-        setRecruitmentType('pipeline_experiment');
-      } else if (localData.ad_campaign_name_base) {
-        setRecruitmentType('destination');
-      } else {
-        setRecruitmentType('simple');
-      }
-    }
-  }, [localData]);
+  const [recruitmentType, setRecruitmentType] = useState<string>(duckTypeRecruitmentType(localData));
 
   const initialState: any[] = [
     {
-      end_date: '',
-      start_date: '',
+      end_date: '2024-01-07T00:00',
+      start_date: '2024-01-01T00:00',
       ad_campaign_name: '',
+      objective: getFirstOption(objectives).toUpperCase(),
+      optimization_goal: getFirstOption(optimizationGoals).toUpperCase(),
+      destination_type: getFirstOption(destinationTypes).toUpperCase(),
+      min_budget: 0,
       budget: 0,
       max_sample: 0,
       type: 'simple',
     },
     {
       ad_campaign_name_base: '',
+      objective: getFirstOption(objectives).toUpperCase(),
+      optimization_goal: getFirstOption(optimizationGoals).toUpperCase(),
+      destination_type: getFirstOption(destinationTypes).toUpperCase(),
+      min_budget: 0,
       budget_per_arm: 0,
-      end_date: '',
+      end_date: '2024-01-07T00:00',
+      start_date: '2024-01-01T00:00',
       max_sample_per_arm: 0,
-      start_date: '',
       arms: 0,
       recruitment_days: 0,
       offset_days: 0,
@@ -61,27 +70,27 @@ const Recruitment: React.FC<Props> = ({
     {
       destination: '',
       ad_campaign_name_base: '',
+      objective: getFirstOption(objectives).toUpperCase(),
+      optimization_goal: getFirstOption(optimizationGoals).toUpperCase(),
+      destination_type: getFirstOption(destinationTypes).toUpperCase(),
+      min_budget: 0,
       budget_per_arm: 0,
-      end_date: '',
+      end_date: '2024-01-07T00:00',
+      start_date: '2024-01-01T00:00',
       max_sample_per_arm: 0,
-      start_date: '',
       type: 'destination',
     },
   ];
 
   const [formData, setFormData] = useState<any>(
-    localData ? localData : initialState
+    localData ? localData : initialState.find((obj: any) => obj.type === recruitmentType)
   );
-
-  const updateFormData = (d: any): void => {
-    setFormData(d);
-  };
 
   const handleSelectChange = (e: any) => {
     const { value } = e.target;
     setRecruitmentType(value);
     const fields = initialState.find((obj: any) => obj.type === value);
-    updateFormData(fields);
+    setFormData(fields);
   };
 
   const params = useParams<{ studySlug: string }>();
@@ -91,7 +100,6 @@ const Recruitment: React.FC<Props> = ({
   const { createStudyConf, isLoadingOnCreateStudyConf } = useCreateStudyConf(
     'Recruitment settings saved',
     studySlug,
-    confKeys,
     'recruitment'
   );
 
@@ -111,18 +119,18 @@ const Recruitment: React.FC<Props> = ({
           label="Select a recruitment type"
         ></Select>
         {recruitmentType === 'simple' && (
-          <Simple formData={formData} updateFormData={updateFormData} />
+          <Simple formData={formData} updateFormData={setFormData} />
         )}
         {recruitmentType === 'pipeline_experiment' && (
           <PipelineExperiment
             formData={formData}
-            updateFormData={updateFormData}
+            updateFormData={setFormData}
           />
         )}
         {recruitmentType === 'destination' && (
           <Destination
             formData={formData}
-            updateFormData={updateFormData}
+            updateFormData={setFormData}
             destinations={globalData.destinations}
             studySlug={studySlug}
           />

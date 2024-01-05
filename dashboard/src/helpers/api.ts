@@ -1,6 +1,8 @@
 import { fetchWithTimeout } from './http';
 import {
   CampaignsApiResponse,
+  AdsApiResponse,
+  AdAccountsApiResponse,
   AdsetsApiResponse,
   CreateStudyApiResponse,
   CreateStudyConfApiResponse,
@@ -12,7 +14,6 @@ import {
   SingleStudyConf,
   StudySegmentsProgressApiResponse,
 } from '../types/study';
-import querystring from 'querystring';
 import { Cursor } from '../types/api';
 import {
   AccountsApiResponse,
@@ -49,7 +50,7 @@ const fetchStudies = ({
   if (cursor) {
     params['cursor'] = cursor;
   }
-  const q = querystring.encode(params);
+  const q = new URLSearchParams(params).toString();
   const path = `${route}?${q}`;
 
   return apiRequest<StudiesApiResponse>(path, {
@@ -168,9 +169,10 @@ const fetchStudyConf = ({
   accessToken: string;
 }) =>
   apiRequest<StudyConfApiResponse>(
-    `/${orgPrefix()}/studies/${studySlug}/conf`,
+    `/${orgPrefix()}/studies/${studySlug}/confs`,
     {
       accessToken,
+      baseURL: process.env.REACT_APP_CONF_SERVER_URL,
     }
   ).then(({ data }) => data);
 
@@ -187,7 +189,7 @@ const fetchAccounts = ({
     defaultErrorMessage,
     queryParams: type ? { type } : undefined,
     accessToken,
-  });
+  }).then(({ data }) => data);
 
 
 const createAccount = ({
@@ -250,7 +252,8 @@ const apiRequest = async <ApiResponse>(
     requestHeaders['Content-Type'] = 'application/json';
   }
   if (queryParams) {
-    path = `${path}?${querystring.encode(queryParams)}`;
+    const q = new URLSearchParams(queryParams).toString()
+    path = `${path}?${q}`;
   }
   try {
     const response = await fetchWithTimeout(path, {
@@ -310,7 +313,7 @@ const facebookRequest = async <ApiResponse>(
 
   //TODO Handle when access token is not set
   queryParams['access_token'] = accessToken;
-  const q = querystring.encode(queryParams);
+  const q = new URLSearchParams(queryParams).toString();
   path = `${path}?${q}`;
 
   //TODO make this configurabel (i.e ENV variable)
@@ -346,6 +349,36 @@ const facebookRequest = async <ApiResponse>(
 
     throw err;
   }
+};
+
+export const fetchAdAccounts = ({
+  limit,
+  cursor,
+  accessToken,
+  defaultErrorMessage,
+}: {
+  limit: number;
+  cursor: Cursor;
+  accessToken: string;
+  defaultErrorMessage: string;
+}) => {
+  const params: any = {
+    limit,
+    pretty: 0,
+    fields: 'name, id, account_id',
+    access_token: accessToken,
+  };
+  if (cursor) {
+    params['cursor'] = cursor;
+  }
+
+  const path = `/me/adaccounts`;
+
+  return facebookRequest<AdAccountsApiResponse>(path, {
+    queryParams: params,
+    accessToken,
+    defaultErrorMessage,
+  });
 };
 
 export const fetchCampaigns = ({
@@ -412,6 +445,55 @@ export const fetchAdsets = async ({
   });
 };
 
+
+export const fetchAds = async ({
+  limit,
+  cursor,
+  accessToken,
+  campaign,
+  defaultErrorMessage,
+}: {
+  limit: number;
+  cursor: Cursor;
+  accessToken: string;
+  campaign: string;
+  defaultErrorMessage: string;
+}) => {
+
+  const creativeFields = [
+    "id",
+    "name",
+    "actor_id",
+    "asset_feed_spec",
+    "degrees_of_freedom_spec",
+    "effective_instagram_media_id",
+    "effective_instagram_story_id",
+    "effective_object_story_id",
+    "instagram_actor_id",
+    "instagram_user_id",
+    "object_story_spec",
+    "thumbnail_url",
+  ].join(",")
+
+  const params: any = {
+    limit,
+    pretty: 0,
+    fields: `id,name,creative{${creativeFields}}`,
+    access_token: accessToken,
+  };
+  if (cursor) {
+    params['cursor'] = cursor;
+  }
+
+  const path = `/${campaign}/ads`;
+
+  return facebookRequest<AdsApiResponse>(path, {
+    queryParams: params,
+    accessToken,
+    defaultErrorMessage,
+  });
+};
+
 const getErrorMessageFor = async (
   errorResponse: Response,
   defaultErrorMessage: string
@@ -425,6 +507,10 @@ const getErrorMessageFor = async (
   }
 
   const responseBody = await errorResponse.json();
+
+  if (errorResponse.status === 422) {
+    return "There was an error with the data submitted. Please check your information and try again or contact your administrator"
+  }
 
   return responseBody.error || defaultErrorMessage;
 };

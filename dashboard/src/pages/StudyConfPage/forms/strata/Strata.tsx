@@ -2,8 +2,9 @@ import React, { useState } from 'react';
 import { useParams } from 'react-router-dom';
 import Stratum from './Stratum';
 import PrimaryButton from '../../../../components/PrimaryButton';
+import SubmitButton from '../../components/SubmitButton';
 import useCreateStudyConf from '../../hooks/useCreateStudyConf';
-import { createStrataFromVariables } from '../../../../helpers/strata';
+import { createStrataFromVariables, getFinishQuestionRef } from './strata';
 import { GlobalFormData, Stratum as StratumType } from '../../../../types/conf';
 import { GenericTextInput, TextInputI } from '../../components/TextInput';
 import ConfWrapper from '../../components/ConfWrapper';
@@ -18,14 +19,12 @@ interface Props {
   id: string;
   localData: StratumType[];
   globalData: GlobalFormData;
-  confKeys: string[];
 }
 
 const Variables: React.FC<Props> = ({
   globalData,
   id,
   localData,
-  confKeys,
 }: Props) => {
   const { variables, creatives, audiences } = globalData;
 
@@ -34,7 +33,7 @@ const Variables: React.FC<Props> = ({
 
   const [formData, setFormData] = useState(localData || []);
 
-  const [finishQuestionRef, setFinishQuestionRef] = useState();
+  const [finishQuestionRef, setFinishQuestionRef] = useState(getFinishQuestionRef(formData));
 
   const regenerate = () => {
     const strata = createStrataFromVariables(variables, finishQuestionRef, creatives, audiences);
@@ -56,10 +55,9 @@ const Variables: React.FC<Props> = ({
     createStudyConf({ data, studySlug, confType: id });
   };
 
-  const { createStudyConf } = useCreateStudyConf(
+  const { createStudyConf, isLoadingOnCreateStudyConf } = useCreateStudyConf(
     'Strata saved',
     studySlug,
-    confKeys,
     'strata'
   );
 
@@ -112,6 +110,7 @@ const Variables: React.FC<Props> = ({
                 <Stratum
                   key={i}
                   stratum={s}
+                  creatives={creatives}
                   onChange={(e: any) => updateFormData(e, i)}
                 />
               ))
@@ -123,11 +122,7 @@ const Variables: React.FC<Props> = ({
         </div>
 
         {formData.length !== 0 && (
-          <div className="p-6 text-right">
-            <PrimaryButton type="submit" testId="form-submit-button">
-              Save
-            </PrimaryButton>
-          </div>
+          <SubmitButton isLoading={isLoadingOnCreateStudyConf} />
         )}
       </form>
     </ConfWrapper>

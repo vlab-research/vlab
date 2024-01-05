@@ -1,5 +1,5 @@
 import json
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List
 
 import orjson
 
@@ -11,16 +11,24 @@ DBConf = str
 
 def get_user_info(study_id, cnf):
     q = """
+    with t as (
+    SELECT
+      studies.user_id,
+      sc.conf->>'credentials_key' as credentials_key,
+      sc.conf->>'credentials_entity' as credentials_entity
+    FROM studies
+    JOIN study_confs sc
+    ON studies.id = sc.study_id
+    WHERE studies.id = %s
+    AND sc.conf_type = 'general'
+    )
     SELECT
       details->>'access_token' as token,
-      studies.user_id as survey_user
-    FROM studies
-    JOIN credentials
-    ON studies.user_id = credentials.user_id
-    AND studies.credentials_entity = credentials.entity
-    AND studies.credentials_key = credentials.key
-    WHERE studies.id = %s
-    ORDER BY credentials.created DESC -- not currently used!
+      t.user_id as survey_user
+    FROM t
+    join credentials
+      ON t.credentials_key = credentials.key
+    ORDER BY credentials.created DESC
     LIMIT 1
     """
 
@@ -107,7 +115,6 @@ def _insert_query(table, cols):
 def create_campaign_confs(
     campaignid: str, conf_type: str, dat: List[Dict[str, Any]], cnf: DBConf
 ):
-
     dats = (campaignid, conf_type, orjson.dumps(dat).decode("utf8"))
 
     q = """

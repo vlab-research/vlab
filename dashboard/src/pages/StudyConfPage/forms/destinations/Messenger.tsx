@@ -19,16 +19,28 @@ const Messenger: React.FC<Props> = ({ data, updateFormData, index }: Props) => {
   return (
     <>
       <TextInput
+        name="name"
+        handleChange={handleChange}
+        placeholder="E.g fly messenger"
+        value={data.name}
+      />
+      <TextInput
         name="initial_shortcode"
         handleChange={handleChange}
         placeholder="E.g 12345"
         value={data.initial_shortcode}
       />
       <TextInput
-        name="name"
+        name="welcome_message"
         handleChange={handleChange}
-        placeholder="E.g fly messenger"
-        value={data.name}
+        placeholder="E.g Welcome to our survey. Would you like to continue?"
+        value={data.welcome_message}
+      />
+      <TextInput
+        name="button_text"
+        handleChange={handleChange}
+        placeholder="E.g OK"
+        value={data.button_text}
       />
     </>
   );

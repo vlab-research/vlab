@@ -1,4 +1,3 @@
-import { queryCache } from 'react-query';
 import { useHistory } from 'react-router-dom';
 import StudyList, { StudyListSkeleton } from './components/StudyList';
 import useStudies from './hooks/useStudies';
@@ -27,7 +26,6 @@ const StudiesPage = () => {
 
 const PageContent = ({
   query,
-  queryKey,
   studiesPerPage,
   studies,
   errorMessage,
@@ -39,7 +37,7 @@ const PageContent = ({
   if (query.isError) {
     return (
       <ErrorPlaceholder
-        onClickTryAgain={() => queryCache.invalidateQueries(queryKey)}
+        onClickTryAgain={query.refetch}
         message={errorMessage}
       />
     );
@@ -54,8 +52,8 @@ const PageContent = ({
       studies={studies}
       studiesPerPage={studiesPerPage}
       isLoadingMoreStudies={query.isFetching}
-      canFetchMoreStudies={query.canFetchMore || false}
-      onFetchMoreStudies={query.fetchMore}
+      canFetchMoreStudies={query.hasNextPage || false}
+      onFetchMoreStudies={query.fetchNextPage}
     />
   );
 };

@@ -19,16 +19,16 @@ const Web: React.FC<Props> = ({ data, updateFormData, index }: Props) => {
   return (
     <>
       <TextInput
-        name="url_template"
-        handleChange={handleChange}
-        placeholder="E.g 12345"
-        value={data.url_template}
-      />
-      <TextInput
         name="name"
         handleChange={handleChange}
         placeholder="E.g web app 123"
         value={data.name}
+      />
+      <TextInput
+        name="url_template"
+        handleChange={handleChange}
+        placeholder="E.g 12345"
+        value={data.url_template}
       />
     </>
   );

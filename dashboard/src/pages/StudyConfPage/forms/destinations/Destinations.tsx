@@ -1,24 +1,29 @@
 import React, { useState } from 'react';
 import { useParams } from 'react-router-dom';
-import PrimaryButton from '../../../../components/PrimaryButton';
-import AddButton from '../../../../components/AddButton';
-import DeleteButton from '../../../../components/DeleteButton';
+import SubmitButton from '../../components/SubmitButton';
 import useCreateStudyConf from '../../hooks/useCreateStudyConf';
 import Destination from './Destination';
 import { Destinations as DestinationTypes } from '../../../../types/conf';
 import { Destination as DestinationType } from '../../../../types/conf';
 import ConfWrapper from '../../components/ConfWrapper';
+import { GenericListFactory } from '../../components/GenericList';
+
+const DestinationList = GenericListFactory<DestinationType>();
+
 interface Props {
   id: string;
   localData: DestinationTypes;
-  confKeys: string[];
 }
 
-const Destinations: React.FC<Props> = ({ id, localData, confKeys }: Props) => {
+const Destinations: React.FC<Props> = ({ id, localData }: Props) => {
+
+  // TODO: add all the initial states ala Recruitment?
   const initialState = [
     {
       name: '',
       initial_shortcode: '',
+      welcome_message: '',
+      button_text: '',
       type: 'messenger',
     },
   ];
@@ -27,12 +32,6 @@ const Destinations: React.FC<Props> = ({ id, localData, confKeys }: Props) => {
     localData ? localData : initialState
   );
 
-  const updateFormData = (d: DestinationType, index: number): void => {
-    const clone = [...formData];
-    clone[index] = d;
-    setFormData(clone);
-  };
-
   const params = useParams<{ studySlug: string }>();
 
   const studySlug = params.studySlug;
@@ -40,7 +39,6 @@ const Destinations: React.FC<Props> = ({ id, localData, confKeys }: Props) => {
   const { createStudyConf, isLoadingOnCreateStudyConf } = useCreateStudyConf(
     'Destinations saved',
     studySlug,
-    confKeys,
     'destinations'
   );
 
@@ -49,58 +47,17 @@ const Destinations: React.FC<Props> = ({ id, localData, confKeys }: Props) => {
     createStudyConf({ data: formData, studySlug, confType: id });
   };
 
-  const addDestination = (): void => {
-    setFormData([...formData, ...initialState]);
-  };
-
-  const deleteDestination = (i: number): void => {
-    const newArr = formData.filter(
-      (_: DestinationType, ii: number) => ii !== i
-    );
-
-    setFormData(newArr);
-  };
-
   return (
     <ConfWrapper>
       <form onSubmit={onSubmit}>
-        <div className="mb-8">
-          {formData.map((d: DestinationType, index: number) => {
-            return (
-              <ul key={index}>
-                <Destination
-                  data={d}
-                  type={d.type}
-                  index={index}
-                  updateFormData={updateFormData}
-                />
-                {formData.length > 1 && (
-                  <div key={`${d.name}-${index}`}>
-                    <div className="flex flex-row w-4/5 justify-between items-center">
-                      <div className="flex w-full h-0.5 mr-4 rounded-md bg-gray-400"></div>
-                      <DeleteButton
-                        onClick={() => deleteDestination(index)}
-                      ></DeleteButton>
-                    </div>
-                    <div />
-                  </div>
-                )}
-              </ul>
-            );
-          })}
-          <AddButton onClick={addDestination} label="Add destination" />
-        </div>
-
-        <div className="p-6 text-right">
-          <PrimaryButton
-            leftIcon="CheckCircleIcon"
-            type="submit"
-            testId="form-submit-button"
-            loading={isLoadingOnCreateStudyConf}
-          >
-            Next
-          </PrimaryButton>
-        </div>
+        <DestinationList
+          Element={Destination}
+          data={formData}
+          setData={setFormData}
+          initialState={initialState}
+          elementName="destination"
+        />
+        <SubmitButton isLoading={isLoadingOnCreateStudyConf} />
       </form>
     </ConfWrapper>
   );

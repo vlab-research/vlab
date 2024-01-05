@@ -81,6 +81,12 @@ const App: React.FC<Props> = ({ data, updateFormData, index }: Props) => {
   return (
     <>
       <TextInput
+        name="name"
+        handleChange={handleChange}
+        placeholder="E.g curious learning"
+        value={data.name}
+      />
+      <TextInput
         name="facebook_app_id"
         handleChange={handleChange}
         placeholder=""
@@ -116,12 +122,6 @@ const App: React.FC<Props> = ({ data, updateFormData, index }: Props) => {
         handleMultiSelectChange={handleMultiSelectChange}
         value={data.user_os}
       ></MultiSelect>
-      <TextInput
-        name="name"
-        handleChange={handleChange}
-        placeholder="E.g curious learning"
-        value={data.name}
-      />
     </>
   );
 };

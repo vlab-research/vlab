@@ -1,52 +1,26 @@
-import { queryCache, useQuery } from 'react-query';
+import { useQuery } from 'react-query';
 import useAuthenticatedApi from '../../../hooks/useAuthenticatedApi';
-import { type Account, type AccountsApiResponse } from '../../../types/account';
+import { type Account } from '../../../types/account';
 
 const defaultErrorMessage = 'Something went wrong while fetching the accounts.';
 
 const queryKey = 'accounts';
 
-const useAccounts: any = () => {
+const useAccounts = () => {
   const { fetchAccounts } = useAuthenticatedApi();
 
   //TODO this is a hanging promise, we should handle it accordingly
-  const query = useQuery<AccountsApiResponse, string>(
+  const query = useQuery<Account[], string>(
     queryKey,
-    async () =>
-      await fetchAccounts({
-        defaultErrorMessage,
-      })
+    () => fetchAccounts({ defaultErrorMessage })
   );
 
   return {
     query,
     queryKey,
-    accounts: query.data?.data || [],
-    errorMessage: query.error?.message || defaultErrorMessage,
+    accounts: query.data || [],
+    errorMessage: defaultErrorMessage, // TODO: add api error
   };
-};
-
-export const addAccountToCacheWhileRefetching: any = (account: Account) => {
-  // Add account to cache
-  queryCache.setQueryData(queryKey, (accountsCache: any) => {
-    const accountsCacheExists =
-      Array.isArray(accountsCache) &&
-      accountsCache[0] !== undefined &&
-      Array.isArray(accountsCache[0].data);
-
-    if (accountsCacheExists === true) {
-      accountsCache[0].data = [account, ...accountsCache[0].data];
-    }
-
-    return accountsCache;
-  });
-
-  // Refetch the accounts by invalidating the query
-  queryCache.invalidateQueries(queryKey);
-};
-
-export const clearCacheWhileRefetching = () => {
-  queryCache.invalidateQueries(queryKey);
 };
 
 export default useAccounts;

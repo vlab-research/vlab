@@ -9,7 +9,7 @@ from unittest.mock import patch
 from fastapi.testclient import TestClient
 
 from ..db import execute, query
-from ..study_conf import GeneralConf, SimpleRecruitment, WebDestination
+from ..study_conf import GeneralConf, WebDestination
 from ..test_study_conf import _simple
 
 os.environ["PG_URL"] = db_conf
@@ -78,6 +78,8 @@ def _conf_create_and_get_happy_path(path, dat):
 
     assert res_dat["data"] == dat
 
+    return org_id, headers
+
 
 @patch("adopt.server.server.verify_token")
 def test_server_create_and_get_general_conf(verify_mock):
@@ -104,8 +106,8 @@ def test_server_create_and_get_destinations_conf(verify_mock):
     verify_mock.return_value = {"sub": user_id}
 
     conf = [
-        WebDestination(name="foo", url_template="http://foo.com/{ref}"),
-        WebDestination(name="bar", url_template="http://bar.com/{ref}"),
+        WebDestination(type="web", name="foo", url_template="http://foo.com/{ref}"),
+        WebDestination(type="web", name="bar", url_template="http://bar.com/{ref}"),
     ]
 
     dat = [c.dict() for c in conf]
@@ -121,6 +123,29 @@ def test_server_create_and_get_recruitment_conf(verify_mock):
     conf = _simple()
     dat = json.loads(conf.json())
     _conf_create_and_get_happy_path("recruitment", dat)
+
+
+@patch("adopt.server.server.verify_token")
+def test_server_get_all_study_confs(verify_mock):
+    _reset_db()
+
+    verify_mock.return_value = {"sub": user_id}
+
+    conf = GeneralConf(
+        name="foo",
+        opt_window=48,
+        ad_account="234",
+        credentials_key="facebook",
+        credentials_entity="facebook",
+    )
+
+    dat = conf.dict()
+    org_id, headers = _conf_create_and_get_happy_path("general", dat)
+
+    res = client.get(f"/{org_id}/studies/foo-study/confs", headers=headers)
+    res_dat = res.json()
+    assert "general" in res_dat["data"]
+    assert res_dat["data"]["general"]["name"] == "foo"
 
 
 def test_health_check():

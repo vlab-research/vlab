@@ -2,14 +2,14 @@ import React, { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { GenericTextInput, TextInputI } from '../../components/TextInput';
 import { GenericSelect, SelectI } from '../../components/Select';
-import PrimaryButton from '../../../../components/PrimaryButton';
-import objectives from '../../../../fixtures/general/objectives';
-import destinations from '../../../../fixtures/general/destinations';
-import optimizationGoals from '../../../../fixtures/general/optimizationGoals';
-import { getFirstOption } from '../../../../helpers/arrays';
+import SubmitButton from '../../components/SubmitButton';
 import useCreateStudyConf from '../../hooks/useCreateStudyConf';
 import { General as FormData, CreateStudy as StudyType } from '../../../../types/conf';
 import ConfWrapper from '../../components/ConfWrapper';
+import { Account } from '../../../../types/account';
+import ErrorPlaceholder from '../../../../components/ErrorPlaceholder';
+import useAdAccounts from '../../hooks/useAdAccounts';
+import LoadingPage from '../../../../components/LoadingPage';
 const TextInput = GenericTextInput as TextInputI<FormData>;
 const Select = GenericSelect as SelectI<FormData>;
 
@@ -17,19 +17,16 @@ interface Props {
   id: string;
   localData: FormData;
   study: StudyType;
-  confKeys: string[];
+  facebookAccount: Account;
 }
 
-const General: React.FC<Props> = ({ id, localData, study, confKeys }: Props) => {
+const General: React.FC<Props> = ({ id, localData, study, facebookAccount }: Props) => {
   const initialState = {
-    objective: getFirstOption(objectives).toUpperCase(),
-    optimization_goal: getFirstOption(optimizationGoals).toUpperCase(),
-    destination_type: getFirstOption(destinations).toUpperCase(),
-    page_id: '',
-    min_budget: 0,
-    opt_window: 0,
-    instagram_id: '',
+    name: study.name,
+    credentials_key: 'Facebook', // hardcoded in API right now
+    credentials_entity: 'facebook', // hardcoded in API right now
     ad_account: '',
+    opt_window: 48,
   };
 
   const [formData, setFormData] = useState<FormData>(initialState);
@@ -45,9 +42,32 @@ const General: React.FC<Props> = ({ id, localData, study, confKeys }: Props) => 
   const { createStudyConf, isLoadingOnCreateStudyConf } = useCreateStudyConf(
     'General settings saved',
     studySlug,
-    confKeys,
     'general'
   );
+
+  const credentials: any = facebookAccount.connectedAccount?.credentials
+  const accessToken = credentials?.access_token;
+  const { adAccounts, query } = useAdAccounts(accessToken)
+
+  if (query.isLoading) {
+    return (
+      <ConfWrapper>
+        <LoadingPage text="(loading ad account information)" />
+      </ConfWrapper>
+    )
+  }
+
+  if (!adAccounts) {
+    return (
+      <ConfWrapper>
+        <ErrorPlaceholder
+          message='Something went wrong while fetching your Ad Accounts. Try again?'
+          onClickTryAgain={query.refetch}
+        />
+      </ConfWrapper>
+    )
+  }
+
 
   const validateInput = (name: string, value: any) => {
     if (name === 'min_budget') {
@@ -84,38 +104,18 @@ const General: React.FC<Props> = ({ id, localData, study, confKeys }: Props) => 
   return (
     <ConfWrapper>
       <form onSubmit={onSubmit}>
-        <Select
-          name="objective"
-          options={objectives}
-          handleChange={handleChange}
-          value={formData.objective}
-          getValue={(o: any) => o.name.toUpperCase()}
-        ></Select>
-        <Select
-          name="optimization_goal"
-          options={optimizationGoals}
-          handleChange={handleChange}
-          value={formData.optimization_goal}
-          getValue={(o: any) => o.name.toUpperCase()}
-        ></Select>
-        <Select
-          name="destination_type"
-          options={destinations}
-          handleChange={handleChange}
-          value={formData.destination_type}
-          getValue={(o: any) => o.name.toUpperCase()}
-        ></Select>
         <TextInput
-          name="page_id"
+          name="name"
+          disabled={true}
           handleChange={handleChange}
-          placeholder="E.g 1855355231229529"
-          value={formData.page_id}
+          placeholder="E.g My Survey"
+          value={formData.name}
         />
-        <TextInput
-          name="min_budget"
+        <Select
+          name="ad_account"
           handleChange={handleChange}
-          placeholder="E.g 8400"
-          value={formData.min_budget}
+          options={adAccounts.map(a => ({ name: a.account_id, label: a.name }))}
+          value={formData.ad_account}
         />
         <TextInput
           name="opt_window"
@@ -123,29 +123,7 @@ const General: React.FC<Props> = ({ id, localData, study, confKeys }: Props) => 
           placeholder="E.g 48"
           value={formData.opt_window}
         />
-        <TextInput
-          name="instagram_id"
-          handleChange={handleChange}
-          required={false}
-          placeholder="E.g 2327764173962588"
-          value={formData.instagram_id}
-        />
-        <TextInput
-          name="ad_account"
-          handleChange={handleChange}
-          placeholder="E.g 1342820622846299"
-          value={formData.ad_account}
-        />
-        <div className="p-6 text-right">
-          <PrimaryButton
-            leftIcon="CheckCircleIcon"
-            type="submit"
-            testId="form-submit-button"
-            loading={isLoadingOnCreateStudyConf}
-          >
-            Next
-          </PrimaryButton>
-        </div>
+        <SubmitButton isLoading={isLoadingOnCreateStudyConf} />
       </form>
     </ConfWrapper>
   );

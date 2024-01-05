@@ -3,20 +3,21 @@ export interface CreateStudy {
 }
 
 export interface General {
-  objective: string;
-  optimization_goal: string;
-  destination_type: string;
-  page_id: string;
-  min_budget: number | string;
-  opt_window: number;
-  instagram_id?: string | undefined;
+  name: string;
+  credentials_key: string;
+  credentials_entity: string;
   ad_account: string;
+  opt_window: number;
 }
 
 export type Recruitment = RecruitmentSimple | Destination | PipelineExperiment;
 
 export interface RecruitmentSimple {
   ad_campaign_name: string;
+  objective: string;
+  optimization_goal: string;
+  destination_type: string;
+  min_budget: number;
   budget: number;
   end_date: string;
   max_sample: number;
@@ -24,8 +25,12 @@ export interface RecruitmentSimple {
 }
 
 export interface RecruitmentDestination {
-  destination: string;
   ad_campaign_name_base: string;
+  destination: string;
+  objective: string;
+  optimization_goal: string;
+  destination_type: string;
+  min_budget: number;
   budget_per_arm: number;
   end_date: string;
   max_sample_per_arm: number;
@@ -34,6 +39,10 @@ export interface RecruitmentDestination {
 
 export interface PipelineExperiment {
   ad_campaign_name_base: string;
+  objective: string;
+  optimization_goal: string;
+  destination_type: string;
+  min_budget: number;
   budget_per_arm: number;
   end_date: string;
   max_sample_per_arm: number;
@@ -44,17 +53,21 @@ export interface PipelineExperiment {
 }
 
 export interface Messenger {
+  type: string;
   name: string;
   initial_shortcode: string;
-  type: string;
+  welcome_message: string;
+  button_text: string;
 }
 
 export interface Web {
+  type: string;
   name: string;
   url_template: string;
-  type: string;
+
 }
 export interface App {
+  type: string;
   name: string;
   app_install_state: string;
   app_install_link: string;
@@ -62,7 +75,6 @@ export interface App {
   deeplink_template: string;
   user_device: string[];
   user_os: string[];
-  type: string;
 }
 
 export type Destination = Messenger | Web | App;
@@ -71,29 +83,21 @@ export type Destinations = Destination[];
 
 export type Creative = {
   name: string;
-  body: string;
-  button_text?: string | undefined;
   destination: string;
-  image_hash: string;
-  link_text: string;
-  welcome_message?: string | undefined;
-  tags: null;
+  template: any; // TODO: create a type for facebook adcreative (stubs?)
+  template_campaign: string;
 };
 
 export type Creatives = Creative[];
 
-export type Stratum = {
-  id: string;
-  quota: number;
-  creatives: string[];
-  audiences: string[];
-  excluded_audiences: string[];
-  facebook_targeting: any; // TODO create a type for facebook targeting
-  question_targeting?: any; // TODO create a type for question targeting
-  metadata: [string, string];
+
+export type Audience = {
+  name: string;
+  subtype: string;
 };
 
-export type Strata = Stratum[];
+export type Audiences = Audience[];
+
 
 export type Level = {
   name: string;
@@ -111,12 +115,52 @@ export type Variable = {
 
 export type Variables = Variable[];
 
-export type Audience = {
-  name: string;
-  subtype: string;
+
+export type Stratum = {
+  id: string;
+  quota: number;
+  creatives: string[];
+  audiences: string[];
+  excluded_audiences: string[];
+  facebook_targeting: any; // TODO create a type for facebook targeting
+  question_targeting?: any; // TODO create a type for question targeting
+  metadata: any;
 };
 
-export type Audiences = Audience[];
+export type Strata = Stratum[];
+
+export type DataSource = {
+  name: string;
+  source: string;
+  credentials_key: string;
+  config?: any;
+};
+
+export type DataSources = DataSource[];
+
+export type ExtractionFunction = {
+  function: string;
+  params?: any;
+}
+
+export type Extraction = {
+  location: string
+  key: string
+  name: string
+  functions: ExtractionFunction[]
+  value_type: string
+  aggregate: string
+}
+
+export type SourceExtraction = {
+  extraction_confs: Extraction[];
+  user_variable?: string;
+}
+
+export type InferenceData = {
+  data_sources: Record<string, SourceExtraction>
+}
+
 
 export type LocalFormData =
   | CreateStudy
@@ -126,7 +170,19 @@ export type LocalFormData =
   | Destinations
   | Creatives
   | Variables
-  | Strata;
+  | Strata
+  | DataSources
+  | InferenceData;
+
+export type FormTypes =
+  | "general"
+  | "recruitment"
+  | "destinations"
+  | "audiences"
+  | "creatives"
+  | "variables"
+  | "strata"
+  | "data_sources"
 
 export type GlobalFormData = {
   general: General;
@@ -136,4 +192,5 @@ export type GlobalFormData = {
   creatives: Creatives;
   variables: Variables;
   strata: Strata;
+  data_sources: DataSources;
 };

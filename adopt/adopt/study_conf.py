@@ -5,14 +5,13 @@ from datetime import datetime, timedelta
 from math import floor
 from typing import Any, Dict, List, Optional, Tuple, Union
 
-from facebook_business.adobjects.adcreative import AdCreative
 from pydantic import BaseModel, ConfigDict, model_validator
 
 Params = Dict[str, Any]
 Budget = dict[str, float]
 
 
-class SourceConf(BaseModel):
+class DataSourceConf(BaseModel):
     name: str
     source: str
     credentials_key: str
@@ -33,13 +32,13 @@ class ExtractionConf(BaseModel):
     aggregate: str
 
 
-class DataSource(BaseModel):
+class SourceExtractionConf(BaseModel):
     extraction_confs: list[ExtractionConf]
     user_variable: Optional[str] = None
 
 
 class InferenceDataConf(BaseModel):
-    data_sources: dict[str, DataSource]
+    data_sources: dict[str, SourceExtractionConf]
 
 
 class UserInfo(BaseModel):
@@ -62,6 +61,7 @@ class QuestionTargeting(BaseModel):
 
 
 class FlyMessengerDestination(BaseModel):
+    type: str
     name: str
     initial_shortcode: str
     welcome_message: str
@@ -69,11 +69,13 @@ class FlyMessengerDestination(BaseModel):
 
 
 class WebDestination(BaseModel):
+    type: str
     name: str
     url_template: str  # create variables, like ref, which can be used.
 
 
 class AppDestination(BaseModel):
+    type: str
     name: str
     facebook_app_id: str
     app_install_link: str
@@ -369,6 +371,8 @@ RecruitmentConf = Union[
 
 FacebookTargeting = Dict[str, Any]
 
+FacebookAdCreative = Dict[str, Any]
+
 
 # TODO: alot of this is facebook-specific still!
 class GeneralConf(BaseModel):
@@ -385,7 +389,8 @@ class CreativeConf(BaseModel):
     model_config = ConfigDict(arbitrary_types_allowed=True)
     destination: str
     name: str
-    template: AdCreative
+    template: FacebookAdCreative
+    template_campaign: str | None = None
     tags: list[str] | None = None
 
 
@@ -400,6 +405,20 @@ class StratumConf(BaseModel):
 
     # template -- with page / insta.
     metadata: Dict[str, str]
+
+
+class Level(BaseModel):
+    name: str
+    template_campaign: str
+    template_adset: str
+    facebook_targeting: FacebookTargeting
+    quota: float
+
+
+class VariableConf(BaseModel):
+    name: str
+    properties: list[str]
+    levels: list[Level]
 
 
 class InvalidConfigError(BaseException):
@@ -555,7 +574,7 @@ class StudyConf(BaseModel):
 
     # WAIT - not optional?
     inference_data: Optional[InferenceDataConf] = None
-    data_sources: Optional[list[SourceConf]] = None
+    data_sources: Optional[list[DataSourceConf]] = None
 
     @property
     def campaign_names(self) -> list[str]:
