@@ -42,6 +42,17 @@ export const TemplateCampaignWrapper: React.FC<Props> = ({
     );
   }
 
+
+  if (!adAccount) {
+    return (
+      <ErrorPlaceholder
+        message='It seems that you have not selected an Ad Account to use for this study. Please go to the General tab, select an Ad Account, and submit the information. If the error persists, please contact your administrator.'
+        onClickTryAgain={() => window.location.reload()}
+      />
+    )
+  }
+
+
   if (campaignsQuery.isError) {
     return (
       <ErrorPlaceholder
