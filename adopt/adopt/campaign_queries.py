@@ -26,9 +26,10 @@ def get_user_info(study_id, cnf):
       details->>'access_token' as token,
       t.user_id as survey_user
     FROM t
-    join credentials
-      ON t.credentials_key = credentials.key
-    ORDER BY credentials.created DESC
+    join credentials c
+      ON t.credentials_key = c.key
+      AND c.user_id = t.user_id
+    ORDER BY c.created DESC
     LIMIT 1
     """
 
