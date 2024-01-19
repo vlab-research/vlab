@@ -296,9 +296,9 @@ def _create_creative(
         link_data = {
             AdCreativeLinkData.Field.call_to_action: call_to_action,
             AdCreativeLinkData.Field.image_hash: tld["image_hash"],
-            AdCreativeLinkData.Field.message: tld["message"],
-            AdCreativeLinkData.Field.name: tld["name"],
-            AdCreativeLinkData.Field.description: tld["description"],
+            AdCreativeLinkData.Field.message: tld.get("message"),
+            AdCreativeLinkData.Field.name: tld.get("name"),
+            AdCreativeLinkData.Field.description: tld.get("description"),
         }
 
         if page_welcome_message:

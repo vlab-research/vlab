@@ -333,6 +333,23 @@ def test_create_creative_from_template_image():
     )
 
 
+def test_create_creative_from_template_without_description():
+    template = _load_template("ad_no_description.json")
+
+    conf = CreativeConf(destination="messenger", name="foo", template=template)
+    cta = messenger_call_to_action()
+    welcome_message = '{"foo": ""welcome message"}'
+    creative = _create_creative(conf, cta, welcome_message)
+
+    assert creative["actor_id"] == template["actor_id"]
+    assert creative["instagram_actor_id"] == template["instagram_actor_id"]
+
+    assert (
+        creative["object_story_spec"]["link_data"]["page_welcome_message"]
+        == welcome_message
+    )
+
+
 def test_create_creative_from_template_video_messenger():
     template = _load_template("video_ad_messenger.json")
 
