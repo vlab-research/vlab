@@ -1,0 +1,59 @@
+{
+  "actor_id": "758018254333043",
+  "degrees_of_freedom_spec": {
+    "creative_features_spec": {
+      "advantage_plus_creative": {
+        "enroll_status": "OPT_OUT"
+      },
+      "cv_transformation": {
+        "enroll_status": "OPT_OUT"
+      },
+      "image_enhancement": {
+        "enroll_status": "OPT_OUT"
+      },
+      "image_templates": {
+        "enroll_status": "OPT_OUT"
+      },
+      "image_touchups": {
+        "enroll_status": "OPT_OUT"
+      },
+      "image_uncrop": {
+        "enroll_status": "OPT_OUT"
+      },
+      "inline_comment": {
+        "enroll_status": "OPT_OUT"
+      },
+      "standard_enhancements": {
+        "enroll_status": "OPT_OUT"
+      },
+      "text_optimizations": {
+        "enroll_status": "OPT_OUT"
+      }
+    }
+  },
+  "effective_instagram_media_id": "18011970868986382",
+  "effective_instagram_story_id": "24644386128540615",
+  "effective_object_story_id": "758018254333043_404152165515012",
+  "id": "120203790971470019",
+  "instagram_actor_id": "9699261133482289",
+  "instagram_user_id": "17841461005855054",
+  "name": "Earn data credits for your thoughts! 2024-01-16-095d590326595c93121c03432de9da09",
+  "object_story_spec": {
+    "instagram_actor_id": "9699261133482289",
+    "link_data": {
+      "call_to_action": {
+        "type": "MESSAGE_PAGE",
+        "value": {
+          "app_destination": "MESSENGER"
+        }
+      },
+      "image_hash": "e0243eb76d7da466d692f19787b4c2ee",
+      "link": "https://fb.com/messenger_doc/",
+      "message": "Got a minute? Improve lives across Ghana by taking a 3-minute survey.",
+      "name": "Earn data credits for your thoughts!",
+      "page_welcome_message": "{\"type\":\"VISUAL_EDITOR\",\"version\":2,\"landing_screen_type\":\"welcome_message\",\"media_type\":\"text\",\"text_format\":{\"customer_action_type\":\"ice_breakers\",\"message\":{\"ice_breakers\":[{\"title\":\"I want to learn more\"},{\"title\":\"Where is your organization located?\"},{\"title\":\"What are your hours?\"}],\"quick_replies\":[],\"text\":\"Hi {{user_first_name}}! Our team is here to help you find what you're looking for. How can we assist you?\"}},\"image_format\":{\"customer_action_type\":\"quick_replies\",\"message\":{\"attachment\":{\"type\":\"template\",\"payload\":{\"template_type\":\"generic\",\"elements\":[{\"title\":\"\",\"buttons\":[]}]}},\"quick_replies\":[{\"title\":\"I'd like to learn more\",\"content_type\":\"text\"}],\"text\":\"Hi {{user_first_name}}! Our team is here to help you find what you're looking for. How can we assist you?\"}},\"video_format\":{\"customer_action_type\":\"quick_replies\",\"message\":{\"attachment\":{\"type\":\"video\",\"payload\":{\"attachment_id\":\"\"}},\"quick_replies\":[{\"title\":\"I'd like to learn more\",\"content_type\":\"text\"}],\"text\":\"Hi {{user_first_name}}! Our team is here to help you find what you're looking for. How can we assist you?\"}},\"user_edit\":false,\"surface\":\"visual_editor_new\"}"
+    },
+    "page_id": "758018254333043"
+  },
+  "thumbnail_url": "https://external-sea1-1.xx.fbcdn.net/emg1/v/t13/9827198938363890510?url=https%3A%2F%2Fwww.facebook.com%2Fads%2Fimage%2F%3Fd%3DAQKR73DOrNOZd5YlOy6nanA6knN9sWsq6tFXeMSthIeXpBPAd6ZeiEW59oJFn_-nBLMamQgGxy0Zs7YaVbWpvmRIkZRTtvVWwwUN8IBCPj0wrko1Gjyx-CRNt83K4tS7fPcKrxp3jtmo0wk22dBqXJV3&fb_obo=1&utld=facebook.com&stp=c0.5000x0.5000f_dst-emg0_p64x64_q75&ccb=13-1&oh=06_AbEHLcGC95HmQYyqcmQU5Bwvkqp6ypkJZxZfTeEMXLISpA&oe=65A85AD0&_nc_sid=58080a"
+}
