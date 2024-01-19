@@ -458,6 +458,14 @@ def create_campaign(name, objective) -> Instruction:
     return Instruction("campaign", "create", params)
 
 
+def update_campaign(id_, objective) -> Instruction:
+    params = {
+        "objective": objective,
+    }
+
+    return Instruction("campaign", "update", params, id_)
+
+
 def update_instructions_for_campaign(
     study: StudyConf,
     state: FacebookState,
@@ -472,6 +480,13 @@ def update_instructions_for_campaign(
         print(e)
         logging.info(f"Could not find campaign with name {campaign_name}. Creating.")
         return [create_campaign(campaign_name, study.recruitment.objective)]
+
+    # TODO: need a way to "reconcile" campaign(s) - including
+    # if the objective changes. This is hacky, make a proper reconciliation.
+    if campaign_state.campaign["objective"] != study.recruitment.objective:
+        return [
+            update_campaign(campaign_state.campaign["id"], study.recruitment.objective)
+        ]
 
     sb = [(s, budget[s.id]) for s in strata]
     new_state = [adset_instructions(study, campaign_state, s, b) for s, b in sb]
