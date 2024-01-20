@@ -367,8 +367,44 @@ def test_create_creative_from_template_video_messenger():
     )
 
 
-# TODO: this is the same as video. I can't make an image-to-web ad
-# that doesn't use asset_feed_spec...
+def test_create_creative_from_template_video_with_oss_for_message_cta():
+    template = _load_template("video_ad_oss.json")
+
+    conf = CreativeConf(destination="web", name="foo", template=template)
+
+    cta = messenger_call_to_action()
+    welcome_message = '{"foo": ""welcome message"}'
+    creative = _create_creative(conf, cta, welcome_message)
+
+    assert creative["actor_id"] == template["actor_id"]
+    assert creative["instagram_actor_id"] == template["instagram_actor_id"]
+
+    assert (
+        creative["object_story_spec"]["video_data"]["page_welcome_message"]
+        == welcome_message
+    )
+
+
+def test_create_creative_from_template_video_with_oss_can_change_link_type():
+    template = _load_template("video_ad_oss.json")
+
+    conf = CreativeConf(destination="web", name="foo", template=template)
+
+    link = "foo.com/?bar=baz"
+    cta = web_call_to_action(link)
+    creative = _create_creative(conf, cta, link=link)
+
+    assert creative["actor_id"] == template["actor_id"]
+    assert creative["instagram_actor_id"] == template["instagram_actor_id"]
+
+    assert "page_welcome_message" not in creative["object_story_spec"]["video_data"]
+
+    assert (
+        creative["object_story_spec"]["video_data"]["call_to_action"]["value"]["link"]
+        == link
+    )
+
+
 def test_create_creative_from_template_image_web():
     template = _load_template("image_ad_website.json")
 

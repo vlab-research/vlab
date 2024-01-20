@@ -10,10 +10,9 @@ from urllib.parse import quote
 from facebook_business.adobjects.ad import Ad
 from facebook_business.adobjects.adcreative import AdCreative
 from facebook_business.adobjects.adcreativelinkdata import AdCreativeLinkData
-# from facebookads.adobjects.adcreativevideodata \
-#     import AdCreativeVideoData
 from facebook_business.adobjects.adcreativeobjectstoryspec import \
     AdCreativeObjectStorySpec
+from facebook_business.adobjects.adcreativevideodata import AdCreativeVideoData
 from facebook_business.adobjects.adpromotedobject import AdPromotedObject
 from facebook_business.adobjects.adset import AdSet
 from facebook_business.adobjects.campaign import Campaign
@@ -309,6 +308,24 @@ def _create_creative(
         if link:
             link_data[AdCreativeLinkData.Field.link] = link
 
+    tvd = config.template["object_story_spec"].get("video_data")
+    if tvd:
+        to_copy = [
+            AdCreativeVideoData.Field.image_hash,
+            AdCreativeVideoData.Field.image_url,
+            AdCreativeVideoData.Field.message,
+            AdCreativeVideoData.Field.title,
+            AdCreativeVideoData.Field.video_id,
+        ]
+
+        video_data = {k: tvd.get(k) for k in to_copy}
+        video_data[AdCreativeVideoData.Field.call_to_action] = call_to_action
+
+        if page_welcome_message:
+            video_data[
+                AdCreativeVideoData.Field.page_welcome_message
+            ] = page_welcome_message
+
     toss = config.template["object_story_spec"]
 
     c[AdCreative.Field.object_story_spec] = {
@@ -317,6 +334,7 @@ def _create_creative(
             "instagram_actor_id"
         ),
         AdCreativeObjectStorySpec.Field.link_data: link_data if tld else None,
+        AdCreativeObjectStorySpec.Field.video_data: video_data if tvd else None,
     }
 
     tafs = config.template.get(AdCreative.Field.asset_feed_spec)
