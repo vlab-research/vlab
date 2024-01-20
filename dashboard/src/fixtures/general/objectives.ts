@@ -1,4 +1,5 @@
 const objectives = [
+  { name: '', label: 'Select a campaign objective' },
   { name: 'OUTCOME_LEADS', label: 'Leads' },
   { name: 'OUTCOME_SALES', label: 'Sales' },
   { name: 'OUTCOME_ENGAGEMENT', label: 'Engagement' },

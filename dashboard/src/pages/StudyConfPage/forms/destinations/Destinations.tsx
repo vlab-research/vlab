@@ -17,14 +17,13 @@ interface Props {
 
 const Destinations: React.FC<Props> = ({ id, localData }: Props) => {
 
-  // TODO: add all the initial states ala Recruitment?
   const initialState = [
     {
       name: '',
       initial_shortcode: '',
       welcome_message: '',
       button_text: '',
-      type: 'messenger',
+      type: '',
     },
   ];
 

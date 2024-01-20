@@ -68,7 +68,6 @@ const General: React.FC<Props> = ({ id, localData, study, facebookAccount }: Pro
     )
   }
 
-
   const validateInput = (name: string, value: any) => {
     if (name === 'min_budget') {
       if (!value) {
@@ -101,6 +100,11 @@ const General: React.FC<Props> = ({ id, localData, study, facebookAccount }: Pro
     createStudyConf({ data, studySlug, confType: id });
   };
 
+  const adAccountOptions = [
+    { name: '', label: 'Select an Ad Account' },
+    ...adAccounts.map(a => ({ name: a.account_id, label: a.name }))
+  ]
+
   return (
     <ConfWrapper>
       <form onSubmit={onSubmit}>
@@ -114,7 +118,7 @@ const General: React.FC<Props> = ({ id, localData, study, facebookAccount }: Pro
         <Select
           name="ad_account"
           handleChange={handleChange}
-          options={adAccounts.map(a => ({ name: a.account_id, label: a.name }))}
+          options={adAccountOptions}
           value={formData.ad_account}
         />
         <TextInput

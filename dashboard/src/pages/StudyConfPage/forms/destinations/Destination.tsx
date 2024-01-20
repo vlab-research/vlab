@@ -20,16 +20,18 @@ const Destination: React.FC<Props> = ({
   update: updateFormData,
 }: Props) => {
 
-  const type = data.type;
+  const type_ = data.type;
 
-  const [destinationType, setDestinationType] = useState<string>(type);
-
-  useEffect(() => {
-    setDestinationType(type);
-  }, [type]);
+  const [destinationType, setDestinationType] = useState<string>(type_);
 
   const initialState: any[] = [
-    { name: '', initial_shortcode: '', type: 'messenger' },
+    {
+      name: '',
+      initial_shortcode: '',
+      welcome_message: '',
+      button_text: '',
+      type: 'messenger'
+    },
     { name: '', url_template: '', type: 'web' },
     {
       app_install_link: '',
@@ -47,6 +49,7 @@ const Destination: React.FC<Props> = ({
     const { value } = e.target;
     setDestinationType(value);
     const fields = initialState.find((obj: any) => obj.type === value);
+    if (!fields) return;
     updateFormData(fields, index);
   };
 

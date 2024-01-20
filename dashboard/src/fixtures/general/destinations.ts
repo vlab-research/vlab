@@ -1,5 +1,9 @@
 const destinations = [
   {
+    name: '',
+    label: 'Select a destination',
+  },
+  {
     name: 'messenger',
     label: 'Messenger',
   },

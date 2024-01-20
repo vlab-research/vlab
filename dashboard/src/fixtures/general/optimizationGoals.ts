@@ -1,5 +1,9 @@
 const optimizationGoals = [
   {
+    name: '',
+    label: 'Select an adset optimization/performance goal',
+  },
+  {
     name: 'AD_RECALL_LIFT',
     label: 'Ad recall lift',
   },
