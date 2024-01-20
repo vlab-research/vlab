@@ -8,11 +8,7 @@ import { GenericSelect, SelectI } from '../../components/Select';
 import recruitmentTypes from '../../../../fixtures/recruitment/types';
 import { GlobalFormData } from '../../../../types/conf';
 import useCreateStudyConf from '../../hooks/useCreateStudyConf';
-import { getFirstOption } from '../../../../helpers/arrays';
 import ConfWrapper from '../../components/ConfWrapper';
-import objectives from '../../../../fixtures/general/objectives';
-import destinationTypes from '../../../../fixtures/general/destinations';
-import optimizationGoals from '../../../../fixtures/general/optimizationGoals';
 const Select = GenericSelect as SelectI<any>;
 
 interface Props {

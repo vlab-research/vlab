@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import Messenger from './Messenger';
 import Web from './Web';
 import App from './App';
