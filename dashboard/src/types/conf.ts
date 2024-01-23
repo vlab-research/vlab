@@ -129,11 +129,22 @@ export type Stratum = {
 
 export type Strata = Stratum[];
 
+
+export type FlyConfig = {
+  survey_name: string;
+}
+
+export type QualtricsConfig = {
+  survey_id: string;
+}
+
+export type DataSourceConfig = FlyConfig | QualtricsConfig;
+
 export type DataSource = {
   name: string;
   source: string;
   credentials_key: string;
-  config?: any;
+  config: DataSourceConfig;
 };
 
 export type DataSources = DataSource[];

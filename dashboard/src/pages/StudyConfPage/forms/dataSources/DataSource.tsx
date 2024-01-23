@@ -1,7 +1,9 @@
 import React from 'react';
 import { GenericTextInput, TextInputI } from '../../components/TextInput';
-import { DataSource as FormData } from '../../../../types/conf';
+import { DataSource as FormData, FlyConfig as FlyConfigType, QualtricsConfig as QualtricsConfigType } from '../../../../types/conf';
 import { GenericSelect, SelectI } from '../../components/Select';
+import FlyConfig from './FlyConfig';
+import QualtricsConfig from './QualtricsConfig';
 import { type Account } from '../../../../types/account';
 
 const TextInput = GenericTextInput as TextInputI<FormData>;
@@ -60,6 +62,12 @@ const DataSource: React.FC<Props> = ({ data, update: updateFormData, index, acco
         value={data.credentials_key}
         disabled={!hasValidAccount}
       />
+      {data.source === 'fly' && (
+        <FlyConfig data={(data.config as FlyConfigType)} updateFormData={(d: FlyConfigType) => updateFormData({ ...data, config: d }, index)} />
+      )}
+      {data.source === 'qualtrics' && (
+        <QualtricsConfig data={(data.config as QualtricsConfigType)} updateFormData={(d: QualtricsConfigType) => updateFormData({ ...data, config: d }, index)} />
+      )}
 
     </li>
   );

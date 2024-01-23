@@ -19,6 +19,7 @@ interface Props {
   localData: DataSourceType[];
 }
 
+
 const DataSources: React.FC<Props> = ({
   id,
   localData,
@@ -28,6 +29,7 @@ const DataSources: React.FC<Props> = ({
       name: '',
       source: '',
       credentials_key: '',
+      config: { survey_name: '' },
     },
   ];
 

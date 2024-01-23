@@ -116,6 +116,18 @@ const InferenceDataWrapper: React.FC<Props> = props => {
     )
   }
 
+  if (!globalData.strata) {
+    return (
+      <ConfWrapper>
+        <ErrorPlaceholder
+          showImage={true}
+          message='Oops! You first need to configure your strata!'
+          onClickTryAgain={() => window.location.reload()}
+        />
+      </ConfWrapper>
+    )
+  }
+
   return (
     <InferenceData {...props} />
   )

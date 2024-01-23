@@ -24,7 +24,7 @@ const Destination: React.FC<Props> = ({
 
   const [destinationType, setDestinationType] = useState<string>(type_);
 
-  const initialState: any[] = [
+  const emptyStates: any[] = [
     {
       name: '',
       initial_shortcode: '',
@@ -48,7 +48,7 @@ const Destination: React.FC<Props> = ({
   const handleSelectChange = (e: any) => {
     const { value } = e.target;
     setDestinationType(value);
-    const fields = initialState.find((obj: any) => obj.type === value);
+    const fields = emptyStates.find((obj: any) => obj.type === value);
     if (!fields) return;
     updateFormData(fields, index);
   };
