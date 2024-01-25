@@ -30,7 +30,6 @@ def get_var(v: Union[TargetVar, QuestionTargeting], d: Dict[str, Any]):
         return make_pred(v)(d)
 
     if not isinstance(v, TargetVar):
-
         raise Exception(
             f"get_var must be passed TargetVar or QuestionTargeting. Was passed: {v}"
         )
@@ -41,7 +40,6 @@ def get_var(v: Union[TargetVar, QuestionTargeting], d: Dict[str, Any]):
         return value
 
     if type_ == "variable":
-
         try:
             ans = d["value"][value]
             return ans

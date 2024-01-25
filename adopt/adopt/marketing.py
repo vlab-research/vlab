@@ -1,7 +1,7 @@
 import json
 import logging
 import random
-from dataclasses import asdict, dataclass, fields, is_dataclass
+from dataclasses import asdict, is_dataclass
 from datetime import datetime, timedelta
 from typing import (Any, Dict, List, NamedTuple, Optional, Sequence, Tuple,
                     Union)
@@ -24,9 +24,8 @@ from .facebook.reconciliation import adset_dif
 from .facebook.state import CampaignState, FacebookState, StateNameError, split
 from .facebook.update import Instruction
 from .study_conf import (AppDestination, Audience, CreativeConf,
-                         DestinationConf, FlyMessengerDestination, GeneralConf,
-                         LookalikeAudience, Stratum, StratumConf, StudyConf,
-                         WebDestination)
+                         DestinationConf, FlyMessengerDestination,
+                         LookalikeAudience, Stratum, StudyConf, WebDestination)
 
 ADSET_HOURS = 48
 
@@ -312,7 +311,6 @@ def _create_creative(
     if tvd:
         to_copy = [
             AdCreativeVideoData.Field.image_hash,
-            AdCreativeVideoData.Field.image_url,
             AdCreativeVideoData.Field.message,
             AdCreativeVideoData.Field.title,
             AdCreativeVideoData.Field.video_id,
