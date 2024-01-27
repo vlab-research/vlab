@@ -13,7 +13,7 @@ const useCampaigns = (accountNumber: string | undefined, accessToken: string) =>
 
   const query = useInfiniteQuery(
     queryKey,
-    (_: unknown, cursor: Cursor = null) =>
+    ({ pageParam: cursor }) =>
       fetchCampaigns({
         limit,
         accountNumber: account,

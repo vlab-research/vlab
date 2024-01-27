@@ -11,7 +11,7 @@ const useAdAccounts = (accessToken: string) => {
 
   const query = useInfiniteQuery(
     queryKey,
-    (_: unknown, cursor: Cursor = null) =>
+    ({ pageParam: cursor }) =>
       fetchAdAccounts({
         limit,
         cursor,

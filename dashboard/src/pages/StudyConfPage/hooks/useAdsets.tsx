@@ -18,7 +18,7 @@ const useAdsets = (
 
   const query = useInfiniteQuery(
     queryKey,
-    (_: unknown, cursor: Cursor = null) =>
+    ({ pageParam: cursor }) =>
       fetchAdsets({
         limit,
         campaign: definiteCampaign,

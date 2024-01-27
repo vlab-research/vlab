@@ -11,7 +11,7 @@ const useStudies = () => {
 
   const query = useInfiniteQuery(
     queryKey,
-    (_: unknown, cursor: Cursor = null) =>
+    ({ pageParam: cursor }) =>
       fetchStudies({
         studiesPerPage,
         cursor,
