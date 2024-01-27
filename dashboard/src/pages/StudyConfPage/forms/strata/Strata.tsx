@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import Stratum from './Stratum';
 import PrimaryButton from '../../../../components/PrimaryButton';
@@ -60,6 +60,17 @@ const Variables: React.FC<Props> = ({
     studySlug,
     'strata'
   );
+
+  // Cleans up old creatives if someone deleted them...
+  // TODO: this is not the most robust - requires loading this page, for no real reason.
+  // move to Creatives tab??
+  useEffect(() => {
+    const cleanFormData = formData.map(stratum => {
+      const filteredCreatives = stratum.creatives.filter(c => creatives.map(c => c.name).includes(c))
+      return { ...stratum, creatives: filteredCreatives }
+    })
+    setFormData(cleanFormData)
+  }, [creatives])
 
   return (
     <ConfWrapper>

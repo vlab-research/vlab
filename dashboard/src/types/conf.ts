@@ -26,7 +26,7 @@ export interface RecruitmentSimple {
 
 export interface RecruitmentDestination {
   ad_campaign_name_base: string;
-  destination: string;
+  destinations: string[];
   objective: string;
   optimization_goal: string;
   destination_type: string;
@@ -138,7 +138,11 @@ export type QualtricsConfig = {
   survey_id: string;
 }
 
-export type DataSourceConfig = FlyConfig | QualtricsConfig;
+export type TypeformConfig = {
+  form_id: string;
+}
+
+export type DataSourceConfig = FlyConfig | QualtricsConfig | TypeformConfig;
 
 export type DataSource = {
   name: string;

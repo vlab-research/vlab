@@ -42,7 +42,7 @@ export const GenericListFactory = <T extends hasName>(): React.FC<ListProps<T>> 
               update={updateElement}
               {...elementProps}
             />
-            {data.length > 1 && (
+            {data.length >= 1 && (
               <div key={`${d.name}-${index}`}>
                 <div className="flex flex-row w-4/5 justify-between items-center">
                   <div className="flex w-full h-0.5 mr-4 rounded-md bg-gray-400"></div>

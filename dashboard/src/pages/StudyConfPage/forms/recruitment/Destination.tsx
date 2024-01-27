@@ -8,9 +8,11 @@ import optimizationGoals from '../../../../fixtures/general/optimizationGoals';
 import { RecruitmentDestination as FormData } from '../../../../types/conf';
 import { Destination as DestinationType } from '../../../../types/conf';
 import AddButton from '../../../../components/AddButton';
+import { GenericMultiSelect, MultiSelectI } from '../../components/MultiSelect';
 
 const TextInput = GenericTextInput as TextInputI<FormData>;
 const Select = GenericSelect as SelectI<FormData>;
+const MultiSelect = GenericMultiSelect as MultiSelectI<FormData>;
 
 interface Props {
   formData: FormData;
@@ -41,15 +43,20 @@ const Destination: React.FC<Props> = ({
     updateFormData({ ...formData, [name]: validateInput(name, value) });
   };
 
+  const handleMultiSelectChange = (selected: string[], name: string) => {
+    updateFormData({ ...formData, [name]: selected });
+  };
+
   return (
     <>
       {destinations ? (
-        <Select
-          name="destination"
-          options={destinations}
-          handleChange={handleChange}
-          value={formData.destination}
-        ></Select>
+        <MultiSelect
+          name="destinations"
+          options={destinations.map(d => ({ label: d.name, value: d.name }))}
+          handleMultiSelectChange={handleMultiSelectChange}
+          value={formData.destinations}
+          label="Select the destinations in the experiment"
+        ></MultiSelect>
       ) : (
         <div className="my-4">
           <label className="my-2 block text-sm font-medium text-gray-700">

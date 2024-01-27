@@ -20,6 +20,7 @@ interface Props {
 
 const QualtricsExtraction: React.FC<Props> = ({ data, nameOptions: names, update: updateFormData, index }: Props) => {
 
+
   const handleChange = (e: any) => {
     const { name, value } = e.target;
 
@@ -42,7 +43,7 @@ const QualtricsExtraction: React.FC<Props> = ({ data, nameOptions: names, update
 
   const nameOptions = [
     { name: '', label: 'What name do you use to refer to this variable?' },
-    names.map(n => ({ name: n, label: n }))
+    ...names.map(n => ({ name: n, label: n }))
   ]
 
   return (

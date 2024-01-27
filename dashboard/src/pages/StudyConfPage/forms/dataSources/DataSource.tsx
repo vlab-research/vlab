@@ -1,9 +1,10 @@
 import React from 'react';
 import { GenericTextInput, TextInputI } from '../../components/TextInput';
-import { DataSource as FormData, FlyConfig as FlyConfigType, QualtricsConfig as QualtricsConfigType } from '../../../../types/conf';
+import { DataSource as FormData, FlyConfig as FlyConfigType, QualtricsConfig as QualtricsConfigType, TypeformConfig as TypeformConfigType } from '../../../../types/conf';
 import { GenericSelect, SelectI } from '../../components/Select';
 import FlyConfig from './FlyConfig';
 import QualtricsConfig from './QualtricsConfig';
+import TypeformConfig from './TypeformConfig';
 import { type Account } from '../../../../types/account';
 
 const TextInput = GenericTextInput as TextInputI<FormData>;
@@ -68,6 +69,11 @@ const DataSource: React.FC<Props> = ({ data, update: updateFormData, index, acco
       {data.source === 'qualtrics' && (
         <QualtricsConfig data={(data.config as QualtricsConfigType)} updateFormData={(d: QualtricsConfigType) => updateFormData({ ...data, config: d }, index)} />
       )}
+
+      {data.source === 'typeform' && (
+        <TypeformConfig data={(data.config as TypeformConfigType)} updateFormData={(d: TypeformConfigType) => updateFormData({ ...data, config: d }, index)} />
+      )}
+
 
     </li>
   );

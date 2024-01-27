@@ -1,5 +1,6 @@
 import FlyExtraction from './FlyExtraction';
 import QualtricsExtraction from './QualtricsExtraction';
+import ErrorPlaceholder from '../../../../components/ErrorPlaceholder';
 import {
   DataSource as DataSourceType,
   SourceExtraction as SourceExtractionType,
@@ -39,13 +40,21 @@ const SourceExtraction: React.FC<Props> = ({ source, dataSource, setData, nameOp
   const lookup = {
     fly: FlyExtraction,
     qualtrics: QualtricsExtraction,
+    typeform: QualtricsExtraction,
   }
   type sourceType = "fly" | "qualtrics"
   const Element = lookup[dataSource.source as sourceType]
 
   if (!Element) {
-    console.error(`We don't have a config for this source type: ${dataSource.source}`)
+    return (
+      <ErrorPlaceholder
+        showImage={true}
+        message={`Oops! We are missing a config for the source type: ${dataSource.source}`}
+        onClickTryAgain={() => window.location.reload()}
+      />
+    )
   }
+
   return (
 
     <div>
