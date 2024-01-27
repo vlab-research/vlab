@@ -1,6 +1,5 @@
 import { useInfiniteQuery } from 'react-query';
 import useAuthenticatedApi from '../../../hooks/useAuthenticatedApi';
-import { Cursor } from '../../../types/api';
 
 const studiesPerPage = 10;
 const queryKey = 'studies';

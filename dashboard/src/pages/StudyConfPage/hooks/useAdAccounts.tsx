@@ -1,6 +1,5 @@
 import { useInfiniteQuery } from 'react-query';
 import { fetchAdAccounts } from '../../../helpers/api';
-import { Cursor } from '../../../types/api';
 
 const limit = 100;
 const defaultErrorMessage =

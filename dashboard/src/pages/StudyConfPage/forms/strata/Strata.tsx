@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useParams } from 'react-router-dom';
 import Stratum from './Stratum';
 import PrimaryButton from '../../../../components/PrimaryButton';
@@ -50,8 +50,14 @@ const Variables: React.FC<Props> = ({
   const onSubmit = (e: any) => {
     e.preventDefault();
 
+    // remove any old creatives
+    const cleanFormData = formData.map(stratum => {
+      const filteredCreatives = stratum.creatives.filter(c => creatives.map(c => c.name).includes(c))
+      return { ...stratum, creatives: filteredCreatives }
+    });
+
     // caste quotas
-    const data = formData.map(s => ({ ...s, quota: +s.quota }));
+    const data = cleanFormData.map(s => ({ ...s, quota: +s.quota }));
     createStudyConf({ data, studySlug, confType: id });
   };
 
@@ -60,17 +66,6 @@ const Variables: React.FC<Props> = ({
     studySlug,
     'strata'
   );
-
-  // Cleans up old creatives if someone deleted them...
-  // TODO: this is not the most robust - requires loading this page, for no real reason.
-  // move to Creatives tab??
-  useEffect(() => {
-    const cleanFormData = formData.map(stratum => {
-      const filteredCreatives = stratum.creatives.filter(c => creatives.map(c => c.name).includes(c))
-      return { ...stratum, creatives: filteredCreatives }
-    })
-    setFormData(cleanFormData)
-  }, [creatives])
 
   return (
     <ConfWrapper>

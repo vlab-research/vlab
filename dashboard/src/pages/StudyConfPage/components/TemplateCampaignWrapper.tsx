@@ -42,6 +42,15 @@ export const TemplateCampaignWrapper: React.FC<Props> = ({
     );
   }
 
+  if (campaigns.length === 0) {
+    return (
+      <ErrorPlaceholder
+        message='This ad account does not have any published campaigns. Before you use a template campaign, you need to create and publish one in the ad account'
+        onClickTryAgain={() => window.location.reload()}
+      />
+    )
+  }
+
 
   if (!adAccount) {
     return (
