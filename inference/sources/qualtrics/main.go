@@ -57,17 +57,17 @@ type CreateExportRequest struct {
 
 type CreateExportResponse struct {
 	Result struct {
-		ProgressID        string  `json:"progressId"`
-		PercentComplete   float64 `json:"percentComplete"`
-		Status            string  `json:"status"`
+		ProgressID      string  `json:"progressId"`
+		PercentComplete float64 `json:"percentComplete"`
+		Status          string  `json:"status"`
 	} `json:"result"`
 }
 
 type ExportProgressResponse struct {
 	Result struct {
-		PercentComplete float64 `json:"percentComplete"`
-		FileID          string  `json:"fileId"`
-		Status          string  `json:"status"`
+		PercentComplete   float64 `json:"percentComplete"`
+		FileID            string  `json:"fileId"`
+		Status            string  `json:"status"`
 		ContinuationToken string  `json:"continuationToken"`
 	} `json:"result"`
 }
@@ -82,13 +82,13 @@ func CreateExport(sli *sling.Sling, survey string, wait float64, maxAttempts int
 	url := fmt.Sprintf("/API/v3/surveys/%s/export-responses", survey)
 
 	body := &CreateExportRequest{
-		Format: "json", 
+		Format: "json",
 	}
 
 	if pagination != "" {
 		body.ContinuationToken = pagination
-	} else  {
-		body.AllowContinuation = true 
+	} else {
+		body.AllowContinuation = true
 		body.SortByLastModifiedDate = true
 	}
 
@@ -99,6 +99,12 @@ func CreateExport(sli *sling.Sling, survey string, wait float64, maxAttempts int
 	}
 
 	if !apiError.Empty() {
+		log.Println(fmt.Sprintf("Qualtrics API Error Code: %s. Message: %s", apiError.Meta.Error.ErrorCode, apiError.Meta.Error.ErrorMessage))
+
+		// If continuation token has expired, just redo from scratch
+		if apiError.Error() == "Continuation Token has expired" {
+			return CreateExport(sli, survey, wait, maxAttempts, "")
+		}
 		return "", "", apiError
 	}
 
@@ -287,7 +293,7 @@ func ReadZippedJSON(path string) (*QualtricsResponseFile, error) {
 }
 
 type QualtricsValue struct {
-	Label string `json:"label"`
+	Label string          `json:"label"`
 	Value json.RawMessage `json:"value"`
 }
 
@@ -318,12 +324,11 @@ func GetResponsesFromFile(source *Source, path string, idx int, pagination strin
 
 				qv := QualtricsValue{Label: label, Value: v}
 
-				b, err := json.Marshal(qv) 
+				b, err := json.Marshal(qv)
 
 				if err != nil {
 					handle(err)
 				}
-				
 
 				event := &InferenceDataEvent{
 					User:       user,

@@ -195,9 +195,13 @@ func LoadEvents(connector Connector, dataSource string, orderColumn string) {
 
 	fmt.Println(sources)
 
+	log.Println(fmt.Sprintf("Collecting events %d studies", len(sources)))
+
 	// this doesn't need to be done sequentially,
 	// make a go loop?
 	for _, source := range sources {
+
+		log.Println(fmt.Sprintf("Collecting events for study %s", source.StudyID))
 
 		e, _, err := LastEvent(pool, source, orderColumn)
 		handle(err)

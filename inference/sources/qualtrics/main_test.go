@@ -4,13 +4,14 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/stretchr/testify/assert"
+	"github.com/tidwall/gjson"
 	. "github.com/vlab-research/vlab/inference/inference-data"
 	. "github.com/vlab-research/vlab/inference/test-helpers"
+	"io/ioutil"
 	"net/http"
+	"strings"
 	"testing"
 	"time"
-	"io/ioutil"
-	"strings"
 )
 
 func check(e error) {
@@ -56,9 +57,8 @@ func TestCreateExport_GetsAnExportLinkWhenFinished(t *testing.T) {
 		calls++
 	})
 
-
 	sli := MakeSling(http.DefaultClient, ts.URL, "testtoken")
-	pagination, res, err := CreateExport(sli, "foo", 0.01, 5, "") 
+	pagination, res, err := CreateExport(sli, "foo", 0.01, 5, "")
 
 	assert.Nil(t, err)
 	assert.Equal(t, 4, calls)
@@ -89,12 +89,60 @@ func TestCreateExport_QuitsAfterTryingAWhile(t *testing.T) {
 		calls++
 	})
 
-	sli := MakeSling(http.DefaultClient, ts.URL, "testtoken") 
+	sli := MakeSling(http.DefaultClient, ts.URL, "testtoken")
 	_, _, err := CreateExport(sli, "foo", 0.01, 10, "")
 
 	assert.NotNil(t, err)
 	assert.Equal(t, 11, calls)
 	assert.Contains(t, err.Error(), "foo")
+}
+
+func TestCreateExport_StartsFromScratchIfContinuationTokenExpires(t *testing.T) {
+	calls := 0
+	ts, _ := TestServer(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "testtoken", r.Header.Get("X-API-TOKEN"))
+
+		b, _ := ioutil.ReadAll(r.Body)
+		s := strings.TrimSpace(string(b))
+
+		token := gjson.Get(s, "continuationToken").String()
+
+		if token == "expiredtoken" {
+			w.WriteHeader(400)
+			w.Header().Set("Content-Type", "application/json")
+
+			res := `{"meta":{"error":{"errorMessage":"Continuation Token has expired","errorCode":"123"}}}`
+			fmt.Fprint(w, res)
+		}
+
+		if token == "" {
+
+			if calls == 1 {
+				assert.Equal(t, "/API/v3/surveys/foo/export-responses", r.URL.Path)
+
+				res := `{"result":{"progressId":"PROGRESSID","percentComplete":0.0,"status":"inProgress"},"meta":{"requestId":"92abd129-c221-4231-beb6-be81b9e49dc3","httpStatus":"200 - OK"}}`
+
+				w.WriteHeader(200)
+				w.Header().Set("Content-Type", "application/json")
+				fmt.Fprint(w, res)
+			}
+
+			if calls == 2 {
+				res := `{"result":{"fileId":"FILEID","percentComplete":100.0,"status":"complete","continuationToken": "foo-continue"},"meta":{"requestId":"36c0f2df-d64c-4a7d-9a9f-6a3a8a1ac4ef","httpStatus":"200 - OK"}}`
+				fmt.Fprint(w, res)
+			}
+
+		}
+
+		calls++
+
+	})
+
+	sli := MakeSling(http.DefaultClient, ts.URL, "testtoken")
+	_, _, err := CreateExport(sli, "foo", 0.01, 10, "expiredtoken")
+
+	assert.Nil(t, err)
+	assert.Equal(t, 3, calls)
 }
 
 func TestCreateExport_SendsContinuationTokenIfItHasOneAndGetsNewOneBack(t *testing.T) {
@@ -110,7 +158,7 @@ func TestCreateExport_SendsContinuationTokenIfItHasOneAndGetsNewOneBack(t *testi
 			b, _ := ioutil.ReadAll(r.Body)
 			s := strings.TrimSpace(string(b))
 
-			exp := `{"format":"json","continuationToken":"foo-continue"}` 
+			exp := `{"format":"json","continuationToken":"foo-continue"}`
 			assert.Equal(t, s, exp)
 
 			res := `{"result":{"progressId":"PROGRESSID","percentComplete":0.0,"status":"inProgress"},"meta":{"requestId":"92abd129-c221-4231-beb6-be81b9e49dc3","httpStatus":"200 - OK"}}`
@@ -135,7 +183,7 @@ func TestCreateExport_SendsContinuationTokenIfItHasOneAndGetsNewOneBack(t *testi
 }
 
 func TestReadZipFile_Works(t *testing.T) {
-	res, err := ReadZippedJSON("test/responses.zip") 
+	res, err := ReadZippedJSON("test/responses.zip")
 
 	assert.Nil(t, err)
 
