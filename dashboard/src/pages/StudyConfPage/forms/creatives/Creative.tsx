@@ -51,7 +51,10 @@ const Creative: React.FC<Props> = ({
 
     const ad = ads.find(a => a.id === value)
     const template = ad["creative"]
-    updateFormData({ ...data, template }, index)
+    if (!!data.name) {
+      return updateFormData({ ...data, template }, index)
+    }
+    return updateFormData({ ...data, template, name: ad.name }, index)
   }
 
   const adOptions = [
@@ -64,12 +67,6 @@ const Creative: React.FC<Props> = ({
 
   return (
     <li>
-      <TextInput
-        name="name"
-        handleChange={handleChange}
-        placeholder="E.g Ad_campaign_2"
-        value={data.name}
-      />
 
       {destinations ? (
         <Select
@@ -95,8 +92,12 @@ const Creative: React.FC<Props> = ({
         handleChange={handleSelectTemplate}
         value={chosenAd?.id || ""}
       ></Select>
-
-
+      <TextInput
+        name="name"
+        handleChange={handleChange}
+        placeholder="E.g Ad_campaign_2"
+        value={data.name}
+      />
 
     </li>
   );
