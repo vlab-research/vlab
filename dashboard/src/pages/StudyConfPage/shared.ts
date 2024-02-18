@@ -7,8 +7,10 @@ import Audiences from './forms/audience/Audiences';
 import Strata from './forms/strata/Strata';
 import DataSources from './forms/dataSources/DataSources';
 import InferenceData from './forms/inferenceData/InferenceData';
+import Initialize from './forms/initialize/Initialize';
 
 export const confs = [
+  { name: "Initialize", path: "initialize", component: Initialize },
   { name: "General", path: "general", component: General },
   { name: "Recruitment", path: "recruitment", component: Recruitment },
   { name: "Destinations", path: "destinations", component: Destinations },

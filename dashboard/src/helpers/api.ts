@@ -14,6 +14,8 @@ import {
   SingleStudyConf,
   StudySegmentsProgressApiResponse,
 } from '../types/study';
+
+import { CopyFromConf } from '../types/conf';
 import { Cursor } from '../types/api';
 import {
   AccountsApiResponse,
@@ -135,6 +137,27 @@ const createStudyConf = ({
 
   apiRequest<CreateStudyConfApiResponse>(
     `/${orgPrefix()}/studies/${studySlug}/confs/${confType}`,
+    {
+      accessToken,
+      method: 'POST',
+      body: data,
+      baseURL: process.env.REACT_APP_CONF_SERVER_URL,
+    }
+  );
+
+
+const copyConfs = ({
+  data,
+  studySlug,
+  accessToken,
+}: {
+  data: CopyFromConf;
+  studySlug: string;
+  accessToken: string;
+}) =>
+
+  apiRequest<StudyConfApiResponse>(
+    `/${orgPrefix()}/studies/${studySlug}/copy-from`,
     {
       accessToken,
       method: 'POST',
@@ -512,7 +535,7 @@ const getErrorMessageFor = async (
     return "There was an error with the data submitted. Please check your information and try again or contact your administrator"
   }
 
-  return responseBody.error || defaultErrorMessage;
+  return responseBody.error || responseBody.detail || defaultErrorMessage;
 };
 
 export const authenticatedApiCalls = {
@@ -528,4 +551,5 @@ export const authenticatedApiCalls = {
   createAccount,
   deleteAccount,
   createFacebookAccount,
+  copyConfs,
 };

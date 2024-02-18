@@ -12,8 +12,8 @@ const useCreateStudy = (name: string) => {
   const { mutate: createStudyMutation, isLoading, error } = useMutation(
     ({ name }: { name: string }) => createStudy({ name }),
     {
-      onSuccess: () => {
-        history.push(`/studies/${createSlugFor(name)}/general`);
+      onSuccess: ({ data }) => {
+        history.push(`/studies/${createSlugFor(data.name)}/initialize`);
         notyf.success({
           message: `Study created`,
           background: 'rgb(67 56 202)',

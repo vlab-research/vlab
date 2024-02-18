@@ -10,7 +10,7 @@ from ..study_conf import (AudienceConf, CreativeConf, DataSourceConf,
                           DestinationConf, GeneralConf, InferenceDataConf,
                           RecruitmentConf, StratumConf, VariableConf)
 from .auth import AuthError, verify_token
-from .db import create_study_conf, get_all_study_confs, get_study_conf
+from .db import create_study_conf, get_all_study_confs, get_study_conf, copy_confs
 
 app = FastAPI()
 
@@ -157,6 +157,22 @@ async def create_inference_data_conf(
     user: Annotated[User, Depends(get_current_user)],
 ):
     return await create_conf(user, org_id, slug, "inference_data", config)
+
+
+class CopyFromConf(BaseModel):
+    source_study_slug: str
+
+
+@app.post("/{org_id}/studies/{slug}/copy-from", status_code=201)
+async def copy_confs_from(
+    org_id: str,
+    slug: str,
+    config: CopyFromConf,
+    user: Annotated[User, Depends(get_current_user)],
+):
+
+    raw_config = copy_confs(user.user_id, org_id, slug, config.source_study_slug)
+    return {"data": raw_config}
 
 
 @app.get("/{org_id}/studies/{slug}/confs/{conf_type}")

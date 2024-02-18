@@ -1,5 +1,5 @@
 from typing import Any
-
+from fastapi import HTTPException
 import orjson
 from environs import Env
 
@@ -96,3 +96,35 @@ def create_study_conf(
             f"Could not find study for user {user_id},"
             f" org {org_id}, study {study_slug}"
         )
+
+
+def copy_confs(user_id: str, org_id: str, slug: str, source_study_slug: str):
+    q = """
+    with t AS (
+               SELECT *,
+               ROW_NUMBER() OVER
+                 (PARTITION BY conf_type ORDER BY sc.created DESC)
+               as n
+               FROM study_confs sc
+               JOIN studies s on sc.study_id = s.id
+               JOIN orgs_lookup ol on ol.org_id = s.org_id
+               JOIN users u on ol.user_id = u.id
+               WHERE u.id = %s
+               AND s.org_id = %s
+               AND s.slug = %s
+    )
+    INSERT INTO study_confs(study_id, conf_type, conf)
+    SELECT (SELECT id FROM studies WHERE slug = %s), conf_type, conf
+    FROM t
+    WHERE n = 1
+    AND conf_type != 'general'
+    RETURNING conf_type, conf
+    """
+
+    res = query(db_cnf, q, (user_id, org_id, source_study_slug, slug), as_dict=True)
+    rr = list(res)
+    if not rr:
+        message = f"Could not copy configuration from {source_study_slug} to {slug}. Potentially there is no configuration to copy?"
+        raise HTTPException(status_code=404, detail=message)
+
+    return {d["conf_type"]: d["conf"] for d in rr}

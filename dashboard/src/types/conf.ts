@@ -209,3 +209,7 @@ export type GlobalFormData = {
   strata: Strata;
   data_sources: DataSources;
 };
+
+export type CopyFromConf = {
+  source_study_slug: string;
+}
