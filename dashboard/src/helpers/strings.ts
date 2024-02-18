@@ -1,5 +1,7 @@
-export const createSlugFor = (str: string) =>
-  str.replace(/\s+/g, '-').toLowerCase();
+export const createSlugFor = (str: string) => {
+  const s = str.replace(/\s+/g, '-').replace(/-+/g, '-').toLowerCase();
+  return s
+}
 
 export const classNames = (...classes: string[]) =>
   classes.filter(Boolean).join(' ');
