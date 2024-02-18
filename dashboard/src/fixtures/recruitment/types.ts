@@ -5,11 +5,11 @@ const types = [
   },
   {
     name: 'pipeline_experiment',
-    label: 'Pipeline experiment',
+    label: 'Pipeline Experiment',
   },
   {
     name: 'destination',
-    label: 'Destination',
+    label: 'Destination Experiment',
   },
 ];
 
