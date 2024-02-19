@@ -4,8 +4,13 @@ from typing import List, Optional, Union
 import pandas as pd
 
 from .clustering import only_target_users
-from .study_conf import (Audience, AudienceConf, LookalikeAudience,
-                         Partitioning, StudyConf)
+from .study_conf import (
+    Audience,
+    AudienceConf,
+    LookalikeAudience,
+    Partitioning,
+    StudyConf,
+)
 
 
 def get_users(df) -> List[str]:

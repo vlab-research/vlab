@@ -6,9 +6,17 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import BaseModel
 
-from ..study_conf import (AudienceConf, CreativeConf, DataSourceConf,
-                          DestinationConf, GeneralConf, InferenceDataConf,
-                          RecruitmentConf, StratumConf, VariableConf)
+from ..study_conf import (
+    AudienceConf,
+    CreativeConf,
+    DataSourceConf,
+    DestinationConf,
+    GeneralConf,
+    InferenceDataConf,
+    RecruitmentConf,
+    StratumConf,
+    VariableConf,
+)
 from .auth import AuthError, verify_token
 from .db import create_study_conf, get_all_study_confs, get_study_conf, copy_confs
 
@@ -170,7 +178,6 @@ async def copy_confs_from(
     config: CopyFromConf,
     user: Annotated[User, Depends(get_current_user)],
 ):
-
     raw_config = copy_confs(user.user_id, org_id, slug, config.source_study_slug)
     return {"data": raw_config}
 
@@ -194,6 +201,11 @@ async def get_all_confs(
 ):
     raw_config = get_all_study_confs(user.user_id, org_id, slug)
     return {"data": raw_config}
+
+
+@app.get("/{org_id}/optimize/{slug}")
+async def optimize_study():
+    pass
 
 
 @app.get("/health", status_code=200)

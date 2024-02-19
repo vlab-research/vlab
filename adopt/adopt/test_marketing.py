@@ -7,13 +7,25 @@ from facebook_business.adobjects.adcreative import AdCreative
 from facebook_business.adobjects.customaudience import CustomAudience
 
 from .facebook.update import Instruction
-from .marketing import (_create_creative, adset_instructions, make_ref,
-                        manage_aud, messenger_call_to_action,
-                        web_call_to_action)
-from .study_conf import (Audience, AudienceConf, CreativeConf,
-                         FlyMessengerDestination, InvalidConfigError,
-                         Lookalike, LookalikeAudience, LookalikeSpec,
-                         Partitioning)
+from .marketing import (
+    _create_creative,
+    adset_instructions,
+    make_ref,
+    manage_aud,
+    messenger_call_to_action,
+    web_call_to_action,
+)
+from .study_conf import (
+    Audience,
+    AudienceConf,
+    CreativeConf,
+    FlyMessengerDestination,
+    InvalidConfigError,
+    Lookalike,
+    LookalikeAudience,
+    LookalikeSpec,
+    Partitioning,
+)
 
 T = TypeVar("T")
 

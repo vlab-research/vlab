@@ -2,8 +2,11 @@ from datetime import datetime, timedelta
 
 import pytest
 
-from .study_conf import (DestinationRecruitmentExperiment,
-                         PipelineRecruitmentExperiment, SimpleRecruitment)
+from .study_conf import (
+    DestinationRecruitmentExperiment,
+    PipelineRecruitmentExperiment,
+    SimpleRecruitment,
+)
 
 
 def _dt(day, month=1, year=2022, hour=0, minute=0):

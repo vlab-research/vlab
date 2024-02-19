@@ -5,7 +5,6 @@ from .configuration import read_share_lookup
 
 
 def test_read_share_lookup_works_with_one_variable():
-
     config_file = "test/targeting_distribution_test_sheet.xlsx"
 
     share_lookup = read_share_lookup(
@@ -24,7 +23,6 @@ def test_read_share_lookup_works_with_one_variable():
 
 
 def test_read_share_lookup_works_with_two_variables():
-
     config_file = "test/targeting_distribution_test_sheet.xlsx"
 
     share_lookup = read_share_lookup(
@@ -75,7 +73,9 @@ def test_read_share_lookup_works_with_four_variables():
     config_file = "test/targeting_distribution_test_sheet.xlsx"
 
     share_lookup = read_share_lookup(
-        config_file, ["location", "gender", "age", "education"], "targeting_distribution_four"
+        config_file,
+        ["location", "gender", "age", "education"],
+        "targeting_distribution_four",
     )
 
     expect = pd.DataFrame(
@@ -110,7 +110,9 @@ def test_read_share_lookup_works_with_four_variables_and_one_location():
     config_file = "test/targeting_distribution_test_sheet.xlsx"
 
     share_lookup = read_share_lookup(
-        config_file, ["location", "gender", "age", "education"], "targeting_distribution_four_1"
+        config_file,
+        ["location", "gender", "age", "education"],
+        "targeting_distribution_four_1",
     )
 
     expect = pd.DataFrame(

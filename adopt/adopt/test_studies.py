@@ -3,16 +3,30 @@ from itertools import product
 from test.dbfix import _reset_db
 from test.dbfix import cnf as db_conf
 
-from .campaign_queries import (create_campaign_confs, create_campaign_for_user,
-                               get_campaigns_for_user)
-from .configuration import (TargetingConf, format_group_product,
-                            parse_kv_sheet, parse_row_sheet, read_share_lookup,
-                            respondent_audience_name)
+from .campaign_queries import (
+    create_campaign_confs,
+    create_campaign_for_user,
+    get_campaigns_for_user,
+)
+from .configuration import (
+    TargetingConf,
+    format_group_product,
+    parse_kv_sheet,
+    parse_row_sheet,
+    read_share_lookup,
+    respondent_audience_name,
+)
 from .db import _connect, execute
 from .marketing import dict_from_nested_type
-from .study_conf import (AppDestination, AudienceConf, CreativeConf,
-                         FlyMessengerDestination, GeneralConf,
-                         PipelineRecruitmentExperiment, StratumConf)
+from .study_conf import (
+    AppDestination,
+    AudienceConf,
+    CreativeConf,
+    FlyMessengerDestination,
+    GeneralConf,
+    PipelineRecruitmentExperiment,
+    StratumConf,
+)
 
 
 def create_user(email):

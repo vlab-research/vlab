@@ -191,7 +191,6 @@ def test_translate_response_throws_translates():
     assert res == "qux"
 
 
-
 forms = [
     {
         "id": "1",

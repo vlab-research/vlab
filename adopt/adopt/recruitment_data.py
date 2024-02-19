@@ -62,7 +62,6 @@ def day_end(d: datetime) -> datetime:
 def get_collection_days(
     start: datetime, until: datetime, now: datetime
 ) -> list[CollectionPeriod]:
-
     if start > until:
         raise Exception(f"nonsensical time range: {start} to {until}")
 
@@ -94,7 +93,6 @@ def facebook_recruitment_data(
     end_time: datetime,
     now: datetime,
 ) -> list[RecruitmentData]:
-
     days = get_collection_days(start_time, end_time, now)
 
     insights = [
@@ -138,7 +136,6 @@ def _load_recruitment_data(
     state: FacebookState,
     now: datetime,
 ):
-
     data = facebook_recruitment_data(state, campaigns, start_time, end_time, now)
 
     records = [
@@ -162,7 +159,6 @@ def load_recruitment_data(
     state: FacebookState,
     now: datetime,
 ):
-
     return _load_recruitment_data(
         db_conf,
         study.id,

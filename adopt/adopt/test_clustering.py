@@ -209,7 +209,6 @@ def test_only_target_users_works_with_number_predicates(cnf):
 
 
 def test_only_target_users_ignores_poorly_formated_numbers(cnf):
-
     cols = ["variable", "value", "user_id"]
     df = pd.DataFrame(
         [
@@ -279,7 +278,6 @@ def test_get_saturated_clusters_with_no_fulfilled(cnf):
 
 
 def test_get_saturated_clusters_with_different_id_fields():
-
     s = [
         {
             "id": "foo",
@@ -362,7 +360,6 @@ def test_get_saturated_clusters_with_different_id_fields():
 
 
 def test_get_saturated_clusters_with_complex_nested_or_condition():
-
     s = [
         {
             "id": "foo",
@@ -478,7 +475,6 @@ def test_get_saturated_clusters_with_complex_nested_or_condition():
 
 
 def test_get_saturated_clusters_works_with_is_answered_op():
-
     s = [
         {
             "id": "foo",
@@ -520,7 +516,6 @@ def test_get_saturated_clusters_works_with_is_answered_op():
 
 
 def test_get_saturated_clusters_not_equal_only_those_who_answered():
-
     s = [
         {
             "id": "foo",

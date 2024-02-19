@@ -7,12 +7,22 @@ from .campaign_queries import create_campaign_confs
 
 from .db import _connect, execute, manyify, query
 from .facebook.date_range import DateRange
-from .recruitment_data import (CollectionPeriod, RecruitmentData, Study,
-                               TimePeriod, _get_days, _load_recruitment_data,
-                               calculate_stat, day_end, day_start,
-                               get_active_studies, get_collection_days,
-                               get_recruitment_data,
-                               insert_recruitment_data_events, today)
+from .recruitment_data import (
+    CollectionPeriod,
+    RecruitmentData,
+    Study,
+    TimePeriod,
+    _get_days,
+    _load_recruitment_data,
+    calculate_stat,
+    day_end,
+    day_start,
+    get_active_studies,
+    get_collection_days,
+    get_recruitment_data,
+    insert_recruitment_data_events,
+    today,
+)
 
 
 def _now():
@@ -132,7 +142,7 @@ def create_study(name, user_id="foo@email"):
     VALUES (%s, %s, %s, '{}')
     """
 
-    execute(cnf, q, [user_id, 'entity', 'key'])
+    execute(cnf, q, [user_id, "entity", "key"])
 
     q = """
     INSERT INTO studies(user_id, name, slug, credentials_key, credentials_entity)

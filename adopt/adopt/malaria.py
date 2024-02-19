@@ -8,17 +8,24 @@ from facebook_business.adobjects.targeting import Targeting
 
 from .audiences import hydrate_audiences
 from .budget import AdOptReport, get_budget_lookup
-from .campaign_queries import (DBConf, create_adopt_report,
-                               get_campaign_configs, get_user_info)
+from .campaign_queries import (
+    DBConf,
+    create_adopt_report,
+    get_campaign_configs,
+    get_user_info,
+)
 from .facebook.state import DateRange, FacebookState, StateNameError, get_api
 from .facebook.update import GraphUpdater, Instruction
-from .marketing import (manage_audiences, update_instructions,
-                        validate_targeting)
-from .recruitment_data import (calculate_stat, day_start, get_active_studies,
-                               get_recruitment_data, load_recruitment_data)
+from .marketing import manage_audiences, update_instructions, validate_targeting
+from .recruitment_data import (
+    calculate_stat,
+    day_start,
+    get_active_studies,
+    get_recruitment_data,
+    load_recruitment_data,
+)
 from .responses import get_inference_data
-from .study_conf import (CreativeConf, FacebookTargeting, Stratum, StratumConf,
-                         StudyConf)
+from .study_conf import CreativeConf, FacebookTargeting, Stratum, StratumConf, StudyConf
 
 logging.basicConfig(level=logging.INFO)
 

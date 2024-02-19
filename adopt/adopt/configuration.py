@@ -1,16 +1,16 @@
 import json
 import re
-from typing import (List, NamedTuple, Optional, Tuple, Type, TypeVar,
-                    get_type_hints)
+from typing import List, NamedTuple, Optional, Tuple, Type, TypeVar, get_type_hints
 
 import pandas as pd
 from facebook_business.adobjects.targeting import Targeting
-from facebook_business.adobjects.targetinggeolocation import \
-    TargetingGeoLocation
-from facebook_business.adobjects.targetinggeolocationcity import \
-    TargetingGeoLocationCity
-from facebook_business.adobjects.targetinggeolocationcustomlocation import \
-    TargetingGeoLocationCustomLocation
+from facebook_business.adobjects.targetinggeolocation import TargetingGeoLocation
+from facebook_business.adobjects.targetinggeolocationcity import (
+    TargetingGeoLocationCity,
+)
+from facebook_business.adobjects.targetinggeolocationcustomlocation import (
+    TargetingGeoLocationCustomLocation,
+)
 
 from .study_conf import CreativeConf, GeneralConf
 
@@ -226,7 +226,6 @@ def cast_strings(type_, dict_):
 
     hints = get_type_hints(type_)
     for k, v in dict_.items():
-
         # quick hack to allow for Optional...
         if pd.isna(v):
             res[k] = None
@@ -235,7 +234,6 @@ def cast_strings(type_, dict_):
         t = hints[k]
 
         if isinstance(v, str):
-
             if origin_of(t) == list:
                 res[k] = [x.strip() for x in v.split(",")]
 

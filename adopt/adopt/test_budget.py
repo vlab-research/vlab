@@ -3,8 +3,15 @@ from datetime import datetime, timedelta
 import pandas as pd
 import pytest
 import numpy as np
-from .budget import (calc_price, estimate_price, get_budget_lookup, get_stats,
-                     make_report, prep_df_for_budget, proportional_budget)
+from .budget import (
+    calc_price,
+    estimate_price,
+    get_budget_lookup,
+    get_stats,
+    make_report,
+    prep_df_for_budget,
+    proportional_budget,
+)
 from .facebook.date_range import DateRange
 from .test_clustering import DATE, _format_df, cnf, conf, df
 
@@ -307,7 +314,11 @@ def test_get_budget_lookup_works_with_missing_data_from_clusters():
     lifetime_spend = spend
     res, _ = get_budget_lookup(df, cnf, 40, 100, window, spend, lifetime_spend)
 
-    assert {k: round(v, 1) for k, v in res.items()} == {"foo": 4.6, "bar": 0.7, "baz": 4.6}
+    assert {k: round(v, 1) for k, v in res.items()} == {
+        "foo": 4.6,
+        "bar": 0.7,
+        "baz": 4.6,
+    }
 
 
 def test_make_report():

@@ -88,7 +88,7 @@ def budget_opt(S, goal, tot, price, budget):
     s = S / S.sum()
     new_spend = s * budget
     projection = C * new_spend + tot + 1
-    loss = np.sum(goal ** 2 / projection)
+    loss = np.sum(goal**2 / projection)
     return loss * tot.sum()
 
 
@@ -96,7 +96,7 @@ def recruits_opt(S, goal, tot, price, num_recruits):
     s = S / S.sum()
     recruits_per_strata = s * num_recruits
     projection = recruits_per_strata + tot + 1
-    loss = np.sum(goal ** 2 / projection)
+    loss = np.sum(goal**2 / projection)
     return loss * 100
 
 
@@ -154,7 +154,6 @@ def proportional_opt(goal, tot, price, budget=None, max_recruits=None, tol=0.01)
 
 # provide max
 def proportional_budget(goal, spend, tot, price, budget=None, max_recruits=None):
-
     if not np.isclose(sum(goal.values()), 1.0, 0.01):
         raise Exception(
             f"proportional_budget needs a goal that sums to one. was given: {goal}"
@@ -184,7 +183,6 @@ AdOptReport = Dict[str, Dict[str, Union[int, float]]]
 
 
 def make_report(facts: List[Tuple[str, Dict[str, Any]]]) -> AdOptReport:
-
     d: AdOptReport = {}
 
     for k, fact in facts:
@@ -214,7 +212,6 @@ def get_stats(
     window: DateRange,
     spend: Dict[str, float],
 ):
-
     optimized_ids = {s.id for s in strata}
 
     spend = {k: v for k, v in spend.items() if k in optimized_ids}
@@ -253,7 +250,6 @@ def get_budget_lookup(
     spend: Dict[str, float],
     lifetime_spend: Dict[str, float],
 ) -> Tuple[Optional[Budget], Optional[AdOptReport]]:
-
     df = prep_df_for_budget(df, strata) if df is not None else None
 
     if df is None:

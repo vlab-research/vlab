@@ -3,8 +3,7 @@ from typing import Any, Callable, Dict, Optional, Union
 
 import pandas as pd
 
-from .study_conf import (AudienceConf, QuestionTargeting, Stratum, StratumConf,
-                         TargetVar)
+from .study_conf import AudienceConf, QuestionTargeting, Stratum, StratumConf, TargetVar
 
 
 class MissingResponseError(BaseException):

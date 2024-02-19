@@ -140,7 +140,6 @@ def get_forms(survey_user, shortcodes, timestamp, cnf):
 def get_inference_data(
     survey_user, study_id, database_cnf, inf_start=None, inf_end=None
 ) -> Optional[pd.DataFrame]:
-
     q = """
     select user_id, variable, value_type, value, timestamp
     from inference_data
@@ -165,7 +164,6 @@ def get_inference_data(
 
 
 def get_response_df(survey_user, shortcodes, questions, database_cnf):
-
     surveyids = get_surveyids(shortcodes, survey_user, database_cnf)
 
     responses = last_responses(surveyids, questions, database_cnf)

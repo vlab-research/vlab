@@ -297,7 +297,6 @@ def test_ad_dif_leaves_alone_if_already_running():
 
 
 def test_ad_dif_updates_if_same_name_but_different_creative():
-
     adset = {"id": "ad"}
     running_ads = [
         {
@@ -321,7 +320,6 @@ def test_ad_dif_updates_if_same_name_but_different_creative():
 
 
 def test_ad_dif_activates_if_currently_paused():
-
     adset = {"id": "ad"}
     running_ads = [
         {

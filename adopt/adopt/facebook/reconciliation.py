@@ -44,7 +44,6 @@ def update_adset(source: AdSet, adset: AdSet) -> List[Instruction]:
 
 
 def update_ad(source: Ad, ad: Ad) -> List[Instruction]:
-
     if not _eq(ad["creative"], source["creative"]):
         return [Instruction("ad", "update", ad.export_all_data(), source["id"])]
 
@@ -58,7 +57,6 @@ T = TypeVar("T", AdSet, Ad)
 
 
 def _dedup_olds(type_: str, li: Sequence[T]) -> Tuple[Dict[str, T], List[Instruction]]:
-
     lookup = {}
     instructions = []
 
@@ -109,7 +107,6 @@ def adset_dif(
     old_adsets: Sequence[Tuple[AdSet, Sequence[Ad]]],
     new_adsets: Sequence[Tuple[AdSet, Sequence[Ad]]],
 ) -> List[Instruction]:
-
     new_lookup = {a["name"]: ads for a, ads in new_adsets}
     old_lookup = {a["name"]: ads for a, ads in old_adsets}
 
