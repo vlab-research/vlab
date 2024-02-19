@@ -3,15 +3,15 @@ import logging
 import random
 from dataclasses import asdict, is_dataclass
 from datetime import datetime, timedelta
-from typing import (Any, Dict, List, NamedTuple, Optional, Sequence, Tuple,
-                    Union)
+from typing import Any, Dict, List, NamedTuple, Optional, Sequence, Tuple, Union
 from urllib.parse import quote
 
 from facebook_business.adobjects.ad import Ad
 from facebook_business.adobjects.adcreative import AdCreative
 from facebook_business.adobjects.adcreativelinkdata import AdCreativeLinkData
-from facebook_business.adobjects.adcreativeobjectstoryspec import \
-    AdCreativeObjectStorySpec
+from facebook_business.adobjects.adcreativeobjectstoryspec import (
+    AdCreativeObjectStorySpec,
+)
 from facebook_business.adobjects.adcreativevideodata import AdCreativeVideoData
 from facebook_business.adobjects.adpromotedobject import AdPromotedObject
 from facebook_business.adobjects.adset import AdSet
@@ -23,9 +23,18 @@ from .budget import Budget
 from .facebook.reconciliation import adset_dif
 from .facebook.state import CampaignState, FacebookState, StateNameError, split
 from .facebook.update import Instruction
-from .study_conf import (AppDestination, Audience, CreativeConf,
-                         DestinationConf, FlyMessengerDestination,
-                         LookalikeAudience, Stratum, StudyConf, WebDestination)
+from .study_conf import (
+    AppDestination,
+    Audience,
+    CreativeConf,
+    DestinationConf,
+    FlyMessengerDestination,
+    LookalikeAudience,
+    Stratum,
+    StudyConf,
+    WebDestination,
+    DestinationRecruitmentExperiment,
+)
 
 ADSET_HOURS = 48
 
@@ -421,10 +430,27 @@ def create_creative(
 def adset_instructions(
     study: StudyConf, state: CampaignState, stratum: Stratum, budget: float
 ) -> Tuple[AdSet, List[Ad]]:
+    stratum_creatives = stratum.creatives
+
+    if isinstance(study.recruitment, DestinationRecruitmentExperiment):
+        try:
+            destination = next(
+                d for d in study.recruitment.destinations if d in state.campaign_name
+            )
+        except StopIteration:
+            raise Exception(
+                f"Could not find destination for campaign_name {state.campaign_name}"
+                " in recruitment destination experiment."
+            )
+
+        stratum_creatives = [
+            c for c in stratum_creatives if c.destination == destination
+        ]
+
     destinations = [get_destination_for_creative(study, c) for c in stratum.creatives]
     creatives = [
         create_creative(study, stratum, c, d)
-        for d, c in zip(destinations, stratum.creatives)
+        for d, c in zip(destinations, stratum_creatives)
     ]
 
     if isinstance(destinations[0], AppDestination):
