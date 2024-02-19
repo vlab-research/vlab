@@ -1,4 +1,4 @@
-import React, { useState, useContext } from 'react';
+import React, { useState, useContext, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import SubmitButton from '../../components/SubmitButton';
 import useCreateStudyConf from '../../hooks/useCreateStudyConf';
@@ -47,6 +47,13 @@ const Creatives: React.FC<Props> = ({
     localData ? localData : initialState
   );
 
+
+  // templateCampaign controlled externally
+  useEffect(() => {
+    setFormData(formData.map(s => ({ ...s, template_campaign: templateCampaign || '' })))
+  }, [templateCampaign])
+
+
   const params = useParams<{ studySlug: string }>();
 
   const studySlug = params.studySlug;
@@ -57,7 +64,7 @@ const Creatives: React.FC<Props> = ({
     'creatives'
   );
 
-  const credentials: any = facebookAccount.connectedAccount?.credentials
+  const credentials: any = facebookAccount.connectedAccount?.credentials;
   const accessToken = credentials?.access_token;
 
   const { ads, query: adsQuery } = useAds(templateCampaign!, accessToken);
