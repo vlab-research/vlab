@@ -20,17 +20,35 @@ interface Props {
 
 const QualtricsExtraction: React.FC<Props> = ({ data, nameOptions: names, update: updateFormData, index }: Props) => {
 
+  const getFunctions = (x: string) => {
+    return [{ function: "select", params: { path: x } }]
+  }
 
   const handleChange = (e: any) => {
     const { name, value } = e.target;
 
-    const update = { [name]: value }
+    let update;
+
+    switch (name) {
+      case "response":
+        update = { functions: getFunctions(value) }
+        break
+
+      case "location":
+        update = {
+          location: value,
+          functions: value === "metadata" ? [{ function: "select", params: { path: "" } }] : data.functions
+        }
+        break
+
+      default:
+        update = { [name]: value }
+    }
 
     updateFormData({
       ...data,
       value_type: "categorical",
       aggregate: "first",
-      functions: [{ function: "select", params: { path: '' } }],
       ...update
     }, index);
   };
@@ -39,6 +57,15 @@ const QualtricsExtraction: React.FC<Props> = ({ data, nameOptions: names, update
     { name: '', label: 'Where is the data located in the source?' },
     { name: 'metadata', label: 'Metadata' },
     { name: 'variable', label: 'Variable' },
+  ]
+
+  const isMetadata = data.location === "metadata";
+  const response = data?.functions[0]?.params.path || "response";
+
+  const responseOptions = [
+    { name: '', label: isMetadata ? "Select from Metadata" : 'Which response value do you want to use?' },
+    { name: 'label', label: 'Label' },
+    { name: 'value', label: 'Value' },
   ]
 
   const nameOptions = [
@@ -65,6 +92,14 @@ const QualtricsExtraction: React.FC<Props> = ({ data, nameOptions: names, update
         handleChange={handleChange}
         placeholder="What is the variable called in the data source?"
         value={data.key}
+      />
+      <Select
+        name="response"
+        handleChange={handleChange}
+        options={responseOptions}
+        value={response}
+        disabled={isMetadata}
+        required={!isMetadata}
       />
     </li>
   );

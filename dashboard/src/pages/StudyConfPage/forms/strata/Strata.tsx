@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom';
 import Stratum from './Stratum';
 import PrimaryButton from '../../../../components/PrimaryButton';
 import SubmitButton from '../../components/SubmitButton';
+import ErrorPlaceholder from '../../../../components/ErrorPlaceholder';
 import useCreateStudyConf from '../../hooks/useCreateStudyConf';
 import { createStrataFromVariables, getFinishQuestionRef } from './strata';
 import { GlobalFormData, Stratum as StratumType } from '../../../../types/conf';
@@ -21,7 +22,7 @@ interface Props {
   globalData: GlobalFormData;
 }
 
-const Variables: React.FC<Props> = ({
+const Strata: React.FC<Props> = ({
   globalData,
   id,
   localData,
@@ -66,6 +67,18 @@ const Variables: React.FC<Props> = ({
     studySlug,
     'strata'
   );
+
+  if (!creatives) {
+    return (
+      <ConfWrapper>
+        <ErrorPlaceholder
+          showImage={true}
+          message="Oops. Looks like you don't have any creatives, which you need before you can define Strata. Please select some creatives."
+          onClickTryAgain={() => window.location.reload()}
+        />
+      </ConfWrapper>
+    );
+  }
 
   return (
     <ConfWrapper>
@@ -135,4 +148,4 @@ const Variables: React.FC<Props> = ({
   );
 };
 
-export default Variables;
+export default Strata;

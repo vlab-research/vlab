@@ -10,6 +10,7 @@ const useCreateStudy = (name: string) => {
   const { createStudy } = useAuthenticatedApi();
 
   const { mutate: createStudyMutation, isLoading, error } = useMutation(
+    // why no slug??
     ({ name }: { name: string }) => createStudy({ name }),
     {
       onSuccess: ({ data }) => {

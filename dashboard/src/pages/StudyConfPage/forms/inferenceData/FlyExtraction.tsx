@@ -100,6 +100,7 @@ const FlyExtraction: React.FC<Props> = ({ data, nameOptions: names, update: upda
         options={responseOptions}
         value={response}
         disabled={isMetadata}
+        required={!isMetadata}
       />
     </li>
   );
