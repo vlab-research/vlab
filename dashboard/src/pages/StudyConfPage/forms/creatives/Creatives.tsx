@@ -50,7 +50,7 @@ const Creatives: React.FC<Props> = ({
 
   // templateCampaign controlled externally
   useEffect(() => {
-    setFormData(formData.map(s => ({ ...s, template_campaign: templateCampaign || '' })))
+    setFormData(formData => formData.map(s => ({ ...s, template_campaign: templateCampaign || '' })))
   }, [templateCampaign])
 
 
