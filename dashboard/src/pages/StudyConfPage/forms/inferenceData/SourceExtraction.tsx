@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import FlyExtraction from './FlyExtraction';
 import QualtricsExtraction from './QualtricsExtraction';
 import ErrorPlaceholder from '../../../../components/ErrorPlaceholder';
