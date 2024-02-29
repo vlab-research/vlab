@@ -78,7 +78,11 @@ const InferenceData: React.FC<Props> = ({
 
   const finishQuestionRef = getFinishQuestionRef(globalData.strata);
   const variables = globalData.variables.map(v => v.name);
-  const nameOptions = [finishQuestionRef, ...variables];
+
+  const userVariables = dat.map(({ sourceExtraction }) => sourceExtraction.user_variable).filter(x => !!x) as string[];
+  const nameOptions = [finishQuestionRef, ...variables, ...userVariables];
+
+  const multipleSources = dat.length > 1;
 
   return (
     <ConfWrapper>
@@ -91,6 +95,7 @@ const InferenceData: React.FC<Props> = ({
               source={source}
               dataSource={dataSource}
               nameOptions={nameOptions}
+              multipleSources={multipleSources}
               data={sourceExtraction}
               setData={updateFormData} />
           )
