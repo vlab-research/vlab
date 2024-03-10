@@ -58,6 +58,7 @@ export interface Messenger {
   initial_shortcode: string;
   welcome_message: string;
   button_text: string;
+  additional_metadata: Record<string, string> | null;
 }
 
 export interface Web {

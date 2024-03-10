@@ -66,6 +66,7 @@ class FlyMessengerDestination(BaseModel):
     initial_shortcode: str
     welcome_message: str
     button_text: str
+    additional_metadata: Optional[dict[str, str]] = None
 
 
 class WebDestination(BaseModel):

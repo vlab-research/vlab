@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { GenericTextInput, TextInputI } from '../../components/TextInput';
 import { Messenger as FormData } from '../../../../types/conf';
 
@@ -15,6 +15,32 @@ const Messenger: React.FC<Props> = ({ data, updateFormData, index }: Props) => {
     const { name, value } = e.target;
     updateFormData({ ...data, [name]: value }, index);
   };
+
+  const handleMetadata = (e: any) => {
+    const { name, value } = e.target;
+
+    if (!value) {
+      setMetadata(value)
+      updateFormData({ ...data, [name]: null }, index)
+      return
+    }
+
+    let md;
+
+    try {
+      md = JSON.parse(value)
+    } catch (e) {
+      setMetadata(value)
+      return
+    }
+
+    setMetadata(value)
+    updateFormData({ ...data, [name]: md }, index)
+  }
+
+  const additional_metadata = data.additional_metadata ? JSON.stringify(data.additional_metadata) : "";
+
+  const [metadata, setMetadata] = useState<string>(additional_metadata);
 
   return (
     <>
@@ -41,6 +67,13 @@ const Messenger: React.FC<Props> = ({ data, updateFormData, index }: Props) => {
         handleChange={handleChange}
         placeholder="E.g OK"
         value={data.button_text}
+      />
+      <TextInput
+        name="additional_metadata"
+        handleChange={handleMetadata}
+        placeholder={`String key-value pairs e.g. {"foo": "bar"}`}
+        required={false}
+        value={metadata}
       />
     </>
   );

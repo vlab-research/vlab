@@ -391,6 +391,10 @@ def create_creative(
 
     if isinstance(destination, FlyMessengerDestination):
         md = {**md, "form": destination.initial_shortcode}
+
+        if destination.additional_metadata:
+            md = {**md, **destination.additional_metadata}
+
         ref = make_ref(config.name, md)
         msg = make_welcome_message(
             destination.welcome_message, destination.button_text, ref

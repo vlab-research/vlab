@@ -24,6 +24,7 @@ const Destinations: React.FC<Props> = ({ id, localData }: Props) => {
       welcome_message: '',
       button_text: '',
       type: '',
+      additional_metadata: null,
     },
   ];
 
