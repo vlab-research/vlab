@@ -116,14 +116,16 @@ const Destination: React.FC<Props> = ({
       />
       <TextInput
         name="start_date"
+        type="datetime-local"
         handleChange={handleChange}
         placeholder="E.g 2022-07-26T00:00:00"
         value={formData.start_date}
       />
       <TextInput
         name="end_date"
+        type="datetime-local"
         handleChange={handleChange}
-        placeholder="E.g 2022-08-05T00:00:00"
+        placeholder="E.g 2022-07-26T00:00:00"
         value={formData.end_date}
       />
     </>
