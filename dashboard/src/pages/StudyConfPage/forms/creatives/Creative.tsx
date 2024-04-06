@@ -57,6 +57,12 @@ const Creative: React.FC<Props> = ({
     return updateFormData({ ...data, template, name: ad.name }, index)
   }
 
+
+  const destinationOptions = [
+    { name: '', label: 'Please choose a destination' },
+    ...destinations
+  ]
+
   const adOptions = [
     { name: '', label: 'Please choose an option' },
     ...(ads || []).map(a => ({ name: a.id, label: a.name }))
@@ -71,7 +77,7 @@ const Creative: React.FC<Props> = ({
       {destinations ? (
         <Select
           name="destination"
-          options={destinations}
+          options={destinationOptions}
           handleChange={handleSelectChange}
           value={destination}
         ></Select>

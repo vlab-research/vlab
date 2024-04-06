@@ -47,6 +47,18 @@ const Creatives: React.FC<Props> = ({
     localData ? localData : initialState
   );
 
+  // Destinations can be changed!
+  // Thus, if we no longer have the name, we remove it and force
+  // the user to select another one
+  useEffect(() => {
+    const destinationNames = destinations.map(d => d.name)
+    setFormData(formData => formData.map(s => {
+      if (!destinationNames.includes(s.destination)) {
+        return { ...s, destination: '' }
+      }
+      return s
+    }))
+  }, [destinations])
 
   // templateCampaign controlled externally
   useEffect(() => {
