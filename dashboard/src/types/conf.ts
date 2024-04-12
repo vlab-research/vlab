@@ -143,6 +143,12 @@ export type TypeformConfig = {
   form_id: string;
 }
 
+
+export type AlchemerConfig = {
+  survey_id: string;
+  timezone: string;
+}
+
 export type DataSourceConfig = FlyConfig | QualtricsConfig | TypeformConfig;
 
 export type DataSource = {
