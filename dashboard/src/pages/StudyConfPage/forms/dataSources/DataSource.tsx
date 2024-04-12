@@ -29,6 +29,7 @@ const DataSource: React.FC<Props> = ({ data, update: updateFormData, index, acco
     { name: 'fly', label: 'Fly' },
     { name: 'qualtrics', label: 'Qualtrics' },
     { name: 'typeform', label: 'Typeform' },
+    { name: 'alchemer', label: 'Alchemer' },
   ]
 
   const validAccounts = accounts.filter(a => a.authType === data.source);
