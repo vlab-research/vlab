@@ -8,7 +8,7 @@ const destinations = [
     label: 'Messenger',
   },
   {
-    name: 'web',
+    name: 'website',
     label: 'Web',
   },
   {
