@@ -32,7 +32,7 @@ const Destination: React.FC<Props> = ({
       button_text: '',
       type: 'messenger'
     },
-    { name: '', url_template: '', type: 'web' },
+    { name: '', url_template: '', type: 'website' },
     {
       app_install_link: '',
       app_install_state: '',
@@ -63,7 +63,7 @@ const Destination: React.FC<Props> = ({
         label="Select a destination type"
       ></Select>
 
-      {destinationType === 'web' && (
+      {destinationType === 'website' && (
         <Web data={data} updateFormData={updateFormData} index={index} />
       )}
       {destinationType === 'app' && (
