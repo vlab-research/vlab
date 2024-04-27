@@ -7,7 +7,6 @@ type Props = {
 const AccountCreateButton: React.FC<Props> = ({ authType }) => {
   const facebookHandler = () => {
     const clientID = process.env.REACT_APP_FACEBOOK_CLIENT_ID;
-    const scopes = `ads_management,ads_read`;
     const configId = process.env.REACT_APP_FACEBOOK_CONFIGURATION_ID;
     const redirect = `${window.location.href}?type=facebook`;
     const fb = `https://www.facebook.com/v16.0/dialog/oauth`;
