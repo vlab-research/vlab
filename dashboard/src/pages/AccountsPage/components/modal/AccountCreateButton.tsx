@@ -10,7 +10,8 @@ const AccountCreateButton: React.FC<Props> = ({ authType }) => {
     const configId = process.env.REACT_APP_FACEBOOK_CONFIGURATION_ID;
     const redirect = `${window.location.href}?type=facebook`;
     const fb = `https://www.facebook.com/v16.0/dialog/oauth`;
-    const params = `client_id=${clientID}&config_id=${configId}&redirect_uri=${redirect}`;
+    const state = 'fixmewitharealstate'
+    const params = `client_id=${clientID}&config_id=${configId}&redirect_uri=${redirect}&state=${state}`;
     window.location.replace(`${fb}?${params}`);
   };
 
