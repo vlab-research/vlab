@@ -1,7 +1,8 @@
 from typing import Any
-from fastapi import HTTPException
+
 import orjson
 from environs import Env
+from fastapi import HTTPException
 
 from ..db import query
 
@@ -60,6 +61,29 @@ def get_all_study_confs(user_id: str, org_id: str, study_slug: str):
     except IndexError:
         raise Exception(
             f"Could not find study configs for user {user_id},"
+            f" org {org_id}, study {study_slug}"
+        )
+
+
+def get_study_id(user_id: str, org_id: str, study_slug: str):
+
+    q = """
+    SELECT s.id
+    FROM studies s
+    JOIN orgs_lookup ol on ol.org_id = s.org_id
+    JOIN users u on ol.user_id = u.id
+    WHERE u.id = %s
+    AND s.org_id = %s
+    AND s.slug = %s
+    LIMIT 1
+    """
+
+    res = query(db_cnf, q, (user_id, org_id, study_slug), as_dict=True)
+    try:
+        return list(res)[0]["id"]
+    except IndexError:
+        raise Exception(
+            f"Could not find study id for user {user_id},"
             f" org {org_id}, study {study_slug}"
         )
 

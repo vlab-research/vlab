@@ -1,3 +1,4 @@
+import logging
 from typing import Annotated, Any, Union
 
 from environs import Env
@@ -6,19 +7,13 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import BaseModel
 
-from ..study_conf import (
-    AudienceConf,
-    CreativeConf,
-    DataSourceConf,
-    DestinationConf,
-    GeneralConf,
-    InferenceDataConf,
-    RecruitmentConf,
-    StratumConf,
-    VariableConf,
-)
+from ..malaria import load_basics, run_instructions, update_ads_for_campaign
+from ..study_conf import (AudienceConf, CreativeConf, DataSourceConf,
+                          DestinationConf, GeneralConf, InferenceDataConf,
+                          RecruitmentConf, StratumConf, VariableConf)
 from .auth import AuthError, verify_token
-from .db import create_study_conf, get_all_study_confs, get_study_conf, copy_confs
+from .db import (copy_confs, create_study_conf, db_cnf, get_all_study_confs,
+                 get_study_conf, get_study_id)
 
 app = FastAPI()
 
@@ -204,8 +199,26 @@ async def get_all_confs(
 
 
 @app.get("/{org_id}/optimize/{slug}")
-async def optimize_study():
-    pass
+async def optimize_study(
+    org_id: str,
+    slug: str,
+    user: Annotated[User, Depends(get_current_user)],
+):
+
+    fn = update_ads_for_campaign
+    try:
+
+        study_id = get_study_id(user.user_id, org_id, slug, user)
+        study, state = load_basics(study_id, db_cnf, env)
+        instructions, report = fn(db_cnf, study, state)
+        run_instructions(instructions, state)
+
+    except BaseException as e:
+        msg = f"Error updating campaign {slug}. Error: {e}"
+        logging.error(msg)
+        raise HTTPException(status_code=500, detail=msg)
+
+    return {"data": []}
 
 
 @app.get("/health", status_code=200)
