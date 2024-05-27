@@ -10,7 +10,7 @@ export interface General {
   opt_window: number;
 }
 
-export type Recruitment = RecruitmentSimple | Destination | PipelineExperiment;
+export type Recruitment = RecruitmentSimple | RecruitmentDestination | PipelineExperiment;
 
 export interface RecruitmentSimple {
   ad_campaign_name: string;

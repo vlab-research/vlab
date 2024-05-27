@@ -6,7 +6,13 @@ import PipelineExperiment from './PipelineExperiment';
 import PrimaryButton from '../../../../components/PrimaryButton';
 import { GenericSelect, SelectI } from '../../components/Select';
 import recruitmentTypes from '../../../../fixtures/recruitment/types';
-import { GlobalFormData } from '../../../../types/conf';
+import {
+  GlobalFormData,
+  RecruitmentSimple,
+  RecruitmentDestination,
+  PipelineExperiment as PipelineExperimentType,
+  Recruitment as LocalData
+} from '../../../../types/conf';
 import useCreateStudyConf from '../../hooks/useCreateStudyConf';
 import ConfWrapper from '../../components/ConfWrapper';
 const Select = GenericSelect as SelectI<any>;
@@ -78,7 +84,7 @@ const Recruitment: React.FC<Props> = ({
     },
   ];
 
-  const [formData, setFormData] = useState<any>(
+  const [formData, setFormData] = useState<LocalData>(
     localData ? localData : initialState.find((obj: any) => obj.type === recruitmentType)
   );
 
@@ -99,9 +105,23 @@ const Recruitment: React.FC<Props> = ({
     'recruitment'
   );
 
+
+  const formatData = (data: LocalData) => {
+    if ("ad_campaign_name" in data) {
+      data.ad_campaign_name = data.ad_campaign_name.trim()
+    }
+
+    if ("ad_campaign_name_base" in data) {
+      data.ad_campaign_name_base = data.ad_campaign_name_base.trim()
+    }
+
+    return data;
+  };
+
   const onSubmit = (e: any): void => {
     e.preventDefault();
-    createStudyConf({ data: formData, studySlug, confType: id });
+
+    createStudyConf({ data: formatData(formData), studySlug, confType: id });
   };
 
   return (
@@ -115,17 +135,17 @@ const Recruitment: React.FC<Props> = ({
           label="Select a recruitment type"
         ></Select>
         {recruitmentType === 'simple' && (
-          <Simple formData={formData} updateFormData={setFormData} />
+          <Simple formData={formData as RecruitmentSimple} updateFormData={setFormData} />
         )}
         {recruitmentType === 'pipeline_experiment' && (
           <PipelineExperiment
-            formData={formData}
+            formData={formData as PipelineExperimentType}
             updateFormData={setFormData}
           />
         )}
         {recruitmentType === 'destination' && (
           <Destination
-            formData={formData}
+            formData={formData as RecruitmentDestination}
             updateFormData={setFormData}
             destinations={globalData.destinations}
             studySlug={studySlug}

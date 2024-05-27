@@ -25,6 +25,7 @@ export const GenericTextInput: TextInputI = ({
   required = true,
   ...props
 }) => {
+
   return (
     <div className="sm:my-4">
       <label className="my-2 block text-sm font-medium text-gray-700">

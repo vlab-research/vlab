@@ -20,7 +20,9 @@ const validateInput = (name: string, value: any) => {
       return parseInt('0');
     }
     return parseInt(value);
-  } else return value;
+  }
+
+  else return value;
 };
 
 const Simple: React.FC<Props> = ({ formData, updateFormData }: Props) => {
