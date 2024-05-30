@@ -78,7 +78,8 @@ const Variables: React.FC<Props> = ({
 
     const formatted = formData.map(v => ({
       ...v,
-      levels: v.levels.map((l: any) => ({ ...l, quota: +l.quota })),
+      name: v.name.trim(),
+      levels: v.levels.map((l: any) => ({ ...l, quota: +l.quota, name: l.name.trim() })),
     }));
 
     createStudyConf({ data: formatted, studySlug, confType: id });
