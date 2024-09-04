@@ -8,6 +8,8 @@ import Strata from './forms/strata/Strata';
 import DataSources from './forms/dataSources/DataSources';
 import InferenceData from './forms/inferenceData/InferenceData';
 import Initialize from './forms/initialize/Initialize';
+import Optimize from './forms/optimize/Optimize';
+
 
 export const confs = [
   { name: "Initialize", path: "initialize", component: Initialize },
@@ -20,6 +22,7 @@ export const confs = [
   { name: "Strata", path: "strata", component: Strata },
   { name: "Data Sources", path: "data-sources", component: DataSources },
   { name: "Data Extraction", path: "inference-data", component: InferenceData },
+  { name: "Optimize", path: "optimize", component: Optimize },
 ]
 
 export const pathLookup = Object.fromEntries(confs.map(({ component, path }) => [path, component]))

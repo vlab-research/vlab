@@ -247,6 +247,24 @@ const deleteAccount = ({
     body: { name, authType },
   });
 
+
+const optimizeStudy = ({
+  studySlug,
+  accessToken,
+}: {
+  studySlug: string;
+  accessToken: string;
+}) =>
+
+  apiRequest<CreateStudyConfApiResponse>(
+    `/${orgPrefix()}/optimize/${studySlug}`,
+    {
+      accessToken,
+      method: 'GET',
+      baseURL: process.env.REACT_APP_CONF_SERVER_URL,
+    }
+  );
+
 const apiRequest = async <ApiResponse>(
   path: string,
   {
@@ -538,7 +556,9 @@ const getErrorMessageFor = async (
   return responseBody.error || responseBody.detail || defaultErrorMessage;
 };
 
+
 export const authenticatedApiCalls = {
+  optimizeStudy,
   fetchStudies,
   fetchStudy,
   fetchStudySegmentsProgress,
