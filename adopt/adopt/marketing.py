@@ -218,7 +218,7 @@ def add_users_to_audience(
     }
 
     session_id = random.randint(1, 1_000_000)
-    chunks = [(i + 1, chunk) for i, chunk in enumerate(split(users, 10_000))]
+    chunks = [(i + 1, chunk) for i, chunk in enumerate(split(users, 1_000))]
     batches = len(chunks)
 
     return [
