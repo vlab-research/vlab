@@ -2,7 +2,7 @@ import logging
 from typing import Annotated, Any, Union
 
 from environs import Env
-from fastapi import Depends, FastAPI, HTTPException, status
+from fastapi import Depends, FastAPI, HTTPException, status, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import BaseModel
@@ -198,17 +198,11 @@ async def get_all_confs(
     return {"data": raw_config}
 
 
-@app.get("/{org_id}/optimize/{slug}")
-async def optimize_study(
-    org_id: str,
-    slug: str,
-    user: Annotated[User, Depends(get_current_user)],
-):
-
+def run_study_opt(user_id, org_id, slug):
+    logging.info(f"Optimizing Study: {slug}")
     fn = update_ads_for_campaign
     try:
-
-        study_id = get_study_id(user.user_id, org_id, slug, user)
+        study_id = get_study_id(user_id, org_id, slug)
         study, state = load_basics(study_id, db_cnf, env)
         instructions, report = fn(db_cnf, study, state)
         run_instructions(instructions, state)
@@ -216,8 +210,17 @@ async def optimize_study(
     except BaseException as e:
         msg = f"Error updating campaign {slug}. Error: {e}"
         logging.error(msg)
-        raise HTTPException(status_code=500, detail=msg)
 
+
+@app.get("/{org_id}/optimize/{slug}")
+async def optimize_study(
+    org_id: str,
+    slug: str,
+    user: Annotated[User, Depends(get_current_user)],
+    background_tasks: BackgroundTasks
+):
+
+    background_tasks.add_task(run_study_opt, user.user_id, org_id, slug)
     return {"data": []}
 
 
