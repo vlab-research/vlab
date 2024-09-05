@@ -42,11 +42,9 @@ def get_creatives(api: FacebookAdsApi, ids: List[str]) -> List[AdCreative]:
 
     fields = [
         AdCreative.Field.actor_id,
+        AdCreative.Field.image_crops,
         AdCreative.Field.asset_feed_spec,
         AdCreative.Field.degrees_of_freedom_spec,
-        AdCreative.Field.effective_instagram_media_id,
-        AdCreative.Field.effective_instagram_story_id,
-        AdCreative.Field.effective_object_story_id,
         AdCreative.Field.instagram_actor_id,
         AdCreative.Field.instagram_user_id,
         AdCreative.Field.object_story_spec,

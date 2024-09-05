@@ -285,9 +285,6 @@ def _create_creative(
     fields_to_copy = [
         AdCreative.Field.actor_id,
         AdCreative.Field.degrees_of_freedom_spec,
-        AdCreative.Field.effective_instagram_media_id,
-        AdCreative.Field.effective_instagram_story_id,
-        AdCreative.Field.effective_object_story_id,
         AdCreative.Field.instagram_actor_id,
         AdCreative.Field.instagram_user_id,
         AdCreative.Field.thumbnail_url,
@@ -452,6 +449,7 @@ def adset_instructions(
         ]
 
     destinations = [get_destination_for_creative(study, c) for c in stratum.creatives]
+
     creatives = [
         create_creative(study, stratum, c, d)
         for d, c in zip(destinations, stratum_creatives)
