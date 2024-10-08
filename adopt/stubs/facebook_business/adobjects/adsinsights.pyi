@@ -14,6 +14,7 @@ class AdsInsights(AdsInsightsMixin, AbstractObject):
         ad_id: str
         ad_impression_actions: str
         ad_name: str
+        adjusted_offline_purchase: str
         adset_end: str
         adset_id: str
         adset_name: str
@@ -34,7 +35,6 @@ class AdsInsights(AdsInsightsMixin, AbstractObject):
         catalog_segment_value_omni_purchase_roas: str
         catalog_segment_value_website_purchase_roas: str
         clicks: str
-        conversion_lead_rate: str
         conversion_rate_ranking: str
         conversion_values: str
         conversions: str
@@ -45,7 +45,6 @@ class AdsInsights(AdsInsightsMixin, AbstractObject):
         cost_per_action_type: str
         cost_per_ad_click: str
         cost_per_conversion: str
-        cost_per_conversion_lead: str
         cost_per_dda_countby_convs: str
         cost_per_estimated_ad_recallers: str
         cost_per_inline_link_click: str
@@ -93,8 +92,10 @@ class AdsInsights(AdsInsightsMixin, AbstractObject):
         marketing_messages_cost_per_delivered: str
         marketing_messages_cost_per_link_btn_click: str
         marketing_messages_spend: str
+        marketing_messages_website_purchase_values: str
         mobile_app_purchase_roas: str
         objective: str
+        onsite_conversion_messaging_detected_purchase_deduped: str
         optimization_goal: str
         outbound_clicks: str
         outbound_clicks_ctr: str
@@ -103,6 +104,7 @@ class AdsInsights(AdsInsightsMixin, AbstractObject):
         qualifying_question_qualify_answer_rate: str
         quality_ranking: str
         reach: str
+        shops_assisted_purchases: str
         social_spend: str
         spend: str
         total_postbacks: str
@@ -145,8 +147,12 @@ class AdsInsights(AdsInsightsMixin, AbstractObject):
         value_1d_view: str
         value_28d_click: str
         value_28d_view: str
+        value_28d_view_all_conversions: str
+        value_28d_view_first_conversion: str
         value_7d_click: str
         value_7d_view: str
+        value_7d_view_all_conversions: str
+        value_7d_view_first_conversion: str
         dda: str
         value_default: str
         skan_click: str
@@ -162,6 +168,10 @@ class AdsInsights(AdsInsightsMixin, AbstractObject):
         action_type: str
         action_video_sound: str
         action_video_type: str
+        conversion_destination: str
+        matched_persona_id: str
+        matched_persona_name: str
+        signal_source_bucket: str
         standard_event_content_type: str
     class ActionReportTime:
         conversion: str
@@ -174,6 +184,7 @@ class AdsInsights(AdsInsightsMixin, AbstractObject):
         body_asset: str
         call_to_action_asset: str
         coarse_conversion_value: str
+        conversion_destination: str
         country: str
         description_asset: str
         device_platform: str
@@ -187,6 +198,7 @@ class AdsInsights(AdsInsightsMixin, AbstractObject):
         image_asset: str
         impression_device: str
         is_conversion_id_modeled: str
+        landing_destination: str
         link_url_asset: str
         marketing_messages_btn_name: str
         mdsa_landing_destination: str
@@ -204,11 +216,14 @@ class AdsInsights(AdsInsightsMixin, AbstractObject):
         publisher_platform: str
         redownload: str
         region: str
+        signal_source_bucket: str
         skan_campaign_id: str
         skan_conversion_id: str
         skan_version: str
         standard_event_content_type: str
         title_asset: str
+        user_persona_id: str
+        user_persona_name: str
         video_asset: str
     class DatePreset:
         data_maximum: str
@@ -247,6 +262,10 @@ class AdsInsights(AdsInsightsMixin, AbstractObject):
         action_type: str
         action_video_sound: str
         action_video_type: str
+        conversion_destination: str
+        matched_persona_id: str
+        matched_persona_name: str
+        signal_source_bucket: str
         standard_event_content_type: str
     @classmethod
     def get_endpoint(cls): ...

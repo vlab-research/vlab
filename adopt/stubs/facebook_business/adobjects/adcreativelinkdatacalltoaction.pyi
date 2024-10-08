@@ -9,15 +9,20 @@ class AdCreativeLinkDataCallToAction(AbstractObject):
     class Type:
         add_to_cart: str
         apply_now: str
+        ask_about_services: str
+        ask_for_more_info: str
         audio_call: str
+        book_a_consultation: str
         book_now: str
         book_travel: str
         buy: str
         buy_now: str
         buy_tickets: str
+        buy_via_message: str
         call: str
         call_me: str
         call_now: str
+        chat_with_us: str
         confirm: str
         contact: str
         contact_us: str
@@ -30,6 +35,7 @@ class AdCreativeLinkDataCallToAction(AbstractObject):
         follow_news_storyline: str
         follow_page: str
         follow_user: str
+        get_a_quote: str
         get_directions: str
         get_offer: str
         get_offer_view: str
@@ -40,10 +46,12 @@ class AdCreativeLinkDataCallToAction(AbstractObject):
         inquire_now: str
         install_app: str
         install_mobile_app: str
+        join_channel: str
         learn_more: str
         like_page: str
         listen_music: str
         listen_now: str
+        make_an_appointment: str
         message_page: str
         mobile_download: str
         no_button: str
@@ -77,6 +85,7 @@ class AdCreativeLinkDataCallToAction(AbstractObject):
         use_mobile_app: str
         video_annotation: str
         video_call: str
+        view_product: str
         visit_pages_feed: str
         watch_more: str
         watch_video: str

@@ -8,6 +8,7 @@ class CustomAudienceDataSource(AbstractObject):
         sub_type: str
         type: str
     class SubType:
+        ad_campaign: str
         anything: str
         app_users: str
         ar_effects_events: str
@@ -29,6 +30,7 @@ class CustomAudienceDataSource(AbstractObject):
         facebook_wifi_events: str
         fb_event_signals: str
         fb_pixel_hits: str
+        group_events: str
         hashes: str
         hashes_or_user_ids: str
         household_expansion: str
@@ -37,6 +39,7 @@ class CustomAudienceDataSource(AbstractObject):
         instant_article_events: str
         lookalike_platform: str
         mail_chimp_email_hashes: str
+        marketplace_listings: str
         messenger_onsite_subscription: str
         mobile_advertiser_ids: str
         mobile_app_combination_events: str
@@ -67,6 +70,7 @@ class CustomAudienceDataSource(AbstractObject):
         web_pixel_combination_events: str
         web_pixel_hits: str
         web_pixel_hits_custom_audience_users: str
+        whatsapp_subscriber_pool: str
     class Type:
         contact_importer: str
         copy_paste: str

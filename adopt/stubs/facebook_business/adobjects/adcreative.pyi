@@ -24,6 +24,7 @@ class AdCreative(AbstractCrudObject, HasAdLabels):
         categorization_criteria: str
         category_media_source: str
         collaborative_ads_lsb_image_bank_id: str
+        contextual_multi_ads: str
         creative_sourcing_spec: str
         degrees_of_freedom_spec: str
         destination_set_id: str
@@ -49,7 +50,6 @@ class AdCreative(AbstractCrudObject, HasAdLabels):
         link_destination_display_url: str
         link_og_id: str
         link_url: str
-        messenger_sponsored_message: str
         name: str
         object_id: str
         object_store_url: str
@@ -58,6 +58,7 @@ class AdCreative(AbstractCrudObject, HasAdLabels):
         object_type: str
         object_url: str
         omnichannel_link_spec: str
+        page_welcome_message: str
         photo_album_source_object_story_id: str
         place_page_set_id: str
         platform_customizations: str
@@ -81,15 +82,20 @@ class AdCreative(AbstractCrudObject, HasAdLabels):
     class CallToActionType:
         add_to_cart: str
         apply_now: str
+        ask_about_services: str
+        ask_for_more_info: str
         audio_call: str
+        book_a_consultation: str
         book_now: str
         book_travel: str
         buy: str
         buy_now: str
         buy_tickets: str
+        buy_via_message: str
         call: str
         call_me: str
         call_now: str
+        chat_with_us: str
         confirm: str
         contact: str
         contact_us: str
@@ -102,6 +108,7 @@ class AdCreative(AbstractCrudObject, HasAdLabels):
         follow_news_storyline: str
         follow_page: str
         follow_user: str
+        get_a_quote: str
         get_directions: str
         get_offer: str
         get_offer_view: str
@@ -112,10 +119,12 @@ class AdCreative(AbstractCrudObject, HasAdLabels):
         inquire_now: str
         install_app: str
         install_mobile_app: str
+        join_channel: str
         learn_more: str
         like_page: str
         listen_music: str
         listen_now: str
+        make_an_appointment: str
         message_page: str
         mobile_download: str
         no_button: str
@@ -149,6 +158,7 @@ class AdCreative(AbstractCrudObject, HasAdLabels):
         use_mobile_app: str
         video_annotation: str
         video_call: str
+        view_product: str
         visit_pages_feed: str
         watch_more: str
         watch_video: str
@@ -181,6 +191,7 @@ class AdCreative(AbstractCrudObject, HasAdLabels):
     class AuthorizationCategory:
         none: str
         political: str
+        political_with_digitally_created_media: str
     class CategorizationCriteria:
         brand: str
         category: str

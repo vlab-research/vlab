@@ -21,32 +21,35 @@ class ProductCatalog(ProductCatalogMixin, AbstractCrudObject):
         feed_count: str
         id: str
         is_catalog_segment: str
+        is_local_catalog: str
         name: str
         owner_business: str
         product_count: str
         store_catalog_settings: str
         user_access_expire_time: str
         vertical: str
+        additional_vertical_option: str
         catalog_segment_filter: str
         catalog_segment_product_set_id: str
         destination_catalog_settings: str
         flight_catalog_settings: str
         parent_catalog_id: str
         partner_integration: str
+    class AdditionalVerticalOption:
+        local_da_catalog: str
+        local_products: str
     class Vertical:
         adoptable_pets: str
-        bookable: str
         commerce: str
         destinations: str
         flights: str
+        generic: str
         home_listings: str
         hotels: str
         jobs: str
-        local_delivery_shipping_profiles: str
         local_service_businesses: str
         offer_items: str
         offline_commerce: str
-        ticketed_experiences: str
         transactable_items: str
         vehicles: str
     class PermittedRoles:
@@ -109,10 +112,10 @@ class ProductCatalog(ProductCatalogMixin, AbstractCrudObject):
     def get_categories(self, fields: Incomplete | None = None, params: Incomplete | None = None, batch: Incomplete | None = None, success: Incomplete | None = None, failure: Incomplete | None = None, pending: bool = False): ...
     def create_category(self, fields: Incomplete | None = None, params: Incomplete | None = None, batch: Incomplete | None = None, success: Incomplete | None = None, failure: Incomplete | None = None, pending: bool = False): ...
     def get_check_batch_request_status(self, fields: Incomplete | None = None, params: Incomplete | None = None, batch: Incomplete | None = None, success: Incomplete | None = None, failure: Incomplete | None = None, pending: bool = False): ...
-    def get_collaborative_ads_event_stats(self, fields: Incomplete | None = None, params: Incomplete | None = None, batch: Incomplete | None = None, success: Incomplete | None = None, failure: Incomplete | None = None, pending: bool = False): ...
     def get_collaborative_ads_lsb_image_bank(self, fields: Incomplete | None = None, params: Incomplete | None = None, batch: Incomplete | None = None, success: Incomplete | None = None, failure: Incomplete | None = None, pending: bool = False): ...
     def get_collaborative_ads_share_settings(self, fields: Incomplete | None = None, params: Incomplete | None = None, batch: Incomplete | None = None, success: Incomplete | None = None, failure: Incomplete | None = None, pending: bool = False): ...
     def create_cpas_lsb_image_bank(self, fields: Incomplete | None = None, params: Incomplete | None = None, batch: Incomplete | None = None, success: Incomplete | None = None, failure: Incomplete | None = None, pending: bool = False): ...
+    def get_creator_asset_creatives(self, fields: Incomplete | None = None, params: Incomplete | None = None, batch: Incomplete | None = None, success: Incomplete | None = None, failure: Incomplete | None = None, pending: bool = False): ...
     def get_data_sources(self, fields: Incomplete | None = None, params: Incomplete | None = None, batch: Incomplete | None = None, success: Incomplete | None = None, failure: Incomplete | None = None, pending: bool = False): ...
     def get_destinations(self, fields: Incomplete | None = None, params: Incomplete | None = None, batch: Incomplete | None = None, success: Incomplete | None = None, failure: Incomplete | None = None, pending: bool = False): ...
     def get_diagnostics(self, fields: Incomplete | None = None, params: Incomplete | None = None, batch: Incomplete | None = None, success: Incomplete | None = None, failure: Incomplete | None = None, pending: bool = False): ...
@@ -143,3 +146,4 @@ class ProductCatalog(ProductCatalogMixin, AbstractCrudObject):
     def get_vehicle_offers(self, fields: Incomplete | None = None, params: Incomplete | None = None, batch: Incomplete | None = None, success: Incomplete | None = None, failure: Incomplete | None = None, pending: bool = False): ...
     def get_vehicles(self, fields: Incomplete | None = None, params: Incomplete | None = None, batch: Incomplete | None = None, success: Incomplete | None = None, failure: Incomplete | None = None, pending: bool = False): ...
     def create_vehicle(self, fields: Incomplete | None = None, params: Incomplete | None = None, batch: Incomplete | None = None, success: Incomplete | None = None, failure: Incomplete | None = None, pending: bool = False): ...
+    def create_version_items_batch(self, fields: Incomplete | None = None, params: Incomplete | None = None, batch: Incomplete | None = None, success: Incomplete | None = None, failure: Incomplete | None = None, pending: bool = False): ...

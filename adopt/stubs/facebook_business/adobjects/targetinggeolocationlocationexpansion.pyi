@@ -5,3 +5,4 @@ class TargetingGeoLocationLocationExpansion(AbstractObject):
     def __init__(self, api: Incomplete | None = None) -> None: ...
     class Field(AbstractObject.Field):
         allowed: str
+        intent: str

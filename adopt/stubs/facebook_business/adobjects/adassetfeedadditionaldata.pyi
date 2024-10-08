@@ -9,3 +9,4 @@ class AdAssetFeedAdditionalData(AbstractObject):
         is_click_to_message: str
         multi_share_end_card: str
         page_welcome_message: str
+        partner_app_welcome_message_flow_id: str

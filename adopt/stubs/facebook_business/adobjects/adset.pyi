@@ -57,6 +57,8 @@ class AdSet(AbstractCrudObject, HasAdLabels, CanValidate):
         promoted_object: str
         recommendations: str
         recurring_budget_semantics: str
+        regional_regulated_categories: str
+        regional_regulation_identities: str
         review_feedback: str
         rf_prediction_id: str
         source_adset: str
@@ -83,6 +85,7 @@ class AdSet(AbstractCrudObject, HasAdLabels, CanValidate):
         cost_cap: str
         lowest_cost_without_cap: str
         lowest_cost_with_bid_cap: str
+        lowest_cost_with_min_roas: str
     class BillingEvent:
         app_installs: str
         clicks: str
@@ -121,12 +124,14 @@ class AdSet(AbstractCrudObject, HasAdLabels, CanValidate):
         landing_page_views: str
         lead_generation: str
         link_clicks: str
+        meaningful_call_attempt: str
         messaging_appointment_conversion: str
         messaging_purchase_conversion: str
         none: str
         offsite_conversions: str
         page_likes: str
         post_engagement: str
+        profile_visit: str
         quality_call: str
         quality_lead: str
         reach: str
@@ -165,9 +170,21 @@ class AdSet(AbstractCrudObject, HasAdLabels, CanValidate):
         app: str
         applinks_automatic: str
         facebook: str
+        instagram_direct: str
+        instagram_profile: str
+        messaging_instagram_direct_messenger: str
+        messaging_instagram_direct_messenger_whatsapp: str
+        messaging_instagram_direct_whatsapp: str
+        messaging_messenger_whatsapp: str
         messenger: str
-        undefined: str
+        on_ad: str
+        on_event: str
+        on_page: str
+        on_post: str
+        on_video: str
+        shop_automatic: str
         website: str
+        whatsapp: str
     class ExecutionOptions:
         include_recommendations: str
         validate_only: str
@@ -191,6 +208,9 @@ class AdSet(AbstractCrudObject, HasAdLabels, CanValidate):
         travel_intent_no_destination_intent: str
         trip_consideration: str
         video_sound_on: str
+    class RegionalRegulatedCategories:
+        value_0: str
+        value_1: str
     class TuneForCategory:
         credit: str
         employment: str

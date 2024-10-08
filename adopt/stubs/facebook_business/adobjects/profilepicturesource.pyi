@@ -17,5 +17,3 @@ class ProfilePictureSource(AbstractObject):
         album: str
         small: str
         thumbnail: str
-    class BreakingChange:
-        profile_picture: str

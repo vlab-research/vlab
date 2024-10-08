@@ -27,6 +27,7 @@ class CustomConversion(AbstractCrudObject):
         pixel: str
         retention_days: str
         rule: str
+        action_source_type: str
         advanced_rule: str
         event_source_id: str
         custom_conversion_id: str
@@ -51,6 +52,16 @@ class CustomConversion(AbstractCrudObject):
         start_trial: str
         submit_application: str
         subscribe: str
+    class ActionSourceType:
+        app: str
+        business_messaging: str
+        chat: str
+        email: str
+        other: str
+        phone_call: str
+        physical_store: str
+        system_generated: str
+        website: str
     @classmethod
     def get_endpoint(cls): ...
     def api_create(self, parent_id, fields: Incomplete | None = None, params: Incomplete | None = None, batch: Incomplete | None = None, success: Incomplete | None = None, failure: Incomplete | None = None, pending: bool = False): ...

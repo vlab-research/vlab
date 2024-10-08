@@ -16,6 +16,7 @@ class AdPreview(AdPreviewMixin, AbstractObject):
         desktop_feed_standard: str
         facebook_profile_feed_desktop: str
         facebook_profile_feed_mobile: str
+        facebook_profile_reels_mobile: str
         facebook_reels_banner: str
         facebook_reels_banner_desktop: str
         facebook_reels_mobile: str
@@ -28,6 +29,7 @@ class AdPreview(AdPreviewMixin, AbstractObject):
         instagram_explore_immersive: str
         instagram_feed_web: str
         instagram_feed_web_m_site: str
+        instagram_lead_gen_multi_submit_ads: str
         instagram_profile_feed: str
         instagram_profile_reels: str
         instagram_reels: str
@@ -42,9 +44,13 @@ class AdPreview(AdPreviewMixin, AbstractObject):
         instant_article_recirculation_ad: str
         instant_article_standard: str
         instream_banner_desktop: str
+        instream_banner_fullscreen_mobile: str
+        instream_banner_immersive_mobile: str
         instream_banner_mobile: str
         instream_video_desktop: str
+        instream_video_fullscreen_mobile: str
         instream_video_image: str
+        instream_video_immersive_mobile: str
         instream_video_mobile: str
         job_browser_desktop: str
         job_browser_mobile: str
@@ -60,6 +66,8 @@ class AdPreview(AdPreviewMixin, AbstractObject):
         mobile_native: str
         right_column_standard: str
         suggested_video_desktop: str
+        suggested_video_fullscreen_mobile: str
+        suggested_video_immersive_mobile: str
         suggested_video_mobile: str
         watch_feed_home: str
         watch_feed_mobile: str

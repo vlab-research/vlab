@@ -63,6 +63,7 @@ class PageCallToAction(AbstractCrudObject):
         buy_tickets: str
         call_now: str
         charity_donate: str
+        check_in: str
         contact_us: str
         donate_now: str
         email: str

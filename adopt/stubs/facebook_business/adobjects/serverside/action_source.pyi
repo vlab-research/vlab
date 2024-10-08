@@ -8,4 +8,5 @@ class ActionSource(Enum):
     CHAT: str
     PHYSICAL_STORE: str
     SYSTEM_GENERATED: str
+    BUSINESS_MESSAGING: str
     OTHER: str

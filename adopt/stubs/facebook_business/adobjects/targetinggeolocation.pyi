@@ -12,7 +12,6 @@ class TargetingGeoLocation(AbstractObject):
         geo_markets: str
         large_geo_areas: str
         location_cluster_ids: str
-        location_expansion: str
         location_types: str
         medium_geo_areas: str
         metro_areas: str

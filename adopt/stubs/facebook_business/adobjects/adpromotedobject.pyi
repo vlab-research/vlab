@@ -25,8 +25,10 @@ class AdPromotedObject(AbstractObject):
         place_page_set_id: str
         product_catalog_id: str
         product_item_id: str
+        product_set: str
         product_set_id: str
         retention_days: str
+        whatsapp_phone_number: str
     class CustomEventType:
         achievement_unlocked: str
         add_payment_info: str

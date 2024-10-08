@@ -43,4 +43,5 @@ class AdCreativeLinkData(AbstractObject):
         carousel_images_multi_items: str
         carousel_images_single_item: str
         carousel_slideshows: str
+        collection_video: str
         single_image: str

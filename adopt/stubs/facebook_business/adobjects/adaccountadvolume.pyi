@@ -17,17 +17,27 @@ class AdAccountAdVolume(AbstractObject):
         limit_on_ads_running_or_in_review: str
         recommendations: str
     class RecommendationType:
+        aac_creation_package: str
         ab_test: str
         account_spend_limit: str
         aco_toggle: str
         ads_reporting: str
         advanced_campaign_budget: str
+        advantage_app_campaign: str
         advantage_custom_audience: str
         advantage_custom_audience_upsell: str
+        advantage_detailed_targeting: str
+        advantage_lookalike_audience: str
+        advantage_plus_audience: str
+        advantage_plus_audience_duplication: str
         advantage_plus_audience_friction: str
         advantage_plus_audience_toggle: str
+        advantage_plus_campaign_budget: str
         advantage_plus_creative: str
         advantage_plus_creative_catalog: str
+        advantage_plus_creative_se: str
+        advantage_plus_placements_duplication: str
+        advantage_plus_placements_friction: str
         advantage_shopping_campaign: str
         advantage_shopping_campaign_fragmentation: str
         ad_objective: str
@@ -37,30 +47,41 @@ class AdAccountAdVolume(AbstractObject):
         aggregated_cost_limited: str
         app_aem_v2_installation_promotion: str
         asc_budget_optimization: str
-        asc_budget_optimization_pfr: str
+        asc_creation_package: str
+        asc_fragmentation_v2: str
         aspect_ratio: str
         atleast_6_placements: str
         auction_overlap: str
         auction_overlap_consolidation: str
         audience_expansion: str
+        audience_expansion_georadius: str
         audience_expansion_retargeting: str
         audience_learning_limited: str
         autoflow_opt_in: str
         autoflow_opt_in_fallback_duplication_flow: str
+        autoflow_opt_in_v2: str
         automatic_placements: str
+        automatic_placements_v2: str
         auto_bid: str
+        blended_ads: str
         broad_targeting: str
+        budget_limited: str
         capi: str
         capi_performance_match_key: str
+        capi_performance_match_key_v2: str
         cash_rewards_opt_in: str
+        connected_sources: str
         connect_facebook_page_to_instagram: str
         connect_facebook_page_to_whatsapp: str
+        conversion_lead_ads: str
         cost_goal: str
         cost_goal_budget_limited: str
         cost_goal_cpa_limited: str
         cost_per_result: str
         creation_package_upgrade_to_asc: str
+        creation_package_upgrade_to_ctx: str
         creation_package_upgrade_to_tla: str
+        creation_package_upgrade_to_tmc: str
         creative_badge: str
         creative_diversity: str
         creative_fatigue: str
@@ -69,15 +90,26 @@ class AdAccountAdVolume(AbstractObject):
         creative_limited_hourly: str
         creator_ads_pa_conversion: str
         cta: str
+        ctx_budget_optimization: str
+        ctx_creation_package: str
+        ctx_guidance: str
         da_advantage_plus_creative_info_labels: str
+        da_duplication_product_tags: str
         dead_link: str
+        defragmentation_acb: str
         dynamic_advantage_campaign_budget: str
         ecosystem_bid_reduce_l1_cardinality: str
+        evc_app_duplication_upgrade: str
+        evc_web_duplication_upgrade: str
         fragmentation: str
+        fragmentation_v2: str
         ges_test: str
         guidance_center_code_gen: str
+        heuristic_default_duration: str
         high_cost: str
         historical_benchmark: str
+        ig_multi_ads: str
+        lead_ads_guidance: str
         learning_limited: str
         learning_pause_friction: str
         learning_phase_budget_edits: str
@@ -90,25 +122,36 @@ class AdAccountAdVolume(AbstractObject):
         multi_text: str
         music: str
         not_applicable: str
+        no_delivery_status: str
         optimal_bau: str
         payment_method: str
         performant_creative_reels_opt_in: str
         pfr_l1_inline_mmt: str
+        pixel_upsell: str
         predictive_creative_limited: str
         predictive_creative_limited_hourly: str
+        preparing_status: str
+        purchase_optimization: str
         rapid_learning_limited: str
         rapid_learning_phase: str
         reels_duplication_upsell: str
+        reels_placement: str
         revert: str
         scale_good_campaign: str
         semantic_based_audience_expansion: str
         setup_pixel: str
         shops_ads: str
+        shops_ads_duplication: str
         signals_growth_capi: str
         signals_growth_capi_table: str
+        signals_growth_capi_v2: str
+        similar_advertiser_budget_recommendation: str
         six_plus_manual_placements: str
         spend_limit: str
         syd_test_mode: str
+        tailored_lead_ad_campaign: str
+        tailored_messages_campaign: str
+        tla_creation_package: str
         top_adsets_with_ads_under_cap: str
         top_campaigns_with_ads_under_cap: str
         two_p_guidance_card_aaa: str

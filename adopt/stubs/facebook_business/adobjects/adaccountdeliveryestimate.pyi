@@ -23,12 +23,14 @@ class AdAccountDeliveryEstimate(AbstractObject):
         landing_page_views: str
         lead_generation: str
         link_clicks: str
+        meaningful_call_attempt: str
         messaging_appointment_conversion: str
         messaging_purchase_conversion: str
         none: str
         offsite_conversions: str
         page_likes: str
         post_engagement: str
+        profile_visit: str
         quality_call: str
         quality_lead: str
         reach: str

@@ -10,6 +10,7 @@ class WhatsAppBusinessAccount(AbstractCrudObject):
     class Field(AbstractObject.Field):
         account_review_status: str
         analytics: str
+        auth_international_rate_eligibility: str
         business_verification_status: str
         country: str
         creation_time: str
@@ -17,12 +18,14 @@ class WhatsAppBusinessAccount(AbstractCrudObject):
         health_status: str
         id: str
         is_enabled_for_insights: str
+        linked_commerce_account: str
         message_template_namespace: str
         name: str
         on_behalf_of_business_info: str
         owner_business: str
         owner_business_info: str
         ownership_type: str
+        primary_business_location: str
         primary_funding_id: str
         purchase_order_number: str
         status: str
@@ -34,6 +37,7 @@ class WhatsAppBusinessAccount(AbstractCrudObject):
         manage_phone: str
         manage_phone_assets: str
         manage_templates: str
+        messaging: str
         view_cost: str
         view_phone_assets: str
         view_templates: str
@@ -41,8 +45,9 @@ class WhatsAppBusinessAccount(AbstractCrudObject):
         authentication: str
         marketing: str
         utility: str
+    class DisplayFormat:
+        order_details: str
     class SubCategory:
-        custom: str
         order_details: str
         order_status: str
     def api_get(self, fields: Incomplete | None = None, params: Incomplete | None = None, batch: Incomplete | None = None, success: Incomplete | None = None, failure: Incomplete | None = None, pending: bool = False): ...
@@ -67,6 +72,8 @@ class WhatsAppBusinessAccount(AbstractCrudObject):
     def get_product_catalogs(self, fields: Incomplete | None = None, params: Incomplete | None = None, batch: Incomplete | None = None, success: Incomplete | None = None, failure: Incomplete | None = None, pending: bool = False): ...
     def create_product_catalog(self, fields: Incomplete | None = None, params: Incomplete | None = None, batch: Incomplete | None = None, success: Incomplete | None = None, failure: Incomplete | None = None, pending: bool = False): ...
     def get_schedules(self, fields: Incomplete | None = None, params: Incomplete | None = None, batch: Incomplete | None = None, success: Incomplete | None = None, failure: Incomplete | None = None, pending: bool = False): ...
+    def create_set_obo_mobility_intent(self, fields: Incomplete | None = None, params: Incomplete | None = None, batch: Incomplete | None = None, success: Incomplete | None = None, failure: Incomplete | None = None, pending: bool = False): ...
+    def get_solutions(self, fields: Incomplete | None = None, params: Incomplete | None = None, batch: Incomplete | None = None, success: Incomplete | None = None, failure: Incomplete | None = None, pending: bool = False): ...
     def delete_subscribed_apps(self, fields: Incomplete | None = None, params: Incomplete | None = None, batch: Incomplete | None = None, success: Incomplete | None = None, failure: Incomplete | None = None, pending: bool = False): ...
     def get_subscribed_apps(self, fields: Incomplete | None = None, params: Incomplete | None = None, batch: Incomplete | None = None, success: Incomplete | None = None, failure: Incomplete | None = None, pending: bool = False): ...
     def create_subscribed_app(self, fields: Incomplete | None = None, params: Incomplete | None = None, batch: Incomplete | None = None, success: Incomplete | None = None, failure: Incomplete | None = None, pending: bool = False): ...

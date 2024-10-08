@@ -21,15 +21,10 @@ class InstagramInsightsResult(AbstractCrudObject):
         story_navigation_action_type: str
         surface_type: str
     class Metric:
-        carousel_album_engagement: str
-        carousel_album_impressions: str
-        carousel_album_reach: str
-        carousel_album_saved: str
-        carousel_album_video_views: str
+        clips_replays_count: str
         comments: str
-        engagement: str
-        exits: str
         follows: str
+        ig_reels_aggregated_all_plays_count: str
         ig_reels_avg_watch_time: str
         ig_reels_video_view_total_time: str
         impressions: str
@@ -42,8 +37,6 @@ class InstagramInsightsResult(AbstractCrudObject):
         replies: str
         saved: str
         shares: str
-        taps_back: str
-        taps_forward: str
         total_interactions: str
         video_views: str
     class Period:

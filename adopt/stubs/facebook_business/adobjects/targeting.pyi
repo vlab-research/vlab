@@ -7,6 +7,7 @@ class Targeting(AbstractObject):
         adgroup_id: str
         age_max: str
         age_min: str
+        age_range: str
         alternate_auto_targeting_option: str
         app_install_state: str
         audience_network_positions: str
@@ -84,6 +85,7 @@ class Targeting(AbstractObject):
         regions: str
         relationship_statuses: str
         site_category: str
+        targeting_automation: str
         targeting_optimization: str
         targeting_relaxation_types: str
         user_adclusters: str

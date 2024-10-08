@@ -31,6 +31,7 @@ class AdStudy(AbstractCrudObject):
         objectives: str
         viewers: str
     class Type:
+        backend_ab_testing: str
         continuous_lift_config: str
         geo_lift: str
         lift: str

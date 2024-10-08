@@ -8,7 +8,6 @@ from facebook_business.typechecker import TypeChecker as TypeChecker
 class OpenBridgeConfiguration(AbstractCrudObject):
     def __init__(self, fbid: Incomplete | None = None, parent_id: Incomplete | None = None, api: Incomplete | None = None) -> None: ...
     class Field(AbstractObject.Field):
-        access_key: str
         active: str
         endpoint: str
         fallback_domain: str
@@ -16,6 +15,7 @@ class OpenBridgeConfiguration(AbstractCrudObject):
         host_business_id: str
         host_external_id: str
         id: str
+        instance_id: str
         pixel_id: str
     @classmethod
     def get_endpoint(cls): ...

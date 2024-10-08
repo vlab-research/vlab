@@ -21,6 +21,7 @@ class Destination(AbstractCrudObject):
         price: str
         price_change: str
         sanitized_images: str
+        tags: str
         types: str
         unit_price: str
         url: str

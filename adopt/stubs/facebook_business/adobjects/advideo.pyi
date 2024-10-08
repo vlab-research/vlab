@@ -54,7 +54,6 @@ class AdVideo(AbstractCrudObject):
         universal_video_id: str
         updated_time: str
         views: str
-        adaptive_type: str
         animated_effect_id: str
         application_id: str
         asked_fun_fact_prompt_id: str
@@ -81,7 +80,6 @@ class AdVideo(AbstractCrudObject):
         fun_fact_toastee_id: str
         guide: str
         guide_enabled: str
-        has_nickname: str
         holiday_card: str
         initial_heading: str
         initial_pitch: str
@@ -100,7 +98,6 @@ class AdVideo(AbstractCrudObject):
         original_fov: str
         original_projection_type: str
         publish_event_id: str
-        react_mode_metadata: str
         referenced_sticker_id: str
         replace_video_id: str
         slideshow_spec: str
@@ -152,8 +149,10 @@ class AdVideo(AbstractCrudObject):
         contained_post_audio_broadcast: str
         contained_post_copyright_reference_broadcast: str
         copyright_reference_broadcast: str
+        copyright_reference_ig_xpost_video: str
         copyright_reference_video: str
         creation_ml_precreation: str
+        datagenix_video: str
         dco_ad_asset_feed: str
         dco_autogen_video: str
         dco_trimmed_video: str
@@ -174,6 +173,7 @@ class AdVideo(AbstractCrudObject):
         fb_shorts_content_remixable: str
         fb_shorts_cross_meta_post: str
         fb_shorts_group_post: str
+        fb_shorts_linked_product: str
         fb_shorts_pmv_post: str
         fb_shorts_pmv_post_no_newsfeed_nor_timeline: str
         fb_shorts_post: str
@@ -224,6 +224,7 @@ class AdVideo(AbstractCrudObject):
         music_clip_in_audio_digest: str
         music_clip_in_comment: str
         music_clip_in_lightweight_status: str
+        music_clip_in_msgr_note: str
         music_clip_in_poll_option: str
         music_clip_on_dating_profile: str
         neo_async_game_video: str
@@ -274,7 +275,6 @@ class AdVideo(AbstractCrudObject):
         soundbites_video: str
         sound_platform_stream: str
         srt_attachment: str
-        stages_broadcast: str
         stories_video: str
         stories_wearable: str
         storyline: str
@@ -286,7 +286,6 @@ class AdVideo(AbstractCrudObject):
         temporary_unlisted: str
         temp_multimedia_post: str
         unlisted: str
-        unlisted_hack_tv: str
         unlisted_horizon: str
         unlisted_oculus: str
         video_comment: str
@@ -389,7 +388,7 @@ class AdVideo(AbstractCrudObject):
     def create_collaborator(self, fields: Incomplete | None = None, params: Incomplete | None = None, batch: Incomplete | None = None, success: Incomplete | None = None, failure: Incomplete | None = None, pending: bool = False): ...
     def get_comments(self, fields: Incomplete | None = None, params: Incomplete | None = None, batch: Incomplete | None = None, success: Incomplete | None = None, failure: Incomplete | None = None, pending: bool = False): ...
     def create_comment(self, fields: Incomplete | None = None, params: Incomplete | None = None, batch: Incomplete | None = None, success: Incomplete | None = None, failure: Incomplete | None = None, pending: bool = False): ...
-    def get_crosspost_shared_pages(self, fields: Incomplete | None = None, params: Incomplete | None = None, batch: Incomplete | None = None, success: Incomplete | None = None, failure: Incomplete | None = None, pending: bool = False): ...
+    def get_crosspost_share_d_pages(self, fields: Incomplete | None = None, params: Incomplete | None = None, batch: Incomplete | None = None, success: Incomplete | None = None, failure: Incomplete | None = None, pending: bool = False): ...
     def create_gaming_clip_create(self, fields: Incomplete | None = None, params: Incomplete | None = None, batch: Incomplete | None = None, success: Incomplete | None = None, failure: Incomplete | None = None, pending: bool = False): ...
     def get_likes(self, fields: Incomplete | None = None, params: Incomplete | None = None, batch: Incomplete | None = None, success: Incomplete | None = None, failure: Incomplete | None = None, pending: bool = False): ...
     def create_like(self, fields: Incomplete | None = None, params: Incomplete | None = None, batch: Incomplete | None = None, success: Incomplete | None = None, failure: Incomplete | None = None, pending: bool = False): ...

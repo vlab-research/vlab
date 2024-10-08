@@ -33,7 +33,6 @@ class CatalogSubVerticalList(AbstractObject):
         local_service_business_item: str
         local_service_business_restaurant: str
         loyalty_offer: str
-        meetup_space: str
         nursery: str
         printers_and_scanners: str
         printers_scanners_and_fax_machines: str

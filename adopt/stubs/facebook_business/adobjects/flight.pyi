@@ -24,6 +24,7 @@ class Flight(AbstractCrudObject):
         origin_city: str
         price: str
         sanitized_images: str
+        tags: str
         unit_price: str
         url: str
         visibility: str

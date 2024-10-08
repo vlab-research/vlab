@@ -104,6 +104,7 @@ class ProductFeed(AbstractCrudObject):
         language_and_country: str
         local: str
         smart_pixel_language_or_country: str
+        version: str
     @classmethod
     def get_endpoint(cls): ...
     def api_create(self, parent_id, fields: Incomplete | None = None, params: Incomplete | None = None, batch: Incomplete | None = None, success: Incomplete | None = None, failure: Incomplete | None = None, pending: bool = False): ...

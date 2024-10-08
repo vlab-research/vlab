@@ -17,8 +17,14 @@ class AdRuleHistory(AbstractObject):
         changed_bid: str
         changed_budget: str
         email: str
+        enable_advantage_campaign_budget: str
         enable_advantage_plus_creative: str
+        enable_advantage_plus_placements: str
         enable_autoflow: str
+        enable_gen_uncrop: str
+        enable_music: str
+        enable_semantic_based_audience_expansion: str
+        enable_shops_ads: str
         endpoint_pinged: str
         error: str
         facebook_notification_sent: str

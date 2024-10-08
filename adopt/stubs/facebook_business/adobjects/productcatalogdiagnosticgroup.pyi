@@ -16,13 +16,23 @@ class ProductCatalogDiagnosticGroup(AbstractObject):
         title: str
         type: str
     class AffectedChannels:
-        business_inbox_in_messenger: str
+        b2c_marketplace: str
+        c2c_marketplace: str
+        da: str
+        daily_deals: str
+        daily_deals_legacy: str
+        ig_product_tagging: str
+        marketplace: str
+        marketplace_ads_deprecated: str
+        marketplace_shops: str
+        mini_shops: str
+        offline_conversions: str
         shops: str
-        test_capability: str
         universal_checkout: str
-        us_marketplace: str
+        whatsapp: str
     class AffectedEntity:
         product_catalog: str
+        product_event: str
         product_item: str
         product_set: str
     class AffectedFeatures:
@@ -38,12 +48,14 @@ class ProductCatalogDiagnosticGroup(AbstractObject):
         category: str
         checkout: str
         da_visibility_issues: str
+        event_source_issues: str
         image_quality: str
         low_quality_title_and_description: str
         policy_violation: str
         shops_visibility_issues: str
     class AffectedEntities:
         product_catalog: str
+        product_event: str
         product_item: str
         product_set: str
     class Severities:
@@ -56,6 +68,7 @@ class ProductCatalogDiagnosticGroup(AbstractObject):
         category: str
         checkout: str
         da_visibility_issues: str
+        event_source_issues: str
         image_quality: str
         low_quality_title_and_description: str
         policy_violation: str

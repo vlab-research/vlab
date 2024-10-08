@@ -42,6 +42,7 @@ class LocalServiceBusiness(AbstractCrudObject):
         retailer_category: str
         sanitized_images: str
         size: str
+        tags: str
         title: str
         unit_price: str
         url: str

@@ -8,6 +8,7 @@ from facebook_business.typechecker import TypeChecker as TypeChecker
 class Shop(AbstractCrudObject):
     def __init__(self, fbid: Incomplete | None = None, parent_id: Incomplete | None = None, api: Incomplete | None = None) -> None: ...
     class Field(AbstractObject.Field):
+        commerce_merchant_settings: str
         fb_sales_channel: str
         id: str
         ig_sales_channel: str

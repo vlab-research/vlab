@@ -27,6 +27,7 @@ class Ad(AbstractCrudObject, HasAdLabels):
         conversion_specs: str
         created_time: str
         creative: str
+        creative_asset_groups_spec: str
         demolink_hash: str
         display_sequence: str
         effective_status: str

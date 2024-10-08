@@ -9,7 +9,13 @@ class AdAccountBusinessConstraints(AbstractCrudObject):
     def __init__(self, fbid: Incomplete | None = None, parent_id: Incomplete | None = None, api: Incomplete | None = None) -> None: ...
     class Field(AbstractObject.Field):
         audience_controls: str
+        campaigns_with_error: str
         placement_controls: str
+        status: str
+    class Status:
+        active: str
+        application_in_progress: str
+        with_campaign_error: str
     @classmethod
     def get_endpoint(cls): ...
     def api_create(self, parent_id, fields: Incomplete | None = None, params: Incomplete | None = None, batch: Incomplete | None = None, success: Incomplete | None = None, failure: Incomplete | None = None, pending: bool = False): ...

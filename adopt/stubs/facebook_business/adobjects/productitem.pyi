@@ -100,9 +100,6 @@ class ProductItem(AbstractCrudObject):
         iphone_app_store_id: str
         iphone_url: str
         launch_date: str
-        offer_price_amount: str
-        offer_price_end_date: str
-        offer_price_start_date: str
         return_policy_days: str
         windows_phone_app_id: str
         windows_phone_app_name: str
@@ -374,27 +371,40 @@ class ProductItem(AbstractCrudObject):
         low: str
         medium: str
     class ErrorType:
+        address_blocklisted_in_market: str
+        aggregated_localization_issues: str
+        app_has_no_aem_setup: str
         ar_deleted_due_to_update: str
         ar_policy_violated: str
         available: str
         bad_quality_image: str
+        big_catalog_with_all_items_in_stock: str
+        biz_msg_ai_agent_disabled_by_user: str
         cannot_edit_subscription_products: str
+        catalog_not_connected_to_event_source: str
         checkout_disabled_by_user: str
+        commerce_account_legal_address_invalid: str
         commerce_account_not_legally_compliant: str
         crawled_availability_mismatch: str
         da_disabled_by_user: str
         da_policy_violation: str
+        deleted_item: str
         digital_goods_not_available_for_checkout: str
         duplicate_images: str
         duplicate_title_and_description: str
         empty_availability: str
         empty_condition: str
         empty_description: str
+        empty_image_url: str
+        empty_price: str
         empty_product_url: str
         empty_seller_description: str
+        empty_title: str
         external_merchant_id_mismatch: str
         generic_invalid_field: str
+        groups_disabled_by_user: str
         hidden_until_product_launch: str
+        illegal_product_category: str
         image_fetch_failed: str
         image_fetch_failed_bad_gateway: str
         image_fetch_failed_file_size_exceeded: str
@@ -404,13 +414,29 @@ class ProductItem(AbstractCrudObject):
         image_resolution_low: str
         inactive_shopify_product: str
         invalid_commerce_tax_category: str
+        invalid_consolidated_locality_information: str
+        invalid_content_id: str
+        invalid_dealer_communication_parameters: str
+        invalid_dma_codes: str
+        invalid_fb_page_id: str
         invalid_images: str
         invalid_monetizer_return_policy: str
+        invalid_offer_disclaimer_url: str
+        invalid_offer_end_date: str
         invalid_pre_order_params: str
+        invalid_range_for_area_size: str
+        invalid_range_for_built_up_area_size: str
+        invalid_range_for_num_of_baths: str
+        invalid_range_for_num_of_beds: str
+        invalid_range_for_num_of_rooms: str
+        invalid_range_for_parking_spaces: str
+        invalid_shelter_page_id: str
         invalid_shipping_profile_params: str
         invalid_subscription_disable_params: str
         invalid_subscription_enable_params: str
         invalid_subscription_params: str
+        invalid_vehicle_state: str
+        invalid_virtual_tour_url_domain: str
         inventory_zero_availability_in_stock: str
         in_another_product_launch: str
         item_group_not_specified: str
@@ -418,6 +444,7 @@ class ProductItem(AbstractCrudObject):
         item_override_empty_availability: str
         item_override_empty_price: str
         item_override_not_visible: str
+        item_price_not_positive: str
         item_stale_out_of_stock: str
         marketplace_disabled_by_user: str
         mini_shops_disabled_by_user: str
@@ -425,14 +452,20 @@ class ProductItem(AbstractCrudObject):
         missing_checkout_currency: str
         missing_color: str
         missing_country_override_in_shipping_profile: str
+        missing_event: str
         missing_india_compliance_fields: str
         missing_shipping_profile: str
         missing_size: str
         missing_tax_category: str
         negative_community_feedback: str
+        negative_price: str
         not_enough_images: str
         not_enough_unique_products: str
+        no_content_id: str
+        overlay_disclaimer_exceeded_max_length: str
         part_of_product_launch: str
+        passing_multiple_content_ids: str
+        product_dominant_currency_mismatch: str
         product_expired: str
         product_item_hidden_from_all_shops: str
         product_item_invalid_partner_tokens: str
@@ -456,6 +489,8 @@ class ProductItem(AbstractCrudObject):
         property_value_string_too_short: str
         property_value_uppercase: str
         property_value_uppercase_warning: str
+        purchase_rate_below_addtocart: str
+        purchase_rate_below_viewcontent: str
         quality_duplicated_description: str
         quality_item_link_broken: str
         quality_item_link_redirecting: str
@@ -465,6 +500,8 @@ class ProductItem(AbstractCrudObject):
         shops_policy_violation: str
         subscription_info_not_enabled_for_feed: str
         tax_category_not_supported_in_uk: str
+        unique_product_identifier_missing: str
+        unmatched_events: str
         unsupported_product_category: str
         variant_attribute_issue: str
         video_fetch_failed: str
@@ -474,6 +511,8 @@ class ProductItem(AbstractCrudObject):
         video_fetch_failed_link_broken: str
         video_fetch_failed_timed_out: str
         video_not_downloadable: str
+        whatsapp_disabled_by_user: str
+        whatsapp_policy_violation: str
     class MarkedForProductLaunch:
         value_default: str
         marked: str

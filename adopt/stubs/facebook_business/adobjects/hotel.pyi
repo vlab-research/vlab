@@ -28,6 +28,7 @@ class Hotel(AbstractCrudObject):
         sale_price: str
         sanitized_images: str
         star_rating: str
+        tags: str
         unit_price: str
         url: str
         visibility: str

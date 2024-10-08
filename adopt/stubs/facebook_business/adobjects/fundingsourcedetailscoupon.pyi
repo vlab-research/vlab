@@ -5,6 +5,7 @@ class FundingSourceDetailsCoupon(AbstractObject):
     def __init__(self, api: Incomplete | None = None) -> None: ...
     class Field(AbstractObject.Field):
         amount: str
+        campaign_ids: str
         currency: str
         display_amount: str
         expiration: str

@@ -407,6 +407,7 @@ class AdAccountTargetingUnified(AbstractCrudObject):
         location_categories: str
         location_cluster_ids: str
         location_expansion: str
+        marketing_message_channels: str
         marketing_message_targeting: str
         marketplace_product_categories: str
         messenger_positions: str

@@ -9,6 +9,7 @@ class FundingSourceDetails(AbstractCrudObject):
     def __init__(self, fbid: Incomplete | None = None, parent_id: Incomplete | None = None, api: Incomplete | None = None) -> None: ...
     class Field(AbstractObject.Field):
         coupon: str
+        coupons: str
         display_string: str
         id: str
         type: str

@@ -56,6 +56,7 @@ class Campaign(AbstractCrudObject, HasAdLabels, CanValidate):
         cost_cap: str
         lowest_cost_without_cap: str
         lowest_cost_with_bid_cap: str
+        lowest_cost_with_min_roas: str
     class ConfiguredStatus:
         active: str
         archived: str

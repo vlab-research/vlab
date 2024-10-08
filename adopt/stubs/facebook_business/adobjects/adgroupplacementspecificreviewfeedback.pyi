@@ -12,6 +12,7 @@ class AdgroupPlacementSpecificReviewFeedback(AbstractObject):
         bsg: str
         city_community: str
         commerce: str
+        compromise: str
         daily_deals: str
         daily_deals_legacy: str
         dpa: str

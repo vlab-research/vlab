@@ -98,6 +98,7 @@ class AdActivity(AbstractObject):
         update_campaign_name: str
         update_campaign_run_status: str
         update_campaign_schedule: str
+        update_campaign_value_adjustment_rule: str
         update_delivery_type_cross_level_shift: str
     class Category:
         account: str

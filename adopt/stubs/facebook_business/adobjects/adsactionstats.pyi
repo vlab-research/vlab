@@ -5,12 +5,26 @@ class AdsActionStats(AbstractObject):
     def __init__(self, api: Incomplete | None = None) -> None: ...
     class Field(AbstractObject.Field):
         field_1d_click: str
+        field_1d_click_all_conversions: str
+        field_1d_click_first_conversion: str
         field_1d_ev: str
+        field_1d_ev_all_conversions: str
+        field_1d_ev_first_conversion: str
         field_1d_view: str
+        field_1d_view_all_conversions: str
+        field_1d_view_first_conversion: str
         field_28d_click: str
+        field_28d_click_all_conversions: str
+        field_28d_click_first_conversion: str
         field_28d_view: str
+        field_28d_view_all_conversions: str
+        field_28d_view_first_conversion: str
         field_7d_click: str
+        field_7d_click_all_conversions: str
+        field_7d_click_first_conversion: str
         field_7d_view: str
+        field_7d_view_all_conversions: str
+        field_7d_view_first_conversion: str
         action_brand: str
         action_canvas_component_id: str
         action_canvas_component_name: str
@@ -34,5 +48,9 @@ class AdsActionStats(AbstractObject):
         interactive_component_sticker_id: str
         interactive_component_sticker_response: str
         skan_click: str
+        skan_click_second_postback: str
+        skan_click_third_postback: str
         skan_view: str
+        skan_view_second_postback: str
+        skan_view_third_postback: str
         value: str

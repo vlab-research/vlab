@@ -19,6 +19,7 @@ class AdRuleExecutionSpec(AbstractCrudObject):
         change_bid: str
         change_budget: str
         change_campaign_budget: str
+        dco: str
         increase_radius: str
         notification: str
         pause: str

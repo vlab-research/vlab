@@ -11,6 +11,7 @@ class AdRecommendation(AbstractObject):
         message: str
         recommendation_data: str
         title: str
+        value: str
     class Confidence:
         high: str
         low: str

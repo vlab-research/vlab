@@ -31,6 +31,9 @@ class Comment(AbstractCrudObject):
         permalink_url: str
         private_reply_conversation: str
         user_likes: str
+    class Order:
+        chronological: str
+        reverse_chronological: str
     class CommentPrivacyValue:
         declined_by_admin_assistant: str
         default_privacy: str
@@ -49,9 +52,6 @@ class Comment(AbstractCrudObject):
     class LiveFilter:
         filter_low_quality: str
         no_filter: str
-    class Order:
-        chronological: str
-        reverse_chronological: str
     def api_delete(self, fields: Incomplete | None = None, params: Incomplete | None = None, batch: Incomplete | None = None, success: Incomplete | None = None, failure: Incomplete | None = None, pending: bool = False): ...
     def api_get(self, fields: Incomplete | None = None, params: Incomplete | None = None, batch: Incomplete | None = None, success: Incomplete | None = None, failure: Incomplete | None = None, pending: bool = False): ...
     def api_update(self, fields: Incomplete | None = None, params: Incomplete | None = None, batch: Incomplete | None = None, success: Incomplete | None = None, failure: Incomplete | None = None, pending: bool = False): ...

@@ -15,6 +15,7 @@ class AudioCopyright(AbstractCrudObject):
         isrc: str
         match_rule: str
         ownership_countries: str
+        ownership_details: str
         reference_file_status: str
         ridge_monitoring_status: str
         tags: str

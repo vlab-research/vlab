@@ -12,4 +12,5 @@ class ShadowIGMediaBuilder(AbstractCrudObject):
         id: str
         status: str
         status_code: str
+        video_status: str
     def api_get(self, fields: Incomplete | None = None, params: Incomplete | None = None, batch: Incomplete | None = None, success: Incomplete | None = None, failure: Incomplete | None = None, pending: bool = False): ...
