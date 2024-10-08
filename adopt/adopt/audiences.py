@@ -146,8 +146,8 @@ def hydrate_audiences(
 
     # can get pageid from the audience directly... If it needs it?
     # Or should all ads be from the same page by construction?
-    page_ids = [
+    page_ids = list({
         c.template["actor_id"] for c in study.creatives if c.template is not None
-    ]
+    })
 
     return [i for aud in auds for i in hydrate_audience(page_ids, df, aud, now)]

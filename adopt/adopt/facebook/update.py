@@ -31,7 +31,7 @@ def report(i: Instruction):
 
 def add_users_to_custom_audience(token, aud_id, params):
     # TOOD: get the base url from somewhere!
-    url = f"https://graph.facebook.com/v11.0/{aud_id}/users?access_token={token}"
+    url = f"https://graph.facebook.com/v20.0/{aud_id}/users?access_token={token}"
     return requests.post(url, json={"payload": params})
 
 

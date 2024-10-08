@@ -49,6 +49,7 @@ def get_creatives(api: FacebookAdsApi, ids: List[str]) -> List[AdCreative]:
         AdCreative.Field.instagram_user_id,
         AdCreative.Field.object_story_spec,
         AdCreative.Field.thumbnail_url,
+        AdCreative.Field.contextual_multi_ads,
     ]
 
     return call(AdCreative.get_by_ids, ids=ids, fields=fields, api=api)

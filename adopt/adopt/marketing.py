@@ -3,15 +3,15 @@ import logging
 import random
 from dataclasses import asdict, is_dataclass
 from datetime import datetime, timedelta
-from typing import Any, Dict, List, NamedTuple, Optional, Sequence, Tuple, Union
+from typing import (Any, Dict, List, NamedTuple, Optional, Sequence, Tuple,
+                    Union)
 from urllib.parse import quote
 
 from facebook_business.adobjects.ad import Ad
 from facebook_business.adobjects.adcreative import AdCreative
 from facebook_business.adobjects.adcreativelinkdata import AdCreativeLinkData
-from facebook_business.adobjects.adcreativeobjectstoryspec import (
-    AdCreativeObjectStorySpec,
-)
+from facebook_business.adobjects.adcreativeobjectstoryspec import \
+    AdCreativeObjectStorySpec
 from facebook_business.adobjects.adcreativevideodata import AdCreativeVideoData
 from facebook_business.adobjects.adpromotedobject import AdPromotedObject
 from facebook_business.adobjects.adset import AdSet
@@ -23,18 +23,10 @@ from .budget import Budget
 from .facebook.reconciliation import adset_dif
 from .facebook.state import CampaignState, FacebookState, StateNameError, split
 from .facebook.update import Instruction
-from .study_conf import (
-    AppDestination,
-    Audience,
-    CreativeConf,
-    DestinationConf,
-    FlyMessengerDestination,
-    LookalikeAudience,
-    Stratum,
-    StudyConf,
-    WebDestination,
-    DestinationRecruitmentExperiment,
-)
+from .study_conf import (AppDestination, Audience, CreativeConf,
+                         DestinationConf, DestinationRecruitmentExperiment,
+                         FlyMessengerDestination, LookalikeAudience, Stratum,
+                         StudyConf, WebDestination)
 
 ADSET_HOURS = 48
 
@@ -288,6 +280,7 @@ def _create_creative(
         AdCreative.Field.instagram_actor_id,
         AdCreative.Field.instagram_user_id,
         AdCreative.Field.thumbnail_url,
+        AdCreative.Field.contextual_multi_ads,
     ]
 
     for field in fields_to_copy:
@@ -306,9 +299,9 @@ def _create_creative(
         }
 
         if page_welcome_message:
-            link_data[
-                AdCreativeLinkData.Field.page_welcome_message
-            ] = page_welcome_message
+            link_data[AdCreativeLinkData.Field.page_welcome_message] = (
+                page_welcome_message
+            )
 
         if link:
             link_data[AdCreativeLinkData.Field.link] = link
@@ -326,9 +319,9 @@ def _create_creative(
         video_data[AdCreativeVideoData.Field.call_to_action] = call_to_action
 
         if page_welcome_message:
-            video_data[
-                AdCreativeVideoData.Field.page_welcome_message
-            ] = page_welcome_message
+            video_data[AdCreativeVideoData.Field.page_welcome_message] = (
+                page_welcome_message
+            )
 
     toss = config.template["object_story_spec"]
 
