@@ -358,7 +358,7 @@ const facebookRequest = async <ApiResponse>(
   path = `${path}?${q}`;
 
   //TODO make this configurabel (i.e ENV variable)
-  const baseURL = `https://graph.facebook.com/v17.0`;
+  const baseURL = `https://graph.facebook.com/v20.0`;
 
   try {
     const response = await fetchWithTimeout(path, {
