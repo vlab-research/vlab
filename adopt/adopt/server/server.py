@@ -1,13 +1,14 @@
 import logging
-from typing import Annotated, Any, Union
+from typing import Annotated, Any, Sequence, Union
 
 from environs import Env
-from fastapi import Depends, FastAPI, HTTPException, status, BackgroundTasks
+from fastapi import Depends, FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import BaseModel
 
-from ..malaria import load_basics, run_instructions, update_ads_for_campaign
+from ..malaria import (Instruction, load_basics, run_instructions,
+                       update_ads_for_campaign)
 from ..study_conf import (AudienceConf, CreativeConf, DataSourceConf,
                           DestinationConf, GeneralConf, InferenceDataConf,
                           RecruitmentConf, StratumConf, VariableConf)
@@ -198,18 +199,27 @@ async def get_all_confs(
     return {"data": raw_config}
 
 
-def run_study_opt(user_id, org_id, slug):
+def run_study_opt(user_id: str, org_id: str, slug: str) -> Sequence[Instruction]:
     logging.info(f"Optimizing Study: {slug}")
     fn = update_ads_for_campaign
     try:
         study_id = get_study_id(user_id, org_id, slug)
         study, state = load_basics(study_id, db_cnf, env)
-        instructions, report = fn(db_cnf, study, state)
-        run_instructions(instructions, state)
+        instructions, _ = fn(db_cnf, study, state)
+        return instructions
 
     except BaseException as e:
-        msg = f"Error updating campaign {slug}. Error: {e}"
+        msg = f"Error optimizing campaign {slug}. Error: {e}"
         logging.error(msg)
+        return []
+
+
+class OptimizeResultData(BaseModel):
+    instructions: Sequence[Instruction]
+
+
+class OptimizeResult(BaseModel):
+    data: OptimizeResultData
 
 
 @app.get("/{org_id}/optimize/{slug}")
@@ -217,11 +227,30 @@ async def optimize_study(
     org_id: str,
     slug: str,
     user: Annotated[User, Depends(get_current_user)],
-    background_tasks: BackgroundTasks
+) -> OptimizeResult:
+
+    instructions = run_study_opt(user.user_id, org_id, slug)
+    res = OptimizeResult(data=OptimizeResultData(instructions=instructions))
+    print(res)
+    return res
+
+
+@app.post("/{org_id}/optimize/instruction/{slug}")
+async def run_instruction(
+    org_id: str, slug: str, user: Annotated[User, Depends(get_current_user)]
 ):
 
-    background_tasks.add_task(run_study_opt, user.user_id, org_id, slug)
-    return {"data": []}
+    #
+    # run instructions
+    #
+    # optimize could deliver instructions back, which could in turn be run via API.
+    # keeping the instructions on the client side makes it easy.
+    # if you hit rate limits, the client side can error / display problem... Is this good?
+    # It might be nice to get individual errors for each instruction.
+    # That we could have had anyways with logs...
+    # "run instructions"
+
+    return "foo"
 
 
 @app.get("/health", status_code=200)
