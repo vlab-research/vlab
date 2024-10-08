@@ -513,6 +513,7 @@ export const fetchAds = async ({
     "instagram_actor_id",
     "instagram_user_id",
     "object_story_spec",
+    "contextual_multi_ads",
     "thumbnail_url",
   ].join(",")
 
