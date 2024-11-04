@@ -15,7 +15,7 @@ const Instruction: React.FC<Props> = ({ instruction, studySlug }: Props) => {
   };
 
   return (
-    <ul role="list" className="divide-y py-3 divide-gray-200">
+    <ul className="divide-y py-3 divide-gray-200">
       <li className="flex justify-between gap-x-6 py-5">
         <div className="flex gap-x-4">
           <div className="min-w-0 flex-auto">
