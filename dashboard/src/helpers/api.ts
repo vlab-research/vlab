@@ -10,6 +10,8 @@ import {
   StudiesApiResponse,
   StudyApiResponse,
   StudyConfApiResponse,
+  OptimizeStudyApiResponse,
+  RunInstructionApiResponse,
   StudyConfData,
   SingleStudyConf,
   StudySegmentsProgressApiResponse,
@@ -256,7 +258,7 @@ const optimizeStudy = ({
   accessToken: string;
 }) =>
 
-  apiRequest<CreateStudyConfApiResponse>(
+  apiRequest<OptimizeStudyApiResponse>(
     `/${orgPrefix()}/optimize/${studySlug}`,
     {
       accessToken,
@@ -264,6 +266,28 @@ const optimizeStudy = ({
       baseURL: process.env.REACT_APP_CONF_SERVER_URL,
     }
   );
+
+
+const runInstruction = ({
+  studySlug,
+  accessToken,
+  instruction,
+}: {
+  studySlug: string;
+  accessToken: string;
+  instruction: any;
+}) =>
+
+  apiRequest<RunInstructionApiResponse>(
+    `/${orgPrefix()}/optimize/${studySlug}/instruction`,
+    {
+      accessToken,
+      method: 'POST',
+      body: instruction,
+      baseURL: process.env.REACT_APP_CONF_SERVER_URL,
+    }
+  );
+
 
 const apiRequest = async <ApiResponse>(
   path: string,
@@ -559,6 +583,7 @@ const getErrorMessageFor = async (
 
 export const authenticatedApiCalls = {
   optimizeStudy,
+  runInstruction,
   fetchStudies,
   fetchStudy,
   fetchStudySegmentsProgress,

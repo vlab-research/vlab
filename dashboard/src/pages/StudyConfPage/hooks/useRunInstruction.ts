@@ -4,18 +4,18 @@ import useAuthenticatedApi from '../../../hooks/useAuthenticatedApi';
 import { useQueryClient } from 'react-query';
 import { queryKey } from './useStudyConf';
 
-const useOptimize = (
+const useRunInstruction = (
 
 ) => {
   const notyf = new Notyf();
   const queryClient = useQueryClient()
 
-  const { optimizeStudy } = useAuthenticatedApi();
+  const { runInstruction } = useAuthenticatedApi();
 
-  const { mutate: optimizeMutation, isLoading, isError, data } = useMutation(
-    ({ studySlug }: { studySlug: string }) =>
+  const { mutate, isLoading, isError, data, error } = useMutation(
+    ({ studySlug, instruction }: { studySlug: string, instruction: any }) =>
 
-      optimizeStudy({ studySlug }),
+      runInstruction({ studySlug, instruction }),
     {
 
       onMutate: async () => {
@@ -29,14 +29,8 @@ const useOptimize = (
           background: 'rgb(67 56 202)',
         });
       },
-      onError: (error: any) => {
+      onError: () => {
         queryClient.invalidateQueries([queryKey])
-
-        // undo optimistic update...
-        notyf.error({
-          message: `${error.message}`,
-          dismissible: true,
-        });
       },
       onSettled: () => {
 
@@ -45,11 +39,13 @@ const useOptimize = (
   );
 
   return {
-    optimize: optimizeMutation,
-    data: data,
+    runInstruction: mutate,
+    data: data?.data,
+    isError,
+    error,
     isLoading: isLoading || !!queryClient.isFetching(),
     errorOnCreateStudyConf: isError,
   };
 };
 
-export default useOptimize;
+export default useRunInstruction;
