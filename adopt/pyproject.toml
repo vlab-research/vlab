@@ -20,7 +20,7 @@ psycopg = {extras = ["binary", "pool"], version = "^3.0.9"}
 openpyxl = "^3.0.9"
 orjson = "^3.6.6"
 pydantic = "^2.5.2"
-fastapi = "^0.105.0"
+fastapi = {extras = ["standard"], version = "^0.115.0"}
 python-jose = {extras = ["cryptography"], version = "^3.3.0"}
 httpx = "^0.25.2"
 uvicorn = {extras = ["standard"], version = "^0.24.0.post1"}

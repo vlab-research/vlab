@@ -5,6 +5,7 @@ import { GlobalFormData, CreateStudy as StudyType } from '../../../../types/conf
 import ConfWrapper from '../../components/ConfWrapper';
 import { Account } from '../../../../types/account';
 import useOptimize from '../../hooks/useOptimize';
+import Instruction from './Instruction';
 
 interface Props {
   id: string;
@@ -17,12 +18,10 @@ const Optimize: React.FC<Props> = ({ id, globalData, study, facebookAccount }: P
   const params = useParams<{ studySlug: string }>();
   const studySlug = params.studySlug;
 
-  const { optimize, isLoading } = useOptimize()
+  const { optimize, isLoading: isOptimizing, data: instructions } = useOptimize()
 
   const onClick = (): void => {
-
     optimize({ studySlug })
-
   };
 
   // TODO: add checks for valid studyconf, make sure everything is good.
@@ -30,11 +29,20 @@ const Optimize: React.FC<Props> = ({ id, globalData, study, facebookAccount }: P
 
   return (
     <ConfWrapper>
-      <p>
-        Dont do this unless youre Nandan. At least not for now.
-      </p>
+      <PrimaryButton onClick={onClick} loading={isOptimizing}> Optimize </PrimaryButton>
 
-      <PrimaryButton onClick={onClick} loading={isLoading}> Optimize </PrimaryButton>
+      {instructions ?
+        <p className="py-6 text-sm/6 text-gray-900"> Given the current state of your campaigns on Facebook, please run the following instructions in order to optimize this study: </p>
+        : null}
+
+
+      {instructions?.data.map((instruction: any, i: number) => {
+        return (
+          <Instruction instruction={instruction} key={i} studySlug={studySlug} />
+        )
+      }
+
+      )}
     </ConfWrapper>
   );
 };

@@ -16,6 +16,28 @@ export interface CreateStudyApiResponse extends ApiResponse<StudyResource> {}
 export interface CreateStudyConfApiResponse
   extends ApiResponse<StudyConfData> {}
 
+export interface OptimizeStudyApiResponse
+  extends ApiResponse<OptimizeInstruction[]> {}
+
+export interface RunInstructionApiResponse
+  extends ApiResponse<RunInstructionResult> {}
+
+// TODO: is this right? improve and make more meaningful?
+export interface RunInstructionResult {
+  timestamp: string;
+  node: string;
+  action: string;
+  params: any;
+  id: string | null;
+}
+
+export interface OptimizeInstruction {
+  node: string;
+  action: string;
+  params: any;
+  id: string | null;
+}
+
 export type StudyConfData = GlobalFormData;
 export type SingleStudyConf = LocalFormData;
 

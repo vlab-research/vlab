@@ -1,19 +1,23 @@
 import logging
-from typing import Annotated, Any, Union
+from typing import Annotated, Any, Optional, Sequence
 
 from environs import Env
-from fastapi import Depends, FastAPI, HTTPException, status, BackgroundTasks
+from fastapi import Depends, FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import BaseModel
 
-from ..malaria import load_basics, run_instructions, update_ads_for_campaign
+from ..facebook.update import GraphUpdater
+from ..malaria import (Instruction, load_basics, run_instructions,
+                       update_ads_for_campaign)
 from ..study_conf import (AudienceConf, CreativeConf, DataSourceConf,
                           DestinationConf, GeneralConf, InferenceDataConf,
                           RecruitmentConf, StratumConf, VariableConf)
 from .auth import AuthError, verify_token
 from .db import (copy_confs, create_study_conf, db_cnf, get_all_study_confs,
                  get_study_conf, get_study_id)
+
+from ..campaign_queries import get_user_info
 
 app = FastAPI()
 
@@ -30,6 +34,26 @@ app.add_middleware(
 
 
 env = Env()
+
+
+class OptimizeInstruction(BaseModel):
+    node: str
+    action: str
+    params: dict[str, Any]
+    id: Optional[str] = None
+
+
+class OptimizeReport(BaseModel):
+    timestamp: str
+    instruction: OptimizeInstruction
+
+
+class InstructionResult(BaseModel):
+    data: OptimizeReport
+
+
+class OptimizeResult(BaseModel):
+    data: Sequence[OptimizeInstruction]
 
 
 class User(BaseModel):
@@ -198,18 +222,35 @@ async def get_all_confs(
     return {"data": raw_config}
 
 
-def run_study_opt(user_id, org_id, slug):
+def run_study_opt(user_id: str, org_id: str, slug: str) -> Sequence[Instruction]:
     logging.info(f"Optimizing Study: {slug}")
-    fn = update_ads_for_campaign
-    try:
-        study_id = get_study_id(user_id, org_id, slug)
-        study, state = load_basics(study_id, db_cnf, env)
-        instructions, report = fn(db_cnf, study, state)
-        run_instructions(instructions, state)
+    study_id = get_study_id(user_id, org_id, slug)
+    study, state = load_basics(study_id, db_cnf, env)
+    instructions, _ = update_ads_for_campaign(db_cnf, study, state)
+    return instructions
 
-    except BaseException as e:
-        msg = f"Error updating campaign {slug}. Error: {e}"
-        logging.error(msg)
+
+def run_single_instruction(
+    user_id: str, org_id: str, slug: str, instruction: OptimizeInstruction
+) -> OptimizeReport:
+
+    # Replace with a more direct way of getting info, make endpoint
+    # more flexible...
+    # or just make another endpoint???
+
+    # ad account
+    # campaign_names
+    # user = get_user_info(study_id, db_cnf)
+    # state = FacebookState(
+    #     get_api(env, user["token"]), study.general.ad_account, study.campaign_names
+    # )
+
+    study_id = get_study_id(user_id, org_id, slug)
+    study, state = load_basics(study_id, db_cnf, env)
+
+    updater = GraphUpdater(state)
+    report = updater.execute(instruction)
+    return OptimizeReport(**report)
 
 
 @app.get("/{org_id}/optimize/{slug}")
@@ -217,11 +258,34 @@ async def optimize_study(
     org_id: str,
     slug: str,
     user: Annotated[User, Depends(get_current_user)],
-    background_tasks: BackgroundTasks
-):
+) -> OptimizeResult:
 
-    background_tasks.add_task(run_study_opt, user.user_id, org_id, slug)
-    return {"data": []}
+    try:
+        instructions = run_study_opt(user.user_id, org_id, slug)
+
+    except BaseException as e:
+        raise HTTPException(status_code=500, detail=f"{e}")
+
+    res = OptimizeResult(  # quick hack to deal with namedtuple.
+        # Should replace w/ pydantic model
+        data=[OptimizeInstruction(**i._asdict()) for i in instructions]
+    )
+    return res
+
+
+@app.post("/{org_id}/optimize/{slug}/instruction", status_code=201)
+async def run_instruction(
+    org_id: str,
+    slug: str,
+    instruction: OptimizeInstruction,
+    user: Annotated[User, Depends(get_current_user)],
+) -> InstructionResult:
+
+    try:
+        report = run_single_instruction(user.user_id, org_id, slug, instruction)
+        return InstructionResult(data=report)
+    except BaseException as e:
+        raise HTTPException(status_code=500, detail=f"{e}")
 
 
 @app.get("/health", status_code=200)

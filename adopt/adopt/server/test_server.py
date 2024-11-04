@@ -9,6 +9,7 @@ from unittest.mock import patch
 from fastapi.testclient import TestClient
 
 from ..db import execute, query
+from ..facebook.update import Instruction
 from ..study_conf import GeneralConf, WebDestination
 from ..test_study_conf import _simple
 
@@ -16,7 +17,7 @@ os.environ["PG_URL"] = db_conf
 os.environ["AUTH0_DOMAIN"] = "_"
 os.environ["AUTH0_AUDIENCE"] = "_"
 
-from .server import app
+from .server import OptimizeInstruction, OptimizeReport, app
 
 client = TestClient(app)
 
@@ -54,7 +55,7 @@ def _create_study(user_id, org_id, slug):
     return list(res)[0]["id"]
 
 
-def _conf_create_and_get_happy_path(path, dat):
+def _user_and_study_setup():
     _create_user(user_id)
     org_id = _create_org(user_id, "test org")
 
@@ -63,6 +64,12 @@ def _conf_create_and_get_happy_path(path, dat):
     token = "verysecret"
 
     headers = {"Authorization": f"Bearer {token}"}
+
+    return org_id, headers
+
+
+def _conf_create_and_get_happy_path(path, dat):
+    org_id, headers = _user_and_study_setup()
 
     res = client.post(
         f"/{org_id}/studies/foo-study/confs/{path}", headers=headers, json=dat
@@ -95,7 +102,7 @@ def test_server_create_and_get_general_conf(verify_mock):
         credentials_entity="facebook",
     )
 
-    dat = conf.dict()
+    dat = conf.model_dump()
     _conf_create_and_get_happy_path("general", dat)
 
 
@@ -110,7 +117,7 @@ def test_server_create_and_get_destinations_conf(verify_mock):
         WebDestination(type="web", name="bar", url_template="http://bar.com/{ref}"),
     ]
 
-    dat = [c.dict() for c in conf]
+    dat = [c.model_dump() for c in conf]
     _conf_create_and_get_happy_path("destinations", dat)
 
 
@@ -139,13 +146,101 @@ def test_server_get_all_study_confs(verify_mock):
         credentials_entity="facebook",
     )
 
-    dat = conf.dict()
+    dat = conf.model_dump()
     org_id, headers = _conf_create_and_get_happy_path("general", dat)
 
     res = client.get(f"/{org_id}/studies/foo-study/confs", headers=headers)
     res_dat = res.json()
     assert "general" in res_dat["data"]
     assert res_dat["data"]["general"]["name"] == "foo"
+
+
+@patch("adopt.server.server.run_study_opt")
+@patch("adopt.server.server.verify_token")
+def test_optimize_study_returns_instructions(verify_mock, run_study_opt):
+    _reset_db()
+    verify_mock.return_value = {"sub": user_id}
+    run_study_opt.return_value = [Instruction("foo", "bar", {})]
+
+    org_id, headers = _user_and_study_setup()
+
+    res = client.get(f"/{org_id}/optimize/foo-study", headers=headers)
+    assert res.status_code == 200
+    res_data = res.json()
+    assert res_data["data"] == [
+        {"node": "foo", "action": "bar", "params": {}, "id": None}
+    ]
+
+
+@patch("adopt.server.server.run_study_opt")
+@patch("adopt.server.server.verify_token")
+def test_optimize_study_returns_errors_if_any_optimization_error(
+    verify_mock, run_study_opt
+):
+    _reset_db()
+    verify_mock.return_value = {"sub": user_id}
+    run_study_opt.side_effect = Exception("foo error")
+
+    org_id, headers = _user_and_study_setup()
+
+    res = client.get(f"/{org_id}/optimize/foo-study", headers=headers)
+    assert res.status_code == 500
+    res_data = res.json()
+    assert res_data == {"detail": "foo error"}
+
+
+@patch("adopt.server.server.run_single_instruction")
+@patch("adopt.server.server.verify_token")
+def test_optimize_instruction_returns_report(verify_mock, run_single_instruction):
+    _reset_db()
+    verify_mock.return_value = {"sub": user_id}
+
+    instruction = OptimizeInstruction(node="foo", action="bar", params={})
+
+    run_single_instruction.return_value = OptimizeReport(
+        timestamp="10:00",
+        instruction=instruction,
+    )
+
+    org_id, headers = _user_and_study_setup()
+
+    req_data = instruction.model_dump()
+
+    res = client.post(
+        f"/{org_id}/optimize/foo-study/instruction", headers=headers, json=req_data
+    )
+
+    assert res.status_code == 201
+    res_data = res.json()
+    assert res_data["data"] == {
+        "timestamp": "10:00",
+        "instruction": {"node": "foo", "action": "bar", "params": {}, "id": None},
+    }
+
+
+@patch("adopt.server.server.run_single_instruction")
+@patch("adopt.server.server.verify_token")
+def test_optimize_instruction_returns_error_in_running(
+    verify_mock, run_single_instruction
+):
+    _reset_db()
+    verify_mock.return_value = {"sub": user_id}
+
+    instruction = OptimizeInstruction(node="foo", action="bar", params={})
+
+    run_single_instruction.side_effect = Exception("foo error")
+
+    org_id, headers = _user_and_study_setup()
+
+    req_data = instruction.model_dump()
+
+    res = client.post(
+        f"/{org_id}/optimize/foo-study/instruction", headers=headers, json=req_data
+    )
+
+    assert res.status_code == 500
+    res_data = res.json()
+    assert res_data == {"detail": "foo error"}
 
 
 def test_health_check():
