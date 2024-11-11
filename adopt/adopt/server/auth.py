@@ -85,12 +85,29 @@ def verify_api_token(token: str) -> Dict[str, Any]:
         )
 
 
+class DifferentAuthError(BaseException):
+    pass
+
+
 def verify_token(token: str) -> Dict[str, Any]:
     res = requests.get(AUTH0_DOMAIN + ".well-known/jwks.json")
     jwks = res.json()
-    unverified_header = jwt.get_unverified_header(token)
+    try:
+        unverified_header = jwt.get_unverified_header(token)
+    except JWTError:
+        raise AuthError(
+            {
+                "code": "invalid_header",
+                "description": "Unable to parse authentication" " token.",
+            },
+            401,
+        )
+
     rsa_key = {}
     for key in jwks["keys"]:
+        if "kid" not in unverified_header:
+            raise DifferentAuthError("Not client token")
+
         if key["kid"] == unverified_header["kid"]:
             rsa_key = {
                 "kty": key["kty"],
@@ -141,10 +158,13 @@ def verify_tokens(token: str) -> Dict[str, Any]:
     try:
         return verify_token(token)
 
-    except AuthError as first_error:
+    except DifferentAuthError:
         try:
             return verify_api_token(token)
+
         except AuthError as second_error:
-            logging.error(first_error)
             logging.error(second_error)
-            raise first_error
+            raise second_error
+
+    except AuthError as error:
+        raise error

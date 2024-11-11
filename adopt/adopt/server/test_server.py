@@ -20,7 +20,7 @@ os.environ["API_KEY_DOMAIN"] = "test-domain"
 os.environ["API_KEY_AUDIENCE"] = "test-audience"
 os.environ["API_KEY_SECRET"] = "api-key-secret"
 
-from .auth import AuthError
+from .auth import DifferentAuthError
 from .server import OptimizeInstruction, OptimizeReport, app
 
 client = TestClient(app)
@@ -262,9 +262,7 @@ def test_api_key_creation_and_use(verify_mock):
 
     assert res_data["data"]["name"] == "foo-name"
 
-    verify_mock.side_effect = AuthError(
-        {"code": "foo", "description": "test error"}, 401
-    )
+    verify_mock.side_effect = DifferentAuthError("foo")
 
     # Test fake auth to ensure server-side auth rejecting
     api_token = "fake"
