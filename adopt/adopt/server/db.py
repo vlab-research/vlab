@@ -1,15 +1,25 @@
+import json
 from typing import Any
 
 import orjson
 from environs import Env
 from fastapi import HTTPException
 
-from ..db import query
+from ..db import execute, query
 
 env = Env()
 db_cnf = env("PG_URL")
 
 # TODO: use asyncpg and pool for performance
+
+
+def insert_credential(user_id: str, entity: str, key: str, details: Any):
+    q = """
+    INSERT INTO credentials (user_id, entity, key, details) VALUES (%s, %s, %s, %s)
+"""
+
+    deets = orjson.dumps(details).decode("utf8")
+    execute(db_cnf, q, (user_id, entity, key, deets))
 
 
 def get_study_conf(user_id: str, org_id: str, study_slug: str, conf_type: str):
@@ -66,7 +76,6 @@ def get_all_study_confs(user_id: str, org_id: str, study_slug: str):
 
 
 def get_study_id(user_id: str, org_id: str, study_slug: str):
-
     q = """
     SELECT s.id
     FROM studies s

@@ -16,7 +16,11 @@ from ..test_study_conf import _simple
 os.environ["PG_URL"] = db_conf
 os.environ["AUTH0_DOMAIN"] = "_"
 os.environ["AUTH0_AUDIENCE"] = "_"
+os.environ["API_KEY_DOMAIN"] = "test-domain"
+os.environ["API_KEY_AUDIENCE"] = "test-audience"
+os.environ["API_KEY_SECRET"] = "api-key-secret"
 
+from .auth import AuthError
 from .server import OptimizeInstruction, OptimizeReport, app
 
 client = TestClient(app)
@@ -88,7 +92,7 @@ def _conf_create_and_get_happy_path(path, dat):
     return org_id, headers
 
 
-@patch("adopt.server.server.verify_token")
+@patch("adopt.server.auth.verify_token")
 def test_server_create_and_get_general_conf(verify_mock):
     _reset_db()
 
@@ -106,7 +110,7 @@ def test_server_create_and_get_general_conf(verify_mock):
     _conf_create_and_get_happy_path("general", dat)
 
 
-@patch("adopt.server.server.verify_token")
+@patch("adopt.server.auth.verify_token")
 def test_server_create_and_get_destinations_conf(verify_mock):
     _reset_db()
 
@@ -121,7 +125,7 @@ def test_server_create_and_get_destinations_conf(verify_mock):
     _conf_create_and_get_happy_path("destinations", dat)
 
 
-@patch("adopt.server.server.verify_token")
+@patch("adopt.server.auth.verify_token")
 def test_server_create_and_get_recruitment_conf(verify_mock):
     _reset_db()
 
@@ -132,7 +136,7 @@ def test_server_create_and_get_recruitment_conf(verify_mock):
     _conf_create_and_get_happy_path("recruitment", dat)
 
 
-@patch("adopt.server.server.verify_token")
+@patch("adopt.server.auth.verify_token")
 def test_server_get_all_study_confs(verify_mock):
     _reset_db()
 
@@ -156,7 +160,7 @@ def test_server_get_all_study_confs(verify_mock):
 
 
 @patch("adopt.server.server.run_study_opt")
-@patch("adopt.server.server.verify_token")
+@patch("adopt.server.auth.verify_token")
 def test_optimize_study_returns_instructions(verify_mock, run_study_opt):
     _reset_db()
     verify_mock.return_value = {"sub": user_id}
@@ -173,7 +177,7 @@ def test_optimize_study_returns_instructions(verify_mock, run_study_opt):
 
 
 @patch("adopt.server.server.run_study_opt")
-@patch("adopt.server.server.verify_token")
+@patch("adopt.server.auth.verify_token")
 def test_optimize_study_returns_errors_if_any_optimization_error(
     verify_mock, run_study_opt
 ):
@@ -190,7 +194,7 @@ def test_optimize_study_returns_errors_if_any_optimization_error(
 
 
 @patch("adopt.server.server.run_single_instruction")
-@patch("adopt.server.server.verify_token")
+@patch("adopt.server.auth.verify_token")
 def test_optimize_instruction_returns_report(verify_mock, run_single_instruction):
     _reset_db()
     verify_mock.return_value = {"sub": user_id}
@@ -219,7 +223,7 @@ def test_optimize_instruction_returns_report(verify_mock, run_single_instruction
 
 
 @patch("adopt.server.server.run_single_instruction")
-@patch("adopt.server.server.verify_token")
+@patch("adopt.server.auth.verify_token")
 def test_optimize_instruction_returns_error_in_running(
     verify_mock, run_single_instruction
 ):
@@ -241,6 +245,56 @@ def test_optimize_instruction_returns_error_in_running(
     assert res.status_code == 500
     res_data = res.json()
     assert res_data == {"detail": "foo error"}
+
+
+@patch("adopt.server.auth.verify_token")
+def test_api_key_creation_and_use(verify_mock):
+    _reset_db()
+
+    verify_mock.return_value = {"sub": user_id}
+    org_id, headers = _user_and_study_setup()
+
+    req_data = {"name": "foo-name"}
+    res = client.post("/users/api-key", headers=headers, json=req_data)
+
+    assert res.status_code == 201
+    res_data = res.json()
+
+    assert res_data["data"]["name"] == "foo-name"
+
+    verify_mock.side_effect = AuthError(
+        {"code": "foo", "description": "test error"}, 401
+    )
+
+    # Test fake auth to ensure server-side auth rejecting
+    api_token = "fake"
+    headers = {"Authorization": f"Bearer {api_token}"}
+
+    conf = GeneralConf(
+        name="foo",
+        opt_window=48,
+        ad_account="234",
+        credentials_key="facebook",
+        credentials_entity="facebook",
+    )
+
+    dat = conf.model_dump()
+
+    res = client.post(
+        f"/{org_id}/studies/foo-study/confs/general", headers=headers, json=dat
+    )
+
+    assert res.status_code == 401
+
+    # Test returned token to ensure it is working
+    api_token = res_data["data"]["token"]
+    headers = {"Authorization": f"Bearer {api_token}"}
+
+    res = client.post(
+        f"/{org_id}/studies/foo-study/confs/general", headers=headers, json=dat
+    )
+
+    assert res.status_code == 201
 
 
 def test_health_check():

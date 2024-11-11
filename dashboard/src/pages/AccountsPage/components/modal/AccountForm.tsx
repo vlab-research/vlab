@@ -4,6 +4,7 @@ import { AccountType } from './CreateAccountModal';
 import AccountCreateButton from './AccountCreateButton';
 import AccountListBox from './AccountListBox';
 import { useEffect } from 'react';
+import Credential from '../accounts/Credential';
 
 type Props = {
   value: string;
@@ -17,6 +18,9 @@ type Props = {
   resetFormData: () => void;
 };
 
+// make this dynamic based on account type
+// simplify the rest
+
 const AccountForm: React.FC<Props> = ({
   value,
   selected,
@@ -28,6 +32,7 @@ const AccountForm: React.FC<Props> = ({
   handleSelectChange,
   resetFormData,
 }) => {
+
   const handleOnCancelClick = () => {
     setOpen(false);
     resetFormData();
@@ -38,6 +43,9 @@ const AccountForm: React.FC<Props> = ({
       resetFormData();
     }
   }, [open, resetFormData]);
+
+
+  const { credentials, authType } = selected
 
   return (
     <form onSubmit={handleSubmit} className="col-span-4">
@@ -69,6 +77,22 @@ const AccountForm: React.FC<Props> = ({
                 onChange={handleOnChange}
                 value={value}
               />
+              {authType !== 'facebook' &&
+                Object.keys(credentials).map((key, index) => (
+                  <Credential
+                    key={`${key}-${index}`}
+                    index={index}
+                    name={key}
+                    show={true}
+                    value={credentials[key]}
+                    authType={authType}
+                    error={undefined}
+                    handleChange={handleOnChange}
+                    isDirty={true}
+                  />
+                ))}
+
+
             </div>
           )}
         </div>

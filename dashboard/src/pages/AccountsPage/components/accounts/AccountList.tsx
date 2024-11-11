@@ -4,12 +4,14 @@ import { Account as AccountType } from '../../../../types/account';
 
 type AccountListProps = {
   accounts: AccountType[];
-  updateAccounts: (index: number) => void;
+  updateAccount: (account: AccountType) => void;
+  deleteAccount: (account: AccountType) => void;
 };
 
 const AccountList: React.FC<AccountListProps> = ({
   accounts,
-  updateAccounts,
+  updateAccount,
+  deleteAccount,
 }) => {
   return (
     <ListLayout>
@@ -35,7 +37,8 @@ const AccountList: React.FC<AccountListProps> = ({
             key={`${account.name}-${index}`}
             account={account}
             index={index}
-            updateAccounts={updateAccounts}
+            updateAccount={updateAccount}
+            deleteAccount={deleteAccount}
           />
         ))
       )}

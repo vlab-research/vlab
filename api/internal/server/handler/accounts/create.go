@@ -3,13 +3,13 @@ package accounts
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
-	"net/http"
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
 	"github.com/vlab-research/vlab/api/internal/server/middleware/auth"
 	"github.com/vlab-research/vlab/api/internal/storage"
 	"github.com/vlab-research/vlab/api/internal/types"
+	"io/ioutil"
+	"net/http"
 )
 
 var (
@@ -69,6 +69,8 @@ func parsePayload(b []byte) (a types.Account, err error) {
 		a.ConnectedAccount = &types.AlchemerConnectedAccount{}
 	case types.FacebookAccount:
 		a.ConnectedAccount = &types.FacebookConnectedAccount{}
+	case types.VlabApiKeyAccount:
+		a.ConnectedAccount = &types.VlabApiKeyConnectedAccount{}
 	default:
 		return a, fmt.Errorf("%v is an unknown account type", a.AuthType)
 	}

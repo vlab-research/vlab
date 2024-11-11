@@ -1,5 +1,6 @@
 import { fetchWithTimeout } from './http';
 import {
+  CreateApiKeyResponse,
   CampaignsApiResponse,
   AdsApiResponse,
   AdAccountsApiResponse,
@@ -248,6 +249,24 @@ const deleteAccount = ({
     method: 'DELETE',
     body: { name, authType },
   });
+
+
+const generateApiKey = ({
+  name,
+  accessToken,
+}: {
+  name: string;
+  accessToken: string;
+}) =>
+  apiRequest<CreateApiKeyResponse>(
+    `/users/api-key`,
+    {
+      accessToken,
+      method: 'POST',
+      body: { name },
+      baseURL: process.env.REACT_APP_CONF_SERVER_URL,
+    }
+  );
 
 
 const optimizeStudy = ({
@@ -583,6 +602,7 @@ const getErrorMessageFor = async (
 
 
 export const authenticatedApiCalls = {
+  generateApiKey,
   optimizeStudy,
   runInstruction,
   fetchStudies,

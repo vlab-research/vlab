@@ -1,29 +1,30 @@
 import React, { useEffect, useState } from 'react';
 import PrimaryButton from '../../../../components/PrimaryButton';
+import SecondaryButton from '../../../../components/SecondaryButton';
 import DeleteButton from '../../../../components/DeleteButton';
 import { InfoBanner } from '../../../../components/InfoBanner';
 import Credential from './Credential';
 import { Account } from '../../../../types/account';
-import useCreateAccount from '../../hooks/useCreateAccount';
-import useDeleteAccount from '../../hooks/useDeleteAccount';
 import { classNames } from '../../../../helpers/strings';
 
 type Props = {
   account: Account;
   index: number;
-  updateAccounts: (index: number) => void;
+  updateAccount: (account: Account) => void;
+  deleteAccount: (account: Account) => void;
+
 };
 
 const CredentialsList: React.FC<Props> = ({
   account,
   index,
-  updateAccounts,
+  updateAccount,
+  deleteAccount,
 }) => {
-  const { isCreating, errorOnCreate, createAccount } = useCreateAccount();
-  const { deleteAccount } = useDeleteAccount();
   const initialState: any | undefined = account.connectedAccount?.credentials;
   const [credentials, setCredentials] = useState(initialState);
   const [isDirty, setIsDirty] = useState(false);
+  const [show, setShow] = useState(false);
 
   useEffect(() => {
     setCredentials(initialState);
@@ -33,23 +34,11 @@ const CredentialsList: React.FC<Props> = ({
     }
   }, [account.name, initialState]);
 
-  const validatedCredentials = JSON.parse(
-    JSON.stringify(credentials),
-    (_, value) => value ?? value
-  );
 
   const handleSubmitForm = (e: any): void => {
     e.preventDefault();
+    updateAccount({ ...account, connectedAccount: { createdAt: account.connectedAccount?.createdAt || 0, credentials } });
 
-    // We only ever create accounts as the endpoint is idempotent i.e there is no concept of update/PUT
-    createAccount({
-      name: account.name,
-      authType: account.authType,
-      connectedAccount: {
-        createdAt: Date.now(),
-        credentials: validatedCredentials,
-      },
-    });
   };
 
   const handleChange = (e: any): void => {
@@ -61,30 +50,25 @@ const CredentialsList: React.FC<Props> = ({
     setIsDirty(true);
   };
 
-  const handleOnClick = () => {
-    if (isConnected) {
-      deleteAccount({
-        name: account.name,
-        authType: account.authType,
-      });
-    }
-    updateAccounts(index);
+  const handleDelete = () => {
+    deleteAccount(account)
   };
 
   const isConnected = account.connectedAccount?.createdAt !== 0;
 
   return (
     <form onSubmit={handleSubmitForm} className="col-span-3">
-      <NameInput name={account.name} index={index} error={errorOnCreate} />
+      <NameInput name={account.name} index={index} error={undefined} />
       {account.authType !== 'facebook' &&
         Object.keys(credentials).map(key => (
           <Credential
             key={`${key}-${index}`}
             index={index}
             name={key}
+            show={show}
             value={credentials[key]}
             authType={account.authType}
-            error={errorOnCreate}
+            error={undefined}
             handleChange={handleChange}
             isDirty={isDirty}
           />
@@ -94,12 +78,18 @@ const CredentialsList: React.FC<Props> = ({
       )}
       <div className="flex items-center py-3 justify-end">
         <div className="mr-1.5">
-          <DeleteButton onClick={handleOnClick} />
+          <DeleteButton onClick={handleDelete} />
+        </div>
+        <div className="mr-1.5">
+          <SecondaryButton onClick={() => show ? setShow(false) : setShow(true)} >
+            {show ? 'Hide' : 'Show'}
+          </SecondaryButton>
         </div>
         <PrimaryButton
           type="submit"
+          disabled={account.authType === 'api_key'}
           testId={`existing-account-submit-button-${index}`}
-          loading={isCreating}
+          loading={false}
           leftIcon={isConnected ? 'RefreshIcon' : 'LinkIcon'}
         >
           {isConnected ? 'Update' : 'Connect'}

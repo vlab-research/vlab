@@ -5,13 +5,15 @@ import { Account as AccountType } from '../../../../types/account';
 type AccountProps = {
   account: AccountType;
   index: number;
-  updateAccounts: (index: number) => void;
+  updateAccount: (account: AccountType) => void;
+  deleteAccount: (account: AccountType) => void;
 };
 
 const Account: React.FC<AccountProps> = ({
   account,
   index,
-  updateAccounts,
+  updateAccount,
+  deleteAccount,
 }) => {
   return (
     <li data-testid="account-list-item">
@@ -28,7 +30,8 @@ const Account: React.FC<AccountProps> = ({
           <CredentialsList
             account={account}
             index={index}
-            updateAccounts={updateAccounts}
+            updateAccount={updateAccount}
+            deleteAccount={deleteAccount}
           />
         </div>
       </div>

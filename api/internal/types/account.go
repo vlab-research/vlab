@@ -10,10 +10,11 @@ import (
 type AccountType string
 
 const (
-	TypeformAccount AccountType = "typeform"
-	FlyAccount      AccountType = "fly"
-	AlchemerAccount AccountType = "alchemer"
-	FacebookAccount AccountType = "facebook"
+	TypeformAccount   AccountType = "typeform"
+	FlyAccount        AccountType = "fly"
+	AlchemerAccount   AccountType = "alchemer"
+	FacebookAccount   AccountType = "facebook"
+	VlabApiKeyAccount AccountType = "api_key"
 )
 
 type AccountRepository interface {
@@ -25,15 +26,13 @@ type AccountRepository interface {
 var ErrAccountAlreadyExists = errors.New("Account already exists")
 var ErrAccountDoesNotExist = errors.New("Account not found")
 
-
-
 type Account struct {
-	UserID   string `json:"userId"`
-	Name     string `json:"name" validate:"required"`
+	UserID   string      `json:"userId"`
+	Name     string      `json:"name" validate:"required"`
 	AuthType AccountType `json:"authType" validate:"required"`
-	// Interim structure to hold credential values until account type can be determined 
-	Account json.RawMessage  `json:"connectedAccount"`
-	ConnectedAccount    ConnectedAccount `json:"-"`
+	// Interim structure to hold credential values until account type can be determined
+	Account          json.RawMessage  `json:"connectedAccount"`
+	ConnectedAccount ConnectedAccount `json:"-"`
 }
 
 // Takes the account and sets it to a connected account
@@ -92,7 +91,6 @@ type FacebookConnectedAccount struct {
 	Credentials FacebookCredentials `json:"credentials" validate:"required"`
 }
 
-
 // Used to input data into the database as a JSONB field
 func (f FacebookConnectedAccount) MarshalCredentials() (string, error) {
 	b, err := json.Marshal(f.Credentials)
@@ -102,7 +100,7 @@ func (f FacebookConnectedAccount) MarshalCredentials() (string, error) {
 	return string(b), nil
 }
 
-// Used to connect Virtual Lab to a Facebook ad account
+// Used to connect Virtual Lab to a Alchemer account
 type AlchemerConnectedAccount struct {
 	CreatedAt   int                       `json:"createdAt"`
 	Credentials sourcetypes.AlchemerCreds `json:"credentials" validate:"required"`
@@ -110,6 +108,26 @@ type AlchemerConnectedAccount struct {
 
 // Used to input data into the database as a JSONB field
 func (a AlchemerConnectedAccount) MarshalCredentials() (string, error) {
+	b, err := json.Marshal(a.Credentials)
+	if err != nil {
+		return "", err
+	}
+	return string(b), nil
+}
+
+type VlabApiKeyCreds struct {
+	Token string `json:"token" validate:"required"`
+	ID    string `json:"id" validate:"required"`
+}
+
+// Used to generate Virtual Lab API Keys
+type VlabApiKeyConnectedAccount struct {
+	CreatedAt   int             `json:"createdAt"`
+	Credentials VlabApiKeyCreds `json:"credentials" validate:"required"`
+}
+
+// Used to input data into the database as a JSONB field
+func (a VlabApiKeyConnectedAccount) MarshalCredentials() (string, error) {
 	b, err := json.Marshal(a.Credentials)
 	if err != nil {
 		return "", err

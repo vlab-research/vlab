@@ -4,7 +4,7 @@ import { Notyf } from 'notyf';
 import useAuthenticatedApi from '../../../hooks/useAuthenticatedApi';
 // import { addAccountToCacheWhileRefetching } from './useAccounts';
 
-const useCreateFacebookAccount: any = () => {
+const useCreateFacebookAccount: any = (onSettled: () => void) => {
   const notyf = new Notyf();
   const history = useHistory();
   const { createFacebookAccount } = useAuthenticatedApi();
@@ -26,6 +26,7 @@ const useCreateFacebookAccount: any = () => {
           dismissible: true,
         });
       },
+      onSettled: onSettled,
     }
   );
 

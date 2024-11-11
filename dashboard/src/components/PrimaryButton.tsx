@@ -10,6 +10,7 @@ const PrimaryButton = ({
   testId,
   rounded = false,
   leftIcon,
+  disabled,
   loading = false,
   onClick = () => {},
 }: {
@@ -20,6 +21,7 @@ const PrimaryButton = ({
   testId?: string;
   rounded?: boolean;
   leftIcon?: keyof typeof icons;
+  disabled?: boolean;
   loading?: boolean;
   onClick?: (e: any) => void;
 }) => {
@@ -44,7 +46,7 @@ const PrimaryButton = ({
       data-testid={testId}
       type={type}
       onClick={onClick}
-      disabled={loading}
+      disabled={loading || disabled}
       className={classNames(
         classNamePerSize[size],
         rounded ? 'rounded-full' : '',

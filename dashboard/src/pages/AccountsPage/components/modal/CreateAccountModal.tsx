@@ -26,6 +26,11 @@ const accounts: AccountType[] = [
   },
   {
     name: '',
+    authType: 'api_key',
+    credentials: {},
+  },
+  {
+    name: '',
     authType: 'alchemer',
     credentials: {
       api_token: '',
@@ -62,13 +67,21 @@ const CreateAccountModal: React.FC<CreateAccountModalProps> = ({
   };
 
   const handleOnChange = (e: any) => {
-    const clone = { ...selected };
-    clone.name = e.target.value;
-    setSelected(clone);
+
+    if (e.target.name === "account-name") {
+
+      setSelected({ ...selected, name: e.target.value })
+    } else {
+
+      const clone = { ...selected, 'credentials': { ...selected.credentials, [e.target.name]: e.target.value } };
+      setSelected(clone)
+    }
   };
+
 
   const handleSubmit = (e: any) => {
     e.preventDefault();
+
     const account: Account = {
       name: selected.name,
       authType: selected.authType,

@@ -4,7 +4,7 @@ import { Notyf } from 'notyf';
 import useAuthenticatedApi from '../../../hooks/useAuthenticatedApi';
 // import { clearCacheWhileRefetching } from './useAccounts';
 
-const useDeleteAccount: any = () => {
+const useDeleteAccount: any = (onSettled: () => void) => {
   const notyf = new Notyf();
   const history = useHistory();
   const { deleteAccount } = useAuthenticatedApi();
@@ -27,6 +27,7 @@ const useDeleteAccount: any = () => {
           dismissible: true,
         });
       },
+      onSettled: onSettled,
     }
   );
 

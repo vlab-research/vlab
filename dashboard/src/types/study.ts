@@ -22,6 +22,10 @@ export interface OptimizeStudyApiResponse
 export interface RunInstructionApiResponse
   extends ApiResponse<RunInstructionResult> {}
 
+
+export interface CreateApiKeyResponse
+  extends ApiResponse<CreateApiKeyResponseData> {}
+
 // TODO: is this right? improve and make more meaningful?
 export interface RunInstructionResult {
   timestamp: string;
@@ -36,6 +40,12 @@ export interface OptimizeInstruction {
   action: string;
   params: any;
   id: string | null;
+}
+
+export interface CreateApiKeyResponseData {
+  name: string;
+  id: string;
+  token: string;
 }
 
 export type StudyConfData = GlobalFormData;

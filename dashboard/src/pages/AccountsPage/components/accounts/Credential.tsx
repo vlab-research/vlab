@@ -9,6 +9,7 @@ type CredentialProps = {
   error: string | undefined;
   handleChange: ChangeEventHandler;
   isDirty: boolean;
+  show: boolean;
 };
 
 const Credential: React.FC<CredentialProps> = ({
@@ -19,6 +20,7 @@ const Credential: React.FC<CredentialProps> = ({
   error,
   handleChange,
   isDirty,
+  show,
 }) => {
   return (
     <div className="flex flex-col mb-4">
@@ -28,7 +30,7 @@ const Credential: React.FC<CredentialProps> = ({
       <input
         id={`${name}-${index}`}
         name={name}
-        type={typeof value === 'string' ? 'password' : 'text'}
+        type={(typeof value === 'string' && !show) ? 'password' : 'text'}
         className={classNames(
           'block w-full shadow-sm sm:text-sm rounded-md',
           (error ?? '').trim() !== ''

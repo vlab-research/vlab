@@ -11,7 +11,7 @@ import {
 // import { addAccountToCacheWhileRefetching } from './useAccounts';
 import { createLabelFor } from '../../../helpers/strings';
 
-const useCreateAccount = () => {
+const useCreateAccount = (onSettled: () => void) => {
   const notyf = new Notyf();
   const history = useHistory();
   const { createAccount } = useAuthenticatedApi();
@@ -37,6 +37,7 @@ const useCreateAccount = () => {
           message: `${createLabelFor(account.authType)} account connected`,
           background: 'rgb(67 56 202)',
         });
+        onSettled()
       },
       onError: (error: any) => {
         notyf.error({
@@ -45,6 +46,7 @@ const useCreateAccount = () => {
           dismissible: true,
         });
       },
+      onSettled: onSettled,
     }
   );
 

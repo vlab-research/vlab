@@ -7,17 +7,16 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import BaseModel
 
+from ..campaign_queries import get_user_info
 from ..facebook.update import GraphUpdater
 from ..malaria import (Instruction, load_basics, run_instructions,
                        update_ads_for_campaign)
 from ..study_conf import (AudienceConf, CreativeConf, DataSourceConf,
                           DestinationConf, GeneralConf, InferenceDataConf,
                           RecruitmentConf, StratumConf, VariableConf)
-from .auth import AuthError, verify_token
+from .auth import AuthError, generate_api_token, verify_tokens
 from .db import (copy_confs, create_study_conf, db_cnf, get_all_study_confs,
-                 get_study_conf, get_study_id)
-
-from ..campaign_queries import get_user_info
+                 get_study_conf, get_study_id, insert_credential)
 
 app = FastAPI()
 
@@ -74,7 +73,7 @@ async def get_current_user(
         headers={"WWW-Authenticate": "Bearer"},
     )
     try:
-        payload = verify_token(token)
+        payload = verify_tokens(token)
         user: str = payload.get("sub")
 
         if user is None:
@@ -233,7 +232,6 @@ def run_study_opt(user_id: str, org_id: str, slug: str) -> Sequence[Instruction]
 def run_single_instruction(
     user_id: str, org_id: str, slug: str, instruction: OptimizeInstruction
 ) -> OptimizeReport:
-
     # Replace with a more direct way of getting info, make endpoint
     # more flexible...
     # or just make another endpoint???
@@ -249,7 +247,9 @@ def run_single_instruction(
     study, state = load_basics(study_id, db_cnf, env)
 
     updater = GraphUpdater(state)
-    report = updater.execute(instruction)
+
+    # hack to cast OptimizeInstruction to Instruction
+    report = updater.execute(Instruction(**(instruction.dict())))
     return OptimizeReport(**report)
 
 
@@ -259,7 +259,6 @@ async def optimize_study(
     slug: str,
     user: Annotated[User, Depends(get_current_user)],
 ) -> OptimizeResult:
-
     try:
         instructions = run_study_opt(user.user_id, org_id, slug)
 
@@ -280,10 +279,39 @@ async def run_instruction(
     instruction: OptimizeInstruction,
     user: Annotated[User, Depends(get_current_user)],
 ) -> InstructionResult:
-
     try:
         report = run_single_instruction(user.user_id, org_id, slug, instruction)
         return InstructionResult(data=report)
+    except BaseException as e:
+        raise HTTPException(status_code=500, detail=f"{e}")
+
+
+class CreateApiKeyRequest(BaseModel):
+    name: str
+
+
+class CreateApiKeyResponseData(BaseModel):
+    name: str
+    id: str
+    token: str
+
+
+class CreateApiKeyResponse(BaseModel):
+    data: CreateApiKeyResponseData
+
+
+@app.post("/users/api-key", status_code=201)
+async def create_api_key(
+    key_request: CreateApiKeyRequest,
+    user: Annotated[User, Depends(get_current_user)],
+) -> CreateApiKeyResponse:
+    try:
+        token, token_id = generate_api_token(
+            user_id=user.user_id, name=key_request.name
+        )
+        data = CreateApiKeyResponseData(name=key_request.name, token=token, id=token_id)
+        return CreateApiKeyResponse(data=data)
+
     except BaseException as e:
         raise HTTPException(status_code=500, detail=f"{e}")
 
