@@ -19,8 +19,8 @@ const Instruction: React.FC<Props> = ({ instruction, studySlug }: Props) => {
       <li className="flex justify-between gap-x-6 py-5">
         <div className="flex gap-x-4">
           <div className="min-w-0 flex-auto">
-            <p className="text-sm/6 font-semibold text-gray-900">{instruction.node}</p>
-            <p className="mt-1 truncate text-xs/5 text-gray-500">{instruction.action}</p>
+            <p className="text-sm/6 font-semibold text-gray-900">{`${instruction.params?.name}`}</p>
+            <p className="mt-1 truncate text-xs/5 text-gray-500">{`${instruction.action} ${instruction.node}`}</p>
           </div>
         </div>
         <div className="flex items-center">
