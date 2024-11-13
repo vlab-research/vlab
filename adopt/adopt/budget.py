@@ -46,6 +46,7 @@ def estimate_price(spend: float, found: int):
 
     spend = round(spend)
 
+    # TODO: add incentive to this somehow, think through formally
     # implies Gamma(1/2, 1) -> $2/person
     prior_k = 0.5
     prior_theta = 1
@@ -58,7 +59,19 @@ def estimate_price(spend: float, found: int):
     return price
 
 
-def calc_price(df: pd.DataFrame, window: DateRange, spend: dict[str, float]):
+def add_incentive(
+    spend: dict[str, float], counts: dict[str, int], incentive_per_respondent: float
+):
+    added = {k: v * incentive_per_respondent for k, v in counts.items()}
+    return {k: v + added[k] for k, v in spend.items()}
+
+
+def calc_price(
+    df: pd.DataFrame,
+    window: DateRange,
+    spend: dict[str, float],
+    incentive_per_respondent: float,
+):
     # filter by time
     def pred(st):
         return st.timestamp >= window.start_date and st.timestamp <= window.until_date
@@ -67,7 +80,10 @@ def calc_price(df: pd.DataFrame, window: DateRange, spend: dict[str, float]):
     counts = _users_per_cluster(windowed)
     counts = {**{k: 0 for k in spend.keys()}, **counts}
 
+    spend = add_incentive(spend, counts, incentive_per_respondent)
+
     price = {k: estimate_price(spend.get(k, 0), v) for k, v in counts.items()}
+
     return price
 
 
@@ -211,6 +227,7 @@ def get_stats(
     strata: Sequence[Union[Stratum, StratumConf]],
     window: DateRange,
     spend: Dict[str, float],
+    incentive_per_respondent: float,
 ):
     optimized_ids = {s.id for s in strata}
 
@@ -220,15 +237,21 @@ def get_stats(
     respondents = _users_per_cluster(df)
     respondents = {**{k: 0 for k in spend.keys()}, **respondents}
 
-    price = calc_price(df, window, spend)
+    price = calc_price(df, window, spend, incentive_per_respondent)
 
     return spend, respondents, price
+
+
+def add_incentive_to_price():
+    # add to each
+
+    pass
 
 
 # TODO: add frequency -- at least to report if nothing automated
 # probably more elegant just to change "spend" to "insights"
 
-# TODO: we need a more sophisticated process to estimate price.
+# TODO: we need a more sophisticated process to estimate_ price.
 # The "DateWindow" creates a problem here, it's too miopic
 # If an adset has been turned off for a few days, we forget
 # all information we have about price. Similarly, for very
@@ -245,6 +268,7 @@ def get_budget_lookup(
     df: Optional[pd.DataFrame],
     strata: Sequence[Union[Stratum, StratumConf]],
     max_budget: float,
+    incentive_per_respondent: float,
     max_sample_size: int,
     window: DateRange,
     spend: Dict[str, float],
@@ -261,7 +285,9 @@ def get_budget_lookup(
     to_spend = max_budget - total_spend
 
     try:
-        spend, tot, price = get_stats(df, strata, window, spend)
+        spend, tot, price = get_stats(
+            df, strata, window, spend, incentive_per_respondent
+        )
     except AdDataError as e:
         logging.info(f"Failed to calculate budget due to the follow error: {e}")
         return None, None

@@ -53,6 +53,7 @@ const Recruitment: React.FC<Props> = ({
       budget: '',
       max_sample: '',
       type: 'simple',
+      incentive_per_respondent: 0,
     },
     {
       ad_campaign_name_base: '',
@@ -68,6 +69,7 @@ const Recruitment: React.FC<Props> = ({
       recruitment_days: '',
       offset_days: '',
       type: 'pipeline_experiment',
+      incentive_per_respondent: 0,
     },
     {
       destination: '',
@@ -81,6 +83,7 @@ const Recruitment: React.FC<Props> = ({
       start_date: '2024-01-01T00:00',
       max_sample_per_arm: '',
       type: 'destination',
+      incentive_per_respondent: 0,
     },
   ];
 

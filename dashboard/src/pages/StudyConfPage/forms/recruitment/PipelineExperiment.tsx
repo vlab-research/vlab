@@ -79,6 +79,12 @@ const PipelineExperiment: React.FC<Props> = ({
         value={formData.budget_per_arm}
       />
       <TextInput
+        name="incentive_per_respondent"
+        handleChange={handleChange}
+        placeholder="E.g 5.0"
+        value={formData.incentive_per_respondent}
+      />
+      <TextInput
         name="max_sample_per_arm"
         handleChange={handleChange}
         placeholder="E.g 1000"

@@ -142,6 +142,7 @@ class SimpleRecruitment(BaseRecruitmentConf):
     max_sample: int
     start_date: datetime
     end_date: datetime
+    incentive_per_respondent: int = 0
 
     @property
     def opt_sample_size(self):
@@ -207,6 +208,7 @@ class PipelineRecruitmentExperiment(BaseRecruitmentConf):
     arms: int
     recruitment_days: int
     offset_days: int
+    incentive_per_respondent: int = 0
 
     def validate_dates(self):
         # TODO: this is useless, but due to pydantic bugging out, can't
@@ -305,6 +307,7 @@ class DestinationRecruitmentExperiment(BaseRecruitmentConf):
     start_date: datetime
     end_date: datetime
     destinations: list[str]
+    incentive_per_respondent: int = 0
 
     @property
     def opt_sample_size(self):

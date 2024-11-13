@@ -1,17 +1,12 @@
 from datetime import datetime, timedelta
 
+import numpy as np
 import pandas as pd
 import pytest
-import numpy as np
-from .budget import (
-    calc_price,
-    estimate_price,
-    get_budget_lookup,
-    get_stats,
-    make_report,
-    prep_df_for_budget,
-    proportional_budget,
-)
+
+from .budget import (add_incentive, calc_price, estimate_price,
+                     get_budget_lookup, get_stats, make_report,
+                     prep_df_for_budget, proportional_budget)
 from .facebook.date_range import DateRange
 from .test_clustering import DATE, _format_df, cnf, conf, df
 
@@ -24,7 +19,7 @@ def test_get_stats_adds_zero_spend_when_no_info(cnf, df):
     spend = {"bar": 10.0, "baz": 10.0}
     df = prep_df_for_budget(df, cnf)
 
-    spend, _, _ = get_stats(df, cnf, window, spend)
+    spend, _, _ = get_stats(df, cnf, window, spend, 10)
     assert spend == {"bar": 10.0, "baz": 10.0, "foo": 0.0}
 
 
@@ -69,13 +64,18 @@ def test_estimate_price_exponential_updating():
     assert round(res, 2) == 0.27
 
 
-def test_calc_price_pretends_as_if_found_fractional_user_when_no_user(cnf, df):
+def test_calc_price_increases_price_when_no_user_after_spend(cnf, df):
     spend = {"bar": 10.0, "baz": 10.0, "foo": 10.0}
     df = prep_df_for_budget(df, cnf)
-
     window = DateRange(START_DATE, UNTIL_DATE)
-    price = calc_price(df, window, spend)
+
+    price = calc_price(df, window, spend, 0)
     assert price == {"bar": 7.33, "baz": 7.33, "foo": 22.0}
+
+    # with incentive - non-user does not go up as much, which is a shame?
+    # TODO: maybe incentive should be added to prior...
+    price = calc_price(df, window, spend, 10)
+    assert price == {"bar": 14, "baz": 14, "foo": 22.0}
 
 
 def test_calc_price_picks_prior_if_no_spend(cnf, df):
@@ -83,7 +83,7 @@ def test_calc_price_picks_prior_if_no_spend(cnf, df):
     spend = {"bar": 10.0, "baz": 10.0, "foo": 0.0}
     df = prep_df_for_budget(df, cnf)
 
-    price = calc_price(df, window, spend)
+    price = calc_price(df, window, spend, 0)
     assert price == {"bar": 7.33, "baz": 7.33, "foo": 2.0}
 
 
@@ -92,7 +92,7 @@ def test_calc_price_works_with_nobody_in_window(cnf, df):
     spend = {"bar": 10.0, "baz": 10.0, "foo": 10.0}
     df = prep_df_for_budget(df, cnf)
 
-    price = calc_price(df, window, spend)
+    price = calc_price(df, window, spend, 0)
     assert price == {"bar": 22.0, "baz": 22.0, "foo": 22.0}
 
 
@@ -277,7 +277,7 @@ def test_get_budget_lookup(cnf, df):
     window = DateRange(START_DATE, UNTIL_DATE)
     spend = {"bar": 10.0, "baz": 10.0, "foo": 10.0}
 
-    budget, _ = get_budget_lookup(df, cnf, 60, 100, window, spend, spend)
+    budget, _ = get_budget_lookup(df, cnf, 60, 0, 100, window, spend, spend)
     assert round(budget["foo"]) == 16
     assert round(budget["bar"]) == 7
     assert round(budget["baz"]) == 7
@@ -287,7 +287,7 @@ def test_get_budget_lookup_with_proportional_budget_when_budget_is_spent(cnf, df
     window = DateRange(START_DATE, UNTIL_DATE)
     spend = {"bar": 10.0, "baz": 10.0, "foo": 10.0}
     lifetime_spend = spend
-    budget, _ = get_budget_lookup(df, cnf, 30, 100, window, spend, lifetime_spend)
+    budget, _ = get_budget_lookup(df, cnf, 30, 0, 100, window, spend, lifetime_spend)
     assert budget == {"bar": 0, "baz": 0, "foo": 0}
 
 
@@ -312,7 +312,7 @@ def test_get_budget_lookup_works_with_missing_data_from_clusters():
     spend = {"bar": 10.0, "foo": 10.0, "baz": 10.0}
     window = DateRange(START_DATE, UNTIL_DATE)
     lifetime_spend = spend
-    res, _ = get_budget_lookup(df, cnf, 40, 100, window, spend, lifetime_spend)
+    res, _ = get_budget_lookup(df, cnf, 40, 0, 100, window, spend, lifetime_spend)
 
     assert {k: round(v, 1) for k, v in res.items()} == {
         "foo": 4.6,
@@ -332,3 +332,14 @@ def test_make_report():
     assert r["bar"] == {"goal": 10, "remain": 0}
     assert r["foo"] == {"goal": 100, "remain": 90}
     assert r["bar"] == {"goal": 10, "remain": 0}
+
+
+def test_add_incentive():
+    spend = {"bar": 100.0, "baz": 100.0, "foo": 100.0}
+    tot = {"bar": 5, "baz": 2, "foo": 0}
+
+    res = add_incentive(spend, tot, 10)
+    assert res == {"bar": 150.0, "baz": 120.0, "foo": 100.0}
+
+    res = add_incentive(spend, tot, 0)
+    assert res == spend

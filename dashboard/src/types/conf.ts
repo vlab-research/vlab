@@ -22,6 +22,7 @@ export interface RecruitmentSimple {
   end_date: string;
   max_sample: number;
   start_date: string;
+  incentive_per_respondent: number;
 }
 
 export interface RecruitmentDestination {
@@ -35,6 +36,7 @@ export interface RecruitmentDestination {
   end_date: string;
   max_sample_per_arm: number;
   start_date: string;
+  incentive_per_respondent: number;
 }
 
 export interface PipelineExperiment {
@@ -50,6 +52,7 @@ export interface PipelineExperiment {
   arms: number;
   recruitment_days: number;
   offset_days: number;
+  incentive_per_respondent: number;
 }
 
 export interface Messenger {

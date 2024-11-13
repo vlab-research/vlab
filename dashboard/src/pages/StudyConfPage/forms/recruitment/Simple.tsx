@@ -73,6 +73,12 @@ const Simple: React.FC<Props> = ({ formData, updateFormData }: Props) => {
         value={formData.budget}
       />
       <TextInput
+        name="incentive_per_respondent"
+        handleChange={handleChange}
+        placeholder="E.g 5.0"
+        value={formData.incentive_per_respondent}
+      />
+      <TextInput
         name="max_sample"
         handleChange={handleChange}
         placeholder="E.g 1000"
