@@ -150,3 +150,12 @@ export interface AdAccountsApiResponse extends PaginatedFacebookResponse<AdAccou
 export interface CampaignsApiResponse extends PaginatedFacebookResponse<Campaign[]> {}
 
 export interface AdsetsApiResponse extends PaginatedFacebookResponse<Adset[]> {}
+
+export interface CurrentDataRow {
+  user_id: string;
+  variable: string;
+  value: number | string;
+  timestamp: string;
+}
+
+export interface CurrentDataApiResponse extends ApiResponse<CurrentDataRow[]> {}

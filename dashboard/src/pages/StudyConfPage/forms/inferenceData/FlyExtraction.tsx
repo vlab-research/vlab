@@ -61,7 +61,7 @@ const FlyExtraction: React.FC<Props> = ({ data, nameOptions: names, update: upda
   ]
 
   const isMetadata = data.location === "metadata";
-  const response = data?.functions[0]?.params.path || "response";
+  const response = data?.functions[0]?.params.path || "";
 
   const responseOptions = [
     { name: '', label: isMetadata ? "Metadata select" : 'Which response value do you want to use?' },

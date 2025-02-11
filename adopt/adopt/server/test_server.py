@@ -5,7 +5,7 @@ from datetime import datetime
 from test.dbfix import _reset_db
 from test.dbfix import cnf as db_conf
 from unittest.mock import patch
-
+import pandas as pd
 from fastapi.testclient import TestClient
 
 from ..db import execute, query
@@ -245,6 +245,43 @@ def test_optimize_instruction_returns_error_in_running(
     assert res.status_code == 500
     res_data = res.json()
     assert res_data == {"detail": "foo error"}
+
+
+@patch("adopt.server.server.fetch_current_data")
+@patch("adopt.server.auth.verify_token")
+async def test_get_current_data_returns_data(verify_mock, fetch_current_data_mock):
+    _reset_db()
+    verify_mock.return_value = {"sub": user_id}
+
+    # Create sample inference data with ISO format timestamps
+    test_data = pd.DataFrame(
+        {
+            "user_id": ["user1", "user2"],
+            "variable": ["var1", "var2"],
+            "value": [10.0, 20.0],
+            "timestamp": pd.to_datetime(["2024-01-01T00:00:00", "2024-01-02T00:00:00"]),
+            "updated": pd.to_datetime(["2024-01-01T00:00:00", "2024-01-02T00:00:00"]),
+        }
+    )
+    fetch_current_data_mock.return_value = test_data
+
+    org_id, headers = _user_and_study_setup()
+
+    res = client.get(f"/{org_id}/optimize/foo-study/current-data", headers=headers)
+    assert res.status_code == 200
+    res_data = res.json()
+
+    # Verify the returned data structure
+    assert len(res_data["data"]) == 2
+    assert all(
+        key in res_data["data"][0]
+        for key in ["user_id", "variable", "value", "timestamp", "updated"]
+    )
+    assert res_data["data"][0]["value"] == 10.0
+    assert res_data["data"][1]["value"] == 20.0
+    # Verify timestamp format
+    assert "2024-01-01" in res_data["data"][0]["timestamp"]
+    assert "2024-01-02" in res_data["data"][1]["timestamp"]
 
 
 @patch("adopt.server.auth.verify_token")

@@ -2,7 +2,7 @@ from functools import reduce
 from typing import Any, Callable, Dict, Optional, Union
 
 import pandas as pd
-
+import logging
 from .study_conf import AudienceConf, QuestionTargeting, Stratum, StratumConf, TargetVar
 
 
@@ -108,6 +108,7 @@ def only_target_users(df, stratum: Union[Stratum, StratumConf, AudienceConf]):
     filtered = users_fulfilling(pred, df)
 
     if filtered.shape[0] == 0:
+        logging.info(f"No users found for stratum: {stratum.id}")
         return None
 
     return filtered

@@ -16,6 +16,7 @@ import {
   StudyConfData,
   SingleStudyConf,
   StudySegmentsProgressApiResponse,
+  CurrentDataApiResponse,
 } from '../types/study';
 
 import { CopyFromConf } from '../types/conf';
@@ -600,6 +601,24 @@ const getErrorMessageFor = async (
   return responseBody.error || responseBody.detail || defaultErrorMessage;
 };
 
+export const fetchCurrentData = ({
+  studySlug,
+  accessToken,
+  defaultErrorMessage = 'Could not fetch current data',
+}: {
+  studySlug: string;
+  accessToken: string;
+  defaultErrorMessage?: string;
+}) => {
+  const path = `/${orgPrefix()}/optimize/${studySlug}/current-data`;
+  
+  return apiRequest<CurrentDataApiResponse>(path, {
+    accessToken,
+    queryParams: { study_slug: studySlug },
+    defaultErrorMessage,
+    baseURL: process.env.REACT_APP_CONF_SERVER_URL,
+  });
+};
 
 export const authenticatedApiCalls = {
   generateApiKey,
@@ -618,4 +637,5 @@ export const authenticatedApiCalls = {
   deleteAccount,
   createFacebookAccount,
   copyConfs,
+  fetchCurrentData,
 };

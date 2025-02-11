@@ -1,7 +1,7 @@
 import json
 from datetime import datetime
 from typing import Optional
-
+import logging
 import pandas as pd
 from toolz import dissoc
 
@@ -141,7 +141,7 @@ def get_inference_data(
     survey_user, study_id, database_cnf, inf_start=None, inf_end=None
 ) -> Optional[pd.DataFrame]:
     q = """
-    select user_id, variable, value_type, value, timestamp
+    select user_id, variable, value_type, value, timestamp, updated
     from inference_data
     where study_id = %s
     """
@@ -154,9 +154,9 @@ def get_inference_data(
 
     dat = list(res)
     if not dat:
-        print(
-            f"Warning: no responses were found in the database \
-            for study_id: {study_id}"
+        logging.info(
+            f"Warning: no responses were found in the database "
+            f"for study_id: {study_id}"
         )
         return None
 

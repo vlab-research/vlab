@@ -1,22 +1,44 @@
 import logging
 from typing import Annotated, Any, Optional, Sequence
-
+from datetime import datetime
 from environs import Env
 from fastapi import Depends, FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import BaseModel
+import pandas as pd
+
+from ..responses import get_inference_data
 
 from ..campaign_queries import get_user_info
 from ..facebook.update import GraphUpdater
-from ..malaria import (Instruction, load_basics, run_instructions,
-                       update_ads_for_campaign)
-from ..study_conf import (AudienceConf, CreativeConf, DataSourceConf,
-                          DestinationConf, GeneralConf, InferenceDataConf,
-                          RecruitmentConf, StratumConf, VariableConf)
+from ..malaria import (
+    Instruction,
+    load_basics,
+    run_instructions,
+    update_ads_for_campaign,
+)
+from ..study_conf import (
+    AudienceConf,
+    CreativeConf,
+    DataSourceConf,
+    DestinationConf,
+    GeneralConf,
+    InferenceDataConf,
+    RecruitmentConf,
+    StratumConf,
+    VariableConf,
+)
 from .auth import AuthError, generate_api_token, verify_tokens
-from .db import (copy_confs, create_study_conf, db_cnf, get_all_study_confs,
-                 get_study_conf, get_study_id, insert_credential)
+from .db import (
+    copy_confs,
+    create_study_conf,
+    db_cnf,
+    get_all_study_confs,
+    get_study_conf,
+    get_study_id,
+    insert_credential,
+)
 
 app = FastAPI()
 
@@ -265,11 +287,64 @@ async def optimize_study(
     except BaseException as e:
         raise HTTPException(status_code=500, detail=f"{e}")
 
-    res = OptimizeResult(  # quick hack to deal with namedtuple.
-        # Should replace w/ pydantic model
+    # quick hack to deal with namedtuple.
+    # Should replace w/ pydantic model
+    res = OptimizeResult(
         data=[OptimizeInstruction(**i._asdict()) for i in instructions]
     )
     return res
+
+
+class CurrentDataRow(BaseModel):
+    user_id: str
+    variable: str
+    value: str | float | int
+    timestamp: datetime
+
+
+class CurrentDataResult(BaseModel):
+    data: Sequence[CurrentDataRow]
+
+
+async def fetch_current_data(
+    user_id: str, org_id: str, slug: str
+) -> pd.DataFrame | None:
+    """Fetch current data from database for a given study"""
+    study_id = get_study_id(user_id, org_id, slug)
+    study, state = load_basics(study_id, db_cnf, env)
+
+    inf_start, inf_end = study.recruitment.get_inference_window(datetime.now())
+    return get_inference_data(
+        study.user.survey_user, study.id, db_cnf, inf_start, inf_end
+    )
+
+
+@app.get("/{org_id}/optimize/{slug}/current-data")
+async def get_current_data(
+    org_id: str,
+    slug: str,
+    user: Annotated[User, Depends(get_current_user)],
+) -> CurrentDataResult:
+    try:
+        df = await fetch_current_data(user.user_id, org_id, slug)
+
+        if df is None:
+            return CurrentDataResult(data=[])
+
+        # Convert DataFrame rows to CurrentDataRow objects
+        current_data = [
+            CurrentDataRow(
+                user_id=row.user_id,
+                variable=row.variable,
+                value=row.value,
+                timestamp=row.timestamp,
+            )
+            for row in df.itertuples(index=False)
+        ]
+
+        return CurrentDataResult(data=current_data)
+    except BaseException as e:
+        raise HTTPException(status_code=500, detail=f"{e}")
 
 
 @app.post("/{org_id}/optimize/{slug}/instruction", status_code=201)
