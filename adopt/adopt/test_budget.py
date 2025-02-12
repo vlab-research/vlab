@@ -4,9 +4,16 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from .budget import (add_incentive, calc_price, estimate_price,
-                     get_budget_lookup, get_stats, make_report,
-                     prep_df_for_budget, proportional_budget)
+from .budget import (
+    add_incentive,
+    calc_price,
+    estimate_price,
+    get_budget_lookup,
+    get_stats,
+    make_report,
+    prep_df_for_budget,
+    proportional_budget,
+)
 from .facebook.date_range import DateRange
 from .test_clustering import DATE, _format_df, cnf, conf, df
 
@@ -343,3 +350,76 @@ def test_add_incentive():
 
     res = add_incentive(spend, tot, 0)
     assert res == spend
+
+
+def test_get_budget_lookup_includes_incentive_in_total_spend(cnf, df):
+    window = DateRange(START_DATE, UNTIL_DATE)
+    spend = {"bar": 10.0, "baz": 10.0, "foo": 10.0}
+    lifetime_spend = spend
+    incentive = 10.0
+
+    # Test data has 2 users total:
+    # - 1 user in "bar" cluster
+    # - 1 user in "baz" cluster
+    # So total spend should be:
+    # lifetime_spend (30) + (2 users * 10 incentive) = 50
+
+    # First let's verify with a small budget to ensure we're counting incentives
+    budget, report = get_budget_lookup(
+        df,
+        cnf,
+        max_budget=40,
+        incentive_per_respondent=incentive,
+        max_sample_size=100,
+        window=window,
+        spend=spend,
+        lifetime_spend=lifetime_spend,
+    )
+
+    # If incentives are properly counted, we should have no budget left
+    assert budget == {"bar": 0, "baz": 0, "foo": 0}
+
+    # Now test with a larger budget to verify remaining calculation
+    budget, report = get_budget_lookup(
+        df,
+        cnf,
+        max_budget=100,
+        incentive_per_respondent=incentive,
+        max_sample_size=100,
+        window=window,
+        spend=spend,
+        lifetime_spend=lifetime_spend,
+    )
+
+    assert sum(budget.values()) == pytest.approx(50)
+
+
+def test_get_budget_lookup_works_with_zero_incentive(cnf, df):
+    window = DateRange(START_DATE, UNTIL_DATE)
+    spend = {"bar": 10.0, "baz": 10.0, "foo": 10.0}
+    lifetime_spend = spend
+
+    # With no incentive, total_spend should just be lifetime_spend (30)
+    budget, _ = get_budget_lookup(
+        df,
+        cnf,
+        max_budget=30,
+        incentive_per_respondent=0,
+        max_sample_size=100,
+        window=window,
+        spend=spend,
+        lifetime_spend=lifetime_spend,
+    )
+    assert budget == {"bar": 0, "baz": 0, "foo": 0}
+
+    budget, _ = get_budget_lookup(
+        df,
+        cnf,
+        max_budget=60,
+        incentive_per_respondent=0,
+        max_sample_size=100,
+        window=window,
+        spend=spend,
+        lifetime_spend=lifetime_spend,
+    )
+    assert sum(budget.values()) == pytest.approx(30)  # 60 - 30 = 30 remaining

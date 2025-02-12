@@ -280,10 +280,6 @@ def get_budget_lookup(
         logging.info("Failed to calculate budget due to lack of response data")
         return None, None
 
-    # TODO: fix total_spend and insights spend here
-    total_spend = sum(lifetime_spend.values())
-    to_spend = max_budget - total_spend
-
     try:
         spend, tot, price = get_stats(
             df, strata, window, spend, incentive_per_respondent
@@ -291,6 +287,12 @@ def get_budget_lookup(
     except AdDataError as e:
         logging.info(f"Failed to calculate budget due to the follow error: {e}")
         return None, None
+
+    # Add total incentive costs to total spend
+    total_spend = sum(lifetime_spend.values()) + (
+        sum(tot.values()) * incentive_per_respondent
+    )
+    to_spend = max_budget - total_spend
 
     share = _normalize_values(tot)
 
