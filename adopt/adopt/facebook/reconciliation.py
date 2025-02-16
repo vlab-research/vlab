@@ -1,5 +1,6 @@
 from typing import Dict, List, Sequence, Tuple, TypeVar
 
+from facebook_business.adobjects.adcreative import AdCreative
 from facebook_business.adobjects.ad import Ad
 from facebook_business.adobjects.adset import AdSet
 
@@ -33,6 +34,7 @@ def update_adset(source: AdSet, adset: AdSet) -> List[Instruction]:
         AdSet.Field.status,
         AdSet.Field.daily_budget,
         AdSet.Field.optimization_goal,
+        AdSet.Field.name,
     ]
 
     if _eq(source, adset, fields):
@@ -44,7 +46,21 @@ def update_adset(source: AdSet, adset: AdSet) -> List[Instruction]:
 
 
 def update_ad(source: Ad, ad: Ad) -> List[Instruction]:
-    if not _eq(ad["creative"], source["creative"]):
+
+    fields = [
+        AdCreative.Field.actor_id,
+        AdCreative.Field.image_crops,
+        AdCreative.Field.asset_feed_spec,
+        AdCreative.Field.degrees_of_freedom_spec,
+        AdCreative.Field.instagram_actor_id,
+        AdCreative.Field.instagram_user_id,
+        AdCreative.Field.object_story_spec,
+        AdCreative.Field.contextual_multi_ads,
+        AdCreative.Field.thumbnail_url,
+        AdCreative.Field.url_tags,
+    ]
+
+    if not _eq(ad["creative"], source["creative"], fields):
         return [Instruction("ad", "update", ad.export_all_data(), source["id"])]
 
     elif source["status"] != ad["status"]:

@@ -133,6 +133,7 @@ def _ad(c, adset):
 
 def _adset(d):
     d = {
+        "name": "foo",
         **d,
         "end_time": "",
         "targeting": {},
@@ -173,7 +174,7 @@ def test_update_adset_returns_instruction_if_not_equal():
 
 def _conv(adset):
     exp = adset.export_all_data()
-    exp = {k: v for k, v in exp.items() if k not in ["name"]}
+    exp = {k: v for k, v in exp.items()}
     return exp
 
 
