@@ -401,8 +401,7 @@ const facebookRequest = async <ApiResponse>(
   const q = new URLSearchParams(queryParams).toString();
   path = `${path}?${q}`;
 
-  //TODO make this configurabel (i.e ENV variable)
-  const baseURL = `https://graph.facebook.com/v20.0`;
+  const baseURL = `https://graph.facebook.com/${process.env.REACT_APP_FACEBOOK_API_VERSION}`;
 
   try {
     const response = await fetchWithTimeout(path, {
