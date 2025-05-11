@@ -85,7 +85,7 @@ security = HTTPBearer()
 
 
 async def get_current_user(
-    credentials: Annotated[HTTPAuthorizationCredentials, Depends(security)]
+    credentials: Annotated[HTTPAuthorizationCredentials, Depends(security)],
 ) -> User:
     token = credentials.credentials
 
@@ -389,6 +389,156 @@ async def create_api_key(
 
     except BaseException as e:
         raise HTTPException(status_code=500, detail=f"{e}")
+
+
+class RecruitmentStatsRow(BaseModel):
+    """Statistics for a single stratum."""
+
+    spend: float
+    impressions: int
+    reach: int
+    cpm: float
+    unique_clicks: int
+    unique_ctr: float
+    respondents: int
+    price_per_respondent: float
+    incentive_cost: float
+    total_cost: float
+    conversion_rate: float
+
+    class Config:
+        schema_extra = {
+            "example": {
+                "spend": 1000.0,
+                "impressions": 50000,
+                "reach": 25000,
+                "cpm": 20.0,
+                "unique_clicks": 1000,
+                "unique_ctr": 0.02,
+                "respondents": 100,
+                "price_per_respondent": 10.0,
+                "incentive_cost": 1000.0,
+                "total_cost": 2000.0,
+                "conversion_rate": 0.1,
+            }
+        }
+
+
+class RecruitmentStatsResult(BaseModel):
+    """Response containing recruitment statistics for all strata."""
+
+    data: dict[str, RecruitmentStatsRow]
+
+    class Config:
+        schema_extra = {
+            "example": {
+                "data": {
+                    "stratum1": {
+                        "spend": 1000.0,
+                        "impressions": 50000,
+                        "reach": 25000,
+                        "cpm": 20.0,
+                        "unique_clicks": 1000,
+                        "unique_ctr": 0.02,
+                        "respondents": 100,
+                        "price_per_respondent": 10.0,
+                        "incentive_cost": 1000.0,
+                        "total_cost": 2000.0,
+                        "conversion_rate": 0.1,
+                    }
+                }
+            }
+        }
+
+
+@app.get(
+    "/{org_id}/studies/{slug}/recruitment-stats",
+    response_model=RecruitmentStatsResult,
+    responses={
+        200: {"description": "Successfully retrieved recruitment statistics"},
+        401: {"description": "Unauthorized - Invalid or missing authentication token"},
+        404: {"description": "Study not found"},
+        500: {"description": "Internal server error"},
+    },
+)
+async def get_recruitment_stats(
+    org_id: str,
+    slug: str,
+    user: Annotated[User, Depends(get_current_user)],
+) -> RecruitmentStatsResult:
+    """
+    Get recruitment statistics for each stratum in the study.
+
+    This endpoint returns comprehensive statistics about recruitment performance
+    for each stratum in the study, including spend, impressions, reach, and
+    conversion metrics.
+
+    Args:
+        org_id: Organization ID
+        slug: Study slug
+        user: Authenticated user (injected by FastAPI)
+
+    Returns:
+        RecruitmentStatsResult containing statistics for each stratum
+
+    Raises:
+        HTTPException: If study not found or other errors occur
+    """
+    try:
+        study_id = get_study_id(user.user_id, org_id, slug)
+        if not study_id:
+            raise HTTPException(status_code=404, detail=f"Study not found: {slug}")
+
+        # Get study configuration
+        study_confs = get_all_study_confs(user.user_id, org_id, slug)
+        if not study_confs:
+            raise HTTPException(
+                status_code=404, detail=f"Study configuration not found: {slug}"
+            )
+
+        strata = [StratumConf(**s) for s in study_confs.get("strata", [])]
+
+        print(study_confs)
+        if not strata:
+            raise HTTPException(
+                status_code=404, detail=f"No strata found for study: {slug}"
+            )
+
+        # Get recruitment data
+        from ..recruitment_data import get_recruitment_data
+
+        rd = get_recruitment_data(db_cnf, study_id)
+
+        # Get current data if available
+        df = await fetch_current_data(user.user_id, org_id, slug)
+
+        # Calculate stats using the full date range
+        from ..budget import calculate_strata_stats
+        from ..facebook.state import DateRange
+        from datetime import datetime
+
+        window = DateRange(datetime.min, datetime.max)
+        stats = calculate_strata_stats(
+            df=df,
+            strata=strata,
+            window=window,
+            rd=rd,
+            incentive_per_respondent=study_confs.get("recruitment", {}).get(
+                "incentive_per_respondent", 0
+            ),
+        )
+
+        return RecruitmentStatsResult(data=stats)
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logging.error(f"Error getting recruitment stats for study {slug}: {str(e)}")
+        if "Could not find study id" in str(e):
+            raise HTTPException(status_code=404, detail=f"Study not found: {slug}")
+        raise HTTPException(
+            status_code=500, detail=f"Failed to get recruitment statistics: {str(e)}"
+        )
 
 
 @app.get("/health", status_code=200)
