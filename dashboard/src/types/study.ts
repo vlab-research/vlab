@@ -159,3 +159,23 @@ export interface CurrentDataRow {
 }
 
 export interface CurrentDataApiResponse extends ApiResponse<CurrentDataRow[]> {}
+
+export interface RecruitmentStatsRow {
+  spend: number;
+  impressions: number;
+  reach: number;
+  cpm: number;
+  unique_clicks: number;
+  unique_ctr: number;
+  respondents: number;
+  price_per_respondent: number;
+  incentive_cost: number;
+  total_cost: number;
+  conversion_rate: number;
+}
+
+export interface RecruitmentStatsApiResponse extends ApiResponse<{
+  data: {
+    [stratumId: string]: RecruitmentStatsRow;
+  };
+}> {}

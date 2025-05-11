@@ -7,6 +7,7 @@ import useAuthenticatedApi from '../../../hooks/useAuthenticatedApi';
 import {
   StudyProgressResource,
   StudySegmentProgressResource,
+  RecruitmentStatsRow,
 } from '../../../types/study';
 
 const chance = Chance();
@@ -14,6 +15,7 @@ const chance = Chance();
 const useStudy = (slug: string) => {
   const studyQuery = useStudyQuery(slug);
   const studySegmentsProgressQuery = useStudySegmentsProgressQuery(slug);
+  const recruitmentStatsQuery = useStudyRecruitmentStatsQuery(slug);
 
   const segmentsProgressOverTime = useMemo(
     () => studySegmentsProgressQuery.data?.data ?? [],
@@ -35,10 +37,10 @@ const useStudy = (slug: string) => {
     [currentSegmentsProgress]
   );
 
-  const isLoading = !studyQuery.data || !studySegmentsProgressQuery.data?.data;
+  const isLoading = !studyQuery.data || !studySegmentsProgressQuery.data?.data || !recruitmentStatsQuery.data?.data;
 
   const anyErrorDuringLoading =
-    isLoading && (studyQuery.isError || studySegmentsProgressQuery.isError);
+    isLoading && (studyQuery.isError || studySegmentsProgressQuery.isError || recruitmentStatsQuery.isError);
 
   return {
     name: studyQuery.data?.name ?? '',
@@ -47,6 +49,7 @@ const useStudy = (slug: string) => {
     currentSegmentsProgress: currentSegmentsProgress
       ? currentSegmentsProgress.segments
       : [],
+    recruitmentStats: recruitmentStatsQuery.data?.data ?? {},
     isLoading,
     anyErrorDuringLoading,
     refetch: studyQuery.refetch,
@@ -65,6 +68,19 @@ const useStudySegmentsProgressQuery = (slug: string) => {
   return useQuery(
     ['study', slug, 'segments-progress'],
     () => fetchStudySegmentsProgress({ slug }),
+    {
+      refetchInterval: fiveMinutesInMilliseconds,
+    }
+  );
+};
+
+const useStudyRecruitmentStatsQuery = (slug: string) => {
+  const { fetchStudyRecruitmentStats } = useAuthenticatedApi();
+  const fiveMinutesInMilliseconds = 5 * 60 * 1000;
+
+  return useQuery(
+    ['study', slug, 'recruitment-stats'],
+    () => fetchStudyRecruitmentStats({ slug }),
     {
       refetchInterval: fiveMinutesInMilliseconds,
     }

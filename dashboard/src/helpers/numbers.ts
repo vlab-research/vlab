@@ -81,3 +81,16 @@ export const parseNumber = (formattedNumber: string) => {
 
   return parser.parse(formattedNumber);
 };
+
+export const formatCurrency = (num: number) =>
+  new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
+  }).format(num);
+
+export const formatPercentage = (num: number) =>
+  new Intl.NumberFormat('en-US', {
+    style: 'percent',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(num / 100);

@@ -4,6 +4,8 @@ import useStudy from './hooks/useStudy';
 import StudyProgressStats from './components/StudyProgressStats';
 import StudyProgressChart from './components/StudyProgressChart';
 import ParticipantsAcquiredPerSegmentTable from './components/ParticipantsAcquiredPerSegmentTable';
+import RecruitmentStatsTable from './components/RecruitmentStatsTable';
+import Tabs from './components/Tabs';
 import PageLayout from '../../components/PageLayout';
 import ErrorPlaceholder from '../../components/ErrorPlaceholder';
 
@@ -20,10 +22,16 @@ import ErrorPlaceholder from '../../components/ErrorPlaceholder';
  *    last scroll position for the loaded page should be restored.
  */
 
+const TABS = [
+  { id: 'participants', label: 'Participants per Segment' },
+  { id: 'recruitment', label: 'Recruitment Statistics' },
+];
+
 const StudyPage = () => {
   const { studySlug } = useParams<{ studySlug: string }>();
   const study = useStudy(studySlug);
   const [selectedStat, setSelectedState] = useState('Current Participants');
+  const [selectedTab, setSelectedTab] = useState(TABS[0].id);
 
   if (study.anyErrorDuringLoading) {
     return (
@@ -55,7 +63,19 @@ const StudyPage = () => {
           data={study.isLoading ? undefined : study.progressOverTime}
         />
 
-        <ParticipantsAcquiredPerSegmentTable />
+        <div className="mt-8">
+          <Tabs
+            tabs={TABS}
+            selectedTabId={selectedTab}
+            onSelectTab={setSelectedTab}
+          />
+
+          {selectedTab === 'participants' ? (
+            <ParticipantsAcquiredPerSegmentTable />
+          ) : (
+            <RecruitmentStatsTable data={study.recruitmentStats} />
+          )}
+        </div>
       </React.Fragment>
     </PageLayout>
   );

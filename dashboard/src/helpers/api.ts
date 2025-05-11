@@ -17,6 +17,7 @@ import {
   SingleStudyConf,
   StudySegmentsProgressApiResponse,
   CurrentDataApiResponse,
+  RecruitmentStatsApiResponse,
 } from '../types/study';
 
 import { CopyFromConf } from '../types/conf';
@@ -550,10 +551,8 @@ export const fetchAds = async ({
     "actor_id",
     "asset_feed_spec",
     "degrees_of_freedom_spec",
-    "effective_instagram_media_id",
-    "effective_instagram_story_id",
-    "effective_object_story_id",
-    "instagram_actor_id",
+    "effective_instagram_media_id",    
+    "effective_object_story_id",    
     "instagram_user_id",
     "object_story_spec",
     "contextual_multi_ads",
@@ -619,6 +618,21 @@ export const fetchCurrentData = ({
   });
 };
 
+const fetchStudyRecruitmentStats = ({
+  slug,
+  accessToken,
+}: {
+  slug: string;
+  accessToken: string;
+}) =>
+  apiRequest<RecruitmentStatsApiResponse>(
+    `/${orgPrefix()}/studies/${slug}/recruitment-stats`,
+    { 
+      accessToken,
+      baseURL: process.env.REACT_APP_CONF_SERVER_URL,
+    }
+  );
+
 export const authenticatedApiCalls = {
   generateApiKey,
   optimizeStudy,
@@ -637,4 +651,5 @@ export const authenticatedApiCalls = {
   createFacebookAccount,
   copyConfs,
   fetchCurrentData,
+  fetchStudyRecruitmentStats,
 };
