@@ -19,7 +19,7 @@ const RecruitmentStatsTable: React.FC<RecruitmentStatsTableProps> = ({ data }) =
   const columnNames = [
     'Stratum',
     'Spend',
-    'Impressions',
+    'Frequency',
     'Reach',
     'CPM',
     'Unique Clicks',
@@ -36,7 +36,7 @@ const RecruitmentStatsTable: React.FC<RecruitmentStatsTableProps> = ({ data }) =
     values: [
       stratumId,
       formatCurrency(stats.spend),
-      formatNumber(stats.impressions),
+      formatNumber(stats.frequency),
       formatNumber(stats.reach),
       formatCurrency(stats.cpm),
       formatNumber(stats.unique_clicks),

@@ -162,7 +162,7 @@ export interface CurrentDataApiResponse extends ApiResponse<CurrentDataRow[]> {}
 
 export interface RecruitmentStatsRow {
   spend: number;
-  impressions: number;
+  frequency: number;
   reach: number;
   cpm: number;
   unique_clicks: number;

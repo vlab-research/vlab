@@ -352,7 +352,7 @@ def calculate_strata_stats(
     stats = {
         s.id: {
             "spend": 0.0,
-            "impressions": 0,
+            "frequency": 0.0,
             "reach": 0,
             "cpm": 0.0,
             "unique_clicks": 0,
@@ -369,7 +369,7 @@ def calculate_strata_stats(
     # Get stats using calculate_stat
     for stat_name in [
         "spend",
-        "impressions",
+        "frequency",
         "reach",
         "cpm",
         "unique_clicks",
