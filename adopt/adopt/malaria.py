@@ -7,7 +7,7 @@ from environs import Env
 from facebook_business.adobjects.targeting import Targeting
 
 from .audiences import hydrate_audiences
-from .budget import AdOptReport, get_budget_lookup
+from .budget import AdOptReport, get_budget_lookup, get_budget_lookup_with_db
 from .campaign_queries import (
     DBConf,
     create_adopt_report,
@@ -68,8 +68,6 @@ def run_instructions(instructions: Sequence[Instruction], state: FacebookState):
 def update_ads_for_campaign(
     db_conf: DBConf, study: StudyConf, state: FacebookState
 ) -> Tuple[Sequence[Instruction], Optional[AdOptReport]]:
-    rd = get_recruitment_data(db_conf, study.id)
-
     strata = hydrate_strata(state, study.strata, study.creatives)
     now = datetime.utcnow()
 
@@ -81,19 +79,15 @@ def update_ads_for_campaign(
 
     window = make_window(study.general.opt_window, now)
 
-    spend = calculate_stat(rd, "spend", window)
-
-    lifetime_spend = calculate_stat(rd, "spend")
-
-    budget_lookup, report = get_budget_lookup(
+    budget_lookup, report = get_budget_lookup_with_db(
         df,
         strata,
         study.recruitment.opt_budget,
         study.recruitment.incentive_per_respondent,
         study.recruitment.opt_sample_size,
         window,
-        spend,
-        lifetime_spend,
+        db_conf,
+        study.id,
     )
 
     min_budget = study.recruitment.min_budget

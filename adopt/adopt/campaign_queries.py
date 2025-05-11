@@ -1,12 +1,13 @@
 import json
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Union
 
 import orjson
 
-from .budget import AdOptReport
 from .responses import query
 
 DBConf = str
+
+AdOptReport = Dict[str, Dict[str, Union[int, float]]]
 
 
 def get_user_info(study_id, cnf):
