@@ -11,7 +11,7 @@ from scipy.optimize import minimize
 from .clustering import _users_by_predicate, only_target_users
 from .facebook.state import DateRange
 from .study_conf import Budget, Stratum, StratumConf
-from .recruitment_data import calculate_stat, get_recruitment_data
+from .recruitment_data import calculate_stat, get_recruitment_data, RecruitmentData
 from .campaign_queries import DBConf, AdOptReport
 
 
@@ -334,7 +334,7 @@ def calculate_strata_stats(
     df: Optional[pd.DataFrame],
     strata: Sequence[Union[Stratum, StratumConf]],
     window: Optional[DateRange],
-    rd: pd.DataFrame,
+    rd: list[RecruitmentData],
     incentive_per_respondent: float,
 ) -> Dict[str, Dict[str, Any]]:
     """
@@ -343,21 +343,11 @@ def calculate_strata_stats(
         df: DataFrame containing user response data
         strata: List of strata being recruited for
         window: Optional DateRange to analyze statistics within
-        rd: Recruitment data DataFrame
+        rd: List of RecruitmentData objects
         incentive_per_respondent: Incentive amount per respondent
     Returns:
         Dictionary mapping stratum IDs to their complete statistics.
     """
-    # Filter recruitment data by window if provided
-    if window is not None and not rd.empty:
-        rd = rd[
-            (rd["timestamp"] >= window.start_date)
-            & (rd["timestamp"] <= window.until_date)
-        ]
-
-    # Index recruitment data by stratum_id for fast lookup
-    rd_grouped = rd.groupby("stratum_id").last() if not rd.empty else pd.DataFrame()
-
     # Initialize with zeros for all strata
     stats = {
         s.id: {
@@ -376,22 +366,20 @@ def calculate_strata_stats(
         for s in strata
     }
 
-    # Fill in recruitment stats for all strata we have data for
-    for stratum_id, row in rd_grouped.iterrows():
-        if stratum_id not in stats:
-            raise ValueError(f"Stratum {stratum_id} not found in stats")
-        for stat_name in [
-            "spend",
-            "impressions",
-            "reach",
-            "cpm",
-            "unique_clicks",
-            "unique_ctr",
-        ]:
-            if stat_name in row:
-                stats[stratum_id][stat_name] = (
-                    row[stat_name] if pd.notnull(row[stat_name]) else 0
-                )
+    # Get stats using calculate_stat
+    for stat_name in [
+        "spend",
+        "impressions",
+        "reach",
+        "cpm",
+        "unique_clicks",
+        "unique_ctr",
+    ]:
+        stat_values = calculate_stat(rd, stat_name, window)
+        for stratum_id, value in stat_values.items():
+            if stratum_id not in stats:
+                raise ValueError(f"Stratum {stratum_id} not found in stats")
+            stats[stratum_id][stat_name] = value
 
     # Get respondent counts if we have response data
     if df is not None:
@@ -405,15 +393,13 @@ def calculate_strata_stats(
     # Calculate prices using calc_price
     spend = {k: v["spend"] for k, v in stats.items()}
     respondents = {k: v["respondents"] for k, v in stats.items()}
-    if df is not None:
-        prices = calc_price(
-            df,
-            window or DateRange(datetime.min, datetime.max),
-            spend,
-            incentive_per_respondent,
-        )
-    else:
-        prices = {k: 0.0 for k in stats.keys()}
+
+    prices = calc_price(
+        df,
+        window or DateRange(datetime.min, datetime.max),
+        spend,
+        incentive_per_respondent,
+    )
 
     # Calculate derived stats for each stratum
     for stratum_id, stratum_stats in stats.items():

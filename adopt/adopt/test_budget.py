@@ -19,6 +19,7 @@ from .facebook.date_range import DateRange
 from .test_clustering import DATE, _format_df, cnf, conf, df
 from .campaign_queries import DBConf
 from .study_conf import StratumConf
+from .recruitment_data import RecruitmentData, TimePeriod
 
 START_DATE = DATE
 UNTIL_DATE = datetime(2020, 1, 3)
@@ -522,23 +523,50 @@ def test_add_incentive():
     assert res == spend
 
 
+def make_recruitment_data_from_dict(rd_dict, start_date):
+    # rd_dict: dict with keys as stratum_id and values as dict of metrics
+    # returns a list with a single RecruitmentData object
+    return [
+        RecruitmentData(
+            TimePeriod(start_date, start_date),
+            False,
+            {"campaign": {k: v for k, v in rd_dict.items()}},
+        )
+    ]
+
+
 def test_calculate_strata_stats_basic(cnf, df):
     """Test basic functionality with all data present."""
     window = DateRange(START_DATE, UNTIL_DATE)
 
     # Create recruitment data with all metrics
-    rd = pd.DataFrame(
-        {
-            "stratum_id": ["foo", "bar", "baz"],
-            "spend": [100.0, 200.0, 300.0],
-            "impressions": [1000, 2000, 3000],
-            "reach": [500, 1000, 1500],
-            "cpm": [100.0, 100.0, 100.0],
-            "unique_clicks": [100, 200, 300],
-            "unique_ctr": [0.1, 0.1, 0.1],
-            "timestamp": [START_DATE] * 3,
-        }
-    )
+    rd_dict = {
+        "foo": {
+            "spend": 100.0,
+            "impressions": 1000,
+            "reach": 500,
+            "cpm": 100.0,
+            "unique_clicks": 100,
+            "unique_ctr": 0.1,
+        },
+        "bar": {
+            "spend": 200.0,
+            "impressions": 2000,
+            "reach": 1000,
+            "cpm": 100.0,
+            "unique_clicks": 200,
+            "unique_ctr": 0.1,
+        },
+        "baz": {
+            "spend": 300.0,
+            "impressions": 3000,
+            "reach": 1500,
+            "cpm": 100.0,
+            "unique_clicks": 300,
+            "unique_ctr": 0.1,
+        },
+    }
+    rd = make_recruitment_data_from_dict(rd_dict, START_DATE)
 
     # Ensure at least one respondent in 'foo' for the test window using _format_df and correct targeting
     df_foo = pd.DataFrame(
@@ -572,18 +600,26 @@ def test_calculate_strata_stats_missing_recruitment_data(cnf, df):
     window = DateRange(START_DATE, UNTIL_DATE)
 
     # Create recruitment data missing some strata
-    rd = pd.DataFrame(
-        {
-            "stratum_id": ["foo", "bar"],  # Missing 'baz'
-            "spend": [100.0, 200.0],
-            "impressions": [1000, 2000],
-            "reach": [500, 1000],
-            "cpm": [100.0, 100.0],
-            "unique_clicks": [100, 200],
-            "unique_ctr": [0.1, 0.1],
-            "timestamp": [START_DATE] * 2,
-        }
-    )
+    rd_dict = {
+        "foo": {
+            "spend": 100.0,
+            "impressions": 1000,
+            "reach": 500,
+            "cpm": 100.0,
+            "unique_clicks": 100,
+            "unique_ctr": 0.1,
+        },
+        "bar": {
+            "spend": 200.0,
+            "impressions": 2000,
+            "reach": 1000,
+            "cpm": 100.0,
+            "unique_clicks": 200,
+            "unique_ctr": 0.1,
+        },
+        # Missing 'baz'
+    }
+    rd = make_recruitment_data_from_dict(rd_dict, START_DATE)
 
     stats = calculate_strata_stats(df, cnf, window, rd, incentive_per_respondent=10.0)
 
@@ -598,18 +634,33 @@ def test_calculate_strata_stats_missing_response_data(cnf):
     """Test behavior when response data is None."""
     window = DateRange(START_DATE, UNTIL_DATE)
 
-    rd = pd.DataFrame(
-        {
-            "stratum_id": ["foo", "bar", "baz"],
-            "spend": [100.0, 200.0, 300.0],
-            "impressions": [1000, 2000, 3000],
-            "reach": [500, 1000, 1500],
-            "cpm": [100.0, 100.0, 100.0],
-            "unique_clicks": [100, 200, 300],
-            "unique_ctr": [0.1, 0.1, 0.1],
-            "timestamp": [START_DATE] * 3,
-        }
-    )
+    rd_dict = {
+        "foo": {
+            "spend": 100.0,
+            "impressions": 1000,
+            "reach": 500,
+            "cpm": 100.0,
+            "unique_clicks": 100,
+            "unique_ctr": 0.1,
+        },
+        "bar": {
+            "spend": 200.0,
+            "impressions": 2000,
+            "reach": 1000,
+            "cpm": 100.0,
+            "unique_clicks": 200,
+            "unique_ctr": 0.1,
+        },
+        "baz": {
+            "spend": 300.0,
+            "impressions": 3000,
+            "reach": 1500,
+            "cpm": 100.0,
+            "unique_clicks": 300,
+            "unique_ctr": 0.1,
+        },
+    }
+    rd = make_recruitment_data_from_dict(rd_dict, START_DATE)
 
     stats = calculate_strata_stats(None, cnf, window, rd, incentive_per_respondent=10.0)
 
@@ -624,18 +675,17 @@ def test_calculate_strata_stats_invalid_stratum(cnf, df):
     """Test behavior when recruitment data contains invalid stratum IDs."""
     window = DateRange(START_DATE, UNTIL_DATE)
 
-    rd = pd.DataFrame(
-        {
-            "stratum_id": ["invalid_stratum"],  # Not in cnf
-            "spend": [100.0],
-            "impressions": [1000],
-            "reach": [500],
-            "cpm": [100.0],
-            "unique_clicks": [100],
-            "unique_ctr": [0.1],
-            "timestamp": [START_DATE],
-        }
-    )
+    rd_dict = {
+        "invalid_stratum": {
+            "spend": 100.0,
+            "impressions": 1000,
+            "reach": 500,
+            "cpm": 100.0,
+            "unique_clicks": 100,
+            "unique_ctr": 0.1,
+        },
+    }
+    rd = make_recruitment_data_from_dict(rd_dict, START_DATE)
 
     with pytest.raises(ValueError, match="Stratum invalid_stratum not found in stats"):
         calculate_strata_stats(df, cnf, window, rd, incentive_per_respondent=10.0)
@@ -645,18 +695,33 @@ def test_calculate_strata_stats_zero_values(cnf, df):
     """Test behavior with zero values in recruitment data."""
     window = DateRange(START_DATE, UNTIL_DATE)
 
-    rd = pd.DataFrame(
-        {
-            "stratum_id": ["foo", "bar", "baz"],
-            "spend": [0.0, 0.0, 0.0],
-            "impressions": [0, 0, 0],
-            "reach": [0, 0, 0],
-            "cpm": [0.0, 0.0, 0.0],
-            "unique_clicks": [0, 0, 0],
-            "unique_ctr": [0.0, 0.0, 0.0],
-            "timestamp": [START_DATE] * 3,
-        }
-    )
+    rd_dict = {
+        "foo": {
+            "spend": 0.0,
+            "impressions": 0,
+            "reach": 0,
+            "cpm": 0.0,
+            "unique_clicks": 0,
+            "unique_ctr": 0.0,
+        },
+        "bar": {
+            "spend": 0.0,
+            "impressions": 0,
+            "reach": 0,
+            "cpm": 0.0,
+            "unique_clicks": 0,
+            "unique_ctr": 0.0,
+        },
+        "baz": {
+            "spend": 0.0,
+            "impressions": 0,
+            "reach": 0,
+            "cpm": 0.0,
+            "unique_clicks": 0,
+            "unique_ctr": 0.0,
+        },
+    }
+    rd = make_recruitment_data_from_dict(rd_dict, START_DATE)
 
     stats = calculate_strata_stats(df, cnf, window, rd, incentive_per_respondent=10.0)
 
@@ -668,18 +733,33 @@ def test_calculate_strata_stats_zero_values(cnf, df):
 
 def test_calculate_strata_stats_no_window(cnf, df):
     """Test behavior when no window is provided."""
-    rd = pd.DataFrame(
-        {
-            "stratum_id": ["foo", "bar", "baz"],
-            "spend": [100.0, 200.0, 300.0],
-            "impressions": [1000, 2000, 3000],
-            "reach": [500, 1000, 1500],
-            "cpm": [100.0, 100.0, 100.0],
-            "unique_clicks": [100, 200, 300],
-            "unique_ctr": [0.1, 0.1, 0.1],
-            "timestamp": [START_DATE] * 3,
-        }
-    )
+    rd_dict = {
+        "foo": {
+            "spend": 100.0,
+            "impressions": 1000,
+            "reach": 500,
+            "cpm": 100.0,
+            "unique_clicks": 100,
+            "unique_ctr": 0.1,
+        },
+        "bar": {
+            "spend": 200.0,
+            "impressions": 2000,
+            "reach": 1000,
+            "cpm": 100.0,
+            "unique_clicks": 200,
+            "unique_ctr": 0.1,
+        },
+        "baz": {
+            "spend": 300.0,
+            "impressions": 3000,
+            "reach": 1500,
+            "cpm": 100.0,
+            "unique_clicks": 300,
+            "unique_ctr": 0.1,
+        },
+    }
+    rd = make_recruitment_data_from_dict(rd_dict, START_DATE)
 
     stats = calculate_strata_stats(df, cnf, None, rd, incentive_per_respondent=10.0)
 
