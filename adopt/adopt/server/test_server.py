@@ -10,7 +10,7 @@ from fastapi.testclient import TestClient
 
 from ..db import execute, query
 from ..facebook.update import Instruction
-from ..study_conf import GeneralConf, WebDestination
+from ..study_conf import GeneralConf, WebDestination, StratumConf
 from ..test_study_conf import _simple
 
 os.environ["PG_URL"] = db_conf
@@ -330,6 +330,134 @@ def test_api_key_creation_and_use(verify_mock):
     )
 
     assert res.status_code == 201
+
+
+@patch("adopt.budget.calculate_strata_stats")
+@patch("adopt.server.server.fetch_current_data")
+@patch("adopt.recruitment_data.get_recruitment_data")
+@patch("adopt.server.auth.verify_token")
+def test_get_recruitment_stats_returns_data(
+    verify_mock,
+    get_recruitment_data_mock,
+    fetch_current_data_mock,
+    calculate_strata_stats_mock,
+):
+    _reset_db()
+    verify_mock.return_value = {"sub": user_id}
+    get_recruitment_data_mock.return_value = []
+    fetch_current_data_mock.return_value = pd.DataFrame()
+    mock_stats = {
+        "stratum1": {
+            "spend": 1000.0,
+            "impressions": 50000,
+            "reach": 25000,
+            "cpm": 20.0,
+            "unique_clicks": 1000,
+            "unique_ctr": 0.02,
+            "respondents": 100,
+            "price_per_respondent": 10.0,
+            "incentive_cost": 1000.0,
+            "total_cost": 2000.0,
+            "conversion_rate": 0.1,
+        }
+    }
+    calculate_strata_stats_mock.return_value = mock_stats
+    org_id, headers = _user_and_study_setup()
+    # Post general conf first
+    general_conf = {
+        "name": "foo",
+        "opt_window": 48,
+        "ad_account": "234",
+        "credentials_key": "facebook",
+        "credentials_entity": "facebook",
+    }
+    client.post(
+        f"/{org_id}/studies/foo-study/confs/general",
+        headers=headers,
+        json=general_conf,
+    )
+    # Post recruitment conf using _simple()
+    recruitment_conf = json.loads(_simple().json())
+    client.post(
+        f"/{org_id}/studies/foo-study/confs/recruitment",
+        headers=headers,
+        json=recruitment_conf,
+    )
+    # Post strata conf using StratumConf model
+    stratum = StratumConf(
+        id="stratum1",
+        name="Test Stratum",
+        quota=100,
+        creatives=[],
+        audiences=[],
+        excluded_audiences=[],
+        facebook_targeting={},
+        metadata={},
+    )
+    strata_conf = [stratum.model_dump()]
+    client.post(
+        f"/{org_id}/studies/foo-study/confs/strata",
+        headers=headers,
+        json=strata_conf,
+    )
+    res = client.get(f"/{org_id}/studies/foo-study/recruitment-stats", headers=headers)
+
+    assert res.status_code == 200
+    res_data = res.json()
+    assert "data" in res_data
+    assert res_data["data"] == mock_stats
+
+
+@patch("adopt.server.auth.verify_token")
+def test_get_recruitment_stats_returns_404_for_missing_study(verify_mock):
+    _reset_db()
+    verify_mock.return_value = {"sub": user_id}
+    org_id, headers = _user_and_study_setup()
+    res = client.get(
+        f"/{org_id}/studies/non-existent/recruitment-stats", headers=headers
+    )
+    assert res.status_code == 404
+    assert "Study not found" in res.json()["detail"]
+
+
+@patch("adopt.budget.calculate_strata_stats")
+@patch("adopt.server.server.fetch_current_data")
+@patch("adopt.recruitment_data.get_recruitment_data")
+@patch("adopt.server.auth.verify_token")
+def test_get_recruitment_stats_returns_404_for_missing_strata(
+    verify_mock,
+    get_recruitment_data_mock,
+    fetch_current_data_mock,
+    calculate_strata_stats_mock,
+):
+    _reset_db()
+    verify_mock.return_value = {"sub": user_id}
+    get_recruitment_data_mock.return_value = []
+    fetch_current_data_mock.return_value = pd.DataFrame()
+    org_id, headers = _user_and_study_setup()
+    # Post general conf first
+    general_conf = {
+        "name": "foo",
+        "opt_window": 48,
+        "ad_account": "234",
+        "credentials_key": "facebook",
+        "credentials_entity": "facebook",
+    }
+    client.post(
+        f"/{org_id}/studies/foo-study/confs/general",
+        headers=headers,
+        json=general_conf,
+    )
+    # Post recruitment conf using _simple(), but no strata conf
+    recruitment_conf = json.loads(_simple().json())
+    client.post(
+        f"/{org_id}/studies/foo-study/confs/recruitment",
+        headers=headers,
+        json=recruitment_conf,
+    )
+    res = client.get(f"/{org_id}/studies/foo-study/recruitment-stats", headers=headers)
+    assert res.status_code == 404
+    assert "No strata found" in res.json()["detail"]
 
 
 def test_health_check():
