@@ -395,7 +395,7 @@ class RecruitmentStatsRow(BaseModel):
     """Statistics for a single stratum."""
 
     spend: float
-    impressions: int
+    frequency: float
     reach: int
     cpm: float
     unique_clicks: int
@@ -410,7 +410,7 @@ class RecruitmentStatsRow(BaseModel):
         schema_extra = {
             "example": {
                 "spend": 1000.0,
-                "impressions": 50000,
+                "frequency": 2.0,
                 "reach": 25000,
                 "cpm": 20.0,
                 "unique_clicks": 1000,
@@ -435,7 +435,7 @@ class RecruitmentStatsResult(BaseModel):
                 "data": {
                     "stratum1": {
                         "spend": 1000.0,
-                        "impressions": 50000,
+                        "frequency": 2.0,
                         "reach": 25000,
                         "cpm": 20.0,
                         "unique_clicks": 1000,
@@ -498,7 +498,6 @@ async def get_recruitment_stats(
 
         strata = [StratumConf(**s) for s in study_confs.get("strata", [])]
 
-        print(study_confs)
         if not strata:
             raise HTTPException(
                 status_code=404, detail=f"No strata found for study: {slug}"

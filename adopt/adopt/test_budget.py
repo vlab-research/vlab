@@ -327,7 +327,7 @@ def create_strata_stats(
             "spend": spend.get(stratum_id, 0),
             "respondents": respondents.get(stratum_id, 0),
             "price_per_respondent": price_per_respondent.get(stratum_id, 0),
-            "impressions": 0,
+            "frequency": 0.0,
             "reach": 0,
             "cpm": 0,
             "unique_clicks": 0,
@@ -543,7 +543,7 @@ def test_calculate_strata_stats_basic(cnf, df):
     rd_dict = {
         "foo": {
             "spend": 100.0,
-            "impressions": 1000,
+            "frequency": 2.0,
             "reach": 500,
             "cpm": 100.0,
             "unique_clicks": 100,
@@ -551,7 +551,7 @@ def test_calculate_strata_stats_basic(cnf, df):
         },
         "bar": {
             "spend": 200.0,
-            "impressions": 2000,
+            "frequency": 2.0,
             "reach": 1000,
             "cpm": 100.0,
             "unique_clicks": 200,
@@ -559,7 +559,7 @@ def test_calculate_strata_stats_basic(cnf, df):
         },
         "baz": {
             "spend": 300.0,
-            "impressions": 3000,
+            "frequency": 2.0,
             "reach": 1500,
             "cpm": 100.0,
             "unique_clicks": 300,
@@ -586,7 +586,7 @@ def test_calculate_strata_stats_basic(cnf, df):
 
     # Check recruitment data was properly copied
     assert stats["foo"]["spend"] == 100.0
-    assert stats["bar"]["impressions"] == 2000
+    assert stats["bar"]["frequency"] == 2.0
     assert stats["baz"]["unique_clicks"] == 300
 
     # Check calculated fields
@@ -603,7 +603,7 @@ def test_calculate_strata_stats_missing_recruitment_data(cnf, df):
     rd_dict = {
         "foo": {
             "spend": 100.0,
-            "impressions": 1000,
+            "frequency": 2.0,
             "reach": 500,
             "cpm": 100.0,
             "unique_clicks": 100,
@@ -611,7 +611,7 @@ def test_calculate_strata_stats_missing_recruitment_data(cnf, df):
         },
         "bar": {
             "spend": 200.0,
-            "impressions": 2000,
+            "frequency": 2.0,
             "reach": 1000,
             "cpm": 100.0,
             "unique_clicks": 200,
@@ -626,7 +626,7 @@ def test_calculate_strata_stats_missing_recruitment_data(cnf, df):
     # Check that all strata are present with zeros for missing data
     assert set(stats.keys()) == {"foo", "bar", "baz"}
     assert stats["baz"]["spend"] == 0.0
-    assert stats["baz"]["impressions"] == 0
+    assert stats["baz"]["frequency"] == 0.0
     assert stats["baz"]["unique_clicks"] == 0
 
 
@@ -637,7 +637,7 @@ def test_calculate_strata_stats_missing_response_data(cnf):
     rd_dict = {
         "foo": {
             "spend": 100.0,
-            "impressions": 1000,
+            "frequency": 2.0,
             "reach": 500,
             "cpm": 100.0,
             "unique_clicks": 100,
@@ -645,7 +645,7 @@ def test_calculate_strata_stats_missing_response_data(cnf):
         },
         "bar": {
             "spend": 200.0,
-            "impressions": 2000,
+            "frequency": 2.0,
             "reach": 1000,
             "cpm": 100.0,
             "unique_clicks": 200,
@@ -653,7 +653,7 @@ def test_calculate_strata_stats_missing_response_data(cnf):
         },
         "baz": {
             "spend": 300.0,
-            "impressions": 3000,
+            "frequency": 2.0,
             "reach": 1500,
             "cpm": 100.0,
             "unique_clicks": 300,
@@ -678,7 +678,7 @@ def test_calculate_strata_stats_invalid_stratum(cnf, df):
     rd_dict = {
         "invalid_stratum": {
             "spend": 100.0,
-            "impressions": 1000,
+            "frequency": 2.0,
             "reach": 500,
             "cpm": 100.0,
             "unique_clicks": 100,
@@ -698,7 +698,7 @@ def test_calculate_strata_stats_zero_values(cnf, df):
     rd_dict = {
         "foo": {
             "spend": 0.0,
-            "impressions": 0,
+            "frequency": 0.0,
             "reach": 0,
             "cpm": 0.0,
             "unique_clicks": 0,
@@ -706,7 +706,7 @@ def test_calculate_strata_stats_zero_values(cnf, df):
         },
         "bar": {
             "spend": 0.0,
-            "impressions": 0,
+            "frequency": 0.0,
             "reach": 0,
             "cpm": 0.0,
             "unique_clicks": 0,
@@ -714,7 +714,7 @@ def test_calculate_strata_stats_zero_values(cnf, df):
         },
         "baz": {
             "spend": 0.0,
-            "impressions": 0,
+            "frequency": 0.0,
             "reach": 0,
             "cpm": 0.0,
             "unique_clicks": 0,
@@ -736,7 +736,7 @@ def test_calculate_strata_stats_no_window(cnf, df):
     rd_dict = {
         "foo": {
             "spend": 100.0,
-            "impressions": 1000,
+            "frequency": 2.0,
             "reach": 500,
             "cpm": 100.0,
             "unique_clicks": 100,
@@ -744,7 +744,7 @@ def test_calculate_strata_stats_no_window(cnf, df):
         },
         "bar": {
             "spend": 200.0,
-            "impressions": 2000,
+            "frequency": 2.0,
             "reach": 1000,
             "cpm": 100.0,
             "unique_clicks": 200,
@@ -752,7 +752,7 @@ def test_calculate_strata_stats_no_window(cnf, df):
         },
         "baz": {
             "spend": 300.0,
-            "impressions": 3000,
+            "frequency": 2.0,
             "reach": 1500,
             "cpm": 100.0,
             "unique_clicks": 300,
@@ -766,5 +766,5 @@ def test_calculate_strata_stats_no_window(cnf, df):
     # Check that stats are calculated correctly without window
     assert set(stats.keys()) == {"foo", "bar", "baz"}
     assert stats["foo"]["spend"] == 100.0
-    assert stats["bar"]["impressions"] == 2000
+    assert stats["bar"]["frequency"] == 2.0
     assert stats["baz"]["unique_clicks"] == 300

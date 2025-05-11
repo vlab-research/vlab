@@ -349,7 +349,7 @@ def test_get_recruitment_stats_returns_data(
     mock_stats = {
         "stratum1": {
             "spend": 1000.0,
-            "impressions": 50000,
+            "frequency": 2.0,
             "reach": 25000,
             "cpm": 20.0,
             "unique_clicks": 1000,
