@@ -7,8 +7,12 @@ import useAuthenticatedApi from '../../../hooks/useAuthenticatedApi';
 import {
   StudyProgressResource,
   StudySegmentProgressResource,
-  RecruitmentStatsRow,
 } from '../../../types/study';
+
+interface ApiError {
+  status?: number;
+  message?: string;
+}
 
 const chance = Chance();
 
@@ -37,10 +41,12 @@ const useStudy = (slug: string) => {
     [currentSegmentsProgress]
   );
 
-  const isLoading = !studyQuery.data || !studySegmentsProgressQuery.data?.data || !recruitmentStatsQuery.data?.data;
+  // Only consider it loading if we don't have the basic study data
+  const isLoading = !studyQuery.data;
 
+  // Only consider it an error if it's not a 404 (missing confs)
   const anyErrorDuringLoading =
-    isLoading && (studyQuery.isError || studySegmentsProgressQuery.isError || recruitmentStatsQuery.isError);
+    isLoading && studyQuery.isError && (studyQuery.error as ApiError)?.status !== 404;
 
   return {
     name: studyQuery.data?.name ?? '',
@@ -83,6 +89,11 @@ const useStudyRecruitmentStatsQuery = (slug: string) => {
     () => fetchStudyRecruitmentStats({ slug }),
     {
       refetchInterval: fiveMinutesInMilliseconds,
+      // Don't treat 404s as errors since they just mean no recruitment data yet
+      retry: (failureCount, error: ApiError) => {
+        if (error?.status === 404) return false;
+        return failureCount < 3;
+      },
     }
   );
 };
