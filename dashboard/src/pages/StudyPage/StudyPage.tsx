@@ -76,8 +76,12 @@ const StudyPage = () => {
           ) : (
             study.recruitmentStatsIsLoading ? (
               <TableSkeleton numRows={5} numColumns={12} testId="recruitment-stats-table-skeleton" />
-            ) : (
+            ) : study.recruitmentStats && Object.keys(study.recruitmentStats).length > 0 ? (
               <RecruitmentStatsTable data={study.recruitmentStats} />
+            ) : (
+              <div className="mt-8 text-center text-gray-500">
+                No recruitment statistics available yet.
+              </div>
             )
           )}
         </div>
