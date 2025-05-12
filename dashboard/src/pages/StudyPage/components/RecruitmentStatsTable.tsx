@@ -18,7 +18,6 @@ const RecruitmentStatsTable: React.FC<RecruitmentStatsTableProps> = ({ data }) =
 
   const columnNames = [
     'Stratum',
-    'Spend',
     'Frequency',
     'Reach',
     'CPM',
@@ -26,6 +25,7 @@ const RecruitmentStatsTable: React.FC<RecruitmentStatsTableProps> = ({ data }) =
     'Unique CTR',
     'Respondents',
     'Price per Respondent',
+    'Ad Cost',
     'Incentive Cost',
     'Total Cost',
     'Conversion Rate',
@@ -35,7 +35,6 @@ const RecruitmentStatsTable: React.FC<RecruitmentStatsTableProps> = ({ data }) =
     id: stratumId,
     values: [
       stratumId,
-      formatCurrency(stats.spend),
       formatNumber(stats.frequency),
       formatNumber(stats.reach),
       formatCurrency(stats.cpm),
@@ -43,6 +42,7 @@ const RecruitmentStatsTable: React.FC<RecruitmentStatsTableProps> = ({ data }) =
       formatPercentage(stats.unique_ctr),
       formatNumber(stats.respondents),
       formatCurrency(stats.price_per_respondent),
+      formatCurrency(stats.spend),
       formatCurrency(stats.incentive_cost),
       formatCurrency(stats.total_cost),
       formatPercentage(stats.conversion_rate),
