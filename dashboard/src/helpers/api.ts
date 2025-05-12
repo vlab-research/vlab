@@ -343,7 +343,7 @@ const apiRequest = async <ApiResponse>(
   }
   try {
     const response = await fetchWithTimeout(path, {
-      timeout: 10000,
+      timeout: 30000, // 30 seconds
       headers: requestHeaders,
       baseURL,
       method,
@@ -630,6 +630,7 @@ const fetchStudyRecruitmentStats = ({
     { 
       accessToken,
       baseURL: process.env.REACT_APP_CONF_SERVER_URL,
+      timeout: 30000, // 30 second timeout
     }
   );
 

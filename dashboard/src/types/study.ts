@@ -175,9 +175,7 @@ export interface RecruitmentStatsRow {
 }
 
 export interface RecruitmentStatsApiResponse extends ApiResponse<{
-  data: {
-    [stratumId: string]: RecruitmentStatsRow;
-  };
+  [stratumId: string]: RecruitmentStatsRow;
 }> {}
 
 export interface UseStudyReturn {
