@@ -179,3 +179,17 @@ export interface RecruitmentStatsApiResponse extends ApiResponse<{
     [stratumId: string]: RecruitmentStatsRow;
   };
 }> {}
+
+export interface UseStudyReturn {
+  name: string;
+  currentProgress: StudyProgressResource;
+  progressOverTime: StudyProgressResource[];
+  currentSegmentsProgress: StudySegmentProgressResource[];
+  recruitmentStats: {
+    [stratumId: string]: RecruitmentStatsRow;
+  };
+  recruitmentStatsIsLoading: boolean;
+  isLoading: boolean;
+  anyErrorDuringLoading: boolean;
+  refetch: () => Promise<any>;
+}

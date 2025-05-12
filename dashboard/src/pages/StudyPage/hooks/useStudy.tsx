@@ -7,6 +7,7 @@ import useAuthenticatedApi from '../../../hooks/useAuthenticatedApi';
 import {
   StudyProgressResource,
   StudySegmentProgressResource,
+  UseStudyReturn,
 } from '../../../types/study';
 
 interface ApiError {
@@ -16,7 +17,7 @@ interface ApiError {
 
 const chance = Chance();
 
-const useStudy = (slug: string) => {
+const useStudy = (slug: string): UseStudyReturn => {
   const studyQuery = useStudyQuery(slug);
   const studySegmentsProgressQuery = useStudySegmentsProgressQuery(slug);
   const recruitmentStatsQuery = useStudyRecruitmentStatsQuery(slug);
@@ -55,7 +56,8 @@ const useStudy = (slug: string) => {
     currentSegmentsProgress: currentSegmentsProgress
       ? currentSegmentsProgress.segments
       : [],
-    recruitmentStats: recruitmentStatsQuery.data?.data ?? {},
+    recruitmentStats: recruitmentStatsQuery.data?.data?.data ?? {},
+    recruitmentStatsIsLoading: recruitmentStatsQuery.isLoading,
     isLoading,
     anyErrorDuringLoading,
     refetch: studyQuery.refetch,
