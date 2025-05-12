@@ -299,25 +299,19 @@ def get_budget_lookup_with_db(
     Returns:
         Tuple of (budget_lookup, report) as returned by get_budget_lookup
     """
-    from .recruitment_data import calculate_stat, get_recruitment_data
-
-    # Get recruitment data
-    rd = get_recruitment_data(db_conf, study_id)
-
-    # Calculate spend within window
-    spend = calculate_stat(rd, "spend", window)
-
-    # Calculate lifetime spend (no window parameter means all time)
-    lifetime_spend = calculate_stat(rd, "spend")
+    from .recruitment_data import calculate_stat_sql
 
     # Calculate strata stats using recruitment data
     strata_stats = calculate_strata_stats(
         df,
         strata,
         window,
-        rd,
+        calculate_stat_sql(db_conf, window, study_id),
         incentive_per_respondent,
     )
+
+    # Calculate lifetime spend (no window parameter means all time)
+    lifetime_spend = calculate_stat_sql(db_conf, None, study_id)
 
     return get_budget_lookup(
         strata,
@@ -334,7 +328,7 @@ def calculate_strata_stats(
     df: Optional[pd.DataFrame],
     strata: Sequence[Union[Stratum, StratumConf]],
     window: Optional[DateRange],
-    rd: list[RecruitmentData],
+    recruitment_stats: Dict[str, Dict[str, Any]],
     incentive_per_respondent: float,
 ) -> Dict[str, Dict[str, Any]]:
     """
@@ -343,7 +337,7 @@ def calculate_strata_stats(
         df: DataFrame containing user response data
         strata: List of strata being recruited for
         window: Optional DateRange to analyze statistics within
-        rd: List of RecruitmentData objects
+        recruitment_stats: Dictionary of recruitment statistics from calculate_stat_sql
         incentive_per_respondent: Incentive amount per respondent
     Returns:
         Dictionary mapping stratum IDs to their complete statistics.
@@ -362,25 +356,10 @@ def calculate_strata_stats(
             "incentive_cost": 0.0,
             "total_cost": 0.0,
             "conversion_rate": 0.0,
+            **recruitment_stats.get(s.id, {}),
         }
         for s in strata
     }
-
-    # Get stats using calculate_stat
-    for stat_name in [
-        "spend",
-        "frequency",
-        "reach",
-        "cpm",
-        "unique_clicks",
-        "unique_ctr",
-    ]:
-        stat_values = calculate_stat(rd, stat_name, window)
-        for stratum_id, value in stat_values.items():
-            if stratum_id not in stats:
-                logging.warning(f"Stratum {stratum_id} not found in stats, skipping")
-                continue
-            stats[stratum_id][stat_name] = value
 
     # Get respondent counts if we have response data
     if df is not None:

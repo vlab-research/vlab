@@ -503,25 +503,23 @@ async def get_recruitment_stats(
                 status_code=404, detail=f"No strata found for study: {slug}"
             )
 
-        # Get recruitment data
-        from ..recruitment_data import get_recruitment_data
-
-        rd = get_recruitment_data(db_cnf, study_id)
-
         # Get current data if available
         df = await fetch_current_data(user.user_id, org_id, slug)
 
         # Calculate stats using the full date range
         from ..budget import calculate_strata_stats
         from ..facebook.state import DateRange
+        from ..recruitment_data import calculate_stat_sql
         from datetime import datetime
 
         window = DateRange(datetime.min, datetime.max)
+        recruitment_stats = calculate_stat_sql(db_cnf, window, study_id)
+
         stats = calculate_strata_stats(
             df=df,
             strata=strata,
             window=window,
-            rd=rd,
+            recruitment_stats=recruitment_stats,
             incentive_per_respondent=study_confs.get("recruitment", {}).get(
                 "incentive_per_respondent", 0
             ),

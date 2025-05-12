@@ -540,7 +540,7 @@ def test_calculate_strata_stats_basic(cnf, df):
     window = DateRange(START_DATE, UNTIL_DATE)
 
     # Create recruitment data with all metrics
-    rd_dict = {
+    recruitment_stats = {
         "foo": {
             "spend": 100.0,
             "frequency": 2.0,
@@ -566,7 +566,6 @@ def test_calculate_strata_stats_basic(cnf, df):
             "unique_ctr": 0.1,
         },
     }
-    rd = make_recruitment_data_from_dict(rd_dict, START_DATE)
 
     # Ensure at least one respondent in 'foo' for the test window using _format_df and correct targeting
     df_foo = pd.DataFrame(
@@ -579,7 +578,9 @@ def test_calculate_strata_stats_basic(cnf, df):
     df_foo = _format_df(df_foo)
     df = pd.concat([df, df_foo], ignore_index=True)
 
-    stats = calculate_strata_stats(df, cnf, window, rd, incentive_per_respondent=10.0)
+    stats = calculate_strata_stats(
+        df, cnf, window, recruitment_stats, incentive_per_respondent=10.0
+    )
 
     # Check that all strata are present
     assert set(stats.keys()) == {"foo", "bar", "baz"}
@@ -600,7 +601,7 @@ def test_calculate_strata_stats_missing_recruitment_data(cnf, df):
     window = DateRange(START_DATE, UNTIL_DATE)
 
     # Create recruitment data missing some strata
-    rd_dict = {
+    recruitment_stats = {
         "foo": {
             "spend": 100.0,
             "frequency": 2.0,
@@ -619,9 +620,10 @@ def test_calculate_strata_stats_missing_recruitment_data(cnf, df):
         },
         # Missing 'baz'
     }
-    rd = make_recruitment_data_from_dict(rd_dict, START_DATE)
 
-    stats = calculate_strata_stats(df, cnf, window, rd, incentive_per_respondent=10.0)
+    stats = calculate_strata_stats(
+        df, cnf, window, recruitment_stats, incentive_per_respondent=10.0
+    )
 
     # Check that all strata are present with zeros for missing data
     assert set(stats.keys()) == {"foo", "bar", "baz"}
@@ -634,7 +636,7 @@ def test_calculate_strata_stats_missing_response_data(cnf):
     """Test behavior when response data is None."""
     window = DateRange(START_DATE, UNTIL_DATE)
 
-    rd_dict = {
+    recruitment_stats = {
         "foo": {
             "spend": 100.0,
             "frequency": 2.0,
@@ -660,9 +662,10 @@ def test_calculate_strata_stats_missing_response_data(cnf):
             "unique_ctr": 0.1,
         },
     }
-    rd = make_recruitment_data_from_dict(rd_dict, START_DATE)
 
-    stats = calculate_strata_stats(None, cnf, window, rd, incentive_per_respondent=10.0)
+    stats = calculate_strata_stats(
+        None, cnf, window, recruitment_stats, incentive_per_respondent=10.0
+    )
 
     # Check that respondents and derived fields are zero
     assert stats["foo"]["respondents"] == 0
@@ -675,7 +678,7 @@ def test_calculate_strata_stats_invalid_stratum(cnf, df):
     """Test behavior when recruitment data contains invalid stratum IDs."""
     window = DateRange(START_DATE, UNTIL_DATE)
 
-    rd_dict = {
+    recruitment_stats = {
         "invalid_stratum": {
             "spend": 100.0,
             "frequency": 2.0,
@@ -685,10 +688,11 @@ def test_calculate_strata_stats_invalid_stratum(cnf, df):
             "unique_ctr": 0.1,
         },
     }
-    rd = make_recruitment_data_from_dict(rd_dict, START_DATE)
 
     # Test that invalid strata are skipped and valid strata remain unchanged
-    stats = calculate_strata_stats(df, cnf, window, rd, incentive_per_respondent=10.0)
+    stats = calculate_strata_stats(
+        df, cnf, window, recruitment_stats, incentive_per_respondent=10.0
+    )
 
     # Check that all valid strata are present with default values
     assert set(stats.keys()) == {"foo", "bar", "baz"}
@@ -701,7 +705,7 @@ def test_calculate_strata_stats_zero_values(cnf, df):
     """Test behavior with zero values in recruitment data."""
     window = DateRange(START_DATE, UNTIL_DATE)
 
-    rd_dict = {
+    recruitment_stats = {
         "foo": {
             "spend": 0.0,
             "frequency": 0.0,
@@ -727,9 +731,10 @@ def test_calculate_strata_stats_zero_values(cnf, df):
             "unique_ctr": 0.0,
         },
     }
-    rd = make_recruitment_data_from_dict(rd_dict, START_DATE)
 
-    stats = calculate_strata_stats(df, cnf, window, rd, incentive_per_respondent=10.0)
+    stats = calculate_strata_stats(
+        df, cnf, window, recruitment_stats, incentive_per_respondent=10.0
+    )
 
     # Check that conversion rate is 0 when unique_clicks is 0
     assert stats["foo"]["conversion_rate"] == 0.0
@@ -739,7 +744,7 @@ def test_calculate_strata_stats_zero_values(cnf, df):
 
 def test_calculate_strata_stats_no_window(cnf, df):
     """Test behavior when no window is provided."""
-    rd_dict = {
+    recruitment_stats = {
         "foo": {
             "spend": 100.0,
             "frequency": 2.0,
@@ -765,9 +770,10 @@ def test_calculate_strata_stats_no_window(cnf, df):
             "unique_ctr": 0.1,
         },
     }
-    rd = make_recruitment_data_from_dict(rd_dict, START_DATE)
 
-    stats = calculate_strata_stats(df, cnf, None, rd, incentive_per_respondent=10.0)
+    stats = calculate_strata_stats(
+        df, cnf, None, recruitment_stats, incentive_per_respondent=10.0
+    )
 
     # Check that stats are calculated correctly without window
     assert set(stats.keys()) == {"foo", "bar", "baz"}
