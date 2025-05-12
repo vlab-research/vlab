@@ -272,7 +272,8 @@ def calculate_stat_sql(db_conf, window, study_id):
         ORDER BY period_end DESC
         LIMIT 1)
     ) AS combined_data
-    CROSS JOIN LATERAL jsonb_each(data) AS stratum(stratum_id, metrics)
+    CROSS JOIN LATERAL jsonb_each(data) AS campaign(campaign_id, campaign_data)
+    CROSS JOIN LATERAL jsonb_each(campaign_data) AS stratum(stratum_id, metrics)
     WHERE 
         period_start >= %s AND 
         period_end <= %s
@@ -280,12 +281,16 @@ def calculate_stat_sql(db_conf, window, study_id):
     """
 
     # Execute the query using the existing query function
-    results = query(
-        db_conf,
-        sql,
-        (study_id, study_id, window.start_date, window.until_date),
-        as_dict=True,
+    results = list(
+        query(
+            db_conf,
+            sql,
+            (study_id, study_id, window.start_date, window.until_date),
+            as_dict=True,
+        )
     )
+
+    print("results from calculate_stat_sql query: ", results)
 
     # Step 1: Cast all values to float/int in a dict comprehension
     casted = {

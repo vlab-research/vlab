@@ -174,7 +174,18 @@ def insert_general_conf(study_id, start_date, end_date):
 def test_load_recruitment_data_loads_same_data_multiple_times_without_throwing(mock):
     _reset_db()
 
-    insights = [{"strata1": {"cpm": 1.0}}]
+    insights = {
+        "campaign1": {
+            "stratum1": {
+                "spend": "100.0",
+                "reach": "1000",
+                "unique_clicks": "50",
+                "impressions": "2000",
+                "date_start": "2025-05-11",
+                "date_stop": "2025-05-11",
+            }
+        }
+    }
     mock.return_value = insights
 
     now = datetime.utcnow()
@@ -183,7 +194,7 @@ def test_load_recruitment_data_loads_same_data_multiple_times_without_throwing(m
 
     _, study_id = create_study("foo")
 
-    _load_recruitment_data(cnf, study_id, ["campaign_a"], start, end, None, now)
+    _load_recruitment_data(cnf, study_id, ["campaign1"], start, end, None, now)
 
     events = query(cnf, "select * from recruitment_data_events", as_dict=True)
 
@@ -198,9 +209,9 @@ def test_load_recruitment_data_loads_same_data_multiple_times_without_throwing(m
     assert len(res) == 1
     assert res[0].time_period.start.day == now.day
     assert res[0].time_period.end.day == now.day
-    assert res[0].data == {"campaign_a": insights}
+    assert res[0].data == {"campaign1": insights}
 
-    _load_recruitment_data(cnf, study_id, ["campaign_a"], start, end, None, now)
+    _load_recruitment_data(cnf, study_id, ["campaign1"], start, end, None, now)
     events = query(cnf, "select * from recruitment_data_events", as_dict=True)
     assert len(list(events)) == 1
 
@@ -209,7 +220,18 @@ def test_load_recruitment_data_loads_same_data_multiple_times_without_throwing(m
 def test_load_recruitment_data_adds_additional_events(mock):
     _reset_db()
 
-    insights = [{"strata1": {"cpm": 1.0}}]
+    insights = {
+        "campaign1": {
+            "stratum1": {
+                "spend": "100.0",
+                "reach": "1000",
+                "unique_clicks": "50",
+                "impressions": "2000",
+                "date_start": "2025-05-11",
+                "date_stop": "2025-05-11",
+            }
+        }
+    }
     mock.return_value = insights
 
     now = datetime.utcnow()
@@ -217,14 +239,14 @@ def test_load_recruitment_data_adds_additional_events(mock):
     end = now + timedelta(days=2)
 
     _, study_id = create_study("foo")
-    _load_recruitment_data(cnf, study_id, ["campaign_a"], start, end, None, now)
+    _load_recruitment_data(cnf, study_id, ["campaign1"], start, end, None, now)
 
     events = query(cnf, "select * from recruitment_data_events", as_dict=True)
     assert len(list(events)) == 1
 
     # one day later, temp becomes permanent, now loads two events
     now = now + timedelta(days=1)
-    _load_recruitment_data(cnf, study_id, ["campaign_a"], start, end, None, now)
+    _load_recruitment_data(cnf, study_id, ["campaign1"], start, end, None, now)
 
     events = query(cnf, "select * from recruitment_data_events", as_dict=True)
 
@@ -308,7 +330,20 @@ def test_get_recruitment_data_returns_only_latest_temp_data():
             start,
             start + timedelta(hours=2),
             True,
-            '{"foo":"bar"}',
+            json.dumps(
+                {
+                    "campaign1": {
+                        "stratum1": {
+                            "spend": "100.0",
+                            "reach": "1000",
+                            "unique_clicks": "50",
+                            "impressions": "2000",
+                            "date_start": "2025-05-11",
+                            "date_stop": "2025-05-11",
+                        }
+                    }
+                }
+            ),
         ),
         (
             study_id,
@@ -316,7 +351,20 @@ def test_get_recruitment_data_returns_only_latest_temp_data():
             start,
             start + timedelta(hours=4),
             True,
-            '{"foo":"bar"}',
+            json.dumps(
+                {
+                    "campaign1": {
+                        "stratum1": {
+                            "spend": "200.0",
+                            "reach": "2000",
+                            "unique_clicks": "100",
+                            "impressions": "4000",
+                            "date_start": "2025-05-11",
+                            "date_stop": "2025-05-11",
+                        }
+                    }
+                }
+            ),
         ),
         (
             study_id,
@@ -324,7 +372,20 @@ def test_get_recruitment_data_returns_only_latest_temp_data():
             start,
             day_end(start),
             False,
-            '{"foo":"bar"}',
+            json.dumps(
+                {
+                    "campaign1": {
+                        "stratum1": {
+                            "spend": "300.0",
+                            "reach": "3000",
+                            "unique_clicks": "150",
+                            "impressions": "6000",
+                            "date_start": "2025-05-11",
+                            "date_stop": "2025-05-11",
+                        }
+                    }
+                }
+            ),
         ),
         (
             study_id,
@@ -332,7 +393,20 @@ def test_get_recruitment_data_returns_only_latest_temp_data():
             day_start(now),
             now - timedelta(hours=2),
             True,
-            '{"foo":"bar"}',
+            json.dumps(
+                {
+                    "campaign1": {
+                        "stratum1": {
+                            "spend": "400.0",
+                            "reach": "4000",
+                            "unique_clicks": "200",
+                            "impressions": "8000",
+                            "date_start": "2025-05-11",
+                            "date_stop": "2025-05-11",
+                        }
+                    }
+                }
+            ),
         ),
         (
             study_id,
@@ -340,7 +414,20 @@ def test_get_recruitment_data_returns_only_latest_temp_data():
             day_start(now),
             now,
             True,
-            '{"foo":"baz"}',
+            json.dumps(
+                {
+                    "campaign1": {
+                        "stratum1": {
+                            "spend": "500.0",
+                            "reach": "5000",
+                            "unique_clicks": "250",
+                            "impressions": "10000",
+                            "date_start": "2025-05-11",
+                            "date_stop": "2025-05-11",
+                        }
+                    }
+                }
+            ),
         ),
     ]
 
@@ -352,7 +439,7 @@ def test_get_recruitment_data_returns_only_latest_temp_data():
     assert data[0].temp is False
     assert data[1].time_period.end == now
     assert data[1].temp is True
-    assert data[1].data == {"foo": "baz"}
+    assert data[1].data["campaign1"]["stratum1"]["spend"] == "500.0"
 
 
 def _rd(start, end, temp, data):
@@ -381,17 +468,33 @@ def test_calculate_stat_sql_calculates_metrics_correctly():
             False,
             json.dumps(
                 {
-                    "stratum1": {
-                        "spend": "100.0",
-                        "reach": "1000",
-                        "unique_clicks": "50",
-                        "impressions": "2000",
+                    "campaign1": {
+                        "stratum1": {
+                            "spend": "100.0",
+                            "reach": "1000",
+                            "unique_clicks": "50",
+                            "impressions": "2000",
+                            "date_start": "2025-05-11",
+                            "date_stop": "2025-05-11",
+                        },
+                        "stratum2": {
+                            "spend": "200.0",
+                            "reach": "2000",
+                            "unique_clicks": "100",
+                            "impressions": "4000",
+                            "date_start": "2025-05-11",
+                            "date_stop": "2025-05-11",
+                        },
                     },
-                    "stratum2": {
-                        "spend": "200.0",
-                        "reach": "2000",
-                        "unique_clicks": "100",
-                        "impressions": "4000",
+                    "campaign2": {
+                        "stratum1": {
+                            "spend": "150.0",
+                            "reach": "1500",
+                            "unique_clicks": "75",
+                            "impressions": "3000",
+                            "date_start": "2025-05-11",
+                            "date_stop": "2025-05-11",
+                        }
                     },
                 }
             ),
@@ -404,17 +507,33 @@ def test_calculate_stat_sql_calculates_metrics_correctly():
             False,
             json.dumps(
                 {
-                    "stratum1": {
-                        "spend": "150.0",
-                        "reach": "1500",
-                        "unique_clicks": "75",
-                        "impressions": "3000",
+                    "campaign1": {
+                        "stratum1": {
+                            "spend": "150.0",
+                            "reach": "1500",
+                            "unique_clicks": "75",
+                            "impressions": "3000",
+                            "date_start": "2025-05-11",
+                            "date_stop": "2025-05-11",
+                        },
+                        "stratum2": {
+                            "spend": "250.0",
+                            "reach": "2500",
+                            "unique_clicks": "125",
+                            "impressions": "5000",
+                            "date_start": "2025-05-11",
+                            "date_stop": "2025-05-11",
+                        },
                     },
-                    "stratum2": {
-                        "spend": "250.0",
-                        "reach": "2500",
-                        "unique_clicks": "125",
-                        "impressions": "5000",
+                    "campaign2": {
+                        "stratum1": {
+                            "spend": "250.0",
+                            "reach": "2500",
+                            "unique_clicks": "125",
+                            "impressions": "5000",
+                            "date_start": "2025-05-11",
+                            "date_stop": "2025-05-11",
+                        }
                     },
                 }
             ),
@@ -430,20 +549,20 @@ def test_calculate_stat_sql_calculates_metrics_correctly():
     assert "stratum1" in res
     assert "stratum2" in res
 
-    # Check stratum1 metrics
-    assert res["stratum1"]["spend"] == 250.0
-    assert res["stratum1"]["reach"] == 2500
-    assert res["stratum1"]["unique_clicks"] == 125
-    assert res["stratum1"]["impressions"] == 5000
-    assert res["stratum1"]["cpm"] == 20.0  # 5000 impressions / 250 spend
-    assert res["stratum1"]["frequency"] == 2.0  # 5000 impressions / 2500 reach
-    assert res["stratum1"]["unique_ctr"] == 0.05  # 125 clicks / 2500 reach
+    # Check stratum1 metrics (summed across campaigns)
+    assert res["stratum1"]["spend"] == 650.0  # 100 + 150 + 150 + 250
+    assert res["stratum1"]["reach"] == 6500  # 1000 + 1500 + 1500 + 2500
+    assert res["stratum1"]["unique_clicks"] == 325  # 50 + 75 + 75 + 125
+    assert res["stratum1"]["impressions"] == 13000  # 2000 + 3000 + 3000 + 5000
+    assert res["stratum1"]["cpm"] == 20.0  # 13000 impressions / 650 spend
+    assert res["stratum1"]["frequency"] == 2.0  # 13000 impressions / 6500 reach
+    assert res["stratum1"]["unique_ctr"] == 0.05  # 325 clicks / 6500 reach
 
     # Check stratum2 metrics
-    assert res["stratum2"]["spend"] == 450.0
-    assert res["stratum2"]["reach"] == 4500
-    assert res["stratum2"]["unique_clicks"] == 225
-    assert res["stratum2"]["impressions"] == 9000
+    assert res["stratum2"]["spend"] == 450.0  # 200 + 250
+    assert res["stratum2"]["reach"] == 4500  # 2000 + 2500
+    assert res["stratum2"]["unique_clicks"] == 225  # 100 + 125
+    assert res["stratum2"]["impressions"] == 9000  # 4000 + 5000
     assert res["stratum2"]["cpm"] == 20.0  # 9000 impressions / 450 spend
     assert res["stratum2"]["frequency"] == 2.0  # 9000 impressions / 4500 reach
     assert res["stratum2"]["unique_ctr"] == 0.05  # 225 clicks / 4500 reach
@@ -463,17 +582,33 @@ def test_calculate_stat_sql_handles_missing_data():
             False,
             json.dumps(
                 {
-                    "stratum1": {
-                        "spend": "100.0",
-                        "reach": "1000",
-                        "unique_clicks": "50",
-                        "impressions": "2000",
+                    "campaign1": {
+                        "stratum1": {
+                            "spend": "100.0",
+                            "reach": "1000",
+                            "unique_clicks": "50",
+                            "impressions": "2000",
+                            "date_start": "2025-05-11",
+                            "date_stop": "2025-05-11",
+                        },
+                        "stratum2": {
+                            "spend": "200.0",
+                            "reach": "2000",
+                            "unique_clicks": None,
+                            "impressions": "4000",
+                            "date_start": "2025-05-11",
+                            "date_stop": "2025-05-11",
+                        },
                     },
-                    "stratum2": {
-                        "spend": "200.0",
-                        "reach": "2000",
-                        "unique_clicks": None,
-                        "impressions": "4000",
+                    "campaign2": {
+                        "stratum1": {
+                            "spend": "150.0",
+                            "reach": "1500",
+                            "unique_clicks": "75",
+                            "impressions": "3000",
+                            "date_start": "2025-05-11",
+                            "date_stop": "2025-05-11",
+                        }
                     },
                 }
             ),
@@ -489,11 +624,11 @@ def test_calculate_stat_sql_handles_missing_data():
     assert "stratum1" in res
     assert "stratum2" in res
 
-    # Check stratum1 metrics (should be normal)
-    assert res["stratum1"]["spend"] == 100.0
-    assert res["stratum1"]["reach"] == 1000
-    assert res["stratum1"]["unique_clicks"] == 50
-    assert res["stratum1"]["impressions"] == 2000
+    # Check stratum1 metrics (summed across campaigns)
+    assert res["stratum1"]["spend"] == 250.0  # 100 + 150
+    assert res["stratum1"]["reach"] == 2500  # 1000 + 1500
+    assert res["stratum1"]["unique_clicks"] == 125  # 50 + 75
+    assert res["stratum1"]["impressions"] == 5000  # 2000 + 3000
 
     # Check stratum2 metrics (should handle missing unique_clicks)
     assert res["stratum2"]["spend"] == 200.0
@@ -516,12 +651,26 @@ def test_calculate_stat_sql_respects_date_window():
             False,
             json.dumps(
                 {
-                    "stratum1": {
-                        "spend": "100.0",
-                        "reach": "1000",
-                        "unique_clicks": "50",
-                        "impressions": "2000",
-                    }
+                    "campaign1": {
+                        "stratum1": {
+                            "spend": "100.0",
+                            "reach": "1000",
+                            "unique_clicks": "50",
+                            "impressions": "2000",
+                            "date_start": "2025-05-11",
+                            "date_stop": "2025-05-11",
+                        }
+                    },
+                    "campaign2": {
+                        "stratum1": {
+                            "spend": "150.0",
+                            "reach": "1500",
+                            "unique_clicks": "75",
+                            "impressions": "3000",
+                            "date_start": "2025-05-11",
+                            "date_stop": "2025-05-11",
+                        }
+                    },
                 }
             ),
         ),
@@ -533,12 +682,26 @@ def test_calculate_stat_sql_respects_date_window():
             False,
             json.dumps(
                 {
-                    "stratum1": {
-                        "spend": "200.0",
-                        "reach": "2000",
-                        "unique_clicks": "100",
-                        "impressions": "4000",
-                    }
+                    "campaign1": {
+                        "stratum1": {
+                            "spend": "200.0",
+                            "reach": "2000",
+                            "unique_clicks": "100",
+                            "impressions": "4000",
+                            "date_start": "2025-05-11",
+                            "date_stop": "2025-05-11",
+                        }
+                    },
+                    "campaign2": {
+                        "stratum1": {
+                            "spend": "250.0",
+                            "reach": "2500",
+                            "unique_clicks": "125",
+                            "impressions": "5000",
+                            "date_start": "2025-05-11",
+                            "date_stop": "2025-05-11",
+                        }
+                    },
                 }
             ),
         ),
@@ -551,17 +714,127 @@ def test_calculate_stat_sql_respects_date_window():
     res = calculate_stat_sql(cnf, window, study_id)
 
     assert "stratum1" in res
-    assert res["stratum1"]["spend"] == 100.0
-    assert res["stratum1"]["reach"] == 1000
-    assert res["stratum1"]["unique_clicks"] == 50
-    assert res["stratum1"]["impressions"] == 2000
+    assert res["stratum1"]["spend"] == 250.0  # 100 + 150
+    assert res["stratum1"]["reach"] == 2500  # 1000 + 1500
+    assert res["stratum1"]["unique_clicks"] == 125  # 50 + 75
+    assert res["stratum1"]["impressions"] == 5000  # 2000 + 3000
 
     # Test window that includes both days
     window = DateRange(_dt(1, 0), _dt(2, 23))
     res = calculate_stat_sql(cnf, window, study_id)
 
     assert "stratum1" in res
-    assert res["stratum1"]["spend"] == 300.0
-    assert res["stratum1"]["reach"] == 3000
-    assert res["stratum1"]["unique_clicks"] == 150
-    assert res["stratum1"]["impressions"] == 6000
+    assert res["stratum1"]["spend"] == 700.0  # 100 + 150 + 200 + 250
+    assert res["stratum1"]["reach"] == 7000  # 1000 + 1500 + 2000 + 2500
+    assert res["stratum1"]["unique_clicks"] == 350  # 50 + 75 + 100 + 125
+    assert res["stratum1"]["impressions"] == 14000  # 2000 + 3000 + 4000 + 5000
+
+
+def test_calculate_stat_sql_handles_mixed_null_values():
+    _reset_db()
+    _, study_id = create_study("foo")
+
+    # Insert test data with mixed null and non-null values
+    to_insert = [
+        (
+            study_id,
+            "facebook",
+            _dt(1, 0),
+            _dt(1, 12),
+            False,
+            json.dumps(
+                {
+                    "campaign1": {
+                        "stratum1": {
+                            "spend": "100.0",
+                            "reach": "1000",
+                            "unique_clicks": "50",
+                            "impressions": "2000",
+                            "date_start": "2025-05-11",
+                            "date_stop": "2025-05-11",
+                        },
+                        "stratum2": {
+                            "spend": "200.0",
+                            "reach": "2000",
+                            "unique_clicks": "100",
+                            "impressions": "4000",
+                            "date_start": "2025-05-11",
+                            "date_stop": "2025-05-11",
+                        },
+                    },
+                    "campaign2": {
+                        "stratum1": {
+                            "spend": "150.0",
+                            "reach": "1500",
+                            "unique_clicks": "75",
+                            "impressions": "3000",
+                            "date_start": "2025-05-11",
+                            "date_stop": "2025-05-11",
+                        }
+                    },
+                }
+            ),
+        ),
+        (
+            study_id,
+            "facebook",
+            _dt(1, 12),
+            _dt(2, 0),
+            False,
+            json.dumps(
+                {
+                    "campaign1": {
+                        "stratum1": None,  # This stratum has null data
+                        "stratum2": {
+                            "spend": "300.0",
+                            "reach": "3000",
+                            "unique_clicks": "150",
+                            "impressions": "6000",
+                            "date_start": "2025-05-11",
+                            "date_stop": "2025-05-11",
+                        },
+                    },
+                    "campaign2": {
+                        "stratum1": {
+                            "spend": "250.0",
+                            "reach": "2500",
+                            "unique_clicks": "125",
+                            "impressions": "5000",
+                            "date_start": "2025-05-11",
+                            "date_stop": "2025-05-11",
+                        }
+                    },
+                }
+            ),
+        ),
+    ]
+
+    insert_data(to_insert)
+
+    window = DateRange(_dt(1, 0), _dt(2, 0))
+    res = calculate_stat_sql(cnf, window, study_id)
+
+    # Verify results - should sum the non-null values and ignore nulls
+    assert "stratum1" in res
+    assert "stratum2" in res
+
+    # stratum1 should sum values from both campaigns
+    assert res["stratum1"]["spend"] == 500.0  # 100 + 150 + 250
+    assert res["stratum1"]["reach"] == 5000  # 1000 + 1500 + 2500
+    assert res["stratum1"]["unique_clicks"] == 250  # 50 + 75 + 125
+    assert res["stratum1"]["impressions"] == 10000  # 2000 + 3000 + 5000
+
+    # stratum2 should sum values from both periods
+    assert res["stratum2"]["spend"] == 500.0  # 200 + 300
+    assert res["stratum2"]["reach"] == 5000  # 2000 + 3000
+    assert res["stratum2"]["unique_clicks"] == 250  # 100 + 150
+    assert res["stratum2"]["impressions"] == 10000  # 4000 + 6000
+
+    # Verify derived metrics are calculated correctly
+    assert res["stratum1"]["cpm"] == 20.0  # 10000 impressions / 500 spend
+    assert res["stratum1"]["frequency"] == 2.0  # 10000 impressions / 5000 reach
+    assert res["stratum1"]["unique_ctr"] == 0.05  # 250 clicks / 5000 reach
+
+    assert res["stratum2"]["cpm"] == 20.0  # 10000 impressions / 500 spend
+    assert res["stratum2"]["frequency"] == 2.0  # 10000 impressions / 5000 reach
+    assert res["stratum2"]["unique_ctr"] == 0.05  # 250 clicks / 5000 reach
