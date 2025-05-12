@@ -56,7 +56,7 @@ const useStudy = (slug: string): UseStudyReturn => {
     currentSegmentsProgress: currentSegmentsProgress
       ? currentSegmentsProgress.segments
       : [],
-    recruitmentStats: recruitmentStatsQuery.data?.data?.data ?? {},
+    recruitmentStats: recruitmentStatsQuery.data?.data ?? { data: {} },
     recruitmentStatsIsLoading: recruitmentStatsQuery.isLoading,
     isLoading,
     anyErrorDuringLoading,
