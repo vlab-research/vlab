@@ -6,17 +6,14 @@ import { DownloadIcon } from '@heroicons/react/solid';
 
 interface RecruitmentStatsTableProps {
   data: {
-    data: {
-      [stratumId: string]: RecruitmentStatsRow;
-    };
+    [stratumId: string]: RecruitmentStatsRow;
   };
 }
 
 const RecruitmentStatsTable: React.FC<RecruitmentStatsTableProps> = ({ data }) => {
   console.log('RecruitmentStatsTable full data:', data);
-  console.log('RecruitmentStatsTable data.data:', data?.data);
-  console.log('RecruitmentStatsTable data.data type:', typeof data?.data);
-  console.log('RecruitmentStatsTable data.data keys:', Object.keys(data?.data ?? {}));
+  console.log('RecruitmentStatsTable data type:', typeof data);
+  console.log('RecruitmentStatsTable data keys:', Object.keys(data ?? {}));
   
   const [selectedColumn, setSelectedColumn] = useState({
     index: 0,
@@ -38,7 +35,7 @@ const RecruitmentStatsTable: React.FC<RecruitmentStatsTableProps> = ({ data }) =
     'Conversion Rate',
   ];
 
-  const rows = Object.entries(data?.data ?? {}).map(([stratumId, stats]) => {
+  const rows = Object.entries(data ?? {}).map(([stratumId, stats]) => {
     console.log('Processing stratum:', stratumId, 'stats:', stats);
     return {
       id: stratumId,
