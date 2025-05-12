@@ -246,3 +246,70 @@ def get_active_studies(db_conf, now: datetime) -> list[str]:
 
     res = query(db_conf, q, [now, now])
     return [t[0] for t in res]
+
+
+def calculate_stat_sql(db_conf, window, study_id):
+    # Construct the SQL query
+    sql = """
+    SELECT 
+        stratum_id,
+        SUM(CAST(metrics->>'spend' AS FLOAT)) as spend,
+        SUM(CAST(metrics->>'reach' AS INTEGER)) as reach,
+        SUM(CAST(metrics->>'unique_clicks' AS INTEGER)) as unique_clicks,
+        SUM(CAST(metrics->>'impressions' AS INTEGER)) as impressions
+    FROM (
+        SELECT period_start, period_end, temp, data
+        FROM recruitment_data_events
+        WHERE study_id = %s
+        AND temp = FALSE
+
+        UNION
+
+        (SELECT period_start, period_end, temp, data
+        FROM recruitment_data_events
+        WHERE study_id = %s
+        AND temp = TRUE
+        ORDER BY period_end DESC
+        LIMIT 1)
+    ) AS combined_data
+    CROSS JOIN LATERAL jsonb_each(data) AS stratum(stratum_id, metrics)
+    WHERE 
+        period_start >= %s AND 
+        period_end <= %s
+    GROUP BY stratum_id
+    """
+
+    # Execute the query using the existing query function
+    results = query(
+        db_conf,
+        sql,
+        (study_id, study_id, window.start_date, window.until_date),
+        as_dict=True,
+    )
+
+    # Step 1: Cast all values to float/int in a dict comprehension
+    casted = {
+        row["stratum_id"]: {
+            "spend": float(row["spend"] or 0),
+            "reach": int(row["reach"] or 0),
+            "unique_clicks": int(row["unique_clicks"] or 0),
+            "impressions": int(row["impressions"] or 0),
+        }
+        for row in results
+    }
+
+    # Step 2: Calculate derived metrics in a new dict comprehension
+    out = {
+        stratum_id: {
+            **vals,
+            "cpm": vals["impressions"] / vals["spend"] if vals["spend"] > 0 else 0,
+            "frequency": (
+                vals["impressions"] / vals["reach"] if vals["reach"] > 0 else 0
+            ),
+            "unique_ctr": (
+                vals["unique_clicks"] / vals["reach"] if vals["reach"] > 0 else 0
+            ),
+        }
+        for stratum_id, vals in casted.items()
+    }
+    return out

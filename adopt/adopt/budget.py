@@ -11,7 +11,7 @@ from scipy.optimize import minimize
 from .clustering import _users_by_predicate, only_target_users
 from .facebook.state import DateRange
 from .study_conf import Budget, Stratum, StratumConf
-from .recruitment_data import calculate_stat, get_recruitment_data, RecruitmentData
+from .recruitment_data import calculate_stat_sql
 from .campaign_queries import DBConf, AdOptReport
 
 
@@ -299,7 +299,6 @@ def get_budget_lookup_with_db(
     Returns:
         Tuple of (budget_lookup, report) as returned by get_budget_lookup
     """
-    from .recruitment_data import calculate_stat_sql
 
     # Calculate strata stats using recruitment data
     strata_stats = calculate_strata_stats(
@@ -422,55 +421,3 @@ def add_incentive_to_price():
 # (some sort of model that handles missing data well, handles
 # time explicitly? Takes into account temp data? ) Then lose
 # opt window.
-
-
-def get_recruitment_stats(
-    df: Optional[pd.DataFrame],
-    strata: Sequence[Union[Stratum, StratumConf]],
-    window: DateRange,
-    spend: Dict[str, float],
-    lifetime_spend: Dict[str, float],
-    incentive_per_respondent: float,
-) -> Dict[str, Dict[str, Any]]:
-    """
-    Gather comprehensive statistics about recruitment progress per stratum.
-
-    Args:
-        df: DataFrame containing user response data
-        strata: List of strata being recruited for
-        window: DateRange to analyze statistics within
-        spend: Current spend per stratum
-        lifetime_spend: Total ad spend per stratum across all time
-        incentive_per_respondent: Incentive amount per respondent
-
-    Returns:
-        Dictionary mapping stratum IDs to their statistics, including:
-        - current_spend: Current spend in the window
-        - ad_spend: Total ad spend across all time
-        - respondents: Number of respondents
-        - price_per_respondent: Estimated price per respondent
-        - incentive_cost: Total cost of incentives for respondents
-    """
-    # Get basic stats
-    spend, respondents, price = get_stats(
-        df, strata, window, spend, incentive_per_respondent
-    )
-
-    # Initialize result dictionary
-    stats = {}
-
-    # Calculate stats per stratum
-    for stratum in strata:
-        stratum_id = stratum.id
-        stratum_respondents = respondents.get(stratum_id, 0)
-        stratum_incentive_cost = stratum_respondents * incentive_per_respondent
-
-        stats[stratum_id] = {
-            "current_spend": spend.get(stratum_id, 0),
-            "ad_spend": ad_spend.get(stratum_id, 0),
-            "respondents": stratum_respondents,
-            "price_per_respondent": price.get(stratum_id, 0),
-            "incentive_cost": stratum_incentive_cost,
-        }
-
-    return stats

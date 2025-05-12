@@ -1,0 +1,48 @@
+{
+  "actor_id": "758018254333043",
+  "degrees_of_freedom_spec": {
+    "creative_features_spec": {
+      "advantage_plus_creative": {
+        "enroll_status": "OPT_OUT"
+      },
+      "inline_comment": {
+        "enroll_status": "OPT_OUT"
+      },
+      "standard_enhancements": {
+        "enroll_status": "OPT_OUT"
+      },
+      "text_optimizations": {
+        "enroll_status": "OPT_OUT"
+      },
+      "video_auto_crop": {
+        "enroll_status": "OPT_OUT"
+      }
+    }
+  },
+  "effective_instagram_media_id": "18048389647574023",
+  "effective_instagram_story_id": "24534618302849706",
+  "effective_object_story_id": "758018254333043_404158578847704",
+  "id": "120203791281540019",
+  "instagram_actor_id": "9699261133482289",
+  "instagram_user_id": "17841461005855054",
+  "object_story_spec": {
+    "instagram_actor_id": "9699261133482289",
+    "page_id": "758018254333043",
+    "video_data": {
+      "call_to_action": {
+        "type": "MESSAGE_PAGE",
+        "value": {
+          "app_destination": "MESSENGER",
+          "link": "https://fb.com/messenger_doc/"
+        }
+      },
+      "image_hash": "1d12d6ab7a3502093a264d268c4bc221",
+      "image_url": "https://www.facebook.com/ads/image/?d=AQLjIx4OqfAnlRhdWqDnZ7Lbuh0t3lZxRn0e4p3jsMQEft8lXzIFsJ3X8nR7ycRSt90V_Ui3IlIT_dcJ3Hd7pEdnj1G3khHrGbmgC_JyukDuy-Nn1iNN_2Yuvybk0MGlbNm4Ag9T8xI722b4r5s1KpfI",
+      "message": "Wobenya mmr\u025b kakra? Nam simma mmi\u025bnsa nhwehw\u025bmu yi so na satra asetena abrab\u0254 w\u0254 Ghana",
+      "page_welcome_message": "{\"type\":\"VISUAL_EDITOR\",\"version\":2,\"landing_screen_type\":\"welcome_message\",\"media_type\":\"text\",\"text_format\":{\"customer_action_type\":\"ice_breakers\",\"message\":{\"ice_breakers\":[{\"title\":\"I want to learn more\"},{\"title\":\"Where is your organization located?\"},{\"title\":\"What are your hours?\"}],\"quick_replies\":[],\"text\":\"Hi {{user_first_name}}! Our team is here to help you find what you're looking for. How can we assist you?\"}},\"image_format\":{\"customer_action_type\":\"quick_replies\",\"message\":{\"attachment\":{\"type\":\"template\",\"payload\":{\"template_type\":\"generic\",\"elements\":[{\"title\":\"\",\"buttons\":[]}]}},\"quick_replies\":[{\"title\":\"I'd like to learn more\",\"content_type\":\"text\"}],\"text\":\"Hi {{user_first_name}}! Our team is here to help you find what you're looking for. How can we assist you?\"}},\"video_format\":{\"customer_action_type\":\"quick_replies\",\"message\":{\"attachment\":{\"type\":\"video\",\"payload\":{\"attachment_id\":\"\"}},\"quick_replies\":[{\"title\":\"I'd like to learn more\",\"content_type\":\"text\"}],\"text\":\"Hi {{user_first_name}}! Our team is here to help you find what you're looking for. How can we assist you?\"}},\"user_edit\":false,\"surface\":\"visual_editor_new\"}",
+      "title": "Wobenya data kr\u025bdit nam w\u2019adwene nkyr\u025b yi ho",
+      "video_id": "1382805785603893"
+    }
+  },
+  "thumbnail_url": "https://scontent-lga3-1.xx.fbcdn.net/v/t15.13418-10/363478701_831314625311849_1072418905051711761_n.jpg?_nc_cat=108&ccb=1-7&_nc_ohc=W4qGCqaHEOoAX88ADp8&_nc_ht=scontent-lga3-1.xx&edm=AAT1rw8EAAAA&stp=c0.5000x0.5000f_dst-emg0_p64x64_q75&ur=1a7029&_nc_sid=58080a&oh=00_AfB4U_JmwjcZ1ZTM65-8xgAayHn9z9SDKbnNNOjh7uHGow&oe=65AF26C2"
+}

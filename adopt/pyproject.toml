@@ -9,7 +9,7 @@ python = ">=3.9,<3.11"
 PyYAML = "^6.0.1"
 backoff = "^1.10.0"
 environs = "^9.3.2"
-facebook-business = "^20.0.0"
+facebook-business = "v21"
 numpy = "^1.22.1"
 pandas = "1.5.3"
 pystache = "^0.6.0"
@@ -42,6 +42,7 @@ pyls-isort = "^0.2.2"
 pylsp-rope = "^0.1.11"
 types-python-jose = "^3.3.4.8"
 pandas-stubs = "^2.1.4.231218"
+pytest-asyncio = "<0.26.0"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]

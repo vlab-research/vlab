@@ -2,6 +2,7 @@ import uuid
 from datetime import date, datetime, timedelta
 from test.dbfix import cnf, _reset_db
 from unittest.mock import MagicMock, patch
+import json
 
 from .campaign_queries import create_campaign_confs
 
@@ -14,7 +15,6 @@ from .recruitment_data import (
     TimePeriod,
     _get_days,
     _load_recruitment_data,
-    calculate_stat,
     day_end,
     day_start,
     get_active_studies,
@@ -22,6 +22,7 @@ from .recruitment_data import (
     get_recruitment_data,
     insert_recruitment_data_events,
     today,
+    calculate_stat_sql,
 )
 
 
@@ -358,74 +359,209 @@ def _rd(start, end, temp, data):
     return RecruitmentData(TimePeriod(start, end), temp, data)
 
 
-def test_calculate_stat_sums_all_spend_for_multiple_campaigns():
-    data = [
-        _rd(
+def test_calculate_stat_sql_returns_empty_dict_for_no_data():
+    _reset_db()
+    _, study_id = create_study("foo")
+    window = DateRange(_dt(1, 0), _dt(2, 0))
+    res = calculate_stat_sql(cnf, window, study_id)
+    assert res == {}
+
+
+def test_calculate_stat_sql_calculates_metrics_correctly():
+    _reset_db()
+    _, study_id = create_study("foo")
+
+    # Insert test data
+    to_insert = [
+        (
+            study_id,
+            "facebook",
+            _dt(1, 0),
             _dt(1, 12),
-            day_end(_dt(1, 12)),
             False,
-            {
-                "campaign_a": {"a": {"spend": "1.1"}, "b": {"spend": "0.2"}},
-                "campaign_b": {"a": {"spend": "2.0"}, "b": {"spend": "3.0"}},
-            },
+            json.dumps(
+                {
+                    "stratum1": {
+                        "spend": "100.0",
+                        "reach": "1000",
+                        "unique_clicks": "50",
+                        "impressions": "2000",
+                    },
+                    "stratum2": {
+                        "spend": "200.0",
+                        "reach": "2000",
+                        "unique_clicks": "100",
+                        "impressions": "4000",
+                    },
+                }
+            ),
         ),
-        _rd(
+        (
+            study_id,
+            "facebook",
+            _dt(1, 12),
             _dt(2, 0),
-            day_end(_dt(2, 0)),
             False,
-            {
-                "campaign_a": {"a": {"spend": "2.5"}, "b": {"spend": "0.6"}},
-                "campaign_b": {"a": {"spend": "1.0"}, "b": {"spend": "1.2"}},
-            },
+            json.dumps(
+                {
+                    "stratum1": {
+                        "spend": "150.0",
+                        "reach": "1500",
+                        "unique_clicks": "75",
+                        "impressions": "3000",
+                    },
+                    "stratum2": {
+                        "spend": "250.0",
+                        "reach": "2500",
+                        "unique_clicks": "125",
+                        "impressions": "5000",
+                    },
+                }
+            ),
         ),
     ]
 
-    res = calculate_stat(data, "spend")
-    assert res["a"] == 6.6
-    assert res["b"] == 5.0
+    insert_data(to_insert)
+
+    window = DateRange(_dt(1, 0), _dt(2, 0))
+    res = calculate_stat_sql(cnf, window, study_id)
+
+    # Verify results
+    assert "stratum1" in res
+    assert "stratum2" in res
+
+    # Check stratum1 metrics
+    assert res["stratum1"]["spend"] == 250.0
+    assert res["stratum1"]["reach"] == 2500
+    assert res["stratum1"]["unique_clicks"] == 125
+    assert res["stratum1"]["impressions"] == 5000
+    assert res["stratum1"]["cpm"] == 20.0  # 5000 impressions / 250 spend
+    assert res["stratum1"]["frequency"] == 2.0  # 5000 impressions / 2500 reach
+    assert res["stratum1"]["unique_ctr"] == 0.05  # 125 clicks / 2500 reach
+
+    # Check stratum2 metrics
+    assert res["stratum2"]["spend"] == 450.0
+    assert res["stratum2"]["reach"] == 4500
+    assert res["stratum2"]["unique_clicks"] == 225
+    assert res["stratum2"]["impressions"] == 9000
+    assert res["stratum2"]["cpm"] == 20.0  # 9000 impressions / 450 spend
+    assert res["stratum2"]["frequency"] == 2.0  # 9000 impressions / 4500 reach
+    assert res["stratum2"]["unique_ctr"] == 0.05  # 225 clicks / 4500 reach
 
 
-def test_calculate_stat_calculates_all_spend_within_window():
-    data = [
-        _rd(
+def test_calculate_stat_sql_handles_missing_data():
+    _reset_db()
+    _, study_id = create_study("foo")
+
+    # Insert test data with some missing values
+    to_insert = [
+        (
+            study_id,
+            "facebook",
+            _dt(1, 0),
             _dt(1, 12),
-            day_end(_dt(1, 12)),
             False,
-            {"campaign_a": {"a": {"spend": "1.1"}, "b": {"spend": "0.2"}}},
+            json.dumps(
+                {
+                    "stratum1": {
+                        "spend": "100.0",
+                        "reach": "1000",
+                        "unique_clicks": "50",
+                        "impressions": "2000",
+                    },
+                    "stratum2": {
+                        "spend": "200.0",
+                        "reach": "2000",
+                        "unique_clicks": None,
+                        "impressions": "4000",
+                    },
+                }
+            ),
+        )
+    ]
+
+    insert_data(to_insert)
+
+    window = DateRange(_dt(1, 0), _dt(2, 0))
+    res = calculate_stat_sql(cnf, window, study_id)
+
+    # Verify results
+    assert "stratum1" in res
+    assert "stratum2" in res
+
+    # Check stratum1 metrics (should be normal)
+    assert res["stratum1"]["spend"] == 100.0
+    assert res["stratum1"]["reach"] == 1000
+    assert res["stratum1"]["unique_clicks"] == 50
+    assert res["stratum1"]["impressions"] == 2000
+
+    # Check stratum2 metrics (should handle missing unique_clicks)
+    assert res["stratum2"]["spend"] == 200.0
+    assert res["stratum2"]["reach"] == 2000
+    assert res["stratum2"]["unique_clicks"] == 0  # Should default to 0 for missing data
+    assert res["stratum2"]["impressions"] == 4000
+
+
+def test_calculate_stat_sql_respects_date_window():
+    _reset_db()
+    _, study_id = create_study("foo")
+
+    # Insert test data across different days
+    to_insert = [
+        (
+            study_id,
+            "facebook",
+            _dt(1, 0),
+            _dt(1, 12),
+            False,
+            json.dumps(
+                {
+                    "stratum1": {
+                        "spend": "100.0",
+                        "reach": "1000",
+                        "unique_clicks": "50",
+                        "impressions": "2000",
+                    }
+                }
+            ),
         ),
-        _rd(
+        (
+            study_id,
+            "facebook",
             _dt(2, 0),
-            day_end(_dt(2, 0)),
+            _dt(2, 12),
             False,
-            {"campaign_a": {"a": {"spend": "2.5"}, "b": {"spend": "0.6"}}},
+            json.dumps(
+                {
+                    "stratum1": {
+                        "spend": "200.0",
+                        "reach": "2000",
+                        "unique_clicks": "100",
+                        "impressions": "4000",
+                    }
+                }
+            ),
         ),
     ]
 
-    window = DateRange(_dt(2, 0), _dt(3, 0))
-    res = calculate_stat(data, "spend", window)
+    insert_data(to_insert)
 
-    assert res["a"] == 2.5
-    assert res["b"] == 0.6
+    # Test window that only includes first day
+    window = DateRange(_dt(1, 0), _dt(1, 23))
+    res = calculate_stat_sql(cnf, window, study_id)
 
+    assert "stratum1" in res
+    assert res["stratum1"]["spend"] == 100.0
+    assert res["stratum1"]["reach"] == 1000
+    assert res["stratum1"]["unique_clicks"] == 50
+    assert res["stratum1"]["impressions"] == 2000
 
-def test_calculate_stat_works_with_missing_data():
-    data = [
-        _rd(
-            _dt(1, 12),
-            day_end(_dt(1, 12)),
-            False,
-            {"campaign_a": {"a": {"spend": "1.1"}, "b": {"spend": "0.2"}}},
-        ),
-        _rd(
-            _dt(2, 0),
-            day_end(_dt(2, 0)),
-            False,
-            {"campaign_a": {"a": {"spend": "2.5"}, "b": None}},
-        ),
-    ]
+    # Test window that includes both days
+    window = DateRange(_dt(1, 0), _dt(2, 23))
+    res = calculate_stat_sql(cnf, window, study_id)
 
-    window = DateRange(_dt(2, 0), _dt(3, 0))
-    res = calculate_stat(data, "spend", window)
-
-    assert res["a"] == 2.5
-    assert res["b"] == 0.0
+    assert "stratum1" in res
+    assert res["stratum1"]["spend"] == 300.0
+    assert res["stratum1"]["reach"] == 3000
+    assert res["stratum1"]["unique_clicks"] == 150
+    assert res["stratum1"]["impressions"] == 6000

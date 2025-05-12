@@ -129,6 +129,7 @@ def _get_insights(adset, window) -> Optional[dict]:
         "cpm",
         "cpc",
         "unique_clicks",
+        "impressions",
         "reach",
         "spend",
         "actions",

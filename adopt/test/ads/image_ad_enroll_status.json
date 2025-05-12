@@ -1,0 +1,68 @@
+{
+  "actor_id": "1855355231229529",
+  "asset_feed_spec": {
+    "bodies": [
+      {
+        "text": "Take a 3-minute survey and win a gift card!"
+      },
+      {
+        "text": "Win a gift card! Take our quick survey now."
+      }
+    ],
+    "optimization_type": "DEGREES_OF_FREEDOM",
+    "titles": [
+      {
+        "text": "Click to Start Survey"
+      }
+    ]
+  },
+  "degrees_of_freedom_spec": {
+    "creative_features_spec": {
+      "advantage_plus_creative": {
+        "enroll_status": "OPT_OUT"
+      },
+      "cv_transformation": {
+        "enroll_status": "OPT_OUT"
+      },
+      "image_enhancement": {
+        "enroll_status": "OPT_IN"
+      },
+      "image_templates": {
+        "enroll_status": "OPT_OUT"
+      },
+      "image_touchups": {
+        "enroll_status": "OPT_OUT"
+      },
+      "image_uncrop": {
+        "enroll_status": "OPT_OUT"
+      },
+      "inline_comment": {
+        "enroll_status": "OPT_IN"
+      },
+      "standard_enhancements": {
+        "enroll_status": "OPT_OUT"
+      },
+      "text_optimizations": {
+        "enroll_status": "OPT_OUT"
+      }
+    }
+  },
+  "effective_object_story_id": "1855355231229529_963975661843408",
+  "id": "120204462502280374",
+  "name": "Click to Start Survey 2024-01-23-8b64c1c10ef3915d80baa2b8e9a9dd70",
+  "object_story_spec": {
+    "link_data": {
+      "call_to_action": {
+        "type": "MESSAGE_PAGE",
+        "value": {
+          "app_destination": "MESSENGER"
+        }
+      },
+      "image_hash": "fe6979238d15f1a037a9afd46c870f7f",
+      "link": "https://fb.com/messenger_doc/",
+      "page_welcome_message": "{\"type\":\"VISUAL_EDITOR\",\"version\":2,\"landing_screen_type\":\"welcome_message\",\"media_type\":\"text\",\"text_format\":{\"customer_action_type\":\"ice_breakers\",\"message\":{\"ice_breakers\":[{\"title\":\"Can I learn more about your business?\"},{\"title\":\"Can you tell me more about your ad?\"},{\"title\":\"Is anyone available to chat?\"}],\"quick_replies\":[],\"text\":\"Hi {{user_first_name}}! Please let us know how we can help you.\"}},\"image_format\":{\"customer_action_type\":\"quick_replies\",\"message\":{\"attachment\":{\"type\":\"template\",\"payload\":{\"template_type\":\"generic\",\"elements\":[{\"title\":\"\",\"buttons\":[]}]}},\"quick_replies\":[{\"title\":\"I'd like to learn more\",\"content_type\":\"text\"}],\"text\":\"Hi {{user_first_name}}! Please let us know how we can help you.\"}},\"video_format\":{\"customer_action_type\":\"quick_replies\",\"message\":{\"attachment\":{\"type\":\"video\",\"payload\":{\"attachment_id\":\"\"}},\"quick_replies\":[{\"title\":\"I'd like to learn more\",\"content_type\":\"text\"}],\"text\":\"Hi {{user_first_name}}! Please let us know how we can help you.\"}},\"user_edit\":false,\"surface\":\"visual_editor_new\"}"
+    },
+    "page_id": "1855355231229529"
+  },
+  "thumbnail_url": "https://external-lga3-2.xx.fbcdn.net/emg1/v/t13/6058030488699202762?url=https%3A%2F%2Fwww.facebook.com%2Fads%2Fimage%2F%3Fd%3DAQIXxgpSlq4N8lyLEIhui0p7a0VgfGmanMZIhG5peTMC55L4oBdX6KvTQYGVng2VV8oRckre7kLf3XB3td7CATH88cDhXbpS_Oqy6f5FdGnyW3uN004h829fNzjBmofA4AHOstjCy681mplwGS6ogGgm&fb_obo=1&utld=facebook.com&stp=c0.5000x0.5000f_dst-emg0_p64x64_q75&ccb=13-1&oh=06_AbGJzxvQnOlBtBSlPBCOHc3KtFaspOPsq20YSh86Cj904g&oe=65B2137D&_nc_sid=58080a"
+}
