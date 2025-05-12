@@ -34,7 +34,7 @@ const RecruitmentStatsTable: React.FC<RecruitmentStatsTableProps> = ({ data }) =
     'Conversion Rate',
   ];
 
-  const rows = Object.entries(data.data).map(([stratumId, stats]) => {
+  const rows = Object.entries(data?.data ?? {}).map(([stratumId, stats]) => {
     console.log('Processing stratum:', stratumId, 'stats:', stats);
     return {
       id: stratumId,
