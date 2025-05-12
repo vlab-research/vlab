@@ -8,6 +8,7 @@ import RecruitmentStatsTable from './components/RecruitmentStatsTable';
 import Tabs from './components/Tabs';
 import PageLayout from '../../components/PageLayout';
 import ErrorPlaceholder from '../../components/ErrorPlaceholder';
+import Table, { TableSkeleton } from './components/Table';
 
 /**
  * TODO: Implement proper scroll restoration behaviour
@@ -73,7 +74,11 @@ const StudyPage = () => {
           {selectedTab === 'participants' ? (
             <ParticipantsAcquiredPerSegmentTable />
           ) : (
-            <RecruitmentStatsTable data={study.recruitmentStats} />
+            study.recruitmentStatsIsLoading ? (
+              <TableSkeleton numRows={5} numColumns={12} testId="recruitment-stats-table-skeleton" />
+            ) : (
+              <RecruitmentStatsTable data={study.recruitmentStats} />
+            )
           )}
         </div>
       </React.Fragment>
