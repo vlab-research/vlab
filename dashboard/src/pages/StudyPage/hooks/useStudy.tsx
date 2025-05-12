@@ -104,7 +104,9 @@ const useStudyRecruitmentStatsQuery = (slug: string) => {
         console.error('Error fetching recruitment stats:', error);
       },
       onSuccess: (data) => {
-        console.log('Recruitment stats data:', data);
+        console.log('Recruitment stats raw data:', data);
+        console.log('Recruitment stats data.data:', data?.data);
+        console.log('Recruitment stats data.data.data:', data?.data?.data);
       },
     }
   );

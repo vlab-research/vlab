@@ -13,7 +13,11 @@ interface RecruitmentStatsTableProps {
 }
 
 const RecruitmentStatsTable: React.FC<RecruitmentStatsTableProps> = ({ data }) => {
-  console.log('RecruitmentStatsTable data:', data);
+  console.log('RecruitmentStatsTable full data:', data);
+  console.log('RecruitmentStatsTable data.data:', data?.data);
+  console.log('RecruitmentStatsTable data.data type:', typeof data?.data);
+  console.log('RecruitmentStatsTable data.data keys:', Object.keys(data?.data ?? {}));
+  
   const [selectedColumn, setSelectedColumn] = useState({
     index: 0,
     hasDescendingOrder: false,
