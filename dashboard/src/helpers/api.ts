@@ -630,7 +630,6 @@ const fetchStudyRecruitmentStats = ({
     { 
       accessToken,
       baseURL: process.env.REACT_APP_CONF_SERVER_URL,
-      timeout: 30000, // 30 second timeout
     }
   );
 
