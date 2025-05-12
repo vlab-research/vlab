@@ -96,6 +96,13 @@ const useStudyRecruitmentStatsQuery = (slug: string) => {
         if (error?.status === 404) return false;
         return failureCount < 3;
       },
+      // Add longer stale time and cache time
+      staleTime: 5 * 60 * 1000, // 5 minutes
+      cacheTime: 10 * 60 * 1000, // 10 minutes
+      // Add error handling
+      onError: (error: ApiError) => {
+        console.error('Error fetching recruitment stats:', error);
+      },
     }
   );
 };

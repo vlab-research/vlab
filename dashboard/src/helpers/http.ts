@@ -5,10 +5,10 @@
 export const fetchWithTimeout = async (
   path: string,
   {
-    timeout,
+    timeout = 30000, // 30 seconds default timeout
     baseURL,
     ...requestInit
-  }: { timeout: number; baseURL?: string } & RequestInit
+  }: { timeout?: number; baseURL?: string } & RequestInit
 ) => {
   const localHost = process.env.REACT_APP_SERVER_URL;
   const controller = new AbortController();
