@@ -186,7 +186,9 @@ export interface UseStudyReturn {
   progressOverTime: StudyProgressResource[];
   currentSegmentsProgress: StudySegmentProgressResource[];
   recruitmentStats: {
-    [stratumId: string]: RecruitmentStatsRow;
+    data: {
+      [stratumId: string]: RecruitmentStatsRow;
+    };
   };
   recruitmentStatsIsLoading: boolean;
   isLoading: boolean;

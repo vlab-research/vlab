@@ -6,11 +6,14 @@ import { DownloadIcon } from '@heroicons/react/solid';
 
 interface RecruitmentStatsTableProps {
   data: {
-    [stratumId: string]: RecruitmentStatsRow;
+    data: {
+      [stratumId: string]: RecruitmentStatsRow;
+    };
   };
 }
 
 const RecruitmentStatsTable: React.FC<RecruitmentStatsTableProps> = ({ data }) => {
+  console.log('RecruitmentStatsTable data:', data);
   const [selectedColumn, setSelectedColumn] = useState({
     index: 0,
     hasDescendingOrder: false,
@@ -31,23 +34,26 @@ const RecruitmentStatsTable: React.FC<RecruitmentStatsTableProps> = ({ data }) =
     'Conversion Rate',
   ];
 
-  const rows = Object.entries(data).map(([stratumId, stats]) => ({
-    id: stratumId,
-    values: [
-      stratumId,
-      formatNumber(stats.frequency),
-      formatNumber(stats.reach),
-      formatCurrency(stats.cpm),
-      formatNumber(stats.unique_clicks),
-      formatPercentage(stats.unique_ctr),
-      formatNumber(stats.respondents),
-      formatCurrency(stats.price_per_respondent),
-      formatCurrency(stats.spend),
-      formatCurrency(stats.incentive_cost),
-      formatCurrency(stats.total_cost),
-      formatPercentage(stats.conversion_rate),
-    ],
-  }));
+  const rows = Object.entries(data.data).map(([stratumId, stats]) => {
+    console.log('Processing stratum:', stratumId, 'stats:', stats);
+    return {
+      id: stratumId,
+      values: [
+        stratumId,
+        formatNumber(stats.frequency),
+        formatNumber(stats.reach),
+        formatCurrency(stats.cpm),
+        formatNumber(stats.unique_clicks),
+        formatPercentage(stats.unique_ctr),
+        formatNumber(stats.respondents),
+        formatCurrency(stats.price_per_respondent),
+        formatCurrency(stats.spend),
+        formatCurrency(stats.incentive_cost),
+        formatCurrency(stats.total_cost),
+        formatPercentage(stats.conversion_rate),
+      ],
+    };
+  });
 
   const pagination = {
     from: 1,
