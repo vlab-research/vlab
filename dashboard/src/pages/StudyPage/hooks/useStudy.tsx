@@ -103,6 +103,9 @@ const useStudyRecruitmentStatsQuery = (slug: string) => {
       onError: (error: ApiError) => {
         console.error('Error fetching recruitment stats:', error);
       },
+      onSuccess: (data) => {
+        console.log('Recruitment stats data:', data);
+      },
     }
   );
 };
