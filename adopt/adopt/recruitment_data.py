@@ -216,21 +216,24 @@ def calculate_stat(
             and d.time_period.end <= window.until_date
         ]
 
-    daily_stats: dict[str, Any] = {}
-
+    # Initialize sums for all strata with 0.0
+    stratum_sums: dict[str, float] = {}
     for d in data:
         for campaign, insights in d.data.items():
-            for k, v in insights.items():
-                if k in daily_stats:
-                    daily_stats[k].append(v)
-                else:
-                    daily_stats[k] = [v]
+            for stratum_id in insights.keys():
+                if stratum_id not in stratum_sums:
+                    stratum_sums[stratum_id] = 0.0
 
-    stat = {
-        k: sum([float(x.get(stat, 0.0) if x else 0.0) for x in v])
-        for k, v in daily_stats.items()
-    }
-    return stat
+    # Sum incrementally
+    for d in data:
+        for campaign, insights in d.data.items():
+            for stratum_id, metrics in insights.items():
+                if metrics is None:
+                    continue
+                value = float(metrics.get(stat, 0.0))
+                stratum_sums[stratum_id] += value
+
+    return stratum_sums
 
 
 def get_active_studies(db_conf, now: datetime) -> list[str]:
