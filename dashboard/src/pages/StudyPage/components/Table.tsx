@@ -102,12 +102,25 @@ export const TableSkeleton = ({
       </tr>
     </thead>
     <tbody className="bg-white divide-y divide-gray-200">
-      {Array.from({ length: numRows }, (_, index) => (
-        <tr key={index}>
-          <TableCell first>&nbsp;</TableCell>
-          <TableCell>&nbsp;</TableCell>
-          <TableCell>&nbsp;</TableCell>
-          <TableCell>&nbsp;</TableCell>
+      {Array.from({ length: numRows }, (_, rowIndex) => (
+        <tr key={rowIndex}>
+          {Array.from({ length: numColumns }, (_, colIndex) => (
+            <td
+              key={colIndex}
+              className={classNames(
+                'px-1 sm:px-6 py-4 text-sm',
+                colIndex === 0 ? 'font-medium text-gray-900' : 'whitespace-nowrap text-gray-500'
+              )}
+            >
+              <div
+                className="animate-pulse bg-gray-200 rounded h-4"
+                style={{
+                  animationFillMode: 'backwards',
+                  animationDelay: `${150 * (rowIndex * numColumns + colIndex)}ms`,
+                }}
+              />
+            </td>
+          ))}
         </tr>
       ))}
     </tbody>
