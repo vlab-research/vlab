@@ -378,7 +378,8 @@ def calculate_strata_stats(
         stat_values = calculate_stat(rd, stat_name, window)
         for stratum_id, value in stat_values.items():
             if stratum_id not in stats:
-                raise ValueError(f"Stratum {stratum_id} not found in stats")
+                logging.warning(f"Stratum {stratum_id} not found in stats, skipping")
+                continue
             stats[stratum_id][stat_name] = value
 
     # Get respondent counts if we have response data
@@ -387,7 +388,8 @@ def calculate_strata_stats(
         respondents = _users_per_cluster(df)
         for stratum_id, count in respondents.items():
             if stratum_id not in stats:
-                raise ValueError(f"Stratum {stratum_id} not found in stats")
+                logging.warning(f"Stratum {stratum_id} not found in stats, skipping")
+                continue
             stats[stratum_id]["respondents"] = count
 
     # Calculate prices using calc_price

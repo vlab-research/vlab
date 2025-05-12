@@ -687,8 +687,14 @@ def test_calculate_strata_stats_invalid_stratum(cnf, df):
     }
     rd = make_recruitment_data_from_dict(rd_dict, START_DATE)
 
-    with pytest.raises(ValueError, match="Stratum invalid_stratum not found in stats"):
-        calculate_strata_stats(df, cnf, window, rd, incentive_per_respondent=10.0)
+    # Test that invalid strata are skipped and valid strata remain unchanged
+    stats = calculate_strata_stats(df, cnf, window, rd, incentive_per_respondent=10.0)
+
+    # Check that all valid strata are present with default values
+    assert set(stats.keys()) == {"foo", "bar", "baz"}
+    assert stats["foo"]["spend"] == 0.0
+    assert stats["bar"]["spend"] == 0.0
+    assert stats["baz"]["spend"] == 0.0
 
 
 def test_calculate_strata_stats_zero_values(cnf, df):
