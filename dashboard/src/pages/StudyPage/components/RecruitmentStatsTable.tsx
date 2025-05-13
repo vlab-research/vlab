@@ -41,13 +41,13 @@ const RecruitmentStatsTable: React.FC<RecruitmentStatsTableProps> = ({ data }) =
       formatNumber(stats.reach),
       formatCurrency(stats.cpm),
       formatNumber(stats.unique_clicks),
-      formatPercentage(stats.unique_ctr),
+      formatPercentage(stats.unique_ctr * 100),
       formatNumber(stats.respondents),
       formatCurrency(stats.price_per_respondent),
       formatCurrency(stats.spend),
       formatCurrency(stats.incentive_cost),
       formatCurrency(stats.total_cost),
-      formatPercentage(stats.conversion_rate),
+      formatPercentage(stats.conversion_rate * 100),
     ],
   }));
 
