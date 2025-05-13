@@ -4,7 +4,7 @@ import uuid
 from datetime import datetime
 from test.dbfix import _reset_db
 from test.dbfix import cnf as db_conf
-from unittest.mock import patch
+from unittest.mock import patch, ANY
 import pandas as pd
 from fastapi.testclient import TestClient
 
@@ -333,19 +333,21 @@ def test_api_key_creation_and_use(verify_mock):
 
 
 @patch("adopt.budget.calculate_strata_stats")
-@patch("adopt.server.server.fetch_current_data")
+@patch("adopt.server.server.get_latest_adopt_report")
 @patch("adopt.recruitment_data.get_recruitment_data")
 @patch("adopt.server.auth.verify_token")
 def test_get_recruitment_stats_returns_data(
     verify_mock,
     get_recruitment_data_mock,
-    fetch_current_data_mock,
+    get_latest_adopt_report_mock,
     calculate_strata_stats_mock,
 ):
     _reset_db()
     verify_mock.return_value = {"sub": user_id}
     get_recruitment_data_mock.return_value = []
-    fetch_current_data_mock.return_value = pd.DataFrame()
+    get_latest_adopt_report_mock.return_value = {
+        "stratum1": 100
+    }  # Mock respondents data
     mock_stats = {
         "stratum1": {
             "spend": 1000.0,
@@ -406,6 +408,16 @@ def test_get_recruitment_stats_returns_data(
     res_data = res.json()
     assert "data" in res_data
     assert res_data["data"] == mock_stats
+
+    # Verify the mocks were called correctly
+    get_latest_adopt_report_mock.assert_called_once()
+    calculate_strata_stats_mock.assert_called_once_with(
+        respondents_dict={"stratum1": 100},
+        strata=[stratum],
+        window=ANY,  # We don't care about the exact window value
+        recruitment_stats=ANY,  # We don't care about the exact recruitment stats
+        incentive_per_respondent=0,
+    )
 
 
 @patch("adopt.server.auth.verify_token")

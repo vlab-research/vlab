@@ -2,11 +2,14 @@ import logging
 from typing import Annotated, Any, Optional, Sequence
 from datetime import datetime
 from environs import Env
-from fastapi import Depends, FastAPI, HTTPException, status
+from fastapi import Depends, FastAPI, HTTPException, status, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import BaseModel
 import pandas as pd
+import asyncio
+from functools import wraps
+import time
 
 from ..responses import get_inference_data
 
@@ -38,6 +41,7 @@ from .db import (
     get_study_conf,
     get_study_id,
     insert_credential,
+    query,
 )
 
 app = FastAPI()
@@ -275,20 +279,38 @@ def run_single_instruction(
     return OptimizeReport(**report)
 
 
+def async_timeout(seconds: int = 300):
+    def decorator(func):
+        @wraps(func)
+        async def wrapper(*args, **kwargs):
+            try:
+                return await asyncio.wait_for(func(*args, **kwargs), timeout=seconds)
+            except asyncio.TimeoutError:
+                raise HTTPException(
+                    status_code=status.HTTP_504_GATEWAY_TIMEOUT,
+                    detail=f"Operation timed out after {seconds} seconds",
+                )
+
+        return wrapper
+
+    return decorator
+
+
 @app.get("/{org_id}/optimize/{slug}")
+@async_timeout(300)  # 5 minute timeout
 async def optimize_study(
     org_id: str,
     slug: str,
     user: Annotated[User, Depends(get_current_user)],
 ) -> OptimizeResult:
     try:
-        instructions = run_study_opt(user.user_id, org_id, slug)
-
+        instructions = await asyncio.to_thread(
+            run_study_opt, user.user_id, org_id, slug
+        )
     except BaseException as e:
+        logging.error(f"Error in optimize_study: {str(e)}")
         raise HTTPException(status_code=500, detail=f"{e}")
 
-    # quick hack to deal with namedtuple.
-    # Should replace w/ pydantic model
     res = OptimizeResult(
         data=[OptimizeInstruction(**i._asdict()) for i in instructions]
     )
@@ -320,6 +342,7 @@ async def fetch_current_data(
 
 
 @app.get("/{org_id}/optimize/{slug}/current-data")
+@async_timeout(300)  # 5 minute timeout
 async def get_current_data(
     org_id: str,
     slug: str,
@@ -331,7 +354,6 @@ async def get_current_data(
         if df is None:
             return CurrentDataResult(data=[])
 
-        # Convert DataFrame rows to CurrentDataRow objects
         current_data = [
             CurrentDataRow(
                 user_id=row.user_id,
@@ -344,6 +366,7 @@ async def get_current_data(
 
         return CurrentDataResult(data=current_data)
     except BaseException as e:
+        logging.error(f"Error in get_current_data: {str(e)}")
         raise HTTPException(status_code=500, detail=f"{e}")
 
 
@@ -451,6 +474,43 @@ class RecruitmentStatsResult(BaseModel):
         }
 
 
+def get_latest_adopt_report(study_id: str) -> dict[str, int]:
+    """Get the latest adopt report for a study and extract current participants.
+
+    Args:
+        study_id: The ID of the study
+
+    Returns:
+        A dictionary mapping stratum IDs to number of respondents
+    """
+    q = """
+    SELECT details
+    FROM adopt_reports
+    WHERE study_id = %s
+    AND report_type = 'FACEBOOK_ADOPT'
+    ORDER BY created DESC
+    LIMIT 1
+    """
+
+    res = query(db_cnf, q, (study_id,), as_dict=True)
+    try:
+        report = list(res)[0]["details"]
+        # Extract current_participants from each stratum, only including those that have the data
+        return {
+            stratum_id: int(data["current_participants"])
+            for stratum_id, data in report.items()
+            if "current_participants" in data
+        }
+    except IndexError:
+        raise HTTPException(
+            status_code=404, detail=f"No adopt report found for study {study_id}"
+        )
+    except KeyError:
+        raise HTTPException(
+            status_code=500, detail=f"Invalid adopt report format for study {study_id}"
+        )
+
+
 @app.get(
     "/{org_id}/studies/{slug}/recruitment-stats",
     response_model=RecruitmentStatsResult,
@@ -459,8 +519,10 @@ class RecruitmentStatsResult(BaseModel):
         401: {"description": "Unauthorized - Invalid or missing authentication token"},
         404: {"description": "Study not found"},
         500: {"description": "Internal server error"},
+        504: {"description": "Gateway timeout"},
     },
 )
+@async_timeout(300)  # 5 minute timeout
 async def get_recruitment_stats(
     org_id: str,
     slug: str,
@@ -490,7 +552,9 @@ async def get_recruitment_stats(
             raise HTTPException(status_code=404, detail=f"Study not found: {slug}")
 
         # Get study configuration
-        study_confs = get_all_study_confs(user.user_id, org_id, slug)
+        study_confs = await asyncio.to_thread(
+            get_all_study_confs, user.user_id, org_id, slug
+        )
         if not study_confs:
             raise HTTPException(
                 status_code=404, detail=f"Study configuration not found: {slug}"
@@ -503,8 +567,8 @@ async def get_recruitment_stats(
                 status_code=404, detail=f"No strata found for study: {slug}"
             )
 
-        # Get current data if available
-        df = await fetch_current_data(user.user_id, org_id, slug)
+        # Get current data from adopt reports instead of fetch_current_data
+        respondents_dict = await asyncio.to_thread(get_latest_adopt_report, study_id)
 
         # Calculate stats using the full date range
         from ..budget import calculate_strata_stats
@@ -513,10 +577,12 @@ async def get_recruitment_stats(
         from datetime import datetime
 
         window = DateRange(datetime.min, datetime.max)
-        recruitment_stats = calculate_stat_sql(db_cnf, window, study_id)
+        recruitment_stats = await asyncio.to_thread(
+            calculate_stat_sql, db_cnf, window, study_id
+        )
 
         stats = calculate_strata_stats(
-            df=df,
+            respondents_dict=respondents_dict,  # Pass the respondents dict
             strata=strata,
             window=window,
             recruitment_stats=recruitment_stats,

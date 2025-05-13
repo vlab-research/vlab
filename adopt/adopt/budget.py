@@ -273,58 +273,8 @@ def get_budget_lookup(
     return budget, report
 
 
-def get_budget_lookup_with_db(
-    df: Optional[pd.DataFrame],
-    strata: Sequence[Union[Stratum, StratumConf]],
-    max_budget: float,
-    incentive_per_respondent: float,
-    max_sample_size: int,
-    window: DateRange,
-    db_conf: DBConf,
-    study_id: str,
-) -> Tuple[Optional[Budget], Optional[AdOptReport]]:
-    """
-    Wrapper around get_budget_lookup that calculates spend statistics from recruitment data.
-
-    Args:
-        df: DataFrame containing user response data
-        strata: List of strata being recruited for
-        max_budget: Maximum budget for the study
-        incentive_per_respondent: Incentive amount per respondent
-        max_sample_size: Maximum sample size for the study
-        window: DateRange to analyze statistics within
-        db_conf: Database configuration
-        study_id: ID of the study
-
-    Returns:
-        Tuple of (budget_lookup, report) as returned by get_budget_lookup
-    """
-
-    # Calculate strata stats using recruitment data
-    strata_stats = calculate_strata_stats(
-        df,
-        strata,
-        window,
-        calculate_stat_sql(db_conf, window, study_id),
-        incentive_per_respondent,
-    )
-
-    # Calculate lifetime spend (no window parameter means all time)
-    lifetime_spend = calculate_stat_sql(db_conf, None, study_id)
-
-    return get_budget_lookup(
-        strata,
-        max_budget,
-        incentive_per_respondent,
-        max_sample_size,
-        window,
-        strata_stats,
-        lifetime_spend,
-    )
-
-
 def calculate_strata_stats(
-    df: Optional[pd.DataFrame],
+    respondents_dict: Optional[Dict[str, int]],
     strata: Sequence[Union[Stratum, StratumConf]],
     window: Optional[DateRange],
     recruitment_stats: Dict[str, Dict[str, Any]],
@@ -333,7 +283,7 @@ def calculate_strata_stats(
     """
     Calculate all statistics for each stratum in one place, with proper cleanup and initialization.
     Args:
-        df: DataFrame containing user response data
+        respondents_dict: Dictionary mapping stratum IDs to number of respondents, or None
         strata: List of strata being recruited for
         window: Optional DateRange to analyze statistics within
         recruitment_stats: Dictionary of recruitment statistics from calculate_stat_sql
@@ -360,11 +310,9 @@ def calculate_strata_stats(
         for s in strata
     }
 
-    # Get respondent counts if we have response data
-    if df is not None:
-        df = prep_df_for_budget(df, strata)
-        respondents = _users_per_cluster(df)
-        for stratum_id, count in respondents.items():
+    # Set respondent counts from the provided dictionary if available
+    if respondents_dict is not None:
+        for stratum_id, count in respondents_dict.items():
             if stratum_id not in stats:
                 logging.warning(f"Stratum {stratum_id} not found in stats, skipping")
                 continue
@@ -375,7 +323,7 @@ def calculate_strata_stats(
     respondents = {k: v["respondents"] for k, v in stats.items()}
 
     prices = calc_price(
-        df,
+        None,  # No longer passing DataFrame here
         window or DateRange(datetime.min, datetime.max),
         spend,
         incentive_per_respondent,
@@ -421,3 +369,58 @@ def add_incentive_to_price():
 # (some sort of model that handles missing data well, handles
 # time explicitly? Takes into account temp data? ) Then lose
 # opt window.
+
+
+def get_budget_lookup_with_db(
+    df: Optional[pd.DataFrame],
+    strata: Sequence[Union[Stratum, StratumConf]],
+    max_budget: float,
+    incentive_per_respondent: float,
+    max_sample_size: int,
+    window: DateRange,
+    db_conf: DBConf,
+    study_id: str,
+) -> Tuple[Optional[Budget], Optional[AdOptReport]]:
+    """
+    Wrapper around get_budget_lookup that calculates spend statistics from recruitment data.
+
+    Args:
+        df: DataFrame containing user response data
+        strata: List of strata being recruited for
+        max_budget: Maximum budget for the study
+        incentive_per_respondent: Incentive amount per respondent
+        max_sample_size: Maximum sample size for the study
+        window: DateRange to analyze statistics within
+        db_conf: Database configuration
+        study_id: ID of the study
+
+    Returns:
+        Tuple of (budget_lookup, report) as returned by get_budget_lookup
+    """
+    # Process DataFrame to get respondents per stratum if available
+    respondents_dict = {}
+    if df is not None:
+        df = prep_df_for_budget(df, strata)
+        respondents_dict = _users_per_cluster(df)
+
+    # Calculate strata stats using recruitment data
+    strata_stats = calculate_strata_stats(
+        respondents_dict,
+        strata,
+        window,
+        calculate_stat_sql(db_conf, window, study_id),
+        incentive_per_respondent,
+    )
+
+    # Calculate lifetime spend (no window parameter means all time)
+    lifetime_spend = calculate_stat_sql(db_conf, None, study_id)
+
+    return get_budget_lookup(
+        strata,
+        max_budget,
+        incentive_per_respondent,
+        max_sample_size,
+        window,
+        strata_stats,
+        lifetime_spend,
+    )
