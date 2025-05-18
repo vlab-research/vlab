@@ -214,7 +214,7 @@ class PipelineRecruitmentExperiment(BaseRecruitmentConf):
         # TODO: this is useless, but due to pydantic bugging out, can't
         #       use union type with root_validators. So stuck without
         #       validation for now.
-        _pipeline_check_end_date(self.dict())
+        _pipeline_check_end_date(self.model_dump())
 
     @property
     def opt_sample_size(self):

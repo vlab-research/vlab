@@ -118,9 +118,9 @@ async def get_current_user(
 
 async def create_conf(user: User, org_id: str, slug: str, conf_type: str, config: Any):
     if isinstance(config, list):
-        dat = [c.dict() for c in config]
+        dat = [c.model_dump() for c in config]
     else:
-        dat = config.dict()
+        dat = config.model_dump()
 
     conf = create_study_conf(user.user_id, org_id, slug, conf_type, dat)
     return {"data": conf}
@@ -280,7 +280,7 @@ def run_single_instruction(
     updater = GraphUpdater(state)
 
     # hack to cast OptimizeInstruction to Instruction
-    report = updater.execute(Instruction(**(instruction.dict())))
+    report = updater.execute(Instruction(**(instruction.model_dump())))
     return OptimizeReport(**report)
 
 
