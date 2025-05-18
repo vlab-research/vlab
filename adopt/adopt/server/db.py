@@ -91,10 +91,7 @@ def get_study_id(user_id: str, org_id: str, study_slug: str):
     try:
         return list(res)[0]["id"]
     except IndexError:
-        raise Exception(
-            f"Could not find study id for user {user_id},"
-            f" org {org_id}, study {study_slug}"
-        )
+        raise HTTPException(status_code=404, detail=f"Study not found: {study_slug}")
 
 
 def create_study_conf(

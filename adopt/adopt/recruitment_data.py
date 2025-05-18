@@ -1,13 +1,15 @@
 import json
 from datetime import date, datetime, timedelta
-from typing import Any, NamedTuple, Optional
+from typing import Any, NamedTuple, Optional, Dict
 
 from facebook_business.adobjects.adsinsights import AdsInsights
+from pydantic import BaseModel, Field
 
 from .db import execute, manyify, query
 from .facebook.date_range import DateRange
 from .facebook.state import FacebookState
 from .study_conf import GeneralConf, StudyConf, UserInfo
+from .campaign_queries import DBConf
 
 Stratum = str  # stratum id of some sort
 Campaign = str  # campaign name
@@ -36,6 +38,36 @@ class Study(NamedTuple):
     name: str
     start_time: datetime
     end_time: datetime
+
+
+class AdPlatformRecruitmentStats(BaseModel):
+    """Base metrics from advertising platforms (e.g. Facebook Ads)."""
+
+    spend: float = Field(0.0, description="Total spend in dollars")
+    frequency: float = Field(0.0, description="Average frequency of impressions")
+    reach: int = Field(0, description="Total unique users reached")
+    cpm: float = Field(0.0, description="Cost per thousand impressions")
+    unique_clicks: int = Field(0, description="Number of unique clicks")
+    unique_ctr: float = Field(0.0, description="Unique click-through rate")
+    impressions: int = Field(0, description="Total number of impressions")
+
+
+class RecruitmentStats(AdPlatformRecruitmentStats):
+    """Complete recruitment statistics including respondent metrics."""
+
+    respondents: int = Field(0, description="Number of respondents")
+    price_per_respondent: float = Field(0.0, description="Cost per respondent")
+    incentive_cost: float = Field(0.0, description="Total incentive costs")
+    total_cost: float = Field(0.0, description="Total cost including incentives")
+    conversion_rate: float = Field(
+        0.0, description="Conversion rate from clicks to respondents"
+    )
+
+
+class RecruitmentStatsResponse(BaseModel):
+    """API response model for recruitment statistics."""
+
+    data: Dict[str, RecruitmentStats]
 
 
 def today():
@@ -248,7 +280,20 @@ def get_active_studies(db_conf, now: datetime) -> list[str]:
     return [t[0] for t in res]
 
 
-def calculate_stat_sql(db_conf, window, study_id):
+def calculate_stat_sql(
+    db_conf: DBConf, window: Optional[DateRange], study_id: str
+) -> Dict[str, AdPlatformRecruitmentStats]:
+    """
+    Calculate recruitment statistics from SQL database.
+
+    Args:
+        db_conf: Database configuration
+        window: Optional DateRange to filter data. If None, includes all time.
+        study_id: ID of the study to analyze
+
+    Returns:
+        Dictionary mapping stratum IDs to their AdPlatformRecruitmentStats
+    """
     # Construct the SQL query
     sql = """
     SELECT 
@@ -274,9 +319,20 @@ def calculate_stat_sql(db_conf, window, study_id):
     ) AS combined_data
     CROSS JOIN LATERAL jsonb_each(data) AS campaign(campaign_id, campaign_data)
     CROSS JOIN LATERAL jsonb_each(campaign_data) AS stratum(stratum_id, metrics)
-    WHERE 
-        period_start >= %s AND 
-        period_end <= %s
+    """
+
+    params = [study_id, study_id]
+
+    # Add window filtering if provided
+    if window is not None:
+        sql += """
+        WHERE 
+            period_start >= %s AND 
+            period_end <= %s
+        """
+        params.extend([window.start_date, window.until_date])
+
+    sql += """
     GROUP BY stratum_id
     """
 
@@ -285,12 +341,10 @@ def calculate_stat_sql(db_conf, window, study_id):
         query(
             db_conf,
             sql,
-            (study_id, study_id, window.start_date, window.until_date),
+            tuple(params),
             as_dict=True,
         )
     )
-
-    print("results from calculate_stat_sql query: ", results)
 
     # Step 1: Cast all values to float/int in a dict comprehension
     casted = {
@@ -303,18 +357,16 @@ def calculate_stat_sql(db_conf, window, study_id):
         for row in results
     }
 
-    # Step 2: Calculate derived metrics in a new dict comprehension
+    # Step 2: Calculate derived metrics and create AdPlatformRecruitmentStats objects
     out = {
-        stratum_id: {
+        stratum_id: AdPlatformRecruitmentStats(
             **vals,
-            "cpm": vals["impressions"] / vals["spend"] if vals["spend"] > 0 else 0,
-            "frequency": (
-                vals["impressions"] / vals["reach"] if vals["reach"] > 0 else 0
-            ),
-            "unique_ctr": (
+            cpm=vals["impressions"] / vals["spend"] if vals["spend"] > 0 else 0,
+            frequency=vals["impressions"] / vals["reach"] if vals["reach"] > 0 else 0,
+            unique_ctr=(
                 vals["unique_clicks"] / vals["reach"] if vals["reach"] > 0 else 0
             ),
-        }
+        )
         for stratum_id, vals in casted.items()
     }
     return out

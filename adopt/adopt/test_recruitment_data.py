@@ -23,6 +23,8 @@ from .recruitment_data import (
     insert_recruitment_data_events,
     today,
     calculate_stat_sql,
+    RecruitmentStats,
+    AdPlatformRecruitmentStats,
 )
 
 
@@ -550,22 +552,26 @@ def test_calculate_stat_sql_calculates_metrics_correctly():
     assert "stratum2" in res
 
     # Check stratum1 metrics (summed across campaigns)
-    assert res["stratum1"]["spend"] == 650.0  # 100 + 150 + 150 + 250
-    assert res["stratum1"]["reach"] == 6500  # 1000 + 1500 + 1500 + 2500
-    assert res["stratum1"]["unique_clicks"] == 325  # 50 + 75 + 75 + 125
-    assert res["stratum1"]["impressions"] == 13000  # 2000 + 3000 + 3000 + 5000
-    assert res["stratum1"]["cpm"] == 20.0  # 13000 impressions / 650 spend
-    assert res["stratum1"]["frequency"] == 2.0  # 13000 impressions / 6500 reach
-    assert res["stratum1"]["unique_ctr"] == 0.05  # 325 clicks / 6500 reach
+    stratum1 = res["stratum1"]
+    assert isinstance(stratum1, AdPlatformRecruitmentStats)
+    assert stratum1.spend == 650.0  # 100 + 150 + 150 + 250
+    assert stratum1.reach == 6500  # 1000 + 1500 + 1500 + 2500
+    assert stratum1.unique_clicks == 325  # 50 + 75 + 75 + 125
+    assert stratum1.impressions == 13000
+    assert stratum1.cpm == 20.0  # 13000 impressions / 650 spend
+    assert stratum1.frequency == 2.0  # 13000 impressions / 6500 reach
+    assert stratum1.unique_ctr == 0.05  # 325 clicks / 6500 reach
 
     # Check stratum2 metrics
-    assert res["stratum2"]["spend"] == 450.0  # 200 + 250
-    assert res["stratum2"]["reach"] == 4500  # 2000 + 2500
-    assert res["stratum2"]["unique_clicks"] == 225  # 100 + 125
-    assert res["stratum2"]["impressions"] == 9000  # 4000 + 5000
-    assert res["stratum2"]["cpm"] == 20.0  # 9000 impressions / 450 spend
-    assert res["stratum2"]["frequency"] == 2.0  # 9000 impressions / 4500 reach
-    assert res["stratum2"]["unique_ctr"] == 0.05  # 225 clicks / 4500 reach
+    stratum2 = res["stratum2"]
+    assert isinstance(stratum2, AdPlatformRecruitmentStats)
+    assert stratum2.spend == 450.0  # 200 + 250
+    assert stratum2.reach == 4500  # 2000 + 2500
+    assert stratum2.unique_clicks == 225  # 100 + 125
+    assert stratum2.impressions == 9000  # 4000 + 5000
+    assert stratum2.cpm == 20.0  # 9000 impressions / 450 spend
+    assert stratum2.frequency == 2.0  # 9000 impressions / 4500 reach
+    assert stratum2.unique_ctr == 0.05  # 225 clicks / 4500 reach
 
 
 def test_calculate_stat_sql_handles_missing_data():
@@ -625,16 +631,20 @@ def test_calculate_stat_sql_handles_missing_data():
     assert "stratum2" in res
 
     # Check stratum1 metrics (summed across campaigns)
-    assert res["stratum1"]["spend"] == 250.0  # 100 + 150
-    assert res["stratum1"]["reach"] == 2500  # 1000 + 1500
-    assert res["stratum1"]["unique_clicks"] == 125  # 50 + 75
-    assert res["stratum1"]["impressions"] == 5000  # 2000 + 3000
+    stratum1 = res["stratum1"]
+    assert isinstance(stratum1, AdPlatformRecruitmentStats)
+    assert stratum1.spend == 250.0  # 100 + 150
+    assert stratum1.reach == 2500
+    assert stratum1.unique_clicks == 125  # 50 + 75
+    assert stratum1.impressions == 5000  # 2000 + 3000
 
     # Check stratum2 metrics (should handle missing unique_clicks)
-    assert res["stratum2"]["spend"] == 200.0
-    assert res["stratum2"]["reach"] == 2000
-    assert res["stratum2"]["unique_clicks"] == 0  # Should default to 0 for missing data
-    assert res["stratum2"]["impressions"] == 4000
+    stratum2 = res["stratum2"]
+    assert isinstance(stratum2, AdPlatformRecruitmentStats)
+    assert stratum2.spend == 200.0
+    assert stratum2.reach == 2000
+    assert stratum2.unique_clicks == 0  # Should default to 0 for missing data
+    assert stratum2.impressions == 4000
 
 
 def test_calculate_stat_sql_respects_date_window():
@@ -714,20 +724,24 @@ def test_calculate_stat_sql_respects_date_window():
     res = calculate_stat_sql(cnf, window, study_id)
 
     assert "stratum1" in res
-    assert res["stratum1"]["spend"] == 250.0  # 100 + 150
-    assert res["stratum1"]["reach"] == 2500  # 1000 + 1500
-    assert res["stratum1"]["unique_clicks"] == 125  # 50 + 75
-    assert res["stratum1"]["impressions"] == 5000  # 2000 + 3000
+    stratum1 = res["stratum1"]
+    assert isinstance(stratum1, AdPlatformRecruitmentStats)
+    assert stratum1.spend == 250.0  # 100 + 150
+    assert stratum1.reach == 2500  # 1000 + 1500
+    assert stratum1.unique_clicks == 125  # 50 + 75
+    assert stratum1.impressions == 5000  # 2000 + 3000
 
     # Test window that includes both days
     window = DateRange(_dt(1, 0), _dt(2, 23))
     res = calculate_stat_sql(cnf, window, study_id)
 
     assert "stratum1" in res
-    assert res["stratum1"]["spend"] == 700.0  # 100 + 150 + 200 + 250
-    assert res["stratum1"]["reach"] == 7000  # 1000 + 1500 + 2000 + 2500
-    assert res["stratum1"]["unique_clicks"] == 350  # 50 + 75 + 100 + 125
-    assert res["stratum1"]["impressions"] == 14000  # 2000 + 3000 + 4000 + 5000
+    stratum1 = res["stratum1"]
+    assert isinstance(stratum1, AdPlatformRecruitmentStats)
+    assert stratum1.spend == 700.0  # 100 + 150 + 200 + 250
+    assert stratum1.reach == 7000  # 1000 + 1500 + 2000 + 2500
+    assert stratum1.unique_clicks == 350  # 50 + 75 + 100 + 125
+    assert stratum1.impressions == 14000  # 2000 + 3000 + 4000 + 5000
 
 
 def test_calculate_stat_sql_handles_mixed_null_values():
@@ -819,22 +833,26 @@ def test_calculate_stat_sql_handles_mixed_null_values():
     assert "stratum2" in res
 
     # stratum1 should sum values from both campaigns
-    assert res["stratum1"]["spend"] == 500.0  # 100 + 150 + 250
-    assert res["stratum1"]["reach"] == 5000  # 1000 + 1500 + 2500
-    assert res["stratum1"]["unique_clicks"] == 250  # 50 + 75 + 125
-    assert res["stratum1"]["impressions"] == 10000  # 2000 + 3000 + 5000
+    stratum1 = res["stratum1"]
+    assert isinstance(stratum1, AdPlatformRecruitmentStats)
+    assert stratum1.spend == 500.0  # 100 + 150 + 250
+    assert stratum1.reach == 5000  # 1000 + 1500 + 2500
+    assert stratum1.unique_clicks == 250  # 50 + 75 + 125
+    assert stratum1.impressions == 10000  # 2000 + 3000 + 5000
 
     # stratum2 should sum values from both periods
-    assert res["stratum2"]["spend"] == 500.0  # 200 + 300
-    assert res["stratum2"]["reach"] == 5000  # 2000 + 3000
-    assert res["stratum2"]["unique_clicks"] == 250  # 100 + 150
-    assert res["stratum2"]["impressions"] == 10000  # 4000 + 6000
+    stratum2 = res["stratum2"]
+    assert isinstance(stratum2, AdPlatformRecruitmentStats)
+    assert stratum2.spend == 500.0  # 200 + 300
+    assert stratum2.reach == 5000  # 2000 + 3000
+    assert stratum2.unique_clicks == 250  # 100 + 150
+    assert stratum2.impressions == 10000
 
     # Verify derived metrics are calculated correctly
-    assert res["stratum1"]["cpm"] == 20.0  # 10000 impressions / 500 spend
-    assert res["stratum1"]["frequency"] == 2.0  # 10000 impressions / 5000 reach
-    assert res["stratum1"]["unique_ctr"] == 0.05  # 250 clicks / 5000 reach
+    assert stratum1.cpm == 20.0  # 10000 impressions / 500 spend
+    assert stratum1.frequency == 2.0  # 10000 impressions / 5000 reach
+    assert stratum1.unique_ctr == 0.05  # 250 clicks / 5000 reach
 
-    assert res["stratum2"]["cpm"] == 20.0  # 10000 impressions / 500 spend
-    assert res["stratum2"]["frequency"] == 2.0  # 10000 impressions / 5000 reach
-    assert res["stratum2"]["unique_ctr"] == 0.05  # 250 clicks / 5000 reach
+    assert stratum2.cpm == 20.0  # 10000 impressions / 500 spend
+    assert stratum2.frequency == 2.0  # 10000 impressions / 5000 reach
+    assert stratum2.unique_ctr == 0.05  # 250 clicks / 5000 reach

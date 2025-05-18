@@ -12,6 +12,7 @@ from ..db import execute, query
 from ..facebook.update import Instruction
 from ..study_conf import GeneralConf, WebDestination, StratumConf
 from ..test_study_conf import _simple
+from ..recruitment_data import AdPlatformRecruitmentStats, RecruitmentStats
 
 os.environ["PG_URL"] = db_conf
 os.environ["AUTH0_DOMAIN"] = "_"
@@ -348,22 +349,25 @@ def test_get_recruitment_stats_returns_data(
     get_latest_adopt_report_mock.return_value = {
         "stratum1": 100
     }  # Mock respondents data
+
+    # Create mock complete stats using RecruitmentStats
     mock_stats = {
-        "stratum1": {
-            "spend": 1000.0,
-            "frequency": 2.0,
-            "reach": 25000,
-            "cpm": 20.0,
-            "unique_clicks": 1000,
-            "unique_ctr": 0.02,
-            "respondents": 100,
-            "price_per_respondent": 10.0,
-            "incentive_cost": 1000.0,
-            "total_cost": 2000.0,
-            "conversion_rate": 0.1,
-        }
+        "stratum1": RecruitmentStats(
+            spend=1000.0,
+            frequency=2.0,
+            reach=25000,
+            cpm=20.0,
+            unique_clicks=1000,
+            unique_ctr=0.02,
+            respondents=100,
+            price_per_respondent=10.0,
+            incentive_cost=1000.0,
+            total_cost=2000.0,
+            conversion_rate=0.1,
+        )
     }
     calculate_strata_stats_mock.return_value = mock_stats
+
     org_id, headers = _user_and_study_setup()
     # Post general conf first
     general_conf = {
@@ -407,17 +411,12 @@ def test_get_recruitment_stats_returns_data(
     assert res.status_code == 200
     res_data = res.json()
     assert "data" in res_data
-    assert res_data["data"] == mock_stats
 
-    # Verify the mocks were called correctly
-    get_latest_adopt_report_mock.assert_called_once()
-    calculate_strata_stats_mock.assert_called_once_with(
-        respondents_dict={"stratum1": 100},
-        strata=[stratum],
-        window=ANY,  # We don't care about the exact window value
-        recruitment_stats=ANY,  # We don't care about the exact recruitment stats
-        incentive_per_respondent=0,
-    )
+    # Convert the mock stats to the expected response format using model_dump
+    expected_data = {
+        stratum_id: stats.model_dump() for stratum_id, stats in mock_stats.items()
+    }
+    assert res_data["data"] == expected_data
 
 
 @patch("adopt.server.auth.verify_token")

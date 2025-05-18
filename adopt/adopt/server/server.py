@@ -1,5 +1,5 @@
 import logging
-from typing import Annotated, Any, Optional, Sequence
+from typing import Annotated, Any, Optional, Sequence, Dict
 from datetime import datetime
 from environs import Env
 from fastapi import Depends, FastAPI, HTTPException, status, BackgroundTasks
@@ -42,6 +42,11 @@ from .db import (
     get_study_id,
     insert_credential,
     query,
+)
+from ..recruitment_data import (
+    AdPlatformRecruitmentStats,
+    RecruitmentStats,
+    RecruitmentStatsResponse,
 )
 
 app = FastAPI()
@@ -414,64 +419,13 @@ async def create_api_key(
         raise HTTPException(status_code=500, detail=f"{e}")
 
 
-class RecruitmentStatsRow(BaseModel):
-    """Statistics for a single stratum."""
-
-    spend: float
-    frequency: float
-    reach: int
-    cpm: float
-    unique_clicks: int
-    unique_ctr: float
-    respondents: int
-    price_per_respondent: float
-    incentive_cost: float
-    total_cost: float
-    conversion_rate: float
-
-    class Config:
-        schema_extra = {
-            "example": {
-                "spend": 1000.0,
-                "frequency": 2.0,
-                "reach": 25000,
-                "cpm": 20.0,
-                "unique_clicks": 1000,
-                "unique_ctr": 0.02,
-                "respondents": 100,
-                "price_per_respondent": 10.0,
-                "incentive_cost": 1000.0,
-                "total_cost": 2000.0,
-                "conversion_rate": 0.1,
-            }
-        }
-
-
 class RecruitmentStatsResult(BaseModel):
-    """Response containing recruitment statistics for all strata."""
+    """Response model for recruitment statistics endpoint."""
 
-    data: dict[str, RecruitmentStatsRow]
+    data: Dict[str, RecruitmentStats]
 
     class Config:
-        schema_extra = {
-            "example": {
-                "data": {
-                    "stratum1": {
-                        "spend": 1000.0,
-                        "frequency": 2.0,
-                        "reach": 25000,
-                        "cpm": 20.0,
-                        "unique_clicks": 1000,
-                        "unique_ctr": 0.02,
-                        "respondents": 100,
-                        "price_per_respondent": 10.0,
-                        "incentive_cost": 1000.0,
-                        "total_cost": 2000.0,
-                        "conversion_rate": 0.1,
-                    }
-                }
-            }
-        }
+        from_attributes = True
 
 
 def get_latest_adopt_report(study_id: str) -> dict[str, int]:
@@ -513,7 +467,7 @@ def get_latest_adopt_report(study_id: str) -> dict[str, int]:
 
 @app.get(
     "/{org_id}/studies/{slug}/recruitment-stats",
-    response_model=RecruitmentStatsResult,
+    response_model=RecruitmentStatsResponse,
     responses={
         200: {"description": "Successfully retrieved recruitment statistics"},
         401: {"description": "Unauthorized - Invalid or missing authentication token"},
@@ -527,24 +481,17 @@ async def get_recruitment_stats(
     org_id: str,
     slug: str,
     user: Annotated[User, Depends(get_current_user)],
-) -> RecruitmentStatsResult:
+) -> RecruitmentStatsResponse:
     """
-    Get recruitment statistics for each stratum in the study.
-
-    This endpoint returns comprehensive statistics about recruitment performance
-    for each stratum in the study, including spend, impressions, reach, and
-    conversion metrics.
+    Get recruitment statistics for a study.
 
     Args:
         org_id: Organization ID
         slug: Study slug
-        user: Authenticated user (injected by FastAPI)
+        user: Current user
 
     Returns:
-        RecruitmentStatsResult containing statistics for each stratum
-
-    Raises:
-        HTTPException: If study not found or other errors occur
+        Recruitment statistics for each stratum
     """
     try:
         study_id = get_study_id(user.user_id, org_id, slug)
@@ -574,9 +521,9 @@ async def get_recruitment_stats(
         from ..budget import calculate_strata_stats
         from ..facebook.state import DateRange
         from ..recruitment_data import calculate_stat_sql
-        from datetime import datetime
 
-        window = DateRange(datetime.min, datetime.max)
+        window = None
+
         recruitment_stats = await asyncio.to_thread(
             calculate_stat_sql, db_cnf, window, study_id
         )
@@ -591,17 +538,11 @@ async def get_recruitment_stats(
             ),
         )
 
-        return RecruitmentStatsResult(data=stats)
+        # Stats is already a Dict[str, RecruitmentStats], just wrap it in the response
+        return RecruitmentStatsResponse(data=stats)
 
     except HTTPException:
         raise
-    except Exception as e:
-        logging.error(f"Error getting recruitment stats for study {slug}: {str(e)}")
-        if "Could not find study id" in str(e):
-            raise HTTPException(status_code=404, detail=f"Study not found: {slug}")
-        raise HTTPException(
-            status_code=500, detail=f"Failed to get recruitment statistics: {str(e)}"
-        )
 
 
 @app.get("/health", status_code=200)

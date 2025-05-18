@@ -20,7 +20,12 @@ from .facebook.date_range import DateRange
 from .test_clustering import DATE, _format_df, cnf, conf, df
 from .campaign_queries import DBConf
 from .study_conf import StratumConf
-from .recruitment_data import RecruitmentData, TimePeriod
+from .recruitment_data import (
+    RecruitmentData,
+    TimePeriod,
+    AdPlatformRecruitmentStats,
+    RecruitmentStats,
+)
 
 START_DATE = DATE
 UNTIL_DATE = datetime(2020, 1, 3)
@@ -311,7 +316,7 @@ def create_strata_stats(
     spend: Dict[str, float],
     respondents: Dict[str, int],
     price_per_respondent: Dict[str, float],
-) -> Dict[str, Dict[str, Any]]:
+) -> Dict[str, RecruitmentStats]:
     """
     Helper function to create strata_stats that matches the previous test data structure.
 
@@ -321,22 +326,22 @@ def create_strata_stats(
         price_per_respondent: Dictionary mapping stratum IDs to price per respondent
 
     Returns:
-        Dictionary mapping stratum IDs to their complete statistics
+        Dictionary mapping stratum IDs to their complete RecruitmentStats
     """
     return {
-        stratum_id: {
-            "spend": spend.get(stratum_id, 0),
-            "respondents": respondents.get(stratum_id, 0),
-            "price_per_respondent": price_per_respondent.get(stratum_id, 0),
-            "frequency": 0.0,
-            "reach": 0,
-            "cpm": 0,
-            "unique_clicks": 0,
-            "unique_ctr": 0,
-            "incentive_cost": 0,
-            "total_cost": 0,
-            "conversion_rate": 0,
-        }
+        stratum_id: RecruitmentStats(
+            spend=spend.get(stratum_id, 0),
+            respondents=respondents.get(stratum_id, 0),
+            price_per_respondent=price_per_respondent.get(stratum_id, 0),
+            frequency=0.0,
+            reach=0,
+            cpm=0,
+            unique_clicks=0,
+            unique_ctr=0,
+            incentive_cost=0,
+            total_cost=0,
+            conversion_rate=0,
+        )
         for stratum_id in set(
             list(spend.keys())
             + list(respondents.keys())
@@ -540,30 +545,30 @@ def test_calculate_strata_stats_basic(cnf, df):
     """Test basic functionality of calculate_strata_stats."""
     window = DateRange(START_DATE, UNTIL_DATE)
     recruitment_stats = {
-        "foo": {
-            "spend": 100.0,
-            "frequency": 2.0,
-            "reach": 500,
-            "cpm": 100.0,
-            "unique_clicks": 100,
-            "unique_ctr": 0.1,
-        },
-        "bar": {
-            "spend": 200.0,
-            "frequency": 2.0,
-            "reach": 1000,
-            "cpm": 100.0,
-            "unique_clicks": 200,
-            "unique_ctr": 0.1,
-        },
-        "baz": {
-            "spend": 300.0,
-            "frequency": 2.0,
-            "reach": 1500,
-            "cpm": 100.0,
-            "unique_clicks": 300,
-            "unique_ctr": 0.1,
-        },
+        "foo": AdPlatformRecruitmentStats(
+            spend=100.0,
+            frequency=2.0,
+            reach=500,
+            cpm=100.0,
+            unique_clicks=100,
+            unique_ctr=0.1,
+        ),
+        "bar": AdPlatformRecruitmentStats(
+            spend=200.0,
+            frequency=2.0,
+            reach=1000,
+            cpm=100.0,
+            unique_clicks=200,
+            unique_ctr=0.1,
+        ),
+        "baz": AdPlatformRecruitmentStats(
+            spend=300.0,
+            frequency=2.0,
+            reach=1500,
+            cpm=100.0,
+            unique_clicks=300,
+            unique_ctr=0.1,
+        ),
     }
 
     # Ensure at least one respondent in 'foo' for the test window using _format_df and correct targeting
@@ -592,36 +597,36 @@ def test_calculate_strata_stats_basic(cnf, df):
     assert set(stats.keys()) == {"foo", "bar", "baz"}
 
     # Check recruitment data was properly copied
-    assert stats["foo"]["spend"] == 100.0
-    assert stats["bar"]["frequency"] == 2.0
-    assert stats["baz"]["unique_clicks"] == 300
+    assert stats["foo"].spend == 100.0
+    assert stats["bar"].frequency == 2.0
+    assert stats["baz"].unique_clicks == 300
 
     # Check calculated fields
-    assert stats["foo"]["incentive_cost"] == 10.0  # 1 respondent * 10 incentive
-    assert stats["foo"]["total_cost"] == 110.0  # 100 spend + 10 incentive
-    assert stats["foo"]["conversion_rate"] == 0.01  # 1 respondent / 100 unique_clicks
+    assert stats["foo"].incentive_cost == 10.0  # 1 respondent * 10 incentive
+    assert stats["foo"].total_cost == 110.0  # 100 spend + 10 incentive
+    assert stats["foo"].conversion_rate == 0.01  # 1 respondent / 100 unique_clicks
 
 
 def test_calculate_strata_stats_missing_recruitment_data(cnf, df):
     """Test calculate_strata_stats with missing recruitment data."""
     window = DateRange(START_DATE, UNTIL_DATE)
     recruitment_stats = {
-        "foo": {
-            "spend": 100.0,
-            "frequency": 2.0,
-            "reach": 500,
-            "cpm": 100.0,
-            "unique_clicks": 100,
-            "unique_ctr": 0.1,
-        },
-        "bar": {
-            "spend": 200.0,
-            "frequency": 2.0,
-            "reach": 1000,
-            "cpm": 100.0,
-            "unique_clicks": 200,
-            "unique_ctr": 0.1,
-        },
+        "foo": AdPlatformRecruitmentStats(
+            spend=100.0,
+            frequency=2.0,
+            reach=500,
+            cpm=100.0,
+            unique_clicks=100,
+            unique_ctr=0.1,
+        ),
+        "bar": AdPlatformRecruitmentStats(
+            spend=200.0,
+            frequency=2.0,
+            reach=1000,
+            cpm=100.0,
+            unique_clicks=200,
+            unique_ctr=0.1,
+        ),
         # Missing 'baz'
     }
 
@@ -639,39 +644,39 @@ def test_calculate_strata_stats_missing_recruitment_data(cnf, df):
 
     # Check that all strata are present with zeros for missing data
     assert set(stats.keys()) == {"foo", "bar", "baz"}
-    assert stats["baz"]["spend"] == 0.0
-    assert stats["baz"]["frequency"] == 0.0
-    assert stats["baz"]["unique_clicks"] == 0
+    assert stats["baz"].spend == 0.0
+    assert stats["baz"].frequency == 0.0
+    assert stats["baz"].unique_clicks == 0
 
 
 def test_calculate_strata_stats_missing_response_data(cnf):
     """Test calculate_strata_stats with no response data."""
     window = DateRange(START_DATE, UNTIL_DATE)
     recruitment_stats = {
-        "foo": {
-            "spend": 100.0,
-            "frequency": 2.0,
-            "reach": 500,
-            "cpm": 100.0,
-            "unique_clicks": 100,
-            "unique_ctr": 0.1,
-        },
-        "bar": {
-            "spend": 200.0,
-            "frequency": 2.0,
-            "reach": 1000,
-            "cpm": 100.0,
-            "unique_clicks": 200,
-            "unique_ctr": 0.1,
-        },
-        "baz": {
-            "spend": 300.0,
-            "frequency": 2.0,
-            "reach": 1500,
-            "cpm": 100.0,
-            "unique_clicks": 300,
-            "unique_ctr": 0.1,
-        },
+        "foo": AdPlatformRecruitmentStats(
+            spend=100.0,
+            frequency=2.0,
+            reach=500,
+            cpm=100.0,
+            unique_clicks=100,
+            unique_ctr=0.1,
+        ),
+        "bar": AdPlatformRecruitmentStats(
+            spend=200.0,
+            frequency=2.0,
+            reach=1000,
+            cpm=100.0,
+            unique_clicks=200,
+            unique_ctr=0.1,
+        ),
+        "baz": AdPlatformRecruitmentStats(
+            spend=300.0,
+            frequency=2.0,
+            reach=1500,
+            cpm=100.0,
+            unique_clicks=300,
+            unique_ctr=0.1,
+        ),
     }
 
     stats = calculate_strata_stats(
@@ -683,24 +688,24 @@ def test_calculate_strata_stats_missing_response_data(cnf):
     )
 
     # Check that respondents and derived fields are zero
-    assert stats["foo"]["respondents"] == 0
-    assert stats["foo"]["incentive_cost"] == 0.0
-    assert stats["foo"]["total_cost"] == 100.0  # Just the spend
-    assert stats["foo"]["conversion_rate"] == 0.0
+    assert stats["foo"].respondents == 0
+    assert stats["foo"].incentive_cost == 0.0
+    assert stats["foo"].total_cost == 100.0  # Just the spend
+    assert stats["foo"].conversion_rate == 0.0
 
 
 def test_calculate_strata_stats_invalid_stratum(cnf, df):
     """Test calculate_strata_stats with invalid stratum IDs."""
     window = DateRange(START_DATE, UNTIL_DATE)
     recruitment_stats = {
-        "invalid_stratum": {
-            "spend": 100.0,
-            "frequency": 2.0,
-            "reach": 500,
-            "cpm": 100.0,
-            "unique_clicks": 100,
-            "unique_ctr": 0.1,
-        },
+        "invalid_stratum": AdPlatformRecruitmentStats(
+            spend=100.0,
+            frequency=2.0,
+            reach=500,
+            cpm=100.0,
+            unique_clicks=100,
+            unique_ctr=0.1,
+        ),
     }
 
     # Create respondents dictionary with invalid stratum
@@ -716,39 +721,39 @@ def test_calculate_strata_stats_invalid_stratum(cnf, df):
 
     # Check that all valid strata are present with default values
     assert set(stats.keys()) == {"foo", "bar", "baz"}
-    assert stats["foo"]["spend"] == 0.0
-    assert stats["bar"]["spend"] == 0.0
-    assert stats["baz"]["spend"] == 0.0
+    assert stats["foo"].spend == 0.0
+    assert stats["bar"].spend == 0.0
+    assert stats["baz"].spend == 0.0
 
 
 def test_calculate_strata_stats_zero_values(cnf, df):
     """Test calculate_strata_stats with zero values."""
     window = DateRange(START_DATE, UNTIL_DATE)
     recruitment_stats = {
-        "foo": {
-            "spend": 0.0,
-            "frequency": 0.0,
-            "reach": 0,
-            "cpm": 0.0,
-            "unique_clicks": 0,
-            "unique_ctr": 0.0,
-        },
-        "bar": {
-            "spend": 0.0,
-            "frequency": 0.0,
-            "reach": 0,
-            "cpm": 0.0,
-            "unique_clicks": 0,
-            "unique_ctr": 0.0,
-        },
-        "baz": {
-            "spend": 0.0,
-            "frequency": 0.0,
-            "reach": 0,
-            "cpm": 0.0,
-            "unique_clicks": 0,
-            "unique_ctr": 0.0,
-        },
+        "foo": AdPlatformRecruitmentStats(
+            spend=0.0,
+            frequency=0.0,
+            reach=0,
+            cpm=0.0,
+            unique_clicks=0,
+            unique_ctr=0.0,
+        ),
+        "bar": AdPlatformRecruitmentStats(
+            spend=0.0,
+            frequency=0.0,
+            reach=0,
+            cpm=0.0,
+            unique_clicks=0,
+            unique_ctr=0.0,
+        ),
+        "baz": AdPlatformRecruitmentStats(
+            spend=0.0,
+            frequency=0.0,
+            reach=0,
+            cpm=0.0,
+            unique_clicks=0,
+            unique_ctr=0.0,
+        ),
     }
 
     # Create respondents dictionary from DataFrame
@@ -764,38 +769,38 @@ def test_calculate_strata_stats_zero_values(cnf, df):
     )
 
     # Check that conversion rate is 0 when unique_clicks is 0
-    assert stats["foo"]["conversion_rate"] == 0.0
-    assert stats["bar"]["conversion_rate"] == 0.0
-    assert stats["baz"]["conversion_rate"] == 0.0
+    assert stats["foo"].conversion_rate == 0.0
+    assert stats["bar"].conversion_rate == 0.0
+    assert stats["baz"].conversion_rate == 0.0
 
 
 def test_calculate_strata_stats_no_window(cnf, df):
     """Test calculate_strata_stats with no window specified."""
     recruitment_stats = {
-        "foo": {
-            "spend": 100.0,
-            "frequency": 2.0,
-            "reach": 500,
-            "cpm": 100.0,
-            "unique_clicks": 100,
-            "unique_ctr": 0.1,
-        },
-        "bar": {
-            "spend": 200.0,
-            "frequency": 2.0,
-            "reach": 1000,
-            "cpm": 100.0,
-            "unique_clicks": 200,
-            "unique_ctr": 0.1,
-        },
-        "baz": {
-            "spend": 300.0,
-            "frequency": 2.0,
-            "reach": 1500,
-            "cpm": 100.0,
-            "unique_clicks": 300,
-            "unique_ctr": 0.1,
-        },
+        "foo": AdPlatformRecruitmentStats(
+            spend=100.0,
+            frequency=2.0,
+            reach=500,
+            cpm=100.0,
+            unique_clicks=100,
+            unique_ctr=0.1,
+        ),
+        "bar": AdPlatformRecruitmentStats(
+            spend=200.0,
+            frequency=2.0,
+            reach=1000,
+            cpm=100.0,
+            unique_clicks=200,
+            unique_ctr=0.1,
+        ),
+        "baz": AdPlatformRecruitmentStats(
+            spend=300.0,
+            frequency=2.0,
+            reach=1500,
+            cpm=100.0,
+            unique_clicks=300,
+            unique_ctr=0.1,
+        ),
     }
 
     # Create respondents dictionary from DataFrame
@@ -812,6 +817,6 @@ def test_calculate_strata_stats_no_window(cnf, df):
 
     # Check that stats are calculated correctly without window
     assert set(stats.keys()) == {"foo", "bar", "baz"}
-    assert stats["foo"]["spend"] == 100.0
-    assert stats["bar"]["frequency"] == 2.0
-    assert stats["baz"]["unique_clicks"] == 300
+    assert stats["foo"].spend == 100.0
+    assert stats["bar"].frequency == 2.0
+    assert stats["baz"].unique_clicks == 300

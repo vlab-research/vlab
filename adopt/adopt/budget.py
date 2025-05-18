@@ -11,7 +11,11 @@ from scipy.optimize import minimize
 from .clustering import _users_by_predicate, only_target_users
 from .facebook.state import DateRange
 from .study_conf import Budget, Stratum, StratumConf
-from .recruitment_data import calculate_stat_sql
+from .recruitment_data import (
+    calculate_stat_sql,
+    AdPlatformRecruitmentStats,
+    RecruitmentStats,
+)
 from .campaign_queries import DBConf, AdOptReport
 
 
@@ -233,13 +237,13 @@ def get_budget_lookup(
     incentive_per_respondent: float,
     max_sample_size: int,
     window: DateRange,
-    strata_stats: Dict[str, Dict[str, Any]],
+    strata_stats: Dict[str, RecruitmentStats],
     lifetime_spend: Dict[str, float],
 ) -> Tuple[Optional[Budget], Optional[AdOptReport]]:
     # Extract core stats we need
-    spend_dict = {k: v["spend"] for k, v in strata_stats.items()}
-    respondents_dict = {k: v["respondents"] for k, v in strata_stats.items()}
-    price_dict = {k: v["price_per_respondent"] for k, v in strata_stats.items()}
+    spend_dict = {k: v.spend for k, v in strata_stats.items()}
+    respondents_dict = {k: v.respondents for k, v in strata_stats.items()}
+    price_dict = {k: v.price_per_respondent for k, v in strata_stats.items()}
 
     # Calculate total spend including incentives
     total_incentive_cost = sum(respondents_dict.values()) * incentive_per_respondent
@@ -277,9 +281,9 @@ def calculate_strata_stats(
     respondents_dict: Optional[Dict[str, int]],
     strata: Sequence[Union[Stratum, StratumConf]],
     window: Optional[DateRange],
-    recruitment_stats: Dict[str, Dict[str, Any]],
+    recruitment_stats: Dict[str, AdPlatformRecruitmentStats],
     incentive_per_respondent: float,
-) -> Dict[str, Dict[str, Any]]:
+) -> Dict[str, RecruitmentStats]:
     """
     Calculate all statistics for each stratum in one place, with proper cleanup and initialization.
     Args:
@@ -289,7 +293,7 @@ def calculate_strata_stats(
         recruitment_stats: Dictionary of recruitment statistics from calculate_stat_sql
         incentive_per_respondent: Incentive amount per respondent
     Returns:
-        Dictionary mapping stratum IDs to their complete statistics.
+        Dictionary mapping stratum IDs to their complete RecruitmentStats
     """
     # Initialize with zeros for all strata
     stats = {
@@ -300,12 +304,13 @@ def calculate_strata_stats(
             "cpm": 0.0,
             "unique_clicks": 0,
             "unique_ctr": 0.0,
+            "impressions": 0,
             "respondents": 0,
             "price_per_respondent": 0.0,
             "incentive_cost": 0.0,
             "total_cost": 0.0,
             "conversion_rate": 0.0,
-            **recruitment_stats.get(s.id, {}),
+            **recruitment_stats.get(s.id, AdPlatformRecruitmentStats()).model_dump(),
         }
         for s in strata
     }
@@ -346,7 +351,12 @@ def calculate_strata_stats(
                 "conversion_rate": conversion_rate,
             }
         )
-    return stats
+
+    # Convert the stats dictionary to use RecruitmentStats objects
+    return {
+        stratum_id: RecruitmentStats(**stratum_stats)
+        for stratum_id, stratum_stats in stats.items()
+    }
 
 
 def add_incentive_to_price():
@@ -413,7 +423,8 @@ def get_budget_lookup_with_db(
     )
 
     # Calculate lifetime spend (no window parameter means all time)
-    lifetime_spend = calculate_stat_sql(db_conf, None, study_id)
+    lifetime_stats = calculate_stat_sql(db_conf, None, study_id)
+    lifetime_spend = {k: v.spend for k, v in lifetime_stats.items()}
 
     return get_budget_lookup(
         strata,
