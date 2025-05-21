@@ -407,11 +407,14 @@ def get_budget_lookup_with_db(
     Returns:
         Tuple of (budget_lookup, report) as returned by get_budget_lookup
     """
+
+    if df is None:
+        logging.info("Failed to calculate budget due to lack of response data")
+        return None, None
+
     # Process DataFrame to get respondents per stratum if available
-    respondents_dict = {}
-    if df is not None:
-        df = prep_df_for_budget(df, strata)
-        respondents_dict = _users_per_cluster(df)
+    df = prep_df_for_budget(df, strata)
+    respondents_dict = _users_per_cluster(df)
 
     # Calculate strata stats using recruitment data
     strata_stats = calculate_strata_stats(
