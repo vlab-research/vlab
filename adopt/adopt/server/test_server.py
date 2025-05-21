@@ -133,7 +133,7 @@ def test_server_create_and_get_recruitment_conf(verify_mock):
     verify_mock.return_value = {"sub": user_id}
 
     conf = _simple()
-    dat = json.loads(conf.json())
+    dat = json.loads(conf.model_dump_json())
     _conf_create_and_get_happy_path("recruitment", dat)
 
 
@@ -383,7 +383,7 @@ def test_get_recruitment_stats_returns_data(
         json=general_conf,
     )
     # Post recruitment conf using _simple()
-    recruitment_conf = json.loads(_simple().json())
+    recruitment_conf = json.loads(_simple().model_dump_json())
     client.post(
         f"/{org_id}/studies/foo-study/confs/recruitment",
         headers=headers,
@@ -460,7 +460,7 @@ def test_get_recruitment_stats_returns_404_for_missing_strata(
         json=general_conf,
     )
     # Post recruitment conf using _simple(), but no strata conf
-    recruitment_conf = json.loads(_simple().json())
+    recruitment_conf = json.loads(_simple().model_dump_json())
     client.post(
         f"/{org_id}/studies/foo-study/confs/recruitment",
         headers=headers,
