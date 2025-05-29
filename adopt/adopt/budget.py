@@ -31,8 +31,8 @@ def _filter_by_join_time(df: pd.DataFrame, pred: Callable[[pd.Series], bool]):
     return df[df.user_id.isin(users)].reset_index(drop=True)
 
 
-def _users_per_cluster(df: pd.DataFrame) -> dict[str, int]:
-    if df.shape[0] == 0:
+def _users_per_cluster(df: Optional[pd.DataFrame]) -> dict[str, int]:
+    if df is None or df.shape[0] == 0:
         return {}
 
     x = (
@@ -408,12 +408,12 @@ def get_budget_lookup_with_db(
         Tuple of (budget_lookup, report) as returned by get_budget_lookup
     """
 
+    # Process DataFrame to get respondents per stratum if available
+    df = prep_df_for_budget(df, strata) if df is not None else None
     if df is None:
         logging.info("Failed to calculate budget due to lack of response data")
         return None, None
 
-    # Process DataFrame to get respondents per stratum if available
-    df = prep_df_for_budget(df, strata)
     respondents_dict = _users_per_cluster(df)
 
     # Calculate strata stats using recruitment data
