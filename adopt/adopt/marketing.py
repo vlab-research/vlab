@@ -268,6 +268,13 @@ def web_call_to_action(link) -> dict:
     }
 
 
+def convert_version(c):
+    cfs = c['degrees_of_freedom_spec']['creative_features_spec']
+    if 'standard_enhancements' in cfs:
+        del cfs['standard_enhancements']
+
+    return c
+
 def _create_creative(
     config: CreativeConf,
     call_to_action: dict[str, Any],
@@ -285,7 +292,6 @@ def _create_creative(
     fields_to_copy = [
         AdCreative.Field.actor_id,
         AdCreative.Field.degrees_of_freedom_spec,
-        AdCreative.Field.instagram_actor_id,
         AdCreative.Field.instagram_user_id,
         AdCreative.Field.thumbnail_url,
         AdCreative.Field.contextual_multi_ads,
@@ -294,6 +300,8 @@ def _create_creative(
     for field in fields_to_copy:
         if field in config.template:
             c[field] = config.template[field]
+
+    c = convert_version(c)
 
     tld = config.template["object_story_spec"].get("link_data")
 
@@ -335,8 +343,8 @@ def _create_creative(
 
     c[AdCreative.Field.object_story_spec] = {
         AdCreativeObjectStorySpec.Field.page_id: toss.get("page_id"),
-        AdCreativeObjectStorySpec.Field.instagram_actor_id: toss.get(
-            "instagram_actor_id"
+        AdCreativeObjectStorySpec.Field.instagram_user_id: toss.get(
+            "instagram_user_id"
         ),
         AdCreativeObjectStorySpec.Field.link_data: link_data if tld else None,
         AdCreativeObjectStorySpec.Field.video_data: video_data if tvd else None,

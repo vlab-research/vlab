@@ -52,7 +52,6 @@ def update_ad(source: Ad, ad: Ad) -> List[Instruction]:
         AdCreative.Field.image_crops,
         AdCreative.Field.asset_feed_spec,
         AdCreative.Field.degrees_of_freedom_spec,
-        AdCreative.Field.instagram_actor_id,
         AdCreative.Field.instagram_user_id,
         AdCreative.Field.object_story_spec,
         AdCreative.Field.contextual_multi_ads,

@@ -45,7 +45,6 @@ def get_creatives(api: FacebookAdsApi, ids: List[str]) -> List[AdCreative]:
         AdCreative.Field.image_crops,
         AdCreative.Field.asset_feed_spec,
         AdCreative.Field.degrees_of_freedom_spec,
-        AdCreative.Field.instagram_actor_id,
         AdCreative.Field.instagram_user_id,
         AdCreative.Field.object_story_spec,
         AdCreative.Field.thumbnail_url,
@@ -61,7 +60,7 @@ def get_adsets(campaign: Campaign) -> List[AdSet]:
         campaign.get_ad_sets,
         fields=[
             AdSet.Field.name,
-            AdSet.Field.instagram_actor_id,
+            AdSet.Field.instagram_user_id,
             AdSet.Field.status,
             AdSet.Field.targeting,
             AdSet.Field.optimization_goal,
