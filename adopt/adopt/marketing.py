@@ -269,6 +269,9 @@ def web_call_to_action(link) -> dict:
 
 
 def convert_version(c):
+    if 'degrees_of_freedom_spec' not in c:
+        return c
+
     cfs = c['degrees_of_freedom_spec']['creative_features_spec']
     if 'standard_enhancements' in cfs:
         del cfs['standard_enhancements']
