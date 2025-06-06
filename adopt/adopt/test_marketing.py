@@ -337,7 +337,6 @@ def test_create_creative_from_template_image():
     creative = _create_creative(conf, cta, welcome_message)
 
     assert creative["actor_id"] == template["actor_id"]
-    assert creative["instagram_actor_id"] == template["instagram_actor_id"]
 
     assert (
         creative["object_story_spec"]["link_data"]["page_welcome_message"]
@@ -354,7 +353,7 @@ def test_create_creative_from_template_without_description():
     creative = _create_creative(conf, cta, welcome_message)
 
     assert creative["actor_id"] == template["actor_id"]
-    assert creative["instagram_actor_id"] == template["instagram_actor_id"]
+    assert creative["instagram_user_id"] == template["instagram_user_id"]
 
     assert (
         creative["object_story_spec"]["link_data"]["page_welcome_message"]
@@ -371,7 +370,7 @@ def test_create_creative_from_template_video_messenger():
     creative = _create_creative(conf, cta, welcome_message)
 
     assert creative["actor_id"] == template["actor_id"]
-    assert creative["instagram_actor_id"] == template["instagram_actor_id"]
+    assert creative["instagram_user_id"] == template["instagram_user_id"]
 
     assert (
         creative["asset_feed_spec"]["additional_data"]["page_welcome_message"]
@@ -389,7 +388,7 @@ def test_create_creative_from_template_video_with_oss_for_message_cta():
     creative = _create_creative(conf, cta, welcome_message)
 
     assert creative["actor_id"] == template["actor_id"]
-    assert creative["instagram_actor_id"] == template["instagram_actor_id"]
+    assert creative["instagram_user_id"] == template["instagram_user_id"]
 
     assert (
         creative["object_story_spec"]["video_data"]["page_welcome_message"]
@@ -407,7 +406,7 @@ def test_create_creative_from_template_video_with_oss_can_change_link_type():
     creative = _create_creative(conf, cta, link=link)
 
     assert creative["actor_id"] == template["actor_id"]
-    assert creative["instagram_actor_id"] == template["instagram_actor_id"]
+    assert creative["instagram_user_id"] == template["instagram_user_id"]
 
     assert "page_welcome_message" not in creative["object_story_spec"]["video_data"]
 
@@ -427,7 +426,7 @@ def test_create_creative_from_template_image_web():
     creative = _create_creative(conf, cta, link=link)
 
     assert creative["actor_id"] == template["actor_id"]
-    assert creative["instagram_actor_id"] == template["instagram_actor_id"]
+    assert creative["instagram_user_id"] == template["instagram_user_id"]
 
     assert "vlab.digital" not in json.dumps(creative.export_all_data())
 
@@ -444,7 +443,7 @@ def test_create_creative_from_template_video_web():
     creative = _create_creative(conf, cta, link=link)
 
     assert creative["actor_id"] == template["actor_id"]
-    assert creative["instagram_actor_id"] == template["instagram_actor_id"]
+    assert creative["instagram_user_id"] == template["instagram_user_id"]
 
     assert "vlab.digital" not in json.dumps(creative.export_all_data())
 

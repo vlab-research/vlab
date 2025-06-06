@@ -522,6 +522,7 @@ async def get_recruitment_stats(
         from ..facebook.state import DateRange
         from ..recruitment_data import calculate_stat_sql
 
+        # TODO: make window a parameter
         window = None
 
         recruitment_stats = await asyncio.to_thread(
@@ -531,7 +532,6 @@ async def get_recruitment_stats(
         stats = calculate_strata_stats(
             respondents_dict=respondents_dict,  # Pass the respondents dict
             strata=strata,
-            window=window,
             recruitment_stats=recruitment_stats,
             incentive_per_respondent=study_confs.get("recruitment", {}).get(
                 "incentive_per_respondent", 0

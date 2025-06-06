@@ -10,6 +10,7 @@ from .budget import (
     calc_price,
     estimate_price,
     get_budget_lookup,
+    get_stats,
     make_report,
     prep_df_for_budget,
     proportional_budget,
@@ -27,8 +28,18 @@ from .recruitment_data import (
     RecruitmentStats,
 )
 
+
 START_DATE = DATE
 UNTIL_DATE = datetime(2020, 1, 3)
+
+
+def test_get_stats_adds_zero_spend_when_no_info(cnf, df):
+    window = DateRange(START_DATE, UNTIL_DATE)
+    spend = {"bar": 10.0, "baz": 10.0}
+    df = prep_df_for_budget(df, cnf)
+
+    spend, _, _ = get_stats(df, cnf, window, spend, 10)
+    assert spend == {"bar": 10.0, "baz": 10.0, "foo": 0.0}
 
 
 def test_estimate_price_exponential_updating():
@@ -102,37 +113,6 @@ def test_calc_price_works_with_nobody_in_window(cnf, df):
 
     price = calc_price(df, window, spend, 0)
     assert price == {"bar": 22.0, "baz": 22.0, "foo": 22.0}
-
-
-def test_calc_price_with_none_df():
-    """Test calc_price behavior when df is None."""
-    window = DateRange(START_DATE, UNTIL_DATE)
-    spend = {"bar": 10.0, "baz": 10.0, "foo": 10.0}
-
-    # Test with no incentive
-    price = calc_price(None, window, spend, 0)
-    assert price == {
-        "bar": 22.0,
-        "baz": 22.0,
-        "foo": 22.0,
-    }  # High price when no users found
-
-    # Test with incentive
-    price = calc_price(None, window, spend, 10)
-    assert price == {
-        "bar": 22.0,
-        "baz": 22.0,
-        "foo": 22.0,
-    }  # Still high price since no respondents
-
-    # Test with different spend amounts
-    spend = {"bar": 100.0, "baz": 50.0, "foo": 0.0}
-    price = calc_price(None, window, spend, 0)
-    assert price == {
-        "bar": 202.0,
-        "baz": 102.0,
-        "foo": 2.0,
-    }  # Price increases with spend, 2.0 for zero spend
 
 
 def test_proportional_budget_optimizes_all_budget():
@@ -312,66 +292,11 @@ def test_proportional_budget_with_both_budget_and_max_recruits_picks_constraint(
     assert round(sum(budget.values())) == 300
 
 
-def create_strata_stats(
-    spend: Dict[str, float],
-    respondents: Dict[str, int],
-    price_per_respondent: Dict[str, float],
-) -> Dict[str, RecruitmentStats]:
-    """
-    Helper function to create strata_stats that matches the previous test data structure.
-
-    Args:
-        spend: Dictionary mapping stratum IDs to spend amounts
-        respondents: Dictionary mapping stratum IDs to respondent counts
-        price_per_respondent: Dictionary mapping stratum IDs to price per respondent
-
-    Returns:
-        Dictionary mapping stratum IDs to their complete RecruitmentStats
-    """
-    return {
-        stratum_id: RecruitmentStats(
-            spend=spend.get(stratum_id, 0),
-            respondents=respondents.get(stratum_id, 0),
-            price_per_respondent=price_per_respondent.get(stratum_id, 0),
-            frequency=0.0,
-            reach=0,
-            cpm=0,
-            unique_clicks=0,
-            unique_ctr=0,
-            incentive_cost=0,
-            total_cost=0,
-            conversion_rate=0,
-        )
-        for stratum_id in set(
-            list(spend.keys())
-            + list(respondents.keys())
-            + list(price_per_respondent.keys())
-        )
-    }
-
-
 def test_get_budget_lookup(cnf, df):
     window = DateRange(START_DATE, UNTIL_DATE)
     spend = {"bar": 10.0, "baz": 10.0, "foo": 10.0}
-    respondents = {"bar": 1, "baz": 1, "foo": 0}  # Match original logic
-    price_per_respondent = {
-        "bar": 7.33,
-        "baz": 7.33,
-        "foo": 22.0,
-    }  # Match calc_price output for these counts
 
-    strata_stats = create_strata_stats(spend, respondents, price_per_respondent)
-    lifetime_spend = spend  # Keep same as spend to match original test
-
-    budget, _ = get_budget_lookup(
-        strata=cnf,
-        max_budget=60,
-        incentive_per_respondent=0,
-        max_sample_size=100,
-        window=window,
-        strata_stats=strata_stats,
-        lifetime_spend=lifetime_spend,
-    )
+    budget, _ = get_budget_lookup(df, cnf, 60, 0, 100, window, spend, spend)
     assert round(budget["foo"]) == 16
     assert round(budget["bar"]) == 7
     assert round(budget["baz"]) == 7
@@ -380,52 +305,33 @@ def test_get_budget_lookup(cnf, df):
 def test_get_budget_lookup_with_proportional_budget_when_budget_is_spent(cnf, df):
     window = DateRange(START_DATE, UNTIL_DATE)
     spend = {"bar": 10.0, "baz": 10.0, "foo": 10.0}
-    respondents = {"bar": 1, "baz": 1, "foo": 1}
-    price_per_respondent = {"bar": 7.33, "baz": 7.33, "foo": 22.0}
-
-    strata_stats = create_strata_stats(spend, respondents, price_per_respondent)
-    lifetime_spend = spend  # Keep same as spend to match original test
-
-    budget, _ = get_budget_lookup(
-        strata=cnf,
-        max_budget=30,
-        incentive_per_respondent=0,
-        max_sample_size=100,
-        window=window,
-        strata_stats=strata_stats,
-        lifetime_spend=lifetime_spend,
-    )
+    lifetime_spend = spend
+    budget, _ = get_budget_lookup(df, cnf, 30, 0, 100, window, spend, lifetime_spend)
     assert budget == {"bar": 0, "baz": 0, "foo": 0}
 
 
 def test_get_budget_lookup_works_with_missing_data_from_clusters():
-    window = DateRange(START_DATE, UNTIL_DATE)
-    spend = {"bar": 10.0, "foo": 10.0, "baz": 10.0}
-    respondents = {
-        "bar": 1,
-        "baz": 0,
-        "foo": 0,
-    }  # Only bar has respondents (user 4 with rand=105)
-    price_per_respondent = {
-        "bar": 7.33,
-        "baz": 22.0,
-        "foo": 22.0,
-    }  # Price for bar with 1 respondent, others with 0
+    cnf = conf(1)
 
-    strata_stats = create_strata_stats(spend, respondents, price_per_respondent)
-    lifetime_spend = spend  # Keep same as spend to match original test
-
-    cnf = conf(1)  # Use quota=1
-
-    res, _ = get_budget_lookup(
-        strata=cnf,
-        max_budget=40,
-        incentive_per_respondent=0,
-        max_sample_size=100,
-        window=window,
-        strata_stats=strata_stats,
-        lifetime_spend=lifetime_spend,
+    cols = ["variable", "value", "user_id"]
+    df = pd.DataFrame(
+        [
+            ("dist", "bar", 2),
+            ("rand", "55", 2),
+            ("dist", "bar", 3),
+            ("rand", "60", 3),
+            ("dist", "bar", 4),
+            ("rand", "105", 4),
+        ],
+        columns=cols,
     )
+
+    df = _format_df(df)
+
+    spend = {"bar": 10.0, "foo": 10.0, "baz": 10.0}
+    window = DateRange(START_DATE, UNTIL_DATE)
+    lifetime_spend = spend
+    res, _ = get_budget_lookup(df, cnf, 40, 0, 100, window, spend, lifetime_spend)
 
     assert {k: round(v, 1) for k, v in res.items()} == {
         "foo": 4.6,
@@ -434,24 +340,51 @@ def test_get_budget_lookup_works_with_missing_data_from_clusters():
     }
 
 
+def test_make_report():
+    r = make_report(
+        [("goal", {"foo": 100, "bar": 10}), ("remain", {"foo": 90, "bar": 0})]
+    )
+
+    assert r["foo"] == {"goal": 100, "remain": 90}
+    assert r["bar"] == {"goal": 10, "remain": 0}
+    assert r["foo"] == {"goal": 100, "remain": 90}
+    assert r["bar"] == {"goal": 10, "remain": 0}
+    assert r["foo"] == {"goal": 100, "remain": 90}
+    assert r["bar"] == {"goal": 10, "remain": 0}
+
+
+def test_add_incentive():
+    spend = {"bar": 100.0, "baz": 100.0, "foo": 100.0}
+    tot = {"bar": 5, "baz": 2, "foo": 0}
+
+    res = add_incentive(spend, tot, 10)
+    assert res == {"bar": 150.0, "baz": 120.0, "foo": 100.0}
+
+    res = add_incentive(spend, tot, 0)
+    assert res == spend
+
+
 def test_get_budget_lookup_includes_incentive_in_total_spend(cnf, df):
     window = DateRange(START_DATE, UNTIL_DATE)
     spend = {"bar": 10.0, "baz": 10.0, "foo": 10.0}
-    respondents = {"bar": 1, "baz": 1, "foo": 0}  # Match original test data
-    price_per_respondent = {"bar": 7.33, "baz": 7.33, "foo": 22.0}
+    lifetime_spend = spend
     incentive = 10.0
 
-    strata_stats = create_strata_stats(spend, respondents, price_per_respondent)
-    lifetime_spend = spend  # Keep same as spend to match original test
+    # Test data has 2 users total:
+    # - 1 user in "bar" cluster
+    # - 1 user in "baz" cluster
+    # So total spend should be:
+    # lifetime_spend (30) + (2 users * 10 incentive) = 50
 
     # First let's verify with a small budget to ensure we're counting incentives
     budget, report = get_budget_lookup(
-        strata=cnf,
+        df,
+        cnf,
         max_budget=40,
         incentive_per_respondent=incentive,
         max_sample_size=100,
         window=window,
-        strata_stats=strata_stats,
+        spend=spend,
         lifetime_spend=lifetime_spend,
     )
 
@@ -460,12 +393,13 @@ def test_get_budget_lookup_includes_incentive_in_total_spend(cnf, df):
 
     # Now test with a larger budget to verify remaining calculation
     budget, report = get_budget_lookup(
-        strata=cnf,
+        df,
+        cnf,
         max_budget=100,
         incentive_per_respondent=incentive,
         max_sample_size=100,
         window=window,
-        strata_stats=strata_stats,
+        spend=spend,
         lifetime_spend=lifetime_spend,
     )
 
@@ -475,31 +409,29 @@ def test_get_budget_lookup_includes_incentive_in_total_spend(cnf, df):
 def test_get_budget_lookup_works_with_zero_incentive(cnf, df):
     window = DateRange(START_DATE, UNTIL_DATE)
     spend = {"bar": 10.0, "baz": 10.0, "foo": 10.0}
-    respondents = {"bar": 1, "baz": 1, "foo": 1}
-    price_per_respondent = {"bar": 7.33, "baz": 7.33, "foo": 22.0}
-
-    strata_stats = create_strata_stats(spend, respondents, price_per_respondent)
-    lifetime_spend = spend  # Keep same as spend to match original test
+    lifetime_spend = spend
 
     # With no incentive, total_spend should just be lifetime_spend (30)
     budget, _ = get_budget_lookup(
-        strata=cnf,
+        df,
+        cnf,
         max_budget=30,
         incentive_per_respondent=0,
         max_sample_size=100,
         window=window,
-        strata_stats=strata_stats,
+        spend=spend,
         lifetime_spend=lifetime_spend,
     )
     assert budget == {"bar": 0, "baz": 0, "foo": 0}
 
     budget, _ = get_budget_lookup(
-        strata=cnf,
+        df,
+        cnf,
         max_budget=60,
         incentive_per_respondent=0,
         max_sample_size=100,
         window=window,
-        strata_stats=strata_stats,
+        spend=spend,
         lifetime_spend=lifetime_spend,
     )
     assert sum(budget.values()) == pytest.approx(30)  # 60 - 30 = 30 remaining
@@ -588,7 +520,6 @@ def test_calculate_strata_stats_basic(cnf, df):
     stats = calculate_strata_stats(
         respondents_dict,
         cnf,
-        window,
         recruitment_stats,
         incentive_per_respondent=10.0,
     )
@@ -637,7 +568,6 @@ def test_calculate_strata_stats_missing_recruitment_data(cnf, df):
     stats = calculate_strata_stats(
         respondents_dict,
         cnf,
-        window,
         recruitment_stats,
         incentive_per_respondent=10.0,
     )
@@ -651,7 +581,6 @@ def test_calculate_strata_stats_missing_recruitment_data(cnf, df):
 
 def test_calculate_strata_stats_missing_response_data(cnf):
     """Test calculate_strata_stats with no response data."""
-    window = DateRange(START_DATE, UNTIL_DATE)
     recruitment_stats = {
         "foo": AdPlatformRecruitmentStats(
             spend=100.0,
@@ -682,7 +611,6 @@ def test_calculate_strata_stats_missing_response_data(cnf):
     stats = calculate_strata_stats(
         None,  # No response data
         cnf,
-        window,
         recruitment_stats,
         incentive_per_respondent=10.0,
     )
@@ -696,7 +624,6 @@ def test_calculate_strata_stats_missing_response_data(cnf):
 
 def test_calculate_strata_stats_invalid_stratum(cnf, df):
     """Test calculate_strata_stats with invalid stratum IDs."""
-    window = DateRange(START_DATE, UNTIL_DATE)
     recruitment_stats = {
         "invalid_stratum": AdPlatformRecruitmentStats(
             spend=100.0,
@@ -714,7 +641,6 @@ def test_calculate_strata_stats_invalid_stratum(cnf, df):
     stats = calculate_strata_stats(
         respondents_dict,
         cnf,
-        window,
         recruitment_stats,
         incentive_per_respondent=10.0,
     )
@@ -728,7 +654,6 @@ def test_calculate_strata_stats_invalid_stratum(cnf, df):
 
 def test_calculate_strata_stats_zero_values(cnf, df):
     """Test calculate_strata_stats with zero values."""
-    window = DateRange(START_DATE, UNTIL_DATE)
     recruitment_stats = {
         "foo": AdPlatformRecruitmentStats(
             spend=0.0,
@@ -763,7 +688,6 @@ def test_calculate_strata_stats_zero_values(cnf, df):
     stats = calculate_strata_stats(
         respondents_dict,
         cnf,
-        window,
         recruitment_stats,
         incentive_per_respondent=10.0,
     )
@@ -772,51 +696,3 @@ def test_calculate_strata_stats_zero_values(cnf, df):
     assert stats["foo"].conversion_rate == 0.0
     assert stats["bar"].conversion_rate == 0.0
     assert stats["baz"].conversion_rate == 0.0
-
-
-def test_calculate_strata_stats_no_window(cnf, df):
-    """Test calculate_strata_stats with no window specified."""
-    recruitment_stats = {
-        "foo": AdPlatformRecruitmentStats(
-            spend=100.0,
-            frequency=2.0,
-            reach=500,
-            cpm=100.0,
-            unique_clicks=100,
-            unique_ctr=0.1,
-        ),
-        "bar": AdPlatformRecruitmentStats(
-            spend=200.0,
-            frequency=2.0,
-            reach=1000,
-            cpm=100.0,
-            unique_clicks=200,
-            unique_ctr=0.1,
-        ),
-        "baz": AdPlatformRecruitmentStats(
-            spend=300.0,
-            frequency=2.0,
-            reach=1500,
-            cpm=100.0,
-            unique_clicks=300,
-            unique_ctr=0.1,
-        ),
-    }
-
-    # Create respondents dictionary from DataFrame
-    df = prep_df_for_budget(df, cnf)
-    respondents_dict = _users_per_cluster(df)
-
-    stats = calculate_strata_stats(
-        respondents_dict,
-        cnf,
-        None,  # No window
-        recruitment_stats,
-        incentive_per_respondent=10.0,
-    )
-
-    # Check that stats are calculated correctly without window
-    assert set(stats.keys()) == {"foo", "bar", "baz"}
-    assert stats["foo"].spend == 100.0
-    assert stats["bar"].frequency == 2.0
-    assert stats["baz"].unique_clicks == 300

@@ -88,6 +88,11 @@ def _get_counts(
     return {**{k: 0 for k in spend.keys()}, **counts}
 
 
+def _calc_price(counts, spend, incentive_per_respondent):
+    spend = add_incentive(spend, counts, incentive_per_respondent)
+    return {k: estimate_price(spend.get(k, 0), v) for k, v in counts.items()}
+
+
 def calc_price(
     df: Optional[pd.DataFrame],
     window: DateRange,
@@ -95,8 +100,7 @@ def calc_price(
     incentive_per_respondent: float,
 ):
     counts = _get_counts(df, window, spend)
-    spend = add_incentive(spend, counts, incentive_per_respondent)
-    return {k: estimate_price(spend.get(k, 0), v) for k, v in counts.items()}
+    return _calc_price(counts, spend, incentive_per_respondent)
 
 
 def prep_df_for_budget(df, strata):
@@ -231,26 +235,57 @@ def normalize_goal(strata):
     return {k: v / t for k, v in goal.items()}
 
 
+def get_stats(
+    df: Optional[pd.DataFrame],
+    strata: Sequence[Union[Stratum, StratumConf]],
+    window: DateRange,
+    spend: Dict[str, float],
+    incentive_per_respondent: float,
+):
+    optimized_ids = {s.id for s in strata}
+
+    spend = {k: v for k, v in spend.items() if k in optimized_ids}
+    spend = {**{s.id: 0 for s in strata}, **spend}
+
+    respondents = _users_per_cluster(df)
+    respondents = {**{k: 0 for k in spend.keys()}, **respondents}
+
+    price = calc_price(df, window, spend, incentive_per_respondent)
+
+    return spend, respondents, price
+
+
 def get_budget_lookup(
+    df: Optional[pd.DataFrame],
     strata: Sequence[Union[Stratum, StratumConf]],
     max_budget: float,
     incentive_per_respondent: float,
     max_sample_size: int,
     window: DateRange,
-    strata_stats: Dict[str, RecruitmentStats],
+    spend: Dict[str, float],
     lifetime_spend: Dict[str, float],
 ) -> Tuple[Optional[Budget], Optional[AdOptReport]]:
-    # Extract core stats we need
-    spend_dict = {k: v.spend for k, v in strata_stats.items()}
-    respondents_dict = {k: v.respondents for k, v in strata_stats.items()}
-    price_dict = {k: v.price_per_respondent for k, v in strata_stats.items()}
+    df = prep_df_for_budget(df, strata) if df is not None else None
 
-    # Calculate total spend including incentives
-    total_incentive_cost = sum(respondents_dict.values()) * incentive_per_respondent
-    total_spend = sum(lifetime_spend.values()) + total_incentive_cost
+    if df is None:
+        logging.info("Failed to calculate budget due to lack of response data")
+        return None, None
+
+    try:
+        spend, tot, price = get_stats(
+            df, strata, window, spend, incentive_per_respondent
+        )
+    except AdDataError as e:
+        logging.info(f"Failed to calculate budget due to the follow error: {e}")
+        return None, None
+
+    # Add total incentive costs to total spend
+    total_spend = sum(lifetime_spend.values()) + (
+        sum(tot.values()) * incentive_per_respondent
+    )
     to_spend = max_budget - total_spend
 
-    share = _normalize_values(respondents_dict)
+    share = _normalize_values(tot)
 
     if to_spend <= 0:
         logging.info("No money left in the budget!")
@@ -258,16 +293,16 @@ def get_budget_lookup(
 
     goal = _normalize_values({s.id: s.quota for s in strata})
     budget, expected = proportional_budget(
-        goal, spend_dict, respondents_dict, price_dict, to_spend, max_sample_size
+        goal, spend, tot, price, to_spend, max_sample_size
     )
 
     report = make_report(
         [
-            ("current_price_per_participant", price_dict),
-            ("total_spent", spend_dict),
+            ("current_price_per_participant", price),
+            ("total_spent", spend),
             ("lifetime_spent", lifetime_spend),
             ("desired_percentage", goal),
-            ("current_participants", respondents_dict),
+            ("current_participants", tot),
             ("current_percentage", share),
             ("current_budget", budget),
             ("expected_participants", expected),
@@ -280,7 +315,6 @@ def get_budget_lookup(
 def calculate_strata_stats(
     respondents_dict: Optional[Dict[str, int]],
     strata: Sequence[Union[Stratum, StratumConf]],
-    window: Optional[DateRange],
     recruitment_stats: Dict[str, AdPlatformRecruitmentStats],
     incentive_per_respondent: float,
 ) -> Dict[str, RecruitmentStats]:
@@ -289,7 +323,6 @@ def calculate_strata_stats(
     Args:
         respondents_dict: Dictionary mapping stratum IDs to number of respondents, or None
         strata: List of strata being recruited for
-        window: Optional DateRange to analyze statistics within
         recruitment_stats: Dictionary of recruitment statistics from calculate_stat_sql
         incentive_per_respondent: Incentive amount per respondent
     Returns:
@@ -327,9 +360,8 @@ def calculate_strata_stats(
     spend = {k: v["spend"] for k, v in stats.items()}
     respondents = {k: v["respondents"] for k, v in stats.items()}
 
-    prices = calc_price(
-        None,  # No longer passing DataFrame here
-        window or DateRange(datetime.min, datetime.max),
+    prices = _calc_price(
+        respondents,
         spend,
         incentive_per_respondent,
     )
@@ -357,12 +389,6 @@ def calculate_strata_stats(
         stratum_id: RecruitmentStats(**stratum_stats)
         for stratum_id, stratum_stats in stats.items()
     }
-
-
-def add_incentive_to_price():
-    # add to each
-
-    pass
 
 
 # TODO: add frequency -- at least to report if nothing automated
@@ -414,27 +440,20 @@ def get_budget_lookup_with_db(
         logging.info("Failed to calculate budget due to lack of response data")
         return None, None
 
-    respondents_dict = _users_per_cluster(df)
-
-    # Calculate strata stats using recruitment data
-    strata_stats = calculate_strata_stats(
-        respondents_dict,
-        strata,
-        window,
-        calculate_stat_sql(db_conf, window, study_id),
-        incentive_per_respondent,
-    )
+    windowed_stats = calculate_stat_sql(db_conf, window, study_id)
+    windowed_spend = {k: v.spend for k, v in windowed_stats.items()}
 
     # Calculate lifetime spend (no window parameter means all time)
     lifetime_stats = calculate_stat_sql(db_conf, None, study_id)
     lifetime_spend = {k: v.spend for k, v in lifetime_stats.items()}
 
     return get_budget_lookup(
+        df,
         strata,
         max_budget,
         incentive_per_respondent,
         max_sample_size,
         window,
-        strata_stats,
+        windowed_spend,
         lifetime_spend,
     )
