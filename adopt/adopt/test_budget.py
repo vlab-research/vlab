@@ -91,10 +91,9 @@ def test_calc_price_increases_price_when_no_user_after_spend(cnf, df):
     price = calc_price(df, window, spend, 0)
     assert price == {"bar": 7.33, "baz": 7.33, "foo": 22.0}
 
-    # with incentive - non-user does not go up as much, which is a shame?
-    # TODO: maybe incentive should be added to prior...
+    # with incentive, it goes up by the incentive.
     price = calc_price(df, window, spend, 10)
-    assert price == {"bar": 14, "baz": 14, "foo": 22.0}
+    assert price == {"bar": 17.33, "baz": 17.33, "foo": 32.0}
 
 
 def test_calc_price_picks_prior_if_no_spend(cnf, df):
@@ -113,6 +112,37 @@ def test_calc_price_works_with_nobody_in_window(cnf, df):
 
     price = calc_price(df, window, spend, 0)
     assert price == {"bar": 22.0, "baz": 22.0, "foo": 22.0}
+
+
+def test_calc_price_with_none_df():
+    """Test calc_price behavior when df is None."""
+    window = DateRange(START_DATE, UNTIL_DATE)
+    spend = {"bar": 10.0, "baz": 10.0, "foo": 10.0}
+
+    # Test with no incentive
+    price = calc_price(None, window, spend, 0)
+    assert price == {
+        "bar": 22.0,
+        "baz": 22.0,
+        "foo": 22.0,
+    }  # High price when no users found
+
+    # Test with incentive
+    price = calc_price(None, window, spend, 10)
+    assert price == {
+        "bar": 32.0,
+        "baz": 32.0,
+        "foo": 32.0,
+    }  # With incentive, it goes up by the incentive
+
+    # Test with different spend amounts
+    spend = {"bar": 100.0, "baz": 50.0, "foo": 0.0}
+    price = calc_price(None, window, spend, 0)
+    assert price == {
+        "bar": 202.0,
+        "baz": 102.0,
+        "foo": 2.0,
+    }  # Price increases with spend, 2.0 for zero spend
 
 
 def test_proportional_budget_optimizes_all_budget():

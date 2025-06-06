@@ -48,15 +48,18 @@ class AdDataError(BaseException):
     pass
 
 
-def estimate_price(spend: float, found: int):
+def estimate_price(spend: float, found: int, prior_price: float = 2.0):
     # Estimates # people/dollar as Poisson with Gamma prior
+    # prior_price: Expected price per person in dollars (default: $2/person)
 
     spend = round(spend)
 
-    # TODO: add incentive to this somehow, think through formally
-    # implies Gamma(1/2, 1) -> $2/person
+    # Convert prior_price to Gamma parameters
+    # For Gamma(k, theta), mean = k*theta
+    # We want mean = 1/prior_price (people per dollar)
+    # We'll keep k=0.5 as it gives a reasonable shape
     prior_k = 0.5
-    prior_theta = 1
+    prior_theta = 1 / (prior_price * prior_k)
 
     prior_beta = 1 / prior_theta
     new_lambda = (prior_k + found) / (prior_beta + spend)
@@ -90,7 +93,8 @@ def _get_counts(
 
 def _calc_price(counts, spend, incentive_per_respondent):
     spend = add_incentive(spend, counts, incentive_per_respondent)
-    return {k: estimate_price(spend.get(k, 0), v) for k, v in counts.items()}
+    prior = 2 + incentive_per_respondent
+    return {k: estimate_price(spend.get(k, 0), v, prior) for k, v in counts.items()}
 
 
 def calc_price(
