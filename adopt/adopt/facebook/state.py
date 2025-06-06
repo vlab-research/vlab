@@ -75,7 +75,11 @@ def get_adsets(campaign: Campaign) -> List[AdSet]:
     )
 
 
-def get_campaigns(account: AdAccount) -> List[Campaign]:
+def get_campaigns(account: AdAccount, name: Optional[str] = None) -> List[Campaign]:
+    params = {}
+    if name:
+        params["filtering"] = [{"field": "name", "operator": "EQUAL", "value": name}]
+
     return call(
         account.get_campaigns,
         fields=[
@@ -84,6 +88,7 @@ def get_campaigns(account: AdAccount) -> List[Campaign]:
             Campaign.Field.status,
             Campaign.Field.created_time,
         ],
+        params=params,
     )
 
 
@@ -202,16 +207,17 @@ class CampaignState:
     @cached_property
     def campaign(self) -> Campaign:
         name = self.campaign_name
+        campaign_options = get_campaigns(self.account, name=name)
 
-        campaign_options = [c for c in get_campaigns(self.account) if c["name"] == name]
+        if not campaign_options:
+            raise StateNameError(f"No campaign found with name: {self.campaign_name}")
 
-        if len(campaign_options) != 1:
+        if len(campaign_options) > 1:
             raise StateNameError(
-                f"Phooey! No clear campaign to get for campaign: {self.campaign_name}."
+                f"Multiple campaigns found with name: {self.campaign_name}. Please ensure campaign names are unique."
             )
 
-        campaign = campaign_options[0]
-        return campaign
+        return campaign_options[0]
 
     @property
     def campaign_start(self) -> datetime:
