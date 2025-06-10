@@ -250,7 +250,7 @@ const TableCell = ({
 }) => (
   <td
     className={classNames(
-      'px-1 sm:px-6 py-4 text-sm',
+      'px-1 sm:px-6 py-4 text-sm break-words',
       first ? 'font-medium text-gray-900' : 'whitespace-nowrap text-gray-500'
     )}
     data-testid={testId}
