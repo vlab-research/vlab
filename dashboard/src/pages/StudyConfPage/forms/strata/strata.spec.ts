@@ -103,6 +103,61 @@ describe('createStrataFromVariables', () => {
     ])
   });
 
+  it('Works with one variable and one level', () => {
+
+    const variables: Variables = [
+      {
+        name: 'gender',
+        properties: ['genders'],
+        levels: [
+          { name: 'men', template_campaign: 'foo', template_adset: 'men', facebook_targeting: { 'genders': [1] }, quota: 1.0 }
+        ]
+      }
+    ];
+
+    const creatives: Creatives = [];
+    const strata = createStrataFromVariables(variables, "foo", creatives);
+
+    expect(strata).toEqual([
+      {
+        audiences: [],
+        excluded_audiences: [],
+        metadata: { gender: "men" },
+        creatives: [],
+        facebook_targeting: { genders: [1] },
+        question_targeting: {
+          op: "and",
+          vars: [
+            {
+              op: "equal",
+              vars: [
+                {
+                  type: "variable",
+                  value: "gender"
+                },
+                {
+                  type: "constant",
+                  value: "men"
+                }
+              ]
+            },
+            {
+              op: "answered",
+              vars: [
+                {
+                  type: "variable",
+                  value: "foo"
+                }
+              ]
+            }
+          ]
+        },
+        quota: 1.0,
+        id: 'gender:men'
+      }
+    ])
+  });
+
   it('Creates product of two variables and multiple levels', () => {
 
     const variables: Variables = [
