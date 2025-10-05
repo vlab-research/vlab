@@ -10,6 +10,8 @@ from facebook_business.adobjects.adcreative import AdCreative
 from facebook_business.adobjects.adset import AdSet
 from facebook_business.adobjects.campaign import Campaign
 from facebook_business.adobjects.customaudience import CustomAudience
+from facebook_business.adobjects.leadgenform import LeadgenForm
+from facebook_business.adobjects.page import Page
 from facebook_business.api import FacebookAdsApi
 from facebook_business.session import FacebookSession
 
@@ -181,6 +183,20 @@ def get_custom_audiences(account: AdAccount) -> List[CustomAudience]:
     return call(account.get_custom_audiences, fields=fields)
 
 
+def get_leadgen_forms(api: FacebookAdsApi, page_id: str) -> List[LeadgenForm]:
+    """Get all lead gen forms for a Facebook Page."""
+    page = Page(page_id, api=api)
+    fields = [
+        LeadgenForm.Field.name,
+        LeadgenForm.Field.status,
+        LeadgenForm.Field.questions,
+        LeadgenForm.Field.tracking_parameters,
+        LeadgenForm.Field.context_card,
+        LeadgenForm.Field.thank_you_page,
+    ]
+    return call(page.get_lead_gen_forms, fields=fields)
+
+
 def ads_for_adset(adset, ads):
     return [a for a in ads if a["adset_id"] == adset["id"]]
 
@@ -303,3 +319,8 @@ class FacebookState:
         if not aud:
             raise StateNameError(f"Audience not found with name: {name}")
         return aud
+
+    @cache
+    def page_forms(self, page_id: str) -> List[LeadgenForm]:
+        """Get all lead gen forms for a specific page. Cached per page_id."""
+        return get_leadgen_forms(self.api, page_id)

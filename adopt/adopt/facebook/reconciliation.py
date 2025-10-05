@@ -1,8 +1,10 @@
-from typing import Dict, List, Sequence, Tuple, TypeVar
+import re
+from typing import Dict, List, Optional, Sequence, Tuple, TypeVar
 
 from facebook_business.adobjects.adcreative import AdCreative
 from facebook_business.adobjects.ad import Ad
 from facebook_business.adobjects.adset import AdSet
+from facebook_business.adobjects.leadgenform import LeadgenForm
 
 from .update import Instruction
 
@@ -137,3 +139,100 @@ def adset_dif(
     olds, news = [[a for a, _ in x] for x in [old_adsets, new_adsets]]
 
     return _diff("adset", updater, creator, olds, news)
+
+
+#############################
+# Lead Gen Form Reconciliation
+#############################
+
+
+def get_latest_form_version(
+    forms: Sequence[LeadgenForm],
+    base_name: str,
+) -> Optional[Tuple[LeadgenForm, int]]:
+    """
+    Find the latest version of a form by base name.
+    Returns (form, version_number) or None if not found.
+    Ignores ARCHIVED and DELETED forms.
+    """
+    pattern = re.compile(rf"^{re.escape(base_name)}-v(\d+)$")
+
+    matching_forms = []
+    for form in forms:
+        # Skip archived/deleted
+        if form.get("status") in ["ARCHIVED", "DELETED"]:
+            continue
+
+        match = pattern.match(form["name"])
+        if match:
+            version = int(match.group(1))
+            matching_forms.append((form, version))
+
+    if not matching_forms:
+        return None
+
+    # Return form with highest version
+    return max(matching_forms, key=lambda x: x[1])
+
+
+def _form_needs_update(
+    existing_form: LeadgenForm,
+    desired_params: Dict[str, any],
+) -> bool:
+    """
+    Check if form needs updating by comparing key fields.
+    Returns True if any field differs.
+    """
+    fields_to_compare = ["questions", "tracking_parameters", "context_card", "thank_you_page"]
+
+    return any(
+        not _eq(existing_form.get(field), desired_params.get(field))
+        for field in fields_to_compare
+    )
+
+
+def form_dif(
+    old_forms: Sequence[LeadgenForm],
+    new_form_specs: Sequence[Tuple[str, Dict[str, any]]],
+) -> List[Instruction]:
+    """
+    Compare existing forms with desired form specs.
+    Returns Instructions to archive old versions and create new ones as needed.
+
+    Args:
+        old_forms: Existing forms from Facebook
+        new_form_specs: List of (base_name, params) tuples
+    """
+    # Import here to avoid circular dependency
+    from ..marketing import make_leadgen_form_name
+
+    instructions = []
+
+    for base_name, desired_params in new_form_specs:
+        latest = get_latest_form_version(old_forms, base_name)
+
+        if latest is None:
+            # Form doesn't exist, create v1
+            form_name = make_leadgen_form_name(base_name, 1)
+            params = {**desired_params, "name": form_name}
+            instructions.append(Instruction("leadgen_form", "create", params, None))
+
+        else:
+            existing_form, current_version = latest
+
+            if _form_needs_update(existing_form, desired_params):
+                # Archive old version
+                archive_params = {"status": "ARCHIVED"}
+                instructions.append(
+                    Instruction("leadgen_form", "update", archive_params, existing_form["id"])
+                )
+
+                # Create new version
+                next_version = current_version + 1
+                form_name = make_leadgen_form_name(base_name, next_version)
+                params = {**desired_params, "name": form_name}
+                instructions.append(Instruction("leadgen_form", "create", params, None))
+
+            # else: form exists and matches, no action needed
+
+    return instructions
