@@ -2,6 +2,8 @@ from datetime import datetime, timezone
 from typing import Any, Dict, NamedTuple, Optional
 
 import requests
+from facebook_business.adobjects.leadgenform import LeadgenForm
+from facebook_business.adobjects.page import Page
 
 from .state import FacebookState, call
 
@@ -52,12 +54,14 @@ class GraphUpdater:
     def __init__(self, state: FacebookState):
         self.state = state
         self.account = state.account
+        self.api = state.api
 
         self.objects = {
             "adset": getter("adset", state, "adsets"),
             "ad": getter("ad", state, "ads"),
             "campaign": getter("campaign", state, "campaigns"),
             "custom_audience": getter("custom_audience", state, "custom_audiences"),
+            "leadgen_form": self._get_leadgen_form,
         }
 
         self.creates = {
@@ -66,6 +70,7 @@ class GraphUpdater:
             "ad": self.account.create_ad,
             "custom_audience": self.account.create_custom_audience,
             "campaign": self.account.create_campaign,
+            "leadgen_form": self._create_leadgen_form,
         }
 
     def get_create(self, node):
@@ -78,6 +83,22 @@ class GraphUpdater:
 
     def get_object(self, type_, id_):
         return self.objects[type_](id_)
+
+    def _get_leadgen_form(self, form_id: str):
+        """Get a leadgen form by ID. Just create the object - no need to search state."""
+        return LeadgenForm(form_id, api=self.api)
+
+    def _create_leadgen_form(self, params: Dict[str, Any], fields: list):
+        """
+        Create a lead gen form on a Facebook Page.
+        Extracts page_id from params and calls Page.create_lead_gen_form().
+        """
+        # Extract page_id (required for form creation)
+        page_id = params.pop("page_id")
+
+        # Get Page object and create form
+        page = Page(page_id, api=self.state.api)
+        return call(page.create_lead_gen_form, params=params, fields=fields)
 
     def execute(self, instruction: Instruction):
         if instruction.action == "update":
