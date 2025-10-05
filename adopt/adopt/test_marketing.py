@@ -1,5 +1,6 @@
 import json
 import random
+from datetime import datetime
 from typing import TypeVar
 
 import pytest
@@ -7,9 +8,15 @@ from facebook_business.adobjects.adcreative import AdCreative
 from facebook_business.adobjects.customaudience import CustomAudience
 
 from .facebook.update import Instruction
+from .facebook.state import CampaignState, FacebookState, StateInitializationError
 from .marketing import (
     _create_creative,
     adset_instructions,
+    build_leadgen_form_params,
+    check_and_create_forms,
+    create_creative,
+    make_leadgen_form_base_name,
+    make_leadgen_form_name,
     make_ref,
     manage_aud,
     messenger_call_to_action,
@@ -20,11 +27,18 @@ from .study_conf import (
     AudienceConf,
     CreativeConf,
     FlyMessengerDestination,
+    GeneralConf,
     InvalidConfigError,
+    LeadGenDestination,
     Lookalike,
     LookalikeAudience,
     LookalikeSpec,
     Partitioning,
+    SimpleRecruitment,
+    Stratum,
+    StudyConf,
+    UserInfo,
+    WebDestination,
 )
 
 T = TypeVar("T")
@@ -448,3 +462,705 @@ def test_create_creative_from_template_video_web():
     assert "vlab.digital" not in json.dumps(creative.export_all_data())
 
     assert creative["asset_feed_spec"]["link_urls"][0]["website_url"] == link
+
+
+
+#############################
+# Lead Gen Tests
+#############################
+
+
+def test_make_leadgen_form_base_name():
+    base = make_leadgen_form_base_name("study123", "dest1", "stratum1")
+    assert base == "study123-dest1-stratum1"
+
+
+def test_make_leadgen_form_name():
+    name = make_leadgen_form_name("study123-dest1-stratum1", 1)
+    assert name == "study123-dest1-stratum1-v1"
+
+    name = make_leadgen_form_name("study123-dest1-stratum1", 42)
+    assert name == "study123-dest1-stratum1-v42"
+
+
+def test_build_leadgen_form_params():
+    from .study_conf import SimpleRecruitment, UserInfo
+    from datetime import datetime
+
+    destination = LeadGenDestination(
+        type="lead_gen",
+        name="test-dest",
+        page_id="123456",
+        form_template={
+            "questions": [{"key": "email", "label": "Email"}],
+            "context_card": {"content": []},
+        }
+    )
+
+    stratum = Stratum(
+        id="stratum1",
+        quota=0.5,
+        creatives=[],
+        facebook_targeting={},
+        metadata={"gender": "female", "age": "18-24"},
+    )
+
+    study = StudyConf(
+        id="study123",
+        user=UserInfo(survey_user="test", token="test"),
+        general=GeneralConf(
+            name="Test Study",
+            credentials_key="test",
+            credentials_entity="test",
+            ad_account="123",
+            opt_window=7,
+            extra_metadata={"campaign_type": "test"},
+        ),
+        destinations=[destination],
+        audiences=[],
+        creatives=[],
+        strata=[],
+        recruitment=SimpleRecruitment(
+            ad_campaign_name="test",
+            objective="OUTCOME_ENGAGEMENT",
+            optimization_goal="LINK_CLICKS",
+            destination_type="WEBSITE",
+            min_budget=100,
+            budget=1000,
+            max_sample=100,
+            start_date=datetime(2024, 1, 1),
+            end_date=datetime(2024, 12, 31),
+        ),
+    )
+
+    params = build_leadgen_form_params(destination, stratum, study)
+
+    # Should include template content
+    assert params["questions"] == [{"key": "email", "label": "Email"}]
+
+    # Should include tracking parameters with all metadata
+    tracking = {item["key"]: item["value"] for item in params["tracking_parameters"]}
+    assert tracking["stratum_id"] == "stratum1"
+    assert tracking["study_id"] == "study123"
+    assert tracking["gender"] == "female"
+    assert tracking["age"] == "18-24"
+    assert tracking["campaign_type"] == "test"
+
+
+def test_build_leadgen_form_params_with_thank_you_url():
+    from .study_conf import SimpleRecruitment, UserInfo
+    from datetime import datetime
+
+    destination = LeadGenDestination(
+        type="lead_gen",
+        name="test-dest",
+        page_id="123456",
+        form_template={
+            "questions": [{"key": "email"}],
+        },
+        thank_you_url_template="https://example.com/thanks"
+    )
+
+    stratum = Stratum(
+        id="stratum1",
+        quota=0.5,
+        creatives=[],
+        facebook_targeting={},
+        metadata={},
+    )
+
+    study = StudyConf(
+        id="study123",
+        user=UserInfo(survey_user="test", token="test"),
+        general=GeneralConf(
+            name="Test Study",
+            credentials_key="test",
+            credentials_entity="test",
+            ad_account="123",
+            opt_window=7,
+        ),
+        destinations=[destination],
+        audiences=[],
+        creatives=[],
+        strata=[],
+        recruitment=SimpleRecruitment(
+            ad_campaign_name="test",
+            objective="OUTCOME_ENGAGEMENT",
+            optimization_goal="LINK_CLICKS",
+            destination_type="WEBSITE",
+            min_budget=100,
+            budget=1000,
+            max_sample=100,
+            start_date=datetime(2024, 1, 1),
+            end_date=datetime(2024, 12, 31),
+        ),
+    )
+
+    params = build_leadgen_form_params(destination, stratum, study)
+
+    assert params["thank_you_page"]["url"] == "https://example.com/thanks"
+
+
+def test_check_and_create_forms_with_multiple_strata():
+    """Test check_and_create_forms() with multiple strata on same page"""
+    from unittest.mock import MagicMock
+
+    study = StudyConf(
+        id="study123",
+        user=UserInfo(survey_user="test", token="test"),
+        general=GeneralConf(
+            name="Test Study",
+            credentials_key="test",
+            credentials_entity="test",
+            ad_account="123",
+            opt_window=7,
+        ),
+        recruitment=SimpleRecruitment(
+            ad_campaign_name="test_campaign",
+            start_date=datetime(2024, 1, 1),
+            end_date=datetime(2024, 12, 31),
+            objective="OUTCOME_LEADS",
+            optimization_goal="LEAD_GENERATION",
+            destination_type="LEAD_GEN",
+            min_budget=10.0,
+            budget=100.0,
+            max_sample=1000,
+        ),
+        destinations=[
+            LeadGenDestination(
+                name="dest1",
+                type="LEAD_GEN",
+                page_id="page123",
+                form_template={"name": "Test Form", "questions": []},
+            )
+        ],
+        creatives=[
+            CreativeConf(
+                name="creative1",
+                destination="dest1",
+                template_campaign="template_campaign",
+                template={"name": "Test Creative"}
+            )
+        ],
+        audiences=[],
+        strata=[],
+    )
+
+    stratum1 = Stratum(
+        id="stratum1",
+        quota=100,
+        metadata={"campaign_name": "test_campaign"},
+        facebook_targeting={"geo_locations": {"countries": ["US"]}},
+        creatives=[study.creatives[0]],
+        audiences=[],
+        excluded_audiences=[]
+    )
+
+    stratum2 = Stratum(
+        id="stratum2",
+        quota=200,
+        metadata={"campaign_name": "test_campaign"},
+        facebook_targeting={"geo_locations": {"countries": ["CA"]}},
+        creatives=[study.creatives[0]],
+        audiences=[],
+        excluded_audiences=[]
+    )
+
+    # Mock FacebookState
+    state = MagicMock(spec=FacebookState)
+    state.page_forms.return_value = []  # No existing forms
+
+    instructions = check_and_create_forms(study, state, [stratum1, stratum2])
+
+    # Should create 2 forms (one per stratum)
+    assert len(instructions) == 2
+    assert all(i.action == "create" for i in instructions)
+    assert all(i.node == "leadgen_form" for i in instructions)
+
+    # Verify form names
+    form_names = [i.params["name"] for i in instructions]
+    assert "study123-dest1-stratum1-v1" in form_names
+    assert "study123-dest1-stratum2-v1" in form_names
+
+
+def test_check_and_create_forms_skips_non_leadgen_destinations():
+    """Test check_and_create_forms() skips non-LeadGen destinations"""
+    from unittest.mock import MagicMock
+
+    study = StudyConf(
+        id="study123",
+        user=UserInfo(survey_user="test", token="test"),
+        general=GeneralConf(
+            name="Test Study",
+            credentials_key="test",
+            credentials_entity="test",
+            ad_account="123",
+            opt_window=7,
+        ),
+        recruitment=SimpleRecruitment(
+            ad_campaign_name="test_campaign",
+            start_date=datetime(2024, 1, 1),
+            end_date=datetime(2024, 12, 31),
+            objective="OUTCOME_LEADS",
+            optimization_goal="LEAD_GENERATION",
+            destination_type="LEAD_GEN",
+            min_budget=10.0,
+            budget=100.0,
+            max_sample=1000,
+        ),
+        destinations=[
+            WebDestination(
+                name="web_dest",
+                type="WEB",
+                url_template="https://example.com?ref={ref}"
+            )
+        ],
+        creatives=[
+            CreativeConf(
+                name="creative1",
+                destination="web_dest",
+                template_campaign="template_campaign",
+                template={"name": "Test Creative"}
+            )
+        ],
+        audiences=[],
+        strata=[],
+    )
+
+    stratum = Stratum(
+        id="stratum1",
+        quota=100,
+        metadata={"campaign_name": "test_campaign"},
+        facebook_targeting={"geo_locations": {"countries": ["US"]}},
+        creatives=[study.creatives[0]],
+        audiences=[],
+        excluded_audiences=[]
+    )
+
+    state = MagicMock(spec=FacebookState)
+
+    instructions = check_and_create_forms(study, state, [stratum])
+
+    # Should not create any forms
+    assert len(instructions) == 0
+
+
+def test_check_and_create_forms_groups_by_page_id():
+    """Test check_and_create_forms() groups forms by page_id"""
+    from unittest.mock import MagicMock
+
+    study = StudyConf(
+        id="study123",
+        user=UserInfo(survey_user="test", token="test"),
+        general=GeneralConf(
+            name="Test Study",
+            credentials_key="test",
+            credentials_entity="test",
+            ad_account="123",
+            opt_window=7,
+        ),
+        recruitment=SimpleRecruitment(
+            ad_campaign_name="test_campaign",
+            start_date=datetime(2024, 1, 1),
+            end_date=datetime(2024, 12, 31),
+            objective="OUTCOME_LEADS",
+            optimization_goal="LEAD_GENERATION",
+            destination_type="LEAD_GEN",
+            min_budget=10.0,
+            budget=100.0,
+            max_sample=1000,
+        ),
+        destinations=[
+            LeadGenDestination(
+                name="dest1",
+                type="LEAD_GEN",
+                page_id="page123",
+                form_template={"name": "Test Form 1", "questions": []},
+            ),
+            LeadGenDestination(
+                name="dest2",
+                type="LEAD_GEN",
+                page_id="page456",
+                form_template={"name": "Test Form 2", "questions": []},
+            )
+        ],
+        creatives=[
+            CreativeConf(
+                name="creative1",
+                destination="dest1",
+                template_campaign="template_campaign",
+                template={"name": "Test Creative 1"}
+            ),
+            CreativeConf(
+                name="creative2",
+                destination="dest2",
+                template_campaign="template_campaign",
+                template={"name": "Test Creative 2"}
+            )
+        ],
+        audiences=[],
+        strata=[],
+    )
+
+    stratum1 = Stratum(
+        id="stratum1",
+        quota=100,
+        metadata={"campaign_name": "test_campaign"},
+        facebook_targeting={"geo_locations": {"countries": ["US"]}},
+        creatives=[study.creatives[0]],
+        audiences=[],
+        excluded_audiences=[]
+    )
+
+    stratum2 = Stratum(
+        id="stratum2",
+        quota=200,
+        metadata={"campaign_name": "test_campaign"},
+        facebook_targeting={"geo_locations": {"countries": ["CA"]}},
+        creatives=[study.creatives[1]],
+        audiences=[],
+        excluded_audiences=[]
+    )
+
+    # Mock FacebookState
+    state = MagicMock(spec=FacebookState)
+    state.page_forms.return_value = []  # No existing forms
+
+    instructions = check_and_create_forms(study, state, [stratum1, stratum2])
+
+    # Should be called once per page_id
+    assert state.page_forms.call_count == 2
+    state.page_forms.assert_any_call("page123")
+    state.page_forms.assert_any_call("page456")
+
+
+def test_create_creative_raises_when_leadgen_form_not_found():
+    """Test create_creative() raises StateInitializationError when form doesn't exist"""
+    from unittest.mock import MagicMock
+
+    study = StudyConf(
+        id="study123",
+        user=UserInfo(survey_user="test", token="test"),
+        general=GeneralConf(
+            name="Test Study",
+            credentials_key="test",
+            credentials_entity="test",
+            ad_account="123",
+            opt_window=7,
+        ),
+        recruitment=SimpleRecruitment(
+            ad_campaign_name="test_campaign",
+            start_date=datetime(2024, 1, 1),
+            end_date=datetime(2024, 12, 31),
+            objective="OUTCOME_LEADS",
+            optimization_goal="LEAD_GENERATION",
+            destination_type="LEAD_GEN",
+            min_budget=10.0,
+            budget=100.0,
+            max_sample=1000,
+        ),
+        destinations=[
+            LeadGenDestination(
+                name="dest1",
+                type="LEAD_GEN",
+                page_id="page123",
+                form_template={"name": "Test Form", "questions": []},
+            )
+        ],
+        creatives=[
+            CreativeConf(
+                name="creative1",
+                destination="dest1",
+                template_campaign="template_campaign",
+                template={"name": "Test Creative"}
+            )
+        ],
+        audiences=[],
+        strata=[],
+    )
+
+    stratum = Stratum(
+        id="stratum1",
+        quota=100,
+        metadata={"campaign_name": "test_campaign"},
+        facebook_targeting={"geo_locations": {"countries": ["US"]}},
+        creatives=[study.creatives[0]],
+        audiences=[],
+        excluded_audiences=[]
+    )
+
+    # Mock CampaignState with no forms
+    fb_state = MagicMock(spec=FacebookState)
+    fb_state.page_forms.return_value = []  # No forms exist
+
+    campaign_state = MagicMock(spec=CampaignState)
+    campaign_state.facebook_state = fb_state
+    campaign_state.campaign_name = "test_campaign"
+
+    config = study.creatives[0]
+    destination = study.destinations[0]
+
+    with pytest.raises(StateInitializationError) as exc_info:
+        create_creative(study, stratum, config, destination, campaign_state)
+
+    assert "Lead gen form not found for study123-dest1-stratum1" in str(exc_info.value)
+
+
+def test_create_creative_uses_latest_form_version():
+    """Test create_creative() uses the latest version of the form"""
+    from unittest.mock import MagicMock
+
+    study = StudyConf(
+        id="study123",
+        user=UserInfo(survey_user="test", token="test"),
+        general=GeneralConf(
+            name="Test Study",
+            credentials_key="test",
+            credentials_entity="test",
+            ad_account="123",
+            opt_window=7,
+        ),
+        recruitment=SimpleRecruitment(
+            ad_campaign_name="test_campaign",
+            start_date=datetime(2024, 1, 1),
+            end_date=datetime(2024, 12, 31),
+            objective="OUTCOME_LEADS",
+            optimization_goal="LEAD_GENERATION",
+            destination_type="LEAD_GEN",
+            min_budget=10.0,
+            budget=100.0,
+            max_sample=1000,
+        ),
+        destinations=[
+            LeadGenDestination(
+                name="dest1",
+                type="LEAD_GEN",
+                page_id="page123",
+                form_template={"name": "Test Form", "questions": []},
+            )
+        ],
+        creatives=[
+            CreativeConf(
+                name="creative1",
+                destination="dest1",
+                template_campaign="template_campaign",
+                template={
+                    "name": "Test Creative",
+                    "object_story_spec": {
+                        "page_id": "page123",
+                        "link_data": {
+                            "message": "Test message",
+                            "image_hash": "abc123"
+                        }
+                    }
+                }
+            )
+        ],
+        audiences=[],
+        strata=[],
+    )
+
+    stratum = Stratum(
+        id="stratum1",
+        quota=100,
+        metadata={"campaign_name": "test_campaign"},
+        facebook_targeting={"geo_locations": {"countries": ["US"]}},
+        creatives=[study.creatives[0]],
+        audiences=[],
+        excluded_audiences=[]
+    )
+
+    # Mock CampaignState with multiple form versions
+    fb_state = MagicMock(spec=FacebookState)
+    fb_state.page_forms.return_value = [
+        {"id": "form1", "name": "study123-dest1-stratum1-v1", "status": "ACTIVE"},
+        {"id": "form2", "name": "study123-dest1-stratum1-v2", "status": "ACTIVE"},
+        {"id": "form3", "name": "study123-dest1-stratum1-v3", "status": "ACTIVE"},
+    ]
+
+    campaign_state = MagicMock(spec=CampaignState)
+    campaign_state.facebook_state = fb_state
+    campaign_state.campaign_name = "test_campaign"
+
+    config = study.creatives[0]
+    destination = study.destinations[0]
+
+    creative = create_creative(study, stratum, config, destination, campaign_state)
+
+    # Should use v3 (latest version)
+    assert creative["object_story_spec"]["link_data"]["call_to_action"]["value"]["lead_gen_form_id"] == "form3"
+
+
+def test_create_creative_modifies_asset_feed_spec_for_leadgen():
+    """Test _create_creative() properly sets lead_gen_form_id in asset_feed_spec"""
+    from unittest.mock import MagicMock
+
+    study = StudyConf(
+        id="study123",
+        user=UserInfo(survey_user="test", token="test"),
+        general=GeneralConf(
+            name="Test Study",
+            credentials_key="test",
+            credentials_entity="test",
+            ad_account="123",
+            opt_window=7,
+        ),
+        recruitment=SimpleRecruitment(
+            ad_campaign_name="test_campaign",
+            start_date=datetime(2024, 1, 1),
+            end_date=datetime(2024, 12, 31),
+            objective="OUTCOME_LEADS",
+            optimization_goal="LEAD_GENERATION",
+            destination_type="LEAD_GEN",
+            min_budget=10.0,
+            budget=100.0,
+            max_sample=1000,
+        ),
+        destinations=[
+            LeadGenDestination(
+                name="dest1",
+                type="LEAD_GEN",
+                page_id="page123",
+                form_template={"name": "Test Form", "questions": []},
+            )
+        ],
+        creatives=[
+            CreativeConf(
+                name="creative1",
+                destination="dest1",
+                template_campaign="template_campaign",
+                template={
+                    "name": "Test Creative",
+                    "object_story_spec": {
+                        "page_id": "page123"
+                    },
+                    "asset_feed_spec": {
+                        "images": [{"hash": "abc123"}],
+                        "bodies": [{"text": "Test body"}],
+                        "titles": [{"text": "Test title"}],
+                        "link_urls": [{"website_url": "https://example.com"}]
+                    }
+                }
+            )
+        ],
+        audiences=[],
+        strata=[],
+    )
+
+    stratum = Stratum(
+        id="stratum1",
+        quota=100,
+        metadata={"campaign_name": "test_campaign"},
+        facebook_targeting={"geo_locations": {"countries": ["US"]}},
+        creatives=[study.creatives[0]],
+        audiences=[],
+        excluded_audiences=[]
+    )
+
+    # Mock CampaignState with a form
+    fb_state = MagicMock(spec=FacebookState)
+    fb_state.page_forms.return_value = [
+        {"id": "form123", "name": "study123-dest1-stratum1-v1", "status": "ACTIVE"},
+    ]
+
+    campaign_state = MagicMock(spec=CampaignState)
+    campaign_state.facebook_state = fb_state
+    campaign_state.campaign_name = "test_campaign"
+
+    config = study.creatives[0]
+    destination = study.destinations[0]
+
+    creative = create_creative(study, stratum, config, destination, campaign_state)
+
+    # Verify asset_feed_spec has call_to_actions with lead_gen_form_id
+    assert "asset_feed_spec" in creative
+    assert "call_to_actions" in creative["asset_feed_spec"]
+    assert creative["asset_feed_spec"]["call_to_actions"][0]["type"] == "LEAD_GEN"
+    assert creative["asset_feed_spec"]["call_to_actions"][0]["value"]["lead_gen_form_id"] == "form123"
+
+
+def test_create_creative_modifies_video_data_for_leadgen():
+    """Test _create_creative() properly sets lead_gen_form_id in video_data"""
+    from unittest.mock import MagicMock
+
+    study = StudyConf(
+        id="study123",
+        user=UserInfo(survey_user="test", token="test"),
+        general=GeneralConf(
+            name="Test Study",
+            credentials_key="test",
+            credentials_entity="test",
+            ad_account="123",
+            opt_window=7,
+        ),
+        recruitment=SimpleRecruitment(
+            ad_campaign_name="test_campaign",
+            start_date=datetime(2024, 1, 1),
+            end_date=datetime(2024, 12, 31),
+            objective="OUTCOME_LEADS",
+            optimization_goal="LEAD_GENERATION",
+            destination_type="LEAD_GEN",
+            min_budget=10.0,
+            budget=100.0,
+            max_sample=1000,
+        ),
+        destinations=[
+            LeadGenDestination(
+                name="dest1",
+                type="LEAD_GEN",
+                page_id="page123",
+                form_template={"name": "Test Form", "questions": []},
+            )
+        ],
+        creatives=[
+            CreativeConf(
+                name="creative1",
+                destination="dest1",
+                template_campaign="template_campaign",
+                template={
+                    "name": "Test Creative",
+                    "object_story_spec": {
+                        "page_id": "page123",
+                        "video_data": {
+                            "video_id": "video123",
+                            "message": "Test message"
+                        }
+                    }
+                }
+            )
+        ],
+        audiences=[],
+        strata=[],
+    )
+
+    stratum = Stratum(
+        id="stratum1",
+        quota=100,
+        metadata={"campaign_name": "test_campaign"},
+        facebook_targeting={"geo_locations": {"countries": ["US"]}},
+        creatives=[study.creatives[0]],
+        audiences=[],
+        excluded_audiences=[]
+    )
+
+    # Mock CampaignState with a form
+    fb_state = MagicMock(spec=FacebookState)
+    fb_state.page_forms.return_value = [
+        {"id": "form123", "name": "study123-dest1-stratum1-v1", "status": "ACTIVE"},
+    ]
+
+    campaign_state = MagicMock(spec=CampaignState)
+    campaign_state.facebook_state = fb_state
+    campaign_state.campaign_name = "test_campaign"
+
+    config = study.creatives[0]
+    destination = study.destinations[0]
+
+    creative = create_creative(study, stratum, config, destination, campaign_state)
+
+    # Verify video_data has call_to_action with lead_gen_form_id
+    assert "object_story_spec" in creative
+    assert "video_data" in creative["object_story_spec"]
+    assert creative["object_story_spec"]["video_data"]["call_to_action"]["type"] == "LEAD_GEN"
+    assert creative["object_story_spec"]["video_data"]["call_to_action"]["value"]["lead_gen_form_id"] == "form123"
+

@@ -469,3 +469,152 @@ def test_ad_dif_removes_duplicate_ads_and_updates_other():
         Instruction("ad", "delete", {}, "bar"),
         Instruction("ad", "update", _ad(creatives[0], adset).export_all_data(), "foo"),
     ]
+
+
+
+#############################
+# Lead Gen Form Reconciliation Tests
+#############################
+
+
+def test_get_latest_form_version_returns_none_when_no_forms():
+    from facebook_business.adobjects.leadgenform import LeadgenForm
+    from .reconciliation import get_latest_form_version
+    
+    forms = []
+    result = get_latest_form_version(forms, "study1-dest1-stratum1")
+    assert result is None
+
+
+def test_get_latest_form_version_returns_highest_version():
+    from facebook_business.adobjects.leadgenform import LeadgenForm
+    from .reconciliation import get_latest_form_version
+    
+    forms = [
+        _adobject({"id": "1", "name": "study1-dest1-stratum1-v1", "status": "ACTIVE"}, LeadgenForm),
+        _adobject({"id": "2", "name": "study1-dest1-stratum1-v2", "status": "ACTIVE"}, LeadgenForm),
+        _adobject({"id": "3", "name": "study1-dest1-stratum1-v3", "status": "ACTIVE"}, LeadgenForm),
+    ]
+    
+    result = get_latest_form_version(forms, "study1-dest1-stratum1")
+    assert result is not None
+    form, version = result
+    assert form["id"] == "3"
+    assert version == 3
+
+
+def test_get_latest_form_version_ignores_archived():
+    from facebook_business.adobjects.leadgenform import LeadgenForm
+    from .reconciliation import get_latest_form_version
+    
+    forms = [
+        _adobject({"id": "1", "name": "study1-dest1-stratum1-v1", "status": "ACTIVE"}, LeadgenForm),
+        _adobject({"id": "2", "name": "study1-dest1-stratum1-v2", "status": "ARCHIVED"}, LeadgenForm),
+    ]
+    
+    result = get_latest_form_version(forms, "study1-dest1-stratum1")
+    form, version = result
+    assert form["id"] == "1"
+    assert version == 1
+
+
+def test_get_latest_form_version_ignores_deleted():
+    from facebook_business.adobjects.leadgenform import LeadgenForm
+    from .reconciliation import get_latest_form_version
+    
+    forms = [
+        _adobject({"id": "1", "name": "study1-dest1-stratum1-v1", "status": "ACTIVE"}, LeadgenForm),
+        _adobject({"id": "2", "name": "study1-dest1-stratum1-v2", "status": "DELETED"}, LeadgenForm),
+    ]
+    
+    result = get_latest_form_version(forms, "study1-dest1-stratum1")
+    form, version = result
+    assert form["id"] == "1"
+    assert version == 1
+
+
+def test_form_dif_creates_v1_when_form_doesnt_exist():
+    from facebook_business.adobjects.leadgenform import LeadgenForm
+    from .reconciliation import form_dif
+    
+    old_forms = []
+    new_specs = [
+        ("study1-dest1-stratum1", {
+            "questions": [{"key": "email"}],
+            "tracking_parameters": [{"key": "stratum_id", "value": "stratum1"}],
+            "page_id": "12345",
+        })
+    ]
+    
+    instructions = form_dif(old_forms, new_specs)
+    
+    assert len(instructions) == 1
+    assert instructions[0].node == "leadgen_form"
+    assert instructions[0].action == "create"
+    assert instructions[0].params["name"] == "study1-dest1-stratum1-v1"
+    assert "page_id" in instructions[0].params
+
+
+def test_form_dif_archives_and_creates_when_form_needs_update():
+    from facebook_business.adobjects.leadgenform import LeadgenForm
+    from .reconciliation import form_dif
+    
+    old_forms = [
+        _adobject({
+            "id": "form123",
+            "name": "study1-dest1-stratum1-v1",
+            "status": "ACTIVE",
+            "questions": [{"key": "email"}],
+            "tracking_parameters": [{"key": "stratum_id", "value": "stratum1"}],
+        }, LeadgenForm),
+    ]
+    
+    new_specs = [
+        ("study1-dest1-stratum1", {
+            "questions": [{"key": "email"}, {"key": "phone"}],  # Changed!
+            "tracking_parameters": [{"key": "stratum_id", "value": "stratum1"}],
+            "page_id": "12345",
+        })
+    ]
+    
+    instructions = form_dif(old_forms, new_specs)
+    
+    assert len(instructions) == 2
+    
+    # First instruction: archive
+    assert instructions[0].node == "leadgen_form"
+    assert instructions[0].action == "update"
+    assert instructions[0].id == "form123"
+    assert instructions[0].params["status"] == "ARCHIVED"
+    
+    # Second instruction: create v2
+    assert instructions[1].node == "leadgen_form"
+    assert instructions[1].action == "create"
+    assert instructions[1].params["name"] == "study1-dest1-stratum1-v2"
+
+
+def test_form_dif_does_nothing_when_form_matches():
+    from facebook_business.adobjects.leadgenform import LeadgenForm
+    from .reconciliation import form_dif
+    
+    old_forms = [
+        _adobject({
+            "id": "form123",
+            "name": "study1-dest1-stratum1-v1",
+            "status": "ACTIVE",
+            "questions": [{"key": "email"}],
+            "tracking_parameters": [{"key": "stratum_id", "value": "stratum1"}],
+        }, LeadgenForm),
+    ]
+    
+    new_specs = [
+        ("study1-dest1-stratum1", {
+            "questions": [{"key": "email"}],
+            "tracking_parameters": [{"key": "stratum_id", "value": "stratum1"}],
+            "page_id": "12345",
+        })
+    ]
+    
+    instructions = form_dif(old_forms, new_specs)
+    assert len(instructions) == 0
+
