@@ -20,8 +20,8 @@ from facebook_business.adobjects.customaudience import CustomAudience
 from facebook_business.adobjects.targeting import Targeting
 
 from .budget import Budget
-from .facebook.reconciliation import adset_dif
-from .facebook.state import CampaignState, FacebookState, StateNameError, split
+from .facebook.reconciliation import adset_dif, form_dif, get_latest_form_version
+from .facebook.state import CampaignState, FacebookState, StateInitializationError, StateNameError, split
 from .facebook.update import Instruction
 from .study_conf import (
     AppDestination,
@@ -30,6 +30,7 @@ from .study_conf import (
     DestinationConf,
     DestinationRecruitmentExperiment,
     FlyMessengerDestination,
+    LeadGenDestination,
     LookalikeAudience,
     Stratum,
     StudyConf,
@@ -39,6 +40,74 @@ from .study_conf import (
 ADSET_HOURS = 48
 
 Metadata = Dict[str, str]
+
+
+#############################
+# Lead Gen Form Helpers
+#############################
+
+
+def make_leadgen_form_base_name(study_id: str, destination_name: str, stratum_id: str) -> str:
+    """
+    Create base name for a lead gen form (without version suffix).
+    Format: {study_id}-{destination_name}-{stratum_id}
+    """
+    return f"{study_id}-{destination_name}-{stratum_id}"
+
+
+def make_leadgen_form_name(base_name: str, version: int) -> str:
+    """
+    Create versioned form name.
+    Format: {base_name}-v{version}
+    """
+    return f"{base_name}-v{version}"
+
+
+def build_leadgen_form_params(
+    destination: LeadGenDestination,
+    stratum: Stratum,
+    study: StudyConf,
+) -> Dict[str, Any]:
+    """
+    Build parameters for creating a lead gen form.
+    Pure function - returns new dict without mutations.
+    """
+    # Build tracking parameters - include all stratum metadata
+    tracking_params = {
+        "stratum_id": stratum.id,
+        "study_id": study.id,
+        **stratum.metadata,
+        **study.general.extra_metadata,
+    }
+
+    # Build thank you page config
+    thank_you_page = None
+    if destination.thank_you_url_template:
+        thank_you_page = {
+            **destination.form_template.get("thank_you_page", {}),
+            "url": destination.thank_you_url_template,
+        }
+    elif "thank_you_page" in destination.form_template:
+        thank_you_page = destination.form_template["thank_you_page"]
+
+    # Return new dict with all params
+    result = {
+        **destination.form_template,
+        "page_id": destination.page_id,
+        "tracking_parameters": [
+            {"key": k, "value": v} for k, v in tracking_params.items()
+        ],
+    }
+
+    if thank_you_page is not None:
+        result["thank_you_page"] = thank_you_page
+
+    return result
+
+
+#############################
+# Location and Config Types
+#############################
 
 
 class Location(NamedTuple):
@@ -284,6 +353,7 @@ def _create_creative(
     page_welcome_message: str | None = None,
     url_tags: str | None = None,
     link: str | None = None,
+    lead_gen_form_id: str | None = None,
 ) -> AdCreative:
     c = AdCreative()
 
@@ -371,6 +441,33 @@ def _create_creative(
                 ]
             ]
 
+    # Handle lead gen form
+    if lead_gen_form_id:
+        # For asset_feed_spec creatives
+        if tafs:
+            if "call_to_actions" not in c[AdCreative.Field.asset_feed_spec]:
+                c[AdCreative.Field.asset_feed_spec]["call_to_actions"] = [{}]
+            c[AdCreative.Field.asset_feed_spec]["call_to_actions"][0]["type"] = "LEAD_GEN"
+            c[AdCreative.Field.asset_feed_spec]["call_to_actions"][0]["value"] = {
+                "lead_gen_form_id": lead_gen_form_id
+            }
+
+        # For object_story_spec creatives
+        else:
+            # Could be in link_data or video_data
+            if tld:
+                link_data["call_to_action"] = {
+                    "type": "LEAD_GEN",
+                    "value": {"lead_gen_form_id": lead_gen_form_id}
+                }
+                c[AdCreative.Field.object_story_spec][AdCreativeObjectStorySpec.Field.link_data] = link_data
+            elif tvd:
+                video_data["call_to_action"] = {
+                    "type": "LEAD_GEN",
+                    "value": {"lead_gen_form_id": lead_gen_form_id}
+                }
+                c[AdCreative.Field.object_story_spec][AdCreativeObjectStorySpec.Field.video_data] = video_data
+
     return c
 
 
@@ -390,11 +487,36 @@ def get_destination_for_creative(
     return destination
 
 
+def _get_leadgen_form_id(
+    study: StudyConf,
+    stratum: Stratum,
+    destination: LeadGenDestination,
+    campaign_state: CampaignState,
+) -> str:
+    """
+    Pure function to look up the form ID for a LeadGen creative.
+    Raises StateInitializationError if form not found.
+    """
+    base_name = make_leadgen_form_base_name(study.id, destination.name, stratum.id)
+    forms = campaign_state.facebook_state.page_forms(destination.page_id)
+
+    latest = get_latest_form_version(forms, base_name)
+    if latest is None:
+        raise StateInitializationError(
+            f"Lead gen form not found for {base_name}. "
+            f"Forms should be created before creatives."
+        )
+
+    form, _ = latest
+    return form["id"]
+
+
 def create_creative(
     study: StudyConf,
     stratum: Stratum,
     config: CreativeConf,
     destination: DestinationConf,
+    campaign_state: CampaignState,
 ) -> AdCreative:
     md = {**stratum.metadata, **study.general.extra_metadata}
 
@@ -437,6 +559,14 @@ def create_creative(
             link=link,
         )
 
+    if isinstance(destination, LeadGenDestination):
+        form_id = _get_leadgen_form_id(study, stratum, destination, campaign_state)
+        return _create_creative(
+            config,
+            call_to_action={},  # Not used for lead gen
+            lead_gen_form_id=form_id,
+        )
+
     raise Exception(f"destination is not a proper type: {destination}")
 
 
@@ -463,7 +593,7 @@ def adset_instructions(
     destinations = [get_destination_for_creative(study, c) for c in stratum.creatives]
 
     creatives = [
-        create_creative(study, stratum, c, d)
+        create_creative(study, stratum, c, d, state)
         for d, c in zip(destinations, stratum_creatives)
     ]
 
@@ -522,6 +652,62 @@ def update_campaign(id_, objective) -> Instruction:
     return Instruction("campaign", "update", params, id_)
 
 
+def _collect_form_specs_for_stratum(
+    study: StudyConf,
+    stratum: Stratum,
+) -> List[Tuple[str, str, Dict[str, Any]]]:
+    """
+    Pure function to collect all form specs needed for a stratum.
+    Returns list of (page_id, base_name, params) tuples.
+    """
+    dest_lookup = {d.name: d for d in study.destinations}
+    form_specs = []
+
+    for creative in stratum.creatives:
+        destination = dest_lookup.get(creative.destination)
+        if not destination or not isinstance(destination, LeadGenDestination):
+            continue
+
+        base_name = make_leadgen_form_base_name(study.id, destination.name, stratum.id)
+        form_params = build_leadgen_form_params(destination, stratum, study)
+        form_specs.append((destination.page_id, base_name, form_params))
+
+    return form_specs
+
+
+def check_and_create_forms(
+    study: StudyConf,
+    state: FacebookState,
+    strata: List[Stratum],
+) -> List[Instruction]:
+    """
+    Check if lead gen forms exist for all LeadGen strata.
+    Returns Instructions to create/update forms as needed.
+    """
+    # Collect all form specs from all strata
+    all_form_specs = [
+        spec
+        for stratum in strata
+        for spec in _collect_form_specs_for_stratum(study, stratum)
+    ]
+
+    # Group by page_id
+    page_forms_specs: Dict[str, List[Tuple[str, Dict[str, Any]]]] = {}
+    for page_id, base_name, params in all_form_specs:
+        if page_id not in page_forms_specs:
+            page_forms_specs[page_id] = []
+        page_forms_specs[page_id].append((base_name, params))
+
+    # For each page, get existing forms and reconcile
+    all_instructions = []
+    for page_id, form_specs in page_forms_specs.items():
+        existing_forms = state.page_forms(page_id)
+        instructions = form_dif(existing_forms, form_specs)
+        all_instructions.extend(instructions)
+
+    return all_instructions
+
+
 def update_instructions_for_campaign(
     study: StudyConf,
     state: FacebookState,
@@ -543,6 +729,11 @@ def update_instructions_for_campaign(
         return [
             update_campaign(campaign_state.campaign["id"], study.recruitment.objective)
         ]
+
+    # Check and create forms first (new)
+    form_instructions = check_and_create_forms(study, state, strata)
+    if form_instructions:
+        return form_instructions
 
     sb = [(s, budget[s.id]) for s in strata]
     new_state = [adset_instructions(study, campaign_state, s, b) for s, b in sb]
