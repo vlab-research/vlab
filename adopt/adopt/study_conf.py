@@ -86,7 +86,15 @@ class AppDestination(BaseModel):
     user_os: list[str]
 
 
-DestinationConf = Union[FlyMessengerDestination, AppDestination, WebDestination]
+class LeadGenDestination(BaseModel):
+    type: str
+    name: str
+    page_id: str  # Facebook Page ID where form will be created
+    form_template: Dict[str, Any]  # From LeadgenForm.export_all_data()
+    thank_you_url_template: Optional[str] = None  # Optional URL for thank you page
+
+
+DestinationConf = Union[FlyMessengerDestination, AppDestination, WebDestination, LeadGenDestination]
 
 
 class BaseRecruitmentConf(BaseModel, ABC):
