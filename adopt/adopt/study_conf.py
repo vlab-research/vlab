@@ -143,6 +143,7 @@ class SimpleRecruitment(BaseRecruitmentConf):
     start_date: datetime
     end_date: datetime
     incentive_per_respondent: float = 0
+    efficiency_weight: float = 1.0  # 1.0 = variance focus, 0.0 = cost focus
 
     @property
     def opt_sample_size(self):
@@ -209,6 +210,7 @@ class PipelineRecruitmentExperiment(BaseRecruitmentConf):
     recruitment_days: int
     offset_days: int
     incentive_per_respondent: float = 0
+    efficiency_weight: float = 1.0  # 1.0 = variance focus, 0.0 = cost focus
 
     def validate_dates(self):
         # TODO: this is useless, but due to pydantic bugging out, can't
@@ -308,6 +310,7 @@ class DestinationRecruitmentExperiment(BaseRecruitmentConf):
     end_date: datetime
     destinations: list[str]
     incentive_per_respondent: float = 0
+    efficiency_weight: float = 1.0  # 1.0 = variance focus, 0.0 = cost focus
 
     @property
     def opt_sample_size(self):

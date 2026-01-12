@@ -23,6 +23,7 @@ export interface RecruitmentSimple {
   max_sample: number;
   start_date: string;
   incentive_per_respondent: number;
+  efficiency_weight?: number;
 }
 
 export interface RecruitmentDestination {
@@ -37,6 +38,7 @@ export interface RecruitmentDestination {
   max_sample_per_arm: number;
   start_date: string;
   incentive_per_respondent: number;
+  efficiency_weight?: number;
 }
 
 export interface PipelineExperiment {
@@ -53,6 +55,7 @@ export interface PipelineExperiment {
   recruitment_days: number;
   offset_days: number;
   incentive_per_respondent: number;
+  efficiency_weight?: number;
 }
 
 export interface Messenger {

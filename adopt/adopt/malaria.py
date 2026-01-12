@@ -77,6 +77,9 @@ def update_ads_for_campaign(
 
     window = make_window(study.general.opt_window, now)
 
+    # Extract efficiency_weight from recruitment config (default to 1.0 if not present)
+    efficiency_weight = getattr(study.recruitment, 'efficiency_weight', 1.0)
+
     budget_lookup, report = get_budget_lookup_with_db(
         df,
         strata,
@@ -86,6 +89,7 @@ def update_ads_for_campaign(
         window,
         db_conf,
         study.id,
+        efficiency_weight,
     )
 
     min_budget = study.recruitment.min_budget

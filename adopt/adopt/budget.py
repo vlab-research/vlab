@@ -119,24 +119,44 @@ def prep_df_for_budget(df, strata):
     return pd.concat(dfs).reset_index(drop=True)
 
 
-def budget_opt(S, goal, tot, price, budget):
+def budget_opt(S, goal, tot, price, budget, efficiency_weight: float):
     C = 1 / price
     s = S / S.sum()
     new_spend = s * budget
     projection = C * new_spend + tot + 1
-    loss = np.sum(goal**2 / projection)
+
+    # Weighted variance loss (current behavior - optimizes distribution)
+    variance_loss = np.sum(goal**2 / projection)
+
+    # Unweighted efficiency loss (maximize total N - cost efficient)
+    P = len(goal)
+    efficiency_loss = P / np.sum(projection)
+
+    # Blended loss
+    loss = efficiency_weight * variance_loss + (1 - efficiency_weight) * efficiency_loss
     return loss * tot.sum()
 
 
-def recruits_opt(S, goal, tot, price, num_recruits):
+def recruits_opt(S, goal, tot, price, num_recruits, efficiency_weight: float):
     s = S / S.sum()
     recruits_per_strata = s * num_recruits
     projection = recruits_per_strata + tot + 1
-    loss = np.sum(goal**2 / projection)
+
+    # Weighted variance loss (current behavior - optimizes distribution)
+    variance_loss = np.sum(goal**2 / projection)
+
+    # Unweighted efficiency loss (maximize total N - cost efficient)
+    P = len(goal)
+    efficiency_loss = P / np.sum(projection)
+
+    # Blended loss
+    loss = efficiency_weight * variance_loss + (1 - efficiency_weight) * efficiency_loss
     return loss * 100
 
 
-def proportional_opt(goal, tot, price, budget=None, max_recruits=None, tol=0.01):
+def proportional_opt(
+    goal, tot, price, budget, max_recruits, efficiency_weight: float, tol=0.01
+):
     if budget is None and max_recruits is None:
         raise Exception("Need either a max budget or max_recruits to optimize")
 
@@ -148,7 +168,7 @@ def proportional_opt(goal, tot, price, budget=None, max_recruits=None, tol=0.01)
         m = minimize(
             fn,
             x0=x0,
-            args=(goal, tot, price, constraint),
+            args=(goal, tot, price, constraint, efficiency_weight),
             method="L-BFGS-B",
             bounds=[(0, None)] * P,
             options={"ftol": 1e-14, "gtol": 1e-10, "eps": 1e-12},
@@ -189,7 +209,9 @@ def proportional_opt(goal, tot, price, budget=None, max_recruits=None, tol=0.01)
 
 
 # provide max
-def proportional_budget(goal, spend, tot, price, budget=None, max_recruits=None):
+def proportional_budget(
+    goal, spend, tot, price, budget, max_recruits, efficiency_weight: float
+):
     if not np.isclose(sum(goal.values()), 1.0, 0.01):
         raise Exception(
             f"proportional_budget needs a goal that sums to one. was given: {goal}"
@@ -205,7 +227,12 @@ def proportional_budget(goal, spend, tot, price, budget=None, max_recruits=None)
     )
 
     df["new_spend"], df["expected"] = proportional_opt(
-        df.goal.values, df.respondents.values, df.price.values, budget, max_recruits
+        df.goal.values,
+        df.respondents.values,
+        df.price.values,
+        budget,
+        max_recruits,
+        efficiency_weight=efficiency_weight,
     )
 
     return df.new_spend.to_dict(), df.expected.to_dict()
@@ -268,6 +295,7 @@ def get_budget_lookup(
     window: DateRange,
     spend: Dict[str, float],
     lifetime_spend: Dict[str, float],
+    efficiency_weight: float,
 ) -> Tuple[Optional[Budget], Optional[AdOptReport]]:
     df = prep_df_for_budget(df, strata) if df is not None else None
 
@@ -297,7 +325,7 @@ def get_budget_lookup(
 
     goal = _normalize_values({s.id: s.quota for s in strata})
     budget, expected = proportional_budget(
-        goal, spend, tot, price, to_spend, max_sample_size
+        goal, spend, tot, price, to_spend, max_sample_size, efficiency_weight
     )
 
     report = make_report(
@@ -420,6 +448,7 @@ def get_budget_lookup_with_db(
     window: DateRange,
     db_conf: DBConf,
     study_id: str,
+    efficiency_weight: float,
 ) -> Tuple[Optional[Budget], Optional[AdOptReport]]:
     """
     Wrapper around get_budget_lookup that calculates spend statistics from recruitment data.
@@ -433,6 +462,7 @@ def get_budget_lookup_with_db(
         window: DateRange to analyze statistics within
         db_conf: Database configuration
         study_id: ID of the study
+        efficiency_weight: Weight for variance optimization (1.0=variance, 0.0=cost efficiency)
 
     Returns:
         Tuple of (budget_lookup, report) as returned by get_budget_lookup
@@ -460,4 +490,5 @@ def get_budget_lookup_with_db(
         window,
         windowed_spend,
         lifetime_spend,
+        efficiency_weight,
     )

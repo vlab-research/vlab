@@ -150,7 +150,7 @@ def test_proportional_budget_optimizes_all_budget():
     tot = {"bar": 1, "baz": 1, "foo": 0}
     price = {"bar": 10.0, "baz": 10.0, "foo": 10.0}
     goal = {"foo": 1 / 3, "bar": 1 / 3, "baz": 1 / 3}
-    budget, expected = proportional_budget(goal, spend, tot, price, 100)
+    budget, expected = proportional_budget(goal, spend, tot, price, 100, None, 1.0)
     assert round(budget["foo"]) == 40
     assert round(budget["bar"]) == 30
     assert round(budget["baz"]) == 30
@@ -164,7 +164,7 @@ def test_proportional_budget_optimizes_for_weights():
     tot = {"bar": 1, "baz": 1, "foo": 1}
     price = {"bar": 10.0, "baz": 10.0, "foo": 10.0}
     goal = {"foo": 0.3, "bar": 0.2, "baz": 0.5}
-    budget, expected = proportional_budget(goal, spend, tot, price, 10000)
+    budget, expected = proportional_budget(goal, spend, tot, price, 10000, None, 1.0)
 
     assert round(expected["foo"]) == 301
     assert round(expected["bar"]) == 200
@@ -176,7 +176,7 @@ def test_proportional_budget_drops_strata_under_min_to_min_budget():
     tot = {"bar": 1, "baz": 1, "foo": 0}
     price = {"bar": 10.0, "baz": 10.0, "foo": 10.0}
     goal = {"foo": 1 / 3, "bar": 1 / 3, "baz": 1 / 3}
-    budget, _ = proportional_budget(goal, spend, tot, price, 100)
+    budget, _ = proportional_budget(goal, spend, tot, price, 100, None, 1.0)
     assert round(budget["foo"]) == 40
     assert round(budget["bar"]) == 30
     assert round(budget["baz"]) == 30
@@ -187,7 +187,7 @@ def test_proportional_budget_can_drop_to_zero_budget():
     tot = {"bar": 10, "baz": 1, "foo": 0}
     price = {"bar": 10.0, "baz": 10.0, "foo": 10.0}
     goal = {"foo": 1 / 3, "bar": 1 / 3, "baz": 1 / 3}
-    budget, _ = proportional_budget(goal, spend, tot, price, 100)
+    budget, _ = proportional_budget(goal, spend, tot, price, 100, None, 1.0)
     assert round(budget["foo"]) == 55
     assert round(budget["bar"]) == 0
     assert round(budget["baz"]) == 45
@@ -198,7 +198,7 @@ def test_proportional_budget_prioritizes_underperforming_when_its_obvious():
     tot = {"bar": 5, "baz": 5, "foo": 2}
     price = {"bar": 20.0, "baz": 20.0, "foo": 50.0}
     goal = {"foo": 1 / 3, "bar": 1 / 3, "baz": 1 / 3}
-    budget, _ = proportional_budget(goal, spend, tot, price, 100)
+    budget, _ = proportional_budget(goal, spend, tot, price, 100, None, 1.0)
     assert round(budget["foo"]) == 66
     assert round(budget["bar"]) == 17
     assert round(budget["baz"]) == 17
@@ -209,7 +209,7 @@ def test_proportional_budget_prioritizes_underperforming_even_at_high_cost():
     tot = {"bar": 20, "baz": 10, "foo": 2}
     price = {"bar": 5.0, "baz": 20.0, "foo": 50.0}
     goal = {"foo": 1 / 3, "bar": 1 / 3, "baz": 1 / 3}
-    budget, _ = proportional_budget(goal, spend, tot, price, 100)
+    budget, _ = proportional_budget(goal, spend, tot, price, 100, None, 1.0)
     assert budget["foo"] == 100
     assert budget["bar"] == 0
     assert budget["baz"] == 0
@@ -220,7 +220,7 @@ def test_proportional_budget_works_to_turn_off_super_underperforming_and_unimpor
     tot = {"bar": 20, "baz": 20, "foo": 0}
     price = {"bar": 5.0, "baz": 5.0, "foo": 500.0}
     goal = {"foo": 1 / 10, "bar": 4 / 10, "baz": 5 / 10}
-    budget, _ = proportional_budget(goal, spend, tot, price, 100)
+    budget, _ = proportional_budget(goal, spend, tot, price, 100, None, 1.0)
     assert budget["foo"] == 0
     assert round(budget["bar"]) == 33
     assert round(budget["baz"]) == 67
@@ -231,7 +231,7 @@ def test_proportional_budget_optimizes_even_if_already_pretty_good():
     tot = {"bar": 3333, "baz": 3333, "foo": 3000}
     price = {"bar": 20.0, "baz": 20.0, "foo": 20.0}
     goal = {"foo": 1 / 3, "bar": 1 / 3, "baz": 1 / 3}
-    budget, _ = proportional_budget(goal, spend, tot, price, 1000)
+    budget, _ = proportional_budget(goal, spend, tot, price, 1000, None, 1.0)
     assert budget["foo"] == 1000
     assert budget["bar"] == 0
     assert budget["baz"] == 0
@@ -243,7 +243,7 @@ def test_proportional_budget_raises_exception_when_not_near_one():
     price = {"bar": 10.0, "baz": 10.0, "foo": 10.0}
     goal = {"foo": 1 / 3, "bar": 1 / 3, "baz": 2 / 3}
     with pytest.raises(Exception):
-        proportional_budget(goal, spend, tot, price, 100, 16)
+        proportional_budget(goal, spend, tot, price, 100, 16, 1.0)
 
 
 def test_proportional_budget_with_max_recuits_optimizes_for_weights():
@@ -253,7 +253,7 @@ def test_proportional_budget_with_max_recuits_optimizes_for_weights():
     goal = {"foo": 0.3, "bar": 0.5, "baz": 0.2}
 
     budget, expected = proportional_budget(
-        goal, spend, tot, price, budget=None, max_recruits=100
+        goal, spend, tot, price, budget=None, max_recruits=100, efficiency_weight=1.0
     )
 
     assert round(expected["foo"]) == 30
@@ -268,7 +268,7 @@ def test_proportional_budget_with_max_recruits_spends_on_missing_section():
     goal = {"foo": 1 / 3, "bar": 1 / 3, "baz": 1 / 3}
 
     budget, _ = proportional_budget(
-        goal, spend, tot, price, budget=None, max_recruits=15
+        goal, spend, tot, price, budget=None, max_recruits=15, efficiency_weight=1.0
     )
     assert round(budget["foo"]) == 150
     assert round(budget["bar"]) == 0
@@ -282,7 +282,7 @@ def test_proportional_budget_with_max_recruits_can_turn_off_empty_groups_without
     goal = {"foo": 1 / 100, "bar": 39 / 100, "baz": 60 / 100}
 
     budget, _ = proportional_budget(
-        goal, spend, tot, price, budget=None, max_recruits=60
+        goal, spend, tot, price, budget=None, max_recruits=60, efficiency_weight=1.0
     )
     assert round(budget["foo"]) == 0
     assert round(budget["bar"]) == 0
@@ -296,7 +296,7 @@ def test_proportional_budget_with_max_recruits_evenly_recruits_with_dif_prices()
     goal = {"foo": 1 / 3, "bar": 1 / 3, "baz": 1 / 3}
 
     budget, _ = proportional_budget(
-        goal, spend, tot, price, budget=None, max_recruits=30
+        goal, spend, tot, price, budget=None, max_recruits=30, efficiency_weight=1.0
     )
     assert round(budget["foo"]) == 250
     assert round(budget["bar"]) == 100
@@ -310,23 +310,107 @@ def test_proportional_budget_with_both_budget_and_max_recruits_picks_constraint(
     goal = {"foo": 1 / 3, "bar": 1 / 3, "baz": 1 / 3}
 
     budget, expected = proportional_budget(
-        goal, spend, tot, price, budget=100, max_recruits=30
+        goal, spend, tot, price, budget=100, max_recruits=30, efficiency_weight=1.0
     )
     assert round(sum(expected.values())) == 20
     assert round(sum(budget.values())) == 100
 
     budget, expected = proportional_budget(
-        goal, spend, tot, price, budget=500, max_recruits=30
+        goal, spend, tot, price, budget=500, max_recruits=30, efficiency_weight=1.0
     )
     assert round(sum(expected.values())) == 30
     assert round(sum(budget.values())) == 300
+
+
+def test_proportional_budget_with_efficiency_weight_zero_allocates_all_to_cheapest():
+    """Test that efficiency_weight=0 allocates entire budget to cheapest stratum."""
+    spend = {"bar": 100.0, "baz": 100.0, "foo": 100.0}
+    tot = {"bar": 5, "baz": 5, "foo": 5}
+    price = {"bar": 20.0, "baz": 10.0, "foo": 30.0}  # baz is cheapest
+    goal = {"foo": 1 / 3, "bar": 1 / 3, "baz": 1 / 3}
+
+    budget, expected = proportional_budget(
+        goal, spend, tot, price, 300, None, 0.0
+    )
+
+    # With efficiency_weight=0, all budget should go to cheapest stratum (baz)
+    assert budget["baz"] > budget["bar"]
+    assert budget["baz"] > budget["foo"]
+    # Most (if not all) budget should go to the cheapest option
+    assert budget["baz"] / sum(budget.values()) > 0.8
+
+
+def test_proportional_budget_with_efficiency_weight_one_matches_current_behavior():
+    """Test that efficiency_weight=1.0 matches the original behavior (pure variance optimization)."""
+    spend = {"bar": 100.0, "baz": 100.0, "foo": 100.0}
+    tot = {"bar": 20, "baz": 10, "foo": 2}
+    price = {"bar": 5.0, "baz": 20.0, "foo": 50.0}
+    goal = {"foo": 1 / 3, "bar": 1 / 3, "baz": 1 / 3}
+
+    # Test with efficiency_weight=1.0 (pure variance optimization)
+    budget, expected = proportional_budget(
+        goal, spend, tot, price, 100, None, 1.0
+    )
+
+    # Original test expectations (from test_proportional_budget_prioritizes_underperforming_even_at_high_cost)
+    # With pure variance optimization, all budget goes to underperforming foo despite high cost
+    assert budget["foo"] == 100
+    assert budget["bar"] == 0
+    assert budget["baz"] == 0
+
+
+def test_proportional_budget_with_efficiency_weight_half_balances():
+    """Test that efficiency_weight=0.5 balances between variance and efficiency."""
+    spend = {"bar": 100.0, "baz": 100.0, "foo": 100.0}
+    tot = {"bar": 20, "baz": 10, "foo": 2}
+    price = {"bar": 5.0, "baz": 20.0, "foo": 50.0}
+    goal = {"foo": 1 / 3, "bar": 1 / 3, "baz": 1 / 3}
+
+    # Test with efficiency_weight=0.5 (balanced)
+    budget_balanced, expected_balanced = proportional_budget(
+        goal, spend, tot, price, 100, None, 0.5
+    )
+
+    # Test with efficiency_weight=1.0 (pure variance - all to foo)
+    budget_variance, expected_variance = proportional_budget(
+        goal, spend, tot, price, 100, None, 1.0
+    )
+
+    # Test with efficiency_weight=0.0 (pure efficiency - prefers cheapest)
+    budget_efficiency, expected_efficiency = proportional_budget(
+        goal, spend, tot, price, 100, None, 0.0
+    )
+
+    # Balanced approach should allocate to multiple strata
+    # Not all to foo like variance, and not all to cheapest (bar) like efficiency
+    assert budget_balanced["foo"] < budget_variance["foo"]  # Less than pure variance
+    assert budget_balanced["foo"] > 0  # But still some to underperforming foo
+    assert budget_balanced["bar"] > 0  # Some to cheap bar (efficiency consideration)
+
+
+def test_efficiency_weight_one_gives_variance_optimization():
+    """Test that efficiency_weight=1.0 gives pure variance optimization."""
+    spend = {"bar": 100.0, "baz": 100.0, "foo": 100.0}
+    tot = {"bar": 3333, "baz": 3333, "foo": 3000}
+    price = {"bar": 20.0, "baz": 20.0, "foo": 20.0}
+    goal = {"foo": 1 / 3, "bar": 1 / 3, "baz": 1 / 3}
+
+    # Call with explicit efficiency_weight=1.0
+    budget, expected = proportional_budget(
+        goal, spend, tot, price, 1000, None, 1.0
+    )
+
+    # With pure variance optimization, all budget goes to underperforming foo
+    assert budget["foo"] == 1000
+    assert budget["bar"] == 0
+    assert budget["baz"] == 0
 
 
 def test_get_budget_lookup(cnf, df):
     window = DateRange(START_DATE, UNTIL_DATE)
     spend = {"bar": 10.0, "baz": 10.0, "foo": 10.0}
 
-    budget, _ = get_budget_lookup(df, cnf, 60, 0, 100, window, spend, spend)
+    budget, _ = get_budget_lookup(df, cnf, 60, 0, 100, window, spend, spend, 1.0)
     assert round(budget["foo"]) == 16
     assert round(budget["bar"]) == 7
     assert round(budget["baz"]) == 7
@@ -336,7 +420,7 @@ def test_get_budget_lookup_with_proportional_budget_when_budget_is_spent(cnf, df
     window = DateRange(START_DATE, UNTIL_DATE)
     spend = {"bar": 10.0, "baz": 10.0, "foo": 10.0}
     lifetime_spend = spend
-    budget, _ = get_budget_lookup(df, cnf, 30, 0, 100, window, spend, lifetime_spend)
+    budget, _ = get_budget_lookup(df, cnf, 30, 0, 100, window, spend, lifetime_spend, 1.0)
     assert budget == {"bar": 0, "baz": 0, "foo": 0}
 
 
@@ -361,7 +445,7 @@ def test_get_budget_lookup_works_with_missing_data_from_clusters():
     spend = {"bar": 10.0, "foo": 10.0, "baz": 10.0}
     window = DateRange(START_DATE, UNTIL_DATE)
     lifetime_spend = spend
-    res, _ = get_budget_lookup(df, cnf, 40, 0, 100, window, spend, lifetime_spend)
+    res, _ = get_budget_lookup(df, cnf, 40, 0, 100, window, spend, lifetime_spend, 1.0)
 
     assert {k: round(v, 1) for k, v in res.items()} == {
         "foo": 4.6,
@@ -416,6 +500,7 @@ def test_get_budget_lookup_includes_incentive_in_total_spend(cnf, df):
         window=window,
         spend=spend,
         lifetime_spend=lifetime_spend,
+        efficiency_weight=1.0,
     )
 
     # If incentives are properly counted, we should have no budget left
@@ -431,6 +516,7 @@ def test_get_budget_lookup_includes_incentive_in_total_spend(cnf, df):
         window=window,
         spend=spend,
         lifetime_spend=lifetime_spend,
+        efficiency_weight=1.0,
     )
 
     assert sum(budget.values()) == pytest.approx(50)
@@ -451,6 +537,7 @@ def test_get_budget_lookup_works_with_zero_incentive(cnf, df):
         window=window,
         spend=spend,
         lifetime_spend=lifetime_spend,
+        efficiency_weight=1.0,
     )
     assert budget == {"bar": 0, "baz": 0, "foo": 0}
 
@@ -463,6 +550,7 @@ def test_get_budget_lookup_works_with_zero_incentive(cnf, df):
         window=window,
         spend=spend,
         lifetime_spend=lifetime_spend,
+        efficiency_weight=1.0,
     )
     assert sum(budget.values()) == pytest.approx(30)  # 60 - 30 = 30 remaining
 

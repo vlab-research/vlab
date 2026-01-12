@@ -54,6 +54,7 @@ const Recruitment: React.FC<Props> = ({
       max_sample: '',
       type: 'simple',
       incentive_per_respondent: 0,
+      efficiency_weight: 1,
     },
     {
       ad_campaign_name_base: '',
@@ -70,6 +71,7 @@ const Recruitment: React.FC<Props> = ({
       offset_days: '',
       type: 'pipeline_experiment',
       incentive_per_respondent: 0,
+      efficiency_weight: 1,
     },
     {
       destination: '',
@@ -84,6 +86,7 @@ const Recruitment: React.FC<Props> = ({
       max_sample_per_arm: '',
       type: 'destination',
       incentive_per_respondent: 0,
+      efficiency_weight: 1,
     },
   ];
 

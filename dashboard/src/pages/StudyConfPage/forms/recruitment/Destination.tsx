@@ -35,7 +35,16 @@ const Destination: React.FC<Props> = ({
         return parseInt('0');
       }
       return parseInt(value);
-    } else return value;
+    }
+
+    if (name === 'efficiency_weight') {
+      const numValue = parseFloat(value);
+      // Clamp value between 0 and 1
+      if (isNaN(numValue)) return 1;
+      return Math.max(0, Math.min(1, numValue));
+    }
+
+    else return value;
   };
 
   const handleChange = (e: any) => {
@@ -113,6 +122,12 @@ const Destination: React.FC<Props> = ({
         handleChange={handleChange}
         placeholder="E.g 5.0"
         value={formData.incentive_per_respondent}
+      />
+      <TextInput
+        name="efficiency_weight"
+        handleChange={handleChange}
+        placeholder="0 = max total N, 1 = optimize variance"
+        value={formData.efficiency_weight ?? 1}
       />
       <TextInput
         name="max_sample_per_arm"
