@@ -328,6 +328,9 @@ def get_budget_lookup(
         goal, spend, tot, price, to_spend, max_sample_size, efficiency_weight
     )
 
+    # Include efficiency_weight in report (same value for all strata)
+    efficiency_weight_dict = {s.id: efficiency_weight for s in strata}
+
     report = make_report(
         [
             ("current_price_per_participant", price),
@@ -339,6 +342,7 @@ def get_budget_lookup(
             ("current_budget", budget),
             ("expected_participants", expected),
             ("expected_percentage", _normalize_values(expected)),
+            ("efficiency_weight", efficiency_weight_dict),
         ]
     )
     return budget, report
