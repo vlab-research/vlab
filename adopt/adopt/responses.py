@@ -1,5 +1,5 @@
 import json
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Optional
 import logging
 import pandas as pd
@@ -201,3 +201,43 @@ def format_synthetic(responses, ref, description):
     }
 
     return ({**r, **new_values} for r in responses)
+
+
+def create_time_buckets(
+    start: datetime,
+    end: datetime,
+    bucket_size: str
+) -> list[tuple[datetime, datetime]]:
+    """Generate time bucket boundaries.
+
+    Args:
+        start: Start datetime for bucketing
+        end: End datetime for bucketing
+        bucket_size: One of "hour", "day", or "week"
+
+    Returns:
+        List of (bucket_start, bucket_end) tuples
+    """
+    if bucket_size == "hour":
+        delta = timedelta(hours=1)
+    elif bucket_size == "day":
+        delta = timedelta(days=1)
+    elif bucket_size == "week":
+        delta = timedelta(weeks=1)
+    else:
+        raise ValueError(f"Invalid bucket_size: {bucket_size}")
+
+    buckets = []
+    current = start.replace(minute=0, second=0, microsecond=0)
+    if bucket_size == "day":
+        current = current.replace(hour=0)
+    elif bucket_size == "week":
+        current = current - timedelta(days=current.weekday())
+        current = current.replace(hour=0, minute=0, second=0, microsecond=0)
+
+    while current < end:
+        next_bucket = current + delta
+        buckets.append((current, next_bucket))
+        current = next_bucket
+
+    return buckets

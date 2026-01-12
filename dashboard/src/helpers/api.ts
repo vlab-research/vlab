@@ -18,6 +18,7 @@ import {
   StudySegmentsProgressApiResponse,
   CurrentDataApiResponse,
   RecruitmentStatsApiResponse,
+  RespondentsOverTimeApiResponse,
 } from '../types/study';
 
 import { CopyFromConf } from '../types/conf';
@@ -77,6 +78,7 @@ const fetchStudy = ({
     accessToken,
   }).then(({ data }) => data);
 
+// Old Go API - used for segment table and other components
 const fetchStudySegmentsProgress = ({
   slug,
   accessToken,
@@ -87,6 +89,22 @@ const fetchStudySegmentsProgress = ({
   apiRequest<StudySegmentsProgressApiResponse>(
     `/${orgPrefix()}/studies/${slug}/segments-progress`,
     { accessToken }
+  );
+
+// New Adopt Server API - used for participants over time chart
+const fetchRespondentsOverTime = ({
+  slug,
+  accessToken,
+}: {
+  slug: string;
+  accessToken: string;
+}) =>
+  apiRequest<RespondentsOverTimeApiResponse>(
+    `/${orgPrefix()}/studies/${slug}/segments-progress`,
+    {
+      accessToken,
+      baseURL: process.env.REACT_APP_CONF_SERVER_URL,
+    }
   );
 
 const createUser = ({ accessToken }: { accessToken: string }) => {
@@ -640,6 +658,7 @@ export const authenticatedApiCalls = {
   fetchStudies,
   fetchStudy,
   fetchStudySegmentsProgress,
+  fetchRespondentsOverTime,
   createUser,
   createStudy,
   createStudyConf,

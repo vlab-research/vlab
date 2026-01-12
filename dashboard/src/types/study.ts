@@ -66,6 +66,20 @@ export interface StudySegmentsProgressApiResponse
     }[]
   > {}
 
+// New API response types for respondents over time
+export interface SegmentParticipantsData {
+  id: string;
+  participants: number;
+}
+
+export interface RespondentsTimePointData {
+  datetime: number;
+  totalParticipants: number;
+  segments: SegmentParticipantsData[];
+}
+
+export interface RespondentsOverTimeApiResponse extends ApiResponse<RespondentsTimePointData[]> {}
+
 export interface StudyProgressResource {
   id: string;
   datetime: number;

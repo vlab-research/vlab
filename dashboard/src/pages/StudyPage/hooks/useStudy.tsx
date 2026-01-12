@@ -2,12 +2,12 @@ import Chance from 'chance';
 import { useMemo } from 'react';
 import { useQuery } from 'react-query';
 import { lastValue } from '../../../helpers/arrays';
-import { computeStudyProgressDataFrom } from '../../../helpers/study';
 import useAuthenticatedApi from '../../../hooks/useAuthenticatedApi';
 import {
   StudyProgressResource,
   StudySegmentProgressResource,
   UseStudyReturn,
+  RespondentsTimePointData,
 } from '../../../types/study';
 
 interface ApiError {
@@ -17,30 +17,55 @@ interface ApiError {
 
 const chance = Chance();
 
+// Transform new adopt server API response to StudyProgressResource format
+// This only provides currentParticipants over time for the time chart
+const transformToStudyProgress = (
+  timePoint: RespondentsTimePointData
+): StudyProgressResource => {
+  return {
+    id: chance.guid({ version: 4 }),
+    datetime: timePoint.datetime,
+    desiredParticipants: null,
+    currentParticipants: timePoint.totalParticipants,
+    expectedParticipants: 0,
+    currentAverageDeviation: 0,
+    expectedAverageDeviation: 0,
+  };
+};
+
 const useStudy = (slug: string): UseStudyReturn => {
   const studyQuery = useStudyQuery(slug);
+  // Old Go API - for segment table and other components
   const studySegmentsProgressQuery = useStudySegmentsProgressQuery(slug);
+  // New Adopt Server API - for participants over time chart
+  const respondentsOverTimeQuery = useRespondentsOverTimeQuery(slug);
   const recruitmentStatsQuery = useStudyRecruitmentStatsQuery(slug);
 
+  // Old Go API data for segment table
   const segmentsProgressOverTime = useMemo(
     () => studySegmentsProgressQuery.data?.data ?? [],
     [studySegmentsProgressQuery.data]
   );
 
+  // New Adopt Server API data for time chart
   const progressOverTime: StudyProgressResource[] = useMemo(() => {
-    if (!segmentsProgressOverTime.length) {
+    const apiData = respondentsOverTimeQuery.data?.data ?? [];
+    if (!apiData.length) {
       return [getStudyDefaultProgress()];
     }
-
-    return segmentsProgressOverTime.map(computeStudyProgress);
-  }, [segmentsProgressOverTime]);
-
-  const currentSegmentsProgress = lastValue(segmentsProgressOverTime);
+    return apiData.map(transformToStudyProgress);
+  }, [respondentsOverTimeQuery.data]);
 
   const currentProgress: StudyProgressResource = useMemo(
-    () => computeStudyProgress(currentSegmentsProgress),
-    [currentSegmentsProgress]
+    () => lastValue(progressOverTime) ?? getStudyDefaultProgress(),
+    [progressOverTime]
   );
+
+  // Segment table data from old Go API
+  const currentSegmentsProgress = useMemo(() => {
+    const lastTimePoint = lastValue(segmentsProgressOverTime);
+    return lastTimePoint ? lastTimePoint.segments : [];
+  }, [segmentsProgressOverTime]);
 
   // Only consider it loading if we don't have the basic study data
   const isLoading = !studyQuery.data;
@@ -53,9 +78,7 @@ const useStudy = (slug: string): UseStudyReturn => {
     name: studyQuery.data?.name ?? '',
     currentProgress,
     progressOverTime,
-    currentSegmentsProgress: currentSegmentsProgress
-      ? currentSegmentsProgress.segments
-      : [],
+    currentSegmentsProgress,
     recruitmentStats: recruitmentStatsQuery.data?.data ?? {},
     recruitmentStatsIsLoading: recruitmentStatsQuery.isLoading,
     isLoading,
@@ -69,6 +92,7 @@ export const useStudyQuery = (slug: string) => {
   return useQuery(['study', slug], () => fetchStudy({ slug }));
 };
 
+// Old Go API - for segment table and other components
 const useStudySegmentsProgressQuery = (slug: string) => {
   const { fetchStudySegmentsProgress } = useAuthenticatedApi();
   const fiveMinutesInMilliseconds = 5 * 60 * 1000;
@@ -76,6 +100,20 @@ const useStudySegmentsProgressQuery = (slug: string) => {
   return useQuery(
     ['study', slug, 'segments-progress'],
     () => fetchStudySegmentsProgress({ slug }),
+    {
+      refetchInterval: fiveMinutesInMilliseconds,
+    }
+  );
+};
+
+// New Adopt Server API - for participants over time chart
+const useRespondentsOverTimeQuery = (slug: string) => {
+  const { fetchRespondentsOverTime } = useAuthenticatedApi();
+  const fiveMinutesInMilliseconds = 5 * 60 * 1000;
+
+  return useQuery(
+    ['study', slug, 'respondents-over-time'],
+    () => fetchRespondentsOverTime({ slug }),
     {
       refetchInterval: fiveMinutesInMilliseconds,
     }
@@ -110,17 +148,7 @@ const useStudyRecruitmentStatsQuery = (slug: string) => {
   );
 };
 
-const computeStudyProgress = (segmentsProgress?: {
-  segments: StudySegmentProgressResource[];
-  datetime: number;
-}) => ({
-  ...getStudyDefaultProgress(segmentsProgress?.datetime),
-  ...(segmentsProgress?.segments
-    ? computeStudyProgressDataFrom(segmentsProgress.segments)
-    : {}),
-});
-
-const getStudyDefaultProgress = (datetime: number = Date.now()) => ({
+const getStudyDefaultProgress = (datetime: number = Date.now()): StudyProgressResource => ({
   id: chance.guid({ version: 4 }),
   datetime,
   desiredParticipants: null,

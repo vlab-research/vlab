@@ -48,6 +48,8 @@ from ..recruitment_data import (
     RecruitmentStats,
     RecruitmentStatsResponse,
 )
+from ..budget import prep_df_for_budget
+from ..responses import create_time_buckets
 
 app = FastAPI()
 
@@ -543,6 +545,150 @@ async def get_recruitment_stats(
 
     except HTTPException:
         raise
+
+
+class SegmentParticipants(BaseModel):
+    """Participants for a single segment at a point in time."""
+    id: str
+    participants: int
+
+
+class TimePointData(BaseModel):
+    """Data for a single time point."""
+    datetime: int  # milliseconds timestamp
+    totalParticipants: int  # sum across all segments
+    segments: list[SegmentParticipants]
+
+
+class RespondentsOverTimeResponse(BaseModel):
+    """Response for respondents over time endpoint."""
+    data: list[TimePointData]
+
+
+@app.get(
+    "/{org_id}/studies/{slug}/segments-progress",
+    response_model=RespondentsOverTimeResponse,
+    responses={
+        200: {"description": "Successfully retrieved segments progress"},
+        401: {"description": "Unauthorized - Invalid or missing authentication token"},
+        404: {"description": "Study not found"},
+        500: {"description": "Internal server error"},
+        504: {"description": "Gateway timeout"},
+    },
+)
+@async_timeout(300)  # 5 minute timeout
+async def get_segments_progress(
+    org_id: str,
+    slug: str,
+    user: Annotated[User, Depends(get_current_user)],
+) -> RespondentsOverTimeResponse:
+    """
+    Get respondents over time for a study.
+
+    Returns cumulative participant counts per segment/stratum over time.
+
+    Args:
+        org_id: Organization ID
+        slug: Study slug
+        user: Current user
+
+    Returns:
+        Time-series data with participant counts and quotas per segment
+    """
+    try:
+        # 1. Auth & get study configuration
+        study_id = get_study_id(user.user_id, org_id, slug)
+        if not study_id:
+            raise HTTPException(status_code=404, detail=f"Study not found: {slug}")
+
+        study_confs = await asyncio.to_thread(
+            get_all_study_confs, user.user_id, org_id, slug
+        )
+        if not study_confs:
+            raise HTTPException(
+                status_code=404, detail=f"Study configuration not found: {slug}"
+            )
+
+        # 2. Extract and validate configurations
+        strata_conf = study_confs.get("strata", [])
+        if not strata_conf:
+            raise HTTPException(
+                status_code=404, detail=f"No strata found for study: {slug}"
+            )
+        strata = [StratumConf(**s) for s in strata_conf]
+
+        recruitment_conf = study_confs.get("recruitment")
+        if not recruitment_conf:
+            raise HTTPException(
+                status_code=404, detail=f"No recruitment configuration found for study: {slug}"
+            )
+
+        # Parse recruitment dates
+        start_date = recruitment_conf.get("start_date")
+        end_date = recruitment_conf.get("end_date")
+        if not start_date or not end_date:
+            raise HTTPException(
+                status_code=400, detail="Recruitment configuration missing start_date or end_date"
+            )
+
+        if isinstance(start_date, str):
+            start_date = datetime.fromisoformat(start_date.replace("Z", "+00:00"))
+        if isinstance(end_date, str):
+            end_date = datetime.fromisoformat(end_date.replace("Z", "+00:00"))
+
+        # 3. Fetch inference data
+        user_info = await asyncio.to_thread(get_user_info, study_id, db_cnf)
+        survey_user = user_info.get("survey_user")
+
+        df = await asyncio.to_thread(
+            get_inference_data,
+            survey_user,
+            study_id,
+            db_cnf,
+            start_date,
+            end_date
+        )
+
+        if df is None or df.empty:
+            return RespondentsOverTimeResponse(data=[])
+
+        # 4. Filter and process data
+        filtered_df = prep_df_for_budget(df, strata)
+        if filtered_df is None or filtered_df.empty:
+            return RespondentsOverTimeResponse(data=[])
+
+        # 5. Build response using simplified business logic
+        from ..segments_progress import get_user_start_times, build_segments_progress_data
+
+        user_start_times = get_user_start_times(filtered_df)
+        buckets = create_time_buckets(start_date, end_date, "day")
+
+        response_data_dicts = build_segments_progress_data(
+            user_start_times=user_start_times,
+            buckets=buckets,
+            strata_ids=[s.id for s in strata],
+        )
+
+        # 6. Convert dict output to Pydantic models
+        response_data = [
+            TimePointData(
+                datetime=bucket_dict["datetime"],
+                totalParticipants=bucket_dict["totalParticipants"],
+                segments=[
+                    SegmentParticipants(**segment_dict)
+                    for segment_dict in bucket_dict["segments"]
+                ],
+            )
+            for bucket_dict in response_data_dicts
+        ]
+
+        return RespondentsOverTimeResponse(data=response_data)
+
+    except HTTPException:
+        raise
+    except BaseException as e:
+        logging.error(f"Error in get_segments_progress: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"{e}")
 
 
 @app.get("/health", status_code=200)
