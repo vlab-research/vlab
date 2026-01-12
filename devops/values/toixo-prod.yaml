@@ -1,4 +1,4 @@
-versionAdopt: &vadopt v0.0.105
+versionAdopt: &vadopt v0.1.56
 
 env:
   - name: AUTH0_DOMAIN
@@ -12,6 +12,7 @@ envSecrets:
   - vlab-db-envs
   - vlab-typeform-envs
   - facebook-envs
+  - vlab-api-key-envs
 
 # shared ingress stuff
 ingress:
@@ -23,8 +24,8 @@ services:
   - name: dashboard
     replicaCount: 1
     image:
-      repository: vlabresearch/vlab-dashboard-api
-      tag: latest
+      repository: vlabresearch/dashboard
+      tag: v0.0.36
       pullPolicy: Always
     resources: {}
     ingress:
@@ -50,6 +51,7 @@ services:
       - uvicorn
       - adopt.server.server:app
       - "--host=0.0.0.0"
+      - "--workers=4"
     env: {}
 
 
@@ -105,10 +107,10 @@ cronjobs:
     schedule: "30 * * * *"
     image:
       repository: "vlabresearch/swoosh"
-      tag: "latest"
+      tag: "v0.1.2"
       pullPolicy: Always
   - name: adopt-ads
-    schedule: "30 */4 * * *"
+    schedule: "30 */2 * * *"
     image:
       repository: "vlabresearch/adopt"
       tag: *vadopt
