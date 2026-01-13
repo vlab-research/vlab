@@ -399,12 +399,12 @@ def get_spend_by_date(
          LIMIT 1)
     )
     SELECT
-        DATE(period_start) as day,
+        period_start::DATE as day,
         SUM(CAST(metrics->>'spend' AS FLOAT)) as daily_spend
     FROM combined
     CROSS JOIN LATERAL jsonb_each(data) AS campaign(campaign_id, campaign_data)
     CROSS JOIN LATERAL jsonb_each(campaign_data) AS stratum(stratum_id, metrics)
-    GROUP BY DATE(period_start)
+    GROUP BY period_start::DATE
     ORDER BY day ASC
     """
     results = list(query(db_conf, q, (study_id, study_id)))
