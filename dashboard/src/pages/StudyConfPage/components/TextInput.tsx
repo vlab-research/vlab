@@ -8,7 +8,15 @@ interface TextProps<T> {
   placeholder: string;
   value: any;
   type?: string;
-  inputMode?: 'text' | 'search' | 'none' | 'tel' | 'url' | 'email' | 'numeric' | 'decimal';
+  inputMode?:
+    | 'text'
+    | 'search'
+    | 'none'
+    | 'tel'
+    | 'url'
+    | 'email'
+    | 'numeric'
+    | 'decimal';
   disabled?: boolean;
   required?: boolean;
 }
@@ -21,13 +29,12 @@ export const GenericTextInput: TextInputI = ({
   autoComplete = 'on',
   placeholder,
   value,
-  type = "text",
+  type = 'text',
   inputMode,
   disabled = false,
   required = true,
   ...props
 }) => {
-
   return (
     <div className="sm:my-4">
       <label className="my-2 block text-sm font-medium text-gray-700">

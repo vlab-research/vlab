@@ -11,7 +11,7 @@ import {
   RecruitmentSimple,
   RecruitmentDestination,
   PipelineExperiment as PipelineExperimentType,
-  Recruitment as LocalData
+  Recruitment as LocalData,
 } from '../../../../types/conf';
 import useCreateStudyConf from '../../hooks/useCreateStudyConf';
 import ConfWrapper from '../../components/ConfWrapper';
@@ -25,21 +25,18 @@ interface Props {
 
 const duckTypeRecruitmentType = (localData: any) => {
   if (localData?.arms) {
-    return 'pipeline_experiment'
+    return 'pipeline_experiment';
   } else if (localData?.ad_campaign_name_base) {
-    return 'destination'
+    return 'destination';
   } else {
-    return 'simple'
+    return 'simple';
   }
-}
+};
 
-const Recruitment: React.FC<Props> = ({
-  id,
-  globalData,
-  localData,
-}: Props) => {
-
-  const [recruitmentType, setRecruitmentType] = useState<string>(duckTypeRecruitmentType(localData));
+const Recruitment: React.FC<Props> = ({ id, globalData, localData }: Props) => {
+  const [recruitmentType, setRecruitmentType] = useState<string>(
+    duckTypeRecruitmentType(localData)
+  );
 
   const initialState: any[] = [
     {
@@ -91,7 +88,9 @@ const Recruitment: React.FC<Props> = ({
   ];
 
   const [formData, setFormData] = useState<LocalData>(
-    localData ? localData : initialState.find((obj: any) => obj.type === recruitmentType)
+    localData
+      ? localData
+      : initialState.find((obj: any) => obj.type === recruitmentType)
   );
   const [error, setError] = useState<string | null>(null);
 
@@ -112,14 +111,13 @@ const Recruitment: React.FC<Props> = ({
     'recruitment'
   );
 
-
   const formatData = (data: LocalData) => {
-    if ("ad_campaign_name" in data) {
-      data.ad_campaign_name = data.ad_campaign_name.trim()
+    if ('ad_campaign_name' in data) {
+      data.ad_campaign_name = data.ad_campaign_name.trim();
     }
 
-    if ("ad_campaign_name_base" in data) {
-      data.ad_campaign_name_base = data.ad_campaign_name_base.trim()
+    if ('ad_campaign_name_base' in data) {
+      data.ad_campaign_name_base = data.ad_campaign_name_base.trim();
     }
 
     return data;
@@ -159,7 +157,10 @@ const Recruitment: React.FC<Props> = ({
           label="Select a recruitment type"
         ></Select>
         {recruitmentType === 'simple' && (
-          <Simple formData={formData as RecruitmentSimple} updateFormData={setFormData} />
+          <Simple
+            formData={formData as RecruitmentSimple}
+            updateFormData={setFormData}
+          />
         )}
         {recruitmentType === 'pipeline_experiment' && (
           <PipelineExperiment
@@ -175,11 +176,7 @@ const Recruitment: React.FC<Props> = ({
             studySlug={studySlug}
           />
         )}
-        {error && (
-          <div className="mx-6 mt-4 text-sm text-red-600">
-            {error}
-          </div>
-        )}
+        {error && <div className="mx-6 mt-4 text-sm text-red-600">{error}</div>}
         <div className="p-6 text-right">
           <PrimaryButton
             leftIcon="CheckCircleIcon"
