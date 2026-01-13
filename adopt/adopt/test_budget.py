@@ -150,13 +150,16 @@ def test_proportional_budget_optimizes_all_budget():
     tot = {"bar": 1, "baz": 1, "foo": 0}
     price = {"bar": 10.0, "baz": 10.0, "foo": 10.0}
     goal = {"foo": 1 / 3, "bar": 1 / 3, "baz": 1 / 3}
-    budget, expected = proportional_budget(goal, spend, tot, price, 100, None, 1.0)
+    budget, expected, counterfactual_spend, counterfactual_recruits = proportional_budget(goal, spend, tot, price, 100, None, 1.0)
     assert round(budget["foo"]) == 40
     assert round(budget["bar"]) == 30
     assert round(budget["baz"]) == 30
     assert round(expected["foo"]) == 4.0
     assert round(expected["bar"]) == 4.0
     assert round(expected["baz"]) == 4.0
+    # No counterfactuals when only budget constraint
+    assert counterfactual_spend is None
+    assert counterfactual_recruits is None
 
 
 def test_proportional_budget_optimizes_for_weights():
@@ -164,7 +167,7 @@ def test_proportional_budget_optimizes_for_weights():
     tot = {"bar": 1, "baz": 1, "foo": 1}
     price = {"bar": 10.0, "baz": 10.0, "foo": 10.0}
     goal = {"foo": 0.3, "bar": 0.2, "baz": 0.5}
-    budget, expected = proportional_budget(goal, spend, tot, price, 10000, None, 1.0)
+    budget, expected, _, _ = proportional_budget(goal, spend, tot, price, 10000, None, 1.0)
 
     assert round(expected["foo"]) == 301
     assert round(expected["bar"]) == 200
@@ -176,7 +179,7 @@ def test_proportional_budget_drops_strata_under_min_to_min_budget():
     tot = {"bar": 1, "baz": 1, "foo": 0}
     price = {"bar": 10.0, "baz": 10.0, "foo": 10.0}
     goal = {"foo": 1 / 3, "bar": 1 / 3, "baz": 1 / 3}
-    budget, _ = proportional_budget(goal, spend, tot, price, 100, None, 1.0)
+    budget, _, _, _ = proportional_budget(goal, spend, tot, price, 100, None, 1.0)
     assert round(budget["foo"]) == 40
     assert round(budget["bar"]) == 30
     assert round(budget["baz"]) == 30
@@ -187,7 +190,7 @@ def test_proportional_budget_can_drop_to_zero_budget():
     tot = {"bar": 10, "baz": 1, "foo": 0}
     price = {"bar": 10.0, "baz": 10.0, "foo": 10.0}
     goal = {"foo": 1 / 3, "bar": 1 / 3, "baz": 1 / 3}
-    budget, _ = proportional_budget(goal, spend, tot, price, 100, None, 1.0)
+    budget, _, _, _ = proportional_budget(goal, spend, tot, price, 100, None, 1.0)
     assert round(budget["foo"]) == 55
     assert round(budget["bar"]) == 0
     assert round(budget["baz"]) == 45
@@ -198,7 +201,7 @@ def test_proportional_budget_prioritizes_underperforming_when_its_obvious():
     tot = {"bar": 5, "baz": 5, "foo": 2}
     price = {"bar": 20.0, "baz": 20.0, "foo": 50.0}
     goal = {"foo": 1 / 3, "bar": 1 / 3, "baz": 1 / 3}
-    budget, _ = proportional_budget(goal, spend, tot, price, 100, None, 1.0)
+    budget, _, _, _ = proportional_budget(goal, spend, tot, price, 100, None, 1.0)
     assert round(budget["foo"]) == 66
     assert round(budget["bar"]) == 17
     assert round(budget["baz"]) == 17
@@ -209,7 +212,7 @@ def test_proportional_budget_prioritizes_underperforming_even_at_high_cost():
     tot = {"bar": 20, "baz": 10, "foo": 2}
     price = {"bar": 5.0, "baz": 20.0, "foo": 50.0}
     goal = {"foo": 1 / 3, "bar": 1 / 3, "baz": 1 / 3}
-    budget, _ = proportional_budget(goal, spend, tot, price, 100, None, 1.0)
+    budget, _, _, _ = proportional_budget(goal, spend, tot, price, 100, None, 1.0)
     assert budget["foo"] == 100
     assert budget["bar"] == 0
     assert budget["baz"] == 0
@@ -220,7 +223,7 @@ def test_proportional_budget_works_to_turn_off_super_underperforming_and_unimpor
     tot = {"bar": 20, "baz": 20, "foo": 0}
     price = {"bar": 5.0, "baz": 5.0, "foo": 500.0}
     goal = {"foo": 1 / 10, "bar": 4 / 10, "baz": 5 / 10}
-    budget, _ = proportional_budget(goal, spend, tot, price, 100, None, 1.0)
+    budget, _, _, _ = proportional_budget(goal, spend, tot, price, 100, None, 1.0)
     assert budget["foo"] == 0
     assert round(budget["bar"]) == 33
     assert round(budget["baz"]) == 67
@@ -231,7 +234,7 @@ def test_proportional_budget_optimizes_even_if_already_pretty_good():
     tot = {"bar": 3333, "baz": 3333, "foo": 3000}
     price = {"bar": 20.0, "baz": 20.0, "foo": 20.0}
     goal = {"foo": 1 / 3, "bar": 1 / 3, "baz": 1 / 3}
-    budget, _ = proportional_budget(goal, spend, tot, price, 1000, None, 1.0)
+    budget, _, _, _ = proportional_budget(goal, spend, tot, price, 1000, None, 1.0)
     assert budget["foo"] == 1000
     assert budget["bar"] == 0
     assert budget["baz"] == 0
@@ -252,7 +255,7 @@ def test_proportional_budget_with_max_recuits_optimizes_for_weights():
     price = {"bar": 10.0, "baz": 10.0, "foo": 10.0}
     goal = {"foo": 0.3, "bar": 0.5, "baz": 0.2}
 
-    budget, expected = proportional_budget(
+    budget, expected, _, _ = proportional_budget(
         goal, spend, tot, price, budget=None, max_recruits=100, efficiency_weight=1.0
     )
 
@@ -267,7 +270,7 @@ def test_proportional_budget_with_max_recruits_spends_on_missing_section():
     price = {"bar": 20.0, "baz": 20.0, "foo": 50.0}
     goal = {"foo": 1 / 3, "bar": 1 / 3, "baz": 1 / 3}
 
-    budget, _ = proportional_budget(
+    budget, _, _, _ = proportional_budget(
         goal, spend, tot, price, budget=None, max_recruits=15, efficiency_weight=1.0
     )
     assert round(budget["foo"]) == 150
@@ -281,7 +284,7 @@ def test_proportional_budget_with_max_recruits_can_turn_off_empty_groups_without
     price = {"bar": 20.0, "baz": 20.0, "foo": 200.0}
     goal = {"foo": 1 / 100, "bar": 39 / 100, "baz": 60 / 100}
 
-    budget, _ = proportional_budget(
+    budget, _, _, _ = proportional_budget(
         goal, spend, tot, price, budget=None, max_recruits=60, efficiency_weight=1.0
     )
     assert round(budget["foo"]) == 0
@@ -295,7 +298,7 @@ def test_proportional_budget_with_max_recruits_evenly_recruits_with_dif_prices()
     price = {"bar": 20.0, "baz": 40.0, "foo": 50.0}
     goal = {"foo": 1 / 3, "bar": 1 / 3, "baz": 1 / 3}
 
-    budget, _ = proportional_budget(
+    budget, _, _, _ = proportional_budget(
         goal, spend, tot, price, budget=None, max_recruits=30, efficiency_weight=1.0
     )
     assert round(budget["foo"]) == 250
@@ -309,13 +312,13 @@ def test_proportional_budget_with_both_budget_and_max_recruits_picks_constraint(
     price = {"bar": 20.0, "baz": 20.0, "foo": 20.0}
     goal = {"foo": 1 / 3, "bar": 1 / 3, "baz": 1 / 3}
 
-    budget, expected = proportional_budget(
+    budget, expected, _, _ = proportional_budget(
         goal, spend, tot, price, budget=100, max_recruits=30, efficiency_weight=1.0
     )
     assert round(sum(expected.values())) == 20
     assert round(sum(budget.values())) == 100
 
-    budget, expected = proportional_budget(
+    budget, expected, _, _ = proportional_budget(
         goal, spend, tot, price, budget=500, max_recruits=30, efficiency_weight=1.0
     )
     assert round(sum(expected.values())) == 30
@@ -329,7 +332,7 @@ def test_proportional_budget_with_efficiency_weight_zero_allocates_all_to_cheape
     price = {"bar": 20.0, "baz": 10.0, "foo": 30.0}  # baz is cheapest
     goal = {"foo": 1 / 3, "bar": 1 / 3, "baz": 1 / 3}
 
-    budget, expected = proportional_budget(
+    budget, expected, _, _ = proportional_budget(
         goal, spend, tot, price, 300, None, 0.0
     )
 
@@ -348,7 +351,7 @@ def test_proportional_budget_with_efficiency_weight_one_matches_current_behavior
     goal = {"foo": 1 / 3, "bar": 1 / 3, "baz": 1 / 3}
 
     # Test with efficiency_weight=1.0 (pure variance optimization)
-    budget, expected = proportional_budget(
+    budget, expected, _, _ = proportional_budget(
         goal, spend, tot, price, 100, None, 1.0
     )
 
@@ -367,17 +370,17 @@ def test_proportional_budget_with_efficiency_weight_half_balances():
     goal = {"foo": 1 / 3, "bar": 1 / 3, "baz": 1 / 3}
 
     # Test with efficiency_weight=0.5 (balanced)
-    budget_balanced, expected_balanced = proportional_budget(
+    budget_balanced, expected_balanced, _, _ = proportional_budget(
         goal, spend, tot, price, 100, None, 0.5
     )
 
     # Test with efficiency_weight=1.0 (pure variance - all to foo)
-    budget_variance, expected_variance = proportional_budget(
+    budget_variance, expected_variance, _, _ = proportional_budget(
         goal, spend, tot, price, 100, None, 1.0
     )
 
     # Test with efficiency_weight=0.0 (pure efficiency - prefers cheapest)
-    budget_efficiency, expected_efficiency = proportional_budget(
+    budget_efficiency, expected_efficiency, _, _ = proportional_budget(
         goal, spend, tot, price, 100, None, 0.0
     )
 
@@ -396,7 +399,7 @@ def test_efficiency_weight_one_gives_variance_optimization():
     goal = {"foo": 1 / 3, "bar": 1 / 3, "baz": 1 / 3}
 
     # Call with explicit efficiency_weight=1.0
-    budget, expected = proportional_budget(
+    budget, expected, _, _ = proportional_budget(
         goal, spend, tot, price, 1000, None, 1.0
     )
 
@@ -814,3 +817,61 @@ def test_calculate_strata_stats_zero_values(cnf, df):
     assert stats["foo"].conversion_rate == 0.0
     assert stats["bar"].conversion_rate == 0.0
     assert stats["baz"].conversion_rate == 0.0
+
+
+def test_proportional_budget_with_both_constraints_shows_counterfactual_spend():
+    """Test that when budget constraint binds, counterfactual_spend is returned."""
+    # Using parameters that DEFINITELY make budget bind:
+    # budget=100, max_recruits=30 (from existing test at line 312-319)
+    spend = {"bar": 100.0, "baz": 100.0, "foo": 100.0}
+    tot = {"bar": 5, "baz": 5, "foo": 5}
+    price = {"bar": 20.0, "baz": 20.0, "foo": 20.0}
+    goal = {"foo": 1 / 3, "bar": 1 / 3, "baz": 1 / 3}
+
+    budget, expected, counterfactual_spend, counterfactual_recruits = proportional_budget(
+        goal, spend, tot, price, budget=100, max_recruits=30, efficiency_weight=1.0
+    )
+
+    # When budget binds, counterfactual_spend shows cost to fill sample without budget constraint
+    assert sum(budget.values()) == pytest.approx(100), "Budget constraint should bind with these parameters"
+    assert counterfactual_spend is not None, "counterfactual_spend should be present when budget binds"
+    assert counterfactual_recruits is None, "counterfactual_recruits should be None when budget binds"
+    # counterfactual_spend should be higher than actual spend (cost to fill sample)
+    assert sum(counterfactual_spend.values()) > 100
+
+
+def test_proportional_budget_with_both_constraints_shows_counterfactual_recruits():
+    """Test that when respondent constraint binds, counterfactual_recruits is returned."""
+    # Using parameters that DEFINITELY make respondents bind:
+    # budget=500, max_recruits=30 (from existing test at line 318-325)
+    spend = {"bar": 100.0, "baz": 100.0, "foo": 100.0}
+    tot = {"bar": 5, "baz": 5, "foo": 5}
+    price = {"bar": 20.0, "baz": 20.0, "foo": 20.0}
+    goal = {"foo": 1 / 3, "bar": 1 / 3, "baz": 1 / 3}
+
+    budget, expected, counterfactual_spend, counterfactual_recruits = proportional_budget(
+        goal, spend, tot, price, budget=500, max_recruits=30, efficiency_weight=1.0
+    )
+
+    # When respondent constraint binds, counterfactual_recruits shows what could be achieved
+    assert sum(budget.values()) < 500, "Respondent constraint should bind with these parameters"
+    assert counterfactual_recruits is not None, "counterfactual_recruits should be present when respondents bind"
+    assert counterfactual_spend is None, "counterfactual_spend should be None when respondents bind"
+    # counterfactual_recruits should be higher than actual (recruits with unlimited budget)
+    assert sum(counterfactual_recruits.values()) >= sum(expected.values()), "counterfactual_recruits should be at least as large as actual recruits"
+
+
+def test_proportional_budget_no_counterfactual_when_only_max_recruits():
+    """Test that no counterfactual is returned when only max_recruits constraint is provided."""
+    spend = {"bar": 100.0, "baz": 100.0, "foo": 100.0}
+    tot = {"bar": 5, "baz": 5, "foo": 5}
+    price = {"bar": 20.0, "baz": 20.0, "foo": 20.0}
+    goal = {"foo": 1 / 3, "bar": 1 / 3, "baz": 1 / 3}
+
+    budget, expected, cf_spend, cf_recruits = proportional_budget(
+        goal, spend, tot, price, budget=None, max_recruits=30, efficiency_weight=1.0
+    )
+
+    # No counterfactual possible without both constraints
+    assert cf_spend is None
+    assert cf_recruits is None

@@ -1,4 +1,5 @@
 import logging
+from dataclasses import dataclass
 from math import ceil
 from statistics import mean
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
@@ -17,6 +18,22 @@ from .recruitment_data import (
     RecruitmentStats,
 )
 from .campaign_queries import DBConf, AdOptReport
+
+
+@dataclass
+class OptimizationResult:
+    """Result of budget optimization with optional counterfactual analysis.
+
+    Attributes:
+        new_spend: Optimal spend allocation (numpy array)
+        expected_recruits: Expected recruit counts from optimal spend (numpy array)
+        counterfactual_spend: Cost to fill sample when budget constraint binds (numpy array, optional)
+        counterfactual_recruits: Recruits with full budget when respondents bind (numpy array, optional)
+    """
+    new_spend: np.ndarray
+    expected_recruits: np.ndarray
+    counterfactual_spend: Optional[np.ndarray] = None
+    counterfactual_recruits: Optional[np.ndarray] = None
 
 
 def _filter_by_join_time(df: pd.DataFrame, pred: Callable[[pd.Series], bool]):
@@ -156,7 +173,28 @@ def recruits_opt(S, goal, tot, price, num_recruits, efficiency_weight: float):
 
 def proportional_opt(
     goal, tot, price, budget, max_recruits, efficiency_weight: float, tol=0.01
-):
+) -> OptimizationResult:
+    """Optimize budget allocation with counterfactual analysis.
+
+    When both budget and respondent constraints are provided, determines which constraint
+    binds and includes the counterfactual solution (what would happen without the binding constraint).
+
+    Args:
+        goal: Target allocation proportions (numpy array)
+        tot: Current respondent counts per stratum (numpy array)
+        price: Cost per respondent per stratum (numpy array)
+        budget: Maximum budget available (float or None)
+        max_recruits: Maximum total respondents wanted (int or None)
+        efficiency_weight: Weight for variance optimization (1.0=variance, 0.0=cost efficiency)
+        tol: Tolerance for optimization loss warnings
+
+    Returns:
+        OptimizationResult with:
+        - new_spend: Optimal spend allocation
+        - expected_recruits: Expected total recruits from optimal spend
+        - counterfactual_spend: If budget binds, the cost to fill sample without budget constraint
+        - counterfactual_recruits: If respondents bind, recruits possible with unlimited budget
+    """
     if budget is None and max_recruits is None:
         raise Exception("Need either a max budget or max_recruits to optimize")
 
@@ -189,7 +227,13 @@ def proportional_opt(
         budget_solution = (new_spend, expected_recruits)
 
     if max_recruits is None:
-        return budget_solution
+        # Only budget constraint - no counterfactuals
+        return OptimizationResult(
+            new_spend=budget_solution[0],
+            expected_recruits=budget_solution[1],
+            counterfactual_spend=None,
+            counterfactual_recruits=None,
+        )
 
     num_recruits = max_recruits - tot.sum()
 
@@ -200,18 +244,51 @@ def proportional_opt(
     recruit_solution = (new_spend, expected_recruits)
 
     if budget is None:
-        return recruit_solution
+        # Only respondents constraint - no counterfactuals
+        return OptimizationResult(
+            new_spend=recruit_solution[0],
+            expected_recruits=recruit_solution[1],
+            counterfactual_spend=None,
+            counterfactual_recruits=None,
+        )
 
+    # Both constraints present - determine which binds
     if new_spend.sum() > budget:
-        return budget_solution
-
-    return recruit_solution
+        # Budget constraint binds - include counterfactual cost to fill sample
+        return OptimizationResult(
+            new_spend=budget_solution[0],
+            expected_recruits=budget_solution[1],
+            counterfactual_spend=recruit_solution[0],  # Cost without budget constraint
+            counterfactual_recruits=None,
+        )
+    else:
+        # Respondents constraint binds - include counterfactual recruits with unlimited budget
+        return OptimizationResult(
+            new_spend=recruit_solution[0],
+            expected_recruits=recruit_solution[1],
+            counterfactual_spend=None,
+            counterfactual_recruits=budget_solution[1],  # Recruits without respondent constraint
+        )
 
 
 # provide max
 def proportional_budget(
     goal, spend, tot, price, budget, max_recruits, efficiency_weight: float
-):
+) -> Tuple[Dict, Dict, Optional[Dict], Optional[Dict]]:
+    """Optimize budget allocation and return results with optional counterfactuals.
+
+    Args:
+        goal: Target allocation proportions per stratum (dict)
+        spend: Current spend per stratum (dict)
+        tot: Current respondent counts per stratum (dict)
+        price: Cost per respondent per stratum (dict)
+        budget: Maximum budget available (float or None)
+        max_recruits: Maximum total respondents wanted (int or None)
+        efficiency_weight: Weight for variance optimization (1.0=variance, 0.0=cost efficiency)
+
+    Returns:
+        Tuple of (new_spend_dict, expected_dict, counterfactual_spend_dict_or_None, counterfactual_recruits_dict_or_None)
+    """
     if not np.isclose(sum(goal.values()), 1.0, 0.01):
         raise Exception(
             f"proportional_budget needs a goal that sums to one. was given: {goal}"
@@ -226,7 +303,7 @@ def proportional_budget(
         }
     )
 
-    df["new_spend"], df["expected"] = proportional_opt(
+    result = proportional_opt(
         df.goal.values,
         df.respondents.values,
         df.price.values,
@@ -235,7 +312,25 @@ def proportional_budget(
         efficiency_weight=efficiency_weight,
     )
 
-    return df.new_spend.to_dict(), df.expected.to_dict()
+    # Convert arrays to dicts using the original index
+    df["new_spend"] = result.new_spend
+    df["expected"] = result.expected_recruits
+
+    new_spend_dict = df.new_spend.to_dict()
+    expected_dict = df.expected.to_dict()
+
+    # Convert counterfactuals to dicts if present
+    counterfactual_spend_dict = None
+    if result.counterfactual_spend is not None:
+        df["counterfactual_spend"] = result.counterfactual_spend
+        counterfactual_spend_dict = df.counterfactual_spend.to_dict()
+
+    counterfactual_recruits_dict = None
+    if result.counterfactual_recruits is not None:
+        df["counterfactual_recruits"] = result.counterfactual_recruits
+        counterfactual_recruits_dict = df.counterfactual_recruits.to_dict()
+
+    return new_spend_dict, expected_dict, counterfactual_spend_dict, counterfactual_recruits_dict
 
 
 def _off_budget(strata):
@@ -324,27 +419,36 @@ def get_budget_lookup(
         return _off_budget(strata), None
 
     goal = _normalize_values({s.id: s.quota for s in strata})
-    budget, expected = proportional_budget(
+    budget, expected, counterfactual_spend, counterfactual_recruits = proportional_budget(
         goal, spend, tot, price, to_spend, max_sample_size, efficiency_weight
     )
 
     # Include efficiency_weight in report (same value for all strata)
     efficiency_weight_dict = {s.id: efficiency_weight for s in strata}
 
-    report = make_report(
-        [
-            ("current_price_per_participant", price),
-            ("total_spent", spend),
-            ("lifetime_spent", lifetime_spend),
-            ("desired_percentage", goal),
-            ("current_participants", tot),
-            ("current_percentage", share),
-            ("current_budget", budget),
-            ("expected_participants", expected),
-            ("expected_percentage", _normalize_values(expected)),
-            ("efficiency_weight", efficiency_weight_dict),
-        ]
-    )
+    # Build report facts list, adding counterfactuals only if they exist
+    report_facts = [
+        ("current_price_per_participant", price),
+        ("total_spent", spend),
+        ("lifetime_spent", lifetime_spend),
+        ("desired_percentage", goal),
+        ("current_participants", tot),
+        ("current_percentage", share),
+        ("current_budget", budget),
+        ("expected_participants", expected),
+        ("expected_percentage", _normalize_values(expected)),
+        ("efficiency_weight", efficiency_weight_dict),
+    ]
+
+    # Add counterfactuals if present (budget binds case)
+    if counterfactual_spend is not None:
+        report_facts.append(("counterfactual_spend_to_fill_sample", counterfactual_spend))
+
+    # Add counterfactuals if present (respondents bind case)
+    if counterfactual_recruits is not None:
+        report_facts.append(("counterfactual_participants_with_unlimited_budget", counterfactual_recruits))
+
+    report = make_report(report_facts)
     return budget, report
 
 
