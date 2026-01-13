@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -37,17 +38,21 @@ func TestInferenceDataWriter_WritesMultipleTimesAndUpdatesDataRemovingVariables(
 	MustExec(t, pool, inferenceDataSql)
 
 	id := InferenceData{
-		"foo": {"foo",
-			map[string]*InferenceDataValue{
-				"user_md": {ti("09"), "user_md", []byte(`"foo"`), "metadata"},
-				"q1":      {ti("07"), "q1", []byte(`"A"`), "categorical"},
-				"q2":      {ti("09"), "q2", []byte(`2`), "continuous"},
-			}},
-		"bar": {"bar",
-			map[string]*InferenceDataValue{
-				"user_md": {ti("10"), "user_md", []byte(`"bar"`), "metadata"},
-				"q2":      {ti("10"), "q2", []byte(`2`), "continuous"},
-			}},
+		"foo": {
+			User: "foo",
+			Data: map[string]*InferenceDataValue{
+				"user_md": {Timestamp: ti("09"), Variable: "user_md", Value: []byte(`"foo"`), ValueType: "metadata"},
+				"q1":      {Timestamp: ti("07"), Variable: "q1", Value: []byte(`"A"`), ValueType: "categorical"},
+				"q2":      {Timestamp: ti("09"), Variable: "q2", Value: []byte(`2`), ValueType: "continuous"},
+			},
+		},
+		"bar": {
+			User: "bar",
+			Data: map[string]*InferenceDataValue{
+				"user_md": {Timestamp: ti("10"), Variable: "user_md", Value: []byte(`"bar"`), ValueType: "metadata"},
+				"q2":      {Timestamp: ti("10"), Variable: "q2", Value: []byte(`2`), ValueType: "continuous"},
+			},
+		},
 	}
 
 	e := WriteInferenceData(pool, "study_foo", id)
@@ -59,10 +64,12 @@ func TestInferenceDataWriter_WritesMultipleTimesAndUpdatesDataRemovingVariables(
 
 	// Now, overwrites all data from study_foo with a single variable/user
 	id = InferenceData{
-		"foo": {"foo",
-			map[string]*InferenceDataValue{
-				"q1": {ti("07"), "q1", []byte(`"A"`), "categorical"},
-			}},
+		"foo": {
+			User: "foo",
+			Data: map[string]*InferenceDataValue{
+				"q1": {Timestamp: ti("07"), Variable: "q1", Value: []byte(`"A"`), ValueType: "categorical"},
+			},
+		},
 	}
 	e = WriteInferenceData(pool, "study_foo", id)
 	handle(e)
@@ -89,6 +96,178 @@ func TestInferenceDataWriter_WritesMultipleTimesAndUpdatesDataRemovingVariables(
 	assert.Equal(t, []*string{str("foo")}, users)
 	assert.Equal(t, 1, len(users))
 
+}
+
+func TestBatchInsertInferenceData_ExactlyBatchSize(t *testing.T) {
+	pool := TestPool()
+	defer pool.Close()
+	MustExec(t, pool, inferenceDataSql)
+
+	// Create exactly 500 rows (batch size)
+	id := InferenceData{}
+	for i := 0; i < 500; i++ {
+		userId := fmt.Sprintf("user%d", i)
+		id[userId] = &InferenceDataRow{
+			User: userId,
+			Data: map[string]*InferenceDataValue{
+				"q1": {Timestamp: ti("10"), Variable: "q1", Value: []byte(`"A"`), ValueType: "categorical"},
+			},
+		}
+	}
+
+	e := WriteInferenceData(pool, "study_batch_test", id)
+	assert.Nil(t, e)
+
+	// Verify all 500 rows were inserted
+	users := GetCol(pool, "inference_data", "user_id")
+	assert.Equal(t, 500, len(users))
+}
+
+func TestBatchInsertInferenceData_MoreThanBatchSize(t *testing.T) {
+	pool := TestPool()
+	defer pool.Close()
+	MustExec(t, pool, inferenceDataSql)
+
+	// Create 501 rows (batch size + 1) to test mid-iteration flush
+	id := InferenceData{}
+	for i := 0; i < 501; i++ {
+		userId := fmt.Sprintf("user%d", i)
+		id[userId] = &InferenceDataRow{
+			User: userId,
+			Data: map[string]*InferenceDataValue{
+				"q1": {Timestamp: ti("10"), Variable: "q1", Value: []byte(`"B"`), ValueType: "categorical"},
+			},
+		}
+	}
+
+	e := WriteInferenceData(pool, "study_batch_test", id)
+	assert.Nil(t, e)
+
+	// Verify all 501 rows were inserted (500 in first batch, 1 in final flush)
+	users := GetCol(pool, "inference_data", "user_id")
+	assert.Equal(t, 501, len(users))
+}
+
+func TestBatchInsertInferenceData_LessThanBatchSize(t *testing.T) {
+	pool := TestPool()
+	defer pool.Close()
+	MustExec(t, pool, inferenceDataSql)
+
+	// Create 50 rows (less than batch size)
+	id := InferenceData{}
+	for i := 0; i < 50; i++ {
+		userId := fmt.Sprintf("user%d", i)
+		id[userId] = &InferenceDataRow{
+			User: userId,
+			Data: map[string]*InferenceDataValue{
+				"q1": {Timestamp: ti("10"), Variable: "q1", Value: []byte(`"C"`), ValueType: "categorical"},
+			},
+		}
+	}
+
+	e := WriteInferenceData(pool, "study_batch_test", id)
+	assert.Nil(t, e)
+
+	// Verify all 50 rows were inserted
+	users := GetCol(pool, "inference_data", "user_id")
+	assert.Equal(t, 50, len(users))
+}
+
+func TestBatchInsertInferenceData_EmptyData(t *testing.T) {
+	pool := TestPool()
+	defer pool.Close()
+	MustExec(t, pool, inferenceDataSql)
+
+	// Test with empty InferenceData
+	id := InferenceData{}
+
+	e := WriteInferenceData(pool, "study_batch_test", id)
+	assert.Nil(t, e)
+
+	// Verify no rows were inserted
+	users := GetCol(pool, "inference_data", "user_id")
+	assert.Equal(t, 0, len(users))
+}
+
+func TestBatchInsertInferenceData_MultipleVariablesPerUser(t *testing.T) {
+	pool := TestPool()
+	defer pool.Close()
+	MustExec(t, pool, inferenceDataSql)
+
+	// Create data with multiple variables per user to test batching logic
+	id := InferenceData{}
+	// 250 users * 3 variables = 750 total rows (will trigger batch flush)
+	for i := 0; i < 250; i++ {
+		userId := fmt.Sprintf("user%d", i)
+		id[userId] = &InferenceDataRow{
+			User: userId,
+			Data: map[string]*InferenceDataValue{
+				"q1": {Timestamp: ti("10"), Variable: "q1", Value: []byte(`"A"`), ValueType: "categorical"},
+				"q2": {Timestamp: ti("10"), Variable: "q2", Value: []byte(`2`), ValueType: "continuous"},
+				"q3": {Timestamp: ti("10"), Variable: "q3", Value: []byte(`"D"`), ValueType: "categorical"},
+			},
+		}
+	}
+
+	e := WriteInferenceData(pool, "study_batch_test", id)
+	assert.Nil(t, e)
+
+	// Verify all rows were inserted (250 users * 3 variables = 750 rows)
+	rows, err := pool.Query(context.Background(), "select user_id, variable from inference_data order by user_id, variable")
+	assert.Nil(t, err)
+
+	count := 0
+	for rows.Next() {
+		count++
+	}
+	assert.Equal(t, 750, count)
+}
+
+func TestBatchInsertInferenceData_UpsertBehavior(t *testing.T) {
+	pool := TestPool()
+	defer pool.Close()
+	MustExec(t, pool, inferenceDataSql)
+
+	// First insert
+	id1 := InferenceData{
+		"user1": {
+			User: "user1",
+			Data: map[string]*InferenceDataValue{
+				"q1": {Timestamp: ti("10"), Variable: "q1", Value: []byte(`"initial"`), ValueType: "categorical"},
+			},
+		},
+	}
+
+	e := WriteInferenceData(pool, "study_upsert_test", id1)
+	assert.Nil(t, e)
+
+	// Second insert with same user/variable, different value
+	id2 := InferenceData{
+		"user1": {
+			User: "user1",
+			Data: map[string]*InferenceDataValue{
+				"q1": {Timestamp: ti("11"), Variable: "q1", Value: []byte(`"updated"`), ValueType: "categorical"},
+			},
+		},
+	}
+
+	e = WriteInferenceData(pool, "study_upsert_test", id2)
+	assert.Nil(t, e)
+
+	// Verify value was updated (not duplicated)
+	rows, err := pool.Query(context.Background(), "select value from inference_data where study_id = 'study_upsert_test'")
+	assert.Nil(t, err)
+
+	values := []json.RawMessage{}
+	for rows.Next() {
+		var msg json.RawMessage
+		err = rows.Scan(&msg)
+		assert.Nil(t, err)
+		values = append(values, msg)
+	}
+
+	assert.Equal(t, 1, len(values))
+	assert.Equal(t, json.RawMessage([]byte(`"updated"`)), values[0])
 }
 
 // TODO: Add tests for error handling and consider the handling well

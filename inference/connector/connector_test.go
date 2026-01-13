@@ -244,14 +244,21 @@ func eventChan(events ...*InferenceDataEvent) <-chan *InferenceDataEvent {
 }
 
 func simpleEvent(study, sourceName string, idx int, pagination string) *InferenceDataEvent {
-	return &InferenceDataEvent{User{ID: "foo"},
-		study,
-		&SourceConf{sourceName, "source", []byte(`{"foo": "bar"}`), "credkey"},
-		time.Now(),
-		"foo",
-		[]byte("100"),
-		idx,
-		pagination}
+	return &InferenceDataEvent{
+		User:       User{ID: "foo"},
+		Study:      study,
+		SourceConf: &SourceConf{
+			Name:           sourceName,
+			Source:         "source",
+			Config:         []byte(`{"foo": "bar"}`),
+			CredentialsKey: "credkey",
+		},
+		Timestamp:  time.Now(),
+		Variable:   "foo",
+		Value:      []byte("100"),
+		Idx:        idx,
+		Pagination: pagination,
+	}
 }
 
 func TestLastEvent_GetsLatestPaginationToken(t *testing.T) {
@@ -271,9 +278,19 @@ func TestLastEvent_GetsLatestPaginationToken(t *testing.T) {
 	WriteEvents(pool, foo, events)
 
 	source := &Source{
-		StudyID:     foo,
-		Conf:        &SourceConf{"sourceA", "fly", []byte(`{"foo": "bar"}`), "flykey"},
-		Credentials: &Credentials{"fly", "flykey", []byte(`{}`), time.Now().UTC()},
+		StudyID: foo,
+		Conf: &SourceConf{
+			Name:           "sourceA",
+			Source:         "fly",
+			Config:         []byte(`{"foo": "bar"}`),
+			CredentialsKey: "flykey",
+		},
+		Credentials: &Credentials{
+			Entity:  "fly",
+			Key:     "flykey",
+			Details: []byte(`{}`),
+			Created: time.Now().UTC(),
+		},
 	}
 	event, ok, err := LastEvent(pool, source, "timestamp")
 
@@ -293,9 +310,19 @@ func TestLastEvent_ReturnsFalseWhenNoEvents(t *testing.T) {
 	MustExec(t, pool, insertConf, foo, "recruitment", futureDate)
 
 	source := &Source{
-		StudyID:     foo,
-		Conf:        &SourceConf{"sourceA", "fly", []byte(`{"foo": "bar"}`), "flykey"},
-		Credentials: &Credentials{"fly", "flykey", []byte(`{}`), time.Now().UTC()},
+		StudyID: foo,
+		Conf: &SourceConf{
+			Name:           "sourceA",
+			Source:         "fly",
+			Config:         []byte(`{"foo": "bar"}`),
+			CredentialsKey: "flykey",
+		},
+		Credentials: &Credentials{
+			Entity:  "fly",
+			Key:     "flykey",
+			Details: []byte(`{}`),
+			Created: time.Now().UTC(),
+		},
 	}
 	event, ok, err := LastEvent(pool, source, "timestamp")
 

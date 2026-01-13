@@ -96,23 +96,28 @@ func (p *VlabKVPairSelectFunctionParams) GetValue(dat json.RawMessage) ([]byte, 
 // ---------------------------
 
 type RegexpExtractParams struct {
-	Regexp string `json:"regexp" validate:"required"`
+	Regexp   string         `json:"regexp" validate:"required"`
+	compiled *regexp.Regexp // Cached compiled regex. Note: not thread-safe for future parallelization
 }
 
 func (p *RegexpExtractParams) GetValue(dat json.RawMessage) ([]byte, error) {
-	m, err := regexp.Compile(p.Regexp)
-	if err != nil {
-		return nil, err
+	// Lazy initialization: compile regex once and cache it
+	if p.compiled == nil {
+		m, err := regexp.Compile(p.Regexp)
+		if err != nil {
+			return nil, err
+		}
+		p.compiled = m
 	}
 
 	// This function only works if the value can be parsed as a json string
 	var s string
-	err = json.Unmarshal(dat, &s)
+	err := json.Unmarshal(dat, &s)
 	if err != nil {
 		return nil, fmt.Errorf("regexp-extract failed, the value could not be parsed as a string: %s. Original error: %s", dat, err)
 	}
 
-	res := m.FindString(s)
+	res := p.compiled.FindString(s)
 
 	if res == "" {
 		return nil, fmt.Errorf("regexp-extract failed to find any value in the string: %s. For regular expression: %s", dat, p.Regexp)

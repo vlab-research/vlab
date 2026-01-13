@@ -57,33 +57,37 @@ func TestAddValue_PicksMax(t *testing.T) {
 	id := make(InferenceData)
 
 	expected := InferenceData{
-		"foo": {"foo",
-			map[string]*InferenceDataValue{
-				"name": {ti("07"), "name", []byte(`1`), "continuous"},
-			}},
+		"foo": {
+			User: "foo",
+			Data: map[string]*InferenceDataValue{
+				"name": {Timestamp: ti("07"), Variable: "name", Value: []byte(`1`), ValueType: "continuous"},
+			},
+		},
 	}
 
-	val := &InferenceDataValue{ti("07"), "name", []byte(`1`), "continuous"}
+	val := &InferenceDataValue{Timestamp: ti("07"), Variable: "name", Value: []byte(`1`), ValueType: "continuous"}
 	iid := IntermediateInferenceData{"source": id}
 	res, err := addValue(conf, iid, "foo", "source", val)
 
 	assert.Nil(t, err)
 	assert.Equal(t, expected, res["source"])
 
-	val = &InferenceDataValue{ti("08"), "name", []byte(`0`), "continuous"}
+	val = &InferenceDataValue{Timestamp: ti("08"), Variable: "name", Value: []byte(`0`), ValueType: "continuous"}
 	res, err = addValue(conf, iid, "foo", "source", val)
 
 	assert.Nil(t, err)
 	assert.Equal(t, expected, res["source"])
 
-	val = &InferenceDataValue{ti("09"), "name", []byte(`2`), "continuous"}
+	val = &InferenceDataValue{Timestamp: ti("09"), Variable: "name", Value: []byte(`2`), ValueType: "continuous"}
 	res, err = addValue(conf, iid, "foo", "source", val)
 
 	expected = InferenceData{
-		"foo": {"foo",
-			map[string]*InferenceDataValue{
-				"name": {ti("09"), "name", []byte(`2`), "continuous"},
-			}},
+		"foo": {
+			User: "foo",
+			Data: map[string]*InferenceDataValue{
+				"name": {Timestamp: ti("09"), Variable: "name", Value: []byte(`2`), ValueType: "continuous"},
+			},
+		},
 	}
 
 	assert.Nil(t, err)
@@ -108,25 +112,29 @@ func TestAddValue_PicksLast(t *testing.T) {
 	iid := IntermediateInferenceData{"source": id}
 
 	expected := InferenceData{
-		"foo": {"foo",
-			map[string]*InferenceDataValue{
-				"name": {ti("07"), "name", []byte(`1`), "continuous"},
-			}},
+		"foo": {
+			User: "foo",
+			Data: map[string]*InferenceDataValue{
+				"name": {Timestamp: ti("07"), Variable: "name", Value: []byte(`1`), ValueType: "continuous"},
+			},
+		},
 	}
 
-	val := &InferenceDataValue{ti("07"), "name", []byte(`1`), "continuous"}
+	val := &InferenceDataValue{Timestamp: ti("07"), Variable: "name", Value: []byte(`1`), ValueType: "continuous"}
 	res, err := addValue(conf, iid, "foo", "source", val)
 
 	assert.Nil(t, err)
 	assert.Equal(t, expected, res["source"])
 
 	expected = InferenceData{
-		"foo": {"foo",
-			map[string]*InferenceDataValue{
-				"name": {ti("08"), "name", []byte(`0`), "continuous"},
-			}},
+		"foo": {
+			User: "foo",
+			Data: map[string]*InferenceDataValue{
+				"name": {Timestamp: ti("08"), Variable: "name", Value: []byte(`0`), ValueType: "continuous"},
+			},
+		},
 	}
-	val = &InferenceDataValue{ti("08"), "name", []byte(`0`), "continuous"}
+	val = &InferenceDataValue{Timestamp: ti("08"), Variable: "name", Value: []byte(`0`), ValueType: "continuous"}
 	res, err = addValue(conf, iid, "foo", "source", val)
 
 	assert.Nil(t, err)
@@ -137,10 +145,12 @@ func TestReduceInferenceData_SelectsVariablesAsPerConfAndSelectFunction(t *testi
 	events := testEvents("events_c.json")
 
 	expected := InferenceData{
-		"foo": {"foo",
-			map[string]*InferenceDataValue{
-				"renamed_q1": {ti("07"), "renamed_q1", []byte(`"yes"`), "categorical"},
-			}},
+		"foo": {
+			User: "foo",
+			Data: map[string]*InferenceDataValue{
+				"renamed_q1": {Timestamp: ti("07"), Variable: "renamed_q1", Value: []byte(`"yes"`), ValueType: "categorical"},
+			},
+		},
 	}
 
 	mapping := &InferenceDataConf{map[string]*DataSource{
@@ -172,15 +182,19 @@ func TestReduceInferenceData_GroupsByUserAndOverwritesRepeatedValues(t *testing.
 	events := testEvents("events_a.json")
 
 	expected := InferenceData{
-		"foo": {"foo",
-			map[string]*InferenceDataValue{
-				"q1": {ti("07"), "q1", []byte(`"A"`), "categorical"},
-				"q2": {ti("09"), "q2", []byte(`2`), "continuous"}, // second value
-			}},
-		"bar": {"bar",
-			map[string]*InferenceDataValue{
-				"q2": {ti("10"), "q2", []byte(`2`), "continuous"},
-			}},
+		"foo": {
+			User: "foo",
+			Data: map[string]*InferenceDataValue{
+				"q1": {Timestamp: ti("07"), Variable: "q1", Value: []byte(`"A"`), ValueType: "categorical"},
+				"q2": {Timestamp: ti("09"), Variable: "q2", Value: []byte(`2`), ValueType: "continuous"}, // second value
+			},
+		},
+		"bar": {
+			User: "bar",
+			Data: map[string]*InferenceDataValue{
+				"q2": {Timestamp: ti("10"), Variable: "q2", Value: []byte(`2`), ValueType: "continuous"},
+			},
+		},
 	}
 
 	mapping := &InferenceDataConf{map[string]*DataSource{
@@ -226,16 +240,20 @@ func TestReduceInferenceData_GroupsByUserFromMultipleSourcesIncludingUserVariabl
 	events := testEvents("events_g.json")
 
 	expected := InferenceData{
-		"foo": {"foo",
-			map[string]*InferenceDataValue{
-				"q1":                   {ti("07"), "q1", []byte(`"A"`), "categorical"},
-				"q2":                   {ti("07"), "q2", []byte(`"B"`), "categorical"},
-				"custom_user_variable": {ti("07"), "custom_user_variable", []byte(`"foo"`), "categorical"},
-			}},
-		"bar": {"bar",
-			map[string]*InferenceDataValue{
-				"q1": {ti("07"), "q1", []byte(`"C"`), "categorical"},
-			}},
+		"foo": {
+			User: "foo",
+			Data: map[string]*InferenceDataValue{
+				"q1":                   {Timestamp: ti("07"), Variable: "q1", Value: []byte(`"A"`), ValueType: "categorical"},
+				"q2":                   {Timestamp: ti("07"), Variable: "q2", Value: []byte(`"B"`), ValueType: "categorical"},
+				"custom_user_variable": {Timestamp: ti("07"), Variable: "custom_user_variable", Value: []byte(`"foo"`), ValueType: "categorical"},
+			},
+		},
+		"bar": {
+			User: "bar",
+			Data: map[string]*InferenceDataValue{
+				"q1": {Timestamp: ti("07"), Variable: "q1", Value: []byte(`"C"`), ValueType: "categorical"},
+			},
+		},
 	}
 
 	mapping := &InferenceDataConf{map[string]*DataSource{
@@ -312,18 +330,22 @@ func TestReduceInferenceData_CollectsMetadataWithTimestampFirstEventOfUniqueValu
 	events := testEvents("events_b.json")
 
 	expected := InferenceData{
-		"foo": {"foo",
-			map[string]*InferenceDataValue{
-				"some_md": {ti("07"), "some_md", []byte(`"foo"`), "categorical"}, // time of first event
-				"q1":      {ti("07"), "q1", []byte(`"A"`), "categorical"},
-				"q2":      {ti("08"), "q2", []byte(`0`), "continuous"},
-			}},
-		"bar": {"bar",
-			map[string]*InferenceDataValue{
-				"some_md": {ti("11"), "some_md", []byte(`"baz"`), "categorical"}, // time of second event
-				"q1":      {ti("10"), "q1", []byte(`"A"`), "categorical"},
-				"q2":      {ti("11"), "q2", []byte(`2`), "continuous"},
-			}},
+		"foo": {
+			User: "foo",
+			Data: map[string]*InferenceDataValue{
+				"some_md": {Timestamp: ti("07"), Variable: "some_md", Value: []byte(`"foo"`), ValueType: "categorical"}, // time of first event
+				"q1":      {Timestamp: ti("07"), Variable: "q1", Value: []byte(`"A"`), ValueType: "categorical"},
+				"q2":      {Timestamp: ti("08"), Variable: "q2", Value: []byte(`0`), ValueType: "continuous"},
+			},
+		},
+		"bar": {
+			User: "bar",
+			Data: map[string]*InferenceDataValue{
+				"some_md": {Timestamp: ti("11"), Variable: "some_md", Value: []byte(`"baz"`), ValueType: "categorical"}, // time of second event
+				"q1":      {Timestamp: ti("10"), Variable: "q1", Value: []byte(`"A"`), ValueType: "categorical"},
+				"q2":      {Timestamp: ti("11"), Variable: "q2", Value: []byte(`2`), ValueType: "continuous"},
+			},
+		},
 	}
 
 	mapping := &InferenceDataConf{map[string]*DataSource{
@@ -384,14 +406,18 @@ func TestReduceInferenceData_CanExtractFirstVariable(t *testing.T) {
 	events := testEvents("events_b.json")
 
 	expected := InferenceData{
-		"foo": {"foo",
-			map[string]*InferenceDataValue{
-				"first_event": {ti("07"), "first_event", []byte(`"A"`), "categorical"},
-			}},
-		"bar": {"bar",
-			map[string]*InferenceDataValue{
-				"first_event": {ti("10"), "first_event", []byte(`"A"`), "categorical"},
-			}},
+		"foo": {
+			User: "foo",
+			Data: map[string]*InferenceDataValue{
+				"first_event": {Timestamp: ti("07"), Variable: "first_event", Value: []byte(`"A"`), ValueType: "categorical"},
+			},
+		},
+		"bar": {
+			User: "bar",
+			Data: map[string]*InferenceDataValue{
+				"first_event": {Timestamp: ti("10"), Variable: "first_event", Value: []byte(`"A"`), ValueType: "categorical"},
+			},
+		},
 	}
 
 	mapping := &InferenceDataConf{map[string]*DataSource{
@@ -425,10 +451,12 @@ func TestReduceInferenceData_UsesExtractionMappingOfMetadata(t *testing.T) {
 	events := testEvents("events_d.json")
 
 	expected := InferenceData{
-		"foo": {"foo",
-			map[string]*InferenceDataValue{
-				"other_md": {ti("07"), "other_md", []byte(`"value"`), "categorical"},
-			}},
+		"foo": {
+			User: "foo",
+			Data: map[string]*InferenceDataValue{
+				"other_md": {Timestamp: ti("07"), Variable: "other_md", Value: []byte(`"value"`), ValueType: "categorical"},
+			},
+		},
 	}
 
 	mapping := &InferenceDataConf{map[string]*DataSource{
@@ -461,10 +489,12 @@ func TestReduceInferenceData_WorksWithSelectKVPairFunction(t *testing.T) {
 	events := testEvents("events_e.json")
 
 	expected := InferenceData{
-		"foo": {"foo",
-			map[string]*InferenceDataValue{
-				"other_md": {ti("07"), "other_md", []byte(`"value"`), "categorical"},
-			}},
+		"foo": {
+			User: "foo",
+			Data: map[string]*InferenceDataValue{
+				"other_md": {Timestamp: ti("07"), Variable: "other_md", Value: []byte(`"value"`), ValueType: "categorical"},
+			},
+		},
 	}
 
 	mapping := &InferenceDataConf{map[string]*DataSource{
@@ -497,10 +527,12 @@ func TestReduceInferenceData_WorksWithSelectMultipleChainedFunctions(t *testing.
 	events := testEvents("events_f.json")
 
 	expected := InferenceData{
-		"foo": {"foo",
-			map[string]*InferenceDataValue{
-				"other_md": {ti("07"), "other_md", []byte(`"value"`), "categorical"},
-			}},
+		"foo": {
+			User: "foo",
+			Data: map[string]*InferenceDataValue{
+				"other_md": {Timestamp: ti("07"), Variable: "other_md", Value: []byte(`"value"`), ValueType: "categorical"},
+			},
+		},
 	}
 
 	mapping := &InferenceDataConf{map[string]*DataSource{
@@ -537,10 +569,12 @@ func TestReduceInferenceData_WorksCastingStringsToContinuousValues(t *testing.T)
 	events := testEvents("events_e.json")
 
 	expected := InferenceData{
-		"foo": {"foo",
-			map[string]*InferenceDataValue{
-				"q1": {ti("07"), "q1", []byte(`5`), "continuous"},
-			}},
+		"foo": {
+			User: "foo",
+			Data: map[string]*InferenceDataValue{
+				"q1": {Timestamp: ti("07"), Variable: "q1", Value: []byte(`5`), ValueType: "continuous"},
+			},
+		},
 	}
 
 	mapping := &InferenceDataConf{map[string]*DataSource{
@@ -695,19 +729,23 @@ func TestJoinSources_JoinsAllVariablesFromSourcesWithCustomUserVariable(t *testi
 
 	intermediateData := IntermediateInferenceData{
 		"source1": InferenceData{
-			"foo": {"foo",
-				map[string]*InferenceDataValue{
-					"q1": {ti("07"), "q1", []byte(`1`), "continuous"},
-					"q2": {ti("07"), "q2", []byte(`2`), "continuous"},
-				}},
+			"foo": {
+				User: "foo",
+				Data: map[string]*InferenceDataValue{
+					"q1": {Timestamp: ti("07"), Variable: "q1", Value: []byte(`1`), ValueType: "continuous"},
+					"q2": {Timestamp: ti("07"), Variable: "q2", Value: []byte(`2`), ValueType: "continuous"},
+				},
+			},
 		},
 		"source2": InferenceData{
-			"foo2": {"foo2",
-				map[string]*InferenceDataValue{
-					"q3":                   {ti("07"), "q3", []byte(`3`), "continuous"},
-					"q4":                   {ti("07"), "q4", []byte(`4`), "continuous"},
-					"custom_user_variable": {ti("07"), "custom_user_variable", []byte(`"foo"`), "categorical"},
-				}},
+			"foo2": {
+				User: "foo2",
+				Data: map[string]*InferenceDataValue{
+					"q3":                   {Timestamp: ti("07"), Variable: "q3", Value: []byte(`3`), ValueType: "continuous"},
+					"q4":                   {Timestamp: ti("07"), Variable: "q4", Value: []byte(`4`), ValueType: "continuous"},
+					"custom_user_variable": {Timestamp: ti("07"), Variable: "custom_user_variable", Value: []byte(`"foo"`), ValueType: "categorical"},
+				},
+			},
 		},
 	}
 
@@ -728,18 +766,22 @@ func TestJoinSources_JoinsAllVariablesFromSourcesWithoutCustomUserVariable(t *te
 
 	intermediateData := IntermediateInferenceData{
 		"source1": InferenceData{
-			"foo": {"foo",
-				map[string]*InferenceDataValue{
-					"q1": {ti("07"), "q1", []byte(`1`), "continuous"},
-					"q2": {ti("07"), "q2", []byte(`2`), "continuous"},
-				}},
+			"foo": {
+				User: "foo",
+				Data: map[string]*InferenceDataValue{
+					"q1": {Timestamp: ti("07"), Variable: "q1", Value: []byte(`1`), ValueType: "continuous"},
+					"q2": {Timestamp: ti("07"), Variable: "q2", Value: []byte(`2`), ValueType: "continuous"},
+				},
+			},
 		},
 		"source2": InferenceData{
-			"foo": {"foo",
-				map[string]*InferenceDataValue{
-					"q3": {ti("07"), "q3", []byte(`3`), "continuous"},
-					"q4": {ti("07"), "q4", []byte(`4`), "continuous"},
-				}},
+			"foo": {
+				User: "foo",
+				Data: map[string]*InferenceDataValue{
+					"q3": {Timestamp: ti("07"), Variable: "q3", Value: []byte(`3`), ValueType: "continuous"},
+					"q4": {Timestamp: ti("07"), Variable: "q4", Value: []byte(`4`), ValueType: "continuous"},
+				},
+			},
 		},
 	}
 
@@ -761,18 +803,22 @@ func TestJoinSources_ReturnsErrorWhenMissingUserVarForSomeone(t *testing.T) {
 
 	intermediateData := IntermediateInferenceData{
 		"source1": InferenceData{
-			"foo": {"foo",
-				map[string]*InferenceDataValue{
-					"q1": {ti("07"), "q1", []byte(`1`), "continuous"},
-					"q2": {ti("07"), "q2", []byte(`2`), "continuous"},
-				}},
+			"foo": {
+				User: "foo",
+				Data: map[string]*InferenceDataValue{
+					"q1": {Timestamp: ti("07"), Variable: "q1", Value: []byte(`1`), ValueType: "continuous"},
+					"q2": {Timestamp: ti("07"), Variable: "q2", Value: []byte(`2`), ValueType: "continuous"},
+				},
+			},
 		},
 		"source2": InferenceData{
-			"foo2": {"foo2",
-				map[string]*InferenceDataValue{
-					"q3": {ti("07"), "q3", []byte(`3`), "continuous"},
-					"q4": {ti("07"), "q4", []byte(`4`), "continuous"},
-				}},
+			"foo2": {
+				User: "foo2",
+				Data: map[string]*InferenceDataValue{
+					"q3": {Timestamp: ti("07"), Variable: "q3", Value: []byte(`3`), ValueType: "continuous"},
+					"q4": {Timestamp: ti("07"), Variable: "q4", Value: []byte(`4`), ValueType: "continuous"},
+				},
+			},
 		},
 	}
 

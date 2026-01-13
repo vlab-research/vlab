@@ -139,3 +139,61 @@ func TestRegexpExtractParams_RaisesErrorIfValueNotAString(t *testing.T) {
 	assert.NotNil(t, e)
 	assert.Contains(t, e.Error(), "could not be parsed as a string")
 }
+
+func TestRegexpExtractParams_CachesCompiledRegex(t *testing.T) {
+	params := &RegexpExtractParams{Regexp: `\d+`}
+
+	// First call - should compile and cache
+	v1, e1 := params.GetValue([]byte(`"123"`))
+	assert.Nil(t, e1)
+	assert.Equal(t, []byte(`"123"`), v1)
+	assert.NotNil(t, params.compiled, "compiled regex should be cached after first call")
+
+	// Store pointer to cached compiled regex
+	cachedRegex := params.compiled
+
+	// Second call - should reuse cached compiled regex
+	v2, e2 := params.GetValue([]byte(`"456"`))
+	assert.Nil(t, e2)
+	assert.Equal(t, []byte(`"456"`), v2)
+	assert.Equal(t, cachedRegex, params.compiled, "should reuse the same compiled regex instance")
+}
+
+func TestRegexpExtractParams_InvalidRegexReturnsError(t *testing.T) {
+	params := &RegexpExtractParams{Regexp: `[invalid`}
+
+	_, e := params.GetValue([]byte(`"test"`))
+
+	assert.NotNil(t, e)
+	assert.Contains(t, e.Error(), "error parsing regexp")
+}
+
+// Benchmark to demonstrate performance improvement from regex caching
+func BenchmarkRegexpExtractParams_WithCaching(b *testing.B) {
+	params := &RegexpExtractParams{Regexp: `\d+`}
+	testData := []byte(`"12345"`)
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_, err := params.GetValue(testData)
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
+// Benchmark simulating old behavior without caching (for comparison)
+func BenchmarkRegexpExtractParams_WithoutCaching(b *testing.B) {
+	regexpStr := `\d+`
+	testData := []byte(`"12345"`)
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		// Simulate old behavior: compile on every call
+		params := &RegexpExtractParams{Regexp: regexpStr}
+		_, err := params.GetValue(testData)
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
+}

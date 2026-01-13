@@ -134,7 +134,10 @@ func addValue(conf *ExtractionConf, id IntermediateInferenceData, user string, s
 
 	_, ok = id[source][user]
 	if !ok {
-		id[source][user] = &InferenceDataRow{user, make(map[string]*InferenceDataValue)}
+		id[source][user] = &InferenceDataRow{
+			User: user,
+			Data: make(map[string]*InferenceDataValue),
+		}
 	}
 
 	oldVal, ok := id[source][user].Data[val.Variable]
@@ -233,7 +236,12 @@ func extractValue(id IntermediateInferenceData, e *InferenceDataEvent, extractio
 			return id, err
 		}
 
-		v := &InferenceDataValue{e.Timestamp, conf.Name, val, conf.ValueType}
+		v := &InferenceDataValue{
+			Timestamp: e.Timestamp,
+			Variable:  conf.Name,
+			Value:     val,
+			ValueType: conf.ValueType,
+		}
 
 		id, err = addValue(conf, id, e.User.ID, e.SourceConf.Name, v)
 		if err != nil {
