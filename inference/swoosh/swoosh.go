@@ -85,7 +85,7 @@ func GetActiveStudies(pool *pgxpool.Pool) ([]string, error) {
 	query := `SELECT id
 	          FROM study_state
 	          WHERE start_date < NOW()
-	          AND end_date > NOW()`
+	          AND end_date > NOW() - INTERVAL '7 days'`
 	rows, err := pool.Query(context.Background(), query)
 
 	if err != nil {
