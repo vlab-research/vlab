@@ -19,7 +19,15 @@ const StudyProgressChart = ({
   }
 
   // Handle cost charts
-  if (label === 'Total Spent' && costData) {
+  if (label === 'Total Spent') {
+    if (!costData || costData.length === 0) {
+      return (
+        <div className="pt-5 sm:pt-6 lg:pt-10">
+          <SingleAreaChartSkeleton testId="cumulative-spend-chart-skeleton" />
+        </div>
+      );
+    }
+
     return (
       <div className="pt-5 sm:pt-6 lg:pt-10">
         <SingleAreaChart
@@ -34,7 +42,15 @@ const StudyProgressChart = ({
     );
   }
 
-  if (label === 'Avg Cost Per Participant' && costData) {
+  if (label === 'Avg Cost Per Participant') {
+    if (!costData || costData.length === 0) {
+      return (
+        <div className="pt-5 sm:pt-6 lg:pt-10">
+          <SingleAreaChartSkeleton testId="marginal-cost-chart-skeleton" />
+        </div>
+      );
+    }
+
     // Filter out days with no new respondents
     const chartData = costData
       .filter(point => point.marginalCost !== null)
@@ -42,6 +58,15 @@ const StudyProgressChart = ({
         primary: new Date(point.datetime),
         secondary: point.marginalCost!,
       }));
+
+    // If all marginal costs are null, show skeleton
+    if (chartData.length === 0) {
+      return (
+        <div className="pt-5 sm:pt-6 lg:pt-10">
+          <SingleAreaChartSkeleton testId="marginal-cost-chart-skeleton" />
+        </div>
+      );
+    }
 
     return (
       <div className="pt-5 sm:pt-6 lg:pt-10">
