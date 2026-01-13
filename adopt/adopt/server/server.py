@@ -596,68 +596,29 @@ async def get_segments_progress(
         Time-series data with participant counts and quotas per segment
     """
     try:
-        # 1. Auth & get study configuration
-        study_id = get_study_id(user.user_id, org_id, slug)
-        if not study_id:
-            raise HTTPException(status_code=404, detail=f"Study not found: {slug}")
-
-        study_confs = await asyncio.to_thread(
-            get_all_study_confs, user.user_id, org_id, slug
-        )
-        if not study_confs:
-            raise HTTPException(
-                status_code=404, detail=f"Study configuration not found: {slug}"
-            )
-
-        # 2. Extract and validate configurations
-        strata_conf = study_confs.get("strata", [])
-        if not strata_conf:
-            raise HTTPException(
-                status_code=404, detail=f"No strata found for study: {slug}"
-            )
-        strata = [StratumConf(**s) for s in strata_conf]
-
-        recruitment_conf = study_confs.get("recruitment")
-        if not recruitment_conf:
-            raise HTTPException(
-                status_code=404, detail=f"No recruitment configuration found for study: {slug}"
-            )
-
-        # Parse recruitment dates
-        start_date = recruitment_conf.get("start_date")
-        end_date = recruitment_conf.get("end_date")
-        if not start_date or not end_date:
-            raise HTTPException(
-                status_code=400, detail="Recruitment configuration missing start_date or end_date"
-            )
-
-        if isinstance(start_date, str):
-            start_date = datetime.fromisoformat(start_date.replace("Z", "+00:00"))
-        if isinstance(end_date, str):
-            end_date = datetime.fromisoformat(end_date.replace("Z", "+00:00"))
-
-        # 3. Fetch inference data
-        user_info = await asyncio.to_thread(get_user_info, study_id, db_cnf)
-        survey_user = user_info.get("survey_user")
-
-        df = await asyncio.to_thread(
-            get_inference_data,
-            survey_user,
-            study_id,
-            db_cnf,
-            start_date,
-            end_date
-        )
+        # 1. Load study config and get inference data (reuse existing pattern)
+        df = await fetch_current_data(user.user_id, org_id, slug)
 
         if df is None or df.empty:
             return RespondentsOverTimeResponse(data=[])
 
-        # 4. Filter and process data
+        # 2. Load study config to get strata and dates
+        study_id = get_study_id(user.user_id, org_id, slug)
+        study, _ = await asyncio.to_thread(load_basics, study_id, db_cnf, env)
+
+        strata = study.strata
+        if not strata:
+            raise HTTPException(status_code=404, detail=f"No strata found for study: {slug}")
+
+        # Get recruitment date range for bucketing
+        start_date, end_date = study.recruitment.get_inference_window(datetime.now())
+
+        # 3. Filter and process data
         filtered_df = prep_df_for_budget(df, strata)
         if filtered_df is None or filtered_df.empty:
             return RespondentsOverTimeResponse(data=[])
 
-        # 5. Build response using simplified business logic
+        # 4. Build response using business logic
         from ..segments_progress import get_user_start_times, build_segments_progress_data
 
         user_start_times = get_user_start_times(filtered_df)
@@ -669,7 +630,7 @@ async def get_segments_progress(
             strata_ids=[s.id for s in strata],
         )
 
-        # 6. Convert dict output to Pydantic models
+        # 5. Convert dict output to Pydantic models
         response_data = [
             TimePointData(
                 datetime=bucket_dict["datetime"],
