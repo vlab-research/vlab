@@ -93,6 +93,7 @@ const Recruitment: React.FC<Props> = ({
   const [formData, setFormData] = useState<LocalData>(
     localData ? localData : initialState.find((obj: any) => obj.type === recruitmentType)
   );
+  const [error, setError] = useState<string | null>(null);
 
   const handleSelectChange = (e: any) => {
     const { value } = e.target;
@@ -124,8 +125,25 @@ const Recruitment: React.FC<Props> = ({
     return data;
   };
 
+  const validateEfficiencyWeight = (data: LocalData): boolean => {
+    if ('efficiency_weight' in data && data.efficiency_weight != null) {
+      const value = Number(data.efficiency_weight);
+      if (isNaN(value) || value < 0 || value > 1) {
+        setError('Efficiency weight must be a number between 0 and 1');
+        return false;
+      }
+    }
+    return true;
+  };
+
   const onSubmit = (e: any): void => {
     e.preventDefault();
+
+    setError(null);
+
+    if (!validateEfficiencyWeight(formData)) {
+      return;
+    }
 
     createStudyConf({ data: formatData(formData), studySlug, confType: id });
   };
@@ -156,6 +174,11 @@ const Recruitment: React.FC<Props> = ({
             destinations={globalData.destinations}
             studySlug={studySlug}
           />
+        )}
+        {error && (
+          <div className="mx-6 mt-4 text-sm text-red-600">
+            {error}
+          </div>
         )}
         <div className="p-6 text-right">
           <PrimaryButton

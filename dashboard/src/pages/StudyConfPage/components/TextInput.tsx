@@ -8,6 +8,7 @@ interface TextProps<T> {
   placeholder: string;
   value: any;
   type?: string;
+  inputMode?: 'text' | 'search' | 'none' | 'tel' | 'url' | 'email' | 'numeric' | 'decimal';
   disabled?: boolean;
   required?: boolean;
 }
@@ -21,6 +22,7 @@ export const GenericTextInput: TextInputI = ({
   placeholder,
   value,
   type = "text",
+  inputMode,
   disabled = false,
   required = true,
   ...props
@@ -35,6 +37,7 @@ export const GenericTextInput: TextInputI = ({
         <input
           name={name}
           type={type}
+          inputMode={inputMode}
           autoComplete={autoComplete}
           placeholder={placeholder}
           value={value}

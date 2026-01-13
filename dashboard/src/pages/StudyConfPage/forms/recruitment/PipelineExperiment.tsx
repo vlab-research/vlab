@@ -27,14 +27,7 @@ const validateInput = (name: string, value: any) => {
     return parseInt(value);
   }
 
-  if (name === 'efficiency_weight') {
-    const numValue = parseFloat(value);
-    // Clamp value between 0 and 1
-    if (isNaN(numValue)) return 1;
-    return Math.max(0, Math.min(1, numValue));
-  }
-
-  else return value;
+  return value;
 };
 
 const PipelineExperiment: React.FC<Props> = ({
@@ -89,15 +82,18 @@ const PipelineExperiment: React.FC<Props> = ({
       />
       <TextInput
         name="incentive_per_respondent"
+        inputMode="decimal"
         handleChange={handleChange}
         placeholder="E.g 5.0"
         value={formData.incentive_per_respondent}
       />
       <TextInput
         name="efficiency_weight"
+        inputMode="decimal"
         handleChange={handleChange}
         placeholder="0 = max total N, 1 = optimize variance"
-        value={formData.efficiency_weight ?? 1}
+        value={formData.efficiency_weight ?? ''}
+        required={false}
       />
       <TextInput
         name="max_sample_per_arm"

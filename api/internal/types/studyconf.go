@@ -171,6 +171,11 @@ type RecruitmentConf struct {
 	AdCampaignNameBase string `json:"ad_campaign_name_base,omitempty"`
 	BudgetPerArm       int    `json:"budget_per_arm,omitempty"`
 	MaxSamplePerArm    int    `json:"max_sample_per_arm,omitempty"`
+
+	// Common Fields Across All Types
+	MinBudget              int     `json:"min_budget,omitempty"`
+	IncentivePerRespondent float64 `json:"incentive_per_respondent,omitempty"`
+	EfficiencyWeight       float64 `json:"efficiency_weight,omitempty"`
 }
 
 // Destination is where to send a recruitee to
