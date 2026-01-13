@@ -187,7 +187,7 @@ def calculate_respondents_over_time_report(
 
     # Calculate respondents over time
     user_start_times = get_user_start_times(filtered_df)
-    buckets = create_time_buckets(start_date, end_date, "day")
+    buckets = create_time_buckets(start_date, end_date, "hour")
 
     data = build_segments_progress_data(
         user_start_times=user_start_times,
