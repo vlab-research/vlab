@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { RecruitmentStatsRow } from '../../../types/study';
 import Table from './Table';
 import { formatCurrency, formatNumber, formatPercentage } from '../../../helpers/numbers';
@@ -11,8 +11,6 @@ interface RecruitmentStatsTableProps {
 }
 
 const RecruitmentStatsTable: React.FC<RecruitmentStatsTableProps> = ({ data }) => {
-  console.log('RecruitmentStatsTable full data:', data);
-  
   const [selectedColumn, setSelectedColumn] = useState({
     index: 0,
     hasDescendingOrder: false,
@@ -32,6 +30,20 @@ const RecruitmentStatsTable: React.FC<RecruitmentStatsTableProps> = ({ data }) =
     'Total Cost',
     'Conversion Rate',
   ];
+
+  // Calculate totals across all strata
+  const totals = useMemo(
+    () =>
+      Object.values(data).reduce(
+        (acc, stats) => ({
+          spend: acc.spend + stats.spend,
+          incentive_cost: acc.incentive_cost + stats.incentive_cost,
+          total_cost: acc.total_cost + stats.total_cost,
+        }),
+        { spend: 0, incentive_cost: 0, total_cost: 0 }
+      ),
+    [data]
+  );
 
   const rows = Object.entries(data).map(([stratumId, stats]) => ({
     id: stratumId,
@@ -68,21 +80,17 @@ const RecruitmentStatsTable: React.FC<RecruitmentStatsTableProps> = ({ data }) =
   const handleDownloadCSV = () => {
     // Create CSV header
     const header = columnNames.join(',');
-    
-    // Create CSV rows
+
+    // Create CSV rows (per-stratum data only)
     const csvRows = rows.map(row => {
-      // Remove currency symbols and commas from values for proper CSV formatting
       return row.values.map(value => {
-        // Remove currency symbol and commas, and wrap in quotes to handle any special characters
         const cleanValue = value.replace(/[$,]/g, '');
         return `"${cleanValue}"`;
       }).join(',');
     });
 
-    // Combine header and rows
     const csvContent = [header, ...csvRows].join('\n');
 
-    // Create blob and download link
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     const url = URL.createObjectURL(blob);
@@ -108,6 +116,23 @@ const RecruitmentStatsTable: React.FC<RecruitmentStatsTableProps> = ({ data }) =
           Download CSV
         </button>
       </div>
+
+      {/* Totals Section */}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 mb-6">
+        <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+          <div className="text-sm font-medium text-gray-500">Total Ad Cost Spent</div>
+          <div className="text-2xl font-semibold text-gray-900 mt-1">{formatCurrency(totals.spend)}</div>
+        </div>
+        <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+          <div className="text-sm font-medium text-gray-500">Total Incentive Cost Spent</div>
+          <div className="text-2xl font-semibold text-gray-900 mt-1">{formatCurrency(totals.incentive_cost)}</div>
+        </div>
+        <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+          <div className="text-sm font-medium text-gray-500">Total Cost</div>
+          <div className="text-2xl font-semibold text-gray-900 mt-1">{formatCurrency(totals.total_cost)}</div>
+        </div>
+      </div>
+
       <Table
         columnNames={columnNames}
         rows={rows}
@@ -126,4 +151,4 @@ const RecruitmentStatsTable: React.FC<RecruitmentStatsTableProps> = ({ data }) =
   );
 };
 
-export default RecruitmentStatsTable; 
+export default RecruitmentStatsTable;
