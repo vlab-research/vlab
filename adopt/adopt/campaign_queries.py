@@ -151,3 +151,27 @@ def get_last_adopt_report(campaignid: str, report_type: str, cnf: DBConf):
     """
 
     return list(query(cnf, q, (campaignid, report_type)))[0][0]
+
+
+def create_respondents_over_time_report(
+    study_id: str, report_data: dict, cnf: DBConf
+):
+    """Store respondents over time report."""
+    return create_adopt_report(study_id, "respondents_over_time", report_data, cnf)
+
+
+def get_latest_respondents_over_time_report(
+    study_id: str, cnf: DBConf
+) -> dict | None:
+    """Get the latest respondents over time report for a study."""
+    q = """
+    SELECT details
+    FROM adopt_reports
+    WHERE study_id = %s
+    AND report_type = 'respondents_over_time'
+    ORDER BY created DESC
+    LIMIT 1
+    """
+
+    result = list(query(cnf, q, (study_id,)))
+    return result[0][0] if result else None

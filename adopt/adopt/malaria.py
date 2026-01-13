@@ -92,6 +92,17 @@ def update_ads_for_campaign(
         efficiency_weight,
     )
 
+    # Generate and store respondents over time report
+    try:
+        from .campaign_queries import create_respondents_over_time_report
+        respondents_report = calculate_respondents_over_time_report(
+            df, study.strata, inf_start, inf_end
+        )
+        create_respondents_over_time_report(study.id, respondents_report, db_conf)
+        logging.info(f"Created respondents over time report for study {study.id}")
+    except BaseException as e:
+        logging.error(f"Error creating respondents over time report: {e}")
+
     min_budget = study.recruitment.min_budget
     budget = study.recruitment.spend_for_day(strata, min_budget, budget_lookup, now)
 
@@ -145,6 +156,46 @@ def load_basics(
     )
 
     return study, state
+
+
+def calculate_respondents_over_time_report(
+    df: pd.DataFrame,
+    strata: list[StratumConf],
+    start_date: datetime,
+    end_date: datetime
+) -> dict:
+    """
+    Calculate respondents over time data for storage as a report.
+
+    Args:
+        df: Inference data (already loaded during optimization)
+        strata: List of stratum configurations
+        start_date: Study recruitment start date
+        end_date: Study recruitment end date
+
+    Returns:
+        Dict matching RespondentsOverTimeResponse structure
+    """
+    from .segments_progress import get_user_start_times, build_segments_progress_data
+    from .responses import create_time_buckets
+    from .budget import prep_df_for_budget
+
+    # Filter data by stratum
+    filtered_df = prep_df_for_budget(df, strata)
+    if filtered_df is None or filtered_df.empty:
+        return {"data": []}
+
+    # Calculate respondents over time
+    user_start_times = get_user_start_times(filtered_df)
+    buckets = create_time_buckets(start_date, end_date, "day")
+
+    data = build_segments_progress_data(
+        user_start_times=user_start_times,
+        buckets=buckets,
+        strata_ids=[s.id for s in strata],
+    )
+
+    return {"data": data}
 
 
 def run_updates(fn: AdoptJob) -> None:

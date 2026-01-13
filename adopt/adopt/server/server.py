@@ -596,41 +596,23 @@ async def get_segments_progress(
         Time-series data with participant counts and quotas per segment
     """
     try:
-        # 1. Load study config and get inference data (reuse existing pattern)
-        df = await fetch_current_data(user.user_id, org_id, slug)
-
-        if df is None or df.empty:
-            return RespondentsOverTimeResponse(data=[])
-
-        # 2. Load study config to get strata and dates
+        # Get pre-computed report from database
         study_id = get_study_id(user.user_id, org_id, slug)
-        study, _ = await asyncio.to_thread(load_basics, study_id, db_cnf, env)
+        if not study_id:
+            raise HTTPException(status_code=404, detail=f"Study not found: {slug}")
 
-        strata = study.strata
-        if not strata:
-            raise HTTPException(status_code=404, detail=f"No strata found for study: {slug}")
+        from ..campaign_queries import get_latest_respondents_over_time_report
 
-        # Get recruitment date range for bucketing
-        start_date, end_date = study.recruitment.get_inference_window(datetime.now())
-
-        # 3. Filter and process data
-        filtered_df = prep_df_for_budget(df, strata)
-        if filtered_df is None or filtered_df.empty:
-            return RespondentsOverTimeResponse(data=[])
-
-        # 4. Build response using business logic
-        from ..segments_progress import get_user_start_times, build_segments_progress_data
-
-        user_start_times = get_user_start_times(filtered_df)
-        buckets = create_time_buckets(start_date, end_date, "day")
-
-        response_data_dicts = build_segments_progress_data(
-            user_start_times=user_start_times,
-            buckets=buckets,
-            strata_ids=[s.id for s in strata],
+        report_data = await asyncio.to_thread(
+            get_latest_respondents_over_time_report, study_id, db_cnf
         )
 
-        # 5. Convert dict output to Pydantic models
+        if not report_data or not report_data.get("data"):
+            # No report yet - return empty data
+            # Report will be generated on next optimization run
+            return RespondentsOverTimeResponse(data=[])
+
+        # Convert dict data to Pydantic models
         response_data = [
             TimePointData(
                 datetime=bucket_dict["datetime"],
@@ -640,7 +622,7 @@ async def get_segments_progress(
                     for segment_dict in bucket_dict["segments"]
                 ],
             )
-            for bucket_dict in response_data_dicts
+            for bucket_dict in report_data["data"]
         ]
 
         return RespondentsOverTimeResponse(data=response_data)
