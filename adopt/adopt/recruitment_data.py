@@ -370,3 +370,42 @@ def calculate_stat_sql(
         for stratum_id, vals in casted.items()
     }
     return out
+
+
+def get_spend_by_date(
+    db_conf: DBConf,
+    study_id: str,
+) -> list[dict]:
+    """
+    Get daily spend aggregated across all campaigns/strata.
+
+    Args:
+        db_conf: Database configuration
+        study_id: ID of the study to analyze
+
+    Returns:
+        List of dicts with format [{"date": date, "spend": float}, ...]
+    """
+    q = """
+    WITH combined AS (
+        SELECT period_start, data
+        FROM recruitment_data_events
+        WHERE study_id = %s AND temp = FALSE
+        UNION
+        (SELECT period_start, data
+         FROM recruitment_data_events
+         WHERE study_id = %s AND temp = TRUE
+         ORDER BY period_end DESC
+         LIMIT 1)
+    )
+    SELECT
+        DATE(period_start) as day,
+        SUM(CAST(metrics->>'spend' AS FLOAT)) as daily_spend
+    FROM combined
+    CROSS JOIN LATERAL jsonb_each(data) AS campaign(campaign_id, campaign_data)
+    CROSS JOIN LATERAL jsonb_each(campaign_data) AS stratum(stratum_id, metrics)
+    GROUP BY DATE(period_start)
+    ORDER BY day ASC
+    """
+    results = list(query(db_conf, q, (study_id, study_id)))
+    return [{"date": row[0], "spend": row[1] or 0.0} for row in results]

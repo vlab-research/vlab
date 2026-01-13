@@ -565,6 +565,21 @@ class RespondentsOverTimeResponse(BaseModel):
     data: list[TimePointData]
 
 
+class CostTimePointData(BaseModel):
+    """Cost metrics at a specific time point."""
+    datetime: int  # milliseconds timestamp
+    cumulativeSpend: float
+    cumulativeRespondents: int
+    marginalCost: Optional[float]
+    newRespondents: int
+    dailySpend: float
+
+
+class CostOverTimeResponse(BaseModel):
+    """Response for cost over time endpoint."""
+    data: list[CostTimePointData]
+
+
 @app.get(
     "/{org_id}/studies/{slug}/segments-progress",
     response_model=RespondentsOverTimeResponse,
@@ -632,6 +647,33 @@ async def get_segments_progress(
     except BaseException as e:
         logging.error(f"Error in get_segments_progress: {str(e)}")
         raise HTTPException(status_code=500, detail=f"{e}")
+
+
+@app.get(
+    "/{org_id}/studies/{slug}/cost-over-time",
+    response_model=CostOverTimeResponse,
+)
+async def get_cost_over_time(
+    org_id: str,
+    slug: str,
+    user: Annotated[User, Depends(get_current_user)],
+) -> CostOverTimeResponse:
+    """Get cost metrics over time (cumulative spend and marginal cost)."""
+    study_id = get_study_id(user.user_id, org_id, slug)
+
+    if not study_id:
+        raise HTTPException(status_code=404, detail=f"Study not found: {slug}")
+
+    from ..campaign_queries import get_latest_cost_over_time_report
+
+    report = get_latest_cost_over_time_report(study_id, db_cnf)
+
+    if not report:
+        return CostOverTimeResponse(data=[])
+
+    return CostOverTimeResponse(
+        data=[CostTimePointData(**point) for point in report]
+    )
 
 
 @app.get("/health", status_code=200)

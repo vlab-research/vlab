@@ -5,9 +5,9 @@ import { lastValue } from '../../../helpers/arrays';
 import useAuthenticatedApi from '../../../hooks/useAuthenticatedApi';
 import {
   StudyProgressResource,
-  StudySegmentProgressResource,
   UseStudyReturn,
   RespondentsTimePointData,
+  CostTimePointData,
 } from '../../../types/study';
 
 interface ApiError {
@@ -40,6 +40,7 @@ const useStudy = (slug: string): UseStudyReturn => {
   // New Adopt Server API - for participants over time chart
   const respondentsOverTimeQuery = useRespondentsOverTimeQuery(slug);
   const recruitmentStatsQuery = useStudyRecruitmentStatsQuery(slug);
+  const costOverTimeQuery = useCostOverTimeQuery(slug);
 
   // Old Go API data for segment table
   const segmentsProgressOverTime = useMemo(
@@ -67,6 +68,26 @@ const useStudy = (slug: string): UseStudyReturn => {
     return lastTimePoint ? lastTimePoint.segments : [];
   }, [segmentsProgressOverTime]);
 
+  // Cost over time data
+  const costOverTime: CostTimePointData[] = useMemo(() => {
+    return costOverTimeQuery.data?.data ?? [];
+  }, [costOverTimeQuery.data]);
+
+  // Compute total spent (cumulative spend from last data point)
+  const totalSpent = useMemo(() => {
+    const lastPoint = lastValue(costOverTime);
+    return lastPoint?.cumulativeSpend ?? 0;
+  }, [costOverTime]);
+
+  // Compute average cost per participant
+  const avgCostPerParticipant = useMemo(() => {
+    const lastPoint = lastValue(costOverTime);
+    if (!lastPoint || lastPoint.cumulativeRespondents === 0) {
+      return 0;
+    }
+    return lastPoint.cumulativeSpend / lastPoint.cumulativeRespondents;
+  }, [costOverTime]);
+
   // Only consider it loading if we don't have the basic study data
   const isLoading = !studyQuery.data;
 
@@ -81,6 +102,10 @@ const useStudy = (slug: string): UseStudyReturn => {
     currentSegmentsProgress,
     recruitmentStats: recruitmentStatsQuery.data?.data ?? {},
     recruitmentStatsIsLoading: recruitmentStatsQuery.isLoading,
+    costOverTime,
+    costOverTimeIsLoading: costOverTimeQuery.isLoading,
+    totalSpent,
+    avgCostPerParticipant,
     isLoading,
     anyErrorDuringLoading,
     refetch: studyQuery.refetch,
@@ -114,6 +139,19 @@ const useRespondentsOverTimeQuery = (slug: string) => {
   return useQuery(
     ['study', slug, 'respondents-over-time'],
     () => fetchRespondentsOverTime({ slug }),
+    {
+      refetchInterval: fiveMinutesInMilliseconds,
+    }
+  );
+};
+
+const useCostOverTimeQuery = (slug: string) => {
+  const { fetchCostOverTime } = useAuthenticatedApi();
+  const fiveMinutesInMilliseconds = 5 * 60 * 1000;
+
+  return useQuery(
+    ['study', slug, 'cost-over-time'],
+    () => fetchCostOverTime({ slug }),
     {
       refetchInterval: fiveMinutesInMilliseconds,
     }

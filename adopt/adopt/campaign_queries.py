@@ -175,3 +175,21 @@ def get_latest_respondents_over_time_report(
 
     result = list(query(cnf, q, (study_id,)))
     return result[0][0] if result else None
+
+
+def create_cost_over_time_report(study_id: str, report_data: list, cnf: DBConf):
+    """Store cost over time report."""
+    return create_adopt_report(study_id, "cost_over_time", report_data, cnf)
+
+
+def get_latest_cost_over_time_report(study_id: str, cnf: DBConf) -> list | None:
+    """Get the latest cost over time report."""
+    q = """
+    SELECT details
+    FROM adopt_reports
+    WHERE study_id = %s AND report_type = 'cost_over_time'
+    ORDER BY created DESC
+    LIMIT 1
+    """
+    result = list(query(cnf, q, (study_id,)))
+    return result[0][0] if result else None

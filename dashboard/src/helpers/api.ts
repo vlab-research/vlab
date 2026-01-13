@@ -19,6 +19,7 @@ import {
   CurrentDataApiResponse,
   RecruitmentStatsApiResponse,
   RespondentsOverTimeApiResponse,
+  CostOverTimeApiResponse,
 } from '../types/study';
 
 import { CopyFromConf } from '../types/conf';
@@ -101,6 +102,21 @@ const fetchRespondentsOverTime = ({
 }) =>
   apiRequest<RespondentsOverTimeApiResponse>(
     `/${orgPrefix()}/studies/${slug}/segments-progress`,
+    {
+      accessToken,
+      baseURL: process.env.REACT_APP_CONF_SERVER_URL,
+    }
+  );
+
+const fetchCostOverTime = ({
+  slug,
+  accessToken,
+}: {
+  slug: string;
+  accessToken: string;
+}) =>
+  apiRequest<CostOverTimeApiResponse>(
+    `/${orgPrefix()}/studies/${slug}/cost-over-time`,
     {
       accessToken,
       baseURL: process.env.REACT_APP_CONF_SERVER_URL,
@@ -659,6 +675,7 @@ export const authenticatedApiCalls = {
   fetchStudy,
   fetchStudySegmentsProgress,
   fetchRespondentsOverTime,
+  fetchCostOverTime,
   createUser,
   createStudy,
   createStudyConf,

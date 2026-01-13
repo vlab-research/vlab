@@ -80,6 +80,18 @@ export interface RespondentsTimePointData {
 
 export interface RespondentsOverTimeApiResponse extends ApiResponse<RespondentsTimePointData[]> {}
 
+// Cost over time types
+export interface CostTimePointData {
+  datetime: number;
+  cumulativeSpend: number;
+  cumulativeRespondents: number;
+  marginalCost: number | null;
+  newRespondents: number;
+  dailySpend: number;
+}
+
+export interface CostOverTimeApiResponse extends ApiResponse<CostTimePointData[]> {}
+
 export interface StudyProgressResource {
   id: string;
   datetime: number;
@@ -201,6 +213,10 @@ export interface UseStudyReturn {
     [stratumId: string]: RecruitmentStatsRow;
   };
   recruitmentStatsIsLoading: boolean;
+  costOverTime: CostTimePointData[];
+  costOverTimeIsLoading: boolean;
+  totalSpent: number;
+  avgCostPerParticipant: number;
   isLoading: boolean;
   anyErrorDuringLoading: boolean;
   refetch: () => Promise<any>;

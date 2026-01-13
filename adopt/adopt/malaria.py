@@ -103,6 +103,18 @@ def update_ads_for_campaign(
     except BaseException as e:
         logging.error(f"Error creating respondents over time report: {e}")
 
+    # Generate and store cost over time report
+    try:
+        from .campaign_queries import create_cost_over_time_report
+        cost_report = calculate_cost_over_time_report(
+            df, study.strata, db_conf, study.id,
+            study.recruitment.incentive_per_respondent
+        )
+        create_cost_over_time_report(study.id, cost_report, db_conf)
+        logging.info(f"Created cost over time report for study {study.id}")
+    except BaseException as e:
+        logging.error(f"Error creating cost over time report: {e}")
+
     min_budget = study.recruitment.min_budget
     budget = study.recruitment.spend_for_day(strata, min_budget, budget_lookup, now)
 
@@ -196,6 +208,50 @@ def calculate_respondents_over_time_report(
     )
 
     return {"data": data}
+
+
+def calculate_cost_over_time_report(
+    df: Optional[pd.DataFrame],
+    strata: list[StratumConf],
+    db_conf: DBConf,
+    study_id: str,
+    incentive_per_respondent: float,
+) -> list[dict]:
+    """
+    Calculate cost over time data for storage.
+
+    Args:
+        df: Inference data (already loaded during optimization)
+        strata: List of stratum configurations
+        db_conf: Database configuration
+        study_id: ID of the study
+        incentive_per_respondent: Cost of incentive per respondent
+
+    Returns:
+        List matching CostOverTimeResponse structure
+    """
+    from .budget import prep_df_for_budget
+    from .segments_progress import get_user_start_times
+    from .cost_over_time import count_new_respondents_by_day, calculate_cost_over_time
+    from .recruitment_data import get_spend_by_date
+
+    if df is None or df.empty:
+        return []
+
+    # Get user start times (same logic as respondents_over_time)
+    filtered_df = prep_df_for_budget(df, strata)
+    if filtered_df is None or filtered_df.empty:
+        return []
+
+    user_start_times = get_user_start_times(filtered_df)
+    new_respondents_by_day = count_new_respondents_by_day(user_start_times)
+
+    # Get spend by day from database
+    spend_by_day = get_spend_by_date(db_conf, study_id)
+
+    return calculate_cost_over_time(
+        spend_by_day, new_respondents_by_day, incentive_per_respondent
+    )
 
 
 def run_updates(fn: AdoptJob) -> None:

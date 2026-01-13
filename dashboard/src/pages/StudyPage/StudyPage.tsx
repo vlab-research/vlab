@@ -53,6 +53,8 @@ const StudyPage = () => {
       <React.Fragment>
         <StudyProgressStats
           currentProgress={study.isLoading ? undefined : study.currentProgress}
+          totalSpent={study.totalSpent}
+          avgCostPerParticipant={study.avgCostPerParticipant}
           selectedStat={selectedStat}
           onSelectStat={newSelectedStat => {
             setSelectedState(newSelectedStat);
@@ -62,6 +64,7 @@ const StudyPage = () => {
         <StudyProgressChart
           label={selectedStat}
           data={study.isLoading ? undefined : study.progressOverTime}
+          costData={study.costOverTimeIsLoading ? undefined : study.costOverTime}
         />
 
         <div className="mt-8">

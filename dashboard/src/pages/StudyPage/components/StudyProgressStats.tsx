@@ -1,13 +1,17 @@
 import Stats, { StatsSkeleton } from './Stats';
 import { StudyProgressResource } from '../../../types/study';
-import { formatNumber } from '../../../helpers/numbers';
+import { formatNumber, formatCurrency } from '../../../helpers/numbers';
 
 const StudyProgressStats = ({
   currentProgress,
+  totalSpent,
+  avgCostPerParticipant,
   selectedStat,
   onSelectStat,
 }: {
   currentProgress?: StudyProgressResource;
+  totalSpent: number;
+  avgCostPerParticipant: number;
   selectedStat: string;
   onSelectStat: (selectedStat: string) => void;
 }) => {
@@ -18,8 +22,8 @@ const StudyProgressStats = ({
         statNames={[
           'Current Participants',
           'Expected Participants',
-          'Current Avg. Deviation',
-          'Expected Avg. Deviation',
+          'Total Spent',
+          'Avg Cost Per Participant',
         ]}
         selectedStat="Current Participants"
       />
@@ -40,14 +44,15 @@ const StudyProgressStats = ({
           name: 'Expected Participants',
           stat: formatNumber(currentProgress.expectedParticipants),
         },
-
         {
-          name: 'Current Avg. Deviation',
-          stat: `${currentProgress.currentAverageDeviation} %`,
+          name: 'Total Spent',
+          stat: formatCurrency(totalSpent),
         },
         {
-          name: 'Expected Avg. Deviation',
-          stat: `${currentProgress.expectedAverageDeviation} %`,
+          name: 'Avg Cost Per Participant',
+          stat: avgCostPerParticipant > 0
+            ? formatCurrency(avgCostPerParticipant)
+            : '-',
         },
       ]}
     />
