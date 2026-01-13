@@ -145,9 +145,8 @@ def budget_opt(S, goal, tot, price, budget, efficiency_weight: float):
     # Weighted variance loss (current behavior - optimizes distribution)
     variance_loss = np.sum(goal**2 / projection)
 
-    # Unweighted efficiency loss (maximize total N - cost efficient)
-    P = len(goal)
-    efficiency_loss = P / np.sum(projection)
+    # Efficiency loss (maximize total N - cost efficient)
+    efficiency_loss = 1 / np.sum(projection)
 
     # Blended loss
     loss = efficiency_weight * variance_loss + (1 - efficiency_weight) * efficiency_loss
@@ -162,9 +161,8 @@ def recruits_opt(S, goal, tot, price, num_recruits, efficiency_weight: float):
     # Weighted variance loss (current behavior - optimizes distribution)
     variance_loss = np.sum(goal**2 / projection)
 
-    # Unweighted efficiency loss (maximize total N - cost efficient)
-    P = len(goal)
-    efficiency_loss = P / np.sum(projection)
+    # Efficiency loss (maximize total N - cost efficient)
+    efficiency_loss = 1 / np.sum(projection)
 
     # Blended loss
     loss = efficiency_weight * variance_loss + (1 - efficiency_weight) * efficiency_loss
