@@ -82,7 +82,10 @@ func GetEvents(pool *pgxpool.Pool, study string) ([]*InferenceDataEvent, error) 
 func GetActiveStudies(pool *pgxpool.Pool) ([]string, error) {
 	studies := []string{}
 
-	query := "select id from studies"
+	query := `SELECT id
+	          FROM study_state
+	          WHERE start_date < NOW()
+	          AND end_date > NOW()`
 	rows, err := pool.Query(context.Background(), query)
 
 	if err != nil {
@@ -109,10 +112,13 @@ func main() {
 	studies, err := GetActiveStudies(pool)
 	handle(err)
 
+	log.Printf("Swooshing %d studies\n", len(studies))
+
 	for _, study := range studies {
+		log.Printf("Swooshing %s\n", study)
 		events, err := GetEvents(pool, study)
 		handle(err)
-		log.Println(fmt.Printf("Swoosh read %d events.", len(events)))
+		log.Printf("Swoosh read %d events.\n", len(events))
 
 		mapping, err := GetInferenceDataConf(pool, study)
 		if err != nil {
@@ -124,12 +130,12 @@ func main() {
 		handle(err)
 
 		// TODO: store extraction errors in database to show user!
-		log.Println(fmt.Printf("Swoosh had %d extractionErrors", len(extractionErrors)))
+		log.Printf("Swoosh had %d extractionErrors\n", len(extractionErrors))
 		for _, err := range extractionErrors {
-			log.Println(fmt.Printf(err.Error()))
+			log.Println(err)
 		}
 
-		log.Println(fmt.Printf("Swoosh storing InferenceData from %d users", len(id)))
+		log.Printf("Swoosh storing InferenceData from %d users\n", len(id))
 		err = WriteInferenceData(pool, study, id)
 		handle(err)
 
