@@ -5,7 +5,6 @@ import { lastValue } from '../../../helpers/arrays';
 import useAuthenticatedApi from '../../../hooks/useAuthenticatedApi';
 import {
   StudyProgressResource,
-  StudySegmentProgressResource,
   UseStudyReturn,
   RespondentsTimePointData,
 } from '../../../types/study';
