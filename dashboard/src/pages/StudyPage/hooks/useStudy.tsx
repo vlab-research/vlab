@@ -2,6 +2,7 @@ import Chance from 'chance';
 import { useMemo } from 'react';
 import { useQuery } from 'react-query';
 import { lastValue } from '../../../helpers/arrays';
+import { computeExpectedParticipantsFrom } from '../../../helpers/study';
 import useAuthenticatedApi from '../../../hooks/useAuthenticatedApi';
 import {
   StudyProgressResource,
@@ -20,14 +21,15 @@ const chance = Chance();
 // Transform new adopt server API response to StudyProgressResource format
 // This only provides currentParticipants over time for the time chart
 const transformToStudyProgress = (
-  timePoint: RespondentsTimePointData
+  timePoint: RespondentsTimePointData,
+  expectedParticipants: number
 ): StudyProgressResource => {
   return {
     id: chance.guid({ version: 4 }),
     datetime: timePoint.datetime,
     desiredParticipants: null,
     currentParticipants: timePoint.totalParticipants,
-    expectedParticipants: 0,
+    expectedParticipants,
     currentAverageDeviation: 0,
     expectedAverageDeviation: 0,
   };
@@ -48,25 +50,30 @@ const useStudy = (slug: string): UseStudyReturn => {
     [studySegmentsProgressQuery.data]
   );
 
+  // Segment table data from old Go API
+  const currentSegmentsProgress = useMemo(() => {
+    const lastTimePoint = lastValue(segmentsProgressOverTime);
+    return lastTimePoint ? lastTimePoint.segments : [];
+  }, [segmentsProgressOverTime]);
+
+  // Calculate aggregated expected participants from segment data
+  const aggregatedExpectedParticipants = useMemo(() => {
+    return computeExpectedParticipantsFrom(currentSegmentsProgress);
+  }, [currentSegmentsProgress]);
+
   // New Adopt Server API data for time chart
   const progressOverTime: StudyProgressResource[] = useMemo(() => {
     const apiData = respondentsOverTimeQuery.data?.data ?? [];
     if (!apiData.length) {
       return [getStudyDefaultProgress()];
     }
-    return apiData.map(transformToStudyProgress);
-  }, [respondentsOverTimeQuery.data]);
+    return apiData.map((timePoint) => transformToStudyProgress(timePoint, aggregatedExpectedParticipants));
+  }, [respondentsOverTimeQuery.data, aggregatedExpectedParticipants]);
 
   const currentProgress: StudyProgressResource = useMemo(
     () => lastValue(progressOverTime) ?? getStudyDefaultProgress(),
     [progressOverTime]
   );
-
-  // Segment table data from old Go API
-  const currentSegmentsProgress = useMemo(() => {
-    const lastTimePoint = lastValue(segmentsProgressOverTime);
-    return lastTimePoint ? lastTimePoint.segments : [];
-  }, [segmentsProgressOverTime]);
 
   // Cost over time data
   const costOverTime: CostTimePointData[] = useMemo(() => {
@@ -104,6 +111,8 @@ const useStudy = (slug: string): UseStudyReturn => {
     recruitmentStatsIsLoading: recruitmentStatsQuery.isLoading,
     costOverTime,
     costOverTimeIsLoading: costOverTimeQuery.isLoading,
+    respondentsOverTimeIsLoading: respondentsOverTimeQuery.isLoading,
+    dataIsLoading: respondentsOverTimeQuery.isLoading || costOverTimeQuery.isLoading,
     totalSpent,
     avgCostPerParticipant,
     isLoading,
