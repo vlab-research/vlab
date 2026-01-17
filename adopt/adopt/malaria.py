@@ -171,7 +171,7 @@ def load_basics(
 
 
 def calculate_respondents_over_time_report(
-    df: pd.DataFrame,
+    df: Optional[pd.DataFrame],
     strata: list[StratumConf],
     start_date: datetime,
     end_date: datetime
@@ -180,7 +180,7 @@ def calculate_respondents_over_time_report(
     Calculate respondents over time data for storage as a report.
 
     Args:
-        df: Inference data (already loaded during optimization)
+        df: Inference data (already loaded during optimization), can be None
         strata: List of stratum configurations
         start_date: Study recruitment start date
         end_date: Study recruitment end date
@@ -191,6 +191,10 @@ def calculate_respondents_over_time_report(
     from .segments_progress import get_user_start_times, build_segments_progress_data
     from .responses import create_time_buckets
     from .budget import prep_df_for_budget
+
+    # Handle case where no inference data is available
+    if df is None or df.empty:
+        return {"data": []}
 
     # Filter data by stratum
     filtered_df = prep_df_for_budget(df, strata)
@@ -382,7 +386,7 @@ def heal_reports_for_study(db_conf: DBConf, study_id: str) -> tuple[bool, bool]:
     return respondents_success, cost_success
 
 
-def run_report_healing(days_back: int = 14) -> None:
+def run_report_healing(days_back: int = 14, now: Optional[datetime] = None) -> None:
     """
     Heal reports for all studies active in the past X days.
 
@@ -393,14 +397,16 @@ def run_report_healing(days_back: int = 14) -> None:
 
     Args:
         days_back: Number of days to look back for studies (default: 14)
+        now: Current datetime (optional, defaults to utcnow for production)
     """
     from .recruitment_data import get_recent_studies
 
     env = Env()
     db_conf = get_db_conf(env)
-    now = datetime.utcnow()
+    if now is None:
+        now = datetime.utcnow()
 
-    studies = get_recent_studies(db_conf, now, days_back)
+    studies = list(get_recent_studies(db_conf, now, days_back))
     logging.info(f"Report healing: found {len(studies)} studies (lookback: {days_back} days)")
 
     success_count = 0
