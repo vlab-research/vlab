@@ -8,14 +8,16 @@ const StudyProgressStats = ({
   avgCostPerParticipant,
   selectedStat,
   onSelectStat,
+  isLoading,
 }: {
   currentProgress?: StudyProgressResource;
   totalSpent: number;
   avgCostPerParticipant: number;
   selectedStat: string;
   onSelectStat: (selectedStat: string) => void;
+  isLoading?: boolean;
 }) => {
-  if (!currentProgress) {
+  if (isLoading || !currentProgress) {
     return (
       <StatsSkeleton
         statTestId="study-current-progress-card-skeleton"

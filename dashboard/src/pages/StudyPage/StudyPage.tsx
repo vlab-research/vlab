@@ -52,13 +52,14 @@ const StudyPage = () => {
     >
       <React.Fragment>
         <StudyProgressStats
-          currentProgress={study.isLoading ? undefined : study.currentProgress}
+          currentProgress={study.currentProgress}
           totalSpent={study.totalSpent}
           avgCostPerParticipant={study.avgCostPerParticipant}
           selectedStat={selectedStat}
           onSelectStat={newSelectedStat => {
             setSelectedState(newSelectedStat);
           }}
+          isLoading={study.dataIsLoading}
         />
 
         <StudyProgressChart

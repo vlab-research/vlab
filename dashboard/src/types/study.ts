@@ -215,6 +215,8 @@ export interface UseStudyReturn {
   recruitmentStatsIsLoading: boolean;
   costOverTime: CostTimePointData[];
   costOverTimeIsLoading: boolean;
+  respondentsOverTimeIsLoading: boolean;
+  dataIsLoading: boolean;
   totalSpent: number;
   avgCostPerParticipant: number;
   isLoading: boolean;
