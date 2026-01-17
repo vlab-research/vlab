@@ -294,6 +294,132 @@ def update_recruitment_data() -> None:
     run_updates(update_recruitment_data_for_campaign)
 
 
+def get_study_conf_for_reports(db_conf: DBConf, study_id: str) -> StudyConf:
+    """
+    Load study configuration for report generation only.
+
+    Unlike get_study_conf(), this does not require valid Facebook credentials.
+    It uses the study_id as the survey_user since get_inference_data()
+    queries by study_id directly.
+
+    Args:
+        db_conf: Database configuration
+        study_id: Study ID
+
+    Returns:
+        StudyConf with minimal user info (no FB token required)
+    """
+    from .campaign_queries import get_campaign_configs
+
+    confs = get_campaign_configs(study_id, db_conf)
+    cd = {v["conf_type"]: v["conf"] for v in confs}
+
+    # For reports, we don't need actual Facebook credentials
+    # Use study_id as survey_user since inference_data is queried by study_id
+    user_info = {"token": "", "survey_user": str(study_id)}
+
+    params = {"id": str(study_id), "user": user_info, **cd}
+    return StudyConf(**params)
+
+
+def heal_reports_for_study(db_conf: DBConf, study_id: str) -> tuple[bool, bool]:
+    """
+    Generate respondents_over_time and cost_over_time reports for a study.
+
+    This function does NOT run optimization or require Facebook API access.
+    It only reads from inference_data and recruitment_data_events tables.
+
+    Args:
+        db_conf: Database configuration
+        study_id: Study ID to generate reports for
+
+    Returns:
+        Tuple of (respondents_success, cost_success) booleans
+    """
+    respondents_success = False
+    cost_success = False
+
+    try:
+        study = get_study_conf_for_reports(db_conf, study_id)
+    except Exception as e:
+        logging.error(f"Failed to load study config for {study_id}: {e}")
+        return respondents_success, cost_success
+
+    # Get inference window from recruitment config
+    now = datetime.utcnow()
+    inf_start, inf_end = study.recruitment.get_inference_window(now)
+
+    # Load inference data (no FB API needed)
+    df = get_inference_data(
+        study.user.survey_user, study.id, db_conf, inf_start, inf_end
+    )
+
+    # Generate respondents over time report
+    try:
+        from .campaign_queries import create_respondents_over_time_report
+        respondents_report = calculate_respondents_over_time_report(
+            df, study.strata, inf_start, inf_end
+        )
+        create_respondents_over_time_report(study.id, respondents_report, db_conf)
+        logging.info(f"Healed respondents_over_time report for study {study_id}")
+        respondents_success = True
+    except Exception as e:
+        logging.error(f"Error healing respondents_over_time report for {study_id}: {e}")
+
+    # Generate cost over time report
+    try:
+        from .campaign_queries import create_cost_over_time_report
+        cost_report = calculate_cost_over_time_report(
+            df, study.strata, db_conf, study.id,
+            study.recruitment.incentive_per_respondent
+        )
+        create_cost_over_time_report(study.id, cost_report, db_conf)
+        logging.info(f"Healed cost_over_time report for study {study_id}")
+        cost_success = True
+    except Exception as e:
+        logging.error(f"Error healing cost_over_time report for {study_id}: {e}")
+
+    return respondents_success, cost_success
+
+
+def run_report_healing(days_back: int = 14) -> None:
+    """
+    Heal reports for all studies active in the past X days.
+
+    This is the entry point for the healing CronJob. It:
+    1. Gets all studies active within the lookback window
+    2. Generates respondents_over_time and cost_over_time reports for each
+    3. Does NOT run optimization or require Facebook API access
+
+    Args:
+        days_back: Number of days to look back for studies (default: 14)
+    """
+    from .recruitment_data import get_recent_studies
+
+    env = Env()
+    db_conf = get_db_conf(env)
+    now = datetime.utcnow()
+
+    studies = get_recent_studies(db_conf, now, days_back)
+    logging.info(f"Report healing: found {len(studies)} studies (lookback: {days_back} days)")
+
+    success_count = 0
+    failure_count = 0
+
+    for study_id in studies:
+        try:
+            respondents_ok, cost_ok = heal_reports_for_study(db_conf, study_id)
+            if respondents_ok and cost_ok:
+                success_count += 1
+            else:
+                failure_count += 1
+        except Exception as e:
+            logging.error(f"Failed to heal reports for study {study_id}: {e}")
+            failure_count += 1
+
+    logging.info(f"Report healing complete: {success_count} succeeded, {failure_count} failed")
+
+
 def uniqueness(strata: List[StratumConf]):
     ids = [s.id for s in strata]
     if len(set(ids)) != len(ids):

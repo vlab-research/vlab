@@ -70,6 +70,18 @@ cronjobs:
     args:
       - python
       - malaria_audience.py
+  - name: adopt-heal-reports
+    schedule: "0 5 * * *"
+    image:
+      repository: "vlabresearch/adopt"
+      tag: "inference-data"
+      pullPolicy: Always
+    args:
+      - python
+      - heal_reports.py
+    env:
+      - name: REPORT_HEALING_DAYS_BACK
+        value: "14"
 
 
 

@@ -280,6 +280,43 @@ def get_active_studies(db_conf, now: datetime) -> list[str]:
     return [t[0] for t in res]
 
 
+def get_recent_studies(db_conf: DBConf, now: datetime, days_back: int) -> list[str]:
+    """
+    Get studies that have been active within the past X days.
+
+    This includes:
+    - Studies currently active (start_date < now < end_date)
+    - Studies that ended within the past X days
+    - Studies that started within the past X days
+
+    Args:
+        db_conf: Database configuration (PG_URL)
+        now: Current datetime
+        days_back: Number of days to look back
+
+    Returns:
+        List of study IDs
+    """
+    cutoff = now - timedelta(days=days_back)
+
+    q = """
+    SELECT id FROM studies
+    JOIN study_state USING(id)
+    WHERE
+        -- Currently active
+        (study_state.start_date < %s AND study_state.end_date > %s)
+        OR
+        -- Ended within the past X days
+        (study_state.end_date >= %s AND study_state.end_date <= %s)
+        OR
+        -- Started within the past X days
+        (study_state.start_date >= %s AND study_state.start_date <= %s)
+    """
+
+    res = query(db_conf, q, (now, now, cutoff, now, cutoff, now))
+    return [t[0] for t in res]
+
+
 def calculate_stat_sql(
     db_conf: DBConf, window: Optional[DateRange], study_id: str
 ) -> Dict[str, AdPlatformRecruitmentStats]:
@@ -291,12 +328,13 @@ def calculate_stat_sql(
         window: Optional DateRange to filter data. If None, includes all time.
         study_id: ID of the study to analyze
 
+
     Returns:
         Dictionary mapping stratum IDs to their AdPlatformRecruitmentStats
     """
     # Construct the SQL query
     sql = """
-    SELECT 
+    SELECT
         stratum_id,
         SUM(CAST(metrics->>'spend' AS FLOAT)) as spend,
         SUM(CAST(metrics->>'reach' AS INTEGER)) as reach,
@@ -326,8 +364,8 @@ def calculate_stat_sql(
     # Add window filtering if provided
     if window is not None:
         sql += """
-        WHERE 
-            period_start >= %s AND 
+        WHERE
+            period_start >= %s AND
             period_end <= %s
         """
         params.extend([window.start_date, window.until_date])
