@@ -183,7 +183,7 @@ def calculate_respondents_over_time_report(
         df: Inference data (already loaded during optimization), can be None
         strata: List of stratum configurations
         start_date: Study recruitment start date
-        end_date: Study recruitment end date
+        end_date: Study recruitment end date (not used; instead we use the max timestamp from data)
 
     Returns:
         Dict matching RespondentsOverTimeResponse structure
@@ -203,7 +203,12 @@ def calculate_respondents_over_time_report(
 
     # Calculate respondents over time
     user_start_times = get_user_start_times(filtered_df)
-    buckets = create_time_buckets(start_date, end_date, "hour")
+
+    # Use the last participant timestamp as the bucket end date, not the study's configured end date.
+    # This prevents future empty buckets from appearing in the chart (which would make it appear flat).
+    actual_end_date = user_start_times['start_time'].max()
+
+    buckets = create_time_buckets(start_date, actual_end_date, "hour")
 
     data = build_segments_progress_data(
         user_start_times=user_start_times,
