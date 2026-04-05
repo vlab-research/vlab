@@ -97,6 +97,17 @@ def create_adset(c: AdsetConf) -> AdSet:
     name = c.stratum.id
     targeting = {**c.stratum.facebook_targeting}
 
+    # If the frontend fails to extract targeting_automation from the source adset
+    # (e.g. old adsets created before Facebook made this field required), inject a
+    # safe default here:
+    #
+    #   if "targeting_automation" not in targeting:
+    #       targeting["targeting_automation"] = {"advantage_audience": 0}
+    #
+    # advantage_audience: 0 = disabled (use only explicit targeting, no expansion)
+    # advantage_audience: 1 = enabled (allow Facebook to expand beyond defined targeting)
+
+
     # TODO: document this funkyness - pretends it's runnign at midnight...
     midnight = datetime.utcnow().replace(microsecond=0, second=0, minute=0, hour=0)
 

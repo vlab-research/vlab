@@ -34,10 +34,15 @@ const Level: React.FC<Props> = ({
     if (!adset) {
       throw new Error(`adset not found. Looking for ${e.target.value}. Adset: ${adsets}`)
     }
-    const targeting = properties.reduce(
+    const targeting: any = properties.reduce(
       (obj, key) => ({ ...obj, [key]: adset.targeting[key] }),
       {}
     );
+
+    if (adset.targeting.targeting_automation !== undefined) {
+      targeting.targeting_automation = adset.targeting.targeting_automation;
+    }
+
     handleChange(
       { ...data, facebook_targeting: targeting, template_adset: adset.id },
       index

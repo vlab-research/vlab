@@ -38,10 +38,16 @@ const Variable: React.FC<Props> = ({
       return {};
     }
 
-    return data.properties.reduce(
+    const selected = data.properties.reduce(
       (obj: any, key: string) => ({ ...obj, [key]: adset.targeting[key] }),
-      {}
+      {} as any
     );
+
+    if (adset.targeting.targeting_automation !== undefined) {
+      selected.targeting_automation = adset.targeting.targeting_automation;
+    }
+
+    return selected;
   };
 
   const reformulateData = (data: VariableType) => {
