@@ -97,15 +97,12 @@ def create_adset(c: AdsetConf) -> AdSet:
     name = c.stratum.id
     targeting = {**c.stratum.facebook_targeting}
 
-    # If the frontend fails to extract targeting_automation from the source adset
-    # (e.g. old adsets created before Facebook made this field required), inject a
-    # safe default here:
-    #
-    #   if "targeting_automation" not in targeting:
-    #       targeting["targeting_automation"] = {"advantage_audience": 0}
-    #
-    # advantage_audience: 0 = disabled (use only explicit targeting, no expansion)
-    # advantage_audience: 1 = enabled (allow Facebook to expand beyond defined targeting)
+    # Facebook requires targeting_automation.advantage_audience to be explicitly set.
+    # Ideally this comes from the source adset via the frontend (Variables form), but
+    # old adsets created before Facebook mandated this field won't have it. Default to
+    # disabled (0) so targeting stays within the explicitly defined audience.
+    if "targeting_automation" not in targeting:
+        targeting["targeting_automation"] = {"advantage_audience": 0}
 
 
     # TODO: document this funkyness - pretends it's runnign at midnight...
