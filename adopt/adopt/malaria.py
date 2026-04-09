@@ -452,12 +452,15 @@ def add_audience_targeting(
 ) -> FacebookTargeting:
     targeting = stratum.facebook_targeting
 
-    targeting[Targeting.Field.custom_audiences] = [
-        ca for s in stratum.audiences if (ca := _add_aud(state, s))
-    ]
-    targeting[Targeting.Field.excluded_custom_audiences] = [
-        eca for s in stratum.excluded_audiences if (eca := _add_aud(state, s))
-    ]
+    # Merge static audiences from facebook_targeting with dynamic vlab-managed ones
+    # from stratum.audiences/excluded_audiences, rather than replacing them.
+    existing_custom = targeting.get(Targeting.Field.custom_audiences, [])
+    dynamic_custom = [ca for s in stratum.audiences if (ca := _add_aud(state, s))]
+    targeting[Targeting.Field.custom_audiences] = existing_custom + dynamic_custom
+
+    existing_excluded = targeting.get(Targeting.Field.excluded_custom_audiences, [])
+    dynamic_excluded = [eca for s in stratum.excluded_audiences if (eca := _add_aud(state, s))]
+    targeting[Targeting.Field.excluded_custom_audiences] = existing_excluded + dynamic_excluded
 
     return targeting
 
