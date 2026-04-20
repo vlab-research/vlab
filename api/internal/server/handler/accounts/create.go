@@ -71,6 +71,8 @@ func parsePayload(b []byte) (a types.Account, err error) {
 		a.ConnectedAccount = &types.FacebookConnectedAccount{}
 	case types.VlabApiKeyAccount:
 		a.ConnectedAccount = &types.VlabApiKeyConnectedAccount{}
+	case types.QualtricsAccount:
+		a.ConnectedAccount = &types.QualtricsConnectedAccount{}
 	default:
 		return a, fmt.Errorf("%v is an unknown account type", a.AuthType)
 	}

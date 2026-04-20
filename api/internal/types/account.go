@@ -15,6 +15,7 @@ const (
 	AlchemerAccount   AccountType = "alchemer"
 	FacebookAccount   AccountType = "facebook"
 	VlabApiKeyAccount AccountType = "api_key"
+	QualtricsAccount  AccountType = "qualtrics"
 )
 
 type AccountRepository interface {
@@ -109,6 +110,19 @@ type AlchemerConnectedAccount struct {
 // Used to input data into the database as a JSONB field
 func (a AlchemerConnectedAccount) MarshalCredentials() (string, error) {
 	b, err := json.Marshal(a.Credentials)
+	if err != nil {
+		return "", err
+	}
+	return string(b), nil
+}
+
+type QualtricsConnectedAccount struct {
+	CreatedAt   int                              `json:"createdAt"`
+	Credentials sourcetypes.QualtricsCredentials `json:"credentials" validate:"required"`
+}
+
+func (q QualtricsConnectedAccount) MarshalCredentials() (string, error) {
+	b, err := json.Marshal(q.Credentials)
 	if err != nil {
 		return "", err
 	}

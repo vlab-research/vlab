@@ -6,6 +6,7 @@ import {
   FlyAccount,
   TypeformAccount,
   AlchemerAccount,
+  QualtricsAccount,
   FacebookAccount,
 } from '../../../types/account';
 // import { addAccountToCacheWhileRefetching } from './useAccounts';
@@ -27,6 +28,7 @@ const useCreateAccount = (onSettled: () => void) => {
       | FlyAccount
       | TypeformAccount
       | AlchemerAccount
+      | QualtricsAccount
       | FacebookAccount;
     }) => await createAccount({ name, authType, connectedAccount }),
     {

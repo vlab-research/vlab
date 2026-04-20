@@ -40,6 +40,12 @@ export interface AlchemerAccount extends ConnectedAccount {
   };
 }
 
+export interface QualtricsAccount extends ConnectedAccount {
+  credentials: {
+    api_key: string;
+  };
+}
+
 export interface FacebookAccount extends ConnectedAccount {
   credentials: {
     token: string;

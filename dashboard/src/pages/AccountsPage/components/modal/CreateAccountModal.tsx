@@ -39,6 +39,13 @@ const accounts: AccountType[] = [
   },
   {
     name: '',
+    authType: 'qualtrics',
+    credentials: {
+      api_key: '',
+    },
+  },
+  {
+    name: '',
     authType: 'facebook',
     credentials: {
       access_token: '',
