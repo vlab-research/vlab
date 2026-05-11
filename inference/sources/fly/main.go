@@ -32,8 +32,7 @@ type FlyTime time.Time
 func (t *FlyTime) UnmarshalJSON(b []byte) error {
 	s := strings.Trim(string(b), "\"")
 
-	parsed, err := time.ParseInLocation("2006-01-02 15:04:05-07:00", s, time.UTC)
-
+	parsed, err := time.Parse(time.RFC3339Nano, s)
 	if err != nil {
 		return err
 	}
