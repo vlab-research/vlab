@@ -204,16 +204,26 @@ def calculate_respondents_over_time_report(
     # Calculate respondents over time
     user_start_times = get_user_start_times(filtered_df)
 
-    # Use the last participant timestamp as the bucket end date, not the study's configured end date.
-    # This prevents future empty buckets from appearing in the chart (which would make it appear flat).
-    actual_end_date = user_start_times['start_time'].max()
+    # Filter to only users belonging to the configured strata before computing the end date.
+    # user_start_times can contain ad interaction events for users outside the current strata,
+    # which would produce a far-future end date and thousands of empty hourly buckets.
+    strata_ids = [s.id for s in strata]
+    matching_user_start_times = user_start_times[user_start_times['stratum_id'].isin(strata_ids)]
+    if matching_user_start_times.empty:
+        return {"data": []}
 
-    buckets = create_time_buckets(start_date, actual_end_date, "hour")
+    # Anchor bucket range to actual interaction data, not the configured study dates.
+    # start_date can be set years in the past (e.g., to capture historical campaign data),
+    # which would generate thousands of empty leading buckets.
+    actual_start_date = matching_user_start_times['start_time'].min()
+    actual_end_date = matching_user_start_times['start_time'].max()
+
+    buckets = create_time_buckets(actual_start_date, actual_end_date, "hour")
 
     data = build_segments_progress_data(
-        user_start_times=user_start_times,
+        user_start_times=matching_user_start_times,
         buckets=buckets,
-        strata_ids=[s.id for s in strata],
+        strata_ids=strata_ids,
     )
 
     return {"data": data}
