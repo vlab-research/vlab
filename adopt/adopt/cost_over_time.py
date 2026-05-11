@@ -65,38 +65,62 @@ def calculate_cost_over_time(
     # Build lookup for spend
     spend_lookup = {d["date"]: d["spend"] for d in spend_by_day}
 
+    # Trim leading/trailing days where neither spend nor respondents had activity.
+    # recruitment_data_events can carry zero-spend rows for every day since the
+    # study's configured start_date (potentially years before any real activity),
+    # which would generate hundreds of empty cumulative-zero buckets.
+    active_days = [
+        d for d in all_dates
+        if spend_lookup.get(d, 0.0) > 0 or new_respondents_by_day.get(d, 0) > 0
+    ]
+    if not active_days:
+        return []
+    all_dates = [d for d in all_dates if active_days[0] <= d <= active_days[-1]]
+
     result = []
     cumulative_spend = 0.0
     cumulative_respondents = 0
+    pending_unchanged: dict | None = None
 
-    for day in all_dates:
+    # Only emit a day when cumulative spend or respondents actually changed. Days
+    # with neither spend nor new respondents are flat segments on a cumulative
+    # chart and only add noise. The first and last day in active range are
+    # always anchored.
+    for i, day in enumerate(all_dates):
         daily_spend = spend_lookup.get(day, 0.0)
         new_respondents = new_respondents_by_day.get(day, 0)
 
-        # Calculate daily incentive cost
         daily_incentive = new_respondents * incentive_per_respondent
         daily_total = daily_spend + daily_incentive
 
-        # Update cumulative values (include BOTH ad spend AND incentives)
         cumulative_spend += daily_total
         cumulative_respondents += new_respondents
 
-        # Marginal cost (None if no new respondents to avoid division by zero)
         marginal_cost = None
         if new_respondents > 0:
             marginal_cost = daily_total / new_respondents
 
-        # Convert date to millisecond timestamp
         dt = datetime.combine(day, datetime.min.time())
-        timestamp_ms = int(dt.timestamp() * 1000)
-
-        result.append({
-            "datetime": timestamp_ms,
+        row = {
+            "datetime": int(dt.timestamp() * 1000),
             "cumulativeSpend": cumulative_spend,
             "cumulativeRespondents": cumulative_respondents,
             "marginalCost": marginal_cost,
             "newRespondents": new_respondents,
             "dailySpend": daily_spend,
-        })
+        }
+
+        is_first = i == 0
+        is_last = i == len(all_dates) - 1
+        changed = daily_total > 0 or new_respondents > 0
+
+        if is_first or changed:
+            result.append(row)
+            pending_unchanged = None
+        else:
+            pending_unchanged = row
+
+    if pending_unchanged is not None:
+        result.append(pending_unchanged)
 
     return result

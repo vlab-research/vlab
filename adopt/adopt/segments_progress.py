@@ -95,28 +95,44 @@ def build_segments_progress_data(
     # Initialize cumulative counts for each stratum
     cumulative_counts = {sid: 0 for sid in strata_ids}
     result = []
+    prev_total = None
+    last_bucket_unchanged: dict | None = None
 
-    for bucket_start, bucket_end in buckets:
-        # Count new users in this bucket
+    # Only emit a row when the cumulative total changes from the previously emitted
+    # row. The chart is a cumulative series, so consecutive identical points are
+    # noise. We still anchor the first and last bucket so the chart x-axis spans
+    # the full observed range. cumulative_counts are monotonic non-decreasing, so
+    # total alone is sufficient to detect any change in the segment breakdown.
+    for i, (bucket_start, bucket_end) in enumerate(buckets):
         new_counts = count_users_in_bucket(user_start_times, bucket_start, bucket_end)
-
-        # Update cumulative counts
         for stratum_id, count in new_counts.items():
             if stratum_id in cumulative_counts:
                 cumulative_counts[stratum_id] += count
 
-        # Build segment data
         segments = [
             {"id": sid, "participants": cumulative_counts[sid]}
             for sid in strata_ids
         ]
-
         total = sum(seg["participants"] for seg in segments)
-
-        result.append({
+        row = {
             "datetime": int(bucket_start.timestamp() * 1000),
             "totalParticipants": total,
             "segments": segments,
-        })
+        }
+
+        is_first = i == 0
+        is_last = i == len(buckets) - 1
+        changed = total != prev_total
+
+        if is_first or changed:
+            result.append(row)
+            prev_total = total
+            last_bucket_unchanged = None
+        else:
+            last_bucket_unchanged = row
+
+    # Anchor the right edge of the chart if the final bucket was deduped away.
+    if last_bucket_unchanged is not None:
+        result.append(last_bucket_unchanged)
 
     return result

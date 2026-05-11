@@ -1,5 +1,6 @@
 import React from 'react';
 import { AxisOptions, Chart } from 'react-charts';
+import { curveStepAfter } from 'd3-shape';
 
 type DataPoint = {
   primary: Date;
@@ -30,6 +31,10 @@ const SingleAreaChart = ({
         getValue: datum => datum.secondary,
         tickCount: 5,
         elementType: 'area',
+        // Data is sparse (only emitted when cumulative value changes).
+        // Step-after keeps the value flat until the next change instead of
+        // drawing a misleading diagonal between events.
+        curve: curveStepAfter,
       },
     ],
     []
