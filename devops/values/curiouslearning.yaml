@@ -18,7 +18,7 @@ ingress:
 dashboard:
   replicaCount: 1
   image:
-    repository: vlabresearch/vlab-dashboard-api
+    repository: ghcr.io/vlab-research/vlab-dashboard-api
     tag: latest
     pullPolicy: Always
   resources: {}
@@ -31,7 +31,7 @@ cronjobs:
   - name: literacy-data-api
     schedule: "10 * * * *"
     image:
-      repository: "vlabresearch/source-literacy-data-api"
+      repository: "ghcr.io/vlab-research/source-literacy-data-api"
       tag: "latest"
       pullPolicy: Always
     env:
@@ -40,13 +40,13 @@ cronjobs:
   - name: swoosh
     schedule: "30 * * * *"
     image:
-      repository: "vlabresearch/swoosh"
+      repository: "ghcr.io/vlab-research/swoosh"
       tag: "latest"
       pullPolicy: Always
   - name: adopt-ads
     schedule: "30 */4 * * *"
     image:
-      repository: "vlabresearch/adopt"
+      repository: "ghcr.io/vlab-research/adopt"
       tag: "v0.0.95"
       pullPolicy: Always
     args:
@@ -55,7 +55,7 @@ cronjobs:
   - name: adopt-recruitment-data
     schedule: "10 */4 * * *"
     image:
-      repository: "vlabresearch/adopt"
+      repository: "ghcr.io/vlab-research/adopt"
       tag: "v0.0.95"
       pullPolicy: Always
     args:
@@ -64,7 +64,7 @@ cronjobs:
   - name: adopt-audience
     schedule: "50 */4 * * *"
     image:
-      repository: "vlabresearch/adopt"
+      repository: "ghcr.io/vlab-research/adopt"
       tag: "v0.0.95"
       pullPolicy: Always
     args:

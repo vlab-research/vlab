@@ -1,4 +1,4 @@
-versionAdopt: &vadopt v0.1.56
+versionAdopt: &vadopt v0.1.65
 
 env:
   - name: AUTH0_DOMAIN
@@ -24,8 +24,8 @@ services:
   - name: dashboard
     replicaCount: 1
     image:
-      repository: vlabresearch/dashboard
-      tag: v0.0.36
+      repository: ghcr.io/vlab-research/vlab-dashboard-api
+      tag: v0.1.0
       pullPolicy: Always
     resources: {}
     ingress:
@@ -40,7 +40,7 @@ services:
   - name: conf-dashboard
     replicaCount: 1
     image:
-      repository: vlabresearch/adopt
+      repository: ghcr.io/vlab-research/adopt
       tag: *vadopt
       pullPolicy: Always
     resources: {}
@@ -60,7 +60,7 @@ cronjobs:
   - name: source-typeform
     schedule: "10 * * * *"
     image:
-      repository: "vlabresearch/source-typeform"
+      repository: "ghcr.io/vlab-research/source-typeform"
       tag: "latest"
       pullPolicy: Always
     env:
@@ -71,7 +71,7 @@ cronjobs:
   - name: source-fly
     schedule: "10 * * * *"
     image:
-      repository: "vlabresearch/source-fly"
+      repository: "ghcr.io/vlab-research/source-fly"
       tag: "latest"
       pullPolicy: Always
     env:
@@ -82,7 +82,7 @@ cronjobs:
   - name: source-alchemer
     schedule: "10 * * * *"
     image:
-      repository: "vlabresearch/source-alchemer"
+      repository: "ghcr.io/vlab-research/source-alchemer"
       tag: "latest"
       pullPolicy: Always
     env:
@@ -93,7 +93,7 @@ cronjobs:
   - name: source-qualtrics
     schedule: "20 * * * *"
     image:
-      repository: "vlabresearch/source-qualtrics"
+      repository: "ghcr.io/vlab-research/source-qualtrics"
       tag: "latest"
       pullPolicy: Always
     env:
@@ -106,13 +106,13 @@ cronjobs:
   - name: swoosh
     schedule: "30 * * * *"
     image:
-      repository: "vlabresearch/swoosh"
-      tag: "v0.1.2"
+      repository: "ghcr.io/vlab-research/swoosh"
+      tag: "v0.1.5"
       pullPolicy: Always
   - name: adopt-ads
     schedule: "30 */2 * * *"
     image:
-      repository: "vlabresearch/adopt"
+      repository: "ghcr.io/vlab-research/adopt"
       tag: *vadopt
       pullPolicy: Always
     args:
@@ -121,7 +121,7 @@ cronjobs:
   - name: adopt-recruitment-data
     schedule: "10 */4 * * *"
     image:
-      repository: "vlabresearch/adopt"
+      repository: "ghcr.io/vlab-research/adopt"
       tag: *vadopt
       pullPolicy: Always
     args:
@@ -130,12 +130,24 @@ cronjobs:
   - name: adopt-audience
     schedule: "50 */4 * * *"
     image:
-      repository: "vlabresearch/adopt"
+      repository: "ghcr.io/vlab-research/adopt"
       tag: *vadopt
       pullPolicy: Always
     args:
       - python
       - malaria_audience.py
+  - name: adopt-heal-reports
+    schedule: "0 5 * * *"
+    image:
+      repository: "ghcr.io/vlab-research/adopt"
+      tag: *vadopt
+      pullPolicy: Always
+    args:
+      - python
+      - heal_reports.py
+    env:
+      - name: REPORT_HEALING_DAYS_BACK
+        value: "90"
 
 
 

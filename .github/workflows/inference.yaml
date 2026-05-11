@@ -1,79 +1,32 @@
-name: Connectors
+name: inference
+
 on:
-  push: 
-    # We should always build and test on main
-    # in order to validate that no changes outside of the
-    # inference/ folder affect the build
-    branches:
-    - main
-    tags:
-    - 'connector-*'
   pull_request:
     paths:
-     - "inference/**"
+      - 'inference/**'
+      - '.github/workflows/inference.yaml'
+  push:
+    branches: [main]
+    paths:
+      - 'inference/**'
+      - '.github/workflows/inference.yaml'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  # Runs test for the inference connectors
-  test:
-    name: Tests
-    runs-on: ubuntu-20.04
+  tests:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: inference
     env:
       PG_URL: postgres://root@localhost:5433/test
     steps:
-      - name: Checkout Code
-        uses: actions/checkout@v3
-      - name: Setup Golang
-        uses: actions/setup-go@v3
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v4
         with:
           go-version: '^1.18'
-      - name: Setup Database
-        run: make test-db
-        working-directory: ./inference
-      - name: Run Tests
-        run: make test
-        working-directory: ./inference
-  # Builds the Inference Containers
-  build:
-    strategy:
-      matrix:
-        connector: ['fly', 'typeform', 'alchemer']
-    runs-on: ubuntu-latest
-    name: Build Image
-    needs:
-      - test
-    steps:
-      - uses: actions/checkout@v3
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v2
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
-      - name: Login to registry
-        uses: docker/login-action@v2
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_PASSWORD }}
-      - name: Set docker tags
-        id: meta
-        uses: docker/metadata-action@v4.1.1
-        env:
-          DOCKER_METADATA_PR_HEAD_SHA: true
-        with:
-          images: vlabresearch/${{matrix.connector}}
-          tags: |
-            type=sha,format=long,prefix=,priority=200
-            type=raw,value=latest,enable=${{ startsWith(github.ref, 'refs/tags/connectors') }},priority=100
-      - name: Build and push
-        uses: docker/build-push-action@v4
-        with:
-          file: inference/Dockerfile
-          context: inference/
-          # We only push to docker on tag with `connectors-x.x.x`
-          push: ${{ startsWith(github.ref, 'refs/tags/connectors') }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-          tags: ${{ steps.meta.outputs.tags }}
-          build-args: APP_PATH=sources/${{ matrix.connector}}
+      - run: make test-db
+      - run: make test

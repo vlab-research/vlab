@@ -22,7 +22,7 @@ services:
   - name: dashboard
     replicaCount: 1
     image:
-      repository: vlabresearch/vlab-dashboard-api
+      repository: ghcr.io/vlab-research/vlab-dashboard-api
       tag: latest
       pullPolicy: Always
     resources: {}
@@ -38,7 +38,7 @@ services:
   - name: conf-dashboard
     replicaCount: 1
     image:
-      repository: vlabresearch/adopt
+      repository: ghcr.io/vlab-research/adopt
       tag: *vadopt
       pullPolicy: Always
     resources: {}
@@ -57,7 +57,7 @@ cronjobs:
   - name: source-fly
     schedule: "10 * * * *"
     image:
-      repository: "vlabresearch/source-fly"
+      repository: "ghcr.io/vlab-research/source-fly"
       tag: "latest"
       pullPolicy: Always
     env:
@@ -68,7 +68,7 @@ cronjobs:
   - name: source-alchemer
     schedule: "10 * * * *"
     image:
-      repository: "vlabresearch/source-alchemer"
+      repository: "ghcr.io/vlab-research/source-alchemer"
       tag: "latest"
       pullPolicy: Always
     env:
@@ -79,7 +79,7 @@ cronjobs:
   - name: source-qualtrics
     schedule: "20 * * * *"
     image:
-      repository: "vlabresearch/source-qualtrics"
+      repository: "ghcr.io/vlab-research/source-qualtrics"
       tag: "latest"
       pullPolicy: Always
     env:
@@ -92,13 +92,13 @@ cronjobs:
   - name: swoosh
     schedule: "30 * * * *"
     image:
-      repository: "vlabresearch/swoosh"
+      repository: "ghcr.io/vlab-research/swoosh"
       tag: "latest"
       pullPolicy: Always
   - name: adopt-ads
     schedule: "30 */4 * * *"
     image:
-      repository: "vlabresearch/adopt"
+      repository: "ghcr.io/vlab-research/adopt"
       tag: *vadopt
       pullPolicy: Always
     args:
@@ -107,7 +107,7 @@ cronjobs:
   - name: adopt-recruitment-data
     schedule: "10 */4 * * *"
     image:
-      repository: "vlabresearch/adopt"
+      repository: "ghcr.io/vlab-research/adopt"
       tag: *vadopt
       pullPolicy: Always
     args:
@@ -116,7 +116,7 @@ cronjobs:
   - name: adopt-audience
     schedule: "50 */4 * * *"
     image:
-      repository: "vlabresearch/adopt"
+      repository: "ghcr.io/vlab-research/adopt"
       tag: *vadopt
       pullPolicy: Always
     args:

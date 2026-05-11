@@ -1,8 +1,15 @@
-name: Adopt
+name: adopt
+
 on:
-  push:
+  pull_request:
     paths:
-      - "adopt/**"
+      - 'adopt/**'
+      - '.github/workflows/adopt.yaml'
+  push:
+    branches: [main]
+    paths:
+      - 'adopt/**'
+      - '.github/workflows/adopt.yaml'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -10,20 +17,16 @@ concurrency:
 
 jobs:
   tests:
-    name: Tests
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: adopt
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
       - uses: actions/setup-python@v4
         with:
-          python-version: '3.9' 
+          python-version: '3.9'
       - uses: Gr1N/setup-poetry@v8
-      - name: Setup Database
-        run: make test-db
-        working-directory: ./adopt
-      - name: Setup Dependencies
-        run: poetry install
-        working-directory: ./adopt
-      - name: Tests
-        run:  make test
-        working-directory: ./adopt
+      - run: make test-db
+      - run: poetry install
+      - run: make test
