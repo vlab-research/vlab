@@ -9,14 +9,27 @@ from .budget import (
     add_incentive,
     calc_price,
     estimate_price,
+    estimate_variance,
     get_budget_lookup,
     get_stats,
     make_report,
     prep_df_for_budget,
     proportional_budget,
+    proportional_opt,
+    proportional_opt_closed_form,
     calculate_strata_stats,
     _users_per_cluster,
 )
+
+
+# Parametrize w=1.0 tests across both optimizers. With n0=1, L-BFGS-B and
+# closed-form solve the same problem and must produce equivalent allocations.
+# w<1.0 tests stay L-BFGS-B-only — closed form raises NotImplementedError for
+# blended objectives until Step 3 lands.
+@pytest.fixture(params=[proportional_opt, proportional_opt_closed_form],
+                ids=["lbfgs", "closed_form"])
+def optimizer(request):
+    return request.param
 from .facebook.date_range import DateRange
 from .test_clustering import DATE, _format_df, cnf, conf, df
 from .campaign_queries import DBConf
@@ -145,12 +158,12 @@ def test_calc_price_with_none_df():
     }  # Price increases with spend, 2.0 for zero spend
 
 
-def test_proportional_budget_optimizes_all_budget():
+def test_proportional_budget_optimizes_all_budget(optimizer):
     spend = {"bar": 10.0, "baz": 10.0, "foo": 0.0}
     tot = {"bar": 1, "baz": 1, "foo": 0}
     price = {"bar": 10.0, "baz": 10.0, "foo": 10.0}
     goal = {"foo": 1 / 3, "bar": 1 / 3, "baz": 1 / 3}
-    budget, expected, counterfactual_spend, counterfactual_recruits = proportional_budget(goal, spend, tot, price, 100, None, 1.0)
+    budget, expected, counterfactual_spend, counterfactual_recruits = proportional_budget(goal, spend, tot, price, 100, None, 1.0, optimizer=optimizer)
     assert round(budget["foo"]) == 40
     assert round(budget["bar"]) == 30
     assert round(budget["baz"]) == 30
@@ -162,79 +175,79 @@ def test_proportional_budget_optimizes_all_budget():
     assert counterfactual_recruits is None
 
 
-def test_proportional_budget_optimizes_for_weights():
+def test_proportional_budget_optimizes_for_weights(optimizer):
     spend = {"bar": 10.0, "baz": 10.0, "foo": 10.0}
     tot = {"bar": 1, "baz": 1, "foo": 1}
     price = {"bar": 10.0, "baz": 10.0, "foo": 10.0}
     goal = {"foo": 0.3, "bar": 0.2, "baz": 0.5}
-    budget, expected, _, _ = proportional_budget(goal, spend, tot, price, 10000, None, 1.0)
+    budget, expected, _, _ = proportional_budget(goal, spend, tot, price, 10000, None, 1.0, optimizer=optimizer)
 
     assert round(expected["foo"]) == 301
     assert round(expected["bar"]) == 200
     assert round(expected["baz"]) == 502
 
 
-def test_proportional_budget_drops_strata_under_min_to_min_budget():
+def test_proportional_budget_drops_strata_under_min_to_min_budget(optimizer):
     spend = {"bar": 10.0, "baz": 10.0, "foo": 0.0}
     tot = {"bar": 1, "baz": 1, "foo": 0}
     price = {"bar": 10.0, "baz": 10.0, "foo": 10.0}
     goal = {"foo": 1 / 3, "bar": 1 / 3, "baz": 1 / 3}
-    budget, _, _, _ = proportional_budget(goal, spend, tot, price, 100, None, 1.0)
+    budget, _, _, _ = proportional_budget(goal, spend, tot, price, 100, None, 1.0, optimizer=optimizer)
     assert round(budget["foo"]) == 40
     assert round(budget["bar"]) == 30
     assert round(budget["baz"]) == 30
 
 
-def test_proportional_budget_can_drop_to_zero_budget():
+def test_proportional_budget_can_drop_to_zero_budget(optimizer):
     spend = {"bar": 10.0, "baz": 10.0, "foo": 0.0}
     tot = {"bar": 10, "baz": 1, "foo": 0}
     price = {"bar": 10.0, "baz": 10.0, "foo": 10.0}
     goal = {"foo": 1 / 3, "bar": 1 / 3, "baz": 1 / 3}
-    budget, _, _, _ = proportional_budget(goal, spend, tot, price, 100, None, 1.0)
+    budget, _, _, _ = proportional_budget(goal, spend, tot, price, 100, None, 1.0, optimizer=optimizer)
     assert round(budget["foo"]) == 55
     assert round(budget["bar"]) == 0
     assert round(budget["baz"]) == 45
 
 
-def test_proportional_budget_prioritizes_underperforming_when_its_obvious():
+def test_proportional_budget_prioritizes_underperforming_when_its_obvious(optimizer):
     spend = {"bar": 100.0, "baz": 100.0, "foo": 100.0}
     tot = {"bar": 5, "baz": 5, "foo": 2}
     price = {"bar": 20.0, "baz": 20.0, "foo": 50.0}
     goal = {"foo": 1 / 3, "bar": 1 / 3, "baz": 1 / 3}
-    budget, _, _, _ = proportional_budget(goal, spend, tot, price, 100, None, 1.0)
+    budget, _, _, _ = proportional_budget(goal, spend, tot, price, 100, None, 1.0, optimizer=optimizer)
     assert round(budget["foo"]) == 66
     assert round(budget["bar"]) == 17
     assert round(budget["baz"]) == 17
 
 
-def test_proportional_budget_prioritizes_underperforming_even_at_high_cost():
+def test_proportional_budget_prioritizes_underperforming_even_at_high_cost(optimizer):
     spend = {"bar": 100.0, "baz": 100.0, "foo": 100.0}
     tot = {"bar": 20, "baz": 10, "foo": 2}
     price = {"bar": 5.0, "baz": 20.0, "foo": 50.0}
     goal = {"foo": 1 / 3, "bar": 1 / 3, "baz": 1 / 3}
-    budget, _, _, _ = proportional_budget(goal, spend, tot, price, 100, None, 1.0)
+    budget, _, _, _ = proportional_budget(goal, spend, tot, price, 100, None, 1.0, optimizer=optimizer)
     assert budget["foo"] == 100
     assert budget["bar"] == 0
     assert budget["baz"] == 0
 
 
-def test_proportional_budget_works_to_turn_off_super_underperforming_and_unimportant():
+def test_proportional_budget_works_to_turn_off_super_underperforming_and_unimportant(optimizer):
     spend = {"bar": 100.0, "baz": 100.0, "foo": 100.0}
     tot = {"bar": 20, "baz": 20, "foo": 0}
     price = {"bar": 5.0, "baz": 5.0, "foo": 500.0}
     goal = {"foo": 1 / 10, "bar": 4 / 10, "baz": 5 / 10}
-    budget, _, _, _ = proportional_budget(goal, spend, tot, price, 100, None, 1.0)
+    budget, _, _, _ = proportional_budget(goal, spend, tot, price, 100, None, 1.0, optimizer=optimizer)
     assert budget["foo"] == 0
     assert round(budget["bar"]) == 33
     assert round(budget["baz"]) == 67
 
 
-def test_proportional_budget_optimizes_even_if_already_pretty_good():
+def test_proportional_budget_optimizes_even_if_already_pretty_good(optimizer):
     spend = {"bar": 100.0, "baz": 100.0, "foo": 100.0}
     tot = {"bar": 3333, "baz": 3333, "foo": 3000}
     price = {"bar": 20.0, "baz": 20.0, "foo": 20.0}
     goal = {"foo": 1 / 3, "bar": 1 / 3, "baz": 1 / 3}
-    budget, _, _, _ = proportional_budget(goal, spend, tot, price, 1000, None, 1.0)
+    budget, _, _, _ = proportional_budget(goal, spend, tot, price, 1000, None, 1.0, optimizer=optimizer)
     assert budget["foo"] == 1000
     assert budget["bar"] == 0
     assert budget["baz"] == 0
@@ -249,7 +262,7 @@ def test_proportional_budget_raises_exception_when_not_near_one():
         proportional_budget(goal, spend, tot, price, 100, 16, 1.0)
 
 
-def test_proportional_budget_with_max_recuits_optimizes_for_weights():
+def test_proportional_budget_with_max_recuits_optimizes_for_weights(optimizer):
     spend = {"bar": 10.0, "baz": 10.0, "foo": 10.0}
     tot = {"bar": 1, "baz": 1, "foo": 1}
     price = {"bar": 10.0, "baz": 10.0, "foo": 10.0}
@@ -257,14 +270,14 @@ def test_proportional_budget_with_max_recuits_optimizes_for_weights():
 
     budget, expected, _, _ = proportional_budget(
         goal, spend, tot, price, budget=None, max_recruits=100, efficiency_weight=1.0
-    )
+    , optimizer=optimizer)
 
     assert round(expected["foo"]) == 30
     assert round(expected["bar"]) == 50
     assert round(expected["baz"]) == 20
 
 
-def test_proportional_budget_with_max_recruits_spends_on_missing_section():
+def test_proportional_budget_with_max_recruits_spends_on_missing_section(optimizer):
     spend = {"bar": 100.0, "baz": 100.0, "foo": 100.0}
     tot = {"bar": 5, "baz": 5, "foo": 2}
     price = {"bar": 20.0, "baz": 20.0, "foo": 50.0}
@@ -272,27 +285,27 @@ def test_proportional_budget_with_max_recruits_spends_on_missing_section():
 
     budget, _, _, _ = proportional_budget(
         goal, spend, tot, price, budget=None, max_recruits=15, efficiency_weight=1.0
-    )
+    , optimizer=optimizer)
     assert round(budget["foo"]) == 150
     assert round(budget["bar"]) == 0
     assert round(budget["baz"]) == 0
 
 
-def test_proportional_budget_with_max_recruits_can_turn_off_empty_groups_without_zero_divide_errors():
+def test_proportional_budget_with_max_recruits_can_turn_off_empty_groups_without_zero_divide_errors(optimizer):
     spend = {"bar": 100.0, "baz": 100.0, "foo": 100.0}
     tot = {"bar": 25, "baz": 25, "foo": 0}
     price = {"bar": 20.0, "baz": 20.0, "foo": 200.0}
     goal = {"foo": 1 / 100, "bar": 39 / 100, "baz": 60 / 100}
 
     budget, _, _, _ = proportional_budget(
-        goal, spend, tot, price, budget=None, max_recruits=60, efficiency_weight=1.0
+        goal, spend, tot, price, budget=None, max_recruits=60, efficiency_weight=1.0, optimizer=optimizer
     )
     assert round(budget["foo"]) == 0
     assert round(budget["bar"]) == 0
     assert round(budget["baz"]) == 200
 
 
-def test_proportional_budget_with_max_recruits_evenly_recruits_with_dif_prices():
+def test_proportional_budget_with_max_recruits_evenly_recruits_with_dif_prices(optimizer):
     spend = {"bar": 100.0, "baz": 100.0, "foo": 100.0}
     tot = {"bar": 5, "baz": 5, "foo": 5}
     price = {"bar": 20.0, "baz": 40.0, "foo": 50.0}
@@ -300,13 +313,13 @@ def test_proportional_budget_with_max_recruits_evenly_recruits_with_dif_prices()
 
     budget, _, _, _ = proportional_budget(
         goal, spend, tot, price, budget=None, max_recruits=30, efficiency_weight=1.0
-    )
+    , optimizer=optimizer)
     assert round(budget["foo"]) == 250
     assert round(budget["bar"]) == 100
     assert round(budget["baz"]) == 200
 
 
-def test_proportional_budget_with_both_budget_and_max_recruits_picks_constraint():
+def test_proportional_budget_with_both_budget_and_max_recruits_picks_constraint(optimizer):
     spend = {"bar": 100.0, "baz": 100.0, "foo": 100.0}
     tot = {"bar": 5, "baz": 5, "foo": 5}
     price = {"bar": 20.0, "baz": 20.0, "foo": 20.0}
@@ -314,13 +327,13 @@ def test_proportional_budget_with_both_budget_and_max_recruits_picks_constraint(
 
     budget, expected, _, _ = proportional_budget(
         goal, spend, tot, price, budget=100, max_recruits=30, efficiency_weight=1.0
-    )
+    , optimizer=optimizer)
     assert round(sum(expected.values())) == 20
     assert round(sum(budget.values())) == 100
 
     budget, expected, _, _ = proportional_budget(
         goal, spend, tot, price, budget=500, max_recruits=30, efficiency_weight=1.0
-    )
+    , optimizer=optimizer)
     assert round(sum(expected.values())) == 30
     assert round(sum(budget.values())) == 300
 
@@ -343,7 +356,7 @@ def test_proportional_budget_with_efficiency_weight_zero_allocates_all_to_cheape
     assert budget["baz"] / sum(budget.values()) > 0.8
 
 
-def test_proportional_budget_with_efficiency_weight_one_matches_current_behavior():
+def test_proportional_budget_with_efficiency_weight_one_matches_current_behavior(optimizer):
     """Test that efficiency_weight=1.0 matches the original behavior (pure variance optimization)."""
     spend = {"bar": 100.0, "baz": 100.0, "foo": 100.0}
     tot = {"bar": 20, "baz": 10, "foo": 2}
@@ -353,7 +366,7 @@ def test_proportional_budget_with_efficiency_weight_one_matches_current_behavior
     # Test with efficiency_weight=1.0 (pure variance optimization)
     budget, expected, _, _ = proportional_budget(
         goal, spend, tot, price, 100, None, 1.0
-    )
+    , optimizer=optimizer)
 
     # Original test expectations (from test_proportional_budget_prioritizes_underperforming_even_at_high_cost)
     # With pure variance optimization, all budget goes to underperforming foo despite high cost
@@ -391,7 +404,7 @@ def test_proportional_budget_with_efficiency_weight_half_balances():
     assert budget_balanced["bar"] > 0  # Some to cheap bar (efficiency consideration)
 
 
-def test_efficiency_weight_one_gives_variance_optimization():
+def test_efficiency_weight_one_gives_variance_optimization(optimizer):
     """Test that efficiency_weight=1.0 gives pure variance optimization."""
     spend = {"bar": 100.0, "baz": 100.0, "foo": 100.0}
     tot = {"bar": 3333, "baz": 3333, "foo": 3000}
@@ -401,7 +414,7 @@ def test_efficiency_weight_one_gives_variance_optimization():
     # Call with explicit efficiency_weight=1.0
     budget, expected, _, _ = proportional_budget(
         goal, spend, tot, price, 1000, None, 1.0
-    )
+    , optimizer=optimizer)
 
     # With pure variance optimization, all budget goes to underperforming foo
     assert budget["foo"] == 1000
@@ -455,30 +468,6 @@ def test_get_budget_lookup_works_with_missing_data_from_clusters():
         "bar": 0.7,
         "baz": 4.6,
     }
-
-
-def test_make_report():
-    r = make_report(
-        [("goal", {"foo": 100, "bar": 10}), ("remain", {"foo": 90, "bar": 0})]
-    )
-
-    assert r["foo"] == {"goal": 100, "remain": 90}
-    assert r["bar"] == {"goal": 10, "remain": 0}
-    assert r["foo"] == {"goal": 100, "remain": 90}
-    assert r["bar"] == {"goal": 10, "remain": 0}
-    assert r["foo"] == {"goal": 100, "remain": 90}
-    assert r["bar"] == {"goal": 10, "remain": 0}
-
-
-def test_add_incentive():
-    spend = {"bar": 100.0, "baz": 100.0, "foo": 100.0}
-    tot = {"bar": 5, "baz": 2, "foo": 0}
-
-    res = add_incentive(spend, tot, 10)
-    assert res == {"bar": 150.0, "baz": 120.0, "foo": 100.0}
-
-    res = add_incentive(spend, tot, 0)
-    assert res == spend
 
 
 def test_get_budget_lookup_includes_incentive_in_total_spend(cnf, df):
@@ -563,10 +552,6 @@ def test_make_report():
         [("goal", {"foo": 100, "bar": 10}), ("remain", {"foo": 90, "bar": 0})]
     )
 
-    assert r["foo"] == {"goal": 100, "remain": 90}
-    assert r["bar"] == {"goal": 10, "remain": 0}
-    assert r["foo"] == {"goal": 100, "remain": 90}
-    assert r["bar"] == {"goal": 10, "remain": 0}
     assert r["foo"] == {"goal": 100, "remain": 90}
     assert r["bar"] == {"goal": 10, "remain": 0}
 
@@ -819,7 +804,7 @@ def test_calculate_strata_stats_zero_values(cnf, df):
     assert stats["baz"].conversion_rate == 0.0
 
 
-def test_proportional_budget_with_both_constraints_shows_counterfactual_spend():
+def test_proportional_budget_with_both_constraints_shows_counterfactual_spend(optimizer):
     """Test that when budget constraint binds, counterfactual_spend is returned."""
     # Using parameters that DEFINITELY make budget bind:
     # budget=100, max_recruits=30 (from existing test at line 312-319)
@@ -830,7 +815,7 @@ def test_proportional_budget_with_both_constraints_shows_counterfactual_spend():
 
     budget, expected, counterfactual_spend, counterfactual_recruits = proportional_budget(
         goal, spend, tot, price, budget=100, max_recruits=30, efficiency_weight=1.0
-    )
+    , optimizer=optimizer)
 
     # When budget binds, counterfactual_spend shows cost to fill sample without budget constraint
     assert sum(budget.values()) == pytest.approx(100), "Budget constraint should bind with these parameters"
@@ -840,7 +825,7 @@ def test_proportional_budget_with_both_constraints_shows_counterfactual_spend():
     assert sum(counterfactual_spend.values()) > 100
 
 
-def test_proportional_budget_with_both_constraints_shows_counterfactual_recruits():
+def test_proportional_budget_with_both_constraints_shows_counterfactual_recruits(optimizer):
     """Test that when respondent constraint binds, counterfactual_recruits is returned."""
     # Using parameters that DEFINITELY make respondents bind:
     # budget=500, max_recruits=30 (from existing test at line 318-325)
@@ -851,7 +836,7 @@ def test_proportional_budget_with_both_constraints_shows_counterfactual_recruits
 
     budget, expected, counterfactual_spend, counterfactual_recruits = proportional_budget(
         goal, spend, tot, price, budget=500, max_recruits=30, efficiency_weight=1.0
-    )
+    , optimizer=optimizer)
 
     # When respondent constraint binds, counterfactual_recruits shows what could be achieved
     assert sum(budget.values()) < 500, "Respondent constraint should bind with these parameters"
@@ -861,7 +846,7 @@ def test_proportional_budget_with_both_constraints_shows_counterfactual_recruits
     assert sum(counterfactual_recruits.values()) >= sum(expected.values()), "counterfactual_recruits should be at least as large as actual recruits"
 
 
-def test_proportional_budget_no_counterfactual_when_only_max_recruits():
+def test_proportional_budget_no_counterfactual_when_only_max_recruits(optimizer):
     """Test that no counterfactual is returned when only max_recruits constraint is provided."""
     spend = {"bar": 100.0, "baz": 100.0, "foo": 100.0}
     tot = {"bar": 5, "baz": 5, "foo": 5}
@@ -870,8 +855,63 @@ def test_proportional_budget_no_counterfactual_when_only_max_recruits():
 
     budget, expected, cf_spend, cf_recruits = proportional_budget(
         goal, spend, tot, price, budget=None, max_recruits=30, efficiency_weight=1.0
-    )
+    , optimizer=optimizer)
 
     # No counterfactual possible without both constraints
     assert cf_spend is None
     assert cf_recruits is None
+
+
+class TestEstimateVariance:
+    """Tests for Bernoulli variance estimation under Beta prior."""
+
+    def test_estimate_variance_zero_observations_returns_prior_variance(self):
+        """Zero observations returns prior variance: a*b / ((a+b)(a+b+1))."""
+        # Jeffreys prior (0.5, 0.5)
+        var = estimate_variance(0, 0, prior=(0.5, 0.5))
+        expected = 0.5 * 0.5 / (1.0 * 2.0)  # = 0.125
+        assert abs(var - expected) < 1e-10
+
+        # Different prior
+        var = estimate_variance(0, 0, prior=(1.0, 1.0))
+        expected = 1.0 * 1.0 / (2.0 * 3.0)  # = 1/6
+        assert abs(var - expected) < 1e-10
+
+    def test_estimate_variance_converges_to_plugin_at_large_n(self):
+        """For large n, posterior mean converges to plug-in π(1-π)."""
+        # n=10000, s=4500 gives empirical frequency 0.45
+        # Plug-in variance: 0.45 * 0.55 = 0.2475
+        var = estimate_variance(10000, 4500, prior=(0.5, 0.5))
+        plug_in = 0.45 * 0.55
+        assert abs(var - plug_in) < 1e-3
+
+    def test_estimate_variance_hand_computed_small_n(self):
+        """Hand-computed: Beta(0.5, 0.5) prior, observed (n=4, s=1).
+
+        Posterior: Beta(0.5+1, 0.5+4-1) = Beta(1.5, 3.5)
+        Mean of π(1-π) = (1.5 * 3.5) / (5 * 6) = 5.25 / 30 = 0.175
+        """
+        var = estimate_variance(4, 1, prior=(0.5, 0.5))
+        expected = (1.5 * 3.5) / (5.0 * 6.0)
+        assert abs(var - expected) < 1e-10
+
+    def test_estimate_variance_symmetry(self):
+        """Symmetry with symmetric prior: estimate_variance(n, s) == estimate_variance(n, n-s)."""
+        # Symmetric prior Beta(2, 2)
+        var_s0 = estimate_variance(10, 3, prior=(2.0, 2.0))
+        var_s1 = estimate_variance(10, 7, prior=(2.0, 2.0))  # n - s = 10 - 7 = 3
+        assert abs(var_s0 - var_s1) < 1e-10
+
+    def test_estimate_variance_strictly_positive_under_jeffreys(self):
+        """Even with n=1, s=0 or s=1, variance is strictly positive under Jeffreys."""
+        # n=1, s=0: posterior Beta(0.5, 1.5)
+        # mean = 0.5*1.5 / (2 * 3) = 0.75 / 6 = 0.125
+        var_0 = estimate_variance(1, 0, prior=(0.5, 0.5))
+        assert var_0 > 0
+        assert abs(var_0 - 0.125) < 1e-10
+
+        # n=1, s=1: posterior Beta(1.5, 0.5)
+        # mean = 1.5*0.5 / (2 * 3) = 0.75 / 6 = 0.125
+        var_1 = estimate_variance(1, 1, prior=(0.5, 0.5))
+        assert var_1 > 0
+        assert abs(var_1 - 0.125) < 1e-10

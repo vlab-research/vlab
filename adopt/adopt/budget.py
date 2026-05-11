@@ -5,6 +5,7 @@ from statistics import mean
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 from datetime import datetime
 
+import cvxpy as cp
 import numpy as np
 import pandas as pd
 from scipy.optimize import minimize
@@ -84,6 +85,35 @@ def estimate_price(spend: float, found: int, prior_price: float = 2.0):
     # round to pretty price
     price = round(1 / new_lambda, 2)
     return price
+
+
+def estimate_variance(n: int, s: int, prior: tuple = (0.5, 0.5)) -> float:
+    """Posterior mean of Bernoulli variance π(1-π) under Beta(α, β) prior.
+
+    Given n trials and s successes, posterior is Beta(α + s, β + n - s). The mean of
+    π(1-π) under Beta(a, b) is a*b / ((a+b)(a+b+1)).
+
+    Default prior (0.5, 0.5) is Jeffreys, recommended in
+    paper/variance_extension.tex §5.1. Effective prior sample size is α + β; pass
+    that as n0 to proportional_opt_closed_form to keep the optimizer and estimator
+    internally consistent.
+
+    Used by Step 5 (heterogeneous-variance allocation). Not yet wired into
+    get_budget_lookup; aggregation across multiple outcomes per stratum and
+    plumbing through StudyConf are deferred to a follow-on plan.
+
+    Args:
+        n: Number of trials (int)
+        s: Number of successes (int)
+        prior: Tuple (α, β) for Beta prior (default: (0.5, 0.5) = Jeffreys)
+
+    Returns:
+        Posterior mean of Bernoulli variance π(1-π)
+    """
+    α, β = prior
+    a = α + s
+    b = β + n - s
+    return (a * b) / ((a + b) * (a + b + 1))
 
 
 def add_incentive(
@@ -167,6 +197,584 @@ def recruits_opt(S, goal, tot, price, num_recruits, efficiency_weight: float):
     # Blended loss
     loss = efficiency_weight * variance_loss + (1 - efficiency_weight) * efficiency_loss
     return loss * 100
+
+
+def proportional_opt_closed_form(
+    goal, tot, price, budget, max_recruits, efficiency_weight: float = 1.0, sigma: Optional[np.ndarray] = None, n0: float = 1
+) -> OptimizationResult:
+    """Closed-form optimizer for the variance / blended objective.
+
+    For ``efficiency_weight == 1.0`` (pure variance, Case A in
+    paper/variance_extension.tex §9): active-set algorithm with allocation rule
+    ``m_h* ∝ goal_h · sigma_h / sqrt(p_h)`` on shifted budget
+    ``B' = B + Σ p_h(tot_h + n0)``.
+
+    For ``0 < efficiency_weight < 1`` (blended, Case B): nested bisection on
+    ``(λ, S)`` evaluating ``m_h(λ, S) = goal_h · sigma_h · √w / √(λ p_h − (1−w)/S²)``
+    (Eq. (eq:blended-mh) in the math note), with the same active-set pinning of
+    lower bounds. Reduces to Case A as ``w → 1``.
+
+    ``efficiency_weight = 0`` (pure efficiency) is degenerate in closed form — the
+    optimum spends everything on the cheapest stratum, which we don't yet wire
+    here. CVXPY (``proportional_opt_cvxpy``) handles it.
+
+    n0: prior effective sample size (default 1, matching the Jeffreys prior
+        Beta(0.5, 0.5) with α + β = 1). ``m_h = tot_h + new_recruits_h + n0`` is the
+        total effective sample size (data + prior). When the caller fills `sigma`
+        from `estimate_variance(n, s, prior=(α, β))`, pass ``n0 = α + β`` from the
+        same prior to keep the optimizer and estimator internally consistent.
+
+    Args:
+        goal: Target allocation proportions (numpy array)
+        tot: Current respondent counts per stratum (numpy array)
+        price: Cost per respondent per stratum (numpy array)
+        budget: Maximum budget available (float or None)
+        max_recruits: Maximum total respondents wanted (int or None)
+        efficiency_weight: Weight in [0, 1] (1.0=pure variance, <1=blended)
+        sigma: Per-stratum variance (default: ones for equal variance)
+        n0: Prior effective sample size (default 1 = Jeffreys prior)
+
+    Returns:
+        OptimizationResult with new_spend, expected_recruits, and counterfactuals
+    """
+    if budget is None and max_recruits is None:
+        raise Exception("Need either a max budget or max_recruits to optimize")
+
+    if not (0.0 < efficiency_weight <= 1.0):
+        # w = 0 collapses to "spend everything on the cheapest stratum", which
+        # the closed form doesn't represent (A_h = goal·sigma·√w = 0 → degenerate).
+        # Use proportional_opt_cvxpy for w = 0.
+        raise NotImplementedError(
+            "proportional_opt_closed_form requires efficiency_weight ∈ (0, 1]; "
+            f"got {efficiency_weight}. Use proportional_opt_cvxpy for w = 0."
+        )
+
+    if sigma is None:
+        sigma = np.ones(len(goal))
+
+    H = len(goal)
+
+    # Budget-binding case
+    if budget is not None:
+        # Compute shifted budget B' = B + sum(p_h * (tot_h + n0))
+        B_prime = budget + np.sum(price * (tot + n0))
+
+        if efficiency_weight >= 1.0:
+            # Pure variance: closed-form active-set allocation
+            m_opt = _active_set_allocate(goal, sigma, price, tot, B_prime, n0=n0)
+        else:
+            # Blended: nested bisection on (λ, S); same active-set pinning
+            m_opt = _blended_bisection_budget(
+                goal, sigma, price, tot, B_prime, n0, efficiency_weight,
+            )
+
+        # expected_recruits_h = m_h* - n0 (prior + data back to data only)
+        expected_recruits = m_opt - n0
+        new_recruits = np.maximum(0, expected_recruits - tot)
+        new_spend = new_recruits * price
+        budget_solution = (new_spend, expected_recruits)
+
+    if max_recruits is None:
+        # Only budget constraint - no counterfactuals
+        return OptimizationResult(
+            new_spend=budget_solution[0],
+            expected_recruits=budget_solution[1],
+            counterfactual_spend=None,
+            counterfactual_recruits=None,
+        )
+
+    # Cap-binding case: allocate new_recruits to reach max_recruits
+    num_recruits = max_recruits - tot.sum()
+
+    # For recruits binding, if we already exceed max_recruits, don't allocate more
+    if num_recruits <= 0:
+        new_recruits = np.zeros_like(tot, dtype=float)
+        new_spend = np.zeros_like(price, dtype=float)
+        expected_recruits = tot.copy().astype(float)
+        recruit_solution = (new_spend, expected_recruits)
+    else:
+        # Recruits-binding: m_h* ∝ goal_h * sigma_h, sum(m_h) = max_recruits + H*n0.
+        # Active-set iteration pins strata where m_h* < tot_h + n0 at their lower
+        # bound and redistributes the surplus across remaining active strata.
+        M_prime = max_recruits + H * n0
+        m_recruit_opt = _active_set_allocate_recruits(goal, sigma, tot, M_prime, n0=n0)
+
+        expected_recruits = m_recruit_opt - n0
+        new_recruits = np.maximum(0, expected_recruits - tot)
+        new_spend = new_recruits * price
+        recruit_solution = (new_spend, expected_recruits)
+
+    if budget is None:
+        # Only respondents constraint - no counterfactuals
+        return OptimizationResult(
+            new_spend=recruit_solution[0],
+            expected_recruits=recruit_solution[1],
+            counterfactual_spend=None,
+            counterfactual_recruits=None,
+        )
+
+    # Both constraints present - determine which binds
+    if new_spend.sum() > budget:
+        # Budget constraint binds - include counterfactual cost to fill sample
+        return OptimizationResult(
+            new_spend=budget_solution[0],
+            expected_recruits=budget_solution[1],
+            counterfactual_spend=recruit_solution[0],  # Cost without budget constraint
+            counterfactual_recruits=None,
+        )
+    else:
+        # Respondents constraint binds - include counterfactual recruits with unlimited budget
+        return OptimizationResult(
+            new_spend=recruit_solution[0],
+            expected_recruits=recruit_solution[1],
+            counterfactual_spend=None,
+            counterfactual_recruits=budget_solution[1],  # Recruits without respondent constraint
+        )
+
+
+def _active_set_allocate(goal: np.ndarray, sigma: np.ndarray, price: np.ndarray,
+                         tot: np.ndarray, B_prime: float, n0: float = 1) -> np.ndarray:
+    """Active-set algorithm for closed-form budget allocation.
+
+    Iteratively pins strata whose unconstrained allocation m_h* < tot_h + n0 at the lower bound,
+    and recomputes the allocation on the remaining free strata.
+
+    Args:
+        goal: Target allocation proportions
+        sigma: Per-stratum variance
+        price: Cost per recruit per stratum
+        tot: Current recruit counts
+        B_prime: Shifted budget B' = B + sum(p_h * (tot_h + n0))
+        n0: Prior effective sample size (default 1)
+
+    Returns:
+        Optimal allocation m_h* for all strata (includes n0 component)
+    """
+    H = len(goal)
+    active = np.arange(H)  # Initially all strata active
+    lower_bound = tot + n0  # m_h >= tot_h + n0
+    m = lower_bound.copy().astype(float)
+
+    for iteration in range(H):
+        # Compute the weights for the unconstrained allocation
+        # m_h* ∝ goal_h * sigma_h / sqrt(p_h) (per math note Sec 9 Case A)
+        active_idx = active
+        if len(active_idx) == 0:
+            break
+
+        # BUG FIX: weight is goal_h, not goal_h^2. The unconstrained optimum
+        # allocation for the pure-variance problem is m_h* ∝ goal_h * sigma_h / sqrt(p_h),
+        # not (goal_h^2 * sigma_h / sqrt(p_h)). Using goal_h^2 caused massive over-pinning
+        # of strata at their lower bounds, violating KKT stationarity.
+        W = goal[active_idx]  # FIX: was goal[active_idx] ** 2
+        sigma_a = sigma[active_idx]
+        price_a = price[active_idx]
+
+        # Allocation on active strata: m_h ∝ goal_h * sigma_h / sqrt(p_h)
+        weights = W * sigma_a / np.sqrt(price_a)
+
+        # Normalize so sum(price_h * m_h) = B_prime for active strata
+        # sum(price_h * weights_h * scale) = B_prime
+        # scale = B_prime / sum(price_h * weights_h)
+        total_price_weight = np.sum(price_a * weights)
+        if total_price_weight <= 0:
+            # Degenerate case: use uniform allocation
+            scale = B_prime / np.sum(price_a)
+            m_active = np.full(len(active_idx), scale)
+        else:
+            scale = B_prime / total_price_weight
+            m_active = weights * scale
+
+        # Update allocation for active strata
+        m[active_idx] = m_active
+
+        # Pin any stratum that hit its lower bound
+        pinned = m_active < lower_bound[active_idx]
+        if not np.any(pinned):
+            # No more strata to pin; converged
+            break
+
+        # Remove pinned strata from active set and adjust budget
+        pinned_idx = active_idx[pinned]
+        active = np.setdiff1d(active, pinned_idx)
+
+        # Recompute B_prime by subtracting the cost of pinned strata
+        B_prime = B_prime - np.sum(price[pinned_idx] * lower_bound[pinned_idx])
+        m[pinned_idx] = lower_bound[pinned_idx]
+
+    return m
+
+
+def _blended_bisection_budget(
+    goal: np.ndarray,
+    sigma: np.ndarray,
+    price: np.ndarray,
+    tot: np.ndarray,
+    B_prime: float,
+    n0: float,
+    efficiency_weight: float,
+    tol: float = 1e-12,
+    max_outer_iters: int = 200,
+    max_inner_iters: int = 200,
+) -> np.ndarray:
+    """Closed-form blended-objective allocator (Case B in variance_extension.tex §9).
+
+    Solves, for ``w := efficiency_weight ∈ (0, 1)``:
+
+        minimize    w · Σ_h (goal_h · sigma_h)² / m_h  +  (1 − w) / Σ_h m_h
+        subject to  p^T m = B'
+                    m_h ≥ tot_h + n0
+
+    KKT stationarity on unpinned strata gives Eq. (eq:blended-mh):
+
+        m_h(λ, S) = A_h / √(λ p_h − T(S)),
+
+    where ``A_h := goal_h · sigma_h · √w`` and ``T(S) := (1 − w) / S²``. Two
+    unknowns (λ, S) determined by the budget constraint and the self-consistency
+    Σ_h m_h = S. We use nested bisection:
+
+        outer:   bisect S so that  Σ_h m_h(λ(S), S) − S = 0
+        inner:   for each S, bisect λ so that p^T m(λ, S) = B'
+
+    A stratum is treated as pinned at the lower bound ``LB_h = tot_h + n0`` if
+    either (a) ``A_h = 0`` (goal_h or sigma_h is 0) or (b) the unpinned formula
+    would give ``m_h < LB_h``.
+
+    ``A_h / √(λ p_h − T)`` is well-defined only when ``λ p_h > T``; otherwise the
+    KKT relation cannot be satisfied with m_h > LB_h, so we pin those strata.
+
+    Args:
+        goal: target proportions
+        sigma: per-stratum variance
+        price: per-stratum cost per recruit
+        tot: current recruits per stratum
+        B_prime: shifted budget B + p^T(tot + n0)
+        n0: prior effective sample size
+        efficiency_weight: w in (0, 1) — pure variance handled separately
+
+    Returns:
+        Optimal m (effective sample sizes, m_h ≥ tot_h + n0). Caller computes
+        expected_recruits = m - n0 and new_spend = (expected_recruits - tot) · price.
+    """
+    H = len(goal)
+    w = float(efficiency_weight)
+    LB = (tot + n0).astype(float)
+    A = goal * sigma * np.sqrt(w)
+    one_minus_w = 1.0 - w
+
+    p_min = float(price.min())
+    LB_sum = float(LB.sum())
+    p_dot_LB = float(np.dot(price, LB))
+    surplus = B_prime - p_dot_LB  # >= 0 by construction (B >= 0)
+
+    def m_of(lam: float, S: float) -> np.ndarray:
+        T = one_minus_w / (S * S)
+        denom = lam * price - T
+        # safe formula: only where A_h > 0 and denom > 0; pinned otherwise
+        with np.errstate(invalid="ignore", divide="ignore"):
+            unpinned = (A > 0) & (denom > 0)
+            m_unpinned = np.where(unpinned, A / np.sqrt(np.where(denom > 0, denom, 1.0)), 0.0)
+            m = np.where(unpinned, np.maximum(LB, m_unpinned), LB)
+        return m
+
+    def budget_resid(lam: float, S: float) -> float:
+        return float(np.dot(price, m_of(lam, S))) - B_prime
+
+    def inner_lambda(S: float) -> float:
+        """Find λ s.t. p^T m(λ, S) = B'. Residual is decreasing in λ.
+
+        Parameterize the lower bracket via the slack of the cheapest stratum:
+        ``s := λ p_min − T``. For any s > 0, the cheapest stratum is unpinned
+        with ``m_cheap = A_cheap / √s`` — as s → 0+, m_cheap → ∞ and the
+        residual → +∞. So we find a small enough s > 0 that resid > 0, then
+        bisect.
+        """
+        T = one_minus_w / (S * S)
+        # If A is all zero (degenerate; goal·sigma all zero), no unpinned mass
+        # ever — any λ gives m == LB.
+        if not np.any(A > 0):
+            return 1.0
+
+        # Upper bracket: large enough λ that all unpinned m_h fall to LB, so
+        # spend → p^T LB = B' − B ≤ B' → resid ≤ 0.
+        lam_hi = max(T / p_min + 1.0, 1.0)
+        for _ in range(200):
+            if budget_resid(lam_hi, S) <= 0:
+                break
+            lam_hi *= 2.0
+
+        # Lower bracket: shrink s := λ p_min − T toward 0+ to drive m up.
+        s_slack = max(lam_hi * p_min - T, 1.0)
+        for _ in range(200):
+            lam_lo = (T + s_slack) / p_min
+            if lam_lo < lam_hi and budget_resid(lam_lo, S) >= 0:
+                break
+            s_slack *= 0.5
+            if s_slack < 1e-30:
+                break
+
+        for _ in range(max_inner_iters):
+            lam_mid = 0.5 * (lam_lo + lam_hi)
+            r = budget_resid(lam_mid, S)
+            if r > 0:
+                lam_lo = lam_mid
+            else:
+                lam_hi = lam_mid
+            if (lam_hi - lam_lo) <= tol * max(abs(lam_hi), 1.0):
+                break
+        return 0.5 * (lam_lo + lam_hi)
+
+    def outer_resid(S: float) -> float:
+        lam = inner_lambda(S)
+        return float(m_of(lam, S).sum()) - S
+
+    # Outer bracket.
+    # S_lo: total mass when all strata at lower bound — Σ m_h = LB_sum. Actual
+    # solution has Σ m strictly greater unless surplus == 0.
+    # S_hi: maximum feasible Σ m under the budget — achieved by spending entirely
+    # on the cheapest stratum, giving Σ m ≤ B' / p_min.
+    if surplus <= 0:
+        # No budget to allocate beyond lower bounds.
+        return LB.copy()
+
+    S_lo = LB_sum + 1e-12
+    S_hi = B_prime / p_min
+
+    # outer_resid is + at S_lo (true Σm > S_lo) and − at S_hi (S too large).
+    # Bisect for the root.
+    r_lo = outer_resid(S_lo)
+    r_hi = outer_resid(S_hi)
+    # Defensive: if signs don't bracket, fall back to the side with smaller |resid|
+    # and return that. (Should not happen for well-posed inputs.)
+    if r_lo <= 0:
+        return m_of(inner_lambda(S_lo), S_lo)
+    if r_hi >= 0:
+        return m_of(inner_lambda(S_hi), S_hi)
+
+    for _ in range(max_outer_iters):
+        S_mid = 0.5 * (S_lo + S_hi)
+        r = outer_resid(S_mid)
+        if r > 0:
+            S_lo = S_mid
+        else:
+            S_hi = S_mid
+        if (S_hi - S_lo) <= tol * max(abs(S_hi), 1.0):
+            break
+
+    S_final = 0.5 * (S_lo + S_hi)
+    return m_of(inner_lambda(S_final), S_final)
+
+
+def _active_set_allocate_recruits(goal: np.ndarray, sigma: np.ndarray,
+                                  tot: np.ndarray, M_prime: float,
+                                  n0: float = 1) -> np.ndarray:
+    """Active-set algorithm for closed-form recruits-binding allocation.
+
+    Minimizes sum(goal_h^2 * sigma_h^2 / m_h) subject to sum(m_h) = M_prime and
+    m_h >= tot_h + n0, where m_h = expected_recruits_h + n0 and M_prime =
+    max_recruits + H * n0.
+
+    Mirrors _active_set_allocate's iterate-and-pin logic, but the constraint is on
+    sum(m_h) (recruits-binding) rather than sum(p_h * m_h) (budget-binding), so
+    price drops out of both the allocation rule and the lower-bound bookkeeping.
+    Iteration is required because the lower bound m_h >= tot_h + n0 can bind on
+    multiple strata in different rounds (e.g., one stratum over target, another
+    pushed below its bound by reallocation of the surplus).
+    """
+    H = len(goal)
+    active = np.arange(H)
+    lower_bound = tot + n0
+    m = lower_bound.copy().astype(float)
+
+    for _ in range(H):
+        if len(active) == 0:
+            break
+        weights = goal[active] * sigma[active]
+        total_weight = weights.sum()
+        if total_weight <= 0:
+            scale = M_prime / len(active)
+            m_active = np.full(len(active), scale)
+        else:
+            scale = M_prime / total_weight
+            m_active = weights * scale
+        m[active] = m_active
+
+        pinned = m_active < lower_bound[active]
+        if not np.any(pinned):
+            break
+        pinned_idx = active[pinned]
+        active = np.setdiff1d(active, pinned_idx)
+        M_prime = M_prime - np.sum(lower_bound[pinned_idx])
+        m[pinned_idx] = lower_bound[pinned_idx]
+
+    return m
+
+
+def _solve_cvxpy_budget_binding(
+    goal: np.ndarray,
+    tot: np.ndarray,
+    price: np.ndarray,
+    budget: float,
+    sigma: np.ndarray,
+    n0: float = 1,
+    efficiency_weight: float = 1.0,
+) -> np.ndarray:
+    """Solve the budget-binding subproblem via CVXPY+ECOS, with CLARABEL fallback.
+
+    Minimizes ``w · Σ (goal_h · sigma_h)² / m_h + (1 − w) / Σ m_h`` subject to
+    ``p^T m == B'`` and ``m ≥ tot + n0``, where ``w = efficiency_weight`` and
+    ``B' = B + p^T (tot + n0)``. With ``w = 1`` the blend reduces to the
+    pure-variance objective (Case A in paper/variance_extension.tex §9). Returns
+    m (the effective sample sizes).
+    """
+    H = len(goal)
+    lower_bound = tot + n0
+    B_prime = budget + float(np.dot(price, lower_bound))
+
+    # Rescale m so the variable is O(1): m = M * m_tilde where M = B'/sum(price)
+    # is the average per-stratum allocation. Without this, ECOS/CLARABEL lose
+    # precision on the prod cases where m ~ 100s and the inv_pos objective ~ 1e-4.
+    # The blend preserves the rescaling: both terms inherit a 1/M factor, so the
+    # weights w and (1-w) act on the same scale as before.
+    M = B_prime / float(np.sum(price))
+    coeffs = (goal * sigma) ** 2
+    w = float(efficiency_weight)
+
+    solver_opts = {
+        cp.ECOS: {"abstol": 1e-12, "reltol": 1e-12, "feastol": 1e-12, "max_iters": 400},
+        cp.CLARABEL: {
+            "tol_gap_abs": 1e-12,
+            "tol_gap_rel": 1e-12,
+            "tol_feas": 1e-12,
+            "max_iter": 5000,
+        },
+    }
+
+    def _solve(solver):
+        m_tilde = cp.Variable(H, nonneg=True)
+        variance_term = cp.sum(cp.multiply(coeffs, cp.inv_pos(m_tilde)))
+        if w >= 1.0:
+            obj = variance_term
+        else:
+            efficiency_term = cp.inv_pos(cp.sum(m_tilde))
+            obj = w * variance_term + (1.0 - w) * efficiency_term
+        constraints = [price @ m_tilde == B_prime / M, m_tilde >= lower_bound / M]
+        problem = cp.Problem(cp.Minimize(obj), constraints)
+        try:
+            problem.solve(solver=solver, **solver_opts[solver])
+        except cp.error.SolverError as e:
+            return problem, m_tilde, str(e)
+        return problem, m_tilde, None
+
+    # ECOS first (faster, more accurate when it converges); accept OPTIMAL only —
+    # ECOS's "optimal_inaccurate" can be off by ~1e-3 on these problems.
+    # Fall back to CLARABEL, which produces tight solutions (~1e-7) even when
+    # it returns "optimal_inaccurate", so accept either status from it.
+    problem, m_var, err = _solve(cp.ECOS)
+    if err is not None or problem.status != cp.OPTIMAL:
+        problem, m_var, err = _solve(cp.CLARABEL)
+        if err is not None or problem.status not in {cp.OPTIMAL, cp.OPTIMAL_INACCURATE}:
+            raise RuntimeError(
+                f"CVXPY failed to solve budget-binding problem: "
+                f"status={problem.status!r}, error={err!r}, "
+                f"goal={goal.tolist()}, tot={tot.tolist()}, price={price.tolist()}, "
+                f"budget={budget}, n0={n0}"
+            )
+
+    return np.asarray(m_var.value, dtype=float) * M
+
+
+def proportional_opt_cvxpy(
+    goal, tot, price, budget, max_recruits, efficiency_weight: float = 1.0,
+    sigma: Optional[np.ndarray] = None, n0: float = 1,
+) -> OptimizationResult:
+    """CVXPY+ECOS optimizer for the variance / blended objective.
+
+    Same problem and signature as proportional_opt_closed_form; uses an interior-point
+    solver instead of the closed-form active-set / bisection algorithm. Provides a
+    tight (≤ 1e-6) cross-check oracle and the landing pad for future objective
+    extensions (regularization, correlated outcomes) that break closed form.
+
+    Supports any ``efficiency_weight ∈ [0, 1]``: with ``w < 1`` the objective gains
+    a ``(1 − w) · cp.inv_pos(cp.sum(m))`` term — convex by composition.
+
+    The recruits-binding branch (Σ m = M_prime) is unaffected by ``w`` because the
+    efficiency term ``(1 − w) / Σ m`` is constant on the feasible set, so the
+    blended objective reduces to pure variance there. It uses a direct
+    proportional split — no convex program is needed.
+    """
+    if budget is None and max_recruits is None:
+        raise Exception("Need either a max budget or max_recruits to optimize")
+
+    if not (0.0 <= efficiency_weight <= 1.0):
+        raise ValueError(
+            f"efficiency_weight must be in [0, 1]; got {efficiency_weight}"
+        )
+
+    if sigma is None:
+        sigma = np.ones(len(goal))
+
+    tot = np.asarray(tot, dtype=float)
+    price = np.asarray(price, dtype=float)
+    goal = np.asarray(goal, dtype=float)
+
+    # Budget-binding case via CVXPY
+    if budget is not None:
+        m_opt = _solve_cvxpy_budget_binding(
+            goal, tot, price, budget, sigma, n0=n0,
+            efficiency_weight=efficiency_weight,
+        )
+        expected_recruits = m_opt - n0
+        new_recruits = np.maximum(0, expected_recruits - tot)
+        new_spend = new_recruits * price
+        budget_solution = (new_spend, expected_recruits)
+
+    if max_recruits is None:
+        return OptimizationResult(
+            new_spend=budget_solution[0],
+            expected_recruits=budget_solution[1],
+            counterfactual_spend=None,
+            counterfactual_recruits=None,
+        )
+
+    # Recruits-binding branch — direct proportional split, no convex program needed.
+    num_recruits = max_recruits - tot.sum()
+    if num_recruits <= 0:
+        new_recruits = np.zeros_like(tot, dtype=float)
+        new_spend = np.zeros_like(price, dtype=float)
+        expected_recruits = tot.copy().astype(float)
+        recruit_solution = (new_spend, expected_recruits)
+    else:
+        total_m = (goal * sigma).sum()
+        m_recruit_opt = (goal * sigma / total_m) * max_recruits
+        new_recruits = np.maximum(0, m_recruit_opt - tot)
+        new_spend = new_recruits * price
+        expected_recruits = m_recruit_opt
+        recruit_solution = (new_spend, expected_recruits)
+
+    if budget is None:
+        return OptimizationResult(
+            new_spend=recruit_solution[0],
+            expected_recruits=recruit_solution[1],
+            counterfactual_spend=None,
+            counterfactual_recruits=None,
+        )
+
+    # Both constraints — same dispatch logic as proportional_opt_closed_form
+    if new_spend.sum() > budget:
+        return OptimizationResult(
+            new_spend=budget_solution[0],
+            expected_recruits=budget_solution[1],
+            counterfactual_spend=recruit_solution[0],
+            counterfactual_recruits=None,
+        )
+    else:
+        return OptimizationResult(
+            new_spend=recruit_solution[0],
+            expected_recruits=recruit_solution[1],
+            counterfactual_spend=None,
+            counterfactual_recruits=budget_solution[1],
+        )
 
 
 def proportional_opt(
@@ -271,7 +879,8 @@ def proportional_opt(
 
 # provide max
 def proportional_budget(
-    goal, spend, tot, price, budget, max_recruits, efficiency_weight: float
+    goal, spend, tot, price, budget, max_recruits, efficiency_weight: float,
+    optimizer=None,
 ) -> Tuple[Dict, Dict, Optional[Dict], Optional[Dict]]:
     """Optimize budget allocation and return results with optional counterfactuals.
 
@@ -283,6 +892,9 @@ def proportional_budget(
         budget: Maximum budget available (float or None)
         max_recruits: Maximum total respondents wanted (int or None)
         efficiency_weight: Weight for variance optimization (1.0=variance, 0.0=cost efficiency)
+        optimizer: Solver callable matching proportional_opt's signature. Defaults to
+            proportional_opt (L-BFGS-B). Pass proportional_opt_closed_form to exercise
+            the closed-form path through the same system-level entry point.
 
     Returns:
         Tuple of (new_spend_dict, expected_dict, counterfactual_spend_dict_or_None, counterfactual_recruits_dict_or_None)
@@ -291,6 +903,9 @@ def proportional_budget(
         raise Exception(
             f"proportional_budget needs a goal that sums to one. was given: {goal}"
         )
+
+    if optimizer is None:
+        optimizer = proportional_opt
 
     df = pd.DataFrame(
         {
@@ -301,7 +916,7 @@ def proportional_budget(
         }
     )
 
-    result = proportional_opt(
+    result = optimizer(
         df.goal.values,
         df.respondents.values,
         df.price.values,

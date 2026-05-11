@@ -24,6 +24,8 @@ fastapi = {extras = ["standard"], version = "^0.115.0"}
 python-jose = {extras = ["cryptography"], version = "^3.3.0"}
 httpx = "^0.25.2"
 uvicorn = {extras = ["standard"], version = "^0.24.0.post1"}
+cvxpy = "^1.5"
+ecos = "^2.0"
 
 [tool.poetry.group.dev.dependencies]
 future = "^0.18.2"
