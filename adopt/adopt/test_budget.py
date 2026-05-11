@@ -17,9 +17,48 @@ from .budget import (
     proportional_budget,
     proportional_opt,
     proportional_opt_closed_form,
+    proportional_opt_cvxpy,
+    _pick_optimizer,
     calculate_strata_stats,
     _users_per_cluster,
 )
+
+
+class TestPickOptimizer:
+    def test_w_eq_one_picks_closed_form(self, monkeypatch):
+        monkeypatch.delenv("ADOPT_OPTIMIZER_DEFAULT", raising=False)
+        fn, version = _pick_optimizer(1.0)
+        assert fn is proportional_opt_closed_form
+        assert version == "closed_form"
+
+    def test_w_lt_one_picks_cvxpy(self, monkeypatch):
+        monkeypatch.delenv("ADOPT_OPTIMIZER_DEFAULT", raising=False)
+        fn, version = _pick_optimizer(0.5)
+        assert fn is proportional_opt_cvxpy
+        assert version == "cvxpy"
+
+    def test_env_override_forces_lbfgs_when_w_eq_one(self, monkeypatch):
+        monkeypatch.setenv("ADOPT_OPTIMIZER_DEFAULT", "lbfgs")
+        fn, version = _pick_optimizer(1.0)
+        assert fn is proportional_opt
+        assert version == "lbfgs"
+
+    def test_env_override_forces_lbfgs_when_w_lt_one(self, monkeypatch):
+        monkeypatch.setenv("ADOPT_OPTIMIZER_DEFAULT", "lbfgs")
+        fn, version = _pick_optimizer(0.3)
+        assert fn is proportional_opt
+        assert version == "lbfgs"
+
+    def test_env_override_case_insensitive(self, monkeypatch):
+        monkeypatch.setenv("ADOPT_OPTIMIZER_DEFAULT", "LBFGS")
+        fn, _ = _pick_optimizer(1.0)
+        assert fn is proportional_opt
+
+    def test_unknown_env_value_falls_through(self, monkeypatch):
+        monkeypatch.setenv("ADOPT_OPTIMIZER_DEFAULT", "garbage")
+        fn, version = _pick_optimizer(1.0)
+        assert fn is proportional_opt_closed_form
+        assert version == "closed_form"
 
 
 # Parametrize w=1.0 tests across both optimizers. With n0=1, L-BFGS-B and

@@ -1,4 +1,6 @@
 import logging
+import os
+import time
 from dataclasses import dataclass
 from math import ceil
 from statistics import mean
@@ -708,6 +710,22 @@ def proportional_opt(
         )
 
 
+def _pick_optimizer(efficiency_weight: float) -> Tuple[Callable, str]:
+    """Return (optimizer_callable, version_label).
+
+    Soak-deployment dispatch (planning/soak-deployment.md):
+      - env ADOPT_OPTIMIZER_DEFAULT=lbfgs forces the legacy L-BFGS-B path for
+        global rollback without redeploying app code.
+      - Otherwise: closed_form for w==1 (microsecond analytic active-set),
+        cvxpy for w<1 (handles the blended objective).
+    """
+    if os.environ.get("ADOPT_OPTIMIZER_DEFAULT", "").lower() == "lbfgs":
+        return proportional_opt, "lbfgs"
+    if efficiency_weight >= 1.0:
+        return proportional_opt_closed_form, "closed_form"
+    return proportional_opt_cvxpy, "cvxpy"
+
+
 # provide max
 def proportional_budget(
     goal, spend, tot, price, budget, max_recruits, efficiency_weight: float,
@@ -835,6 +853,7 @@ def get_budget_lookup(
     spend: Dict[str, float],
     lifetime_spend: Dict[str, float],
     efficiency_weight: float,
+    study_id: Optional[str] = None,
 ) -> Tuple[Optional[Budget], Optional[AdOptReport]]:
     df = prep_df_for_budget(df, strata) if df is not None else None
 
@@ -863,8 +882,47 @@ def get_budget_lookup(
         return _off_budget(strata), None
 
     goal = _normalize_values({s.id: s.quota for s in strata})
+
+    # Phase 1 (shadow): real allocation served by legacy L-BFGS-B, new optimizer
+    # runs in parallel for comparison. See planning/soak-deployment.md.
+    # Fail-loud: no try/except around shadow run — if it throws we want to see
+    # it in error logs, not swallow it.
+    t0 = time.perf_counter()
     budget, expected, counterfactual_spend, counterfactual_recruits = proportional_budget(
-        goal, spend, tot, price, to_spend, max_sample_size, efficiency_weight
+        goal, spend, tot, price, to_spend, max_sample_size, efficiency_weight,
+        optimizer=proportional_opt,
+    )
+    lbfgs_time_ms = (time.perf_counter() - t0) * 1000.0
+
+    shadow_optimizer, shadow_version = _pick_optimizer(efficiency_weight)
+    t0 = time.perf_counter()
+    shadow_budget, shadow_expected, _, _ = proportional_budget(
+        goal, spend, tot, price, to_spend, max_sample_size, efficiency_weight,
+        optimizer=shadow_optimizer,
+    )
+    shadow_time_ms = (time.perf_counter() - t0) * 1000.0
+
+    # max relative diff between served (lbfgs) and shadow allocations
+    served_arr = np.array([budget[k] for k in budget.keys()], dtype=float)
+    shadow_arr = np.array([shadow_budget[k] for k in budget.keys()], dtype=float)
+    denom = np.maximum(np.abs(served_arr), 1e-9)
+    max_rel_diff = float(np.max(np.abs(served_arr - shadow_arr) / denom))
+    budget_residual = abs(sum(shadow_budget.values()) - to_spend) / max(to_spend, 1.0)
+    any_negative = bool(np.any(shadow_arr < 0))
+
+    logging.info(
+        "optimizer_shadow",
+        extra={
+            "study_id": study_id,
+            "H": len(strata),
+            "efficiency_weight": efficiency_weight,
+            "optimizer_version": shadow_version,
+            "lbfgs_time_ms": lbfgs_time_ms,
+            "shadow_time_ms": shadow_time_ms,
+            "max_abs_relative_diff_vs_lbfgs": max_rel_diff,
+            "budget_residual": budget_residual,
+            "any_negative_spend": any_negative,
+        },
     )
 
     # Include efficiency_weight in report (same value for all strata)
@@ -1043,4 +1101,5 @@ def get_budget_lookup_with_db(
         windowed_spend,
         lifetime_spend,
         efficiency_weight,
+        study_id=study_id,
     )

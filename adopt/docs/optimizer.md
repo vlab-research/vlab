@@ -190,6 +190,47 @@ The four layers together: a unit test for math correctness (1), regression
 guards against silent drift (2), an independent solver as oracle (3), and a
 system contract that both deployed paths must honor (4).
 
+## Deployment
+
+This section describes how the three optimizers are selected at run time.
+Full rationale and phase-by-phase plan in `planning/soak-deployment.md`.
+
+### Dispatch
+
+`budget._pick_optimizer(efficiency_weight)` picks the live optimizer:
+
+- env `ADOPT_OPTIMIZER_DEFAULT=lbfgs` → force legacy `proportional_opt`
+  (L-BFGS-B). This is the global rollback switch — flip it in helm values to
+  revert without redeploying app code.
+- otherwise: `proportional_opt_closed_form` for `w == 1`,
+  `proportional_opt_cvxpy` for `w < 1`.
+
+There is no per-study override. The decision is global.
+
+### Shadow phase (current)
+
+`get_budget_lookup` serves the L-BFGS-B allocation to production but also runs
+`_pick_optimizer(...)` in parallel and logs a structured `optimizer_shadow`
+record per optimization cycle:
+
+- `study_id`, `H`, `efficiency_weight`, `optimizer_version`
+- `lbfgs_time_ms`, `shadow_time_ms`
+- `max_abs_relative_diff_vs_lbfgs`
+- `budget_residual` (sum-of-spend vs target budget, relative)
+- `any_negative_spend`
+
+The shadow run is **not** wrapped in try/except — if cvxpy/closed-form throws,
+the optimization cycle fails loudly. Better to surface a bug immediately than
+swallow it.
+
+### Cutover
+
+When shadow soak passes acceptance criteria, swap the served allocation to the
+new path: `optimizer=shadow_optimizer` instead of `optimizer=proportional_opt`
+in the `proportional_budget` call inside `get_budget_lookup`, and drop the
+parallel L-BFGS-B compute. The env-var rollback continues to work because
+`_pick_optimizer` honors it.
+
 ## File map
 
 | File | Contents |
