@@ -204,15 +204,18 @@ class TestKKTConditions:
 class TestErrorHandling:
     """Test error cases and boundary conditions."""
 
-    def test_raises_on_pure_efficiency(self):
-        """Closed-form rejects efficiency_weight == 0 (degenerate; use CVXPY)."""
+    def test_raises_on_efficiency_weight_not_1(self):
+        """Closed-form rejects any efficiency_weight != 1.0 (use CVXPY for blended)."""
         goal = np.array([0.5, 0.5])
         tot = np.array([10, 10])
         price = np.array([1.0, 1.0])
         budget = 100.0
 
-        with pytest.raises(NotImplementedError, match=r"efficiency_weight"):
-            proportional_opt_closed_form(goal, tot, price, budget, None, efficiency_weight=0.0)
+        for w in [0.0, 0.5, 0.9]:
+            with pytest.raises(NotImplementedError, match=r"efficiency_weight=1.0"):
+                proportional_opt_closed_form(
+                    goal, tot, price, budget, None, efficiency_weight=w
+                )
 
     def test_raises_without_constraints(self):
         """Should raise if both budget and max_recruits are None."""

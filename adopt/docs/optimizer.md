@@ -5,9 +5,11 @@ variance-minimization problem each cycle. This doc describes the working state
 of the optimizer: problem formulation, the three implementations that share the
 same contract, and the testing strategy that keeps them in agreement.
 
-Reference for the math derivation: `paper/variance_extension.tex` §9 Cases A
-(pure variance, `efficiency_weight = 1`) and B (blended,
-`0 < efficiency_weight < 1`).
+Reference for the math derivation: `paper/variance_extension.tex` §9 Case A
+(pure variance, `efficiency_weight = 1`). The blended case (Case B,
+`efficiency_weight < 1`) is handled by CVXPY and the legacy L-BFGS-B path —
+closed-form is intentionally pure-variance only; see *Why no closed-form for
+blended?* below.
 
 ## Problem
 
@@ -31,7 +33,8 @@ We choose `expected_recruits_h ≥ tot_h` to:
 
 At `w = 1` the efficiency term drops out and the objective is pure-variance
 (Neyman-on-a-prior). At `w < 1` the `(1 − w) / Σ m_h` term penalizes small total
-sample size, biasing allocations toward cheap strata.
+sample size, biasing allocations toward cheap strata. Only CVXPY and the legacy
+path handle `w < 1`; closed-form raises `NotImplementedError`.
 
 For the recruits-binding subproblem, the efficiency term `(1 − w) / M_prime` is
 *constant* on the feasible set (Σ m is pinned by the constraint), so the
@@ -66,12 +69,13 @@ must pass `n0 = α + β` from the same prior to the optimizer.
 
 | Function | Solver | Role |
 |---|---|---|
-| `proportional_opt_closed_form` | Analytic active-set | Primary path (intended default at cutover). Microseconds, exact, inspectable. |
-| `proportional_opt_cvxpy` | CVXPY + ECOS, CLARABEL fallback | Runtime alternative for cases where a future objective breaks closed form. Also acts as the test oracle. |
-| `proportional_opt` | `scipy.optimize.minimize` (L-BFGS-B) | Legacy. Still the production default via the `optimizer_version` flag until cutover. |
+| `proportional_opt_closed_form` | Analytic active-set | Pure-variance primary path (`w = 1` only). Microseconds, exact, inspectable. Raises `NotImplementedError` on `w < 1`. |
+| `proportional_opt_cvxpy` | CVXPY + ECOS, CLARABEL fallback | Handles all `w ∈ [0, 1]`. Acts as oracle for closed-form at `w = 1`; primary path for blended `w < 1`. |
+| `proportional_opt` | `scipy.optimize.minimize` (L-BFGS-B) | Legacy. Handles all `w ∈ [0, 1]`. Still the production default via the `optimizer_version` flag until cutover. |
 
-All three solve the same problem under `n0 = 1`. Cross-validation lives in the
-test suite (see *Testing* below); empirical agreement is in
+At `w = 1` all three solve the same problem under `n0 = 1`. At `w < 1` only the
+latter two are available. Cross-validation lives in the test suite (see
+*Testing* below); empirical agreement is in
 [`optimizer-validation.md`](optimizer-validation.md).
 
 L-BFGS-B's hardcoded `+1` in the projection (`m = C·spend + tot + 1`) is now
@@ -79,8 +83,6 @@ interpretable as exactly the same `n0 = 1` prior shift, which is why all three
 optimizers reach the same objective.
 
 ## Closed-form algorithm
-
-### Pure-variance (`w = 1`)
 
 KKT stationarity on unpinned strata gives `m_h ∝ goal_h · sigma_h` (recruits-binding)
 or `m_h ∝ goal_h · sigma_h / √price_h` (budget-binding). The lower bound
@@ -106,54 +108,46 @@ Termination is `O(H)` (at most one stratum pins per iteration; `H` iterations
 suffice). For `H ≤ 72` the whole solve is microseconds with no framework
 overhead.
 
-### Blended (`0 < w < 1`, budget-binding)
+## Why no closed-form for blended?
 
 Adding the `(1 − w) / S` term where `S := Σ_h m_h` couples all strata through a
-single scalar `S`, so there is no closed form. KKT (math note Eq. eq:blended-mh)
-gives
+single scalar `S`, so there is no analytic closed form. KKT (math note Eq.
+eq:blended-mh) reduces it to two scalar unknowns `(λ, S)` solvable by nested
+bisection. We implemented this (`_blended_bisection_budget`) and then retired
+it. Reasoning:
 
-    m_h(λ, S) = goal_h · sigma_h · √w  /  √(λ · price_h − (1 − w)/S²)
+- It is *numerical*, not analytic — nested bisection with its own convergence
+  tolerance and bracket-expansion logic. Not "exact" in any meaningful sense
+  beyond what CVXPY achieves.
+- It was slower than CVXPY (~80–120 ms vs ~15 ms on prod cases), because each
+  bisection iteration evaluates an O(H) numpy expression in a Python loop.
+- It was ~150 lines of subtle code (active-set pinning, slack-shrinking,
+  dual-bracket logic) with no clear advantage over a 10-line CVXPY objective
+  change.
 
-with two scalar unknowns `(λ, S)` determined by:
-
-1. budget feasibility:        `p^T m(λ, S) = B'`
-2. self-consistency:          `Σ_h m_h(λ, S) = S`
-
-We use nested bisection (helper: `_blended_bisection_budget`):
-
-- **Outer** bisects `S` ∈ `[Σ LB_h, B'/p_min]` so that self-consistency holds.
-  At `S = Σ LB_h` all strata are at their lower bound and `Σ m > S` (budget has
-  surplus); at `S = B'/p_min` the constraint forces `Σ m < S` (you can't spend
-  the full budget on cheap-mass alone). The actual root lies in between.
-- **Inner** bisects `λ` so that `p^T m(λ, S) = B'`. As `λ → (T/p_min)+` the
-  cheapest stratum's `m_h → ∞`; as `λ → ∞` all unpinned strata fall back to
-  their lower bound and `p^T m → p^T LB = B' − B`. Residual is monotone in `λ`.
-
-The same active-set pinning applies: a stratum with `goal_h · sigma_h = 0`, or
-whose unpinned formula gives `m_h < LB_h`, is held at `LB_h` and removed from
-the marginal-cost equation.
-
-Recruits-binding for `w < 1` reuses `_active_set_allocate_recruits` unchanged
-(the efficiency term is constant on the feasible set).
-
-Cost: `O(H · log²(1/ε))` for the nested bisection — still microseconds for
-production `H` values.
+The pure-variance closed-form's advantages — analytic exactness, 200×+
+speedup, inspectable allocation rule — don't carry over to the blended case.
+For `w < 1`, route through `proportional_opt_cvxpy` (or the legacy
+`proportional_opt`). See [`optimizer-validation.md`](optimizer-validation.md)
+for the empirical numbers behind this decision.
 
 ## CVXPY runtime path
 
 `proportional_opt_cvxpy` builds the same convex program with `cp.inv_pos(m)` for
 the variance term plus `(1 − w) · cp.inv_pos(cp.sum(m))` for the efficiency
-term when `w < 1`, and `m ≥ tot + n0` for the lower bound. It exists for two
-reasons:
+term when `w < 1`, and `m ≥ tot + n0` for the lower bound. It serves two roles:
 
-1. **Independent oracle for both regimes.** Both the pure-variance active set
-   and the blended nested bisection are non-trivial; an interior-point solver
-   in a different code path is the strongest regression sentinel. The two must
-   agree elementwise on every prod case (≤ 1e-6 rtol at `w = 1`; ≤ 1e-4 rtol
-   at `w < 1` due to CVXPY's interior-point tolerance).
-2. **Future-proofing.** Further objective extensions (correlated outcomes,
-   regularization, per-stratum precision constraints) drop into CVXPY without
-   reaching for a new analytic derivation.
+1. **Primary path for `w < 1`.** Closed-form is pure-variance only; CVXPY (or
+   the legacy L-BFGS-B path) handles blended objectives. CVXPY is preferred:
+   it produces a tighter solution than L-BFGS-B (the latter has a ~1e-4
+   allocation noise floor from its degenerate parameterization).
+2. **Independent oracle for `w = 1`.** An interior-point solver in a different
+   code path is the strongest regression sentinel for the closed-form active
+   set. The two agree elementwise to `rtol = 1e-6` on every prod case.
+
+Future objective extensions (correlated outcomes, regularization, per-stratum
+precision constraints) drop into CVXPY without reaching for new analytic
+derivations.
 
 Wired into the `optimizer_version` flag as a third option. Closed form remains
 the default.
@@ -186,6 +180,12 @@ Four layers:
    solvers must satisfy the same scenarios (turn-off-empty-groups, drop-to-zero-
    budget, prioritize-underperforming, etc.) for `efficiency_weight = 1.0`.
 
+5. **Blended cross-checks** (`test_budget_blended.py`). For `w ∈ {0.25, 0.5,
+   0.75, 0.9, 0.99}`: CVXPY blended ≡ L-BFGS-B blended (allocation
+   `rtol = 1e-3`), CVXPY blended satisfies the blended-KKT equation
+   (Eq. eq:blended-mh on unpinned strata), budget feasibility,
+   `w → 1` reduces to pure variance, closed-form rejects `w != 1`.
+
 The four layers together: a unit test for math correctness (1), regression
 guards against silent drift (2), an independent solver as oracle (3), and a
 system contract that both deployed paths must honor (4).
@@ -199,7 +199,7 @@ system contract that both deployed paths must honor (4).
 | `adopt/adopt/test_budget_closed_form.py` | Hand-derived math anchors and the H=4 active-set regression case. |
 | `adopt/adopt/test_budget_prod_regimes.py` | Six prod-derived parametric cases × six assertions. |
 | `adopt/adopt/test_budget_cvxpy_oracle.py` | CVXPY ≡ closed-form on every prod case to `rtol=1e-6` at `w = 1`. |
-| `adopt/adopt/test_budget_blended.py` | Blended (`w ∈ {0.25, 0.5, 0.75, 0.9, 0.99}`) tests: CVXPY ≡ closed-form, KKT stationarity, w → 1 limit. |
+| `adopt/adopt/test_budget_blended.py` | Blended (`w ∈ {0.25, 0.5, 0.75, 0.9, 0.99}`) tests: CVXPY ≡ L-BFGS-B, CVXPY KKT stationarity, w → 1 limit, closed-form-rejects-blended. |
 | `adopt/docs/optimizer.md` | This file. |
 | `adopt/docs/optimizer-validation.md` | Three-way empirical comparison (closed-form / CVXPY / L-BFGS-B) and solver-config rationale. |
 | `adopt/docs/efficiency-weight-optimization.md` | The blended-objective math; closed-form + CVXPY implementations now live in `budget.py`. |

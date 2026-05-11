@@ -112,98 +112,102 @@ non-convergence.
 
 ## Blended Objective (`efficiency_weight < 1`)
 
-The closed-form blended path (`_blended_bisection_budget`, nested bisection
-on `(λ, S)` per `variance_extension.tex` Eq. (eq:blended-mh)) and the CVXPY
-blended path (extra `(1−w)·cp.inv_pos(cp.sum(m))` term) were both added in
-Step 3. Same three-way comparison on the 6 budget-binding `PROD_CASES`,
-swept over `w ∈ {0.25, 0.5, 0.75, 0.9}` (24 combinations), generated
-2026-05-10:
+The blended objective
 
-| Metric                                    | Worst-case across 24 (case × w) |
-|-------------------------------------------|---------------------------------|
-| CF vs CVX rel diff on `expected_recruits` | 1.7e-5 (most are ≤ 1e-7)        |
-| CF vs LBFGS rel diff on `expected_recruits` | 4.4e-4                        |
-| objective: closed-form ≤ L-BFGS-B         | yes within 5e-9 numerical slack on all 24 |
-| budget constraint violation               | ≤ 2e-5 relative on closed-form  |
+    L(m) = w · Σ_h (goal_h · sigma_h)² / m_h  +  (1 − w) / Σ_h m_h
 
-**Closed-form ≡ CVXPY** to interior-point precision (worst case 1.7e-5; tests
-assert `rtol=1e-4` to leave headroom for CVXPY's blended-path tolerance). Same
-solution, two solvers.
+is handled by CVXPY (extra `(1−w)·cp.inv_pos(cp.sum(m))` term in the convex
+program) and the legacy L-BFGS-B path. Closed-form
+(`proportional_opt_closed_form`) raises `NotImplementedError` for `w < 1` —
+see the *Decision Record* section below for the empirical basis of that
+choice.
+
+Empirical comparison of CVXPY vs L-BFGS-B on the 6 budget-binding
+`PROD_CASES`, swept over `w ∈ {0.25, 0.5, 0.75, 0.9}` (24 combinations),
+generated 2026-05-10:
+
+| Metric                                       | Worst-case across 24 (case × w) |
+|----------------------------------------------|---------------------------------|
+| CVX vs LBFGS rel diff on `expected_recruits` | ~4.4e-4                         |
+| budget constraint violation (CVXPY)          | ≤ 2e-5 relative                 |
+| budget constraint violation (L-BFGS-B)       | ≤ 1e-5 relative                 |
 
 **L-BFGS-B drift is ~4e-4 on the allocation** — same order as the pure-variance
 case, set by the same `ftol=1e-14, gtol=1e-10, eps=1e-12` floor and the
-degenerate `s = S / S.sum()` parameterization. The objective is unaffected:
-closed-form's `w · Σ (goal·σ)²/m + (1−w)/Σm` is always ≤ L-BFGS-B's within 5e-9.
+degenerate `s = S / S.sum()` parameterization. Both solvers agree on the
+objective value to within solver tolerance; the difference is purely in the
+allocation precision.
 
-**Cutover impact.** Flipping `optimizer_version` from `lbfgs` to `closed_form`
-on a blended study moves individual stratum counts by up to ~0.04% with a
-non-increase in the objective. Same answer, less noise — same conclusion as
-the equal-variance case.
+**Cutover impact.** Flipping `optimizer_version` from `lbfgs` to `cvxpy` on a
+blended study moves individual stratum counts by up to ~0.04%, with no change
+in the objective value to several digits. Same answer, tighter solution.
 
-## Runtime Performance
+## Runtime Performance — Pure Variance
 
-Median of 50 runs per (case, w) on the 6 budget-binding `PROD_CASES`, measured
-2026-05-10. Microseconds per call.
+Median of 50 runs per case on the 6 budget-binding `PROD_CASES`, measured
+2026-05-10. Microseconds per call, `efficiency_weight = 1`.
 
-| case   | H | w   | closed-form | CVXPY    | L-BFGS-B |
-|--------|---|-----|-------------|----------|----------|
-| case_1 | 4 | 1.0 |       52 μs | 13500 μs |  3070 μs |
-| case_2 | 2 | 1.0 |      160 μs | 11800 μs |  1130 μs |
-| case_3 | 6 | 1.0 |       77 μs | 23600 μs | 11700 μs |
-| case_4 | 6 | 1.0 |       48 μs | 25200 μs | 14700 μs |
-| case_5 | 2 | 1.0 |      165 μs | 11200 μs |  1260 μs |
-| case_6 | 2 | 1.0 |       49 μs | 10900 μs |  2280 μs |
-| case_1 | 4 | 0.5 |    86000 μs | 16100 μs | 13200 μs |
-| case_2 | 2 | 0.5 |    86000 μs | 15600 μs |  1300 μs |
-| case_3 | 6 | 0.5 |   116000 μs | 15900 μs | 11900 μs |
-| case_4 | 6 | 0.5 |    91000 μs | 15700 μs | 13300 μs |
-| case_5 | 2 | 0.5 |    78000 μs | 15200 μs |  1100 μs |
-| case_6 | 2 | 0.5 |   101000 μs | 30500 μs |  6900 μs |
+| case   | H | closed-form | CVXPY    | L-BFGS-B | CF speedup vs LBFGS |
+|--------|---|-------------|----------|----------|---------------------|
+| case_1 | 4 |       52 μs | 13500 μs |  3070 μs |                 59× |
+| case_2 | 2 |      160 μs | 11800 μs |  1130 μs |                  7× |
+| case_3 | 6 |       77 μs | 23600 μs | 11700 μs |                153× |
+| case_4 | 6 |       48 μs | 25200 μs | 14700 μs |                305× |
+| case_5 | 2 |      165 μs | 11200 μs |  1260 μs |                  8× |
+| case_6 | 2 |       49 μs | 10900 μs |  2280 μs |                 46× |
 
-Reproduce with the bench script in `/tmp/bench_optimizers.py` (or any small loop
-calling `time.perf_counter()` around each optimizer on `PROD_CASES`).
+The pure-variance active-set sweep is a handful of numpy operations with no
+iteration. CVXPY pays its framework + interior-point setup cost (~10–25 ms);
+L-BFGS-B pays its line-search cost (~1–15 ms).
 
-### Two regimes, two stories
+## Decision Record — Why no closed-form blended path?
 
-**Pure variance (`w = 1`):** closed-form wins by a wide margin — 50–160 μs vs
-CVXPY's 11–25 ms and L-BFGS-B's 1–15 ms. The active-set sweep is a handful of
-numpy operations with no iteration; CVXPY pays its framework + interior-point
-setup cost, L-BFGS-B pays its line-search cost. Speedup factors range from
-~7× (H=2, easy) to ~300× (H=6, harder) vs L-BFGS-B.
+We implemented a nested-bisection closed-form for the blended case
+(`_blended_bisection_budget`) per `paper/variance_extension.tex` §9 Case B,
+then removed it. The empirical case for the decision:
 
-**Blended (`w < 1`):** closed-form is *slower* than both alternatives —
-~80–120 ms vs CVXPY's ~15 ms and L-BFGS-B's 1–14 ms. The nested bisection runs
-up to ~200 outer × ~200 inner iterations, each evaluating an O(H) numpy
-expression in Python — ~40K Python-level numpy calls dominate.
+**Runtime (blended, measured 2026-05-10):**
 
-### Architectural implication (not yet acted on)
+| case   | H | closed-form (bisection) | CVXPY    | L-BFGS-B |
+|--------|---|-------------------------|----------|----------|
+| case_1 | 4 |                86000 μs | 16100 μs | 13200 μs |
+| case_2 | 2 |                86000 μs | 15600 μs |  1300 μs |
+| case_3 | 6 |               116000 μs | 15900 μs | 11900 μs |
+| case_4 | 6 |                91000 μs | 15700 μs | 13300 μs |
+| case_5 | 2 |                78000 μs | 15200 μs |  1100 μs |
+| case_6 | 2 |               101000 μs | 30500 μs |  6900 μs |
 
-The pure-variance closed-form has real, defensible advantages over CVXPY:
-analytic exactness (no tolerance), 200×+ speedup, no framework dependency in
-the hot path, and an inspectable allocation rule
-(`m_h ∝ goal_h · σ_h / √p_h`).
+The bisection ran up to ~200 outer × ~200 inner iterations, each evaluating an
+O(H) numpy expression in a Python loop — ~40K Python-level numpy calls
+dominated.
 
-The blended closed-form has lost most of those advantages:
+**Properties:**
 
-- It is *numerical*, not analytic — nested bisection with its own
-  convergence tolerance and bracket-expansion gymnastics. Not "exact" in any
-  meaningful sense.
-- It is slower than CVXPY by ~5–10×.
-- It is ~150 lines of subtle code (`_blended_bisection_budget`) with its own
-  active-set pinning, slack-shrinking, and dual-bracket logic.
-- "No dependency" is moot: CVXPY is already loaded for the oracle tests and
-  the `optimizer_version = "cvxpy"` flag.
+- **Not analytic.** Nested bisection has its own convergence tolerance and
+  bracket-expansion logic. The "exact" property that justifies closed-form for
+  `w = 1` does not carry over to `w < 1`.
+- **5–10× slower than CVXPY.** Each blended call took ~80–120 ms vs CVXPY's
+  ~15 ms.
+- **~150 lines of subtle code.** Active-set pinning, slack-shrinking,
+  dual-bracket logic — each a small bug surface.
+- **CVXPY is already loaded** for the oracle tests and the `optimizer_version =
+  "cvxpy"` flag, so "no extra dependency" is moot for the blended path.
 
-A reasonable simplification would route `w < 1` through CVXPY internally and
-retire `_blended_bisection_budget`. Same answer, ~150 fewer lines to maintain,
-~5–10× faster on blended studies. The closed-form would remain the primary
-path for `w = 1`, where its advantages are real.
+**Decision (2026-05-10):** retire `_blended_bisection_budget`.
+`proportional_opt_closed_form` is pure-variance only and raises
+`NotImplementedError` for `w < 1`. The blended path is served by
+`proportional_opt_cvxpy` (primary) and the legacy `proportional_opt`. The
+pure-variance closed-form retains its advantages — 200×+ faster than CVXPY,
+analytic exactness, inspectable allocation rule — where they are real.
 
-This has not been done; both paths exist behind the unified
-`proportional_opt_closed_form` entry point. The decision belongs to whoever
-next touches the blended path. Operationally the choice doesn't matter:
-`adopt` optimizes once per study per cycle (hours apart), so even 100 ms is
-imperceptible.
+If a future objective extension makes CVXPY too slow or restrictive, the math
+note's Case B derivation and its implementation are recoverable from
+git history (commit `5c7e32e` introduced the bisection; the commit removing
+it is the predecessor of the current head).
+
+Operationally the choice doesn't matter for runtime: `adopt` optimizes once
+per study per cycle (hours apart), so milliseconds vs microseconds is
+imperceptible. The decision is about *code* clarity, not runtime.
 
 ## What This Is Not a Replacement For
 
@@ -245,6 +249,7 @@ for c in PROD_CASES:
 EOF
 ```
 
-Blended sweep — replace `efficiency_weight=c.efficiency_weight` above with a
-loop over `w in [0.25, 0.5, 0.75, 0.9]` and compute the blended objective
+Blended sweep — call `proportional_opt_cvxpy` and `proportional_opt` (not
+`proportional_opt_closed_form`, which raises on `w < 1`) in a loop over
+`w in [0.25, 0.5, 0.75, 0.9]` and compute the blended objective
 `w · sum(goal² / m) + (1-w) / sum(m)`.
