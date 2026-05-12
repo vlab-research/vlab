@@ -308,10 +308,11 @@ func TestLastEvent_GetsLatestPaginationToken(t *testing.T) {
 	foo := CreateStudy(pool, "foo")
 	MustExec(t, pool, insertConf, foo, "recruitment", futureDate)
 
-	events := eventChan(
-		simpleEvent(foo, "sourceA", 0, "0"),
-		simpleEvent(foo, "sourceA", 10, "1"),
-	)
+	e1 := simpleEvent(foo, "sourceA", 0, "0")
+	e1.Timestamp = time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
+	e2 := simpleEvent(foo, "sourceA", 10, "1")
+	e2.Timestamp = time.Date(2020, 1, 2, 0, 0, 0, 0, time.UTC)
+	events := eventChan(e1, e2)
 
 	WriteEvents(pool, foo, events)
 
@@ -330,7 +331,7 @@ func TestLastEvent_GetsLatestPaginationToken(t *testing.T) {
 			Created: time.Now().UTC(),
 		},
 	}
-	event, ok, err := LastEvent(pool, source, "idx")
+	event, ok, err := LastEvent(pool, source, "timestamp")
 
 	assert.Nil(t, err)
 	assert.True(t, ok)
