@@ -27,7 +27,7 @@ type Connector interface {
 	Handler(source *Source, lastEvent *InferenceDataEvent) <-chan *InferenceDataEvent
 }
 
-func GetStudyConfs(pool *pgxpool.Pool, dataSource string) ([]*Source, error) {
+func GetStudyConfs(pool *pgxpool.Pool, dataSource string, graceDays int, thresholdRuns int) ([]*Source, error) {
 	query := `
         WITH tt AS (
 	  WITH t AS (
@@ -39,7 +39,6 @@ func GetStudyConfs(pool *pgxpool.Pool, dataSource string) ([]*Source, error) {
 	    INNER JOIN study_state on study_confs.study_id = study_state.id
 	    WHERE conf_type = 'data_sources'
             AND study_state.start_date < $1
-            AND study_state.end_date > $1
 
 	  )
 	  SELECT json_array_elements(conf) as conf,
@@ -60,11 +59,37 @@ func GetStudyConfs(pool *pgxpool.Pool, dataSource string) ([]*Source, error) {
            AND credentials.entity =  $2
            AND credentials.key = tt.conf->>'credentials_key'
         WHERE conf->>'source' = $2
+          -- Four-zone logic for activity-based quiescence:
+          -- Zone 1: exclude (start_date > NOW) -- handled by filter above
+          -- Zone 2: include (start_date <= NOW <= end_date)
+          -- Zone 3: include (end_date < NOW <= end_date + M days, within grace period)
+          -- Zone 4-5: include if NOT quiescent (past grace period but still receiving data)
+          AND (
+            -- Zones 2-3: Within grace period after end_date
+            (SELECT end_date FROM study_state ss WHERE ss.id = tt.study_id) + (($3::int) * INTERVAL '1 day') >= $1
+            -- OR Zone 5: Past grace period but NOT quiescent
+            OR (
+              (SELECT end_date FROM study_state ss WHERE ss.id = tt.study_id) + (($3::int) * INTERVAL '1 day') < $1
+              AND (
+                -- Count zeros in last K runs; less than K means NOT quiescent, so include
+                SELECT COUNT(*)
+                FROM (
+                  SELECT events_written
+                  FROM connector_runs
+                  WHERE study_id = tt.study_id
+                    AND source_name = tt.conf->>'name'
+                  ORDER BY run_at DESC
+                  LIMIT $4
+                ) last_k_runs
+                WHERE events_written = 0
+              ) < $4
+            )
+          )
         `
 
 	res := []*Source{}
 	now := time.Now().UTC() // extract?
-	rows, err := pool.Query(context.Background(), query, now, dataSource)
+	rows, err := pool.Query(context.Background(), query, now, dataSource, graceDays, thresholdRuns)
 	if err != nil {
 		return nil, err
 	}
@@ -170,7 +195,9 @@ func LastEvent(pool *pgxpool.Pool, source *Source, orderBy string) (*InferenceDa
 }
 
 type Config struct {
-	DB string `env:"PG_URL,required"` // postgres://user:password@host:port/db
+	DB                      string `env:"PG_URL,required"` // postgres://user:password@host:port/db
+	QuiescenceGraceDays     int    `env:"QUIESCENCE_GRACE_PERIOD_DAYS" envDefault:"14"`
+	QuiescenceThresholdRuns int    `env:"QUIESCENCE_THRESHOLD_RUNS" envDefault:"3"`
 	// KafkaBrokers     string        `env:"KAFKA_BROKERS,required"`
 	// KafkaPollTimeout time.Duration `env:"KAFKA_POLL_TIMEOUT,required"`
 	// Topic            string        `env:"KAFKA_TOPIC,required"`
@@ -183,6 +210,39 @@ func (cfg *Config) load() *Config {
 	return cfg
 }
 
+// recordRun inserts a connector_runs record for quiescence tracking.
+func recordRun(pool *pgxpool.Pool, source *Source, eventsWritten int) error {
+	_, err := pool.Exec(
+		context.Background(),
+		`INSERT INTO connector_runs (study_id, source_name, events_written) VALUES ($1, $2, $3)`,
+		source.StudyID,
+		source.Conf.Name,
+		eventsWritten,
+	)
+	return err
+}
+
+// collectEventsForStudy encapsulates per-study processing to enable error isolation.
+// It returns an error instead of fataling, allowing LoadEvents to continue to the next study.
+func collectEventsForStudy(pool *pgxpool.Pool, connector Connector, source *Source, orderColumn string) error {
+	log.Println(fmt.Sprintf("Collecting events for study %s", source.StudyID))
+
+	e, _, err := LastEvent(pool, source, orderColumn)
+	if err != nil {
+		return fmt.Errorf("study %s: getting last event: %w", source.StudyID, err)
+	}
+
+	events := connector.Handler(source, e)
+
+	written, err := WriteEvents(pool, source.StudyID, events)
+	log.Printf("Study %s: wrote %d events", source.StudyID, written)
+	if err != nil {
+		return fmt.Errorf("study %s: writing events: %w", source.StudyID, err)
+	}
+
+	return recordRun(pool, source, written)
+}
+
 func LoadEvents(connector Connector, dataSource string, orderColumn string) {
 	cnf := &Config{}
 	cnf = cnf.load()
@@ -190,27 +250,15 @@ func LoadEvents(connector Connector, dataSource string, orderColumn string) {
 	pool, err := pgxpool.Connect(context.Background(), cnf.DB)
 	handle(err)
 
-	sources, err := GetStudyConfs(pool, dataSource)
+	sources, err := GetStudyConfs(pool, dataSource, cnf.QuiescenceGraceDays, cnf.QuiescenceThresholdRuns)
 	handle(err)
 
-	fmt.Println(sources)
+	log.Printf("Collecting events for %d studies", len(sources))
 
-	log.Println(fmt.Sprintf("Collecting events %d studies", len(sources)))
-
-	// this doesn't need to be done sequentially,
-	// make a go loop?
 	for _, source := range sources {
-
-		log.Println(fmt.Sprintf("Collecting events for study %s", source.StudyID))
-
-		e, _, err := LastEvent(pool, source, orderColumn)
-		handle(err)
-
-		events := connector.Handler(source, e)
-
-		written, err := WriteEvents(pool, source.StudyID, events)
-		log.Println(fmt.Sprintf("Wrote %d results to the event store", written))
-		handle(err)
+		if err := collectEventsForStudy(pool, connector, source, orderColumn); err != nil {
+			log.Printf("ERROR study %s: %v", source.StudyID, err)
+		}
 	}
 
 }
