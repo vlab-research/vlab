@@ -37,7 +37,7 @@ func (t *FlyTime) UnmarshalJSON(b []byte) error {
 		return err
 	}
 
-	*t = FlyTime(parsed)
+	*t = FlyTime(parsed.UTC())
 	return nil
 }
 
