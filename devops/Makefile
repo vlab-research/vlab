@@ -39,7 +39,7 @@ start-db-container:
   	--name vlab-recruitment-test \
   	-d \
   	-p 5433:26257 \
-  	cockroachdb/cockroach:v21.2.17 \
+  	cockroachdb/cockroach:v24.1.28 \
   	start-single-node \
   	--insecure
 setup-database:
