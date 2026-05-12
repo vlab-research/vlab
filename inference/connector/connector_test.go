@@ -160,12 +160,11 @@ func TestGetStudyConfs_GetsOnlyActiveStudies(t *testing.T) {
 	MustExec(t, pool, insertCredential, userFoo, "literacy_data_api", "litkey", `{}`)
 	MustExec(t, pool, insertCredential, userBar, "literacy_data_api", "litkey", `{}`)
 
-	// Add K consecutive zero runs to bar to make it quiescent
-	insertConnectorRun(t, pool, bar, "A1", 0)
-	insertConnectorRun(t, pool, bar, "A1", 0)
-	insertConnectorRun(t, pool, bar, "A1", 0)
+	// bar has end_date in the past (2022-01-31); insert a post-grace run so it's excluded
+	// (grace = 14 days, so post-grace = after 2022-02-14)
+	insertConnectorRunAt(t, pool, bar, "A1", 0, time.Date(2022, 2, 15, 0, 0, 0, 0, time.UTC))
 
-	confs, err := GetStudyConfs(pool, "literacy_data_api", 14, 3)
+	confs, err := GetStudyConfs(pool, "literacy_data_api", 14)
 
 	assert.Nil(t, err)
 	assert.Equal(t, 1, len(confs))
@@ -188,7 +187,7 @@ func TestGetStudyConfs_GetsOnlyConfsWithCorrectSource(t *testing.T) {
 
 	MustExec(t, pool, insertCredential, user, "literacy_data_api", "litkey", `{"token": "abc"}`)
 
-	confs, err := GetStudyConfs(pool, "literacy_data_api", 14, 3)
+	confs, err := GetStudyConfs(pool, "literacy_data_api", 14)
 
 	assert.Nil(t, err)
 	assert.Equal(t, 1, len(confs))
@@ -212,7 +211,7 @@ func TestGetStudyConfs_GetsMultipleConfsFromTheSameSource(t *testing.T) {
 
 	MustExec(t, pool, insertCredential, user, "literacy_data_api", "litkey", `{"token": "abc"}`)
 
-	confs, err := GetStudyConfs(pool, "literacy_data_api", 14, 3)
+	confs, err := GetStudyConfs(pool, "literacy_data_api", 14)
 
 	assert.Nil(t, err)
 	assert.Equal(t, 2, len(confs))
@@ -239,7 +238,7 @@ func TestGetStudyConfs_GetsOnlyTheLatestConfPerStudy(t *testing.T) {
 
 	MustExec(t, pool, insertCredential, user, "literacy_data_api", "litkey", `{"token": "abc"}`)
 
-	confs, err := GetStudyConfs(pool, "literacy_data_api", 14, 3)
+	confs, err := GetStudyConfs(pool, "literacy_data_api", 14)
 
 	assert.Nil(t, err)
 	assert.Equal(t, 1, len(confs))
@@ -259,7 +258,7 @@ func TestGetStudyConfs_SkipsRowAndFailsSilentlyIfCredentialsAreMissing(t *testin
 	MustExec(t, pool, insertConf, foo, "recruitment", futureDate)
 	MustExec(t, pool, insertConf, foo, "data_sources", confA)
 
-	confs, err := GetStudyConfs(pool, "literacy_data_api", 14, 3)
+	confs, err := GetStudyConfs(pool, "literacy_data_api", 14)
 
 	assert.Nil(t, err)
 	assert.Equal(t, 0, len(confs))
@@ -372,7 +371,7 @@ func TestLastEvent_ReturnsFalseWhenNoEvents(t *testing.T) {
 }
 
 // ============================================================================
-// Quiescence Feature Tests
+// Reconciliation Feature Tests
 // ============================================================================
 
 func insertConnectorRun(t *testing.T, pool *pgxpool.Pool, studyID string, sourceName string, eventsWritten int) {
@@ -380,9 +379,13 @@ func insertConnectorRun(t *testing.T, pool *pgxpool.Pool, studyID string, source
 	MustExec(t, pool, query, studyID, sourceName, eventsWritten)
 }
 
-func TestGetStudyConfs_Zone2_ActiveStudyAlwaysReturned(t *testing.T) {
-	// Zone 2 (active): study within start_date < NOW < end_date is returned
-	// even with many zero-event runs in connector_runs
+func insertConnectorRunAt(t *testing.T, pool *pgxpool.Pool, studyID string, sourceName string, eventsWritten int, runAt time.Time) {
+	query := `INSERT INTO connector_runs (study_id, source_name, events_written, run_at) VALUES ($1, $2, $3, $4)`
+	MustExec(t, pool, query, studyID, sourceName, eventsWritten, runAt)
+}
+
+func TestGetStudyConfs_ActiveStudyAlwaysReturned(t *testing.T) {
+	// Study within start_date < NOW < end_date is always collected.
 	pool := TestPool()
 	defer pool.Close()
 
@@ -390,37 +393,19 @@ func TestGetStudyConfs_Zone2_ActiveStudyAlwaysReturned(t *testing.T) {
 	resetDb(pool)
 
 	foo := CreateStudy(pool, "foo")
-	userFoo := "foo@email"
-
-	// Create a study that is currently active (start < NOW < end)
-	activeDate := `
-	{
-	   "start_date": "2020-01-10T00:00:00",
-	   "end_date": "2999-01-31T00:00:00"
-	}
-	`
-	MustExec(t, pool, insertConf, foo, "recruitment", activeDate)
+	MustExec(t, pool, insertConf, foo, "recruitment", futureDate)
 	MustExec(t, pool, insertConf, foo, "data_sources", confA)
-	MustExec(t, pool, insertCredential, userFoo, "literacy_data_api", "litkey", `{}`)
+	MustExec(t, pool, insertCredential, "foo@email", "literacy_data_api", "litkey", `{}`)
 
-	// Add many zero-event connector_runs (would be quiescent in other zones)
-	insertConnectorRun(t, pool, foo, "A1", 0)
-	insertConnectorRun(t, pool, foo, "A1", 0)
-	insertConnectorRun(t, pool, foo, "A1", 0)
-	insertConnectorRun(t, pool, foo, "A1", 0)
-	insertConnectorRun(t, pool, foo, "A1", 0)
-
-	// Despite the zero-event runs, study should be returned because it's in Zone 2 (active)
-	confs, err := GetStudyConfs(pool, "literacy_data_api", 14, 3)
+	confs, err := GetStudyConfs(pool, "literacy_data_api", 14)
 
 	assert.Nil(t, err)
 	assert.Equal(t, 1, len(confs))
 	assert.Equal(t, foo, confs[0].StudyID)
 }
 
-func TestGetStudyConfs_Zone3_GracePeriodAlwaysReturned(t *testing.T) {
-	// Zone 3 (grace period): study past end_date but within M days is returned
-	// regardless of connector_runs
+func TestGetStudyConfs_GracePeriodAlwaysReturned(t *testing.T) {
+	// Study within grace period (end_date < NOW < end_date+M) is always collected.
 	pool := TestPool()
 	defer pool.Close()
 
@@ -428,37 +413,23 @@ func TestGetStudyConfs_Zone3_GracePeriodAlwaysReturned(t *testing.T) {
 	resetDb(pool)
 
 	foo := CreateStudy(pool, "foo")
-	userFoo := "foo@email"
-
-	// Create study that ended 5 days ago (within 14-day grace period)
 	now := time.Now()
-	endDate := now.Add(-5 * 24 * time.Hour)
-	gracePeriodDate := fmt.Sprintf(`
-	{
-	   "start_date": "2020-01-10T00:00:00",
-	   "end_date": "%s"
-	}
-	`, endDate.Format(time.RFC3339))
-
+	endDate := now.Add(-5 * 24 * time.Hour) // ended 5 days ago, within M=14
+	gracePeriodDate := fmt.Sprintf(`{"start_date":"2020-01-10T00:00:00","end_date":"%s"}`, endDate.Format(time.RFC3339))
 	MustExec(t, pool, insertConf, foo, "recruitment", gracePeriodDate)
 	MustExec(t, pool, insertConf, foo, "data_sources", confA)
-	MustExec(t, pool, insertCredential, userFoo, "literacy_data_api", "litkey", `{}`)
+	MustExec(t, pool, insertCredential, "foo@email", "literacy_data_api", "litkey", `{}`)
 
-	// Add zero-event runs (would trigger quiescence if past grace period)
-	insertConnectorRun(t, pool, foo, "A1", 0)
-	insertConnectorRun(t, pool, foo, "A1", 0)
-	insertConnectorRun(t, pool, foo, "A1", 0)
-
-	// Study should be returned because it's in grace period, regardless of zero runs
-	confs, err := GetStudyConfs(pool, "literacy_data_api", 14, 3)
+	confs, err := GetStudyConfs(pool, "literacy_data_api", 14)
 
 	assert.Nil(t, err)
 	assert.Equal(t, 1, len(confs))
 	assert.Equal(t, foo, confs[0].StudyID)
 }
 
-func TestGetStudyConfs_Zone4_QuiescentStudyExcluded(t *testing.T) {
-	// Zone 4 (quiescent): study past end_date+M with K or more consecutive zero runs is excluded
+func TestGetStudyConfs_PastGraceNoPostGraceRun_Returned(t *testing.T) {
+	// Study past end_date+M with no run recorded after end_date+M is included
+	// so the reconciliation pass can happen.
 	pool := TestPool()
 	defer pool.Close()
 
@@ -466,36 +437,54 @@ func TestGetStudyConfs_Zone4_QuiescentStudyExcluded(t *testing.T) {
 	resetDb(pool)
 
 	foo := CreateStudy(pool, "foo")
-	userFoo := "foo@email"
-
-	// Create study that ended 20 days ago (past 14-day grace period)
 	now := time.Now()
-	endDate := now.Add(-20 * 24 * time.Hour)
-	pastGracePeriodDate := fmt.Sprintf(`
-	{
-	   "start_date": "2020-01-10T00:00:00",
-	   "end_date": "%s"
-	}
-	`, endDate.Format(time.RFC3339))
-
-	MustExec(t, pool, insertConf, foo, "recruitment", pastGracePeriodDate)
+	endDate := now.Add(-20 * 24 * time.Hour) // ended 20 days ago, past M=14
+	pastGraceDate := fmt.Sprintf(`{"start_date":"2020-01-10T00:00:00","end_date":"%s"}`, endDate.Format(time.RFC3339))
+	MustExec(t, pool, insertConf, foo, "recruitment", pastGraceDate)
 	MustExec(t, pool, insertConf, foo, "data_sources", confA)
-	MustExec(t, pool, insertCredential, userFoo, "literacy_data_api", "litkey", `{}`)
+	MustExec(t, pool, insertCredential, "foo@email", "literacy_data_api", "litkey", `{}`)
 
-	// Add K=3 consecutive zero-event runs (quiescent)
-	insertConnectorRun(t, pool, foo, "A1", 0)
-	insertConnectorRun(t, pool, foo, "A1", 0)
-	insertConnectorRun(t, pool, foo, "A1", 0)
+	// Runs exist but all before end_date+M — no post-grace run yet
+	beforeGrace := endDate.Add(13 * 24 * time.Hour) // end_date + 13 days, still before end_date+14
+	insertConnectorRunAt(t, pool, foo, "A1", 0, beforeGrace)
 
-	// Study should NOT be returned because it's quiescent (K consecutive zeros past grace period)
-	confs, err := GetStudyConfs(pool, "literacy_data_api", 14, 3)
+	confs, err := GetStudyConfs(pool, "literacy_data_api", 14)
+
+	assert.Nil(t, err)
+	assert.Equal(t, 1, len(confs))
+	assert.Equal(t, foo, confs[0].StudyID)
+}
+
+func TestGetStudyConfs_PastGraceWithPostGraceRun_Excluded(t *testing.T) {
+	// Study past end_date+M with at least one run after end_date+M is excluded —
+	// the reconciliation pass already happened.
+	pool := TestPool()
+	defer pool.Close()
+
+	initConnectorRunsTable(pool)
+	resetDb(pool)
+
+	foo := CreateStudy(pool, "foo")
+	now := time.Now()
+	endDate := now.Add(-20 * 24 * time.Hour) // ended 20 days ago, past M=14
+	pastGraceDate := fmt.Sprintf(`{"start_date":"2020-01-10T00:00:00","end_date":"%s"}`, endDate.Format(time.RFC3339))
+	MustExec(t, pool, insertConf, foo, "recruitment", pastGraceDate)
+	MustExec(t, pool, insertConf, foo, "data_sources", confA)
+	MustExec(t, pool, insertCredential, "foo@email", "literacy_data_api", "litkey", `{}`)
+
+	// One run recorded after end_date+M
+	afterGrace := endDate.Add(15 * 24 * time.Hour) // end_date + 15 days, past end_date+14
+	insertConnectorRunAt(t, pool, foo, "A1", 0, afterGrace)
+
+	confs, err := GetStudyConfs(pool, "literacy_data_api", 14)
 
 	assert.Nil(t, err)
 	assert.Equal(t, 0, len(confs))
 }
 
-func TestGetStudyConfs_Zone5_NotQuiescentPastGracePeriod(t *testing.T) {
-	// Zone 5 (not quiescent): study past end_date+M with fewer than K zero runs is still returned
+func TestGetStudyConfs_PastGraceNoRunsAtAll_Returned(t *testing.T) {
+	// Study past end_date+M with no runs at all is included — connector may have
+	// been down and needs to do a reconciliation pass.
 	pool := TestPool()
 	defer pool.Close()
 
@@ -503,37 +492,23 @@ func TestGetStudyConfs_Zone5_NotQuiescentPastGracePeriod(t *testing.T) {
 	resetDb(pool)
 
 	foo := CreateStudy(pool, "foo")
-	userFoo := "foo@email"
-
-	// Create study that ended 20 days ago (past 14-day grace period)
 	now := time.Now()
 	endDate := now.Add(-20 * 24 * time.Hour)
-	pastGracePeriodDate := fmt.Sprintf(`
-	{
-	   "start_date": "2020-01-10T00:00:00",
-	   "end_date": "%s"
-	}
-	`, endDate.Format(time.RFC3339))
-
-	MustExec(t, pool, insertConf, foo, "recruitment", pastGracePeriodDate)
+	pastGraceDate := fmt.Sprintf(`{"start_date":"2020-01-10T00:00:00","end_date":"%s"}`, endDate.Format(time.RFC3339))
+	MustExec(t, pool, insertConf, foo, "recruitment", pastGraceDate)
 	MustExec(t, pool, insertConf, foo, "data_sources", confA)
-	MustExec(t, pool, insertCredential, userFoo, "literacy_data_api", "litkey", `{}`)
+	MustExec(t, pool, insertCredential, "foo@email", "literacy_data_api", "litkey", `{}`)
 
-	// Add K-1=2 zero-event runs plus one non-zero run (not quiescent)
-	insertConnectorRun(t, pool, foo, "A1", 0)
-	insertConnectorRun(t, pool, foo, "A1", 0)
-	insertConnectorRun(t, pool, foo, "A1", 5)
-
-	// Study should be returned because not all last K runs are zeros (has at least one non-zero)
-	confs, err := GetStudyConfs(pool, "literacy_data_api", 14, 3)
+	confs, err := GetStudyConfs(pool, "literacy_data_api", 14)
 
 	assert.Nil(t, err)
 	assert.Equal(t, 1, len(confs))
 	assert.Equal(t, foo, confs[0].StudyID)
 }
 
-func TestGetStudyConfs_Zone5_BreakStreakWithNonZero(t *testing.T) {
-	// Zone 4-5 boundary: K-1 zeros followed by one non-zero run breaks the quiescence streak
+func TestGetStudyConfs_AutoReactivationWhenEndDateExtended(t *testing.T) {
+	// If a study's end_date is extended, it re-enters the active/grace window
+	// and is collected again automatically.
 	pool := TestPool()
 	defer pool.Close()
 
@@ -541,369 +516,100 @@ func TestGetStudyConfs_Zone5_BreakStreakWithNonZero(t *testing.T) {
 	resetDb(pool)
 
 	foo := CreateStudy(pool, "foo")
-	userFoo := "foo@email"
-
-	// Create study that ended 20 days ago (past grace period)
 	now := time.Now()
 	endDate := now.Add(-20 * 24 * time.Hour)
-	pastGracePeriodDate := fmt.Sprintf(`
-	{
-	   "start_date": "2020-01-10T00:00:00",
-	   "end_date": "%s"
-	}
-	`, endDate.Format(time.RFC3339))
-
-	MustExec(t, pool, insertConf, foo, "recruitment", pastGracePeriodDate)
+	pastGraceDate := fmt.Sprintf(`{"start_date":"2020-01-10T00:00:00","end_date":"%s"}`, endDate.Format(time.RFC3339))
+	MustExec(t, pool, insertConf, foo, "recruitment", pastGraceDate)
 	MustExec(t, pool, insertConf, foo, "data_sources", confA)
-	MustExec(t, pool, insertCredential, userFoo, "literacy_data_api", "litkey", `{}`)
+	MustExec(t, pool, insertCredential, "foo@email", "literacy_data_api", "litkey", `{}`)
 
-	// Add runs: non-zero, then K-1 zeros (ordered by most recent last)
-	insertConnectorRun(t, pool, foo, "A1", 0)
-	insertConnectorRun(t, pool, foo, "A1", 0)
-	insertConnectorRun(t, pool, foo, "A1", 10)
+	// Reconciliation already happened
+	afterGrace := endDate.Add(15 * 24 * time.Hour)
+	insertConnectorRunAt(t, pool, foo, "A1", 0, afterGrace)
 
-	// Most recent K=3 runs: [10, 0, 0] - has non-zero, so NOT quiescent
-	confs, err := GetStudyConfs(pool, "literacy_data_api", 14, 3)
-
-	assert.Nil(t, err)
-	assert.Equal(t, 1, len(confs))
-	assert.Equal(t, foo, confs[0].StudyID)
-}
-
-func TestGetStudyConfs_Zone5_AutoReactivationWhenEndDateExtended(t *testing.T) {
-	// Auto-reactivation: if a study's end_date is extended back into active zone,
-	// it should be automatically returned (no reset flag needed)
-	pool := TestPool()
-	defer pool.Close()
-
-	initConnectorRunsTable(pool)
-	resetDb(pool)
-
-	foo := CreateStudy(pool, "foo")
-	userFoo := "foo@email"
-
-	// Start with a study that ended 20 days ago (quiescent)
-	now := time.Now()
-	endDate := now.Add(-20 * 24 * time.Hour)
-	pastGracePeriodDate := fmt.Sprintf(`
-	{
-	   "start_date": "2020-01-10T00:00:00",
-	   "end_date": "%s"
-	}
-	`, endDate.Format(time.RFC3339))
-
-	MustExec(t, pool, insertConf, foo, "recruitment", pastGracePeriodDate)
-	MustExec(t, pool, insertConf, foo, "data_sources", confA)
-	MustExec(t, pool, insertCredential, userFoo, "literacy_data_api", "litkey", `{}`)
-
-	// Add K=3 consecutive zero runs
-	insertConnectorRun(t, pool, foo, "A1", 0)
-	insertConnectorRun(t, pool, foo, "A1", 0)
-	insertConnectorRun(t, pool, foo, "A1", 0)
-
-	// Verify study is quiescent
-	confs, err := GetStudyConfs(pool, "literacy_data_api", 14, 3)
+	confs, err := GetStudyConfs(pool, "literacy_data_api", 14)
 	assert.Nil(t, err)
 	assert.Equal(t, 0, len(confs))
 
-	// Now extend end_date to future (NOW + 10 days)
+	// Extend end_date into the future
 	newEndDate := now.Add(10 * 24 * time.Hour)
-	extendedDate := fmt.Sprintf(`
-	{
-	   "start_date": "2020-01-10T00:00:00",
-	   "end_date": "%s"
-	}
-	`, newEndDate.Format(time.RFC3339))
-
+	extendedDate := fmt.Sprintf(`{"start_date":"2020-01-10T00:00:00","end_date":"%s"}`, newEndDate.Format(time.RFC3339))
 	MustExec(t, pool, insertConf, foo, "recruitment", extendedDate)
 
-	// Study should now be returned because end_date is extended into future (Zone 2-3)
-	confs, err = GetStudyConfs(pool, "literacy_data_api", 14, 3)
-
+	confs, err = GetStudyConfs(pool, "literacy_data_api", 14)
 	assert.Nil(t, err)
 	assert.Equal(t, 1, len(confs))
 	assert.Equal(t, foo, confs[0].StudyID)
 }
 
-func TestGetStudyConfs_MultipleSourcesSameStyudyTracksSeparately(t *testing.T) {
-	// Different sources for the same study should track their quiescence separately
+func TestGetStudyConfs_MultipleSourcesTrackedSeparately(t *testing.T) {
+	// Each source for a study tracks its own reconciliation state independently.
 	pool := TestPool()
 	defer pool.Close()
 
- initConnectorRunsTable(pool)
+	initConnectorRunsTable(pool)
 	resetDb(pool)
 
 	foo := CreateStudy(pool, "foo")
-	userFoo := "foo@email"
-
-	// Create study that ended 20 days ago (past grace period)
 	now := time.Now()
 	endDate := now.Add(-20 * 24 * time.Hour)
-	pastGracePeriodDate := fmt.Sprintf(`
-	{
-	   "start_date": "2020-01-10T00:00:00",
-	   "end_date": "%s"
-	}
-	`, endDate.Format(time.RFC3339))
+	pastGraceDate := fmt.Sprintf(`{"start_date":"2020-01-10T00:00:00","end_date":"%s"}`, endDate.Format(time.RFC3339))
+	MustExec(t, pool, insertConf, foo, "recruitment", pastGraceDate)
+	MustExec(t, pool, insertConf, foo, "data_sources", confD) // D1 and D2
+	MustExec(t, pool, insertCredential, "foo@email", "literacy_data_api", "litkey", `{}`)
 
-	MustExec(t, pool, insertConf, foo, "recruitment", pastGracePeriodDate)
-	// Use confD which has two sources: D1 and D2
-	MustExec(t, pool, insertConf, foo, "data_sources", confD)
-	MustExec(t, pool, insertCredential, userFoo, "literacy_data_api", "litkey", `{}`)
+	afterGrace := endDate.Add(15 * 24 * time.Hour)
 
-	// Source D1: K=3 consecutive zero runs (quiescent)
-	insertConnectorRun(t, pool, foo, "D1", 0)
-	insertConnectorRun(t, pool, foo, "D1", 0)
-	insertConnectorRun(t, pool, foo, "D1", 0)
+	// D1: has post-grace run → reconciliation done → excluded
+	insertConnectorRunAt(t, pool, foo, "D1", 0, afterGrace)
+	// D2: no post-grace run → needs reconciliation → included
 
-	// Source D2: K-1=2 zero runs and 1 non-zero (not quiescent)
-	insertConnectorRun(t, pool, foo, "D2", 0)
-	insertConnectorRun(t, pool, foo, "D2", 0)
-	insertConnectorRun(t, pool, foo, "D2", 5)
-
-	confs, err := GetStudyConfs(pool, "literacy_data_api", 14, 3)
+	confs, err := GetStudyConfs(pool, "literacy_data_api", 14)
 
 	assert.Nil(t, err)
-	// Should only return D2 (D1 is quiescent)
 	assert.Equal(t, 1, len(confs))
 	assert.Equal(t, "D2", confs[0].Conf.Name)
 }
 
-func TestGetStudyConfs_FewerThanKRunsAvailableIsNotQuiescent(t *testing.T) {
-	// If there are fewer than K total runs, the study is not yet quiescent
+func TestGetStudyConfs_ReconciliationGraceDaysConfigurable(t *testing.T) {
+	// The grace period M is configurable via RECONCILIATION_GRACE_DAYS.
 	pool := TestPool()
 	defer pool.Close()
 
- initConnectorRunsTable(pool)
+	initConnectorRunsTable(pool)
 	resetDb(pool)
 
 	foo := CreateStudy(pool, "foo")
-	userFoo := "foo@email"
-
-	// Create study past grace period
 	now := time.Now()
-	endDate := now.Add(-20 * 24 * time.Hour)
-	pastGracePeriodDate := fmt.Sprintf(`
-	{
-	   "start_date": "2020-01-10T00:00:00",
-	   "end_date": "%s"
-	}
-	`, endDate.Format(time.RFC3339))
-
-	MustExec(t, pool, insertConf, foo, "recruitment", pastGracePeriodDate)
-	MustExec(t, pool, insertConf, foo, "data_sources", confA)
-	MustExec(t, pool, insertCredential, userFoo, "literacy_data_api", "litkey", `{}`)
-
-	// Add only K-1=2 zero runs (fewer than K)
-	insertConnectorRun(t, pool, foo, "A1", 0)
-	insertConnectorRun(t, pool, foo, "A1", 0)
-
-	// Study should be returned because we don't have K consecutive zeros yet
-	confs, err := GetStudyConfs(pool, "literacy_data_api", 14, 3)
-
-	assert.Nil(t, err)
-	assert.Equal(t, 1, len(confs))
-	assert.Equal(t, foo, confs[0].StudyID)
-}
-
-func TestGetStudyConfs_ExactlyKZeroRunsIsQuiescent(t *testing.T) {
-	// Edge case: exactly K consecutive zero runs should make study quiescent
-	pool := TestPool()
-	defer pool.Close()
-
- initConnectorRunsTable(pool)
-	resetDb(pool)
-
-	foo := CreateStudy(pool, "foo")
-	userFoo := "foo@email"
-
-	// Create study past grace period
-	now := time.Now()
-	endDate := now.Add(-20 * 24 * time.Hour)
-	pastGracePeriodDate := fmt.Sprintf(`
-	{
-	   "start_date": "2020-01-10T00:00:00",
-	   "end_date": "%s"
-	}
-	`, endDate.Format(time.RFC3339))
-
-	MustExec(t, pool, insertConf, foo, "recruitment", pastGracePeriodDate)
-	MustExec(t, pool, insertConf, foo, "data_sources", confA)
-	MustExec(t, pool, insertCredential, userFoo, "literacy_data_api", "litkey", `{}`)
-
-	// Add exactly K=3 zero runs
-	insertConnectorRun(t, pool, foo, "A1", 0)
-	insertConnectorRun(t, pool, foo, "A1", 0)
-	insertConnectorRun(t, pool, foo, "A1", 0)
-
-	// Study should be excluded (quiescent)
-	confs, err := GetStudyConfs(pool, "literacy_data_api", 14, 3)
-
-	assert.Nil(t, err)
-	assert.Equal(t, 0, len(confs))
-}
-
-func TestGetStudyConfs_QuiescenceThresholdRespectsDifferentK(t *testing.T) {
-	// Verify that the threshold K is configurable and respected
-	pool := TestPool()
-	defer pool.Close()
-
- initConnectorRunsTable(pool)
-	resetDb(pool)
-
-	foo := CreateStudy(pool, "foo")
-	userFoo := "foo@email"
-
-	// Create study past grace period
-	now := time.Now()
-	endDate := now.Add(-20 * 24 * time.Hour)
-	pastGracePeriodDate := fmt.Sprintf(`
-	{
-	   "start_date": "2020-01-10T00:00:00",
-	   "end_date": "%s"
-	}
-	`, endDate.Format(time.RFC3339))
-
-	MustExec(t, pool, insertConf, foo, "recruitment", pastGracePeriodDate)
-	MustExec(t, pool, insertConf, foo, "data_sources", confA)
-	MustExec(t, pool, insertCredential, userFoo, "literacy_data_api", "litkey", `{}`)
-
-	// Add 2 zero runs
-	insertConnectorRun(t, pool, foo, "A1", 0)
-	insertConnectorRun(t, pool, foo, "A1", 0)
-
-	// With K=3: should be returned (only 2 zeros)
-	confs, err := GetStudyConfs(pool, "literacy_data_api", 14, 3)
-	assert.Nil(t, err)
-	assert.Equal(t, 1, len(confs))
-
-	// With K=2: should be excluded (exactly 2 zeros)
-	confs, err = GetStudyConfs(pool, "literacy_data_api", 14, 2)
-	assert.Nil(t, err)
-	assert.Equal(t, 0, len(confs))
-
-	// With K=1: should be excluded (2 >= 1)
-	confs, err = GetStudyConfs(pool, "literacy_data_api", 14, 1)
-	assert.Nil(t, err)
-	assert.Equal(t, 0, len(confs))
-}
-
-func TestGetStudyConfs_GracePeriodRespectsDifferentM(t *testing.T) {
-	// Verify that the grace period M is configurable and respected
-	pool := TestPool()
-	defer pool.Close()
-
- initConnectorRunsTable(pool)
-	resetDb(pool)
-
-	foo := CreateStudy(pool, "foo")
-	userFoo := "foo@email"
-
-	// Create study that ended 5 days ago
-	now := time.Now()
-	endDate := now.Add(-5 * 24 * time.Hour)
-	recentEndDate := fmt.Sprintf(`
-	{
-	   "start_date": "2020-01-10T00:00:00",
-	   "end_date": "%s"
-	}
-	`, endDate.Format(time.RFC3339))
-
+	endDate := now.Add(-5 * 24 * time.Hour) // ended 5 days ago
+	recentEndDate := fmt.Sprintf(`{"start_date":"2020-01-10T00:00:00","end_date":"%s"}`, endDate.Format(time.RFC3339))
 	MustExec(t, pool, insertConf, foo, "recruitment", recentEndDate)
 	MustExec(t, pool, insertConf, foo, "data_sources", confA)
-	MustExec(t, pool, insertCredential, userFoo, "literacy_data_api", "litkey", `{}`)
+	MustExec(t, pool, insertCredential, "foo@email", "literacy_data_api", "litkey", `{}`)
 
-	// Add K consecutive zeros
-	insertConnectorRun(t, pool, foo, "A1", 0)
-	insertConnectorRun(t, pool, foo, "A1", 0)
-	insertConnectorRun(t, pool, foo, "A1", 0)
-
-	// With M=14 days: should be returned (within grace period)
-	confs, err := GetStudyConfs(pool, "literacy_data_api", 14, 3)
+	// With M=14: still in grace period → returned
+	confs, err := GetStudyConfs(pool, "literacy_data_api", 14)
 	assert.Nil(t, err)
 	assert.Equal(t, 1, len(confs))
 
-	// With M=3 days: should be excluded (past grace period, quiescent)
-	confs, err = GetStudyConfs(pool, "literacy_data_api", 3, 3)
+	// With M=3: past grace, no post-grace run → still returned (needs reconciliation)
+	confs, err = GetStudyConfs(pool, "literacy_data_api", 3)
+	assert.Nil(t, err)
+	assert.Equal(t, 1, len(confs))
+
+	// Record a post-grace run (after end_date + 3 days)
+	afterGrace := endDate.Add(4 * 24 * time.Hour)
+	insertConnectorRunAt(t, pool, foo, "A1", 0, afterGrace)
+
+	// With M=3: post-grace run exists → excluded
+	confs, err = GetStudyConfs(pool, "literacy_data_api", 3)
 	assert.Nil(t, err)
 	assert.Equal(t, 0, len(confs))
 
-	// Sub-case 1: M=5 with 4-day-old study → clearly within grace period
-	resetDb(pool)
-	foo2 := CreateStudy(pool, "foo2")
-	endDate4 := now.Add(-4 * 24 * time.Hour)
-	within5DaysDate := fmt.Sprintf(`
-	{
-	   "start_date": "2020-01-10T00:00:00",
-	   "end_date": "%s"
-	}
-	`, endDate4.Format(time.RFC3339))
-	MustExec(t, pool, insertConf, foo2, "recruitment", within5DaysDate)
-	MustExec(t, pool, insertConf, foo2, "data_sources", confA)
-	MustExec(t, pool, insertCredential, "foo2@email", "literacy_data_api", "litkey", `{}`)
-	insertConnectorRun(t, pool, foo2, "A1", 0)
-	insertConnectorRun(t, pool, foo2, "A1", 0)
-	insertConnectorRun(t, pool, foo2, "A1", 0)
-
-	confs, err = GetStudyConfs(pool, "literacy_data_api", 5, 3)
-	assert.Nil(t, err)
-	assert.Equal(t, 1, len(confs), "Study ended 4 days ago should be within M=5 grace period")
-
-	// Sub-case 2: M=5 with 6-day-old study → clearly past grace period, quiescent
-	resetDb(pool)
-	foo3 := CreateStudy(pool, "foo3")
-	endDate6 := now.Add(-6 * 24 * time.Hour)
-	past5DaysDate := fmt.Sprintf(`
-	{
-	   "start_date": "2020-01-10T00:00:00",
-	   "end_date": "%s"
-	}
-	`, endDate6.Format(time.RFC3339))
-	MustExec(t, pool, insertConf, foo3, "recruitment", past5DaysDate)
-	MustExec(t, pool, insertConf, foo3, "data_sources", confA)
-	MustExec(t, pool, insertCredential, "foo3@email", "literacy_data_api", "litkey", `{}`)
-	insertConnectorRun(t, pool, foo3, "A1", 0)
-	insertConnectorRun(t, pool, foo3, "A1", 0)
-	insertConnectorRun(t, pool, foo3, "A1", 0)
-
-	confs, err = GetStudyConfs(pool, "literacy_data_api", 5, 3)
-	assert.Nil(t, err)
-	assert.Equal(t, 0, len(confs), "Study ended 6 days ago should be past M=5 grace period with K consecutive zeros")
-}
-
-func TestGetStudyConfs_NoConnectorRunsRecordsIsNotQuiescent(t *testing.T) {
-	// If a study has no connector_runs records, it should not be treated as quiescent
-	pool := TestPool()
-	defer pool.Close()
-
- initConnectorRunsTable(pool)
-	resetDb(pool)
-
-	foo := CreateStudy(pool, "foo")
-	userFoo := "foo@email"
-
-	// Create study past grace period
-	now := time.Now()
-	endDate := now.Add(-20 * 24 * time.Hour)
-	pastGracePeriodDate := fmt.Sprintf(`
-	{
-	   "start_date": "2020-01-10T00:00:00",
-	   "end_date": "%s"
-	}
-	`, endDate.Format(time.RFC3339))
-
-	MustExec(t, pool, insertConf, foo, "recruitment", pastGracePeriodDate)
-	MustExec(t, pool, insertConf, foo, "data_sources", confA)
-	MustExec(t, pool, insertCredential, userFoo, "literacy_data_api", "litkey", `{}`)
-
-	// Do NOT add any connector_runs records
-
-	// Study should be returned because no K consecutive zeros exist
-	confs, err := GetStudyConfs(pool, "literacy_data_api", 14, 3)
-
+	// With M=14: still in grace period → returned (post-grace run is within grace for M=14)
+	confs, err = GetStudyConfs(pool, "literacy_data_api", 14)
 	assert.Nil(t, err)
 	assert.Equal(t, 1, len(confs))
-	assert.Equal(t, foo, confs[0].StudyID)
 }
 
 // ============================================================================
@@ -1067,7 +773,7 @@ func TestLoadEvents_ContinuesPastFailedStudy(t *testing.T) {
 	}
 
 	// Manually run collectEventsForStudy for each study, simulating what LoadEvents does
-	sources, err := GetStudyConfs(pool, "literacy_data_api", 14, 3)
+	sources, err := GetStudyConfs(pool, "literacy_data_api", 14)
 	assert.Nil(t, err)
 	assert.Equal(t, 2, len(sources), "Should have both studies available")
 

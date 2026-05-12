@@ -27,7 +27,7 @@ type Connector interface {
 	Handler(source *Source, lastEvent *InferenceDataEvent) <-chan *InferenceDataEvent
 }
 
-func GetStudyConfs(pool *pgxpool.Pool, dataSource string, graceDays int, thresholdRuns int) ([]*Source, error) {
+func GetStudyConfs(pool *pgxpool.Pool, dataSource string, graceDays int) ([]*Source, error) {
 	query := `
         WITH tt AS (
 	  WITH t AS (
@@ -59,37 +59,23 @@ func GetStudyConfs(pool *pgxpool.Pool, dataSource string, graceDays int, thresho
            AND credentials.entity =  $2
            AND credentials.key = tt.conf->>'credentials_key'
         WHERE conf->>'source' = $2
-          -- Four-zone logic for activity-based quiescence:
-          -- Zone 1: exclude (start_date > NOW) -- handled by filter above
-          -- Zone 2: include (start_date <= NOW <= end_date)
-          -- Zone 3: include (end_date < NOW <= end_date + M days, within grace period)
-          -- Zone 4-5: include if NOT quiescent (past grace period but still receiving data)
           AND (
-            -- Zones 2-3: Within grace period after end_date
+            -- Active or within grace period: always collect
             (SELECT end_date FROM study_state ss WHERE ss.id = tt.study_id) + (($3::int) * INTERVAL '1 day') >= $1
-            -- OR Zone 5: Past grace period but NOT quiescent
-            OR (
-              (SELECT end_date FROM study_state ss WHERE ss.id = tt.study_id) + (($3::int) * INTERVAL '1 day') < $1
-              AND (
-                -- Count zeros in last K runs; less than K means NOT quiescent, so include
-                SELECT COUNT(*)
-                FROM (
-                  SELECT events_written
-                  FROM connector_runs
-                  WHERE study_id = tt.study_id
-                    AND source_name = tt.conf->>'name'
-                  ORDER BY run_at DESC
-                  LIMIT $4
-                ) last_k_runs
-                WHERE events_written = 0
-              ) < $4
+            -- Past grace period: collect only if no run has been recorded after end_date + grace
+            -- (ensures at least one reconciliation pass happens after the window closes)
+            OR NOT EXISTS (
+              SELECT 1 FROM connector_runs cr
+              WHERE cr.study_id = tt.study_id
+                AND cr.source_name = tt.conf->>'name'
+                AND cr.run_at > (SELECT end_date FROM study_state ss WHERE ss.id = tt.study_id) + (($3::int) * INTERVAL '1 day')
             )
           )
         `
 
 	res := []*Source{}
 	now := time.Now().UTC() // extract?
-	rows, err := pool.Query(context.Background(), query, now, dataSource, graceDays, thresholdRuns)
+	rows, err := pool.Query(context.Background(), query, now, dataSource, graceDays)
 	if err != nil {
 		return nil, err
 	}
@@ -196,8 +182,7 @@ func LastEvent(pool *pgxpool.Pool, source *Source, orderBy string) (*InferenceDa
 
 type Config struct {
 	DB                      string `env:"PG_URL,required"` // postgres://user:password@host:port/db
-	QuiescenceGraceDays     int    `env:"QUIESCENCE_GRACE_PERIOD_DAYS" envDefault:"14"`
-	QuiescenceThresholdRuns int    `env:"QUIESCENCE_THRESHOLD_RUNS" envDefault:"3"`
+	ReconciliationGraceDays int    `env:"RECONCILIATION_GRACE_DAYS" envDefault:"14"`
 	// KafkaBrokers     string        `env:"KAFKA_BROKERS,required"`
 	// KafkaPollTimeout time.Duration `env:"KAFKA_POLL_TIMEOUT,required"`
 	// Topic            string        `env:"KAFKA_TOPIC,required"`
@@ -210,7 +195,7 @@ func (cfg *Config) load() *Config {
 	return cfg
 }
 
-// recordRun inserts a connector_runs record for quiescence tracking.
+// recordRun inserts a connector_runs record for reconciliation tracking.
 func recordRun(pool *pgxpool.Pool, source *Source, eventsWritten int) error {
 	_, err := pool.Exec(
 		context.Background(),
@@ -250,7 +235,7 @@ func LoadEvents(connector Connector, dataSource string, orderColumn string) {
 	pool, err := pgxpool.Connect(context.Background(), cnf.DB)
 	handle(err)
 
-	sources, err := GetStudyConfs(pool, dataSource, cnf.QuiescenceGraceDays, cnf.QuiescenceThresholdRuns)
+	sources, err := GetStudyConfs(pool, dataSource, cnf.ReconciliationGraceDays)
 	handle(err)
 
 	log.Printf("Collecting events for %d studies", len(sources))
