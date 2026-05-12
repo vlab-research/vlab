@@ -330,7 +330,7 @@ func TestLastEvent_GetsLatestPaginationToken(t *testing.T) {
 			Created: time.Now().UTC(),
 		},
 	}
-	event, ok, err := LastEvent(pool, source, "timestamp")
+	event, ok, err := LastEvent(pool, source, "idx")
 
 	assert.Nil(t, err)
 	assert.True(t, ok)
