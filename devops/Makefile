@@ -31,7 +31,7 @@ seed:		## Create new seed file [name: required]
 		$(name)
 
 test-db: 	## Runs a test db used for the API tests
-	@ $(MAKE) start-db-container setup-database run-migrations
+	@ $(MAKE) start-db-container wait-for-db setup-database run-migrations
 
 start-db-container:
 	@-docker stop vlab-recruitment-test && docker rm vlab-recruitment-test
@@ -42,6 +42,11 @@ start-db-container:
   	cockroachdb/cockroach:v24.1.28 \
   	start-single-node \
   	--insecure
+
+wait-for-db:
+	@echo "Waiting for CockroachDB to be ready..."
+	@until docker exec vlab-recruitment-test ./cockroach sql --insecure -e "SELECT 1" > /dev/null 2>&1; do sleep 1; done
+
 setup-database:
 	@docker run \
   	--net=host \
