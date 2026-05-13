@@ -437,6 +437,8 @@ def test_get_recruitment_data_returns_only_latest_temp_data():
 
     data = get_recruitment_data(cnf, study_id)
     assert len(data) == 2
+    # UNION has no guaranteed order — sort by temp so non-temp comes first
+    data = sorted(data, key=lambda r: r.temp)
     assert data[0].time_period.end == day_end(start)
     assert data[0].temp is False
     assert data[1].time_period.end == now
