@@ -445,10 +445,11 @@ class TestBuildSegmentsProgressData:
             sample_strata,
         )
 
-        # Verify cumulative counts remain same in empty bucket
+        # Sparse output: empty buckets are omitted, so only the two active
+        # buckets are returned (day 1 with 1 user, day 3 with 2 cumulative).
         s1_counts = [
             next(s for s in bucket["segments"] if s["id"] == "s1")["participants"]
             for bucket in result
         ]
-        # Should go 1, 1, 2 (empty bucket maintains cumulative, then adds new user)
-        assert s1_counts == [1, 1, 2]
+        assert s1_counts == [1, 2]
+        assert len(result) == 2
