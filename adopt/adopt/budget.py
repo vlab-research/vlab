@@ -1,3 +1,4 @@
+import json
 import logging
 import os
 import time
@@ -911,18 +912,18 @@ def get_budget_lookup(
     any_negative = bool(np.any(shadow_arr < 0))
 
     logging.info(
-        "optimizer_shadow",
-        extra={
+        "optimizer_shadow %s",
+        json.dumps({
             "study_id": study_id,
             "H": len(strata),
             "efficiency_weight": efficiency_weight,
             "optimizer_version": shadow_version,
-            "lbfgs_time_ms": lbfgs_time_ms,
-            "shadow_time_ms": shadow_time_ms,
+            "lbfgs_time_ms": round(lbfgs_time_ms, 2),
+            "shadow_time_ms": round(shadow_time_ms, 2),
             "max_abs_relative_diff_vs_lbfgs": max_rel_diff,
             "budget_residual": budget_residual,
             "any_negative_spend": any_negative,
-        },
+        }),
     )
 
     # Include efficiency_weight in report (same value for all strata)
