@@ -33,12 +33,15 @@ jobs:
           # so api uses CTX=. with an explicit dockerfile path. Inference-based services share
           # one parameterized Dockerfile at inference/Dockerfile, selected via APP_PATH.
           case "${{ steps.parse.outputs.service }}" in
-            api)        CTX=.          ; DOCKERFILE=api/Dockerfile        ; IMG=vlab-dashboard-api ;;
-            adopt)      CTX=adopt      ; DOCKERFILE=adopt/Dockerfile      ; IMG=adopt              ;;
-            typeform)   CTX=inference  ; DOCKERFILE=inference/Dockerfile  ; IMG=source-typeform    ; ARGS="APP_PATH=sources/typeform"  ;;
-            alchemer)   CTX=inference  ; DOCKERFILE=inference/Dockerfile  ; IMG=source-alchemer    ; ARGS="APP_PATH=sources/alchemer"  ;;
-            fly-source) CTX=inference  ; DOCKERFILE=inference/Dockerfile  ; IMG=source-fly         ; ARGS="APP_PATH=sources/fly"       ;;
-            swoosh)     CTX=inference  ; DOCKERFILE=inference/Dockerfile  ; IMG=swoosh             ; ARGS="APP_PATH=swoosh"            ;;
+            # Tag prefix matches image name so it's obvious which image a tag publishes.
+            # api keeps its legacy short name (image is vlab-dashboard-api for historical reasons).
+            api)              CTX=.          ; DOCKERFILE=api/Dockerfile        ; IMG=vlab-dashboard-api ;;
+            adopt)            CTX=adopt      ; DOCKERFILE=adopt/Dockerfile      ; IMG=adopt              ;;
+            source-typeform)  CTX=inference  ; DOCKERFILE=inference/Dockerfile  ; IMG=source-typeform    ; ARGS="APP_PATH=sources/typeform"  ;;
+            source-alchemer)  CTX=inference  ; DOCKERFILE=inference/Dockerfile  ; IMG=source-alchemer    ; ARGS="APP_PATH=sources/alchemer"  ;;
+            source-fly)       CTX=inference  ; DOCKERFILE=inference/Dockerfile  ; IMG=source-fly         ; ARGS="APP_PATH=sources/fly"       ;;
+            source-qualtrics) CTX=inference  ; DOCKERFILE=inference/Dockerfile  ; IMG=source-qualtrics   ; ARGS="APP_PATH=sources/qualtrics" ;;
+            swoosh)           CTX=inference  ; DOCKERFILE=inference/Dockerfile  ; IMG=swoosh             ; ARGS="APP_PATH=swoosh"            ;;
             *)
               echo "Unknown service '${{ steps.parse.outputs.service }}' — add it to .github/workflows/release.yml" >&2
               exit 1
