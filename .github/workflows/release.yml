@@ -4,6 +4,9 @@ on:
   push:
     tags:
       - '*-v[0-9]+.[0-9]+.[0-9]+'
+  # Manual rerun against an existing tag — pick the tag in the "Use workflow from" ref selector.
+  # The job parses GITHUB_REF_NAME, which equals the tag name for both push and dispatch.
+  workflow_dispatch:
 
 jobs:
   build-push:
@@ -26,20 +29,25 @@ jobs:
       - name: Resolve build context, image name, and build args
         id: resolve
         run: |
+          # api/Dockerfile expects the repo root as context (it COPYs both api/ and inference/),
+          # so api uses CTX=. with an explicit dockerfile path. Inference-based services share
+          # one parameterized Dockerfile at inference/Dockerfile, selected via APP_PATH.
           case "${{ steps.parse.outputs.service }}" in
-            api)        CTX=api        ; IMG=vlab-dashboard-api ;;
-            adopt)      CTX=adopt      ; IMG=adopt              ;;
-            typeform)   CTX=inference  ; IMG=source-typeform    ; ARGS="APP_PATH=sources/typeform"  ;;
-            alchemer)   CTX=inference  ; IMG=source-alchemer    ; ARGS="APP_PATH=sources/alchemer"  ;;
-            fly-source) CTX=inference  ; IMG=source-fly         ; ARGS="APP_PATH=sources/fly"       ;;
+            api)        CTX=.          ; DOCKERFILE=api/Dockerfile        ; IMG=vlab-dashboard-api ;;
+            adopt)      CTX=adopt      ; DOCKERFILE=adopt/Dockerfile      ; IMG=adopt              ;;
+            typeform)   CTX=inference  ; DOCKERFILE=inference/Dockerfile  ; IMG=source-typeform    ; ARGS="APP_PATH=sources/typeform"  ;;
+            alchemer)   CTX=inference  ; DOCKERFILE=inference/Dockerfile  ; IMG=source-alchemer    ; ARGS="APP_PATH=sources/alchemer"  ;;
+            fly-source) CTX=inference  ; DOCKERFILE=inference/Dockerfile  ; IMG=source-fly         ; ARGS="APP_PATH=sources/fly"       ;;
+            swoosh)     CTX=inference  ; DOCKERFILE=inference/Dockerfile  ; IMG=swoosh             ; ARGS="APP_PATH=swoosh"            ;;
             *)
               echo "Unknown service '${{ steps.parse.outputs.service }}' — add it to .github/workflows/release.yml" >&2
               exit 1
               ;;
           esac
-          echo "context=$CTX"      >> "$GITHUB_OUTPUT"
-          echo "image=$IMG"        >> "$GITHUB_OUTPUT"
-          echo "build_args=$ARGS"  >> "$GITHUB_OUTPUT"
+          echo "context=$CTX"         >> "$GITHUB_OUTPUT"
+          echo "dockerfile=$DOCKERFILE" >> "$GITHUB_OUTPUT"
+          echo "image=$IMG"           >> "$GITHUB_OUTPUT"
+          echo "build_args=$ARGS"     >> "$GITHUB_OUTPUT"
 
       - uses: docker/setup-buildx-action@v3
 
@@ -52,6 +60,7 @@ jobs:
       - uses: docker/build-push-action@v5
         with:
           context: ${{ steps.resolve.outputs.context }}
+          file: ${{ steps.resolve.outputs.dockerfile }}
           push: true
           tags: ghcr.io/vlab-research/${{ steps.resolve.outputs.image }}:${{ steps.parse.outputs.version }}
           build-args: ${{ steps.resolve.outputs.build_args }}
