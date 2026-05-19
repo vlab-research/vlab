@@ -28,6 +28,9 @@ type Connector interface {
 }
 
 func GetStudyConfs(pool *pgxpool.Pool, dataSource string, graceDays int) ([]*Source, error) {
+	// A study is "active" for collection when:
+	//   start_date < NOW < end_date + graceDays
+	// graceDays extends collection past end_date so late-arriving events still get picked up.
 	query := `
         WITH tt AS (
 	  WITH t AS (
@@ -39,7 +42,7 @@ func GetStudyConfs(pool *pgxpool.Pool, dataSource string, graceDays int) ([]*Sou
 	    INNER JOIN study_state on study_confs.study_id = study_state.id
 	    WHERE conf_type = 'data_sources'
             AND study_state.start_date < $1
-
+            AND study_state.end_date + (($3::int) * INTERVAL '1 day') >= $1
 	  )
 	  SELECT json_array_elements(conf) as conf,
 		 study_id,
@@ -59,18 +62,6 @@ func GetStudyConfs(pool *pgxpool.Pool, dataSource string, graceDays int) ([]*Sou
            AND credentials.entity =  $2
            AND credentials.key = tt.conf->>'credentials_key'
         WHERE conf->>'source' = $2
-          AND (
-            -- Active or within grace period: always collect
-            (SELECT end_date FROM study_state ss WHERE ss.id = tt.study_id) + (($3::int) * INTERVAL '1 day') >= $1
-            -- Past grace period: collect only if no run has been recorded after end_date + grace
-            -- (ensures at least one reconciliation pass happens after the window closes)
-            OR NOT EXISTS (
-              SELECT 1 FROM connector_runs cr
-              WHERE cr.study_id = tt.study_id
-                AND cr.source_name = tt.conf->>'name'
-                AND cr.run_at > (SELECT end_date FROM study_state ss WHERE ss.id = tt.study_id) + (($3::int) * INTERVAL '1 day')
-            )
-          )
         `
 
 	res := []*Source{}
@@ -181,8 +172,8 @@ func LastEvent(pool *pgxpool.Pool, source *Source, orderBy string) (*InferenceDa
 }
 
 type Config struct {
-	DB                      string `env:"PG_URL,required"` // postgres://user:password@host:port/db
-	ReconciliationGraceDays int    `env:"RECONCILIATION_GRACE_DAYS" envDefault:"14"`
+	DB        string `env:"PG_URL,required"` // postgres://user:password@host:port/db
+	GraceDays int    `env:"GRACE_DAYS" envDefault:"14"`
 	// KafkaBrokers     string        `env:"KAFKA_BROKERS,required"`
 	// KafkaPollTimeout time.Duration `env:"KAFKA_POLL_TIMEOUT,required"`
 	// Topic            string        `env:"KAFKA_TOPIC,required"`
@@ -193,18 +184,6 @@ func (cfg *Config) load() *Config {
 	err := env.Parse(cfg)
 	handle(err)
 	return cfg
-}
-
-// recordRun inserts a connector_runs record for reconciliation tracking.
-func recordRun(pool *pgxpool.Pool, source *Source, eventsWritten int) error {
-	_, err := pool.Exec(
-		context.Background(),
-		`INSERT INTO connector_runs (study_id, source_name, events_written) VALUES ($1, $2, $3)`,
-		source.StudyID,
-		source.Conf.Name,
-		eventsWritten,
-	)
-	return err
 }
 
 // collectEventsForStudy encapsulates per-study processing to enable error isolation.
@@ -225,7 +204,7 @@ func collectEventsForStudy(pool *pgxpool.Pool, connector Connector, source *Sour
 		return fmt.Errorf("study %s: writing events: %w", source.StudyID, err)
 	}
 
-	return recordRun(pool, source, written)
+	return nil
 }
 
 func LoadEvents(connector Connector, dataSource string, orderColumn string) {
@@ -235,7 +214,7 @@ func LoadEvents(connector Connector, dataSource string, orderColumn string) {
 	pool, err := pgxpool.Connect(context.Background(), cnf.DB)
 	handle(err)
 
-	sources, err := GetStudyConfs(pool, dataSource, cnf.ReconciliationGraceDays)
+	sources, err := GetStudyConfs(pool, dataSource, cnf.GraceDays)
 	handle(err)
 
 	log.Printf("Collecting events for %d studies", len(sources))
