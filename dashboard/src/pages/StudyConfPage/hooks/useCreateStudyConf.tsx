@@ -27,8 +27,8 @@ const useCreateStudyConf = (
       onMutate: async () => {
         // or push to globalData here for optimistic updating
       },
-      onSuccess: () => {
-        queryClient.invalidateQueries(queryKey)
+      onSuccess: async () => {
+        await queryClient.refetchQueries([queryKey, studySlug])
 
         if (getNextConf(confKey)) {
           history.push(
