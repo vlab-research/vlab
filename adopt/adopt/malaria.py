@@ -79,6 +79,7 @@ def update_ads_for_campaign(
 
     # Extract efficiency_weight from recruitment config (default to 1.0 if not present)
     efficiency_weight = getattr(study.recruitment, 'efficiency_weight', 1.0)
+    optimizer_version = getattr(study.recruitment, 'optimizer_version', 'closed_form')
 
     budget_lookup, report = get_budget_lookup_with_db(
         df,
@@ -90,6 +91,7 @@ def update_ads_for_campaign(
         db_conf,
         study.id,
         efficiency_weight,
+        optimizer_version=optimizer_version,
     )
 
     # Generate and store respondents over time report

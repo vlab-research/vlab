@@ -256,6 +256,9 @@ def proportional_opt_closed_form(
 
     # Budget-binding case
     if budget is not None:
+
+        # TODO: B' is a concept of the active set allocation? Maybe move
+
         # Compute shifted budget B' = B + sum(p_h * (tot_h + n0))
         B_prime = budget + np.sum(price * (tot + n0))
 
@@ -371,6 +374,10 @@ def _active_set_allocate(goal: np.ndarray, sigma: np.ndarray, price: np.ndarray,
         # sum(price_h * weights_h * scale) = B_prime
         # scale = B_prime / sum(price_h * weights_h)
         total_price_weight = np.sum(price_a * weights)
+
+        # TODO: interrogate if the degenerate case ever happens...
+        # prices and weights should never be negative, really. 
+        # Should probably throw. 
         if total_price_weight <= 0:
             # Degenerate case: use uniform allocation
             scale = B_prime / np.sum(price_a)
@@ -387,6 +394,10 @@ def _active_set_allocate(goal: np.ndarray, sigma: np.ndarray, price: np.ndarray,
         if not np.any(pinned):
             # No more strata to pin; converged
             break
+
+
+        # TODO: pin tracking is confusing. Think of a simpler model to 
+        # deal with the pinning 
 
         # Remove pinned strata from active set and adjust budget
         pinned_idx = active_idx[pinned]
@@ -711,16 +722,18 @@ def proportional_opt(
         )
 
 
-def _pick_optimizer(efficiency_weight: float) -> Tuple[Callable, str]:
+def _pick_optimizer(efficiency_weight: float, optimizer_version: str = "closed_form") -> Tuple[Callable, str]:
     """Return (optimizer_callable, version_label).
 
-    Soak-deployment dispatch (planning/soak-deployment.md):
-      - env ADOPT_OPTIMIZER_DEFAULT=lbfgs forces the legacy L-BFGS-B path for
-        global rollback without redeploying app code.
-      - Otherwise: closed_form for w==1 (microsecond analytic active-set),
-        cvxpy for w<1 (handles the blended objective).
+    Dispatch order (planning/soak-deployment.md):
+      1. env ADOPT_OPTIMIZER_DEFAULT=lbfgs — global rollback without redeploying.
+      2. optimizer_version="lbfgs" — per-study rollback via StudyConf field.
+      3. closed_form for w==1 (microsecond analytic active-set),
+         cvxpy for w<1 (handles the blended objective).
     """
     if os.environ.get("ADOPT_OPTIMIZER_DEFAULT", "").lower() == "lbfgs":
+        return proportional_opt, "lbfgs"
+    if optimizer_version == "lbfgs":
         return proportional_opt, "lbfgs"
     if efficiency_weight >= 1.0:
         return proportional_opt_closed_form, "closed_form"
@@ -855,6 +868,7 @@ def get_budget_lookup(
     lifetime_spend: Dict[str, float],
     efficiency_weight: float,
     study_id: Optional[str] = None,
+    optimizer_version: str = "closed_form",
 ) -> Tuple[Optional[Budget], Optional[AdOptReport]]:
     df = prep_df_for_budget(df, strata) if df is not None else None
 
@@ -874,6 +888,9 @@ def get_budget_lookup(
     total_spend = sum(lifetime_spend.values()) + (
         sum(tot.values()) * incentive_per_respondent
     )
+
+    # TODO: probably this is no longer needed, move into proportional_budget and 
+    # that will make those calcs simpler (no need for B')
     to_spend = max_budget - total_spend
 
     share = _normalize_values(tot)
@@ -884,45 +901,28 @@ def get_budget_lookup(
 
     goal = _normalize_values({s.id: s.quota for s in strata})
 
-    # Phase 1 (shadow): real allocation served by legacy L-BFGS-B, new optimizer
-    # runs in parallel for comparison. See planning/soak-deployment.md.
-    # Fail-loud: no try/except around shadow run — if it throws we want to see
-    # it in error logs, not swallow it.
+    # Phase 2 (production): closed-form/CVXPY serves real allocations.
+    # L-BFGS-B kept as fallback via optimizer_version="lbfgs" per-study or
+    # ADOPT_OPTIMIZER_DEFAULT=lbfgs env var. See planning/soak-deployment.md.
+    optimizer, optimizer_version_used = _pick_optimizer(efficiency_weight, optimizer_version)
     t0 = time.perf_counter()
     budget, expected, counterfactual_spend, counterfactual_recruits = proportional_budget(
         goal, spend, tot, price, to_spend, max_sample_size, efficiency_weight,
-        optimizer=proportional_opt,
+        optimizer=optimizer,
     )
-    lbfgs_time_ms = (time.perf_counter() - t0) * 1000.0
+    opt_time_ms = (time.perf_counter() - t0) * 1000.0
 
-    shadow_optimizer, shadow_version = _pick_optimizer(efficiency_weight)
-    t0 = time.perf_counter()
-    shadow_budget, shadow_expected, _, _ = proportional_budget(
-        goal, spend, tot, price, to_spend, max_sample_size, efficiency_weight,
-        optimizer=shadow_optimizer,
-    )
-    shadow_time_ms = (time.perf_counter() - t0) * 1000.0
-
-    # max relative diff between served (lbfgs) and shadow allocations
-    served_arr = np.array([budget[k] for k in budget.keys()], dtype=float)
-    shadow_arr = np.array([shadow_budget[k] for k in budget.keys()], dtype=float)
-    denom = np.maximum(np.abs(served_arr), 1e-9)
-    max_rel_diff = float(np.max(np.abs(served_arr - shadow_arr) / denom))
-    budget_residual = abs(sum(shadow_budget.values()) - to_spend) / max(to_spend, 1.0)
-    any_negative = bool(np.any(shadow_arr < 0))
+    budget_residual = abs(sum(budget.values()) - to_spend) / max(to_spend, 1.0)
 
     logging.info(
-        "optimizer_shadow %s",
+        "optimizer_run %s",
         json.dumps({
             "study_id": study_id,
             "H": len(strata),
             "efficiency_weight": efficiency_weight,
-            "optimizer_version": shadow_version,
-            "lbfgs_time_ms": round(lbfgs_time_ms, 2),
-            "shadow_time_ms": round(shadow_time_ms, 2),
-            "max_abs_relative_diff_vs_lbfgs": max_rel_diff,
+            "optimizer_version": optimizer_version_used,
+            "time_ms": round(opt_time_ms, 2),
             "budget_residual": budget_residual,
-            "any_negative_spend": any_negative,
         }),
     )
 
@@ -1060,6 +1060,7 @@ def get_budget_lookup_with_db(
     db_conf: DBConf,
     study_id: str,
     efficiency_weight: float,
+    optimizer_version: str = "closed_form",
 ) -> Tuple[Optional[Budget], Optional[AdOptReport]]:
     """
     Wrapper around get_budget_lookup that calculates spend statistics from recruitment data.
@@ -1074,6 +1075,7 @@ def get_budget_lookup_with_db(
         db_conf: Database configuration
         study_id: ID of the study
         efficiency_weight: Weight for variance optimization (1.0=variance, 0.0=cost efficiency)
+        optimizer_version: Which optimizer to use ("closed_form" or "lbfgs")
 
     Returns:
         Tuple of (budget_lookup, report) as returned by get_budget_lookup
@@ -1103,4 +1105,5 @@ def get_budget_lookup_with_db(
         lifetime_spend,
         efficiency_weight,
         study_id=study_id,
+        optimizer_version=optimizer_version,
     )

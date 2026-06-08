@@ -3,7 +3,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from datetime import datetime, timedelta
 from math import floor
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Literal, Optional, Tuple, Union
 
 from pydantic import BaseModel, ConfigDict, model_validator
 
@@ -144,6 +144,7 @@ class SimpleRecruitment(BaseRecruitmentConf):
     end_date: datetime
     incentive_per_respondent: float = 0
     efficiency_weight: float = 1.0  # 1.0 = variance focus, 0.0 = cost focus
+    optimizer_version: Literal["closed_form", "lbfgs"] = "closed_form"
 
     @property
     def opt_sample_size(self):
@@ -211,6 +212,7 @@ class PipelineRecruitmentExperiment(BaseRecruitmentConf):
     offset_days: int
     incentive_per_respondent: float = 0
     efficiency_weight: float = 1.0  # 1.0 = variance focus, 0.0 = cost focus
+    optimizer_version: Literal["closed_form", "lbfgs"] = "closed_form"
 
     def validate_dates(self):
         # TODO: this is useless, but due to pydantic bugging out, can't
@@ -311,6 +313,7 @@ class DestinationRecruitmentExperiment(BaseRecruitmentConf):
     destinations: list[str]
     incentive_per_respondent: float = 0
     efficiency_weight: float = 1.0  # 1.0 = variance focus, 0.0 = cost focus
+    optimizer_version: Literal["closed_form", "lbfgs"] = "closed_form"
 
     @property
     def opt_sample_size(self):

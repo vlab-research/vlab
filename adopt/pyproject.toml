@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "adopt"
-version = "0.0.84"
+version = "0.0.85"
 description = ""
 authors = ["Nandan Rao <nandanmarkrao@gmail.com>"]
 
