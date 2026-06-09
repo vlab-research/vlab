@@ -1,4 +1,4 @@
-import { createStrataFromVariables, getFinishQuestionRef } from './strata';
+import { createStrataFromVariables, getFinishQuestionRef, strataStalenessHint } from './strata';
 import { Stratum, Variables, Creatives } from '../../../../types/conf';
 
 describe('createStrataFromVariables', () => {
@@ -484,3 +484,203 @@ describe("getFinishQuestionRef", () => {
 
 
 })
+
+describe('createStrataFromVariables with merge', () => {
+  it('Merge preserves audiences/quota/metadata for existing stratum IDs', () => {
+    const variables: Variables = [
+      {
+        name: 'gender',
+        properties: ['genders'],
+        levels: [
+          { name: 'men', template_campaign: 'foo', template_adset: 'men', facebook_targeting: { 'genders': [1] }, quota: 0.5 },
+          { name: 'women', template_campaign: 'foo', template_adset: 'women', facebook_targeting: { 'genders': [2] }, quota: 0.5 }
+        ]
+      }
+    ];
+
+    const existingStrata: Stratum[] = [
+      {
+        id: 'gender:men',
+        quota: 0.3,
+        creatives: ['creative_A'],
+        audiences: ['audience_1'],
+        excluded_audiences: ['excluded_1'],
+        facebook_targeting: { 'genders': [1] },
+        metadata: { gender: 'men' },
+      }
+    ];
+
+    const strata = createStrataFromVariables(variables, "foo", undefined, undefined, existingStrata);
+
+    expect(strata.length).toBe(2);
+    const menStratum = strata.find(s => s.id === 'gender:men');
+    expect(menStratum?.quota).toBe(0.3);
+    expect(menStratum?.creatives).toEqual(['creative_A']);
+    expect(menStratum?.audiences).toEqual(['audience_1']);
+    expect(menStratum?.excluded_audiences).toEqual(['excluded_1']);
+  });
+
+  it('Drops strata whose IDs no longer exist in the new combination set', () => {
+    const variables: Variables = [
+      {
+        name: 'gender',
+        properties: ['genders'],
+        levels: [
+          { name: 'men', template_campaign: 'foo', template_adset: 'men', facebook_targeting: { 'genders': [1] }, quota: 0.5 }
+        ]
+      }
+    ];
+
+    const existingStrata: Stratum[] = [
+      {
+        id: 'gender:men',
+        quota: 0.5,
+        creatives: ['creative_A'],
+        audiences: [],
+        excluded_audiences: [],
+        facebook_targeting: { 'genders': [1] },
+        metadata: { gender: 'men' },
+      },
+      {
+        id: 'gender:women',
+        quota: 0.5,
+        creatives: ['creative_A'],
+        audiences: [],
+        excluded_audiences: [],
+        facebook_targeting: { 'genders': [2] },
+        metadata: { gender: 'women' },
+      }
+    ];
+
+    const strata = createStrataFromVariables(variables, "foo", undefined, undefined, existingStrata);
+
+    expect(strata.length).toBe(1);
+    expect(strata[0].id).toBe('gender:men');
+  });
+
+  it('Adds new combinations with defaults', () => {
+    const variables: Variables = [
+      {
+        name: 'gender',
+        properties: ['genders'],
+        levels: [
+          { name: 'men', template_campaign: 'foo', template_adset: 'men', facebook_targeting: { 'genders': [1] }, quota: 0.5 },
+          { name: 'women', template_campaign: 'foo', template_adset: 'women', facebook_targeting: { 'genders': [2] }, quota: 0.5 }
+        ]
+      }
+    ];
+
+    const existingStrata: Stratum[] = [
+      {
+        id: 'gender:men',
+        quota: 0.5,
+        creatives: ['creative_A'],
+        audiences: ['audience_1'],
+        excluded_audiences: [],
+        facebook_targeting: { 'genders': [1] },
+        metadata: { gender: 'men' },
+      }
+    ];
+
+    const strata = createStrataFromVariables(variables, "foo", undefined, undefined, existingStrata);
+
+    expect(strata.length).toBe(2);
+    const womenStratum = strata.find(s => s.id === 'gender:women');
+    expect(womenStratum).toBeDefined();
+    expect(womenStratum?.audiences).toEqual([]);
+    expect(womenStratum?.creatives).toEqual([]);
+  });
+});
+
+describe('strataStalenessHint', () => {
+  it('Returns true when a level is added to a variable', () => {
+    const variables: Variables = [
+      {
+        name: 'gender',
+        properties: ['genders'],
+        levels: [
+          { name: 'men', template_campaign: 'foo', template_adset: 'men', facebook_targeting: { 'genders': [1] }, quota: 0.5 },
+          { name: 'women', template_campaign: 'foo', template_adset: 'women', facebook_targeting: { 'genders': [2] }, quota: 0.5 }
+        ]
+      }
+    ];
+
+    const savedStrata: Stratum[] = [
+      {
+        id: 'gender:men',
+        quota: 0.5,
+        creatives: [],
+        audiences: [],
+        excluded_audiences: [],
+        facebook_targeting: { 'genders': [1] },
+        question_targeting: {
+          op: "and",
+          vars: [
+            {
+              op: "equal",
+              vars: [
+                { type: "variable", value: "gender" },
+                { type: "constant", value: "men" }
+              ]
+            },
+            {
+              op: "answered",
+              vars: [
+                { type: "variable", value: "finish_q" }
+              ]
+            }
+          ]
+        },
+        metadata: { gender: 'men' },
+      }
+    ];
+
+    const isStale = strataStalenessHint(variables, savedStrata);
+    expect(isStale).toBe(true);
+  });
+
+  it('Returns false when nothing changed', () => {
+    const variables: Variables = [
+      {
+        name: 'gender',
+        properties: ['genders'],
+        levels: [
+          { name: 'men', template_campaign: 'foo', template_adset: 'men', facebook_targeting: { 'genders': [1] }, quota: 0.5 }
+        ]
+      }
+    ];
+
+    const savedStrata: Stratum[] = [
+      {
+        id: 'gender:men',
+        quota: 0.5,
+        creatives: [],
+        audiences: [],
+        excluded_audiences: [],
+        facebook_targeting: { 'genders': [1] },
+        question_targeting: {
+          op: "and",
+          vars: [
+            {
+              op: "equal",
+              vars: [
+                { type: "variable", value: "gender" },
+                { type: "constant", value: "men" }
+              ]
+            },
+            {
+              op: "answered",
+              vars: [
+                { type: "variable", value: "finish_q" }
+              ]
+            }
+          ]
+        },
+        metadata: { gender: 'men' },
+      }
+    ];
+
+    const isStale = strataStalenessHint(variables, savedStrata);
+    expect(isStale).toBe(false);
+  });
+});
