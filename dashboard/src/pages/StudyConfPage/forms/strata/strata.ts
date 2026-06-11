@@ -67,8 +67,8 @@ export const createStrataFromVariables = (variables: Variables, finishQuestionRe
   const strata: Stratum[] = cartesianProduct(res)
     .map((l: IntermediateLevel[]) => formatGroupProduct(l, finishQuestionRef))
     .map((data: Level) => ({
-      audiences: [], // TODO: ADD AUDIENCES SOMEHOW??
-      excluded_audiences: allAudiences[0] ? [allAudiences[0]] : [], // TODO: ADD EXLUDED AUDIENCE SOMEHOW??
+      audiences: [],
+      excluded_audiences: allAudiences,
       creatives: allCreatives,
       ...data,
     }));

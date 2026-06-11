@@ -126,13 +126,14 @@ const Strata: React.FC<Props> = ({
               </li>
             ) : (
               formData.map((s, i) => (
-                <Stratum
-                  key={i}
-                  stratum={s}
-                  creatives={creatives}
-                  onChange={(e: any) => updateFormData(e, i)}
-                />
-              ))
+                 <Stratum
+                   key={i}
+                   stratum={s}
+                   creatives={creatives}
+                   audiences={audiences || []}
+                   onChange={(e: any) => updateFormData(e, i)}
+                 />
+               ))
             )}
             {formData.length > 1 && (
               <div className="flex w-full h-0.5 mr-4 rounded-md bg-gray-400"></div>

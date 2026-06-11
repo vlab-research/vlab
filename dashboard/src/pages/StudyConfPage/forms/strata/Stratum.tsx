@@ -1,7 +1,7 @@
 import React from 'react';
 import { GenericTextInput, TextInputI } from '../../components/TextInput';
 import { GenericMultiSelect, MultiSelectI } from '../../components/MultiSelect';
-import { Stratum as FormData, Creative as CreativeType } from '../../../../types/conf';
+import { Stratum as FormData, Creative as CreativeType, Audience as AudienceType } from '../../../../types/conf';
 
 const TextInput = GenericTextInput as TextInputI<FormData>;
 const MultiSelect = GenericMultiSelect as MultiSelectI<FormData>;
@@ -9,12 +9,24 @@ const MultiSelect = GenericMultiSelect as MultiSelectI<FormData>;
 const Stratum: React.FC<{
   stratum: FormData;
   creatives: CreativeType[];
+  audiences: AudienceType[];
   onChange: (e: any) => void;
-}> = ({ stratum, onChange, creatives }) => {
+}> = ({ stratum, onChange, creatives, audiences }) => {
 
   const handleMultiSelectChange = (selected: string[], name: string) => {
     onChange({ target: { name, value: selected } });
   };
+
+  const toggleAudience = (audienceName: string, field: 'audiences' | 'excluded_audiences') => {
+    const current = stratum[field];
+    const updated = current.includes(audienceName)
+      ? current.filter((n: string) => n !== audienceName)
+      : [...current, audienceName];
+    onChange({ target: { name: field, value: updated } });
+  };
+
+  const isAudienceExcluded = (name: string) => stratum.excluded_audiences.includes(name);
+  const isAudienceIncluded = (name: string) => stratum.audiences.includes(name);
 
   return (
     <li>
@@ -38,6 +50,49 @@ const Stratum: React.FC<{
         value={stratum.creatives}
         label="Select a set of creatives for this stratum"
       ></MultiSelect>
+
+      {audiences.length > 0 && (
+        <div className="sm:my-4">
+          <label className="my-2 block text-sm font-medium text-gray-700">
+            Excluded Audiences
+          </label>
+          <div className="flex flex-col space-y-1">
+            {audiences.map(a => (
+              <label key={a.name} className="flex items-center space-x-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={isAudienceExcluded(a.name)}
+                  onChange={() => toggleAudience(a.name, 'excluded_audiences')}
+                  className="rounded text-indigo-600"
+                />
+                <span className="text-sm text-gray-700">{a.name}</span>
+              </label>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {audiences.length > 0 && (
+        <div className="sm:my-4">
+          <label className="my-2 block text-sm font-medium text-gray-700">
+            Included Audiences
+          </label>
+          <div className="flex flex-col space-y-1">
+            {audiences.map(a => (
+              <label key={a.name} className="flex items-center space-x-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={isAudienceIncluded(a.name)}
+                  onChange={() => toggleAudience(a.name, 'audiences')}
+                  className="rounded text-indigo-600"
+                />
+                <span className="text-sm text-gray-700">{a.name}</span>
+              </label>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className="w-4/5 h-0.5 mr-8 my-6 rounded-md bg-gray-400"></div>
     </li>
   );

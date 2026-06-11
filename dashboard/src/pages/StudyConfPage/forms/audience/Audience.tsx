@@ -24,12 +24,33 @@ const Audience: React.FC<Props> = ({ data, update, index }: Props) => {
         placeholder="E.g Give your audience a name"
         value={data.name}
       />
-      <TextInput
-        name="subtype"
-        handleChange={handleChange}
-        placeholder="Add a subtype"
-        value={data.subtype}
-      />
+      <div className="sm:my-4">
+        <label className="my-2 block text-sm font-medium text-gray-700">
+          Targeting
+        </label>
+        <div className="flex flex-col space-y-2">
+          <label className="flex items-center space-x-2">
+            <input
+              type="radio"
+              name={`audience-targeting-${index}`}
+              checked={true}
+              readOnly
+              className="text-indigo-600"
+            />
+            <span className="text-sm text-gray-700">All respondents</span>
+          </label>
+          <label className="flex items-center space-x-2 opacity-50 cursor-not-allowed">
+            <input
+              type="radio"
+              name={`audience-targeting-${index}`}
+              disabled
+              className="text-indigo-600"
+            />
+            <span className="text-sm text-gray-400">Selected respondents only</span>
+            <span className="text-xs text-gray-400 italic">(not yet available)</span>
+          </label>
+        </div>
+      </div>
     </li>
   );
 };
