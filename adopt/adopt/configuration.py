@@ -307,6 +307,7 @@ def create_campaign(name):
         "objective": "MESSAGES",
         "status": "PAUSED",
         "special_ad_categories": [],
+        "is_adset_budget_sharing_enabled": False,
     }
 
     return Instruction("campaign", "create", params)
