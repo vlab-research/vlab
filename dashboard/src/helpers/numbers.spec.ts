@@ -17,40 +17,28 @@ describe('calculatePercentage', () => {
   });
 
   it('throws error when total is 0', () => {
-    try {
-      expect.assertions(2);
-      calculatePercentage({ current: 0, total: 0 });
-    } catch (err: any) {
-      expect(err).toBeInstanceOf(UnexpectedNumberError);
-      expect(err.message).toBe('`total` cannot be 0');
-    }
+    expect(() => calculatePercentage({ current: 0, total: 0 })).toThrow(
+      new UnexpectedNumberError('`total` cannot be 0')
+    );
   });
 
   it('throws error when current is greater than total', () => {
-    try {
-      expect.assertions(2);
-      calculatePercentage({ current: 100, total: 10 });
-    } catch (err: any) {
-      expect(err).toBeInstanceOf(UnexpectedNumberError);
-      expect(err.message).toBe('`current` cannot be greater than `total`');
-    }
+    expect(() => calculatePercentage({ current: 100, total: 10 })).toThrow(
+      new UnexpectedNumberError('`current` cannot be greater than `total`')
+    );
   });
 
   INVALID_NUMBERS.forEach(invalidNumber => {
-    it(`throws error when any of the values provided is ${invalidNumber}`, () => {
-      expect.assertions(2);
+    it(`throws error when current is ${invalidNumber}`, () => {
+      expect(() => calculatePercentage({ current: invalidNumber, total: 100 })).toThrow(
+        InvalidNumberError
+      );
+    });
 
-      try {
-        calculatePercentage({ current: invalidNumber, total: 100 });
-      } catch (err) {
-        expect(err).toBeInstanceOf(InvalidNumberError);
-      }
-
-      try {
-        calculatePercentage({ current: 10, total: invalidNumber });
-      } catch (err) {
-        expect(err).toBeInstanceOf(InvalidNumberError);
-      }
+    it(`throws error when total is ${invalidNumber}`, () => {
+      expect(() => calculatePercentage({ current: 10, total: invalidNumber })).toThrow(
+        InvalidNumberError
+      );
     });
   });
 });
@@ -63,12 +51,9 @@ describe('calculateAverage', () => {
 
   INVALID_NUMBERS.forEach(invalidNumber => {
     it(`throws error when any of the values provided is ${invalidNumber}`, () => {
-      try {
-        expect.assertions(1);
-        calculateAverage([1, 2, invalidNumber]);
-      } catch (err) {
-        expect(err).toBeInstanceOf(InvalidNumberError);
-      }
+      expect(() => calculateAverage([1, 2, invalidNumber])).toThrow(
+        InvalidNumberError
+      );
     });
   });
 });
@@ -80,12 +65,7 @@ describe('round', () => {
 
   INVALID_NUMBERS.forEach(invalidNumber => {
     it(`throws error when the number provided is ${invalidNumber}`, () => {
-      try {
-        expect.assertions(1);
-        round(invalidNumber);
-      } catch (err) {
-        expect(err).toBeInstanceOf(InvalidNumberError);
-      }
+      expect(() => round(invalidNumber)).toThrow(InvalidNumberError);
     });
   });
 });
