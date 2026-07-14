@@ -34,11 +34,26 @@ export const renderTargetingSummary = (targeting: any) => {
     parts.push(`Audiences: ${audNames.join(', ')}`);
   }
 
+  // Make Advantage+ audience status explicit — users need to see that it's
+  // disabled so they understand why their targeting isn't being expanded by Meta.
+  const advantageEnabled = targeting.targeting_automation?.advantage_audience === 1;
+  const advantageLine = `Advantage+ Audience: ${advantageEnabled ? 'Enabled' : 'Disabled'}`;
+
   if (parts.length === 0) {
-    // Fallback: list keys we don't have pretty renderers for
+    // Fallback: list keys we don't have pretty renderers for, plus Advantage+ status
     const keys = Object.keys(targeting).filter(k => k !== 'targeting_automation');
-    return <span className="text-gray-600 text-sm">{keys.join(', ')}</span>;
+    return (
+      <div className="text-sm space-y-1">
+        {keys.length > 0 && <div className="text-gray-600">{keys.join(', ')}</div>}
+        <div>{advantageLine}</div>
+      </div>
+    );
   }
 
-  return <div className="text-sm space-y-1">{parts.map((p, i) => <div key={i}>{p}</div>)}</div>;
+  return (
+    <div className="text-sm space-y-1">
+      {parts.map((p, i) => <div key={i}>{p}</div>)}
+      <div>{advantageLine}</div>
+    </div>
+  );
 };

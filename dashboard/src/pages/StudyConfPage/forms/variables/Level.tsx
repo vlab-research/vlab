@@ -51,6 +51,16 @@ const Level: React.FC<Props> = ({
     return `${days}d ago`;
   };
 
+  // Look up the source adset to show its Advantage+ state vs our override.
+  const sourceAdset = adsets.find(a => a.id === data.template_adset);
+  const sourceTA = sourceAdset?.targeting?.targeting_automation;
+  const sourceAdvantageOn = sourceTA?.advantage_audience === 1;
+  const sourceControls = sourceTA?.individual_setting
+    ? Object.entries(sourceTA.individual_setting)
+        .filter(([, v]: [string, any]) => v === 1)
+        .map(([k]: [string, any]) => k)
+    : [];
+
   return (
     <li>
       <div className="m-4 border-b pb-4">
@@ -100,6 +110,44 @@ const Level: React.FC<Props> = ({
           <div className="text-sm mb-2" data-testid="level-targeting-summary">
             {renderTargetingSummary(data.facebook_targeting)}
           </div>
+
+          {/* Advantage+ Audience source-vs-override callout */}
+          {sourceAdset && (
+            <div
+              className={
+                sourceAdvantageOn
+                  ? 'mt-3 p-3 bg-amber-50 border border-amber-300 rounded text-xs space-y-1'
+                  : 'mt-3 p-3 bg-gray-100 border border-gray-200 rounded text-xs space-y-1'
+              }
+              data-testid="level-advantage-callout"
+            >
+              <div className="font-semibold text-gray-700">Advantage+ Audience</div>
+              <div>
+                <span className="text-gray-500">Source adset:</span>{' '}
+                {sourceAdvantageOn ? (
+                  <span className="text-amber-700 font-medium">
+                    Enabled
+                    {sourceControls.length > 0 && ` (controls: ${sourceControls.join(', ')})`}
+                  </span>
+                ) : sourceTA ? (
+                  <span className="text-gray-600">Disabled</span>
+                ) : (
+                  <span className="text-gray-400 italic">Not set</span>
+                )}
+              </div>
+              <div>
+                <span className="text-gray-500">Applied:</span>{' '}
+                <span className="text-gray-700 font-medium">Disabled</span>
+              </div>
+              {sourceAdvantageOn && (
+                <div className="text-gray-500 pt-1">
+                  Overridden — targeting uses only the properties you select, not Meta's
+                  audience expansion. This avoids Advantage+ constraints (e.g. age_min ≤ 25).
+                </div>
+              )}
+            </div>
+          )}
+
           <button
             type="button"
             onClick={() => setShowRawJson(!showRawJson)}

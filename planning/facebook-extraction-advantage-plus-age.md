@@ -89,10 +89,37 @@ separate parameter for age suggestions when Advantage+ Audience is enabled.
 Pros: Could preserve the user's intent.
 Cons: Requires research into Facebook's ad suggestion API.
 
-## Recommended next step
-Research Facebook's current documentation for Advantage+ Audience constraints
-and age suggestion parameters. Then implement Option A or D in the extraction
-layer, with a visible warning in the UI.
+## Resolution (implemented Jul 2026)
+
+**Decision: Always force Advantage+ Audience off. Never pass `individual_setting` to Facebook.**
+
+We don't use Advantage+ audience and we don't want to maintain knowledge of
+Facebook's evolving constraints. The fix is simple and explicit:
+
+1. **`extract.ts`** — Always sets `targeting_automation: { advantage_audience: 0 }`
+   on extracted targeting, regardless of what the source adset has. This strips
+   `individual_setting` (the field that triggers Advantage+ audience validation
+   rules like age_min ≤ 25).
+
+2. **`marketing.py:create_adset()`** — Always overrides `targeting_automation` to
+   `{ advantage_audience: 0 }`, not just as a fallback when missing. This ensures
+   old study confs that already contain `individual_setting` (from prior verbatim
+   extraction) are cleaned up at ad creation time.
+
+3. **`TargetingSummary.tsx`** — Shows "Advantage+ Audience: Disabled" in the
+   targeting output panel for every Level and Stratum, making the policy visible.
+
+### Why this approach
+- **No Facebook rule validation needed** — by not sending `individual_setting`,
+  we never trigger Advantage+ audience constraints. We don't need to know that
+  age_min > 25 is disallowed, or track future rule changes.
+- **Still pulls from the source ad** — all other targeting properties (age, gender,
+  geo, audiences, etc.) are extracted from the template adset as before.
+- **Explicit and visible** — the dashboard shows that Advantage+ is disabled so
+  users understand why their targeting isn't being expanded by Meta.
+- **Belt-and-suspenders** — both frontend (extraction) and backend (ad creation)
+  enforce the same policy. Old study confs in the database with
+  `individual_setting` are handled at ad creation time.
 
 ## Related
 - `dashboard/src/pages/StudyConfPage/forms/variables/extract.ts`

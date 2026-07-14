@@ -23,7 +23,7 @@ describe('extract.ts', () => {
         age_min: 18,
         age_max: 65,
         genders: [1],
-        targeting_automation: 'DEFAULT',
+        targeting_automation: { advantage_audience: 1, individual_setting: { age: 1, gender: 0, geo: 0 } },
       },
     };
 
@@ -34,14 +34,37 @@ describe('extract.ts', () => {
         geo_locations: { cities: [{ key: 'NG-BA', name: 'Bauchi' }] },
         age_min: 18,
         age_max: 65,
-        targeting_automation: 'DEFAULT',
+        targeting_automation: { advantage_audience: 0 },
       });
     });
 
-    it('should include targeting_automation if present, even if not requested', () => {
+    it('should always force targeting_automation to {advantage_audience: 0}, stripping individual_setting from source', () => {
       const result = extractFromAdset(mockAdset, ['geo_locations']);
 
-      expect(result).toHaveProperty('targeting_automation', 'DEFAULT');
+      expect(result.targeting_automation).toEqual({ advantage_audience: 0 });
+      expect(result.targeting_automation).not.toHaveProperty('individual_setting');
+    });
+
+    it('should always include targeting_automation even if not present on source adset', () => {
+      const adsetWithoutTA = {
+        ...mockAdset,
+        targeting: { ...mockAdset.targeting, targeting_automation: undefined },
+      };
+
+      const result = extractFromAdset(adsetWithoutTA, ['geo_locations']);
+
+      expect(result.targeting_automation).toEqual({ advantage_audience: 0 });
+    });
+
+    it('should handle source adset with advantage_audience already 0 and no individual_setting', () => {
+      const adsetAlreadyDisabled = {
+        ...mockAdset,
+        targeting: { ...mockAdset.targeting, targeting_automation: { advantage_audience: 0 } },
+      };
+
+      const result = extractFromAdset(adsetAlreadyDisabled, ['geo_locations']);
+
+      expect(result.targeting_automation).toEqual({ advantage_audience: 0 });
     });
 
     it('should throw AdsetNotFoundError if adset is null', () => {
@@ -71,17 +94,17 @@ describe('extract.ts', () => {
       expect((err as PropertyMissingError).adsetName).toBe('Test Adset');
     });
 
-    it('should return empty object for adset with targeting_automation but no requested properties', () => {
+    it('should return only targeting_automation for adset with no requested properties', () => {
       const minimalAdset = {
         id: 'adset-456',
         name: 'Minimal Adset',
         targeting: {
-          targeting_automation: 'DEFAULT',
+          targeting_automation: { advantage_audience: 1, individual_setting: { age: 1 } },
         },
       };
 
       const result = extractFromAdset(minimalAdset, []);
-      expect(result).toEqual({ targeting_automation: 'DEFAULT' });
+      expect(result).toEqual({ targeting_automation: { advantage_audience: 0 } });
     });
   });
 

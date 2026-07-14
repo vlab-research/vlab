@@ -52,10 +52,13 @@ export function extractFromAdset(
     extracted[property] = adset.targeting[property];
   }
 
-  // Always include targeting_automation if present, regardless of properties selection.
-  if (adset.targeting.targeting_automation !== undefined) {
-    extracted.targeting_automation = adset.targeting.targeting_automation;
-  }
+  // Always force Advantage+ Audience off. We never use Advantage+ audience — it
+  // imposes constraints (e.g. age_min ≤ 25 as a "control" via individual_setting)
+  // that we'd have to remember and validate against. By always sending
+  // {advantage_audience: 0} without individual_setting, we avoid all Advantage+
+  // audience rules while still using the targeting properties pulled from the
+  // source adset. This is a deliberate policy decision, not a fallback.
+  extracted.targeting_automation = { advantage_audience: 0 };
 
   return extracted;
 }
