@@ -97,12 +97,12 @@ def create_adset(c: AdsetConf) -> AdSet:
     name = c.stratum.id
     targeting = {**c.stratum.facebook_targeting}
 
-    # Facebook requires targeting_automation.advantage_audience to be explicitly set.
-    # Ideally this comes from the source adset via the frontend (Variables form), but
-    # old adsets created before Facebook mandated this field won't have it. Default to
-    # disabled (0) so targeting stays within the explicitly defined audience.
-    if "targeting_automation" not in targeting:
-        targeting["targeting_automation"] = {"advantage_audience": 0}
+    # Always force Advantage+ Audience off. We never use Advantage+ audience — it
+    # imposes constraints (e.g. age_min ≤ 25 as a "control" via individual_setting)
+    # that we'd have to remember and validate against. Study confs created before
+    # this policy may contain individual_setting copied from the source adset, so
+    # we override unconditionally rather than only when the field is missing.
+    targeting["targeting_automation"] = {"advantage_audience": 0}
 
 
     # TODO: document this funkyness - pretends it's runnign at midnight...
