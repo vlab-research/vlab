@@ -19,6 +19,7 @@ interface MultiSelectProps<T> {
   handleMultiSelectChange: (selectedValues: string[], name: string) => void;
   value: string[];
   label: string;
+  'data-testid'?: string;
 }
 
 export type MultiSelectI<T = any> = React.FC<MultiSelectProps<T>>
@@ -29,6 +30,7 @@ export const GenericMultiSelect: MultiSelectI = ({
   handleMultiSelectChange,
   value,
   label,
+  'data-testid': testId,
 }) => {
   const onChange = (e: any) => {
     const selected = Array.from(e.target.selectedOptions).map(
@@ -46,6 +48,7 @@ export const GenericMultiSelect: MultiSelectI = ({
         multiple
         value={value}
         onChange={onChange}
+        data-testid={testId}
         className="w-4/5 block shadow-sm sm:text-sm rounded-md"
       >
         {options.map((option: SelectOption, i: number) => (

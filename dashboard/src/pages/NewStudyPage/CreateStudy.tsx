@@ -48,6 +48,7 @@ const CreateStudy: React.FC<any> = () => {
               handleChange={handleChange}
               placeholder="E.g example-fly"
               value={formData.name}
+              data-testid="new-study-name-input"
             />
             <div className="p-6 text-right">
               <PrimaryButton

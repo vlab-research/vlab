@@ -113,6 +113,7 @@ const Strata: React.FC<Props> = ({
             type="button"
             leftIcon="RefreshIcon"
             onClick={regenerate}
+            testId="regenerate-strata-button"
           >
             Regenerate
           </PrimaryButton>

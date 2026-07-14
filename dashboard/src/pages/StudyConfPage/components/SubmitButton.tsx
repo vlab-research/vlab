@@ -6,6 +6,7 @@ const SubmitButton = ({ isLoading }: { isLoading: boolean }) => {
       <PrimaryButton
         leftIcon="CheckCircleIcon"
         type="submit"
+        testId="form-submit-button"
         loading={isLoading}
       >
         Next
