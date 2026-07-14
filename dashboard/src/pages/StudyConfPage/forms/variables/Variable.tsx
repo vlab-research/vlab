@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { GenericTextInput, TextInputI } from '../../components/TextInput';
 import { GenericMultiSelect, MultiSelectI } from '../../components/MultiSelect';
 import Level from './Level';
@@ -21,6 +21,12 @@ export interface ExtractionError {
   propertyKey?: string;
 }
 
+interface ExtractionResult {
+  targeting: any;
+  error: ExtractionError | null;
+  lastExtractedTime: number | null;
+}
+
 interface Props {
   data: VariableType;
   index: number;
@@ -38,82 +44,109 @@ const Variable: React.FC<Props> = ({
   update: updateFormData,
   onErrorsChange,
 }: Props) => {
-  // Track extraction errors per level (by index within this variable's levels)
+  // Track extraction errors per level (by index within this variable's levels).
+  // Derived from data, but kept in local state for stable rendering.
   const [levelErrors, setLevelErrors] = useState<Map<number, ExtractionError | null>>(
     new Map()
   );
 
-  // Notify parent of error state changes
+  // Notify parent of error state changes.
   useEffect(() => {
     onErrorsChange?.(levelErrors);
   }, [levelErrors, onErrorsChange]);
 
-  // Re-extract for a single level using the provided properties.
-  // Properties are passed as an argument so property changes (including unselecting)
-  // recompute targeting with the current selection instead of a stale closure.
-  const reExtractLevel = useCallback(
-    (levelIndex: number, levelData: LevelType, properties: string[]) => {
-      if (!levelData.template_adset) {
-        // No adset selected; clear any existing error
-        setLevelErrors(prev => {
-          const next = new Map(prev);
-          next.delete(levelIndex);
-          return next;
-        });
-        return { ...levelData, facebook_targeting: {} };
-      }
-
-      const adset = adsets.find(a => a.id === levelData.template_adset);
-
-      try {
-        const extracted = extractFromAdset(adset, properties);
-        // Success: clear the error and update targeting
-        setLevelErrors(prev => {
-          const next = new Map(prev);
-          next.delete(levelIndex);
-          return next;
-        });
-        return { ...levelData, facebook_targeting: extracted, template_campaign: campaignId };
-      } catch (err) {
-        if (err instanceof AdsetNotFoundError) {
-          const error: ExtractionError = {
-            kind: 'adset_not_found',
-            adsetName: err.adsetName,
-          };
-          setLevelErrors(prev => new Map(prev).set(levelIndex, error));
-          return { ...levelData, facebook_targeting: {}, template_campaign: campaignId };
-        } else if (err instanceof PropertyMissingError) {
-          const error: ExtractionError = {
-            kind: 'property_missing',
-            adsetName: err.adsetName,
-            propertyKey: err.propertyKey,
-          };
-          setLevelErrors(prev => new Map(prev).set(levelIndex, error));
-          return { ...levelData, facebook_targeting: {}, template_campaign: campaignId };
-        }
-        throw err;
-      }
-    },
-    [adsets, campaignId]
-  );
-
-  const update = (data: VariableType) => {
-    updateFormData(data, index);
-  };
+  const update = useCallback((variableData: VariableType) => {
+    updateFormData(variableData, index);
+  }, [updateFormData, index]);
 
   const handleChange = (e: any) => {
     const { name, value } = e.target;
     update({ ...data, [name]: value });
   };
 
-  const handleMultiSelectChange = (selected: string[], name: string) => {
-    // When properties change, re-extract for all levels using the new selection.
-    const updatedData = { ...data, [name]: selected };
-    const newLevels = updatedData.levels.map((level, levelIndex) => {
-      return reExtractLevel(levelIndex, level, selected);
-    });
-    update({ ...updatedData, levels: newLevels });
+  const handleMultiSelectChange = (selected: string[]) => {
+    update({ ...data, properties: selected });
   };
+
+  // Central extraction function: given a level and properties, compute targeting,
+  // error, and timestamp. This is the only place extraction happens.
+  const extractLevel = useCallback((level: LevelType, properties: string[]): ExtractionResult => {
+    if (!level.template_adset) {
+      return { targeting: {}, error: null, lastExtractedTime: null };
+    }
+
+    const adset = adsets.find(a => a.id === level.template_adset);
+    if (!adset) {
+      return {
+        targeting: {},
+        error: { kind: 'adset_not_found', adsetName: level.template_adset },
+        lastExtractedTime: null,
+      };
+    }
+
+    try {
+      const targeting = extractFromAdset(adset, properties);
+      return { targeting, error: null, lastExtractedTime: Date.now() };
+    } catch (err) {
+      if (err instanceof AdsetNotFoundError) {
+        return {
+          targeting: {},
+          error: { kind: 'adset_not_found', adsetName: err.adsetName },
+          lastExtractedTime: null,
+        };
+      }
+      if (err instanceof PropertyMissingError) {
+        return {
+          targeting: {},
+          error: {
+            kind: 'property_missing',
+            adsetName: err.adsetName,
+            propertyKey: err.propertyKey,
+          },
+          lastExtractedTime: null,
+        };
+      }
+      throw err;
+    }
+  }, [adsets]);
+
+  // Use a ref to read the latest data inside the effect without adding `data`
+  // to the dependency array, which would cause unnecessary re-runs.
+  const dataRef = useRef(data);
+  dataRef.current = data;
+
+  // Recompute targeting for all levels whenever inputs change.
+  // Only updates lastExtractedTime when the targeting result actually changes.
+  useEffect(() => {
+    const currentData = dataRef.current;
+    const errors = new Map<number, ExtractionError | null>();
+    const newLevels = currentData.levels.map((level, levelIndex) => {
+      const { targeting, error, lastExtractedTime } = extractLevel(level, currentData.properties);
+      errors.set(levelIndex, error);
+
+      const targetingChanged =
+        JSON.stringify(level.facebook_targeting) !== JSON.stringify(targeting);
+
+      return {
+        ...level,
+        facebook_targeting: targeting,
+        template_campaign: campaignId,
+        lastExtractedTime: targetingChanged
+          ? lastExtractedTime
+          : (level as any).lastExtractedTime || null,
+      };
+    });
+
+    setLevelErrors(errors);
+
+    const hasTargetingChanged =
+      JSON.stringify(currentData.levels.map(l => l.facebook_targeting)) !==
+      JSON.stringify(newLevels.map(l => l.facebook_targeting));
+
+    if (hasTargetingChanged) {
+      update({ ...currentData, levels: newLevels });
+    }
+  }, [data.levels, data.properties, adsets, campaignId, extractLevel, update]);
 
   const initialState: LevelType[] = [{
     name: '',
@@ -121,11 +154,11 @@ const Variable: React.FC<Props> = ({
     template_campaign: campaignId,
     facebook_targeting: {},
     quota: 0,
-  }]
+  }];
 
-  const setData = (a: LevelType[]) => {
-    update({ ...data, levels: a })
-  }
+  const setData = (levels: LevelType[]) => {
+    update({ ...data, levels });
+  };
 
   const properties = [
     { name: 'genders', label: 'Genders' },
@@ -160,7 +193,10 @@ const Variable: React.FC<Props> = ({
       <LevelList
         Element={Level}
         elementName="level"
-        elementProps={{ adsets: adsets, properties: data.properties, levelErrors, reExtractLevel }}
+        elementProps={{
+          adsets,
+          levelErrors,
+        }}
         data={data.levels}
         setData={setData}
         initialState={initialState}

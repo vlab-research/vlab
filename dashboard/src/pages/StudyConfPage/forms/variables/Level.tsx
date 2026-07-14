@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { GenericTextInput, TextInputI } from '../../components/TextInput';
 import { GenericSelect, SelectI } from '../../components/Select';
 import { Level as FormData } from '../../../../types/conf';
-import { extractFromAdset } from './extract';
 import { renderTargetingSummary } from '../shared/TargetingSummary';
 import type { ExtractionError } from './Variable';
 
@@ -13,10 +12,8 @@ interface Props {
   data: any;
   index: number;
   adsets: any[];
-  properties: string[];
   update: (d: any, index: number) => void;
   levelErrors?: Map<number, ExtractionError | null>;
-  reExtractLevel?: (levelIndex: number, levelData: any, properties: string[]) => any;
 }
 
 const Level: React.FC<Props> = ({
@@ -24,14 +21,12 @@ const Level: React.FC<Props> = ({
   data,
   index,
   update: handleChange,
-  properties,
   levelErrors,
-  reExtractLevel,
 }: Props) => {
-  const [lastExtractedTime, setLastExtractedTime] = useState<number | null>(null);
   const [showRawJson, setShowRawJson] = useState(false);
 
   const error = levelErrors?.get(index);
+  const lastExtractedTime = (data as any).lastExtractedTime as number | null | undefined;
 
   const onChange = (e: any) => {
     const { name, value } = e.target;
@@ -40,23 +35,8 @@ const Level: React.FC<Props> = ({
 
   const onAdsetChange = (e: any) => {
     const adsetId = e.target.value;
-    const adset = adsets.find(a => a.id === adsetId);
-
-    try {
-      const extracted = extractFromAdset(adset, properties);
-      handleChange(
-        { ...data, facebook_targeting: extracted, template_adset: adsetId },
-        index
-      );
-      setLastExtractedTime(Date.now());
-    } catch (err) {
-      // reExtractLevel in the parent (Variable.tsx) will handle errors and update state
-      // We still update the adset selection even if extraction fails, so the UI reflects the user's choice
-      handleChange(
-        { ...data, facebook_targeting: {}, template_adset: adsetId },
-        index
-      );
-    }
+    // The parent Variable component recomputes targeting and errors when data changes.
+    handleChange({ ...data, template_adset: adsetId }, index);
   };
 
   // Format relative time (e.g. "2 minutes ago")
@@ -70,7 +50,6 @@ const Level: React.FC<Props> = ({
     const days = Math.floor(hours / 24);
     return `${days}d ago`;
   };
-
 
   return (
     <li>
