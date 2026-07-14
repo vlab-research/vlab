@@ -133,6 +133,18 @@ describe('extract.ts', () => {
       expect(isLevelInSync(obj, obj)).toBe(true);
     });
 
+    it('returns true when top-level keys are in different orders with the same content', () => {
+      const stored = { age_max: 45, age_min: 18, geo_locations: { countries: ['NG'] } };
+      const wouldApply = { age_min: 18, age_max: 45, geo_locations: { countries: ['NG'] } };
+      expect(isLevelInSync(stored, wouldApply)).toBe(true);
+    });
+
+    it('returns true when nested keys are in different orders with the same content', () => {
+      const stored = { geo_locations: { countries: ['NG'], location_types: ['home'] } };
+      const wouldApply = { geo_locations: { location_types: ['home'], countries: ['NG'] } };
+      expect(isLevelInSync(stored, wouldApply)).toBe(true);
+    });
+
     it('ignores targeting_automation when comparing', () => {
       const stored = { age_min: 18 };
       const wouldApply = { age_min: 18, targeting_automation: { advantage_audience: 0 } };

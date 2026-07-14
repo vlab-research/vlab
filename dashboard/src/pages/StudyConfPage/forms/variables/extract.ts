@@ -3,6 +3,7 @@
  * Typed error handling allows the UI to render specific, actionable messages.
  * No React dependencies; testable in isolation.
  */
+import isEqual from 'lodash/isEqual';
 
 export class AdsetNotFoundError extends Error {
   adsetName: string;
@@ -75,10 +76,17 @@ const stripTargetingAutomation = (obj: any): any => {
  * always-emitted `targeting_automation` block. Used by the level UI to
  * detect drift between what the user has saved and what Apply would
  * write right now.
+ *
+ * Comparison goes through lodash `isEqual`, not `JSON.stringify`, because
+ * a fresh Apply builds keys in `variable.properties` order while the
+ * saved blob may have a different order — the two are otherwise equivalent
+ * but stringify comparison would treat them as out of sync.
  */
 export const isLevelInSync = (stored: any, wouldApply: any): boolean => {
-  return JSON.stringify(stripTargetingAutomation(stored)) ===
-    JSON.stringify(stripTargetingAutomation(wouldApply));
+  return isEqual(
+    stripTargetingAutomation(stored),
+    stripTargetingAutomation(wouldApply)
+  );
 };
 
 /**
