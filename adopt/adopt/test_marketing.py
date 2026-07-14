@@ -448,3 +448,60 @@ def test_create_creative_from_template_video_web():
     assert "vlab.digital" not in json.dumps(creative.export_all_data())
 
     assert creative["asset_feed_spec"]["link_urls"][0]["website_url"] == link
+
+
+def test_create_creative_preserves_link_from_template_link_data():
+    template = _load_template("image_ad_messenger.json")
+
+    conf = CreativeConf(destination="messenger", name="foo", template=template)
+    cta = messenger_call_to_action()
+    welcome_message = '{"foo": ""welcome message"}'
+    creative = _create_creative(conf, cta, welcome_message)
+
+    assert creative["object_story_spec"]["link_data"]["link"] == (
+        template["object_story_spec"]["link_data"]["link"]
+    )
+
+
+def test_create_creative_from_template_photo_messenger():
+    template = _load_template("photo_ad_messenger.json")
+
+    conf = CreativeConf(destination="messenger", name="foo", template=template)
+    cta = messenger_call_to_action()
+    welcome_message = '{"foo": ""welcome message"}'
+    creative = _create_creative(conf, cta, welcome_message)
+
+    assert creative["actor_id"] == template["actor_id"]
+    assert creative["instagram_user_id"] == template["instagram_user_id"]
+
+    # Photo-only templates must be converted to link_data so the messenger
+    # CTA and welcome message can be attached, and Facebook's required link
+    # field can be supplied.
+    assert "photo_data" not in creative["object_story_spec"]
+    link_data = creative["object_story_spec"]["link_data"]
+    assert link_data["call_to_action"].export_all_data() == cta
+    assert link_data["image_hash"] == template["object_story_spec"]["photo_data"]["image_hash"]
+    assert link_data["message"] == template["object_story_spec"]["photo_data"]["caption"]
+    assert link_data["page_welcome_message"] == welcome_message
+    assert link_data["link"] == "https://fb.com/messenger_doc/"
+
+
+def test_create_creative_from_template_photo_web():
+    template = _load_template("photo_ad_messenger.json")
+
+    conf = CreativeConf(destination="web", name="foo", template=template)
+    link = "foo.com/?bar=baz"
+    cta = web_call_to_action(link)
+    creative = _create_creative(conf, cta, link=link)
+
+    assert creative["actor_id"] == template["actor_id"]
+    assert creative["instagram_user_id"] == template["instagram_user_id"]
+
+    # Photo templates are converted to link_data so the destination CTA can be
+    # attached and the required link field is present.
+    assert "photo_data" not in creative["object_story_spec"]
+    link_data = creative["object_story_spec"]["link_data"]
+    assert link_data["call_to_action"].export_all_data() == cta
+    assert link_data["image_hash"] == template["object_story_spec"]["photo_data"]["image_hash"]
+    assert link_data["message"] == template["object_story_spec"]["photo_data"]["caption"]
+    assert link_data["link"] == link

@@ -38,6 +38,11 @@ from .study_conf import (
 
 ADSET_HOURS = 48
 
+# Fallback link for messenger creatives. Facebook requires a link field inside
+# object_story_spec.link_data even for click-to-message ads; the CTA value
+# determines the actual destination, so this URL is only structural.
+MESSENGER_LINK_FALLBACK = "https://fb.com/messenger_doc/"
+
 Metadata = Dict[str, str]
 
 
@@ -315,6 +320,11 @@ def _create_creative(
     c = convert_version(c)
 
     tld = config.template["object_story_spec"].get("link_data")
+    tpd = config.template["object_story_spec"].get("photo_data")
+    tvd = config.template["object_story_spec"].get("video_data")
+
+    link_data = None
+    video_data = None
 
     if tld:
         link_data = {
@@ -323,7 +333,14 @@ def _create_creative(
             AdCreativeLinkData.Field.message: tld.get("message"),
             AdCreativeLinkData.Field.name: tld.get("name"),
             AdCreativeLinkData.Field.description: tld.get("description"),
+            # Preserve the link from the template; Facebook requires it for
+            # link_data creatives (e.g., click-to-message ads).
+            AdCreativeLinkData.Field.link: tld.get("link"),
         }
+
+        # Drop optional keys that were not present in the template so we don't
+        # send a bunch of null values.
+        link_data = {k: v for k, v in link_data.items() if v is not None}
 
         if page_welcome_message:
             link_data[
@@ -333,7 +350,24 @@ def _create_creative(
         if link:
             link_data[AdCreativeLinkData.Field.link] = link
 
-    tvd = config.template["object_story_spec"].get("video_data")
+    elif tpd:
+        # Templates created as Instagram photo ads have photo_data instead of
+        # link_data. Convert to link_data so the destination-specific CTA can
+        # be attached and the required link field is present.
+        link_data = {
+            AdCreativeLinkData.Field.call_to_action: call_to_action,
+            AdCreativeLinkData.Field.image_hash: tpd["image_hash"],
+            AdCreativeLinkData.Field.message: tpd.get("caption"),
+            AdCreativeLinkData.Field.link: link
+            or tpd.get("url")
+            or MESSENGER_LINK_FALLBACK,
+        }
+
+        if page_welcome_message:
+            link_data[
+                AdCreativeLinkData.Field.page_welcome_message
+            ] = page_welcome_message
+
     if tvd:
         to_copy = [
             AdCreativeVideoData.Field.image_hash,
@@ -352,14 +386,19 @@ def _create_creative(
 
     toss = config.template["object_story_spec"]
 
-    c[AdCreative.Field.object_story_spec] = {
+    object_story_spec = {
         AdCreativeObjectStorySpec.Field.page_id: toss.get("page_id"),
         AdCreativeObjectStorySpec.Field.instagram_user_id: toss.get(
             "instagram_user_id"
         ),
-        AdCreativeObjectStorySpec.Field.link_data: link_data if tld else None,
-        AdCreativeObjectStorySpec.Field.video_data: video_data if tvd else None,
     }
+
+    if link_data is not None:
+        object_story_spec[AdCreativeObjectStorySpec.Field.link_data] = link_data
+    if video_data is not None:
+        object_story_spec[AdCreativeObjectStorySpec.Field.video_data] = video_data
+
+    c[AdCreative.Field.object_story_spec] = object_story_spec
 
     tafs = config.template.get(AdCreative.Field.asset_feed_spec)
 

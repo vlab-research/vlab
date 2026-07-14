@@ -1,0 +1,30 @@
+{
+  "actor_id": "102130298190686",
+  "contextual_multi_ads": {
+    "enroll_status": "OPT_OUT"
+  },
+  "degrees_of_freedom_spec": {
+    "creative_features_spec": {
+      "pac_relaxation": {
+        "enroll_status": "OPT_IN"
+      },
+      "product_browsing": {
+        "enroll_status": "OPT_OUT"
+      }
+    }
+  },
+  "effective_instagram_media_id": "18135424591567787",
+  "effective_object_story_id": "102130298190686_1420127463483331",
+  "id": "1295490752376638",
+  "instagram_user_id": "17841401731955709",
+  "name": "I am conducting an opinion poll to explore people's views on family planning or child spacing, preg 2026-07-06-62326bde16142e92917e6429ab1939b6",
+  "object_story_spec": {
+    "instagram_user_id": "17841401731955709",
+    "page_id": "102130298190686",
+    "photo_data": {
+      "caption": "I am conducting an opinion poll to explore people's views on family planning or child spacing, pregnancy decisions, and relationships. Your responses will contribute to meaningful insights that can help inform and support individuals, families, and communities. Hurry! The first 200 people will receive rewards of N4000.",
+      "image_hash": "de526d0e4da462097893b9f557ea62d8"
+    }
+  },
+  "thumbnail_url": "https://example.com/thumbnail.jpg"
+}
