@@ -16,7 +16,7 @@ interface Props {
   properties: string[];
   update: (d: any, index: number) => void;
   levelErrors?: Map<number, ExtractionError | null>;
-  reExtractLevel?: (levelIndex: number, levelData: any) => any;
+  reExtractLevel?: (levelIndex: number, levelData: any, properties: string[]) => any;
 }
 
 const Level: React.FC<Props> = ({

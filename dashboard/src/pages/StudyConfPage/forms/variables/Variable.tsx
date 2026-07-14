@@ -48,9 +48,11 @@ const Variable: React.FC<Props> = ({
     onErrorsChange?.(levelErrors);
   }, [levelErrors, onErrorsChange]);
 
-  // Re-extract for a single level when properties change
+  // Re-extract for a single level using the provided properties.
+  // Properties are passed as an argument so property changes (including unselecting)
+  // recompute targeting with the current selection instead of a stale closure.
   const reExtractLevel = useCallback(
-    (levelIndex: number, levelData: LevelType) => {
+    (levelIndex: number, levelData: LevelType, properties: string[]) => {
       if (!levelData.template_adset) {
         // No adset selected; clear any existing error
         setLevelErrors(prev => {
@@ -64,7 +66,7 @@ const Variable: React.FC<Props> = ({
       const adset = adsets.find(a => a.id === levelData.template_adset);
 
       try {
-        const extracted = extractFromAdset(adset, data.properties);
+        const extracted = extractFromAdset(adset, properties);
         // Success: clear the error and update targeting
         setLevelErrors(prev => {
           const next = new Map(prev);
@@ -92,7 +94,7 @@ const Variable: React.FC<Props> = ({
         throw err;
       }
     },
-    [adsets, data.properties, campaignId]
+    [adsets, campaignId]
   );
 
   const update = (data: VariableType) => {
@@ -105,10 +107,10 @@ const Variable: React.FC<Props> = ({
   };
 
   const handleMultiSelectChange = (selected: string[], name: string) => {
-    // When properties change, re-extract for all levels
+    // When properties change, re-extract for all levels using the new selection.
     const updatedData = { ...data, [name]: selected };
     const newLevels = updatedData.levels.map((level, levelIndex) => {
-      return reExtractLevel(levelIndex, level);
+      return reExtractLevel(levelIndex, level, selected);
     });
     update({ ...updatedData, levels: newLevels });
   };
