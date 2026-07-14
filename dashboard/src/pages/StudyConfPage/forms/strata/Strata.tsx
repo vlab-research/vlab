@@ -1,11 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import Stratum from './Stratum';
 import PrimaryButton from '../../../../components/PrimaryButton';
 import SubmitButton from '../../components/SubmitButton';
 import ErrorPlaceholder from '../../../../components/ErrorPlaceholder';
 import useCreateStudyConf from '../../hooks/useCreateStudyConf';
-import { createStrataFromVariables, getFinishQuestionRef } from './strata';
+import { createStrataFromVariables, getFinishQuestionRef, strataStalenessHint } from './strata';
 import { GlobalFormData, Stratum as StratumType } from '../../../../types/conf';
 import { GenericTextInput, TextInputI } from '../../components/TextInput';
 import ConfWrapper from '../../components/ConfWrapper';
@@ -33,11 +33,17 @@ const Strata: React.FC<Props> = ({
   const studySlug = params.studySlug;
 
   const [formData, setFormData] = useState(localData || []);
+  const [finishQuestionRef, setFinishQuestionRef] = useState(getFinishQuestionRef(localData || []));
 
-  const [finishQuestionRef, setFinishQuestionRef] = useState(getFinishQuestionRef(formData));
+  // Resync form state when globalData (variables/strata) changes.
+  // This ensures the Strata page reflects fresh data after navigation.
+  useEffect(() => {
+    setFormData(localData || []);
+    setFinishQuestionRef(getFinishQuestionRef(localData || []));
+  }, [localData]);
 
   const regenerate = () => {
-    const strata = createStrataFromVariables(variables, finishQuestionRef, creatives, audiences);
+    const strata = createStrataFromVariables(variables, finishQuestionRef, creatives, audiences, formData);
     setFormData(strata);
   };
 
@@ -80,8 +86,18 @@ const Strata: React.FC<Props> = ({
     );
   }
 
+  const isStale = strataStalenessHint(variables, formData);
+
   return (
     <ConfWrapper>
+      {isStale && (
+        <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-md">
+          <p className="text-sm text-blue-800">
+            Variables have changed since these strata were saved — click Regenerate to refresh.
+          </p>
+        </div>
+      )}
+
       <div className="py-2 text-left">
         <AdditionalStrataTextInput
           name="finishQuestionRef"
@@ -98,11 +114,11 @@ const Strata: React.FC<Props> = ({
             leftIcon="RefreshIcon"
             onClick={regenerate}
           >
-            Generate
+            Regenerate
           </PrimaryButton>
         </div>
         <span className="ml-4 italic text-gray-700 text-sm">
-          Generates strata from a set of variables
+          Regenerates strata from current variables
         </span>
       </div>
       <form onSubmit={onSubmit}>
