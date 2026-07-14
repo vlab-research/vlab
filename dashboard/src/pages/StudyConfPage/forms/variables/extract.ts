@@ -62,3 +62,44 @@ export function extractFromAdset(
 
   return extracted;
 }
+
+const stripTargetingAutomation = (obj: any): any => {
+  if (!obj || typeof obj !== 'object') return {};
+  const clone = { ...obj };
+  delete clone.targeting_automation;
+  return clone;
+};
+
+/**
+ * True iff `stored` and `wouldApply` are the same targeting minus the
+ * always-emitted `targeting_automation` block. Used by the level UI to
+ * detect drift between what the user has saved and what Apply would
+ * write right now.
+ */
+export const isLevelInSync = (stored: any, wouldApply: any): boolean => {
+  return JSON.stringify(stripTargetingAutomation(stored)) ===
+    JSON.stringify(stripTargetingAutomation(wouldApply));
+};
+
+/**
+ * Diff the set of property keys that produced `stored` against the
+ * variable's currently-selected `current` properties. Treats
+ * `targeting_automation` as engine noise, not a user choice. The
+ * returned `keysDiffer` is what triggers the level's two-line banner;
+ * when only values drift, the level renders the one-line banner instead.
+ */
+export const diffPropertyKeys = (
+  stored: any,
+  current: string[],
+): { added: string[]; removed: string[]; keysDiffer: boolean } => {
+  const storedKeys = (stored && typeof stored === 'object'
+    ? Object.keys(stored)
+    : []
+  ).filter(k => k !== 'targeting_automation');
+  const sortedStored = [...storedKeys].sort().join('|');
+  const sortedCurrent = [...(current || [])].sort().join('|');
+  const keysDiffer = sortedStored !== sortedCurrent;
+  const added = (current || []).filter(k => !storedKeys.includes(k));
+  const removed = storedKeys.filter(k => !(current || []).includes(k));
+  return { added, removed, keysDiffer };
+};
