@@ -144,6 +144,7 @@ const Variables: React.FC<Props> = ({
             type="button"
             onClick={handleRefreshFromMeta}
             disabled={isRefreshing}
+            data-testid="refresh-from-meta-button"
             className="px-4 py-2 bg-blue-600 text-white rounded font-medium hover:bg-blue-700 disabled:bg-gray-400"
           >
             {isRefreshing ? 'Refreshing...' : 'Refresh from Meta'}

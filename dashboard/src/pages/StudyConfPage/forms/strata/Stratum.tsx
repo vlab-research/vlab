@@ -96,11 +96,11 @@ const Stratum: React.FC<{
       )}
 
       {/* Output panel */}
-      <div className="mt-3 p-3 bg-gray-50 border border-gray-200 rounded">
+      <div className="mt-3 p-3 bg-gray-50 border border-gray-200 rounded" data-testid="stratum-output-panel">
         <div className="text-xs font-semibold text-gray-600 mb-2">Output</div>
 
         {/* Targeting summary */}
-        <div className="text-sm mb-3">
+        <div className="text-sm mb-3" data-testid="stratum-targeting-summary">
           <div className="font-semibold text-gray-700 mb-1">Facebook Targeting:</div>
           {renderTargetingSummary(stratum.facebook_targeting)}
         </div>
@@ -109,6 +109,7 @@ const Stratum: React.FC<{
         <button
           type="button"
           onClick={() => setShowRawJson(!showRawJson)}
+          data-testid="stratum-toggle-json"
           className="text-xs text-blue-600 hover:underline mb-2"
         >
           {showRawJson ? '▼ Hide JSON' : '▶ Show JSON'}

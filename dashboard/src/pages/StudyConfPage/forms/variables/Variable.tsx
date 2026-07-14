@@ -145,6 +145,7 @@ const Variable: React.FC<Props> = ({
         autoComplete="on"
         placeholder="Give your variable a name"
         value={data.name}
+        data-testid="variable-name-input"
       />
       <MultiSelect
         name="properties"
@@ -152,6 +153,7 @@ const Variable: React.FC<Props> = ({
         handleMultiSelectChange={handleMultiSelectChange}
         value={data.properties}
         label="Select a set of properties from Facebook"
+        data-testid="variable-properties-select"
       ></MultiSelect>
       <LevelList
         Element={Level}

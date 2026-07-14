@@ -90,6 +90,7 @@ export const TemplateCampaignWrapper: React.FC<Props> = ({
           options={campaignOptions}
           handleChange={handleChange}
           value={templateCampaign}
+          data-testid="template-campaign-select"
         ></Select>
         <div className="flex w-full h-0.5 mr-4 my-10 rounded-md bg-gray-400"></div>
 

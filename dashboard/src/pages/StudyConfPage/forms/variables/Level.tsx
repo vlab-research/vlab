@@ -82,6 +82,7 @@ const Level: React.FC<Props> = ({
           autoComplete="on"
           placeholder="Give your level a name"
           value={data.name}
+          data-testid="level-name-input"
         />
         <Select
           name="template_adset"
@@ -89,6 +90,7 @@ const Level: React.FC<Props> = ({
           handleChange={onAdsetChange}
           value={data.template_adset}
           getValue={(o: any) => o.id}
+          data-testid="level-adset-select"
         ></Select>
         <TextInput
           name="quota"
@@ -99,7 +101,7 @@ const Level: React.FC<Props> = ({
 
         {/* Error display */}
         {error && (
-          <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded text-sm text-red-700">
+          <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded text-sm text-red-700" data-testid="level-error">
             {error.kind === 'adset_not_found' ? (
               <div>
                 Template adset <strong>{error.adsetName}</strong> not found on Meta — pick a different
@@ -114,14 +116,15 @@ const Level: React.FC<Props> = ({
         )}
 
         {/* Output panel */}
-        <div className="mt-3 p-3 bg-gray-50 border border-gray-200 rounded">
+        <div className="mt-3 p-3 bg-gray-50 border border-gray-200 rounded" data-testid="level-output-panel">
           <div className="text-xs font-semibold text-gray-600 mb-2">Output</div>
-          <div className="text-sm mb-2">
+          <div className="text-sm mb-2" data-testid="level-targeting-summary">
             {renderTargetingSummary(data.facebook_targeting)}
           </div>
           <button
             type="button"
             onClick={() => setShowRawJson(!showRawJson)}
+            data-testid="level-toggle-json"
             className="text-xs text-blue-600 hover:underline mb-2"
           >
             {showRawJson ? '▼ Hide JSON' : '▶ Show JSON'}
