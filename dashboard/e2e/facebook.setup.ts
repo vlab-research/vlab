@@ -19,12 +19,6 @@ const facebookPassword = process.env.FACEBOOK_PASSWORD;
 setup('connect Facebook account', async ({ page }) => {
   fs.mkdirSync(path.dirname(facebookAuthFile), { recursive: true });
 
-  // Reuse the Auth0 login state.
-  const authStateFile = path.join(__dirname, '../playwright/.auth/state.json');
-  if (!fs.existsSync(authStateFile)) {
-    throw new Error('Auth0 state not found. Run `npx playwright test e2e/auth.setup.ts` first.');
-  }
-
   await page.goto('/accounts');
   await expect(page.getByText('Connected Accounts')).toBeVisible();
 

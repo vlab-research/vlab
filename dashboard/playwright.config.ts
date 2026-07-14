@@ -23,7 +23,16 @@ export default defineConfig({
   },
 
   projects: [
-    { name: 'setup', testMatch: /.*\.setup\.ts/ },
+    // Creates playwright/.auth/state.json
+    { name: 'setup', testMatch: /auth\.setup\.ts/ },
+    // Uses the Auth0 state and creates playwright/.auth/facebook-state.json
+    {
+      name: 'facebook-setup',
+      testMatch: /facebook\.setup\.ts/,
+      dependencies: ['setup'],
+      use: { storageState: 'playwright/.auth/state.json' },
+    },
+    // Runs the end-to-end tests using the combined state.
     {
       name: 'chromium',
       use: {
@@ -32,7 +41,7 @@ export default defineConfig({
           ? 'playwright/.auth/state.json'
           : 'playwright/.auth/facebook-state.json',
       },
-      dependencies: ['setup'],
+      dependencies: ['facebook-setup'],
     },
   ],
 
