@@ -72,13 +72,7 @@ const Level: React.FC<Props> = ({
   const keyDiff = diffPropertyKeys(data.facebook_targeting, properties || []);
 
   const sourceAdset = adsets.find((a: any) => a.id === data.template_adset);
-  const sourceTA = sourceAdset?.targeting?.targeting_automation;
-  const sourceAdvantageOn = sourceTA?.advantage_audience === 1;
-  const sourceControls = sourceTA?.individual_setting
-    ? Object.entries(sourceTA.individual_setting)
-        .filter(([, v]: [string, any]) => v === 1)
-        .map(([k]: [string, any]) => k)
-    : [];
+  const sourceAdvantageOn = sourceAdset?.targeting?.targeting_automation?.advantage_audience === 1;
 
   return (
     <li>
@@ -149,39 +143,9 @@ const Level: React.FC<Props> = ({
             {renderTargetingSummary(data.facebook_targeting)}
           </div>
 
-          {sourceAdset && (
-            <div
-              className={
-                sourceAdvantageOn
-                  ? 'mt-3 p-3 bg-amber-50 border border-amber-300 rounded text-xs space-y-1'
-                  : 'mt-3 p-3 bg-gray-100 border border-gray-200 rounded text-xs space-y-1'
-              }
-              data-testid="level-advantage-callout"
-            >
-              <div className="font-semibold text-gray-700">Advantage+ Audience</div>
-              <div>
-                <span className="text-gray-500">Source adset:</span>{' '}
-                {sourceAdvantageOn ? (
-                  <span className="text-amber-700 font-medium">
-                    Enabled
-                    {sourceControls.length > 0 && ` (controls: ${sourceControls.join(', ')})`}
-                  </span>
-                ) : sourceTA ? (
-                  <span className="text-gray-600">Disabled</span>
-                ) : (
-                  <span className="text-gray-400 italic">Not set</span>
-                )}
-              </div>
-              <div>
-                <span className="text-gray-500">Applied:</span>{' '}
-                <span className="text-gray-700 font-medium">Disabled</span>
-              </div>
-              {sourceAdvantageOn && (
-                <div className="text-gray-500 pt-1">
-                  Overridden — targeting uses only the properties you select, not Meta's
-                  audience expansion. This avoids Advantage+ constraints (e.g. age_min ≤ 25).
-                </div>
-              )}
+          {sourceAdvantageOn && (
+            <div className="mt-2 text-xs text-gray-500" data-testid="level-advantage-note">
+              Advantage+ Audience was enabled on the source adset but is disabled here.
             </div>
           )}
 
