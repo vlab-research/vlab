@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, Page } from '@playwright/test';
 
 /**
  * End-to-end test for the Variables → Strata flow.
@@ -6,14 +6,67 @@ import { test, expect } from '@playwright/test';
  * Preconditions:
  *   - Auth0 user is authenticated (via auth.setup.ts)
  *   - A Facebook account is connected (via facebook.setup.ts or manually)
- *   - The connected Facebook account has at least one ad account with a campaign and adset
  *
- * This test exercises the refactor: explicit extraction from Meta, output panels,
- * submit gating, and merge-aware strata regeneration.
+ * The Facebook Graph API responses are mocked so the test does not depend on the
+ * connected account having real ad accounts, campaigns, or adsets. The OAuth
+ * connection itself is real.
  */
+
+const MOCK_AD_ACCOUNT = { id: 'act_123456789', account_id: '123456789', name: 'Mock Ad Account' };
+const MOCK_CAMPAIGN = { id: 'mock-campaign-1', name: 'Mock Campaign' };
+const MOCK_ADSET = {
+  id: 'mock-adset-1',
+  name: 'Mock Adset',
+  targeting: {
+    genders: [1],
+    age_min: 18,
+    age_max: 65,
+  },
+};
+
+function mockFacebookApi(page: Page) {
+  return page.route('https://graph.facebook.com/**', async route => {
+    const url = new URL(route.request().url());
+    const path = url.pathname;
+    const paginated = (data: any[]) => ({ data, paging: { before: '', after: '' } });
+
+    if (path.endsWith('/me/adaccounts')) {
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(paginated([MOCK_AD_ACCOUNT])) });
+      return;
+    }
+    if (path.endsWith('/campaigns')) {
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(paginated([MOCK_CAMPAIGN])) });
+      return;
+    }
+    if (path.endsWith('/adsets')) {
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(paginated([MOCK_ADSET])) });
+      return;
+    }
+
+    await route.continue();
+  });
+}
+
+function mockConfsApi(page: Page) {
+  return page.route(/\/confs$/, async route => {
+    const response = await route.fetch();
+    const body = await response.json();
+    const confs = body.data || body;
+    if (!confs.creatives) {
+      confs.creatives = [];
+    }
+    await route.fulfill({
+      status: response.status(),
+      contentType: response.headers()['content-type'] || 'application/json',
+      body: JSON.stringify(body),
+    });
+  });
+}
 
 test.describe('Variables → Strata flow', () => {
   test('extracts targeting from Meta, displays it, and saves variables and strata', async ({ page }) => {
+    await mockFacebookApi(page);
+    await mockConfsApi(page);
     const studyName = `playwright-test-${Date.now()}`;
 
     // 1. Create a new study
@@ -21,12 +74,10 @@ test.describe('Variables → Strata flow', () => {
     await page.getByTestId('new-study-name-input').waitFor();
     await page.getByTestId('new-study-name-input').fill(studyName);
     await page.getByTestId('form-submit-button').click();
-    await page.waitForURL(/\/studies$/);
-    await expect(page.getByText(studyName)).toBeVisible();
+    // Creating a study redirects to its initialization page.
+    await page.waitForURL(/\/studies\/[^/]+\/initialize/);
 
-    // 2. Open the study configuration and go to General
-    await page.getByText(studyName).click();
-    await page.waitForURL(/\/studies\//);
+    // 2. Navigate to General
     await page.getByRole('link', { name: 'General' }).click();
     await page.waitForURL(/\/studies\/.*\/general/);
 
@@ -34,7 +85,7 @@ test.describe('Variables → Strata flow', () => {
     await page.locator('select[name="ad_account"]').waitFor();
     await page.locator('select[name="ad_account"]').selectOption({ index: 1 });
     await page.getByTestId('form-submit-button').click();
-    await expect(page.getByText('General saved')).toBeVisible();
+    await expect(page.getByText('General settings saved').first()).toBeVisible();
 
     // 3. Navigate to Variables
     await page.getByRole('link', { name: 'Variables' }).click();
@@ -51,9 +102,10 @@ test.describe('Variables → Strata flow', () => {
     // Select properties from Meta
     await page.getByTestId('variable-properties-select').selectOption(['genders']);
 
-    // 6. Fill in the level and select an adset
+    // 6. Add a level, fill in its name, and select an adset
+    await page.getByText('Add level').click();
     await page.getByTestId('level-name-input').fill('men');
-    await page.getByTestId('level-adset-select').selectOption({ index: 1 });
+    await page.getByTestId('level-adset-select').selectOption(MOCK_ADSET.id);
 
     // 7. Verify the output panel shows extracted targeting
     await expect(page.getByTestId('level-output-panel')).toBeVisible();
@@ -62,17 +114,17 @@ test.describe('Variables → Strata flow', () => {
 
     // 8. Submit variables
     await page.getByTestId('form-submit-button').click();
-    await expect(page.getByText('Variables saved')).toBeVisible();
+    await expect(page.getByText('Variables saved').first()).toBeVisible();
 
     // 9. Navigate to Strata
     await page.getByRole('link', { name: 'Strata' }).click();
     await page.waitForURL(/\/studies\/.*\/strata/);
 
-    // 10. Regenerate strata if stale
+    // 10. Fill finish question ref and regenerate strata
+    await page.locator('input[name="finishQuestionRef"]').fill('finish');
     const regenerateButton = page.getByTestId('regenerate-strata-button');
-    if (await regenerateButton.isVisible()) {
-      await regenerateButton.click();
-    }
+    await expect(regenerateButton).toBeVisible();
+    await regenerateButton.click();
 
     // 11. Verify stratum output panel shows the merged targeting
     await expect(page.getByTestId('stratum-output-panel').first()).toBeVisible();
@@ -80,6 +132,6 @@ test.describe('Variables → Strata flow', () => {
 
     // 12. Submit strata
     await page.getByTestId('form-submit-button').click();
-    await expect(page.getByText('Strata saved')).toBeVisible();
+    await expect(page.getByText('Strata saved').first()).toBeVisible();
   });
 });

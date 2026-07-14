@@ -7,7 +7,24 @@ const authFile = path.join(__dirname, '../playwright/.auth/state.json');
 const username = process.env.AUTH0_USERNAME;
 const password = process.env.AUTH0_PASSWORD;
 
-setup('authenticate via Auth0', async ({ page, baseURL }) => {
+function isStateFresh(filePath: string, maxAgeMs: number): boolean {
+  try {
+    const stats = fs.statSync(filePath);
+    return Date.now() - stats.mtimeMs < maxAgeMs;
+  } catch {
+    return false;
+  }
+}
+
+const AUTH_STATE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
+const forceSetup = process.env.FORCE_AUTH_SETUP === '1';
+
+setup.skip(
+  !forceSetup && isStateFresh(authFile, AUTH_STATE_MAX_AGE_MS),
+  'Auth0 state already exists and is fresh. Delete playwright/.auth/state.json or set FORCE_AUTH_SETUP=1 to re-authenticate.'
+);
+
+setup('authenticate via Auth0', async ({ page }) => {
   if (!username || !password) {
     throw new Error(
       'AUTH0_USERNAME and AUTH0_PASSWORD must be set. ' +
@@ -18,24 +35,22 @@ setup('authenticate via Auth0', async ({ page, baseURL }) => {
   // Ensure the auth directory exists
   fs.mkdirSync(path.dirname(authFile), { recursive: true });
 
-  await page.goto(`${baseURL}/login`);
+  // Dashboard landing page redirects to Auth0.
+  await page.goto('/');
+  await page.locator('.loginbtn').click();
 
-  // The Auth0 React SDK redirects to the universal login page.
-  // Wait for the login form and fill it.
-  await page.waitForSelector('input[name="username"], input[name="email"], input[name="password"]', {
-    timeout: 10000,
-  });
+  // Wait for the Auth0 universal login page.
+  await page.waitForURL(/vlab-dev\.us\.auth0\.com/);
+  await page.locator('input#username, input[name="username"]').waitFor();
+  await page.locator('input#username, input[name="username"]').fill(username);
+  await page.locator('input#password, input[name="password"]').fill(password);
+  await page.locator('button[value=default], button[type="submit"]').click();
 
-  const emailField = page.locator('input[name="username"], input[name="email"]').first();
-  const passwordField = page.locator('input[name="password"]').first();
-
-  await emailField.fill(username);
-  await passwordField.fill(password);
-  await page.locator('button[type="submit"]').first().click();
-
-  // Wait for the dashboard to load after redirect.
-  await expect(page).toHaveURL(/studies/);
-  await expect(page.locator('text=Studies')).toBeVisible();
+  // Wait for redirect back to the dashboard.
+  await page.waitForURL(/https:\/\/localhost:3000\//);
+  // The app creates the user on first login; wait for the authenticated header.
+  await expect(page.getByTestId('user-avatar')).toBeVisible({ timeout: 15000 });
+  await expect(page.getByTestId('header')).toContainText('Studies');
 
   // Save cookies / local storage so other tests skip the login flow.
   await page.context().storageState({ path: authFile });

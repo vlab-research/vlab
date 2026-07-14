@@ -18,6 +18,7 @@
 .env.development.local
 .env.test.local
 .env.production.local
+.env.playwright
 
 npm-debug.log*
 yarn-debug.log*
@@ -26,4 +27,9 @@ yarn-error.log*
 /cypress/fixtures
 cypress.env.json
 cypress/screenshots/
+
+# Playwright
+/playwright/.auth/
+/test-results/
+
 
