@@ -683,4 +683,94 @@ describe('strataStalenessHint', () => {
     const isStale = strataStalenessHint(variables, savedStrata);
     expect(isStale).toBe(false);
   });
+
+  it('Returns false when targeting keys are in different order (backend JSON normalization)', () => {
+    const variables: Variables = [
+      {
+        name: 'age',
+        properties: ['age_min', 'age_max'],
+        levels: [
+          { name: '18-34', template_campaign: 'foo', template_adset: '18-34', facebook_targeting: { age_min: 18, age_max: 34 }, quota: 0.5 }
+        ]
+      }
+    ];
+
+    const savedStrata: Stratum[] = [
+      {
+        id: 'age:18-34',
+        quota: 0.5,
+        creatives: [],
+        audiences: [],
+        excluded_audiences: [],
+        facebook_targeting: { age_max: 34, age_min: 18 },
+        question_targeting: {
+          op: "and",
+          vars: [
+            {
+              op: "equal",
+              vars: [
+                { type: "variable", value: "age" },
+                { type: "constant", value: "18-34" }
+              ]
+            },
+            {
+              op: "answered",
+              vars: [
+                { type: "variable", value: "finish_q" }
+              ]
+            }
+          ]
+        },
+        metadata: { age: '18-34' },
+      }
+    ];
+
+    const isStale = strataStalenessHint(variables, savedStrata);
+    expect(isStale).toBe(false);
+  });
+
+  it('Returns true when targeting values differ for the same stratum', () => {
+    const variables: Variables = [
+      {
+        name: 'age',
+        properties: ['age_min', 'age_max'],
+        levels: [
+          { name: '18-34', template_campaign: 'foo', template_adset: '18-34', facebook_targeting: { age_min: 18, age_max: 34 }, quota: 0.5 }
+        ]
+      }
+    ];
+
+    const savedStrata: Stratum[] = [
+      {
+        id: 'age:18-34',
+        quota: 0.5,
+        creatives: [],
+        audiences: [],
+        excluded_audiences: [],
+        facebook_targeting: { age_min: 25, age_max: 34 },
+        question_targeting: {
+          op: "and",
+          vars: [
+            {
+              op: "equal",
+              vars: [
+                { type: "variable", value: "age" },
+                { type: "constant", value: "18-34" }
+              ]
+            },
+            {
+              op: "answered",
+              vars: [
+                { type: "variable", value: "finish_q" }
+              ]
+            }
+          ]
+        },
+        metadata: { age: '18-34' },
+      }
+    ];
+
+    const isStale = strataStalenessHint(variables, savedStrata);
+    expect(isStale).toBe(true);
+  });
 });

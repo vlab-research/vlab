@@ -1,3 +1,4 @@
+import isEqual from 'lodash/isEqual';
 import { Stratum, Variables, Creatives, Audiences, Level } from '../../../../types/conf';
 
 interface IntermediateLevel extends Level {
@@ -135,10 +136,12 @@ export const strataStalenessHint = (variables: Variables, savedStrata?: Stratum[
     }
   }
 
-  // Check 2: facebook_targeting changed for any stratum that exists in both
+  // Check 2: facebook_targeting changed for any stratum that exists in both.
+  // Use deep equality rather than JSON.stringify so that backend JSON key-order
+  // differences (Go sorts map keys alphabetically) don't falsely flag strata as stale.
   for (const savedStratum of savedStrata) {
     const freshStratum = freshStrata.find(s => s.id === savedStratum.id);
-    if (freshStratum && JSON.stringify(freshStratum.facebook_targeting) !== JSON.stringify(savedStratum.facebook_targeting)) {
+    if (freshStratum && !isEqual(freshStratum.facebook_targeting, savedStratum.facebook_targeting)) {
       return true;
     }
   }
