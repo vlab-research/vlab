@@ -2,7 +2,7 @@ import React, { useState, useContext } from 'react';
 import { useParams } from 'react-router-dom';
 import { useQueryClient } from 'react-query';
 import SubmitButton from '../../components/SubmitButton';
-import Variable from './Variable';
+import Variable, { ExtractionError } from './Variable';
 import { TemplateCampaignContext, TemplateCampaignWrapper } from '../../components/TemplateCampaignWrapper'
 import useAdsets from '../../hooks/useAdsets';
 import ErrorPlaceholder from '../../../../components/ErrorPlaceholder';
@@ -11,11 +11,12 @@ import LoadingPage from '../../../../components/LoadingPage';
 import {
   Variable as VariableType,
   GlobalFormData,
+  Level as LevelType,
 } from '../../../../types/conf';
 import { Account } from '../../../../types/account';
 import useCreateStudyConf from '../../hooks/useCreateStudyConf';
 import { GenericListFactory } from '../../components/GenericList';
-import { extractFromAdset } from './extract';
+import { extractFromAdset, AdsetNotFoundError, PropertyMissingError } from './extract';
 
 const VariableList = GenericListFactory<VariableType>();
 
@@ -26,6 +27,16 @@ interface Props {
   globalData: GlobalFormData;
   facebookAccount: Account;
 }
+
+const isLevelStale = (level: LevelType, properties: string[]): boolean => {
+  const hasTargeting =
+    level.facebook_targeting && Object.keys(level.facebook_targeting).length > 0;
+  const adsetStale = level.template_adset !== level.lastExtractedAdset;
+  const propertiesStale =
+    JSON.stringify(properties || []) !==
+    JSON.stringify(level.lastExtractedProperties || []);
+  return !hasTargeting || adsetStale || propertiesStale;
+};
 
 const Variables: React.FC<Props> = ({
   facebookAccount,
@@ -54,6 +65,9 @@ const Variables: React.FC<Props> = ({
   );
 
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [levelErrors, setLevelErrors] = useState<Map<string, ExtractionError | null>>(
+    new Map()
+  );
 
   const credentials: any = facebookAccount.connectedAccount?.credentials
   const accessToken = credentials?.access_token;
@@ -63,40 +77,74 @@ const Variables: React.FC<Props> = ({
   const { adsets, query: adsetsQuery } = useAdsets(templateCampaign!, accessToken);
   const queryClient = useQueryClient();
 
-
-  // Check if Submit should be blocked: any level with empty targeting
   const hasEmptyTargeting = formData.some(variable =>
     variable.levels.some(level => !level.facebook_targeting || Object.keys(level.facebook_targeting).length === 0)
   );
 
+  const staleLevelCount = formData.reduce(
+    (acc, variable) =>
+      acc + variable.levels.filter(l => isLevelStale(l, variable.properties)).length,
+    0
+  );
+
   const canSubmit = !hasEmptyTargeting;
 
-  // Refresh from Meta: refetch adsets and re-extract all levels
   const handleRefreshFromMeta = async () => {
     setIsRefreshing(true);
+    const newLevelErrors = new Map<string, ExtractionError | null>();
     try {
       const adsetsQueryKey = `adsets${templateCampaign}${accessToken}`;
       await queryClient.invalidateQueries(adsetsQueryKey);
       await queryClient.refetchQueries(adsetsQueryKey);
 
-      // Re-extract for every level using its current template_adset and variable's properties
-      const updatedData = formData.map(variable => ({
+      const cachedData = queryClient.getQueryData(adsetsQueryKey) as any;
+      const freshAdsets: any[] = (cachedData?.pages || []).flatMap(
+        (p: any) => p.data
+      );
+
+      const updatedData = formData.map((variable, vIdx) => ({
         ...variable,
-        levels: variable.levels.map(level => {
+        levels: variable.levels.map((level, lIdx) => {
+          const key = `${vIdx}:${lIdx}`;
           if (!level.template_adset) {
+            newLevelErrors.set(key, null);
             return { ...level, facebook_targeting: {} };
           }
-          const adset = adsets.find(a => a.id === level.template_adset);
+          const adset = freshAdsets.find(a => a.id === level.template_adset);
           try {
             const extracted = extractFromAdset(adset, variable.properties);
-            return { ...level, facebook_targeting: extracted };
+            newLevelErrors.set(key, null);
+            return {
+              ...level,
+              facebook_targeting: extracted,
+              lastExtractedTime: Date.now(),
+              lastExtractedAdset: level.template_adset,
+              lastExtractedProperties: [...variable.properties],
+            };
           } catch (err) {
-            // Errors will be surfaced on the level by the error state
+            if (err instanceof AdsetNotFoundError) {
+              newLevelErrors.set(key, {
+                kind: 'adset_not_found',
+                adsetName: err.adsetName,
+              });
+            } else if (err instanceof PropertyMissingError) {
+              newLevelErrors.set(key, {
+                kind: 'property_missing',
+                adsetName: err.adsetName,
+                propertyKey: err.propertyKey,
+              });
+            } else {
+              newLevelErrors.set(key, {
+                kind: 'adset_not_found',
+                adsetName: level.template_adset,
+              });
+            }
             return { ...level, facebook_targeting: {} };
           }
         }),
       }));
       setFormData(updatedData);
+      setLevelErrors(newLevelErrors);
     } finally {
       setIsRefreshing(false);
     }
@@ -120,7 +168,6 @@ const Variables: React.FC<Props> = ({
   const onSubmit = (e: any): void => {
     e.preventDefault();
 
-    // Gate submit on form state validity
     if (!canSubmit) {
       return;
     }
@@ -138,8 +185,7 @@ const Variables: React.FC<Props> = ({
   return (
     <div className="mb-8">
       <form onSubmit={onSubmit}>
-        {/* Refresh from Meta button */}
-        <div className="mb-4 flex gap-3">
+        <div className="mb-4 flex items-center gap-3 flex-wrap">
           <button
             type="button"
             onClick={handleRefreshFromMeta}
@@ -149,6 +195,17 @@ const Variables: React.FC<Props> = ({
           >
             {isRefreshing ? 'Refreshing...' : 'Refresh from Meta'}
           </button>
+          <div data-testid="form-staleness-summary" className="text-sm">
+            {staleLevelCount > 0 ? (
+              <span className="text-amber-700 bg-amber-50 border border-amber-200 px-2 py-1 rounded">
+                {staleLevelCount} {staleLevelCount === 1 ? 'level needs' : 'levels need'} refresh
+              </span>
+            ) : (
+              <span className="text-green-700 bg-green-50 border border-green-200 px-2 py-1 rounded">
+                All levels up to date
+              </span>
+            )}
+          </div>
         </div>
 
         <VariableList
@@ -157,17 +214,22 @@ const Variables: React.FC<Props> = ({
           elementProps={{
             campaignId: templateCampaign,
             adsets: adsets,
+            levelErrors,
           }}
           data={formData}
           setData={setFormData}
           initialState={initialState}
         />
 
-        {/* Submit button and hint */}
         <div className="mt-6 space-y-2">
-          {!canSubmit && (
+          {hasEmptyTargeting && (
             <div className="text-sm text-amber-700 bg-amber-50 border border-amber-200 p-3 rounded">
               All levels must have extracted targeting data before submitting.
+            </div>
+          )}
+          {!hasEmptyTargeting && staleLevelCount > 0 && (
+            <div className="text-sm text-amber-700 bg-amber-50 border border-amber-200 p-3 rounded">
+              {staleLevelCount} {staleLevelCount === 1 ? 'level has' : 'levels have'} outdated targeting — consider clicking Refresh from Meta before submitting.
             </div>
           )}
           <SubmitButton isLoading={isLoadingOnCreateStudyConf} />

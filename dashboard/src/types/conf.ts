@@ -112,6 +112,9 @@ export type Level = {
   template_adset: string;
   facebook_targeting: any;
   quota: number;
+  lastExtractedTime?: number | null;
+  lastExtractedAdset?: string | null;
+  lastExtractedProperties?: string[] | null;
 };
 
 export type Variable = {

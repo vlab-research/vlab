@@ -13,7 +13,9 @@ interface Props {
   index: number;
   adsets: any[];
   update: (d: any, index: number) => void;
-  levelErrors?: Map<number, ExtractionError | null>;
+  levelErrors?: Map<string, ExtractionError | null>;
+  variableIndex: number;
+  properties?: string[];
 }
 
 const Level: React.FC<Props> = ({
@@ -22,11 +24,15 @@ const Level: React.FC<Props> = ({
   index,
   update: handleChange,
   levelErrors,
+  variableIndex,
+  properties,
 }: Props) => {
   const [showRawJson, setShowRawJson] = useState(false);
 
-  const error = levelErrors?.get(index);
+  const error = levelErrors?.get(`${variableIndex}:${index}`);
   const lastExtractedTime = (data as any).lastExtractedTime as number | null | undefined;
+  const lastExtractedAdset = (data as any).lastExtractedAdset as string | null | undefined;
+  const lastExtractedProperties = (data as any).lastExtractedProperties as string[] | null | undefined;
 
   const onChange = (e: any) => {
     const { name, value } = e.target;
@@ -35,11 +41,9 @@ const Level: React.FC<Props> = ({
 
   const onAdsetChange = (e: any) => {
     const adsetId = e.target.value;
-    // The parent Variable component recomputes targeting and errors when data changes.
     handleChange({ ...data, template_adset: adsetId }, index);
   };
 
-  // Format relative time (e.g. "2 minutes ago")
   const formatRelativeTime = (timestamp: number) => {
     const seconds = Math.floor((Date.now() - timestamp) / 1000);
     if (seconds < 60) return 'just now';
@@ -51,7 +55,15 @@ const Level: React.FC<Props> = ({
     return `${days}d ago`;
   };
 
-  // Look up the source adset to show its Advantage+ state vs our override.
+  const hasTargeting =
+    data.facebook_targeting && Object.keys(data.facebook_targeting).length > 0;
+
+  const adsetStale = data.template_adset !== lastExtractedAdset;
+  const propertiesStale =
+    JSON.stringify(properties || []) !==
+    JSON.stringify(lastExtractedProperties || []);
+  const isStale = !hasTargeting || adsetStale || propertiesStale;
+
   const sourceAdset = adsets.find(a => a.id === data.template_adset);
   const sourceTA = sourceAdset?.targeting?.targeting_automation;
   const sourceAdvantageOn = sourceTA?.advantage_audience === 1;
@@ -64,7 +76,6 @@ const Level: React.FC<Props> = ({
   return (
     <li>
       <div className="m-4 border-b pb-4">
-        {/* Input controls */}
         <TextInput
           name="name"
           handleChange={onChange}
@@ -88,7 +99,6 @@ const Level: React.FC<Props> = ({
           value={data.quota}
         />
 
-        {/* Error display */}
         {error && (
           <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded text-sm text-red-700" data-testid="level-error">
             {error.kind === 'adset_not_found' ? (
@@ -104,14 +114,25 @@ const Level: React.FC<Props> = ({
           </div>
         )}
 
-        {/* Output panel */}
+        {isStale && !error && (
+          <div
+            className="mt-3 p-3 bg-amber-50 border border-amber-300 rounded text-sm text-amber-800"
+            data-testid="level-stale-badge"
+          >
+            {!hasTargeting ? (
+              <span>Not yet extracted — click Refresh from Meta to pull targeting from the template adset.</span>
+            ) : (
+              <span>Stale — targeting may not match current adset/properties. Click Refresh from Meta to update.</span>
+            )}
+          </div>
+        )}
+
         <div className="mt-3 p-3 bg-gray-50 border border-gray-200 rounded" data-testid="level-output-panel">
           <div className="text-xs font-semibold text-gray-600 mb-2">Output</div>
           <div className="text-sm mb-2" data-testid="level-targeting-summary">
             {renderTargetingSummary(data.facebook_targeting)}
           </div>
 
-          {/* Advantage+ Audience source-vs-override callout */}
           {sourceAdset && (
             <div
               className={
@@ -161,8 +182,8 @@ const Level: React.FC<Props> = ({
               {JSON.stringify(data.facebook_targeting, null, 2)}
             </pre>
           )}
-          {lastExtractedTime && (
-            <div className="text-xs text-gray-500 mt-2">
+          {lastExtractedTime && !isStale && (
+            <div className="text-xs text-gray-500 mt-2" data-testid="level-last-extracted">
               Last extracted: {formatRelativeTime(lastExtractedTime)}
             </div>
           )}
