@@ -58,7 +58,11 @@ def make_window(hours, now):
 
 def run_instructions(instructions: Sequence[Instruction], state: FacebookState):
     updater = GraphUpdater(state)
+    logging.info(f"Executing {len(instructions)} instruction(s)")
     for i in instructions:
+        logging.info(
+            f"Executing: {i.node}/{i.action} id={i.id} params={i.params}"
+        )
         report = updater.execute(i)
         logging.info(report)
 
@@ -293,6 +297,10 @@ def run_updates(fn: AdoptJob) -> None:
 
             if instructions is None:
                 continue
+
+            logging.info(
+                f"Generated {len(instructions)} instruction(s) for {study.general.name}"
+            )
 
             if report:
                 create_adopt_report(s, "FACEBOOK_ADOPT", report, db_conf)

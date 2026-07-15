@@ -1,6 +1,7 @@
 from datetime import datetime
 from typing import TypeVar
 
+import pytest
 from facebook_business.adobjects.ad import Ad
 from facebook_business.adobjects.adset import AdSet
 
@@ -540,3 +541,143 @@ def test_ad_dif_updates_when_object_story_spec_format_changes():
     assert instructions[0].node == "ad"
     assert instructions[0].action == "update"
     assert instructions[0].id == "foo"
+
+
+# ---------------------------------------------------------------------------
+# Tests demonstrating the live-data false-positive bug.
+#
+# The existing tests (e.g. test_nested_creative_equal_despite_top_level_ad_differences)
+# use minimal hand-crafted object_story_spec dicts with perfectly matching key
+# sets.  Real Facebook data has server-generated keys inside nested structures
+# (link_data gets 'branded_content', 'image_crops', etc. from the API) that the
+# desired creative built by _create_creative() does not have.
+#
+# _eq's field-list mode recurses into nested values WITHOUT propagating the
+# field list, so the nested comparison falls into strict symmetric mode where
+# the key-set mismatch causes a false "not equal" — which makes update_ad()
+# generate an unnecessary ad update that re-sends the full creative.
+# ---------------------------------------------------------------------------
+
+# Field list used by update_ad() — mirrors the real production list.
+_CREATIVE_FIELDS = [
+    "actor_id",
+    "image_crops",
+    "asset_feed_spec",
+    "degrees_of_freedom_spec",
+    "instagram_user_id",
+    "object_story_spec",
+    "contextual_multi_ads",
+    "thumbnail_url",
+    "url_tags",
+]
+
+
+@pytest.mark.xfail(
+    reason=(
+        "_eq field-list mode recurses into nested dicts without the field "
+        "list, so strict symmetric key-set comparison fails when live FB "
+        "data has extra server-generated keys inside link_data/object_story_spec"
+    ),
+    strict=True,
+)
+def test_eq_creative_equal_with_live_facebook_nested_keys():
+    # The source creative (from Facebook) has extra server-generated keys
+    # inside link_data that the desired creative does not have. The meaningful
+    # content (image_hash, link, message, call_to_action, page_id, actor_id,
+    # url_tags) is identical.
+    source_creative = {
+        "id": "23846327900110518",
+        "name": "vlab-mnm-survey",
+        "url_tags": "ref=form.survey.stratumid.abc123",
+        "actor_id": "102998371752603",
+        "object_story_spec": {
+            "page_id": "102998371752603",
+            "link_data": {
+                "image_hash": "3181666208161582c277488a2c2b5fdb",
+                "link": "https://fb.com/messenger_doc/",
+                "message": "Take our survey!",
+                "call_to_action": {"type": "MESSAGE_PAGE"},
+                "branded_content": {"sponsor_id": "123"},
+                "image_crops": {"191x100": [[0, 0], [100, 100]]},
+            },
+        },
+    }
+
+    desired_creative = {
+        "name": "vlab-mnm-survey",
+        "url_tags": "ref=form.survey.stratumid.abc123",
+        "actor_id": "102998371752603",
+        "object_story_spec": {
+            "page_id": "102998371752603",
+            "link_data": {
+                "image_hash": "3181666208161582c277488a2c2b5fdb",
+                "link": "https://fb.com/messenger_doc/",
+                "message": "Take our survey!",
+                "call_to_action": {"type": "MESSAGE_PAGE"},
+            },
+        },
+    }
+
+    assert _eq(desired_creative, source_creative, _CREATIVE_FIELDS)
+
+
+@pytest.mark.xfail(
+    reason=(
+        "ad_dif generates an unnecessary ad update because _eq falsely reports "
+        "the creative as different when live FB data has extra nested keys"
+    ),
+    strict=True,
+)
+def test_ad_dif_no_recreate_when_only_nested_extra_keys_differ():
+    adset = {"id": "adset"}
+
+    # Source ad from Facebook — creative has extra server-generated keys in
+    # object_story_spec.link_data
+    source_creative = {
+        "name": "hindi",
+        "actor_id": "111",
+        "url_tags": "ref=foo",
+        "object_story_spec": {
+            "page_id": "111",
+            "link_data": {
+                "image_hash": "abc123",
+                "link": "https://fb.com/msg/",
+                "message": "Take our survey!",
+                "call_to_action": {"type": "MESSAGE_PAGE"},
+                "branded_content": {"sponsor_id": "999"},
+            },
+        },
+    }
+
+    desired_creative = {
+        "name": "hindi",
+        "actor_id": "111",
+        "url_tags": "ref=foo",
+        "object_story_spec": {
+            "page_id": "111",
+            "link_data": {
+                "image_hash": "abc123",
+                "link": "https://fb.com/msg/",
+                "message": "Take our survey!",
+                "call_to_action": {"type": "MESSAGE_PAGE"},
+            },
+        },
+    }
+
+    running_ads = [
+        _adobject(
+            {
+                "id": "foo",
+                "status": "ACTIVE",
+                "name": "hindi",
+                "creative": source_creative,
+            },
+            Ad,
+        )
+    ]
+
+    instructions = ad_dif(adset, running_ads, [_ad(desired_creative, adset)])
+
+    # Should be a no-op — the creative content is identical, only
+    # server-generated extra keys differ.
+    assert instructions == []
