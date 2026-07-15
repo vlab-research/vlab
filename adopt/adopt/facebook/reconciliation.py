@@ -14,11 +14,29 @@ def _eq(a, b, fields=None) -> bool:
         pass
 
     try:
+        # When a field list is provided, we compare only those fields and
+        # tolerate extra keys in either object. This is the top-level behavior
+        # used by update_adset/update_ad: existing Facebook objects often
+        # contain server-generated fields (id, thumbnail_url, etc.) that we
+        # do not set, and we do not want those to force unnecessary updates.
+        if fields is not None:
+            for k, v in a.items():
+                if k not in fields:
+                    continue
+                if k not in b:
+                    continue
+                if not _eq(v, b[k]):
+                    return False
+            return True
+
+        # When no field list is provided, we do a strict symmetric comparison.
+        # This is used for nested structures like object_story_spec, where a
+        # difference in keys (e.g. desired has link_data while existing has
+        # photo_data) must be detected so the optimizer can update the creative.
+        if set(a.keys()) != set(b.keys()):
+            return False
+
         for k, v in a.items():
-            if fields and k not in fields:
-                continue
-            if k not in b:
-                continue
             if not _eq(v, b[k]):
                 return False
         return True

@@ -24,28 +24,34 @@ def test_eq_with_all_same():
     assert _eq(a, b)
 
 
-def test_eq_with_subset_a():
+def test_eq_with_fields_ignores_extra_keys():
+    # Top-level reconciliation passes a field list, so server-generated keys
+    # like id that are not in the desired object are ignored.
     a, b = _adobject({"name": "bar", "foo": "baz"}, AdSet), _adobject(
         {"id": "foo", "name": "bar", "foo": "baz"}, AdSet
     )
-    assert _eq(a, b)
+    assert _eq(a, b, fields=["name", "foo"])
 
 
-def test_eq_with_subset_b():
-    a, b = _adobject({"id": "bar", "name": "bar", "foo": "baz"}, AdSet), _adobject(
-        {"name": "bar", "foo": "baz"}, AdSet
+def test_eq_without_fields_is_strictly_symmetric():
+    # Nested comparisons (e.g. object_story_spec) have no field list, so extra
+    # keys in either object must be treated as a difference.
+    a, b = _adobject({"name": "bar", "foo": "baz"}, AdSet), _adobject(
+        {"id": "foo", "name": "bar", "foo": "baz"}, AdSet
     )
-    assert _eq(a, b)
+    assert not _eq(a, b)
 
 
-def test_eq_with_subset_a_not_true():
+def test_eq_without_fields_detects_different_values():
     a, b = _adobject({"id": "bar", "name": "foo", "foo": "baz"}, AdSet), _adobject(
         {"name": "bar", "foo": "baz"}, AdSet
     )
     assert not _eq(a, b)
 
 
-def test_nested_without_name():
+def test_nested_creative_equal_despite_top_level_ad_differences():
+    # update_ad compares only the creative sub-object with a field list, so
+    # top-level ad differences (id, adset_id) are irrelevant.
     a = {
         "id": "23846326646590518",
         "creative": {
@@ -80,7 +86,17 @@ def test_nested_without_name():
         },
     }
 
-    assert _eq(a, b)
+    assert _eq(a["creative"], b["creative"], fields=[
+        "actor_id",
+        "image_crops",
+        "asset_feed_spec",
+        "degrees_of_freedom_spec",
+        "instagram_user_id",
+        "object_story_spec",
+        "contextual_multi_ads",
+        "thumbnail_url",
+        "url_tags",
+    ])
 
 
 def test_nested_with_dif_name_not_equal():
@@ -469,3 +485,58 @@ def test_ad_dif_removes_duplicate_ads_and_updates_other():
         Instruction("ad", "delete", {}, "bar"),
         Instruction("ad", "update", _ad(creatives[0], adset).export_all_data(), "foo"),
     ]
+
+
+def test_ad_dif_updates_when_object_story_spec_format_changes():
+    # Regression: photo_data templates are converted to link_data by
+    # marketing._create_creative, so the optimizer must detect when an existing
+    # ad still uses the old photo_data format.
+    adset = {"id": "adset"}
+
+    photo_creative = {
+        "name": "hindi",
+        "actor_id": "111",
+        "url_tags": "ref=foo",
+        "object_story_spec": {
+            "page_id": "111",
+            "instagram_user_id": "222",
+            "photo_data": {
+                "caption": "Take our survey!",
+                "image_hash": "abc123",
+            },
+        },
+    }
+
+    link_creative = {
+        "name": "hindi",
+        "actor_id": "111",
+        "url_tags": "ref=foo",
+        "object_story_spec": {
+            "page_id": "111",
+            "instagram_user_id": "222",
+            "link_data": {
+                "call_to_action": {"type": "MESSAGE_PAGE"},
+                "image_hash": "abc123",
+                "message": "Take our survey!",
+                "link": "https://fb.com/messenger_doc/",
+            },
+        },
+    }
+
+    running_ads = [
+        _adobject(
+            {
+                "id": "foo",
+                "status": "ACTIVE",
+                "name": "hindi",
+                "creative": photo_creative,
+            },
+            Ad,
+        )
+    ]
+
+    instructions = ad_dif(adset, running_ads, [_ad(link_creative, adset)])
+    assert len(instructions) == 1
+    assert instructions[0].node == "ad"
+    assert instructions[0].action == "update"
+    assert instructions[0].id == "foo"
