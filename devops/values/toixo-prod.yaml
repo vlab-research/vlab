@@ -1,4 +1,4 @@
-versionAdopt: &vadopt v0.1.72
+versionAdopt: &vadopt v0.1.73
 
 env:
   - name: AUTH0_DOMAIN
