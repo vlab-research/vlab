@@ -18,7 +18,7 @@ def _safe_get(obj, key, default="unknown"):
         return default
 
 
-def _eq(a, b, fields=None, _path="") -> bool:
+def _eq(a, b, fields=None, _path="", _subset=None) -> bool:
     try:
         a, b = a.export_all_data(), b.export_all_data()
     except AttributeError:
@@ -30,6 +30,15 @@ def _eq(a, b, fields=None, _path="") -> bool:
         # used by update_adset/update_ad: existing Facebook objects often
         # contain server-generated fields (id, thumbnail_url, etc.) that we
         # do not set, and we do not want those to force unnecessary updates.
+        #
+        # The subset comparison propagates to all nested recursion via
+        # _subset="a", so that nested structures (e.g. degrees_of_freedom_spec.
+        # creative_features_spec, object_story_spec.link_data) also ignore
+        # server-generated keys that exist only in the source. Without this
+        # propagation, nested comparisons fall into strict symmetric mode and
+        # Facebook's ~70 default OPT_OUT creative_features_spec keys cause
+        # every ad to be flagged as "creative mismatch" — recreating ads
+        # unnecessarily on every run.
         if fields is not None:
             for k, v in a.items():
                 if k not in fields:
@@ -40,7 +49,7 @@ def _eq(a, b, fields=None, _path="") -> bool:
                         f"source (path: {_path}.{k}) — skipping"
                     )
                     continue
-                if not _eq(v, b[k], _path=f"{_path}.{k}"):
+                if not _eq(v, b[k], _path=f"{_path}.{k}", _subset="a"):
                     logger.info(
                         f"_eq: mismatch at {_path}.{k} — "
                         f"desired={v!r} source={b[k]!r}"
@@ -48,18 +57,29 @@ def _eq(a, b, fields=None, _path="") -> bool:
                     return False
             return True
 
-        # When no field list is provided, we do a strict symmetric comparison.
-        # This is used for nested structures like object_story_spec, where a
-        # difference in keys (e.g. desired has link_data while existing has
-        # photo_data) must be detected so the optimizer can update the creative.
-        #
-        # BUG: this strict mode is also reached when the top-level call
-        # (which *does* pass a field list) recurses into nested values
-        # (line: _eq(v, b[k]) — no fields arg).  Live Facebook data has
-        # server-generated keys in nested structures (e.g. link_data gets
-        # extra keys from the API) that the desired creative does not have,
-        # causing the key-set check below to fail and declare identical
-        # creatives as different.
+        # Subset mode (nested recursion from a field-list call):
+        # Compare only keys present in the desired object (a).  Extra keys
+        # in the source (b) — server-generated defaults — are ignored.
+        # A key in desired that is missing from source IS a difference.
+        if _subset == "a":
+            for k, v in a.items():
+                if k not in b:
+                    logger.info(
+                        f"_eq: key '{k}' in desired but missing from source "
+                        f"(path: {_path}.{k})"
+                    )
+                    return False
+                if not _eq(v, b[k], _path=f"{_path}.{k}", _subset="a"):
+                    logger.info(
+                        f"_eq: mismatch at {_path}.{k} — "
+                        f"desired={v!r} source={b[k]!r}"
+                    )
+                    return False
+            return True
+
+        # Strict symmetric mode (standalone calls without a field list).
+        # Used for detecting structural changes like link_data vs photo_data
+        # in object_story_spec.  Key sets must match exactly.
         if set(a.keys()) != set(b.keys()):
             only_desired = set(a.keys()) - set(b.keys())
             only_source = set(b.keys()) - set(a.keys())

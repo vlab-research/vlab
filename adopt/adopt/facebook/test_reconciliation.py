@@ -1,7 +1,6 @@
 from datetime import datetime
 from typing import TypeVar
 
-import pytest
 from facebook_business.adobjects.ad import Ad
 from facebook_business.adobjects.adset import AdSet
 
@@ -544,18 +543,16 @@ def test_ad_dif_updates_when_object_story_spec_format_changes():
 
 
 # ---------------------------------------------------------------------------
-# Tests demonstrating the live-data false-positive bug.
+# Tests for the subset comparison fix.
 #
-# The existing tests (e.g. test_nested_creative_equal_despite_top_level_ad_differences)
-# use minimal hand-crafted object_story_spec dicts with perfectly matching key
-# sets.  Real Facebook data has server-generated keys inside nested structures
-# (link_data gets 'branded_content', 'image_crops', etc. from the API) that the
-# desired creative built by _create_creative() does not have.
+# Live Facebook data has server-generated keys inside nested structures that
+# the desired creative does not have. _eq's field-list mode now propagates
+# _subset="a" through recursion, so nested comparisons only check keys present
+# in the desired object and ignore extra server-generated keys in the source.
 #
-# _eq's field-list mode recurses into nested values WITHOUT propagating the
-# field list, so the nested comparison falls into strict symmetric mode where
-# the key-set mismatch causes a false "not equal" — which makes update_ad()
-# generate an unnecessary ad update that re-sends the full creative.
+# Root cause from production logs (v0.1.72): degrees_of_freedom_spec.
+# creative_features_spec had ~70 extra OPT_OUT keys from Facebook that the
+# desired creative didn't set, causing 62 false-positive ad updates per run.
 # ---------------------------------------------------------------------------
 
 # Field list used by update_ad() — mirrors the real production list.
@@ -572,14 +569,6 @@ _CREATIVE_FIELDS = [
 ]
 
 
-@pytest.mark.xfail(
-    reason=(
-        "_eq field-list mode recurses into nested dicts without the field "
-        "list, so strict symmetric key-set comparison fails when live FB "
-        "data has extra server-generated keys inside link_data/object_story_spec"
-    ),
-    strict=True,
-)
 def test_eq_creative_equal_with_live_facebook_nested_keys():
     # The source creative (from Facebook) has extra server-generated keys
     # inside link_data that the desired creative does not have. The meaningful
@@ -621,13 +610,6 @@ def test_eq_creative_equal_with_live_facebook_nested_keys():
     assert _eq(desired_creative, source_creative, _CREATIVE_FIELDS)
 
 
-@pytest.mark.xfail(
-    reason=(
-        "ad_dif generates an unnecessary ad update because _eq falsely reports "
-        "the creative as different when live FB data has extra nested keys"
-    ),
-    strict=True,
-)
 def test_ad_dif_no_recreate_when_only_nested_extra_keys_differ():
     adset = {"id": "adset"}
 
@@ -681,3 +663,167 @@ def test_ad_dif_no_recreate_when_only_nested_extra_keys_differ():
     # Should be a no-op — the creative content is identical, only
     # server-generated extra keys differ.
     assert instructions == []
+
+
+def test_eq_creative_equal_with_fb_creative_features_spec_defaults():
+    # Mirrors the production bug: Facebook returns ~70 creative_features_spec
+    # keys (all OPT_OUT) that the desired creative only sets ~13 of.  Before
+    # the _subset="a" fix, the key-set mismatch in strict symmetric mode
+    # caused every ad to be flagged as "creative mismatch".
+    fb_extra_features = {
+        "adapt_to_placement": {"enroll_status": "OPT_OUT"},
+        "add_text_overlay": {"enroll_status": "OPT_OUT"},
+        "ads_with_benefits": {"enroll_status": "OPT_OUT"},
+        "audio": {"enroll_status": "OPT_OUT"},
+        "auto_promotion_tag": {"enroll_status": "OPT_OUT"},
+        "biz_ai": {"enroll_status": "OPT_OUT"},
+        "carousel_to_video": {"enroll_status": "OPT_OUT"},
+        "catalog_feed_tag": {"enroll_status": "OPT_OUT"},
+        "creative_stickers": {"enroll_status": "OPT_OUT"},
+        "customize_product_recommendation": {"enroll_status": "OPT_OUT"},
+        "description_automation": {"enroll_status": "OPT_OUT"},
+        "dha_optimization": {"enroll_status": "OPT_OUT"},
+        "dynamic_cta_text": {"enroll_status": "OPT_OUT"},
+        "dynamic_partner_content": {"enroll_status": "OPT_OUT"},
+        "enable_ncs_testimonials": {"enroll_status": "OPT_OUT"},
+        "fb_feed_tag": {"enroll_status": "OPT_OUT"},
+        "fb_reels_tag": {"enroll_status": "OPT_OUT"},
+        "fb_story_tag": {"enroll_status": "OPT_OUT"},
+        "feed_caption_optimization": {"enroll_status": "OPT_OUT"},
+        "generate_cta": {"enroll_status": "OPT_OUT"},
+        "hide_price": {"enroll_status": "OPT_OUT"},
+        "hyperlink_formatting": {"enroll_status": "OPT_OUT"},
+        "ig_feed_tag": {"enroll_status": "OPT_OUT"},
+        "ig_glados_feed": {"enroll_status": "OPT_OUT"},
+        "ig_reels_tag": {"enroll_status": "OPT_OUT"},
+        "ig_stream_tag": {"enroll_status": "OPT_OUT"},
+        "ig_video_native_subtitle": {"enroll_status": "OPT_OUT"},
+        "image_auto_crop": {"enroll_status": "OPT_OUT"},
+        "image_background_gen": {"enroll_status": "OPT_OUT"},
+        "image_banner": {"enroll_status": "OPT_OUT"},
+        "image_end_card": {"enroll_status": "OPT_OUT"},
+        "image_enhancement": {"enroll_status": "OPT_OUT"},
+        "image_text_translation": {"enroll_status": "OPT_OUT"},
+        "image_uncrop": {"enroll_status": "OPT_OUT"},
+        "local_store_extension": {"enroll_status": "OPT_OUT"},
+        "media_liquidity_animated_image": {"enroll_status": "OPT_OUT"},
+        "media_order": {"enroll_status": "OPT_OUT"},
+        "media_type_automation": {"enroll_status": "OPT_OUT"},
+        "multi_creative_post_carousel": {"enroll_status": "OPT_OUT"},
+        "multi_photo_to_video": {"enroll_status": "OPT_OUT"},
+        "music_generation": {"enroll_status": "OPT_OUT"},
+        "pac_genai_recomposition": {"enroll_status": "OPT_OUT"},
+        "product_browsing": {"enroll_status": "OPT_OUT"},
+        "product_extensions": {"enroll_status": "OPT_OUT"},
+        "product_metadata_automation": {"enroll_status": "OPT_OUT"},
+        "product_tags": {"enroll_status": "OPT_OUT"},
+        "profile_card": {"enroll_status": "OPT_OUT"},
+        "profile_extension": {"enroll_status": "OPT_OUT"},
+        "replace_media_text": {"enroll_status": "OPT_OUT"},
+        "show_summary": {"enroll_status": "OPT_OUT"},
+        "site_extensions": {"enroll_status": "OPT_OUT"},
+        "standard_enhancements_catalog": {"enroll_status": "OPT_OUT"},
+        "text_extraction_for_headline": {"enroll_status": "OPT_OUT"},
+        "text_extraction_for_tap_target": {"enroll_status": "OPT_OUT"},
+        "text_formatting_optimization": {"enroll_status": "OPT_OUT"},
+        "text_generation": {"enroll_status": "OPT_OUT"},
+        "text_overlay_translation": {"enroll_status": "OPT_OUT"},
+        "translate_voiceover": {"enroll_status": "OPT_OUT"},
+        "video_auto_crop": {"enroll_status": "OPT_OUT"},
+        "video_filtering": {"enroll_status": "OPT_OUT"},
+        "video_highlight": {"enroll_status": "OPT_OUT"},
+        "video_highlights": {"enroll_status": "OPT_OUT"},
+        "video_to_image": {"enroll_status": "OPT_OUT"},
+        "video_uncrop": {"enroll_status": "OPT_OUT"},
+        "video_uncrop_9x16_to_9x18": {"enroll_status": "OPT_OUT"},
+        "wa_mm_image_filtering": {"enroll_status": "OPT_OUT"},
+        "wa_mm_text_truncation_length": {"enroll_status": "OPT_OUT"},
+    }
+
+    desired_features = {
+        "advantage_plus_creative": {"enroll_status": "OPT_IN"},
+        "cv_transformation": {"enroll_status": "OPT_IN"},
+        "enhance_cta": {
+            "enroll_status": "OPT_IN",
+            "customizations": {"text_extraction": {"enroll_status": "OPT_IN"}},
+        },
+        "image_animation": {"enroll_status": "OPT_IN"},
+        "image_brightness_and_contrast": {"enroll_status": "OPT_IN"},
+        "image_templates": {"enroll_status": "OPT_IN"},
+        "image_touchups": {"enroll_status": "OPT_IN"},
+        "inline_comment": {"enroll_status": "OPT_IN"},
+        "pac_recomposition": {"enroll_status": "OPT_OUT"},
+        "pac_relaxation": {"enroll_status": "OPT_OUT"},
+        "reveal_details_over_time": {"enroll_status": "OPT_IN"},
+        "show_destination_blurbs": {"enroll_status": "OPT_IN"},
+        "text_optimizations": {
+            "enroll_status": "OPT_IN",
+            "customizations": {"text_extraction": {"enroll_status": "OPT_IN"}},
+        },
+        "text_translation": {"enroll_status": "OPT_OUT"},
+    }
+
+    # Facebook merges desired + defaults; the values for shared keys match.
+    source_features = {**fb_extra_features, **desired_features}
+
+    source_creative = {
+        "id": "123",
+        "name": "Ad1",
+        "actor_id": "111",
+        "url_tags": "ref=foo",
+        "degrees_of_freedom_spec": {"creative_features_spec": source_features},
+    }
+
+    desired_creative = {
+        "name": "Ad1",
+        "actor_id": "111",
+        "url_tags": "ref=foo",
+        "degrees_of_freedom_spec": {"creative_features_spec": desired_features},
+    }
+
+    assert _eq(desired_creative, source_creative, _CREATIVE_FIELDS)
+
+
+def test_eq_still_detects_real_creative_difference_in_subset_mode():
+    # Even in subset mode, a value difference in a key that exists in both
+    # desired and source must be detected.
+    source_creative = {
+        "name": "Ad1",
+        "actor_id": "111",
+        "url_tags": "ref=old",
+        "object_story_spec": {
+            "page_id": "111",
+            "link_data": {
+                "image_hash": "abc123",
+                "branded_content": {"sponsor_id": "999"},
+            },
+        },
+    }
+
+    desired_creative = {
+        "name": "Ad1",
+        "actor_id": "111",
+        "url_tags": "ref=new",
+        "object_story_spec": {
+            "page_id": "111",
+            "link_data": {"image_hash": "abc123"},
+        },
+    }
+
+    assert not _eq(desired_creative, source_creative, _CREATIVE_FIELDS)
+
+
+def test_eq_still_detects_missing_key_in_source_in_subset_mode():
+    # In subset mode (nested recursion), a key present in desired but missing
+    # from source is a real difference.
+    source = {
+        "page_id": "111",
+        "link_data": {"image_hash": "abc123"},
+    }
+
+    desired = {
+        "page_id": "111",
+        "link_data": {"image_hash": "abc123", "message": "Take our survey!"},
+    }
+
+    assert not _eq(desired, source, _subset="a")
