@@ -1,3 +1,4 @@
+import json
 import logging
 from typing import Dict, List, Sequence, Tuple, TypeVar
 
@@ -18,11 +19,39 @@ def _safe_get(obj, key, default="unknown"):
         return default
 
 
+def _sort_key(x):
+    """Stable sort key for any JSON-serialisable value (dicts, lists, scalars)."""
+    return json.dumps(x, sort_keys=True, default=str)
+
+
 def _eq(a, b, fields=None, _path="", _subset=None) -> bool:
     try:
         a, b = a.export_all_data(), b.export_all_data()
     except AttributeError:
         pass
+
+    # Lists: sort for order-independent comparison, then compare element-by-
+    # element with _subset="both" (intersection mode) so that list elements
+    # like audience refs {id, name} are compared only on keys both sides
+    # have — Facebook may add or strip metadata (e.g. audience name) from
+    # list entries without it being a meaningful targeting change.
+    if isinstance(a, list) and isinstance(b, list):
+        if len(a) != len(b):
+            logger.info(
+                f"_eq: list length mismatch at {_path} — "
+                f"desired={len(a)} source={len(b)}"
+            )
+            return False
+        a_sorted = sorted(a, key=_sort_key)
+        b_sorted = sorted(b, key=_sort_key)
+        for i, (x, y) in enumerate(zip(a_sorted, b_sorted)):
+            if not _eq(x, y, _path=f"{_path}[{i}]", _subset="both"):
+                logger.info(
+                    f"_eq: mismatch at {_path}[{i}] — "
+                    f"desired={x!r} source={y!r}"
+                )
+                return False
+        return True
 
     try:
         # When a field list is provided, we compare only those fields and
@@ -73,6 +102,21 @@ def _eq(a, b, fields=None, _path="", _subset=None) -> bool:
                     logger.info(
                         f"_eq: mismatch at {_path}.{k} — "
                         f"desired={v!r} source={b[k]!r}"
+                    )
+                    return False
+            return True
+
+        # Intersection mode (list element comparison):
+        # Only compare keys present in BOTH objects.  Used for list elements
+        # where Facebook may add or strip metadata fields (e.g. audience
+        # name in excluded_custom_audiences) without it being a meaningful
+        # change.  The id field is the meaningful identifier.
+        if _subset == "both":
+            for k in set(a.keys()) & set(b.keys()):
+                if not _eq(a[k], b[k], _path=f"{_path}.{k}", _subset="both"):
+                    logger.info(
+                        f"_eq: mismatch at {_path}.{k} — "
+                        f"desired={a[k]!r} source={b[k]!r}"
                     )
                     return False
             return True
@@ -135,7 +179,6 @@ def update_ad(source: Ad, ad: Ad) -> List[Instruction]:
         AdCreative.Field.instagram_user_id,
         AdCreative.Field.object_story_spec,
         AdCreative.Field.contextual_multi_ads,
-        AdCreative.Field.thumbnail_url,
         AdCreative.Field.url_tags,
     ]
 

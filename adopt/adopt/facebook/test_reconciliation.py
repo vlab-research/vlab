@@ -827,3 +827,136 @@ def test_eq_still_detects_missing_key_in_source_in_subset_mode():
     }
 
     assert not _eq(desired, source, _subset="a")
+
+
+# ---------------------------------------------------------------------------
+# Tests for list sorting and intersection mode (_subset="both").
+#
+# Production logs (v0.1.73) showed two remaining false-positive sources:
+#   1. thumbnail_url: Facebook regenerates CDN URLs on every read (160 ad
+#      updates per run). Fixed by removing thumbnail_url from update_ad's
+#      field list.
+#   2. targeting.excluded_custom_audiences: Facebook returns audience refs
+#      in a different order and may strip the `name` field from some entries.
+#      Fixed by sorting lists in _eq and using _subset="both" (intersection
+#      mode) for list elements so only keys both sides have are compared.
+# ---------------------------------------------------------------------------
+
+
+def test_eq_list_comparison_is_order_independent():
+    a = [{"id": "123", "name": "foo"}, {"id": "456", "name": "bar"}]
+    b = [{"id": "456", "name": "bar"}, {"id": "123", "name": "foo"}]
+    assert _eq(a, b, _subset="a")
+
+
+def test_eq_list_comparison_ignores_missing_metadata_in_elements():
+    # Facebook may strip `name` from some audience entries. With
+    # _subset="both" (intersection mode), only keys both sides have are
+    # compared — the `id` is what matters for targeting.
+    a = [{"id": "123", "name": "foo"}, {"id": "456", "name": "bar"}]
+    b = [{"id": "456", "name": "bar"}, {"id": "123"}]
+    assert _eq(a, b, _subset="a")
+
+
+def test_eq_list_comparison_detects_different_ids():
+    a = [{"id": "123"}, {"id": "456"}]
+    b = [{"id": "123"}, {"id": "789"}]
+    assert not _eq(a, b, _subset="a")
+
+
+def test_eq_list_comparison_detects_length_mismatch():
+    a = [{"id": "123"}, {"id": "456"}]
+    b = [{"id": "123"}]
+    assert not _eq(a, b, _subset="a")
+
+
+def test_eq_list_comparison_via_field_list_handles_audience_order():
+    # Mirrors the production bug: update_adset compares targeting which
+    # contains excluded_custom_audiences as a list of {id, name} dicts.
+    # Facebook returns them in a different order and may strip `name`.
+    source_adset = {
+        "id": "foo",
+        "name": "test",
+        "end_time": "2026-07-17",
+        "status": "ACTIVE",
+        "daily_budget": 100,
+        "optimization_goal": "CONVERSATIONS",
+        "targeting": {
+            "age_max": 65,
+            "age_min": 30,
+            "genders": [2],
+            "geo_locations": {"countries": ["NG"]},
+            "excluded_custom_audiences": [
+                {"id": "B", "name": "audience_b"},
+                {"id": "A"},  # Facebook stripped name
+            ],
+        },
+    }
+
+    desired_adset = {
+        "name": "test",
+        "end_time": "2026-07-17",
+        "status": "ACTIVE",
+        "daily_budget": 100,
+        "optimization_goal": "CONVERSATIONS",
+        "targeting": {
+            "age_max": 65,
+            "age_min": 30,
+            "genders": [2],
+            "geo_locations": {"countries": ["NG"]},
+            "excluded_custom_audiences": [
+                {"id": "A", "name": "audience_a"},
+                {"id": "B", "name": "audience_b"},
+            ],
+        },
+    }
+
+    fields = [
+        "end_time", "targeting", "status",
+        "daily_budget", "optimization_goal", "name",
+    ]
+
+    assert _eq(desired_adset, source_adset, fields)
+
+
+def test_ad_dif_ignores_thumbnail_url_difference():
+    # thumbnail_url is a Facebook-generated CDN URL that changes on every
+    # read. It should not trigger an ad update.
+    adset = {"id": "ad"}
+
+    source_creative = {
+        "name": "hindi",
+        "actor_id": "111",
+        "url_tags": "ref=foo",
+        "thumbnail_url": "https://cdn-old.fbcdn.net/image/123",
+        "object_story_spec": {
+            "page_id": "111",
+            "link_data": {"image_hash": "abc123"},
+        },
+    }
+
+    desired_creative = {
+        "name": "hindi",
+        "actor_id": "111",
+        "url_tags": "ref=foo",
+        "thumbnail_url": "https://cdn-new.fbcdn.net/image/456",
+        "object_story_spec": {
+            "page_id": "111",
+            "link_data": {"image_hash": "abc123"},
+        },
+    }
+
+    running_ads = [
+        _adobject(
+            {
+                "id": "foo",
+                "status": "ACTIVE",
+                "name": "hindi",
+                "creative": source_creative,
+            },
+            Ad,
+        )
+    ]
+
+    instructions = ad_dif(adset, running_ads, [_ad(desired_creative, adset)])
+    assert instructions == []
