@@ -104,41 +104,60 @@ func GetActiveStudies(pool *pgxpool.Pool) ([]string, error) {
 	return studies, nil
 }
 
+// swooshStudy processes a single study. It returns an error instead of
+// fataling so that one misconfigured study cannot abort the whole run.
+// (Mirrors connector.collectEventsForStudy — see inference/connector/connector.go.)
+func swooshStudy(pool *pgxpool.Pool, study string) error {
+	log.Printf("Swooshing %s\n", study)
+
+	events, err := GetEvents(pool, study)
+	if err != nil {
+		return fmt.Errorf("study %s: reading events: %w", study, err)
+	}
+	log.Printf("Swoosh read %d events.\n", len(events))
+
+	mapping, err := GetInferenceDataConf(pool, study)
+	if err != nil {
+		// No inference_data conf → nothing to aggregate. Not an error; skip.
+		log.Printf("Could not get inference_data conf for study %s; skipping\n", study)
+		return nil
+	}
+
+	id, extractionErrors, err := Reduce(events, mapping)
+	if err != nil {
+		return fmt.Errorf("study %s: reduce: %w", study, err)
+	}
+
+	// TODO(study-errors-surfacing): persist these to study_errors so the user sees them.
+	log.Printf("Swoosh had %d extractionErrors\n", len(extractionErrors))
+	for _, e := range extractionErrors {
+		log.Println(e)
+	}
+
+	log.Printf("Swoosh storing InferenceData from %d users\n", len(id))
+	if err := WriteInferenceData(pool, study, id); err != nil {
+		return fmt.Errorf("study %s: writing inference data: %w", study, err)
+	}
+	return nil
+}
+
 func main() {
 	cnf := getConfig()
 	pool, err := pgxpool.Connect(context.Background(), cnf.DB)
-	handle(err)
+	handle(err) // connection failure is still fatal — nothing can run
 
 	studies, err := GetActiveStudies(pool)
-	handle(err)
+	handle(err) // can't get the work list → fatal
 
 	log.Printf("Swooshing %d studies\n", len(studies))
 
+	failed := 0
 	for _, study := range studies {
-		log.Printf("Swooshing %s\n", study)
-		events, err := GetEvents(pool, study)
-		handle(err)
-		log.Printf("Swoosh read %d events.\n", len(events))
-
-		mapping, err := GetInferenceDataConf(pool, study)
-		if err != nil {
-			log.Println(fmt.Sprintf("Could not get inference_data conf for study %s", study))
+		if err := swooshStudy(pool, study); err != nil {
+			log.Printf("ERROR %v", err)
+			failed++
 			continue
 		}
-
-		id, extractionErrors, err := Reduce(events, mapping)
-		handle(err)
-
-		// TODO: store extraction errors in database to show user!
-		log.Printf("Swoosh had %d extractionErrors\n", len(extractionErrors))
-		for _, err := range extractionErrors {
-			log.Println(err)
-		}
-
-		log.Printf("Swoosh storing InferenceData from %d users\n", len(id))
-		err = WriteInferenceData(pool, study, id)
-		handle(err)
-
 	}
-
+	log.Printf("Swoosh done. %d/%d studies failed.\n", failed, len(studies))
 }
