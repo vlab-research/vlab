@@ -6,6 +6,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	. "github.com/vlab-research/vlab/inference/inference-data"
 	"io/ioutil"
+	"strings"
 	"testing"
 	"time"
 )
@@ -603,7 +604,9 @@ func TestReduceInferenceData_WorksCastingStringsToContinuousValues(t *testing.T)
 	assert.Equal(t, expected, actual)
 }
 
-func TestReduceInferenceData_ReturnsErrorWhenNonExistantDataSource(t *testing.T) {
+func TestReduceInferenceData_SkipsEventsFromUnmappedDataSources(t *testing.T) {
+	// Events from unmapped sources (e.g. mid-study source renames) should be skipped
+	// gracefully with one extraction error recorded, not a hard error.
 	events := testEvents("events_a.json")
 
 	mapping := &InferenceDataConf{map[string]*DataSource{
@@ -611,12 +614,16 @@ func TestReduceInferenceData_ReturnsErrorWhenNonExistantDataSource(t *testing.T)
 		"bar": {},
 	}}
 
-	_, extractionErrors, err := Reduce(events, mapping)
-	assert.Equal(t, len(extractionErrors), 0)
-	assert.NotNil(t, err)
-	assert.Contains(t, err.Error(), "lit_data")
-	assert.Contains(t, err.Error(), "foo")
-	assert.Contains(t, err.Error(), "bar")
+	result, extractionErrors, err := Reduce(events, mapping)
+	// Should NOT return a hard error (unmapped source is skipped, not fatal)
+	assert.Nil(t, err)
+	// Should have exactly one extraction error for the unmapped "lit_data" source
+	assert.Equal(t, 1, len(extractionErrors))
+	errMsg := extractionErrors[0].Error()
+	assert.Contains(t, errMsg, "lit_data")
+	assert.Contains(t, errMsg, "data source not in SourceVariableMapping (skipped)")
+	// Result should be empty since all events were from unmapped source
+	assert.Equal(t, 0, len(result))
 }
 
 func TestReduceInferenceData_SkipsUsersWhenInvalidExtractionParamsForFunction(t *testing.T) {
@@ -827,4 +834,112 @@ func TestJoinSources_ReturnsErrorWhenMissingUserVarForSomeone(t *testing.T) {
 	assert.Equal(t, 2, len(res["foo"].Data))
 	assert.Equal(t, "2", string(res["foo"].Data["q2"].Value))
 	assert.Equal(t, "1", string(res["foo"].Data["q1"].Value))
+}
+
+func TestReduceInferenceData_SkipsEventsFromUnmappedSourcesButRecordsOneErrorPerSource(t *testing.T) {
+	// Verify that unmapped sources (e.g. renamed mid-study) are skipped gracefully,
+	// with exactly one error recorded per source name, not one per event.
+	events := []*InferenceDataEvent{
+		// 3 events from mapped source
+		{
+			User:       User{ID: "user1"},
+			SourceConf: &SourceConf{Name: "mapped_source"},
+			Timestamp:  ti("07"),
+			Variable:   "q1",
+			Value:      json.RawMessage(`"A"`),
+		},
+		// 4 events from unmapped source (should be skipped with one error recorded)
+		{
+			User:       User{ID: "user_unmapped_1"},
+			SourceConf: &SourceConf{Name: "unmapped_source_1"},
+			Timestamp:  ti("07"),
+			Variable:   "q1",
+			Value:      json.RawMessage(`"X"`),
+		},
+		{
+			User:       User{ID: "user_unmapped_2"},
+			SourceConf: &SourceConf{Name: "unmapped_source_1"},
+			Timestamp:  ti("08"),
+			Variable:   "q1",
+			Value:      json.RawMessage(`"Y"`),
+		},
+		{
+			User:       User{ID: "user_unmapped_3"},
+			SourceConf: &SourceConf{Name: "unmapped_source_1"},
+			Timestamp:  ti("09"),
+			Variable:   "q1",
+			Value:      json.RawMessage(`"Z"`),
+		},
+		{
+			User:       User{ID: "user_unmapped_4"},
+			SourceConf: &SourceConf{Name: "unmapped_source_1"},
+			Timestamp:  ti("10"),
+			Variable:   "q1",
+			Value:      json.RawMessage(`"W"`),
+		},
+		// Event from another unmapped source
+		{
+			User:       User{ID: "user_unmapped_other"},
+			SourceConf: &SourceConf{Name: "unmapped_source_2"},
+			Timestamp:  ti("07"),
+			Variable:   "q1",
+			Value:      json.RawMessage(`"O"`),
+		},
+		// One more event from the first unmapped source (should not create another error)
+		{
+			User:       User{ID: "user_unmapped_5"},
+			SourceConf: &SourceConf{Name: "unmapped_source_1"},
+			Timestamp:  ti("11"),
+			Variable:   "q1",
+			Value:      json.RawMessage(`"V"`),
+		},
+	}
+
+	mapping := &InferenceDataConf{map[string]*DataSource{
+		"mapped_source": {
+			ExtractionConfs: []*ExtractionConf{
+				{
+					Location:  "variable",
+					Key:       "q1",
+					Name:      "q1",
+					ValueType: "categorical",
+					Functions: []ExtractionFunctionConf{
+						{
+							Function: "select",
+							Params:   []byte(`{"path": ""}`),
+						},
+					},
+					Aggregate: "last",
+				},
+			},
+		},
+	}}
+
+	actual, extractionErrors, err := Reduce(events, mapping)
+
+	// Should NOT return an error (unmapped sources are skipped, not fatal)
+	assert.Nil(t, err)
+
+	// Should have exactly one user from the mapped source
+	assert.Equal(t, 1, len(actual))
+	assert.NotNil(t, actual["user1"])
+	assert.Equal(t, "\"A\"", string(actual["user1"].Data["q1"].Value))
+
+	// Should have exactly 2 extraction errors (one per unmapped source)
+	assert.Equal(t, 2, len(extractionErrors))
+
+	// Both errors should mention their respective source names
+	errorMsgs := make(map[string]bool)
+	for _, e := range extractionErrors {
+		msg := e.Error()
+		assert.Contains(t, msg, "data source not in SourceVariableMapping (skipped)")
+		assert.Contains(t, msg, "mapped_source")
+		if strings.Contains(msg, "unmapped_source_1") {
+			errorMsgs["unmapped_source_1"] = true
+		}
+		if strings.Contains(msg, "unmapped_source_2") {
+			errorMsgs["unmapped_source_2"] = true
+		}
+	}
+	assert.Equal(t, 2, len(errorMsgs), "Should have exactly one error each for unmapped_source_1 and unmapped_source_2")
 }

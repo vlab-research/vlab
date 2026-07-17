@@ -308,16 +308,28 @@ func JoinSources(intermediateData IntermediateInferenceData, confs map[string]*D
 func Reduce(events []*InferenceDataEvent, c *InferenceDataConf) (InferenceData, []error, error) {
 	intermediateData := make(IntermediateInferenceData)
 	extractionErrors := []error{}
+	// Track unmapped sources already recorded to deduplicate errors.
+	// A study may have thousands of events from a single unmapped source (e.g. a renamed
+	// data source like "Fly" → "Fly HPV Double"); we must record exactly one extraction
+	// error per distinct unmapped source name, not one per event.
+	recordedUnmappedSources := make(map[string]bool)
 
 	for _, e := range events {
 
 		sourceConf, ok := c.DataSources[e.SourceConf.Name]
 
 		if !ok {
-			return nil, extractionErrors, fmt.Errorf("Attempted to process event from data source not in SourceVariableMapping. "+
-				"Data source: %s. Sources in mapping: %s",
-				e.SourceConf.Name,
-				c.Sources())
+			// Skip events from unmapped sources but record one error per source name.
+			// Historical events orphaned by mid-study source renames should not abort
+			// aggregation of mapped sources.
+			if !recordedUnmappedSources[e.SourceConf.Name] {
+				extractionErrors = append(extractionErrors, fmt.Errorf(
+					"data source not in SourceVariableMapping (skipped): %s. Sources in mapping: %s",
+					e.SourceConf.Name,
+					c.Sources()))
+				recordedUnmappedSources[e.SourceConf.Name] = true
+			}
+			continue
 		}
 
 		// add from metadata

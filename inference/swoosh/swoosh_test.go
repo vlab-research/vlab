@@ -133,11 +133,11 @@ func insertEvent(t *testing.T, pool *pgxpool.Pool, study, sourceName, variable, 
 	MustExec(t, pool, insertEventSQL, study, sourceName, e.Timestamp, b, 0, "")
 }
 
-// TestSwooshStudy_IsolatesFailures proves that one misconfigured study
-// (event source not in the inference_data mapping) returns an error
-// without preventing a healthy study from being processed and stored.
-// Before the fix, Reduce's error triggered log.Fatal in main, aborting
-// the entire run and leaving all subsequent studies' inference_data empty.
+// TestSwooshStudy_IsolatesFailures proves that events from unmapped sources
+// (e.g. mid-study source renames) are skipped gracefully without preventing
+// other studies from being processed and stored. Study A has only unmapped
+// sources (all events skipped); Study B has mapped sources (data written).
+// Both succeed without blocking each other.
 func TestSwooshStudy_IsolatesFailures(t *testing.T) {
 	pool := TestPool()
 	defer pool.Close()
@@ -152,7 +152,8 @@ func TestSwooshStudy_IsolatesFailures(t *testing.T) {
 	MustExec(t, pool, insertConf, studyB, "recruitment", activeDate)
 
 	// Study A: inference_data mapping keyed "fly", but event tagged "sIcNrF05"
-	// (reproduces the production sIcNrF05/Fly mismatch crash).
+	// (reproduces the production sIcNrF05/Fly mismatch crash from mid-study source rename).
+	// With the fix, unmapped sources are skipped gracefully (not fatal).
 	MustExec(t, pool, insertConf, studyA, "inference_data", infConfA)
 	insertEvent(t, pool, studyA, "sIcNrF05", "foo_raw", `{"value": "true"}`)
 
@@ -160,25 +161,25 @@ func TestSwooshStudy_IsolatesFailures(t *testing.T) {
 	MustExec(t, pool, insertConf, studyB, "inference_data", infConfA)
 	insertEvent(t, pool, studyB, "fly", "foo_raw", `{"value": "true"}`)
 
-	// Study A should return an error (source not in mapping).
+	// Study A should succeed (unmapped sources are skipped, not fatal).
 	errA := swooshStudy(pool, studyA)
-	assert.NotNil(t, errA, "Study A should return an error (source not in mapping)")
+	assert.Nil(t, errA, "Study A should succeed (unmapped sources are skipped, not fatal)")
 
-	// Study B should succeed despite A failing.
+	// Study B should also succeed.
 	errB := swooshStudy(pool, studyB)
-	assert.Nil(t, errB, "Study B should succeed despite study A failing")
+	assert.Nil(t, errB, "Study B should succeed")
 
 	// Study B's inference_data rows must have landed.
 	var countB int
 	err := pool.QueryRow(context.Background(),
 		`SELECT COUNT(*) FROM inference_data WHERE study_id = $1`, studyB).Scan(&countB)
 	assert.Nil(t, err)
-	assert.Equal(t, 1, countB, "Study B should have inference data written despite A failing")
+	assert.Equal(t, 1, countB, "Study B should have inference data written")
 
-	// Study A should have no inference_data (Reduce failed before WriteInferenceData).
+	// Study A should have no inference_data (all events skipped, no rows written).
 	var countA int
 	err = pool.QueryRow(context.Background(),
 		`SELECT COUNT(*) FROM inference_data WHERE study_id = $1`, studyA).Scan(&countA)
 	assert.Nil(t, err)
-	assert.Equal(t, 0, countA, "Study A should have no inference data (reduce failed)")
+	assert.Equal(t, 0, countA, "Study A should have no inference data (all events from unmapped source skipped)")
 }
