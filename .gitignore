@@ -215,3 +215,17 @@ thumb
 sketch
 
 # End of https://www.toptal.com/developers/gitignore/api/react
+
+# Secrets / local env files. Tracked templates (.env-example, .env-toixo) stay
+# tracked via negation so they remain committable. Anything else matching is
+# treated as a local secret and never committed.
+api/.env-*
+!api/.env-example
+devops/.env-*
+!devops/.env-toixo
+
+# Built Go binaries in inference/ (output of `go build`, not source). Keep them
+# out of the tree so they can't be accidentally committed.
+inference/swoosh/swoosh
+inference/fly
+inference/typeform
