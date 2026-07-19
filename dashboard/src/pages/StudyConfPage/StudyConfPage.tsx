@@ -9,6 +9,7 @@ import useStudy from './hooks/useStudy';
 import useFacebookAccounts from './hooks/useFacebookAccounts';
 import LoadingPage from '../../components/LoadingPage';
 import ConfWrapper from './components/ConfWrapper';
+import StudyErrorsBanner from './components/StudyErrorsBanner';
 import { CreateStudy as StudyType, GlobalFormData, FormTypes } from '../../types/conf';
 import { Account } from '../../types/account';
 
@@ -94,13 +95,14 @@ interface PageContentProps {
   facebookAccount: Account;
 }
 const PageContent: React.FC<PageContentProps> = ({ data, study, facebookAccount }) => {
-  const { conf } = useParams<{ conf: string }>();
+  const { conf, studySlug } = useParams<{ conf: string; studySlug: string }>();
   const id = conf.replace("-", "_") as FormTypes;
   const component = confs.find(c => c.path === conf)!.component;
 
   return (
     <>
       <Sidebar />
+      <StudyErrorsBanner studySlug={studySlug} />
       <Form
         id={id}
         component={component}

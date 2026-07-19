@@ -17,6 +17,7 @@ import {
   SingleStudyConf,
   StudySegmentsProgressApiResponse,
   CurrentDataApiResponse,
+  StudyErrorsApiResponse,
   RecruitmentStatsApiResponse,
   RespondentsOverTimeApiResponse,
   CostOverTimeApiResponse,
@@ -643,10 +644,28 @@ export const fetchCurrentData = ({
   defaultErrorMessage?: string;
 }) => {
   const path = `/${orgPrefix()}/optimize/${studySlug}/current-data`;
-  
+
   return apiRequest<CurrentDataApiResponse>(path, {
     accessToken,
     queryParams: { study_slug: studySlug },
+    defaultErrorMessage,
+    baseURL: process.env.REACT_APP_CONF_SERVER_URL,
+  });
+};
+
+export const fetchStudyErrors = ({
+  studySlug,
+  accessToken,
+  defaultErrorMessage = 'Could not fetch study errors',
+}: {
+  studySlug: string;
+  accessToken: string;
+  defaultErrorMessage?: string;
+}) => {
+  const path = `/${orgPrefix()}/optimize/${studySlug}/errors`;
+
+  return apiRequest<StudyErrorsApiResponse>(path, {
+    accessToken,
     defaultErrorMessage,
     baseURL: process.env.REACT_APP_CONF_SERVER_URL,
   });
@@ -687,5 +706,6 @@ export const authenticatedApiCalls = {
   createFacebookAccount,
   copyConfs,
   fetchCurrentData,
+  fetchStudyErrors,
   fetchStudyRecruitmentStats,
 };

@@ -186,6 +186,20 @@ export interface CurrentDataRow {
 
 export interface CurrentDataApiResponse extends ApiResponse<CurrentDataRow[]> {}
 
+export interface StudyError {
+  source: string;
+  fingerprint: string;
+  severity: 'error' | 'warning' | string;
+  message: string;
+  details: Record<string, any> | null;
+  last_seen: string;
+  first_seen: string;
+}
+
+export interface StudyErrorsApiResponse {
+  errors: StudyError[];
+}
+
 export interface RecruitmentStatsRow {
   spend: number;
   frequency: number;

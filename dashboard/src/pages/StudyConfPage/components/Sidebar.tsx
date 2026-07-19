@@ -1,13 +1,16 @@
 import { matchPath, useLocation, Link, useParams } from 'react-router-dom';
 import { classNames } from '../../../helpers/strings';
 import { confs } from '../shared';
+import useStudyErrors from '../hooks/useStudyErrors';
 
 const Sidebar = ({ className = '' }: { className?: string }) => {
   const { pathname } = useLocation();
   const params = useParams<{ studySlug: string; conf: string }>();
+  const { errors } = useStudyErrors(params.studySlug);
 
   interface NavItem {
     name: string;
+    path: string;
     href: string;
     current: boolean | undefined;
   }
@@ -15,6 +18,7 @@ const Sidebar = ({ className = '' }: { className?: string }) => {
   const navigation: NavItem[] = confs.map(({ name, path }) => {
     return {
       name,
+      path,
       href: `/studies/${params.studySlug}/${path}`,
       current: matchPath(pathname, {
         path: `/studies/${params.studySlug}/${path}`,
@@ -22,6 +26,13 @@ const Sidebar = ({ className = '' }: { className?: string }) => {
       })?.isExact,
     }
   })
+
+  // Draw the eye to the Errors tab when the study has open issues:
+  // red for errors, amber for warnings-only.
+  const hasErrors = errors.some(e => e.severity === 'error');
+  const errorsDot = errors.length > 0
+    ? hasErrors ? 'bg-red-500' : 'bg-amber-400'
+    : null;
 
   return (
     <nav
@@ -42,6 +53,12 @@ const Sidebar = ({ className = '' }: { className?: string }) => {
             aria-current={item.current ? 'page' : undefined}
           >
             {item.name}
+            {item.path === 'errors' && errorsDot && (
+              <span
+                data-testid="errors-tab-dot"
+                className={classNames('ml-2 inline-block h-2 w-2 flex-none rounded-full', errorsDot)}
+              />
+            )}
           </Link>
         ))}
       </div>

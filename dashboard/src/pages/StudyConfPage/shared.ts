@@ -10,6 +10,7 @@ import InferenceData from './forms/inferenceData/InferenceData';
 import Initialize from './forms/initialize/Initialize';
 import Optimize from './forms/optimize/Optimize';
 import CurrentData from './forms/current/CurrentData';
+import StudyErrors from './forms/errors/StudyErrors';
 
 
 export const confs = [
@@ -24,6 +25,7 @@ export const confs = [
   { name: "Data Sources", path: "data-sources", component: DataSources },
   { name: "Data Extraction", path: "inference-data", component: InferenceData },
   { name: "Current Data", path: "current-data", component: CurrentData },
+  { name: "Errors", path: "errors", component: StudyErrors },
   { name: "Optimize", path: "optimize", component: Optimize },
 ]
 
@@ -34,7 +36,7 @@ export const getNextConf = (conf: any) => {
   return confs[i + 1]?.path;
 };
 
-export type FormTypes = 
+export type FormTypes =
   | 'initialize'
   | 'general'
   | 'recruitment'
@@ -46,4 +48,5 @@ export type FormTypes =
   | 'data-sources'
   | 'inference-data'
   | 'optimize'
-  | 'current-data';
+  | 'current-data'
+  | 'errors';
