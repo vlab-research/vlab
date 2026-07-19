@@ -13,6 +13,7 @@ def _reset_db():
             # Tables must be deleted in reverse dependency order
             tables = [
                 "adopt_reports",  # depends on studies
+                "study_run_events",  # depends on studies
                 "inference_data",  # depends on studies
                 "inference_data_events",  # depends on studies
                 "recruitment_data_events",  # depends on studies

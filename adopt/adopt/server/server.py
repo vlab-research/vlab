@@ -39,6 +39,7 @@ from .db import (
     db_cnf,
     get_all_study_confs,
     get_study_conf,
+    get_study_errors,
     get_study_id,
     insert_credential,
     query,
@@ -374,6 +375,45 @@ async def get_current_data(
         return CurrentDataResult(data=current_data)
     except BaseException as e:
         logging.error(f"Error in get_current_data: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"{e}")
+
+
+class StudyError(BaseModel):
+    source: str
+    fingerprint: str
+    severity: str
+    message: str
+    details: Optional[dict[str, Any]] = None
+    last_seen: datetime
+    first_seen: datetime
+
+
+class StudyErrorsResult(BaseModel):
+    errors: Sequence[StudyError]
+
+
+@app.get("/{org_id}/optimize/{slug}/errors")
+async def get_errors(
+    org_id: str,
+    slug: str,
+    user: Annotated[User, Depends(get_current_user)],
+) -> StudyErrorsResult:
+    """Current open errors for a study, derived from study_run_events.
+
+    First-class study-health resource (planning/study-errors-surfacing.md):
+    errors are served even when there is zero inference data — a hard failure
+    means no data rows exist, which is exactly when this endpoint matters.
+    Ownership is enforced by get_study_id (org-scoped); errors are derived,
+    never gated on.
+    """
+    try:
+        study_id = await asyncio.to_thread(get_study_id, user.user_id, org_id, slug)
+        errors = await asyncio.to_thread(get_study_errors, study_id)
+        return StudyErrorsResult(errors=[StudyError(**e) for e in errors])
+    except HTTPException:
+        raise
+    except BaseException as e:
+        logging.error(f"Error in get_errors: {str(e)}")
         raise HTTPException(status_code=500, detail=f"{e}")
 
 

@@ -1,7 +1,9 @@
 import json
+import logging
 from typing import Any
 
 import orjson
+import psycopg
 from environs import Env
 from fastapi import HTTPException
 
@@ -11,6 +13,58 @@ env = Env()
 db_cnf = env("PG_URL")
 
 # TODO: use asyncpg and pool for performance
+
+
+def get_study_errors(study_id: str):
+    """Derive the current open errors for a study from study_run_events.
+
+    The event log is the source of truth; this query is the Phase 1 derivation
+    from planning/study-errors-surfacing.md: latest event per (source,
+    fingerprint), kept when it is an error/warning still inside the recency
+    window. The recency predicate is the dead-man's switch — an error that
+    stops being re-emitted (e.g. a fixed extraction problem) ages out without
+    the writer having to close it. 90 minutes = 3x the 30-min swoosh cron.
+    """
+    q = """
+    WITH latest AS (
+      SELECT DISTINCT ON (source, fingerprint)
+             source, fingerprint, event_type, severity, message, details,
+             occurred_at AS last_seen
+      FROM study_run_events
+      WHERE study_id = %s
+      ORDER BY source, fingerprint, occurred_at DESC
+    ),
+    open_errors AS (
+      SELECT *
+      FROM latest
+      WHERE severity IN ('error', 'warning')
+        AND last_seen > now() - INTERVAL '90 minutes'
+    ),
+    first_seen AS (
+      SELECT source, fingerprint, min(occurred_at) AS first_seen
+      FROM study_run_events
+      WHERE study_id = %s
+        AND severity IN ('error', 'warning')
+      GROUP BY source, fingerprint
+    )
+    SELECT o.source, o.fingerprint, o.severity, o.message, o.details,
+           o.last_seen, f.first_seen
+    FROM open_errors o
+    JOIN first_seen f ON f.source = o.source AND f.fingerprint = o.fingerprint
+    -- errors before warnings: bare "severity DESC" would sort alphabetically
+    -- ('warning' > 'error'), which is not the display priority.
+    ORDER BY CASE o.severity WHEN 'error' THEN 0 WHEN 'warning' THEN 1 ELSE 2 END,
+             o.last_seen DESC
+    """
+
+    try:
+        return list(query(db_cnf, q, (study_id, study_id), as_dict=True))
+    except psycopg.errors.UndefinedTable:
+        # study_run_events migration not applied in this env — degrade to
+        # "no errors" rather than 500. The dashboard must never break
+        # because the events table isn't there yet.
+        logging.warning("study_run_events table missing; returning no errors")
+        return []
 
 
 def insert_credential(user_id: str, entity: str, key: str, details: Any):
