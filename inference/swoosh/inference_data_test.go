@@ -943,3 +943,80 @@ func TestReduceInferenceData_SkipsEventsFromUnmappedSourcesButRecordsOneErrorPer
 	}
 	assert.Equal(t, 2, len(errorMsgs), "Should have exactly one error each for unmapped_source_1 and unmapped_source_2")
 }
+
+func TestReduceInferenceData_AggregatesUnmappedSourcesWithCountAndDetails(t *testing.T) {
+	// The study_run_events writer needs an Entity per problem and a Count of raw
+	// occurrences: N events from one unmapped source must aggregate into a single
+	// ExtractionError{Entity: "source=<name>", Count: N}.
+	events := []*InferenceDataEvent{}
+	for i, name := range []string{"ghost", "ghost", "ghost", "other", "other"} {
+		events = append(events, &InferenceDataEvent{
+			User:       User{ID: fmt.Sprintf("user%d", i)},
+			SourceConf: &SourceConf{Name: name},
+			Timestamp:  ti("07"),
+			Variable:   "q1",
+			Value:      json.RawMessage(`"X"`),
+		})
+	}
+
+	mapping := &InferenceDataConf{map[string]*DataSource{
+		"mapped": {},
+	}}
+
+	_, extractionErrors, err := Reduce(events, mapping)
+	assert.Nil(t, err)
+	assert.Equal(t, 2, len(extractionErrors))
+
+	byEntity := map[string]ExtractionError{}
+	for _, e := range extractionErrors {
+		byEntity[e.Entity] = e
+	}
+
+	ghost := byEntity["source=ghost"]
+	assert.Equal(t, 3, ghost.Count)
+	assert.Equal(t, "ghost", ghost.Details["source"])
+	assert.Contains(t, ghost.Details["sources_in_mapping"], "mapped")
+
+	other := byEntity["source=other"]
+	assert.Equal(t, 2, other.Count)
+}
+
+func TestReduceInferenceData_AggregatesExtractionFailuresByVariableWithCount(t *testing.T) {
+	// One malformed value per user across many users must aggregate into a single
+	// ExtractionError{Entity: "var=<name>", Count: N}, not N near-identical errors.
+	events := []*InferenceDataEvent{}
+	for i := 0; i < 3; i++ {
+		events = append(events, &InferenceDataEvent{
+			User:       User{ID: fmt.Sprintf("user%d", i)},
+			SourceConf: &SourceConf{Name: "mapped"},
+			Timestamp:  ti("07"),
+			Variable:   "q1",
+			Value:      json.RawMessage(`"A"`),
+		})
+	}
+
+	mapping := &InferenceDataConf{map[string]*DataSource{
+		"mapped": {
+			ExtractionConfs: []*ExtractionConf{
+				{
+					Location: "variable",
+					Key:      "q1",
+					Name:     "age",
+					Functions: []ExtractionFunctionConf{
+						{
+							Function: "select",
+							Params:   []byte(`{"path": "does.not.exist"}`),
+						},
+					},
+				},
+			},
+		},
+	}}
+
+	_, extractionErrors, err := Reduce(events, mapping)
+	assert.Nil(t, err)
+	assert.Equal(t, 1, len(extractionErrors))
+	assert.Equal(t, "var=age", extractionErrors[0].Entity)
+	assert.Equal(t, 3, extractionErrors[0].Count)
+	assert.Contains(t, extractionErrors[0].Message, "does.not.exist")
+}

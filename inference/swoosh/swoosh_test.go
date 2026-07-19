@@ -51,7 +51,7 @@ const (
 )
 
 func resetDb(pool *pgxpool.Pool) {
-	tableNames := []string{"inference_data", "inference_data_events", "study_confs", "studies", "users"}
+	tableNames := []string{"study_run_events", "inference_data", "inference_data_events", "study_confs", "studies", "users"}
 	query := ""
 	for _, table := range tableNames {
 		query += fmt.Sprintf("DELETE FROM %s; ", table)

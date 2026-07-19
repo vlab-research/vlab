@@ -1,0 +1,48 @@
+[
+  {
+    "idx": 531784,
+    "pagination": "UQhcCBAIGwgGCFkIEBsdGhIYExgcHBIGCEQIEBscEhoaGhoaGgYITwgQGx0aEhITExwbGQYIXwgQTEtGWU8GCEcIEF5YX08GCEYIEAh4dRxrZklSekBfeXtGeGsfQAhX",
+    "source_conf": {
+      "config": {
+        "survey_id": "SV_5BzgaFjw9V1v58a"
+      },
+      "credentials_key": "megumi-1",
+      "name": "qualtrics",
+      "source": "qualtrics"
+    },
+    "study": "69055f65-48e0-40b8-b5bf-b6a148324137",
+    "timestamp": "2024-02-16T20:22:08.763Z",
+    "user": {
+      "id": "R_7RgxGLlfBR7v0PZ",
+      "metadata": null
+    },
+    "value": {
+      "label": "Male",
+      "value": 1
+    },
+    "variable": "QID61"
+  },
+  {
+    "idx": 532105,
+    "pagination": "UQhcCBAIGwgGCFkIEBsdGhIYExgcHBIGCEQIEBscEhoaGhoaGgYITwgQGx0aEhITExwbGQYIXwgQTEtGWU8GCEcIEF5YX08GCEYIEAh4dRxrZklSekBfeXtGeGsfQAhX",
+    "source_conf": {
+      "config": {
+        "survey_id": "SV_5BzgaFjw9V1v58a"
+      },
+      "credentials_key": "megumi-1",
+      "name": "qualtrics",
+      "source": "qualtrics"
+    },
+    "study": "69055f65-48e0-40b8-b5bf-b6a148324137",
+    "timestamp": "2024-02-16T22:27:36.678Z",
+    "user": {
+      "id": "R_6qUKuGwgl34yCR4",
+      "metadata": null
+    },
+    "value": {
+      "label": "Female",
+      "value": 2
+    },
+    "variable": "QID61"
+  }
+]

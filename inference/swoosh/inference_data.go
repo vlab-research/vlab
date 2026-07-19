@@ -192,6 +192,63 @@ func addValue(conf *ExtractionConf, id IntermediateInferenceData, user string, s
 	}
 }
 
+// ExtractionError is a per-entity problem found while reducing events into
+// InferenceData. Entity is a stable grouping key ("source=<name>" or
+// "var=<name>") that the study_run_events writer uses as a fingerprint; Count
+// is the number of raw occurrences folded into this error; Message is a
+// human-readable sample (the first occurrence); Details carries structured
+// context for the dashboard (e.g. sources_in_mapping for unmapped sources).
+type ExtractionError struct {
+	Entity  string
+	Message string
+	Count   int
+	Details map[string]interface{}
+}
+
+func (e ExtractionError) Error() string { return e.Message }
+
+// extractionErrorAgg aggregates ExtractionErrors by Entity so that one bad
+// value per user across thousands of users produces a single error with a
+// count, not thousands of near-identical errors.
+type extractionErrorAgg struct {
+	order    []string
+	byEntity map[string]*ExtractionError
+}
+
+func newExtractionErrorAgg() *extractionErrorAgg {
+	return &extractionErrorAgg{byEntity: map[string]*ExtractionError{}}
+}
+
+// add folds err into the aggregate. Repeated occurrences of the same entity
+// bump Count; the first occurrence's Message/Details are kept as the sample.
+// A zero Count means "one occurrence" (callers reporting a single error don't
+// set it); it must be normalized before merging or it would add nothing.
+func (a *extractionErrorAgg) add(err ExtractionError) {
+	if err.Count <= 0 {
+		err.Count = 1
+	}
+	if e, ok := a.byEntity[err.Entity]; ok {
+		e.Count += err.Count
+		return
+	}
+	a.byEntity[err.Entity] = &err
+	a.order = append(a.order, err.Entity)
+}
+
+func (a *extractionErrorAgg) addAll(errs []ExtractionError) {
+	for _, e := range errs {
+		a.add(e)
+	}
+}
+
+func (a *extractionErrorAgg) list() []ExtractionError {
+	res := make([]ExtractionError, len(a.order))
+	for i, k := range a.order {
+		res[i] = *a.byEntity[k]
+	}
+	return res
+}
+
 type RetrieveFunc func(*InferenceDataEvent, *ExtractionConf) (json.RawMessage, bool)
 
 func retrieveFromMetadata(e *InferenceDataEvent, conf *ExtractionConf) (json.RawMessage, bool) {
@@ -218,12 +275,16 @@ func getRetrieveFunc(conf *ExtractionConf) (RetrieveFunc, error) {
 	return nil, fmt.Errorf("Could not find location function for location: %s", conf.Location)
 }
 
-func extractValue(id IntermediateInferenceData, e *InferenceDataEvent, extractionConfs []*ExtractionConf) (IntermediateInferenceData, error) {
+// extractValue applies each ExtractionConf to one event. On failure it returns
+// an *ExtractionError keyed by the offending variable (conf.Name) so callers can
+// aggregate per entity; the event's remaining confs are skipped (first failure
+// wins), matching the previous behaviour.
+func extractValue(id IntermediateInferenceData, e *InferenceDataEvent, extractionConfs []*ExtractionConf) (IntermediateInferenceData, *ExtractionError) {
 
 	for _, conf := range extractionConfs {
 		retrieve, err := getRetrieveFunc(conf)
 		if err != nil {
-			return id, err
+			return id, &ExtractionError{Entity: "var=" + conf.Name, Message: err.Error()}
 		}
 
 		val, ok := retrieve(e, conf)
@@ -233,7 +294,7 @@ func extractValue(id IntermediateInferenceData, e *InferenceDataEvent, extractio
 
 		val, err = conf.Extract(val)
 		if err != nil {
-			return id, err
+			return id, &ExtractionError{Entity: "var=" + conf.Name, Message: err.Error()}
 		}
 
 		v := &InferenceDataValue{
@@ -245,16 +306,16 @@ func extractValue(id IntermediateInferenceData, e *InferenceDataEvent, extractio
 
 		id, err = addValue(conf, id, e.User.ID, e.SourceConf.Name, v)
 		if err != nil {
-			return id, err
+			return id, &ExtractionError{Entity: "var=" + conf.Name, Message: err.Error()}
 		}
 	}
 
 	return id, nil
 }
 
-func JoinSources(intermediateData IntermediateInferenceData, confs map[string]*DataSource) (InferenceData, []error) {
+func JoinSources(intermediateData IntermediateInferenceData, confs map[string]*DataSource) (InferenceData, []ExtractionError) {
 
-	errs := []error{}
+	agg := newExtractionErrorAgg()
 	infData := make(InferenceData)
 
 	for source, val := range intermediateData {
@@ -272,7 +333,11 @@ func JoinSources(intermediateData IntermediateInferenceData, confs map[string]*D
 				newUserVar, ok := row.Data[conf.UserVariable]
 
 				if !ok {
-					errs = append(errs, fmt.Errorf("Could not find user variable %s for user previously known as %s", conf.UserVariable, user))
+					agg.add(ExtractionError{
+						Entity:  "var=" + conf.UserVariable,
+						Message: fmt.Sprintf("Could not find user variable %s for user previously known as %s", conf.UserVariable, user),
+						Details: map[string]interface{}{"source": source},
+					})
 					continue
 				}
 
@@ -282,7 +347,11 @@ func JoinSources(intermediateData IntermediateInferenceData, confs map[string]*D
 				err := json.Unmarshal(newUserVar.Value, &newUser)
 
 				if err != nil {
-					errs = append(errs, err)
+					agg.add(ExtractionError{
+						Entity:  "var=" + conf.UserVariable,
+						Message: err.Error(),
+						Details: map[string]interface{}{"source": source},
+					})
 				}
 			}
 
@@ -293,50 +362,50 @@ func JoinSources(intermediateData IntermediateInferenceData, confs map[string]*D
 				infData[newUser] = &InferenceDataRow{User: newUser, Data: idv}
 			}
 
-			// Add all data to the user
-			for v, val := range row.Data {
-				infData[newUser].Data[v] = val
-			}
+		// Add all data to the user
+		for v, val := range row.Data {
+			infData[newUser].Data[v] = val
 		}
 	}
+}
 
-	return infData, errs
+	return infData, agg.list()
 }
 
 // TODO: need to differentiate between bad errors and skip e
 
-func Reduce(events []*InferenceDataEvent, c *InferenceDataConf) (InferenceData, []error, error) {
+func Reduce(events []*InferenceDataEvent, c *InferenceDataConf) (InferenceData, []ExtractionError, error) {
 	intermediateData := make(IntermediateInferenceData)
-	extractionErrors := []error{}
-	// Track unmapped sources already recorded to deduplicate errors.
-	// A study may have thousands of events from a single unmapped source (e.g. a renamed
-	// data source like "Fly" → "Fly HPV Double"); we must record exactly one extraction
-	// error per distinct unmapped source name, not one per event.
-	recordedUnmappedSources := make(map[string]bool)
+	agg := newExtractionErrorAgg()
 
 	for _, e := range events {
 
 		sourceConf, ok := c.DataSources[e.SourceConf.Name]
 
 		if !ok {
-			// Skip events from unmapped sources but record one error per source name.
-			// Historical events orphaned by mid-study source renames should not abort
-			// aggregation of mapped sources.
-			if !recordedUnmappedSources[e.SourceConf.Name] {
-				extractionErrors = append(extractionErrors, fmt.Errorf(
+			// Skip events from unmapped sources, aggregated to one ExtractionError
+			// per source name (Count = number of skipped events). Historical events
+			// orphaned by mid-study source renames (e.g. "Fly" → "Fly HPV Double")
+			// should not abort aggregation of mapped sources.
+			agg.add(ExtractionError{
+				Entity: "source=" + e.SourceConf.Name,
+				Message: fmt.Sprintf(
 					"data source not in SourceVariableMapping (skipped): %s. Sources in mapping: %s",
 					e.SourceConf.Name,
-					c.Sources()))
-				recordedUnmappedSources[e.SourceConf.Name] = true
-			}
+					c.Sources()),
+				Details: map[string]interface{}{
+					"source":             e.SourceConf.Name,
+					"sources_in_mapping": c.Sources(),
+				},
+			})
 			continue
 		}
 
 		// add from metadata
-		var err error
-		intermediateData, err = extractValue(intermediateData, e, sourceConf.ExtractionConfs)
-		if err != nil {
-			extractionErrors = append(extractionErrors, err)
+		var extErr *ExtractionError
+		intermediateData, extErr = extractValue(intermediateData, e, sourceConf.ExtractionConfs)
+		if extErr != nil {
+			agg.add(*extErr)
 			continue
 		}
 
@@ -346,10 +415,8 @@ func Reduce(events []*InferenceDataEvent, c *InferenceDataConf) (InferenceData, 
 	// add step to join sources within each user, taking some config
 	// (which points to the "user" (join) value for each source)
 
-	res, errs := JoinSources(intermediateData, c.DataSources)
-	for _, err := range errs {
-		extractionErrors = append(extractionErrors, err)
-	}
+	res, joinErrs := JoinSources(intermediateData, c.DataSources)
+	agg.addAll(joinErrs)
 
-	return res, extractionErrors, nil
+	return res, agg.list(), nil
 }

@@ -6,6 +6,7 @@ import (
 	"log"
 
 	"github.com/caarlos0/env/v6"
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v4/pgxpool"
 
 	. "github.com/vlab-research/vlab/inference/inference-data"
@@ -107,37 +108,55 @@ func GetActiveStudies(pool *pgxpool.Pool) ([]string, error) {
 // swooshStudy processes a single study. It returns an error instead of
 // fataling so that one misconfigured study cannot abort the whole run.
 // (Mirrors connector.collectEventsForStudy — see inference/connector/connector.go.)
+//
+// Every invocation emits immutable facts to study_run_events (run_started,
+// then run_ok / run_error / extraction_*): "current errors" is a derived view
+// over that log, which is how a broken study becomes visible in the dashboard.
+// Event writes are best-effort and never affect the returned error.
 func swooshStudy(pool *pgxpool.Pool, study string) error {
 	log.Printf("Swooshing %s\n", study)
 
+	runID := uuid.NewString()
+	RecordEvent(pool, study, sourceInference, runID, eventRunStarted, "", "", "", nil)
+
 	events, err := GetEvents(pool, study)
 	if err != nil {
-		return fmt.Errorf("study %s: reading events: %w", study, err)
+		err = fmt.Errorf("study %s: reading events: %w", study, err)
+		recordRunOutcome(pool, study, runID, eventRunError, severityError, err.Error(), "read")
+		return err
 	}
 	log.Printf("Swoosh read %d events.\n", len(events))
 
 	mapping, err := GetInferenceDataConf(pool, study)
 	if err != nil {
 		// No inference_data conf → nothing to aggregate. Not an error; skip.
+		// A skip is a healthy outcome — it closes any prior run_error for this study.
 		log.Printf("Could not get inference_data conf for study %s; skipping\n", study)
+		recordRunOutcome(pool, study, runID, eventRunOK, "", "", "")
 		return nil
 	}
 
 	id, extractionErrors, err := Reduce(events, mapping)
 	if err != nil {
-		return fmt.Errorf("study %s: reduce: %w", study, err)
+		err = fmt.Errorf("study %s: reduce: %w", study, err)
+		recordRunOutcome(pool, study, runID, eventRunError, severityError, err.Error(), "reduce")
+		return err
 	}
 
-	// TODO(study-errors-surfacing): persist these to study_errors so the user sees them.
 	log.Printf("Swoosh had %d extractionErrors\n", len(extractionErrors))
 	for _, e := range extractionErrors {
-		log.Println(e)
+		log.Println(e.Error())
+		recordExtractionError(pool, study, runID, e)
 	}
 
 	log.Printf("Swoosh storing InferenceData from %d users\n", len(id))
 	if err := WriteInferenceData(pool, study, id); err != nil {
-		return fmt.Errorf("study %s: writing inference data: %w", study, err)
+		err = fmt.Errorf("study %s: writing inference data: %w", study, err)
+		recordRunOutcome(pool, study, runID, eventRunError, severityError, err.Error(), "write")
+		return err
 	}
+
+	recordRunOutcome(pool, study, runID, eventRunOK, "", "", "")
 	return nil
 }
 
