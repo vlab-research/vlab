@@ -1,4 +1,4 @@
-versionAdopt: &vadopt v0.1.74
+versionAdopt: &vadopt v0.1.75
 
 env:
   - name: AUTH0_DOMAIN
@@ -107,7 +107,7 @@ cronjobs:
     schedule: "30 * * * *"
     image:
       repository: "ghcr.io/vlab-research/swoosh"
-      tag: "v0.1.5"
+      tag: "v0.1.8"
       pullPolicy: Always
   - name: adopt-ads
     schedule: "30 */2 * * *"
