@@ -41,7 +41,7 @@ SHA="${3:-HEAD}"
 
 # Mirror release.yml's case statement — keeps the script enforcing the same
 # set of known services.
-KNOWN_SERVICES=(api adopt source-typeform source-alchemer source-fly source-qualtrics swoosh)
+KNOWN_SERVICES=(api adopt source-typeform source-alchemer source-fly source-qualtrics swoosh vlab-migrations)
 if [[ ! " ${KNOWN_SERVICES[*]} " =~ " ${SERVICE} " ]]; then
     echo "error: service '$SERVICE' not in known list:" >&2
     printf '  %s\n' "${KNOWN_SERVICES[@]}" >&2

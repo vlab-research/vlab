@@ -42,6 +42,10 @@ jobs:
             source-fly)       CTX=inference  ; DOCKERFILE=inference/Dockerfile  ; IMG=source-fly         ; ARGS="APP_PATH=sources/fly"       ;;
             source-qualtrics) CTX=inference  ; DOCKERFILE=inference/Dockerfile  ; IMG=source-qualtrics   ; ARGS="APP_PATH=sources/qualtrics" ;;
             swoosh)           CTX=inference  ; DOCKERFILE=inference/Dockerfile  ; IMG=swoosh             ; ARGS="APP_PATH=swoosh"            ;;
+            # vlab-migrations bakes golang-migrate + devops/migrations/*.sql into a
+            # versioned image, run by the chart's pre-upgrade hook. Build context is
+            # the migrations dir itself; the SQL stays put (no ConfigMap glob).
+            vlab-migrations)  CTX=devops/migrations ; DOCKERFILE=devops/migrations/Dockerfile ; IMG=vlab-migrations ;;
             *)
               echo "Unknown service '${{ steps.parse.outputs.service }}' — add it to .github/workflows/release.yml" >&2
               exit 1
