@@ -1,5 +1,25 @@
 versionAdopt: &vadopt v0.1.75
 
+# Schema migrations. The pre-upgrade hook (devops/helm/templates/migrations.yaml)
+# runs this image's `migrate up` against the DB below before new pods roll.
+# Bump `tag` in LOCKSTEP with the app tags whenever a schema change lands, so
+# "schema vN + app vN" is a single auditable diff. The image must exist in ghcr
+# before this bump — cut it with `make release SERVICE=vlab-migrations VERSION=...`.
+migrations:
+  image: ghcr.io/vlab-research/vlab-migrations
+  tag: v0.1.0
+
+# CockroachDB target for the migration hook. The vlab release borrows the gbv
+# release's cluster; that coupling is explicit here, not buried in a template.
+db:
+  host: gbv-cockroachdb-public   # the shared cluster's public service in vprod
+  port: 26257
+  name: vlab                     # database within the cluster
+  sslmode: disable               # cluster runs --insecure
+  # For a future secure cluster: sslmode: require + a secretName whose keys are
+  # ca.crt, client.root.crt, client.root.key (wire the mount in migrations.yaml).
+  # secretName: cockroachdb-root
+
 env:
   - name: AUTH0_DOMAIN
     value: "https://vlab-pro.us.auth0.com/"

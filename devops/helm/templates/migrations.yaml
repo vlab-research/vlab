@@ -1,62 +1,54 @@
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: sql-files
-data:
-  {{ range $path, $_ :=  .Files.Glob  "**.sql" }}
-  {{ $path | base }}: |-
-    {{ $.Files.Get $path | nindent 4}}
-  {{ end }}
-
----
-
+# Pre-upgrade migration hook. See planning/migration-job-fix.md.
+#
+# Replaces the old cert-based `apply-db-migration` Job + `sql-files` ConfigMap,
+# which never applied a migration to prod (wrong host, missing secrets, wrong
+# auth model, ran init.sql not the migrations, and wasn't even a hook). Prod
+# migrations were applied by hand as a result. The old resources become orphans
+# after this lands — delete them once by hand (see the rollout plan in the doc).
+#
+# The SQL is NOT bundled here — it ships inside ghcr.io/vlab-research/vlab-migrations
+# (built from devops/migrations/). This template only wires *when* it runs and
+# *where* it points; the image is *what* the schema is, values are the target.
+#
+# Separation of concerns:
+#   what (schema vN)      -> the tagged image (.Values.migrations)
+#   where (host/port/db)  -> .Values.db
+#   when (hook wiring)    -> this template, stable
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: apply-db-migration
+  name: vlab-apply-migrations
+  annotations:
+    # Run BEFORE new pods start so a new image that writes to a new table can
+    # never beat the table's creation.
+    "helm.sh/hook": pre-upgrade,pre-install
+    # Fresh job each upgrade; clean up successful ones so they don't accumulate.
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+    # Run before any other pre-upgrade hooks (none today; cheap insurance).
+    "helm.sh/hook-weight": "-10"
 spec:
+  # backoffLimit 0 + restartPolicy Never = fail fast: a bad migration exits
+  # non-zero, the hook fails, and `helm upgrade` aborts before rolling new pods.
+  backoffLimit: 0
   template:
+    metadata:
+      name: vlab-apply-migrations
     spec:
       restartPolicy: Never
       containers:
-      - name: cockroachdb-client-secure
-        image: cockroachdb/cockroach:v21.2.6
-        imagePullPolicy: IfNotPresent
-        volumeMounts:
-        - name: client-certs
-          mountPath: /cockroach/cockroach-certs/
-        - name: sql-file
-          mountPath: /sql/
-        command:
-          - ./cockroach
-          - sql
-          - --certs-dir=/cockroach/cockroach-certs
-          - --host=cockroachdb-public
-          - --database=vlab
-          - --file=/sql/init.sql
-      volumes:
-        - name: sql-file
-          configMap:
-            name: sql-files
-            items:
-              - key: init.sql
-                path: init.sql
-        - name: client-certs
-          projected:
-              sources:
-                - secret:
-                    name: cockroachdb-node
-                    items:
-                      - key: ca.crt
-                        path: ca.crt
-                - secret:
-                    name: cockroachdb-root
-                    items:
-                      - key: tls.crt
-                        path: client.root.crt
-                      - key: tls.key
-                        path: client.root.key
-              defaultMode: 256
-  backoffLimit: 4
-
----
+        - name: migrate
+          # `migrate` is the image entrypoint, so we supply only args. SQL is at
+          # /migrations inside the image.
+          image: "{{ .Values.migrations.image }}:{{ .Values.migrations.tag }}"
+          imagePullPolicy: Always
+          args:
+            - -path
+            - /migrations
+            - -database
+            # The vlab release borrows the gbv release's CockroachDB cluster,
+            # which runs --insecure; hence root@ with no password and
+            # sslmode=disable. For a future secure cluster, set db.sslmode=require
+            # and mount db.secretName (ca.crt / client.root.crt / client.root.key)
+            # plus the matching sslrootcert=… query params here.
+            - "cockroach://root@{{ .Values.db.host }}:{{ .Values.db.port }}/{{ .Values.db.name }}?sslmode={{ .Values.db.sslmode }}"
+            - up

@@ -322,32 +322,6 @@ Test validates:
 - **`api/`** — REST API for study configuration and querying results
 - **`dashboard/`** — Frontend for visualizing aggregated inference data
 
-## Activity-Based Quiescence
-
-The connector system now includes **activity-based quiescence** to handle studies that continue receiving data past their `end_date`. Instead of a hard date cutoff, studies transition through zones:
-
-1. **Not Started** (`NOW < start_date`) — Don't collect
-2. **Active** (`start_date <= NOW <= end_date`) — Always collect
-3. **Grace Period** (`end_date < NOW <= end_date + M days`) — Always collect
-4. **Quiescent** (`NOW > end_date + M days` AND last K runs = 0 events) — Stop collecting
-
-Key design:
-- **Quiescence is computed, not stored** — derived fresh each run from `connector_runs` table + current `end_date`
-- **If `end_date` is extended**, study automatically re-enters the active zone (no reset needed)
-- **Configurable grace period (M) and threshold (K)** via environment variables
-- **`connector_runs` is an append-only log** — `(study_id, source_name, run_at, events_written)` — used only to check recent activity
-
-See `/planning/connector-quiescence-plan.md` for full implementation details.
-
-### Configuration
-
-```bash
-QUIESCENCE_GRACE_PERIOD_DAYS=14   # Days after end_date before quiescence applies (default 14)
-QUIESCENCE_THRESHOLD_RUNS=3        # Consecutive zero-event runs = quiescent (default 3)
-```
-
----
-
 ## Per-Study Error Isolation
 
 The connector now includes **per-study error isolation** to prevent one study's failure from blocking other studies. If one study's data collection fails (e.g., API error, bad credentials), the error is logged with full context and the connector continues to the next study.
@@ -363,6 +337,5 @@ Implementation:
 ## References
 
 - [Active Study Filtering Details](../../planning/connector-active-study-findings.md)
-- [Quiescence Implementation Plan](../../planning/connector-quiescence-plan.md)
 - Database schema: `/devops/migrations/20230322111807_init.up.sql`
 - Kubernetes manifests: `/devops/helm/templates/cronjobs.yaml`
