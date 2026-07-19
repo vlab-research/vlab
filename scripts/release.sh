@@ -135,14 +135,39 @@ fi
 
 IMAGE="ghcr.io/vlab-research/$SERVICE:$VERSION"
 echo ">> verifying $IMAGE is pullable"
-TOKEN=$(gh auth token 2>/dev/null || true)
-if [[ -n "$TOKEN" ]]; then
+# GHCR's registry v2 API does NOT accept a raw `gh auth token` as a Bearer: you
+# must first exchange it at the token endpoint and use the returned short-lived
+# token to read the manifest. Passing the PAT straight through returns 403 even
+# when the image exists — that used to make `make release` exit 73 spuriously
+# (observed on the vlab-migrations-v0.1.0 release, whose image was in fact
+# pushed fine). See planning/migration-job-fix.md.
+#
+# Note: the "workflow concluded success" check above (the CI `push: true` step)
+# is the authoritative signal that the image landed. This manifest lookup is a
+# secondary confirmation, so an inability to *obtain* a token warns rather than
+# blocks; only a token that then gets a non-200 manifest is fatal.
+TOKEN_ENDPOINT="https://ghcr.io/token?service=ghcr.io&scope=repository:vlab-research/$SERVICE:pull"
+GH_TOKEN_VAL="$(gh auth token 2>/dev/null || true)"
+if [[ -n "$GH_TOKEN_VAL" ]]; then
+    # Basic-auth the exchange so PRIVATE packages verify too; harmless for public.
+    BEARER=$(curl -sS -u "x-access-token:$GH_TOKEN_VAL" "$TOKEN_ENDPOINT" | jq -r '.token // empty')
+else
+    # Anonymous exchange — sufficient for public images.
+    BEARER=$(curl -sS "$TOKEN_ENDPOINT" | jq -r '.token // empty')
+fi
+if [[ -z "$BEARER" ]]; then
+    echo "WARN: could not obtain a GHCR pull token; skipping manifest verify." >&2
+    echo "      CI concluded success above, which is the authoritative signal." >&2
+else
     HTTP=$(curl -sS -o /dev/null -w "%{http_code}" \
-        -H "Authorization: Bearer $TOKEN" \
-        -H "Accept: application/vnd.docker.distribution.manifest.v2+json" \
-        -L "https://ghcr.io/v2/vlab-research/$SERVICE/manifests/$VERSION")
+        -H "Authorization: Bearer $BEARER" \
+        -H "Accept: application/vnd.oci.image.index.v1+json,application/vnd.docker.distribution.manifest.list.v2+json,application/vnd.docker.distribution.manifest.v2+json" \
+        "https://ghcr.io/v2/vlab-research/$SERVICE/manifests/$VERSION")
     if [[ "$HTTP" != "200" ]]; then
         echo "FATAL: GHCR manifest lookup returned HTTP $HTTP for $IMAGE" >&2
+        echo "       CI was green but the manifest isn't readable. If the package" >&2
+        echo "       is private, your gh token may lack read:packages — confirm in" >&2
+        echo "       the GHCR UI before bumping any values file." >&2
         exit 73
     fi
 fi
