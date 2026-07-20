@@ -107,7 +107,7 @@ func TestGetEvents_WorksWithNoEvents(t *testing.T) {
 	foo := CreateStudy(pool, "foo")
 	MustExec(t, pool, insertConf, foo, "inference_data", infConfA)
 
-	events, err := GetEvents(pool, foo)
+	events, err := GetEvents(pool, foo, []string{"fly"})
 
 	expected := []*InferenceDataEvent([]*InferenceDataEvent{})
 

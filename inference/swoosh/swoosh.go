@@ -53,16 +53,23 @@ func GetInferenceDataConf(pool *pgxpool.Pool, study string) (*InferenceDataConf,
 	return conf, nil
 }
 
-func GetEvents(pool *pgxpool.Pool, study string) ([]*InferenceDataEvent, error) {
+// GetEvents loads a study's events, restricted to sources that are still in the
+// study's current inference_data conf (passed as `sources`). Events tagged with a
+// source the owner has removed from the config are ignored at the read boundary —
+// we reconcile the derived view to the config, we do not delete the underlying
+// facts. See swooshStudy for the full rationale. source_name is part of the
+// primary key, so the filter is a cheap residual on the per-study scan.
+func GetEvents(pool *pgxpool.Pool, study string, sources []string) ([]*InferenceDataEvent, error) {
 	events := []*InferenceDataEvent{}
 
 	query := `
         SELECT data
         FROM inference_data_events
         WHERE study_id = $1
+        AND source_name = ANY($2)
         `
 
-	rows, err := pool.Query(context.Background(), query, study)
+	rows, err := pool.Query(context.Background(), query, study, sources)
 	if err != nil {
 		return events, err
 	}
@@ -119,14 +126,8 @@ func swooshStudy(pool *pgxpool.Pool, study string) error {
 	runID := uuid.NewString()
 	RecordEvent(pool, study, sourceInference, runID, eventRunStarted, "", "", "", nil)
 
-	events, err := GetEvents(pool, study)
-	if err != nil {
-		err = fmt.Errorf("study %s: reading events: %w", study, err)
-		recordRunOutcome(pool, study, runID, eventRunError, severityError, err.Error(), "read")
-		return err
-	}
-	log.Printf("Swoosh read %d events.\n", len(events))
-
+	// Load the conf before the events: the conf's source list is what we filter
+	// events by, and if there is no conf there is nothing to read.
 	mapping, err := GetInferenceDataConf(pool, study)
 	if err != nil {
 		// No inference_data conf → nothing to aggregate. Not an error; skip.
@@ -135,6 +136,30 @@ func swooshStudy(pool *pgxpool.Pool, study string) error {
 		recordRunOutcome(pool, study, runID, eventRunOK, "", "", "")
 		return nil
 	}
+
+	// Reconcile the derived view to the current config: only process events whose
+	// source is still in the latest inference_data conf. The config is the
+	// authority on which sources a study cares about. When an owner deletes a data
+	// source (e.g. OWIS Nigeria's single "Fly" source was split into "Fly HPV
+	// Double" / "Fly HPV Triple" on 2026-07-13), its historical events are
+	// orphaned. We ignore those orphans at the read boundary rather than deleting
+	// them, because:
+	//   - non-destructive: once the upstream survey source is deleted, the vlab
+	//     copy is the only surviving record of those responses;
+	//   - reversible: re-adding the source to the conf lights its history back up;
+	//   - it matches the event-sourced design of study_run_events (never mutate
+	//     facts; derive the current view).
+	// It also stops orphaned sources from tripping an "unmapped source" warning on
+	// every run — that warning was event-anchored (see the skip branch in
+	// inference-data Reduce); the authority is the config, not the event tags.
+	// See planning/swoosh-config-reconciliation.md.
+	events, err := GetEvents(pool, study, mapping.Sources())
+	if err != nil {
+		err = fmt.Errorf("study %s: reading events: %w", study, err)
+		recordRunOutcome(pool, study, runID, eventRunError, severityError, err.Error(), "read")
+		return err
+	}
+	log.Printf("Swoosh read %d events.\n", len(events))
 
 	id, extractionErrors, err := Reduce(events, mapping)
 	if err != nil {

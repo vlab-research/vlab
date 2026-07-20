@@ -10,7 +10,6 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"testing"
 
 	"github.com/jackc/pgx/v4/pgxpool"
@@ -27,10 +26,13 @@ func countEvents(t *testing.T, pool *pgxpool.Pool, study, eventType string) int 
 	return n
 }
 
-// An unmapped source must produce: run_started, one extraction_warning with the
-// per-source fingerprint and aggregated details, and run_ok (the run itself is
-// healthy — unmapped sources are skipped, not fatal).
-func TestSwooshStudy_EmitsExtractionWarningAndRunOKForUnmappedSource(t *testing.T) {
+// A source that is NOT in the study's current inference_data conf is a source the
+// owner has removed (or never configured) — a "zombie". Its events are filtered
+// out at the read boundary (GetEvents), so they never reach Reduce: the run emits
+// run_started + run_ok and NO extraction_warning. The config is the authority on
+// which sources a study cares about; we ignore orphaned events rather than warning
+// about them or deleting them. See planning/swoosh-config-reconciliation.md.
+func TestSwooshStudy_IgnoresEventsFromSourceNotInConfig(t *testing.T) {
 	pool := TestPool()
 	defer pool.Close()
 
@@ -39,7 +41,8 @@ func TestSwooshStudy_EmitsExtractionWarningAndRunOKForUnmappedSource(t *testing.
 	study := CreateStudy(pool, "studyA")
 	activeDate := `{"start_date": "2020-01-10T00:00:00", "end_date": "2999-01-31T00:00:00"}`
 	MustExec(t, pool, insertConf, study, "recruitment", activeDate)
-	MustExec(t, pool, insertConf, study, "inference_data", infConfA)
+	MustExec(t, pool, insertConf, study, "inference_data", infConfA) // maps only "fly"
+	// "sIcNrF05" is not in the conf — e.g. a source that was renamed/removed.
 	insertEvent(t, pool, study, "sIcNrF05", "foo_raw", `{"value": "true"}`)
 	insertEvent(t, pool, study, "sIcNrF05", "foo_raw", `{"value": "true"}`)
 
@@ -47,28 +50,9 @@ func TestSwooshStudy_EmitsExtractionWarningAndRunOKForUnmappedSource(t *testing.
 	assert.Nil(t, err)
 
 	assert.Equal(t, 1, countEvents(t, pool, study, "run_started"))
-	assert.Equal(t, 1, countEvents(t, pool, study, "extraction_warning"))
+	assert.Equal(t, 0, countEvents(t, pool, study, "extraction_warning"),
+		"events from a source absent from the config are ignored, not warned about")
 	assert.Equal(t, 1, countEvents(t, pool, study, "run_ok"))
-
-	var fingerprint, severity, message, runID string
-	var details []byte
-	err = pool.QueryRow(context.Background(),
-		`SELECT fingerprint, severity, message, run_id, details
-		 FROM study_run_events
-		 WHERE study_id = $1 AND event_type = 'extraction_warning'`,
-		study).Scan(&fingerprint, &severity, &message, &runID, &details)
-	assert.Nil(t, err)
-
-	assert.Equal(t, "inference:extraction:source=sIcNrF05", fingerprint)
-	assert.Equal(t, "warning", severity)
-	assert.Contains(t, message, "sIcNrF05")
-	assert.NotEqual(t, "", runID, "facts of one run must share a run_id")
-
-	var d map[string]interface{}
-	assert.Nil(t, json.Unmarshal(details, &d))
-	assert.Equal(t, "sIcNrF05", d["source"])
-	assert.Equal(t, float64(2), d["count"], "two skipped events aggregate into one warning with count=2")
-	assert.Contains(t, d["sources_in_mapping"], "fly")
 }
 
 // A healthy study emits run_started + run_ok only — no problem facts.
