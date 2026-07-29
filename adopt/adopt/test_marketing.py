@@ -1,5 +1,6 @@
 import json
 import random
+from datetime import datetime
 from typing import TypeVar
 
 import pytest
@@ -13,18 +14,24 @@ from .marketing import (
     make_ref,
     manage_aud,
     messenger_call_to_action,
+    pair_creatives_with_destinations,
     web_call_to_action,
 )
 from .study_conf import (
     Audience,
     AudienceConf,
     CreativeConf,
+    DestinationRecruitmentExperiment,
     FlyMessengerDestination,
+    GeneralConf,
     InvalidConfigError,
     Lookalike,
     LookalikeAudience,
     LookalikeSpec,
     Partitioning,
+    Stratum,
+    StudyConf,
+    UserInfo,
 )
 
 T = TypeVar("T")
@@ -505,3 +512,151 @@ def test_create_creative_from_template_photo_web():
     assert link_data["image_hash"] == template["object_story_spec"]["photo_data"]["image_hash"]
     assert link_data["message"] == template["object_story_spec"]["photo_data"]["caption"]
     assert link_data["link"] == link
+
+
+# ---------------------------------------------------------------------------
+# Destination experiments: every creative must get its OWN destination.
+#
+# Regression cover for the pairing bug introduced in 4ec9eff6 (Feb 2024) and
+# found in production in Jul 2026: the creatives were filtered per arm but the
+# destinations were not, and zip() truncated to the shorter list. Every arm
+# after the leading one silently published with the leading arm's shortcode.
+# ---------------------------------------------------------------------------
+
+
+def _messenger_dest(name, shortcode):
+    return FlyMessengerDestination(
+        type="messenger",
+        name=name,
+        initial_shortcode=shortcode,
+        welcome_message="Welcome!",
+        button_text="OK",
+    )
+
+
+def _creative(name, destination):
+    return CreativeConf(destination=destination, name=name, template={})
+
+
+def _destination_experiment_study(destinations, creatives):
+    return StudyConf(
+        id="study-1",
+        user=UserInfo(survey_user="user", token="token"),
+        general=GeneralConf(
+            name="test-study",
+            credentials_key="page-1",
+            credentials_entity="facebook_page",
+            ad_account="act_1",
+            opt_window=48,
+        ),
+        destinations=destinations,
+        audiences=[],
+        creatives=creatives,
+        strata=[],
+        recruitment=DestinationRecruitmentExperiment(
+            ad_campaign_name_base="test-campaign",
+            objective="OUTCOME_ENGAGEMENT",
+            optimization_goal="CONVERSATIONS",
+            destination_type="MESSENGER",
+            min_budget=1,
+            budget_per_arm=100,
+            max_sample_per_arm=100,
+            start_date=datetime(2026, 7, 1),
+            end_date=datetime(2026, 8, 1),
+            destinations=[d.name for d in destinations],
+        ),
+    )
+
+
+def _stratum(creatives):
+    return Stratum(
+        id="stratum-1",
+        quota=1.0,
+        creatives=creatives,
+        facebook_targeting={},
+        metadata={},
+    )
+
+
+def _shortcodes(pairs):
+    return [d.initial_shortcode for _, d in pairs]
+
+
+def test_pairing_each_arm_gets_own_destination_when_arms_are_contiguous():
+    """The exact production scenario (OWIS Nigeria, Jul 2026).
+
+    Four arm-A creatives occupy positions 0-3 and four arm-B creatives
+    positions 4-7. Under the bug, arm B's campaign zipped its 4 creatives
+    against destinations[0:4] -- all arm A -- and published every ad with
+    arm A's shortcode. Arm A looked correct purely by ordering luck.
+    """
+    dest_a = _messenger_dest("Arm A", "shortcode_a")
+    dest_b = _messenger_dest("Arm B", "shortcode_b")
+
+    creatives = [_creative(f"a{i}", "Arm A") for i in range(4)]
+    creatives += [_creative(f"b{i}", "Arm B") for i in range(4)]
+
+    study = _destination_experiment_study([dest_a, dest_b], creatives)
+    stratum = _stratum(creatives)
+
+    pairs_b = pair_creatives_with_destinations(study, stratum, "test-campaign-Arm B")
+    assert [c.name for c, _ in pairs_b] == ["b0", "b1", "b2", "b3"]
+    assert _shortcodes(pairs_b) == ["shortcode_b"] * 4
+
+    pairs_a = pair_creatives_with_destinations(study, stratum, "test-campaign-Arm A")
+    assert [c.name for c, _ in pairs_a] == ["a0", "a1", "a2", "a3"]
+    assert _shortcodes(pairs_a) == ["shortcode_a"] * 4
+
+
+def test_pairing_is_independent_of_creative_ordering():
+    """Interleaved ordering (the Ghana pilots) must pair correctly too.
+
+    With arms interleaved the bug scrambled BOTH arms rather than
+    collapsing one, so ordering must not influence the result at all.
+    """
+    dest_a = _messenger_dest("Arm A", "shortcode_a")
+    dest_b = _messenger_dest("Arm B", "shortcode_b")
+
+    creatives = []
+    for i in range(4):
+        creatives.append(_creative(f"a{i}", "Arm A"))
+        creatives.append(_creative(f"b{i}", "Arm B"))
+
+    study = _destination_experiment_study([dest_a, dest_b], creatives)
+    stratum = _stratum(creatives)
+
+    for name, shortcode in [("Arm A", "shortcode_a"), ("Arm B", "shortcode_b")]:
+        pairs = pair_creatives_with_destinations(
+            study, stratum, f"test-campaign-{name}"
+        )
+        assert len(pairs) == 4
+        assert _shortcodes(pairs) == [shortcode] * 4
+        assert all(c.destination == name for c, _ in pairs)
+
+
+def test_pairing_holds_when_arms_have_different_creative_counts():
+    """Unequal arm sizes are where a truncating zip does the most damage."""
+    dest_a = _messenger_dest("Arm A", "shortcode_a")
+    dest_b = _messenger_dest("Arm B", "shortcode_b")
+
+    creatives = [_creative(f"a{i}", "Arm A") for i in range(6)]
+    creatives += [_creative(f"b{i}", "Arm B") for i in range(2)]
+
+    study = _destination_experiment_study([dest_a, dest_b], creatives)
+    stratum = _stratum(creatives)
+
+    pairs_b = pair_creatives_with_destinations(study, stratum, "test-campaign-Arm B")
+    assert _shortcodes(pairs_b) == ["shortcode_b"] * 2
+
+    pairs_a = pair_creatives_with_destinations(study, stratum, "test-campaign-Arm A")
+    assert _shortcodes(pairs_a) == ["shortcode_a"] * 6
+
+
+def test_pairing_raises_when_campaign_matches_no_destination():
+    dest_a = _messenger_dest("Arm A", "shortcode_a")
+    creatives = [_creative("a0", "Arm A")]
+    study = _destination_experiment_study([dest_a], creatives)
+    stratum = _stratum(creatives)
+
+    with pytest.raises(Exception, match="Could not find destination"):
+        pair_creatives_with_destinations(study, stratum, "campaign-with-no-arm")

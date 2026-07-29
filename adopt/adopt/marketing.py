@@ -487,34 +487,48 @@ def create_creative(
     raise Exception(f"destination is not a proper type: {destination}")
 
 
-def adset_instructions(
-    study: StudyConf, state: CampaignState, stratum: Stratum, budget: float
-) -> Tuple[AdSet, List[Ad]]:
-    stratum_creatives = stratum.creatives
+def pair_creatives_with_destinations(
+    study: StudyConf, stratum: Stratum, campaign_name: str
+) -> List[Tuple[CreativeConf, DestinationConf]]:
+    """Pair every creative with the destination its own config names.
+
+    In a destination experiment each campaign is one arm of the experiment,
+    so only the creatives assigned to that arm belong in it.
+
+    The pairing is built as tuples rather than by zipping two separately
+    derived lists. A previous version filtered the creatives but built the
+    destinations from the unfiltered list and let zip() truncate to the
+    shorter one, so every arm after the first silently inherited the
+    leading arm's destinations. Keeping each creative and its destination
+    in a single tuple makes that class of mistake unrepresentable.
+    """
+    creatives = stratum.creatives
 
     if isinstance(study.recruitment, DestinationRecruitmentExperiment):
         try:
             destination = next(
-                d for d in study.recruitment.destinations if d in state.campaign_name
+                d for d in study.recruitment.destinations if d in campaign_name
             )
         except StopIteration:
             raise Exception(
-                f"Could not find destination for campaign_name {state.campaign_name}"
+                f"Could not find destination for campaign_name {campaign_name}"
                 " in recruitment destination experiment."
             )
 
-        stratum_creatives = [
-            c for c in stratum_creatives if c.destination == destination
-        ]
+        creatives = [c for c in creatives if c.destination == destination]
 
-    destinations = [get_destination_for_creative(study, c) for c in stratum.creatives]
+    return [(c, get_destination_for_creative(study, c)) for c in creatives]
 
-    creatives = [
-        create_creative(study, stratum, c, d)
-        for d, c in zip(destinations, stratum_creatives)
-    ]
 
-    if isinstance(destinations[0], AppDestination):
+def adset_instructions(
+    study: StudyConf, state: CampaignState, stratum: Stratum, budget: float
+) -> Tuple[AdSet, List[Ad]]:
+    pairs = pair_creatives_with_destinations(study, stratum, state.campaign_name)
+
+    destinations = [d for _, d in pairs]
+    creatives = [create_creative(study, stratum, c, d) for c, d in pairs]
+
+    if destinations and isinstance(destinations[0], AppDestination):
         # TODO: assert all destinations are the same
         # and raise an exception if not the case
 
