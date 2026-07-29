@@ -1,4 +1,4 @@
-versionAdopt: &vadopt v0.1.75
+versionAdopt: &vadopt v0.1.76
 
 # Schema migrations. The pre-upgrade hook (devops/helm/templates/migrations.yaml)
 # runs this image's `migrate up` against the DB below before new pods roll.
