@@ -95,15 +95,20 @@ export const createStrataFromVariables = (
       return newStratum;
     }
 
-    // Preserve user-edited fields: creatives, audiences, excluded_audiences, quota, metadata
-    // Overwrite derived fields: facebook_targeting, question_targeting
+    // Preserve user-edited fields: creatives, audiences, excluded_audiences
+    // Overwrite derived fields: facebook_targeting, question_targeting, quota, metadata
+    //
+    // quota is DERIVED (product of the level quotas of the variables that make up
+    // this stratum), so Regenerate must recompute it. Preserving it here meant that
+    // editing a level quota in Variables and clicking Regenerate silently kept the
+    // old quota — there was no way to propagate a changed split to an existing study.
+    // Hand-edits to a stratum quota are still possible, they just don't survive the
+    // next Regenerate, which is what "Regenerates strata from current variables" means.
     return {
       ...newStratum,
       creatives: existing.creatives,
       audiences: existing.audiences,
       excluded_audiences: existing.excluded_audiences,
-      quota: existing.quota,
-      metadata: existing.metadata,
     };
   });
 }
@@ -142,6 +147,18 @@ export const strataStalenessHint = (variables: Variables, savedStrata?: Stratum[
   for (const savedStratum of savedStrata) {
     const freshStratum = freshStrata.find(s => s.id === savedStratum.id);
     if (freshStratum && !isEqual(freshStratum.facebook_targeting, savedStratum.facebook_targeting)) {
+      return true;
+    }
+  }
+
+  // Check 3: quota changed for any stratum that exists in both. Without this, editing
+  // only the level quotas in Variables (same levels, same targeting) left the strata
+  // silently out of date with no banner — the study kept recruiting on the old split.
+  // Compare with a tolerance: quotas are products of floats that round-trip through
+  // JSON, so exact equality would flag spurious staleness (0.1 * 3 !== 0.3).
+  for (const savedStratum of savedStrata) {
+    const freshStratum = freshStrata.find(s => s.id === savedStratum.id);
+    if (freshStratum && Math.abs(freshStratum.quota - savedStratum.quota) > 1e-9) {
       return true;
     }
   }

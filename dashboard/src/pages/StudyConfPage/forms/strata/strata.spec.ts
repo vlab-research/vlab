@@ -486,7 +486,7 @@ describe("getFinishQuestionRef", () => {
 })
 
 describe('createStrataFromVariables with merge', () => {
-  it('Merge preserves audiences/quota/metadata for existing stratum IDs', () => {
+  it('Merge preserves audiences/creatives but recomputes quota for existing stratum IDs', () => {
     const variables: Variables = [
       {
         name: 'gender',
@@ -514,7 +514,9 @@ describe('createStrataFromVariables with merge', () => {
 
     expect(strata.length).toBe(2);
     const menStratum = strata.find(s => s.id === 'gender:men');
-    expect(menStratum?.quota).toBe(0.3);
+    // quota is derived from the variable levels, so a stale hand-edited 0.3 is
+    // replaced by the current level quota rather than preserved.
+    expect(menStratum?.quota).toBe(0.5);
     expect(menStratum?.creatives).toEqual(['creative_A']);
     expect(menStratum?.audiences).toEqual(['audience_1']);
     expect(menStratum?.excluded_audiences).toEqual(['excluded_1']);
@@ -772,5 +774,74 @@ describe('strataStalenessHint', () => {
 
     const isStale = strataStalenessHint(variables, savedStrata);
     expect(isStale).toBe(true);
+  });
+});
+
+describe('Regenerate propagates changed level quotas from Variables', () => {
+  // Repro for the Girl Effect report (Jul 2026): quotas edited in Variables were
+  // not reflected in the Strata tab after clicking Regenerate.
+  const genderVariables = (menQuota: number, womenQuota: number): Variables => ([
+    {
+      name: 'gender',
+      properties: ['genders'],
+      levels: [
+        { name: 'men', template_campaign: 'foo', template_adset: 'men', facebook_targeting: { 'genders': [1] }, quota: menQuota },
+        { name: 'women', template_campaign: 'foo', template_adset: 'women', facebook_targeting: { 'genders': [2] }, quota: womenQuota }
+      ]
+    }
+  ]);
+
+  const questionTargeting = (level: string) => ({
+    op: "and",
+    vars: [
+      { op: "equal", vars: [{ type: "variable", value: "gender" }, { type: "constant", value: level }] },
+      { op: "answered", vars: [{ type: "variable", value: "foo" }] },
+    ],
+  });
+
+  // strata as previously saved by the study, generated from a 50/50 split
+  const savedStrata: Stratum[] = [
+    {
+      id: 'gender:men',
+      quota: 0.5,
+      creatives: ['creative_A'],
+      audiences: [],
+      excluded_audiences: [],
+      facebook_targeting: { 'genders': [1] },
+      metadata: { gender: 'men' },
+      question_targeting: questionTargeting('men'),
+    },
+    {
+      id: 'gender:women',
+      quota: 0.5,
+      creatives: ['creative_A'],
+      audiences: [],
+      excluded_audiences: [],
+      facebook_targeting: { 'genders': [2] },
+      metadata: { gender: 'women' },
+      question_targeting: questionTargeting('women'),
+    },
+  ];
+
+  it('recomputes stratum quotas after the split is shifted toward men', () => {
+    const strata = createStrataFromVariables(
+      genderVariables(0.7, 0.3), "foo", undefined, undefined, savedStrata
+    );
+
+    expect(strata.find(s => s.id === 'gender:men')?.quota).toBe(0.7);
+    expect(strata.find(s => s.id === 'gender:women')?.quota).toBe(0.3);
+  });
+
+  it('still preserves user-edited creatives while recomputing quota', () => {
+    const strata = createStrataFromVariables(
+      genderVariables(0.7, 0.3), "foo", [{ name: 'creative_B' }] as any, undefined, savedStrata
+    );
+
+    expect(strata.find(s => s.id === 'gender:men')?.creatives).toEqual(['creative_A']);
+  });
+
+  it('flags strata as stale when only the level quotas changed', () => {
+    expect(strataStalenessHint(genderVariables(0.7, 0.3), savedStrata)).toBe(true);
+    expect(strataStalenessHint(genderVariables(0.5, 0.5), savedStrata)).toBe(false);
   });
 });
