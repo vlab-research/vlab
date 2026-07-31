@@ -1,9 +1,12 @@
+import logging
 from datetime import datetime
 from typing import TypeVar
 
 from facebook_business.adobjects.ad import Ad
+from facebook_business.adobjects.adcreative import AdCreative
 from facebook_business.adobjects.adset import AdSet
 
+from . import field_contract
 from .reconciliation import _eq, ad_dif, adset_dif, update_adset
 from .update import Instruction
 
@@ -813,9 +816,11 @@ def test_eq_still_detects_real_creative_difference_in_subset_mode():
     assert not _eq(desired_creative, source_creative, _CREATIVE_FIELDS)
 
 
-def test_eq_still_detects_missing_key_in_source_in_subset_mode():
-    # In subset mode (nested recursion), a key present in desired but missing
-    # from source is a real difference.
+def test_eq_still_detects_undeclared_key_missing_from_source():
+    # An undeclared key present in desired but missing from source stays a
+    # difference. It has to: a real change (photo_data -> link_data) looks
+    # exactly like a field Facebook silently drops, and only a human can say
+    # which one it is. See test_ad_dif_updates_when_object_story_spec_format_changes.
     source = {
         "page_id": "111",
         "link_data": {"image_hash": "abc123"},
@@ -827,6 +832,132 @@ def test_eq_still_detects_missing_key_in_source_in_subset_mode():
     }
 
     assert not _eq(desired, source, _subset="a")
+
+
+def test_eq_warns_about_undeclared_drop(caplog):
+    # Never silent: an undeclared drop is what an endless rewrite loop looks
+    # like on its first run, so it names itself and the command that fixes it.
+    source = {"link_data": {"image_hash": "abc123"}}
+    desired = {"link_data": {"image_hash": "abc123", "surprise": "new"}}
+
+    with caplog.at_level(logging.WARNING):
+        assert not _eq(desired, source, _subset="a")
+
+    assert "undeclared drop at .link_data.surprise" in caplog.text
+    assert "adopt-probe" in caplog.text
+
+
+def test_eq_tolerates_a_whole_top_level_field_missing_from_source(caplog):
+    # Deliberate asymmetry with the nested rule above, and long-standing
+    # behaviour: a top-level field absent from Facebook's response is not
+    # something we can act on, so it is skipped rather than rewritten every
+    # run. It still warns when undeclared. See _declared_drop.
+    source = {"actor_id": "111"}
+    desired = {"actor_id": "111", "url_tags": "ref=foo"}
+
+    with caplog.at_level(logging.WARNING):
+        assert _eq(desired, source, _CREATIVE_FIELDS)
+
+    assert "undeclared drop at .url_tags" in caplog.text
+
+
+def test_eq_declared_drop_is_not_a_difference():
+    # The production case: we send image_text_translation, Facebook returns
+    # ~82 creative_features_spec keys and never that one. Declared, so equal.
+    source = {
+        "degrees_of_freedom_spec": {
+            "creative_features_spec": {
+                "standard_enhancements": {"enroll_status": "OPT_OUT"},
+            }
+        }
+    }
+    desired = {
+        "degrees_of_freedom_spec": {
+            "creative_features_spec": {
+                "image_text_translation": {"enroll_status": "OPT_IN"},
+            }
+        }
+    }
+
+    assert _eq(desired, source, _CREATIVE_FIELDS)
+
+
+def test_eq_declared_drop_does_not_warn(caplog):
+    # The real production case: image_text_translation is declared in
+    # field_contract.DROPPED, so it is expected and stays quiet.
+    path = "degrees_of_freedom_spec.creative_features_spec.image_text_translation"
+    assert path in field_contract.DROPPED, "fixture depends on this declaration"
+
+    source = {
+        "degrees_of_freedom_spec": {
+            "creative_features_spec": {
+                "standard_enhancements": {"enroll_status": "OPT_OUT"},
+            }
+        }
+    }
+    desired = {
+        "degrees_of_freedom_spec": {
+            "creative_features_spec": {
+                "image_text_translation": {"enroll_status": "OPT_IN"},
+            }
+        }
+    }
+
+    with caplog.at_level(logging.WARNING):
+        assert _eq(desired, source, _CREATIVE_FIELDS)
+
+    assert "undeclared drop" not in caplog.text
+
+
+def test_ad_dif_converges_when_facebook_drops_a_declared_field():
+    # End-to-end version of the production bug: the ONLY difference between
+    # desired and live is a field Facebook never echoes back. This must
+    # produce no instruction at all, otherwise the ad is rewritten every run.
+    creative = {
+        "name": "Ad1",
+        "actor_id": "111",
+        "url_tags": "ref=creative.Ad1.form.hpvintrotriple",
+        "object_story_spec": {"page_id": "111"},
+    }
+
+    live_creative = {
+        **creative,
+        "degrees_of_freedom_spec": {
+            "creative_features_spec": {
+                # Facebook's own defaults, minus the key we sent.
+                "standard_enhancements": {"enroll_status": "OPT_OUT"},
+                "text_generation": {"enroll_status": "OPT_OUT"},
+            }
+        },
+    }
+
+    desired_creative = {
+        **creative,
+        "degrees_of_freedom_spec": {
+            "creative_features_spec": {
+                "image_text_translation": {"enroll_status": "OPT_IN"},
+            }
+        },
+    }
+
+    source = _adobject(
+        {"id": "1", "name": "Ad1", "status": "ACTIVE", "creative": live_creative}, Ad
+    )
+    desired = _adobject(
+        {"name": "Ad1", "status": "ACTIVE", "creative": desired_creative}, Ad
+    )
+
+    assert ad_dif("adset-1", [source], [desired]) == []
+
+
+def test_contract_field_names_match_the_facebook_sdk():
+    # The contract keys are plain strings; make sure they are the real field
+    # names the SDK uses, so a typo cannot silently drop a field from
+    # comparison altogether.
+    for f in field_contract.COMPARED_AD:
+        assert hasattr(AdCreative.Field, f), f
+    for f in field_contract.COMPARED_ADSET:
+        assert hasattr(AdSet.Field, f), f
 
 
 # ---------------------------------------------------------------------------

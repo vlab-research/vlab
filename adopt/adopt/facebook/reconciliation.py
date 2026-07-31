@@ -2,10 +2,10 @@ import json
 import logging
 from typing import Dict, List, Sequence, Tuple, TypeVar
 
-from facebook_business.adobjects.adcreative import AdCreative
 from facebook_business.adobjects.ad import Ad
 from facebook_business.adobjects.adset import AdSet
 
+from . import field_contract
 from .update import Instruction
 
 logger = logging.getLogger(__name__)
@@ -17,6 +17,30 @@ def _safe_get(obj, key, default="unknown"):
         return obj[key]
     except (KeyError, TypeError):
         return default
+
+
+def _declared_drop(path: str) -> bool:
+    """True if field_contract says Facebook never echoes `path` back.
+
+    Anything else gets a warning, because an undeclared drop is what an
+    endless rewrite loop looks like on its first run: we send a field,
+    Facebook omits it from the response, we see a difference, we write again.
+    That loop ran ~360 no-op ad writes a day against one ad account until
+    2026-07-30 and helped trigger `code 17` throttling.
+
+    See planning/field-contract.md for why tolerance has to be declared per
+    field rather than inferred.
+    """
+    if field_contract.is_dropped(path):
+        logger.debug(f"_eq: declared drop at {path} — not compared")
+        return True
+
+    logger.warning(
+        f"_eq: undeclared drop at {path} — we set this field but Facebook did "
+        "not return it. Check with `adopt-probe <study>` and declare it in "
+        "field_contract.DROPPED (or stop sending it)."
+    )
+    return False
 
 
 def _sort_key(x):
@@ -73,10 +97,12 @@ def _eq(a, b, fields=None, _path="", _subset=None) -> bool:
                 if k not in fields:
                     continue
                 if k not in b:
-                    logger.debug(
-                        f"_eq: field '{k}' present in desired but missing from "
-                        f"source (path: {_path}.{k}) — skipping"
-                    )
+                    # Top level stays lenient, as it always has: a whole field
+                    # absent from Facebook's response is not something we can
+                    # act on, and treating it as a difference would rewrite
+                    # the object every run. Still worth a warning if it is not
+                    # a drop we already know about.
+                    _declared_drop(f"{_path}.{k}")
                     continue
                 if not _eq(v, b[k], _path=f"{_path}.{k}", _subset="a"):
                     logger.info(
@@ -89,14 +115,16 @@ def _eq(a, b, fields=None, _path="", _subset=None) -> bool:
         # Subset mode (nested recursion from a field-list call):
         # Compare only keys present in the desired object (a).  Extra keys
         # in the source (b) — server-generated defaults — are ignored.
-        # A key in desired that is missing from source IS a difference.
+        # A key in desired that is missing from source IS a difference, unless
+        # it is declared in field_contract.DROPPED.  It has to work this way:
+        # a real change (photo_data -> link_data) is indistinguishable in the
+        # data from a field Facebook silently drops, so only a declaration can
+        # tell them apart.  See _declared_drop.
         if _subset == "a":
             for k, v in a.items():
                 if k not in b:
-                    logger.info(
-                        f"_eq: key '{k}' in desired but missing from source "
-                        f"(path: {_path}.{k})"
-                    )
+                    if _declared_drop(f"{_path}.{k}"):
+                        continue
                     return False
                 if not _eq(v, b[k], _path=f"{_path}.{k}", _subset="a"):
                     logger.info(
@@ -144,14 +172,8 @@ def _eq(a, b, fields=None, _path="", _subset=None) -> bool:
 
 
 def update_adset(source: AdSet, adset: AdSet) -> List[Instruction]:
-    fields = [
-        AdSet.Field.end_time,
-        AdSet.Field.targeting,
-        AdSet.Field.status,
-        AdSet.Field.daily_budget,
-        AdSet.Field.optimization_goal,
-        AdSet.Field.name,
-    ]
+    # Declared, with rationale, in field_contract.COMPARED_ADSET.
+    fields = list(field_contract.COMPARED_ADSET)
 
     if _eq(source, adset, fields):
         logger.debug(
@@ -171,16 +193,8 @@ def update_adset(source: AdSet, adset: AdSet) -> List[Instruction]:
 
 def update_ad(source: Ad, ad: Ad) -> List[Instruction]:
 
-    fields = [
-        AdCreative.Field.actor_id,
-        AdCreative.Field.image_crops,
-        AdCreative.Field.asset_feed_spec,
-        AdCreative.Field.degrees_of_freedom_spec,
-        AdCreative.Field.instagram_user_id,
-        AdCreative.Field.object_story_spec,
-        AdCreative.Field.contextual_multi_ads,
-        AdCreative.Field.url_tags,
-    ]
+    # Declared, with rationale, in field_contract.COMPARED_AD.
+    fields = list(field_contract.COMPARED_AD)
 
     if not _eq(ad["creative"], source["creative"], fields):
         logger.warning(

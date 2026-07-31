@@ -41,6 +41,52 @@ misalign.
 `test_marketing.py` covers this with contiguous, interleaved, and unequal-sized
 arm orderings — ordering must never influence the result.
 
+## The Facebook field contract
+
+Every run, adopt compares the live ads and adsets against what the study config
+says they should be, and rewrites anything that drifted. What gets compared is
+declared in **`adopt/facebook/field_contract.py`** — one dict per object type,
+each field with a sentence saying why we care about it.
+
+The subtle part is that Facebook does not echo everything back. Some fields it
+accepts on write and simply omits from the response. Comparing such a field is
+a trap: we send it, Facebook drops it, we see a difference, we rewrite — every
+run, forever. `field_contract.DROPPED` is the list of fields known to behave
+this way, and those are excluded from comparison.
+
+An **undeclared** nested drop is still treated as a difference, deliberately.
+A real change that must be applied — converting a creative from `photo_data`
+to `link_data`, say — looks identical in the data to a field Facebook silently
+drops. Nothing distinguishes them, so the call belongs to a human. What the
+code does instead is warn loudly, naming the path and the command that
+resolves it. (A *whole* top-level field missing from Facebook's response is
+skipped rather than rewritten — see `planning/field-contract.md`.)
+
+### Checking the contract against Facebook
+
+```bash
+poetry run adopt-probe <study-id-or-name>            # read-only report
+poetry run adopt-probe <study-id-or-name> --update   # rewrite DROPPED
+```
+
+The probe builds the creative a study's config asks for, fetches the live ad,
+and classifies every field path:
+
+| verdict | meaning |
+|---|---|
+| `ok` | sent it, Facebook echoed it back unchanged |
+| `dropped` | sent it, Facebook did not return it — declare it or stop sending it |
+| `differs` | sent it, Facebook returned something else — a real change |
+| `stale` | declared `DROPPED`, but Facebook returns it now — undeclare it |
+
+It exits non-zero when the contract and Facebook disagree, so it can gate a
+deploy. `--update` rewrites the `DROPPED` block in place, stamped with today's
+date; review it as a normal git diff.
+
+It is read-only by default because it points at ads spending real money.
+
+Background on the incident that motivated this: `planning/field-contract.md`.
+
 ## Configuration
 
 Some documentation for configuring a vlab study:
