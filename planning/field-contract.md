@@ -145,16 +145,36 @@ Normalisers are hand-written, not probe-generated. A normaliser encodes what
 "the same" *means* for a field, and no amount of sampling live data can infer
 that.
 
-## Two things to be careful of near this code
+## The argument order, now unified
 
-**The argument order is reversed between the two callers.** `update_ad` calls
-`_eq(desired, live)`; `update_adset` calls `_eq(live, desired)`. Since `_eq`
-walks the *first* argument's keys and tolerates extras in the second, the two
-paths do genuinely different things. It also makes the log messages misleading
-on the adset path — `desired=` there is actually the live value. `probe_adsets`
-deliberately mirrors the production order so a clean report means the
-reconciler really will no-op. Worth unifying, but it is a behaviour change to
-reconciliation and deserves its own verification.
+`_eq(a, b)` treats `a` as the authority: every key in `a` must be present and
+equal in `b`, and extras in `b` are ignored. Facebook decorates everything it
+returns with server-side defaults we never set, so the **desired** object has
+to be `a`.
+
+`update_ad` always did that. `update_adset` had it backwards — `_eq(live,
+desired)` asks "is everything Facebook returned present in what we want?",
+which is a different question and the wrong one. Both now pass desired first.
+
+That also fixes the logging: `_eq` labels its arguments `desired=` and
+`source=`, which were simply lying on the adset path.
+
+Flipping it exposed one field: `targeting.custom_audiences`. `add_audience_targeting`
+always sets it — to `[]` when the study has no audiences — and Facebook omits
+the key rather than echoing an empty list. In the old order this was invisible.
+
+Rather than declare it dropped, `_eq` now takes **empty and absent as
+agreement**: if we ask for nothing and Facebook shows nothing, that is not a
+difference. Declaring it dropped would have been worse — a path in DROPPED is
+skipped whenever it is missing from the live object, so *adding* an audience to
+an adset that has none would have been silently never applied.
+`test_update_adset_still_applies_a_newly_added_audience` guards that.
+
+The rule is general and does not weaken the protections above: `link_data` and
+`image_text_translation` both carry non-empty values, so both still require a
+real answer.
+
+## One more thing to be careful of near this code
 
 **`hydrate_strata` mutates the strata it is given.** It appends to
 `excluded_custom_audiences` in place, so calling it twice in one process
@@ -170,9 +190,18 @@ targeting drift.
 
 ```
 ADS      compared 46 field paths across 60 live ads   -> 6 declared drops, 40 clean
-ADSETS   compared 13 field paths across 6 live adsets -> 13 clean
+ADSETS   compared 14 field paths across 6 live adsets -> 14 clean
 contract matches live Facebook behaviour.             (exit 0)
 ```
+
+And directly against the production function, with each live adset's own
+budget and status fed back in so nothing had genuinely changed:
+
+```
+6/6 adsets no-op when nothing changed
+```
+
+Before this work that number was 0/6, on every run.
 
 Running it against production caught three things no fixture-based test could:
 
@@ -195,7 +224,8 @@ logic, it can disagree with the thing it is meant to be checking. Delegate.
 - The probe feeds the live budget and status back in as the desired ones, so it
   says nothing about whether the optimizer's current budget is correct. It
   answers "does this round-trip", not "is this up to date".
-- `targeting.custom_audiences` is sent by adopt (as `[]`) and never returned by
-  Facebook. Invisible today because the adset path walks the live object's keys,
-  so it is never examined — but it would surface immediately if the argument
-  order above were unified.
+- Removing the last audience from an adset that has some is still applied
+  (both sides present, values differ), but the empty-and-absent rule means we
+  cannot tell "we want none" from "we never asked" when Facebook has none
+  either. That is the correct outcome here and worth remembering if the rule
+  is ever reused for a field where absent and empty differ in meaning.

@@ -82,7 +82,7 @@ def classify(
         if f not in d:
             continue
         if f not in s:
-            findings.append((f".{f}", DROPPED, d[f], None))
+            findings.append((f".{f}", OK if not d[f] else DROPPED, d[f], None))
             continue
         findings.extend(_walk(d[f], s[f], f".{f}"))
 
@@ -105,7 +105,9 @@ def _walk(want: Any, got: Any, path: str) -> List[Tuple[str, str, Any, Any]]:
         out: List[Tuple[str, str, Any, Any]] = []
         for k, v in want.items():
             if k not in got:
-                out.append((f"{path}.{k}", DROPPED, v, None))
+                # Mirror _eq: an empty value we asked for and Facebook elided
+                # is agreement, not a drop.
+                out.append((f"{path}.{k}", OK if not v else DROPPED, v, None))
                 continue
             out.extend(_walk(v, got[k], f"{path}.{k}"))
         return out
@@ -171,10 +173,8 @@ def probe_adsets(
 ) -> Tuple[List[Tuple[str, str, Any, Any]], int]:
     """Classify every compared field across every live adset in the study.
 
-    Compared in the same argument order `update_adset` uses — `_eq(live,
-    desired)` — so a clean report means the reconciler really will no-op.
-    Note that this is the reverse of the ad path, which compares
-    `_eq(desired, live)`.
+    Compared desired-first, the same order `update_adset` and `update_ad` both
+    use, so a clean report means the reconciler really will no-op.
 
     The live adset's budget and status are fed back in as the desired ones.
     The optimizer moves the budget every run by design; that is an intended
@@ -223,7 +223,7 @@ def probe_adsets(
                 )
             )
 
-            findings.extend(classify(live, desired, fields))
+            findings.extend(classify(desired, live, fields))
             adsets_compared += 1
 
     return findings, adsets_compared
@@ -439,23 +439,12 @@ def main(argv: Optional[List[str]] = None) -> int:
         print("ADS")
         print(render(ad_rows, ads_compared))
         print("\nADSETS")
-        print(
-            render(
-                adset_rows,
-                adsets_compared,
-                what="live adsets",
-                # Adsets are compared _eq(live, desired), so a key missing here
-                # is one Facebook returns and we never send — the mirror image
-                # of the ad case.
-                missing_label="RETURNED BY FACEBOOK, NEVER SENT BY US:",
-            )
-        )
+        print(render(adset_rows, adsets_compared, what="live adsets"))
 
     if args.update:
-        # Only the ad direction feeds DROPPED: there "missing" means Facebook
-        # did not echo what we sent, which is what DROPPED declares. The adset
-        # direction means the opposite and must be read by a human.
-        new = update_contract(ad_rows, date.today().isoformat())
+        # Both directions are now desired-first, so "missing" means the same
+        # thing on each: Facebook did not echo back what we sent.
+        new = update_contract({**ad_rows, **adset_rows}, date.today().isoformat())
         if new is None:
             print("\nfield_contract.DROPPED already matches — nothing written")
         else:

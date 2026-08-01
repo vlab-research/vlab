@@ -847,6 +847,70 @@ def test_eq_warns_about_undeclared_drop(caplog):
     assert "adopt-probe" in caplog.text
 
 
+def test_update_adset_ignores_server_added_fields_on_the_live_adset():
+    # The reason the desired object must be _eq's first argument: Facebook
+    # decorates what it returns with fields we never set. Compared the other
+    # way round those extras look like differences and every adset is
+    # rewritten forever.
+    common = {
+        "name": "s1",
+        "targeting": {"age_min": 36},
+        "status": "ACTIVE",
+        "daily_budget": 2585,
+        "optimization_goal": "CONVERSATIONS",
+    }
+    live = _adobject(
+        {
+            **common,
+            "daily_budget": "2585",
+            "id": "srv-1",
+            "created_time": "2026-08-01T00:00:00+0000",
+            "targeting": {"age_min": 36, "brand_safety_content_filter_levels": ["X"]},
+        },
+        AdSet,
+    )
+    desired = _adobject(common, AdSet)
+
+    assert update_adset(live, desired) == []
+
+
+def test_update_adset_ignores_empty_values_facebook_elides():
+    # add_audience_targeting always sets custom_audiences, to [] when the study
+    # has none, and Facebook omits the key entirely rather than echoing [].
+    # Asking for nothing and being shown nothing is agreement.
+    live = _adobject({"name": "s1", "targeting": {"age_min": 36}}, AdSet)
+    desired = _adobject(
+        {"name": "s1", "targeting": {"age_min": 36, "custom_audiences": []}}, AdSet
+    )
+
+    assert update_adset(live, desired) == []
+
+
+def test_update_adset_still_applies_a_newly_added_audience():
+    # The other side of that rule: asking for something non-empty and not
+    # seeing it is a real difference. Adding an audience to an adset that has
+    # none must still be applied.
+    # update_adset builds its params from every compared field, so the desired
+    # adset must carry all of them — create_adset always does.
+    base = {
+        "name": "s1",
+        "status": "ACTIVE",
+        "daily_budget": 2585,
+        "optimization_goal": "CONVERSATIONS",
+        "end_time": datetime(2026, 8, 3, 0, 0),
+    }
+    live = _adobject({**base, "targeting": {"age_min": 36}}, AdSet)
+    desired = _adobject(
+        {**base, "targeting": {"age_min": 36, "custom_audiences": [{"id": "aud-1"}]}},
+        AdSet,
+    )
+
+    instructions = update_adset(live, desired)
+
+    assert len(instructions) == 1
+    assert instructions[0].params["targeting"]["custom_audiences"] == [{"id": "aud-1"}]
+
+
 def test_eq_treats_facebook_string_budget_as_equal_to_our_int():
     # Facebook returns daily_budget as a string, create_adset sets an int.
     # Same number, so the adset must not be rewritten. Without normalising,

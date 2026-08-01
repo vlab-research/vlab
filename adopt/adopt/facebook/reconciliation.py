@@ -137,6 +137,18 @@ def _eq(a, b, fields=None, _path="", _subset=None) -> bool:
         if _subset == "a":
             for k, v in a.items():
                 if k not in b:
+                    # Asking for nothing and being shown nothing is agreement.
+                    # Facebook elides empty values rather than echoing them:
+                    # targeting.custom_audiences is always set (to [] when the
+                    # study has no audiences) and never comes back. Requesting
+                    # something non-empty and not seeing it is still a
+                    # difference, so adding an audience is not swallowed here.
+                    if not v:
+                        logger.debug(
+                            f"_eq: {_path}.{k} is empty and absent from source "
+                            "— treated as equal"
+                        )
+                        continue
                     if _declared_drop(f"{_path}.{k}"):
                         continue
                     return False
@@ -189,7 +201,13 @@ def update_adset(source: AdSet, adset: AdSet) -> List[Instruction]:
     # Declared, with rationale, in field_contract.COMPARED_ADSET.
     fields = list(field_contract.COMPARED_ADSET)
 
-    if _eq(source, adset, fields):
+    # (desired, live), the same order as update_ad. _eq treats its first
+    # argument as the authority — everything in it must match the second, and
+    # extras in the second are ignored. Facebook adds server-side defaults we
+    # never set, so the desired object has to come first. This used to be
+    # reversed here, which asked "is everything Facebook returned present in
+    # what we want?" — a different question, and the wrong one.
+    if _eq(adset, source, fields):
         logger.debug(
             f"update_adset: no-op for adset '{_safe_get(adset, 'name')}' "
             f"(id={_safe_get(source, 'id')})"

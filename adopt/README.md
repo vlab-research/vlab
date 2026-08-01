@@ -61,6 +61,11 @@ field, Facebook returns something that does not match, we rewrite, forever:
   These are hand-written, since a normaliser encodes what "the same" means for
   a field and no probe can infer that.
 
+One rule needs no declaration: if we ask for an **empty** value and Facebook
+omits the key, that is agreement, not a difference. Facebook elides empty
+values instead of echoing them. Asking for something non-empty and not seeing
+it is still a difference, so adding an audience is never swallowed.
+
 An **undeclared** nested drop is still treated as a difference, deliberately.
 A real change that must be applied — converting a creative from `photo_data`
 to `link_data`, say — looks identical in the data to a field Facebook silently
@@ -77,9 +82,10 @@ poetry run adopt-probe <study-id-or-name> --update   # rewrite DROPPED
 ```
 
 The probe builds the creative and adset a study's config asks for, fetches the
-live ones, and classifies every field path. It reports ads and adsets
-separately, since they are compared in opposite argument orders — see
-`planning/field-contract.md`. Verdicts:
+live ones, and classifies every field path. Ads and adsets are reported
+separately but compared the same way — desired first, the order `_eq` requires
+so that Facebook's server-added fields are ignored rather than mistaken for
+drift. Verdicts:
 
 | verdict | meaning |
 |---|---|
