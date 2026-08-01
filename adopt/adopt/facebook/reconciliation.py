@@ -2,10 +2,10 @@ import json
 import logging
 from typing import Dict, List, Sequence, Tuple, TypeVar
 
-from facebook_business.adobjects.adcreative import AdCreative
 from facebook_business.adobjects.ad import Ad
 from facebook_business.adobjects.adset import AdSet
 
+from . import field_contract
 from .update import Instruction
 
 logger = logging.getLogger(__name__)
@@ -19,6 +19,30 @@ def _safe_get(obj, key, default="unknown"):
         return default
 
 
+def _declared_drop(path: str) -> bool:
+    """True if field_contract says Facebook never echoes `path` back.
+
+    Anything else gets a warning, because an undeclared drop is what an
+    endless rewrite loop looks like on its first run: we send a field,
+    Facebook omits it from the response, we see a difference, we write again.
+    That loop ran ~360 no-op ad writes a day against one ad account until
+    2026-07-30 and helped trigger `code 17` throttling.
+
+    See planning/field-contract.md for why tolerance has to be declared per
+    field rather than inferred.
+    """
+    if field_contract.is_dropped(path):
+        logger.debug(f"_eq: declared drop at {path} — not compared")
+        return True
+
+    logger.warning(
+        f"_eq: undeclared drop at {path} — we set this field but Facebook did "
+        "not return it. Check with `adopt-probe <study>` and declare it in "
+        "field_contract.DROPPED (or stop sending it)."
+    )
+    return False
+
+
 def _sort_key(x):
     """Stable sort key for any JSON-serialisable value (dicts, lists, scalars)."""
     return json.dumps(x, sort_keys=True, default=str)
@@ -29,6 +53,20 @@ def _eq(a, b, fields=None, _path="", _subset=None) -> bool:
         a, b = a.export_all_data(), b.export_all_data()
     except AttributeError:
         pass
+
+    # Facebook returns some fields in a different representation than we send
+    # (daily_budget as a string, end_time as a tz-offset ISO string). Without
+    # this, those compare unequal on every run and the object is rewritten
+    # forever even when nothing changed. See field_contract.NORMALIZE.
+    normalize = field_contract.normalizer_for(_path)
+    if normalize is not None:
+        try:
+            a, b = normalize(a), normalize(b)
+        except (TypeError, ValueError):
+            logger.warning(
+                f"_eq: normaliser for {_path} could not handle "
+                f"{a!r} / {b!r} — comparing raw values"
+            )
 
     # Lists: sort for order-independent comparison, then compare element-by-
     # element with _subset="both" (intersection mode) so that list elements
@@ -73,10 +111,12 @@ def _eq(a, b, fields=None, _path="", _subset=None) -> bool:
                 if k not in fields:
                     continue
                 if k not in b:
-                    logger.debug(
-                        f"_eq: field '{k}' present in desired but missing from "
-                        f"source (path: {_path}.{k}) — skipping"
-                    )
+                    # Top level stays lenient, as it always has: a whole field
+                    # absent from Facebook's response is not something we can
+                    # act on, and treating it as a difference would rewrite
+                    # the object every run. Still worth a warning if it is not
+                    # a drop we already know about.
+                    _declared_drop(f"{_path}.{k}")
                     continue
                 if not _eq(v, b[k], _path=f"{_path}.{k}", _subset="a"):
                     logger.info(
@@ -89,14 +129,28 @@ def _eq(a, b, fields=None, _path="", _subset=None) -> bool:
         # Subset mode (nested recursion from a field-list call):
         # Compare only keys present in the desired object (a).  Extra keys
         # in the source (b) — server-generated defaults — are ignored.
-        # A key in desired that is missing from source IS a difference.
+        # A key in desired that is missing from source IS a difference, unless
+        # it is declared in field_contract.DROPPED.  It has to work this way:
+        # a real change (photo_data -> link_data) is indistinguishable in the
+        # data from a field Facebook silently drops, so only a declaration can
+        # tell them apart.  See _declared_drop.
         if _subset == "a":
             for k, v in a.items():
                 if k not in b:
-                    logger.info(
-                        f"_eq: key '{k}' in desired but missing from source "
-                        f"(path: {_path}.{k})"
-                    )
+                    # Asking for nothing and being shown nothing is agreement.
+                    # Facebook elides empty values rather than echoing them:
+                    # targeting.custom_audiences is always set (to [] when the
+                    # study has no audiences) and never comes back. Requesting
+                    # something non-empty and not seeing it is still a
+                    # difference, so adding an audience is not swallowed here.
+                    if not v:
+                        logger.debug(
+                            f"_eq: {_path}.{k} is empty and absent from source "
+                            "— treated as equal"
+                        )
+                        continue
+                    if _declared_drop(f"{_path}.{k}"):
+                        continue
                     return False
                 if not _eq(v, b[k], _path=f"{_path}.{k}", _subset="a"):
                     logger.info(
@@ -144,16 +198,16 @@ def _eq(a, b, fields=None, _path="", _subset=None) -> bool:
 
 
 def update_adset(source: AdSet, adset: AdSet) -> List[Instruction]:
-    fields = [
-        AdSet.Field.end_time,
-        AdSet.Field.targeting,
-        AdSet.Field.status,
-        AdSet.Field.daily_budget,
-        AdSet.Field.optimization_goal,
-        AdSet.Field.name,
-    ]
+    # Declared, with rationale, in field_contract.COMPARED_ADSET.
+    fields = list(field_contract.COMPARED_ADSET)
 
-    if _eq(source, adset, fields):
+    # (desired, live), the same order as update_ad. _eq treats its first
+    # argument as the authority — everything in it must match the second, and
+    # extras in the second are ignored. Facebook adds server-side defaults we
+    # never set, so the desired object has to come first. This used to be
+    # reversed here, which asked "is everything Facebook returned present in
+    # what we want?" — a different question, and the wrong one.
+    if _eq(adset, source, fields):
         logger.debug(
             f"update_adset: no-op for adset '{_safe_get(adset, 'name')}' "
             f"(id={_safe_get(source, 'id')})"
@@ -171,16 +225,8 @@ def update_adset(source: AdSet, adset: AdSet) -> List[Instruction]:
 
 def update_ad(source: Ad, ad: Ad) -> List[Instruction]:
 
-    fields = [
-        AdCreative.Field.actor_id,
-        AdCreative.Field.image_crops,
-        AdCreative.Field.asset_feed_spec,
-        AdCreative.Field.degrees_of_freedom_spec,
-        AdCreative.Field.instagram_user_id,
-        AdCreative.Field.object_story_spec,
-        AdCreative.Field.contextual_multi_ads,
-        AdCreative.Field.url_tags,
-    ]
+    # Declared, with rationale, in field_contract.COMPARED_AD.
+    fields = list(field_contract.COMPARED_AD)
 
     if not _eq(ad["creative"], source["creative"], fields):
         logger.warning(

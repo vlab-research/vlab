@@ -1,9 +1,12 @@
+import logging
 from datetime import datetime
 from typing import TypeVar
 
 from facebook_business.adobjects.ad import Ad
+from facebook_business.adobjects.adcreative import AdCreative
 from facebook_business.adobjects.adset import AdSet
 
+from . import field_contract
 from .reconciliation import _eq, ad_dif, adset_dif, update_adset
 from .update import Instruction
 
@@ -813,9 +816,11 @@ def test_eq_still_detects_real_creative_difference_in_subset_mode():
     assert not _eq(desired_creative, source_creative, _CREATIVE_FIELDS)
 
 
-def test_eq_still_detects_missing_key_in_source_in_subset_mode():
-    # In subset mode (nested recursion), a key present in desired but missing
-    # from source is a real difference.
+def test_eq_still_detects_undeclared_key_missing_from_source():
+    # An undeclared key present in desired but missing from source stays a
+    # difference. It has to: a real change (photo_data -> link_data) looks
+    # exactly like a field Facebook silently drops, and only a human can say
+    # which one it is. See test_ad_dif_updates_when_object_story_spec_format_changes.
     source = {
         "page_id": "111",
         "link_data": {"image_hash": "abc123"},
@@ -827,6 +832,251 @@ def test_eq_still_detects_missing_key_in_source_in_subset_mode():
     }
 
     assert not _eq(desired, source, _subset="a")
+
+
+def test_eq_warns_about_undeclared_drop(caplog):
+    # Never silent: an undeclared drop is what an endless rewrite loop looks
+    # like on its first run, so it names itself and the command that fixes it.
+    source = {"link_data": {"image_hash": "abc123"}}
+    desired = {"link_data": {"image_hash": "abc123", "surprise": "new"}}
+
+    with caplog.at_level(logging.WARNING):
+        assert not _eq(desired, source, _subset="a")
+
+    assert "undeclared drop at .link_data.surprise" in caplog.text
+    assert "adopt-probe" in caplog.text
+
+
+def test_update_adset_ignores_server_added_fields_on_the_live_adset():
+    # The reason the desired object must be _eq's first argument: Facebook
+    # decorates what it returns with fields we never set. Compared the other
+    # way round those extras look like differences and every adset is
+    # rewritten forever.
+    common = {
+        "name": "s1",
+        "targeting": {"age_min": 36},
+        "status": "ACTIVE",
+        "daily_budget": 2585,
+        "optimization_goal": "CONVERSATIONS",
+    }
+    live = _adobject(
+        {
+            **common,
+            "daily_budget": "2585",
+            "id": "srv-1",
+            "created_time": "2026-08-01T00:00:00+0000",
+            "targeting": {"age_min": 36, "brand_safety_content_filter_levels": ["X"]},
+        },
+        AdSet,
+    )
+    desired = _adobject(common, AdSet)
+
+    assert update_adset(live, desired) == []
+
+
+def test_update_adset_ignores_empty_values_facebook_elides():
+    # add_audience_targeting always sets custom_audiences, to [] when the study
+    # has none, and Facebook omits the key entirely rather than echoing [].
+    # Asking for nothing and being shown nothing is agreement.
+    live = _adobject({"name": "s1", "targeting": {"age_min": 36}}, AdSet)
+    desired = _adobject(
+        {"name": "s1", "targeting": {"age_min": 36, "custom_audiences": []}}, AdSet
+    )
+
+    assert update_adset(live, desired) == []
+
+
+def test_update_adset_still_applies_a_newly_added_audience():
+    # The other side of that rule: asking for something non-empty and not
+    # seeing it is a real difference. Adding an audience to an adset that has
+    # none must still be applied.
+    # update_adset builds its params from every compared field, so the desired
+    # adset must carry all of them — create_adset always does.
+    base = {
+        "name": "s1",
+        "status": "ACTIVE",
+        "daily_budget": 2585,
+        "optimization_goal": "CONVERSATIONS",
+        "end_time": datetime(2026, 8, 3, 0, 0),
+    }
+    live = _adobject({**base, "targeting": {"age_min": 36}}, AdSet)
+    desired = _adobject(
+        {**base, "targeting": {"age_min": 36, "custom_audiences": [{"id": "aud-1"}]}},
+        AdSet,
+    )
+
+    instructions = update_adset(live, desired)
+
+    assert len(instructions) == 1
+    assert instructions[0].params["targeting"]["custom_audiences"] == [{"id": "aud-1"}]
+
+
+def test_eq_treats_facebook_string_budget_as_equal_to_our_int():
+    # Facebook returns daily_budget as a string, create_adset sets an int.
+    # Same number, so the adset must not be rewritten. Without normalising,
+    # '2585' != 2585 and EVERY adset is rewritten on EVERY run forever.
+    live = _adobject({"name": "s1", "daily_budget": "2585"}, AdSet)
+    desired = _adobject({"name": "s1", "daily_budget": 2585}, AdSet)
+
+    assert _eq(live, desired, ["name", "daily_budget"])
+
+
+def test_eq_still_detects_a_real_budget_change():
+    # Normalising must not blind us to the optimizer actually moving money.
+    live = _adobject({"name": "s1", "daily_budget": "2585"}, AdSet)
+    desired = _adobject({"name": "s1", "daily_budget": 3000}, AdSet)
+
+    assert not _eq(live, desired, ["name", "daily_budget"])
+
+
+def test_eq_treats_equivalent_end_times_as_equal():
+    # Facebook returns an ISO string in the ad account's timezone; create_adset
+    # sets a naive UTC datetime. 02:00+0200 is 00:00 UTC — the same instant.
+    live = _adobject({"name": "s1", "end_time": "2026-08-03T02:00:00+0200"}, AdSet)
+    desired = _adobject({"name": "s1", "end_time": datetime(2026, 8, 3, 0, 0)}, AdSet)
+
+    assert _eq(live, desired, ["name", "end_time"])
+
+
+def test_eq_still_detects_a_real_end_time_change():
+    live = _adobject({"name": "s1", "end_time": "2026-08-03T02:00:00+0200"}, AdSet)
+    desired = _adobject({"name": "s1", "end_time": datetime(2026, 8, 5, 0, 0)}, AdSet)
+
+    assert not _eq(live, desired, ["name", "end_time"])
+
+
+def test_update_adset_no_ops_when_only_representation_differs():
+    # End-to-end: the live adset and the desired one mean the same thing and
+    # differ only in how Facebook renders them. No instruction may be emitted.
+    common = {
+        "name": "gender:men,geography:country",
+        "targeting": {"age_min": 36, "age_max": 65},
+        "status": "ACTIVE",
+        "optimization_goal": "CONVERSATIONS",
+    }
+    live = _adobject(
+        {**common, "daily_budget": "2585", "end_time": "2026-08-03T02:00:00+0200"},
+        AdSet,
+    )
+    desired = _adobject(
+        {**common, "daily_budget": 2585, "end_time": datetime(2026, 8, 3, 0, 0)},
+        AdSet,
+    )
+
+    assert update_adset(live, desired) == []
+
+
+def test_eq_tolerates_a_whole_top_level_field_missing_from_source(caplog):
+    # Deliberate asymmetry with the nested rule above, and long-standing
+    # behaviour: a top-level field absent from Facebook's response is not
+    # something we can act on, so it is skipped rather than rewritten every
+    # run. It still warns when undeclared. See _declared_drop.
+    source = {"actor_id": "111"}
+    desired = {"actor_id": "111", "url_tags": "ref=foo"}
+
+    with caplog.at_level(logging.WARNING):
+        assert _eq(desired, source, _CREATIVE_FIELDS)
+
+    assert "undeclared drop at .url_tags" in caplog.text
+
+
+def test_eq_declared_drop_is_not_a_difference():
+    # The production case: we send image_text_translation, Facebook returns
+    # ~82 creative_features_spec keys and never that one. Declared, so equal.
+    source = {
+        "degrees_of_freedom_spec": {
+            "creative_features_spec": {
+                "standard_enhancements": {"enroll_status": "OPT_OUT"},
+            }
+        }
+    }
+    desired = {
+        "degrees_of_freedom_spec": {
+            "creative_features_spec": {
+                "image_text_translation": {"enroll_status": "OPT_IN"},
+            }
+        }
+    }
+
+    assert _eq(desired, source, _CREATIVE_FIELDS)
+
+
+def test_eq_declared_drop_does_not_warn(caplog):
+    # The real production case: image_text_translation is declared in
+    # field_contract.DROPPED, so it is expected and stays quiet.
+    path = "degrees_of_freedom_spec.creative_features_spec.image_text_translation"
+    assert path in field_contract.DROPPED, "fixture depends on this declaration"
+
+    source = {
+        "degrees_of_freedom_spec": {
+            "creative_features_spec": {
+                "standard_enhancements": {"enroll_status": "OPT_OUT"},
+            }
+        }
+    }
+    desired = {
+        "degrees_of_freedom_spec": {
+            "creative_features_spec": {
+                "image_text_translation": {"enroll_status": "OPT_IN"},
+            }
+        }
+    }
+
+    with caplog.at_level(logging.WARNING):
+        assert _eq(desired, source, _CREATIVE_FIELDS)
+
+    assert "undeclared drop" not in caplog.text
+
+
+def test_ad_dif_converges_when_facebook_drops_a_declared_field():
+    # End-to-end version of the production bug: the ONLY difference between
+    # desired and live is a field Facebook never echoes back. This must
+    # produce no instruction at all, otherwise the ad is rewritten every run.
+    creative = {
+        "name": "Ad1",
+        "actor_id": "111",
+        "url_tags": "ref=creative.Ad1.form.hpvintrotriple",
+        "object_story_spec": {"page_id": "111"},
+    }
+
+    live_creative = {
+        **creative,
+        "degrees_of_freedom_spec": {
+            "creative_features_spec": {
+                # Facebook's own defaults, minus the key we sent.
+                "standard_enhancements": {"enroll_status": "OPT_OUT"},
+                "text_generation": {"enroll_status": "OPT_OUT"},
+            }
+        },
+    }
+
+    desired_creative = {
+        **creative,
+        "degrees_of_freedom_spec": {
+            "creative_features_spec": {
+                "image_text_translation": {"enroll_status": "OPT_IN"},
+            }
+        },
+    }
+
+    source = _adobject(
+        {"id": "1", "name": "Ad1", "status": "ACTIVE", "creative": live_creative}, Ad
+    )
+    desired = _adobject(
+        {"name": "Ad1", "status": "ACTIVE", "creative": desired_creative}, Ad
+    )
+
+    assert ad_dif("adset-1", [source], [desired]) == []
+
+
+def test_contract_field_names_match_the_facebook_sdk():
+    # The contract keys are plain strings; make sure they are the real field
+    # names the SDK uses, so a typo cannot silently drop a field from
+    # comparison altogether.
+    for f in field_contract.COMPARED_AD:
+        assert hasattr(AdCreative.Field, f), f
+    for f in field_contract.COMPARED_ADSET:
+        assert hasattr(AdSet.Field, f), f
 
 
 # ---------------------------------------------------------------------------
