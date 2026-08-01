@@ -32,6 +32,34 @@ Two things made it invisible for so long:
 - The writes all succeeded. Nothing errored, no alert fired. The only visible
   symptom was Facebook throttling reads on an unrelated study later in the run.
 
+## It was six fields, not one
+
+The first diagnosis came from diffing a single `_eq: mismatch` log line, which
+showed exactly one key missing — `image_text_translation`. Running the probe
+against all 60 live ads found five more:
+
+| field | ads sending it that Facebook dropped |
+|---|---|
+| `image_text_translation` | 30/30 |
+| `image_animation` | 3/30 |
+| `image_brightness_and_contrast` | 3/30 |
+| `image_templates` | 3/30 |
+| `image_touchups` | 3/30 |
+| `text_optimizations` | 3/30 |
+
+Re-parsing every mismatch line in the captured production log confirmed the
+same six. The study has two creative variants with different
+`creative_features_spec` templates (15 and 16 keys), and only the larger one
+carries the extra five.
+
+Declaring just `image_text_translation` would have fixed 27 ads and left 3
+rewriting forever — a quieter version of the same bug, and one that would have
+looked fixed on any dashboard counting total writes.
+
+The lesson is in the tooling, not the diagnosis: one log line is a sample, and
+a sample cannot tell you the shape of the whole. That is what `adopt-probe`
+is for.
+
 ## The fix
 
 `adopt/facebook/field_contract.py` declares:
@@ -90,6 +118,17 @@ exits non-zero while the contract and Facebook disagree.
 The probe reuses the real code path — `pair_creatives_with_destinations` then
 `create_creative` — so what it compares is what the cron would actually
 publish, not a reimplementation that can drift.
+
+## Verified against live Facebook
+
+`adopt-probe "OWIS Nigeria Study"` was run against production on 2026-08-01
+(read-only, via a port-forward to the prod database). It compared 46 field
+paths across all 60 live ads, found the six drops above, and after `--update`
+reports `contract matches live Facebook behaviour` and exits 0.
+
+That run also caught a bug the unit tests could not: `db.query` is a
+generator, so `resolve_study_id`'s `if rows:` was always truthy and passed the
+study *name* through as if it were an id. Fixture-based tests never touch it.
 
 ## What this does not cover
 

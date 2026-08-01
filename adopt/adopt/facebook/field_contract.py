@@ -65,9 +65,29 @@ COMPARED_ADSET: Dict[str, str] = {
 #
 # BEGIN DROPPED (managed by adopt-probe)
 DROPPED: Dict[str, str] = {
+    "degrees_of_freedom_spec.creative_features_spec.image_animation": (
+        "Sent by adopt, absent from Facebook's response. Confirmed live 2026-08-01 "
+        "by adopt-probe."
+    ),
+    "degrees_of_freedom_spec.creative_features_spec.image_brightness_and_contrast": (
+        "Sent by adopt, absent from Facebook's response. Confirmed live 2026-08-01 "
+        "by adopt-probe."
+    ),
+    "degrees_of_freedom_spec.creative_features_spec.image_templates": (
+        "Sent by adopt, absent from Facebook's response. Confirmed live 2026-08-01 "
+        "by adopt-probe."
+    ),
     "degrees_of_freedom_spec.creative_features_spec.image_text_translation": (
         "We send enroll_status OPT_IN; Facebook returns ~82 creative_features_spec "
         "keys and this is never among them. Confirmed live 2026-07-30."
+    ),
+    "degrees_of_freedom_spec.creative_features_spec.image_touchups": (
+        "Sent by adopt, absent from Facebook's response. Confirmed live 2026-08-01 "
+        "by adopt-probe."
+    ),
+    "degrees_of_freedom_spec.creative_features_spec.text_optimizations": (
+        "Sent by adopt, absent from Facebook's response. Confirmed live 2026-08-01 "
+        "by adopt-probe."
     ),
 }
 # END DROPPED (managed by adopt-probe)

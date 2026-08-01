@@ -104,13 +104,20 @@ def _walk(want: Any, got: Any, path: str) -> List[Tuple[str, str, Any, Any]]:
     return [(path, OK if want == got else DIFFERS, want, got)]
 
 
-def probe_study(study: StudyConf, state: FacebookState) -> List[Tuple[str, str, Any, Any]]:
-    """Classify every compared field across every live ad in the study."""
+def probe_study(
+    study: StudyConf, state: FacebookState
+) -> Tuple[List[Tuple[str, str, Any, Any]], int]:
+    """Classify every compared field across every live ad in the study.
+
+    Returns the findings and how many ads were actually compared — a report
+    over 3 ads and one over 300 deserve different amounts of trust.
+    """
     strata = hydrate_strata(state, study.strata, study.creatives)
     by_id = {s.id: s for s in strata}
     fields = list(field_contract.COMPARED_AD)
 
     findings: List[Tuple[str, str, Any, Any]] = []
+    ads_compared = 0
 
     for campaign_name in study.campaign_names:
         try:
@@ -136,8 +143,9 @@ def probe_study(study: StudyConf, state: FacebookState) -> List[Tuple[str, str, 
                 if want is None or "creative" not in a:
                     continue
                 findings.extend(classify(want, a["creative"], fields))
+                ads_compared += 1
 
-    return findings
+    return findings, ads_compared
 
 
 def summarise(findings) -> Dict[str, Dict[str, Any]]:
@@ -176,7 +184,7 @@ def summarise(findings) -> Dict[str, Dict[str, Any]]:
     return rows
 
 
-def render(rows: Dict[str, Dict[str, Any]]) -> str:
+def render(rows: Dict[str, Dict[str, Any]], ads_compared: int = 0) -> str:
     undeclared = sorted(
         p for p, r in rows.items() if r["verdict"] == DROPPED and not r["declared_dropped"]
     )
@@ -188,7 +196,7 @@ def render(rows: Dict[str, Dict[str, Any]]) -> str:
     ok = sorted(p for p, r in rows.items() if r["verdict"] == OK)
 
     out = []
-    out.append(f"compared {len(rows)} field paths across live ads\n")
+    out.append(f"compared {len(rows)} field paths across {ads_compared} live ads\n")
 
     if undeclared:
         out.append("UNDECLARED DROPS — these cause a rewrite every run:")
@@ -282,11 +290,13 @@ def resolve_study_id(db_conf, ident: str) -> str:
     """Accept either a study id or a study name."""
     from ..db import query  # local import: keeps module import cheap for tests
 
-    rows = query(db_conf, "select id from studies where id::text = %s", [ident])
+    # db.query is a generator — materialise it, or every check below is
+    # truthy and the name gets passed through as if it were an id.
+    rows = list(query(db_conf, "select id from studies where id::text = %s", [ident]))
     if rows:
         return ident
 
-    rows = query(db_conf, "select id from studies where name = %s", [ident])
+    rows = list(query(db_conf, "select id from studies where name = %s", [ident]))
     if not rows:
         raise SystemExit(f"no study with id or name {ident!r}")
     if len(rows) > 1:
@@ -315,7 +325,7 @@ def main(argv: Optional[List[str]] = None) -> int:
     study_id = resolve_study_id(db_conf, args.study)
     study, state = load_basics(study_id, db_conf, env)
 
-    findings = probe_study(study, state)
+    findings, ads_compared = probe_study(study, state)
     if not findings:
         print("no live ads matched this study's config — nothing to compare")
         return 0
@@ -331,7 +341,7 @@ def main(argv: Optional[List[str]] = None) -> int:
             )
         )
     else:
-        print(render(rows))
+        print(render(rows, ads_compared))
 
     if args.update:
         new = update_contract(rows, date.today().isoformat())
