@@ -119,23 +119,83 @@ The probe reuses the real code path — `pair_creatives_with_destinations` then
 `create_creative` — so what it compares is what the cron would actually
 publish, not a reimplementation that can drift.
 
+## The adsets were worse
+
+Extending the probe to adsets found a second, independent loop — and a
+deterministic one. Feeding the live adset's own budget back in as the desired
+budget, so the optimizer's intended change could not mask anything, an adset
+*still* compared unequal on every field that matters:
+
+| field | Facebook returns | adopt sends |
+|---|---|---|
+| `daily_budget` | `'2585'` (str) | `2585` (int) |
+| `end_time` | `'2026-08-03T02:00:00+0200'` (str) | `datetime(2026, 8, 3, 0, 0)` (naive) |
+
+Same number. Same instant. Different types, so `==` is False forever. Unlike
+the ad case, which needed a particular creative template to trigger, this hits
+**every adset on every run unconditionally** — 6 for OWIS plus 2 for Girl
+Effect, every two hours, whether or not anything changed.
+
+`field_contract.NORMALIZE` fixes this: a per-path function that canonicalises
+both sides before comparison. `daily_budget` through `int`, `end_time` to a UTC
+instant. Genuine changes still register — `int('2585') != int(3000)` — which is
+what `test_eq_still_detects_a_real_budget_change` guards.
+
+Normalisers are hand-written, not probe-generated. A normaliser encodes what
+"the same" *means* for a field, and no amount of sampling live data can infer
+that.
+
+## Two things to be careful of near this code
+
+**The argument order is reversed between the two callers.** `update_ad` calls
+`_eq(desired, live)`; `update_adset` calls `_eq(live, desired)`. Since `_eq`
+walks the *first* argument's keys and tolerates extras in the second, the two
+paths do genuinely different things. It also makes the log messages misleading
+on the adset path — `desired=` there is actually the live value. `probe_adsets`
+deliberately mirrors the production order so a clean report means the
+reconciler really will no-op. Worth unifying, but it is a behaviour change to
+reconciliation and deserves its own verification.
+
+**`hydrate_strata` mutates the strata it is given.** It appends to
+`excluded_custom_audiences` in place, so calling it twice in one process
+duplicates entries. The probe hit this immediately — hydrating separately for
+ads and adsets invented a difference that did not exist — and now hydrates once
+and shares. Anything calling it more than once per process will see phantom
+targeting drift.
+
 ## Verified against live Facebook
 
 `adopt-probe "OWIS Nigeria Study"` was run against production on 2026-08-01
-(read-only, via a port-forward to the prod database). It compared 46 field
-paths across all 60 live ads, found the six drops above, and after `--update`
-reports `contract matches live Facebook behaviour` and exits 0.
+(read-only, via a port-forward to the prod database):
 
-That run also caught a bug the unit tests could not: `db.query` is a
-generator, so `resolve_study_id`'s `if rows:` was always truthy and passed the
-study *name* through as if it were an id. Fixture-based tests never touch it.
+```
+ADS      compared 46 field paths across 60 live ads   -> 6 declared drops, 40 clean
+ADSETS   compared 13 field paths across 6 live adsets -> 13 clean
+contract matches live Facebook behaviour.             (exit 0)
+```
+
+Running it against production caught three things no fixture-based test could:
+
+- `db.query` is a generator, so `resolve_study_id`'s `if rows:` was always
+  truthy and passed the study *name* through as if it were an id.
+- Hydrating strata separately for ads and adsets duplicated audience
+  exclusions and invented a targeting difference.
+- The probe's own list comparison was stricter than `_eq`'s, flagging reordered
+  audience refs that the reconciler ignores. `_walk` now delegates lists and
+  scalars to `_eq` itself rather than reimplementing them.
+
+The last one is the general lesson: anywhere the probe reimplements comparison
+logic, it can disagree with the thing it is meant to be checking. Delegate.
 
 ## What this does not cover
 
-- Only ads are probed today. Adset fields are declared in `COMPARED_ADSET` but
-  the probe does not fetch and classify live adsets yet.
-- The contract is a flat path namespace shared by ads and adsets. If a path
-  ever collides between them, it needs splitting per object type.
-- `daily_budget` legitimately differs on most runs (the optimizer moves it).
-  The probe reports that as `differs`, which is correct but noisy — it is a
-  real, intended, once-per-run change rather than drift.
+- The contract is a flat path namespace shared by ads and adsets. `daily_budget`
+  and `end_time` happen to be adset-only, but a path that means different things
+  on the two object types would need the namespace split.
+- The probe feeds the live budget and status back in as the desired ones, so it
+  says nothing about whether the optimizer's current budget is correct. It
+  answers "does this round-trip", not "is this up to date".
+- `targeting.custom_audiences` is sent by adopt (as `[]`) and never returned by
+  Facebook. Invisible today because the adset path walks the live object's keys,
+  so it is never examined — but it would surface immediately if the argument
+  order above were unified.

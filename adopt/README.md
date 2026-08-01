@@ -48,11 +48,18 @@ says they should be, and rewrites anything that drifted. What gets compared is
 declared in **`adopt/facebook/field_contract.py`** — one dict per object type,
 each field with a sentence saying why we care about it.
 
-The subtle part is that Facebook does not echo everything back. Some fields it
-accepts on write and simply omits from the response. Comparing such a field is
-a trap: we send it, Facebook drops it, we see a difference, we rewrite — every
-run, forever. `field_contract.DROPPED` is the list of fields known to behave
-this way, and those are excluded from comparison.
+The subtle part is that Facebook does not echo everything back the way we sent
+it. Two things go wrong, and both cause an endless rewrite loop — we send a
+field, Facebook returns something that does not match, we rewrite, forever:
+
+- **`DROPPED`** — fields Facebook accepts on write and simply omits from the
+  response. Excluded from comparison.
+- **`NORMALIZE`** — fields Facebook returns in a different representation than
+  we send: `daily_budget` comes back as a string where we set an int,
+  `end_time` as a tz-offset ISO string where we set a naive datetime. Same
+  value, so `==` is False forever. Each entry canonicalises both sides first.
+  These are hand-written, since a normaliser encodes what "the same" means for
+  a field and no probe can infer that.
 
 An **undeclared** nested drop is still treated as a difference, deliberately.
 A real change that must be applied — converting a creative from `photo_data`
@@ -69,8 +76,10 @@ poetry run adopt-probe <study-id-or-name>            # read-only report
 poetry run adopt-probe <study-id-or-name> --update   # rewrite DROPPED
 ```
 
-The probe builds the creative a study's config asks for, fetches the live ad,
-and classifies every field path:
+The probe builds the creative and adset a study's config asks for, fetches the
+live ones, and classifies every field path. It reports ads and adsets
+separately, since they are compared in opposite argument orders — see
+`planning/field-contract.md`. Verdicts:
 
 | verdict | meaning |
 |---|---|

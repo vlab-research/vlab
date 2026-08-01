@@ -32,9 +32,16 @@ from typing import Any, Dict, List, Optional, Tuple
 from environs import Env
 
 from ..malaria import hydrate_strata, load_basics
-from ..marketing import create_creative, pair_creatives_with_destinations
-from ..study_conf import StudyConf
+from ..marketing import (
+    ADSET_HOURS,
+    AdsetConf,
+    create_adset,
+    create_creative,
+    pair_creatives_with_destinations,
+)
+from ..study_conf import AppDestination, StudyConf
 from . import field_contract
+from .reconciliation import _eq
 from .state import FacebookState
 
 logger = logging.getLogger(__name__)
@@ -85,6 +92,15 @@ def classify(
 def _walk(want: Any, got: Any, path: str) -> List[Tuple[str, str, Any, Any]]:
     want, got = _unwrap(want), _unwrap(got)
 
+    # Mirror _eq: canonicalise representations before comparing, or the probe
+    # reports differences the reconciler does not act on.
+    normalize = field_contract.normalizer_for(path)
+    if normalize is not None:
+        try:
+            want, got = normalize(want), normalize(got)
+        except (TypeError, ValueError):
+            pass
+
     if isinstance(want, dict) and isinstance(got, dict):
         out: List[Tuple[str, str, Any, Any]] = []
         for k, v in want.items():
@@ -94,25 +110,27 @@ def _walk(want: Any, got: Any, path: str) -> List[Tuple[str, str, Any, Any]]:
             out.extend(_walk(v, got[k], f"{path}.{k}"))
         return out
 
-    # Lists and scalars are compared whole. Facebook reorders lists, so sort
-    # them the same way _eq does before comparing.
-    if isinstance(want, list) and isinstance(got, list):
-        key = lambda x: json.dumps(x, sort_keys=True, default=str)  # noqa: E731
-        same = len(want) == len(got) and sorted(want, key=key) == sorted(got, key=key)
-        return [(path, OK if same else DIFFERS, want, got)]
-
-    return [(path, OK if want == got else DIFFERS, want, got)]
+    # Lists and scalars are compared by _eq itself rather than reimplemented
+    # here. Its list handling is subtle — sorted for order-independence, then
+    # element dicts compared on shared keys only, because Facebook reorders
+    # audience refs and strips `name` from some entries. A second
+    # implementation would drift from it and report differences the reconciler
+    # never acts on.
+    return [(path, OK if _eq(want, got, _path=path) else DIFFERS, want, got)]
 
 
 def probe_study(
-    study: StudyConf, state: FacebookState
+    study: StudyConf, state: FacebookState, strata
 ) -> Tuple[List[Tuple[str, str, Any, Any]], int]:
     """Classify every compared field across every live ad in the study.
 
     Returns the findings and how many ads were actually compared — a report
     over 3 ads and one over 300 deserve different amounts of trust.
+
+    `strata` is passed in rather than hydrated here: hydrate_strata appends to
+    the stratum's excluded_custom_audiences in place, so calling it twice in
+    one process duplicates entries and invents differences that do not exist.
     """
-    strata = hydrate_strata(state, study.strata, study.creatives)
     by_id = {s.id: s for s in strata}
     fields = list(field_contract.COMPARED_AD)
 
@@ -146,6 +164,69 @@ def probe_study(
                 ads_compared += 1
 
     return findings, ads_compared
+
+
+def probe_adsets(
+    study: StudyConf, state: FacebookState, strata
+) -> Tuple[List[Tuple[str, str, Any, Any]], int]:
+    """Classify every compared field across every live adset in the study.
+
+    Compared in the same argument order `update_adset` uses — `_eq(live,
+    desired)` — so a clean report means the reconciler really will no-op.
+    Note that this is the reverse of the ad path, which compares
+    `_eq(desired, live)`.
+
+    The live adset's budget and status are fed back in as the desired ones.
+    The optimizer moves the budget every run by design; that is an intended
+    change, not drift, and leaving it in would bury the representation
+    problems this is looking for.
+    """
+    by_id = {s.id: s for s in strata}
+    fields = list(field_contract.COMPARED_ADSET)
+
+    findings: List[Tuple[str, str, Any, Any]] = []
+    adsets_compared = 0
+
+    for campaign_name in study.campaign_names:
+        try:
+            cs = state.campaign_state(campaign_name)
+            live_adsets = cs.campaign_state
+        except Exception as e:
+            logger.warning(f"skipping campaign {campaign_name}: {e}")
+            continue
+
+        for live, _ads in live_adsets:
+            data = _unwrap(live)
+            stratum = by_id.get(data.get("name"))
+            if stratum is None:
+                continue
+
+            pairs = pair_creatives_with_destinations(study, stratum, campaign_name)
+            promoted_object = None
+            if pairs and isinstance(pairs[0][1], AppDestination):
+                d = pairs[0][1]
+                promoted_object = {
+                    "application_id": d.facebook_app_id,
+                    "object_store_url": d.app_install_link,
+                }
+
+            desired = create_adset(
+                AdsetConf(
+                    cs.campaign,
+                    stratum,
+                    int(data.get("daily_budget") or 0),
+                    data.get("status", "ACTIVE"),
+                    ADSET_HOURS,
+                    study.recruitment.optimization_goal,
+                    study.recruitment.destination_type,
+                    promoted_object,
+                )
+            )
+
+            findings.extend(classify(live, desired, fields))
+            adsets_compared += 1
+
+    return findings, adsets_compared
 
 
 def summarise(findings) -> Dict[str, Dict[str, Any]]:
@@ -184,7 +265,12 @@ def summarise(findings) -> Dict[str, Dict[str, Any]]:
     return rows
 
 
-def render(rows: Dict[str, Dict[str, Any]], ads_compared: int = 0) -> str:
+def render(
+    rows: Dict[str, Dict[str, Any]],
+    ads_compared: int = 0,
+    what: str = "live ads",
+    missing_label: str = "UNDECLARED DROPS — these cause a rewrite every run:",
+) -> str:
     undeclared = sorted(
         p for p, r in rows.items() if r["verdict"] == DROPPED and not r["declared_dropped"]
     )
@@ -196,10 +282,10 @@ def render(rows: Dict[str, Dict[str, Any]], ads_compared: int = 0) -> str:
     ok = sorted(p for p, r in rows.items() if r["verdict"] == OK)
 
     out = []
-    out.append(f"compared {len(rows)} field paths across {ads_compared} live ads\n")
+    out.append(f"compared {len(rows)} field paths across {ads_compared} {what}\n")
 
     if undeclared:
-        out.append("UNDECLARED DROPS — these cause a rewrite every run:")
+        out.append(missing_label)
         for p in undeclared:
             out.append(f"  {p}  ({rows[p]['hits']}/{rows[p]['ads']} ads)")
         out.append("  declare them with --update, or stop sending them\n")
@@ -325,37 +411,69 @@ def main(argv: Optional[List[str]] = None) -> int:
     study_id = resolve_study_id(db_conf, args.study)
     study, state = load_basics(study_id, db_conf, env)
 
-    findings, ads_compared = probe_study(study, state)
-    if not findings:
-        print("no live ads matched this study's config — nothing to compare")
+    # Hydrated once and shared: hydrate_strata mutates the strata it is given.
+    strata = hydrate_strata(state, study.strata, study.creatives)
+
+    ad_findings, ads_compared = probe_study(study, state, strata)
+    adset_findings, adsets_compared = probe_adsets(study, state, strata)
+
+    if not ad_findings and not adset_findings:
+        print("no live ads or adsets matched this study's config — nothing to compare")
         return 0
 
-    rows = summarise(findings)
+    ad_rows = summarise(ad_findings)
+    adset_rows = summarise(adset_findings)
 
     if args.json:
         print(
             json.dumps(
-                {p: {k: v for k, v in r.items() if k != "example"} for p, r in rows.items()},
+                {
+                    "ads": _jsonable(ad_rows),
+                    "adsets": _jsonable(adset_rows),
+                },
                 indent=2,
                 sort_keys=True,
             )
         )
     else:
-        print(render(rows, ads_compared))
+        print("ADS")
+        print(render(ad_rows, ads_compared))
+        print("\nADSETS")
+        print(
+            render(
+                adset_rows,
+                adsets_compared,
+                what="live adsets",
+                # Adsets are compared _eq(live, desired), so a key missing here
+                # is one Facebook returns and we never send — the mirror image
+                # of the ad case.
+                missing_label="RETURNED BY FACEBOOK, NEVER SENT BY US:",
+            )
+        )
 
     if args.update:
-        new = update_contract(rows, date.today().isoformat())
+        # Only the ad direction feeds DROPPED: there "missing" means Facebook
+        # did not echo what we sent, which is what DROPPED declares. The adset
+        # direction means the opposite and must be read by a human.
+        new = update_contract(ad_rows, date.today().isoformat())
         if new is None:
             print("\nfield_contract.DROPPED already matches — nothing written")
         else:
             CONTRACT_PATH.write_text(new)
             print(f"\nwrote {CONTRACT_PATH} — review the diff")
 
-    dirty = any(
-        r["verdict"] == DROPPED and not r["declared_dropped"] or r["verdict"] == "stale"
-        for r in rows.values()
-    )
+    def _dirty(rows):
+        return any(
+            r["verdict"] == DROPPED and not r["declared_dropped"] or r["verdict"] == "stale"
+            for r in rows.values()
+        )
+
+    dirty = _dirty(ad_rows) or _dirty(adset_rows)
     return 1 if dirty and not args.update else 0
+
+
+def _jsonable(rows: Dict[str, Dict[str, Any]]) -> Dict[str, Dict[str, Any]]:
+    return {p: {k: v for k, v in r.items() if k != "example"} for p, r in rows.items()}
 
 
 if __name__ == "__main__":

@@ -847,6 +847,61 @@ def test_eq_warns_about_undeclared_drop(caplog):
     assert "adopt-probe" in caplog.text
 
 
+def test_eq_treats_facebook_string_budget_as_equal_to_our_int():
+    # Facebook returns daily_budget as a string, create_adset sets an int.
+    # Same number, so the adset must not be rewritten. Without normalising,
+    # '2585' != 2585 and EVERY adset is rewritten on EVERY run forever.
+    live = _adobject({"name": "s1", "daily_budget": "2585"}, AdSet)
+    desired = _adobject({"name": "s1", "daily_budget": 2585}, AdSet)
+
+    assert _eq(live, desired, ["name", "daily_budget"])
+
+
+def test_eq_still_detects_a_real_budget_change():
+    # Normalising must not blind us to the optimizer actually moving money.
+    live = _adobject({"name": "s1", "daily_budget": "2585"}, AdSet)
+    desired = _adobject({"name": "s1", "daily_budget": 3000}, AdSet)
+
+    assert not _eq(live, desired, ["name", "daily_budget"])
+
+
+def test_eq_treats_equivalent_end_times_as_equal():
+    # Facebook returns an ISO string in the ad account's timezone; create_adset
+    # sets a naive UTC datetime. 02:00+0200 is 00:00 UTC — the same instant.
+    live = _adobject({"name": "s1", "end_time": "2026-08-03T02:00:00+0200"}, AdSet)
+    desired = _adobject({"name": "s1", "end_time": datetime(2026, 8, 3, 0, 0)}, AdSet)
+
+    assert _eq(live, desired, ["name", "end_time"])
+
+
+def test_eq_still_detects_a_real_end_time_change():
+    live = _adobject({"name": "s1", "end_time": "2026-08-03T02:00:00+0200"}, AdSet)
+    desired = _adobject({"name": "s1", "end_time": datetime(2026, 8, 5, 0, 0)}, AdSet)
+
+    assert not _eq(live, desired, ["name", "end_time"])
+
+
+def test_update_adset_no_ops_when_only_representation_differs():
+    # End-to-end: the live adset and the desired one mean the same thing and
+    # differ only in how Facebook renders them. No instruction may be emitted.
+    common = {
+        "name": "gender:men,geography:country",
+        "targeting": {"age_min": 36, "age_max": 65},
+        "status": "ACTIVE",
+        "optimization_goal": "CONVERSATIONS",
+    }
+    live = _adobject(
+        {**common, "daily_budget": "2585", "end_time": "2026-08-03T02:00:00+0200"},
+        AdSet,
+    )
+    desired = _adobject(
+        {**common, "daily_budget": 2585, "end_time": datetime(2026, 8, 3, 0, 0)},
+        AdSet,
+    )
+
+    assert update_adset(live, desired) == []
+
+
 def test_eq_tolerates_a_whole_top_level_field_missing_from_source(caplog):
     # Deliberate asymmetry with the nested rule above, and long-standing
     # behaviour: a top-level field absent from Facebook's response is not

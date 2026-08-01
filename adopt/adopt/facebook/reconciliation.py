@@ -54,6 +54,20 @@ def _eq(a, b, fields=None, _path="", _subset=None) -> bool:
     except AttributeError:
         pass
 
+    # Facebook returns some fields in a different representation than we send
+    # (daily_budget as a string, end_time as a tz-offset ISO string). Without
+    # this, those compare unequal on every run and the object is rewritten
+    # forever even when nothing changed. See field_contract.NORMALIZE.
+    normalize = field_contract.normalizer_for(_path)
+    if normalize is not None:
+        try:
+            a, b = normalize(a), normalize(b)
+        except (TypeError, ValueError):
+            logger.warning(
+                f"_eq: normaliser for {_path} could not handle "
+                f"{a!r} / {b!r} — comparing raw values"
+            )
+
     # Lists: sort for order-independent comparison, then compare element-by-
     # element with _subset="both" (intersection mode) so that list elements
     # like audience refs {id, name} are compared only on keys both sides

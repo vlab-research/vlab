@@ -15,7 +15,8 @@ Keep this file honest with `adopt-probe`, which compares these declarations
 against live ads and tells you what changed.
 """
 
-from typing import Dict
+from datetime import datetime, timezone
+from typing import Any, Callable, Dict
 
 # Ad creative fields we compare. The ad's referral `ref` — which decides
 # which survey a respondent enters — lives in three of them, so drift here
@@ -91,6 +92,47 @@ DROPPED: Dict[str, str] = {
     ),
 }
 # END DROPPED (managed by adopt-probe)
+
+
+# Fields Facebook returns in a different representation than we send.
+#
+# Same meaning, different type — so a plain `==` is always False and the object
+# is rewritten every run even when nothing changed. Each entry canonicalises
+# both sides before they are compared.
+#
+# Unlike DROPPED, these are hand-written: a normaliser is a decision about what
+# "the same" means for a field, which is not something a probe can infer.
+NORMALIZE: Dict[str, Callable[[Any], Any]] = {
+    "daily_budget": lambda v: int(v),
+    "end_time": lambda v: _as_instant(v),
+}
+
+
+def _as_instant(v: Any) -> Any:
+    """Reduce a Facebook timestamp and ours to the same comparable moment.
+
+    create_adset sets a naive UTC datetime; Facebook returns an ISO string in
+    the ad account's timezone ('2026-08-03T02:00:00+0200'). Those are the same
+    instant and must compare equal. Python 3.10's fromisoformat cannot parse a
+    '+0200' offset without a colon, hence strptime.
+    """
+    if isinstance(v, str):
+        try:
+            v = datetime.strptime(v, "%Y-%m-%dT%H:%M:%S%z")
+        except ValueError:
+            return v
+
+    if isinstance(v, datetime):
+        if v.tzinfo is None:
+            v = v.replace(tzinfo=timezone.utc)
+        return v.astimezone(timezone.utc).timestamp()
+
+    return v
+
+
+def normalizer_for(path: str):
+    """The normaliser for `path`, or None. Paths may carry a leading dot."""
+    return NORMALIZE.get(path.lstrip("."))
 
 
 def is_dropped(path: str) -> bool:
