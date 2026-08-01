@@ -281,13 +281,16 @@ def render(
     stale = sorted(p for p, r in rows.items() if r["verdict"] == "stale")
     ok = sorted(p for p, r in rows.items() if r["verdict"] == OK)
 
+    # "live adsets" -> "adsets", so adset findings are not counted in "ads".
+    unit = what.split()[-1]
+
     out = []
     out.append(f"compared {len(rows)} field paths across {ads_compared} {what}\n")
 
     if undeclared:
         out.append(missing_label)
         for p in undeclared:
-            out.append(f"  {p}  ({rows[p]['hits']}/{rows[p]['ads']} ads)")
+            out.append(f"  {p}  ({rows[p]['hits']}/{rows[p]['ads']} {unit})")
         out.append("  declare them with --update, or stop sending them\n")
 
     if differs:

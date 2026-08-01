@@ -216,6 +216,52 @@ Running it against production caught three things no fixture-based test could:
 The last one is the general lesson: anywhere the probe reimplements comparison
 logic, it can disagree with the thing it is meant to be checking. Delegate.
 
+## What probing 45 studies found
+
+Run read-only on 2026-08-01 across every study with an end date in the previous
+twelve months: 2 active, 43 historical. 42 of the 43 historical studies were
+reachable — no expired tokens anywhere, including a study that ended a year
+earlier. Probing old studies works. No rate limiting was hit in 45 sequential
+runs.
+
+**Only the two active studies came back clean.** Everything else showed at
+least one difference, and neither category is a contract problem:
+
+### `.targeting.targeting_automation` is not a drop — do not declare it
+
+It appeared as an undeclared drop in 26 studies, every one ending 2026-02-26 or
+earlier, and in none from 2026-04-10 onward. That boundary is the point:
+`create_adset` now forces `targeting_automation = {"advantage_audience": 0}` on
+every adset unconditionally. Adsets built before that policy simply do not have
+the field set on Facebook's side.
+
+So this is a **real difference that should be applied once**, not a field
+Facebook refuses to echo. The live adsets of both active studies *do* carry
+`targeting_automation`, which is exactly what proves it round-trips: once
+written, Facebook returns it, and the comparison converges.
+
+Declaring it in DROPPED would have been a bad mistake — a DROPPED path is
+skipped whenever it is missing from the live object, so we would permanently
+stop applying "Advantage+ Audience off" to any adset that lacks it. That is a
+real targeting setting on real spend. This is the same shape as the
+photo_data → link_data case: a genuine change wearing the costume of a drop.
+
+It also costs nothing today. All 26 studies are inactive, and `get_active_studies`
+means the cron never touches them.
+
+### `end_time` always differs on inactive studies, by construction
+
+`create_adset` sets `end_time` to *today's* midnight plus `ADSET_HOURS` (48), a
+rolling window pushed forward on every run. An inactive study's live adsets are
+frozen wherever the cron last left them, so the desired value is always "two
+days from now" and the live one is always older. 34 studies showed this, all
+with an identical `want` regardless of study age.
+
+Nothing is wrong. It does mean **a probe report on an inactive study will never
+be clean**, and that `end_time` diff carries no information. Worth knowing
+before anyone wires the probe's exit code into a scheduled check across all
+studies rather than active ones.
+
 ## What this does not cover
 
 - The contract is a flat path namespace shared by ads and adsets. `daily_budget`

@@ -98,6 +98,13 @@ It exits non-zero when the contract and Facebook disagree, so it can gate a
 deploy. `--update` rewrites the `DROPPED` block in place, stamped with today's
 date; review it as a normal git diff.
 
+**Point it at active studies.** `end_time` is a rolling 48-hour window recomputed
+every run, so an inactive study's adsets are always "behind" and the report is
+never clean. That diff means nothing. And read `--update` output before trusting
+it: a genuine one-time change — a setting we started sending after those adsets
+were built — looks identical to a dropped field. `planning/field-contract.md`
+has a worked example.
+
 It is read-only by default because it points at ads spending real money.
 
 Background on the incident that motivated this: `planning/field-contract.md`.
