@@ -130,6 +130,41 @@ poetry run adopt-probe "Girl Effect"           # expect exit 0
 Point it at **active** studies only. An inactive study can never report clean —
 `end_time` is a rolling 48-hour window, so its frozen adsets always look behind.
 
+## What actually happened on the v0.1.77 deploy (2026-08-01)
+
+First run with OWIS Nigeria Study still active, exactly as predicted:
+
+```
+                    before   after
+ad updates              30       0
+adset updates            8       7
+creative mismatch       30       0
+rate-limit hits          4       0
+undeclared drops         -       0
+
+Generated 5 instruction(s) for OWIS Nigeria Study     (was 36)
+Generated 2 instruction(s) for Girl Effect            (was 2)
+```
+
+38 -> 7 write instructions, an 82% reduction, all of it on the ad side.
+
+**Then the evidence went cold.** OWIS ended 2026-08-03, leaving Girl Effect as
+the only active study — and Girl Effect never had the ad loop. It generated 0 ad
+updates on v0.1.75 too, because its creatives do not set the
+`creative_features_spec` keys Facebook drops. Every run since shows `ad=0
+adset=2`, which is consistent with the fix but identical to what it did before.
+
+So the three-consecutive-runs check above **cannot be satisfied right now**.
+Redo it the next time a study using the richer creative template is active —
+anything descended from the OWIS or MENtality confs. Until then the load-bearing
+evidence is the single run above plus two checks independent of the cron:
+`adopt-probe` reporting clean against live data, and calling `update_adset`
+directly on the six live OWIS adsets giving 6/6 no-ops where it was 0/6.
+
+The general lesson for whoever re-runs this: **confirm the study you are
+measuring actually exhibited the bug.** A clean run from a study that was always
+clean proves nothing.
+
 ## What would mean it is not working
 
 | symptom | reading |
