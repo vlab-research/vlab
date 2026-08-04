@@ -104,23 +104,35 @@ image_crops = {
 
 This ensures text, logos, and important creative elements aren't cut off during cropping or display.
 
-## Ad Creative Fields
+## Ad Creative Fields — the field contract
 
-The vlab adoption system fetches the following fields from the Facebook API when retrieving ad creatives:
+Which creative and adset fields adopt compares when deciding whether to rewrite
+a live object is declared in **`adopt/adopt/facebook/field_contract.py`**, with a
+sentence per field explaining why it is there. Read that file rather than a list
+copied here — the version of this section it replaces listed `thumbnail_url`,
+which had already been removed from the comparison because Facebook regenerates
+the CDN URL on every read (160 needless ad updates per run).
 
-```python
-fields = [
-    AdCreative.Field.actor_id,                    # Account/page creating the ad
-    AdCreative.Field.image_crops,                 # Image crop specifications
-    AdCreative.Field.asset_feed_spec,             # Feed asset specifications
-    AdCreative.Field.degrees_of_freedom_spec,     # Creative flexibility options
-    AdCreative.Field.instagram_user_id,           # Instagram account ID
-    AdCreative.Field.object_story_spec,           # Story object specifications
-    AdCreative.Field.thumbnail_url,               # Creative thumbnail
-    AdCreative.Field.contextual_multi_ads,        # Multi-ad context
-    AdCreative.Field.url_tags,                    # URL tracking parameters
-]
-```
+The contract also declares two things about Facebook's behaviour that are easy
+to get wrong:
+
+- **`DROPPED`** — fields Facebook accepts on write but never echoes back on
+  read. Six are known, all under
+  `degrees_of_freedom_spec.creative_features_spec`. These must not be compared:
+  we send it, Facebook omits it, we see a difference, we rewrite — every run,
+  forever.
+- **`NORMALIZE`** — fields Facebook returns in a different representation than
+  we send. `daily_budget` comes back as a string where we set an int; `end_time`
+  as a tz-offset ISO string where we set a naive UTC datetime. Same value, so a
+  plain `==` is False forever.
+
+Both caused live rewrite loops, together costing ~456 no-op writes a day and
+contributing to `code 17` throttling. `planning/field-contract.md` has the full
+incident writeup; `adopt/README.md` covers day-to-day use.
+
+Check the contract against live Facebook with `adopt-probe <study>` (read-only).
+Point it at **active** studies — `end_time` is a rolling 48-hour window, so an
+inactive study's frozen adsets always look behind and never report clean.
 
 ## API Version Management
 
@@ -275,6 +287,30 @@ Implement proper error handling and retry logic when calling the API, especially
 - Remove any 191x100 crop specifications
 - Use 100x100 (1:1) square crops instead
 - Ensure coordinates are within image boundaries
+
+#### The same ads or adsets are rewritten on every run
+
+**Problem**: `adopt-ads` logs `creative mismatch` for the same ads every two
+hours, or updates adsets whose budget did not change. Every write succeeds, so
+nothing errors and no alert fires — the only outward symptom is API pressure and
+eventual `code 17` throttling.
+
+**Cause**: a field that can never compare equal. Either Facebook does not echo
+it back at all, or it returns it in a different representation than we send
+(string vs int, tz-offset ISO string vs naive datetime).
+
+**Solution**:
+- Look for `undeclared drop` warnings in the logs — that is the built-in alarm
+  and it names the exact field path.
+- Run `adopt-probe <active-study>` to classify every field against live data.
+- Declare a genuine drop in `field_contract.DROPPED`, or add a normaliser to
+  `NORMALIZE` for a representation difference.
+- **Do not declare reflexively.** A real one-time change looks identical to a
+  drop: a field we started sending after those objects were built is absent for
+  the same reason. Declaring it would stop the change ever being applied. See
+  `planning/field-contract.md` for a worked example
+  (`targeting.targeting_automation`) where declaring would have silently
+  disabled a targeting setting.
 
 #### API Version Errors
 
