@@ -10,6 +10,7 @@ from .audiences import hydrate_audiences
 from .budget import AdOptReport, get_budget_lookup, get_budget_lookup_with_db
 from .campaign_queries import (
     DBConf,
+    create_ad_attribution,
     create_adopt_report,
     get_campaign_configs,
     get_user_info,
@@ -56,15 +57,55 @@ def make_window(hours, now):
     return DateRange(start, now)
 
 
-def run_instructions(instructions: Sequence[Instruction], state: FacebookState):
+def record_ad_attribution(
+    i: Instruction, created_id: Optional[str], db_conf: DBConf
+) -> None:
+    """Freeze the ad -> stratum mapping for an ad we just created.
+
+    The imperative half of A1: instruction generation stayed pure, and this is
+    where the resulting fact meets the database. Only ad creates carry
+    provenance, so everything else falls straight through.
+
+    Raises on a failed write, deliberately. An ad that exists on Facebook with
+    no mapping row can never be attributed -- there is no backfill path, and
+    every respondent it recruits would be dropped from stratum counts silently
+    rather than loudly. Stopping the run leaves the remaining ads uncreated,
+    which is the recoverable failure; the next run creates them. Creating ads
+    we cannot map is the unrecoverable one.
+    """
+    if i.node != "ad" or i.action != "create" or i.provenance is None:
+        return
+
+    if created_id is None:
+        logging.error(
+            f"Created an ad with provenance {i.provenance} but Facebook "
+            "returned no id. It will not be attributable."
+        )
+        return
+
+    try:
+        create_ad_attribution(created_id, i.provenance, db_conf)
+    except BaseException:
+        logging.error(
+            f"Failed to write ad_attributions row for ad {created_id} "
+            f"with provenance {i.provenance}. The ad exists on Facebook and "
+            "is now unattributable until this row is written."
+        )
+        raise
+
+
+def run_instructions(
+    instructions: Sequence[Instruction], state: FacebookState, db_conf: DBConf
+):
     updater = GraphUpdater(state)
     logging.info(f"Executing {len(instructions)} instruction(s)")
     for i in instructions:
         logging.info(
             f"Executing: {i.node}/{i.action} id={i.id} params={i.params}"
         )
-        report = updater.execute(i)
+        report, created_id = updater.execute(i)
         logging.info(report)
+        record_ad_attribution(i, created_id, db_conf)
 
 
 def update_ads_for_campaign(
@@ -305,7 +346,7 @@ def run_updates(fn: AdoptJob) -> None:
             if report:
                 create_adopt_report(s, "FACEBOOK_ADOPT", report, db_conf)
 
-            run_instructions(instructions, state)
+            run_instructions(instructions, state, db_conf)
 
         except BaseException as e:
             logging.error(f"Error updating campaign {s}. Error: {e}")

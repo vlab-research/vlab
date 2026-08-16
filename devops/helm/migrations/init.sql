@@ -111,3 +111,33 @@ CREATE TABLE study_run_events (
 CREATE INDEX idx_study_run_events_group
   ON study_run_events (study_id, source, fingerprint, occurred_at DESC)
   STORING (event_type, severity, message, details);
+
+-- NOTE: Every future schema change to ad_attributions touches both paths
+-- (golang-migrate under devops/migrations/ AND this init.sql).
+--
+-- The ad -> stratum mapping vlab writes at ad-creation time and joins against
+-- later, replacing the dotted ref that used to ride inside every message.
+-- Three invariants, all load-bearing (planning/ad-id-attribution.md):
+--   1. `metadata` is the full ref-equivalent blob `{"creative": name, **md}`,
+--      NOT stratum.metadata -- that would silently drop the `creative` and
+--      `form` keys and miscount strata.
+--   2. Append-only: never deleted, never rebuilt from live Facebook state.
+--      Respondents keep arriving from deleted ads via reshared page posts, so
+--      a row must outlive its ad. Hence no TTL and no FK to studies -- a
+--      cascading delete is a delete path and this table has none.
+--   3. `metadata` is frozen at creation. Confs mutate; the row is a snapshot,
+--      not a pointer. Writes are ON CONFLICT DO NOTHING.
+CREATE TABLE ad_attributions (
+       network       STRING      NOT NULL DEFAULT 'facebook', -- ad network, NOT messaging channel
+       ad_id         STRING      NOT NULL,
+       study_id      UUID        NOT NULL,                    -- no FK: see invariant 2
+       stratum_id    STRING      NOT NULL,                    -- == the adset name
+       creative_name STRING      NOT NULL,                    -- == the ad name
+       shortcode     STRING,                                  -- NULL for web/app destinations
+       metadata      JSONB       NOT NULL,
+       resolved_from STRING,                                  -- 'ad_id' | 'source_id'
+       created       TIMESTAMPTZ NOT NULL DEFAULT now(),
+       CONSTRAINT ad_attributions_pk PRIMARY KEY (network, ad_id)
+);
+
+CREATE INDEX idx_ad_attributions_study ON ad_attributions (study_id);

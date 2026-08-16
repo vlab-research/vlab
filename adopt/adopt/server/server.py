@@ -283,7 +283,12 @@ def run_single_instruction(
     updater = GraphUpdater(state)
 
     # hack to cast OptimizeInstruction to Instruction
-    report = updater.execute(Instruction(**(instruction.model_dump())))
+    #
+    # The created id is discarded here on purpose: this endpoint runs one
+    # hand-supplied instruction, which carries no provenance, so there is
+    # nothing to build an ad_attributions row from. Ads created through this
+    # path are not attributable -- see planning/ad-id-attribution.md.
+    report, _ = updater.execute(Instruction(**(instruction.model_dump())))
     return OptimizeReport(**report)
 
 

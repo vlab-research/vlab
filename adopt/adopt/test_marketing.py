@@ -2,6 +2,8 @@ import json
 import random
 from datetime import datetime
 from typing import TypeVar
+from unittest.mock import patch
+from urllib.parse import unquote
 
 import pytest
 from facebook_business.adobjects.adcreative import AdCreative
@@ -10,11 +12,16 @@ from facebook_business.adobjects.customaudience import CustomAudience
 from .facebook.update import Instruction
 from .marketing import (
     _create_creative,
+    ad_provenance,
     adset_instructions,
+    create_creative,
+    creative_metadata,
+    destination_shortcode,
     make_ref,
     manage_aud,
     messenger_call_to_action,
     pair_creatives_with_destinations,
+    ref_metadata,
     web_call_to_action,
 )
 from .study_conf import (
@@ -32,6 +39,7 @@ from .study_conf import (
     Stratum,
     StudyConf,
     UserInfo,
+    WebDestination,
 )
 
 T = TypeVar("T")
@@ -660,3 +668,306 @@ def test_pairing_raises_when_campaign_matches_no_destination():
 
     with pytest.raises(Exception, match="Could not find destination"):
         pair_creatives_with_destinations(study, stratum, "campaign-with-no-arm")
+
+
+# ---------------------------------------------------------------------------
+# Ad-ID attribution (A1): the frozen metadata blob.
+#
+# vlab is taking over the ad -> stratum join from the dotted ref string. The
+# blob frozen into ad_attributions.metadata has to be exactly what the ref
+# carried -- if the two ever drift, a respondent resolves to no stratum, which
+# does not error, it miscounts, and the optimizer reallocates budget away from
+# a stratum that is actually recruiting fine. These tests are the guard.
+# ---------------------------------------------------------------------------
+
+
+def _parse_ref(ref: str) -> dict:
+    """Parse a ref the way fly does, so this is a real round trip.
+
+    Mirrors getMetadata in replybot/lib/typewheels/utils.js:75-105:
+    split on ".", URL-decode every token, then pair them up. Deliberately a
+    re-implementation of the *consumer's* grammar rather than an inverse of
+    make_ref -- an inverse written from make_ref would agree with make_ref by
+    construction and prove nothing.
+    """
+    tokens = [unquote(t) for t in ref.split(".")]
+    return dict(zip(tokens[::2], tokens[1::2]))
+
+
+def _web_dest(name, url_template="https://survey.example/?r={ref}"):
+    return WebDestination(type="web", name=name, url_template=url_template)
+
+
+def _study(destinations, creatives, extra_metadata=None):
+    return StudyConf(
+        id="00000000-0000-0000-0000-000000000001",
+        user=UserInfo(survey_user="user", token="token"),
+        general=GeneralConf(
+            name="test-study",
+            credentials_key="page-1",
+            credentials_entity="facebook_page",
+            ad_account="act_1",
+            opt_window=48,
+            extra_metadata=extra_metadata or {},
+        ),
+        destinations=destinations,
+        audiences=[],
+        creatives=creatives,
+        strata=[],
+        recruitment=DestinationRecruitmentExperiment(
+            ad_campaign_name_base="test-campaign",
+            objective="OUTCOME_ENGAGEMENT",
+            optimization_goal="CONVERSATIONS",
+            destination_type="MESSENGER",
+            min_budget=1,
+            budget_per_arm=100,
+            max_sample_per_arm=100,
+            start_date=datetime(2026, 7, 1),
+            end_date=datetime(2026, 8, 1),
+            destinations=[d.name for d in destinations],
+        ),
+    )
+
+
+def _stratum_with_md(id_, creatives, metadata):
+    return Stratum(
+        id=id_,
+        quota=1.0,
+        creatives=creatives,
+        facebook_targeting={},
+        metadata=metadata,
+    )
+
+
+# Shaped like production: stratum keys with spaces and mixed case, exactly the
+# sort of thing seen in fly's responses table (Age/Region/creative/form).
+PRODUCTION_METADATA = {
+    "Age": "Like Parents",
+    "Region": "South East",
+    "gender": "women",
+}
+
+
+def test_frozen_metadata_equals_the_parsed_ref():
+    """THE invariant. The blob we freeze == what the ref would have delivered.
+
+    If this ever fails, the ad-ID join and the ref-based join disagree, and
+    every study straddling the two produces two different stratum assignments
+    for the same respondent.
+    """
+    dest = _messenger_dest("messenger", "mnchweek")
+    creative = _creative("Static English - Girls", "messenger")
+    study = _study([dest], [creative])
+    stratum = _stratum_with_md("stratum-1", [creative], PRODUCTION_METADATA)
+
+    md = creative_metadata(study, stratum, dest)
+    frozen = ref_metadata(creative.name, md)
+
+    assert _parse_ref(make_ref(creative.name, md)) == frozen
+
+
+def test_frozen_metadata_carries_creative_and_form_which_stratum_metadata_lacks():
+    """The specific way this goes wrong: freezing stratum.metadata instead.
+
+    `creative` is prepended by make_ref and `form` is added by
+    create_creative, so neither is in the stratum conf. An extraction conf
+    asking for either would silently match nobody.
+    """
+    dest = _messenger_dest("messenger", "mnchweek")
+    creative = _creative("Static English - Girls", "messenger")
+    study = _study([dest], [creative])
+    stratum = _stratum_with_md("stratum-1", [creative], PRODUCTION_METADATA)
+
+    frozen = ref_metadata(creative.name, creative_metadata(study, stratum, dest))
+
+    assert frozen["creative"] == "Static English - Girls"
+    assert frozen["form"] == "mnchweek"
+
+    # ...and both are absent from the thing it would be tempting to freeze.
+    assert "creative" not in stratum.metadata
+    assert "form" not in stratum.metadata
+    assert frozen != stratum.metadata
+
+
+def test_frozen_metadata_round_trips_for_a_web_destination():
+    """Web destinations get no `form` key, and the round trip still holds."""
+    dest = _web_dest("web")
+    creative = _creative("Smiling", "web")
+    study = _study([dest], [creative])
+    stratum = _stratum_with_md("stratum-1", [creative], PRODUCTION_METADATA)
+
+    md = creative_metadata(study, stratum, dest)
+    frozen = ref_metadata(creative.name, md)
+
+    assert "form" not in frozen
+    assert _parse_ref(make_ref(creative.name, md)) == frozen
+
+
+def test_frozen_metadata_includes_extra_and_additional_metadata():
+    """extra_metadata (study-wide) and additional_metadata (per-destination).
+
+    Both are folded in before make_ref runs, so both must be in the blob.
+    """
+    dest = FlyMessengerDestination(
+        type="messenger",
+        name="messenger",
+        initial_shortcode="mnchweek",
+        welcome_message="Welcome!",
+        button_text="OK",
+        additional_metadata={"wave": "2"},
+    )
+    creative = _creative("Smiling", "messenger")
+    study = _study([dest], [creative], extra_metadata={"country": "NG"})
+    stratum = _stratum_with_md("stratum-1", [creative], PRODUCTION_METADATA)
+
+    md = creative_metadata(study, stratum, dest)
+    frozen = ref_metadata(creative.name, md)
+
+    assert frozen["country"] == "NG"
+    assert frozen["wave"] == "2"
+    assert _parse_ref(make_ref(creative.name, md)) == frozen
+
+
+def test_frozen_metadata_resolves_a_creative_key_collision_the_way_the_ref_does():
+    """A stratum that declares its own `creative` key.
+
+    make_ref writes `creative.<name>` first and the metadata pair second, so a
+    dot-pair parser keeps the *later* one. `{"creative": name, **md}` keeps the
+    later one too. Pathological, but the two must agree even here.
+    """
+    dest = _web_dest("web")
+    creative = _creative("Smiling", "web")
+    study = _study([dest], [creative])
+    stratum = _stratum_with_md("stratum-1", [creative], {"creative": "declared"})
+
+    md = creative_metadata(study, stratum, dest)
+    frozen = ref_metadata(creative.name, md)
+
+    assert frozen["creative"] == "declared"
+    assert _parse_ref(make_ref(creative.name, md)) == frozen
+
+
+def test_frozen_metadata_survives_a_dotted_value_that_the_ref_mangles():
+    """Documents a real limit of the ref, and why the blob is strictly better.
+
+    make_ref does not escape "." (quote() treats it as always-safe), so a
+    metadata value containing a dot splits into extra tokens and the ref
+    parses back to garbage. The frozen blob has no such grammar and keeps the
+    value intact -- so for these studies the ad-ID path is *more* accurate
+    than what it replaces, not merely equal. Asserted rather than fixed:
+    changing make_ref would rewrite the creative of every live ad.
+    """
+    dest = _web_dest("web")
+    creative = _creative("Smiling", "web")
+    study = _study([dest], [creative])
+    stratum = _stratum_with_md("stratum-1", [creative], {"city": "St. Louis"})
+
+    md = creative_metadata(study, stratum, dest)
+    frozen = ref_metadata(creative.name, md)
+
+    assert frozen["city"] == "St. Louis"
+    assert _parse_ref(make_ref(creative.name, md)) != frozen
+
+
+def test_destination_shortcode_only_for_fly_destinations():
+    assert destination_shortcode(_messenger_dest("m", "mnchweek")) == "mnchweek"
+    assert destination_shortcode(_web_dest("web")) is None
+
+
+def test_ad_provenance_is_keyed_by_stratum_and_creative_name():
+    """The key must match how reconciliation identifies an ad.
+
+    adset name == stratum.id (create_adset) and ad name == creative.name
+    (create_ad). If this key drifts, provenance silently stops matching and
+    ads get created with no mapping row.
+    """
+    dest = _messenger_dest("messenger", "mnchweek")
+    creatives = [_creative("Smiling", "messenger"), _creative("Serious", "messenger")]
+    study = _study([dest], creatives)
+    strata = [
+        _stratum_with_md("stratum-1", creatives, {"gender": "women"}),
+        _stratum_with_md("stratum-2", creatives, {"gender": "men"}),
+    ]
+
+    prov = ad_provenance(study, "test-campaign-messenger", strata)
+
+    assert set(prov.keys()) == {
+        ("stratum-1", "Smiling"),
+        ("stratum-1", "Serious"),
+        ("stratum-2", "Smiling"),
+        ("stratum-2", "Serious"),
+    }
+
+
+def test_ad_provenance_row_contents():
+    dest = _messenger_dest("messenger", "mnchweek")
+    creative = _creative("Smiling", "messenger")
+    study = _study([dest], [creative])
+    stratum = _stratum_with_md("stratum-1", [creative], {"gender": "women"})
+
+    prov = ad_provenance(study, "test-campaign-messenger", [stratum])
+
+    assert prov[("stratum-1", "Smiling")] == {
+        "study_id": "00000000-0000-0000-0000-000000000001",
+        "stratum_id": "stratum-1",
+        "creative_name": "Smiling",
+        "shortcode": "mnchweek",
+        "metadata": {
+            "gender": "women",
+            "form": "mnchweek",
+            "creative": "Smiling",
+        },
+        "resolved_from": "ad_id",
+    }
+
+
+def test_ad_provenance_agrees_with_the_ref_the_ad_actually_ships():
+    """End-to-end: the provenance blob vs. the ref inside the real creative.
+
+    create_creative puts the ref in two places for a messenger destination --
+    url_tags and the welcome-message quick-reply payload. Both are pulled back
+    out here and parsed, so this catches drift between ad_provenance and
+    create_creative even if creative_metadata is refactored away.
+    """
+    dest = _messenger_dest("messenger", "mnchweek")
+    creative_conf = _creative("Smiling", "messenger")
+    study = _study([dest], [creative_conf])
+    stratum = _stratum_with_md("stratum-1", [creative_conf], PRODUCTION_METADATA)
+
+    template = _load_template("image_ad_messenger.json")
+    creative_conf = CreativeConf(
+        destination="messenger", name="Smiling", template=template
+    )
+
+    ad_creative = create_creative(study, stratum, creative_conf, dest)
+    prov = ad_provenance(study, "test-campaign-messenger", [stratum])
+    frozen = prov[("stratum-1", "Smiling")]["metadata"]
+
+    shipped_ref = ad_creative["url_tags"].removeprefix("ref=")
+    assert _parse_ref(shipped_ref) == frozen
+
+    payload = json.loads(
+        json.loads(ad_creative["object_story_spec"]["link_data"]["page_welcome_message"])
+        ["message"]["quick_replies"][0]["payload"]
+    )
+    assert _parse_ref(payload["referral"]["ref"]) == frozen
+
+
+def test_ad_provenance_touches_no_database():
+    """Purity guard: generation stays in the functional core.
+
+    The write belongs in run_instructions. If anyone ever reaches for the DB
+    from here, every _dif test becomes an integration test.
+    """
+    dest = _messenger_dest("messenger", "mnchweek")
+    creative = _creative("Smiling", "messenger")
+    study = _study([dest], [creative])
+    stratum = _stratum_with_md("stratum-1", [creative], {"gender": "women"})
+
+    def _explode(*args, **kwargs):
+        raise AssertionError("ad_provenance must not open a database connection")
+
+    with patch("adopt.db._connect", _explode):
+        prov = ad_provenance(study, "test-campaign-messenger", [stratum])
+
+    assert len(prov) == 1

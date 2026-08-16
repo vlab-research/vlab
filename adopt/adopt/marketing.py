@@ -437,12 +437,18 @@ def get_destination_for_creative(
     return destination
 
 
-def create_creative(
+def creative_metadata(
     study: StudyConf,
     stratum: Stratum,
-    config: CreativeConf,
     destination: DestinationConf,
-) -> AdCreative:
+) -> Metadata:
+    """The metadata dict that make_ref serialises for this (stratum, destination).
+
+    Extracted from create_creative so that the ad -> stratum mapping and the
+    ref are computed from one expression and cannot drift apart. The `form`
+    key in particular is added here, not in the stratum conf, so anything
+    reading `stratum.metadata` directly would silently be missing it.
+    """
     md = {**stratum.metadata, **study.general.extra_metadata}
 
     if isinstance(destination, FlyMessengerDestination):
@@ -451,6 +457,48 @@ def create_creative(
         if destination.additional_metadata:
             md = {**md, **destination.additional_metadata}
 
+    return md
+
+
+def ref_metadata(creative_name: str, metadata: Metadata) -> Metadata:
+    """The complete key/value set `make_ref(creative_name, metadata)` carries.
+
+    This -- not `stratum.metadata` -- is what gets frozen into
+    ad_attributions.metadata. make_ref prepends `creative.<creative_name>`, and
+    creative_metadata has already folded in `form` and any additional_metadata,
+    so the ref carries strictly more keys than the stratum conf declares.
+
+    Freezing the stratum's metadata instead would silently drop `creative` and
+    `form`. Downstream, an extraction conf asking for either would find
+    nothing, the stratum would match no one, and the optimizer would quietly
+    reallocate budget away from it -- a miscount, not an error. Keep this
+    function and make_ref the same shape; test_marketing asserts they are.
+    """
+    return {"creative": creative_name, **metadata}
+
+
+def destination_shortcode(destination: DestinationConf) -> Optional[str]:
+    """The routing token, where the destination has one.
+
+    Only fly destinations route by shortcode. Web and app destinations encode
+    their target in the URL/deeplink template, so they have none, and the
+    column is nullable for exactly that reason.
+    """
+    if isinstance(destination, FlyMessengerDestination):
+        return destination.initial_shortcode
+
+    return None
+
+
+def create_creative(
+    study: StudyConf,
+    stratum: Stratum,
+    config: CreativeConf,
+    destination: DestinationConf,
+) -> AdCreative:
+    md = creative_metadata(study, stratum, destination)
+
+    if isinstance(destination, FlyMessengerDestination):
         ref = make_ref(config.name, md)
         msg = make_welcome_message(
             destination.welcome_message, destination.button_text, ref
@@ -518,6 +566,44 @@ def pair_creatives_with_destinations(
         creatives = [c for c in creatives if c.destination == destination]
 
     return [(c, get_destination_for_creative(study, c)) for c in creatives]
+
+
+def ad_provenance(
+    study: StudyConf, campaign_name: str, strata: Sequence[Stratum]
+) -> Dict[Tuple[str, str], Dict[str, Any]]:
+    """What vlab knows about every ad it wants to exist, for one campaign.
+
+    Keyed by (adset name, ad name) == (stratum.id, creative.name), which is how
+    reconciliation identifies an ad -- adset name is the stratum id
+    (create_adset) and ad name is the creative name (create_ad). Reconciliation
+    stamps the matching entry onto each ad-create instruction, and
+    run_instructions turns it into an ad_attributions row once Facebook returns
+    the id.
+
+    Pure: no Graph API, no database. The pairing comes from the same functions
+    adset_instructions uses to build the ads themselves, so an ad and its
+    provenance can only ever describe the same thing.
+    """
+    return {
+        (stratum.id, config.name): {
+            "study_id": study.id,
+            "stratum_id": stratum.id,
+            "creative_name": config.name,
+            "shortcode": destination_shortcode(destination),
+            "metadata": ref_metadata(
+                config.name, creative_metadata(study, stratum, destination)
+            ),
+            # The id was handed to us by the ad-create call, so it is an ad id.
+            # Recorded rather than assumed so that a row written by some other
+            # future path (a WhatsApp referral's source_id, say) is
+            # distinguishable from this one without archaeology.
+            "resolved_from": "ad_id",
+        }
+        for stratum in strata
+        for config, destination in pair_creatives_with_destinations(
+            study, stratum, campaign_name
+        )
+    }
 
 
 def adset_instructions(
@@ -608,7 +694,14 @@ def update_instructions_for_campaign(
 
     sb = [(s, budget[s.id]) for s in strata]
     new_state = [adset_instructions(study, campaign_state, s, b) for s, b in sb]
-    return adset_dif(campaign_state.campaign_state, new_state)
+
+    # Built from campaign_state.campaign_name rather than the campaign_name
+    # argument so it is derived from exactly the value adset_instructions used
+    # to pick each stratum's creatives; in a destination experiment the
+    # campaign name selects the arm, so the two must not be able to disagree.
+    provenance = ad_provenance(study, campaign_state.campaign_name, strata)
+
+    return adset_dif(campaign_state.campaign_state, new_state, provenance)
 
 
 def update_instructions(

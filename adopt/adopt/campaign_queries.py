@@ -140,6 +140,73 @@ def create_adopt_report(
     return list(query(cnf, q, (study_id, report_type, json.dumps(details))))[0]
 
 
+def create_ad_attribution(
+    ad_id: str,
+    provenance: Dict[str, Any],
+    cnf: DBConf,
+    network: str = "facebook",
+):
+    """Freeze the ad -> stratum mapping for one newly created ad.
+
+    Append-only and write-once. ON CONFLICT DO NOTHING is the invariant made
+    mechanical: ad_attributions.metadata is a snapshot of what the ad carried
+    when it was created, and study confs mutate, so a later run must never be
+    able to overwrite it with today's metadata. Re-running reconciliation is
+    therefore free -- it neither duplicates nor mutates.
+
+    `network` is the *ad* network, not the messaging channel: Messenger and
+    WhatsApp ads are both Meta ads in one id namespace, so both are 'facebook'.
+
+    Returns the inserted row, or None when the row already existed.
+    """
+    q = """
+    INSERT INTO ad_attributions(
+      network, ad_id, study_id, stratum_id,
+      creative_name, shortcode, metadata, resolved_from
+    )
+    VALUES(%s, %s, %s, %s, %s, %s, %s, %s)
+    ON CONFLICT (network, ad_id) DO NOTHING
+    RETURNING *
+    """
+
+    vals = (
+        network,
+        ad_id,
+        provenance["study_id"],
+        provenance["stratum_id"],
+        provenance["creative_name"],
+        provenance.get("shortcode"),
+        json.dumps(provenance["metadata"]),
+        provenance.get("resolved_from"),
+    )
+
+    # list(), not next(): query() is a generator holding an open `with
+    # psycopg.connect(...)`, and the commit only happens when that block exits.
+    # Abandoning the generator after one row would leave the INSERT uncommitted
+    # until garbage collection. create_adopt_report consumes it the same way.
+    rows = list(query(cnf, q, vals))
+    return rows[0] if rows else None
+
+
+def get_ad_attributions(study_id: str, cnf: DBConf):
+    """Every frozen mapping row for a study, including rows whose ad is gone.
+
+    Deliberately unfiltered by liveness: respondents keep arriving from deleted
+    ads (reshared page posts persist indefinitely), so dropping rows whose ad no
+    longer exists on Facebook would reintroduce exactly the silent miscount this
+    table prevents.
+    """
+    q = """
+    SELECT network, ad_id, study_id, stratum_id,
+           creative_name, shortcode, metadata, resolved_from, created
+    FROM ad_attributions
+    WHERE study_id = %s
+    ORDER BY created
+    """
+
+    return list(query(cnf, q, (study_id,), as_dict=True))
+
+
 def get_last_adopt_report(campaignid: str, report_type: str, cnf: DBConf):
     q = """
     SELECT details

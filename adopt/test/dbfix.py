@@ -12,6 +12,10 @@ def _reset_db():
             # Delete in order of dependencies (child tables first)
             # Tables must be deleted in reverse dependency order
             tables = [
+                # ad_attributions has no FK to studies (it is append-only and
+                # must outlive both the ad and, in principle, the study), so it
+                # is not cascade-deleted with the rest and has to be listed.
+                "ad_attributions",
                 "adopt_reports",  # depends on studies
                 "study_run_events",  # depends on studies
                 "inference_data",  # depends on studies

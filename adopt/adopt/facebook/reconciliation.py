@@ -1,14 +1,20 @@
 import json
 import logging
-from typing import Dict, List, Sequence, Tuple, TypeVar
+from typing import Dict, List, Mapping, Optional, Sequence, Tuple, TypeVar
 
 from facebook_business.adobjects.ad import Ad
 from facebook_business.adobjects.adset import AdSet
 
 from . import field_contract
-from .update import Instruction
+from .update import Instruction, Provenance
 
 logger = logging.getLogger(__name__)
+
+# What vlab knows about each ad it wants to exist, keyed by the pair that
+# identifies an ad within a campaign: (adset name, ad name) -- which is
+# (stratum id, creative name). Built purely, upstream, by
+# marketing.ad_provenance; consumed here only to stamp create instructions.
+ProvenanceLookup = Mapping[Tuple[str, str], Provenance]
 
 
 def _safe_get(obj, key, default="unknown"):
@@ -302,10 +308,31 @@ def ad_dif(
     adset: AdSet,
     old_ads: Sequence[Ad],
     new_ads: Sequence[Ad],
+    provenance: Optional[ProvenanceLookup] = None,
 ) -> List[Instruction]:
+    def provenance_for(x) -> Optional[Provenance]:
+        # Stays a pure lookup into data the caller supplied. No database, no
+        # Graph API: the write that needs this happens in run_instructions,
+        # after Facebook has answered with an id.
+        if not provenance:
+            return None
+
+        key = (adset["name"], x["name"])
+        prov = provenance.get(key)
+        if prov is None:
+            # Loud, because an ad created without provenance can never be
+            # attributed: there is no backfill path, and the respondents it
+            # recruits would be silently dropped from every stratum count.
+            logger.warning(
+                f"ad_dif: creating ad {key} with no provenance — it will not "
+                "get an ad_attributions row and its respondents will not be "
+                "attributable."
+            )
+        return prov
+
     def creator(x):
         params = {**x.export_all_data(), "adset_id": adset["id"]}
-        return [Instruction("ad", "create", params, None)]
+        return [Instruction("ad", "create", params, None, provenance_for(x))]
 
     return _diff("ad", update_ad, creator, old_ads, new_ads)
 
@@ -313,6 +340,7 @@ def ad_dif(
 def adset_dif(
     old_adsets: Sequence[Tuple[AdSet, Sequence[Ad]]],
     new_adsets: Sequence[Tuple[AdSet, Sequence[Ad]]],
+    provenance: Optional[ProvenanceLookup] = None,
 ) -> List[Instruction]:
     new_lookup = {a["name"]: ads for a, ads in new_adsets}
     old_lookup = {a["name"]: ads for a, ads in old_adsets}
@@ -329,7 +357,7 @@ def adset_dif(
     def updater(source, adset):
         instructions = update_adset(source, adset)
         instructions += ad_dif(
-            source, old_lookup[source["name"]], new_lookup[adset["name"]]
+            source, old_lookup[source["name"]], new_lookup[adset["name"]], provenance
         )
         return instructions
 
