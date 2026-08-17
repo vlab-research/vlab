@@ -1,7 +1,9 @@
 # Ad attributions: vlab owns the ad → stratum join
 
-**Status:** both halves shipped — A1/A2 write the mapping, A5–A7 read it.
-`location: "ad"` is available to new studies; nothing existing is affected.
+**Status:** usable end to end. A1/A2 write the mapping, A5–A7 read it, C1 lets a
+researcher declare an ad-derived variable in the dashboard, and A3 exports the
+mapping as CSV. `location: "ad"` is available to new studies; nothing existing
+is affected.
 
 vlab creates exactly one ad per (creative, stratum) pair. The ad's id therefore
 already determines its shortcode, its creative and its stratum metadata — which
@@ -150,6 +152,66 @@ unmapped: the ad is mapped, the conf just asked for something the ad was not
 frozen with. That is a conf problem, and inflating the unmapped counter with it
 would blunt the signal that exists to catch real bugs.
 
+## Declaring an ad-derived variable
+
+vlab does not infer these confs, so the dashboard form is the only way a
+researcher states one. In the study's **Inference Data** step, a fly source's
+location dropdown offers a third option alongside Metadata and Variable:
+
+> **Ad (which ad recruited them)**
+
+The `key` is then a stratum metadata key — `creative`, `gender`, `Age`, `form` —
+one of the keys that study's ads were actually built with. There is no response
+to select, because the value is looked up by key rather than found by walking a
+path into the respondent's answer.
+
+Moving an existing variable from Metadata to Ad is a one-word change at the same
+`key`, precisely because the frozen blob is key-for-key the ref's dict. But it
+is only safe on a **new** study — see the no-fallback reasoning above.
+
+**The option is offered on fly sources only.** The Qualtrics and Typeform
+connectors do not populate an event's ad id, so offering it there would let
+someone configure a variable that silently yields nothing forever. The two
+location lists are separate modules for that reason, and a test asserts the
+Qualtrics list contains no `ad` — the guard is there to survive a future
+refactor that merges the forms.
+
+Nothing between the form and swoosh constrains the value: `location` is a bare
+string in the dashboard's TypeScript, in the Go API's opaque conf storage and in
+Python's `ExtractionConf`. The only two places that enumerate the allowed
+locations are the form's dropdown and swoosh's `getRetrieveFunc`.
+
+## The mapping CSV export
+
+`GET /{org_id}/studies/{slug}/ad-attributions.csv`, on the same org/study
+routing and auth as every other study endpoint.
+
+```
+ad_id, network, creative, gender, Age, Region, form, created
+```
+
+The frozen blob is flattened into columns under its own key names, which makes
+the whole export one sentence: **left-join your survey export on `ad_id` and
+your old metadata columns come back, named as they always were.** True only
+because of invariant 1 below — a blob built from `stratum.metadata` would be
+missing `creative` and `form`, and the join would quietly return fewer columns
+than the researcher had before.
+
+Two details worth knowing:
+
+- Columns are the **union** across rows, in first-seen order, not the first
+  row's keys. A conf edited mid-flight leaves rows frozen under two shapes and
+  append-only means both survive.
+- **Deleted ads are included.** Respondents keep arriving from ads
+  reconciliation has removed, so a CSV of only live ads would silently lack rows
+  the researcher needs — and those respondents would look unattributed rather
+  than unexported. Nothing in the read path filters on liveness; there is no
+  liveness column to filter on, by design.
+
+There is no dashboard download button yet. The endpoint takes an API key, which
+suits the primary use — fetching it from an analysis script that is doing the
+join anyway.
+
 ## Completeness check
 
 A stratum's `question_targeting` predicate matches on variables swoosh writes,
@@ -262,16 +324,20 @@ study that opts into ad-id attribution.**
 | Instruction plumbing | `adopt/adopt/facebook/{update,reconciliation}.py` |
 | Write path | `adopt/adopt/{malaria,campaign_queries}.py` |
 | Completeness check | `adopt/adopt/study_conf.py`, `adopt/adopt/malaria.py` |
+| CSV export | `adopt/adopt/server/csv_export.py`, `adopt/adopt/server/server.py` |
+| Dashboard form | `dashboard/src/pages/StudyConfPage/forms/inferenceData/{flyExtraction,qualtricsExtraction}.ts` |
 | Event fields + network constant | `inference/inference-data/inference_data.go` |
 | Connector | `inference/sources/fly/main.go` |
 | Mapping load | `inference/swoosh/ad_attributions.go` |
 | Extraction + three-way split | `inference/swoosh/inference_data.go` |
 | Event routing / severity | `inference/swoosh/events.go` |
-| Python tests (need `make test-db`) | `adopt/adopt/test_ad_attributions.py`, `adopt/adopt/test_marketing.py`, `adopt/adopt/facebook/test_reconciliation.py`, `adopt/adopt/test_study_conf.py` |
+| Python tests (need `make test-db`) | `adopt/adopt/test_ad_attributions.py`, `adopt/adopt/test_marketing.py`, `adopt/adopt/facebook/test_reconciliation.py`, `adopt/adopt/test_study_conf.py`, `adopt/adopt/server/test_ad_attributions_csv.py` |
 | Go tests (need `make test-db`) | `inference/swoosh/ad_attributions_test.go`, `inference/sources/fly/main_test.go` |
+| Frontend tests | `dashboard/src/pages/StudyConfPage/forms/inferenceData/flyExtraction.test.ts` |
 
-Per-app detail: `adopt/README.md` and `inference/README.md`.
+Per-app detail: `adopt/README.md`, `inference/README.md` and
+`dashboard/README.md`.
 
-Full design, including the phases still outstanding (A3's mapping CSV export,
-A4's per-study lever that finally retires the ref, and A8's
-`FlyWhatsAppDestination`): `planning/ad-id-attribution.md`.
+Full design, including the phases still outstanding (A4's per-study lever that
+finally retires the ref, and A8's `FlyWhatsAppDestination`):
+`planning/ad-id-attribution.md`.
