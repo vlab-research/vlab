@@ -35,6 +35,7 @@ from ..malaria import hydrate_strata, load_basics
 from ..marketing import (
     ADSET_HOURS,
     AdsetConf,
+    adset_destination_type,
     adset_promoted_object,
     create_adset,
     create_creative,
@@ -209,7 +210,17 @@ def probe_adsets(
             # destination type appeared the probe built a different adset than
             # production sends — and the probe exists precisely to report what
             # production sends.
+            #
+            # destination_type is derived here for the same reason. It used to
+            # be read straight off the recruitment conf, which agreed with the
+            # derivation for every study whose destinations imply their channel
+            # and disagreed for the ones that do not — so the probe would have
+            # reported drift on exactly the studies the derivation exists to
+            # fix, and reported it against an adset production never sends.
             promoted_object = adset_promoted_object(pairs)
+            destination_type = adset_destination_type(
+                pairs, study.recruitment.destination_type
+            )
 
             desired = create_adset(
                 AdsetConf(
@@ -219,7 +230,7 @@ def probe_adsets(
                     data.get("status", "ACTIVE"),
                     ADSET_HOURS,
                     study.recruitment.optimization_goal,
-                    study.recruitment.destination_type,
+                    destination_type,
                     promoted_object,
                 )
             )

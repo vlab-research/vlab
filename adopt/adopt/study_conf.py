@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import re
 from abc import ABC, abstractmethod
 from datetime import datetime, timedelta
@@ -215,6 +216,23 @@ WHATSAPP_DESTINATION_TYPES = {
     "MESSAGING_INSTAGRAM_DIRECT_MESSENGER_WHATSAPP",
 }
 
+# The single ad-set destination_type token each fly destination implies.
+#
+# These are the values Meta's destination_type guide defines; the combination
+# tokens are single enum values, not lists. There is no `messaging_apps` field
+# and no list-valued destination field — see planning/click-to-whatsapp-ads.md
+# §1.2, which says so explicitly because it is an easy thing to look for.
+MESSENGER_DESTINATION_TYPE = "MESSENGER"
+WHATSAPP_DESTINATION_TYPE = "WHATSAPP"
+MULTI_DESTINATION_TYPE = "MESSAGING_MESSENGER_WHATSAPP"
+
+# Every destination_type that routes to a messaging app. A recruitment conf
+# naming one of these is making a claim about the channel its ads open, and
+# that claim is checkable against the destinations the study actually declares.
+# A recruitment conf naming anything else (WEB, WEBSITE, APP, ...) makes no such
+# claim, so nothing is checked and the ad-set value is derived instead.
+MESSAGING_DESTINATION_TYPES = {MESSENGER_DESTINATION_TYPE} | WHATSAPP_DESTINATION_TYPES
+
 
 def normalize_whatsapp_phone_number(value: str) -> str:
     """Digits only — what promoted_object.whatsapp_phone_number expects.
@@ -309,9 +327,167 @@ class FlyWhatsAppDestination(BaseModel):
         return self
 
 
+# ---------------------------------------------------------------------------
+# Multi-destination: the gate.
+#
+# The Messenger arm of a multi ad is MEASURED to work: on 2026-08-17 ad
+# 120254903561240150 delivered its quick-reply payload with the ref intact even
+# though `text_format.customer_action_type` was the scalar "autofill_message",
+# so Messenger reads its own sub-structure and ignores the sibling autofill
+# (planning/whatsapp-destination-model.md §8.1).
+#
+# The WHATSAPP ARM HAS NEVER BEEN OBSERVED. The preview followed the
+# single-valued MESSAGE_PAGE call_to_action to Messenger on every attempt. We
+# expect symmetry -- the Messenger arm ignored its sibling, so the WhatsApp arm
+# should too -- but that is an inference, and it is the only thing standing
+# between this code and the VIR-19 failure shape: if Meta serves Meta's default
+# prefill instead of our autofill, fly's event-normalizer emits
+# conversation_started unconditionally and every WhatsApp arrival lands on
+# FALLBACK_FORM (production value 305) -- a real survey belonging to a real
+# researcher, whose misrouted respondents hit END and look like completions.
+# That exact failure ran for four days and 1,770 users before anyone noticed.
+#
+# So the type is built, tested and reviewable, but refuses to load from a study
+# conf until someone has actually measured the WhatsApp arm and flipped this on
+# deliberately. See documentation/multi-destination-ads.md for the measurement
+# procedure that clears it.
+MULTI_DESTINATION_ENV_VAR = "ADOPT_ENABLE_MULTI_DESTINATION"
+
+_TRUTHY = {"1", "true", "yes", "on"}
+
+
+def multi_destination_enabled() -> bool:
+    """Whether `type: "multi"` destinations may be configured at all.
+
+    Read at validation time rather than import time so that a test -- or an
+    operator who has just done the measurement -- can flip it without
+    re-importing the module.
+    """
+    return os.environ.get(MULTI_DESTINATION_ENV_VAR, "").strip().lower() in _TRUTHY
+
+
+class FlyMultiDestination(BaseModel):
+    """A single ad that opens either Messenger or WhatsApp, Meta's choice.
+
+    A third destination type, deliberately, rather than a `platforms` list on a
+    merged class or an implicit consequence of the ad set's destination_type.
+    The reasoning is in planning/whatsapp-destination-model.md: Messenger and
+    WhatsApp differ in the grammar their routing token must obey, in whether the
+    respondent can see and edit it, in which fields are required, and in what a
+    misconfiguration costs. Multi is not the generalisation of the two -- it is
+    a third thing that carries both of their tokens at once, and it forecloses
+    something they each allow (channel as an experimental arm, since Meta
+    assigns the arm and you cannot randomise what Meta assigns).
+
+    One shortcode, not one per channel. `creative_metadata` folds
+    `form: initial_shortcode` into the frozen ad_attributions blob, and there is
+    exactly one blob per ad; a per-channel shortcode would mean one ad whose two
+    arms belong to two surveys and one mapping row that can only name one of
+    them.
+
+    `include_metadata_in_ref` defaults False -- WhatsApp's default wins, because
+    the WhatsApp arm's token sits in the respondent's compose box where they can
+    read and edit it. Being described back to yourself as `gender.men.age.25_34`
+    before a survey starts is an ethical question, not a technical one.
+    """
+
+    type: Literal["multi"]
+    name: str
+    initial_shortcode: str
+    welcome_message: str
+
+    # The Messenger arm's quick-reply button. Measured to be the carrier 68% of
+    # Messenger ad entrants route through -- and their ONLY carrier, since they
+    # produce no OPEN_THREAD referral at all. Required for that reason: a multi
+    # ad without it loses two thirds of its Messenger arm to FALLBACK_FORM.
+    button_text: str
+
+    # The WhatsApp arm's promoted_object, exactly as FlyWhatsAppDestination.
+    whatsapp_phone_number: str
+
+    additional_metadata: Optional[dict[str, str]] = None
+    include_metadata_in_ref: bool = False
+
+    @property
+    def promoted_phone_number(self) -> str:
+        """The number in the form Meta's promoted_object wants."""
+        return normalize_whatsapp_phone_number(self.whatsapp_phone_number)
+
+    @model_validator(mode="after")
+    def multi_destination_must_be_enabled(self):
+        if not multi_destination_enabled():
+            raise InvalidConfigError(
+                f"Multi-destination destination '{self.name}' is not enabled. "
+                "The WhatsApp arm of a multi-destination ad has never been "
+                "observed: we infer from the measured Messenger arm that it "
+                "reads its own sub-structure and ignores the sibling, but "
+                "nobody has seen it. If that inference is wrong, every WhatsApp "
+                "respondent this ad recruits lands silently in the fallback "
+                "survey and looks like a completion. Measure the WhatsApp arm "
+                "first (documentation/multi-destination-ads.md), then set "
+                f"{MULTI_DESTINATION_ENV_VAR}=true."
+            )
+        return self
+
+    @model_validator(mode="after")
+    def phone_number_must_be_dialable(self):
+        if not whatsapp_phone_number_valid(self.whatsapp_phone_number):
+            raise InvalidConfigError(
+                f"Multi destination '{self.name}': whatsapp_phone_number "
+                f"'{self.whatsapp_phone_number}' is not a dialable number. Meta "
+                "wants the number itself (any punctuation is fine, it is "
+                "stripped), not the phone_number_id."
+            )
+        return self
+
+    @model_validator(mode="after")
+    def shortcode_must_survive_the_entry_pattern(self):
+        # Same narrow alphabet as FlyWhatsAppDestination, for the same reason:
+        # this destination has a WhatsApp arm, and a shortcode is meant to be
+        # shareable. Someone who hears about the study and texts
+        # `form.<shortcode>` by hand sends a literal space, not %20.
+        if not whatsapp_shortcode_safe(self.initial_shortcode):
+            raise InvalidConfigError(
+                f"Multi destination '{self.name}': initial_shortcode "
+                f"'{self.initial_shortcode}' contains characters fly's WhatsApp "
+                "entry pattern rejects when typed by hand. Only letters, digits, "
+                "underscore and hyphen."
+            )
+        return self
+
+
 DestinationConf = Union[
-    FlyMessengerDestination, AppDestination, WebDestination, FlyWhatsAppDestination
+    FlyMessengerDestination,
+    AppDestination,
+    WebDestination,
+    FlyWhatsAppDestination,
+    FlyMultiDestination,
 ]
+
+
+def destination_type_for(destination: DestinationConf) -> Optional[str]:
+    """The ad set destination_type this destination requires, or None.
+
+    `destination_type` is an ad-set field while destinations are named per
+    creative, so channel is necessarily uniform within a stratum and something
+    has to agree the value across the stratum's pairs. This is the per-pair half
+    of that, shaped exactly like `promoted_object_for`.
+
+    None means "this destination does not care": Web and App encode their target
+    in a URL or deeplink and are indifferent to how Meta labels the ad set, so
+    the recruitment conf's value governs. That is what keeps the 5 studies whose
+    recruitment conf says WEB or WEBSITE producing byte-identical ad sets.
+    """
+    if isinstance(destination, FlyMessengerDestination):
+        return MESSENGER_DESTINATION_TYPE
+
+    if isinstance(destination, FlyWhatsAppDestination):
+        return WHATSAPP_DESTINATION_TYPE
+
+    if isinstance(destination, FlyMultiDestination):
+        return MULTI_DESTINATION_TYPE
+
+    return None
 
 
 class BaseRecruitmentConf(BaseModel, ABC):
@@ -820,29 +996,113 @@ class StudyConf(BaseModel):
         return self.recruitment.base_campaign_name
 
     @model_validator(mode="after")
-    def check_whatsapp_destination_type(self):
-        """A WhatsApp destination needs an ad set that actually goes to WhatsApp.
+    def check_destination_type_matches_destinations(self):
+        """A messaging destination_type must be backed by a real destination.
 
-        `destination_type` is a study-wide recruitment setting, so it is
-        possible to configure a WhatsApp destination on an ad set that Meta
-        will route to Messenger. Nothing downstream notices: the creative is
-        valid, the promoted_object is set, and the ad simply does not do what
-        the study thinks it does.
+        `destination_type` used to be checked in exactly one direction: a
+        WhatsApp destination had to sit on a WhatsApp-capable ad set. The mirror
+        never fired, so two silent misroutes were reachable today:
 
-        Deliberately a check rather than an override. `destination_type` is
-        user-set for every existing study, and deriving it here would change
-        what those studies send.
+          - `MESSAGING_MESSENGER_WHATSAPP` with only Messenger destinations.
+            The ads run multi-destination, the Messenger arm keeps its
+            quick-reply welcome message and routes fine, and the WhatsApp arm
+            has no autofill token at all -- so every WhatsApp clicker Meta
+            routes there lands on FALLBACK_FORM. Half the ad works, which is
+            why the operator has no reason to suspect it.
+          - the same with only WhatsApp destinations, which passed because the
+            old check only asked whether the value was WhatsApp-*capable*.
+
+        The rule now: if the recruitment conf names a messaging destination_type
+        it is making a claim about the channel its ads open, and some
+        destination in the study must actually imply that exact token. A
+        recruitment conf naming WEB, WEBSITE or APP makes no such claim, so
+        nothing is checked and `adset_destination_type` derives the value
+        instead -- which is what keeps the five legacy studies whose recruitment
+        conf says WEB or WEBSITE building exactly as they always have.
+
+        Deliberately "some destination", not "every destination": a study with a
+        Messenger arm and a WhatsApp arm is the whole point of deriving the type
+        per ad set, and it necessarily has destinations that disagree with each
+        other. Disagreement *within one stratum* is the real error, and
+        `adset_destination_type` raises on it where it can actually be seen.
+
+        And deliberately silent for a study with no fly destination at all —
+        including one whose destinations conf is empty, which is a study still
+        being assembled rather than a broken one. A web-only or app-only study
+        does not open a conversation, so its destination_type makes no claim
+        this check can hold it to, and such studies do exist with a messaging
+        destination_type stored, harmlessly, because nothing ever validated it.
+        Every failure this check exists to catch involves at least one fly
+        destination.
         """
-        if not any(isinstance(d, FlyWhatsAppDestination) for d in self.destinations):
+        destination_type = self.recruitment.destination_type
+
+        if destination_type not in MESSAGING_DESTINATION_TYPES:
             return self
 
-        destination_type = self.recruitment.destination_type
-        if destination_type not in WHATSAPP_DESTINATION_TYPES:
+        implied = {
+            t
+            for t in (destination_type_for(d) for d in self.destinations)
+            if t is not None
+        }
+
+        if not implied:
+            return self
+
+        if destination_type in implied:
+            return self
+
+        named = sorted(implied)
+        raise InvalidConfigError(
+            f"This study's recruitment destination_type is "
+            f"'{destination_type}', but none of its destinations open that "
+            f"channel — they imply {named or 'no messaging channel at all'}. "
+            "Meta routes the ad set by destination_type, so the arm that has "
+            "no destination behind it carries no routing token: those "
+            "respondents start a conversation and fall through to the fallback "
+            "survey, where they look like completions rather than errors. "
+            "Either point a destination at that channel or set "
+            "destination_type to one the destinations actually provide."
+        )
+
+    @model_validator(mode="after")
+    def check_multi_destination_optimization_goal(self):
+        """Multi-destination forces CONVERSATIONS, per Meta's own guide.
+
+        This is the coupling cost of multi: a destination choice constrains an
+        unrelated-looking, study-level recruitment setting. Validated here, with
+        a message naming both fields, rather than letting Meta reject the ad set
+        later with an error that never mentions the destination.
+
+        Checked rather than silently overridden. `optimization_goal` is a
+        deliberate study setting -- it is what the optimizer's cost-per-
+        respondent is measured against -- and quietly rewriting it would change
+        what a study buys without telling anyone.
+
+        Worth knowing before this fires on you: Meta's guide calls
+        CONVERSATIONS mandatory, but this repo has measured
+        `MESSAGING_MESSENGER_WHATSAPP` + `LINK_CLICKS` being *accepted* on a
+        live ad set (planning/click-to-whatsapp-ads.md §6a), and separately that
+        a Page subject to European privacy rules cannot use CONVERSATIONS for
+        click-to-WhatsApp at all. So on such a Page the two constraints
+        genuinely conflict and no multi ad can be configured -- which is a real
+        finding about the Page, and much better surfaced here than discovered
+        halfway through a reconciliation run.
+        """
+        if not any(isinstance(d, FlyMultiDestination) for d in self.destinations):
+            return self
+
+        goal = self.recruitment.optimization_goal
+        if goal != "CONVERSATIONS":
             raise InvalidConfigError(
-                f"This study has a WhatsApp destination but its recruitment "
-                f"destination_type is '{destination_type}'. Meta routes the ad "
-                f"set by destination_type, so the ads would not reach WhatsApp "
-                f"at all. Use one of: {sorted(WHATSAPP_DESTINATION_TYPES)}."
+                f"This study has a multi-destination destination but its "
+                f"recruitment optimization_goal is '{goal}'. Meta requires "
+                "CONVERSATIONS for multi-destination ad sets. Set "
+                "optimization_goal to CONVERSATIONS, or use single-destination "
+                "Messenger and WhatsApp destinations instead — note that a Page "
+                "subject to European privacy rules cannot use CONVERSATIONS for "
+                "click-to-WhatsApp at all, in which case multi-destination is "
+                "not configurable on that Page."
             )
 
         return self
@@ -864,10 +1124,15 @@ class StudyConf(BaseModel):
         study creates no ads at all, rather than creating ads that recruit
         people into the fallback survey.
         """
+        # Multi is included: its WhatsApp arm ships the same form-first autofill
+        # through the same fly entry pattern, so an unparseable value fails
+        # there in exactly the same way — and on multi it fails on one arm only,
+        # which is harder to notice, not easier.
         full_ref_destinations = [
             d
             for d in self.destinations
-            if isinstance(d, FlyWhatsAppDestination) and d.include_metadata_in_ref
+            if isinstance(d, (FlyWhatsAppDestination, FlyMultiDestination))
+            and d.include_metadata_in_ref
         ]
 
         if not full_ref_destinations:
@@ -981,7 +1246,10 @@ def thins_its_ref_without_reading_the_mapping(study: StudyConf) -> List[str]:
     thinned = [
         d.name
         for d in study.destinations
-        if isinstance(d, (FlyMessengerDestination, FlyWhatsAppDestination))
+        if isinstance(
+            d,
+            (FlyMessengerDestination, FlyWhatsAppDestination, FlyMultiDestination),
+        )
         and not d.include_metadata_in_ref
     ]
 

@@ -41,6 +41,47 @@ misalign.
 `test_marketing.py` covers this with contiguous, interleaved, and unequal-sized
 arm orderings — ordering must never influence the result.
 
+### Ad-set fields are agreed across a stratum's pairs
+
+`destination_type` and `promoted_object` are **ad-set** fields, while
+destinations are named **per creative**. One ad set per stratum, many ads inside
+it — so channel is necessarily uniform within a stratum and something has to
+enforce agreement. Two matching pairs of functions do it:
+
+| Per pair | Agreed across the stratum | Raises when |
+|---|---|---|
+| `promoted_object_for(config, destination)` | `adset_promoted_object(pairs)` | creatives want different promoted objects |
+| `destination_type_for(destination)` | `adset_destination_type(pairs, default)` | creatives want different channels |
+
+Both return `None` for destinations that do not care, and both treat "everything
+wants nothing" as agreement rather than ambiguity. `destination_type_for` returns
+`None` for Web and App, which fall through to the recruitment conf's value — that
+is what keeps existing studies byte-identical.
+
+`destination_type` used to be one string on the recruitment conf consumed by
+every ad set of every arm, which meant a `DestinationRecruitmentExperiment` could
+not have a Messenger arm and a WhatsApp arm. Deriving it per ad set is what makes
+channel-as-an-experiment-arm expressible. See
+`documentation/multi-destination-ads.md` §2.
+
+Neither field is in `COMPARED_ADSET`, so both ride only on ad-set creates:
+landing the derivation cannot rewrite a live ad set, and **a running study can
+never change channel.**
+
+### Destination types
+
+| Type | `destination_type` | Routing carrier |
+|---|---|---|
+| `FlyMessengerDestination` | `MESSENGER` | `url_tags` + quick-reply payload |
+| `FlyWhatsAppDestination` | `WHATSAPP` | `autofill_message` (compose-box prefill) |
+| `FlyMultiDestination` | `MESSAGING_MESSENGER_WHATSAPP` | all three at once |
+| `WebDestination` / `AppDestination` | *derived from the recruitment conf* | the URL / deeplink itself |
+
+`FlyMultiDestination` is **gated off** behind `ADOPT_ENABLE_MULTI_DESTINATION`:
+its Messenger arm is measured against live Meta delivery, its WhatsApp arm has
+never been observed. `documentation/multi-destination-ads.md` §4 is the
+procedure that clears the gate and the log that records it.
+
 ## The Facebook field contract
 
 Every run, adopt compares the live ads and adsets against what the study config

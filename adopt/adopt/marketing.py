@@ -29,11 +29,13 @@ from .study_conf import (
     DestinationConf,
     DestinationRecruitmentExperiment,
     FlyMessengerDestination,
+    FlyMultiDestination,
     FlyWhatsAppDestination,
     LookalikeAudience,
     Stratum,
     StudyConf,
     WebDestination,
+    destination_type_for,
     ref_value,
 )
 
@@ -303,7 +305,9 @@ def shortcode_ref(shortcode: str) -> str:
 
 
 def messenger_ref(
-    creative_name: str, metadata: Metadata, destination: FlyMessengerDestination
+    creative_name: str,
+    metadata: Metadata,
+    destination: Union[FlyMessengerDestination, FlyMultiDestination],
 ) -> str:
     """What a Messenger ad puts in `referral.ref`.
 
@@ -397,6 +401,108 @@ def make_whatsapp_welcome_message(text: str, autofill: str) -> str:
     )
 
 
+def make_multi_welcome_message(
+    text: str, button_text: str, ref: str, autofill: str
+) -> str:
+    """One welcome blob carrying BOTH channels' routing tokens.
+
+    This is the shape the whole multi-destination design rests on, and it is
+    measured rather than inferred -- for one of its two arms.
+
+    `page_welcome_message` is a single string field and
+    `text_format.customer_action_type` is a scalar, so on the face of it one
+    blob can only serve one channel. It does not work that way: on 2026-08-17
+    ad 120254903561240150 shipped exactly this structure, with
+    customer_action_type set to the scalar "autofill_message", and the Messenger
+    arm still delivered its quick-reply payload with the ref intact. Messenger
+    reads its own sub-structure and ignores the sibling. Meta also stores both
+    halves without stripping either, confirmed by reading the creative back.
+
+    Both sub-structures are mandatory, not belt-and-braces:
+
+      - `quick_replies` is the carrier 68% of Messenger ad entrants route
+        through, and their *only* carrier -- they produce no OPEN_THREAD
+        referral at all. Drop it and two thirds of the Messenger arm lands on
+        FALLBACK_FORM.
+      - `autofill_message` is the WhatsApp arm's only carrier of any kind. A
+        CTWA referral has no advertiser-settable `ref` field, and url_tags was
+        measured not to reach WhatsApp.
+
+    The two tokens are different serialisations of the same facts, deliberately.
+    `ref` is Messenger's `creative.`-led, order-free grammar; `autofill` is
+    WhatsApp's form-first one, because fly's entry pattern anchors on `form.`
+    and make_ref's output can therefore never match it whatever the values are.
+
+    Byte-identical to adopt/scripts/ctwa_probe.py's `welcome_combined`, which is
+    what actually produced the measurement above. test_marketing asserts that.
+    """
+    payload = json.dumps({"referral": {"ref": ref}})
+
+    return json.dumps(
+        {
+            "type": "VISUAL_EDITOR",
+            "version": 2,
+            "landing_screen_type": "welcome_message",
+            "media_type": "text",
+            "text_format": {
+                "customer_action_type": "autofill_message",
+                "message": {
+                    "autofill_message": {"content": autofill},
+                    "quick_replies": [
+                        {
+                            "content_type": "text",
+                            "title": button_text,
+                            "payload": payload,
+                        }
+                    ],
+                    "text": text,
+                },
+            },
+        },
+        sort_keys=True,
+    )
+
+
+def multi_destination_asset_feed_spec() -> Dict[str, Any]:
+    """The array of destinations, which lives on asset_feed_spec and nowhere else.
+
+    Meta's format, from the click-to-multidestination guide:
+    `object_story_spec.link_data.call_to_action` stays SINGLE-VALUED as the
+    fallback, and a parallel `asset_feed_spec` carries the real array under
+    `optimization_type: "DOF_MESSAGING_DESTINATION"`. There is no list-valued
+    destination field anywhere -- the ad set's destination_type is a single
+    combination token, and the creative's destinations must match it.
+
+    `DOF_MESSAGING_DESTINATION` is absent from the AdAssetFeedSpec reference's
+    optimization_type enum even though the guide requires it; the reference is
+    stale relative to the guide. Do not be alarmed, and do not expect the SDK's
+    typed constants to carry it.
+
+    The links are structural: AdCreativeLinkData requires link_data.link to
+    match its CTA, and Meta's own sample uses exactly these two URLs.
+    MESSENGER_LINK_FALLBACK already *is* the link from that sample.
+    """
+    return {
+        "optimization_type": "DOF_MESSAGING_DESTINATION",
+        "call_to_actions": [
+            {
+                "type": "MESSAGE_PAGE",
+                "value": {
+                    "app_destination": "MESSENGER",
+                    "link": MESSENGER_LINK_FALLBACK,
+                },
+            },
+            {
+                "type": "WHATSAPP_MESSAGE",
+                "value": {
+                    "app_destination": "WHATSAPP",
+                    "link": WHATSAPP_LINK,
+                },
+            },
+        ],
+    }
+
+
 def app_download_call_to_action(deeplink) -> dict:
     return {
         "type": "INSTALL_MOBILE_APP",
@@ -427,6 +533,7 @@ def _create_creative(
     page_welcome_message: str | None = None,
     url_tags: str | None = None,
     link: str | None = None,
+    asset_feed_spec: Dict[str, Any] | None = None,
 ) -> AdCreative:
     c = AdCreative()
 
@@ -530,7 +637,28 @@ def _create_creative(
 
     c[AdCreative.Field.object_story_spec] = object_story_spec
 
-    tafs = config.template.get(AdCreative.Field.asset_feed_spec)
+    template_afs = config.template.get(AdCreative.Field.asset_feed_spec)
+
+    # An injected asset_feed_spec (multi-destination's call_to_actions array)
+    # REPLACES the template's rather than merging with it, and refuses to run
+    # over a template that has one. Merging would mean silently rewriting the
+    # template's `optimization_type` -- asset_feed_spec has exactly one, and
+    # DOF_MESSAGING_DESTINATION is not the one an Advantage+ creative template
+    # carries -- which would change what respondents see while looking like a
+    # destination change. There is no way to know from here which the operator
+    # wanted, so say so instead of guessing.
+    if asset_feed_spec is not None and template_afs:
+        raise Exception(
+            f"Creative '{config.name}' needs a multi-destination asset_feed_spec, "
+            "but its template already carries one. asset_feed_spec holds a "
+            "single optimization_type, so the two cannot both apply: using the "
+            "template's would drop the destination array and the ad would only "
+            "ever open Messenger, and overriding it would silently discard the "
+            "template's creative variants. Use a template without an "
+            "asset_feed_spec for multi-destination creatives."
+        )
+
+    tafs = asset_feed_spec if asset_feed_spec is not None else template_afs
 
     if tafs:
         c[AdCreative.Field.asset_feed_spec] = tafs
@@ -542,10 +670,7 @@ def _create_creative(
 
         if link:
             c[AdCreative.Field.asset_feed_spec]["link_urls"] = [
-                {**url, "website_url": link}
-                for url in config.template[AdCreative.Field.asset_feed_spec][
-                    "link_urls"
-                ]
+                {**url, "website_url": link} for url in tafs["link_urls"]
             ]
 
     return c
@@ -581,11 +706,16 @@ def creative_metadata(
     """
     md = {**stratum.metadata, **study.general.extra_metadata}
 
-    # Both fly destinations fold in `form`, identically. That keeps the frozen
-    # ad_attributions blob consistent across the two channels, so a study using
+    # Every fly destination folds in `form`, identically. That keeps the frozen
+    # ad_attributions blob consistent across channels, so a study using
     # `location: "ad"` reads the same keys whether its respondents arrive by
-    # Messenger or by WhatsApp.
-    if isinstance(destination, (FlyMessengerDestination, FlyWhatsAppDestination)):
+    # Messenger or by WhatsApp -- and, on a multi ad, whichever arm Meta chose
+    # for them. One ad, one ad id, one frozen blob: the blob cannot depend on a
+    # channel that is only decided at click time.
+    if isinstance(
+        destination,
+        (FlyMessengerDestination, FlyWhatsAppDestination, FlyMultiDestination),
+    ):
         md = {**md, "form": destination.initial_shortcode}
 
         if destination.additional_metadata:
@@ -618,7 +748,10 @@ def destination_shortcode(destination: DestinationConf) -> Optional[str]:
     their target in the URL/deeplink template, so they have none, and the
     column is nullable for exactly that reason.
     """
-    if isinstance(destination, (FlyMessengerDestination, FlyWhatsAppDestination)):
+    if isinstance(
+        destination,
+        (FlyMessengerDestination, FlyWhatsAppDestination, FlyMultiDestination),
+    ):
         return destination.initial_shortcode
 
     return None
@@ -668,6 +801,49 @@ def create_creative(
             call_to_action=whatsapp_call_to_action(),
             page_welcome_message=msg,
             link=WHATSAPP_LINK,
+        )
+
+    if isinstance(destination, FlyMultiDestination):
+        # Three carriers on one creative, because a multi ad has to satisfy two
+        # channels that read different fields and one of them reads two:
+        #
+        #   url_tags            -> Messenger's referral.ref (32% of entrants)
+        #   quick_replies       -> Messenger's quick-reply payload (68%, and
+        #                          their only carrier)
+        #   autofill_message    -> WhatsApp's compose-box prefill (its only
+        #                          carrier of any kind)
+        #
+        # The first two carry the same Messenger-grammar token, for the same
+        # reason the Messenger branch ships it twice: a respondent can arrive by
+        # either, and emitting different refs would mean one ad describing two
+        # different people depending on how they tapped it. The third carries
+        # the same facts in WhatsApp's form-first grammar.
+        #
+        # `messenger_ref` and `whatsapp_autofill` are reused rather than
+        # reimplemented. They differ deliberately -- WhatsApp's entry pattern
+        # anchors on `form.` while make_ref leads with `creative.`, so make_ref
+        # output can never match it -- and one ref mode drives both, so the two
+        # arms of a single ad always agree about how much they disclose.
+        ref = messenger_ref(config.name, md, destination)
+        ref_md = (
+            ref_metadata(config.name, md)
+            if destination.include_metadata_in_ref
+            else None
+        )
+        autofill = whatsapp_autofill(destination.initial_shortcode, ref_md)
+
+        msg = make_multi_welcome_message(
+            destination.welcome_message, destination.button_text, ref, autofill
+        )
+
+        # The single-valued CTA stays MESSAGE_PAGE as Meta's documented
+        # fallback; asset_feed_spec carries the actual destination array.
+        return _create_creative(
+            config,
+            call_to_action=messenger_call_to_action(),
+            page_welcome_message=msg,
+            url_tags=f"ref={ref}",
+            asset_feed_spec=multi_destination_asset_feed_spec(),
         )
 
     if isinstance(destination, AppDestination):
@@ -791,7 +967,10 @@ def promoted_object_for(
             AdPromotedObject.Field.object_store_url: destination.app_install_link,
         }
 
-    if isinstance(destination, FlyWhatsAppDestination):
+    # Multi needs the same promoted_object as WhatsApp: its WhatsApp arm is a
+    # click-to-WhatsApp ad, and Meta will not accept the ad set without a Page
+    # and a number, whichever arm a given respondent ends up on.
+    if isinstance(destination, (FlyWhatsAppDestination, FlyMultiDestination)):
         page_id = template_page_id(config)
         if not page_id:
             raise Exception(
@@ -849,6 +1028,59 @@ def adset_promoted_object(
     return distinct[0] if distinct else None
 
 
+def adset_destination_type(
+    pairs: Sequence[Tuple[CreativeConf, DestinationConf]],
+    recruitment_default: str,
+) -> str:
+    """The ad set's destination_type, agreed across all of its creatives.
+
+    The counterpart of `adset_promoted_object`, and it exists for the same
+    reason: destination_type is an ad-set field while destinations are named per
+    creative, so channel is necessarily uniform within a stratum and something
+    has to enforce agreement.
+
+    Before this, `destination_type` was one string on the recruitment conf
+    consumed by every ad set of every arm. Two things followed. A study could
+    not have a Messenger arm and a WhatsApp arm in a
+    DestinationRecruitmentExperiment -- setting MESSAGING_MESSENGER_WHATSAPP
+    made *both* arms multi-destination and destroyed the experiment by handing
+    channel assignment to Meta. And a study whose destination_type disagreed
+    with its destinations built happily and misrouted silently.
+
+    Destinations that imply nothing (Web, App) fall through to the recruitment
+    conf's value, which is what keeps every existing study byte-identical: the
+    110 studies whose recruitment conf says MESSENGER have Messenger
+    destinations that derive MESSENGER anyway, and the 5 that say WEB or WEBSITE
+    have destinations that imply nothing and so keep their stored value
+    verbatim. Measured against production study_confs on 2026-08-17.
+
+    Note what this does *not* enable, because someone will ask: a running study
+    still cannot change channel. `destination_type` is absent from
+    field_contract.COMPARED_ADSET, so it rides only on ad-set creates, and ad
+    sets are matched by name where the name is the stratum id. The value here is
+    what a *new* ad set gets.
+    """
+    wanted = [destination_type_for(d) for _, d in pairs]
+
+    distinct = []
+    for t in wanted:
+        if t is not None and t not in distinct:
+            distinct.append(t)
+
+    if len(distinct) > 1:
+        raise Exception(
+            "Creatives in one stratum ask for different ad set destination "
+            f"types: {distinct}. destination_type is set per ad set, so the "
+            "creatives in a stratum must agree — split them into separate "
+            "strata, or use a multi-destination destination if you want one ad "
+            "to open either channel. Note that a multi-destination ad lets Meta "
+            "choose the channel per respondent, so it cannot be used to "
+            "randomise channel."
+        )
+
+    return distinct[0] if distinct else recruitment_default
+
+
 def adset_instructions(
     study: StudyConf, state: CampaignState, stratum: Stratum, budget: float
 ) -> Tuple[AdSet, List[Ad]]:
@@ -856,6 +1088,7 @@ def adset_instructions(
 
     creatives = [create_creative(study, stratum, c, d) for c, d in pairs]
     promoted_object = adset_promoted_object(pairs)
+    destination_type = adset_destination_type(pairs, study.recruitment.destination_type)
 
     # make paused adset if we have 0 budget
     status = "ACTIVE" if budget > 0 else "PAUSED"
@@ -871,7 +1104,7 @@ def adset_instructions(
         status,
         ADSET_HOURS,
         study.recruitment.optimization_goal,
-        study.recruitment.destination_type,
+        destination_type,
         promoted_object,
     )
 

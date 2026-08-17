@@ -1604,3 +1604,59 @@ def test_promoted_object_is_absent_from_a_generated_adset_update():
     assert instructions[0].action == "update"
     assert "promoted_object" not in instructions[0].params
     assert instructions[0].params["daily_budget"] == 999
+
+
+def test_a_live_adset_with_a_different_destination_type_is_not_rewritten():
+    """The guard on moving destination_type from the conf to a derivation.
+
+    `destination_type` is absent from COMPARED_ADSET, so it rides only on ad-set
+    creates. That is what makes the derivation safe to land: a live study whose
+    stored recruitment destination_type disagrees with what its destinations now
+    imply -- two production studies were configured exactly that way -- keeps
+    its existing ad sets untouched rather than having every one of them
+    rewritten on the next reconciliation run.
+
+    It is also why a running study can never change channel. Ad sets are matched
+    by name and the name is the stratum id, so they persist for the study's
+    lifetime. If anyone ever adds destination_type to COMPARED_ADSET, this test
+    fails and that trade-off gets made deliberately.
+    """
+    now = datetime.utcnow()
+    common = {
+        "status": "ACTIVE",
+        "daily_budget": 100,
+        "end_time": now,
+        "targeting": {},
+        "optimization_goal": "REPLIES",
+        "name": "stratum-1",
+    }
+    live = _adobject({"id": "adset-1", **common, "destination_type": "WEB"}, AdSet)
+    desired = _adobject({**common, "destination_type": "MESSENGER"}, AdSet)
+
+    assert update_adset(live, desired) == []
+
+
+def test_a_destination_type_change_cannot_ride_along_on_a_budget_update():
+    """Even when something else legitimately changed, the update is built from
+    COMPARED_ADSET alone, so destination_type is never in the params."""
+    now = datetime.utcnow()
+    common = {
+        "status": "ACTIVE",
+        "end_time": now,
+        "targeting": {},
+        "optimization_goal": "REPLIES",
+        "name": "stratum-1",
+    }
+    live = _adobject(
+        {"id": "adset-1", **common, "daily_budget": 100, "destination_type": "WEB"},
+        AdSet,
+    )
+    desired = _adobject(
+        {**common, "daily_budget": 999, "destination_type": "MESSENGER"}, AdSet
+    )
+
+    instructions = update_adset(live, desired)
+
+    assert len(instructions) == 1
+    assert "destination_type" not in instructions[0].params
+    assert instructions[0].params["daily_budget"] == 999

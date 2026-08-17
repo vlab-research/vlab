@@ -10,17 +10,20 @@ import pytest
 from facebook_business.adobjects.adcreative import AdCreative
 from facebook_business.adobjects.customaudience import CustomAudience
 
+from .facebook.field_contract import COMPARED_ADSET
 from .facebook.reconciliation import ad_dif
 from .facebook.update import Instruction
 from .marketing import (
     _create_creative,
     ad_provenance,
+    adset_destination_type,
     adset_instructions,
     adset_promoted_object,
     create_ad,
     create_creative,
     creative_metadata,
     destination_shortcode,
+    make_multi_welcome_message,
     make_ref,
     manage_aud,
     messenger_call_to_action,
@@ -32,12 +35,14 @@ from .marketing import (
     whatsapp_autofill,
 )
 from .study_conf import (
+    MULTI_DESTINATION_ENV_VAR,
     AppDestination,
     Audience,
     AudienceConf,
     CreativeConf,
     DestinationRecruitmentExperiment,
     FlyMessengerDestination,
+    FlyMultiDestination,
     FlyWhatsAppDestination,
     GeneralConf,
     InvalidConfigError,
@@ -49,6 +54,7 @@ from .study_conf import (
     StudyConf,
     UserInfo,
     WebDestination,
+    destination_type_for,
     ref_value,
     whatsapp_ref_token_safe,
 )
@@ -1817,3 +1823,728 @@ def test_a_whatsapp_autofill_with_spaces_now_passes_flys_gate():
 
     assert _fly_would_accept(autofill)
     assert _parse_ref(autofill) == frozen
+
+
+# ---------------------------------------------------------------------------
+# Ad-set destination_type derivation, and multi-destination (type: "multi").
+#
+# Two changes, one of which is a prerequisite for the other.
+#
+# `destination_type` used to be ONE string on the recruitment conf consumed by
+# every ad set of every arm. It is now derived from each stratum's actual
+# (creative, destination) pairs, beside the promoted_object agreement check that
+# already existed. That closes two silent misroutes and is what makes both
+# "Messenger vs WhatsApp as an experiment arm" and "Messenger + WhatsApp as one
+# ad" expressible at all.
+#
+# On top of that, FlyMultiDestination: one ad whose Messenger arm and WhatsApp
+# arm each read their own sub-structure out of a single page_welcome_message
+# blob. The Messenger half of that is MEASURED (ad 120254903561240150,
+# 2026-08-17). The WhatsApp half is INFERRED and gated -- see the gate tests.
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture
+def multi_enabled(monkeypatch):
+    """Multi destinations refuse to construct unless deliberately enabled.
+
+    Every test below that builds one takes this fixture, which is itself the
+    point: forgetting it is a construction error, not a silently different ad.
+    """
+    monkeypatch.setenv(MULTI_DESTINATION_ENV_VAR, "true")
+
+
+def _multi_dest(shortcode="mnchweek", full_ref=False, additional=None, name="multi"):
+    return FlyMultiDestination(
+        type="multi",
+        name=name,
+        initial_shortcode=shortcode,
+        welcome_message="Tap below or send to start",
+        button_text="Start survey",
+        whatsapp_phone_number="+1-541-920-2635",
+        additional_metadata=additional,
+        include_metadata_in_ref=full_ref,
+    )
+
+
+def _multi_study(destinations, creatives, extra_metadata=None):
+    return _study(
+        destinations,
+        creatives,
+        extra_metadata,
+        destination_type="MESSAGING_MESSENGER_WHATSAPP",
+    )
+
+
+# --- the gate --------------------------------------------------------------
+
+
+def test_a_multi_destination_refuses_to_load_until_the_whatsapp_arm_is_measured():
+    """The WhatsApp arm of a multi ad has never been observed.
+
+    We infer symmetry from the measured Messenger arm -- it read its own
+    sub-structure and ignored the sibling autofill -- but nobody has seen the
+    WhatsApp side. If that inference is wrong, Meta serves its own default
+    prefill, fly emits conversation_started unconditionally on any referral, and
+    every WhatsApp respondent lands on FALLBACK_FORM: a real survey, where
+    misrouted people hit END and look like completions. That is VIR-19, which
+    ran four days and 1,770 users before anyone noticed.
+
+    So the type exists, is tested, and cannot be configured by accident.
+    """
+    with pytest.raises(InvalidConfigError, match="never been observed"):
+        _multi_dest()
+
+
+def test_the_gate_names_the_measurement_and_the_variable_to_set(monkeypatch):
+    monkeypatch.delenv(MULTI_DESTINATION_ENV_VAR, raising=False)
+    try:
+        _multi_dest()
+    except InvalidConfigError as e:
+        assert MULTI_DESTINATION_ENV_VAR in str(e)
+        assert "documentation/multi-destination-ads.md" in str(e)
+    else:
+        raise AssertionError("expected the gate to refuse")
+
+
+def test_the_gate_opens_when_set(multi_enabled):
+    assert _multi_dest().initial_shortcode == "mnchweek"
+
+
+# --- the combined blob, against the probe that produced the measurement -----
+#
+# Copied from adopt/scripts/ctwa_probe.py's `welcome_combined`, which is the
+# code that actually built ad 120254903561240150 -- the ad whose Messenger arm
+# was observed delivering its quick-reply payload intact. Kept as an independent
+# copy rather than imported: the probe lives outside the package and is pinned
+# to what was measured. If marketing.py drifts from it, what we ship stops being
+# what was tested against real Meta delivery, and this is where that shows up.
+
+
+def _probe_welcome_combined(greeting, button, ref, autofill):
+    payload = json.dumps({"referral": {"ref": ref}})
+    return json.dumps(
+        {
+            "type": "VISUAL_EDITOR",
+            "version": 2,
+            "landing_screen_type": "welcome_message",
+            "media_type": "text",
+            "text_format": {
+                "customer_action_type": "autofill_message",
+                "message": {
+                    "autofill_message": {"content": autofill},
+                    "quick_replies": [
+                        {
+                            "content_type": "text",
+                            "title": button,
+                            "payload": payload,
+                        }
+                    ],
+                    "text": greeting,
+                },
+            },
+        },
+        sort_keys=True,
+    )
+
+
+def test_the_multi_welcome_blob_is_byte_identical_to_the_probes(multi_enabled):
+    assert make_multi_welcome_message(
+        "Tap below or send to start", "Start survey", "form.mnchweek", "form.mnchweek"
+    ) == _probe_welcome_combined(
+        "Tap below or send to start", "Start survey", "form.mnchweek", "form.mnchweek"
+    )
+
+
+def _multi_creative(dest, metadata=None, template=None):
+    template = template if template is not None else _load_template(
+        "image_ad_messenger.json"
+    )
+    config = CreativeConf(destination=dest.name, name="Smiling", template=template)
+    study = _multi_study([dest], [config])
+    stratum = _stratum_with_md(
+        "stratum-1", [config], PRODUCTION_METADATA if metadata is None else metadata
+    )
+    return create_creative(study, stratum, config, dest), study, stratum, config
+
+
+def _welcome(creative, where="object_story_spec"):
+    if where == "object_story_spec":
+        blob = creative["object_story_spec"]["link_data"]["page_welcome_message"]
+    else:
+        blob = creative["asset_feed_spec"]["additional_data"]["page_welcome_message"]
+    return json.loads(blob)
+
+
+def test_a_multi_creative_emits_both_carriers_in_one_blob(multi_enabled):
+    """THE structural claim multi-destination rests on.
+
+    One page_welcome_message string holding both a `quick_replies` array
+    (Messenger's carrier for 68% of ad entrants, and their only one) and an
+    `autofill_message` (WhatsApp's only carrier of any kind), with
+    customer_action_type naming only the latter. Meta stores both -- confirmed
+    by reading the creative back -- and delivers the Messenger half.
+    """
+    dest = _multi_dest()
+    creative, _, _, _ = _multi_creative(dest)
+
+    message = _welcome(creative)["text_format"]["message"]
+
+    assert "autofill_message" in message
+    assert "quick_replies" in message
+    assert message["text"] == "Tap below or send to start"
+    assert message["quick_replies"][0]["title"] == "Start survey"
+
+
+def test_the_blob_goes_on_both_link_data_and_asset_feed_spec(multi_enabled):
+    """Both, because adopt sets both and a blank welcome screen on only one
+    would have a placement explanation rather than a Meta explanation.
+
+    The first multi probe omitted the asset_feed_spec copy, which meant a blank
+    welcome screen there would have been misread as "Meta dropped the blob".
+    """
+    dest = _multi_dest()
+    creative, _, _, _ = _multi_creative(dest)
+
+    assert (
+        creative["object_story_spec"]["link_data"]["page_welcome_message"]
+        == creative["asset_feed_spec"]["additional_data"]["page_welcome_message"]
+    )
+
+
+def test_the_multi_creative_matches_what_the_probe_builds(multi_enabled):
+    """End to end against the probe's own serialisation, not just its shape."""
+    dest = _multi_dest()
+    creative, study, stratum, config = _multi_creative(dest)
+
+    md = creative_metadata(study, stratum, dest)
+    ref = messenger_ref(config.name, md, dest)
+    autofill = whatsapp_autofill(dest.initial_shortcode, None)
+
+    assert creative["object_story_spec"]["link_data"][
+        "page_welcome_message"
+    ] == _probe_welcome_combined(
+        dest.welcome_message, dest.button_text, ref, autofill
+    )
+
+
+def test_the_multi_creative_carries_url_tags_and_the_messenger_fallback_cta(
+    multi_enabled,
+):
+    """url_tags stays: it is Messenger's other carrier, the 32% floor.
+
+    And the single-valued CTA stays MESSAGE_PAGE, which is Meta's documented
+    fallback for a multi-destination creative -- the real destination array
+    lives on asset_feed_spec.
+    """
+    dest = _multi_dest()
+    creative, study, stratum, config = _multi_creative(dest)
+
+    md = creative_metadata(study, stratum, dest)
+    assert creative["url_tags"] == f"ref={messenger_ref(config.name, md, dest)}"
+
+    assert creative["object_story_spec"]["link_data"][
+        "call_to_action"
+    ].export_all_data() == {
+        "type": "MESSAGE_PAGE",
+        "value": {"app_destination": "MESSENGER"},
+    }
+
+
+def test_the_asset_feed_spec_carries_the_destination_array(multi_enabled):
+    dest = _multi_dest()
+    creative, _, _, _ = _multi_creative(dest)
+
+    afs = creative["asset_feed_spec"]
+    assert afs["optimization_type"] == "DOF_MESSAGING_DESTINATION"
+    assert afs["call_to_actions"] == [
+        {
+            "type": "MESSAGE_PAGE",
+            "value": {
+                "app_destination": "MESSENGER",
+                "link": "https://fb.com/messenger_doc/",
+            },
+        },
+        {
+            "type": "WHATSAPP_MESSAGE",
+            "value": {
+                "app_destination": "WHATSAPP",
+                "link": "https://api.whatsapp.com/send",
+            },
+        },
+    ]
+
+
+def test_a_template_that_already_has_an_asset_feed_spec_fails_loudly(multi_enabled):
+    """asset_feed_spec holds one optimization_type, so the two cannot both apply.
+
+    Merging would silently drop either the destination array (the ad only ever
+    opens Messenger) or the template's creative variants (respondents see
+    something different). Neither is inferable from here.
+    """
+    dest = _multi_dest()
+    template = {
+        "object_story_spec": {"page_id": "page-123", "link_data": {"image_hash": "h"}},
+        "asset_feed_spec": {"optimization_type": "DEGREES_OF_FREEDOM"},
+    }
+
+    with pytest.raises(Exception, match="already carries one"):
+        _multi_creative(dest, template=template)
+
+
+# --- both tokens round-trip to the same metadata ---------------------------
+
+
+def test_both_tokens_round_trip_to_the_same_metadata_dict(multi_enabled):
+    """The two arms describe the same respondent in two grammars.
+
+    Messenger's token is parsed the way fly's getMetadata does (split on ".",
+    decode, pair up); WhatsApp's is first checked against fly's anchored entry
+    pattern and then parsed the same way. Both must land on exactly the blob
+    frozen into ad_attributions.metadata -- otherwise one ad describes two
+    different people depending on which arm Meta happened to pick.
+    """
+    dest = _multi_dest(full_ref=True)
+    creative, study, stratum, config = _multi_creative(
+        dest, metadata={"gender": "women", "Region": "South East"}
+    )
+
+    frozen = ref_metadata(config.name, creative_metadata(study, stratum, dest))
+
+    message = _welcome(creative)["text_format"]["message"]
+    messenger_token = json.loads(message["quick_replies"][0]["payload"])["referral"][
+        "ref"
+    ]
+    whatsapp_token = message["autofill_message"]["content"]
+
+    # Messenger: creative-led, order-free.
+    assert messenger_token.startswith("creative.")
+    assert _parse_ref(messenger_token) == frozen
+
+    # WhatsApp: form-first, and it must actually pass fly's gate.
+    assert whatsapp_token.startswith("form.")
+    assert _fly_would_accept(whatsapp_token)
+    assert _parse_ref(whatsapp_token) == frozen
+
+    # ...and url_tags carries the Messenger one too.
+    assert _parse_ref(creative["url_tags"].removeprefix("ref=")) == frozen
+
+
+def test_the_two_grammars_stay_two(multi_enabled):
+    """make_ref output can never be a WhatsApp autofill, whatever the values.
+
+    fly's pattern anchors on `form.`; make_ref leads with `creative.`. This is
+    structural, not a character-set problem, which is why multi serialises the
+    same facts twice rather than reusing one string.
+    """
+    dest = _multi_dest(full_ref=True)
+    creative, _, _, _ = _multi_creative(dest)
+
+    message = _welcome(creative)["text_format"]["message"]
+    messenger_token = json.loads(message["quick_replies"][0]["payload"])["referral"][
+        "ref"
+    ]
+
+    assert not _fly_would_accept(messenger_token)
+
+
+def test_the_default_is_the_shortcode_alone_on_both_arms(multi_enabled):
+    """include_metadata_in_ref defaults False -- WhatsApp's default wins.
+
+    The WhatsApp arm's token sits in the respondent's compose box, visible and
+    editable, and one flag drives both arms so they cannot disagree about how
+    much they disclose.
+    """
+    dest = _multi_dest()
+    creative, _, _, _ = _multi_creative(dest)
+
+    message = _welcome(creative)["text_format"]["message"]
+
+    assert message["autofill_message"]["content"] == "form.mnchweek"
+    assert (
+        json.loads(message["quick_replies"][0]["payload"])["referral"]["ref"]
+        == "form.mnchweek"
+    )
+    assert creative["url_tags"] == "ref=form.mnchweek"
+
+
+# --- invariant 1: the frozen blob does not depend on the destination type ---
+
+
+def test_the_frozen_blob_is_identical_across_destination_types(multi_enabled):
+    """INVARIANT. A multi destination and a Messenger destination with identical
+    strata must freeze byte-identical ad_attributions.metadata.
+
+    That blob is the only attribution a thin-ref study will ever have, and it is
+    frozen at ad creation and never refreshed. If a destination type leaked into
+    creative_metadata, the mapping rows would lose `creative`/`form`, every
+    `location: "ad"` conf would resolve to nothing, every stratum would count
+    zero, and the optimizer would reallocate on empty data -- silently and
+    unrecoverably.
+
+    Channel is decided by Meta at click time on a multi ad, so the blob could
+    not depend on it even in principle: one ad, one ad id, one row.
+    """
+    creative = _creative("Smiling", "d")
+    stratum = _stratum_with_md("stratum-1", [creative], PRODUCTION_METADATA)
+
+    messenger = _messenger_dest("d", "mnchweek")
+    whatsapp = FlyWhatsAppDestination(
+        type="whatsapp",
+        name="d",
+        initial_shortcode="mnchweek",
+        welcome_message="Tap send to start",
+        whatsapp_phone_number="+1-541-920-2635",
+    )
+    multi = _multi_dest(name="d")
+
+    frozen = []
+    for dest, dt in [
+        (messenger, "MESSENGER"),
+        (whatsapp, "WHATSAPP"),
+        (multi, "MESSAGING_MESSENGER_WHATSAPP"),
+    ]:
+        study = _study([dest], [creative], destination_type=dt)
+        frozen.append(
+            ref_metadata(creative.name, creative_metadata(study, stratum, dest))
+        )
+
+    assert frozen[0] == frozen[1] == frozen[2]
+    assert frozen[0]["form"] == "mnchweek"
+    assert frozen[0]["creative"] == "Smiling"
+    for key, value in PRODUCTION_METADATA.items():
+        assert frozen[0][key] == value
+
+
+def test_the_ref_mode_does_not_change_the_multi_blob_either(multi_enabled):
+    """The same guard as Messenger's, on the new type."""
+    creative = _creative("Smiling", "multi")
+    stratum = _stratum_with_md("stratum-1", [creative], PRODUCTION_METADATA)
+
+    blobs = []
+    for full in [True, False]:
+        dest = _multi_dest(full_ref=full)
+        study = _multi_study([dest], [creative])
+        blobs.append(
+            ref_metadata(creative.name, creative_metadata(study, stratum, dest))
+        )
+
+    assert blobs[0] == blobs[1]
+
+
+def test_multi_ad_provenance_names_the_shortcode(multi_enabled):
+    dest = _multi_dest()
+    creative = _creative("Smiling", "multi")
+    study = _multi_study([dest], [creative])
+    stratum = _stratum_with_md("stratum-1", [creative], {"gender": "women"})
+
+    prov = ad_provenance(study, "test-campaign-multi", [stratum])
+
+    assert prov[("stratum-1", "Smiling")]["shortcode"] == "mnchweek"
+    assert prov[("stratum-1", "Smiling")]["resolved_from"] == "ad_id"
+
+
+# --- destination_type derivation -------------------------------------------
+
+
+def test_each_destination_implies_its_own_destination_type(multi_enabled):
+    assert destination_type_for(_messenger_dest("m", "sc")) == "MESSENGER"
+    assert destination_type_for(_whatsapp_dest()) == "WHATSAPP"
+    assert destination_type_for(_multi_dest()) == "MESSAGING_MESSENGER_WHATSAPP"
+
+    # Web and App encode their target in a URL or deeplink, so they are
+    # indifferent to how Meta labels the ad set: the recruitment conf governs.
+    assert destination_type_for(_web_dest("web")) is None
+    assert destination_type_for(_app_dest()) is None
+
+
+def _pair(destination, name="A"):
+    return (
+        CreativeConf(
+            destination=destination.name, name=name, template=_template_with_page()
+        ),
+        destination,
+    )
+
+
+def test_derivation_returns_the_token_the_stratums_destinations_imply(multi_enabled):
+    assert (
+        adset_destination_type([_pair(_messenger_dest("m", "sc"))], "IGNORED")
+        == "MESSENGER"
+    )
+    assert adset_destination_type([_pair(_whatsapp_dest())], "IGNORED") == "WHATSAPP"
+    assert (
+        adset_destination_type([_pair(_multi_dest())], "IGNORED")
+        == "MESSAGING_MESSENGER_WHATSAPP"
+    )
+
+
+def test_web_and_app_fall_through_to_the_recruitment_default():
+    """What keeps the five legacy WEB/WEBSITE studies byte-identical.
+
+    Measured 2026-08-17 against production study_confs: every study whose
+    recruitment conf says WEB or WEBSITE has destinations that imply nothing, so
+    the stored value is used verbatim.
+    """
+    assert adset_destination_type([_pair(_web_dest("web"))], "WEBSITE") == "WEBSITE"
+    assert adset_destination_type([_pair(_app_dest())], "APP") == "APP"
+    assert adset_destination_type([], "MESSENGER") == "MESSENGER"
+
+
+def test_several_creatives_agreeing_derive_one_type(multi_enabled):
+    dest = _messenger_dest("m", "sc")
+    pairs = [_pair(dest, n) for n in ["A", "B", "C"]]
+    assert adset_destination_type(pairs, "IGNORED") == "MESSENGER"
+
+
+def test_a_stratum_mixing_channels_raises_instead_of_picking_one(multi_enabled):
+    """destination_type is an ad-set field; one stratum is one ad set.
+
+    Before derivation this could not even be detected: every ad set of every arm
+    took the same study-wide string.
+    """
+    messenger = _messenger_dest("messenger", "sc")
+    whatsapp = _whatsapp_dest()
+
+    with pytest.raises(Exception, match="different ad set destination types"):
+        adset_destination_type(
+            [_pair(messenger, "A"), _pair(whatsapp, "B")], "MESSENGER"
+        )
+
+
+def test_a_stratum_mixing_multi_with_plain_messenger_raises(multi_enabled):
+    with pytest.raises(Exception, match="different ad set destination types"):
+        adset_destination_type(
+            [_pair(_messenger_dest("messenger", "sc"), "A"), _pair(_multi_dest(), "B")],
+            "MESSENGER",
+        )
+
+
+def test_a_destination_that_implies_nothing_does_not_veto_one_that_does(multi_enabled):
+    """A stratum mixing a Web creative with a Messenger one still derives
+    MESSENGER: there is nothing to disagree about, exactly as promoted_object
+    treats a stratum whose creatives all want None."""
+    assert (
+        adset_destination_type(
+            [_pair(_messenger_dest("messenger", "sc"), "A"), _pair(_web_dest("web"), "B")],
+            "WEBSITE",
+        )
+        == "MESSENGER"
+    )
+
+
+def test_a_channel_experiment_gives_each_arm_its_own_destination_type(multi_enabled):
+    """The thing one study-wide field made impossible.
+
+    Setting MESSAGING_MESSENGER_WHATSAPP to reach both arms made BOTH of them
+    multi-destination, which destroys the experiment by handing channel
+    assignment to Meta -- you cannot randomise what Meta assigns. Each arm now
+    derives its own token from its own destinations.
+    """
+    messenger = _messenger_dest("Messenger arm", "sc_m")
+    whatsapp = FlyWhatsAppDestination(
+        type="whatsapp",
+        name="WhatsApp arm",
+        initial_shortcode="sc_w",
+        welcome_message="Tap send",
+        whatsapp_phone_number="+1-541-920-2635",
+    )
+    creatives = [
+        CreativeConf(
+            destination="Messenger arm", name="m0", template=_template_with_page()
+        ),
+        CreativeConf(
+            destination="WhatsApp arm", name="w0", template=_template_with_page()
+        ),
+    ]
+    study = _study([messenger, whatsapp], creatives, destination_type="MESSENGER")
+    stratum = _stratum_with_md("stratum-1", creatives, {"gender": "women"})
+
+    for arm, expected in [("Messenger arm", "MESSENGER"), ("WhatsApp arm", "WHATSAPP")]:
+        pairs = pair_creatives_with_destinations(
+            study, stratum, f"test-campaign-{arm}"
+        )
+        assert adset_destination_type(pairs, study.recruitment.destination_type) == (
+            expected
+        )
+
+
+# --- invariant 2/3: existing studies are byte-identical --------------------
+
+
+_UNCHANGING_ADSET_FIELDS = [
+    "name",
+    "status",
+    "daily_budget",
+    "campaign_id",
+    "optimization_goal",
+    "destination_type",
+    "billing_event",
+    "bid_strategy",
+    "targeting",
+]
+
+
+def _adset_snapshot(data):
+    """Everything but the two clock-dependent fields, which are asserted present."""
+    assert "start_time" in data and "end_time" in data
+    return {k: v for k, v in data.items() if k not in ("start_time", "end_time")}
+
+
+def test_messenger_adset_instructions_are_byte_identical():
+    """Asserted directly, not inferred. 110 production studies run through here.
+
+    The whole ad set, not just destination_type: derivation moved the value that
+    feeds AdsetConf, so the guard has to cover everything that dict produces.
+    """
+    data = _adset_for(
+        _messenger_dest("messenger", "mnchweek"),
+        _template_with_page(),
+        "MESSENGER",
+        "messenger",
+    )
+
+    assert _adset_snapshot(data) == {
+        "name": "stratum-1",
+        "status": "ACTIVE",
+        "daily_budget": 1000,
+        "campaign_id": "campaign-1",
+        "optimization_goal": "CONVERSATIONS",
+        "destination_type": "MESSENGER",
+        "billing_event": "IMPRESSIONS",
+        "bid_strategy": "LOWEST_COST_WITHOUT_CAP",
+        "targeting": {"targeting_automation": {"advantage_audience": 0}},
+    }
+
+
+def test_web_adset_instructions_are_byte_identical():
+    """WEBSITE is kept verbatim: a Web destination implies nothing."""
+    data = _adset_for(_web_dest("web"), _template_with_page(), "WEBSITE", "web")
+
+    assert _adset_snapshot(data) == {
+        "name": "stratum-1",
+        "status": "ACTIVE",
+        "daily_budget": 1000,
+        "campaign_id": "campaign-1",
+        "optimization_goal": "CONVERSATIONS",
+        "destination_type": "WEBSITE",
+        "billing_event": "IMPRESSIONS",
+        "bid_strategy": "LOWEST_COST_WITHOUT_CAP",
+        "targeting": {"targeting_automation": {"advantage_audience": 0}},
+    }
+
+
+def test_app_adset_instructions_are_byte_identical():
+    data = _adset_for(_app_dest("app"), _template_with_page(), "APP", "app")
+
+    assert _adset_snapshot(data) == {
+        "name": "stratum-1",
+        "status": "ACTIVE",
+        "daily_budget": 1000,
+        "campaign_id": "campaign-1",
+        "optimization_goal": "CONVERSATIONS",
+        "destination_type": "APP",
+        "billing_event": "IMPRESSIONS",
+        "bid_strategy": "LOWEST_COST_WITHOUT_CAP",
+        "targeting": {"targeting_automation": {"advantage_audience": 0}},
+        "promoted_object": {
+            "application_id": "app-1",
+            "object_store_url": "https://play.example/app",
+        },
+    }
+
+
+def test_a_messenger_creative_gains_no_asset_feed_spec():
+    """_create_creative learned an asset_feed_spec parameter. Nothing else may
+    notice: asset_feed_spec is in field_contract.COMPARED_AD, so an extra key
+    would rewrite every ad in all 124 Messenger studies on the next run."""
+    template = _load_template("image_ad_messenger.json")
+    dest = _messenger_dest("messenger", "mnchweek")
+    config = CreativeConf(destination="messenger", name="Smiling", template=template)
+    study = _study([dest], [config])
+    stratum = _stratum_with_md("stratum-1", [config], PRODUCTION_METADATA)
+
+    creative = create_creative(study, stratum, config, dest)
+
+    assert "asset_feed_spec" not in creative.export_all_data()
+
+
+def test_a_template_asset_feed_spec_still_flows_through_untouched():
+    """The pre-existing path, unchanged by the new parameter."""
+    template = _load_template("image_ad_messenger.json")
+    template["asset_feed_spec"] = {"optimization_type": "DEGREES_OF_FREEDOM"}
+    dest = _messenger_dest("messenger", "mnchweek")
+    config = CreativeConf(destination="messenger", name="Smiling", template=template)
+    study = _study([dest], [config])
+    stratum = _stratum_with_md("stratum-1", [config], PRODUCTION_METADATA)
+
+    creative = create_creative(study, stratum, config, dest)
+    afs = creative["asset_feed_spec"]
+
+    assert afs["optimization_type"] == "DEGREES_OF_FREEDOM"
+    assert "page_welcome_message" in afs["additional_data"]
+
+
+def test_ad_names_are_still_the_creative_name(multi_enabled):
+    """Reconciliation matches ads by name and the ad id is the attribution key.
+
+    A name change mints new ids and strands every existing ad_attributions row,
+    making those studies' past respondents unattributable. So this holds for the
+    new destination type as much as the old ones.
+    """
+    for dest, dt in [
+        (_messenger_dest("d", "mnchweek"), "MESSENGER"),
+        (_multi_dest(name="d"), "MESSAGING_MESSENGER_WHATSAPP"),
+    ]:
+        config = CreativeConf(
+            destination="d", name="Smiling", template=_template_with_page()
+        )
+        study = _study([dest], [config], destination_type=dt)
+        stratum = _stratum_with_md("stratum-1", [config], {"gender": "women"})
+        state = _FakeCampaignState("test-campaign-d")
+
+        _, ads = adset_instructions(study, state, stratum, 10.0)
+        assert [a["name"] for a in ads] == ["Smiling"]
+
+
+def test_a_multi_adset_gets_the_derived_type_and_the_promoted_object(multi_enabled):
+    data = _adset_for(
+        _multi_dest(), _template_with_page(), "MESSAGING_MESSENGER_WHATSAPP", "multi"
+    )
+
+    assert data["destination_type"] == "MESSAGING_MESSENGER_WHATSAPP"
+    assert data["promoted_object"] == {
+        "page_id": "page-123",
+        "whatsapp_phone_number": "15419202635",
+    }
+
+
+def test_the_derived_type_overrides_a_recruitment_conf_that_disagrees(multi_enabled):
+    """A Messenger destination produces a MESSENGER ad set even if the
+    recruitment conf says WEB.
+
+    Two production studies were configured exactly this way (both ended in
+    2024). The ad set is now labelled by what its ads actually do. Note this
+    cannot rewrite anything live: destination_type is absent from
+    COMPARED_ADSET, so it rides only on ad-set creates.
+    """
+    data = _adset_for(
+        _messenger_dest("messenger", "mnchweek"),
+        _template_with_page(),
+        "WEB",
+        "messenger",
+    )
+
+    assert data["destination_type"] == "MESSENGER"
+
+
+def test_destination_type_and_promoted_object_ride_only_on_creates():
+    """Asserted, not assumed. Two consequences depend on it.
+
+    A running study can never change channel -- ad sets are matched by name and
+    the name is the stratum id -- and, more urgently here, deriving the value
+    cannot rewrite any existing ad set. If either field is ever added to
+    COMPARED_ADSET, this test is where that decision gets made consciously.
+    """
+    assert "destination_type" not in COMPARED_ADSET
+    assert "promoted_object" not in COMPARED_ADSET

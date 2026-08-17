@@ -3,10 +3,12 @@ from datetime import datetime, timedelta
 import pytest
 
 from .study_conf import (
+    MULTI_DESTINATION_ENV_VAR,
     CreativeConf,
     DestinationRecruitmentExperiment,
     ExtractionConf,
     FlyMessengerDestination,
+    FlyMultiDestination,
     FlyWhatsAppDestination,
     GeneralConf,
     InferenceDataConf,
@@ -928,16 +930,38 @@ def test_whatsapp_destination_with_a_messenger_destination_type_is_rejected():
         StudyConf(**study)
 
 
-def test_multi_destination_types_that_include_whatsapp_are_accepted():
+def test_a_whatsapp_only_study_accepts_exactly_the_whatsapp_destination_type():
+    """WHATSAPP is what a WhatsApp destination implies, so WHATSAPP is what it takes."""
+    study = _whatsapp_study({"gender": "women"}).model_dump()
+    study["recruitment"]["destination_type"] = "WHATSAPP"
+
+    assert StudyConf(**study).recruitment.destination_type == "WHATSAPP"
+
+
+def test_a_whatsapp_only_study_with_a_combination_destination_type_is_rejected():
+    """The second silent hole, closed. This used to pass.
+
+    The old check asked only whether destination_type was WhatsApp-*capable*,
+    so every combination token sailed through on a study with nothing but
+    WhatsApp destinations. Meta then runs the ad set multi-destination: the
+    WhatsApp arm works, and the Messenger (or Instagram) arm has no destination
+    behind it and therefore no routing token at all. Everyone Meta sends to that
+    arm starts a conversation and falls through to FALLBACK_FORM -- a real
+    survey, so they look like completions rather than errors, which is exactly
+    how VIR-19 stayed invisible for four days.
+
+    Half the ad works, which is why nobody notices. Hence: fail at config time.
+    """
     for destination_type in [
-        "WHATSAPP",
         "MESSAGING_MESSENGER_WHATSAPP",
         "MESSAGING_INSTAGRAM_DIRECT_WHATSAPP",
         "MESSAGING_INSTAGRAM_DIRECT_MESSENGER_WHATSAPP",
     ]:
         study = _whatsapp_study({"gender": "women"}).model_dump()
         study["recruitment"]["destination_type"] = destination_type
-        assert StudyConf(**study).recruitment.destination_type == destination_type
+
+        with pytest.raises(InvalidConfigError, match="none of its destinations"):
+            StudyConf(**study)
 
 
 def test_destination_type_is_not_checked_for_studies_without_whatsapp():
@@ -1016,3 +1040,217 @@ def test_a_thinned_whatsapp_destination_is_flagged_the_same_way():
     # destination types rather than being Messenger-specific.
     study = _whatsapp_study({"gender": "women"}, full_ref=False)
     assert thins_its_ref_without_reading_the_mapping(study) == ["whatsapp"]
+
+
+# ---------------------------------------------------------------------------
+# destination_type as a claim about the channel, and multi-destination.
+#
+# `destination_type` used to be checked in exactly one direction -- a WhatsApp
+# destination had to sit on a WhatsApp-capable ad set -- so two mirror cases
+# passed silently, both of them producing an ad where one arm routes and the
+# other quietly recruits into FALLBACK_FORM.
+# ---------------------------------------------------------------------------
+
+
+def _messenger_only_study(destination_type):
+    return StudyConf(
+        id="00000000-0000-0000-0000-000000000001",
+        user=UserInfo(survey_user="user", token="token"),
+        general=GeneralConf(
+            name="test-study",
+            credentials_key="page-1",
+            credentials_entity="facebook_page",
+            ad_account="act_1",
+            opt_window=48,
+        ),
+        destinations=[
+            FlyMessengerDestination(
+                type="messenger",
+                name="messenger",
+                initial_shortcode="mnchweek",
+                welcome_message="Welcome!",
+                button_text="OK",
+            )
+        ],
+        audiences=[],
+        creatives=[
+            CreativeConf(destination="messenger", name="Smiling", template={})
+        ],
+        strata=[],
+        recruitment=_simple(destination_type=destination_type),
+    )
+
+
+def test_a_messenger_only_study_with_a_multi_destination_type_is_rejected():
+    """The first silent hole, closed. This used to build happily.
+
+    MESSAGING_MESSENGER_WHATSAPP with only Messenger destinations runs the ads
+    multi-destination: the Messenger arm keeps its quick-reply welcome message
+    and routes fine, and the WhatsApp arm has no autofill token at all. Every
+    WhatsApp clicker Meta routes there lands on FALLBACK_FORM -- a real survey
+    belonging to a real researcher.
+
+    Half the ad works, which is exactly why the study's operator has no reason
+    to suspect it. fly's own onboarding doc calls this "the single easiest way
+    to misconfigure a WhatsApp ad".
+    """
+    with pytest.raises(InvalidConfigError, match="none of its destinations"):
+        _messenger_only_study("MESSAGING_MESSENGER_WHATSAPP")
+
+
+def test_a_messenger_only_study_with_a_whatsapp_destination_type_is_rejected():
+    with pytest.raises(InvalidConfigError, match="none of its destinations"):
+        _messenger_only_study("WHATSAPP")
+
+
+def test_a_messenger_only_study_with_messenger_is_accepted():
+    """The 110 production studies. Untouched."""
+    study = _messenger_only_study("MESSENGER")
+    assert study.recruitment.destination_type == "MESSENGER"
+
+
+def test_a_non_messaging_destination_type_makes_no_claim_to_check():
+    """WEB with Messenger destinations still builds.
+
+    Two production studies are configured exactly this way (both ended in 2024,
+    measured 2026-08-17). A non-messaging destination_type is not a claim about
+    which messaging app opens, so there is nothing to contradict; the ad set's
+    value is derived from the destinations instead.
+    """
+    assert _messenger_only_study("WEB").recruitment.destination_type == "WEB"
+
+
+def _multi_study(destination_type="MESSAGING_MESSENGER_WHATSAPP",
+                 optimization_goal="CONVERSATIONS"):
+    return StudyConf(
+        id="00000000-0000-0000-0000-000000000001",
+        user=UserInfo(survey_user="user", token="token"),
+        general=GeneralConf(
+            name="test-study",
+            credentials_key="page-1",
+            credentials_entity="facebook_page",
+            ad_account="act_1",
+            opt_window=48,
+        ),
+        destinations=[
+            FlyMultiDestination(
+                type="multi",
+                name="multi",
+                initial_shortcode="mnchweek",
+                welcome_message="Tap below or send to start",
+                button_text="Start survey",
+                whatsapp_phone_number="+1-541-920-2635",
+            )
+        ],
+        audiences=[],
+        creatives=[CreativeConf(destination="multi", name="Smiling", template={})],
+        strata=[],
+        recruitment=_simple(
+            destination_type=destination_type, optimization_goal=optimization_goal
+        ),
+    )
+
+
+@pytest.fixture
+def multi_enabled(monkeypatch):
+    monkeypatch.setenv(MULTI_DESTINATION_ENV_VAR, "true")
+
+
+def test_a_multi_destination_needs_the_multi_destination_type(multi_enabled):
+    assert _multi_study().recruitment.destination_type == (
+        "MESSAGING_MESSENGER_WHATSAPP"
+    )
+
+    with pytest.raises(InvalidConfigError, match="none of its destinations"):
+        _multi_study(destination_type="MESSENGER")
+
+    with pytest.raises(InvalidConfigError, match="none of its destinations"):
+        _multi_study(destination_type="WHATSAPP")
+
+
+def test_multi_destination_requires_the_conversations_optimization_goal(multi_enabled):
+    """Meta's constraint, validated where someone can still act on it.
+
+    Multi-destination forces optimization_goal CONVERSATIONS -- strictly
+    narrower than single-destination CTWA -- which couples a destination choice
+    to a study-level recruitment setting. Checked rather than silently
+    overridden: optimization_goal is what cost-per-respondent is measured
+    against, and rewriting it would change what the study buys without saying so.
+    """
+    with pytest.raises(InvalidConfigError, match="CONVERSATIONS"):
+        _multi_study(optimization_goal="LINK_CLICKS")
+
+    with pytest.raises(InvalidConfigError, match="optimization_goal"):
+        _multi_study(optimization_goal="IMPRESSIONS")
+
+
+def test_the_conversations_check_names_both_fields(multi_enabled):
+    """So the error is actionable. Meta's own rejection never mentions the
+    destination, which is what makes this worth catching early."""
+    try:
+        _multi_study(optimization_goal="LINK_CLICKS")
+    except InvalidConfigError as e:
+        assert "optimization_goal" in str(e)
+        assert "multi-destination" in str(e)
+    else:
+        raise AssertionError("expected the goal check to refuse")
+
+
+def test_the_conversations_check_leaves_other_studies_alone():
+    """Only multi is constrained. Single-destination CTWA accepts LINK_CLICKS,
+    and must keep doing so -- a Page subject to European privacy rules cannot
+    use CONVERSATIONS for click-to-WhatsApp at all."""
+    study = _whatsapp_study({"gender": "women"}).model_dump()
+    study["recruitment"]["optimization_goal"] = "LINK_CLICKS"
+
+    assert StudyConf(**study).recruitment.optimization_goal == "LINK_CLICKS"
+
+
+def test_a_multi_destination_shortcode_keeps_the_narrow_alphabet(multi_enabled):
+    """It has a WhatsApp arm, so the shortcode must be typeable by hand.
+
+    Someone who hears about the study texts `form.<shortcode>` straight into
+    WhatsApp; a hand-typed space is a literal space, not %20, and lands them in
+    the fallback survey.
+    """
+    with pytest.raises(InvalidConfigError, match="initial_shortcode"):
+        FlyMultiDestination(
+            type="multi",
+            name="multi",
+            initial_shortcode="mnch week",
+            welcome_message="Hi",
+            button_text="Start",
+            whatsapp_phone_number="+1-541-920-2635",
+        )
+
+
+def test_a_multi_destination_number_must_be_dialable(multi_enabled):
+    with pytest.raises(InvalidConfigError, match="dialable"):
+        FlyMultiDestination(
+            type="multi",
+            name="multi",
+            initial_shortcode="mnchweek",
+            welcome_message="Hi",
+            button_text="Start",
+            whatsapp_phone_number="10925130295730592",
+        )
+
+
+def test_a_multi_destination_exposes_the_number_in_metas_shape(multi_enabled):
+    dest = FlyMultiDestination(
+        type="multi",
+        name="multi",
+        initial_shortcode="mnchweek",
+        welcome_message="Hi",
+        button_text="Start",
+        whatsapp_phone_number="+1-541-920-2635",
+    )
+    assert dest.promoted_phone_number == "15419202635"
+
+
+def test_a_thin_multi_ref_without_an_ad_conf_is_reported(multi_enabled):
+    """include_metadata_in_ref defaults False on multi, so the ad -> stratum
+    mapping is the only attribution it has. Reported for the same reason as the
+    other fly destinations."""
+    study = _multi_study()
+    assert thins_its_ref_without_reading_the_mapping(study) == ["multi"]
