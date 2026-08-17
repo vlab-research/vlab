@@ -115,6 +115,96 @@ WHERE conf_type = 'recruitment'
   AND ROW_NUMBER() ... = 1  -- most recent only
 ```
 
+## Ad-ID attribution
+
+vlab creates exactly one ad per (creative, stratum) pair, so an ad's id already
+determines the stratum it recruits for. The Python `adopt` service freezes that
+fact at ad-creation time into an `ad_attributions` row (see
+`documentation/ad-attributions.md` for that half). The inference side is the
+read side: an event carries the id of the ad that recruited its respondent, and
+swoosh resolves stratum variables by joining on that id — instead of parsing
+them out of the dotted `ref` string that used to travel inside every message.
+
+### The event fields
+
+`InferenceDataEvent` (`inference-data/inference_data.go`) carries `AdID` and
+`AdNetwork` as first-class typed fields, not reserved keys inside
+`User.Metadata`. A map key would be a fly-shaped convention that every future
+connector has to imitate with nothing enforcing it — the same shape of mistake
+as the dotted ref, which was a convention smuggled inside an untyped blob. The
+field is the contract; each source works out how to meet it.
+
+No migration was needed to add them: `inference_data_events` stores the whole
+event as one JSON blob in its `data` column, and both fields are `omitempty`,
+so existing rows are byte-identical to what they were before the fields
+existed.
+
+### `AdNetwork` is the ad network, not the messaging channel
+
+Messenger ads and WhatsApp ads are both Meta ads sharing one id namespace, so
+both map to `NetworkFacebook` ("facebook"). `ad_attributions` is keyed
+`(network, ad_id)`, so getting this backwards makes every lookup miss — and a
+miss does not error, it attributes the respondent to no stratum. The fly
+connector (`sources/fly/main.go`) derives the network from fly's `platform`
+metadata key via `adNetworkForPlatform`/`platformFromMetadata`; an
+unrecognised platform yields `""` rather than a guess.
+
+### `location: "ad"`
+
+A third value alongside `"variable"` and `"metadata"` in swoosh's
+`getRetrieveFunc` (`swoosh/inference_data.go`). The user declares these confs
+with the same `ExtractionConf` shape as any other location — vlab derives
+nothing.
+
+There is deliberately **no fallback to `location: "metadata"`, and adding one
+would be a bug**: swoosh recomputes a study's entire history on every run, so a
+fallback would let someone swap an existing study's conf and silently
+re-attribute its whole back-catalogue through a path its events cannot
+satisfy (pre-ad-id rows carry no ad id and are never backfilled).
+`location: "ad"` is for new studies only; existing studies keep `"metadata"`
+and full refs permanently.
+
+### Where the database touch lives
+
+`GetAdAttributions` (`swoosh/ad_attributions.go`) runs once per study in
+`swooshStudy`, before `Reduce`. `Reduce` takes the mapping as plain data and
+`retrieveFromAd` closes over it. This is deliberate: `RetrieveFunc` has no
+context and no error and runs once per event per conf, so a query inside it
+would be one query per response. The load is also per-study, so a foreign
+study's ad id misses the lookup rather than importing that study's strata —
+and keeping the lookup out of `Reduce` is what keeps `Reduce` pure and
+unit-testable against a fake map.
+
+### The three-way split
+
+`adAttributionOutcome` (`swoosh/inference_data.go`) classifies each event
+against the study's mapping:
+
+| Outcome | Meaning | Handling |
+|---|---|---|
+| attributed | ad id present, mapping row found | normal, no event |
+| organic | no ad id on the event | expected; counted as a warning, does not alarm |
+| unmapped | ad id present, no mapping row | always a bug; counted at severity `error` |
+
+Classification happens once per *event*, not per conf, so one organic arrival
+is not multiplied by the number of ad confs a study declares (see
+`hasAdConf`). `classifyExtractionError` (`swoosh/events.go`) maps `unmapped` to
+`error` severity and `organic` to `warning`, alongside the existing
+`source=`-prefixed warnings.
+
+Unmapped is self-healing: swoosh recomputes everything each run, so inserting
+the missing `ad_attributions` row retroactively fixes prior runs, and the
+dashboard's recency window ages the stale error out on its own.
+
+### Tests
+
+- `swoosh/ad_attributions_test.go` — the pure three-way-split and extraction
+  tests, plus DB-backed `swooshStudy` tests (needs `make test-db`).
+- The ad-attribution section of `sources/fly/main_test.go`.
+
+See `documentation/ad-attributions.md` and `planning/ad-id-attribution.md` for
+more detail, including the write side in `adopt`.
+
 ## Execution Model
 
 ### Kubernetes CronJobs

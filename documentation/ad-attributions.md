@@ -1,6 +1,7 @@
 # Ad attributions: vlab owns the ad → stratum join
 
-**Status:** phases A1 and A2 shipped. Nothing consumes the table yet.
+**Status:** both halves shipped — A1/A2 write the mapping, A5–A7 read it.
+`location: "ad"` is available to new studies; nothing existing is affected.
 
 vlab creates exactly one ad per (creative, stratum) pair. The ad's id therefore
 already determines its shortcode, its creative and its stratum metadata — which
@@ -10,8 +11,25 @@ of a fact vlab already knew.
 
 `ad_attributions` is where vlab keeps that fact instead: a row per created ad,
 mapping `(network, ad_id)` to the shortcode, creative name and stratum metadata
-that ad was published with. Later phases join against it; this phase only
-writes it.
+that ad was published with.
+
+End to end:
+
+```
+adopt creates ad      -> Meta returns ad_id
+                      -> ad_attributions row frozen  (A1/A2, Python)
+
+respondent arrives    -> fly resolves one ad identifier and exposes it
+                         Messenger: referral.ad_id
+                         WhatsApp:  referral.source_id, when source_type == 'ad'
+
+fly connector         -> copies it onto InferenceDataEvent.AdID,
+                         derives AdNetwork                      (A5, Go)
+
+swoosh                -> joins ad_id -> frozen metadata,
+                         emits the study's declared variables   (A6, Go)
+                      -> counts organic vs unmapped             (A7, Go)
+```
 
 ## What changed, and what deliberately did not
 
@@ -22,7 +40,7 @@ compares creatives via `field_contract.COMPARED_AD`, so altering a creative
 rewrites every ad across every live study on the next run. Existing studies keep
 the dotted ref indefinitely and are never migrated.
 
-## The data path
+## The write path (adopt, Python)
 
 Everything up to the Graph API call is pure; only the last step touches a
 database.
@@ -43,6 +61,112 @@ A create that carries no provenance, or whose provenance key is missing, still
 succeeds — but logs a warning, because an unmapped ad is a real defect (see
 below) and refusing to create the ad would be worse than creating one that is
 merely unattributable.
+
+## The read path (inference, Go)
+
+| # | Where | What happens |
+|---|---|---|
+| 1 | fly's responses view | Exposes `ad_id` as a first-class column, resolved at `conversation_started`. fly deletes any `ad_id` arriving via ref metadata before stamping its own, so a study author cannot inject one — the field is trustworthy input. |
+| 2 | `sources/fly/main.go` | Copies it to `InferenceDataEvent.AdID` and derives `AdNetwork` from fly's `platform` metadata key via `adNetworkForPlatform`. |
+| 3 | `swoosh/swoosh.go` | `GetAdAttributions` loads the study's mapping — once per run, before `Reduce`. |
+| 4 | `swoosh/inference_data.go` | `retrieveFromAd` closes over that mapping and resolves `location: "ad"` confs; `adAttributionOutcome` classifies each event three ways. |
+
+`AdID` and `AdNetwork` are **typed fields on `InferenceDataEvent`, not reserved
+keys inside `User.Metadata`**. A map key would be a fly-shaped convention every
+future connector has to imitate with nothing enforcing it — the same shape of
+mistake as the dotted ref, which was a convention smuggled inside an untyped
+blob. The field is the contract; each source works out how to meet it.
+
+**This needed no migration.** `inference_data_events` stores the whole event as
+one JSON blob in its `data` column, and the new fields are `omitempty`, so every
+existing row stays byte-identical.
+
+### `location: "ad"`, and why there is no fallback
+
+A third value alongside `"variable"` and `"metadata"`, with the same
+`ExtractionConf` shape — the user declares `key`, `name`, `value_type` and
+`aggregate` exactly as for any other location. vlab derives nothing.
+
+**It is for new studies only, and a fallback to `location: "metadata"` would be
+a bug.** swoosh recomputes a study's entire history on every run: `GetEvents`
+loads every event and `InsertInferenceData` upserts. So swapping an existing
+study's conf from `"metadata"` to `"ad"` would not migrate it forward — it would
+retroactively re-attribute its whole back-catalogue through a path those events
+cannot satisfy. Rows written before fly began stamping `ad_id` carry none and
+are never backfilled, so every historical respondent would extract nothing,
+match no stratum, and vanish from the counts. Strata would read as massively
+under-recruited and the optimizer would flood budget toward them. Worse, an
+event with no `ad_id` is indistinguishable from an organic arrival, so it lands
+in the do-not-alarm bucket.
+
+A one-off backfill is the answer if someone ever genuinely must retrofit a
+study — not a standing code path whose justification will be forgotten.
+
+Note that ref content and inference source are orthogonal: a new study can emit
+full refs *and* declare `location: "ad"`. The ref is what fly survey logic can
+branch on; the mapping is what the optimizer reads.
+
+### Where the database touch lives
+
+`RetrieveFunc` is `func(*InferenceDataEvent, *ExtractionConf) (json.RawMessage,
+bool)` — no context, no error, called once per event per conf. A query inside it
+would be one query per response. So the mapping is loaded once per study in
+`swooshStudy` and passed into `Reduce` as plain data; `Reduce` has no pool in
+its signature, which makes a per-event query unrepresentable rather than merely
+avoided, and keeps `Reduce` unit-testable against a fake map.
+
+The load is **per study**, not global. A cross-study ad id then misses the
+lookup instead of silently importing another study's strata — and that miss is
+correct behaviour that lands in the counters below.
+
+## The three-way split
+
+A retrieve returning `ok=false` means `continue`: no variable, no stratum match,
+optimizer undercount. Three different things produce it and only one is a bug.
+
+| Outcome | Meaning | Treatment |
+|---|---|---|
+| attributed | ad id present, mapping row found | normal; no event |
+| organic | no ad id on the event | expected; counted as `extraction_warning`, does not alarm |
+| **unmapped** | ad id present, **no mapping row** | always a bug; counted as `extraction_error` at severity `error` |
+
+Classification happens once per **event**, not per conf. An event either carries
+an ad id or it does not, and that id either resolves or it does not — none of
+which depends on the conf. Counting per conf would multiply one organic arrival
+by however many ad-location confs the study declares.
+
+Organic is worth counting even though it is expected: shortcodes are shareable
+by design, so a jump in the organic share means a leaked shortcode. Unmapped is
+always a defect — vlab created an ad and failed to record what it meant.
+
+**Unmapped is self-healing.** Because swoosh recomputes the whole study every
+run, inserting a missing mapping row retroactively fixes every prior run's
+attribution. The counter is a current-state measure, not a cumulative one, and
+the dashboard's 90-minute recency window ages the stale error out without anyone
+closing it.
+
+A key that is missing from a row that *was* found is deliberately not counted as
+unmapped: the ad is mapped, the conf just asked for something the ad was not
+frozen with. That is a conf problem, and inflating the unmapped counter with it
+would blunt the signal that exists to catch real bugs.
+
+## Completeness check
+
+A stratum's `question_targeting` predicate matches on variables swoosh writes,
+and swoosh writes exactly what the study's `inference_data` confs name. A
+predicate naming anything else can never match: the stratum counts zero and the
+optimizer moves its budget elsewhere. Same silent-miscount family, catchable one
+layer earlier and from configuration alone.
+
+`study_conf.missing_targeting_variables` detects it, and
+`malaria.warn_on_incomplete_targeting` logs it. It **warns rather than raises**,
+for two reasons: a study with no `inference_data` conf at all supplies nothing,
+so every targeted variable looks missing when the study is merely unfinished;
+and the predicate has never been run against the thousands of existing
+production studies, so its false-positive rate is unmeasured. Turning an
+unmeasured predicate into a hard failure would stop ad reconciliation for any
+study it misjudges. Measure first, enforce later — the same reasoning as
+`facebook/reconciliation.py:_declared_drop`.
 
 ## Three invariants
 
@@ -137,10 +261,17 @@ study that opts into ad-id attribution.**
 | Provenance construction | `adopt/adopt/marketing.py` |
 | Instruction plumbing | `adopt/adopt/facebook/{update,reconciliation}.py` |
 | Write path | `adopt/adopt/{malaria,campaign_queries}.py` |
-| Integration tests (need `make test-db`) | `adopt/adopt/test_ad_attributions.py` |
-| Invariant + purity tests | `adopt/adopt/test_marketing.py`, `adopt/adopt/facebook/test_reconciliation.py` |
+| Completeness check | `adopt/adopt/study_conf.py`, `adopt/adopt/malaria.py` |
+| Event fields + network constant | `inference/inference-data/inference_data.go` |
+| Connector | `inference/sources/fly/main.go` |
+| Mapping load | `inference/swoosh/ad_attributions.go` |
+| Extraction + three-way split | `inference/swoosh/inference_data.go` |
+| Event routing / severity | `inference/swoosh/events.go` |
+| Python tests (need `make test-db`) | `adopt/adopt/test_ad_attributions.py`, `adopt/adopt/test_marketing.py`, `adopt/adopt/facebook/test_reconciliation.py`, `adopt/adopt/test_study_conf.py` |
+| Go tests (need `make test-db`) | `inference/swoosh/ad_attributions_test.go`, `inference/sources/fly/main_test.go` |
 
-Full design, including the later phases (first-class `ad_id` on
-`InferenceDataEvent`, swoosh's `location: "ad"` extraction, unmapped-ad
-counters, and the per-study lever that finally retires the ref):
-`planning/ad-id-attribution.md`.
+Per-app detail: `adopt/README.md` and `inference/README.md`.
+
+Full design, including the phases still outstanding (A3's mapping CSV export,
+A4's per-study lever that finally retires the ref, and A8's
+`FlyWhatsAppDestination`): `planning/ad-id-attribution.md`.
