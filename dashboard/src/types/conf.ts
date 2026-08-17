@@ -84,7 +84,42 @@ export interface App {
   user_os: string[];
 }
 
-export type Destination = Messenger | Web | App;
+// A click-to-WhatsApp destination. Shaped after Messenger, minus button_text
+// (WhatsApp has no quick-reply button — the respondent gets a prefilled compose
+// box) and plus the number the ad's clicks land on.
+//
+// include_metadata_in_ref is deliberately absent from the form. It defaults off
+// in adopt, the autofill text is visible and editable by the respondent, and
+// turning it on can make a study's refs unparseable by fly — which fails
+// closed at config-save time rather than in the UI. Ship it as a form field
+// only once there is a reason to.
+export interface WhatsApp {
+  type: string;
+  name: string;
+  initial_shortcode: string;
+  welcome_message: string;
+  whatsapp_phone_number: string;
+  additional_metadata: Record<string, string> | null;
+}
+
+// One ad that opens either Messenger or WhatsApp, Meta choosing per respondent.
+// Carries both arms' fields: button_text for the Messenger quick reply,
+// whatsapp_phone_number for the WhatsApp promoted_object.
+//
+// Gated in adopt behind ADOPT_ENABLE_MULTI_DESTINATION until the WhatsApp arm
+// is measured — see documentation/multi-destination-ads.md. Saving one while
+// the gate is shut fails validation with an error that says so.
+export interface Multi {
+  type: string;
+  name: string;
+  initial_shortcode: string;
+  welcome_message: string;
+  button_text: string;
+  whatsapp_phone_number: string;
+  additional_metadata: Record<string, string> | null;
+}
+
+export type Destination = Messenger | Web | App | WhatsApp | Multi;
 
 export type Destinations = Destination[];
 

@@ -80,7 +80,8 @@ never change channel.**
 `FlyMultiDestination` is **gated off** behind `ADOPT_ENABLE_MULTI_DESTINATION`:
 its Messenger arm is measured against live Meta delivery, its WhatsApp arm has
 never been observed. `documentation/multi-destination-ads.md` §4 is the
-procedure that clears the gate and the log that records it.
+procedure that clears the gate and the log that records it. The dashboard form
+exists and is labelled accordingly (§5 of that doc).
 
 ## The Facebook field contract
 
@@ -584,10 +585,18 @@ object — every Messenger and Web study there is — mixed or not.
 branch; it now calls the shared `adset_promoted_object`, so the probe cannot
 report an ad set different from the one production actually sends.
 
-### Not yet built
+### The dashboard form
 
-The dashboard form for this destination type, including its phone-number
-field.
+Built: `dashboard/src/pages/StudyConfPage/forms/destinations/WhatsApp.tsx`,
+including the phone-number field. The two repos share no schema — the form
+builds a plain object and adopt parses it — so the "dashboard contract" tests in
+`test_study_conf.py` assert that the exact shape `Destination.tsx`'s
+`emptyStates` produces parses into this class, and that the `type` literal still
+matches what the union discriminates on.
+
+`include_metadata_in_ref` is deliberately not exposed. It defaults off, its
+token is respondent-visible and respondent-editable, and turning it on can make
+a study's refs unparseable by fly.
 
 ### Tests
 

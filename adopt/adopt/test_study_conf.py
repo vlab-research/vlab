@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta
+from typing import Literal
 
 import pytest
 
@@ -1254,3 +1255,92 @@ def test_a_thin_multi_ref_without_an_ad_conf_is_reported(multi_enabled):
     other fly destinations."""
     study = _multi_study()
     assert thins_its_ref_without_reading_the_mapping(study) == ["multi"]
+
+
+# ---------------------------------------------------------------------------
+# The dashboard contract.
+#
+# The destination forms in dashboard/src/pages/StudyConfPage/forms/destinations/
+# POST these exact shapes. The two repos share no schema — the form builds a
+# plain object and adopt parses it — so a field renamed on one side and not the
+# other fails at study-save time for a researcher, with a pydantic error rather
+# than anything actionable. These tests are the contract.
+#
+# Keep them in step with `emptyStates` in Destination.tsx.
+# ---------------------------------------------------------------------------
+
+
+def test_the_dashboard_whatsapp_form_shape_parses():
+    """What Destination.tsx's `whatsapp` emptyState produces, once filled in."""
+    from .study_conf import FlyWhatsAppDestination
+
+    dest = FlyWhatsAppDestination(
+        **{
+            "name": "fly whatsapp",
+            "initial_shortcode": "mnchweek",
+            "welcome_message": "Tap send to start",
+            "whatsapp_phone_number": "+1-541-920-2635",
+            "type": "whatsapp",
+        }
+    )
+
+    assert dest.type == "whatsapp"
+    # Not sent by the form, and must therefore have a default. The WhatsApp
+    # default is off: the autofill text is visible to and editable by the
+    # respondent.
+    assert dest.include_metadata_in_ref is False
+    assert dest.additional_metadata is None
+
+
+def test_the_dashboard_multi_form_shape_parses(multi_enabled):
+    """What Destination.tsx's `multi` emptyState produces, once filled in."""
+    dest = FlyMultiDestination(
+        **{
+            "name": "fly multi",
+            "initial_shortcode": "mnchweek",
+            "welcome_message": "Tap below or send to start",
+            "button_text": "Start survey",
+            "whatsapp_phone_number": "+1-541-920-2635",
+            "type": "multi",
+        }
+    )
+
+    assert dest.type == "multi"
+    assert dest.include_metadata_in_ref is False
+
+
+def test_the_dashboard_additional_metadata_shape_parses(multi_enabled):
+    """The metadata text box sends a parsed object, or omits the key entirely.
+
+    It never sends `{}` for a cleared field — additionalMetadata.ts maps an
+    empty box to null — so both spellings have to work.
+    """
+    from .study_conf import FlyWhatsAppDestination
+
+    base = {
+        "name": "d",
+        "initial_shortcode": "mnchweek",
+        "welcome_message": "Hi",
+        "whatsapp_phone_number": "+1-541-920-2635",
+        "type": "whatsapp",
+    }
+
+    assert FlyWhatsAppDestination(
+        **base, additional_metadata={"wave": "2"}
+    ).additional_metadata == {"wave": "2"}
+    assert FlyWhatsAppDestination(**base, additional_metadata=None) \
+        .additional_metadata is None
+
+
+def test_the_form_type_literals_match_what_the_union_discriminates_on():
+    """The form's `type` strings are load-bearing, not cosmetic.
+
+    Both classes use a Literal discriminator precisely because their required
+    fields overlap: without it pydantic's smart union can resolve one to the
+    other by ignoring an extra field. So 'whatsapp' and 'multi' in
+    Destination.tsx's emptyStates must be exactly these.
+    """
+    from .study_conf import FlyWhatsAppDestination
+
+    assert FlyWhatsAppDestination.model_fields["type"].annotation == Literal["whatsapp"]
+    assert FlyMultiDestination.model_fields["type"].annotation == Literal["multi"]

@@ -355,12 +355,40 @@ environments are enabled.
 
 ---
 
-## 5. What is deliberately not built
+## 5. The dashboard forms
 
-- **The dashboard form.** `grep -rn multi dashboard/src/` returns nothing.
-  `FlyMultiDestination` is reachable only by hand-POSTing a conf, which is
-  appropriate while gated. Blocked on other concurrent work in
-  `dashboard/src/pages/StudyConfPage/forms/destinations/`.
+Both destination types are configurable from the study conf UI:
+
+| File | Purpose |
+|---|---|
+| `forms/destinations/WhatsApp.tsx` | click-to-WhatsApp; ungated and usable today |
+| `forms/destinations/Multi.tsx` | multi-destination; selectable, saves only once the gate opens |
+| `forms/destinations/additionalMetadata.ts` | the JSON text box's parse rule, extracted and unit-tested |
+| `fixtures/general/destinations.ts` | the two new options in the type selector |
+| `types/conf.ts` | `WhatsApp` and `Multi` added to the `Destination` union |
+
+The multi option is **labelled "not yet enabled" rather than hidden**. Hiding it
+would make the capability undiscoverable and leave no explanation; leaving it
+selectable means the save fails with the gate's own message, which names the
+measurement and the variable.
+
+The two repos share no schema — the form builds a plain object, adopt parses it —
+so `test_study_conf.py`'s "dashboard contract" section asserts that the exact
+shapes `Destination.tsx`'s `emptyStates` produce parse into the right classes,
+and that the `type` literals still match what the union discriminates on. **Keep
+those tests in step with `emptyStates`.**
+
+`include_metadata_in_ref` is deliberately **not** a form field. It defaults off,
+the autofill text is respondent-visible and respondent-editable, and turning it
+on can make a study's refs unparseable by fly — which fails closed at save time.
+Add it to the form only when there is a concrete reason to.
+
+`Messenger.tsx` keeps its own inline copy of the metadata-parsing logic rather
+than using `additionalMetadata.ts`. That file is being edited on another branch;
+fold it in when that lands.
+
+## 6. What is deliberately not built
+
 - **Instagram.** `MESSAGING_INSTAGRAM_DIRECT_*` tokens exist and nothing is known
   about what an Instagram Direct arrival carries — whether there is a ref carrier
   at all, or an equivalent of `source_id`. fly has no Instagram normalizer,
