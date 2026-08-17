@@ -37,12 +37,20 @@ swoosh                -> joins ad_id -> frozen metadata,
 
 ## What changed, and what deliberately did not
 
-Purely additive. **No existing study's ad-creation behaviour changes.** In
-particular `make_ref` and the ref emission inside `create_creative` are
-untouched, and that is a constraint rather than an oversight: reconciliation
-compares creatives via `field_contract.COMPARED_AD`, so altering a creative
-rewrites every ad across every live study on the next run. Existing studies keep
-the dotted ref indefinitely and are never migrated.
+Additive, and opt-in per study. **No existing study's ad-creation behaviour
+changes unless someone changes that study's conf.** Reconciliation compares
+creatives via `field_contract.COMPARED_AD`, so any change to what a creative
+emits rewrites that study's ads on its next run — which is why every lever here
+is per-destination and defaults to the historical behaviour. Existing studies
+keep the dotted ref indefinitely and are never migrated.
+
+Two later changes did touch the ref itself, both deliberately containable:
+
+- **A4** added `include_metadata_in_ref`, defaulting to the historical full ref.
+  A study only thins its ref when someone turns it off.
+- **D2** made `make_ref` encode `.` and `~`. Only values actually containing
+  those serialise differently, so only an already-broken study is affected — and
+  a production measurement found none. See *Ref encoding* below.
 
 ## The write path (adopt, Python)
 
@@ -299,6 +307,70 @@ for a web platform is capturing the ad id from the ad URL, which is separate
 work. Messenger is where every existing study lives and where the ref actually
 costs something.
 
+## Ref encoding, and why the creative name mattered most
+
+The ref is a dot-separated grammar, so every token has to survive being split on
+`.` and URL-decoded. Three things go into one: the creative name, each metadata
+key, and each metadata value.
+
+**Python's `quote()` is not enough on its own.** It never escapes `.`, `-`, `_`
+or `~` — they live in urllib's `_ALWAYS_SAFE`, and passing `safe=''` does *not*
+override that. Measured: `quote('a.b') == 'a.b'`, `quote('x~y') == 'x~y'`. Two
+of those four break a ref:
+
+| Character | What it does |
+|---|---|
+| `.` | it *is* the separator, so a dotted token silently mis-pairs everything after it |
+| `~` | outside fly's WhatsApp token alphabet, so the whole ref fails the entry gate |
+
+`-` and `_` are separator-safe and inside the gate alphabet, so
+`marketing.ref_value` leaves them alone; encoding them would churn refs for no
+benefit.
+
+### The severity asymmetry
+
+Not obvious from the code, and the reason the creative name mattered more than
+anything else:
+
+- A dotted **value** shifts the pairs that follow it. The respondent is
+  **mis-attributed** — wrong stratum, wrong counts.
+- A dotted **creative name** sits at the front, so it shifts *everything* after
+  it, `form` included. The respondent is **misrouted** — dropped into a
+  different survey altogether.
+
+And the name was the *least* protected of the three: interpolated completely
+raw, with no `quote()` call at all, while values at least got partial escaping.
+Study `unicef-immunization-kyrg` had creative names ending `.png` live for
+roughly nine hours in January 2023. Nothing caught it; the timing did.
+
+All three segments now go through `ref_value`.
+
+### Containment
+
+Purely prophylactic. A production measurement across every conf revision — all
+ref contributors, 3,958 metadata pairs, 618 creative names — found **zero**
+affected studies, and downstream scans over 17.8M response rows show no
+corruption signature. Nothing was remediated, and nothing needed to be.
+
+Only values actually containing `.` or `~` serialise differently, so only an
+already-broken study could see its ads rewritten. Asserted directly: the
+recorded production values all produce byte-identical refs.
+
+Two things deliberately do **not** change:
+
+- **The Facebook ad name.** `create_ad` uses the raw creative name, and
+  reconciliation matches ads by name — encoding it there would orphan every live
+  ad and mint new ids, the `ad_attributions`-stranding failure.
+- **The frozen blob.** `ref_metadata` holds raw names and raw values. Encoding
+  is transport; the blob is truth.
+
+### Deploy ordering
+
+Messenger is safe either way — its parsing is generic and `decodeURIComponent`
+handles `%2E` on production fly today. Only the **WhatsApp** gate needs fly's
+widened pattern deployed first; before that, an encoded value fails the match.
+There is deliberately no gating for this in code.
+
 ## Click-to-WhatsApp destinations
 
 `FlyWhatsAppDestination` is shaped after `FlyMessengerDestination`, minus
@@ -318,7 +390,8 @@ matches it against an anchored full-match pattern (`WHATSAPP_ENTRY_REF` in
 `replybot/lib/event-normalizer.js`):
 
 ```
-/^(?:start\s+)?form\.([A-Za-z0-9_-]+(?:\.[A-Za-z0-9_-]+)*)$/i
+/^(?:start\s+)?form\.((?:[A-Za-z0-9_-]|%[0-9A-Fa-f]{2})+
+                      (?:\.(?:[A-Za-z0-9_-]|%[0-9A-Fa-f]{2})+)*)$/i
 ```
 
 Two things follow, both verified directly against that regex:
@@ -327,8 +400,11 @@ Two things follow, both verified directly against that regex:
    `make_ref` leads with `creative.`. No value is safe enough to fix that, so
    WhatsApp needs its own **form-first** serialisation —
    `marketing.whatsapp_autofill`, emitting `form.<shortcode>[.key.value…]`.
-2. **Every token is `[A-Za-z0-9_-]`.** No spaces, no `%`. Percent-encoding
-   rescues nothing, because `%` is not in the class either.
+   This one is structural and has not changed.
+2. **Every token is `[A-Za-z0-9_-]` or a percent-encoded octet.** The `%XX`
+   half was added on fly@`feature/ad-id-attribution` `37e1e06e`. Before it, a
+   space was undeliverable raw *and* encoded, because `%` was not in the
+   alphabet either — encoding traded one rejected token for another.
 
 **A failure here is silent, which is what makes it dangerous.** Meta delivers
 the text intact — dots *and* spaces both survive `autofill_message.content`,
@@ -337,24 +413,33 @@ rejects it, no `conversation_started` is derived, and the arrival falls through
 to `FALLBACK_FORM`: a real survey, so those respondents look like completions
 rather than errors. That is the VIR-19 shape, which took four days to spot.
 
-### Full-ref mode is real but rare
+### Full-ref mode: once rare, now workable
 
-Measured against the production stratum values recorded in
-`planning/ad-id-attribution.md`, roughly half are undeliverable:
+The widened gate changed this substantially. Measured against the production
+stratum values recorded in `planning/ad-id-attribution.md`:
 
-| Value | Deliverable |
+| | Deliverable |
 |---|---|
-| `3B`, `gelangchoice`, `women`, `Smiling`, `location` | yes |
-| `Static English - Girls`, `Bauchi State`, `Like Parents`, `South East` | **no** |
+| old gate, raw values | **5 of 9** |
+| new gate, encoded values | **9 of 9** |
 
-A single unsafe value poisons the whole ref. So `include_metadata_in_ref` is
-**off by default**, and it will stay unusable for most existing-style strata
-unless their values are renamed. The only reason to turn it on is fly survey
-logic that branches on ad metadata — the optimizer never needs it, because the
-ad-ID join carries stratum identity regardless.
+`Static English - Girls`, `Bauchi State`, `Like Parents` and `South East` were
+all undeliverable and now travel fine. The only residual is `/`, which
+`quote()` keeps literal by default and the gate does not accept — it corrupts
+nothing, it is simply refused at config time.
 
-The autofill text is also **visible to and editable by the respondent**, which
-is a second, independent reason to prefer the short form.
+`include_metadata_in_ref` stays **off by default** all the same, for reasons
+that never depended on deliverability: the optimizer does not need it, since
+the ad-ID join carries stratum identity regardless, and the autofill text is
+**visible to and editable by the respondent**. The only reason to turn it on is
+fly survey logic that branches on ad metadata — but a study that wants it is no
+longer blocked by its stratum vocabulary.
+
+**The shortcode keeps the narrow alphabet**, deliberately, even though the gate
+would now accept it encoded. A metadata value is only ever carried by an ad,
+but a shortcode is shareable by design: someone texts `form.<shortcode>`
+straight into WhatsApp by hand, and a hand-typed space is a literal space, not
+`%20`. A shortcode has to be typeable, not merely encodable.
 
 ### Validation is at config time, always
 

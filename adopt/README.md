@@ -319,6 +319,84 @@ is separate work.
 The "Shortcode-only Messenger refs (A4)" section of
 `adopt/adopt/test_marketing.py`.
 
+## Ref encoding
+
+The ref is a dot-separated grammar (`creative.<name>.<key>.<value>...`),
+and every token in it has to survive being split on `.` and then
+URL-decoded. Python's `quote()` does not make that safe by itself:
+urllib's `_ALWAYS_SAFE` keeps `.`, `-`, `_` and `~` untouched even when
+you pass `safe=''` — measured, `quote('a.b') == 'a.b'`. Two of those
+four break a ref. `.` *is* the separator, so a dotted token silently
+mis-pairs everything after it. `~` is outside fly's WhatsApp token
+alphabet, so it fails the entry gate outright. `-` and `_` are both
+separator-safe and inside the alphabet, so `ref_value` (`study_conf.py`)
+deliberately leaves them alone rather than churning refs for no gain.
+
+### The severity asymmetry
+
+This is the most important point. A dotted *value* shifts the pairs
+after it, so the respondent is **mis-attributed**. A dotted *creative
+name* sits at the front of the ref and shifts everything after it,
+including `form`, so the respondent is **misrouted into a different
+survey**. And the creative name was the least protected of the three
+contributors — interpolated completely raw into `make_ref`, with no
+`quote()` at all. Study `unicef-immunization-kyrg` ran with creative
+names ending `.png` live for roughly nine hours in January 2023; timing
+caught it, nothing else would have. All three segments — creative name,
+keys, and values — now go through `ref_value` (`make_ref`,
+`marketing.py`).
+
+### Containment
+
+Purely prophylactic. A production measurement across every conf
+revision — every ref contributor, 3,958 metadata pairs and 618 creative
+names — found zero affected studies, and downstream scans over 17.8M
+response rows show no corruption signature. Nothing was remediated.
+Only values containing `.` or `~` serialise differently, so only an
+already-broken study could see its ads rewritten; tests assert the
+recorded production values produce byte-identical refs before and
+after.
+
+Two things deliberately do **not** change:
+
+- The Facebook **ad name**. `create_ad` still uses the raw creative
+  name, and reconciliation matches ads by name — encoding it would
+  orphan every live ad and mint new ids.
+- The **frozen blob**. `ref_metadata` holds raw values, never encoded
+  ones. Encoding is a transport concern; the blob is truth.
+
+### The widened WhatsApp gate
+
+fly widened its entry pattern to accept percent-encoded octets (fly@
+`feature/ad-id-attribution` `37e1e06e`). Deliverability is now judged
+on the *encoded* form, taking the recorded production values from
+**5 of 9 to 9 of 9** — `Static English - Girls`, `Bauchi State`,
+`Like Parents` and `South East` all now travel. The only residual is
+`/`, which `quote()` keeps literal by default; it corrupts nothing and
+is refused at config time.
+
+### The shortcode keeps the narrow alphabet
+
+Deliberately, even though the gate would now accept it encoded
+(`WHATSAPP_SHORTCODE_TOKEN` / `whatsapp_shortcode_safe`,
+`study_conf.py`). A metadata value is only ever carried by an ad, but a
+shortcode is shareable by design — someone texts `form.<shortcode>`
+into WhatsApp by hand, and a hand-typed space is a literal space, not
+`%20`. A shortcode must be typeable, not merely encodable.
+
+### Deploy ordering
+
+Messenger is safe either way — its parsing is generic, and
+`decodeURIComponent` already handles `%2E` on production fly today.
+Only the WhatsApp gate needs fly's widened pattern deployed first.
+There is deliberately no gating for this in code.
+
+### Tests
+
+The "Ref encoding (D2), and the widened WhatsApp gate (D1)" section of
+`adopt/adopt/test_marketing.py`, and the WhatsApp deliverability tests
+in `adopt/adopt/test_study_conf.py`.
+
 ## Click-to-WhatsApp destinations
 
 Before this, vlab could not create click-to-WhatsApp ads at all: `create_creative`
@@ -337,7 +415,7 @@ matches that text against an anchored, full-match pattern, `WHATSAPP_ENTRY_REF`
 in fly's `replybot/lib/event-normalizer.js`:
 
 ```
-/^(?:start\s+)?form\.([A-Za-z0-9_-]+(?:\.[A-Za-z0-9_-]+)*)$/i
+/^(?:start\s+)?form\.((?:[A-Za-z0-9_-]|%[0-9A-Fa-f]{2})+(?:\.(?:[A-Za-z0-9_-]|%[0-9A-Fa-f]{2})+)*)$/i
 ```
 
 Two consequences, both verified against that regex. First, the token must lead
@@ -345,9 +423,10 @@ with `form.`; `make_ref`'s output can never match, whatever the values are,
 because it leads with `creative.` — structural, not fixable by cleaning up
 values, which is why WhatsApp needs its own form-first serialisation,
 `whatsapp_autofill`, rather than reusing `make_ref`. Second, every token is
-`[A-Za-z0-9_-]`, so a space fails, and percent-encoding does not save it either
-— `%` is not in the class, so `quote()`-ing a value just trades one rejected
-character for another.
+`[A-Za-z0-9_-]` or a percent-encoded octet, so a raw space still fails — but a
+properly encoded one no longer does: fly widened the gate to accept `%XX`
+(see "Ref encoding" above), so `quote()`-ing a value now saves it rather than
+just trading one rejected character for another.
 
 ### Why the failure is dangerous
 
@@ -361,12 +440,12 @@ respondents look like completions rather than errors.
 
 `include_metadata_in_ref` puts the full stratum metadata in the autofill text,
 not just the shortcode. It defaults off. Of the production stratum values on
-record, roughly half are undeliverable — `Static English - Girls`,
-`Bauchi State`, `Like Parents` and `South East` all fail; `3B`,
-`gelangchoice`, `women` and `Smiling` pass — and one unsafe value poisons the
-whole ref. The only reason to turn it on is fly survey logic that branches on
-ad metadata; the optimizer never needs it, since the ad-ID join (see above)
-carries stratum identity regardless. The autofill text is also
+record, encoding (see "Ref encoding" above) now delivers all of them — 9 of
+9, up from 5 of 9 before fly widened its gate — but one unsafe value still
+poisons the whole ref, so the config-time check remains a hard gate rather
+than a formality. The only reason to turn this on is fly survey logic that
+branches on ad metadata; the optimizer never needs it, since the ad-ID join
+(see above) carries stratum identity regardless. The autofill text is also
 respondent-visible and respondent-editable, which is the other reason the
 default is the shortcode alone.
 
