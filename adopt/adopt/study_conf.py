@@ -593,3 +593,81 @@ class StudyConf(BaseModel):
     @property
     def base_campaign_name(self) -> str:
         return self.recruitment.base_campaign_name
+
+
+# ---------------------------------------------------------------------------
+# Completeness check: do the strata demand variables the confs never supply?
+#
+# A stratum's question_targeting predicate matches on variables that swoosh
+# writes into inference_data, and swoosh writes exactly the variables the
+# study's inference_data confs name. So a predicate referencing a variable no
+# conf produces can never match: the stratum counts zero, and the optimizer
+# quietly reallocates its budget elsewhere. Nothing errors. It is the same
+# family of silent miscount as an unmapped ad, catchable one layer earlier and
+# from configuration alone.
+#
+# These are pure functions over the conf. Deliberately no raise: see
+# missing_targeting_variables for why the caller only warns.
+# ---------------------------------------------------------------------------
+
+
+def targeting_variables(targeting: Optional[QuestionTargeting]) -> set[str]:
+    """Every variable name a question_targeting predicate reads.
+
+    Walks the tree, since `vars` holds either leaves (TargetVar) or nested
+    QuestionTargeting. Only `type == "variable"` entries name a variable;
+    constants are the values compared against.
+    """
+    if targeting is None:
+        return set()
+
+    found: set[str] = set()
+    for v in targeting.vars:
+        if isinstance(v, QuestionTargeting):
+            found |= targeting_variables(v)
+        elif v.type == "variable":
+            found.add(str(v.value))
+
+    return found
+
+
+def supplied_variables(conf: Optional[InferenceDataConf]) -> set[str]:
+    """Every variable name the study's extraction confs produce.
+
+    Across all locations — "variable", "metadata" and "ad" alike. What matters
+    to a predicate is that the variable exists, not where it came from.
+    """
+    if conf is None:
+        return set()
+
+    return {
+        ec.name
+        for source in conf.data_sources.values()
+        for ec in source.extraction_confs
+    }
+
+
+def missing_targeting_variables(study: StudyConf) -> Dict[str, set[str]]:
+    """Per stratum, the variables it targets on that nothing supplies.
+
+    Returns only strata with a non-empty gap, so an empty dict means the
+    config is complete.
+
+    Returns rather than raises, and callers warn rather than fail. Two reasons.
+    A study with no inference_data conf at all supplies nothing, so every
+    targeted variable would look missing — that is a study that has not been
+    fully configured yet, not a broken one. And this check has never run against
+    the thousands of existing production studies, so its false-positive rate is
+    unmeasured; turning an unmeasured predicate into a hard failure would stop
+    ad reconciliation for any study it misjudges. Measure first, enforce later.
+    This mirrors the reasoning in facebook/reconciliation.py:_declared_drop.
+    """
+    supplied = supplied_variables(study.inference_data)
+
+    gaps = {}
+    for stratum in study.strata:
+        missing = targeting_variables(stratum.question_targeting) - supplied
+        if missing:
+            gaps[stratum.id] = missing
+
+    return gaps

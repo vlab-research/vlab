@@ -264,25 +264,126 @@ func retrieveFromVariable(e *InferenceDataEvent, conf *ExtractionConf) (json.Raw
 	return e.Value, ok
 }
 
-func getRetrieveFunc(conf *ExtractionConf) (RetrieveFunc, error) {
+// retrieveFromAd resolves a variable through the ad that recruited the
+// respondent, rather than through anything the respondent said or that fly
+// stamped on the event.
+//
+// The attributions map is closed over rather than looked up per call: the
+// RetrieveFunc signature has no context and no error, and it runs once per
+// event per conf, so a database call in here would be one query per response.
+// It is loaded once per study in swooshStudy and passed down as plain data,
+// which is also what keeps Reduce pure and unit-testable against a fake map.
+//
+// There is deliberately no fallback to User.Metadata. `location: "ad"` is for
+// new studies only; see the comment on Reduce.
+func retrieveFromAd(attributions AdAttributions) RetrieveFunc {
+	return func(e *InferenceDataEvent, conf *ExtractionConf) (json.RawMessage, bool) {
+		// An organic respondent has no ad id. Guarded explicitly so that a
+		// stray empty-string key in the map could never match one.
+		if e.AdID == "" {
+			return nil, false
+		}
+
+		a, ok := attributions[e.AdID]
+		if !ok {
+			return nil, false
+		}
+
+		v, ok := a.Metadata[conf.Key]
+		return v, ok
+	}
+}
+
+func getRetrieveFunc(conf *ExtractionConf, attributions AdAttributions) (RetrieveFunc, error) {
 	switch conf.Location {
 	case "variable":
 		return retrieveFromVariable, nil
 	case "metadata":
 		return retrieveFromMetadata, nil
+	case "ad":
+		return retrieveFromAd(attributions), nil
 	}
 
 	return nil, fmt.Errorf("Could not find location function for location: %s", conf.Location)
+}
+
+// Entities for the two ad-attribution outcomes worth counting. They follow the
+// existing `<kind>=<name>` convention (see "var=" and "source=") so that
+// recordExtractionError can route them by prefix.
+const (
+	entityAdOrganic  = "ad=organic"
+	entityAdUnmapped = "ad=unmapped"
+)
+
+func hasAdConf(confs []*ExtractionConf) bool {
+	for _, c := range confs {
+		if c.Location == "ad" {
+			return true
+		}
+	}
+	return false
+}
+
+// adAttributionOutcome classifies one event against the study's mapping.
+//
+// A retrieve returning ok=false means `continue`: no variable, no stratum match,
+// optimizer undercount. Two very different things produce that, and telling them
+// apart is the whole point of this function:
+//
+//	attributed — ad id present, mapping row found        → normal, no event
+//	organic    — no ad id on the event                   → expected; count, don't alarm
+//	unmapped   — ad id present, no mapping row           → always a bug; alert
+//
+// Classification is per *event*, not per conf. An event either carries an ad id
+// or it does not, and that id either resolves or it does not — none of which
+// depends on the conf. Counting it per conf would multiply one organic arrival
+// by however many ad-location confs the study happens to declare.
+//
+// Returns nil when the study declares no ad-location confs at all, so studies on
+// the old `location: "metadata"` path are entirely unaffected.
+func adAttributionOutcome(e *InferenceDataEvent, confs []*ExtractionConf, attributions AdAttributions) *ExtractionError {
+	if !hasAdConf(confs) {
+		return nil
+	}
+
+	if e.AdID == "" {
+		return &ExtractionError{
+			Entity: entityAdOrganic,
+			Message: fmt.Sprintf(
+				"respondent %s arrived with no ad id and is not attributed to any stratum",
+				e.User.ID),
+			Count:   1,
+			Details: map[string]interface{}{"source": e.SourceConf.Name},
+		}
+	}
+
+	if _, ok := attributions[e.AdID]; !ok {
+		return &ExtractionError{
+			Entity: entityAdUnmapped,
+			Message: fmt.Sprintf(
+				"ad id %s has no ad_attributions row for this study; respondent %s is not attributed to any stratum",
+				e.AdID, e.User.ID),
+			Count: 1,
+			Details: map[string]interface{}{
+				"source":         e.SourceConf.Name,
+				"ad_id":          e.AdID,
+				"ad_network":     e.AdNetwork,
+				"ads_in_mapping": len(attributions),
+			},
+		}
+	}
+
+	return nil
 }
 
 // extractValue applies each ExtractionConf to one event. On failure it returns
 // an *ExtractionError keyed by the offending variable (conf.Name) so callers can
 // aggregate per entity; the event's remaining confs are skipped (first failure
 // wins), matching the previous behaviour.
-func extractValue(id IntermediateInferenceData, e *InferenceDataEvent, extractionConfs []*ExtractionConf) (IntermediateInferenceData, *ExtractionError) {
+func extractValue(id IntermediateInferenceData, e *InferenceDataEvent, extractionConfs []*ExtractionConf, attributions AdAttributions) (IntermediateInferenceData, *ExtractionError) {
 
 	for _, conf := range extractionConfs {
-		retrieve, err := getRetrieveFunc(conf)
+		retrieve, err := getRetrieveFunc(conf, attributions)
 		if err != nil {
 			return id, &ExtractionError{Entity: "var=" + conf.Name, Message: err.Error()}
 		}
@@ -362,19 +463,43 @@ func JoinSources(intermediateData IntermediateInferenceData, confs map[string]*D
 				infData[newUser] = &InferenceDataRow{User: newUser, Data: idv}
 			}
 
-		// Add all data to the user
-		for v, val := range row.Data {
-			infData[newUser].Data[v] = val
+			// Add all data to the user
+			for v, val := range row.Data {
+				infData[newUser].Data[v] = val
+			}
 		}
 	}
-}
 
 	return infData, agg.list()
 }
 
 // TODO: need to differentiate between bad errors and skip e
 
-func Reduce(events []*InferenceDataEvent, c *InferenceDataConf) (InferenceData, []ExtractionError, error) {
+// Reduce folds a study's whole event history into InferenceData.
+//
+// `attributions` is the study's frozen ad -> stratum mapping, passed in as
+// plain data so that Reduce stays pure and can be tested against a fake map;
+// the database read lives in swooshStudy. A nil map is fine and means "this
+// study has no ad mapping", which is the correct state for every study on the
+// `location: "metadata"` path.
+//
+// Note that swoosh recomputes a study's entire history on every run — GetEvents
+// loads every event and InsertInferenceData upserts. Two consequences worth
+// keeping in mind:
+//
+//   - `location: "ad"` is for new studies only, and there is deliberately no
+//     fallback to User.Metadata. Swapping an existing study's conf from
+//     "metadata" to "ad" would not migrate it forward, it would retroactively
+//     re-attribute its entire back-catalogue through a path those events cannot
+//     satisfy: rows written before fly began stamping ad_id carry none and are
+//     never backfilled, so every historical respondent would extract nothing,
+//     match no stratum, and vanish from the counts. Worse, those events are
+//     indistinguishable from organic arrivals, so they would land in the
+//     do-not-alarm bucket.
+//   - unmapped is self-healing. Inserting a missing mapping row retroactively
+//     fixes every prior run's attribution, so the unmapped count is a
+//     current-state measure and drops to zero on the next run after a fix.
+func Reduce(events []*InferenceDataEvent, c *InferenceDataConf, attributions AdAttributions) (InferenceData, []ExtractionError, error) {
 	intermediateData := make(IntermediateInferenceData)
 	agg := newExtractionErrorAgg()
 
@@ -401,9 +526,18 @@ func Reduce(events []*InferenceDataEvent, c *InferenceDataConf) (InferenceData, 
 			continue
 		}
 
+		// Classify the event's ad attribution before extracting, and do not
+		// `continue` on it: organic and unmapped are counts, not failures. An
+		// unmapped event may still carry perfectly good `variable` confs, and
+		// dropping those would turn a missing mapping row into missing survey
+		// data too.
+		if outcome := adAttributionOutcome(e, sourceConf.ExtractionConfs, attributions); outcome != nil {
+			agg.add(*outcome)
+		}
+
 		// add from metadata
 		var extErr *ExtractionError
-		intermediateData, extErr = extractValue(intermediateData, e, sourceConf.ExtractionConfs)
+		intermediateData, extErr = extractValue(intermediateData, e, sourceConf.ExtractionConfs, attributions)
 		if extErr != nil {
 			agg.add(*extErr)
 			continue

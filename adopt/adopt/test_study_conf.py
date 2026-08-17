@@ -4,8 +4,20 @@ import pytest
 
 from .study_conf import (
     DestinationRecruitmentExperiment,
+    ExtractionConf,
+    GeneralConf,
+    InferenceDataConf,
     PipelineRecruitmentExperiment,
+    QuestionTargeting,
     SimpleRecruitment,
+    SourceExtractionConf,
+    StratumConf,
+    StudyConf,
+    TargetVar,
+    UserInfo,
+    missing_targeting_variables,
+    supplied_variables,
+    targeting_variables,
 )
 
 
@@ -491,3 +503,170 @@ def test_pipeline_get_inference_window():
 
     assert inf_start == start + timedelta(days=6)
     assert inf_end == inf_start + timedelta(days=3)
+
+
+# ---------------------------------------------------------------------------
+# Completeness check (A6): strata that target variables nothing supplies.
+#
+# A question_targeting predicate reads variables swoosh writes into
+# inference_data, and swoosh writes exactly what the inference_data confs name.
+# A predicate naming anything else can never match — the stratum counts zero and
+# the optimizer moves its budget away from a segment that may be recruiting
+# fine. It does not error, which is why it needs detecting.
+# ---------------------------------------------------------------------------
+
+
+def _study_with(targeting, inference_data):
+    return StudyConf(
+        id="00000000-0000-0000-0000-000000000001",
+        user=UserInfo(survey_user="user", token="token"),
+        general=GeneralConf(
+            name="test-study",
+            credentials_key="page-1",
+            credentials_entity="facebook_page",
+            ad_account="act_1",
+            opt_window=48,
+        ),
+        destinations=[],
+        audiences=[],
+        creatives=[],
+        strata=[
+            StratumConf(
+                id="stratum-1",
+                quota=1.0,
+                creatives=[],
+                audiences=[],
+                excluded_audiences=[],
+                facebook_targeting={},
+                question_targeting=targeting,
+                metadata={},
+            )
+        ],
+        recruitment=_simple(),
+        inference_data=inference_data,
+    )
+
+
+def _extraction_conf(name, location="metadata", key="gender"):
+    return ExtractionConf(
+        location=location,
+        key=key,
+        name=name,
+        functions=[],
+        value_type="categorical",
+        aggregate="first",
+    )
+
+
+def _inference_conf(*names):
+    return InferenceDataConf(
+        data_sources={
+            "fly": SourceExtractionConf(
+                extraction_confs=[_extraction_conf(n) for n in names]
+            )
+        }
+    )
+
+
+def _targeting(*variables):
+    return QuestionTargeting(
+        op="and",
+        vars=[
+            QuestionTargeting(
+                op="equal",
+                vars=[
+                    TargetVar(type="variable", value=v),
+                    TargetVar(type="constant", value="women"),
+                ],
+            )
+            for v in variables
+        ],
+    )
+
+
+def test_targeting_variables_walks_nested_predicates():
+    # vars holds either leaves or nested predicates, and real strata nest.
+    assert targeting_variables(_targeting("md:gender", "md:age")) == {
+        "md:gender",
+        "md:age",
+    }
+
+
+def test_targeting_variables_ignores_constants():
+    # Only type == "variable" names a variable; constants are the compared-to
+    # values and must not be mistaken for one.
+    t = QuestionTargeting(
+        op="equal",
+        vars=[
+            TargetVar(type="variable", value="md:gender"),
+            TargetVar(type="constant", value="md:not_a_variable"),
+        ],
+    )
+    assert targeting_variables(t) == {"md:gender"}
+
+
+def test_targeting_variables_of_nothing_is_empty():
+    assert targeting_variables(None) == set()
+
+
+def test_supplied_variables_spans_every_location():
+    # What matters to a predicate is that the variable exists, not where it
+    # came from -- so an "ad" conf supplies just as a "metadata" one does.
+    conf = InferenceDataConf(
+        data_sources={
+            "fly": SourceExtractionConf(
+                extraction_confs=[
+                    _extraction_conf("md:gender", location="ad"),
+                    _extraction_conf("q1", location="variable"),
+                ]
+            )
+        }
+    )
+    assert supplied_variables(conf) == {"md:gender", "q1"}
+
+
+def test_no_gap_when_every_targeted_variable_is_supplied():
+    study = _study_with(
+        targeting=_targeting("md:gender"),
+        inference_data=_inference_conf("md:gender"),
+    )
+    assert missing_targeting_variables(study) == {}
+
+
+def test_gap_is_reported_per_stratum():
+    study = _study_with(
+        targeting=_targeting("md:gender", "md:region"),
+        inference_data=_inference_conf("md:gender"),
+    )
+    assert missing_targeting_variables(study) == {"stratum-1": {"md:region"}}
+
+
+def test_ad_location_confs_satisfy_targeting():
+    # The A6 case: a new study moves its stratum variable to location "ad".
+    # The predicate is unchanged and must still be considered satisfied,
+    # because the variable name is what a predicate matches on.
+    study = _study_with(
+        targeting=_targeting("md:gender"),
+        inference_data=InferenceDataConf(
+            data_sources={
+                "fly": SourceExtractionConf(
+                    extraction_confs=[
+                        _extraction_conf("md:gender", location="ad", key="gender")
+                    ]
+                )
+            }
+        ),
+    )
+    assert missing_targeting_variables(study) == {}
+
+
+def test_study_with_no_inference_conf_reports_every_targeted_variable():
+    # Detected, but the caller only warns: a study with no inference_data conf
+    # is usually one that is not finished being configured, not a broken one.
+    study = _study_with(targeting=_targeting("md:gender"), inference_data=None)
+    assert missing_targeting_variables(study) == {"stratum-1": {"md:gender"}}
+
+
+def test_stratum_with_no_targeting_never_reports_a_gap():
+    study = _study_with(targeting=None, inference_data=None)
+    assert missing_targeting_variables(study) == {}

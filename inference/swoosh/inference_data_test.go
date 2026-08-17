@@ -173,7 +173,7 @@ func TestReduceInferenceData_SelectsVariablesAsPerConfAndSelectFunction(t *testi
 		},
 	}}
 
-	actual, extractionErrors, err := Reduce(events, mapping)
+	actual, extractionErrors, err := Reduce(events, mapping, nil)
 	assert.Nil(t, err)
 	assert.Equal(t, len(extractionErrors), 0)
 	assert.Equal(t, expected, actual)
@@ -231,7 +231,7 @@ func TestReduceInferenceData_GroupsByUserAndOverwritesRepeatedValues(t *testing.
 		},
 	}}
 
-	actual, extractionErrors, err := Reduce(events, mapping)
+	actual, extractionErrors, err := Reduce(events, mapping, nil)
 	assert.Nil(t, err)
 	assert.Equal(t, len(extractionErrors), 0)
 	assert.Equal(t, expected, actual)
@@ -321,7 +321,7 @@ func TestReduceInferenceData_GroupsByUserFromMultipleSourcesIncludingUserVariabl
 		},
 	}}
 
-	actual, extractionErrors, err := Reduce(events, mapping)
+	actual, extractionErrors, err := Reduce(events, mapping, nil)
 	assert.Nil(t, err)
 	assert.Equal(t, len(extractionErrors), 0)
 	assert.Equal(t, expected, actual)
@@ -396,7 +396,7 @@ func TestReduceInferenceData_CollectsMetadataWithTimestampFirstEventOfUniqueValu
 		},
 	}}
 
-	actual, extractionErrors, err := Reduce(events, mapping)
+	actual, extractionErrors, err := Reduce(events, mapping, nil)
 	assert.Nil(t, err)
 	assert.Equal(t, len(extractionErrors), 0)
 	assert.Equal(t, expected, actual)
@@ -441,7 +441,7 @@ func TestReduceInferenceData_CanExtractFirstVariable(t *testing.T) {
 		},
 	}}
 
-	actual, extractionErrors, err := Reduce(events, mapping)
+	actual, extractionErrors, err := Reduce(events, mapping, nil)
 	assert.Nil(t, err)
 	assert.Equal(t, len(extractionErrors), 0)
 	assert.Equal(t, expected, actual)
@@ -480,7 +480,7 @@ func TestReduceInferenceData_UsesExtractionMappingOfMetadata(t *testing.T) {
 		},
 	}}
 
-	actual, extractionErrors, err := Reduce(events, mapping)
+	actual, extractionErrors, err := Reduce(events, mapping, nil)
 	assert.Nil(t, err)
 	assert.Equal(t, len(extractionErrors), 0)
 	assert.Equal(t, expected, actual)
@@ -518,7 +518,7 @@ func TestReduceInferenceData_WorksWithSelectKVPairFunction(t *testing.T) {
 		},
 	}}
 
-	actual, extractionErrors, err := Reduce(events, mapping)
+	actual, extractionErrors, err := Reduce(events, mapping, nil)
 	assert.Nil(t, err)
 	assert.Equal(t, len(extractionErrors), 0)
 	assert.Equal(t, expected, actual)
@@ -560,7 +560,7 @@ func TestReduceInferenceData_WorksWithSelectMultipleChainedFunctions(t *testing.
 		},
 	}}
 
-	actual, extractionErrors, err := Reduce(events, mapping)
+	actual, extractionErrors, err := Reduce(events, mapping, nil)
 	assert.Nil(t, err)
 	assert.Equal(t, len(extractionErrors), 0)
 	assert.Equal(t, expected, actual)
@@ -598,7 +598,7 @@ func TestReduceInferenceData_WorksCastingStringsToContinuousValues(t *testing.T)
 		},
 	}}
 
-	actual, extractionErrors, err := Reduce(events, mapping)
+	actual, extractionErrors, err := Reduce(events, mapping, nil)
 	assert.Nil(t, err)
 	assert.Equal(t, len(extractionErrors), 0)
 	assert.Equal(t, expected, actual)
@@ -614,7 +614,7 @@ func TestReduceInferenceData_SkipsEventsFromUnmappedDataSources(t *testing.T) {
 		"bar": {},
 	}}
 
-	result, extractionErrors, err := Reduce(events, mapping)
+	result, extractionErrors, err := Reduce(events, mapping, nil)
 	// Should NOT return a hard error (unmapped source is skipped, not fatal)
 	assert.Nil(t, err)
 	// Should have exactly one extraction error for the unmapped "lit_data" source
@@ -646,7 +646,7 @@ func TestReduceInferenceData_SkipsUsersWhenInvalidExtractionParamsForFunction(t 
 		},
 	}}
 
-	_, extractionErrors, err := Reduce(events, mapping)
+	_, extractionErrors, err := Reduce(events, mapping, nil)
 	assert.Nil(t, err)
 	e := extractionErrors[0]
 	assert.Contains(t, e.Error(), "Path")
@@ -667,7 +667,7 @@ func TestReduceInferenceData_SkipsUsersWhenInvalidExtractionParamsForFunction(t 
 		},
 	}}
 
-	_, extractionErrors, err = Reduce(events, mapping)
+	_, extractionErrors, err = Reduce(events, mapping, nil)
 	assert.Nil(t, err)
 	e = extractionErrors[0]
 	assert.Contains(t, e.Error(), "select")
@@ -693,7 +693,7 @@ func TestReduceInferenceData_ReturnsExtractionErrorsWhenExtractionFunctionFails(
 		},
 	}}
 
-	_, extractionErrors, err := Reduce(events, mapping)
+	_, extractionErrors, err := Reduce(events, mapping, nil)
 	assert.Nil(t, err)
 	e := extractionErrors[0]
 
@@ -720,7 +720,7 @@ func TestReduceInferenceData_ReturnsErrorWhenExtractionFunctionDoesNotExist(t *t
 		},
 	}}
 
-	_, extractionErrors, err := Reduce(events, mapping)
+	_, extractionErrors, err := Reduce(events, mapping, nil)
 	assert.Nil(t, err)
 	e := extractionErrors[0]
 	assert.Contains(t, e.Error(), "nopenotathing")
@@ -915,7 +915,7 @@ func TestReduceInferenceData_SkipsEventsFromUnmappedSourcesButRecordsOneErrorPer
 		},
 	}}
 
-	actual, extractionErrors, err := Reduce(events, mapping)
+	actual, extractionErrors, err := Reduce(events, mapping, nil)
 
 	// Should NOT return an error (unmapped sources are skipped, not fatal)
 	assert.Nil(t, err)
@@ -963,7 +963,7 @@ func TestReduceInferenceData_AggregatesUnmappedSourcesWithCountAndDetails(t *tes
 		"mapped": {},
 	}}
 
-	_, extractionErrors, err := Reduce(events, mapping)
+	_, extractionErrors, err := Reduce(events, mapping, nil)
 	assert.Nil(t, err)
 	assert.Equal(t, 2, len(extractionErrors))
 
@@ -1013,7 +1013,7 @@ func TestReduceInferenceData_AggregatesExtractionFailuresByVariableWithCount(t *
 		},
 	}}
 
-	_, extractionErrors, err := Reduce(events, mapping)
+	_, extractionErrors, err := Reduce(events, mapping, nil)
 	assert.Nil(t, err)
 	assert.Equal(t, 1, len(extractionErrors))
 	assert.Equal(t, "var=age", extractionErrors[0].Entity)

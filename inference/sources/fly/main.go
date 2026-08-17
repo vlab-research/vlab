@@ -58,7 +58,70 @@ type GetResponsesResponse struct {
 		Metadata           map[string]json.RawMessage `json:"Metadata"`
 		Pageid             string                     `json:"pageid"`
 		TranslatedResponse string                     `json:"translated_response"`
+
+		// AdID is a first-class column on fly's responses view, resolved by fly
+		// at conversation_started: Messenger from referral.ad_id, WhatsApp from
+		// referral.source_id but only when the referral's source type is an ad
+		// (an organic reshare of a page post carries a *post* id there, and
+		// capturing that would pile post ids into the unmapped bucket forever).
+		//
+		// fly deletes any ad_id arriving via ref metadata before stamping its
+		// own, so a study author cannot inject a value here. Trustworthy input.
+		AdID string `json:"ad_id"`
 	} `json:"responses"`
+}
+
+// adNetworkForPlatform maps fly's messaging platform to the ad network the ad id
+// belongs to.
+//
+// Both of fly's platforms are Meta surfaces: a Messenger referral's ad_id and a
+// WhatsApp referral's source_id are ids in the *same* Meta ad namespace. So both
+// answer "facebook". Returning "whatsapp" here would be the expensive mistake —
+// ad_attributions is keyed (network, ad_id) and every lookup would miss.
+//
+// An unrecognised platform returns "" rather than guessing "facebook". fly only
+// ever resolves ad ids from Meta surfaces today, so an ad id arriving with an
+// empty network means fly grew a platform vlab has not mapped yet — which should
+// be visible, not silently mislabelled. It does not break attribution: swoosh
+// looks up by ad id alone (Meta ad ids are globally unique) and the network
+// rides along for when a second ad network exists.
+func adNetworkForPlatform(platform string) string {
+	switch platform {
+	case "messenger", "whatsapp":
+		return NetworkFacebook
+	default:
+		return ""
+	}
+}
+
+// platformFromMetadata reads fly's synthetic `platform` key. Absent, or present
+// but not a JSON string, yields "" — which adNetworkForPlatform treats as an
+// unknown platform.
+func platformFromMetadata(md map[string]json.RawMessage) string {
+	raw, ok := md["platform"]
+	if !ok {
+		return ""
+	}
+
+	var platform string
+	if err := json.Unmarshal(raw, &platform); err != nil {
+		return ""
+	}
+
+	return platform
+}
+
+// adFields resolves the (ad id, ad network) pair for one response.
+//
+// The network is only meaningful alongside an id, so an organic respondent —
+// no ad, no id — gets two empty strings rather than a network for an ad that
+// does not exist.
+func adFields(adID string, md map[string]json.RawMessage) (string, string) {
+	if adID == "" {
+		return "", ""
+	}
+
+	return adID, adNetworkForPlatform(platformFromMetadata(md))
 }
 
 type Answer struct {
@@ -177,6 +240,7 @@ func (c FlyConnector) GetResponses(source *Source, token string, idx int) <-chan
 				}
 
 				idx++
+				adID, adNetwork := adFields(item.AdID, item.Metadata)
 				event := &InferenceDataEvent{
 					User:       User{ID: item.UserID, Metadata: item.Metadata},
 					Study:      source.StudyID,
@@ -186,6 +250,8 @@ func (c FlyConnector) GetResponses(source *Source, token string, idx int) <-chan
 					Pagination: item.Token,
 					Variable:   item.QuestionRef,
 					Value:      []byte(dat),
+					AdID:       adID,
+					AdNetwork:  adNetwork,
 				}
 				events <- event
 			}

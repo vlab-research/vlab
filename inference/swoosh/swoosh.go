@@ -161,7 +161,19 @@ func swooshStudy(pool *pgxpool.Pool, study string) error {
 	}
 	log.Printf("Swoosh read %d events.\n", len(events))
 
-	id, extractionErrors, err := Reduce(events, mapping)
+	// One query per study, before Reduce — not one per event per conf, which is
+	// what a lookup inside the RetrieveFunc would cost. Reduce takes it as plain
+	// data and stays pure; this is the only place that touches the database for
+	// it. See retrieveFromAd.
+	attributions, err := GetAdAttributions(pool, study)
+	if err != nil {
+		err = fmt.Errorf("study %s: reading ad attributions: %w", study, err)
+		recordRunOutcome(pool, study, runID, eventRunError, severityError, err.Error(), "read")
+		return err
+	}
+	log.Printf("Swoosh read %d ad attribution(s).\n", len(attributions))
+
+	id, extractionErrors, err := Reduce(events, mapping, attributions)
 	if err != nil {
 		err = fmt.Errorf("study %s: reduce: %w", study, err)
 		recordRunOutcome(pool, study, runID, eventRunError, severityError, err.Error(), "reduce")

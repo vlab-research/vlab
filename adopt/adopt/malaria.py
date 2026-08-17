@@ -24,7 +24,14 @@ from .recruitment_data import (
     load_recruitment_data,
 )
 from .responses import get_inference_data
-from .study_conf import CreativeConf, FacebookTargeting, Stratum, StratumConf, StudyConf
+from .study_conf import (
+    CreativeConf,
+    FacebookTargeting,
+    Stratum,
+    StratumConf,
+    StudyConf,
+    missing_targeting_variables,
+)
 
 logging.basicConfig(level=logging.INFO)
 
@@ -108,10 +115,29 @@ def run_instructions(
         record_ad_attribution(i, created_id, db_conf)
 
 
+def warn_on_incomplete_targeting(study: StudyConf) -> None:
+    """Say so when a stratum targets a variable nothing in the study supplies.
+
+    Such a predicate can never match: the stratum counts zero and the optimizer
+    reallocates its budget away from a segment that may be recruiting perfectly
+    well. Nothing errors, which is exactly why it needs saying out loud.
+
+    A warning, not a raise — see missing_targeting_variables for why.
+    """
+    for stratum_id, missing in missing_targeting_variables(study).items():
+        logging.warning(
+            f"Stratum '{stratum_id}' targets variable(s) {sorted(missing)} that no "
+            "inference_data extraction conf produces. Its question_targeting can "
+            "never match, so it will count zero respondents and the optimizer will "
+            "move its budget elsewhere. Check the study's inference_data conf."
+        )
+
+
 def update_ads_for_campaign(
     db_conf: DBConf, study: StudyConf, state: FacebookState
 ) -> Tuple[Sequence[Instruction], Optional[AdOptReport]]:
     strata = hydrate_strata(state, study.strata, study.creatives)
+    warn_on_incomplete_targeting(study)
     now = datetime.utcnow()
 
     inf_start, inf_end = study.recruitment.get_inference_window(now)
