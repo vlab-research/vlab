@@ -1,9 +1,11 @@
 # Ad attributions: vlab owns the ad → stratum join
 
-**Status:** usable end to end. A1/A2 write the mapping, A5–A7 read it, C1 lets a
-researcher declare an ad-derived variable in the dashboard, and A3 exports the
-mapping as CSV. `location: "ad"` is available to new studies; nothing existing
-is affected.
+**Status:** complete. A1/A2 write the mapping, A5–A7 read it, C1 lets a
+researcher declare an ad-derived variable in the dashboard, A3 exports the
+mapping as CSV, A8/A9 add click-to-WhatsApp, and A4 lets a study stop shipping
+its stratum vocabulary in the ref at all. Every part is per-study and opt-in:
+nothing existing changes until someone changes it. The one piece outstanding is
+the dashboard form for the WhatsApp destination type.
 
 vlab creates exactly one ad per (creative, stratum) pair. The ad's id therefore
 already determines its shortcode, its creative and its stratum metadata — which
@@ -211,6 +213,91 @@ Two details worth knowing:
 There is no dashboard download button yet. The endpoint takes an API key, which
 suits the primary use — fetching it from an analysis script that is doing the
 join anyway.
+
+## Retiring the ref: shortcode-only Messenger ads
+
+This is the lever the rest of the design exists to make safe. Until a study
+pulls it, `location: "ad"` works but its ads still ship vlab's entire stratum
+vocabulary into fly on every message — the ad id *duplicates* the ref rather
+than replacing it, and nothing is actually decoupled.
+
+`FlyMessengerDestination.include_metadata_in_ref` controls it, named to match
+the WhatsApp destination's field because it is one concept; the two channels
+differ only in default. Messenger defaults **True** — the historical behaviour,
+which every existing study depends on. Turned off, the ad emits
+`form.<initial_shortcode>` on **both** Messenger carriers: `url_tags`, which
+Meta surfaces as `referral.ref`, and the quick-reply payload inside
+`page_welcome_message`. Both, because a respondent can arrive by either, and two
+different refs would mean one ad describing two different people depending on
+how they tapped it.
+
+`form.<shortcode>` is the minimum that still routes. fly's `getMetadata` parses
+`referral.ref` as dot-pairs and reads `md.form`, falling back to
+`FALLBACK_FORM` — a real survey — when it is absent. Routing is the one job the
+ref cannot delegate, because it happens at the first inbound message while
+attribution is a batch join done afterwards.
+
+### The trap: what the ref carries is not what gets frozen
+
+`creative_metadata` returns the **complete** dict regardless of ref mode, and
+`messenger_ref` is the only place the mode is allowed to matter. This separation
+is load-bearing.
+
+For a shortcode-only study the frozen `ad_attributions` blob is the *only*
+attribution it will ever have. If the mode leaked into `creative_metadata`, such
+a study would freeze rows containing nothing but `form`; every `location: "ad"`
+conf would resolve to nothing, every stratum would count zero, and the optimizer
+would reallocate on empty data. Silent, total, and unrecoverable after the fact,
+because the blob is frozen at creation and never refreshed.
+
+Two tests pin it: a shortcode-only and a full-ref destination over identical
+strata produce identical frozen blobs (still containing `creative`, `form` and
+every stratum key), and `ad_provenance` — the thing that actually reaches the
+database — is identical under both modes.
+
+### Flipping a live study
+
+Changing the mode changes the *creative*, and `update_ad` compares creatives via
+`field_contract.COMPARED_AD`, so a flip rewrites that study's ads on its next
+reconciliation run. That is intended: it is a deliberate per-study act, and each
+study reconciles from its own conf, so it cannot cascade to any other.
+
+The flip is an in-place ad **update against the same ad id**, not a delete and
+recreate — reconciliation matches ads by name, and the name (the creative name)
+does not change. That matters more than it looks: the ad id is the attribution
+key, so a flip that minted new ids would strand every `ad_attributions` row the
+study already had and leave its past respondents unattributable. Both properties
+are asserted.
+
+### The half-migration guard
+
+Thinning the ref only works if the study *also* reads the mapping. Do one
+without the other and the study has no attribution at all: the ref no longer
+carries the stratum, and nothing looks the ad up. Every stratum counts zero and
+the optimizer reallocates on empty data — the same silent shape as an unmapped
+ad, arrived at from the opposite direction.
+
+`study_conf.thins_its_ref_without_reading_the_mapping` detects it and
+`malaria.warn_on_thinned_ref_without_mapping` logs it: a fly destination with
+`include_metadata_in_ref` off while no extraction conf declares
+`location: "ad"`. It **warns rather than raises**, because it is not certainly
+wrong — a study recruiting uniformly, with no `question_targeting`, needs no
+stratum attribution and is entitled to a thin ref. Same reasoning as the
+completeness check below.
+
+It covers WhatsApp destinations too, since their default is already thin: a
+CTWA study that never declares `location: "ad"` confs has no attribution at all,
+and should hear about it.
+
+### Web and App stay on full refs
+
+Deliberately. Neither type has an `initial_shortcode`, because their
+`url_template` / `deeplink_template` already points at a specific survey —
+routing is not a job the ref does for them. Making them shortcode-only would
+mean inventing a conf field for a token neither needs. The equivalent decoupling
+for a web platform is capturing the ad id from the ad URL, which is separate
+work. Messenger is where every existing study lives and where the ref actually
+costs something.
 
 ## Click-to-WhatsApp destinations
 
@@ -455,6 +542,7 @@ study that opts into ad-id attribution.**
 | Completeness check | `adopt/adopt/study_conf.py`, `adopt/adopt/malaria.py` |
 | CSV export | `adopt/adopt/server/csv_export.py`, `adopt/adopt/server/server.py` |
 | WhatsApp destination + ref validation | `adopt/adopt/study_conf.py`, `adopt/adopt/marketing.py` |
+| Ref mode (`include_metadata_in_ref`) | `adopt/adopt/study_conf.py`, `marketing.messenger_ref` |
 | Dashboard form | `dashboard/src/pages/StudyConfPage/forms/inferenceData/{flyExtraction,qualtricsExtraction}.ts` |
 | Event fields + network constant | `inference/inference-data/inference_data.go` |
 | Connector | `inference/sources/fly/main.go` |

@@ -6,6 +6,7 @@ from .study_conf import (
     CreativeConf,
     DestinationRecruitmentExperiment,
     ExtractionConf,
+    FlyMessengerDestination,
     FlyWhatsAppDestination,
     GeneralConf,
     InferenceDataConf,
@@ -20,6 +21,7 @@ from .study_conf import (
     UserInfo,
     missing_targeting_variables,
     normalize_whatsapp_phone_number,
+    thins_its_ref_without_reading_the_mapping,
     unsafe_whatsapp_ref_tokens,
     whatsapp_phone_number_valid,
     whatsapp_ref_token_safe,
@@ -912,3 +914,75 @@ def test_destination_type_is_not_checked_for_studies_without_whatsapp():
     # Every existing study: destination_type stays whatever it was.
     study = _study_with(targeting=None, inference_data=None)
     assert study.recruitment.destination_type == "destination"
+
+
+# ---------------------------------------------------------------------------
+# Thinning the ref without reading the mapping (A4).
+#
+# include_metadata_in_ref off only works if the study also reads the ad ->
+# stratum mapping. One without the other leaves the study with no attribution
+# at all -- the ref no longer carries the stratum and nothing looks the ad up.
+# ---------------------------------------------------------------------------
+
+
+def _messenger_study(include_metadata_in_ref, inference_data=None):
+    return StudyConf(
+        id="00000000-0000-0000-0000-000000000001",
+        user=UserInfo(survey_user="user", token="token"),
+        general=GeneralConf(
+            name="test-study",
+            credentials_key="page-1",
+            credentials_entity="facebook_page",
+            ad_account="act_1",
+            opt_window=48,
+        ),
+        destinations=[
+            FlyMessengerDestination(
+                type="messenger",
+                name="messenger",
+                initial_shortcode="mnchweek",
+                welcome_message="Welcome!",
+                button_text="OK",
+                include_metadata_in_ref=include_metadata_in_ref,
+            )
+        ],
+        audiences=[],
+        creatives=[CreativeConf(destination="messenger", name="Smiling", template={})],
+        strata=[],
+        recruitment=_simple(),
+        inference_data=inference_data,
+    )
+
+
+def test_a_full_ref_study_is_never_flagged():
+    # Every existing study.
+    assert thins_its_ref_without_reading_the_mapping(_messenger_study(True)) == []
+
+
+def test_thinning_the_ref_with_no_ad_confs_is_flagged():
+    study = _messenger_study(False, _inference_conf("md:gender"))
+    assert thins_its_ref_without_reading_the_mapping(study) == ["messenger"]
+
+
+def test_thinning_the_ref_with_an_ad_conf_is_fine():
+    conf = InferenceDataConf(
+        data_sources={
+            "fly": SourceExtractionConf(
+                extraction_confs=[_extraction_conf("md:gender", location="ad")]
+            )
+        }
+    )
+    assert thins_its_ref_without_reading_the_mapping(_messenger_study(False, conf)) == []
+
+
+def test_thinning_the_ref_with_no_inference_conf_at_all_is_flagged():
+    assert thins_its_ref_without_reading_the_mapping(
+        _messenger_study(False, None)
+    ) == ["messenger"]
+
+
+def test_a_thinned_whatsapp_destination_is_flagged_the_same_way():
+    # Same concept, same field, same failure -- so the check spans both fly
+    # destination types rather than being Messenger-specific.
+    study = _whatsapp_study({"gender": "women"}, full_ref=False)
+    assert thins_its_ref_without_reading_the_mapping(study) == ["whatsapp"]

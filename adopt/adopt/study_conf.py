@@ -906,6 +906,40 @@ def supplied_variables(conf: Optional[InferenceDataConf]) -> set[str]:
     }
 
 
+def thins_its_ref_without_reading_the_mapping(study: StudyConf) -> List[str]:
+    """Destinations that stop carrying metadata while nothing reads the mapping.
+
+    Turning `include_metadata_in_ref` off is what finally makes the ad id
+    *replace* the ref rather than duplicate it — but it only works if the study
+    also reads the mapping, via at least one `location: "ad"` extraction conf.
+    Do one without the other and the study has no attribution at all: the ref no
+    longer carries the stratum, and nothing looks the ad up. Every stratum
+    counts zero and the optimizer reallocates on empty data.
+
+    Returns destination names rather than raising, because it is not certainly
+    wrong: a study recruiting uniformly, with no question_targeting, needs no
+    stratum attribution and is entitled to a thin ref. Same reasoning as
+    missing_targeting_variables.
+    """
+    thinned = [
+        d.name
+        for d in study.destinations
+        if isinstance(d, (FlyMessengerDestination, FlyWhatsAppDestination))
+        and not d.include_metadata_in_ref
+    ]
+
+    if not thinned:
+        return []
+
+    reads_the_mapping = any(
+        ec.location == "ad"
+        for source in (study.inference_data.data_sources.values() if study.inference_data else [])
+        for ec in source.extraction_confs
+    )
+
+    return [] if reads_the_mapping else sorted(thinned)
+
+
 def missing_targeting_variables(study: StudyConf) -> Dict[str, set[str]]:
     """Per stratum, the variables it targets on that nothing supplies.
 

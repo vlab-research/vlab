@@ -237,6 +237,88 @@ on liveness, and nothing should.
 Tests: `adopt/adopt/server/test_ad_attributions_csv.py`, needs `make
 test-db`.
 
+## Shortcode-only refs
+
+Before this, `location: "ad"` already worked, but ads still shipped vlab's
+whole stratum vocabulary into fly inside every message: the ad id duplicated
+the ref rather than replacing it, so nothing was actually decoupled.
+`FlyMessengerDestination.include_metadata_in_ref` (`study_conf.py`) controls
+what the ref carries. It is named to match `FlyWhatsAppDestination`'s field
+of the same name — one concept, and the two channels differ only in their
+default. Messenger defaults **True**, the historical behaviour every existing
+study depends on.
+
+### What it emits
+
+Turned off, the ref becomes `form.<initial_shortcode>` on **both** Messenger
+carriers: `url_tags` (which Meta surfaces as `referral.ref`) and the
+quick-reply payload inside `page_welcome_message`. Both, because a respondent
+can arrive by either, and emitting different refs on the two paths would mean
+one ad describing two different people depending on how they tapped it.
+
+`form.<shortcode>` is the minimum that still routes: fly's `getMetadata`
+parses `referral.ref` as dot-pairs and reads `md.form`, falling back to
+`FALLBACK_FORM` — a real survey — when it is absent. Routing is the one job
+the ref cannot delegate, since it happens at the first inbound message, while
+attribution is a batch join done afterwards.
+
+### The trap
+
+`creative_metadata` returns the complete metadata dict regardless of ref
+mode; `messenger_ref` is the ONLY place the mode is allowed to matter. For a
+shortcode-only study, the frozen `ad_attributions` blob is the only
+attribution it will ever have. If the mode leaked into `creative_metadata`,
+that study would freeze rows containing nothing but `form` — every
+`location: "ad"` conf would resolve to nothing, every stratum would count
+zero, and the optimizer would reallocate on empty data. Silent, total, and
+unrecoverable, because the blob is frozen at creation and never refreshed.
+
+Two tests pin this: identical frozen blobs from a shortcode-only and a
+full-ref destination over identical strata, and identical `ad_provenance`
+output one layer up.
+
+### Flipping a live study
+
+Toggling the flag changes the *creative*, and `update_ad` compares creatives
+via `field_contract.COMPARED_AD`, so a flip rewrites that study's ads on the
+next reconciliation run. That is intended — a deliberate per-study act — and
+it cannot cascade, since each study reconciles from its own conf.
+
+Importantly, the flip is an in-place ad **update against the same ad id**,
+not a delete-and-recreate: reconciliation matches ads by name, and the
+creative name does not change. That matters because the ad id is the
+attribution key — a flip that minted new ids would strand every existing
+`ad_attributions` row and leave that study's past respondents
+unattributable. Both are asserted in tests.
+
+### The half-migration guard
+
+Thinning the ref only works if the study also *reads* the mapping. Do one
+without the other and the study has no attribution at all — the ref no longer
+carries the stratum and nothing looks the ad up, so every stratum counts zero
+and the optimizer reallocates on empty data.
+`thins_its_ref_without_reading_the_mapping` (`study_conf.py`) detects that
+shape: a fly destination with `include_metadata_in_ref` off while no extraction
+conf declares `location: "ad"`. `warn_on_thinned_ref_without_mapping`
+(`malaria.py`) logs it on every reconciliation run. It warns rather than
+raises, because a study recruiting uniformly with no `question_targeting` needs
+no stratum attribution and is entitled to a thin ref. It covers WhatsApp
+destinations too, whose default is already thin.
+
+### Web and App stay on full refs
+
+Deliberately: neither has an `initial_shortcode`, because their
+`url_template` / `deeplink_template` already points at a specific survey, so
+routing is not a job the ref does for them. Making them shortcode-only would
+mean inventing a conf field for a token neither needs; the equivalent
+decoupling for a web platform is capturing the ad id from the ad URL, which
+is separate work.
+
+### Tests
+
+The "Shortcode-only Messenger refs (A4)" section of
+`adopt/adopt/test_marketing.py`.
+
 ## Click-to-WhatsApp destinations
 
 Before this, vlab could not create click-to-WhatsApp ads at all: `create_creative`
