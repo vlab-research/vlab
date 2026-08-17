@@ -2,7 +2,7 @@ import logging
 from typing import Annotated, Any, Optional, Sequence, Dict
 from datetime import datetime
 from environs import Env
-from fastapi import Depends, FastAPI, HTTPException, status, BackgroundTasks
+from fastapi import Depends, FastAPI, HTTPException, Response, status, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import BaseModel
@@ -13,7 +13,7 @@ import time
 
 from ..responses import get_inference_data
 
-from ..campaign_queries import get_user_info
+from ..campaign_queries import get_ad_attributions, get_user_info
 from ..facebook.update import GraphUpdater
 from ..malaria import (
     Instruction,
@@ -33,6 +33,7 @@ from ..study_conf import (
     VariableConf,
 )
 from .auth import AuthError, generate_api_token, verify_tokens
+from .csv_export import ad_attributions_csv
 from .db import (
     copy_confs,
     create_study_conf,
@@ -253,6 +254,34 @@ async def get_all_confs(
 ):
     raw_config = get_all_study_confs(user.user_id, org_id, slug)
     return {"data": raw_config}
+
+
+@app.get("/{org_id}/studies/{slug}/ad-attributions.csv")
+async def get_ad_attributions_csv(
+    org_id: str,
+    slug: str,
+    user: Annotated[User, Depends(get_current_user)],
+):
+    """The study's ad -> stratum mapping, for joining against a survey export.
+
+    The frozen metadata blob is flattened into columns under its own key names,
+    so the user story is one line: left-join your fly export on `ad_id` and your
+    old metadata columns come back, named as they always were.
+
+    Every mapping row is included, including ads Facebook no longer has —
+    respondents keep arriving from deleted ads via reshared page posts, and a
+    row missing here would look exactly like an unattributed respondent.
+    """
+    study_id = get_study_id(user.user_id, org_id, slug)
+    rows = get_ad_attributions(study_id, db_cnf)
+
+    return Response(
+        content=ad_attributions_csv(rows),
+        media_type="text/csv",
+        headers={
+            "Content-Disposition": f'attachment; filename="{slug}-ad-attributions.csv"'
+        },
+    )
 
 
 def run_study_opt(user_id: str, org_id: str, slug: str) -> Sequence[Instruction]:

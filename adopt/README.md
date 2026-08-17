@@ -198,6 +198,45 @@ correcting it means knowing which network to reassign every existing row to.
 See `planning/ad-id-attribution.md` for the full design and the phases that
 build on this one.
 
+### The mapping CSV export
+
+`GET /{org_id}/studies/{slug}/ad-attributions.csv` (`server.py`,
+`get_ad_attributions_csv`) hands back the study's ad -> stratum mapping as a
+file. Routing, org scoping and auth match every other study endpoint: it
+resolves `study_id` via `get_study_id(user.user_id, org_id, slug)`, which
+scopes to the requesting user and 404s rather than leaking another org's
+study.
+
+The rows come from `get_ad_attributions` (`campaign_queries.py`) — every
+frozen row for the study, unfiltered — and are rendered by the pure functions
+in `csv_export.py`. The shape is `ad_id, network, <metadata keys...>,
+created`: `ad_attributions_csv` flattens the frozen `metadata` blob into
+columns under its own key names rather than nesting it, so the whole export
+reduces to one sentence for the researcher: left-join your survey export on
+`ad_id` and your old metadata columns come back under the same names. That is
+only true because the frozen blob is key-for-key the dict the dotted ref used
+to carry — the phase-1 invariant above is what makes the export honest.
+
+`metadata_columns` takes those columns as the **union** across all rows, in
+first-seen order, rather than trusting the first row's keys. Keys are uniform
+within a study in practice, but a stratum conf edited mid-flight leaves some
+rows frozen under the old shape and some under the new, and append-only means
+both survive — so the header has to account for whichever rows actually
+showed up. `column_name` prefixes a metadata key as `metadata_<key>` only
+when it collides with one of the row's own columns (`LEADING_COLUMNS` —
+`ad_id`, `network` — or `TRAILING_COLUMNS` — `created` — together
+`RESERVED_COLUMNS`), because two columns with the same header is the kind of
+thing nobody notices until the analysis is already wrong.
+
+Deleted ads are included, deliberately. Respondents keep arriving from ads
+reconciliation has since deleted — reshared page posts persist indefinitely —
+so a CSV of only live ads would silently lack rows the researcher needs, and
+those respondents would look unattributed. Nothing in the read path filters
+on liveness, and nothing should.
+
+Tests: `adopt/adopt/server/test_ad_attributions_csv.py`, needs `make
+test-db`.
+
 ## Configuration
 
 Some documentation for configuring a vlab study:
