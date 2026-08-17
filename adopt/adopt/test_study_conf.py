@@ -21,10 +21,12 @@ from .study_conf import (
     UserInfo,
     missing_targeting_variables,
     normalize_whatsapp_phone_number,
+    ref_value,
     thins_its_ref_without_reading_the_mapping,
     unsafe_whatsapp_ref_tokens,
     whatsapp_phone_number_valid,
     whatsapp_ref_token_safe,
+    whatsapp_shortcode_safe,
     supplied_variables,
     targeting_variables,
 )
@@ -697,7 +699,9 @@ def test_stratum_with_no_targeting_never_reports_a_gap():
 # planning/ad-id-attribution.md. Half of them are undeliverable, which is the
 # finding that makes full-ref mode a rarity rather than a default.
 PRODUCTION_SAFE = ["3B", "gelangchoice", "women", "Smiling", "location"]
-PRODUCTION_UNSAFE = [
+
+# Undeliverable under the old narrow gate; deliverable now, once encoded.
+PRODUCTION_ONCE_UNSAFE = [
     "Static English - Girls",
     "Bauchi State",
     "Like Parents",
@@ -705,31 +709,38 @@ PRODUCTION_UNSAFE = [
 ]
 
 
-def test_whatsapp_token_safety_matches_the_character_class():
-    for v in PRODUCTION_SAFE:
+def test_every_recorded_production_value_is_now_deliverable():
+    # It was 5 of 9. fly widened the entry gate to accept percent-encoded
+    # octets, so encoding now carries a space through and the values that
+    # could not be shipped at all now can.
+    for v in PRODUCTION_SAFE + PRODUCTION_ONCE_UNSAFE:
         assert whatsapp_ref_token_safe(v), v
-    for v in PRODUCTION_UNSAFE:
-        assert not whatsapp_ref_token_safe(v), v
 
 
-def test_percent_encoding_does_not_rescue_an_unsafe_value():
-    # The obvious fix is to URL-encode, as make_ref does. It does not work:
-    # `%` is not in the character class either, so quoting turns one
-    # undeliverable token into a different undeliverable token.
-    from urllib.parse import quote
+def test_percent_encoding_now_rescues_a_spaced_value():
+    # The inverse of what this asserted under the old gate. Encoding used to
+    # trade one undeliverable token for another, because `%` was not in the
+    # alphabet either; now it is.
+    assert whatsapp_ref_token_safe("Bauchi State")
+    assert ref_value("Bauchi State") == "Bauchi%20State"
 
-    assert not whatsapp_ref_token_safe("Bauchi State")
-    assert not whatsapp_ref_token_safe(quote("Bauchi State"))
+
+def test_a_slash_is_the_one_residual_that_still_fails():
+    # `quote()` keeps "/" literal by default and the gate does not accept it.
+    # It does not corrupt anything -- it is caught at config time -- but it is
+    # the only character a value still cannot contain.
+    assert not whatsapp_ref_token_safe("North/South")
 
 
 def test_unsafe_tokens_reports_keys_as_well_as_values():
     # Both sides become dot-separated tokens, so a key with a space breaks the
     # ref just as a value does.
     assert unsafe_whatsapp_ref_tokens({"gender": "women"}) == []
-    assert unsafe_whatsapp_ref_tokens({"gender": "Bauchi State"}) == [
-        "gender=Bauchi State"
+    assert unsafe_whatsapp_ref_tokens({"gender": "Bauchi State"}) == []
+    assert unsafe_whatsapp_ref_tokens({"gender": "North/South"}) == [
+        "gender=North/South"
     ]
-    assert unsafe_whatsapp_ref_tokens({"my key": "women"}) == ["my key=women"]
+    assert unsafe_whatsapp_ref_tokens({"my/key": "women"}) == ["my/key=women"]
 
 
 def _whatsapp_destination(shortcode="mnchweek", full_ref=False):
@@ -776,8 +787,20 @@ def _whatsapp_study(metadata, full_ref=False, destination_name="whatsapp"):
 
 def test_unsafe_shortcode_is_rejected_on_the_destination_itself():
     # Applies in both modes: even the default token is `form.<shortcode>`.
+    #
+    # And the shortcode keeps the NARROW alphabet even though the widened gate
+    # would accept it encoded. A shortcode is shareable by design -- someone
+    # texts `form.<shortcode>` straight into WhatsApp by hand, and a hand-typed
+    # space is a literal space, not %20. It has to be typeable, not merely
+    # encodable.
     with pytest.raises(InvalidConfigError, match="initial_shortcode"):
         _whatsapp_destination(shortcode="mnch week")
+
+
+def test_a_metadata_value_may_contain_what_a_shortcode_may_not():
+    # The asymmetry, stated directly: values are only ever carried by an ad.
+    assert whatsapp_ref_token_safe("mnch week")
+    assert not whatsapp_shortcode_safe("mnch week")
 
 
 def test_safe_shortcodes_are_accepted():
@@ -785,9 +808,16 @@ def test_safe_shortcodes_are_accepted():
         assert _whatsapp_destination(shortcode=shortcode).initial_shortcode == shortcode
 
 
-def test_full_ref_with_unsafe_stratum_metadata_is_rejected_at_config_time():
-    with pytest.raises(InvalidConfigError, match="Bauchi State"):
-        _whatsapp_study({"State": "Bauchi State"}, full_ref=True)
+def test_full_ref_with_spaced_stratum_metadata_is_now_accepted():
+    # This used to raise. The widened gate plus encoding is exactly what
+    # unblocked it, and it is the single biggest practical change from D1.
+    study = _whatsapp_study({"State": "Bauchi State"}, full_ref=True)
+    assert study.strata[0].metadata["State"] == "Bauchi State"
+
+
+def test_full_ref_with_a_genuinely_undeliverable_value_is_still_rejected():
+    with pytest.raises(InvalidConfigError, match="North/South"):
+        _whatsapp_study({"Region": "North/South"}, full_ref=True)
 
 
 def test_full_ref_with_safe_stratum_metadata_is_accepted():
@@ -820,9 +850,9 @@ def test_full_ref_validation_covers_the_form_key_and_extra_metadata():
     # extra_metadata is not -- and it rides in the ref too.
     study = _whatsapp_study({"gender": "women"}, full_ref=True)
     study_dict = study.model_dump()
-    study_dict["general"]["extra_metadata"] = {"country": "Sierra Leone"}
+    study_dict["general"]["extra_metadata"] = {"country": "Sierra/Leone"}
 
-    with pytest.raises(InvalidConfigError, match="Sierra Leone"):
+    with pytest.raises(InvalidConfigError, match="Sierra/Leone"):
         StudyConf(**study_dict)
 
 

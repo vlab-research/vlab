@@ -49,6 +49,8 @@ from .study_conf import (
     StudyConf,
     UserInfo,
     WebDestination,
+    ref_value,
+    whatsapp_ref_token_safe,
 )
 
 T = TypeVar("T")
@@ -856,15 +858,15 @@ def test_frozen_metadata_resolves_a_creative_key_collision_the_way_the_ref_does(
     assert _parse_ref(make_ref(creative.name, md)) == frozen
 
 
-def test_frozen_metadata_survives_a_dotted_value_that_the_ref_mangles():
-    """Documents a real limit of the ref, and why the blob is strictly better.
+def test_the_round_trip_closes_for_a_dotted_value():
+    """This test used to assert the corruption. Now it asserts the fix.
 
-    make_ref does not escape "." (quote() treats it as always-safe), so a
-    metadata value containing a dot splits into extra tokens and the ref
-    parses back to garbage. The frozen blob has no such grammar and keeps the
-    value intact -- so for these studies the ad-ID path is *more* accurate
-    than what it replaces, not merely equal. Asserted rather than fixed:
-    changing make_ref would rewrite the creative of every live ad.
+    `quote()` never escapes `.`, so a dotted value used to split into extra
+    tokens and the ref parsed back to garbage, silently mis-pairing every
+    key/value after it. `ref_value` now encodes it as %2E, and `_parse_ref` --
+    which reimplements fly's own decode-then-pair rather than inverting
+    make_ref -- puts it back. Still a genuine inverse, not an agreement by
+    construction.
     """
     dest = _web_dest("web")
     creative = _creative("Smiling", "web")
@@ -874,8 +876,12 @@ def test_frozen_metadata_survives_a_dotted_value_that_the_ref_mangles():
     md = creative_metadata(study, stratum, dest)
     frozen = ref_metadata(creative.name, md)
 
+    # The blob is untouched: it always held the raw value and still does.
     assert frozen["city"] == "St. Louis"
-    assert _parse_ref(make_ref(creative.name, md)) != frozen
+
+    ref = make_ref(creative.name, md)
+    assert "St%2E%20Louis" in ref
+    assert _parse_ref(ref) == frozen
 
 
 def test_destination_shortcode_only_for_fly_destinations():
@@ -995,11 +1001,18 @@ def test_ad_provenance_touches_no_database():
 # ---------------------------------------------------------------------------
 
 # Copied verbatim from WHATSAPP_ENTRY_REF in fly's
-# replybot/lib/event-normalizer.js. Kept as a literal rather than imported
-# (different repo, different language) -- if fly's pattern ever changes, these
-# tests are what should fail.
+# replybot/lib/event-normalizer.js, at fly@feature/ad-id-attribution 37e1e06e,
+# where the token alphabet was widened to accept percent-encoded octets. Kept
+# as a literal rather than imported (different repo, different language) -- if
+# fly's pattern changes again, these tests are what should fail.
+#
+# NOTE: this copy went stale once already. When fly's gate moves, re-diff it
+# against the source before trusting anything below.
 WHATSAPP_ENTRY_REF = re.compile(
-    r"^(?:start\s+)?form\.([A-Za-z0-9_-]+(?:\.[A-Za-z0-9_-]+)*)$", re.IGNORECASE
+    r"^(?:start\s+)?form\."
+    r"((?:[A-Za-z0-9_-]|%[0-9A-Fa-f]{2})+"
+    r"(?:\.(?:[A-Za-z0-9_-]|%[0-9A-Fa-f]{2})+)*)$",
+    re.IGNORECASE,
 )
 
 
@@ -1618,3 +1631,189 @@ def test_web_and_app_destinations_still_carry_the_full_ref():
 
     expected_app = make_ref("Smiling", app_md)
     assert expected_app in json.dumps(app_creative.export_all_data())
+
+
+# ---------------------------------------------------------------------------
+# Ref encoding (D2), and the widened WhatsApp gate (D1).
+#
+# `quote()` never escapes `.` `-` `_` `~` -- they are in urllib's _ALWAYS_SAFE
+# and `safe=''` does not override it. Two of those corrupt a dotted ref, and
+# the creative name was not passed through `quote()` at all.
+# ---------------------------------------------------------------------------
+
+
+def test_quote_alone_does_not_escape_the_dangerous_characters():
+    """The premise, asserted rather than trusted.
+
+    If a future Python changes this, ref_value's double-escape becomes
+    redundant and this test says so.
+    """
+    from urllib.parse import quote as _quote
+
+    assert _quote("a.b") == "a.b"
+    assert _quote("x~y") == "x~y"
+    assert _quote("a.b", safe="") == "a.b"
+    assert _quote("x~y", safe="") == "x~y"
+
+
+def test_ref_value_encodes_only_what_breaks_the_ref():
+    assert ref_value("St. Louis") == "St%2E%20Louis"
+    assert ref_value("x~y") == "x%7Ey"
+    # separator-safe and inside fly's gate alphabet -- deliberately untouched
+    assert ref_value("a-b_c") == "a-b_c"
+    assert ref_value("plain") == "plain"
+    # a literal % is escaped first, so no . or ~ can hide inside an escape
+    assert ref_value("100%") == "100%25"
+    assert ref_value("a%2Eb") == "a%252Eb"
+
+
+def test_refs_without_dots_or_tildes_are_byte_identical():
+    """Containment. Only already-broken studies see their ads rewritten.
+
+    These are the real production values on record; every one comes out
+    character for character as it always did.
+    """
+    unchanged = [
+        ("Smiling", {"gender": "women"}),
+        ("Static English - Girls", {"State": "Bauchi State"}),
+        ("3B", {"Age": "Like Parents", "Region": "South East"}),
+        ("gelangchoice", {"form": "mnchweek", "creative": "3B"}),
+    ]
+
+    for name, md in unchanged:
+        expected = "creative." + name.replace(" ", "%20")
+        for k, v in md.items():
+            expected += f".{k}.{v.replace(' ', '%20')}"
+        assert make_ref(name, md) == expected, name
+
+
+def test_a_dotted_creative_name_used_to_misroute_and_now_round_trips():
+    """The creative name was interpolated completely raw -- no quote() at all.
+
+    A dotted *value* shifts the pairs after it, so the respondent is
+    mis-attributed. A dotted *name* shifts everything after it including
+    `form`, so fly routes them into the wrong survey. Study
+    `unicef-immunization-kyrg` ran creative names ending `.png` for about nine
+    hours in January 2023.
+    """
+    md = {"gender": "women", "form": "mnchweek"}
+    frozen = ref_metadata("house_help_kids.png", md)
+
+    ref = make_ref("house_help_kids.png", md)
+
+    assert ref.startswith("creative.house_help_kids%2Epng.")
+    assert _parse_ref(ref) == frozen
+    # the routing key survives in the right place, which is the whole point
+    assert _parse_ref(ref)["form"] == "mnchweek"
+
+
+def test_the_ad_name_is_not_encoded():
+    """Encoding is a ref concern only.
+
+    create_ad uses the raw creative name as the Facebook ad name, and
+    reconciliation matches ads by name. Encoding it there would orphan every
+    live ad and mint new ids -- the ad_attributions-stranding failure A4
+    guards against.
+    """
+    template = _load_template("image_ad_messenger.json")
+    config = CreativeConf(
+        destination="messenger", name="house_help_kids.png", template=template
+    )
+    dest = _messenger_dest("messenger", "mnchweek")
+    study = _study([dest], [config])
+    stratum = _stratum_with_md("stratum-1", [config], {"gender": "women"})
+
+    creative = create_creative(study, stratum, config, dest)
+    ad = create_ad({"id": "adset-1"}, creative, "ACTIVE")
+
+    assert creative["name"] == "house_help_kids.png"
+    assert ad["name"] == "house_help_kids.png"
+    assert "%2E" not in ad["name"]
+
+
+def test_the_frozen_blob_holds_raw_values_not_encoded_ones():
+    """The blob holds truth; only transport is encoded.
+
+    A study's ad_attributions.metadata must be identical before and after this
+    change, or the encoding would have leaked into attribution.
+    """
+    md = {"city": "St. Louis", "note": "x~y", "gender": "women"}
+    frozen = ref_metadata("banner.png", md)
+
+    assert frozen == {
+        "creative": "banner.png",
+        "city": "St. Louis",
+        "note": "x~y",
+        "gender": "women",
+    }
+    for value in frozen.values():
+        assert "%" not in value
+
+
+# --- D1: the widened WhatsApp gate -----------------------------------------
+
+# The old gate, kept only to measure what changed.
+WHATSAPP_ENTRY_REF_OLD = re.compile(
+    r"^(?:start\s+)?form\.([A-Za-z0-9_-]+(?:\.[A-Za-z0-9_-]+)*)$", re.IGNORECASE
+)
+
+# The production stratum values recorded in planning/ad-id-attribution.md.
+PRODUCTION_VALUES = [
+    "3B",
+    "gelangchoice",
+    "women",
+    "Smiling",
+    "location",
+    "Static English - Girls",
+    "Bauchi State",
+    "Like Parents",
+    "South East",
+]
+
+
+def test_the_widened_gate_recovers_every_recorded_production_value():
+    """The re-measurement. 5 of 9 -> 9 of 9.
+
+    Under the old gate a raw value with a space failed, and encoding it failed
+    too because `%` was not in the alphabet either. fly now accepts
+    percent-encoded octets, so encoding is both correct and sufficient.
+    """
+    old_ok = sum(
+        1 for v in PRODUCTION_VALUES
+        if WHATSAPP_ENTRY_REF_OLD.match(f"form.sc.k.{v}")
+    )
+    new_ok = sum(
+        1 for v in PRODUCTION_VALUES
+        if WHATSAPP_ENTRY_REF.match(f"form.sc.k.{ref_value(v)}")
+    )
+
+    assert old_ok == 5
+    assert new_ok == 9
+
+    # the four that were undeliverable, named
+    for v in ["Static English - Girls", "Bauchi State", "Like Parents", "South East"]:
+        assert not WHATSAPP_ENTRY_REF_OLD.match(f"form.sc.k.{v}")
+        assert WHATSAPP_ENTRY_REF.match(f"form.sc.k.{ref_value(v)}")
+
+
+def test_whatsapp_deliverability_is_now_judged_on_the_encoded_form():
+    assert whatsapp_ref_token_safe("Bauchi State")
+    assert whatsapp_ref_token_safe("St. Louis")
+    assert whatsapp_ref_token_safe("x~y")
+    # the one residual: quote() keeps "/" literal by default and the gate
+    # does not accept it
+    assert not whatsapp_ref_token_safe("North/South")
+
+
+def test_a_whatsapp_autofill_with_spaces_now_passes_flys_gate():
+    dest = _whatsapp_dest(full_ref=True)
+    creative = _creative("Smiling", "whatsapp")
+    study = _whatsapp_study([dest], [creative])
+    stratum = _stratum_with_md("stratum-1", [creative], PRODUCTION_METADATA)
+
+    md = creative_metadata(study, stratum, dest)
+    frozen = ref_metadata(creative.name, md)
+    autofill = whatsapp_autofill(dest.initial_shortcode, frozen)
+
+    assert _fly_would_accept(autofill)
+    assert _parse_ref(autofill) == frozen

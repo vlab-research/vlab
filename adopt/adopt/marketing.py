@@ -4,7 +4,6 @@ import random
 from dataclasses import asdict, is_dataclass
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, NamedTuple, Optional, Sequence, Tuple, Union
-from urllib.parse import quote
 
 from facebook_business.adobjects.ad import Ad
 from facebook_business.adobjects.adcreative import AdCreative
@@ -35,6 +34,7 @@ from .study_conf import (
     Stratum,
     StudyConf,
     WebDestination,
+    ref_value,
 )
 
 ADSET_HOURS = 48
@@ -259,9 +259,30 @@ def add_users_to_audience(
 
 
 def make_ref(creative_name: str, metadata: Metadata) -> str:
-    s = f"creative.{creative_name}"
+    """Serialise a creative and its metadata into the dotted ref.
+
+    Every segment goes through ref_value, because every segment is a token in
+    the same dot-separated grammar and any of them can carry a `.`.
+
+    The creative name used to be interpolated completely raw, which made it
+    both the most exposed contributor and the most damaging one. A dotted
+    *value* shifts the pairs after it, so a respondent is mis-attributed. A
+    dotted *name* shifts everything after it including `form`, so fly routes
+    that respondent into the wrong survey entirely. Study
+    `unicef-immunization-kyrg` ran creative names ending `.png` for about nine
+    hours in January 2023; timing caught it, nothing else would have.
+
+    Encoding here is a serialisation concern and nothing else:
+
+      - the ad's *name* on Facebook stays the raw creative name (create_ad).
+        Reconciliation matches ads by name, so encoding it there would orphan
+        every live ad and mint new ids — the ad_attributions-stranding failure.
+      - ref_metadata freezes the raw name and raw values. The blob holds truth;
+        only transport is encoded.
+    """
+    s = f"creative.{ref_value(creative_name)}"
     for k, v in metadata.items():
-        s += f".{k}.{quote(v)}"
+        s += f".{ref_value(k)}.{ref_value(v)}"
     return s
 
 
@@ -273,8 +294,12 @@ def shortcode_ref(shortcode: str) -> str:
     cannot supply later, because routing happens at the first inbound message
     while attribution is a batch join done afterwards. Everything the ref used
     to carry beyond this is in the frozen ad_attributions row instead.
+
+    Encoded like every other ref token, so a shortcode is transported the same
+    way on both channels — on Messenger `form` is an ordinary metadata value
+    and already goes through ref_value, and the two must not disagree.
     """
-    return f"form.{shortcode}"
+    return f"form.{ref_value(shortcode)}"
 
 
 def messenger_ref(
@@ -326,17 +351,23 @@ def whatsapp_autofill(shortcode: str, ref_md: Optional[Metadata] = None) -> str:
     pair is appended; `form` is skipped because it is already the head, so
     parsing the result back yields exactly `ref_md`.
 
-    Values are emitted raw, not quote()d. Percent-encoding would introduce `%`,
-    which fly's pattern rejects — and for the values this mode permits (letters,
-    digits, underscore, hyphen) quote() is a no-op anyway. What guarantees that
-    is StudyConf.check_whatsapp_refs_are_deliverable, at config time.
+    Every token is encoded with ref_value, the same as on Messenger. This used
+    to emit raw values, because the old entry gate rejected `%` outright and
+    encoding would have made every value undeliverable. fly widened the gate to
+    accept percent-encoded octets (fly@feature/ad-id-attribution 37e1e06e), so
+    encoding is now both correct and much less restrictive: of the production
+    stratum values on record, 5 of 9 were deliverable raw under the old gate
+    and 9 of 9 are deliverable encoded under the new one.
+
+    StudyConf.check_whatsapp_refs_are_deliverable still validates at config
+    time, against the encoded form.
     """
     s = shortcode_ref(shortcode)
 
     for k, v in (ref_md or {}).items():
         if k == "form":
             continue
-        s += f".{k}.{v}"
+        s += f".{ref_value(k)}.{ref_value(v)}"
 
     return s
 

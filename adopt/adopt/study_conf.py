@@ -5,6 +5,7 @@ from abc import ABC, abstractmethod
 from datetime import datetime, timedelta
 from math import floor
 from typing import Any, Dict, List, Literal, Optional, Tuple, Union
+from urllib.parse import quote
 
 from pydantic import BaseModel, ConfigDict, model_validator
 
@@ -113,16 +114,19 @@ class AppDestination(BaseModel):
 # matches that text against an anchored, full-match pattern (WHATSAPP_ENTRY_REF
 # in replybot/lib/event-normalizer.js):
 #
-#     /^(?:start\s+)?form\.([A-Za-z0-9_-]+(?:\.[A-Za-z0-9_-]+)*)$/i
+#     /^(?:start\s+)?form\.((?:[A-Za-z0-9_-]|%[0-9A-Fa-f]{2})+
+#                           (?:\.(?:[A-Za-z0-9_-]|%[0-9A-Fa-f]{2})+)*)$/i
 #
 # Two consequences, both verified against that regex:
 #
 # 1. The token must lead with `form.`. `make_ref` leads with `creative.`, so its
 #    output can never match, whatever the values are. A WhatsApp ref has to be
 #    serialised form-first.
-# 2. Every token is `[A-Za-z0-9_-]+`. No spaces, no `%`. `quote()` turns a space
-#    into `%20`, and `%` is not in the class either, so a value like
-#    "Bauchi State" fails encoded *and* raw.
+# 2. Every token is `[A-Za-z0-9_-]` or a percent-encoded octet. The gate was
+#    widened to accept `%XX` on fly@feature/ad-id-attribution 37e1e06e, which
+#    is what makes encoded values travel — before that a space was undeliverable
+#    raw *and* encoded, and roughly half of real stratum values could not be
+#    shipped at all.
 #
 # A failure here is silent and expensive: Meta delivers the text intact (dots
 # and spaces both survive `autofill_message.content`, measured), fly's pattern
@@ -130,12 +134,62 @@ class AppDestination(BaseModel):
 # to FALLBACK_FORM — a real survey, so the respondents look like completions
 # rather than errors. That is the VIR-19 failure shape. Hence: validate at
 # config time, never emit and hope.
-WHATSAPP_REF_TOKEN = re.compile(r"^[A-Za-z0-9_-]+$")
+WHATSAPP_REF_TOKEN = re.compile(r"^(?:[A-Za-z0-9_-]|%[0-9A-Fa-f]{2})+$")
+
+# The shortcode keeps the *narrow* alphabet, deliberately, even though the gate
+# would now accept it encoded.
+#
+# Metadata values are only ever transported by an ad, so encoding is enough for
+# them. A shortcode is also typed by a human: shortcodes are designed to be
+# shareable, and someone who hears about a study texts `form.<shortcode>`
+# straight into WhatsApp. That hand-typed message carries a literal space, not
+# `%20`, so it fails the gate and the person lands in FALLBACK_FORM. A
+# shortcode therefore has to be typeable as-is, not merely encodable.
+WHATSAPP_SHORTCODE_TOKEN = re.compile(r"^[A-Za-z0-9_-]+$")
+
+
+def ref_value(value: str) -> str:
+    """Encode one metadata value for a dotted ref.
+
+    `quote()` alone is not enough. Python keeps `.`, `-`, `_` and `~` in
+    urllib's `_ALWAYS_SAFE`, and passing `safe=''` does *not* override that —
+    measured: `quote('a.b') == 'a.b'`, `quote('x~y') == 'x~y'`. Two of those
+    four break a ref:
+
+      `.` is the ref's own separator, so a dotted value silently mis-pairs
+          every key/value after it when fly's `_group` walks the tokens. That
+          is the corruption found in phase 1, now explained rather than merely
+          observed.
+      `~` is absent from fly's WhatsApp token alphabet, so it fails the entry
+          gate outright and the arrival falls through to FALLBACK_FORM.
+
+    `-` and `_` are both separator-safe and inside the gate alphabet, so they
+    are deliberately left alone; encoding them would churn refs for no gain.
+
+    Escaping after quoting is safe: `quote()` has already turned any literal
+    `%` into `%25`, so no `.` or `~` can be sitting inside an escape sequence.
+
+    Lives here rather than next to `make_ref` because the config-time WhatsApp
+    deliverability check needs it and study_conf cannot import marketing.
+    """
+    return quote(value).replace(".", "%2E").replace("~", "%7E")
 
 
 def whatsapp_ref_token_safe(value: str) -> bool:
-    """True if `value` can survive fly's WhatsApp entry pattern as one token."""
-    return bool(WHATSAPP_REF_TOKEN.match(value))
+    """True if `value` survives fly's WhatsApp entry pattern once encoded.
+
+    Checked against the *encoded* form, because that is what the ad ships.
+    Before fly widened the gate this had to be checked raw, which made roughly
+    half of real stratum values undeliverable. What still fails is only what
+    `quote()` leaves literal and the gate does not accept — in practice just
+    `/`, which `quote()` keeps by default.
+    """
+    return bool(WHATSAPP_REF_TOKEN.match(ref_value(value)))
+
+
+def whatsapp_shortcode_safe(shortcode: str) -> bool:
+    """True if `shortcode` survives the gate *and* a human typing it by hand."""
+    return bool(WHATSAPP_SHORTCODE_TOKEN.match(shortcode))
 
 
 def unsafe_whatsapp_ref_tokens(values: Dict[str, str]) -> List[str]:
@@ -241,13 +295,16 @@ class FlyWhatsAppDestination(BaseModel):
     def shortcode_must_survive_the_entry_pattern(self):
         # Applies in both modes: even a shortcode-only token is `form.<sc>`, so
         # an unsafe shortcode breaks the plain case too.
-        if not whatsapp_ref_token_safe(self.initial_shortcode):
+        if not whatsapp_shortcode_safe(self.initial_shortcode):
             raise InvalidConfigError(
                 f"WhatsApp destination '{self.name}': initial_shortcode "
-                f"'{self.initial_shortcode}' contains characters that fly's "
-                "WhatsApp entry pattern rejects. Only letters, digits, "
-                "underscore and hyphen survive; anything else means the ad "
-                "recruits people into the fallback survey instead of yours."
+                f"'{self.initial_shortcode}' contains characters fly's WhatsApp "
+                "entry pattern rejects when typed by hand. Only letters, "
+                "digits, underscore and hyphen. Metadata values may now be "
+                "percent-encoded, but a shortcode may not: it is meant to be "
+                "shareable, and someone texting it straight into WhatsApp "
+                "sends a literal space, which lands them in the fallback "
+                "survey instead of yours."
             )
         return self
 
