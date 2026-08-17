@@ -30,6 +30,7 @@ from .study_conf import (
     DestinationConf,
     DestinationRecruitmentExperiment,
     FlyMessengerDestination,
+    FlyWhatsAppDestination,
     LookalikeAudience,
     Stratum,
     StudyConf,
@@ -42,6 +43,10 @@ ADSET_HOURS = 48
 # object_story_spec.link_data even for click-to-message ads; the CTA value
 # determines the actual destination, so this URL is only structural.
 MESSENGER_LINK_FALLBACK = "https://fb.com/messenger_doc/"
+
+# Facebook requires link_data.link to match the click-to-WhatsApp CTA. Measured
+# working by adopt/scripts/ctwa_probe.py against live ads; do not "tidy" it.
+WHATSAPP_LINK = "https://api.whatsapp.com/send"
 
 Metadata = Dict[str, str]
 
@@ -267,6 +272,66 @@ def messenger_call_to_action() -> dict:
     }
 
 
+def whatsapp_call_to_action() -> dict:
+    return {
+        "type": "WHATSAPP_MESSAGE",
+        "value": {"app_destination": "WHATSAPP"},
+    }
+
+
+def whatsapp_autofill(shortcode: str, ref_md: Optional[Metadata] = None) -> str:
+    """The text a click-to-WhatsApp ad prefills into the respondent's compose box.
+
+    Form-first, unlike make_ref. fly's WhatsApp entry pattern anchors on
+    `form.`, so make_ref's `creative.`-led output can never match it whatever
+    the values are — this is a different serialisation of the same facts, not a
+    reuse of one.
+
+    With `ref_md` omitted the token is just `form.<shortcode>`: the default, and
+    always parseable. With `ref_md` given (the opt-in full ref) every remaining
+    pair is appended; `form` is skipped because it is already the head, so
+    parsing the result back yields exactly `ref_md`.
+
+    Values are emitted raw, not quote()d. Percent-encoding would introduce `%`,
+    which fly's pattern rejects — and for the values this mode permits (letters,
+    digits, underscore, hyphen) quote() is a no-op anyway. What guarantees that
+    is StudyConf.check_whatsapp_refs_are_deliverable, at config time.
+    """
+    s = f"form.{shortcode}"
+
+    for k, v in (ref_md or {}).items():
+        if k == "form":
+            continue
+        s += f".{k}.{v}"
+
+    return s
+
+
+def make_whatsapp_welcome_message(text: str, autofill: str) -> str:
+    """The CTWA welcome screen: greeting text plus the prefilled first message.
+
+    Shape measured against live Meta ads by adopt/scripts/ctwa_probe.py.
+    AdCreativeLinkData types page_welcome_message as a string, so this is
+    serialised even though Meta's guide prints it unquoted.
+    """
+    return json.dumps(
+        {
+            "type": "VISUAL_EDITOR",
+            "version": 2,
+            "landing_screen_type": "welcome_message",
+            "media_type": "text",
+            "text_format": {
+                "customer_action_type": "autofill_message",
+                "message": {
+                    "autofill_message": {"content": autofill},
+                    "text": text,
+                },
+            },
+        },
+        sort_keys=True,
+    )
+
+
 def app_download_call_to_action(deeplink) -> dict:
     return {
         "type": "INSTALL_MOBILE_APP",
@@ -451,7 +516,11 @@ def creative_metadata(
     """
     md = {**stratum.metadata, **study.general.extra_metadata}
 
-    if isinstance(destination, FlyMessengerDestination):
+    # Both fly destinations fold in `form`, identically. That keeps the frozen
+    # ad_attributions blob consistent across the two channels, so a study using
+    # `location: "ad"` reads the same keys whether its respondents arrive by
+    # Messenger or by WhatsApp.
+    if isinstance(destination, (FlyMessengerDestination, FlyWhatsAppDestination)):
         md = {**md, "form": destination.initial_shortcode}
 
         if destination.additional_metadata:
@@ -484,7 +553,7 @@ def destination_shortcode(destination: DestinationConf) -> Optional[str]:
     their target in the URL/deeplink template, so they have none, and the
     column is nullable for exactly that reason.
     """
-    if isinstance(destination, FlyMessengerDestination):
+    if isinstance(destination, (FlyMessengerDestination, FlyWhatsAppDestination)):
         return destination.initial_shortcode
 
     return None
@@ -509,6 +578,26 @@ def create_creative(
             call_to_action=messenger_call_to_action(),
             page_welcome_message=msg,
             url_tags=f"ref={ref}",
+        )
+
+    if isinstance(destination, FlyWhatsAppDestination):
+        # No url_tags: it was measured not to reach WhatsApp at all. The
+        # autofill text is the only carrier, and it is respondent-visible and
+        # respondent-editable, which is the other reason the default is the
+        # shortcode alone.
+        ref_md = (
+            ref_metadata(config.name, md)
+            if destination.include_metadata_in_ref
+            else None
+        )
+        autofill = whatsapp_autofill(destination.initial_shortcode, ref_md)
+        msg = make_whatsapp_welcome_message(destination.welcome_message, autofill)
+
+        return _create_creative(
+            config,
+            call_to_action=whatsapp_call_to_action(),
+            page_welcome_message=msg,
+            link=WHATSAPP_LINK,
         )
 
     if isinstance(destination, AppDestination):

@@ -3,10 +3,13 @@ from datetime import datetime, timedelta
 import pytest
 
 from .study_conf import (
+    CreativeConf,
     DestinationRecruitmentExperiment,
     ExtractionConf,
+    FlyWhatsAppDestination,
     GeneralConf,
     InferenceDataConf,
+    InvalidConfigError,
     PipelineRecruitmentExperiment,
     QuestionTargeting,
     SimpleRecruitment,
@@ -16,6 +19,8 @@ from .study_conf import (
     TargetVar,
     UserInfo,
     missing_targeting_variables,
+    unsafe_whatsapp_ref_tokens,
+    whatsapp_ref_token_safe,
     supplied_variables,
     targeting_variables,
 )
@@ -670,3 +675,153 @@ def test_study_with_no_inference_conf_reports_every_targeted_variable():
 def test_stratum_with_no_targeting_never_reports_a_gap():
     study = _study_with(targeting=None, inference_data=None)
     assert missing_targeting_variables(study) == {}
+
+
+# ---------------------------------------------------------------------------
+# Click-to-WhatsApp destinations (A8): config-time ref validation.
+#
+# fly recovers the shortcode on WhatsApp from the ad's autofill text, matched
+# against an anchored full-match pattern of [A-Za-z0-9_-] tokens. A ref that
+# fails it does not error -- fly derives no conversation_started and the arrival
+# falls through to FALLBACK_FORM, a real survey whose users look like
+# completions. So an undeliverable ref has to be rejected when the study is
+# configured, never emitted and hoped for.
+# ---------------------------------------------------------------------------
+
+
+# Real values from production study confs, quoted in
+# planning/ad-id-attribution.md. Half of them are undeliverable, which is the
+# finding that makes full-ref mode a rarity rather than a default.
+PRODUCTION_SAFE = ["3B", "gelangchoice", "women", "Smiling", "location"]
+PRODUCTION_UNSAFE = [
+    "Static English - Girls",
+    "Bauchi State",
+    "Like Parents",
+    "South East",
+]
+
+
+def test_whatsapp_token_safety_matches_the_character_class():
+    for v in PRODUCTION_SAFE:
+        assert whatsapp_ref_token_safe(v), v
+    for v in PRODUCTION_UNSAFE:
+        assert not whatsapp_ref_token_safe(v), v
+
+
+def test_percent_encoding_does_not_rescue_an_unsafe_value():
+    # The obvious fix is to URL-encode, as make_ref does. It does not work:
+    # `%` is not in the character class either, so quoting turns one
+    # undeliverable token into a different undeliverable token.
+    from urllib.parse import quote
+
+    assert not whatsapp_ref_token_safe("Bauchi State")
+    assert not whatsapp_ref_token_safe(quote("Bauchi State"))
+
+
+def test_unsafe_tokens_reports_keys_as_well_as_values():
+    # Both sides become dot-separated tokens, so a key with a space breaks the
+    # ref just as a value does.
+    assert unsafe_whatsapp_ref_tokens({"gender": "women"}) == []
+    assert unsafe_whatsapp_ref_tokens({"gender": "Bauchi State"}) == [
+        "gender=Bauchi State"
+    ]
+    assert unsafe_whatsapp_ref_tokens({"my key": "women"}) == ["my key=women"]
+
+
+def _whatsapp_destination(shortcode="mnchweek", full_ref=False):
+    return FlyWhatsAppDestination(
+        type="whatsapp",
+        name="whatsapp",
+        initial_shortcode=shortcode,
+        welcome_message="Tap send to start",
+        include_metadata_in_ref=full_ref,
+    )
+
+
+def _whatsapp_study(metadata, full_ref=False, destination_name="whatsapp"):
+    return StudyConf(
+        id="00000000-0000-0000-0000-000000000001",
+        user=UserInfo(survey_user="user", token="token"),
+        general=GeneralConf(
+            name="test-study",
+            credentials_key="page-1",
+            credentials_entity="facebook_page",
+            ad_account="act_1",
+            opt_window=48,
+        ),
+        destinations=[_whatsapp_destination(full_ref=full_ref)],
+        audiences=[],
+        creatives=[
+            CreativeConf(destination=destination_name, name="Smiling", template={})
+        ],
+        strata=[
+            StratumConf(
+                id="stratum-1",
+                quota=1.0,
+                creatives=["Smiling"],
+                audiences=[],
+                excluded_audiences=[],
+                facebook_targeting={},
+                metadata=metadata,
+            )
+        ],
+        recruitment=_simple(),
+    )
+
+
+def test_unsafe_shortcode_is_rejected_on_the_destination_itself():
+    # Applies in both modes: even the default token is `form.<shortcode>`.
+    with pytest.raises(InvalidConfigError, match="initial_shortcode"):
+        _whatsapp_destination(shortcode="mnch week")
+
+
+def test_safe_shortcodes_are_accepted():
+    for shortcode in ["mnchweek", "mnch_week", "mnch-week-2", "MNCH2"]:
+        assert _whatsapp_destination(shortcode=shortcode).initial_shortcode == shortcode
+
+
+def test_full_ref_with_unsafe_stratum_metadata_is_rejected_at_config_time():
+    with pytest.raises(InvalidConfigError, match="Bauchi State"):
+        _whatsapp_study({"State": "Bauchi State"}, full_ref=True)
+
+
+def test_full_ref_with_safe_stratum_metadata_is_accepted():
+    study = _whatsapp_study({"gender": "women", "creative": "3B"}, full_ref=True)
+    assert study.strata[0].metadata["gender"] == "women"
+
+
+def test_shortcode_only_tolerates_metadata_it_never_ships():
+    """The reason shortcode-only is the default.
+
+    The same stratum that cannot have a full ref is perfectly fine on the
+    default setting, because none of those values travel in the autofill text.
+    The optimizer still gets the stratum via the ad-ID join.
+    """
+    study = _whatsapp_study({"State": "Bauchi State"}, full_ref=False)
+    assert study.strata[0].metadata["State"] == "Bauchi State"
+
+
+def test_full_ref_ignores_strata_that_do_not_publish_through_that_destination():
+    # A stratum whose creatives all point elsewhere never produces a WhatsApp
+    # ref, so its metadata cannot break one.
+    study = _whatsapp_study(
+        {"State": "Bauchi State"}, full_ref=True, destination_name="somewhere-else"
+    )
+    assert study.strata[0].metadata["State"] == "Bauchi State"
+
+
+def test_full_ref_validation_covers_the_form_key_and_extra_metadata():
+    # `form` is folded in from the shortcode, which is already validated, but
+    # extra_metadata is not -- and it rides in the ref too.
+    study = _whatsapp_study({"gender": "women"}, full_ref=True)
+    study_dict = study.model_dump()
+    study_dict["general"]["extra_metadata"] = {"country": "Sierra Leone"}
+
+    with pytest.raises(InvalidConfigError, match="Sierra Leone"):
+        StudyConf(**study_dict)
+
+
+def test_a_study_with_no_whatsapp_destination_is_never_checked():
+    # Every existing study, in other words.
+    study = _study_with(targeting=None, inference_data=None)
+    assert study.strata[0].metadata == {}

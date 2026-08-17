@@ -1,5 +1,6 @@
 import json
 import random
+import re
 from datetime import datetime
 from typing import TypeVar
 from unittest.mock import patch
@@ -13,6 +14,7 @@ from .facebook.update import Instruction
 from .marketing import (
     _create_creative,
     ad_provenance,
+    whatsapp_autofill,
     adset_instructions,
     create_creative,
     creative_metadata,
@@ -30,6 +32,7 @@ from .study_conf import (
     CreativeConf,
     DestinationRecruitmentExperiment,
     FlyMessengerDestination,
+    FlyWhatsAppDestination,
     GeneralConf,
     InvalidConfigError,
     Lookalike,
@@ -971,3 +974,189 @@ def test_ad_provenance_touches_no_database():
         prov = ad_provenance(study, "test-campaign-messenger", [stratum])
 
     assert len(prov) == 1
+
+
+# ---------------------------------------------------------------------------
+# Click-to-WhatsApp destinations (A8).
+#
+# A CTWA referral carries no advertiser-settable `ref` -- url_tags was measured
+# not to reach WhatsApp at all -- so fly recovers the shortcode from the ad's
+# autofill text, which prefills the respondent's first message. fly matches that
+# text against an anchored, full-match pattern, and anything that fails it is
+# not an error: no conversation_started is derived and the arrival falls through
+# to FALLBACK_FORM, a real survey whose users look like completions. So these
+# tests assert against the real pattern, copied verbatim.
+# ---------------------------------------------------------------------------
+
+# Copied verbatim from WHATSAPP_ENTRY_REF in fly's
+# replybot/lib/event-normalizer.js. Kept as a literal rather than imported
+# (different repo, different language) -- if fly's pattern ever changes, these
+# tests are what should fail.
+WHATSAPP_ENTRY_REF = re.compile(
+    r"^(?:start\s+)?form\.([A-Za-z0-9_-]+(?:\.[A-Za-z0-9_-]+)*)$", re.IGNORECASE
+)
+
+
+def _fly_would_accept(text: str) -> bool:
+    """What fly's _refFromText does: full match on the trimmed body."""
+    return bool(WHATSAPP_ENTRY_REF.match(text.strip()))
+
+
+def _whatsapp_dest(shortcode="mnchweek", full_ref=False, additional=None):
+    return FlyWhatsAppDestination(
+        type="whatsapp",
+        name="whatsapp",
+        initial_shortcode=shortcode,
+        welcome_message="Tap send to start",
+        additional_metadata=additional,
+        include_metadata_in_ref=full_ref,
+    )
+
+
+def test_shortcode_only_autofill_is_accepted_by_fly():
+    """The default, and the reason it is the default: it always parses."""
+    assert whatsapp_autofill("mnchweek") == "form.mnchweek"
+    assert _fly_would_accept(whatsapp_autofill("mnchweek"))
+
+
+def test_shortcode_only_autofill_survives_underscores_and_hyphens():
+    for shortcode in ["mnch_week", "mnch-week-2", "MNCHweek2"]:
+        assert _fly_would_accept(whatsapp_autofill(shortcode)), shortcode
+
+
+def test_full_ref_with_pattern_safe_values_is_accepted_by_fly():
+    md = {"creative": "Smiling", "gender": "women", "form": "mnchweek"}
+    autofill = whatsapp_autofill("mnchweek", md)
+
+    assert autofill == "form.mnchweek.creative.Smiling.gender.women"
+    assert _fly_would_accept(autofill)
+
+
+def test_make_ref_output_can_never_be_a_whatsapp_autofill():
+    """The structural reason WhatsApp needs its own serialisation.
+
+    fly's pattern anchors on `form.`; make_ref leads with `creative.`. So the
+    Messenger ref is rejected no matter how safe its values are -- this is not
+    a character-set problem and no amount of value-cleaning fixes it.
+    """
+    md = {"creative": "Smiling", "gender": "women", "form": "mnchweek"}
+    assert not _fly_would_accept(make_ref("Smiling", md))
+
+
+def test_full_ref_round_trips_back_to_the_frozen_blob():
+    """The autofill and ad_attributions.metadata describe the same thing.
+
+    Parsing the autofill's dot-pairs must give exactly the blob frozen at ad
+    creation -- the same invariant make_ref has on Messenger, so a study can use
+    either channel and get identical strata.
+    """
+    dest = _whatsapp_dest(full_ref=True)
+    creative = _creative("Smiling", "whatsapp")
+    study = _study([dest], [creative])
+    stratum = _stratum_with_md("stratum-1", [creative], {"gender": "women"})
+
+    md = creative_metadata(study, stratum, dest)
+    frozen = ref_metadata(creative.name, md)
+    autofill = whatsapp_autofill(dest.initial_shortcode, frozen)
+
+    assert _fly_would_accept(autofill)
+    assert _parse_ref(autofill) == frozen
+
+
+def test_whatsapp_creative_metadata_folds_in_form_like_messenger_does():
+    """Keeps the frozen blob consistent across both fly channels.
+
+    A study using `location: "ad"` must read the same keys whether its
+    respondents arrived by Messenger or WhatsApp.
+    """
+    dest = _whatsapp_dest(additional={"wave": "2"})
+    creative = _creative("Smiling", "whatsapp")
+    study = _study([dest], [creative], extra_metadata={"country": "NG"})
+    stratum = _stratum_with_md("stratum-1", [creative], {"gender": "women"})
+
+    md = creative_metadata(study, stratum, dest)
+
+    assert md["form"] == "mnchweek"
+    assert md["country"] == "NG"
+    assert md["wave"] == "2"
+    assert md["gender"] == "women"
+
+
+def test_whatsapp_destination_has_a_shortcode():
+    assert destination_shortcode(_whatsapp_dest()) == "mnchweek"
+
+
+def test_whatsapp_creative_uses_the_whatsapp_cta_and_carries_no_url_tags():
+    """url_tags was measured never to reach WhatsApp, so it must not be set.
+
+    Setting it would be dead weight that reads like a working carrier.
+    """
+    dest = _whatsapp_dest()
+    template = _load_template("image_ad_messenger.json")
+    config = CreativeConf(destination="whatsapp", name="Smiling", template=template)
+    study = _study([dest], [config])
+    stratum = _stratum_with_md("stratum-1", [config], {"gender": "women"})
+
+    creative = create_creative(study, stratum, config, dest)
+
+    link_data = creative["object_story_spec"]["link_data"]
+    assert link_data["call_to_action"].export_all_data() == {
+        "type": "WHATSAPP_MESSAGE",
+        "value": {"app_destination": "WHATSAPP"},
+    }
+    assert link_data["link"] == "https://api.whatsapp.com/send"
+    assert "url_tags" not in creative
+
+
+def test_whatsapp_creative_prefills_the_shortcode_by_default():
+    dest = _whatsapp_dest()
+    template = _load_template("image_ad_messenger.json")
+    config = CreativeConf(destination="whatsapp", name="Smiling", template=template)
+    study = _study([dest], [config])
+    stratum = _stratum_with_md("stratum-1", [config], PRODUCTION_METADATA)
+
+    creative = create_creative(study, stratum, config, dest)
+
+    welcome = json.loads(
+        creative["object_story_spec"]["link_data"]["page_welcome_message"]
+    )
+    autofill = welcome["text_format"]["message"]["autofill_message"]["content"]
+
+    # The stratum here has spaces in its values; the default mode is unaffected
+    # by that precisely because it ships none of them.
+    assert autofill == "form.mnchweek"
+    assert _fly_would_accept(autofill)
+    assert welcome["text_format"]["message"]["text"] == "Tap send to start"
+
+
+def test_existing_destinations_are_untouched_by_the_whatsapp_branch():
+    """Messenger and Web must be bit-for-bit what they were.
+
+    A8 is greenfield, but it edits create_creative, which every live study's
+    creative flows through -- and changing a creative rewrites every ad.
+    """
+    template = _load_template("image_ad_messenger.json")
+
+    messenger = _messenger_dest("messenger", "mnchweek")
+    config = CreativeConf(destination="messenger", name="Smiling", template=template)
+    study = _study([messenger], [config])
+    stratum = _stratum_with_md("stratum-1", [config], PRODUCTION_METADATA)
+
+    creative = create_creative(study, stratum, config, messenger)
+    md = creative_metadata(study, stratum, messenger)
+
+    # Still the Messenger CTA, still url_tags carrying the full quoted ref.
+    assert creative["url_tags"] == f"ref={make_ref('Smiling', md)}"
+    assert creative["object_story_spec"]["link_data"][
+        "call_to_action"
+    ].export_all_data() == {
+        "type": "MESSAGE_PAGE",
+        "value": {"app_destination": "MESSENGER"},
+    }
+
+    web = _web_dest("web")
+    web_config = CreativeConf(destination="web", name="Smiling", template=template)
+    web_study = _study([web], [web_config])
+    web_creative = create_creative(web_study, stratum, web_config, web)
+    assert destination_shortcode(web) is None
+    assert "whatsapp" not in json.dumps(web_creative.export_all_data()).lower()

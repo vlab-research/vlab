@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from abc import ABC, abstractmethod
 from datetime import datetime, timedelta
 from math import floor
@@ -86,7 +87,98 @@ class AppDestination(BaseModel):
     user_os: list[str]
 
 
-DestinationConf = Union[FlyMessengerDestination, AppDestination, WebDestination]
+# Click-to-WhatsApp entry tokens live under a much narrower grammar than the
+# Messenger ref does, and the difference is load-bearing.
+#
+# A CTWA referral carries no advertiser-settable `ref` — url_tags was measured
+# not to reach WhatsApp at all — so fly recovers the shortcode from the ad's
+# autofill message text, which the respondent's first message prefills. fly
+# matches that text against an anchored, full-match pattern (WHATSAPP_ENTRY_REF
+# in replybot/lib/event-normalizer.js):
+#
+#     /^(?:start\s+)?form\.([A-Za-z0-9_-]+(?:\.[A-Za-z0-9_-]+)*)$/i
+#
+# Two consequences, both verified against that regex:
+#
+# 1. The token must lead with `form.`. `make_ref` leads with `creative.`, so its
+#    output can never match, whatever the values are. A WhatsApp ref has to be
+#    serialised form-first.
+# 2. Every token is `[A-Za-z0-9_-]+`. No spaces, no `%`. `quote()` turns a space
+#    into `%20`, and `%` is not in the class either, so a value like
+#    "Bauchi State" fails encoded *and* raw.
+#
+# A failure here is silent and expensive: Meta delivers the text intact (dots
+# and spaces both survive `autofill_message.content`, measured), fly's pattern
+# rejects it, no conversation_started is derived, and the arrival falls through
+# to FALLBACK_FORM — a real survey, so the respondents look like completions
+# rather than errors. That is the VIR-19 failure shape. Hence: validate at
+# config time, never emit and hope.
+WHATSAPP_REF_TOKEN = re.compile(r"^[A-Za-z0-9_-]+$")
+
+
+def whatsapp_ref_token_safe(value: str) -> bool:
+    """True if `value` can survive fly's WhatsApp entry pattern as one token."""
+    return bool(WHATSAPP_REF_TOKEN.match(value))
+
+
+def unsafe_whatsapp_ref_tokens(values: Dict[str, str]) -> List[str]:
+    """The `key=value` pairs that would break a WhatsApp ref, for error text.
+
+    Keys are checked as well as values: both become dot-separated tokens.
+    """
+    bad = []
+    for k, v in values.items():
+        if not whatsapp_ref_token_safe(k) or not whatsapp_ref_token_safe(str(v)):
+            bad.append(f"{k}={v}")
+    return sorted(bad)
+
+
+class FlyWhatsAppDestination(BaseModel):
+    """A click-to-WhatsApp destination.
+
+    Shaped after FlyMessengerDestination, minus `button_text` (WhatsApp has no
+    quick-reply button; the respondent gets a prefilled compose box) and plus
+    `include_metadata_in_ref`.
+
+    `type` is a Literal, unlike its siblings, because this model's required
+    fields are a strict subset of FlyMessengerDestination's — without a
+    discriminator, pydantic's smart union could resolve a Messenger destination
+    to this class by ignoring the extra `button_text`.
+    """
+
+    type: Literal["whatsapp"]
+    name: str
+    initial_shortcode: str
+    # Shown above the compose box on the welcome screen; not part of the ref.
+    welcome_message: str
+    additional_metadata: Optional[dict[str, str]] = None
+
+    # Opt-in: put the full stratum metadata in the autofill text, not just the
+    # shortcode. Off by default, and rarely usable — see the module comment and
+    # StudyConf.check_whatsapp_refs_are_deliverable. The autofill text is
+    # visible to and editable by the respondent, and the ad-ID join (A5-A7)
+    # already carries stratum identity to the optimizer without it, so the only
+    # reason to turn this on is fly survey logic that branches on ad metadata.
+    include_metadata_in_ref: bool = False
+
+    @model_validator(mode="after")
+    def shortcode_must_survive_the_entry_pattern(self):
+        # Applies in both modes: even a shortcode-only token is `form.<sc>`, so
+        # an unsafe shortcode breaks the plain case too.
+        if not whatsapp_ref_token_safe(self.initial_shortcode):
+            raise InvalidConfigError(
+                f"WhatsApp destination '{self.name}': initial_shortcode "
+                f"'{self.initial_shortcode}' contains characters that fly's "
+                "WhatsApp entry pattern rejects. Only letters, digits, "
+                "underscore and hyphen survive; anything else means the ad "
+                "recruits people into the fallback survey instead of yours."
+            )
+        return self
+
+
+DestinationConf = Union[
+    FlyMessengerDestination, AppDestination, WebDestination, FlyWhatsAppDestination
+]
 
 
 class BaseRecruitmentConf(BaseModel, ABC):
@@ -593,6 +685,69 @@ class StudyConf(BaseModel):
     @property
     def base_campaign_name(self) -> str:
         return self.recruitment.base_campaign_name
+
+    @model_validator(mode="after")
+    def check_whatsapp_refs_are_deliverable(self):
+        """Reject a full-metadata WhatsApp ref that fly could never parse.
+
+        Only fires for a WhatsApp destination with include_metadata_in_ref on,
+        so every other study — and every WhatsApp study on the default
+        shortcode-only setting — is untouched.
+
+        This is the earliest point at which the check is possible: the ref's
+        content comes from the strata and its deliverability from the
+        destination, and those are two separate confs, POSTed independently. So
+        a per-conf validator cannot see both. StudyConf is where they first
+        meet, and it is assembled at the start of every reconciliation run,
+        which is still before any ad exists. Failing here fails closed: the
+        study creates no ads at all, rather than creating ads that recruit
+        people into the fallback survey.
+        """
+        full_ref_destinations = [
+            d
+            for d in self.destinations
+            if isinstance(d, FlyWhatsAppDestination) and d.include_metadata_in_ref
+        ]
+
+        if not full_ref_destinations:
+            return self
+
+        creative_destination = {c.name: c.destination for c in self.creatives}
+
+        for destination in full_ref_destinations:
+            # Every stratum that could publish through this destination, i.e.
+            # any stratum naming a creative that names it.
+            for stratum in self.strata:
+                if not any(
+                    creative_destination.get(c) == destination.name
+                    for c in stratum.creatives
+                ):
+                    continue
+
+                # The exact key/value set the ref would carry, assembled the
+                # same way create_creative assembles it.
+                md = {
+                    **stratum.metadata,
+                    **self.general.extra_metadata,
+                    "form": destination.initial_shortcode,
+                    **(destination.additional_metadata or {}),
+                }
+
+                unsafe = unsafe_whatsapp_ref_tokens(md)
+                if unsafe:
+                    raise InvalidConfigError(
+                        f"WhatsApp destination '{destination.name}' has "
+                        f"include_metadata_in_ref set, but stratum "
+                        f"'{stratum.id}' has metadata that fly's WhatsApp entry "
+                        f"pattern cannot parse: {unsafe}. Only letters, digits, "
+                        "underscore and hyphen survive — a space or a "
+                        "percent-sign means the ad silently recruits into the "
+                        "fallback survey. Either rename these values or leave "
+                        "include_metadata_in_ref off; the ad-ID join carries "
+                        "stratum identity to the optimizer either way."
+                    )
+
+        return self
 
 
 # ---------------------------------------------------------------------------
