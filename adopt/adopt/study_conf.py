@@ -69,6 +69,23 @@ class FlyMessengerDestination(BaseModel):
     button_text: str
     additional_metadata: Optional[dict[str, str]] = None
 
+    # Whether the ad's ref carries the full stratum metadata or only the
+    # shortcode. Named to match FlyWhatsAppDestination's field: it is one
+    # concept, and the two channels differ only in their default.
+    #
+    # Defaults True, the historical behaviour, because every existing study
+    # depends on it — and because turning it off changes the *creative*, which
+    # makes reconciliation rewrite that study's ads on its next run.
+    #
+    # Turning it off is the point of the whole ad-id design. It stops vlab
+    # shipping its stratum vocabulary into fly inside every message and leaves
+    # the ref doing only the job it cannot delegate: routing. Attribution then
+    # comes from the frozen ad_attributions row instead, so this is only safe
+    # for a study whose inference_data conf reads `location: "ad"`.
+    #
+    # This flag must never reach creative_metadata — see create_creative.
+    include_metadata_in_ref: bool = True
+
 
 class WebDestination(BaseModel):
     type: str

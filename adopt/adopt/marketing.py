@@ -265,6 +265,40 @@ def make_ref(creative_name: str, metadata: Metadata) -> str:
     return s
 
 
+def shortcode_ref(shortcode: str) -> str:
+    """The minimal ref: enough to route, and nothing else.
+
+    `form` is the one key fly cannot do without — getMetadata falls back to
+    FALLBACK_FORM when it is missing — and it is the one thing attribution
+    cannot supply later, because routing happens at the first inbound message
+    while attribution is a batch join done afterwards. Everything the ref used
+    to carry beyond this is in the frozen ad_attributions row instead.
+    """
+    return f"form.{shortcode}"
+
+
+def messenger_ref(
+    creative_name: str, metadata: Metadata, destination: FlyMessengerDestination
+) -> str:
+    """What a Messenger ad puts in `referral.ref`.
+
+    The *only* place the ref mode is allowed to matter. It picks a
+    serialisation and nothing else: `metadata` arrives already complete from
+    creative_metadata and is passed straight through, because that same dict is
+    what ref_metadata freezes into ad_attributions.metadata.
+
+    If this mode ever leaked back into creative_metadata, a shortcode-only
+    study would freeze mapping rows containing nothing but `form`, every
+    `location: "ad"` conf would resolve to nothing, every stratum would count
+    zero, and the optimizer would reallocate on empty data — silently, and
+    unrecoverably, because the blob is frozen at creation and never refreshed.
+    """
+    if destination.include_metadata_in_ref:
+        return make_ref(creative_name, metadata)
+
+    return shortcode_ref(destination.initial_shortcode)
+
+
 def messenger_call_to_action() -> dict:
     return {
         "type": "MESSAGE_PAGE",
@@ -297,7 +331,7 @@ def whatsapp_autofill(shortcode: str, ref_md: Optional[Metadata] = None) -> str:
     digits, underscore, hyphen) quote() is a no-op anyway. What guarantees that
     is StudyConf.check_whatsapp_refs_are_deliverable, at config time.
     """
-    s = f"form.{shortcode}"
+    s = shortcode_ref(shortcode)
 
     for k, v in (ref_md or {}).items():
         if k == "form":
@@ -568,7 +602,12 @@ def create_creative(
     md = creative_metadata(study, stratum, destination)
 
     if isinstance(destination, FlyMessengerDestination):
-        ref = make_ref(config.name, md)
+        # One ref, both carriers. Messenger ships it twice — as url_tags, which
+        # Meta surfaces as referral.ref, and inside the welcome message's
+        # quick-reply payload — and a respondent can arrive by either. Emitting
+        # different refs on the two paths would mean the same ad describing two
+        # different people depending on how they tapped it.
+        ref = messenger_ref(config.name, md, destination)
         msg = make_welcome_message(
             destination.welcome_message, destination.button_text, ref
         )

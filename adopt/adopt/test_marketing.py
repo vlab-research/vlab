@@ -10,22 +10,26 @@ import pytest
 from facebook_business.adobjects.adcreative import AdCreative
 from facebook_business.adobjects.customaudience import CustomAudience
 
+from .facebook.reconciliation import ad_dif
 from .facebook.update import Instruction
 from .marketing import (
     _create_creative,
     ad_provenance,
-    adset_promoted_object,
-    whatsapp_autofill,
     adset_instructions,
+    adset_promoted_object,
+    create_ad,
     create_creative,
     creative_metadata,
     destination_shortcode,
     make_ref,
     manage_aud,
     messenger_call_to_action,
+    messenger_ref,
     pair_creatives_with_destinations,
     ref_metadata,
+    shortcode_ref,
     web_call_to_action,
+    whatsapp_autofill,
 )
 from .study_conf import (
     AppDestination,
@@ -1374,3 +1378,243 @@ def test_whatsapp_adsets_get_the_promoted_object_meta_requires():
         "whatsapp_phone_number": "15419202635",
     }
     assert data["destination_type"] == "WHATSAPP"
+
+
+# ---------------------------------------------------------------------------
+# Shortcode-only Messenger refs (A4).
+#
+# The payoff of the whole ad-id design: stop shipping vlab's stratum vocabulary
+# into fly inside every message and leave the ref doing only the job it cannot
+# delegate, routing. Attribution comes from the frozen ad_attributions row.
+#
+# The hazard is that "what the ref carries" and "what gets frozen" are computed
+# from the same dict. They must not move together.
+# ---------------------------------------------------------------------------
+
+
+def _messenger_dest_mode(shortcode="mnchweek", include_metadata=True):
+    return FlyMessengerDestination(
+        type="messenger",
+        name="messenger",
+        initial_shortcode=shortcode,
+        welcome_message="Welcome!",
+        button_text="OK",
+        include_metadata_in_ref=include_metadata,
+    )
+
+
+def _welcome_payload_ref(creative):
+    """Dig the ref back out of the quick-reply payload."""
+    welcome = json.loads(
+        creative["object_story_spec"]["link_data"]["page_welcome_message"]
+    )
+    payload = json.loads(welcome["message"]["quick_replies"][0]["payload"])
+    return payload["referral"]["ref"]
+
+
+def test_ref_mode_does_not_change_what_gets_frozen():
+    """THE guard on the project's core invariant.
+
+    Two destinations identical but for the ref mode, over the same stratum,
+    must freeze exactly the same blob. The mode picks a serialisation; it must
+    never touch the metadata computation.
+
+    If it did, a shortcode-only study would freeze rows holding nothing but
+    `form`, every `location: "ad"` conf would resolve to nothing, every stratum
+    would count zero, and the optimizer would reallocate on empty data --
+    silently, and unrecoverably, since the blob is frozen at creation.
+    """
+    full = _messenger_dest_mode(include_metadata=True)
+    short = _messenger_dest_mode(include_metadata=False)
+    creative = _creative("Smiling", "messenger")
+
+    study_full = _study([full], [creative])
+    study_short = _study([short], [creative])
+    stratum = _stratum_with_md("stratum-1", [creative], PRODUCTION_METADATA)
+
+    md_full = creative_metadata(study_full, stratum, full)
+    md_short = creative_metadata(study_short, stratum, short)
+
+    assert md_full == md_short
+
+    frozen_full = ref_metadata(creative.name, md_full)
+    frozen_short = ref_metadata(creative.name, md_short)
+
+    assert frozen_full == frozen_short
+
+    # ...and it is still the complete blob, not a shrunken one.
+    assert frozen_short["creative"] == "Smiling"
+    assert frozen_short["form"] == "mnchweek"
+    for key, value in PRODUCTION_METADATA.items():
+        assert frozen_short[key] == value
+
+
+def test_ad_provenance_is_identical_under_both_ref_modes():
+    """The same invariant one layer up, at what actually reaches the database."""
+    creative = _creative("Smiling", "messenger")
+    stratum = _stratum_with_md("stratum-1", [creative], PRODUCTION_METADATA)
+
+    provenances = []
+    for include in [True, False]:
+        dest = _messenger_dest_mode(include_metadata=include)
+        study = _study([dest], [creative])
+        provenances.append(ad_provenance(study, "test-campaign-messenger", [stratum]))
+
+    assert provenances[0] == provenances[1]
+
+
+def test_shortcode_only_emits_the_form_token_on_both_carriers():
+    """Messenger ships the ref twice and a respondent can arrive by either."""
+    dest = _messenger_dest_mode(include_metadata=False)
+    template = _load_template("image_ad_messenger.json")
+    config = CreativeConf(destination="messenger", name="Smiling", template=template)
+    study = _study([dest], [config])
+    stratum = _stratum_with_md("stratum-1", [config], PRODUCTION_METADATA)
+
+    creative = create_creative(study, stratum, config, dest)
+
+    assert creative["url_tags"] == "ref=form.mnchweek"
+    assert _welcome_payload_ref(creative) == "form.mnchweek"
+
+
+def test_shortcode_only_ref_still_routes_in_fly():
+    """fly parses referral.ref as dot-pairs and routes on `md.form`.
+
+    `form.<shortcode>` is the minimum that survives that: getMetadata falls
+    back to FALLBACK_FORM when `form` is absent, and the fallback is a real
+    survey, so a ref that loses `form` recruits people into the wrong study
+    without erroring.
+    """
+    assert _parse_ref(shortcode_ref("mnchweek")) == {"form": "mnchweek"}
+
+
+def test_full_ref_is_the_default_so_stored_confs_are_unaffected():
+    # An existing destinations conf has no such key. It must parse as full-ref.
+    dest = FlyMessengerDestination(
+        type="messenger",
+        name="messenger",
+        initial_shortcode="mnchweek",
+        welcome_message="Welcome!",
+        button_text="OK",
+    )
+    assert dest.include_metadata_in_ref is True
+
+
+def test_messenger_creatives_are_byte_identical_when_the_option_is_unset():
+    """Asserted directly. Every live study runs through this path.
+
+    `make_ref` is untouched, so pinning both carriers to its exact output is
+    what "unchanged" means here.
+    """
+    dest = FlyMessengerDestination(
+        type="messenger",
+        name="messenger",
+        initial_shortcode="mnchweek",
+        welcome_message="Welcome!",
+        button_text="OK",
+    )
+    template = _load_template("image_ad_messenger.json")
+    config = CreativeConf(destination="messenger", name="Smiling", template=template)
+    study = _study([dest], [config])
+    stratum = _stratum_with_md("stratum-1", [config], PRODUCTION_METADATA)
+
+    creative = create_creative(study, stratum, config, dest)
+    md = creative_metadata(study, stratum, dest)
+    expected = make_ref("Smiling", md)
+
+    assert creative["url_tags"] == f"ref={expected}"
+    assert _welcome_payload_ref(creative) == expected
+
+    # The full dotted form, with its percent-encoding, exactly as before.
+    assert expected.startswith("creative.Smiling.")
+    assert "%20" in expected
+
+
+def test_messenger_ref_selects_only_the_serialisation():
+    md = {"creative": "Smiling", "gender": "women", "form": "mnchweek"}
+
+    full = messenger_ref("Smiling", md, _messenger_dest_mode(include_metadata=True))
+    short = messenger_ref("Smiling", md, _messenger_dest_mode(include_metadata=False))
+
+    assert full == make_ref("Smiling", md)
+    assert short == "form.mnchweek"
+
+
+def test_flipping_one_study_does_not_touch_another():
+    """Flipping the mode rewrites that study's ads -- and only that study's.
+
+    Changing the ref changes the creative, and update_ad compares creatives via
+    field_contract.COMPARED_AD, so a flip is a deliberate per-study rewrite.
+    Containment is structural (each study is reconciled from its own conf), and
+    this pins it: the study nobody touched produces no instructions at all.
+    """
+    template = _load_template("image_ad_messenger.json")
+    config = CreativeConf(destination="messenger", name="Smiling", template=template)
+    stratum = _stratum_with_md("stratum-1", [config], PRODUCTION_METADATA)
+    adset = {"id": "adset-1", "name": "stratum-1"}
+
+    def creative_for(include):
+        dest = _messenger_dest_mode(include_metadata=include)
+        return create_creative(_study([dest], [config]), stratum, config, dest)
+
+    live = creative_for(True)
+
+    # Study A flips to shortcode-only: its ad is rewritten in place.
+    live_ad = create_ad(adset, live, "ACTIVE")
+    live_ad["id"] = "ad-1"
+    flipped = ad_dif(
+        adset, [live_ad], [create_ad(adset, creative_for(False), "ACTIVE")]
+    )
+    assert [(i.node, i.action) for i in flipped] == [("ad", "update")]
+
+    # And crucially it is an update against the SAME ad id, not a
+    # delete-and-recreate. The ad id is the attribution key, so a flip that
+    # minted a new id would strand every ad_attributions row the study already
+    # has and leave its past respondents unattributable. Reconciliation matches
+    # ads by name, and the name (the creative name) does not change here.
+    assert flipped[0].id == "ad-1"
+
+    # Study B, untouched, reconciles to nothing.
+    untouched = ad_dif(
+        adset,
+        [create_ad(adset, live, "ACTIVE")],
+        [create_ad(adset, creative_for(True), "ACTIVE")],
+    )
+    assert untouched == []
+
+
+def test_web_and_app_destinations_still_carry_the_full_ref():
+    """Left on full refs deliberately: neither type has a shortcode to emit.
+
+    WebDestination has only `url_template` and AppDestination only
+    `deeplink_template` — there is no `initial_shortcode` on either, because
+    the URL or deeplink already points at a specific survey, so routing is not
+    something the ref does for them. Making them shortcode-only would mean
+    inventing a new conf field for a token neither needs; the equivalent
+    decoupling for a web platform is capturing the ad id from the ad URL, which
+    is a separate piece of work. Messenger is where every existing study lives
+    and where the ref actually costs something.
+    """
+    template = _load_template("image_ad_messenger.json")
+    stratum_md = {"gender": "women"}
+
+    web = _web_dest("web")
+    web_config = CreativeConf(destination="web", name="Smiling", template=template)
+    web_study = _study([web], [web_config])
+    web_stratum = _stratum_with_md("stratum-1", [web_config], stratum_md)
+    web_md = creative_metadata(web_study, web_stratum, web)
+    web_creative = create_creative(web_study, web_stratum, web_config, web)
+
+    expected_web = make_ref("Smiling", web_md)
+    assert expected_web in json.dumps(web_creative.export_all_data())
+    assert "form.mnchweek" not in json.dumps(web_creative.export_all_data())
+
+    app = _app_dest("app")
+    app_config = CreativeConf(destination="app", name="Smiling", template=template)
+    app_study = _study([app], [app_config])
+    app_stratum = _stratum_with_md("stratum-1", [app_config], stratum_md)
+    app_md = creative_metadata(app_study, app_stratum, app)
+    app_creative = create_creative(app_study, app_stratum, app_config, app)
+
+    expected_app = make_ref("Smiling", app_md)
+    assert expected_app in json.dumps(app_creative.export_all_data())
