@@ -14,6 +14,7 @@ from .facebook.update import Instruction
 from .marketing import (
     _create_creative,
     ad_provenance,
+    adset_promoted_object,
     whatsapp_autofill,
     adset_instructions,
     create_creative,
@@ -27,6 +28,7 @@ from .marketing import (
     web_call_to_action,
 )
 from .study_conf import (
+    AppDestination,
     Audience,
     AudienceConf,
     CreativeConf,
@@ -701,7 +703,7 @@ def _web_dest(name, url_template="https://survey.example/?r={ref}"):
     return WebDestination(type="web", name=name, url_template=url_template)
 
 
-def _study(destinations, creatives, extra_metadata=None):
+def _study(destinations, creatives, extra_metadata=None, destination_type="MESSENGER"):
     return StudyConf(
         id="00000000-0000-0000-0000-000000000001",
         user=UserInfo(survey_user="user", token="token"),
@@ -721,7 +723,7 @@ def _study(destinations, creatives, extra_metadata=None):
             ad_campaign_name_base="test-campaign",
             objective="OUTCOME_ENGAGEMENT",
             optimization_goal="CONVERSATIONS",
-            destination_type="MESSENGER",
+            destination_type=destination_type,
             min_budget=1,
             budget_per_arm=100,
             max_sample_per_arm=100,
@@ -1008,9 +1010,14 @@ def _whatsapp_dest(shortcode="mnchweek", full_ref=False, additional=None):
         name="whatsapp",
         initial_shortcode=shortcode,
         welcome_message="Tap send to start",
+        whatsapp_phone_number="+1-541-920-2635",
         additional_metadata=additional,
         include_metadata_in_ref=full_ref,
     )
+
+
+def _whatsapp_study(destinations, creatives, extra_metadata=None):
+    return _study(destinations, creatives, extra_metadata, destination_type="WHATSAPP")
 
 
 def test_shortcode_only_autofill_is_accepted_by_fly():
@@ -1052,7 +1059,7 @@ def test_full_ref_round_trips_back_to_the_frozen_blob():
     """
     dest = _whatsapp_dest(full_ref=True)
     creative = _creative("Smiling", "whatsapp")
-    study = _study([dest], [creative])
+    study = _whatsapp_study([dest], [creative])
     stratum = _stratum_with_md("stratum-1", [creative], {"gender": "women"})
 
     md = creative_metadata(study, stratum, dest)
@@ -1071,7 +1078,7 @@ def test_whatsapp_creative_metadata_folds_in_form_like_messenger_does():
     """
     dest = _whatsapp_dest(additional={"wave": "2"})
     creative = _creative("Smiling", "whatsapp")
-    study = _study([dest], [creative], extra_metadata={"country": "NG"})
+    study = _whatsapp_study([dest], [creative], extra_metadata={"country": "NG"})
     stratum = _stratum_with_md("stratum-1", [creative], {"gender": "women"})
 
     md = creative_metadata(study, stratum, dest)
@@ -1094,7 +1101,7 @@ def test_whatsapp_creative_uses_the_whatsapp_cta_and_carries_no_url_tags():
     dest = _whatsapp_dest()
     template = _load_template("image_ad_messenger.json")
     config = CreativeConf(destination="whatsapp", name="Smiling", template=template)
-    study = _study([dest], [config])
+    study = _whatsapp_study([dest], [config])
     stratum = _stratum_with_md("stratum-1", [config], {"gender": "women"})
 
     creative = create_creative(study, stratum, config, dest)
@@ -1112,7 +1119,7 @@ def test_whatsapp_creative_prefills_the_shortcode_by_default():
     dest = _whatsapp_dest()
     template = _load_template("image_ad_messenger.json")
     config = CreativeConf(destination="whatsapp", name="Smiling", template=template)
-    study = _study([dest], [config])
+    study = _whatsapp_study([dest], [config])
     stratum = _stratum_with_md("stratum-1", [config], PRODUCTION_METADATA)
 
     creative = create_creative(study, stratum, config, dest)
@@ -1160,3 +1167,210 @@ def test_existing_destinations_are_untouched_by_the_whatsapp_branch():
     web_creative = create_creative(web_study, stratum, web_config, web)
     assert destination_shortcode(web) is None
     assert "whatsapp" not in json.dumps(web_creative.export_all_data()).lower()
+
+
+# ---------------------------------------------------------------------------
+# Adset promoted_object (A9).
+#
+# Meta will not accept a WHATSAPP destination_type ad set without a
+# promoted_object naming the Page and the number. promoted_object is an ad set
+# field while destinations are per-creative, so this is also where the standing
+# `# TODO: assert all destinations are the same` lived -- flagged in
+# planning/click-to-whatsapp-ads.md as a latent bug to fix rather than inherit.
+# ---------------------------------------------------------------------------
+
+
+def _template_with_page(page_id="page-123"):
+    return {"object_story_spec": {"page_id": page_id, "link_data": {}}}
+
+
+def _app_dest(name="app"):
+    return AppDestination(
+        type="app",
+        name=name,
+        facebook_app_id="app-1",
+        app_install_link="https://play.example/app",
+        deeplink_template="myapp://start?ref={ref}",
+        app_install_state="installed",
+        user_device=["Android_Smartphone"],
+        user_os=["Android"],
+    )
+
+
+def test_whatsapp_promoted_object_names_the_page_and_the_number():
+    dest = _whatsapp_dest()
+    config = CreativeConf(
+        destination="whatsapp", name="Smiling", template=_template_with_page()
+    )
+
+    assert adset_promoted_object([(config, dest)]) == {
+        "page_id": "page-123",
+        # Digits only: the promoted-object reference types this as a numeric
+        # string, while the conf may carry the display form.
+        "whatsapp_phone_number": "15419202635",
+    }
+
+
+def test_whatsapp_promoted_object_takes_its_page_from_the_creative_template():
+    """Same source _create_creative uses for object_story_spec.page_id.
+
+    If these two ever named different Pages the ad set and its creative would
+    disagree, so they read the same field.
+    """
+    dest = _whatsapp_dest()
+    config = CreativeConf(
+        destination="whatsapp", name="Smiling", template=_template_with_page("page-999")
+    )
+
+    assert adset_promoted_object([(config, dest)])["page_id"] == "page-999"
+
+
+def test_whatsapp_without_a_page_id_in_the_template_fails_loudly():
+    dest = _whatsapp_dest()
+    config = CreativeConf(destination="whatsapp", name="Smiling", template={})
+
+    with pytest.raises(Exception, match="page_id"):
+        adset_promoted_object([(config, dest)])
+
+
+def test_messenger_and_web_still_need_no_promoted_object():
+    messenger = _messenger_dest("messenger", "mnchweek")
+    web = _web_dest("web")
+    m_config = CreativeConf(destination="messenger", name="A", template={})
+    w_config = CreativeConf(destination="web", name="B", template={})
+
+    assert adset_promoted_object([(m_config, messenger)]) is None
+    assert adset_promoted_object([(w_config, web)]) is None
+    # Mixing them is still fine: neither wants one, so there is nothing to
+    # disagree about, and this is exactly what live studies do today.
+    assert adset_promoted_object([(m_config, messenger), (w_config, web)]) is None
+
+
+def test_app_promoted_object_is_byte_identical_to_what_it_always_was():
+    dest = _app_dest()
+    config = CreativeConf(destination="app", name="A", template={})
+
+    assert adset_promoted_object([(config, dest)]) == {
+        "application_id": "app-1",
+        "object_store_url": "https://play.example/app",
+    }
+
+
+def test_several_creatives_agreeing_produce_one_promoted_object():
+    dest = _whatsapp_dest()
+    pairs = [
+        (
+            CreativeConf(
+                destination="whatsapp", name=n, template=_template_with_page()
+            ),
+            dest,
+        )
+        for n in ["A", "B", "C"]
+    ]
+
+    assert adset_promoted_object(pairs) == {
+        "page_id": "page-123",
+        "whatsapp_phone_number": "15419202635",
+    }
+
+
+def test_creatives_that_disagree_raise_instead_of_silently_picking_one():
+    """The latent bug, fixed.
+
+    The old code read destinations[0], so a stratum mixing an app creative with
+    anything else published half its ads under the wrong promoted object and
+    said nothing.
+    """
+    app = _app_dest()
+    messenger = _messenger_dest("messenger", "mnchweek")
+    a_config = CreativeConf(destination="app", name="A", template={})
+    m_config = CreativeConf(destination="messenger", name="B", template={})
+
+    with pytest.raises(Exception, match="different ad set promoted"):
+        adset_promoted_object([(a_config, app), (m_config, messenger)])
+
+
+def test_two_whatsapp_numbers_in_one_stratum_raise():
+    a = _whatsapp_dest()
+    b = FlyWhatsAppDestination(
+        type="whatsapp",
+        name="other",
+        initial_shortcode="mnchweek",
+        welcome_message="Hi",
+        whatsapp_phone_number="+1-555-000-1111",
+    )
+    config = CreativeConf(
+        destination="whatsapp", name="A", template=_template_with_page()
+    )
+
+    with pytest.raises(Exception, match="different ad set promoted"):
+        adset_promoted_object([(config, a), (config, b)])
+
+
+def test_empty_pairs_produce_no_promoted_object():
+    assert adset_promoted_object([]) is None
+
+
+class _FakeCampaignState:
+    """Just enough CampaignState for adset_instructions: a name and a campaign."""
+
+    def __init__(self, campaign_name):
+        self.campaign_name = campaign_name
+        self.campaign = {"id": "campaign-1"}
+
+
+def _adset_for(destination, template, destination_type, campaign_suffix):
+    config = CreativeConf(
+        destination=destination.name, name="Smiling", template=template
+    )
+    study = _study(
+        [destination], [config], destination_type=destination_type
+    )
+    stratum = _stratum_with_md("stratum-1", [config], {"gender": "women"})
+    state = _FakeCampaignState(f"test-campaign-{campaign_suffix}")
+
+    adset, _ = adset_instructions(study, state, stratum, 10.0)
+    return adset.export_all_data()
+
+
+def test_messenger_adsets_are_unchanged_and_carry_no_promoted_object():
+    """Asserted directly, not inferred. Every live study runs through here."""
+    data = _adset_for(
+        _messenger_dest("messenger", "mnchweek"),
+        _template_with_page(),
+        "MESSENGER",
+        "messenger",
+    )
+
+    assert "promoted_object" not in data
+    assert data["destination_type"] == "MESSENGER"
+
+
+def test_web_adsets_are_unchanged_and_carry_no_promoted_object():
+    data = _adset_for(_web_dest("web"), _template_with_page(), "WEBSITE", "web")
+
+    assert "promoted_object" not in data
+    assert data["destination_type"] == "WEBSITE"
+
+
+def test_app_adsets_keep_exactly_the_promoted_object_they_always_had():
+    data = _adset_for(_app_dest("app"), _template_with_page(), "APP", "app")
+
+    assert data["promoted_object"] == {
+        "application_id": "app-1",
+        "object_store_url": "https://play.example/app",
+    }
+
+
+def test_whatsapp_adsets_get_the_promoted_object_meta_requires():
+    """Without this, Meta rejects the ad set outright and the destination type
+    is a conf class that cannot produce a working ad."""
+    data = _adset_for(
+        _whatsapp_dest(), _template_with_page(), "WHATSAPP", "whatsapp"
+    )
+
+    assert data["promoted_object"] == {
+        "page_id": "page-123",
+        "whatsapp_phone_number": "15419202635",
+    }
+    assert data["destination_type"] == "WHATSAPP"

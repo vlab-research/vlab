@@ -133,6 +133,36 @@ def unsafe_whatsapp_ref_tokens(values: Dict[str, str]) -> List[str]:
     return sorted(bad)
 
 
+# Ad set destination_types that include WhatsApp, from Meta's destination_type
+# table (planning/click-to-whatsapp-ads.md). A CTWA destination has to run in
+# one of these or its promoted_object means nothing and the ad never reaches
+# WhatsApp.
+WHATSAPP_DESTINATION_TYPES = {
+    "WHATSAPP",
+    "MESSAGING_MESSENGER_WHATSAPP",
+    "MESSAGING_INSTAGRAM_DIRECT_WHATSAPP",
+    "MESSAGING_INSTAGRAM_DIRECT_MESSENGER_WHATSAPP",
+}
+
+
+def normalize_whatsapp_phone_number(value: str) -> str:
+    """Digits only — what promoted_object.whatsapp_phone_number expects.
+
+    Measured rather than inferred: adopt/scripts/ctwa_probe.py records that the
+    promoted-object reference types this as a *numeric string*, while
+    credentials store the display form ("+1-541-920-2635"), and strips to
+    digits before sending. There is no existing phone normaliser in this repo
+    to reuse — this is the first thing in vlab that sends a phone number to
+    Meta.
+    """
+    return "".join(ch for ch in value if ch.isdigit())
+
+
+def whatsapp_phone_number_valid(value: str) -> bool:
+    """E.164 permits at most 15 digits, and no dialable number has under 7."""
+    return 7 <= len(normalize_whatsapp_phone_number(value)) <= 15
+
+
 class FlyWhatsAppDestination(BaseModel):
     """A click-to-WhatsApp destination.
 
@@ -151,6 +181,15 @@ class FlyWhatsAppDestination(BaseModel):
     initial_shortcode: str
     # Shown above the compose box on the welcome screen; not part of the ref.
     welcome_message: str
+
+    # The number this ad's clicks land on, as promoted_object.
+    # whatsapp_phone_number. Required rather than optional even though Meta
+    # treats it as optional: many numbers to one Page is documented and
+    # supported, so omitting it falls back to the Page's "primary" number —
+    # and an org running several would silently recruit into whichever one
+    # that happens to be. Naming it is the only way to know.
+    whatsapp_phone_number: str
+
     additional_metadata: Optional[dict[str, str]] = None
 
     # Opt-in: put the full stratum metadata in the autofill text, not just the
@@ -160,6 +199,26 @@ class FlyWhatsAppDestination(BaseModel):
     # already carries stratum identity to the optimizer without it, so the only
     # reason to turn this on is fly survey logic that branches on ad metadata.
     include_metadata_in_ref: bool = False
+
+    @property
+    def promoted_phone_number(self) -> str:
+        """The number in the form Meta's promoted_object wants."""
+        return normalize_whatsapp_phone_number(self.whatsapp_phone_number)
+
+    @model_validator(mode="after")
+    def phone_number_must_be_dialable(self):
+        # At config time, not when Meta rejects the ad set. A study that cannot
+        # produce a working ad should say so while someone is still looking at
+        # it.
+        if not whatsapp_phone_number_valid(self.whatsapp_phone_number):
+            raise InvalidConfigError(
+                f"WhatsApp destination '{self.name}': whatsapp_phone_number "
+                f"'{self.whatsapp_phone_number}' is not a dialable number. "
+                "Meta wants the number itself (any punctuation is fine, it is "
+                "stripped), not the phone_number_id — sending the id is an "
+                "easy way to spend a day testing the wrong number."
+            )
+        return self
 
     @model_validator(mode="after")
     def shortcode_must_survive_the_entry_pattern(self):
@@ -685,6 +744,34 @@ class StudyConf(BaseModel):
     @property
     def base_campaign_name(self) -> str:
         return self.recruitment.base_campaign_name
+
+    @model_validator(mode="after")
+    def check_whatsapp_destination_type(self):
+        """A WhatsApp destination needs an ad set that actually goes to WhatsApp.
+
+        `destination_type` is a study-wide recruitment setting, so it is
+        possible to configure a WhatsApp destination on an ad set that Meta
+        will route to Messenger. Nothing downstream notices: the creative is
+        valid, the promoted_object is set, and the ad simply does not do what
+        the study thinks it does.
+
+        Deliberately a check rather than an override. `destination_type` is
+        user-set for every existing study, and deriving it here would change
+        what those studies send.
+        """
+        if not any(isinstance(d, FlyWhatsAppDestination) for d in self.destinations):
+            return self
+
+        destination_type = self.recruitment.destination_type
+        if destination_type not in WHATSAPP_DESTINATION_TYPES:
+            raise InvalidConfigError(
+                f"This study has a WhatsApp destination but its recruitment "
+                f"destination_type is '{destination_type}'. Meta routes the ad "
+                f"set by destination_type, so the ads would not reach WhatsApp "
+                f"at all. Use one of: {sorted(WHATSAPP_DESTINATION_TYPES)}."
+            )
+
+        return self
 
     @model_validator(mode="after")
     def check_whatsapp_refs_are_deliverable(self):

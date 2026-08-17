@@ -19,7 +19,9 @@ from .study_conf import (
     TargetVar,
     UserInfo,
     missing_targeting_variables,
+    normalize_whatsapp_phone_number,
     unsafe_whatsapp_ref_tokens,
+    whatsapp_phone_number_valid,
     whatsapp_ref_token_safe,
     supplied_variables,
     targeting_variables,
@@ -734,6 +736,7 @@ def _whatsapp_destination(shortcode="mnchweek", full_ref=False):
         name="whatsapp",
         initial_shortcode=shortcode,
         welcome_message="Tap send to start",
+        whatsapp_phone_number="+1-541-920-2635",
         include_metadata_in_ref=full_ref,
     )
 
@@ -765,7 +768,7 @@ def _whatsapp_study(metadata, full_ref=False, destination_name="whatsapp"):
                 metadata=metadata,
             )
         ],
-        recruitment=_simple(),
+        recruitment=_simple(destination_type="WHATSAPP"),
     )
 
 
@@ -825,3 +828,87 @@ def test_a_study_with_no_whatsapp_destination_is_never_checked():
     # Every existing study, in other words.
     study = _study_with(targeting=None, inference_data=None)
     assert study.strata[0].metadata == {}
+
+
+# ---------------------------------------------------------------------------
+# WhatsApp phone number and destination_type (A9).
+# ---------------------------------------------------------------------------
+
+
+def test_phone_number_normalises_to_digits():
+    # Meta's promoted_object reference types whatsapp_phone_number as a numeric
+    # string, while credentials store the display form. Measured by ctwa_probe.
+    assert normalize_whatsapp_phone_number("+1-541-920-2635") == "15419202635"
+    assert normalize_whatsapp_phone_number("(541) 920 2635") == "5419202635"
+    assert normalize_whatsapp_phone_number("15419202635") == "15419202635"
+
+
+def test_phone_number_validity_follows_e164_bounds():
+    assert whatsapp_phone_number_valid("+1-541-920-2635")
+    assert not whatsapp_phone_number_valid("")
+    assert not whatsapp_phone_number_valid("123456")  # too short
+    assert not whatsapp_phone_number_valid("1" * 16)  # past E.164's 15
+    assert not whatsapp_phone_number_valid("not-a-number")
+
+
+def test_malformed_phone_number_is_rejected_at_config_time():
+    # Fails while someone is configuring the study, not when Meta rejects the
+    # ad set on the next reconciliation run.
+    with pytest.raises(InvalidConfigError, match="dialable"):
+        FlyWhatsAppDestination(
+            type="whatsapp",
+            name="whatsapp",
+            initial_shortcode="mnchweek",
+            welcome_message="Hi",
+            whatsapp_phone_number="123",
+        )
+
+
+def test_a_phone_number_id_pasted_instead_of_a_number_is_rejected():
+    # The trap ctwa_probe calls out by name: phone_number_id is not the number,
+    # and sending it is "an easy way to spend a day testing the wrong number".
+    # A 17-digit id exceeds E.164, so it is caught.
+    with pytest.raises(InvalidConfigError, match="phone_number_id"):
+        FlyWhatsAppDestination(
+            type="whatsapp",
+            name="whatsapp",
+            initial_shortcode="mnchweek",
+            welcome_message="Hi",
+            whatsapp_phone_number="10925130295730592",
+        )
+
+
+def test_the_destination_exposes_the_number_in_metas_shape():
+    d = _whatsapp_destination()
+    assert d.promoted_phone_number == "15419202635"
+
+
+def test_whatsapp_destination_with_a_messenger_destination_type_is_rejected():
+    """Meta routes by destination_type, so this ad would never reach WhatsApp.
+
+    Nothing downstream notices: the creative is valid and the promoted_object
+    is set. The ad simply does not do what the study thinks it does.
+    """
+    study = _whatsapp_study({"gender": "women"}).model_dump()
+    study["recruitment"]["destination_type"] = "MESSENGER"
+
+    with pytest.raises(InvalidConfigError, match="destination_type"):
+        StudyConf(**study)
+
+
+def test_multi_destination_types_that_include_whatsapp_are_accepted():
+    for destination_type in [
+        "WHATSAPP",
+        "MESSAGING_MESSENGER_WHATSAPP",
+        "MESSAGING_INSTAGRAM_DIRECT_WHATSAPP",
+        "MESSAGING_INSTAGRAM_DIRECT_MESSENGER_WHATSAPP",
+    ]:
+        study = _whatsapp_study({"gender": "women"}).model_dump()
+        study["recruitment"]["destination_type"] = destination_type
+        assert StudyConf(**study).recruitment.destination_type == destination_type
+
+
+def test_destination_type_is_not_checked_for_studies_without_whatsapp():
+    # Every existing study: destination_type stays whatever it was.
+    study = _study_with(targeting=None, inference_data=None)
+    assert study.recruitment.destination_type == "destination"

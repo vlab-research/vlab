@@ -1489,3 +1489,118 @@ def test_ad_dif_missing_provenance_warns_but_still_creates(caplog):
     assert instructions[0].action == "create"
     assert instructions[0].provenance is None
     assert "no provenance" in caplog.text
+
+
+# ---------------------------------------------------------------------------
+# promoted_object and adset reconciliation (A9).
+#
+# A9 makes promoted_object non-None for a whole destination type. The danger is
+# not the new functionality, it is that a newly-populated field could make
+# update_adset see every existing adset as drifted and rewrite live adsets
+# across every running study. These tests pin that it cannot.
+# ---------------------------------------------------------------------------
+
+
+def test_promoted_object_is_not_part_of_the_adset_comparison():
+    """The structural reason A9 is safe.
+
+    update_adset compares only field_contract.COMPARED_ADSET, and builds its
+    update params from the same list. So promoted_object is neither compared
+    nor sent on an update -- it rides only on adset *creates*, which is exactly
+    where Meta needs it.
+
+    If someone adds it to COMPARED_ADSET later, this test fails and should be
+    read as a warning: Facebook normalises promoted_object on read, so
+    comparing it is a strong candidate for the endless-rewrite loop described
+    in field_contract's own docstring.
+    """
+    assert "promoted_object" not in field_contract.COMPARED_ADSET
+
+
+def test_a_live_adset_without_promoted_object_is_not_rewritten_when_we_start_sending_one():
+    """The property that protects every running study.
+
+    Before A9 a WhatsApp/app adset was created without promoted_object, or the
+    study did not exist. Either way Facebook's copy has no promoted_object and
+    ours now does. That must not read as drift.
+    """
+    now = datetime.utcnow()
+    common = {
+        "status": "ACTIVE",
+        "daily_budget": 100,
+        "end_time": now,
+        "targeting": {},
+        "optimization_goal": "REPLIES",
+        "name": "stratum-1",
+    }
+
+    live = _adobject(dict(common), AdSet)
+    desired = _adobject(
+        {
+            **common,
+            "promoted_object": {
+                "page_id": "page-123",
+                "whatsapp_phone_number": "15419202635",
+            },
+        },
+        AdSet,
+    )
+
+    assert update_adset(live, desired) == []
+
+
+def test_an_unchanged_study_still_produces_no_instructions():
+    """Reconciliation over a study nothing changed in must stay a no-op.
+
+    The whole-run version of the test above: same adset, same ads, both sides.
+    """
+    adset = _adset({"id": "foo", "name": "stratum-1", "status": "ACTIVE"})
+    creative = {"name": "Smiling", "actor_id": "111", "url_tags": "ref=x"}
+    ads = [_ad(creative, adset)]
+
+    desired_adset = _adset({"name": "stratum-1", "status": "ACTIVE"})
+    desired_adset["promoted_object"] = {
+        "page_id": "page-123",
+        "whatsapp_phone_number": "15419202635",
+    }
+
+    instructions = adset_dif([(adset, ads)], [(desired_adset, ads)])
+
+    assert instructions == []
+
+
+def test_promoted_object_is_absent_from_a_generated_adset_update():
+    """An update carries only COMPARED_ADSET fields, so it cannot clear or
+    change a live adset's promoted_object as a side effect of a budget bump."""
+    now = datetime.utcnow()
+    live = _adobject(
+        {
+            "id": "adset-1",
+            "status": "ACTIVE",
+            "daily_budget": 100,
+            "end_time": now,
+            "targeting": {},
+            "optimization_goal": "REPLIES",
+            "name": "stratum-1",
+        },
+        AdSet,
+    )
+    desired = _adobject(
+        {
+            "status": "ACTIVE",
+            "daily_budget": 999,  # the only real change
+            "end_time": now,
+            "targeting": {},
+            "optimization_goal": "REPLIES",
+            "name": "stratum-1",
+            "promoted_object": {"page_id": "page-123"},
+        },
+        AdSet,
+    )
+
+    instructions = update_adset(live, desired)
+
+    assert len(instructions) == 1
+    assert instructions[0].action == "update"
+    assert "promoted_object" not in instructions[0].params
+    assert instructions[0].params["daily_budget"] == 999

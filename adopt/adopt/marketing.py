@@ -695,25 +695,96 @@ def ad_provenance(
     }
 
 
+def template_page_id(config: CreativeConf) -> Optional[str]:
+    """The Page an ad posts as, read off the creative template.
+
+    Same source `_create_creative` uses for object_story_spec.page_id, so the
+    ad set's promoted_object and the creative can never name different Pages.
+    """
+    try:
+        return config.template["object_story_spec"].get("page_id")
+    except (KeyError, TypeError, AttributeError):
+        return None
+
+
+def promoted_object_for(
+    config: CreativeConf, destination: DestinationConf
+) -> Optional[Dict[str, str]]:
+    """What one creative/destination pair needs at the ad set level, or None.
+
+    Facebook requires a promoted_object for app-install and click-to-WhatsApp
+    ad sets, and nothing else.
+    """
+    if isinstance(destination, AppDestination):
+        return {
+            AdPromotedObject.Field.application_id: destination.facebook_app_id,
+            AdPromotedObject.Field.object_store_url: destination.app_install_link,
+        }
+
+    if isinstance(destination, FlyWhatsAppDestination):
+        page_id = template_page_id(config)
+        if not page_id:
+            raise Exception(
+                f"Creative '{config.name}' targets WhatsApp destination "
+                f"'{destination.name}' but its template has no "
+                "object_story_spec.page_id. A click-to-WhatsApp ad set's "
+                "promoted_object requires the Page id."
+            )
+
+        return {
+            AdPromotedObject.Field.page_id: page_id,
+            AdPromotedObject.Field.whatsapp_phone_number: (
+                destination.promoted_phone_number
+            ),
+        }
+
+    return None
+
+
+def adset_promoted_object(
+    pairs: Sequence[Tuple[CreativeConf, DestinationConf]]
+) -> Optional[Dict[str, str]]:
+    """The ad set's promoted_object, agreed across all of its creatives.
+
+    promoted_object is an ad set field, but destinations are named per
+    creative, so every creative in a stratum has to want the same one. That
+    used to be assumed rather than checked: the app branch read
+    `destinations[0]` under a standing `# TODO: assert all destinations are the
+    same`, so a stratum mixing an app creative with any other kind silently
+    published whichever promoted_object happened to sort first — and half its
+    ads with the wrong one. planning/click-to-whatsapp-ads.md flags this
+    explicitly and says to fix it rather than inherit it.
+
+    Only genuine ambiguity raises. Strata whose creatives all need no
+    promoted_object — every Messenger and Web study there is — produce None
+    exactly as before, mixed or not, because there is nothing to disagree
+    about.
+    """
+    wanted = [promoted_object_for(c, d) for c, d in pairs]
+
+    distinct = []
+    for p in wanted:
+        if p not in distinct:
+            distinct.append(p)
+
+    if len(distinct) > 1:
+        raise Exception(
+            "Creatives in one stratum ask for different ad set promoted "
+            f"objects: {distinct}. promoted_object is set per ad set, so the "
+            "creatives in a stratum must agree — split them into separate "
+            "strata, or point them at the same destination."
+        )
+
+    return distinct[0] if distinct else None
+
+
 def adset_instructions(
     study: StudyConf, state: CampaignState, stratum: Stratum, budget: float
 ) -> Tuple[AdSet, List[Ad]]:
     pairs = pair_creatives_with_destinations(study, stratum, state.campaign_name)
 
-    destinations = [d for _, d in pairs]
     creatives = [create_creative(study, stratum, c, d) for c, d in pairs]
-
-    if destinations and isinstance(destinations[0], AppDestination):
-        # TODO: assert all destinations are the same
-        # and raise an exception if not the case
-
-        d = destinations[0]
-        promoted_object = {
-            AdPromotedObject.Field.application_id: d.facebook_app_id,
-            AdPromotedObject.Field.object_store_url: d.app_install_link,
-        }
-    else:
-        promoted_object = None
+    promoted_object = adset_promoted_object(pairs)
 
     # make paused adset if we have 0 budget
     status = "ACTIVE" if budget > 0 else "PAUSED"
