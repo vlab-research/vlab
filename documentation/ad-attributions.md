@@ -212,6 +212,86 @@ There is no dashboard download button yet. The endpoint takes an API key, which
 suits the primary use — fetching it from an analysis script that is doing the
 join anyway.
 
+## Click-to-WhatsApp destinations
+
+`FlyWhatsAppDestination` is shaped after `FlyMessengerDestination`, minus
+`button_text` (WhatsApp has no quick-reply button — the respondent gets a
+prefilled compose box) and plus `include_metadata_in_ref`.
+
+Both fly destinations fold `form` into `creative_metadata` identically, so the
+frozen `ad_attributions` blob has the same shape on either channel and a study
+on `location: "ad"` reads the same keys regardless of how respondents arrived.
+
+### Why the WhatsApp ref is a different string
+
+A CTWA referral carries **no advertiser-settable `ref`** — `url_tags` was
+measured not to reach WhatsApp at all. fly instead recovers the shortcode from
+the ad's autofill text, which prefills the respondent's first message, and
+matches it against an anchored full-match pattern (`WHATSAPP_ENTRY_REF` in
+`replybot/lib/event-normalizer.js`):
+
+```
+/^(?:start\s+)?form\.([A-Za-z0-9_-]+(?:\.[A-Za-z0-9_-]+)*)$/i
+```
+
+Two things follow, both verified directly against that regex:
+
+1. **`make_ref`'s output can never match.** The pattern anchors on `form.`;
+   `make_ref` leads with `creative.`. No value is safe enough to fix that, so
+   WhatsApp needs its own **form-first** serialisation —
+   `marketing.whatsapp_autofill`, emitting `form.<shortcode>[.key.value…]`.
+2. **Every token is `[A-Za-z0-9_-]`.** No spaces, no `%`. Percent-encoding
+   rescues nothing, because `%` is not in the class either.
+
+**A failure here is silent, which is what makes it dangerous.** Meta delivers
+the text intact — dots *and* spaces both survive `autofill_message.content`,
+measured against live ads — so nothing rejects it upstream. fly's pattern
+rejects it, no `conversation_started` is derived, and the arrival falls through
+to `FALLBACK_FORM`: a real survey, so those respondents look like completions
+rather than errors. That is the VIR-19 shape, which took four days to spot.
+
+### Full-ref mode is real but rare
+
+Measured against the production stratum values recorded in
+`planning/ad-id-attribution.md`, roughly half are undeliverable:
+
+| Value | Deliverable |
+|---|---|
+| `3B`, `gelangchoice`, `women`, `Smiling`, `location` | yes |
+| `Static English - Girls`, `Bauchi State`, `Like Parents`, `South East` | **no** |
+
+A single unsafe value poisons the whole ref. So `include_metadata_in_ref` is
+**off by default**, and it will stay unusable for most existing-style strata
+unless their values are renamed. The only reason to turn it on is fly survey
+logic that branches on ad metadata — the optimizer never needs it, because the
+ad-ID join carries stratum identity regardless.
+
+The autofill text is also **visible to and editable by the respondent**, which
+is a second, independent reason to prefer the short form.
+
+### Validation is at config time, always
+
+Two checks, because the ref's content and its deliverability live in different
+confs:
+
+- **The shortcode**, on `FlyWhatsAppDestination` itself. Applies in both modes,
+  since even the default token is `form.<shortcode>`.
+- **The metadata**, in `StudyConf.check_whatsapp_refs_are_deliverable`, which
+  fires only for a destination with `include_metadata_in_ref` on. Destinations
+  and strata are separate confs POSTed independently, so no per-conf validator
+  can see both; `StudyConf` is where they first meet, and it is assembled at the
+  start of every reconciliation run — still before any ad exists.
+
+It fails closed. A study with an undeliverable ref creates **no ads at all**,
+rather than ads that recruit people into the fallback survey.
+
+Ref content and inference source stay orthogonal: a study can emit full refs for
+fly survey logic *and* declare `location: "ad"` for the optimizer.
+
+**Not yet built:** the dashboard form for this destination type, and the
+adset-level `promoted_object.whatsapp_phone_number` that Meta requires before it
+will accept a `WHATSAPP` destination_type ad set.
+
 ## Completeness check
 
 A stratum's `question_targeting` predicate matches on variables swoosh writes,
@@ -325,6 +405,7 @@ study that opts into ad-id attribution.**
 | Write path | `adopt/adopt/{malaria,campaign_queries}.py` |
 | Completeness check | `adopt/adopt/study_conf.py`, `adopt/adopt/malaria.py` |
 | CSV export | `adopt/adopt/server/csv_export.py`, `adopt/adopt/server/server.py` |
+| WhatsApp destination + ref validation | `adopt/adopt/study_conf.py`, `adopt/adopt/marketing.py` |
 | Dashboard form | `dashboard/src/pages/StudyConfPage/forms/inferenceData/{flyExtraction,qualtricsExtraction}.ts` |
 | Event fields + network constant | `inference/inference-data/inference_data.go` |
 | Connector | `inference/sources/fly/main.go` |

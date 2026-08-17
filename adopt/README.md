@@ -237,6 +237,101 @@ on liveness, and nothing should.
 Tests: `adopt/adopt/server/test_ad_attributions_csv.py`, needs `make
 test-db`.
 
+## Click-to-WhatsApp destinations
+
+Before this, vlab could not create click-to-WhatsApp ads at all: `create_creative`
+branched only on `FlyMessengerDestination`, `AppDestination` and `WebDestination`,
+and nothing set an autofill message. `FlyWhatsAppDestination` (`study_conf.py`)
+adds the fourth branch. It is shaped after `FlyMessengerDestination`, minus
+`button_text` — WhatsApp has no quick-reply button, so the respondent gets a
+prefilled compose box instead — and plus `include_metadata_in_ref`.
+
+### Why the ref is a different string, not a reused one
+
+A click-to-WhatsApp referral carries no advertiser-settable `ref` — `url_tags`
+was measured not to reach WhatsApp at all — so fly recovers the shortcode from
+the ad's autofill text, which the respondent's first message prefills. fly
+matches that text against an anchored, full-match pattern, `WHATSAPP_ENTRY_REF`
+in fly's `replybot/lib/event-normalizer.js`:
+
+```
+/^(?:start\s+)?form\.([A-Za-z0-9_-]+(?:\.[A-Za-z0-9_-]+)*)$/i
+```
+
+Two consequences, both verified against that regex. First, the token must lead
+with `form.`; `make_ref`'s output can never match, whatever the values are,
+because it leads with `creative.` — structural, not fixable by cleaning up
+values, which is why WhatsApp needs its own form-first serialisation,
+`whatsapp_autofill`, rather than reusing `make_ref`. Second, every token is
+`[A-Za-z0-9_-]`, so a space fails, and percent-encoding does not save it either
+— `%` is not in the class, so `quote()`-ing a value just trades one rejected
+character for another.
+
+### Why the failure is dangerous
+
+Meta delivers the text intact — dots and spaces both survive
+`autofill_message.content`, measured against live ads — so nothing rejects it
+upstream. fly's pattern rejects it, no `conversation_started` is derived, and
+the arrival falls through to `FALLBACK_FORM` — a real survey, so those
+respondents look like completions rather than errors.
+
+### Full-ref mode is opt-in and rare
+
+`include_metadata_in_ref` puts the full stratum metadata in the autofill text,
+not just the shortcode. It defaults off. Of the production stratum values on
+record, roughly half are undeliverable — `Static English - Girls`,
+`Bauchi State`, `Like Parents` and `South East` all fail; `3B`,
+`gelangchoice`, `women` and `Smiling` pass — and one unsafe value poisons the
+whole ref. The only reason to turn it on is fly survey logic that branches on
+ad metadata; the optimizer never needs it, since the ad-ID join (see above)
+carries stratum identity regardless. The autofill text is also
+respondent-visible and respondent-editable, which is the other reason the
+default is the shortcode alone.
+
+### Validation is at config time, in two places
+
+The ref's content and its deliverability live in different confs, so the check
+is split accordingly. `FlyWhatsAppDestination.shortcode_must_survive_the_entry_pattern`
+validates the shortcode on the destination model itself, and applies in both
+modes — even the default token is `form.<shortcode>`, so an unsafe shortcode
+breaks the plain case too. `StudyConf.check_whatsapp_refs_are_deliverable`
+validates the metadata, and fires only when `include_metadata_in_ref` is on.
+`StudyConf` is the earliest point this check is possible, because destinations
+and strata are separate confs, POSTed independently — it's the first place
+they meet. It fails closed: a study with an undeliverable ref creates no ads
+at all, rather than ads that recruit into the fallback survey.
+
+### Creative shape
+
+`create_creative`'s `FlyWhatsAppDestination` branch sets
+`whatsapp_call_to_action` (`WHATSAPP_MESSAGE` / `app_destination: WHATSAPP`),
+`link` to `WHATSAPP_LINK` (`https://api.whatsapp.com/send`, required to match
+the CTA), and a welcome screen built by `make_whatsapp_welcome_message`
+(`VISUAL_EDITOR` / `autofill_message` JSON, produced by `whatsapp_autofill`).
+All of it measured against live Meta ads by `adopt/scripts/ctwa_probe.py`.
+Deliberately absent: `url_tags`. It never reaches WhatsApp, so setting it would
+read like a working carrier when it is not one.
+
+### Consistency with ad-ID attribution
+
+`creative_metadata` folds `form` in for `FlyMessengerDestination` and
+`FlyWhatsAppDestination` identically — `isinstance(destination,
+(FlyMessengerDestination, FlyWhatsAppDestination))` — so the frozen
+`ad_attributions` blob is the same shape whichever channel a respondent
+arrives through.
+
+### Not yet built
+
+The dashboard form for this destination type, and the adset-level
+`promoted_object.whatsapp_phone_number` that Meta requires before it will
+accept a `WHATSAPP` `destination_type` ad set.
+
+### Tests
+
+The click-to-WhatsApp sections of `adopt/adopt/test_marketing.py` — which
+assert against a verbatim copy of fly's regex — and
+`adopt/adopt/test_study_conf.py`.
+
 ## Configuration
 
 Some documentation for configuring a vlab study:
