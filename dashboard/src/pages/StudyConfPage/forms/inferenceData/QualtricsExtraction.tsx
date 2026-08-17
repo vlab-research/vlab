@@ -2,6 +2,9 @@ import React from 'react';
 import { GenericTextInput, TextInputI } from '../../components/TextInput';
 import { GenericSelect, SelectI } from '../../components/Select';
 import { Extraction as FormData } from '../../../../types/conf';
+// Deliberately NOT flyExtraction's list: `ad` must not be offered here,
+// because the Qualtrics and Typeform connectors do not populate an ad id.
+import { locationOptions } from './qualtricsExtraction';
 
 
 interface QualtricsExtractionForm extends FormData {
@@ -52,12 +55,6 @@ const QualtricsExtraction: React.FC<Props> = ({ data, nameOptions: names, update
       ...update
     }, index);
   };
-
-  const locationOptions = [
-    { name: '', label: 'Where is the data located in the source?' },
-    { name: 'metadata', label: 'Metadata' },
-    { name: 'variable', label: 'Variable' },
-  ]
 
   const isMetadata = data.location === "metadata";
   const response = data?.functions[0]?.params.path || "response";

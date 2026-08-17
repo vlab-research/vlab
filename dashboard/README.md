@@ -91,3 +91,41 @@ See the section about [deployment][2] for more information.
 [1]: https://github.com/FiloSottile/mkcert#installation
 [2]: https://facebook.github.io/create-react-app/docs/deployment
 [3]: https://facebook.github.io/create-react-app/docs/running-tests
+
+## Inference-data extraction forms
+
+The extraction-conf forms under
+`src/pages/StudyConfPage/forms/inferenceData/` follow the same split as the
+existing `forms/variables/extract.ts`: a pure module with no React
+dependencies, testable in isolation, plus a thin component that just wires
+that module's helpers to `Select`/`TextInput` fields. `flyExtraction.ts` and
+`qualtricsExtraction.ts` are the pure modules; `FlyExtraction.tsx` and
+`QualtricsExtraction.tsx` are the components that consume them.
+
+An extraction conf's `location` says where to find one variable's value. A
+fly source offers three: `variable` (walk a path into the respondent's
+response payload), `metadata` (look up a key in the metadata fly stamped on
+the event), and `ad` (look up a key in the frozen `ad_attributions` row for
+the ad that recruited the respondent). `metadata` and `ad` are both *keyed*
+lookups — you name a key and get a value — while `variable` is the only one
+with a response path to select. That distinction is expressed once, as
+`isKeyedLocation`, rather than as scattered `=== "metadata"` checks through
+the form.
+
+The same split drives `aggregate`: keyed locations (`metadata`, `ad`) get
+`"first"`, because they're recruitment-time constants — you attribute someone
+to the ad and metadata they arrived with. Only `variable` gets `"last"`,
+since a survey answer is the only one of the three that can meaningfully be
+updated later.
+
+The fly and Qualtrics/Typeform location lists (`flyExtraction.ts`'s
+`locationOptions` vs. `qualtricsExtraction.ts`'s) are deliberately separate
+and must stay that way. Only the fly connector populates an event's ad id, so
+offering `ad` on a Qualtrics or Typeform source would let a user configure a
+variable that silently yields nothing forever. `flyExtraction.test.ts` has a
+test asserting `ad` is absent from the Qualtrics list specifically to stop a
+future merge of the two forms from reintroducing it.
+
+Tests:
+`src/pages/StudyConfPage/forms/inferenceData/flyExtraction.test.ts`, run with
+`npm test`.
