@@ -750,10 +750,11 @@ def adset_promoted_object(
     creative, so every creative in a stratum has to want the same one. That
     used to be assumed rather than checked: the app branch read
     `destinations[0]` under a standing `# TODO: assert all destinations are the
-    same`, so a stratum mixing an app creative with any other kind silently
-    published whichever promoted_object happened to sort first — and half its
-    ads with the wrong one. planning/click-to-whatsapp-ads.md flags this
-    explicitly and says to fix it rather than inherit it.
+    same`, so a stratum mixing an app creative with any other kind took whatever
+    its first creative happened to want and published the rest of its ads under
+    the wrong promoted object, silently.
+    planning/click-to-whatsapp-ads.md flags this and says to fix it rather than
+    inherit it.
 
     Only genuine ambiguity raises. Strata whose creatives all need no
     promoted_object — every Messenger and Web study there is — produce None

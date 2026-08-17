@@ -320,11 +320,72 @@ read like a working carrier when it is not one.
 `ad_attributions` blob is the same shape whichever channel a respondent
 arrives through.
 
+### The ad set half
+
+A `WHATSAPP` `destination_type` ad set on its own is not enough. Meta rejects
+it outright unless the ad set also carries a `promoted_object` naming the
+Page it recruits through, and optionally the number — without that,
+`FlyWhatsAppDestination` was a conf class that could describe a destination
+but never produce a working ad.
+
+`whatsapp_phone_number` on the destination is **required**, even though Meta
+itself treats the field as optional. Omitting it does not fail the ad; it
+falls back to the Page's "primary" number, and many-numbers-to-one-Page is
+documented and supported by Meta, so an org running several numbers off one
+Page would silently recruit into whichever one happens to be primary. Naming
+it is the only way to know which number an ad actually lands on.
+`normalize_whatsapp_phone_number` strips it to digits — Meta's
+promoted-object reference types the field as a numeric string, while
+credentials store the display form (`+1-541-920-2635`) — and
+`phone_number_must_be_dialable` validates the result at config time against
+E.164's 7–15 digit bounds. That range check also catches a specific paste
+error: sending a `phone_number_id` instead of the number itself, a mistake
+`ctwa_probe.py` calls out by name because it is an easy way to spend a day
+testing the wrong number.
+
+The Page id is not a separate field on the destination at all.
+`promoted_object_for` (`marketing.py`) reads it off the creative template via
+`template_page_id`, the exact same `object_story_spec.page_id` that
+`_create_creative` uses to build the creative itself — so the ad set and its
+creative can never end up naming different Pages.
+
+`destination_type` is **checked, not overridden**. A WhatsApp destination
+paired with a `MESSENGER` ad set produces a perfectly valid creative and a
+perfectly valid promoted object, and an ad that never reaches WhatsApp — all
+three conditions look healthy in isolation.
+`StudyConf.check_whatsapp_destination_type` raises when they disagree rather
+than silently deriving the right value, because `destination_type` is user-set on
+every existing study, and deriving it here would change what those studies
+send.
+
+**Why this cannot rewrite live ad sets.** This is the part that matters most.
+`promoted_object` is deliberately absent from
+`field_contract.COMPARED_ADSET`, so `update_adset` neither compares it nor
+includes it in an update's params — it rides only on ad set *creates*, which
+is exactly where Meta needs it and nowhere else.
+`facebook/test_reconciliation.py` pins this directly: a live ad set with no
+`promoted_object` is not rewritten the moment vlab starts sending one, and a
+study nothing has changed in still produces zero instructions end to end.
+
+**A latent bug fixed rather than inherited.** `promoted_object` lives on the
+ad set, but destinations are named per creative, so every creative in a
+stratum has to agree on what the ad set should send. The app-destination
+branch used to read `destinations[0]` under a standing `# TODO: assert all
+destinations are the same` — so a stratum mixing an app creative with any
+other kind took whatever its first creative wanted and silently published the
+rest of its ads under the wrong one. `adset_promoted_object` (`marketing.py`)
+replaces
+that guess with a real check: it raises only on genuine disagreement, and
+still returns `None` for strata whose creatives all need no promoted
+object — every Messenger and Web study there is — mixed or not.
+`facebook/probe.py` used to carry a second copy of the same `destinations[0]`
+branch; it now calls the shared `adset_promoted_object`, so the probe cannot
+report an ad set different from the one production actually sends.
+
 ### Not yet built
 
-The dashboard form for this destination type, and the adset-level
-`promoted_object.whatsapp_phone_number` that Meta requires before it will
-accept a `WHATSAPP` `destination_type` ad set.
+The dashboard form for this destination type, including its phone-number
+field.
 
 ### Tests
 

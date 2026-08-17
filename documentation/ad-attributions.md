@@ -288,9 +288,58 @@ rather than ads that recruit people into the fallback survey.
 Ref content and inference source stay orthogonal: a study can emit full refs for
 fly survey logic *and* declare `location: "ad"` for the optimizer.
 
-**Not yet built:** the dashboard form for this destination type, and the
-adset-level `promoted_object.whatsapp_phone_number` that Meta requires before it
-will accept a `WHATSAPP` destination_type ad set.
+### The ad set half
+
+Meta will not accept a `WHATSAPP` `destination_type` ad set without a
+`promoted_object` naming the Page and, optionally, the number.
+
+`whatsapp_phone_number` is **required** on the destination, even though Meta
+treats it as optional. Omitting it falls back to the Page's "primary" number,
+and many-numbers-to-one-Page is documented and supported — so an org running
+several would silently recruit into whichever one that happens to be. Naming it
+is the only way to know. It is normalised to digits (Meta types it as a numeric
+string; credentials store the display form `+1-541-920-2635`) and validated at
+config time against E.164's 7–15 digit bounds, which also catches the classic
+mistake of pasting a `phone_number_id` instead of a number.
+
+The Page id comes off the creative template's `object_story_spec.page_id` — the
+same field `_create_creative` reads, so an ad set and its creative can never
+name different Pages.
+
+`destination_type` is **checked, not overridden**. A WhatsApp destination on a
+`MESSENGER` ad set produces a valid creative, a valid promoted object, and an ad
+that never reaches WhatsApp. Deriving it here would change what every existing
+study sends, so `StudyConf` raises when the two disagree instead.
+
+### Why this could not rewrite your live ad sets
+
+`promoted_object` becoming non-`None` for a whole destination type is exactly
+the kind of change that can make every existing ad set look drifted. It cannot
+here: `promoted_object` is **not in `field_contract.COMPARED_ADSET`**, so
+`update_adset` neither compares it nor includes it in update params. It rides
+only on ad set *creates*, which is where Meta needs it. Asserted directly — a
+live ad set without one is not rewritten once we start sending one, and an
+unchanged study still produces zero instructions.
+
+### A latent bug fixed rather than inherited
+
+`promoted_object` is an ad set field while destinations are named per creative,
+so every creative in a stratum has to want the same one. That used to be
+assumed: the app branch read `destinations[0]` under a standing `# TODO: assert
+all destinations are the same`, so a stratum mixing an app creative with any
+other kind published half its ads under the wrong promoted object, silently.
+`planning/click-to-whatsapp-ads.md` flags it and says to fix it rather than
+copy it.
+
+`marketing.adset_promoted_object` now checks agreement and raises only on
+genuine ambiguity. Strata whose creatives all need none — every Messenger and
+Web study there is — still produce `None`, mixed or not, because there is
+nothing to disagree about. `facebook/probe.py` held a second copy of the same
+branch and now calls the shared function, so the probe cannot report an ad set
+different from the one production actually sends.
+
+**Not yet built:** the dashboard form for this destination type, including its
+phone-number field.
 
 ## Completeness check
 
