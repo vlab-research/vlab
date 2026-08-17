@@ -109,6 +109,95 @@ It is read-only by default because it points at ads spending real money.
 
 Background on the incident that motivated this: `planning/field-contract.md`.
 
+## Ad-ID attribution
+
+vlab creates exactly one ad per `(creative, stratum)` pair, so the ad id
+Facebook hands back already determines that ad's shortcode, creative and
+stratum metadata. Today that identity is encoded into a dotted `ref` string
+(`make_ref`) that rides to the survey platform inside every message. This
+phase adds the alternative: an `ad_attributions` table that persists
+`(network, ad_id) -> {shortcode, creative, stratum metadata}` at ad-creation
+time, so it can be joined against later instead of parsed out of the ref.
+
+This phase builds the capture and the table only. Nothing consumes the table
+yet, and no existing study's behaviour changes — `make_ref` and the ref
+emission in `create_creative` are deliberately untouched, because changing a
+creative triggers ad rewrites across every live study on the next
+reconciliation run.
+
+### The data path
+
+1. `ad_provenance` (`adopt/marketing.py`) builds a pure lookup keyed by
+   `(adset name, ad name)` — which is `(stratum id, creative name)` — from the
+   same study conf and pairing functions that build the ads themselves.
+2. `adset_dif` / `ad_dif` (`adopt/facebook/reconciliation.py`) stamp the
+   matching entry onto each ad-*create* `Instruction`, as its `provenance`
+   field.
+3. `GraphUpdater.execute` (`adopt/facebook/update.py`) returns the id Facebook
+   assigned to a freshly created object alongside the usual report — that id
+   used to be dropped on the floor.
+4. `run_instructions` / `record_ad_attribution` (`adopt/malaria.py`) writes
+   the row once both pieces are in hand, via `create_ad_attribution`
+   (`adopt/campaign_queries.py`).
+
+Instruction generation stays pure through step 2: `ad_dif` and `adset_dif`
+take the provenance lookup as plain data and return plain `Instruction`s, with
+no Graph API and no database. That is what makes them the testable core. The
+database write happens only in step 4, in the imperative shell, after
+Facebook has actually answered with an id — there is no way to learn that id
+except from the create response, so nothing upstream of it could write the
+row even if it wanted to.
+
+### The three invariants
+
+- **`metadata` is `ref_metadata`'s output — `{"creative": <creative name>,
+  **md}` — never `stratum.metadata`.** `md` comes from `creative_metadata`:
+  stratum metadata, plus the study's `extra_metadata`, plus, for fly
+  destinations, `form` (the destination's `initial_shortcode`) and any
+  `additional_metadata`. Freezing `stratum.metadata` instead would silently
+  drop the `creative` and `form` keys. Downstream, an extraction conf asking
+  for either would then match no one for that stratum, and the optimizer
+  would quietly reallocate budget away from a stratum that is actually
+  recruiting fine. It miscounts rather than errors, which is why it matters —
+  nothing would ever fail loudly enough to catch it.
+- **Append-only, and never rebuilt from live Facebook state.** Reconciliation
+  deletes ads that fall out of a study's desired set, but respondents keep
+  arriving from deleted ads — reshared page posts persist indefinitely — so a
+  row must outlive its ad. That's why the table has no TTL and no foreign key
+  to `studies`: a cascading delete is still a delete path, and this table
+  isn't allowed one. `get_ad_attributions` reads every row for a study,
+  including ones whose ad no longer exists, on purpose.
+- **`metadata` is frozen at creation, permanently.** Study confs mutate, so a
+  stratum's metadata today is not what it was when the ad was created — even
+  a live ad can't be resolved by reading the current conf, only by reading
+  the row written when it was made. `create_ad_attribution`'s
+  `ON CONFLICT (network, ad_id) DO NOTHING` makes this mechanical: a re-run
+  can create the row once but can never overwrite it.
+
+### A note on `network`
+
+`network` is the *ad* network, not the messaging channel. Messenger and
+WhatsApp ads are both Meta ads sharing one id namespace, so both are recorded
+as `facebook`. Easy to get backwards, and expensive to fix once rows exist —
+correcting it means knowing which network to reassign every existing row to.
+
+### Tests
+
+- `adopt/adopt/test_ad_attributions.py` — integration tests against the
+  table itself; needs `make test-db`.
+- The ad-attribution sections of `adopt/adopt/test_marketing.py` and
+  `adopt/adopt/facebook/test_reconciliation.py` cover the pure pieces:
+  `ad_provenance`, `ref_metadata`, and the provenance plumbing through
+  `ad_dif`/`adset_dif`.
+- The round-trip test in `test_marketing.py`
+  (`test_frozen_metadata_equals_the_parsed_ref` and its siblings) parses
+  `make_ref`'s output back using a reimplementation of fly's own ref parser
+  and asserts the result equals the frozen blob. That's the guard against
+  `make_ref` and `ref_metadata` drifting apart from each other over time.
+
+See `planning/ad-id-attribution.md` for the full design and the phases that
+build on this one.
+
 ## Configuration
 
 Some documentation for configuring a vlab study:
