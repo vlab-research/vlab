@@ -73,8 +73,18 @@ const (
 	MappingAdTableLookup = "ad_table_lookup"
 )
 
+// isAdTableLookup reports whether this conf resolves through the ad table.
+//
+// It requires the metadata location as well as the mapping, because a lookup on
+// any other location is incoherent and must not be treated as one. The danger
+// is specifically tokenLookupKey: a `variable` conf carrying the lookup mapping
+// would otherwise have its Key read as a declaration of where the token lives,
+// and every respondent in the study would then be classified against the wrong
+// metadata key — reported as organic, which does not alarm. Config-time
+// validation rejects the combination (adopt/adopt/study_conf.py); this is the
+// belt to that pair of braces, and getRetrieveFunc errors on it besides.
 func isAdTableLookup(conf *ExtractionConf) bool {
-	return conf.Mapping == MappingAdTableLookup
+	return conf.Mapping == MappingAdTableLookup && conf.Location == "metadata"
 }
 
 type DataSource struct {
@@ -383,6 +393,14 @@ func retrieveFromVariable(e *InferenceDataEvent, conf *ExtractionConf) (json.Raw
 func getRetrieveFunc(conf *ExtractionConf, attributions AdAttributions) (RetrieveFunc, error) {
 	switch conf.Location {
 	case "variable":
+		if conf.Mapping == MappingAdTableLookup {
+			// Incoherent rather than merely useless: see isAdTableLookup. Loud,
+			// because silently degrading it to a raw variable read would leave
+			// the study half-configured and counting wrong.
+			return nil, fmt.Errorf(
+				`conf %q declares mapping %q on location "variable"; the ad token lives in metadata, so a lookup is only valid on location "metadata"`,
+				conf.Name, MappingAdTableLookup)
+		}
 		return retrieveFromVariable, nil
 	case "metadata":
 		return retrieveFromMetadata(attributions), nil

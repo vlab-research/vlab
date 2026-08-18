@@ -1058,6 +1058,19 @@ def test_location_ad_is_rejected():
     assert "ad_table_lookup" in str(e.value), "the error must name the replacement"
 
 
+def test_a_lookup_on_a_variable_is_rejected():
+    # The token is stamped by fly, not answered by the respondent, so this
+    # cannot mean anything. Rejected rather than ignored because of what `key`
+    # would then be taken for: swoosh reads a lookup conf's key as the
+    # declaration of where the token lives, and one stray conf would have every
+    # respondent in the study checked against the wrong metadata key -- which
+    # reads as an organic arrival and does not alarm.
+    with pytest.raises(ValidationError) as e:
+        _extraction_conf("q1", location="variable", mapping="ad_table_lookup")
+
+    assert "metadata" in str(e.value)
+
+
 def test_an_unknown_mapping_is_rejected():
     with pytest.raises(ValidationError):
         _extraction_conf("md:gender", mapping="ad_id_lookup")

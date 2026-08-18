@@ -344,6 +344,47 @@ func TestReduce_TakesTheMappingAsDataSoLookupsCostNothingPerEvent(t *testing.T) 
 	assert.Len(t, actual, 1000)
 }
 
+func TestReduce_ALookupOnAVariableCannotDeclareTheTokenKey(t *testing.T) {
+	// The hole this closes. swoosh reads a lookup conf's `key` as the
+	// declaration of WHERE THE TOKEN LIVES, and picks the first such conf to
+	// classify the whole source. A `variable` conf carrying the lookup mapping
+	// would therefore have every respondent checked against key "q1" -- and
+	// finding no token there reads as an organic arrival, which does not alarm.
+	//
+	// Config-time validation rejects the combination outright; this pins that
+	// swoosh does not honour it either if one ever reaches it.
+	stray := &ExtractionConf{
+		Location: "variable", Mapping: MappingAdTableLookup, Key: "q1", Name: "q1",
+		ValueType: "categorical", Aggregate: "first",
+		Functions: []ExtractionFunctionConf{
+			{Function: "select", Params: []byte(`{"path": "response"}`)},
+		},
+	}
+
+	events := []*InferenceDataEvent{tokenEvent("u1", "tok", ti("07"))}
+	attributions := loadedMapping(attribution("tok", "stratum-1", map[string]string{"gender": "women"}))
+
+	// The real lookup conf comes first, because extractValue is first-failure-
+	// wins: the stray conf's error ends this event's extraction either way, and
+	// putting it second keeps the classification claim readable.
+	actual, errs, err := Reduce(events, confWith(lookupConf("gender"), stray), attributions)
+
+	assert.Nil(t, err)
+
+	// The claim: the token key came from the real lookup conf ("vt"), not from
+	// the stray one ("q1"). Had the stray conf been allowed to declare it, the
+	// respondent would carry no token at "q1" and be counted organic.
+	assert.NotContains(t, errorsByEntity(errs), entityAdOrganic)
+	assert.Equal(t, []byte(`"women"`), []byte(actual["u1"].Data["gender"].Value))
+
+	// And the stray conf is itself a loud error, not a silent raw variable read.
+	assert.Contains(t, errorsByEntity(errs), "var=q1")
+
+	_, confErr := getRetrieveFunc(stray, attributions)
+	assert.NotNil(t, confErr)
+	assert.Contains(t, confErr.Error(), "metadata")
+}
+
 func TestGetRetrieveFunc_LocationAdIsRemoved(t *testing.T) {
 	// The deprecated ad_id join. It must fail loudly and name its replacement,
 	// rather than silently resolving to nothing.

@@ -101,9 +101,39 @@ class ExtractionConf(BaseModel):
             )
         return self
 
+    @model_validator(mode="after")
+    def a_lookup_reads_the_token_from_metadata(self):
+        """A lookup is only coherent on a metadata read.
+
+        The token is something fly stamps on the event, not something the
+        respondent answered, so `location: "variable"` with this mapping cannot
+        mean anything. Rejected rather than ignored because of what `key` would
+        then be taken for: swoosh reads the key of a lookup conf as the
+        declaration of WHERE THE TOKEN LIVES, and picks the first such conf to
+        classify the whole source. One stray conf would therefore have every
+        respondent in the study checked against the wrong metadata key -- and
+        finding no token reads as an organic arrival, which does not alarm.
+        """
+        if self.mapping == MAPPING_AD_TABLE_LOOKUP and self.location != "metadata":
+            raise ValueError(
+                f"Extraction conf '{self.name}' declares mapping: "
+                f'"{MAPPING_AD_TABLE_LOOKUP}" on location: "{self.location}". '
+                "The ad token is stamped in the event's metadata, so a lookup "
+                'is only valid on location: "metadata".'
+            )
+        return self
+
     @property
     def is_ad_table_lookup(self) -> bool:
-        return self.mapping == MAPPING_AD_TABLE_LOOKUP
+        """Whether this conf resolves through the ad table.
+
+        Checks the location as well as the mapping. The validator above makes
+        the incoherent combination unconstructible, so this is belt and braces
+        -- but it is the property everything else branches on, including which
+        conf declares the token's key, so it is worth it being true by
+        construction rather than by trusting the validator ran.
+        """
+        return self.mapping == MAPPING_AD_TABLE_LOOKUP and self.location == "metadata"
 
 
 class SourceExtractionConf(BaseModel):
