@@ -55,11 +55,19 @@ type InferenceDataEvent struct {
 
 	// AdID is the opaque identifier of the ad that recruited this respondent,
 	// carried through unchanged from whatever the source platform reported.
-	// Empty means the respondent arrived organically — no ad — which is an
-	// expected outcome, not a failure.
+	// Empty means the source did not report one.
 	//
 	// AdNetwork is the namespace AdID lives in, supplied by the connector to
-	// match ad_attributions' key. See NetworkFacebook.
+	// match ad_attributions' primary key. See NetworkFacebook.
+	//
+	// **Neither is joined on any more.** Attribution goes through the ref token,
+	// which rides a carrier vlab authors and so reaches essentially every ad
+	// entrant; Meta sends the referral webhook carrying ad_id for only ~31% of
+	// Messenger ad entrants, which is what superseded it (swoosh/ad_attributions.go).
+	// These stay because fly's recruitment-health alerting gates on ad_id
+	// presence, and because a platform that some day needs an id-carrier join
+	// could have one back in exactly this shape. Empty is therefore no longer a
+	// statement about whether the respondent was recruited by an ad.
 	//
 	// These are first-class typed fields rather than reserved keys inside
 	// User.Metadata deliberately. A map key would be a fly-shaped convention

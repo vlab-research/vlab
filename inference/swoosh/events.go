@@ -91,11 +91,11 @@ func recordExtractionError(pool *pgxpool.Pool, studyID, runID string, e Extracti
 //
 // Ad attribution splits three ways, and only one of the three is a bug:
 //
-//   - organic (no ad id) is the expected outcome for a respondent who arrived
-//     without clicking an ad. It is worth *counting* — a study whose organic
-//     share suddenly jumps has a leaked shortcode — but it must not alarm, so
-//     it is a warning like the unmapped-source case.
-//   - unmapped (ad id present, no mapping row) is always a bug: vlab created an
+//   - organic (no ref token) is the expected outcome for a respondent who
+//     arrived without clicking an ad. It is worth *counting* — a study whose
+//     organic share suddenly jumps has a leaked shortcode — but it must not
+//     alarm, so it is a warning like the unmapped-source case.
+//   - unmapped (token present, no mapping row) is always a bug: vlab created an
 //     ad and failed to record what it meant, and every respondent it recruits
 //     is silently dropped from stratum counts. This is the one case that gets
 //     severity "error", which sorts it above warnings in the dashboard's

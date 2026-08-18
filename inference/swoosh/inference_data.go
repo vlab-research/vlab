@@ -19,13 +19,62 @@ type ExtractionFunction func(json.RawMessage) ([]byte, error)
 
 // TODO: validate not empty fields...?
 type ExtractionConf struct {
-	Location  string                   `json:"location"`
-	Key       string                   `json:"key"`
-	Name      string                   `json:"name"`
+	// Location is where to read from: "metadata" or "variable".
+	//
+	// Note that there is no "ad" location and there never really was one: the
+	// ad-derived token lives in metadata, so reading it is an ordinary metadata
+	// read. What makes it ad-derived is Mapping, below. The old "ad" value is
+	// removed; see getRetrieveFunc.
+	Location string `json:"location"`
+
+	// Mapping says what to do with the value Location produced.
+	//
+	//	"" / "raw"        the value read IS the answer. The historical
+	//	                  behaviour, and the default, so every conf ever
+	//	                  written keeps meaning exactly what it meant.
+	//	"ad_table_lookup" the value read is an opaque token; the answer is a
+	//	                  stratum variable off the frozen ad_attributions row
+	//	                  that token identifies.
+	//
+	// It is a property of the study's configuration, fixed when the study is
+	// configured — never a runtime choice made by sniffing which key an event
+	// happens to carry. A runtime choice would make a genuine miss (a token
+	// with no row, which is always a bug) indistinguishable from a study
+	// switching mechanisms, and there is deliberately no fallback between the
+	// two. See adAttributionOutcome.
+	Mapping string `json:"mapping,omitempty"`
+
+	// Key is WHERE TO READ, contextual to Mapping: for "raw" it addresses the
+	// value itself, for "ad_table_lookup" it addresses the token. The token's
+	// location is never hardcoded — fly stamps it at metadata.vt by convention
+	// and the conf says key: "vt" to match, so a platform surfacing it under
+	// some other key just declares that key.
+	Key string `json:"key"`
+
+	// Name is the output variable name and, for "ad_table_lookup", ALSO the key
+	// into the frozen row's metadata — i.e. which stratum variable to pull. It
+	// does double duty because you name the output after the stratum variable
+	// it pulls anyway. This is the one constraint the mapping design carries.
+	Name string `json:"name"`
+
 	Functions []ExtractionFunctionConf `json:"functions"`
 	ValueType string                   `json:"value_type"`
 	Aggregate string                   `json:"aggregate"` // first, last, max, min
 	fns       []ExtractionFunction
+}
+
+// The values Mapping takes.
+//
+// MappingRaw is also what the empty string means, so confs written before the
+// field existed keep working untouched — which is the whole reason the default
+// is the historical behaviour rather than the new one.
+const (
+	MappingRaw           = "raw"
+	MappingAdTableLookup = "ad_table_lookup"
+)
+
+func isAdTableLookup(conf *ExtractionConf) bool {
+	return conf.Mapping == MappingAdTableLookup
 }
 
 type DataSource struct {
@@ -251,9 +300,76 @@ func (a *extractionErrorAgg) list() []ExtractionError {
 
 type RetrieveFunc func(*InferenceDataEvent, *ExtractionConf) (json.RawMessage, bool)
 
-func retrieveFromMetadata(e *InferenceDataEvent, conf *ExtractionConf) (json.RawMessage, bool) {
-	v, ok := e.User.Metadata[conf.Key]
-	return v, ok
+// retrieveFromMetadata reads User.Metadata[conf.Key] and then does whatever the
+// conf's mapping says to do with what it read.
+//
+// For "raw" that is nothing — the value read is the answer, which is what every
+// metadata conf ever written means. For "ad_table_lookup" the value read is an
+// opaque token, and the answer is a stratum variable off the frozen
+// ad_attributions row that token identifies:
+//
+//	metadata[key]              the token          (key = where to read)
+//	attributions.ByRefToken[…] the frozen row     (the only automatic step)
+//	row.Metadata[name]         the answer         (name = which stratum var)
+//
+// The mapping is closed over rather than looked up per call: RetrieveFunc has no
+// context and no error and runs once per event per conf, so a database call in
+// here would be one query per response. It is loaded once per study in
+// swooshStudy and passed down as plain data, which is also what keeps Reduce
+// pure and unit-testable against a fake mapping.
+//
+// There is deliberately no fallback. A token that resolves to no row returns
+// ok=false and is counted as unmapped by adAttributionOutcome; it is never
+// retried as a raw value, and never retried against ad_id.
+func retrieveFromMetadata(attributions AdAttributions) RetrieveFunc {
+	return func(e *InferenceDataEvent, conf *ExtractionConf) (json.RawMessage, bool) {
+		v, ok := e.User.Metadata[conf.Key]
+		if !ok {
+			return nil, false
+		}
+
+		if !isAdTableLookup(conf) {
+			return v, true
+		}
+
+		token, ok := metadataToken(v)
+		if !ok {
+			return nil, false
+		}
+
+		a, ok := attributions.ByRefToken[token]
+		if !ok {
+			return nil, false
+		}
+
+		// conf.Name, not conf.Key: for a lookup, Key addressed the token and
+		// Name addresses the stratum variable on the row.
+		val, ok := a.Metadata[conf.Name]
+		return val, ok
+	}
+}
+
+// metadataToken reads a metadata value as the join token.
+//
+// The unquoting is the point. Metadata values are JSON, so the token fly stamps
+// arrives here as a quoted JSON string (`"a1b2c3d4e5"`) while
+// ad_attributions.ref_token is scanned out of a text column unquoted
+// (`a1b2c3d4e5`). Joining the raw bytes against the map would therefore miss
+// every single time, on a value that looks correct in every log line it appears
+// in — the exact silent-miscount failure this whole design exists to prevent.
+//
+// A value that is not a JSON string is not a token: it yields nothing rather
+// than a best-effort stringification, so the event lands in unmapped, where
+// someone can see it.
+func metadataToken(raw json.RawMessage) (string, bool) {
+	var token string
+	if err := json.Unmarshal(raw, &token); err != nil {
+		return "", false
+	}
+	if token == "" {
+		return "", false
+	}
+	return token, true
 }
 
 func retrieveFromVariable(e *InferenceDataEvent, conf *ExtractionConf) (json.RawMessage, bool) {
@@ -264,44 +380,19 @@ func retrieveFromVariable(e *InferenceDataEvent, conf *ExtractionConf) (json.Raw
 	return e.Value, ok
 }
 
-// retrieveFromAd resolves a variable through the ad that recruited the
-// respondent, rather than through anything the respondent said or that fly
-// stamped on the event.
-//
-// The attributions map is closed over rather than looked up per call: the
-// RetrieveFunc signature has no context and no error, and it runs once per
-// event per conf, so a database call in here would be one query per response.
-// It is loaded once per study in swooshStudy and passed down as plain data,
-// which is also what keeps Reduce pure and unit-testable against a fake map.
-//
-// There is deliberately no fallback to User.Metadata. `location: "ad"` is for
-// new studies only; see the comment on Reduce.
-func retrieveFromAd(attributions AdAttributions) RetrieveFunc {
-	return func(e *InferenceDataEvent, conf *ExtractionConf) (json.RawMessage, bool) {
-		// An organic respondent has no ad id. Guarded explicitly so that a
-		// stray empty-string key in the map could never match one.
-		if e.AdID == "" {
-			return nil, false
-		}
-
-		a, ok := attributions[e.AdID]
-		if !ok {
-			return nil, false
-		}
-
-		v, ok := a.Metadata[conf.Key]
-		return v, ok
-	}
-}
-
 func getRetrieveFunc(conf *ExtractionConf, attributions AdAttributions) (RetrieveFunc, error) {
 	switch conf.Location {
 	case "variable":
 		return retrieveFromVariable, nil
 	case "metadata":
-		return retrieveFromMetadata, nil
+		return retrieveFromMetadata(attributions), nil
 	case "ad":
-		return retrieveFromAd(attributions), nil
+		// Removed, and named explicitly rather than falling through to the
+		// generic message below, which would send whoever hits it hunting for a
+		// typo instead of reading about a superseded mechanism.
+		return nil, fmt.Errorf(
+			`location "ad" has been removed (it joined on ad_id, which is superseded by the ref token): declare location "metadata" with mapping %q and key set to the token's metadata key instead. Offending conf: %s`,
+			MappingAdTableLookup, conf.Name)
 	}
 
 	return nil, fmt.Errorf("Could not find location function for location: %s", conf.Location)
@@ -315,13 +406,28 @@ const (
 	entityAdUnmapped = "ad=unmapped"
 )
 
-func hasAdConf(confs []*ExtractionConf) bool {
+// mechanismRefToken names the attribution mechanism in every outcome's details,
+// so that a miss recorded in study_run_events says what it was trying to join
+// on rather than leaving the reader to infer it from the era of the row.
+const mechanismRefToken = "ref_token"
+
+// tokenLookupKey reports the metadata key this source's ad_table_lookup confs
+// read their token from, and whether the source declares any such conf at all.
+//
+// One respondent has one token, in one place, so every ad_table_lookup conf
+// under a source must agree on where it is. That agreement is a config-time
+// check (adopt's study conf validation); here we take the first declared key on
+// the understanding that they match. Taking the first rather than erroring on
+// disagreement is deliberate: swoosh recomputes whole studies unattended, and
+// refusing to classify would cost a study its counts over a conf problem this
+// run cannot fix anyway.
+func tokenLookupKey(confs []*ExtractionConf) (string, bool) {
 	for _, c := range confs {
-		if c.Location == "ad" {
-			return true
+		if isAdTableLookup(c) {
+			return c.Key, true
 		}
 	}
-	return false
+	return "", false
 }
 
 // adAttributionOutcome classifies one event against the study's mapping.
@@ -330,45 +436,63 @@ func hasAdConf(confs []*ExtractionConf) bool {
 // optimizer undercount. Two very different things produce that, and telling them
 // apart is the whole point of this function:
 //
-//	attributed — ad id present, mapping row found        → normal, no event
-//	organic    — no ad id on the event                   → expected; count, don't alarm
-//	unmapped   — ad id present, no mapping row           → always a bug; alert
+//	attributed — token present, mapping row found        → normal, no event
+//	organic    — no token on the event                   → expected; count, don't alarm
+//	unmapped   — token present, no mapping row           → always a bug; alert
 //
-// Classification is per *event*, not per conf. An event either carries an ad id
-// or it does not, and that id either resolves or it does not — none of which
+// Classification is per *event*, not per conf. An event either carries a token
+// or it does not, and that token either resolves or it does not — none of which
 // depends on the conf. Counting it per conf would multiply one organic arrival
-// by however many ad-location confs the study happens to declare.
+// by however many ad_table_lookup confs the study happens to declare.
 //
-// Returns nil when the study declares no ad-location confs at all, so studies on
-// the old `location: "metadata"` path are entirely unaffected.
+// The mechanism is ref_token, and only ref_token. A token that resolves to
+// nothing is unmapped; it is never quietly retried against the event's ad_id.
+// ad_id is still carried on the event and reported in the details below, but
+// purely so a miss can be cross-referenced against recruitment-health alerting
+// — it is not a second attribution path, because a fallback would make a real
+// miss indistinguishable from a study part-way through switching mechanisms.
+//
+// Returns nil when the source declares no ad_table_lookup confs at all, so
+// studies on the plain `mapping: "raw"` path are entirely unaffected.
 func adAttributionOutcome(e *InferenceDataEvent, confs []*ExtractionConf, attributions AdAttributions) *ExtractionError {
-	if !hasAdConf(confs) {
+	key, ok := tokenLookupKey(confs)
+	if !ok {
 		return nil
 	}
 
-	if e.AdID == "" {
+	token, ok := metadataToken(e.User.Metadata[key])
+	if !ok {
 		return &ExtractionError{
 			Entity: entityAdOrganic,
 			Message: fmt.Sprintf(
-				"respondent %s arrived with no ad id and is not attributed to any stratum",
-				e.User.ID),
-			Count:   1,
-			Details: map[string]interface{}{"source": e.SourceConf.Name},
+				"respondent %s arrived with no ref token at metadata.%s and is not attributed to any stratum",
+				e.User.ID, key),
+			Count: 1,
+			Details: map[string]interface{}{
+				"source":    e.SourceConf.Name,
+				"mechanism": mechanismRefToken,
+				"token_key": key,
+			},
 		}
 	}
 
-	if _, ok := attributions[e.AdID]; !ok {
+	if _, ok := attributions.ByRefToken[token]; !ok {
 		return &ExtractionError{
 			Entity: entityAdUnmapped,
 			Message: fmt.Sprintf(
-				"ad id %s has no ad_attributions row for this study; respondent %s is not attributed to any stratum",
-				e.AdID, e.User.ID),
+				"ref token %s (read from metadata.%s) has no ad_attributions row for this study; respondent %s is not attributed to any stratum",
+				token, key, e.User.ID),
 			Count: 1,
 			Details: map[string]interface{}{
-				"source":         e.SourceConf.Name,
-				"ad_id":          e.AdID,
-				"ad_network":     e.AdNetwork,
-				"ads_in_mapping": len(attributions),
+				"source":    e.SourceConf.Name,
+				"mechanism": mechanismRefToken,
+				"ref_token": token,
+				"token_key": key,
+				// Captured, not joined — here only so a miss can be lined up
+				// against fly's recruitment-health signals.
+				"ad_id":             e.AdID,
+				"ad_network":        e.AdNetwork,
+				"tokens_in_mapping": attributions.Len(),
 			},
 		}
 	}
@@ -478,24 +602,24 @@ func JoinSources(intermediateData IntermediateInferenceData, confs map[string]*D
 // Reduce folds a study's whole event history into InferenceData.
 //
 // `attributions` is the study's frozen ad -> stratum mapping, passed in as
-// plain data so that Reduce stays pure and can be tested against a fake map;
-// the database read lives in swooshStudy. A nil map is fine and means "this
-// study has no ad mapping", which is the correct state for every study on the
-// `location: "metadata"` path.
+// plain data so that Reduce stays pure and can be tested against a fake mapping;
+// the database read lives in swooshStudy. An empty mapping is fine and means
+// "this study has no ad mapping", which is the correct state for every study on
+// the plain `mapping: "raw"` path.
 //
 // Note that swoosh recomputes a study's entire history on every run — GetEvents
 // loads every event and InsertInferenceData upserts. Two consequences worth
 // keeping in mind:
 //
-//   - `location: "ad"` is for new studies only, and there is deliberately no
-//     fallback to User.Metadata. Swapping an existing study's conf from
-//     "metadata" to "ad" would not migrate it forward, it would retroactively
+//   - `mapping: "ad_table_lookup"` is for new studies only, and there is
+//     deliberately no fallback to the raw metadata value. Swapping an existing
+//     study's confs over would not migrate it forward, it would retroactively
 //     re-attribute its entire back-catalogue through a path those events cannot
-//     satisfy: rows written before fly began stamping ad_id carry none and are
-//     never backfilled, so every historical respondent would extract nothing,
-//     match no stratum, and vanish from the counts. Worse, those events are
-//     indistinguishable from organic arrivals, so they would land in the
-//     do-not-alarm bucket.
+//     satisfy: rows written before the study's ads carried an encoded ref have
+//     no token and are never backfilled, so every historical respondent would
+//     extract nothing, match no stratum, and vanish from the counts. Worse,
+//     those events are indistinguishable from organic arrivals, so they would
+//     land in the do-not-alarm bucket.
 //   - unmapped is self-healing. Inserting a missing mapping row retroactively
 //     fixes every prior run's attribution, so the unmapped count is a
 //     current-state measure and drops to zero on the next run after a fix.
