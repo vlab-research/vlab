@@ -2,6 +2,7 @@ from datetime import datetime, timedelta
 from typing import Literal
 
 import pytest
+from pydantic import ValidationError
 
 from .study_conf import (
     MULTI_DESTINATION_ENV_VAR,
@@ -22,6 +23,7 @@ from .study_conf import (
     StudyConf,
     TargetVar,
     UserInfo,
+    disagreeing_token_keys,
     missing_targeting_variables,
     normalize_whatsapp_phone_number,
     ref_value,
@@ -561,14 +563,26 @@ def _study_with(targeting, inference_data):
     )
 
 
-def _extraction_conf(name, location="metadata", key="gender"):
+def _extraction_conf(name, location="metadata", key="gender", mapping="raw"):
     return ExtractionConf(
         location=location,
+        mapping=mapping,
         key=key,
         name=name,
         functions=[],
         value_type="categorical",
         aggregate="first",
+    )
+
+
+def _lookup_conf(stratum_var, key="vt"):
+    """One ad-derived variable: read the token at `key`, pull `stratum_var`.
+
+    Note that `name` is the stratum variable, because for a lookup it does
+    double duty -- output name and row key both.
+    """
+    return _extraction_conf(
+        stratum_var, location="metadata", key=key, mapping="ad_table_lookup"
     )
 
 
@@ -623,20 +637,20 @@ def test_targeting_variables_of_nothing_is_empty():
     assert targeting_variables(None) == set()
 
 
-def test_supplied_variables_spans_every_location():
+def test_supplied_variables_spans_every_location_and_mapping():
     # What matters to a predicate is that the variable exists, not where it
-    # came from -- so an "ad" conf supplies just as a "metadata" one does.
+    # came from -- so a lookup conf supplies just as a raw one does.
     conf = InferenceDataConf(
         data_sources={
             "fly": SourceExtractionConf(
                 extraction_confs=[
-                    _extraction_conf("md:gender", location="ad"),
+                    _lookup_conf("gender"),
                     _extraction_conf("q1", location="variable"),
                 ]
             )
         }
     )
-    assert supplied_variables(conf) == {"md:gender", "q1"}
+    assert supplied_variables(conf) == {"gender", "q1"}
 
 
 def test_no_gap_when_every_targeted_variable_is_supplied():
@@ -655,20 +669,17 @@ def test_gap_is_reported_per_stratum():
     assert missing_targeting_variables(study) == {"stratum-1": {"md:region"}}
 
 
-def test_ad_location_confs_satisfy_targeting():
-    # The A6 case: a new study moves its stratum variable to location "ad".
-    # The predicate is unchanged and must still be considered satisfied,
-    # because the variable name is what a predicate matches on.
+def test_lookup_confs_satisfy_targeting():
+    # A new study moves its stratum variable onto the ad table. The predicate
+    # is unchanged and must still be considered satisfied, because the variable
+    # name is what a predicate matches on.
+    #
+    # Note the predicate targets "gender", not "md:gender": for a lookup, name
+    # is the stratum variable, so the output is named after what it pulls.
     study = _study_with(
-        targeting=_targeting("md:gender"),
+        targeting=_targeting("gender"),
         inference_data=InferenceDataConf(
-            data_sources={
-                "fly": SourceExtractionConf(
-                    extraction_confs=[
-                        _extraction_conf("md:gender", location="ad", key="gender")
-                    ]
-                )
-            }
+            data_sources={"fly": SourceExtractionConf(extraction_confs=[_lookup_conf("gender")])}
         ),
     )
     assert missing_targeting_variables(study) == {}
@@ -1019,15 +1030,90 @@ def test_thinning_the_ref_with_no_ad_confs_is_flagged():
     assert thins_its_ref_without_reading_the_mapping(study) == ["messenger"]
 
 
-def test_thinning_the_ref_with_an_ad_conf_is_fine():
+def test_thinning_the_ref_with_a_lookup_conf_is_fine():
     conf = InferenceDataConf(
-        data_sources={
-            "fly": SourceExtractionConf(
-                extraction_confs=[_extraction_conf("md:gender", location="ad")]
-            )
-        }
+        data_sources={"fly": SourceExtractionConf(extraction_confs=[_lookup_conf("gender")])}
     )
     assert thins_its_ref_without_reading_the_mapping(_messenger_study(False, conf)) == []
+
+
+# ---------------------------------------------------------------------------
+# The mapping field itself.
+
+
+def test_mapping_defaults_to_raw():
+    # The default is the historical behaviour, which is what lets every conf
+    # written before this field existed keep meaning what it meant.
+    assert _extraction_conf("md:gender").mapping == "raw"
+    assert _extraction_conf("md:gender").is_ad_table_lookup is False
+
+
+def test_location_ad_is_rejected():
+    # The deprecated ad_id join. It fails closed rather than loading into a
+    # study swoosh can no longer resolve, which would count zero and reallocate
+    # budget on empty data, silently.
+    with pytest.raises(ValidationError) as e:
+        _extraction_conf("md:gender", location="ad")
+
+    assert "ad_table_lookup" in str(e.value), "the error must name the replacement"
+
+
+def test_an_unknown_mapping_is_rejected():
+    with pytest.raises(ValidationError):
+        _extraction_conf("md:gender", mapping="ad_id_lookup")
+
+
+def test_lookup_confs_agreeing_on_the_token_key_is_not_a_disagreement():
+    study = _study_with(
+        targeting=None,
+        inference_data=InferenceDataConf(
+            data_sources={
+                "fly": SourceExtractionConf(
+                    extraction_confs=[_lookup_conf("gender"), _lookup_conf("Age")]
+                )
+            }
+        ),
+    )
+    assert disagreeing_token_keys(study) == {}
+
+
+def test_lookup_confs_reading_different_token_keys_are_flagged():
+    # One respondent has one token, in one place. Confs on the other key
+    # attribute nobody -- and silently, because a token that is not there looks
+    # exactly like an organic arrival.
+    study = _study_with(
+        targeting=None,
+        inference_data=InferenceDataConf(
+            data_sources={
+                "fly": SourceExtractionConf(
+                    extraction_confs=[
+                        _lookup_conf("gender", key="vt"),
+                        _lookup_conf("Age", key="tok"),
+                    ]
+                )
+            }
+        ),
+    )
+    assert disagreeing_token_keys(study) == {"fly": ["tok", "vt"]}
+
+
+def test_a_raw_conf_on_another_key_is_not_a_disagreement():
+    # Only lookup confs read the token. A raw conf reading some other metadata
+    # key is ordinary and must not be dragged into this.
+    study = _study_with(
+        targeting=None,
+        inference_data=InferenceDataConf(
+            data_sources={
+                "fly": SourceExtractionConf(
+                    extraction_confs=[
+                        _lookup_conf("gender", key="vt"),
+                        _extraction_conf("md:city", key="city"),
+                    ]
+                )
+            }
+        ),
+    )
+    assert disagreeing_token_keys(study) == {}
 
 
 def test_thinning_the_ref_with_no_inference_conf_at_all_is_flagged():

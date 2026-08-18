@@ -30,6 +30,7 @@ from .study_conf import (
     Stratum,
     StratumConf,
     StudyConf,
+    disagreeing_token_keys,
     missing_targeting_variables,
     thins_its_ref_without_reading_the_mapping,
 )
@@ -137,11 +138,11 @@ def warn_on_incomplete_targeting(study: StudyConf) -> None:
 def warn_on_thinned_ref_without_mapping(study: StudyConf) -> None:
     """Say so when a study thins its ref but nothing reads the mapping.
 
-    Turning include_metadata_in_ref off only works if the study also reads the
-    ad -> stratum mapping, through a `location: "ad"` extraction conf. One
-    without the other leaves the study with no attribution at all: the ref no
-    longer carries the stratum and nothing looks the ad up, so every stratum
-    counts zero and the optimizer reallocates on empty data.
+    Thinning the ref only works if the study also reads the ad -> stratum
+    mapping, through a `mapping: "ad_table_lookup"` extraction conf. One without
+    the other leaves the study with no attribution at all: the ref no longer
+    carries the stratum and nothing looks the token up, so every stratum counts
+    zero and the optimizer reallocates on empty data.
 
     A warning, not a raise — a study recruiting uniformly needs no stratum
     attribution and is entitled to a thin ref.
@@ -152,10 +153,32 @@ def warn_on_thinned_ref_without_mapping(study: StudyConf) -> None:
         logging.warning(
             f"Destination(s) {thinned} no longer carry stratum metadata in "
             "their ref, but this study has no inference_data conf with "
-            'location: "ad". Nothing will attribute its respondents to a '
-            "stratum: every stratum will count zero and the optimizer will "
-            "reallocate on empty data. Either add the ad-location confs, or "
-            "leave include_metadata_in_ref on."
+            'mapping: "ad_table_lookup". Nothing will attribute its respondents '
+            "to a stratum: every stratum will count zero and the optimizer will "
+            "reallocate on empty data. Either add the lookup confs, or leave the "
+            "destination's ref_mode at 'metadata'."
+        )
+
+
+def warn_on_disagreeing_token_keys(study: StudyConf) -> None:
+    """Say so when a source's lookup confs disagree on where the token is.
+
+    One respondent has one token, in one place. Confs naming different keys
+    means at least one reads nothing — and reading nothing is indistinguishable
+    from an organic arrival, so it does not alarm, it just miscounts. swoosh
+    resolves the ambiguity by taking the first key it finds, which is a guess;
+    this is where anyone gets told a guess was needed.
+
+    A warning, not a raise — see disagreeing_token_keys for why.
+    """
+    for source, keys in disagreeing_token_keys(study).items():
+        logging.warning(
+            f"Source '{source}' has ad_table_lookup confs reading the token "
+            f"from more than one metadata key: {keys}. A respondent carries one "
+            "token in one place, so confs on the other key(s) will attribute "
+            "nobody — silently, because a token that is not there looks exactly "
+            "like an organic arrival. swoosh will use the first key it finds. "
+            "Point every ad_table_lookup conf on this source at the same key."
         )
 
 
@@ -165,6 +188,7 @@ def update_ads_for_campaign(
     strata = hydrate_strata(state, study.strata, study.creatives)
     warn_on_incomplete_targeting(study)
     warn_on_thinned_ref_without_mapping(study)
+    warn_on_disagreeing_token_keys(study)
     now = datetime.utcnow()
 
     inf_start, inf_end = study.recruitment.get_inference_window(now)

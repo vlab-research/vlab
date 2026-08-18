@@ -26,13 +26,84 @@ class ExtractionFunctionConf(BaseModel):
     params: Any = None
 
 
+# The values `ExtractionConf.mapping` takes. Mirrored in swoosh
+# (inference/swoosh/inference_data.go); these two lists are the contract.
+MAPPING_RAW = "raw"
+MAPPING_AD_TABLE_LOOKUP = "ad_table_lookup"
+MAPPINGS = (MAPPING_RAW, MAPPING_AD_TABLE_LOOKUP)
+
+
 class ExtractionConf(BaseModel):
+    """One declared variable: where to read it, and what to do with what is read.
+
+    `location` says where to read -- "metadata" or "variable". `mapping` says
+    what the read value means:
+
+        "raw"             the value read IS the answer. The default, and what
+                          every conf written before this field existed means.
+        "ad_table_lookup" the value read is an opaque token; the answer is a
+                          stratum variable off the frozen ad_attributions row
+                          that token identifies.
+
+    `key` and `name` are both contextual to the mapping, which is the one
+    genuinely confusing part of this:
+
+        key   WHERE TO READ. For "raw" it addresses the value; for a lookup it
+              addresses the token. Never hardcoded -- fly stamps the token at
+              metadata.vt by convention and the conf says key: "vt" to match.
+        name  the output variable name and, for a lookup, ALSO the key into the
+              frozen row (which stratum variable to pull). It does double duty
+              because you name the output after the stratum variable anyway.
+    """
+
     location: str
+    mapping: str = MAPPING_RAW
     key: str
     name: str
     functions: list[ExtractionFunctionConf]
     value_type: str
     aggregate: str
+
+    @model_validator(mode="after")
+    def location_ad_is_removed(self):
+        """`location: "ad"` was the ad_id join, and is gone.
+
+        It was never really a location: the identifier it joined on lives in
+        metadata, so reading it is an ordinary metadata read. What made it
+        ad-derived is now `mapping`.
+
+        This fails closed, which is deliberate and follows
+        check_whatsapp_refs_are_deliverable: swoosh no longer resolves an "ad"
+        conf at all, so such a study already produces no variable, matches no
+        stratum, counts zero and has its budget reallocated on empty data --
+        silently. Refusing to load the conf stops that study creating ads until
+        someone fixes it, which is strictly better than letting it recruit
+        people it cannot attribute.
+        """
+        if self.location == "ad":
+            raise ValueError(
+                f"Extraction conf '{self.name}' uses location: \"ad\", which has "
+                "been removed. It joined on ad_id, which is superseded by the "
+                "ref token (Meta sends the referral carrying ad_id for only "
+                "~31% of Messenger ad entrants). Declare "
+                f'location: "metadata", mapping: "{MAPPING_AD_TABLE_LOOKUP}", '
+                "key: <the token's metadata key, e.g. \"vt\">, and name: <the "
+                "stratum variable> instead."
+            )
+        return self
+
+    @model_validator(mode="after")
+    def mapping_must_be_known(self):
+        if self.mapping not in MAPPINGS:
+            raise ValueError(
+                f"Extraction conf '{self.name}' has mapping: "
+                f"\"{self.mapping}\", which is not one of {list(MAPPINGS)}."
+            )
+        return self
+
+    @property
+    def is_ad_table_lookup(self) -> bool:
+        return self.mapping == MAPPING_AD_TABLE_LOOKUP
 
 
 class SourceExtractionConf(BaseModel):
@@ -1310,8 +1381,9 @@ def targeting_variables(targeting: Optional[QuestionTargeting]) -> set[str]:
 def supplied_variables(conf: Optional[InferenceDataConf]) -> set[str]:
     """Every variable name the study's extraction confs produce.
 
-    Across all locations — "variable", "metadata" and "ad" alike. What matters
-    to a predicate is that the variable exists, not where it came from.
+    Across every location and mapping alike — raw metadata, a survey variable,
+    or an ad_table_lookup. What matters to a predicate is that the variable
+    exists, not where it came from.
     """
     if conf is None:
         return set()
@@ -1326,11 +1398,11 @@ def supplied_variables(conf: Optional[InferenceDataConf]) -> set[str]:
 def thins_its_ref_without_reading_the_mapping(study: StudyConf) -> List[str]:
     """Destinations that stop carrying metadata while nothing reads the mapping.
 
-    Turning `include_metadata_in_ref` off is what finally makes the ad id
-    *replace* the ref rather than duplicate it — but it only works if the study
-    also reads the mapping, via at least one `location: "ad"` extraction conf.
-    Do one without the other and the study has no attribution at all: the ref no
-    longer carries the stratum, and nothing looks the ad up. Every stratum
+    Thinning the ref is what finally makes the ad table *replace* the ref
+    rather than duplicate it — but it only works if the study also reads the
+    mapping, via at least one `mapping: "ad_table_lookup"` extraction conf. Do
+    one without the other and the study has no attribution at all: the ref no
+    longer carries the stratum, and nothing looks the token up. Every stratum
     counts zero and the optimizer reallocates on empty data.
 
     Returns destination names rather than raising, because it is not certainly
@@ -1357,12 +1429,45 @@ def thins_its_ref_without_reading_the_mapping(study: StudyConf) -> List[str]:
         return []
 
     reads_the_mapping = any(
-        ec.location == "ad"
+        ec.is_ad_table_lookup
         for source in (study.inference_data.data_sources.values() if study.inference_data else [])
         for ec in source.extraction_confs
     )
 
     return [] if reads_the_mapping else sorted(thinned)
+
+
+def disagreeing_token_keys(study: StudyConf) -> Dict[str, List[str]]:
+    """Per source, the several places its lookup confs think the token is.
+
+    One respondent has one token, in one place, so every `ad_table_lookup` conf
+    under a source must read it from the same metadata key. Two confs naming
+    different keys means at least one of them reads nothing — and reading
+    nothing is indistinguishable from an organic arrival, so it lands in the
+    do-not-alarm bucket and simply miscounts.
+
+    Returns only sources with a real disagreement, so an empty dict means the
+    config agrees with itself.
+
+    Returns rather than raises, and callers warn. swoosh takes the first key it
+    finds and carries on for the same reason: it recomputes whole studies
+    unattended, and refusing to classify would cost a study its counts over a
+    conf problem no run can fix from the inside. A raise here would also stop
+    ad reconciliation outright, which is a heavier consequence than the
+    miscount it is warning about.
+    """
+    if study.inference_data is None:
+        return {}
+
+    disagreements = {}
+    for name, source in study.inference_data.data_sources.items():
+        keys = sorted(
+            {ec.key for ec in source.extraction_confs if ec.is_ad_table_lookup}
+        )
+        if len(keys) > 1:
+            disagreements[name] = keys
+
+    return disagreements
 
 
 def missing_targeting_variables(study: StudyConf) -> Dict[str, set[str]]:
