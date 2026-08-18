@@ -340,20 +340,15 @@ arrives under.
 Nothing between the form and swoosh constrains `location` or `mapping`: both are
 bare strings in the dashboard's TypeScript and in the Go API's opaque conf
 storage. Python's `ExtractionConf` is the one place that validates them —
-rejecting the removed `location: "ad"`, an unknown mapping, and a lookup on a
-non-metadata location.
+rejecting an unknown mapping, and a lookup on a non-metadata location.
 
 ### Config-time checks
 
-Three, all in `adopt/adopt/study_conf.py`:
+Two, both in `adopt/adopt/study_conf.py`. Note that `location: "ad"` is **not**
+one of them: it was never live in any study, so there is nothing to validate
+away and no migration to guard. It is simply an unknown location now, and gets
+the same error any typo does.
 
-- **`location: "ad"` is rejected**, with an error naming its replacement. This
-  fails closed, following `check_whatsapp_refs_are_deliverable`: swoosh no
-  longer resolves such a conf at all, so a study still declaring one already
-  produces no variable, counts zero and has its budget reallocated on empty
-  data — silently. Refusing to load the conf stops that study creating ads until
-  someone fixes it, which is strictly better than letting it recruit people it
-  cannot attribute.
 - **`disagreeing_token_keys`** — all `ad_table_lookup` confs under one source
   must read the token from the same metadata key. One respondent has one token,
   in one place; confs on another key attribute nobody, and silently, because a

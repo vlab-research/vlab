@@ -385,18 +385,6 @@ func TestReduce_ALookupOnAVariableCannotDeclareTheTokenKey(t *testing.T) {
 	assert.Contains(t, confErr.Error(), "metadata")
 }
 
-func TestGetRetrieveFunc_LocationAdIsRemoved(t *testing.T) {
-	// The deprecated ad_id join. It must fail loudly and name its replacement,
-	// rather than silently resolving to nothing.
-	conf := &ExtractionConf{Location: "ad", Key: "gender", Name: "md:gender"}
-
-	_, err := getRetrieveFunc(conf, NewAdAttributions())
-
-	assert.NotNil(t, err)
-	assert.Contains(t, err.Error(), MappingAdTableLookup,
-		"the error must point at the mapping that replaced it")
-}
-
 // --------------------------------------------------------------------------
 // the three-way split
 // --------------------------------------------------------------------------

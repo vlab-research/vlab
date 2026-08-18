@@ -1048,16 +1048,6 @@ def test_mapping_defaults_to_raw():
     assert _extraction_conf("md:gender").is_ad_table_lookup is False
 
 
-def test_location_ad_is_rejected():
-    # The deprecated ad_id join. It fails closed rather than loading into a
-    # study swoosh can no longer resolve, which would count zero and reallocate
-    # budget on empty data, silently.
-    with pytest.raises(ValidationError) as e:
-        _extraction_conf("md:gender", location="ad")
-
-    assert "ad_table_lookup" in str(e.value), "the error must name the replacement"
-
-
 def test_a_lookup_on_a_variable_is_rejected():
     # The token is stamped by fly, not answered by the respondent, so this
     # cannot mean anything. Rejected rather than ignored because of what `key`

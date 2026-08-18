@@ -404,13 +404,6 @@ func getRetrieveFunc(conf *ExtractionConf, attributions AdAttributions) (Retriev
 		return retrieveFromVariable, nil
 	case "metadata":
 		return retrieveFromMetadata(attributions), nil
-	case "ad":
-		// Removed, and named explicitly rather than falling through to the
-		// generic message below, which would send whoever hits it hunting for a
-		// typo instead of reading about a superseded mechanism.
-		return nil, fmt.Errorf(
-			`location "ad" has been removed (it joined on ad_id, which is superseded by the ref token): declare location "metadata" with mapping %q and key set to the token's metadata key instead. Offending conf: %s`,
-			MappingAdTableLookup, conf.Name)
 	}
 
 	return nil, fmt.Errorf("Could not find location function for location: %s", conf.Location)

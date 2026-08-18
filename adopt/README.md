@@ -353,11 +353,6 @@ destinations too, whose default is already thin.
 `ExtractionConf` (`study_conf.py`) carries the `mapping` field the dashboard
 writes and swoosh reads, and validates it at parse time:
 
-- `location: "ad"` is **rejected** — it joined on `ad_id`, which is superseded
-  by the ref token. The error names the replacement. This fails closed, like
-  `check_whatsapp_refs_are_deliverable`: swoosh no longer resolves such a conf,
-  so a study still declaring one already counts zero silently, and refusing to
-  load it is better than letting the study recruit people it cannot attribute.
 - an unknown `mapping` is rejected.
 - `mapping: "ad_table_lookup"` on any location but `"metadata"` is rejected. The
   token is stamped by fly, not answered by the respondent, so the combination is

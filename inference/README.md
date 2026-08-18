@@ -157,8 +157,9 @@ its `location`:
 `location` is unchanged (`metadata` \| `variable`). There is no `"ad"` location
 and there never really was one — the token lives in metadata, so reading it is
 an ordinary metadata read. What makes a variable ad-derived is the mapping. The
-old `location: "ad"` is **removed**; `getRetrieveFunc` returns an error naming
-its replacement, and adopt's config-time validation rejects it outright.
+old `location: "ad"` is **removed**. It was never live in any study, so nothing
+migrates and nothing validates it away: `getRetrieveFunc` simply has no case for
+it, and it falls through to the same unknown-location error any typo gets.
 
 Both other fields are contextual to the mapping, which is the one genuinely
 confusing part:

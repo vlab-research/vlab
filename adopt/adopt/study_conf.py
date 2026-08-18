@@ -65,34 +65,6 @@ class ExtractionConf(BaseModel):
     aggregate: str
 
     @model_validator(mode="after")
-    def location_ad_is_removed(self):
-        """`location: "ad"` was the ad_id join, and is gone.
-
-        It was never really a location: the identifier it joined on lives in
-        metadata, so reading it is an ordinary metadata read. What made it
-        ad-derived is now `mapping`.
-
-        This fails closed, which is deliberate and follows
-        check_whatsapp_refs_are_deliverable: swoosh no longer resolves an "ad"
-        conf at all, so such a study already produces no variable, matches no
-        stratum, counts zero and has its budget reallocated on empty data --
-        silently. Refusing to load the conf stops that study creating ads until
-        someone fixes it, which is strictly better than letting it recruit
-        people it cannot attribute.
-        """
-        if self.location == "ad":
-            raise ValueError(
-                f"Extraction conf '{self.name}' uses location: \"ad\", which has "
-                "been removed. It joined on ad_id, which is superseded by the "
-                "ref token (Meta sends the referral carrying ad_id for only "
-                "~31% of Messenger ad entrants). Declare "
-                f'location: "metadata", mapping: "{MAPPING_AD_TABLE_LOOKUP}", '
-                "key: <the token's metadata key, e.g. \"vt\">, and name: <the "
-                "stratum variable> instead."
-            )
-        return self
-
-    @model_validator(mode="after")
     def mapping_must_be_known(self):
         if self.mapping not in MAPPINGS:
             raise ValueError(
