@@ -7,7 +7,10 @@ import {
   isKeyedLocation,
   keyPlaceholder,
   locationOptions,
+  mappingOptions,
+  namePrompt,
   responsePrompt,
+  showsMapping,
 } from './flyExtraction';
 
 
@@ -33,8 +36,8 @@ const FlyExtraction: React.FC<Props> = ({ data, nameOptions: names, update: upda
     updateFormData(applyChange(data, name, value), index);
   };
 
-  // `metadata` and `ad` are both keyed lookups, so neither has a response path
-  // to select. Expressed as one concept rather than a pair of location checks.
+  // `metadata` is a keyed lookup under either mapping, so it has no response
+  // path to select. Expressed as one concept rather than scattered checks.
   const isKeyed = isKeyedLocation(data.location);
   const response = data?.functions[0]?.params.path || "";
 
@@ -45,7 +48,7 @@ const FlyExtraction: React.FC<Props> = ({ data, nameOptions: names, update: upda
   ]
 
   const nameOptions = [
-    { name: '', label: 'What name do you use to refer to this variable?' },
+    { name: '', label: namePrompt(data) },
     ...names.map(n => ({ name: n, label: n }))
   ]
 
@@ -63,10 +66,18 @@ const FlyExtraction: React.FC<Props> = ({ data, nameOptions: names, update: upda
         options={locationOptions}
         value={data.location}
       />
+      {showsMapping(data.location) && (
+        <Select
+          name="mapping"
+          handleChange={handleChange}
+          options={mappingOptions}
+          value={data.mapping || 'raw'}
+        />
+      )}
       <TextInput
         name="key"
         handleChange={handleChange}
-        placeholder={keyPlaceholder(data.location)}
+        placeholder={keyPlaceholder(data)}
         value={data.key}
       />
       <Select

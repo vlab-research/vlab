@@ -213,6 +213,11 @@ export type Extraction = {
   functions: ExtractionFunction[]
   value_type: string
   aggregate: string
+  // What the value read from `location` means: "raw" (it IS the answer) or
+  // "ad_table_lookup" (it is an opaque token identifying the ad that recruited
+  // the respondent). Optional because it post-dates every conf already stored,
+  // and absent means "raw" everywhere that reads it.
+  mapping?: string
 }
 
 export type SourceExtraction = {

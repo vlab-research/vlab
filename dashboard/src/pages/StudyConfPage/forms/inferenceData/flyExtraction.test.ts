@@ -1,13 +1,20 @@
 import {
-  AD_LOCATION,
+  AD_TABLE_LOOKUP_MAPPING,
   applyChange,
   aggregateForLocation,
+  isAdTableLookup,
   isKeyedLocation,
   keyPlaceholder,
   locationOptions,
+  mappingOptions,
+  namePrompt,
   responsePrompt,
+  showsMapping,
 } from './flyExtraction';
-import { locationOptions as qualtricsLocationOptions } from './qualtricsExtraction';
+import {
+  locationOptions as qualtricsLocationOptions,
+  mappingOptions as qualtricsMappingOptions,
+} from './qualtricsExtraction';
 import { Extraction } from '../../../../types/conf';
 
 const blank = (overrides: Partial<Extraction> = {}): Extraction => ({
@@ -20,30 +27,48 @@ const blank = (overrides: Partial<Extraction> = {}): Extraction => ({
   ...overrides,
 });
 
+const lookup = (overrides: Partial<Extraction> = {}): Extraction =>
+  blank({ location: 'metadata', mapping: AD_TABLE_LOOKUP_MAPPING, ...overrides });
+
 describe('flyExtraction', () => {
   describe('locationOptions', () => {
-    it('offers ad alongside metadata and variable', () => {
+    it('offers metadata and variable, and no longer an ad location', () => {
+      // There is no `ad` location and there never really was one: the token
+      // lives in metadata, so reading it is an ordinary metadata read. The old
+      // `ad` location joined on ad_id and is removed.
       expect(locationOptions.map(o => o.name)).toEqual([
         '',
         'metadata',
         'variable',
-        'ad',
       ]);
     });
+  });
 
-    it('labels ad in researcher language, not ad-id jargon', () => {
-      const ad = locationOptions.find(o => o.name === AD_LOCATION);
+  describe('mappingOptions', () => {
+    it('offers the raw read and the ad lookup', () => {
+      expect(mappingOptions.map(o => o.name)).toEqual(['raw', 'ad_table_lookup']);
+    });
+
+    it('labels the lookup in researcher language, not join jargon', () => {
+      const ad = mappingOptions.find(o => o.name === AD_TABLE_LOOKUP_MAPPING);
       expect(ad?.label).toBe('Ad (which ad recruited them)');
-      expect(ad?.label).not.toMatch(/ad_id|attribution|mapping/i);
+      expect(ad?.label).not.toMatch(/ad_id|token|attribution|join/i);
+    });
+
+    it('is only offered for a metadata read', () => {
+      // The mapping says what to do with a metadata value. There is nothing for
+      // it to mean on a survey response.
+      expect(showsMapping('metadata')).toBe(true);
+      expect(showsMapping('variable')).toBe(false);
+      expect(showsMapping('')).toBe(false);
     });
   });
 
   describe('aggregateForLocation', () => {
-    // Ad-derived and metadata-derived values are recruitment-time constants:
-    // you attribute someone to the ad that recruited them. Only a survey
-    // answer can meaningfully be updated later.
-    it('gives ad "first", exactly like metadata', () => {
-      expect(aggregateForLocation('ad')).toBe('first');
+    // Metadata-derived values are recruitment-time constants: you attribute
+    // someone to the ad that recruited them, and to the metadata they arrived
+    // with. Only a survey answer can meaningfully be updated later.
+    it('gives metadata "first"', () => {
       expect(aggregateForLocation('metadata')).toBe('first');
     });
 
@@ -62,18 +87,31 @@ describe('flyExtraction', () => {
   });
 
   describe('isKeyedLocation', () => {
-    it('treats ad and metadata as keyed, variable as not', () => {
-      expect(isKeyedLocation('ad')).toBe(true);
+    it('treats metadata as keyed and variable as not', () => {
       expect(isKeyedLocation('metadata')).toBe(true);
       expect(isKeyedLocation('variable')).toBe(false);
       expect(isKeyedLocation('')).toBe(false);
     });
   });
 
+  describe('isAdTableLookup', () => {
+    it('is true only for the lookup mapping', () => {
+      expect(isAdTableLookup(lookup())).toBe(true);
+      expect(isAdTableLookup(blank({ location: 'metadata', mapping: 'raw' }))).toBe(false);
+      expect(isAdTableLookup(blank({ location: 'metadata' }))).toBe(false);
+    });
+  });
+
   describe('applyChange', () => {
-    it('sets aggregate "first" when ad is selected', () => {
-      const result = applyChange(blank(), 'location', 'ad');
-      expect(result.location).toBe('ad');
+    it('defaults the mapping to raw', () => {
+      // Absent means raw everywhere that reads it, so a conf stored before this
+      // field existed keeps meaning what it meant.
+      expect(applyChange(blank(), 'key', 'gender').mapping).toBe('raw');
+    });
+
+    it('sets aggregate "first" when metadata is selected', () => {
+      const result = applyChange(blank(), 'location', 'metadata');
+      expect(result.location).toBe('metadata');
       expect(result.aggregate).toBe('first');
     });
 
@@ -81,24 +119,33 @@ describe('flyExtraction', () => {
       expect(applyChange(blank(), 'location', 'variable').aggregate).toBe('last');
     });
 
-    it('resets a stale response path when switching to ad', () => {
-      // The bug this prevents: a conf built as `variable` with
-      // path "response", then switched to `ad`, would keep trying to select
-      // "response" out of a bare metadata string and fail extraction for
-      // every single event.
-      const stale = blank({
-        location: 'variable',
-        functions: [{ function: 'select', params: { path: 'response' } }],
-      });
-
-      const result = applyChange(stale, 'location', 'ad');
-
-      expect(result.functions).toEqual([
-        { function: 'select', params: { path: '' } },
-      ]);
+    it('sets the lookup mapping when it is chosen', () => {
+      const result = applyChange(
+        blank({ location: 'metadata' }),
+        'mapping',
+        AD_TABLE_LOOKUP_MAPPING
+      );
+      expect(result.mapping).toBe(AD_TABLE_LOOKUP_MAPPING);
     });
 
-    it('resets a stale response path when switching to metadata too', () => {
+    it('keeps the lookup mapping while the location stays metadata', () => {
+      expect(applyChange(lookup(), 'location', 'metadata').mapping).toBe(
+        AD_TABLE_LOOKUP_MAPPING
+      );
+    });
+
+    it('resets the mapping to raw when switching away from metadata', () => {
+      // The bug this prevents: a conf left as `variable` + `ad_table_lookup` is
+      // rejected at config time — and worse, its `key` would look like a
+      // declaration of where the ad token lives, which is how a study ends up
+      // classifying every respondent against the wrong metadata key.
+      expect(applyChange(lookup(), 'location', 'variable').mapping).toBe('raw');
+    });
+
+    it('resets a stale response path when switching to metadata', () => {
+      // A conf built as `variable` with path "response", then switched, would
+      // keep trying to select "response" out of a bare metadata string and fail
+      // extraction for every single event.
       const stale = blank({
         location: 'variable',
         functions: [{ function: 'select', params: { path: 'response' } }],
@@ -128,34 +175,48 @@ describe('flyExtraction', () => {
     });
 
     it('passes other fields straight through', () => {
-      expect(applyChange(blank(), 'key', 'gender').key).toBe('gender');
-      expect(applyChange(blank(), 'name', 'md:gender').name).toBe('md:gender');
+      expect(applyChange(blank(), 'key', 'vt').key).toBe('vt');
+      expect(applyChange(blank(), 'name', 'gender').name).toBe('gender');
     });
 
     it('always sets value_type categorical', () => {
-      expect(applyChange(blank(), 'location', 'ad').value_type).toBe('categorical');
+      expect(applyChange(blank(), 'location', 'metadata').value_type).toBe(
+        'categorical'
+      );
     });
   });
 
-  describe('placeholders', () => {
-    it('asks for a stratum metadata key when the location is ad', () => {
-      // For an ad-derived variable the key is one of the stratum metadata keys
-      // the study's ads were built with, not a field in the survey data.
-      expect(keyPlaceholder('ad')).toMatch(/ad metadata key/i);
-      expect(keyPlaceholder('ad')).toMatch(/creative/);
+  describe('prompts', () => {
+    it('asks for the token key when the mapping is a lookup', () => {
+      // For a lookup, `key` addresses the TOKEN, not the stratum variable.
+      // Getting this backwards is the easy mistake, so the prompt says which.
+      expect(keyPlaceholder(lookup())).toMatch(/token/i);
+      expect(keyPlaceholder(lookup())).toMatch(/vt/);
     });
 
-    it('keeps the data-source wording for other locations', () => {
-      expect(keyPlaceholder('variable')).toBe(
+    it('keeps the data-source wording for a raw read', () => {
+      expect(keyPlaceholder(blank({ location: 'variable' }))).toBe(
         'What is the variable called in the data source?'
       );
-      expect(keyPlaceholder('metadata')).toBe(
+      expect(keyPlaceholder(blank({ location: 'metadata' }))).toBe(
         'What is the variable called in the data source?'
+      );
+    });
+
+    it('asks for a stratum variable as the name of a lookup', () => {
+      // `name` does double duty for a lookup: the output name AND the key into
+      // the ad's frozen row, so it has to be a key the ads were built with.
+      expect(namePrompt(lookup())).toMatch(/stratum variable/i);
+      expect(namePrompt(lookup())).toMatch(/creative/);
+    });
+
+    it('keeps the ordinary naming wording otherwise', () => {
+      expect(namePrompt(blank())).toBe(
+        'What name do you use to refer to this variable?'
       );
     });
 
     it('explains that keyed locations need no response', () => {
-      expect(responsePrompt('ad')).toMatch(/looked up by key/i);
       expect(responsePrompt('metadata')).toMatch(/looked up by key/i);
       expect(responsePrompt('variable')).toBe(
         'Which response value do you want to use?'
@@ -163,36 +224,57 @@ describe('flyExtraction', () => {
     });
   });
 
-  describe('the ad location is fly-only', () => {
+  describe('the ad lookup is fly-only', () => {
     it('is absent from the Qualtrics/Typeform form', () => {
-      // Only the fly connector populates an event's ad id. Offering `ad` on a
-      // Qualtrics or Typeform source would let someone configure a variable
-      // that silently yields nothing forever — the exact quiet miscount the
-      // ad-ID design exists to prevent. If these ever get merged into one
-      // shared component, this test is the thing that should stop it.
-      expect(qualtricsLocationOptions.map(o => o.name)).not.toContain('ad');
+      // A lookup joins on the ad token, and only the fly connector carries one.
+      // Offering it on a Qualtrics or Typeform source would let someone
+      // configure a variable that silently yields nothing forever — the exact
+      // quiet miscount this design exists to prevent. If these ever get merged
+      // into one shared component, this test is the thing that should stop it.
+      expect(qualtricsMappingOptions).toEqual([]);
       expect(qualtricsLocationOptions.map(o => o.name)).toEqual([
         '',
         'metadata',
         'variable',
       ]);
+      expect(qualtricsLocationOptions.map(o => o.name)).not.toContain('ad');
     });
   });
 
   describe('round trip into what swoosh reads', () => {
-    it('produces a conf shaped exactly as the "ad" retrieve function expects', () => {
-      // swoosh's getRetrieveFunc switches on `location`, retrieveFromAd looks
-      // up `key` in the frozen ad_attributions metadata blob, addValue
-      // resolves repeats by `aggregate`, and the variable lands under `name`.
-      // This is the whole contract the form has to satisfy.
+    it('produces a conf shaped exactly as the lookup expects', () => {
+      // swoosh's getRetrieveFunc switches on `location`, retrieveFromMetadata
+      // reads `key` (the token) out of the event metadata, joins it against
+      // ad_attributions.ref_token, and takes `name` off the frozen row — which
+      // is also what the variable is called. addValue resolves repeats by
+      // `aggregate`. This is the whole contract the form has to satisfy.
+      let conf = blank();
+      conf = applyChange(conf, 'name', 'gender');
+      conf = applyChange(conf, 'location', 'metadata');
+      conf = applyChange(conf, 'mapping', AD_TABLE_LOOKUP_MAPPING);
+      conf = applyChange(conf, 'key', 'vt');
+
+      expect(conf).toEqual({
+        name: 'gender',
+        location: 'metadata',
+        mapping: 'ad_table_lookup',
+        key: 'vt',
+        functions: [{ function: 'select', params: { path: '' } }],
+        aggregate: 'first',
+        value_type: 'categorical',
+      });
+    });
+
+    it('produces an unchanged raw conf, as every existing study has', () => {
       let conf = blank();
       conf = applyChange(conf, 'name', 'md:gender');
-      conf = applyChange(conf, 'location', 'ad');
+      conf = applyChange(conf, 'location', 'metadata');
       conf = applyChange(conf, 'key', 'gender');
 
       expect(conf).toEqual({
         name: 'md:gender',
-        location: 'ad',
+        location: 'metadata',
+        mapping: 'raw',
         key: 'gender',
         functions: [{ function: 'select', params: { path: '' } }],
         aggregate: 'first',
