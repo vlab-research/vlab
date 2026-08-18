@@ -6,6 +6,11 @@ this export is one sentence for the researcher:
     left-join your fly export on `ad_id` and you get your old metadata columns
     back, under the same names.
 
+For a study using the encoded ref, the join column is `ref_token` instead --
+fly exposes it as the response metadata key `vt`. Same sentence, different key,
+and which one applies is fixed by the study's ref mode rather than chosen per
+row. Both columns are always present; the one that does not apply is empty.
+
 That is only true because the frozen metadata blob is key-for-key the dict the
 dotted ref used to carry (see documentation/ad-attributions.md, invariant 1).
 The blob's keys therefore become the CSV's columns verbatim, rather than being
@@ -19,7 +24,10 @@ from typing import Any, Dict, List, Sequence
 # Columns that come from the row itself rather than from the frozen blob.
 # `created` trails the metadata so the ad's own identity leads and the
 # researcher's familiar column names sit together in the middle.
-LEADING_COLUMNS = ["ad_id", "network"]
+# `ref_token` sits with the ad's identity because that is what it is: the other
+# key a respondent can arrive carrying. Empty for every ad whose destination is
+# not in ref_mode "encoded", which is most of them.
+LEADING_COLUMNS = ["ad_id", "network", "ref_token"]
 TRAILING_COLUMNS = ["created"]
 RESERVED_COLUMNS = set(LEADING_COLUMNS) | set(TRAILING_COLUMNS)
 

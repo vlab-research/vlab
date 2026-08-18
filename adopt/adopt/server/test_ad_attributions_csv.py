@@ -108,6 +108,7 @@ def test_metadata_keys_become_columns_under_their_own_names():
     assert list(parsed[0].keys()) == [
         "ad_id",
         "network",
+        "ref_token",
         "creative",
         "gender",
         "form",
@@ -121,7 +122,7 @@ def test_metadata_keys_become_columns_under_their_own_names():
 def test_ad_id_leads_and_created_trails():
     rows = [{"ad_id": "ad-1", "network": "facebook", "created": None, "metadata": {"g": "w"}}]
     header = ad_attributions_csv(rows).splitlines()[0]
-    assert header.startswith("ad_id,network,")
+    assert header.startswith("ad_id,network,ref_token,")
     assert header.endswith(",created")
 
 
@@ -162,7 +163,7 @@ def test_a_metadata_key_that_collides_with_a_row_column_is_prefixed():
 
 
 def test_empty_study_still_emits_a_header():
-    assert ad_attributions_csv([]).strip() == "ad_id,network,created"
+    assert ad_attributions_csv([]).strip() == "ad_id,network,ref_token,created"
 
 
 def test_values_needing_quoting_survive_the_round_trip():
@@ -280,7 +281,7 @@ def test_endpoint_returns_a_header_only_csv_for_a_study_with_no_ads(verify_mock)
     res = client.get(f"/{org_id}/studies/foo-study/ad-attributions.csv", headers=headers)
 
     assert res.status_code == 200
-    assert res.text.strip() == "ad_id,network,created"
+    assert res.text.strip() == "ad_id,network,ref_token,created"
 
 
 @patch("adopt.server.auth.verify_token")
@@ -307,7 +308,7 @@ def test_the_csv_columns_match_the_frozen_blob_keys(verify_mock):
     res = client.get(f"/{org_id}/studies/foo-study/ad-attributions.csv", headers=headers)
 
     parsed = _parse(res.text)
-    columns = set(parsed[0].keys()) - {"ad_id", "network", "created"}
+    columns = set(parsed[0].keys()) - {"ad_id", "network", "ref_token", "created"}
 
     assert columns == set(frozen)
     for key, value in frozen.items():

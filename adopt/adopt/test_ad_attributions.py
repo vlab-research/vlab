@@ -37,6 +37,7 @@ def _provenance(
     creative_name="Smiling",
     shortcode="mnchweek",
     metadata=None,
+    ref_token=None,
 ):
     """A provenance dict shaped exactly as marketing.ad_provenance builds one.
 
@@ -58,6 +59,7 @@ def _provenance(
             "Age": "Like Parents",
         },
         "resolved_from": "ad_id",
+        "ref_token": ref_token,
     }
 
 
@@ -449,3 +451,67 @@ def test_a_write_failure_stops_the_run_rather_than_creating_unmappable_ads():
             _run(instructions, ["ad-1", "ad-2"])
 
     assert _all_rows() == []
+
+
+# --- the encoded ref's join key -------------------------------------------
+
+
+def test_ref_token_round_trips_through_the_row():
+    """The whole point of the column: what the ad ships must come back out.
+
+    If it did not, every respondent from an encoded-ref ad would arrive carrying
+    a token that matches no row and be counted unmapped -- for the entire study,
+    and silently until someone read the counters.
+    """
+    _reset_db()
+    create_ad_attribution("ad-1", _provenance(ref_token="a7f3c20b1e"), cnf)
+
+    rows = get_ad_attributions(STUDY_ID, cnf)
+
+    assert [r["ref_token"] for r in rows] == ["a7f3c20b1e"]
+
+
+def test_a_row_without_a_token_stores_null_not_empty_string():
+    """NULL means "this ad's ref carries no token", which is a fact about the ad.
+
+    An empty string would be a value, and a value can be joined against -- so a
+    respondent arriving with an empty token could match every unencoded ad in the
+    study at once.
+    """
+    _reset_db()
+    create_ad_attribution("ad-1", _provenance(), cnf)
+
+    rows = get_ad_attributions(STUDY_ID, cnf)
+
+    assert rows[0]["ref_token"] is None
+
+
+def test_a_provenance_dict_predating_the_column_still_writes():
+    """Written with .get rather than [], so an older caller is not a crash.
+
+    Refusing the write would be strictly worse than an unattributable ad: the ad
+    exists on Facebook either way, and a missing row cannot be recovered.
+    """
+    _reset_db()
+    old_shape = _provenance()
+    del old_shape["ref_token"]
+
+    assert create_ad_attribution("ad-1", old_shape, cnf) is not None
+    assert get_ad_attributions(STUDY_ID, cnf)[0]["ref_token"] is None
+
+
+def test_the_token_is_frozen_like_everything_else_on_the_row():
+    """Append-only applies to the token too.
+
+    A re-run must not be able to rewrite it. If it could, a conf edit that
+    changed a creative name would silently repoint an existing ad's token and
+    orphan every respondent already attributed through the old one.
+    """
+    _reset_db()
+    create_ad_attribution("ad-1", _provenance(ref_token="a7f3c20b1e"), cnf)
+    create_ad_attribution("ad-1", _provenance(ref_token="ffffffffff"), cnf)
+
+    rows = get_ad_attributions(STUDY_ID, cnf)
+
+    assert len(rows) == 1
+    assert rows[0]["ref_token"] == "a7f3c20b1e"

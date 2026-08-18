@@ -136,8 +136,10 @@ CREATE TABLE ad_attributions (
        shortcode     STRING,                                  -- NULL for web/app destinations
        metadata      JSONB       NOT NULL,
        resolved_from STRING,                                  -- 'ad_id' | 'source_id'
+       ref_token     STRING,                                  -- encoded-ref join key; NULL unless ref_mode is "encoded"
        created       TIMESTAMPTZ NOT NULL DEFAULT now(),
        CONSTRAINT ad_attributions_pk PRIMARY KEY (network, ad_id)
 );
 
 CREATE INDEX idx_ad_attributions_study ON ad_attributions (study_id);
+

@@ -162,9 +162,9 @@ def create_ad_attribution(
     q = """
     INSERT INTO ad_attributions(
       network, ad_id, study_id, stratum_id,
-      creative_name, shortcode, metadata, resolved_from
+      creative_name, shortcode, metadata, resolved_from, ref_token
     )
-    VALUES(%s, %s, %s, %s, %s, %s, %s, %s)
+    VALUES(%s, %s, %s, %s, %s, %s, %s, %s, %s)
     ON CONFLICT (network, ad_id) DO NOTHING
     RETURNING *
     """
@@ -178,6 +178,10 @@ def create_ad_attribution(
         provenance.get("shortcode"),
         json.dumps(provenance["metadata"]),
         provenance.get("resolved_from"),
+        # .get, not [], so a provenance dict built before this column existed
+        # still writes. NULL then means what it always means here: this ad's ref
+        # carries no token.
+        provenance.get("ref_token"),
     )
 
     # list(), not next(): query() is a generator holding an open `with
@@ -198,7 +202,7 @@ def get_ad_attributions(study_id: str, cnf: DBConf):
     """
     q = """
     SELECT network, ad_id, study_id, stratum_id,
-           creative_name, shortcode, metadata, resolved_from, created
+           creative_name, shortcode, metadata, resolved_from, ref_token, created
     FROM ad_attributions
     WHERE study_id = %s
     ORDER BY created
