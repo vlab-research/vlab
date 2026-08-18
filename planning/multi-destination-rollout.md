@@ -7,7 +7,9 @@
 **Companion reading:**
 - `documentation/multi-destination-ads.md` — the feature doc and the measurement procedure
 - `planning/whatsapp-destination-model.md` — why multi is a third destination type
-- `planning/ad-id-attribution.md` — the attribution design Phase 2 completes
+- `planning/ad-id-attribution.md` — the original attribution design
+- `planning/encoded-ref-attribution-plan.md` — the encoded-ref rework that
+  replaced its join half, and what actually closed Blocker 2
 
 ---
 
@@ -20,19 +22,38 @@ a decision rather than a build.
 | # | Blocker | Kind | Blocks |
 |---|---|---|---|
 | 1 | The WhatsApp arm has never been observed | measurement | whether multi routes correctly at all |
-| 2 | fly never stamps `ad_id` | engineering | attribution for any thin-ref study |
+| 2 | ~~fly never stamps `ad_id`~~ **RESOLVED** | engineering | attribution for any thin-ref study |
 | 3 | `CONVERSATIONS` unavailable on the Virtual Lab Page | decision | configuring multi on that Page |
 
-### Blocker 2 is newly confirmed and was not in the original brief
+### Blocker 2 — RESOLVED, and by a different mechanism than this plan assumed
 
+**This section is kept for the reasoning; its conclusion is stale.** When written,
 `grep -rn ad_id` over `replybot/lib`, `dean`, `message-worker`, `botserver` and
-`devops/migrations` returns **nothing**. Meanwhile vlab's Go connector documents `AdID`
+`devops/migrations` returned **nothing**, while vlab's Go connector documented `AdID`
 as "a first-class column on fly's responses view, resolved by fly at
-conversation_started" (`inference/sources/fly/main.go:62-70`).
+conversation_started". So vlab froze `ad_attributions` rows and fly supplied no id to
+join them on — invisibly, since `adFields("")` returned `("", "")` and the miss was not
+even counted as `unmapped`.
 
-So vlab freezes `ad_attributions` rows and fly supplies no id to join them on. Worse,
-the miss is invisible rather than merely absent: `adFields("")` returns `("", "")`, so
-it is not even counted as `unmapped` — the bucket that exists to catch exactly this.
+Two things have since changed.
+
+fly **does** stamp `ad_id` now (`fly@020498a6`, and the arrival-health work at
+`341be39a`). But measurement then found Meta sends the Messenger referral carrying it
+for only **~31%** of ad entrants, so ad_id could never have closed this blocker on its
+own — the other 69% would have stayed unattributable.
+
+What closed it is the **encoded ref**: a deterministic opaque token minted by adopt,
+carried inside the ref itself (a carrier vlab authors, so it reaches everyone), decoded
+locally by fly and stamped at `metadata.vt`. swoosh joins on `ad_attributions.ref_token`
+via an extraction conf declaring `mapping: "ad_table_lookup"`. `ad_id` remains captured
+for monitoring and is no longer joined on at all.
+
+A default-configured thin-ref study is therefore attributable — provided it declares a
+lookup conf. `thins_its_ref_without_reading_the_mapping` warns at config time when it
+does not, which is the guard that replaces the invisible miss described above.
+
+See `planning/encoded-ref-attribution-plan.md` and
+`documentation/ad-attributions.md`.
 
 `include_metadata_in_ref` defaults **off** for both `FlyWhatsAppDestination` and
 `FlyMultiDestination`. A default-configured study of either type therefore carries only
@@ -96,16 +117,22 @@ referral carries `source_type: "ad"` and the exact ad id; arrival's form is not 
 Logged in §4.5 with the caveat that Procedure A measures the blob, not Meta's own arm
 selection.
 
-### Phase 2 — Make fly stamp the ad id *(parallel with 1; long pole)*
+### Phase 2 — ~~Make fly stamp the ad id~~ **DONE, via the encoded ref**
 
-At `conversation_started`, resolve and persist the ad id — `referral.ad_id` on
-Messenger, `referral.source_id` on WhatsApp — and expose it on the responses view the
-connector already expects. Fix the classification in the same change so a missing id
-counts as unmapped rather than vanishing.
+Originally: resolve and persist the ad id at `conversation_started` —
+`referral.ad_id` on Messenger, `referral.source_id` on WhatsApp — and expose it on the
+responses view the connector expects.
 
-**Exit:** a Messenger arrival and a WhatsApp arrival each produce a response row with
-`ad_id` set; swoosh resolves both to their stratum; a thin-ref study produces the same
-stratum counts as an equivalent full-ref one.
+That shipped (`fly@020498a6`), but measurement showed Meta sends the Messenger referral
+for only ~31% of ad entrants, so it was not sufficient. The mechanism that actually
+closes the blocker is the encoded ref: adopt mints a deterministic token into the ref,
+fly decodes it locally and stamps `metadata.vt`, and swoosh joins on
+`ad_attributions.ref_token` through a `mapping: "ad_table_lookup"` extraction conf.
+
+**Exit (met):** a Messenger arrival and a WhatsApp arrival each carry the token; swoosh
+resolves both to their stratum; a thin-ref study produces the same stratum counts as an
+equivalent full-ref one. A study that thins its ref without declaring a lookup conf is
+warned about at config time rather than silently counting zero.
 
 ### Phase 3 — Settle the optimization-goal conflict *(decision)*
 

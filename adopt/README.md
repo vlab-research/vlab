@@ -158,7 +158,7 @@ Facebook hands back already determines that ad's shortcode, creative and
 stratum metadata. Today that identity is encoded into a dotted `ref` string
 (`make_ref`) that rides to the survey platform inside every message. This
 phase adds the alternative: an `ad_attributions` table that persists
-`(network, ad_id) -> {shortcode, creative, stratum metadata}` at ad-creation
+`(network, ad_id) -> {shortcode, creative, stratum metadata, ref_token}` at ad-creation
 time, so it can be joined against later instead of parsed out of the ref.
 
 This phase builds the capture and the table only. Nothing consumes the table
@@ -251,7 +251,7 @@ study.
 
 The rows come from `get_ad_attributions` (`campaign_queries.py`) — every
 frozen row for the study, unfiltered — and are rendered by the pure functions
-in `csv_export.py`. The shape is `ad_id, network, <metadata keys...>,
+in `csv_export.py`. The shape is `ad_id, network, ref_token, <metadata keys...>,
 created`: `ad_attributions_csv` flattens the frozen `metadata` blob into
 columns under its own key names rather than nesting it, so the whole export
 reduces to one sentence for the researcher: left-join your survey export on
@@ -266,7 +266,7 @@ rows frozen under the old shape and some under the new, and append-only means
 both survive — so the header has to account for whichever rows actually
 showed up. `column_name` prefixes a metadata key as `metadata_<key>` only
 when it collides with one of the row's own columns (`LEADING_COLUMNS` —
-`ad_id`, `network` — or `TRAILING_COLUMNS` — `created` — together
+`ad_id`, `network`, `ref_token` — or `TRAILING_COLUMNS` — `created` — together
 `RESERVED_COLUMNS`), because two columns with the same header is the kind of
 thing nobody notices until the analysis is already wrong.
 
@@ -281,9 +281,9 @@ test-db`.
 
 ## Shortcode-only refs
 
-Before this, `location: "ad"` already worked, but ads still shipped vlab's
-whole stratum vocabulary into fly inside every message: the ad id duplicated
-the ref rather than replacing it, so nothing was actually decoupled.
+Before this, the ad-table join already worked, but ads still shipped vlab's
+whole stratum vocabulary into fly inside every message: the frozen row
+duplicated the ref rather than replacing it, so nothing was actually decoupled.
 `FlyMessengerDestination.include_metadata_in_ref` (`study_conf.py`) controls
 what the ref carries. It is named to match `FlyWhatsAppDestination`'s field
 of the same name — one concept, and the two channels differ only in their
@@ -311,8 +311,8 @@ mode; `messenger_ref` is the ONLY place the mode is allowed to matter. For a
 shortcode-only study, the frozen `ad_attributions` blob is the only
 attribution it will ever have. If the mode leaked into `creative_metadata`,
 that study would freeze rows containing nothing but `form` — every
-`location: "ad"` conf would resolve to nothing, every stratum would count
-zero, and the optimizer would reallocate on empty data. Silent, total, and
+`mapping: "ad_table_lookup"` conf would resolve to nothing, every stratum would
+count zero, and the optimizer would reallocate on empty data. Silent, total, and
 unrecoverable, because the blob is frozen at creation and never refreshed.
 
 Two tests pin this: identical frozen blobs from a shortcode-only and a
@@ -328,8 +328,8 @@ it cannot cascade, since each study reconciles from its own conf.
 
 Importantly, the flip is an in-place ad **update against the same ad id**,
 not a delete-and-recreate: reconciliation matches ads by name, and the
-creative name does not change. That matters because the ad id is the
-attribution key — a flip that minted new ids would strand every existing
+creative name does not change. That matters because `(network, ad_id)` is the
+table's primary key — a flip that minted new ids would strand every existing
 `ad_attributions` row and leave that study's past respondents
 unattributable. Both are asserted in tests.
 
@@ -337,15 +337,39 @@ unattributable. Both are asserted in tests.
 
 Thinning the ref only works if the study also *reads* the mapping. Do one
 without the other and the study has no attribution at all — the ref no longer
-carries the stratum and nothing looks the ad up, so every stratum counts zero
+carries the stratum and nothing looks the token up, so every stratum counts zero
 and the optimizer reallocates on empty data.
 `thins_its_ref_without_reading_the_mapping` (`study_conf.py`) detects that
-shape: a fly destination with `include_metadata_in_ref` off while no extraction
-conf declares `location: "ad"`. `warn_on_thinned_ref_without_mapping`
+shape: a fly destination whose resolved `ref_mode` is not `"metadata"` while no
+extraction conf declares `mapping: "ad_table_lookup"`. Both thin modes count,
+`"shortcode"` and `"encoded"` alike. `warn_on_thinned_ref_without_mapping`
 (`malaria.py`) logs it on every reconciliation run. It warns rather than
 raises, because a study recruiting uniformly with no `question_targeting` needs
 no stratum attribution and is entitled to a thin ref. It covers WhatsApp
 destinations too, whose default is already thin.
+
+### Validating the mapping conf
+
+`ExtractionConf` (`study_conf.py`) carries the `mapping` field the dashboard
+writes and swoosh reads, and validates it at parse time:
+
+- `location: "ad"` is **rejected** — it joined on `ad_id`, which is superseded
+  by the ref token. The error names the replacement. This fails closed, like
+  `check_whatsapp_refs_are_deliverable`: swoosh no longer resolves such a conf,
+  so a study still declaring one already counts zero silently, and refusing to
+  load it is better than letting the study recruit people it cannot attribute.
+- an unknown `mapping` is rejected.
+- `mapping: "ad_table_lookup"` on any location but `"metadata"` is rejected. The
+  token is stamped by fly, not answered by the respondent, so the combination is
+  incoherent — and dangerous, because swoosh reads a lookup conf's `key` as the
+  declaration of where the token lives.
+
+`disagreeing_token_keys` (`study_conf.py`) plus
+`warn_on_disagreeing_token_keys` (`malaria.py`) cover the one thing that cannot
+be checked per conf: every `ad_table_lookup` conf under a source must read the
+token from the same metadata key. It warns rather than raises, because swoosh
+takes the first key it finds and carries on — a raise would make that tolerance
+unreachable and stop ad reconciliation over a miscount.
 
 ### Web and App stay on full refs
 

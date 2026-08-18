@@ -115,65 +115,116 @@ WHERE conf_type = 'recruitment'
   AND ROW_NUMBER() ... = 1  -- most recent only
 ```
 
-## Ad-ID attribution
+## Ad attribution
 
-vlab creates exactly one ad per (creative, stratum) pair, so an ad's id already
+vlab creates exactly one ad per (creative, stratum) pair, so an ad already
 determines the stratum it recruits for. The Python `adopt` service freezes that
 fact at ad-creation time into an `ad_attributions` row (see
 `documentation/ad-attributions.md` for that half). The inference side is the
-read side: an event carries the id of the ad that recruited its respondent, and
-swoosh resolves stratum variables by joining on that id — instead of parsing
-them out of the dotted `ref` string that used to travel inside every message.
+read side: an event carries an opaque token identifying the ad that recruited
+its respondent, and swoosh resolves stratum variables by joining on that token
+— instead of parsing them out of the dotted `ref` string that used to travel
+inside every message.
 
-### The event fields
+### The join key is `ref_token`, not `ad_id`
 
-`InferenceDataEvent` (`inference-data/inference_data.go`) carries `AdID` and
-`AdNetwork` as first-class typed fields, not reserved keys inside
-`User.Metadata`. A map key would be a fly-shaped convention that every future
-connector has to imitate with nothing enforcing it — the same shape of mistake
-as the dotted ref, which was a convention smuggled inside an untyped blob. The
-field is the contract; each source works out how to meet it.
+Both are opaque ad identifiers resolving to the same frozen row; they differ
+only in the carrier.
 
-No migration was needed to add them: `inference_data_events` stores the whole
-event as one JSON blob in its `data` column, and both fields are `omitempty`,
-so existing rows are byte-identical to what they were before the fields
-existed.
+`ad_id` rides Meta's referral webhook, which Meta sends for only ~31% of
+Messenger ad entrants — the other 69% could never be joined. `ref_token` rides
+the ref itself, a carrier vlab authors, so it reaches essentially everyone. The
+token is minted deterministically from `(study_id, stratum_id, creative_name,
+destination_name)` and travels inside the encoded ref; fly decodes it locally
+and stamps it at `metadata.vt`.
 
-### `AdNetwork` is the ad network, not the messaging channel
+`AdID` and `AdNetwork` are still on `InferenceDataEvent` and `ad_id` is still on
+the row — fly's recruitment-health alerting gates on ad_id presence, and a
+platform that some day needs an id-carrier join could have one back in exactly
+this shape. **But nothing joins on them.** `AdAttributions` has one index,
+`ByRefToken`, and deliberately no `ByAdID`.
 
-Messenger ads and WhatsApp ads are both Meta ads sharing one id namespace, so
-both map to `NetworkFacebook` ("facebook"). `ad_attributions` is keyed
-`(network, ad_id)`, so getting this backwards makes every lookup miss — and a
-miss does not error, it attributes the respondent to no stratum. The fly
-connector (`sources/fly/main.go`) derives the network from fly's `platform`
-metadata key via `adNetworkForPlatform`/`platformFromMetadata`; an
-unrecognised platform yields `""` rather than a guess.
+### The `mapping` field
 
-### `location: "ad"`
+`ExtractionConf` carries one field that says what to do with the value read from
+its `location`:
 
-A third value alongside `"variable"` and `"metadata"` in swoosh's
-`getRetrieveFunc` (`swoosh/inference_data.go`). The user declares these confs
-with the same `ExtractionConf` shape as any other location — vlab derives
-nothing.
+| `mapping` | Meaning |
+|---|---|
+| `""` / `"raw"` | the value read IS the answer. The default, so every conf written before the field existed keeps meaning what it meant. |
+| `"ad_table_lookup"` | the value read is an opaque token; the answer is a stratum variable off the frozen row that token identifies. |
 
-There is deliberately **no fallback to `location: "metadata"`, and adding one
-would be a bug**: swoosh recomputes a study's entire history on every run, so a
-fallback would let someone swap an existing study's conf and silently
-re-attribute its whole back-catalogue through a path its events cannot
-satisfy (pre-ad-id rows carry no ad id and are never backfilled).
-`location: "ad"` is for new studies only; existing studies keep `"metadata"`
-and full refs permanently.
+`location` is unchanged (`metadata` \| `variable`). There is no `"ad"` location
+and there never really was one — the token lives in metadata, so reading it is
+an ordinary metadata read. What makes a variable ad-derived is the mapping. The
+old `location: "ad"` is **removed**; `getRetrieveFunc` returns an error naming
+its replacement, and adopt's config-time validation rejects it outright.
+
+Both other fields are contextual to the mapping, which is the one genuinely
+confusing part:
+
+```
+{location: "metadata", key: "vt", mapping: "ad_table_lookup", name: "gender"}
+
+  metadata["vt"]                -> the token        (key = WHERE TO READ)
+  attributions.ByRefToken[…]    -> the frozen row   (the only automatic step)
+  row.Metadata["gender"]        -> "women"          (name = which stratum var)
+```
+
+- **`key`** addresses the token, never the stratum variable. It is never
+  hardcoded: fly stamps `vt` by convention and the conf says `key: "vt"` to
+  match, so a platform surfacing the token elsewhere just declares that key.
+- **`name`** is the output variable name *and* the key into the frozen row. It
+  does double duty because you name the output after the stratum variable it
+  pulls anyway. This is the one constraint the design carries.
+
+A lookup is valid only on `location: "metadata"`. The combination with
+`"variable"` is rejected both at config time and in `getRetrieveFunc`, because
+swoosh reads a lookup conf's `key` as the declaration of where the token lives
+— one stray conf would otherwise have every respondent in the study classified
+against the wrong metadata key.
+
+### No runtime mechanism selection, and no fallback
+
+The mechanism is a property of the study's conf, fixed at config time. swoosh
+never inspects an event to decide whether to use `ad_id` or `ref_token`, and a
+token that matches no row is `unmapped` — never a quiet retry against `ad_id`.
+
+A runtime choice would make a genuine miss indistinguishable from a study
+part-way through switching mechanisms, and every debugging session an
+archaeology exercise. It is also why `ad_table_lookup` is for **new studies
+only**: swoosh recomputes a study's entire history on every run, so swapping an
+existing study's confs over would retroactively re-attribute its whole
+back-catalogue through a path its events cannot satisfy (rows written before
+the study's ads carried an encoded ref have no token and are never backfilled).
+Every historical respondent would extract nothing, match no stratum, and vanish
+from the counts.
+
+### The token is unquoted before joining
+
+Metadata values are JSON, so the token arrives as a quoted JSON string
+(`"a1b2c3d4e5"`) while `ad_attributions.ref_token` is scanned out of a text
+column bare. Joining the raw bytes would miss every single time, on a value that
+looks correct in every log line it appears in. `metadataToken`
+(`swoosh/inference_data.go`) does the unquoting; a value that is not a JSON
+string is treated as no token at all.
 
 ### Where the database touch lives
 
 `GetAdAttributions` (`swoosh/ad_attributions.go`) runs once per study in
 `swooshStudy`, before `Reduce`. `Reduce` takes the mapping as plain data and
-`retrieveFromAd` closes over it. This is deliberate: `RetrieveFunc` has no
+`retrieveFromMetadata` closes over it. This is deliberate: `RetrieveFunc` has no
 context and no error and runs once per event per conf, so a query inside it
 would be one query per response. The load is also per-study, so a foreign
-study's ad id misses the lookup rather than importing that study's strata —
+study's token misses the lookup rather than importing that study's strata —
 and keeping the lookup out of `Reduce` is what keeps `Reduce` pure and
-unit-testable against a fake map.
+unit-testable against a fake mapping.
+
+A row whose `ref_token` is NULL is loaded but not indexed. NULL is the normal
+case and means something: that ad's ref carries no token because its destination
+is not in `ref_mode: "encoded"`. It has no join key, so there is nothing to
+index it under — and critically it must not land under `""`, where every
+tokenless respondent would match it.
 
 ### The three-way split
 
@@ -182,19 +233,27 @@ against the study's mapping:
 
 | Outcome | Meaning | Handling |
 |---|---|---|
-| attributed | ad id present, mapping row found | normal, no event |
-| organic | no ad id on the event | expected; counted as a warning, does not alarm |
-| unmapped | ad id present, no mapping row | always a bug; counted at severity `error` |
+| attributed | token present, mapping row found | normal, no event |
+| organic | no token on the event | expected; counted as a warning, does not alarm |
+| unmapped | token present, no mapping row | always a bug; counted at severity `error` |
 
-Classification happens once per *event*, not per conf, so one organic arrival
-is not multiplied by the number of ad confs a study declares (see
-`hasAdConf`). `classifyExtractionError` (`swoosh/events.go`) maps `unmapped` to
-`error` severity and `organic` to `warning`, alongside the existing
-`source=`-prefixed warnings.
+Classification happens once per *event*, not per conf, so one organic arrival is
+not multiplied by the number of lookup confs a study declares (see
+`tokenLookupKey`). `classifyExtractionError` (`swoosh/events.go`) maps
+`unmapped` to `error` severity and `organic` to `warning`, alongside the
+existing `source=`-prefixed warnings. Every outcome's details name the mechanism
+(`ref_token`) and the key it read, so a miss is diagnosable from the row.
 
 Unmapped is self-healing: swoosh recomputes everything each run, so inserting
 the missing `ad_attributions` row retroactively fixes prior runs, and the
 dashboard's recency window ages the stale error out on its own.
+
+`tokenLookupKey` takes the *first* lookup conf's key when a source declares
+several. All of them are supposed to agree — one respondent has one token in one
+place — and adopt's `disagreeing_token_keys` warns at config time when they do
+not. swoosh guesses rather than refusing because it recomputes whole studies
+unattended, and refusing to classify would cost a study its counts over a conf
+problem no run can fix from the inside.
 
 ### Tests
 
@@ -202,8 +261,9 @@ dashboard's recency window ages the stale error out on its own.
   tests, plus DB-backed `swooshStudy` tests (needs `make test-db`).
 - The ad-attribution section of `sources/fly/main_test.go`.
 
-See `documentation/ad-attributions.md` and `planning/ad-id-attribution.md` for
-more detail, including the write side in `adopt`.
+See `documentation/ad-attributions.md` and
+`planning/encoded-ref-attribution-plan.md` for more detail, including the write
+side in `adopt`.
 
 ## Execution Model
 

@@ -29,10 +29,12 @@ unobserved, non-random mechanism optimised on predicted responsiveness, and
 channel correlates with demographics, so who lands on WhatsApp versus Messenger
 is systematically non-random in a way nothing in the stored data records.
 
-Attribution is untouched — one ad, one ad id, one stratum, one
-`ad_attributions` row, and the mapping is channel-agnostic by construction. But
-channel is no longer derivable from the ad id. It is recoverable only from
-`md.platform` on the response record, never from the mapping table.
+Attribution is untouched — one ad, one join key, one stratum, one
+`ad_attributions` row, and the mapping is channel-agnostic by construction. That
+holds under either key: a multi ad has one `ad_id` and one `ref_token`, and the
+frozen blob is identical on both arms. But channel is no longer derivable from
+the join key. It is recoverable only from `md.platform` on the response record,
+never from the mapping table.
 
 **If you want to compare channels, use two single-destination destinations in a
 `DestinationRecruitmentExperiment`** — which is what the derivation in §2 makes
@@ -280,8 +282,12 @@ python scripts/ctwa_probe.py --mode cleanup --campaign <CAMPAIGN_ID>
 
 **(d) is the one that decides it.** If the compose box holds Meta's default
 text, multi-destination cannot route to fly on WhatsApp with the current
-mechanism, and the feature stays gated until an ad-id routing path exists in fly
-— which does not exist and is out of scope for the attribution design.
+mechanism, and the feature stays gated. Note that the encoded ref does not
+rescue this case: fly's WhatsApp entry gate accepts an `r.<base64url>` anchor as
+well as `form.<shortcode>`, but if Meta replaces the compose text with its own
+default prefill then *no* vlab-authored token survives, in any serialisation. A
+routing path that does not depend on the compose box at all — recovering the ad
+from the referral rather than the text — remains out of scope here.
 
 Also confirm `current_form` in `states` is **not** `305`. `305` is
 `FALLBACK_FORM`: the routing token did not survive.
