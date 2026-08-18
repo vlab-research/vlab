@@ -19,10 +19,12 @@ from facebook_business.adobjects.customaudience import CustomAudience
 from facebook_business.adobjects.targeting import Targeting
 
 from .budget import Budget
+from .ref_encoding import encoded_ref, mint_ref_token
 from .facebook.reconciliation import adset_dif
 from .facebook.state import CampaignState, FacebookState, StateNameError, split
 from .facebook.update import Instruction
 from .study_conf import (
+    InvalidConfigError,
     AppDestination,
     Audience,
     CreativeConf,
@@ -308,6 +310,7 @@ def messenger_ref(
     creative_name: str,
     metadata: Metadata,
     destination: Union[FlyMessengerDestination, FlyMultiDestination],
+    token: Optional[str] = None,
 ) -> str:
     """What a Messenger ad puts in `referral.ref`.
 
@@ -322,8 +325,13 @@ def messenger_ref(
     zero, and the optimizer would reallocate on empty data — silently, and
     unrecoverably, because the blob is frozen at creation and never refreshed.
     """
-    if destination.include_metadata_in_ref:
+    mode = destination.resolved_ref_mode
+
+    if mode == "metadata":
         return make_ref(creative_name, metadata)
+
+    if mode == "encoded":
+        return encoded_ref(destination.initial_shortcode, _require_token(token, destination))
 
     return shortcode_ref(destination.initial_shortcode)
 
@@ -340,6 +348,76 @@ def whatsapp_call_to_action() -> dict:
         "type": "WHATSAPP_MESSAGE",
         "value": {"app_destination": "WHATSAPP"},
     }
+
+
+def _require_token(token: Optional[str], destination) -> str:
+    """The token an encoded ref cannot be built without.
+
+    A programming error, not a config error: `ad_ref_token` mints one for every
+    destination whose mode is "encoded", so a None here means a call site
+    computed the mode and the token differently. Raising beats defaulting --
+    there is no safe stand-in, and an ad published with a placeholder token
+    would attribute every one of its respondents to the same wrong row.
+    """
+    if token is None:
+        raise ValueError(
+            f"Destination '{destination.name}' uses ref_mode='encoded' but no "
+            "ref token was supplied; call ad_ref_token() and pass the result."
+        )
+
+    return token
+
+
+def ad_ref_token(
+    study: StudyConf,
+    stratum: Stratum,
+    config: CreativeConf,
+    destination: DestinationConf,
+) -> Optional[str]:
+    """The opaque token this ad's ref carries, or None if its mode has none.
+
+    One place, so the ref and the frozen `ad_attributions` row cannot disagree
+    about what the token is -- if they did, every respondent from this ad would
+    arrive with a token that joins to nothing and be counted unmapped.
+
+    The grain is (study, stratum, creative, destination), which is exactly the
+    grain of an ad and therefore of a mapping row.
+    """
+    if not isinstance(
+        destination,
+        (FlyMessengerDestination, FlyWhatsAppDestination, FlyMultiDestination),
+    ):
+        return None
+
+    if destination.resolved_ref_mode != "encoded":
+        return None
+
+    return mint_ref_token(study.id, stratum.id, config.name, destination.name)
+
+
+def whatsapp_ref(
+    creative_name: str,
+    metadata: Metadata,
+    destination: Union[FlyWhatsAppDestination, FlyMultiDestination],
+    token: Optional[str] = None,
+) -> str:
+    """What a click-to-WhatsApp ad prefills, under whichever mode applies.
+
+    The WhatsApp counterpart of `messenger_ref`, and deliberately its mirror:
+    one function per channel, each the only place that channel's mode is allowed
+    to matter. A multi destination calls both, so its two arms always disclose
+    the same amount -- one mode, two grammars.
+    """
+    mode = destination.resolved_ref_mode
+
+    if mode == "encoded":
+        return encoded_ref(
+            destination.initial_shortcode, _require_token(token, destination)
+        )
+
+    ref_md = ref_metadata(creative_name, metadata) if mode == "metadata" else None
+
+    return whatsapp_autofill(destination.initial_shortcode, ref_md)
 
 
 def whatsapp_autofill(shortcode: str, ref_md: Optional[Metadata] = None) -> str:
@@ -765,13 +843,19 @@ def create_creative(
 ) -> AdCreative:
     md = creative_metadata(study, stratum, destination)
 
+    # Minted once per ad and threaded into every carrier below, so a multi
+    # destination's Messenger and WhatsApp arms cannot end up with different
+    # tokens -- that would be one ad, two mapping identities, and half its
+    # respondents attributed to a row that does not exist.
+    token = ad_ref_token(study, stratum, config, destination)
+
     if isinstance(destination, FlyMessengerDestination):
         # One ref, both carriers. Messenger ships it twice — as url_tags, which
         # Meta surfaces as referral.ref, and inside the welcome message's
         # quick-reply payload — and a respondent can arrive by either. Emitting
         # different refs on the two paths would mean the same ad describing two
         # different people depending on how they tapped it.
-        ref = messenger_ref(config.name, md, destination)
+        ref = messenger_ref(config.name, md, destination, token)
         msg = make_welcome_message(
             destination.welcome_message, destination.button_text, ref
         )
@@ -788,12 +872,7 @@ def create_creative(
         # autofill text is the only carrier, and it is respondent-visible and
         # respondent-editable, which is the other reason the default is the
         # shortcode alone.
-        ref_md = (
-            ref_metadata(config.name, md)
-            if destination.include_metadata_in_ref
-            else None
-        )
-        autofill = whatsapp_autofill(destination.initial_shortcode, ref_md)
+        autofill = whatsapp_ref(config.name, md, destination, token)
         msg = make_whatsapp_welcome_message(destination.welcome_message, autofill)
 
         return _create_creative(
@@ -824,13 +903,8 @@ def create_creative(
         # anchors on `form.` while make_ref leads with `creative.`, so make_ref
         # output can never match it -- and one ref mode drives both, so the two
         # arms of a single ad always agree about how much they disclose.
-        ref = messenger_ref(config.name, md, destination)
-        ref_md = (
-            ref_metadata(config.name, md)
-            if destination.include_metadata_in_ref
-            else None
-        )
-        autofill = whatsapp_autofill(destination.initial_shortcode, ref_md)
+        ref = messenger_ref(config.name, md, destination, token)
+        autofill = whatsapp_ref(config.name, md, destination, token)
 
         msg = make_multi_welcome_message(
             destination.welcome_message, destination.button_text, ref, autofill
@@ -919,7 +993,7 @@ def ad_provenance(
     adset_instructions uses to build the ads themselves, so an ad and its
     provenance can only ever describe the same thing.
     """
-    return {
+    provenance = {
         (stratum.id, config.name): {
             "study_id": study.id,
             "stratum_id": stratum.id,
@@ -933,12 +1007,57 @@ def ad_provenance(
             # future path (a WhatsApp referral's source_id, say) is
             # distinguishable from this one without archaeology.
             "resolved_from": "ad_id",
+            # None for every mode but "encoded". Nullable rather than absent so
+            # the column means "this ad's ref carries no token", which is a fact
+            # about the ad, not a gap in the record.
+            "ref_token": ad_ref_token(study, stratum, config, destination),
         }
         for stratum in strata
         for config, destination in pair_creatives_with_destinations(
             study, stratum, campaign_name
         )
     }
+
+    assert_ref_tokens_unique(provenance)
+
+    return provenance
+
+
+def assert_ref_tokens_unique(provenance: Dict[Tuple[str, str], Dict[str, Any]]) -> None:
+    """Refuse to publish a campaign whose ads share a ref token.
+
+    A collision means two ads mint the same join key, so every respondent from
+    either is attributed to whichever mapping row was written second. That is a
+    wrong answer rather than a missing one: the strata still count, they just
+    count the wrong people, and nothing downstream can detect it -- the token
+    resolves, so it is not "unmapped", and the numbers look plausible.
+
+    Raising here, at instruction-generation time, is the last moment it is
+    cheap. Past this point the ads exist on Facebook and are spending money.
+
+    Two things can cause it, and both are worth a loud failure: a genuine
+    40-bit digest collision (vanishingly unlikely -- see REF_TOKEN_BYTES), or
+    two ads whose (study, stratum, creative, destination) tuples are actually
+    identical, which is a duplicate ad and a config bug in its own right.
+    """
+    seen: Dict[str, List[Tuple[str, str]]] = {}
+
+    for key, row in provenance.items():
+        token = row.get("ref_token")
+
+        if token is not None:
+            seen.setdefault(token, []).append(key)
+
+    collisions = {t: keys for t, keys in seen.items() if len(keys) > 1}
+
+    if collisions:
+        detail = "; ".join(
+            f"{token} shared by {sorted(keys)}" for token, keys in sorted(collisions.items())
+        )
+        raise InvalidConfigError(
+            f"Ref token collision -- two ads would mint the same attribution "
+            f"key, so their respondents would be indistinguishable: {detail}"
+        )
 
 
 def template_page_id(config: CreativeConf) -> Optional[str]:

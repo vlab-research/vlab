@@ -11,9 +11,11 @@ from facebook_business.adobjects.adcreative import AdCreative
 from facebook_business.adobjects.customaudience import CustomAudience
 
 from .facebook.field_contract import COMPARED_ADSET
+from .ref_encoding import decode_recruitment_ref
 from .facebook.reconciliation import ad_dif
 from .facebook.update import Instruction
 from .marketing import (
+    assert_ref_tokens_unique,
     _create_creative,
     ad_provenance,
     adset_destination_type,
@@ -35,6 +37,7 @@ from .marketing import (
     whatsapp_autofill,
 )
 from .study_conf import (
+    InvalidConfigError,
     MULTI_DESTINATION_ENV_VAR,
     AppDestination,
     Audience,
@@ -549,13 +552,14 @@ def test_create_creative_from_template_photo_web():
 # ---------------------------------------------------------------------------
 
 
-def _messenger_dest(name, shortcode):
+def _messenger_dest(name, shortcode, ref_mode=None):
     return FlyMessengerDestination(
         type="messenger",
         name=name,
         initial_shortcode=shortcode,
         welcome_message="Welcome!",
         button_text="OK",
+        ref_mode=ref_mode,
     )
 
 
@@ -939,6 +943,9 @@ def test_ad_provenance_row_contents():
             "creative": "Smiling",
         },
         "resolved_from": "ad_id",
+        # None under every ref mode but "encoded": this destination's ref
+        # carries no token, which is a fact about the ad rather than a gap.
+        "ref_token": None,
     }
 
 
@@ -1022,12 +1029,34 @@ WHATSAPP_ENTRY_REF = re.compile(
 )
 
 
+# The second anchor, copied verbatim from WHATSAPP_ENTRY_REF_ENCODED in the same
+# file at fly@feature/recruitment-arrival-health 341be39a.
+#
+# A distinct anchor rather than a widening of the first, deliberately: `form.` is
+# always dot-pairs and `r.` is always opaque, so fly never has to guess which
+# grammar it is looking at. Note the capture group preserves case -- base64url is
+# case-significant, so a gate that lowercased the token would corrupt every
+# encoded ref while appearing to accept it.
+WHATSAPP_ENTRY_REF_ENCODED = re.compile(
+    r"^(?:start\s+)?r\.([A-Za-z0-9_-]+)$",
+    re.IGNORECASE,
+)
+
+
 def _fly_would_accept(text: str) -> bool:
-    """What fly's _refFromText does: full match on the trimmed body."""
-    return bool(WHATSAPP_ENTRY_REF.match(text.strip()))
+    """What fly's _refFromText does: full match on the trimmed body.
+
+    Either anchor, since fly tries the encoded pattern first and falls back to
+    the dotted one -- that is a choice between two *grammars*, made by what the
+    text starts with, not a fallback between attribution mechanisms.
+    """
+    text = text.strip()
+    return bool(
+        WHATSAPP_ENTRY_REF_ENCODED.match(text) or WHATSAPP_ENTRY_REF.match(text)
+    )
 
 
-def _whatsapp_dest(shortcode="mnchweek", full_ref=False, additional=None):
+def _whatsapp_dest(shortcode="mnchweek", full_ref=False, additional=None, ref_mode=None):
     return FlyWhatsAppDestination(
         type="whatsapp",
         name="whatsapp",
@@ -1035,7 +1064,7 @@ def _whatsapp_dest(shortcode="mnchweek", full_ref=False, additional=None):
         welcome_message="Tap send to start",
         whatsapp_phone_number="+1-541-920-2635",
         additional_metadata=additional,
-        include_metadata_in_ref=full_ref,
+        **({"ref_mode": ref_mode} if ref_mode else {"include_metadata_in_ref": full_ref}),
     )
 
 
@@ -1854,7 +1883,7 @@ def multi_enabled(monkeypatch):
     monkeypatch.setenv(MULTI_DESTINATION_ENV_VAR, "true")
 
 
-def _multi_dest(shortcode="mnchweek", full_ref=False, additional=None, name="multi"):
+def _multi_dest(shortcode="mnchweek", full_ref=False, additional=None, name="multi", ref_mode=None):
     return FlyMultiDestination(
         type="multi",
         name=name,
@@ -1863,7 +1892,7 @@ def _multi_dest(shortcode="mnchweek", full_ref=False, additional=None, name="mul
         button_text="Start survey",
         whatsapp_phone_number="+1-541-920-2635",
         additional_metadata=additional,
-        include_metadata_in_ref=full_ref,
+        **({"ref_mode": ref_mode} if ref_mode else {"include_metadata_in_ref": full_ref}),
     )
 
 
@@ -2548,3 +2577,193 @@ def test_destination_type_and_promoted_object_ride_only_on_creates():
     """
     assert "destination_type" not in COMPARED_ADSET
     assert "promoted_object" not in COMPARED_ADSET
+
+
+# --- the encoded ref, end to end -------------------------------------------
+#
+# The producer half of the format fly already decodes. What these pin is not the
+# encoding itself (test_ref_encoding.py owns that, against golden bytes) but the
+# wiring: that every carrier on a creative gets the same token, that the frozen
+# blob is untouched by the mode, and that the ad_attributions row carries the
+# token the ad actually ships.
+
+
+def _decoded(ref):
+    """The (form, token) fly would recover from a ref this ad ships."""
+    assert ref.startswith("r."), ref
+    return decode_recruitment_ref(ref[2:])
+
+
+def _encoded_messenger_ad(metadata=None, shortcode="mnchweek"):
+    """A real messenger creative under ref_mode="encoded"."""
+    dest = _messenger_dest("messenger", shortcode, ref_mode="encoded")
+    config = CreativeConf(
+        destination=dest.name,
+        name="Smiling",
+        template=_load_template("image_ad_messenger.json"),
+    )
+    study = _study([dest], [config])
+    stratum = _stratum_with_md(
+        "stratum-1", [config], PRODUCTION_METADATA if metadata is None else metadata
+    )
+    return create_creative(study, stratum, config, dest), study, stratum, config, dest
+
+
+def test_an_encoded_messenger_ad_ships_the_same_token_on_both_carriers():
+    """Messenger has two carriers and a respondent can arrive by either.
+
+    Different tokens on the two would mean one ad describing two different
+    people depending on how they tapped it -- the same reasoning that makes the
+    dotted ref identical on both.
+    """
+    ad, _, _, _, _ = _encoded_messenger_ad({"gender": "women"})
+
+    from_url_tags = ad["url_tags"].removeprefix("ref=")
+    from_payload = _welcome_payload_ref(ad)
+
+    assert from_url_tags == from_payload
+    assert _decoded(from_url_tags).form == "mnchweek"
+
+
+def test_an_encoded_ref_carries_the_shortcode_and_nothing_of_the_stratum():
+    """The point of the format: routes without disclosing the vocabulary."""
+    ad, _, _, _, _ = _encoded_messenger_ad()
+    ref = ad["url_tags"].removeprefix("ref=")
+
+    assert _decoded(ref).form == "mnchweek"
+
+    for value in PRODUCTION_METADATA.values():
+        assert value not in ref
+    assert "Smiling" not in ref
+
+
+def test_an_encoded_whatsapp_autofill_is_accepted_by_flys_entry_gate():
+    """Against fly's second anchor, since `form.` cannot match an opaque ref."""
+    dest = _whatsapp_dest(ref_mode="encoded")
+    config = CreativeConf(
+        destination=dest.name,
+        name="Smiling",
+        template=_load_template("image_ad_messenger.json"),
+    )
+    study = _whatsapp_study([dest], [config])
+    stratum = _stratum_with_md("stratum-1", [config], PRODUCTION_METADATA)
+
+    ad = create_creative(study, stratum, config, dest)
+    welcome = json.loads(ad["object_story_spec"]["link_data"]["page_welcome_message"])
+    autofill = welcome["text_format"]["message"]["autofill_message"]["content"]
+
+    assert WHATSAPP_ENTRY_REF_ENCODED.match(autofill), autofill
+    assert _decoded(autofill).form == "mnchweek"
+
+
+def test_a_multi_ads_two_arms_carry_one_token(multi_enabled):
+    """One ad, one mapping row, so one token -- in all three carriers.
+
+    A multi ad's arms are two grammars over the same facts. If they minted
+    different tokens the ad would have two attribution identities and whichever
+    arm Meta chose would decide which one a respondent got.
+    """
+    dest = _multi_dest(ref_mode="encoded")
+    ad, _, _, _ = _multi_creative(dest)
+
+    welcome = json.loads(ad["object_story_spec"]["link_data"]["page_welcome_message"])
+    autofill = welcome["text_format"]["message"]["autofill_message"]["content"]
+    payload = json.loads(
+        welcome["text_format"]["message"]["quick_replies"][0]["payload"]
+    )["referral"]["ref"]
+    url_tags = ad["url_tags"].removeprefix("ref=")
+
+    assert _decoded(autofill) == _decoded(payload) == _decoded(url_tags)
+
+
+def test_the_encoded_mode_does_not_change_what_gets_frozen():
+    """The core invariant, extended to the third mode.
+
+    `creative_metadata` must stay mode-blind. If "encoded" leaked into it, the
+    frozen blob would hold nothing but `form`, every `location: "ad"` conf would
+    resolve to nothing, every stratum would count zero, and the optimizer would
+    reallocate on empty data -- unrecoverably, since the blob is never refreshed.
+    """
+    full = _messenger_dest("messenger", "mnchweek")
+    enc = _messenger_dest("messenger", "mnchweek", ref_mode="encoded")
+
+    creative = _creative("Smiling", "messenger")
+    stratum = _stratum_with_md("stratum-1", [creative], PRODUCTION_METADATA)
+
+    frozen_full = ref_metadata(
+        creative.name, creative_metadata(_study([full], [creative]), stratum, full)
+    )
+    frozen_enc = ref_metadata(
+        creative.name, creative_metadata(_study([enc], [creative]), stratum, enc)
+    )
+
+    assert frozen_full == frozen_enc
+    assert "creative" in frozen_enc and "form" in frozen_enc
+
+
+def test_provenance_carries_the_token_the_ad_actually_ships():
+    """The join has to work: the row's token must equal the ref's token.
+
+    If these drifted, every respondent from the ad would arrive with a token
+    that matches no row and be counted unmapped -- for the whole study, silently
+    until someone read the counters.
+    """
+    ad, study, stratum, _, _ = _encoded_messenger_ad()
+
+    prov = ad_provenance(study, "test-campaign-messenger", [stratum])
+
+    shipped = _decoded(ad["url_tags"].removeprefix("ref=")).token
+
+    assert prov[("stratum-1", "Smiling")]["ref_token"] == shipped
+
+
+def test_the_token_is_stable_across_runs():
+    """Reconciliation compares creatives, and the ref is part of one.
+
+    A token that changed between runs would make every run rewrite every ad in
+    the study, forever, while spending money.
+    """
+    first, study, stratum, config, dest = _encoded_messenger_ad()
+    second = create_creative(study, stratum, config, dest)
+
+    assert first["url_tags"] == second["url_tags"]
+
+
+def test_distinct_strata_and_creatives_get_distinct_tokens():
+    """Otherwise the join is meaningless: the token IS the identity."""
+    dest = _messenger_dest("messenger", "mnchweek", ref_mode="encoded")
+    a = _creative("Smiling", "messenger")
+    b = _creative("Frowning", "messenger")
+    study = _study([dest], [a, b])
+
+    strata = [
+        _stratum_with_md("stratum-1", [a, b], {"gender": "women"}),
+        _stratum_with_md("stratum-2", [a, b], {"gender": "men"}),
+    ]
+
+    prov = ad_provenance(study, "test-campaign-messenger", strata)
+    tokens = [row["ref_token"] for row in prov.values()]
+
+    assert len(tokens) == 4
+    assert len(set(tokens)) == 4
+
+
+def test_a_token_collision_refuses_to_generate_instructions():
+    """The last cheap moment. Past here the ads exist and are spending."""
+    with pytest.raises(InvalidConfigError, match="collision"):
+        assert_ref_tokens_unique(
+            {
+                ("stratum-1", "Smiling"): {"ref_token": "aaaaaaaaaa"},
+                ("stratum-2", "Frowning"): {"ref_token": "aaaaaaaaaa"},
+            }
+        )
+
+
+def test_rows_without_tokens_are_not_treated_as_colliding():
+    """None is the normal case for every mode but "encoded"."""
+    assert_ref_tokens_unique(
+        {
+            ("stratum-1", "Smiling"): {"ref_token": None},
+            ("stratum-2", "Frowning"): {"ref_token": None},
+        }
+    )
