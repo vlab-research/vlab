@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import Messenger from './Messenger';
 import Web from './Web';
 import App from './App';
+import WhatsApp from './WhatsApp';
+import Multi from './Multi';
 import { GenericSelect, SelectI } from '../../components/Select';
 import destinationTypes from '../../../../fixtures/general/destinations';
 import { Destination as DestinationType } from '../../../../types/conf';
@@ -43,6 +45,24 @@ const Destination: React.FC<Props> = ({
       name: '',
       type: 'app',
     },
+    // `type` must be exactly 'whatsapp' and 'multi': adopt discriminates its
+    // destination union on these literals, and anything else resolves to the
+    // wrong class or fails to parse.
+    {
+      name: '',
+      initial_shortcode: '',
+      welcome_message: '',
+      whatsapp_phone_number: '',
+      type: 'whatsapp',
+    },
+    {
+      name: '',
+      initial_shortcode: '',
+      welcome_message: '',
+      button_text: '',
+      whatsapp_phone_number: '',
+      type: 'multi',
+    },
   ];
 
   const handleSelectChange = (e: any) => {
@@ -71,6 +91,12 @@ const Destination: React.FC<Props> = ({
       )}
       {destinationType === 'messenger' && (
         <Messenger data={data} updateFormData={updateFormData} index={index} />
+      )}
+      {destinationType === 'whatsapp' && (
+        <WhatsApp data={data} updateFormData={updateFormData} index={index} />
+      )}
+      {destinationType === 'multi' && (
+        <Multi data={data} updateFormData={updateFormData} index={index} />
       )}
     </li>
   );

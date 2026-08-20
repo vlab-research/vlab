@@ -10,6 +10,7 @@ from .audiences import hydrate_audiences
 from .budget import AdOptReport, get_budget_lookup, get_budget_lookup_with_db
 from .campaign_queries import (
     DBConf,
+    create_ad_attribution,
     create_adopt_report,
     get_campaign_configs,
     get_user_info,
@@ -23,7 +24,16 @@ from .recruitment_data import (
     load_recruitment_data,
 )
 from .responses import get_inference_data
-from .study_conf import CreativeConf, FacebookTargeting, Stratum, StratumConf, StudyConf
+from .study_conf import (
+    CreativeConf,
+    FacebookTargeting,
+    Stratum,
+    StratumConf,
+    StudyConf,
+    disagreeing_token_keys,
+    missing_targeting_variables,
+    thins_its_ref_without_reading_the_mapping,
+)
 
 logging.basicConfig(level=logging.INFO)
 
@@ -56,21 +66,129 @@ def make_window(hours, now):
     return DateRange(start, now)
 
 
-def run_instructions(instructions: Sequence[Instruction], state: FacebookState):
+def record_ad_attribution(
+    i: Instruction, created_id: Optional[str], db_conf: DBConf
+) -> None:
+    """Freeze the ad -> stratum mapping for an ad we just created.
+
+    The imperative half of A1: instruction generation stayed pure, and this is
+    where the resulting fact meets the database. Only ad creates carry
+    provenance, so everything else falls straight through.
+
+    Raises on a failed write, deliberately. An ad that exists on Facebook with
+    no mapping row can never be attributed -- there is no backfill path, and
+    every respondent it recruits would be dropped from stratum counts silently
+    rather than loudly. Stopping the run leaves the remaining ads uncreated,
+    which is the recoverable failure; the next run creates them. Creating ads
+    we cannot map is the unrecoverable one.
+    """
+    if i.node != "ad" or i.action != "create" or i.provenance is None:
+        return
+
+    if created_id is None:
+        logging.error(
+            f"Created an ad with provenance {i.provenance} but Facebook "
+            "returned no id. It will not be attributable."
+        )
+        return
+
+    try:
+        create_ad_attribution(created_id, i.provenance, db_conf)
+    except BaseException:
+        logging.error(
+            f"Failed to write ad_attributions row for ad {created_id} "
+            f"with provenance {i.provenance}. The ad exists on Facebook and "
+            "is now unattributable until this row is written."
+        )
+        raise
+
+
+def run_instructions(
+    instructions: Sequence[Instruction], state: FacebookState, db_conf: DBConf
+):
     updater = GraphUpdater(state)
     logging.info(f"Executing {len(instructions)} instruction(s)")
     for i in instructions:
         logging.info(
             f"Executing: {i.node}/{i.action} id={i.id} params={i.params}"
         )
-        report = updater.execute(i)
+        report, created_id = updater.execute(i)
         logging.info(report)
+        record_ad_attribution(i, created_id, db_conf)
+
+
+def warn_on_incomplete_targeting(study: StudyConf) -> None:
+    """Say so when a stratum targets a variable nothing in the study supplies.
+
+    Such a predicate can never match: the stratum counts zero and the optimizer
+    reallocates its budget away from a segment that may be recruiting perfectly
+    well. Nothing errors, which is exactly why it needs saying out loud.
+
+    A warning, not a raise — see missing_targeting_variables for why.
+    """
+    for stratum_id, missing in missing_targeting_variables(study).items():
+        logging.warning(
+            f"Stratum '{stratum_id}' targets variable(s) {sorted(missing)} that no "
+            "inference_data extraction conf produces. Its question_targeting can "
+            "never match, so it will count zero respondents and the optimizer will "
+            "move its budget elsewhere. Check the study's inference_data conf."
+        )
+
+
+def warn_on_thinned_ref_without_mapping(study: StudyConf) -> None:
+    """Say so when a study thins its ref but nothing reads the mapping.
+
+    Thinning the ref only works if the study also reads the ad -> stratum
+    mapping, through a `mapping: "ad_table_lookup"` extraction conf. One without
+    the other leaves the study with no attribution at all: the ref no longer
+    carries the stratum and nothing looks the token up, so every stratum counts
+    zero and the optimizer reallocates on empty data.
+
+    A warning, not a raise — a study recruiting uniformly needs no stratum
+    attribution and is entitled to a thin ref.
+    """
+    thinned = thins_its_ref_without_reading_the_mapping(study)
+
+    if thinned:
+        logging.warning(
+            f"Destination(s) {thinned} no longer carry stratum metadata in "
+            "their ref, but this study has no inference_data conf with "
+            'mapping: "ad_table_lookup". Nothing will attribute its respondents '
+            "to a stratum: every stratum will count zero and the optimizer will "
+            "reallocate on empty data. Either add the lookup confs, or leave the "
+            "destination's ref_mode at 'metadata'."
+        )
+
+
+def warn_on_disagreeing_token_keys(study: StudyConf) -> None:
+    """Say so when a source's lookup confs disagree on where the token is.
+
+    One respondent has one token, in one place. Confs naming different keys
+    means at least one reads nothing — and reading nothing is indistinguishable
+    from an organic arrival, so it does not alarm, it just miscounts. swoosh
+    resolves the ambiguity by taking the first key it finds, which is a guess;
+    this is where anyone gets told a guess was needed.
+
+    A warning, not a raise — see disagreeing_token_keys for why.
+    """
+    for source, keys in disagreeing_token_keys(study).items():
+        logging.warning(
+            f"Source '{source}' has ad_table_lookup confs reading the token "
+            f"from more than one metadata key: {keys}. A respondent carries one "
+            "token in one place, so confs on the other key(s) will attribute "
+            "nobody — silently, because a token that is not there looks exactly "
+            "like an organic arrival. swoosh will use the first key it finds. "
+            "Point every ad_table_lookup conf on this source at the same key."
+        )
 
 
 def update_ads_for_campaign(
     db_conf: DBConf, study: StudyConf, state: FacebookState
 ) -> Tuple[Sequence[Instruction], Optional[AdOptReport]]:
     strata = hydrate_strata(state, study.strata, study.creatives)
+    warn_on_incomplete_targeting(study)
+    warn_on_thinned_ref_without_mapping(study)
+    warn_on_disagreeing_token_keys(study)
     now = datetime.utcnow()
 
     inf_start, inf_end = study.recruitment.get_inference_window(now)
@@ -305,7 +423,7 @@ def run_updates(fn: AdoptJob) -> None:
             if report:
                 create_adopt_report(s, "FACEBOOK_ADOPT", report, db_conf)
 
-            run_instructions(instructions, state)
+            run_instructions(instructions, state, db_conf)
 
         except BaseException as e:
             logging.error(f"Error updating campaign {s}. Error: {e}")

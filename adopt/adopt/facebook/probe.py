@@ -35,11 +35,13 @@ from ..malaria import hydrate_strata, load_basics
 from ..marketing import (
     ADSET_HOURS,
     AdsetConf,
+    adset_destination_type,
+    adset_promoted_object,
     create_adset,
     create_creative,
     pair_creatives_with_destinations,
 )
-from ..study_conf import AppDestination, StudyConf
+from ..study_conf import StudyConf
 from . import field_contract
 from .reconciliation import _eq
 from .state import FacebookState
@@ -202,13 +204,23 @@ def probe_adsets(
                 continue
 
             pairs = pair_creatives_with_destinations(study, stratum, campaign_name)
-            promoted_object = None
-            if pairs and isinstance(pairs[0][1], AppDestination):
-                d = pairs[0][1]
-                promoted_object = {
-                    "application_id": d.facebook_app_id,
-                    "object_store_url": d.app_install_link,
-                }
+
+            # Shared with adset_instructions rather than reimplemented. This was
+            # a second copy of the app-only branch, so the moment a third
+            # destination type appeared the probe built a different adset than
+            # production sends — and the probe exists precisely to report what
+            # production sends.
+            #
+            # destination_type is derived here for the same reason. It used to
+            # be read straight off the recruitment conf, which agreed with the
+            # derivation for every study whose destinations imply their channel
+            # and disagreed for the ones that do not — so the probe would have
+            # reported drift on exactly the studies the derivation exists to
+            # fix, and reported it against an adset production never sends.
+            promoted_object = adset_promoted_object(pairs)
+            destination_type = adset_destination_type(
+                pairs, study.recruitment.destination_type
+            )
 
             desired = create_adset(
                 AdsetConf(
@@ -218,7 +230,7 @@ def probe_adsets(
                     data.get("status", "ACTIVE"),
                     ADSET_HOURS,
                     study.recruitment.optimization_goal,
-                    study.recruitment.destination_type,
+                    destination_type,
                     promoted_object,
                 )
             )

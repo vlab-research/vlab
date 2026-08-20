@@ -71,10 +71,7 @@ func recordRunOutcome(pool *pgxpool.Pool, studyID, runID, eventType, severity, m
 // failure) event. Fingerprint is per-entity so a run_ok does NOT close it —
 // fixed extraction problems age out via the recency predicate instead.
 func recordExtractionError(pool *pgxpool.Pool, studyID, runID string, e ExtractionError) {
-	eventType := eventExtractionError
-	if strings.HasPrefix(e.Entity, "source=") {
-		eventType = eventExtractionWarning
-	}
+	eventType, severity := classifyExtractionError(e.Entity)
 
 	details := map[string]interface{}{
 		"entity":         e.Entity,
@@ -86,5 +83,36 @@ func recordExtractionError(pool *pgxpool.Pool, studyID, runID string, e Extracti
 	}
 
 	RecordEvent(pool, studyID, sourceInference, runID, eventType,
-		fingerprintExPrefix+e.Entity, severityWarning, e.Message, details)
+		fingerprintExPrefix+e.Entity, severity, e.Message, details)
+}
+
+// classifyExtractionError decides how loudly one aggregated extraction problem
+// is surfaced, from its entity key alone.
+//
+// Ad attribution splits three ways, and only one of the three is a bug:
+//
+//   - organic (no ref token) is the expected outcome for a respondent who
+//     arrived without clicking an ad. It is worth *counting* — a study whose
+//     organic share suddenly jumps has a leaked shortcode — but it must not
+//     alarm, so it is a warning like the unmapped-source case.
+//   - unmapped (token present, no mapping row) is always a bug: vlab created an
+//     ad and failed to record what it meant, and every respondent it recruits
+//     is silently dropped from stratum counts. This is the one case that gets
+//     severity "error", which sorts it above warnings in the dashboard's
+//     study-errors derivation (adopt/adopt/server/db.py).
+//
+// It is self-closing either way. The dashboard derivation keeps only events
+// seen in the last 90 minutes, so once a missing mapping row is inserted and
+// the next run stops emitting the error, it ages out on its own.
+func classifyExtractionError(entity string) (eventType, severity string) {
+	switch {
+	case strings.HasPrefix(entity, "source="), entity == entityAdOrganic:
+		return eventExtractionWarning, severityWarning
+	case entity == entityAdUnmapped:
+		return eventExtractionError, severityError
+	default:
+		// Unchanged from before: other extraction failures are errors by type
+		// but were only ever recorded at warning severity.
+		return eventExtractionError, severityWarning
+	}
 }

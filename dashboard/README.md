@@ -91,3 +91,65 @@ See the section about [deployment][2] for more information.
 [1]: https://github.com/FiloSottile/mkcert#installation
 [2]: https://facebook.github.io/create-react-app/docs/deployment
 [3]: https://facebook.github.io/create-react-app/docs/running-tests
+
+## Inference-data extraction forms
+
+The extraction-conf forms under
+`src/pages/StudyConfPage/forms/inferenceData/` follow the same split as the
+existing `forms/variables/extract.ts`: a pure module with no React
+dependencies, testable in isolation, plus a thin component that just wires
+that module's helpers to `Select`/`TextInput` fields. `flyExtraction.ts` and
+`qualtricsExtraction.ts` are the pure modules; `FlyExtraction.tsx` and
+`QualtricsExtraction.tsx` are the components that consume them.
+
+An extraction conf says where to find one variable's value in two parts.
+`location` says **where to read**: `variable` (walk a path into the
+respondent's response payload) or `metadata` (look up a key in the metadata fly
+stamped on the event). `mapping` says **what the value read means**: `raw` (it
+IS the answer — the default, and what every conf written before this field
+existed means) or `ad_table_lookup` (it is an opaque token identifying the ad
+that recruited the respondent, and the answer is a stratum variable off that
+ad's frozen `ad_attributions` row).
+
+There is no `ad` location. There never really was one — the token lives in
+metadata, so reading it is an ordinary metadata read — and the old `location:
+"ad"`, which joined on `ad_id`, has been removed.
+
+`metadata` is a *keyed* lookup under either mapping — you name a key and get a
+value — while `variable` is the only one with a response path to select. That
+distinction is expressed once, as `isKeyedLocation`, rather than as scattered
+`=== "metadata"` checks through the form. The same split drives `aggregate`:
+keyed locations get `"first"`, because they are recruitment-time constants —
+you attribute someone to the ad and metadata they arrived with. Only `variable`
+gets `"last"`, since a survey answer is the only one that can meaningfully be
+updated later.
+
+**Both text fields change meaning under a lookup**, and the form's prompts say
+so, because getting them backwards is the easy mistake:
+
+| Field | Raw read | Ad lookup |
+|---|---|---|
+| `key` | the metadata key holding the value | the metadata key holding the **token** — usually `vt` |
+| `name` | what to call the variable | the **stratum variable** to pull (`creative`, `gender`, `Age`), which is also what it is called |
+
+`applyChange` resets `mapping` to raw when the location moves away from
+metadata. Without that a conf could end up `variable` + `ad_table_lookup`, which
+is rejected at config time — and worse, its `key` would be read by swoosh as a
+declaration of where the token lives, misclassifying every respondent in the
+study.
+
+The fly and Qualtrics/Typeform modules are deliberately separate and must stay
+that way. Now that `location: "ad"` is gone their *location* lists are
+identical; what is fly-only is the **mapping**. A lookup joins on the ad token
+and only the fly connector carries one, so offering it on a Qualtrics or
+Typeform source would let a user configure a variable that silently yields
+nothing forever. `qualtricsExtraction.ts` exports an empty `mappingOptions` —
+exported precisely so `flyExtraction.test.ts` can assert the absence rather than
+the module merely not mentioning it, which is what stops a future merge of the
+two forms from reintroducing it.
+
+See `documentation/ad-attributions.md` for the join this feeds.
+
+Tests:
+`src/pages/StudyConfPage/forms/inferenceData/flyExtraction.test.ts`, run with
+`npm test`.

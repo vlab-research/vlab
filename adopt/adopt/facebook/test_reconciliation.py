@@ -1210,3 +1210,453 @@ def test_ad_dif_ignores_thumbnail_url_difference():
 
     instructions = ad_dif(adset, running_ads, [_ad(desired_creative, adset)])
     assert instructions == []
+
+
+# ---------------------------------------------------------------------------
+# Tests for ad-ID attribution provenance plumbing (A1).
+#
+# `Instruction` gained a 5th, optional, defaulted `provenance` field, and
+# `ad_dif`/`adset_dif` gained a trailing optional `provenance` param -- a
+# `ProvenanceLookup` dict keyed by (adset name, ad name), i.e.
+# (stratum id, creative name). `ad_dif`'s creator stamps that provenance onto
+# every "ad"/"create" instruction it emits, so that once Facebook returns the
+# new ad's id, the imperative shell can write the ad -> stratum mapping row.
+# Only creates carry it: updates and deletes act on ads that already have a
+# mapping row, so there is nothing new to attribute.
+# ---------------------------------------------------------------------------
+
+
+def test_ad_dif_stamps_provenance_onto_create():
+    adset = {"id": "adset-id", "name": "stratum-1"}
+    creatives = [{"name": "Smiling", "actor_id": "111", "url_tags": "123"}]
+    provenance = {
+        ("stratum-1", "Smiling"): {"stratum_id": "stratum-1", "creative_name": "Smiling"}
+    }
+
+    instructions = ad_dif(adset, [], [_ad(c, adset) for c in creatives], provenance)
+
+    assert len(instructions) == 1
+    assert instructions[0].node == "ad"
+    assert instructions[0].action == "create"
+    assert instructions[0].provenance == {
+        "stratum_id": "stratum-1",
+        "creative_name": "Smiling",
+    }
+
+
+def test_ad_dif_without_provenance_arg_defaults_to_none():
+    # Backwards compatibility: every pre-existing call site -- this one
+    # included -- omits provenance entirely, and the resulting Instruction
+    # must equal a plain 4-argument Instruction() by NamedTuple equality
+    # precisely because the new field defaults to None.
+    adset = {"id": "ad"}
+    creatives = [{"name": "newhindi", "actor_id": "111", "url_tags": "123"}]
+
+    instructions = ad_dif(adset, [], [_ad(c, adset) for c in creatives])
+
+    assert instructions == [
+        Instruction(
+            "ad",
+            "create",
+            {
+                "adset_id": "ad",
+                "name": "newhindi",
+                "creative": creatives[0],
+                "status": "ACTIVE",
+            },
+            None,
+        ),
+    ]
+
+
+def test_ad_dif_matches_provenance_per_ad_not_blanket():
+    adset = {"id": "adset-id", "name": "stratum-1"}
+    creatives = [
+        {"name": "Smiling", "actor_id": "111", "url_tags": "123"},
+        {"name": "Serious", "actor_id": "111", "url_tags": "124"},
+    ]
+    provenance = {
+        ("stratum-1", "Smiling"): {"stratum_id": "stratum-1", "creative_name": "Smiling"}
+    }
+
+    instructions = ad_dif(adset, [], [_ad(c, adset) for c in creatives], provenance)
+
+    by_name = {i.params["name"]: i for i in instructions}
+    assert by_name["Smiling"].provenance == {
+        "stratum_id": "stratum-1",
+        "creative_name": "Smiling",
+    }
+    assert by_name["Serious"].provenance is None
+
+
+def test_ad_dif_provenance_keyed_on_adset_avoids_cross_stratum_collision():
+    # The important case: identical creative names in different strata must
+    # not collide. A bug here silently attributes respondents to the wrong
+    # stratum.
+    adset = {"id": "adset-id", "name": "stratum-2"}
+    creatives = [{"name": "Smiling", "actor_id": "111", "url_tags": "123"}]
+    provenance = {
+        ("stratum-1", "Smiling"): {"stratum_id": "stratum-1", "creative_name": "Smiling"},
+        ("stratum-2", "Smiling"): {"stratum_id": "stratum-2", "creative_name": "Smiling"},
+    }
+
+    instructions = ad_dif(adset, [], [_ad(c, adset) for c in creatives], provenance)
+
+    assert len(instructions) == 1
+    assert instructions[0].provenance == {
+        "stratum_id": "stratum-2",
+        "creative_name": "Smiling",
+    }
+
+
+def test_ad_dif_update_and_delete_carry_no_provenance():
+    # Only creates learn a new id, so only creates need provenance.
+    adset = {"id": "adset-id", "name": "stratum-1"}
+    running_ads = [
+        _adobject(
+            {
+                "id": "foo",
+                "status": "ACTIVE",
+                "name": "hindi",
+                "creative": {
+                    "name": "hindi",
+                    "id": "bar",
+                    "actor_id": "111",
+                    "url_tags": "111",
+                },
+            },
+            Ad,
+        ),
+        _adobject(
+            {
+                "id": "baz",
+                "status": "ACTIVE",
+                "name": "oldad",
+                "creative": {
+                    "name": "oldad",
+                    "id": "qux",
+                    "actor_id": "111",
+                    "url_tags": "123",
+                },
+            },
+            Ad,
+        ),
+    ]
+
+    # "hindi" matches by name but has a different creative -> update.
+    # "oldad" is no longer desired -> delete.
+    creatives = [{"name": "hindi", "actor_id": "111", "url_tags": "222"}]
+    provenance = {
+        ("stratum-1", "hindi"): {"stratum_id": "stratum-1", "creative_name": "hindi"},
+        ("stratum-1", "oldad"): {"stratum_id": "stratum-1", "creative_name": "oldad"},
+    }
+
+    instructions = ad_dif(
+        adset, running_ads, [_ad(c, adset) for c in creatives], provenance
+    )
+
+    assert len(instructions) == 2
+    assert {(i.node, i.action) for i in instructions} == {
+        ("ad", "update"),
+        ("ad", "delete"),
+    }
+    for i in instructions:
+        assert i.provenance is None
+
+
+def test_ad_dif_delete_still_emitted_with_id_when_provenance_present():
+    # The reconciliation half of the append-only invariant: the mapping row
+    # must outlive the ad, so deletes must keep working normally and must not
+    # be suppressed by the provenance change.
+    adset = {"id": "adset-id", "name": "stratum-1"}
+    running_ads = [
+        _adobject(
+            {
+                "id": "gone-id",
+                "status": "ACTIVE",
+                "name": "retired",
+                "creative": {
+                    "name": "retired",
+                    "id": "c1",
+                    "actor_id": "111",
+                    "url_tags": "111",
+                },
+            },
+            Ad,
+        )
+    ]
+    provenance = {
+        ("stratum-1", "retired"): {"stratum_id": "stratum-1", "creative_name": "retired"}
+    }
+
+    instructions = ad_dif(adset, running_ads, [], provenance)
+
+    assert instructions == [Instruction("ad", "delete", {}, "gone-id")]
+
+
+def test_adset_dif_threads_provenance_down_to_ad_creates():
+    old_adsets = [
+        (
+            _adset({"id": "foo", "name": "foo", "status": "PAUSED"}),
+            [
+                _adobject(
+                    {
+                        "id": "fooad",
+                        "adset_id": "foo",
+                        "status": "PAUSED",
+                        "name": "bar",
+                        "creative": {"foo": "bar"},
+                    },
+                    Ad,
+                )
+            ],
+        )
+    ]
+
+    new_adsets = [
+        (
+            _adset({"name": "foo", "status": "ACTIVE"}),
+            [
+                _adobject(
+                    {
+                        "adset_id": None,
+                        "status": "ACTIVE",
+                        "name": "bar",
+                        "creative": {"foo": "bar"},
+                    },
+                    Ad,
+                ),
+                _adobject(
+                    {
+                        "adset_id": None,
+                        "status": "ACTIVE",
+                        "name": "qux",
+                        "creative": {"foo": "qux"},
+                    },
+                    Ad,
+                ),
+            ],
+        ),
+        (
+            # A brand-new adset -- its "adset"/"create" instruction is not an
+            # ad and must get no mapping-row provenance.
+            _adset({"name": "newadset", "status": "ACTIVE"}),
+            [
+                _adobject(
+                    {
+                        "adset_id": None,
+                        "status": "ACTIVE",
+                        "name": "baz",
+                        "creative": {"foo": "bar"},
+                    },
+                    Ad,
+                )
+            ],
+        ),
+    ]
+
+    provenance = {("foo", "qux"): {"stratum_id": "foo", "creative_name": "qux"}}
+
+    instructions = adset_dif(old_adsets, new_adsets, provenance)
+
+    creates = [i for i in instructions if i.action == "create"]
+    ad_create = next(i for i in creates if i.node == "ad")
+    adset_create = next(i for i in creates if i.node == "adset")
+
+    assert ad_create.provenance == {"stratum_id": "foo", "creative_name": "qux"}
+    assert adset_create.provenance is None
+
+
+def test_ad_dif_missing_provenance_warns_but_still_creates(caplog):
+    # An unmapped ad is a real defect (its respondents can never be
+    # attributed and there is no backfill path), so it must be visible -- but
+    # refusing to create the ad would be worse.
+    adset = {"id": "adset-id", "name": "stratum-1"}
+    creatives = [{"name": "Smiling", "actor_id": "111", "url_tags": "123"}]
+    provenance = {
+        ("stratum-1", "SomeOtherAd"): {
+            "stratum_id": "stratum-1",
+            "creative_name": "SomeOtherAd",
+        }
+    }
+
+    with caplog.at_level(logging.WARNING):
+        instructions = ad_dif(
+            adset, [], [_ad(c, adset) for c in creatives], provenance
+        )
+
+    assert len(instructions) == 1
+    assert instructions[0].action == "create"
+    assert instructions[0].provenance is None
+    assert "no provenance" in caplog.text
+
+
+# ---------------------------------------------------------------------------
+# promoted_object and adset reconciliation (A9).
+#
+# A9 makes promoted_object non-None for a whole destination type. The danger is
+# not the new functionality, it is that a newly-populated field could make
+# update_adset see every existing adset as drifted and rewrite live adsets
+# across every running study. These tests pin that it cannot.
+# ---------------------------------------------------------------------------
+
+
+def test_promoted_object_is_not_part_of_the_adset_comparison():
+    """The structural reason A9 is safe.
+
+    update_adset compares only field_contract.COMPARED_ADSET, and builds its
+    update params from the same list. So promoted_object is neither compared
+    nor sent on an update -- it rides only on adset *creates*, which is exactly
+    where Meta needs it.
+
+    If someone adds it to COMPARED_ADSET later, this test fails and should be
+    read as a warning: Facebook normalises promoted_object on read, so
+    comparing it is a strong candidate for the endless-rewrite loop described
+    in field_contract's own docstring.
+    """
+    assert "promoted_object" not in field_contract.COMPARED_ADSET
+
+
+def test_a_live_adset_without_promoted_object_is_not_rewritten_when_we_start_sending_one():
+    """The property that protects every running study.
+
+    Before A9 a WhatsApp/app adset was created without promoted_object, or the
+    study did not exist. Either way Facebook's copy has no promoted_object and
+    ours now does. That must not read as drift.
+    """
+    now = datetime.utcnow()
+    common = {
+        "status": "ACTIVE",
+        "daily_budget": 100,
+        "end_time": now,
+        "targeting": {},
+        "optimization_goal": "REPLIES",
+        "name": "stratum-1",
+    }
+
+    live = _adobject(dict(common), AdSet)
+    desired = _adobject(
+        {
+            **common,
+            "promoted_object": {
+                "page_id": "page-123",
+                "whatsapp_phone_number": "15419202635",
+            },
+        },
+        AdSet,
+    )
+
+    assert update_adset(live, desired) == []
+
+
+def test_an_unchanged_study_still_produces_no_instructions():
+    """Reconciliation over a study nothing changed in must stay a no-op.
+
+    The whole-run version of the test above: same adset, same ads, both sides.
+    """
+    adset = _adset({"id": "foo", "name": "stratum-1", "status": "ACTIVE"})
+    creative = {"name": "Smiling", "actor_id": "111", "url_tags": "ref=x"}
+    ads = [_ad(creative, adset)]
+
+    desired_adset = _adset({"name": "stratum-1", "status": "ACTIVE"})
+    desired_adset["promoted_object"] = {
+        "page_id": "page-123",
+        "whatsapp_phone_number": "15419202635",
+    }
+
+    instructions = adset_dif([(adset, ads)], [(desired_adset, ads)])
+
+    assert instructions == []
+
+
+def test_promoted_object_is_absent_from_a_generated_adset_update():
+    """An update carries only COMPARED_ADSET fields, so it cannot clear or
+    change a live adset's promoted_object as a side effect of a budget bump."""
+    now = datetime.utcnow()
+    live = _adobject(
+        {
+            "id": "adset-1",
+            "status": "ACTIVE",
+            "daily_budget": 100,
+            "end_time": now,
+            "targeting": {},
+            "optimization_goal": "REPLIES",
+            "name": "stratum-1",
+        },
+        AdSet,
+    )
+    desired = _adobject(
+        {
+            "status": "ACTIVE",
+            "daily_budget": 999,  # the only real change
+            "end_time": now,
+            "targeting": {},
+            "optimization_goal": "REPLIES",
+            "name": "stratum-1",
+            "promoted_object": {"page_id": "page-123"},
+        },
+        AdSet,
+    )
+
+    instructions = update_adset(live, desired)
+
+    assert len(instructions) == 1
+    assert instructions[0].action == "update"
+    assert "promoted_object" not in instructions[0].params
+    assert instructions[0].params["daily_budget"] == 999
+
+
+def test_a_live_adset_with_a_different_destination_type_is_not_rewritten():
+    """The guard on moving destination_type from the conf to a derivation.
+
+    `destination_type` is absent from COMPARED_ADSET, so it rides only on ad-set
+    creates. That is what makes the derivation safe to land: a live study whose
+    stored recruitment destination_type disagrees with what its destinations now
+    imply -- two production studies were configured exactly that way -- keeps
+    its existing ad sets untouched rather than having every one of them
+    rewritten on the next reconciliation run.
+
+    It is also why a running study can never change channel. Ad sets are matched
+    by name and the name is the stratum id, so they persist for the study's
+    lifetime. If anyone ever adds destination_type to COMPARED_ADSET, this test
+    fails and that trade-off gets made deliberately.
+    """
+    now = datetime.utcnow()
+    common = {
+        "status": "ACTIVE",
+        "daily_budget": 100,
+        "end_time": now,
+        "targeting": {},
+        "optimization_goal": "REPLIES",
+        "name": "stratum-1",
+    }
+    live = _adobject({"id": "adset-1", **common, "destination_type": "WEB"}, AdSet)
+    desired = _adobject({**common, "destination_type": "MESSENGER"}, AdSet)
+
+    assert update_adset(live, desired) == []
+
+
+def test_a_destination_type_change_cannot_ride_along_on_a_budget_update():
+    """Even when something else legitimately changed, the update is built from
+    COMPARED_ADSET alone, so destination_type is never in the params."""
+    now = datetime.utcnow()
+    common = {
+        "status": "ACTIVE",
+        "end_time": now,
+        "targeting": {},
+        "optimization_goal": "REPLIES",
+        "name": "stratum-1",
+    }
+    live = _adobject(
+        {"id": "adset-1", **common, "daily_budget": 100, "destination_type": "WEB"},
+        AdSet,
+    )
+    desired = _adobject(
+        {**common, "daily_budget": 999, "destination_type": "MESSENGER"}, AdSet
+    )
+
+    instructions = update_adset(live, desired)
+
+    assert len(instructions) == 1
+    assert "destination_type" not in instructions[0].params
+    assert instructions[0].params["daily_budget"] == 999

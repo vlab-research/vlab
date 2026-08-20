@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+import re
 from abc import ABC, abstractmethod
 from datetime import datetime, timedelta
 from math import floor
 from typing import Any, Dict, List, Literal, Optional, Tuple, Union
+from urllib.parse import quote
 
 from pydantic import BaseModel, ConfigDict, model_validator
 
@@ -23,13 +25,86 @@ class ExtractionFunctionConf(BaseModel):
     params: Any = None
 
 
+# The values `ExtractionConf.mapping` takes. Mirrored in swoosh
+# (inference/swoosh/inference_data.go); these two lists are the contract.
+MAPPING_RAW = "raw"
+MAPPING_AD_TABLE_LOOKUP = "ad_table_lookup"
+MAPPINGS = (MAPPING_RAW, MAPPING_AD_TABLE_LOOKUP)
+
+
 class ExtractionConf(BaseModel):
+    """One declared variable: where to read it, and what to do with what is read.
+
+    `location` says where to read -- "metadata" or "variable". `mapping` says
+    what the read value means:
+
+        "raw"             the value read IS the answer. The default, and what
+                          every conf written before this field existed means.
+        "ad_table_lookup" the value read is an opaque token; the answer is a
+                          stratum variable off the frozen ad_attributions row
+                          that token identifies.
+
+    `key` and `name` are both contextual to the mapping, which is the one
+    genuinely confusing part of this:
+
+        key   WHERE TO READ. For "raw" it addresses the value; for a lookup it
+              addresses the token. Never hardcoded -- fly stamps the token at
+              metadata.vt by convention and the conf says key: "vt" to match.
+        name  the output variable name and, for a lookup, ALSO the key into the
+              frozen row (which stratum variable to pull). It does double duty
+              because you name the output after the stratum variable anyway.
+    """
+
     location: str
+    mapping: str = MAPPING_RAW
     key: str
     name: str
     functions: list[ExtractionFunctionConf]
     value_type: str
     aggregate: str
+
+    @model_validator(mode="after")
+    def mapping_must_be_known(self):
+        if self.mapping not in MAPPINGS:
+            raise ValueError(
+                f"Extraction conf '{self.name}' has mapping: "
+                f"\"{self.mapping}\", which is not one of {list(MAPPINGS)}."
+            )
+        return self
+
+    @model_validator(mode="after")
+    def a_lookup_reads_the_token_from_metadata(self):
+        """A lookup is only coherent on a metadata read.
+
+        The token is something fly stamps on the event, not something the
+        respondent answered, so `location: "variable"` with this mapping cannot
+        mean anything. Rejected rather than ignored because of what `key` would
+        then be taken for: swoosh reads the key of a lookup conf as the
+        declaration of WHERE THE TOKEN LIVES, and picks the first such conf to
+        classify the whole source. One stray conf would therefore have every
+        respondent in the study checked against the wrong metadata key -- and
+        finding no token reads as an organic arrival, which does not alarm.
+        """
+        if self.mapping == MAPPING_AD_TABLE_LOOKUP and self.location != "metadata":
+            raise ValueError(
+                f"Extraction conf '{self.name}' declares mapping: "
+                f'"{MAPPING_AD_TABLE_LOOKUP}" on location: "{self.location}". '
+                "The ad token is stamped in the event's metadata, so a lookup "
+                'is only valid on location: "metadata".'
+            )
+        return self
+
+    @property
+    def is_ad_table_lookup(self) -> bool:
+        """Whether this conf resolves through the ad table.
+
+        Checks the location as well as the mapping. The validator above makes
+        the incoherent combination unconstructible, so this is belt and braces
+        -- but it is the property everything else branches on, including which
+        conf declares the token's key, so it is worth it being true by
+        construction rather than by trusting the validator ran.
+        """
+        return self.mapping == MAPPING_AD_TABLE_LOOKUP and self.location == "metadata"
 
 
 class SourceExtractionConf(BaseModel):
@@ -60,13 +135,125 @@ class QuestionTargeting(BaseModel):
     vars: List[Union[TargetVar, QuestionTargeting]]  # type: ignore
 
 
-class FlyMessengerDestination(BaseModel):
+# How a fly destination serialises its ad's routing token. Three modes, and a
+# destination is in exactly one of them.
+#
+#   "metadata"  the historical dotted ref: `creative.<name>.<k>.<v>...`. Carries
+#               the study's whole stratum vocabulary into fly on every message.
+#   "shortcode" `form.<shortcode>`. Routes and nothing else; attribution comes
+#               from the frozen ad_attributions row, joined on ad_id.
+#   "encoded"   `r.<base64url(v1|len|shortcode|token)>`. Routes AND carries an
+#               opaque join key, so attribution does not depend on Meta sending
+#               a referral -- which it does for only ~31% of Messenger ad
+#               entrants (documentation/recruitment-arrival-health.md).
+#
+# "encoded" exists because "shortcode" is only as good as ad_id coverage, and on
+# Messenger that coverage is a property of Meta's webhook behaviour rather than
+# anything vlab can fix. The token rides a carrier vlab authors -- the
+# quick-reply payload and the WhatsApp autofill -- so it reaches everyone.
+RefMode = Literal["metadata", "shortcode", "encoded"]
+
+
+class RefModeDestination(BaseModel):
+    """Shared ref-mode resolution for the three fly destination types.
+
+    A mixin rather than three copies because the modes must not drift: every
+    consumer -- marketing, the half-migration guard, reconciliation -- asks
+    `resolved_ref_mode`, and a destination type that answered differently would
+    be a silent routing difference between channels.
+
+    `include_metadata_in_ref` stays on the subclasses, because its *default*
+    differs per channel (Messenger True, WhatsApp and multi False) and that
+    difference is deliberate.
+    """
+
+    # Declared here without a default, and given one by each subclass. That is
+    # what makes `resolved_ref_mode` type-check: the property reads this field,
+    # so the class that defines the property has to promise it exists. The
+    # *default* still belongs to the subclasses, because it differs per channel
+    # (Messenger True, WhatsApp and multi False) and that difference is
+    # deliberate.
+    include_metadata_in_ref: bool
+
+    # None means "not stated" -- resolve from the legacy boolean, which is what
+    # every existing conf in the database carries. Making this Optional rather
+    # than defaulting it to a mode is what keeps the migration free: an untouched
+    # conf resolves to exactly the behaviour it has today, per channel, without
+    # anyone rewriting stored JSON.
+    ref_mode: Optional[RefMode] = None
+
+    @property
+    def resolved_ref_mode(self) -> str:
+        """The mode this destination actually serialises under.
+
+        The single source of truth. Nothing outside this class should read
+        `include_metadata_in_ref` -- it cannot express "encoded", so a consumer
+        branching on it would treat an encoded destination as a full-ref one and
+        emit the dotted grammar instead.
+        """
+        if self.ref_mode is not None:
+            return self.ref_mode
+
+        return "metadata" if self.include_metadata_in_ref else "shortcode"
+
+    @model_validator(mode="after")
+    def ref_mode_must_not_contradict_the_legacy_flag(self):
+        """Reject a conf that sets both fields to incompatible things.
+
+        Only when `include_metadata_in_ref` was *explicitly* given: its default
+        differs per channel, so treating the default as a statement would make
+        `ref_mode: "encoded"` an error on Messenger (default True) and fine on
+        WhatsApp (default False), which is incoherent.
+
+        Raising rather than picking a winner. Both fields are hand-written by a
+        researcher and they disagree about what the ad emits -- silently
+        honouring one would publish ads in a mode nobody asked for, and the cost
+        of a wrong ref is respondents in the wrong survey.
+        """
+        if self.ref_mode is None:
+            return self
+
+        if "include_metadata_in_ref" not in self.model_fields_set:
+            return self
+
+        implied = "metadata" if self.include_metadata_in_ref else "shortcode"
+
+        if implied != self.ref_mode:
+            raise InvalidConfigError(
+                f"Destination '{self.name}' sets ref_mode='{self.ref_mode}' and "
+                f"include_metadata_in_ref={self.include_metadata_in_ref}, which "
+                f"imply '{self.ref_mode}' and '{implied}'. They are the same "
+                "setting expressed two ways; set ref_mode alone (it is the one "
+                "that can express 'encoded') and drop include_metadata_in_ref."
+            )
+
+        return self
+
+
+class FlyMessengerDestination(RefModeDestination):
     type: str
     name: str
     initial_shortcode: str
     welcome_message: str
     button_text: str
     additional_metadata: Optional[dict[str, str]] = None
+
+    # Whether the ad's ref carries the full stratum metadata or only the
+    # shortcode. Named to match FlyWhatsAppDestination's field: it is one
+    # concept, and the two channels differ only in their default.
+    #
+    # Defaults True, the historical behaviour, because every existing study
+    # depends on it — and because turning it off changes the *creative*, which
+    # makes reconciliation rewrite that study's ads on its next run.
+    #
+    # Turning it off is the point of the whole ad-id design. It stops vlab
+    # shipping its stratum vocabulary into fly inside every message and leaves
+    # the ref doing only the job it cannot delegate: routing. Attribution then
+    # comes from the frozen ad_attributions row instead, so this is only safe
+    # for a study whose inference_data conf reads `location: "ad"`.
+    #
+    # This flag must never reach creative_metadata — see create_creative.
+    include_metadata_in_ref: bool = True
 
 
 class WebDestination(BaseModel):
@@ -86,7 +273,348 @@ class AppDestination(BaseModel):
     user_os: list[str]
 
 
-DestinationConf = Union[FlyMessengerDestination, AppDestination, WebDestination]
+# Click-to-WhatsApp entry tokens live under a much narrower grammar than the
+# Messenger ref does, and the difference is load-bearing.
+#
+# A CTWA referral carries no advertiser-settable `ref` — url_tags was measured
+# not to reach WhatsApp at all — so fly recovers the shortcode from the ad's
+# autofill message text, which the respondent's first message prefills. fly
+# matches that text against an anchored, full-match pattern (WHATSAPP_ENTRY_REF
+# in replybot/lib/event-normalizer.js):
+#
+#     /^(?:start\s+)?form\.((?:[A-Za-z0-9_-]|%[0-9A-Fa-f]{2})+
+#                           (?:\.(?:[A-Za-z0-9_-]|%[0-9A-Fa-f]{2})+)*)$/i
+#
+# Two consequences, both verified against that regex:
+#
+# 1. The token must lead with `form.`. `make_ref` leads with `creative.`, so its
+#    output can never match, whatever the values are. A WhatsApp ref has to be
+#    serialised form-first.
+# 2. Every token is `[A-Za-z0-9_-]` or a percent-encoded octet. The gate was
+#    widened to accept `%XX` on fly@feature/ad-id-attribution 37e1e06e, which
+#    is what makes encoded values travel — before that a space was undeliverable
+#    raw *and* encoded, and roughly half of real stratum values could not be
+#    shipped at all.
+#
+# A failure here is silent and expensive: Meta delivers the text intact (dots
+# and spaces both survive `autofill_message.content`, measured), fly's pattern
+# rejects it, no conversation_started is derived, and the arrival falls through
+# to FALLBACK_FORM — a real survey, so the respondents look like completions
+# rather than errors. That is the VIR-19 failure shape. Hence: validate at
+# config time, never emit and hope.
+WHATSAPP_REF_TOKEN = re.compile(r"^(?:[A-Za-z0-9_-]|%[0-9A-Fa-f]{2})+$")
+
+# The shortcode keeps the *narrow* alphabet, deliberately, even though the gate
+# would now accept it encoded.
+#
+# Metadata values are only ever transported by an ad, so encoding is enough for
+# them. A shortcode is also typed by a human: shortcodes are designed to be
+# shareable, and someone who hears about a study texts `form.<shortcode>`
+# straight into WhatsApp. That hand-typed message carries a literal space, not
+# `%20`, so it fails the gate and the person lands in FALLBACK_FORM. A
+# shortcode therefore has to be typeable as-is, not merely encodable.
+WHATSAPP_SHORTCODE_TOKEN = re.compile(r"^[A-Za-z0-9_-]+$")
+
+
+def ref_value(value: str) -> str:
+    """Encode one metadata value for a dotted ref.
+
+    `quote()` alone is not enough. Python keeps `.`, `-`, `_` and `~` in
+    urllib's `_ALWAYS_SAFE`, and passing `safe=''` does *not* override that —
+    measured: `quote('a.b') == 'a.b'`, `quote('x~y') == 'x~y'`. Two of those
+    four break a ref:
+
+      `.` is the ref's own separator, so a dotted value silently mis-pairs
+          every key/value after it when fly's `_group` walks the tokens. That
+          is the corruption found in phase 1, now explained rather than merely
+          observed.
+      `~` is absent from fly's WhatsApp token alphabet, so it fails the entry
+          gate outright and the arrival falls through to FALLBACK_FORM.
+
+    `-` and `_` are both separator-safe and inside the gate alphabet, so they
+    are deliberately left alone; encoding them would churn refs for no gain.
+
+    Escaping after quoting is safe: `quote()` has already turned any literal
+    `%` into `%25`, so no `.` or `~` can be sitting inside an escape sequence.
+
+    Lives here rather than next to `make_ref` because the config-time WhatsApp
+    deliverability check needs it and study_conf cannot import marketing.
+    """
+    return quote(value).replace(".", "%2E").replace("~", "%7E")
+
+
+def whatsapp_ref_token_safe(value: str) -> bool:
+    """True if `value` survives fly's WhatsApp entry pattern once encoded.
+
+    Checked against the *encoded* form, because that is what the ad ships.
+    Before fly widened the gate this had to be checked raw, which made roughly
+    half of real stratum values undeliverable. What still fails is only what
+    `quote()` leaves literal and the gate does not accept — in practice just
+    `/`, which `quote()` keeps by default.
+    """
+    return bool(WHATSAPP_REF_TOKEN.match(ref_value(value)))
+
+
+def whatsapp_shortcode_safe(shortcode: str) -> bool:
+    """True if `shortcode` survives the gate *and* a human typing it by hand."""
+    return bool(WHATSAPP_SHORTCODE_TOKEN.match(shortcode))
+
+
+def unsafe_whatsapp_ref_tokens(values: Dict[str, str]) -> List[str]:
+    """The `key=value` pairs that would break a WhatsApp ref, for error text.
+
+    Keys are checked as well as values: both become dot-separated tokens.
+    """
+    bad = []
+    for k, v in values.items():
+        if not whatsapp_ref_token_safe(k) or not whatsapp_ref_token_safe(str(v)):
+            bad.append(f"{k}={v}")
+    return sorted(bad)
+
+
+# Ad set destination_types that include WhatsApp, from Meta's destination_type
+# table (planning/click-to-whatsapp-ads.md). A CTWA destination has to run in
+# one of these or its promoted_object means nothing and the ad never reaches
+# WhatsApp.
+WHATSAPP_DESTINATION_TYPES = {
+    "WHATSAPP",
+    "MESSAGING_MESSENGER_WHATSAPP",
+    "MESSAGING_INSTAGRAM_DIRECT_WHATSAPP",
+    "MESSAGING_INSTAGRAM_DIRECT_MESSENGER_WHATSAPP",
+}
+
+# The single ad-set destination_type token each fly destination implies.
+#
+# These are the values Meta's destination_type guide defines; the combination
+# tokens are single enum values, not lists. There is no `messaging_apps` field
+# and no list-valued destination field — see planning/click-to-whatsapp-ads.md
+# §1.2, which says so explicitly because it is an easy thing to look for.
+MESSENGER_DESTINATION_TYPE = "MESSENGER"
+WHATSAPP_DESTINATION_TYPE = "WHATSAPP"
+MULTI_DESTINATION_TYPE = "MESSAGING_MESSENGER_WHATSAPP"
+
+# Every destination_type that routes to a messaging app. A recruitment conf
+# naming one of these is making a claim about the channel its ads open, and
+# that claim is checkable against the destinations the study actually declares.
+# A recruitment conf naming anything else (WEB, WEBSITE, APP, ...) makes no such
+# claim, so nothing is checked and the ad-set value is derived instead.
+MESSAGING_DESTINATION_TYPES = {MESSENGER_DESTINATION_TYPE} | WHATSAPP_DESTINATION_TYPES
+
+
+def normalize_whatsapp_phone_number(value: str) -> str:
+    """Digits only — what promoted_object.whatsapp_phone_number expects.
+
+    Measured rather than inferred: adopt/scripts/ctwa_probe.py records that the
+    promoted-object reference types this as a *numeric string*, while
+    credentials store the display form ("+1-541-920-2635"), and strips to
+    digits before sending. There is no existing phone normaliser in this repo
+    to reuse — this is the first thing in vlab that sends a phone number to
+    Meta.
+    """
+    return "".join(ch for ch in value if ch.isdigit())
+
+
+def whatsapp_phone_number_valid(value: str) -> bool:
+    """E.164 permits at most 15 digits, and no dialable number has under 7."""
+    return 7 <= len(normalize_whatsapp_phone_number(value)) <= 15
+
+
+class FlyWhatsAppDestination(RefModeDestination):
+    """A click-to-WhatsApp destination.
+
+    Shaped after FlyMessengerDestination, minus `button_text` (WhatsApp has no
+    quick-reply button; the respondent gets a prefilled compose box) and plus
+    `include_metadata_in_ref`.
+
+    `type` is a Literal, unlike its siblings, because this model's required
+    fields are a strict subset of FlyMessengerDestination's — without a
+    discriminator, pydantic's smart union could resolve a Messenger destination
+    to this class by ignoring the extra `button_text`.
+    """
+
+    type: Literal["whatsapp"]
+    name: str
+    initial_shortcode: str
+    # Shown above the compose box on the welcome screen; not part of the ref.
+    welcome_message: str
+
+    # The number this ad's clicks land on, as promoted_object.
+    # whatsapp_phone_number. Required rather than optional even though Meta
+    # treats it as optional: many numbers to one Page is documented and
+    # supported, so omitting it falls back to the Page's "primary" number —
+    # and an org running several would silently recruit into whichever one
+    # that happens to be. Naming it is the only way to know.
+    whatsapp_phone_number: str
+
+    additional_metadata: Optional[dict[str, str]] = None
+
+    # Opt-in: put the full stratum metadata in the autofill text, not just the
+    # shortcode. Off by default, and rarely usable — see the module comment and
+    # StudyConf.check_whatsapp_refs_are_deliverable. The autofill text is
+    # visible to and editable by the respondent, and the ad-ID join (A5-A7)
+    # already carries stratum identity to the optimizer without it, so the only
+    # reason to turn this on is fly survey logic that branches on ad metadata.
+    include_metadata_in_ref: bool = False
+
+    @property
+    def promoted_phone_number(self) -> str:
+        """The number in the form Meta's promoted_object wants."""
+        return normalize_whatsapp_phone_number(self.whatsapp_phone_number)
+
+    @model_validator(mode="after")
+    def phone_number_must_be_dialable(self):
+        # At config time, not when Meta rejects the ad set. A study that cannot
+        # produce a working ad should say so while someone is still looking at
+        # it.
+        if not whatsapp_phone_number_valid(self.whatsapp_phone_number):
+            raise InvalidConfigError(
+                f"WhatsApp destination '{self.name}': whatsapp_phone_number "
+                f"'{self.whatsapp_phone_number}' is not a dialable number. "
+                "Meta wants the number itself (any punctuation is fine, it is "
+                "stripped), not the phone_number_id — sending the id is an "
+                "easy way to spend a day testing the wrong number."
+            )
+        return self
+
+    @model_validator(mode="after")
+    def shortcode_must_survive_the_entry_pattern(self):
+        # Applies in both modes: even a shortcode-only token is `form.<sc>`, so
+        # an unsafe shortcode breaks the plain case too.
+        if not whatsapp_shortcode_safe(self.initial_shortcode):
+            raise InvalidConfigError(
+                f"WhatsApp destination '{self.name}': initial_shortcode "
+                f"'{self.initial_shortcode}' contains characters fly's WhatsApp "
+                "entry pattern rejects when typed by hand. Only letters, "
+                "digits, underscore and hyphen. Metadata values may now be "
+                "percent-encoded, but a shortcode may not: it is meant to be "
+                "shareable, and someone texting it straight into WhatsApp "
+                "sends a literal space, which lands them in the fallback "
+                "survey instead of yours."
+            )
+        return self
+
+
+class FlyMultiDestination(RefModeDestination):
+    """A single ad that opens either Messenger or WhatsApp, Meta's choice.
+
+    A third destination type, deliberately, rather than a `platforms` list on a
+    merged class or an implicit consequence of the ad set's destination_type.
+    The reasoning is in planning/whatsapp-destination-model.md: Messenger and
+    WhatsApp differ in the grammar their routing token must obey, in whether the
+    respondent can see and edit it, in which fields are required, and in what a
+    misconfiguration costs. Multi is not the generalisation of the two -- it is
+    a third thing that carries both of their tokens at once, and it forecloses
+    something they each allow (channel as an experimental arm, since Meta
+    assigns the arm and you cannot randomise what Meta assigns).
+
+    One shortcode, not one per channel. `creative_metadata` folds
+    `form: initial_shortcode` into the frozen ad_attributions blob, and there is
+    exactly one blob per ad; a per-channel shortcode would mean one ad whose two
+    arms belong to two surveys and one mapping row that can only name one of
+    them.
+
+    `include_metadata_in_ref` defaults False -- WhatsApp's default wins, because
+    the WhatsApp arm's token sits in the respondent's compose box where they can
+    read and edit it. Being described back to yourself as `gender.men.age.25_34`
+    before a survey starts is an ethical question, not a technical one.
+
+    Asymmetric confidence between the two arms. The Messenger arm is MEASURED:
+    on 2026-08-17 ad 120254903561240150 delivered its quick-reply payload with
+    the ref intact even though `text_format.customer_action_type` was the scalar
+    "autofill_message", so Messenger reads its own sub-structure and ignores the
+    sibling autofill (planning/whatsapp-destination-model.md 8.1). The WhatsApp
+    arm rests on the symmetry inference from that result and has not itself been
+    observed -- every preview followed the single-valued MESSAGE_PAGE
+    call_to_action to Messenger. If the inference is wrong and Meta serves its
+    own default prefill, fly's event-normalizer still emits
+    conversation_started, and those arrivals land on FALLBACK_FORM: a real
+    survey belonging to another researcher, where misrouted respondents reach
+    END and look like completions. Watch the WhatsApp arm of the first multi
+    study for that shape; documentation/multi-destination-ads.md has the
+    procedure.
+    """
+
+    type: Literal["multi"]
+    name: str
+    initial_shortcode: str
+    welcome_message: str
+
+    # The Messenger arm's quick-reply button. Measured to be the carrier 68% of
+    # Messenger ad entrants route through -- and their ONLY carrier, since they
+    # produce no OPEN_THREAD referral at all. Required for that reason: a multi
+    # ad without it loses two thirds of its Messenger arm to FALLBACK_FORM.
+    button_text: str
+
+    # The WhatsApp arm's promoted_object, exactly as FlyWhatsAppDestination.
+    whatsapp_phone_number: str
+
+    additional_metadata: Optional[dict[str, str]] = None
+    include_metadata_in_ref: bool = False
+
+    @property
+    def promoted_phone_number(self) -> str:
+        """The number in the form Meta's promoted_object wants."""
+        return normalize_whatsapp_phone_number(self.whatsapp_phone_number)
+
+    @model_validator(mode="after")
+    def phone_number_must_be_dialable(self):
+        if not whatsapp_phone_number_valid(self.whatsapp_phone_number):
+            raise InvalidConfigError(
+                f"Multi destination '{self.name}': whatsapp_phone_number "
+                f"'{self.whatsapp_phone_number}' is not a dialable number. Meta "
+                "wants the number itself (any punctuation is fine, it is "
+                "stripped), not the phone_number_id."
+            )
+        return self
+
+    @model_validator(mode="after")
+    def shortcode_must_survive_the_entry_pattern(self):
+        # Same narrow alphabet as FlyWhatsAppDestination, for the same reason:
+        # this destination has a WhatsApp arm, and a shortcode is meant to be
+        # shareable. Someone who hears about the study and texts
+        # `form.<shortcode>` by hand sends a literal space, not %20.
+        if not whatsapp_shortcode_safe(self.initial_shortcode):
+            raise InvalidConfigError(
+                f"Multi destination '{self.name}': initial_shortcode "
+                f"'{self.initial_shortcode}' contains characters fly's WhatsApp "
+                "entry pattern rejects when typed by hand. Only letters, digits, "
+                "underscore and hyphen."
+            )
+        return self
+
+
+DestinationConf = Union[
+    FlyMessengerDestination,
+    AppDestination,
+    WebDestination,
+    FlyWhatsAppDestination,
+    FlyMultiDestination,
+]
+
+
+def destination_type_for(destination: DestinationConf) -> Optional[str]:
+    """The ad set destination_type this destination requires, or None.
+
+    `destination_type` is an ad-set field while destinations are named per
+    creative, so channel is necessarily uniform within a stratum and something
+    has to agree the value across the stratum's pairs. This is the per-pair half
+    of that, shaped exactly like `promoted_object_for`.
+
+    None means "this destination does not care": Web and App encode their target
+    in a URL or deeplink and are indifferent to how Meta labels the ad set, so
+    the recruitment conf's value governs. That is what keeps the 5 studies whose
+    recruitment conf says WEB or WEBSITE producing byte-identical ad sets.
+    """
+    if isinstance(destination, FlyMessengerDestination):
+        return MESSENGER_DESTINATION_TYPE
+
+    if isinstance(destination, FlyWhatsAppDestination):
+        return WHATSAPP_DESTINATION_TYPE
+
+    if isinstance(destination, FlyMultiDestination):
+        return MULTI_DESTINATION_TYPE
+
+    return None
 
 
 class BaseRecruitmentConf(BaseModel, ABC):
@@ -593,3 +1121,337 @@ class StudyConf(BaseModel):
     @property
     def base_campaign_name(self) -> str:
         return self.recruitment.base_campaign_name
+
+    @model_validator(mode="after")
+    def check_destination_type_matches_destinations(self):
+        """A messaging destination_type must be backed by a real destination.
+
+        `destination_type` used to be checked in exactly one direction: a
+        WhatsApp destination had to sit on a WhatsApp-capable ad set. The mirror
+        never fired, so two silent misroutes were reachable today:
+
+          - `MESSAGING_MESSENGER_WHATSAPP` with only Messenger destinations.
+            The ads run multi-destination, the Messenger arm keeps its
+            quick-reply welcome message and routes fine, and the WhatsApp arm
+            has no autofill token at all -- so every WhatsApp clicker Meta
+            routes there lands on FALLBACK_FORM. Half the ad works, which is
+            why the operator has no reason to suspect it.
+          - the same with only WhatsApp destinations, which passed because the
+            old check only asked whether the value was WhatsApp-*capable*.
+
+        The rule now: if the recruitment conf names a messaging destination_type
+        it is making a claim about the channel its ads open, and some
+        destination in the study must actually imply that exact token. A
+        recruitment conf naming WEB, WEBSITE or APP makes no such claim, so
+        nothing is checked and `adset_destination_type` derives the value
+        instead -- which is what keeps the five legacy studies whose recruitment
+        conf says WEB or WEBSITE building exactly as they always have.
+
+        Deliberately "some destination", not "every destination": a study with a
+        Messenger arm and a WhatsApp arm is the whole point of deriving the type
+        per ad set, and it necessarily has destinations that disagree with each
+        other. Disagreement *within one stratum* is the real error, and
+        `adset_destination_type` raises on it where it can actually be seen.
+
+        And deliberately silent for a study with no fly destination at all —
+        including one whose destinations conf is empty, which is a study still
+        being assembled rather than a broken one. A web-only or app-only study
+        does not open a conversation, so its destination_type makes no claim
+        this check can hold it to, and such studies do exist with a messaging
+        destination_type stored, harmlessly, because nothing ever validated it.
+        Every failure this check exists to catch involves at least one fly
+        destination.
+        """
+        destination_type = self.recruitment.destination_type
+
+        if destination_type not in MESSAGING_DESTINATION_TYPES:
+            return self
+
+        implied = {
+            t
+            for t in (destination_type_for(d) for d in self.destinations)
+            if t is not None
+        }
+
+        if not implied:
+            return self
+
+        if destination_type in implied:
+            return self
+
+        named = sorted(implied)
+        raise InvalidConfigError(
+            f"This study's recruitment destination_type is "
+            f"'{destination_type}', but none of its destinations open that "
+            f"channel — they imply {named or 'no messaging channel at all'}. "
+            "Meta routes the ad set by destination_type, so the arm that has "
+            "no destination behind it carries no routing token: those "
+            "respondents start a conversation and fall through to the fallback "
+            "survey, where they look like completions rather than errors. "
+            "Either point a destination at that channel or set "
+            "destination_type to one the destinations actually provide."
+        )
+
+    @model_validator(mode="after")
+    def check_multi_destination_optimization_goal(self):
+        """Multi-destination forces CONVERSATIONS, per Meta's own guide.
+
+        This is the coupling cost of multi: a destination choice constrains an
+        unrelated-looking, study-level recruitment setting. Validated here, with
+        a message naming both fields, rather than letting Meta reject the ad set
+        later with an error that never mentions the destination.
+
+        Checked rather than silently overridden. `optimization_goal` is a
+        deliberate study setting -- it is what the optimizer's cost-per-
+        respondent is measured against -- and quietly rewriting it would change
+        what a study buys without telling anyone.
+
+        Worth knowing before this fires on you: Meta's guide calls
+        CONVERSATIONS mandatory, but this repo has measured
+        `MESSAGING_MESSENGER_WHATSAPP` + `LINK_CLICKS` being *accepted* on a
+        live ad set (planning/click-to-whatsapp-ads.md §6a), and separately that
+        a Page subject to European privacy rules cannot use CONVERSATIONS for
+        click-to-WhatsApp at all. So on such a Page the two constraints
+        genuinely conflict and no multi ad can be configured -- which is a real
+        finding about the Page, and much better surfaced here than discovered
+        halfway through a reconciliation run.
+        """
+        if not any(isinstance(d, FlyMultiDestination) for d in self.destinations):
+            return self
+
+        goal = self.recruitment.optimization_goal
+        if goal != "CONVERSATIONS":
+            raise InvalidConfigError(
+                f"This study has a multi-destination destination but its "
+                f"recruitment optimization_goal is '{goal}'. Meta requires "
+                "CONVERSATIONS for multi-destination ad sets. Set "
+                "optimization_goal to CONVERSATIONS, or use single-destination "
+                "Messenger and WhatsApp destinations instead — note that a Page "
+                "subject to European privacy rules cannot use CONVERSATIONS for "
+                "click-to-WhatsApp at all, in which case multi-destination is "
+                "not configurable on that Page."
+            )
+
+        return self
+
+    @model_validator(mode="after")
+    def check_whatsapp_refs_are_deliverable(self):
+        """Reject a full-metadata WhatsApp ref that fly could never parse.
+
+        Only fires for a WhatsApp destination with include_metadata_in_ref on,
+        so every other study — and every WhatsApp study on the default
+        shortcode-only setting — is untouched.
+
+        This is the earliest point at which the check is possible: the ref's
+        content comes from the strata and its deliverability from the
+        destination, and those are two separate confs, POSTed independently. So
+        a per-conf validator cannot see both. StudyConf is where they first
+        meet, and it is assembled at the start of every reconciliation run,
+        which is still before any ad exists. Failing here fails closed: the
+        study creates no ads at all, rather than creating ads that recruit
+        people into the fallback survey.
+        """
+        # Multi is included: its WhatsApp arm ships the same form-first autofill
+        # through the same fly entry pattern, so an unparseable value fails
+        # there in exactly the same way — and on multi it fails on one arm only,
+        # which is harder to notice, not easier.
+        full_ref_destinations = [
+            d
+            for d in self.destinations
+            if isinstance(d, (FlyWhatsAppDestination, FlyMultiDestination))
+            and d.include_metadata_in_ref
+        ]
+
+        if not full_ref_destinations:
+            return self
+
+        creative_destination = {c.name: c.destination for c in self.creatives}
+
+        for destination in full_ref_destinations:
+            # Every stratum that could publish through this destination, i.e.
+            # any stratum naming a creative that names it.
+            for stratum in self.strata:
+                if not any(
+                    creative_destination.get(c) == destination.name
+                    for c in stratum.creatives
+                ):
+                    continue
+
+                # The exact key/value set the ref would carry, assembled the
+                # same way create_creative assembles it.
+                md = {
+                    **stratum.metadata,
+                    **self.general.extra_metadata,
+                    "form": destination.initial_shortcode,
+                    **(destination.additional_metadata or {}),
+                }
+
+                unsafe = unsafe_whatsapp_ref_tokens(md)
+                if unsafe:
+                    raise InvalidConfigError(
+                        f"WhatsApp destination '{destination.name}' has "
+                        f"include_metadata_in_ref set, but stratum "
+                        f"'{stratum.id}' has metadata that fly's WhatsApp entry "
+                        f"pattern cannot parse: {unsafe}. Only letters, digits, "
+                        "underscore and hyphen survive — a space or a "
+                        "percent-sign means the ad silently recruits into the "
+                        "fallback survey. Either rename these values or leave "
+                        "include_metadata_in_ref off; the ad-ID join carries "
+                        "stratum identity to the optimizer either way."
+                    )
+
+        return self
+
+
+# ---------------------------------------------------------------------------
+# Completeness check: do the strata demand variables the confs never supply?
+#
+# A stratum's question_targeting predicate matches on variables that swoosh
+# writes into inference_data, and swoosh writes exactly the variables the
+# study's inference_data confs name. So a predicate referencing a variable no
+# conf produces can never match: the stratum counts zero, and the optimizer
+# quietly reallocates its budget elsewhere. Nothing errors. It is the same
+# family of silent miscount as an unmapped ad, catchable one layer earlier and
+# from configuration alone.
+#
+# These are pure functions over the conf. Deliberately no raise: see
+# missing_targeting_variables for why the caller only warns.
+# ---------------------------------------------------------------------------
+
+
+def targeting_variables(targeting: Optional[QuestionTargeting]) -> set[str]:
+    """Every variable name a question_targeting predicate reads.
+
+    Walks the tree, since `vars` holds either leaves (TargetVar) or nested
+    QuestionTargeting. Only `type == "variable"` entries name a variable;
+    constants are the values compared against.
+    """
+    if targeting is None:
+        return set()
+
+    found: set[str] = set()
+    for v in targeting.vars:
+        if isinstance(v, QuestionTargeting):
+            found |= targeting_variables(v)
+        elif v.type == "variable":
+            found.add(str(v.value))
+
+    return found
+
+
+def supplied_variables(conf: Optional[InferenceDataConf]) -> set[str]:
+    """Every variable name the study's extraction confs produce.
+
+    Across every location and mapping alike — raw metadata, a survey variable,
+    or an ad_table_lookup. What matters to a predicate is that the variable
+    exists, not where it came from.
+    """
+    if conf is None:
+        return set()
+
+    return {
+        ec.name
+        for source in conf.data_sources.values()
+        for ec in source.extraction_confs
+    }
+
+
+def thins_its_ref_without_reading_the_mapping(study: StudyConf) -> List[str]:
+    """Destinations that stop carrying metadata while nothing reads the mapping.
+
+    Thinning the ref is what finally makes the ad table *replace* the ref
+    rather than duplicate it — but it only works if the study also reads the
+    mapping, via at least one `mapping: "ad_table_lookup"` extraction conf. Do
+    one without the other and the study has no attribution at all: the ref no
+    longer carries the stratum, and nothing looks the token up. Every stratum
+    counts zero and the optimizer reallocates on empty data.
+
+    Returns destination names rather than raising, because it is not certainly
+    wrong: a study recruiting uniformly, with no question_targeting, needs no
+    stratum attribution and is entitled to a thin ref. Same reasoning as
+    missing_targeting_variables.
+
+    Both thin modes count, "shortcode" and "encoded" alike. They differ in what
+    carries the join key -- Meta's referral versus vlab's own ref -- but not in
+    the thing this guard is about: neither ships the stratum vocabulary, so both
+    need something reading the mapping or the study has no attribution at all.
+    """
+    thinned = [
+        d.name
+        for d in study.destinations
+        if isinstance(
+            d,
+            (FlyMessengerDestination, FlyWhatsAppDestination, FlyMultiDestination),
+        )
+        and d.resolved_ref_mode != "metadata"
+    ]
+
+    if not thinned:
+        return []
+
+    reads_the_mapping = any(
+        ec.is_ad_table_lookup
+        for source in (study.inference_data.data_sources.values() if study.inference_data else [])
+        for ec in source.extraction_confs
+    )
+
+    return [] if reads_the_mapping else sorted(thinned)
+
+
+def disagreeing_token_keys(study: StudyConf) -> Dict[str, List[str]]:
+    """Per source, the several places its lookup confs think the token is.
+
+    One respondent has one token, in one place, so every `ad_table_lookup` conf
+    under a source must read it from the same metadata key. Two confs naming
+    different keys means at least one of them reads nothing — and reading
+    nothing is indistinguishable from an organic arrival, so it lands in the
+    do-not-alarm bucket and simply miscounts.
+
+    Returns only sources with a real disagreement, so an empty dict means the
+    config agrees with itself.
+
+    Returns rather than raises, and callers warn. swoosh takes the first key it
+    finds and carries on for the same reason: it recomputes whole studies
+    unattended, and refusing to classify would cost a study its counts over a
+    conf problem no run can fix from the inside. A raise here would also stop
+    ad reconciliation outright, which is a heavier consequence than the
+    miscount it is warning about.
+    """
+    if study.inference_data is None:
+        return {}
+
+    disagreements = {}
+    for name, source in study.inference_data.data_sources.items():
+        keys = sorted(
+            {ec.key for ec in source.extraction_confs if ec.is_ad_table_lookup}
+        )
+        if len(keys) > 1:
+            disagreements[name] = keys
+
+    return disagreements
+
+
+def missing_targeting_variables(study: StudyConf) -> Dict[str, set[str]]:
+    """Per stratum, the variables it targets on that nothing supplies.
+
+    Returns only strata with a non-empty gap, so an empty dict means the
+    config is complete.
+
+    Returns rather than raises, and callers warn rather than fail. Two reasons.
+    A study with no inference_data conf at all supplies nothing, so every
+    targeted variable would look missing — that is a study that has not been
+    fully configured yet, not a broken one. And this check has never run against
+    the thousands of existing production studies, so its false-positive rate is
+    unmeasured; turning an unmeasured predicate into a hard failure would stop
+    ad reconciliation for any study it misjudges. Measure first, enforce later.
+    This mirrors the reasoning in facebook/reconciliation.py:_declared_drop.
+    """
+    supplied = supplied_variables(study.inference_data)
+
+    gaps = {}
+    for stratum in study.strata:
+        missing = targeting_variables(stratum.question_targeting) - supplied
+        if missing:
+            gaps[stratum.id] = missing
+
+    return gaps
