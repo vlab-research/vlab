@@ -16,9 +16,9 @@ interface Props {
 //
 // Two things worth knowing before selecting this, both surfaced in the form:
 //
-//  - It is gated off in adopt until the WhatsApp arm has been measured against
-//    real delivery. Saving a study with one fails validation with an error that
-//    explains what is missing.
+//  - Its WhatsApp arm has never been observed against real delivery; it is
+//    inferred from the measured Messenger arm. A wrong inference sends those
+//    arrivals to the fallback survey looking like completions.
 //  - Meta assigns the channel, so this cannot be used to *compare* channels.
 //    A study that wants that needs two single-destination destinations in a
 //    destination experiment instead.
@@ -51,8 +51,8 @@ const Multi: React.FC<Props> = ({ data, updateFormData, index }: Props) => {
         One ad that opens either Messenger or WhatsApp — Meta picks per
         respondent. Requires the recruitment optimization goal to be
         CONVERSATIONS, and cannot be used to compare channels, since the channel
-        is not randomised. Currently gated: saving will fail until the WhatsApp
-        arm has been verified.
+        is not randomised. The WhatsApp arm has not yet been verified against
+        real delivery — watch its arrivals on the first study that uses it.
       </p>
       <TextInput
         name="name"

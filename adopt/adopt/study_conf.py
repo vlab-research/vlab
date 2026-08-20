@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import os
 import re
 from abc import ABC, abstractmethod
 from datetime import datetime, timedelta
@@ -495,45 +494,6 @@ class FlyWhatsAppDestination(RefModeDestination):
         return self
 
 
-# ---------------------------------------------------------------------------
-# Multi-destination: the gate.
-#
-# The Messenger arm of a multi ad is MEASURED to work: on 2026-08-17 ad
-# 120254903561240150 delivered its quick-reply payload with the ref intact even
-# though `text_format.customer_action_type` was the scalar "autofill_message",
-# so Messenger reads its own sub-structure and ignores the sibling autofill
-# (planning/whatsapp-destination-model.md §8.1).
-#
-# The WHATSAPP ARM HAS NEVER BEEN OBSERVED. The preview followed the
-# single-valued MESSAGE_PAGE call_to_action to Messenger on every attempt. We
-# expect symmetry -- the Messenger arm ignored its sibling, so the WhatsApp arm
-# should too -- but that is an inference, and it is the only thing standing
-# between this code and the VIR-19 failure shape: if Meta serves Meta's default
-# prefill instead of our autofill, fly's event-normalizer emits
-# conversation_started unconditionally and every WhatsApp arrival lands on
-# FALLBACK_FORM (production value 305) -- a real survey belonging to a real
-# researcher, whose misrouted respondents hit END and look like completions.
-# That exact failure ran for four days and 1,770 users before anyone noticed.
-#
-# So the type is built, tested and reviewable, but refuses to load from a study
-# conf until someone has actually measured the WhatsApp arm and flipped this on
-# deliberately. See documentation/multi-destination-ads.md for the measurement
-# procedure that clears it.
-MULTI_DESTINATION_ENV_VAR = "ADOPT_ENABLE_MULTI_DESTINATION"
-
-_TRUTHY = {"1", "true", "yes", "on"}
-
-
-def multi_destination_enabled() -> bool:
-    """Whether `type: "multi"` destinations may be configured at all.
-
-    Read at validation time rather than import time so that a test -- or an
-    operator who has just done the measurement -- can flip it without
-    re-importing the module.
-    """
-    return os.environ.get(MULTI_DESTINATION_ENV_VAR, "").strip().lower() in _TRUTHY
-
-
 class FlyMultiDestination(RefModeDestination):
     """A single ad that opens either Messenger or WhatsApp, Meta's choice.
 
@@ -557,6 +517,21 @@ class FlyMultiDestination(RefModeDestination):
     the WhatsApp arm's token sits in the respondent's compose box where they can
     read and edit it. Being described back to yourself as `gender.men.age.25_34`
     before a survey starts is an ethical question, not a technical one.
+
+    Asymmetric confidence between the two arms. The Messenger arm is MEASURED:
+    on 2026-08-17 ad 120254903561240150 delivered its quick-reply payload with
+    the ref intact even though `text_format.customer_action_type` was the scalar
+    "autofill_message", so Messenger reads its own sub-structure and ignores the
+    sibling autofill (planning/whatsapp-destination-model.md 8.1). The WhatsApp
+    arm rests on the symmetry inference from that result and has not itself been
+    observed -- every preview followed the single-valued MESSAGE_PAGE
+    call_to_action to Messenger. If the inference is wrong and Meta serves its
+    own default prefill, fly's event-normalizer still emits
+    conversation_started, and those arrivals land on FALLBACK_FORM: a real
+    survey belonging to another researcher, where misrouted respondents reach
+    END and look like completions. Watch the WhatsApp arm of the first multi
+    study for that shape; documentation/multi-destination-ads.md has the
+    procedure.
     """
 
     type: Literal["multi"]
@@ -580,22 +555,6 @@ class FlyMultiDestination(RefModeDestination):
     def promoted_phone_number(self) -> str:
         """The number in the form Meta's promoted_object wants."""
         return normalize_whatsapp_phone_number(self.whatsapp_phone_number)
-
-    @model_validator(mode="after")
-    def multi_destination_must_be_enabled(self):
-        if not multi_destination_enabled():
-            raise InvalidConfigError(
-                f"Multi-destination destination '{self.name}' is not enabled. "
-                "The WhatsApp arm of a multi-destination ad has never been "
-                "observed: we infer from the measured Messenger arm that it "
-                "reads its own sub-structure and ignores the sibling, but "
-                "nobody has seen it. If that inference is wrong, every WhatsApp "
-                "respondent this ad recruits lands silently in the fallback "
-                "survey and looks like a completion. Measure the WhatsApp arm "
-                "first (documentation/multi-destination-ads.md), then set "
-                f"{MULTI_DESTINATION_ENV_VAR}=true."
-            )
-        return self
 
     @model_validator(mode="after")
     def phone_number_must_be_dialable(self):

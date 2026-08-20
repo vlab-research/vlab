@@ -77,11 +77,13 @@ never change channel.**
 | `FlyMultiDestination` | `MESSAGING_MESSENGER_WHATSAPP` | all three at once |
 | `WebDestination` / `AppDestination` | *derived from the recruitment conf* | the URL / deeplink itself |
 
-`FlyMultiDestination` is **gated off** behind `ADOPT_ENABLE_MULTI_DESTINATION`:
-its Messenger arm is measured against live Meta delivery, its WhatsApp arm has
-never been observed. `documentation/multi-destination-ads.md` §4 is the
-procedure that clears the gate and the log that records it. The dashboard form
-exists and is labelled accordingly (§5 of that doc).
+`FlyMultiDestination` carries an **asymmetry worth knowing**: its Messenger arm
+is measured against live Meta delivery, its WhatsApp arm has never been
+observed and rests on a symmetry inference from the Messenger result. If that
+inference is wrong, WhatsApp arrivals land on `FALLBACK_FORM` and look like
+completions. `documentation/multi-destination-ads.md` §4 is the procedure that
+settles it, and §4.5 the log that records each attempt — run it against the
+first multi study rather than assuming.
 
 ## The Facebook field contract
 

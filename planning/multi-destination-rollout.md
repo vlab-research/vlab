@@ -166,10 +166,10 @@ exist as a followable checklist.
 
 ### Phase 5 — Enable, canary, then open up *(needs 1–4)*
 
-Set `ADOPT_ENABLE_MULTI_DESTINATION` in `devops/values/<env>.yaml` and apply through
-Helm — never imperatively — then restart the deployment, since pods do not reload env.
+Multi destinations are configurable as of the merge of this stack; there is no
+environment flag to set.
 
-Staging first, then **one canary study** in production: tiny budget, narrow targeting,
+**One canary study** in production: tiny budget, narrow targeting,
 watched daily. Watch not whether ads are created but whether both arms arrive, both
 attribute to a stratum, and Phase 0's fallback rate stays flat.
 

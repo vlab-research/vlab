@@ -172,7 +172,17 @@ Read these before trusting the old plan document.
 3. **`AdAttributions` is a struct, not a bare map.** The plan wrote
    `attributions.ByRefToken[token]` at call sites, so it is a one-field struct
    with a `Len()` helper. Every call site says out loud which key it joined on.
-4. **The `vt` fix was not authored this session.** It was sitting uncommitted in
+4. **The multi-destination env gate is gone.** `ADOPT_ENABLE_MULTI_DESTINATION`,
+   `multi_destination_enabled()` and the `multi_destination_must_be_enabled`
+   validator were removed on 2026-08-20 at the user's direction, along with the
+   three tests that pinned them. The measured asymmetry they encoded is still
+   true and now lives in `FlyMultiDestination`'s docstring, `adopt/README.md`,
+   `documentation/multi-destination-ads.md` §4 and the dashboard form copy: the
+   Messenger arm is measured, the WhatsApp arm is inferred by symmetry and has
+   never been observed. §4.5's result log is still empty and is still the thing
+   that settles it.
+
+5. **The `vt` fix was not authored this session.** It was sitting uncommitted in
    the fly worktree; the plan listed it under "Uncommitted and CORRECT (commit
    it)". This session ran the suite and committed it.
 
@@ -254,10 +264,11 @@ than this work: click-to-WhatsApp destinations, adset `promoted_object`, the
 CTWA ref grammar, `FlyMultiDestination`, shortcode-only Messenger refs, the
 dashboard forms. Releasing the encoded ref means merging all of it.
 
-It merges **dark**: `multi_destination_enabled()` reads
-`ADOPT_ENABLE_MULTI_DESTINATION`, defaults false, and is unset in all three
-values files, so `type: "multi"` destinations are unconfigurable. WhatsApp
-destinations are *not* gated — only multi.
+It merges **live**: both `type: "whatsapp"` and `type: "multi"` destinations are
+configurable the moment it lands. The env-var gate that once held multi shut was
+removed deliberately (see §5.5), so the WhatsApp arm's unverified status is now
+carried by documentation and by watching the first study that uses it, not by
+the type refusing to construct.
 
 `planning/multi-destination-rollout.md` lists three blockers. **Blocker 2 (fly
 never stamps an id) is closed by this work** and the document has been updated

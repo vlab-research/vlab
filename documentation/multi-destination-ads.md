@@ -228,9 +228,10 @@ get more info on this?"), fly's `event-normalizer.js` emits
 WhatsApp respondent lands silently on `FALLBACK_FORM`. They look like
 completions. That is VIR-19 again, on a feature nobody is watching yet.
 
-**Hence the gate.** `FlyMultiDestination` refuses to construct unless
-`ADOPT_ENABLE_MULTI_DESTINATION` is truthy. The type is built, tested and
-reviewable; it cannot be configured by accident.
+**This is the live risk on the WhatsApp arm.** It is not blocked in code:
+`FlyMultiDestination` configures like any other destination. The procedure
+below is what settles the question, and §4.5 is where each attempt is
+recorded — run it against the first multi study rather than inferring.
 
 ### 4.2 Procedure A — steer the preview to the WhatsApp arm (cheapest, do this first)
 
@@ -354,10 +355,8 @@ run is why this section exists.
 |---|---|---|---|---|---|---|
 | | | | | | | |
 
-Once a run passes on (a)–(d), set `ADOPT_ENABLE_MULTI_DESTINATION=true` in the
-deployment's env (via `devops/values/<env>.yaml`, per the
-infrastructure-as-code rule — never `kubectl set env`), and note here which
-environments are enabled.
+Once a run passes on (a)–(d), record it above. Until one does, treat any multi
+study's WhatsApp arm as unverified and watch its fallback rate.
 
 ---
 

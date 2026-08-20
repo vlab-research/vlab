@@ -5,7 +5,6 @@ import pytest
 from pydantic import ValidationError
 
 from .study_conf import (
-    MULTI_DESTINATION_ENV_VAR,
     CreativeConf,
     DestinationRecruitmentExperiment,
     ExtractionConf,
@@ -1241,12 +1240,7 @@ def _multi_study(destination_type="MESSAGING_MESSENGER_WHATSAPP",
     )
 
 
-@pytest.fixture
-def multi_enabled(monkeypatch):
-    monkeypatch.setenv(MULTI_DESTINATION_ENV_VAR, "true")
-
-
-def test_a_multi_destination_needs_the_multi_destination_type(multi_enabled):
+def test_a_multi_destination_needs_the_multi_destination_type():
     assert _multi_study().recruitment.destination_type == (
         "MESSAGING_MESSENGER_WHATSAPP"
     )
@@ -1258,7 +1252,7 @@ def test_a_multi_destination_needs_the_multi_destination_type(multi_enabled):
         _multi_study(destination_type="WHATSAPP")
 
 
-def test_multi_destination_requires_the_conversations_optimization_goal(multi_enabled):
+def test_multi_destination_requires_the_conversations_optimization_goal():
     """Meta's constraint, validated where someone can still act on it.
 
     Multi-destination forces optimization_goal CONVERSATIONS -- strictly
@@ -1274,7 +1268,7 @@ def test_multi_destination_requires_the_conversations_optimization_goal(multi_en
         _multi_study(optimization_goal="IMPRESSIONS")
 
 
-def test_the_conversations_check_names_both_fields(multi_enabled):
+def test_the_conversations_check_names_both_fields():
     """So the error is actionable. Meta's own rejection never mentions the
     destination, which is what makes this worth catching early."""
     try:
@@ -1296,7 +1290,7 @@ def test_the_conversations_check_leaves_other_studies_alone():
     assert StudyConf(**study).recruitment.optimization_goal == "LINK_CLICKS"
 
 
-def test_a_multi_destination_shortcode_keeps_the_narrow_alphabet(multi_enabled):
+def test_a_multi_destination_shortcode_keeps_the_narrow_alphabet():
     """It has a WhatsApp arm, so the shortcode must be typeable by hand.
 
     Someone who hears about the study texts `form.<shortcode>` straight into
@@ -1314,7 +1308,7 @@ def test_a_multi_destination_shortcode_keeps_the_narrow_alphabet(multi_enabled):
         )
 
 
-def test_a_multi_destination_number_must_be_dialable(multi_enabled):
+def test_a_multi_destination_number_must_be_dialable():
     with pytest.raises(InvalidConfigError, match="dialable"):
         FlyMultiDestination(
             type="multi",
@@ -1326,7 +1320,7 @@ def test_a_multi_destination_number_must_be_dialable(multi_enabled):
         )
 
 
-def test_a_multi_destination_exposes_the_number_in_metas_shape(multi_enabled):
+def test_a_multi_destination_exposes_the_number_in_metas_shape():
     dest = FlyMultiDestination(
         type="multi",
         name="multi",
@@ -1338,7 +1332,7 @@ def test_a_multi_destination_exposes_the_number_in_metas_shape(multi_enabled):
     assert dest.promoted_phone_number == "15419202635"
 
 
-def test_a_thin_multi_ref_without_an_ad_conf_is_reported(multi_enabled):
+def test_a_thin_multi_ref_without_an_ad_conf_is_reported():
     """include_metadata_in_ref defaults False on multi, so the ad -> stratum
     mapping is the only attribution it has. Reported for the same reason as the
     other fly destinations."""
@@ -1381,7 +1375,7 @@ def test_the_dashboard_whatsapp_form_shape_parses():
     assert dest.additional_metadata is None
 
 
-def test_the_dashboard_multi_form_shape_parses(multi_enabled):
+def test_the_dashboard_multi_form_shape_parses():
     """What Destination.tsx's `multi` emptyState produces, once filled in."""
     dest = FlyMultiDestination(
         **{
@@ -1398,7 +1392,7 @@ def test_the_dashboard_multi_form_shape_parses(multi_enabled):
     assert dest.include_metadata_in_ref is False
 
 
-def test_the_dashboard_additional_metadata_shape_parses(multi_enabled):
+def test_the_dashboard_additional_metadata_shape_parses():
     """The metadata text box sends a parsed object, or omits the key entirely.
 
     It never sends `{}` for a cleared field — additionalMetadata.ts maps an

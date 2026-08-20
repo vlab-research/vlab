@@ -106,9 +106,9 @@ export interface WhatsApp {
 // Carries both arms' fields: button_text for the Messenger quick reply,
 // whatsapp_phone_number for the WhatsApp promoted_object.
 //
-// Gated in adopt behind ADOPT_ENABLE_MULTI_DESTINATION until the WhatsApp arm
-// is measured — see documentation/multi-destination-ads.md. Saving one while
-// the gate is shut fails validation with an error that says so.
+// The Messenger arm is measured against live Meta delivery; the WhatsApp arm is
+// inferred from it by symmetry and has never been observed — see
+// documentation/multi-destination-ads.md §4.
 export interface Multi {
   type: string;
   name: string;
