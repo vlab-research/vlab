@@ -7,7 +7,7 @@ versionAdopt: &vadopt v0.1.77
 # before this bump — cut it with `make release SERVICE=vlab-migrations VERSION=...`.
 migrations:
   image: ghcr.io/vlab-research/vlab-migrations
-  tag: v0.1.0
+  tag: v0.2.0
 
 # CockroachDB target for the migration hook. The vlab release borrows the gbv
 # release's cluster; that coupling is explicit here, not buried in a template.
