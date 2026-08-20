@@ -1,0 +1,32 @@
+-- NOTE: Every schema change to ad_attributions touches both paths (golang-migrate
+-- here AND devops/helm/migrations/init.sql).
+--
+-- The join key for ads whose ref carries one. See documentation/ad-attributions.md
+-- and adopt/adopt/ref_encoding.py for the format.
+--
+-- Why a second key rather than reusing ad_id. ad_id only attributes a respondent
+-- if Meta told fly which ad they came from, and on Messenger Meta does that for
+-- only ~31% of ad entrants -- it does not send the referral webhook for the rest
+-- (measured; documentation/recruitment-arrival-health.md). The token rides a
+-- carrier vlab authors instead, so it arrives for everyone.
+--
+-- NULL is the normal case, and it means something: this ad's ref carries no
+-- token, because its destination is not in ref_mode "encoded". It is not a gap
+-- in the record, which is why there is no NOT NULL and no default.
+--
+-- The two keys are never a fallback for one another. Which one attributes a
+-- respondent is fixed when the ad is built, not chosen at read time by whichever
+-- lookup happens to hit -- a runtime choice would make a miss indistinguishable
+-- from a mechanism switch and every debugging session an archaeology exercise.
+ALTER TABLE ad_attributions ADD COLUMN IF NOT EXISTS ref_token STRING;
+
+-- No index on ref_token, deliberately. Every read of this table is per study --
+-- get_ad_attributions loads a study's whole set and swoosh joins in memory (see
+-- documentation/ad-attributions.md, "Where the database touch lives"), so no
+-- query ever filters on the token and an index would only cost writes.
+--
+-- Nor is it UNIQUE. Uniqueness is asserted per campaign at instruction-generation
+-- time (marketing.assert_ref_tokens_unique), where the failure is a config error
+-- someone can still fix. A constraint would instead abort the INSERT *after* the
+-- ad exists on Facebook and is spending -- and this table is append-only with
+-- ON CONFLICT DO NOTHING, so a write must never fail a run.
