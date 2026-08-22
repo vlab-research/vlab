@@ -227,23 +227,35 @@ is not in `ref_mode: "encoded"`. It has no join key, so there is nothing to
 index it under — and critically it must not land under `""`, where every
 tokenless respondent would match it.
 
-### The three-way split
+### Only the unmappable is reported
 
-`adAttributionOutcome` (`swoosh/inference_data.go`) classifies each event
-against the study's mapping:
+`adAttributionOutcome` (`swoosh/inference_data.go`) asks one question of each
+event: could this respondent be attributed, and should they have been.
 
 | Outcome | Meaning | Handling |
 |---|---|---|
 | attributed | token present, mapping row found | normal, no event |
-| organic | no token on the event | expected; counted as a warning, does not alarm |
+| no ad provenance | no token on the event | expected; **no event at all** |
 | unmapped | token present, no mapping row | always a bug; counted at severity `error` |
 
-Classification happens once per *event*, not per conf, so one organic arrival is
-not multiplied by the number of lookup confs a study declares (see
+Classification happens once per *event*, not per conf, so one miss is not
+multiplied by the number of lookup confs a study declares (see
 `tokenLookupKey`). `classifyExtractionError` (`swoosh/events.go`) maps
-`unmapped` to `error` severity and `organic` to `warning`, alongside the
-existing `source=`-prefixed warnings. Every outcome's details name the mechanism
-(`ref_token`) and the key it read, so a miss is diagnosable from the row.
+`unmapped` to `error` severity, alongside the existing `source=`-prefixed
+warnings. Its details name the mechanism (`ref_token`) and the key it read, so a
+miss is diagnosable from the row.
+
+There used to be a third outcome, `ad=organic`, warning on any event with no
+token. It classified by mechanism state rather than by outcome, and it needed an
+explicit "must not alarm" carve-out — which is the tell that an expected result
+had been put on an error surface. Worse, a study switching to the encoded ref
+keeps its inline confs alongside the new lookup ones, so both eras attribute;
+but every pre-switch respondent has no token, and swoosh recomputes all history
+every run, so it reported the entire back-catalogue as unattributed, forever,
+falsely. (Compare the 52,090-row `source=Fly` false alarm in
+`planning/swoosh-config-reconciliation.md`.) What it nominally measured — the
+share of arrivals with no ad provenance — is a rate needing a denominator an
+error list has not got, and is tracked as VIR-32.
 
 Unmapped is self-healing: swoosh recomputes everything each run, so inserting
 the missing `ad_attributions` row retroactively fixes prior runs, and the
@@ -258,8 +270,8 @@ problem no run can fix from the inside.
 
 ### Tests
 
-- `swoosh/ad_attributions_test.go` — the pure three-way-split and extraction
-  tests, plus DB-backed `swooshStudy` tests (needs `make test-db`).
+- `swoosh/ad_attributions_test.go` — the pure outcome and extraction tests,
+  plus DB-backed `swooshStudy` tests (needs `make test-db`).
 - The ad-attribution section of `sources/fly/main_test.go`.
 
 See `documentation/ad-attributions.md` and

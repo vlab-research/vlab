@@ -148,8 +148,54 @@ exported precisely so `flyExtraction.test.ts` can assert the absence rather than
 the module merely not mentioning it, which is what stops a future merge of the
 two forms from reintroducing it.
 
+`generateLookupConfs.ts` is the third pure module here. It turns the study's
+declared variables into `ad_table_lookup` confs, behind an explicit button on
+fly sources — mirroring the Strata step's Regenerate. It is additive by name
+(a hand-written conf for a variable always wins), emits one token key across
+every conf it produces, and is idempotent, so the button is safe to press and
+disabled when it would add nothing.
+
 See `documentation/ad-attributions.md` for the join this feeds.
 
 Tests:
-`src/pages/StudyConfPage/forms/inferenceData/flyExtraction.test.ts`, run with
-`npm test`.
+`src/pages/StudyConfPage/forms/inferenceData/{flyExtraction,generateLookupConfs}.test.ts`,
+run with `npm test`.
+
+## Destination forms and the ref mode
+
+`src/pages/StudyConfPage/forms/destinations/refMode.ts` is the pure module
+behind `RefModeField.tsx`, which the Messenger, WhatsApp and multi forms all
+render — one control rather than three copies, because the whole point of the
+encoded default is that a multi-channel study attributes exactly one way.
+
+Two modes are offered, labelled by consequence rather than mechanism (the word
+`ref_mode` never appears on screen): a clean link whose stratum is looked up
+afterwards (`encoded`, the default everywhere), and stratum values inline in the
+link (`metadata`, Messenger-only). Thin (`shortcode`) is not offered at all.
+`isPureMessengerStudy` judges the inline option across the whole destination
+list, not per destination, so the Messenger arm of a WhatsApp study cannot take
+it.
+
+**The one rule to preserve when editing these forms:** the encoded default is a
+*new-conf* affordance and must never be written onto a conf that arrived without
+one. `ref_mode` absent is a real, meaningful state — it means the conf predates
+the field, and adopt resolves it per channel from `include_metadata_in_ref`. So
+`displayedRefMode` reports what a conf actually does and is never written back;
+the default lives only in the `emptyStates` in `Destination.tsx` and the
+`initialState` in `Destinations.tsx`; and the forms spread `...data` so an
+absent field survives an unrelated edit. Break any of the three and editing a
+legacy study's welcome message silently flips its ads.
+`Messenger.test.tsx` exercises exactly that.
+
+## The Ad Attributions step
+
+`forms/adAttributions/AdAttributions.tsx` shows what each of a study's ads means
+and the `ref_token` it carries — a confirmation surface, not a configuration
+one. Columns come from adopt rather than being derived here, so the table cannot
+show a shape the CSV download beside it does not have. The download is a
+fetch-and-object-URL rather than a link, because the endpoint is
+bearer-authenticated and an `<a href>` cannot carry the header.
+
+Note that `confs` in `shared.ts` doubles as the wizard's next-step chain
+(`getNextConf`), so inserting a step changes where the preceding one advances
+to.

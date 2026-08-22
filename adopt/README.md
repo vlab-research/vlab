@@ -350,6 +350,46 @@ raises, because a study recruiting uniformly with no `question_targeting` needs
 no stratum attribution and is entitled to a thin ref. It covers WhatsApp
 destinations too, whose default is already thin.
 
+### The save-time refusal
+
+`ref_mode_incoherence` (`study_conf.py`) is the same failure caught one layer
+earlier: at the moment someone saves the conf that causes it, rather than on the
+next reconciliation run. `server.py` calls it from both
+`create_destinations_conf` and `create_inference_data_conf` and returns **422**,
+with a message naming both sides.
+
+It takes the two confs rather than a `StudyConf`, because Destinations and Data
+Extraction are POSTed independently and no assembled study exists at save time.
+
+Two properties are deliberate and easy to "fix" by mistake:
+
+- **Only the thin-write-with-no-read direction is refused.** A read with no thin
+  write is allowed: confs reading a token no ad emits extract nothing, swoosh
+  skips them, and the respondent is still attributed inline. That asymmetry is
+  what makes switching a live study performable — add the lookup confs first,
+  where they lie dormant, then flip the destination. Refusing both directions
+  would deadlock the flip, each conf waiting on the other.
+- **It fires only when the counterpart conf already exists.** The dashboard
+  wizard saves Destinations at step four and Data Extraction at step ten, so an
+  unconditional check would make an encoded study unsaveable before the
+  researcher could reach the step that satisfies it.
+
+Use `find_study_conf` (`server/db.py`) rather than `get_study_conf` when a
+missing conf is an ordinary answer: the latter raises.
+
+### Serialising `ref_mode`
+
+`RefModeDestination` drops `include_metadata_in_ref` from its dump once
+`ref_mode` is stated, and this is load-bearing rather than tidiness. Confs are
+stored as `model_dump()`, which writes defaults — so an encoded Messenger
+destination would be stored as `{"ref_mode": "encoded",
+"include_metadata_in_ref": true}`, since Messenger defaults that flag `True`.
+Reading it back puts the flag in `model_fields_set`, which is exactly what
+`ref_mode_must_not_contradict_the_legacy_flag` rejects, so the conf would raise
+on every subsequent parse and the study's reconciliation would stop — from a
+save that returned 201. A conf that never states `ref_mode` still serialises the
+flag, because for those confs it is the only thing that says what the ads do.
+
 ### Validating the mapping conf
 
 `ExtractionConf` (`study_conf.py`) carries the `mapping` field the dashboard

@@ -1,5 +1,8 @@
 # Ref mode in the dashboard — implementation plan
 
+**Status:** built. All six pieces landed; dashboard 191 tests, adopt 718, swoosh
+and the rest of inference green.
+
 **Design:** `planning/ref-mode-dashboard-ux.md`. That document is the decision
 record; this one is the build order. Read it first — every section below cites
 the § it implements, and where this plan departs from it, the departure is
@@ -62,6 +65,11 @@ they are reviewable rather than discovered in a diff.
   first, so an unconditional check would 422 every new encoded study before it
   could reach the extraction step. A study that is merely unfinished is not
   wrong; a study whose two halves contradict each other is.
+
+  **Refined while building: the check is also one-directional.** Only a thin
+  write with no read is refused. Refusing the other direction as well would make
+  §5's flip unperformable in either order, each conf waiting on the other — see
+  §5 below.
 - **§4.4 gets a real surface**, not just a download: a dedicated
   **Ad Attributions** step showing each ad, its stratum and its `ref_token`,
   with the CSV download alongside it.
@@ -236,10 +244,11 @@ name survives; empty variables yields nothing.
 **adopt** — new `GET /{org_id}/studies/{slug}/ad-attributions` returning JSON,
 beside the existing `.csv` route in `server.py`. Same auth, same
 `get_study_id` ownership check, same `get_ad_attributions(study_id, db_cnf)`
-load. Columns are the union across rows in first-seen order, exactly as
-`ad_attributions_csv` already computes — that logic is extracted into a shared
-pure function rather than duplicated, so the table and the CSV can never
-disagree about shape.
+load. Columns are the union across rows in first-seen order — and no extraction
+was needed after all: `metadata_columns`, `column_name` and `_cell` were already
+pure functions in `csv_export.py`, so `ad_attributions_table` just calls them.
+The table and the CSV therefore cannot disagree about shape, which is asserted
+directly rather than assumed.
 
 Deleted ads are included, for the reason the CSV already includes them:
 respondents keep arriving from ads reconciliation has removed, and a row missing
@@ -275,22 +284,53 @@ warning. They should be refused at save, naming *both* sides.
 ref_mode_incoherence(destinations, inference_data) → Optional[str]
 ```
 
-Returns a message, or None. Two directions:
+Returns a message, or None. It takes the two confs rather than a `StudyConf`,
+because at save time no assembled study exists — only the conf being written and
+whatever its counterpart already is.
 
-- a fly destination resolving to a thin mode (`encoded` or `shortcode`) while
-  no extraction conf declares `mapping: "ad_table_lookup"` — the ad stops
-  carrying the stratum and nothing looks it up;
-- a lookup conf declared while every fly destination resolves to `metadata` —
-  the confs read a token no ad emits.
+**As built it checks one direction, not two.** The plan called for both; the
+second turns out to make §5's flip impossible.
+
+- **Refused** — a fly destination resolving to a thin mode (`encoded` or
+  `shortcode`) while no extraction conf declares `mapping: "ad_table_lookup"`.
+  The ad stops carrying the stratum and nothing looks it up, so every stratum
+  counts zero and the optimizer reallocates on empty data.
+- **Allowed** — a lookup conf declared while no destination emits a token. Those
+  confs extract nothing and swoosh skips them; the respondent is still
+  attributed inline, so nothing is lost.
+
+The asymmetry prescribes the safe order for a flip: add the lookup confs first,
+where they lie dormant against a thick destination, then flip the destination.
+Refusing both directions would deadlock that — the destination save waiting for
+confs, the conf save waiting for the destination. Refusing one turns the 422
+into the instruction.
 
 The message names the destination *and* the conf, because being told only one
 half is how someone fixes the wrong side.
 
 **Wiring**, in `server.py`: `create_destinations_conf` and
-`create_inference_data_conf` load the counterpart with
-`get_study_conf(user_id, org_id, slug, <other>)` — which returns `None` when
-absent — and raise `HTTPException(422, detail=...)` only when the counterpart
-**exists** and the pair is incoherent.
+`create_inference_data_conf` load the counterpart and raise
+`HTTPException(422, detail=...)` only when it **exists** and the pair is
+incoherent.
+
+`get_study_conf` turned out to *raise* on a missing conf rather than return
+`None`, so `find_study_conf` was split out of it for callers to whom absence is
+an ordinary answer. A stored conf that no longer parses is treated as absent
+too: refusing to let someone save Destinations because an unrelated conf is
+malformed would be a dead end with no way out through the UI.
+
+### A latent bug this piece uncovered
+
+Confs are stored as `model_dump()`, which writes defaults. So the moment the UI
+began sending `ref_mode: "encoded"`, a Messenger destination was stored as
+`{"ref_mode": "encoded", "include_metadata_in_ref": true}` — Messenger defaults
+that flag `True`. Re-reading it put the flag in `model_fields_set`, which is
+exactly what `ref_mode_must_not_contradict_the_legacy_flag` rejects: the save
+returned 201 and the study was then permanently unparseable, stopping its
+reconciliation. `RefModeDestination` now omits the legacy flag on serialisation
+once `ref_mode` is stated, which is what that validator's own message asks a
+human to do. Caught by the endpoint tests, not by the unit tests — nothing else
+round-tripped a conf through storage.
 
 This is a deliberate weakening of §6's "make the wrong thing unsaveable", and
 the reason is the wizard order: Destinations is saved before Data Extraction
@@ -405,10 +445,13 @@ needs its own `npm install`.
   `Destination.tsx`. Mild prop drilling; the alternative is deciding per
   destination, which would offer thick on the Messenger arm of a mixed study and
   reintroduce exactly the per-channel heterogeneity §4.1 removes.
-- **The CSV shape extraction** (§4) touches shipped export code. The union-in-
-  first-seen-order behaviour is asserted by
-  `adopt/adopt/server/test_ad_attributions_csv.py`; those tests must keep
-  passing unchanged, which is the point of extracting rather than reimplementing.
+- ~~**The CSV shape extraction** (§4) touches shipped export code.~~ Did not
+  arise: the column logic was already pure and is reused as-is, so the shipped
+  CSV path is untouched and its tests pass unchanged.
+- **`getByLabelText` does not work on these forms.** The shared `TextInput` and
+  `Select` render a `<label>` with no `htmlFor`, so nothing associates it with
+  its control; component tests query by role and placeholder instead. Worth
+  fixing, but it touches every form in the app and was left out of scope.
 - **No production study currently sets `ref_mode`.** Every path added here is
   new-conf-first, and the legacy resolution is untouched, so the blast radius is
   studies someone deliberately edits.

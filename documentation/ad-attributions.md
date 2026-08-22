@@ -4,8 +4,13 @@
 researcher declare an ad-derived variable in the dashboard, A3 exports the
 mapping as CSV, A8/A9 add click-to-WhatsApp, and A4 lets a study stop shipping
 its stratum vocabulary in the ref at all. Every part is per-study and opt-in:
-nothing existing changes until someone changes it. The one piece outstanding is
-the dashboard form for the WhatsApp destination type.
+nothing existing changes until someone changes it.
+
+The researcher-facing half is now built too: the destination forms offer the ref
+mode, the Data Extraction step generates the read side from declared variables,
+the dashboard shows the mapping and downloads it, and an incoherent pair is
+refused at save. See `planning/ref-mode-dashboard-ux.md` for the design and
+`planning/ref-mode-dashboard-implementation.md` for the build.
 
 **The join key changed.** The mechanism first shipped joining on `ad_id`; it now
 joins on an opaque `ref_token` that rides the ref itself. The earlier work is
@@ -261,31 +266,58 @@ bare map — so every call site says out loud which key it joined on. There is
 deliberately no `ByAdID`: adding a second index is how runtime mechanism
 selection creeps back in.
 
-## The three-way split
+## What gets reported: only the unmappable
 
 A retrieve returning `ok=false` means `continue`: no variable, no stratum match,
-optimizer undercount. Three different things produce it and only one is a bug.
+optimizer undercount. Three different things produce it and only one is a bug —
+so only one is reported.
 
 | Outcome | Meaning | Treatment |
 |---|---|---|
 | attributed | token present, mapping row found | normal; no event |
-| organic | no token on the event | expected; counted as `extraction_warning`, does not alarm |
+| no ad provenance | no token on the event | expected; **no event at all** |
 | **unmapped** | token present, **no mapping row** | always a bug; counted as `extraction_error` at severity `error` |
 
-Classification happens once per **event**, not per conf. An event either carries
-a token or it does not, and that token either resolves or it does not — none of
-which depends on the conf. Counting per conf would multiply one organic arrival
-by however many lookup confs the study declares.
+Classification happens once per **event**, not per conf. An event's token either
+resolves or it does not, which does not depend on the conf. Counting per conf
+would multiply one miss by however many lookup confs the study declares.
 
-Every outcome's details name the mechanism (`ref_token`) and the metadata key it
+Unmapped's details name the mechanism (`ref_token`) and the metadata key it
 read, so a miss is diagnosable from the recorded row rather than from the era it
-was written in. `ad_id` rides along in the details of an unmapped event too —
-not as a second attribution path, but so a miss can be lined up against fly's
-recruitment-health signals.
+was written in. `ad_id` rides along too — not as a second attribution path, but
+so a miss can be lined up against fly's recruitment-health signals.
 
-Organic is worth counting even though it is expected: shortcodes are shareable
-by design, so a jump in the organic share means a leaked shortcode. Unmapped is
-always a defect — vlab created an ad and failed to record what it meant.
+### Why "organic" was removed
+
+There used to be a third outcome, `ad=organic`, counted as an
+`extraction_warning` for any event carrying no token. It classified by
+*mechanism state* — is there a token, does it resolve — when the only thing an
+error surface should carry is *outcome*: could this respondent be attributed.
+An expected, correct result does not belong on an error page, and the explicit
+"must not alarm" carve-out it needed in `classifyExtractionError` was the
+acknowledgement of that.
+
+It was also, for one whole class of study, **false**. A study that switches to
+the encoded ref keeps its inline confs alongside the new lookup ones, so both
+eras attribute (see *Switching a live study's mode* below) — but every
+pre-switch respondent carries no token, and swoosh recomputes a study's entire
+history on every run. The counter therefore reported the whole back-catalogue as
+*"arrived with no ref token and is not attributed to any stratum"*, every run,
+forever, while those respondents sat there correctly attributed by the raw
+confs.
+
+The same shape is on record in `planning/swoosh-config-reconciliation.md`: a
+warning re-emitted every hourly run over 52,090 historical rows, never ageing
+out through the derivation's recency predicate, described there as *"a permanent
+false alarm."*
+
+**What this gives up**, deliberately: the share of respondents arriving with no
+ad provenance. That is what would catch a leaked shortcode — shortcodes are
+shareable by design — and also the genuinely dangerous case of an encoded study
+receiving no tokens at all. Neither ever worked on this surface: a count with
+`first_seen`/`last_seen` cannot show a jump, and the branch did not alarm. Both
+are one measurement, a **rate**, which needs a denominator an error list does not
+have. Tracked as **VIR-32**, for a stats surface rather than the errors page.
 
 **Unmapped is self-healing.** Because swoosh recomputes the whole study every
 run, inserting a missing mapping row retroactively fixes every prior run's
@@ -298,10 +330,97 @@ unmapped: the respondent is mapped, the conf just asked for a stratum variable
 the ad was not frozen with. That is a conf problem, and inflating the unmapped counter with it
 would blunt the signal that exists to catch real bugs.
 
+## Choosing how a study's ads carry attribution
+
+The destination forms — Messenger, WhatsApp and multi — offer two choices,
+framed by what each does to the researcher's data rather than by the word
+`ref_mode`, which never appears:
+
+| Offered as | Stored as | What it means for the researcher |
+|---|---|---|
+| clean link, look the stratum up | `encoded` | the stratum is not in the survey data; it comes from the ad-attributions export, joined on `ref_token` |
+| stratum values inline in the link | `metadata` | the export already has `gender`, `Region` and the rest as columns; nothing to join |
+
+**Encoded is the default, on every channel.** Uniformity is the point, and it is
+a data argument: if Messenger were thick and WhatsApp encoded, a multi-channel
+study would attribute two different ways, and the researcher would join their
+data two different ways depending on which arm a respondent arrived through — a
+confusion that surfaces at analysis time, months later, to someone who was not
+in the room.
+
+**Thick is offered on pure-Messenger studies only.** Its one cost is a visible,
+editable ref, which lands entirely on the WhatsApp arm, so offering it to a
+study with any WhatsApp or multi destination would reintroduce exactly that
+heterogeneity. The check is over the whole destination list, not per
+destination.
+
+**Thin (`shortcode`) is not offered at all.** It was only ever the WhatsApp/multi
+default, and a destination-type census on 2026-08-21 found no production
+population on those channels — 892 messenger, 11 web, 3 website, 0 whatsapp,
+0 multi — so there is no stored conf to preserve. It stays in adopt's `RefMode`
+literal because that is still what an untouched legacy WhatsApp conf resolves
+to; unreachable from the form is what "removed" means.
+
+### The model defaults to legacy; the UI defaults to encoded
+
+This split is what keeps the migration free, and it only works if the UI default
+is strictly a **new-conf** affordance.
+
+- **Model:** `ref_mode: Optional[RefMode] = None`, and `None` still resolves per
+  channel from `include_metadata_in_ref`. An untouched conf therefore resolves
+  to exactly what it does today, with nobody rewriting stored JSON.
+- **UI:** the dashboard writes `ref_mode` explicitly into every *new*
+  destination. So `ref_mode is None` comes to mean exactly one thing: **created
+  before this feature existed** — in practice a thick Messenger study, since
+  there are no legacy WhatsApp or multi studies.
+
+The failure this guards against is specific: open a legacy thick study, edit its
+welcome message, save, and re-serialise `ref_mode` from `None` to `"encoded"` —
+silently flipping a running study's ads. Three properties prevent it, and all
+three are load-bearing:
+
+1. `displayedRefMode` reports what a conf *actually does* — absent means thick
+   on Messenger, thin elsewhere — and is never written back.
+2. The encoded default lives only in the two empty-state constructors, both of
+   which build new confs.
+3. `GenericList` renders stored data as-is and the forms spread `...data`, so a
+   field absent from a conf stays absent through an unrelated edit.
+
+`dashboard/src/pages/StudyConfPage/forms/destinations/Messenger.test.tsx`
+exercises exactly that scenario.
+
+### One more round-trip trap, fixed
+
+Confs are stored as `model_dump()`, which writes defaults. A destination saved
+with `ref_mode: "encoded"` therefore landed in the database as
+`{"ref_mode": "encoded", "include_metadata_in_ref": true}`, since Messenger
+defaults that flag `True`. Reading it back puts the flag in `model_fields_set`,
+which is precisely what `ref_mode_must_not_contradict_the_legacy_flag` looks
+for — so the conf raised, the study became permanently unparseable, and its
+reconciliation stopped, from a save that looked like it worked.
+`RefModeDestination` now drops the legacy flag on serialisation once `ref_mode`
+is stated, which is what the validator's own error message asks for.
+
 ## Declaring an ad-derived variable
 
-vlab does not infer these confs, so the dashboard form is the only way a
-researcher states one. In the study's **Inference Data** step, a fly source's
+vlab does not infer these confs silently, but it will write them for you. In the
+study's **Data Extraction** step, a fly source offers to **add one lookup
+variable per stratum variable declared in Variables**. The researcher already
+named those variables, and the name is exactly what the ad's frozen row is keyed
+by — so asking for them a second time, in a different vocabulary, is the split
+that produces silent half-configs.
+
+Generation is additive by name and never overwrites a hand-written conf: a study
+can perfectly reasonably read `gender` from a survey answer rather than from the
+ad. It emits one token key across every conf, so it cannot create the
+disagreement `disagreeing_token_keys` warns about. It is idempotent, and the
+button is disabled when it would add nothing. The generated confs land as
+ordinary editable rows saved through the normal Submit — nothing is synthesised
+behind the researcher's back, so the stored conf stays the whole truth about
+what swoosh will run.
+
+A conf can still be written by hand, which is what a study attributing on a
+variable it did *not* stratify on does. In the same step, a fly source's
 location dropdown offers Metadata and Variable — and choosing **Metadata**
 reveals a second dropdown, the mapping:
 
@@ -341,6 +460,38 @@ Nothing between the form and swoosh constrains `location` or `mapping`: both are
 bare strings in the dashboard's TypeScript and in the Go API's opaque conf
 storage. Python's `ExtractionConf` is the one place that validates them —
 rejecting an unknown mapping, and a lookup on a non-metadata location.
+
+### Save-time refusal
+
+`ref_mode_incoherence` refuses, with a 422 naming **both** sides, a save that
+would leave a study's ads not carrying the stratum while nothing reads it back.
+Being told only the half you are looking at is how someone confidently fixes the
+wrong one.
+
+Only one of the two possible incoherences is refused, and the asymmetry is the
+design:
+
+- **Refused — a thin write with no read.** The ads stop carrying the stratum and
+  nothing looks the token up, so every stratum counts zero and the optimizer
+  reallocates on empty data. Silently, because a respondent with no token is
+  indistinguishable from one who never clicked an ad.
+- **Allowed — a read with no thin write.** Lookup confs reading a token no ad
+  emits extract nothing, and swoosh skips a conf that finds nothing. The
+  respondent is still attributed inline. Nothing is lost.
+
+That asymmetry prescribes the **safe order** for switching a live study: add the
+lookup confs first, where they lie dormant against a thick destination, then
+flip the destination, at which point they become live. Refusing both directions
+would make the flip unperformable in either order, each conf waiting on the
+other; refusing this one turns the 422 into the instruction.
+
+It fires **only when the counterpart conf exists**. Destinations and Data
+Extraction are separate POSTs and the wizard saves Destinations at step four of
+ten, so an unconditional check would make an encoded study unsaveable before the
+researcher could reach the step that satisfies it — a study part way through
+being configured is unfinished, not wrong. The never-configured case stays with
+`thins_its_ref_without_reading_the_mapping`, which warns on every reconciliation
+run and does not wait for anyone to press Save.
 
 ### Config-time checks
 
@@ -389,9 +540,13 @@ Two details worth knowing:
   than unexported. Nothing in the read path filters on liveness; there is no
   liveness column to filter on, by design.
 
-There is no dashboard download button yet. The endpoint takes an API key, which
-suits the primary use — fetching it from an analysis script that is doing the
-join anyway.
+The dashboard renders the same rows in its **Ad Attributions** step, with a
+download button beside them. The table is served by
+`GET /{org_id}/studies/{slug}/ad-attributions` — same rows, same ownership
+check, and crucially the same `metadata_columns` union, so the table on screen
+cannot show a different shape from the file downloaded next to it. The `.csv`
+route also still takes an API key, which suits the other primary use: fetching
+it from an analysis script that is doing the join anyway.
 
 ## Retiring the ref: shortcode-only Messenger ads
 
@@ -447,6 +602,30 @@ does not change. That matters more than it looks: `(network, ad_id)` is the
 table's primary key, so a flip that minted new ids would strand every
 `ad_attributions` row the study already had and leave its past respondents
 unattributable. Both properties are asserted.
+
+**A flip costs no data, and that is not obvious.** The read side is additive and
+swoosh coalesces cleanly: `extractValue` runs every conf per respondent, and a
+conf that finds nothing does `!ok → continue` — skipped, not errored. So a
+pre-flip respondent (stratum inline, no token) satisfies the raw conf and skips
+the lookup, while a post-flip respondent (thin ref, only a token) does the
+reverse. The eras **partition by presence of the token**, never both, so
+`addValue` never reaches its conflict path and both write the same column.
+
+That holds only if the old read conf is **kept alongside** the new one rather
+than replaced. Replace it and the study's whole back-catalogue re-attributes
+through a path those events cannot satisfy — see *Why there is still no fallback
+to `location: "metadata"`* above, which is the same argument from the other
+side.
+
+So what the dashboard warns about on a flip is the **write-side** cost, not data
+loss: the ref is part of the creative, so reconciliation sees every existing ad
+as drifted and rewrites all of them. Real spend, possibly another Meta review,
+the ad learning phase starting over, and live reshared page-posts beginning to
+point at the new ref under respondents already recruited.
+
+Because there are no legacy WhatsApp or multi studies, the only flip that can
+actually occur is a **Messenger study going thick → encoded**, one direction,
+opt-in. WhatsApp and multi are born encoded and never flip.
 
 ### The half-migration guard
 
@@ -802,7 +981,11 @@ study that opts into ad-id attribution.**
 | CSV export | `adopt/adopt/server/csv_export.py`, `adopt/adopt/server/server.py` |
 | WhatsApp destination + ref validation | `adopt/adopt/study_conf.py`, `adopt/adopt/marketing.py` |
 | Ref mode (`ref_mode`, `include_metadata_in_ref`) | `adopt/adopt/study_conf.py`, `marketing.messenger_ref` |
-| Dashboard form | `dashboard/src/pages/StudyConfPage/forms/inferenceData/{flyExtraction,qualtricsExtraction}.ts`, `FlyExtraction.tsx` |
+| Dashboard form (extraction) | `dashboard/src/pages/StudyConfPage/forms/inferenceData/{flyExtraction,qualtricsExtraction}.ts`, `FlyExtraction.tsx` |
+| Dashboard form (ref mode) | `dashboard/src/pages/StudyConfPage/forms/destinations/{refMode.ts,RefModeField.tsx}`, `{Messenger,WhatsApp,Multi}.tsx` |
+| Read-side generation | `dashboard/src/pages/StudyConfPage/forms/inferenceData/generateLookupConfs.ts` |
+| Ad-attributions surface | `dashboard/src/pages/StudyConfPage/forms/adAttributions/AdAttributions.tsx`, `hooks/useAdAttributions.tsx` |
+| Save-time refusal | `adopt/adopt/study_conf.py` (`ref_mode_incoherence`), `adopt/adopt/server/server.py` |
 | Event fields + network constant | `inference/inference-data/inference_data.go` |
 | Connector | `inference/sources/fly/main.go` |
 | Mapping load | `inference/swoosh/ad_attributions.go` |
@@ -810,7 +993,7 @@ study that opts into ad-id attribution.**
 | Event routing / severity | `inference/swoosh/events.go` |
 | Python tests (need `make test-db`) | `adopt/adopt/test_ad_attributions.py`, `adopt/adopt/test_marketing.py`, `adopt/adopt/facebook/test_reconciliation.py`, `adopt/adopt/test_study_conf.py`, `adopt/adopt/server/test_ad_attributions_csv.py` |
 | Go tests (need `make test-db`) | `inference/swoosh/ad_attributions_test.go`, `inference/sources/fly/main_test.go` |
-| Frontend tests | `dashboard/src/pages/StudyConfPage/forms/inferenceData/flyExtraction.test.ts` |
+| Frontend tests | `dashboard/src/pages/StudyConfPage/forms/inferenceData/{flyExtraction,generateLookupConfs}.test.ts`, `forms/destinations/{refMode.test.ts,Messenger.test.tsx}` |
 
 Per-app detail: `adopt/README.md`, `inference/README.md` and
 `dashboard/README.md`.

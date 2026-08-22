@@ -1,6 +1,22 @@
 # Ref mode in the dashboard — how a researcher chooses attribution
 
-**Status:** design, not built. Captures a decision reached 2026-08-21.
+**Status:** built, 2026-08-22, on `feature/ref-mode-dashboard-ux`. Captures a
+decision reached 2026-08-21. Build order and the decisions taken during it are
+in `planning/ref-mode-dashboard-implementation.md`; the shipped behaviour is
+documented in `documentation/ad-attributions.md`.
+
+**Three things changed while building.** They are marked inline below and
+summarised here, because the reasoning in this document is what someone will
+read first:
+
+1. **§5.3 was resolved by deletion, not suppression.** The monitoring noise it
+   files as a "residual" turned out to be a category error in the outcome
+   classification itself, not a side effect to scope away. `ad=organic` is gone.
+2. **§6's "422 at save" is one-directional**, and deliberately so — refusing
+   both directions would make the flip in §5 unperformable in either order.
+3. **A latent round-trip bug had to be fixed first.** Storing an explicit
+   `ref_mode` made the conf permanently unparseable, which would have broken
+   reconciliation for any study that used this feature.
 **Scope:** the dashboard UX for how a study's ads carry attribution, and the
 model/UI split that makes it migration-safe.
 **Reads with:** `documentation/ad-attributions.md` (the join, both sides),
@@ -100,6 +116,17 @@ This is the load-bearing split.
   study picks thick. The encoded default lives in the form's *initial value*, not
   the schema.
 
+**Building this surfaced a latent bug that had to be fixed first.** Confs are
+stored as `model_dump()`, which writes defaults — so the moment the UI started
+sending `ref_mode: "encoded"`, a Messenger destination was stored as
+`{"ref_mode": "encoded", "include_metadata_in_ref": true}`, because Messenger
+defaults that flag `True`. Re-reading it put the flag in `model_fields_set`,
+which is precisely what `ref_mode_must_not_contradict_the_legacy_flag` rejects.
+The save returned 201 and the study was then permanently unparseable, stopping
+its reconciliation. `RefModeDestination` now omits the legacy flag on
+serialisation once `ref_mode` is stated — which is exactly what that validator's
+error message tells a human to do.
+
 Consequence, adopted as a convention:
 
 > **`ref_mode is None` ⟺ created before this feature existed** (a legacy
@@ -182,11 +209,33 @@ Therefore, do **not** hard-prevent flipping. Instead:
    real spend, possible Meta re-review, ad learning-phase reset, and the live ad
    that reshared page-posts still point at changes under old respondents. That —
    not attribution loss — is what a flip warning is about.
-3. **Residual: monitoring noise.** Once a study has a lookup conf, every
+3. ~~**Residual: monitoring noise.** Once a study has a lookup conf, every
    thick-era respondent throws an `entityAdOrganic` "arrived with no ref token"
    count — not data loss, but it muddies the exact `unmapped`/`organic` signal
    that exists to catch real misconfigurations. Worth teaching the monitoring to
-   scope that count to the encoded era.
+   scope that count to the encoded era.~~
+
+   **Superseded — the category was the bug.** Scoping the count to the encoded
+   era would have taught the code to recognise a case it should never have been
+   reporting. `adAttributionOutcome` classified by *mechanism state* — is there
+   a token, does it resolve — when the only thing an error surface should carry
+   is *outcome*: could this respondent be attributed. "Organic" is an expected,
+   correct result, and the "must not alarm" carve-out it needed was the
+   admission that it did not belong there.
+
+   It was also false. The message read "…and is not attributed to any stratum",
+   which for a thick-era respondent is simply untrue — they are attributed, by
+   the retained raw conf. And because swoosh recomputes all history every run,
+   it re-emitted the whole back-catalogue every run and never aged out through
+   the dashboard's recency predicate. `planning/swoosh-config-reconciliation.md`
+   records the identical shape over 52,090 rows and calls it a permanent false
+   alarm.
+
+   So the branch is **deleted**, not suppressed, and a flip now costs nothing in
+   monitoring. What is given up — the share of arrivals with no ad provenance,
+   which is what would catch both a leaked shortcode and an encoded study
+   receiving no tokens at all — never worked as an error count anyway, and is a
+   rate needing a denominator. Filed as **VIR-32**.
 
 Because there are no legacy WhatsApp/multi studies, the **only** flip that can
 occur is a **Messenger study going thick → encoded**, one direction, opt-in.
@@ -208,6 +257,23 @@ later in a cron log:
 removed from the UI and encoded auto-wiring its read side (§7), the state it
 warns about becomes unreachable for new studies; keep the warning as a backstop
 for API-authored confs.
+
+**As built, the 422 is one-directional and conditional**, and both departures
+are forced by the same thing — that these are two independently-POSTed confs:
+
+- **Only a thin write with no read is refused.** A read with no thin write is
+  allowed, because those confs simply extract nothing and swoosh skips them; the
+  respondent is still attributed inline, so nothing is lost. That asymmetry is
+  not tolerance, it is what makes the flip in §5 possible: add the lookup confs
+  first, where they lie dormant against a thick destination, then flip the
+  destination. Refusing both directions would deadlock it, each conf waiting on
+  the other. The refusal becomes the instruction for the safe order.
+- **It fires only when the counterpart conf exists.** The wizard saves
+  Destinations at step four of ten, so an unconditional check would make an
+  encoded study unsaveable long before the researcher could reach Data
+  Extraction. A study part way through configuration is unfinished, not wrong;
+  `thins_its_ref_without_reading_the_mapping` keeps covering the study that
+  never comes back.
 
 ## 7. Auto-wire the read side
 
