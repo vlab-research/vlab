@@ -272,9 +272,9 @@ func TestReduce_LookupDoesNotFallBackToTheRawValue(t *testing.T) {
 func TestReduce_AdIDIsCapturedButNeverJoinedOn(t *testing.T) {
 	// ad_id is deprecated as a join. The event carries one, and the study's
 	// mapping holds the very row that ad id belongs to — but the respondent has
-	// no token, so they are organic. Anything else would be a runtime fallback
-	// between mechanisms, which is exactly what the design forbids: it would
-	// make a genuine miss indistinguishable from a mechanism switch.
+	// no token, so nothing attributes them. Anything else would be a runtime
+	// fallback between mechanisms, which is exactly what the design forbids: it
+	// would make a genuine miss indistinguishable from a mechanism switch.
 	e := organicEvent("u1", ti("07"))
 	e.AdID = "ad-tok"
 	e.AdNetwork = NetworkFacebook
@@ -285,8 +285,8 @@ func TestReduce_AdIDIsCapturedButNeverJoinedOn(t *testing.T) {
 
 	assert.Nil(t, err)
 	assert.Empty(t, actual, "a matching ad_id must not attribute anybody")
-	assert.Contains(t, errorsByEntity(errs), entityAdOrganic,
-		"no token is organic, regardless of what ad_id says")
+	assert.NotContains(t, errorsByEntity(errs), entityAdUnmapped,
+		"no token is not an unmapped token, regardless of what ad_id says")
 }
 
 func TestReduce_RawMappingIsUnaffectedByAttributions(t *testing.T) {
@@ -349,7 +349,8 @@ func TestReduce_ALookupOnAVariableCannotDeclareTheTokenKey(t *testing.T) {
 	// declaration of WHERE THE TOKEN LIVES, and picks the first such conf to
 	// classify the whole source. A `variable` conf carrying the lookup mapping
 	// would therefore have every respondent checked against key "q1" -- and
-	// finding no token there reads as an organic arrival, which does not alarm.
+	// finding no token there is reported as nothing at all, so the study would
+	// lose its unmapped signal entirely and fail silently.
 	//
 	// Config-time validation rejects the combination outright; this pins that
 	// swoosh does not honour it either if one ever reaches it.
@@ -371,10 +372,17 @@ func TestReduce_ALookupOnAVariableCannotDeclareTheTokenKey(t *testing.T) {
 
 	assert.Nil(t, err)
 
-	// The claim: the token key came from the real lookup conf ("vt"), not from
-	// the stray one ("q1"). Had the stray conf been allowed to declare it, the
-	// respondent would carry no token at "q1" and be counted organic.
-	assert.NotContains(t, errorsByEntity(errs), entityAdOrganic)
+	// The claim: the token key comes from the real lookup conf ("vt"), never
+	// from the stray one ("q1"). Asserted on tokenLookupKey directly, since a
+	// key that addresses nothing now produces no event at all — the observable
+	// it used to have (a spurious organic count) was itself the bug that got
+	// removed. What a wrong key would still cost is the unmapped signal: every
+	// respondent in the study would read as having no ad provenance, which is
+	// silence rather than an alarm.
+	key, declared := tokenLookupKey([]*ExtractionConf{lookupConf("gender"), stray})
+	assert.True(t, declared)
+	assert.Equal(t, "vt", key)
+
 	assert.Equal(t, []byte(`"women"`), []byte(actual["u1"].Data["gender"].Value))
 
 	// And the stray conf is itself a loud error, not a silent raw variable read.
@@ -399,10 +407,11 @@ func TestReduce_AttributedProducesNoOutcomeEvent(t *testing.T) {
 	assert.Len(t, errs, 0, "a normally attributed respondent is not an event")
 }
 
-func TestReduce_OrganicIsCountedButNotAnError(t *testing.T) {
+func TestReduce_NoAdProvenanceIsNotReportedAtAll(t *testing.T) {
 	// Expected, not a bug: shortcodes are shareable by design and a Page linked
-	// to a WhatsApp number gets a public button. Worth counting — a jump in the
-	// organic share means a leaked shortcode — but it must not alarm.
+	// to a WhatsApp number gets a public button. An expected outcome does not
+	// belong on an error surface, so it produces no event whatsoever — not a
+	// warning that has to carry a "does not alarm" carve-out.
 	events := []*InferenceDataEvent{
 		organicEvent("u1", ti("07")),
 		organicEvent("u2", ti("08")),
@@ -411,17 +420,28 @@ func TestReduce_OrganicIsCountedButNotAnError(t *testing.T) {
 	_, errs, err := Reduce(events, confWith(lookupConf("gender")), NewAdAttributions())
 
 	assert.Nil(t, err)
-	byEntity := errorsByEntity(errs)
+	assert.Len(t, errs, 0, "an arrival with no ad provenance is not an error")
+}
 
-	organic, ok := byEntity[entityAdOrganic]
-	assert.True(t, ok, "organic arrivals must be counted")
-	assert.Equal(t, 2, organic.Count)
-	assert.NotContains(t, byEntity, entityAdUnmapped, "organic is not unmapped")
+func TestReduce_APriorEraRespondentIsAttributedAndNotReported(t *testing.T) {
+	// The case that made the old organic branch actively misleading. A study
+	// that switches to the encoded ref keeps its inline confs alongside the new
+	// lookup ones, so both eras attribute: the pre-switch respondent satisfies
+	// the raw conf and skips the lookup. But they carry no token, and swoosh
+	// recomputes the whole history every run — so the branch reported the entire
+	// back-catalogue as "not attributed to any stratum", forever, while it sat
+	// there attributed.
+	e := organicEvent("u1", ti("07"))
+	e.User.Metadata = map[string]json.RawMessage{"gender": []byte(`"women"`)}
 
-	// And it is routed as a warning, never an error.
-	eventType, severity := classifyExtractionError(entityAdOrganic)
-	assert.Equal(t, eventExtractionWarning, eventType)
-	assert.Equal(t, severityWarning, severity)
+	conf := confWith(rawConf("gender", "gender"), lookupConf("gender"))
+
+	actual, errs, err := Reduce([]*InferenceDataEvent{e}, conf, NewAdAttributions())
+
+	assert.Nil(t, err)
+	assert.Equal(t, []byte(`"women"`), []byte(actual["u1"].Data["gender"].Value),
+		"the prior era's raw conf still attributes them")
+	assert.Len(t, errs, 0, "and nothing claims otherwise")
 }
 
 func TestReduce_UnmappedTokenIsACountedError(t *testing.T) {
@@ -441,7 +461,7 @@ func TestReduce_UnmappedTokenIsACountedError(t *testing.T) {
 	unmapped, ok := byEntity[entityAdUnmapped]
 	assert.True(t, ok, "a token with no mapping row must be reported")
 	assert.Equal(t, 3, unmapped.Count, "aggregated per entity, one error with a count")
-	assert.NotContains(t, byEntity, entityAdOrganic, "a token present is not organic")
+	assert.Len(t, byEntity, 1, "unmapped is the only ad outcome reported")
 
 	// The miss must be diagnosable: which mechanism, which key, which token.
 	// Aggregation keeps the first event's message and details as the sample and
@@ -471,8 +491,8 @@ func TestReduce_ANonStringTokenIsUnmappedNotStringified(t *testing.T) {
 
 	assert.Nil(t, err)
 	assert.Empty(t, actual)
-	assert.Contains(t, errorsByEntity(errs), entityAdOrganic,
-		"an unreadable token is no token at all")
+	assert.Len(t, errs, 0,
+		"an unreadable token is no token at all, and no token is not an error")
 }
 
 func TestReduce_TheTokenIsJoinedUnquoted(t *testing.T) {
@@ -492,10 +512,13 @@ func TestReduce_TheTokenIsJoinedUnquoted(t *testing.T) {
 	assert.Equal(t, []byte(`"women"`), []byte(actual["u1"].Data["gender"].Value))
 }
 
-func TestReduce_SplitsAllThreeWaysInOneRun(t *testing.T) {
+func TestReduce_ReportsOnlyTheUnmappableInOneRun(t *testing.T) {
+	// Three respondents, three different fates, one thing reported. The
+	// respondent with no token is not an error and produces no event; the one
+	// whose token resolves to nothing is, and does.
 	events := []*InferenceDataEvent{
 		tokenEvent("attributed", "tok", ti("07")),
-		organicEvent("organic", ti("08")),
+		organicEvent("no-provenance", ti("08")),
 		tokenEvent("unmapped", "nope", ti("09")),
 	}
 
@@ -506,21 +529,21 @@ func TestReduce_SplitsAllThreeWaysInOneRun(t *testing.T) {
 	assert.Nil(t, err)
 	byEntity := errorsByEntity(errs)
 
-	assert.Equal(t, 1, byEntity[entityAdOrganic].Count)
+	assert.Len(t, byEntity, 1, "only the unmappable respondent is reported")
 	assert.Equal(t, 1, byEntity[entityAdUnmapped].Count)
 
 	// Only the attributed respondent produces a variable. The other two are
-	// counted, not guessed at.
+	// not guessed at.
 	assert.Len(t, actual, 1)
 	assert.Contains(t, actual, "attributed")
 }
 
-func TestReduce_OrganicIsCountedOncePerEventNotOncePerConf(t *testing.T) {
-	// Classification is a property of the event — it either carries a token or
-	// it does not. Counting per conf would multiply one organic arrival by the
-	// number of lookup confs the study happens to declare, which would make the
-	// counter meaningless.
-	events := []*InferenceDataEvent{organicEvent("u1", ti("07"))}
+func TestReduce_UnmappedIsCountedOncePerEventNotOncePerConf(t *testing.T) {
+	// Classification is a property of the event — its token either resolves or
+	// it does not. Counting per conf would multiply one miss by the number of
+	// lookup confs the study happens to declare, which would make the count
+	// meaningless as a measure of how many respondents are affected.
+	events := []*InferenceDataEvent{tokenEvent("u1", "nope", ti("07"))}
 
 	conf := confWith(
 		lookupConf("gender"),
@@ -531,8 +554,8 @@ func TestReduce_OrganicIsCountedOncePerEventNotOncePerConf(t *testing.T) {
 	_, errs, err := Reduce(events, conf, NewAdAttributions())
 
 	assert.Nil(t, err)
-	assert.Equal(t, 1, errorsByEntity(errs)[entityAdOrganic].Count,
-		"one event, three lookup confs, one organic count")
+	assert.Equal(t, 1, errorsByEntity(errs)[entityAdUnmapped].Count,
+		"one event, three lookup confs, one count")
 }
 
 func TestReduce_NoLookupConfsMeansNoAdOutcomesEvenWithoutTokens(t *testing.T) {

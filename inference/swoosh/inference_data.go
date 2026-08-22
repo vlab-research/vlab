@@ -409,13 +409,15 @@ func getRetrieveFunc(conf *ExtractionConf, attributions AdAttributions) (Retriev
 	return nil, fmt.Errorf("Could not find location function for location: %s", conf.Location)
 }
 
-// Entities for the two ad-attribution outcomes worth counting. They follow the
-// existing `<kind>=<name>` convention (see "var=" and "source=") so that
-// recordExtractionError can route them by prefix.
-const (
-	entityAdOrganic  = "ad=organic"
-	entityAdUnmapped = "ad=unmapped"
-)
+// entityAdUnmapped is the one ad-attribution outcome worth reporting. It
+// follows the existing `<kind>=<name>` convention (see "var=" and "source=") so
+// that recordExtractionError can route it by prefix.
+//
+// There was a second, "ad=organic", for an event carrying no token at all. It
+// was removed: an expected, correct outcome does not belong on an error
+// surface, and its own "does not alarm" carve-out in classifyExtractionError
+// was the admission of that. See adAttributionOutcome.
+const entityAdUnmapped = "ad=unmapped"
 
 // mechanismRefToken names the attribution mechanism in every outcome's details,
 // so that a miss recorded in study_run_events says what it was trying to join
@@ -441,20 +443,42 @@ func tokenLookupKey(confs []*ExtractionConf) (string, bool) {
 	return "", false
 }
 
-// adAttributionOutcome classifies one event against the study's mapping.
+// adAttributionOutcome reports the one thing about an event worth reporting:
+// that vlab cannot attribute it and should have been able to.
 //
-// A retrieve returning ok=false means `continue`: no variable, no stratum match,
-// optimizer undercount. Two very different things produce that, and telling them
-// apart is the whole point of this function:
+//	token present, mapping row found → nil.       attributed
+//	no token                         → nil.       no ad provenance; not an error
+//	token present, no mapping row    → unmapped.  vlab minted an ad and lost
+//	                                              what it meant. Always a bug.
 //
-//	attributed — token present, mapping row found        → normal, no event
-//	organic    — no token on the event                   → expected; count, don't alarm
-//	unmapped   — token present, no mapping row           → always a bug; alert
+// This used to classify three ways, counting a tokenless event as "organic".
+// That was a category error: it classified by *mechanism state* — is there a
+// token, does it resolve — when the only thing an error surface should carry is
+// *outcome*, could this respondent be attributed. Organic is an expected,
+// correct result, and the carve-out that stopped it alarming was the
+// acknowledgement that it did not belong here.
+//
+// It also actively misled. A study that switches to the encoded ref keeps its
+// old inline confs alongside the new lookup ones, so both eras attribute — but
+// every pre-switch respondent has no token, and swoosh recomputes a study's
+// whole history on every run. The counter therefore reported the entire
+// back-catalogue as "arrived with no ref token and is not attributed to any
+// stratum", every run, forever. The second half of that sentence was false:
+// those respondents are attributed, by the raw confs. Compare the 52,090-row
+// `source=Fly` warning in planning/swoosh-config-reconciliation.md, which had
+// the same shape and is described there as a permanent false alarm.
+//
+// What is deliberately given up with it: the share of respondents arriving with
+// no ad provenance, which is what would catch both a leaked shortcode and an
+// encoded study receiving no tokens at all. Neither ever worked here — a count
+// with first_seen/last_seen cannot show a jump, and the branch did not alarm.
+// Both are one measurement, a rate, which needs a denominator an error list
+// does not have. Tracked as VIR-32, for a stats surface.
 //
 // Classification is per *event*, not per conf. An event either carries a token
 // or it does not, and that token either resolves or it does not — none of which
-// depends on the conf. Counting it per conf would multiply one organic arrival
-// by however many ad_table_lookup confs the study happens to declare.
+// depends on the conf. Counting per conf would multiply one event by however
+// many ad_table_lookup confs the study happens to declare.
 //
 // The mechanism is ref_token, and only ref_token. A token that resolves to
 // nothing is unmapped; it is never quietly retried against the event's ad_id.
@@ -473,18 +497,12 @@ func adAttributionOutcome(e *InferenceDataEvent, confs []*ExtractionConf, attrib
 
 	token, ok := metadataToken(e.User.Metadata[key])
 	if !ok {
-		return &ExtractionError{
-			Entity: entityAdOrganic,
-			Message: fmt.Sprintf(
-				"respondent %s arrived with no ref token at metadata.%s and is not attributed to any stratum",
-				e.User.ID, key),
-			Count: 1,
-			Details: map[string]interface{}{
-				"source":    e.SourceConf.Name,
-				"mechanism": mechanismRefToken,
-				"token_key": key,
-			},
-		}
+		// No ad provenance on this event. Expected, and not this function's
+		// business: the respondent may have arrived from a shared shortcode, or
+		// from an ad built before the study switched to the encoded ref — in
+		// which case their stratum rides inline and the raw confs attribute
+		// them perfectly well.
+		return nil
 	}
 
 	if _, ok := attributions.ByRefToken[token]; !ok {
