@@ -76,7 +76,14 @@ def insert_credential(user_id: str, entity: str, key: str, details: Any):
     execute(db_cnf, q, (user_id, entity, key, deets))
 
 
-def get_study_conf(user_id: str, org_id: str, study_slug: str, conf_type: str):
+def find_study_conf(user_id: str, org_id: str, study_slug: str, conf_type: str):
+    """One study conf, or None if the study has not got one.
+
+    The None-returning half of `get_study_conf`, split out for callers to whom
+    a missing conf is an ordinary answer rather than an error -- a study part
+    way through the configuration wizard genuinely has no inference_data conf,
+    and asking about it is not a failure.
+    """
     q = """
     SELECT conf
     FROM study_confs sc
@@ -92,13 +99,27 @@ def get_study_conf(user_id: str, org_id: str, study_slug: str, conf_type: str):
     """
 
     res = query(db_cnf, q, (user_id, org_id, study_slug, conf_type), as_dict=True)
-    try:
-        return list(res)[0]["conf"]
-    except IndexError:
+    rows = list(res)
+
+    return rows[0]["conf"] if rows else None
+
+
+def get_study_conf(user_id: str, org_id: str, study_slug: str, conf_type: str):
+    """One study conf, raising if the study has not got one.
+
+    Kept raising rather than folded into find_study_conf: its callers are asking
+    for a conf they have every reason to expect, and turning that into a None
+    would move the failure somewhere less obvious.
+    """
+    conf = find_study_conf(user_id, org_id, study_slug, conf_type)
+
+    if conf is None:
         raise Exception(
             f"Could not find study config for user {user_id},"
             f" org {org_id}, study {study_slug}, and config {conf_type}"
         )
+
+    return conf
 
 
 def get_all_study_confs(user_id: str, org_id: str, study_slug: str):

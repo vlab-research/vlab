@@ -22,9 +22,11 @@ from .study_conf import (
     StudyConf,
     TargetVar,
     UserInfo,
+    WebDestination,
     disagreeing_token_keys,
     missing_targeting_variables,
     normalize_whatsapp_phone_number,
+    ref_mode_incoherence,
     ref_value,
     thins_its_ref_without_reading_the_mapping,
     unsafe_whatsapp_ref_tokens,
@@ -1034,6 +1036,197 @@ def test_thinning_the_ref_with_a_lookup_conf_is_fine():
         data_sources={"fly": SourceExtractionConf(extraction_confs=[_lookup_conf("gender")])}
     )
     assert thins_its_ref_without_reading_the_mapping(_messenger_study(False, conf)) == []
+
+
+# ---------------------------------------------------------------------------
+# Surviving the round trip.
+#
+# Confs are stored as model_dump() and read back through the model, so anything
+# the dump adds is something the next parse has to accept.
+# ---------------------------------------------------------------------------
+
+
+def test_an_encoded_destination_survives_a_dump_and_reparse():
+    """The bug this guards: model_dump() writes defaults, so an encoded
+    Messenger destination would be stored carrying include_metadata_in_ref=True
+    -- which is exactly the contradiction the validator rejects. The conf would
+    save cleanly and then be permanently unparseable, stopping reconciliation
+    for that study."""
+    dumped = FlyMessengerDestination(
+        type="messenger",
+        name="messenger",
+        initial_shortcode="mnchweek",
+        welcome_message="Welcome!",
+        button_text="OK",
+        ref_mode="encoded",
+    ).model_dump()
+
+    assert "include_metadata_in_ref" not in dumped
+    assert FlyMessengerDestination(**dumped).resolved_ref_mode == "encoded"
+
+
+def test_a_legacy_destination_still_serialises_the_flag():
+    """For a conf that never states ref_mode, the flag is the only thing that
+    says what its ads do."""
+    dumped = FlyMessengerDestination(
+        type="messenger",
+        name="messenger",
+        initial_shortcode="mnchweek",
+        welcome_message="Welcome!",
+        button_text="OK",
+    ).model_dump()
+
+    assert dumped["include_metadata_in_ref"] is True
+    assert dumped["ref_mode"] is None
+    assert FlyMessengerDestination(**dumped).resolved_ref_mode == "metadata"
+
+
+def test_every_ref_mode_destination_type_survives_the_round_trip():
+    whatsapp = FlyWhatsAppDestination(
+        type="whatsapp",
+        name="whatsapp",
+        initial_shortcode="mnchweek",
+        welcome_message="Welcome!",
+        whatsapp_phone_number="+15419202635",
+        ref_mode="encoded",
+    )
+    multi = FlyMultiDestination(
+        type="multi",
+        name="multi",
+        initial_shortcode="mnchweek",
+        welcome_message="Welcome!",
+        button_text="OK",
+        whatsapp_phone_number="+15419202635",
+        ref_mode="encoded",
+    )
+
+    for d in (whatsapp, multi):
+        reparsed = type(d)(**d.model_dump())
+        assert reparsed.resolved_ref_mode == "encoded"
+
+
+# ---------------------------------------------------------------------------
+# The save-time refusal.
+#
+# Same failure as the guard above, refused at the moment someone causes it
+# rather than warned about on the next reconciliation run. It takes the two
+# confs rather than a study, because Destinations and Data Extraction are saved
+# independently and no assembled study exists at that point.
+# ---------------------------------------------------------------------------
+
+
+def _messenger(ref_mode=None, name="messenger"):
+    kwargs = {} if ref_mode is None else {"ref_mode": ref_mode}
+    return FlyMessengerDestination(
+        type="messenger",
+        name=name,
+        initial_shortcode="mnchweek",
+        welcome_message="Welcome!",
+        button_text="OK",
+        **kwargs,
+    )
+
+
+def _lookup_inference_conf(*stratum_vars):
+    return InferenceDataConf(
+        data_sources={
+            "fly": SourceExtractionConf(
+                extraction_confs=[_lookup_conf(v) for v in stratum_vars]
+            )
+        }
+    )
+
+
+def test_a_thick_destination_is_coherent_with_anything():
+    # Every existing study: the stratum rides in the ref, nothing to read back.
+    assert ref_mode_incoherence([_messenger()], None) is None
+    assert ref_mode_incoherence([_messenger("metadata")], _inference_conf("gender")) is None
+
+
+def test_an_encoded_destination_with_no_lookup_conf_is_refused():
+    message = ref_mode_incoherence([_messenger("encoded")], _inference_conf("gender"))
+
+    assert message is not None
+    # Names both sides. Being told only the half you are looking at is how
+    # someone confidently fixes the wrong one.
+    assert "messenger" in message
+    assert "Data Extraction" in message
+
+
+def test_an_encoded_destination_with_a_lookup_conf_is_coherent():
+    assert (
+        ref_mode_incoherence([_messenger("encoded")], _lookup_inference_conf("gender"))
+        is None
+    )
+
+
+def test_a_lookup_conf_with_no_thin_destination_is_allowed():
+    """The safe half of a flip, and the reason this check is one-directional.
+
+    Confs reading a token no ad emits extract nothing, and swoosh skips a conf
+    that finds nothing -- the respondent is still attributed inline by the raw
+    confs. Refusing this too would make switching a live study to the encoded
+    ref unperformable in either order, each conf waiting on the other.
+    """
+    assert ref_mode_incoherence([_messenger("metadata")], _lookup_inference_conf("gender")) is None
+
+
+def test_the_flip_is_performable_in_the_safe_order():
+    """Add the lookup confs first, then flip the destination."""
+    thick, encoded = _messenger("metadata"), _messenger("encoded")
+    raw_only, with_lookup = _inference_conf("gender"), _lookup_inference_conf("gender")
+
+    # Step 1: save the lookup confs while the destination is still thick.
+    assert ref_mode_incoherence([thick], with_lookup) is None
+    # Step 2: flip the destination, now that something reads the mapping.
+    assert ref_mode_incoherence([encoded], with_lookup) is None
+
+    # The other order is refused, which is what makes the 422 an instruction
+    # rather than a dead end.
+    assert ref_mode_incoherence([encoded], raw_only) is not None
+
+
+def test_a_missing_counterpart_conf_is_still_refused_by_the_predicate():
+    """The predicate says what is true; only the endpoint decides when to ask.
+
+    A study with no inference_data conf at all really does have an unattributed
+    encoded destination. The endpoint skips the call in that case, because a
+    study part way through the wizard is unfinished rather than wrong.
+    """
+    assert ref_mode_incoherence([_messenger("encoded")], None) is not None
+
+
+def test_a_legacy_thin_destination_is_refused_too():
+    """"shortcode" and "encoded" differ in what carries the join key, not in
+    whether the ref ships the stratum -- neither does."""
+    thin = FlyWhatsAppDestination(
+        type="whatsapp",
+        name="whatsapp",
+        initial_shortcode="mnchweek",
+        welcome_message="Welcome!",
+        whatsapp_phone_number="+15419202635",
+    )
+
+    assert thin.resolved_ref_mode == "shortcode"
+    assert ref_mode_incoherence([thin], _inference_conf("gender")) is not None
+
+
+def test_only_the_thinned_destinations_are_named():
+    message = ref_mode_incoherence(
+        [_messenger("metadata", name="thick-one"), _messenger("encoded", name="thin-one")],
+        _inference_conf("gender"),
+    )
+
+    assert "thin-one" in message
+    assert "thick-one" not in message
+
+
+def test_web_and_app_destinations_are_never_implicated():
+    # Neither carries a ref mode: their url_template already points at a
+    # specific survey, so routing is not a job the ref does for them.
+    web = WebDestination(type="web", name="web", url_template="https://example.com")
+
+    assert ref_mode_incoherence([web], _inference_conf("gender")) is None
 
 
 # ---------------------------------------------------------------------------

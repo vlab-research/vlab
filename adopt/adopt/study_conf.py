@@ -4,10 +4,10 @@ import re
 from abc import ABC, abstractmethod
 from datetime import datetime, timedelta
 from math import floor
-from typing import Any, Dict, List, Literal, Optional, Tuple, Union
+from typing import Any, Dict, List, Literal, Optional, Sequence, Tuple, Union
 from urllib.parse import quote
 
-from pydantic import BaseModel, ConfigDict, model_validator
+from pydantic import BaseModel, ConfigDict, model_serializer, model_validator
 
 Params = Dict[str, Any]
 Budget = dict[str, float]
@@ -195,6 +195,33 @@ class RefModeDestination(BaseModel):
             return self.ref_mode
 
         return "metadata" if self.include_metadata_in_ref else "shortcode"
+
+    @model_serializer(mode="wrap")
+    def drop_the_legacy_flag_once_ref_mode_is_stated(self, handler):
+        """Serialise `ref_mode` alone when it is set, exactly as the validator asks.
+
+        Without this the model does not survive its own round trip. Confs are
+        stored as `model_dump()`, which writes every field including defaults --
+        so a destination saved with `ref_mode: "encoded"` lands in the database
+        as `{"ref_mode": "encoded", "include_metadata_in_ref": true}`, since
+        Messenger defaults that flag True. Reading it back sets
+        `include_metadata_in_ref` in `model_fields_set`, which is precisely what
+        `ref_mode_must_not_contradict_the_legacy_flag` looks for, and the conf
+        raises. The study becomes permanently unparseable and reconciliation
+        stops for it -- from a save that looked like it worked.
+
+        The two fields are the same setting expressed twice, and `ref_mode` is
+        the one that can express every value, so dropping the other when
+        `ref_mode` is stated loses nothing. A conf that never states `ref_mode`
+        still serialises the flag, because for those confs it is the only thing
+        that says what the ads do.
+        """
+        data = handler(self)
+
+        if self.ref_mode is not None:
+            data.pop("include_metadata_in_ref", None)
+
+        return data
 
     @model_validator(mode="after")
     def ref_mode_must_not_contradict_the_legacy_flag(self):
@@ -1396,6 +1423,81 @@ def thins_its_ref_without_reading_the_mapping(study: StudyConf) -> List[str]:
     )
 
     return [] if reads_the_mapping else sorted(thinned)
+
+
+def ref_mode_incoherence(
+    destinations: Sequence[DestinationConf],
+    inference_data: Optional[InferenceDataConf],
+) -> Optional[str]:
+    """The save-time refusal: a study that thins its ref while nothing reads it.
+
+    Takes the two confs rather than a StudyConf, because that is the only shape
+    available where it is used. Destinations and inference_data are POSTed
+    independently, so at save time there is no assembled study -- there is the
+    conf being written and whatever its counterpart already is.
+
+    Returns a message naming BOTH sides, or None. Naming both is the point:
+    being told only the half you are looking at is how someone confidently
+    fixes the wrong one.
+
+    Only ONE of the two possible incoherences is refused here, and the asymmetry
+    is deliberate.
+
+    **Refused: a thin write with no read.** The ads stop carrying the stratum
+    and nothing looks the token up, so the study has no attribution at all.
+    Every stratum counts zero and the optimizer reallocates budget on empty
+    data -- silently, because a respondent with no token is indistinguishable
+    from one who arrived organically. This is the failure the whole mechanism
+    exists to prevent, and it starts the moment the destination is saved.
+
+    **Allowed: a read with no thin write.** Lookup confs reading a token no ad
+    emits simply extract nothing, and swoosh skips a conf that finds nothing
+    rather than failing on it -- the respondent is still attributed inline, by
+    the raw confs, exactly as before. Nothing is lost.
+
+    That asymmetry is not merely tolerance; it prescribes the safe order for
+    switching a live study to the encoded ref. Add the lookup confs first
+    (harmless, they lie dormant), then flip the destination (at which point they
+    become live). Refusing both directions would make the flip unperformable in
+    either order, since each conf would be waiting for the other. Refusing this
+    one turns the 422 into the instruction: configure Data Extraction, then come
+    back.
+
+    The complementary case -- a study that never gets round to the read side --
+    stays covered by `thins_its_ref_without_reading_the_mapping`, which warns on
+    every reconciliation run and does not depend on anyone pressing Save.
+    """
+    thinned = [
+        d.name
+        for d in destinations
+        if isinstance(
+            d,
+            (FlyMessengerDestination, FlyWhatsAppDestination, FlyMultiDestination),
+        )
+        and d.resolved_ref_mode != "metadata"
+    ]
+
+    if not thinned:
+        return None
+
+    if any(
+        ec.is_ad_table_lookup
+        for source in (inference_data.data_sources.values() if inference_data else [])
+        for ec in source.extraction_confs
+    ):
+        return None
+
+    names = ", ".join(f"'{n}'" for n in sorted(thinned))
+
+    return (
+        f"Destination {names} carries a link that does not include the "
+        "stratum, but no variable in Data Extraction reads it back from the ad. "
+        "Respondents recruited by these ads would not be attributed to any "
+        "stratum, so every stratum would count zero and recruitment would "
+        "optimise on empty data. Add the ad-derived variables in Data "
+        "Extraction first -- they do nothing until a destination needs them -- "
+        "then save this."
+    )
 
 
 def disagreeing_token_keys(study: StudyConf) -> Dict[str, List[str]]:

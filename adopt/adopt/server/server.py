@@ -5,7 +5,7 @@ from environs import Env
 from fastapi import Depends, FastAPI, HTTPException, Response, status, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from pydantic import BaseModel
+from pydantic import BaseModel, TypeAdapter, ValidationError
 import pandas as pd
 import asyncio
 from functools import wraps
@@ -31,6 +31,7 @@ from ..study_conf import (
     RecruitmentConf,
     StratumConf,
     VariableConf,
+    ref_mode_incoherence,
 )
 from .auth import AuthError, generate_api_token, verify_tokens
 from .csv_export import ad_attributions_csv, ad_attributions_table
@@ -38,6 +39,7 @@ from .db import (
     copy_confs,
     create_study_conf,
     db_cnf,
+    find_study_conf,
     get_all_study_confs,
     get_study_conf,
     get_study_errors,
@@ -130,6 +132,62 @@ async def create_conf(user: User, org_id: str, slug: str, conf_type: str, config
     return {"data": conf}
 
 
+
+# The two confs that between them decide whether a study attributes its
+# respondents. They are POSTed independently, so each save has to look at the
+# other one to know whether the pair still makes sense.
+_DESTINATIONS = TypeAdapter(list[DestinationConf])
+
+
+def _stored_conf(user: User, org_id: str, slug: str, conf_type: str, adapter):
+    """The counterpart conf as it currently stands, or None.
+
+    None covers two cases that are treated identically on purpose: the conf has
+    never been saved, and the conf that is saved no longer parses. A study part
+    way through being configured is not wrong, and neither case should block the
+    save in front of the researcher -- refusing to let someone save Destinations
+    because an unrelated stored conf is malformed would be a dead end with no
+    way out through the UI.
+    """
+    raw = find_study_conf(user.user_id, org_id, slug, conf_type)
+
+    if raw is None:
+        return None
+
+    try:
+        return adapter(raw)
+    except ValidationError:
+        logging.warning(
+            f"study {slug}: stored {conf_type} conf does not parse; "
+            "skipping ref-mode coherence check"
+        )
+        return None
+
+
+def _refuse_incoherent_ref_mode(destinations, inference_data, counterpart):
+    """422 when the ads would stop carrying the stratum and nothing reads it.
+
+    `counterpart` is whichever of the two confs was NOT the one being saved. It
+    is passed separately, and a None skips the check entirely, because the
+    wizard saves Destinations at step four and Data Extraction at step ten: an
+    unconditional check would make an encoded study unsaveable long before the
+    researcher could reach the step that satisfies it. A study part way through
+    being configured is unfinished, not wrong.
+
+    That leaves one gap on purpose -- a study that saves an encoded destination
+    and then never configures the read side. It stays covered by
+    `thins_its_ref_without_reading_the_mapping`, which warns on every
+    reconciliation run and so does not depend on anyone pressing Save again.
+    """
+    if counterpart is None:
+        return
+
+    message = ref_mode_incoherence(destinations, inference_data)
+
+    if message:
+        raise HTTPException(status_code=422, detail=message)
+
+
 @app.post("/{org_id}/studies/{slug}/confs/general", status_code=201)
 async def create_general_conf(
     org_id: str,
@@ -157,6 +215,11 @@ async def create_destinations_conf(
     config: list[DestinationConf],
     user: Annotated[User, Depends(get_current_user)],
 ):
+    stored_inference_data = _stored_conf(
+        user, org_id, slug, "inference_data", InferenceDataConf.model_validate
+    )
+    _refuse_incoherent_ref_mode(config, stored_inference_data, stored_inference_data)
+
     return await create_conf(user, org_id, slug, "destinations", config)
 
 
@@ -217,6 +280,11 @@ async def create_inference_data_conf(
     config: InferenceDataConf,
     user: Annotated[User, Depends(get_current_user)],
 ):
+    stored_destinations = _stored_conf(
+        user, org_id, slug, "destinations", _DESTINATIONS.validate_python
+    )
+    _refuse_incoherent_ref_mode(stored_destinations or [], config, stored_destinations)
+
     return await create_conf(user, org_id, slug, "inference_data", config)
 
 

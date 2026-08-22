@@ -474,3 +474,160 @@ def test_get_recruitment_stats_returns_404_for_missing_strata(
 def test_health_check():
     res = client.get("/health")
     assert res.status_code == 200
+
+
+# ---------------------------------------------------------------------------
+# Ref-mode coherence at save time.
+#
+# The failure this refuses is silent: a study whose ads stop carrying the
+# stratum while nothing reads it back attributes nobody, so every stratum
+# counts zero and the optimizer reallocates on empty data. Nothing raises, and
+# the first sign is a swoosh log hours later.
+#
+# The endpoint's job on top of the predicate is knowing WHEN to ask, and these
+# tests are mostly about that: the wizard saves Destinations at step four and
+# Data Extraction at step ten, so a study that has not got there yet is
+# unfinished rather than wrong.
+# ---------------------------------------------------------------------------
+
+
+def _encoded_messenger():
+    return {
+        "type": "messenger",
+        "name": "messenger",
+        "initial_shortcode": "mnchweek",
+        "welcome_message": "Welcome!",
+        "button_text": "OK",
+        "ref_mode": "encoded",
+    }
+
+
+def _thick_messenger():
+    return {**_encoded_messenger(), "ref_mode": "metadata"}
+
+
+def _extraction(name, mapping="raw", key="gender"):
+    return {
+        "location": "metadata",
+        "mapping": mapping,
+        "key": key,
+        "name": name,
+        "functions": [],
+        "value_type": "categorical",
+        "aggregate": "first",
+    }
+
+
+def _inference_data(*confs):
+    return {"data_sources": {"fly": {"extraction_confs": list(confs)}}}
+
+
+def _post(org_id, headers, path, dat):
+    return client.post(
+        f"/{org_id}/studies/foo-study/confs/{path}", headers=headers, json=dat
+    )
+
+
+@patch("adopt.server.auth.verify_token")
+def test_an_encoded_destination_saves_when_no_extraction_conf_exists_yet(verify_mock):
+    """Step four of ten. Unfinished is not wrong.
+
+    An unconditional check would make an encoded study unsaveable before the
+    researcher could possibly reach the step that satisfies it.
+    """
+    _reset_db()
+    verify_mock.return_value = {"sub": user_id}
+    org_id, headers = _user_and_study_setup()
+
+    assert _post(org_id, headers, "destinations", [_encoded_messenger()]).status_code == 201
+
+
+@patch("adopt.server.auth.verify_token")
+def test_saving_extraction_confs_that_leave_a_destination_unattributed_is_refused(
+    verify_mock,
+):
+    _reset_db()
+    verify_mock.return_value = {"sub": user_id}
+    org_id, headers = _user_and_study_setup()
+
+    _post(org_id, headers, "destinations", [_encoded_messenger()])
+
+    res = _post(
+        org_id, headers, "inference-data", _inference_data(_extraction("gender"))
+    )
+
+    assert res.status_code == 422
+    detail = res.json()["detail"]
+    # Names both sides, so the researcher cannot confidently fix the wrong one.
+    assert "messenger" in detail
+    assert "Data Extraction" in detail
+
+
+@patch("adopt.server.auth.verify_token")
+def test_the_pair_saves_once_something_reads_the_mapping(verify_mock):
+    _reset_db()
+    verify_mock.return_value = {"sub": user_id}
+    org_id, headers = _user_and_study_setup()
+
+    _post(org_id, headers, "destinations", [_encoded_messenger()])
+
+    res = _post(
+        org_id,
+        headers,
+        "inference-data",
+        _inference_data(_extraction("gender", mapping="ad_table_lookup", key="vt")),
+    )
+
+    assert res.status_code == 201
+
+
+@patch("adopt.server.auth.verify_token")
+def test_flipping_a_live_study_is_refused_in_the_dangerous_order(verify_mock):
+    """Destination first would leave every new respondent unattributed until
+    the confs land."""
+    _reset_db()
+    verify_mock.return_value = {"sub": user_id}
+    org_id, headers = _user_and_study_setup()
+
+    _post(org_id, headers, "destinations", [_thick_messenger()])
+    _post(org_id, headers, "inference-data", _inference_data(_extraction("gender")))
+
+    res = _post(org_id, headers, "destinations", [_encoded_messenger()])
+
+    assert res.status_code == 422
+
+
+@patch("adopt.server.auth.verify_token")
+def test_flipping_a_live_study_works_in_the_safe_order(verify_mock):
+    """Lookup confs first -- they lie dormant against a thick destination --
+    then the destination, at which point they become live.
+
+    Keeping the raw conf alongside the lookup is what lets both eras attribute:
+    the pre-flip respondent satisfies the raw conf and skips the lookup, the
+    post-flip respondent does the reverse.
+    """
+    _reset_db()
+    verify_mock.return_value = {"sub": user_id}
+    org_id, headers = _user_and_study_setup()
+
+    _post(org_id, headers, "destinations", [_thick_messenger()])
+    _post(org_id, headers, "inference-data", _inference_data(_extraction("gender")))
+
+    both_eras = _inference_data(
+        _extraction("gender"),
+        _extraction("gender", mapping="ad_table_lookup", key="vt"),
+    )
+    assert _post(org_id, headers, "inference-data", both_eras).status_code == 201
+    assert _post(org_id, headers, "destinations", [_encoded_messenger()]).status_code == 201
+
+
+@patch("adopt.server.auth.verify_token")
+def test_a_thick_study_is_unaffected(verify_mock):
+    """Every existing study. Nothing here changes what they can save."""
+    _reset_db()
+    verify_mock.return_value = {"sub": user_id}
+    org_id, headers = _user_and_study_setup()
+
+    _post(org_id, headers, "inference-data", _inference_data(_extraction("gender")))
+
+    assert _post(org_id, headers, "destinations", [_thick_messenger()]).status_code == 201
