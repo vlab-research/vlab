@@ -43,14 +43,23 @@ export const GenericSelect: SelectI = ({
           )}
           {...props}
         >
-          {options.map((option: { name: string; label: string }, i: number) => (
-            <option
-              key={i}
-              value={getValue(option)}
-            >
-              {option.label || option.name}
-            </option>
-          ))}
+          {options.map(
+            (
+              option: { name: string; label: string; disabled?: boolean },
+              i: number
+            ) => (
+              <option
+                key={i}
+                value={getValue(option)}
+                // An option can be a current value rather than a choice: a conf
+                // saved under a mode that is no longer offered still has to be
+                // shown as what it is, without letting anyone select it afresh.
+                disabled={option.disabled}
+              >
+                {option.label || option.name}
+              </option>
+            )
+          )}
         </select>
         {required === false && (
           <span className="ml-4 italic text-gray-700 text-sm">Optional</span>

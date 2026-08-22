@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { GenericTextInput, TextInputI } from '../../components/TextInput';
-import { Multi as FormData } from '../../../../types/conf';
+import { Multi as FormData, Destination } from '../../../../types/conf';
 import { metadataToText, parseAdditionalMetadata } from './additionalMetadata';
+import RefModeField from './RefModeField';
 
 const TextInput = GenericTextInput as TextInputI<FormData>;
 
@@ -9,6 +10,7 @@ interface Props {
   data: FormData;
   updateFormData: (e: any, index: number) => void;
   index: number;
+  destinations: Destination[];
 }
 
 // One ad that opens either Messenger or WhatsApp, Meta choosing per respondent
@@ -22,7 +24,12 @@ interface Props {
 //  - Meta assigns the channel, so this cannot be used to *compare* channels.
 //    A study that wants that needs two single-destination destinations in a
 //    destination experiment instead.
-const Multi: React.FC<Props> = ({ data, updateFormData, index }: Props) => {
+const Multi: React.FC<Props> = ({
+  data,
+  updateFormData,
+  index,
+  destinations,
+}: Props) => {
   const handleChange = (e: any) => {
     const { name, value } = e.target;
     updateFormData({ ...data, [name]: value }, index);
@@ -88,6 +95,12 @@ const Multi: React.FC<Props> = ({ data, updateFormData, index }: Props) => {
         handleChange={handleChange}
         placeholder="E.g +1-541-920-2635 (the number, not the phone_number_id)"
         value={data.whatsapp_phone_number}
+      />
+      <RefModeField
+        refMode={data.ref_mode}
+        destinationType="multi"
+        destinations={destinations}
+        handleChange={handleChange}
       />
       <TextInput
         name="additional_metadata"

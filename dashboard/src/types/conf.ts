@@ -58,12 +58,33 @@ export interface PipelineExperiment {
   efficiency_weight?: number;
 }
 
+// How a destination's ads carry attribution.
+//
+//   'encoded'  — the ref is `r.<token>`: clean, and attributes via the
+//                ad_attributions join on ref_token. The default for every new
+//                destination, on every channel.
+//   'metadata' — "thick": the ref carries the whole stratum inline. Correct and
+//                free on Messenger, where the ref is invisible; Messenger-only,
+//                because on WhatsApp it sits in the respondent's compose box.
+//
+// A third mode, 'shortcode' (a clean ref that attributes nobody), exists in
+// adopt's RefMode literal and is deliberately not in this union: it is not
+// offered by the form. It stays resolvable in adopt because an old conf with
+// ref_mode absent resolves to it from the legacy include_metadata_in_ref flag.
+//
+// Optional, and absent is meaningful: it means the conf was written before this
+// field existed, and adopt resolves it per channel from that legacy flag. The
+// form must never write a default onto a conf that arrived without one — see
+// forms/destinations/refMode.ts.
+export type RefMode = 'encoded' | 'metadata';
+
 export interface Messenger {
   type: string;
   name: string;
   initial_shortcode: string;
   welcome_message: string;
   button_text: string;
+  ref_mode?: RefMode;
   additional_metadata: Record<string, string> | null;
 }
 
@@ -99,6 +120,7 @@ export interface WhatsApp {
   initial_shortcode: string;
   welcome_message: string;
   whatsapp_phone_number: string;
+  ref_mode?: RefMode;
   additional_metadata: Record<string, string> | null;
 }
 
@@ -116,6 +138,7 @@ export interface Multi {
   welcome_message: string;
   button_text: string;
   whatsapp_phone_number: string;
+  ref_mode?: RefMode;
   additional_metadata: Record<string, string> | null;
 }
 

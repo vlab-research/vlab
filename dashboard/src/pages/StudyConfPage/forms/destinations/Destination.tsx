@@ -7,6 +7,7 @@ import Multi from './Multi';
 import { GenericSelect, SelectI } from '../../components/Select';
 import destinationTypes from '../../../../fixtures/general/destinations';
 import { Destination as DestinationType } from '../../../../types/conf';
+import { initialRefMode } from './refMode';
 
 const Select = GenericSelect as SelectI<any>;
 
@@ -14,12 +15,19 @@ interface Props {
   data: any;
   index: number;
   update: (d: DestinationType, index: number) => void;
+  /**
+   * Every destination in the study. Needed because "may this destination use
+   * the inline-stratum link?" is a whole-study question, not a per-destination
+   * one — see refMode.isPureMessengerStudy.
+   */
+  destinations: DestinationType[];
 }
 
 const Destination: React.FC<Props> = ({
   data,
   index,
   update: updateFormData,
+  destinations,
 }: Props) => {
 
   const type_ = data.type;
@@ -27,11 +35,16 @@ const Destination: React.FC<Props> = ({
   const [destinationType, setDestinationType] = useState<string>(type_);
 
   const emptyStates: any[] = [
+    // ref_mode is set here, on creation, and nowhere that runs on load. That
+    // split is what lets the model keep defaulting to legacy (absent resolves
+    // per channel, so no stored conf is reinterpreted) while new confs are
+    // explicitly encoded. See refMode.ts and planning/ref-mode-dashboard-ux.md.
     {
       name: '',
       initial_shortcode: '',
       welcome_message: '',
       button_text: '',
+      ref_mode: initialRefMode(),
       type: 'messenger'
     },
     { name: '', url_template: '', type: 'website' },
@@ -53,6 +66,7 @@ const Destination: React.FC<Props> = ({
       initial_shortcode: '',
       welcome_message: '',
       whatsapp_phone_number: '',
+      ref_mode: initialRefMode(),
       type: 'whatsapp',
     },
     {
@@ -61,6 +75,7 @@ const Destination: React.FC<Props> = ({
       welcome_message: '',
       button_text: '',
       whatsapp_phone_number: '',
+      ref_mode: initialRefMode(),
       type: 'multi',
     },
   ];
@@ -90,13 +105,28 @@ const Destination: React.FC<Props> = ({
         <App data={data} updateFormData={updateFormData} index={index} />
       )}
       {destinationType === 'messenger' && (
-        <Messenger data={data} updateFormData={updateFormData} index={index} />
+        <Messenger
+          data={data}
+          updateFormData={updateFormData}
+          index={index}
+          destinations={destinations}
+        />
       )}
       {destinationType === 'whatsapp' && (
-        <WhatsApp data={data} updateFormData={updateFormData} index={index} />
+        <WhatsApp
+          data={data}
+          updateFormData={updateFormData}
+          index={index}
+          destinations={destinations}
+        />
       )}
       {destinationType === 'multi' && (
-        <Multi data={data} updateFormData={updateFormData} index={index} />
+        <Multi
+          data={data}
+          updateFormData={updateFormData}
+          index={index}
+          destinations={destinations}
+        />
       )}
     </li>
   );

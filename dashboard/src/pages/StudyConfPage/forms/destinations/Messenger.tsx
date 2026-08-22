@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { GenericTextInput, TextInputI } from '../../components/TextInput';
-import { Messenger as FormData } from '../../../../types/conf';
+import { Messenger as FormData, Destination } from '../../../../types/conf';
+import { metadataToText, parseAdditionalMetadata } from './additionalMetadata';
+import RefModeField from './RefModeField';
 
 const TextInput = GenericTextInput as TextInputI<FormData>;
 
@@ -8,9 +10,15 @@ interface Props {
   data: FormData;
   updateFormData: (e: any, index: number) => void;
   index: number;
+  destinations: Destination[];
 }
 
-const Messenger: React.FC<Props> = ({ data, updateFormData, index }: Props) => {
+const Messenger: React.FC<Props> = ({
+  data,
+  updateFormData,
+  index,
+  destinations,
+}: Props) => {
   const handleChange = (e: any) => {
     const { name, value } = e.target;
     updateFormData({ ...data, [name]: value }, index);
@@ -18,29 +26,20 @@ const Messenger: React.FC<Props> = ({ data, updateFormData, index }: Props) => {
 
   const handleMetadata = (e: any) => {
     const { name, value } = e.target;
+    setMetadata(value);
 
-    if (!value) {
-      setMetadata(value)
-      updateFormData({ ...data, [name]: null }, index)
-      return
-    }
+    const result = parseAdditionalMetadata(value);
+    if (result.kind === 'invalid') return;
 
-    let md;
+    updateFormData(
+      { ...data, [name]: result.kind === 'empty' ? null : result.value },
+      index
+    );
+  };
 
-    try {
-      md = JSON.parse(value)
-    } catch (e) {
-      setMetadata(value)
-      return
-    }
-
-    setMetadata(value)
-    updateFormData({ ...data, [name]: md }, index)
-  }
-
-  const additional_metadata = data.additional_metadata ? JSON.stringify(data.additional_metadata) : "";
-
-  const [metadata, setMetadata] = useState<string>(additional_metadata);
+  const [metadata, setMetadata] = useState<string>(
+    metadataToText(data.additional_metadata)
+  );
 
   return (
     <>
@@ -67,6 +66,12 @@ const Messenger: React.FC<Props> = ({ data, updateFormData, index }: Props) => {
         handleChange={handleChange}
         placeholder="E.g OK"
         value={data.button_text}
+      />
+      <RefModeField
+        refMode={data.ref_mode}
+        destinationType="messenger"
+        destinations={destinations}
+        handleChange={handleChange}
       />
       <TextInput
         name="additional_metadata"

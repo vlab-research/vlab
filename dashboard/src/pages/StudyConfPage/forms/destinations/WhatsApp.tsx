@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { GenericTextInput, TextInputI } from '../../components/TextInput';
-import { WhatsApp as FormData } from '../../../../types/conf';
+import { WhatsApp as FormData, Destination } from '../../../../types/conf';
 import { metadataToText, parseAdditionalMetadata } from './additionalMetadata';
+import RefModeField from './RefModeField';
 
 const TextInput = GenericTextInput as TextInputI<FormData>;
 
@@ -9,12 +10,18 @@ interface Props {
   data: FormData;
   updateFormData: (e: any, index: number) => void;
   index: number;
+  destinations: Destination[];
 }
 
 // A click-to-WhatsApp destination. Same shape as Messenger minus button_text —
 // WhatsApp has no quick-reply button, the respondent gets a prefilled compose
 // box instead — and plus the phone number the ad's clicks land on.
-const WhatsApp: React.FC<Props> = ({ data, updateFormData, index }: Props) => {
+const WhatsApp: React.FC<Props> = ({
+  data,
+  updateFormData,
+  index,
+  destinations,
+}: Props) => {
   const handleChange = (e: any) => {
     const { name, value } = e.target;
     updateFormData({ ...data, [name]: value }, index);
@@ -73,6 +80,12 @@ const WhatsApp: React.FC<Props> = ({ data, updateFormData, index }: Props) => {
         handleChange={handleChange}
         placeholder="E.g +1-541-920-2635 (the number, not the phone_number_id)"
         value={data.whatsapp_phone_number}
+      />
+      <RefModeField
+        refMode={data.ref_mode}
+        destinationType="whatsapp"
+        destinations={destinations}
+        handleChange={handleChange}
       />
       <TextInput
         name="additional_metadata"
