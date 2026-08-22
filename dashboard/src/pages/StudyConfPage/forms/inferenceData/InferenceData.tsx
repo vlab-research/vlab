@@ -96,6 +96,7 @@ const InferenceData: React.FC<Props> = ({
               dataSource={dataSource}
               nameOptions={nameOptions}
               multipleSources={multipleSources}
+              variableNames={variables}
               data={sourceExtraction}
               setData={updateFormData} />
           )
