@@ -33,7 +33,7 @@ from ..study_conf import (
     VariableConf,
 )
 from .auth import AuthError, generate_api_token, verify_tokens
-from .csv_export import ad_attributions_csv
+from .csv_export import ad_attributions_csv, ad_attributions_table
 from .db import (
     copy_confs,
     create_study_conf,
@@ -282,6 +282,30 @@ async def get_ad_attributions_csv(
             "Content-Disposition": f'attachment; filename="{slug}-ad-attributions.csv"'
         },
     )
+
+
+@app.get("/{org_id}/studies/{slug}/ad-attributions")
+async def get_ad_attributions_table(
+    org_id: str,
+    slug: str,
+    user: Annotated[User, Depends(get_current_user)],
+):
+    """The same mapping as the CSV, for the dashboard to show.
+
+    `ref_token` is a verification surface, not an input: a researcher does not
+    configure the codes their ads carry, they confirm them. Before this existed
+    the only answer to "where do I see the ref codes" was an API key and a
+    curl, which meant in practice that nobody checked -- and the failure this
+    whole design guards against (a study whose two halves do not line up) is
+    exactly the one that a glance at this table would catch.
+
+    Shares column derivation with the CSV, so the table cannot show a shape the
+    download does not have.
+    """
+    study_id = get_study_id(user.user_id, org_id, slug)
+    rows = get_ad_attributions(study_id, db_cnf)
+
+    return {"data": ad_attributions_table(rows)}
 
 
 def run_study_opt(user_id: str, org_id: str, slug: str) -> Sequence[Instruction]:

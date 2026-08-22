@@ -200,6 +200,21 @@ export interface StudyErrorsApiResponse {
   errors: StudyError[];
 }
 
+// The study's ad -> stratum mapping, as the dashboard shows it.
+//
+// `columns` is computed server-side, from the same union-across-rows the CSV
+// export uses, so the table on screen cannot show a different shape from the
+// file downloaded beside it. Rows are keyed by column name; a key a given ad
+// was not frozen with comes back as an empty string rather than absent.
+export interface AdAttributionsTable {
+  columns: string[];
+  rows: Record<string, string>[];
+}
+
+export interface AdAttributionsApiResponse {
+  data: AdAttributionsTable;
+}
+
 export interface RecruitmentStatsRow {
   spend: number;
   frequency: number;

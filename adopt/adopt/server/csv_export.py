@@ -1,4 +1,4 @@
-"""CSV rendering for the ad -> stratum mapping.
+"""Rendering the ad -> stratum mapping, for the CSV export and the dashboard.
 
 Pure functions over already-fetched rows; no database, no HTTP. The point of
 this export is one sentence for the researcher:
@@ -15,6 +15,13 @@ That is only true because the frozen metadata blob is key-for-key the dict the
 dotted ref used to carry (see documentation/ad-attributions.md, invariant 1).
 The blob's keys therefore become the CSV's columns verbatim, rather than being
 renamed or nested.
+
+The dashboard's table renders from `ad_attributions_table` here rather than
+computing its own columns, so the two views of this data cannot disagree about
+what the columns are -- which matters more than it sounds, because the columns
+are a *union across rows* in first-seen order, and a table that guessed
+differently would show a researcher a different shape from the file they
+download seconds later.
 """
 
 import csv
@@ -98,3 +105,29 @@ def ad_attributions_csv(rows: Sequence[Dict[str, Any]]) -> str:
         )
 
     return out.getvalue()
+
+
+def ad_attributions_table(rows: Sequence[Dict[str, Any]]) -> Dict[str, Any]:
+    """The same mapping, shaped for a table rather than a file.
+
+    Columns come from the same `metadata_columns` union the CSV uses, so the
+    dashboard cannot render a shape the download does not have. Values are
+    rendered through the same `_cell`, which means a timestamp reads identically
+    in both -- the researcher is looking at one thing in two places.
+
+    Rows are dicts keyed by header rather than positional lists: the table is
+    read by a human picking out one ad, not streamed into a parser, and a
+    missing key is easier to render blank than a short row is to align.
+    """
+    md_keys = metadata_columns(rows)
+    headers = LEADING_COLUMNS + [column_name(k) for k in md_keys] + TRAILING_COLUMNS
+
+    def render(row: Dict[str, Any]) -> Dict[str, str]:
+        md = row.get("metadata") or {}
+        return {
+            **{c: _cell(row.get(c)) for c in LEADING_COLUMNS},
+            **{column_name(k): _cell(md.get(k)) for k in md_keys},
+            **{c: _cell(row.get(c)) for c in TRAILING_COLUMNS},
+        }
+
+    return {"columns": headers, "rows": [render(r) for r in rows]}

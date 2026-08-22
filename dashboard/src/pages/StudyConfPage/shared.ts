@@ -11,6 +11,7 @@ import Initialize from './forms/initialize/Initialize';
 import Optimize from './forms/optimize/Optimize';
 import CurrentData from './forms/current/CurrentData';
 import StudyErrors from './forms/errors/StudyErrors';
+import AdAttributions from './forms/adAttributions/AdAttributions';
 
 
 export const confs = [
@@ -25,6 +26,11 @@ export const confs = [
   { name: "Data Sources", path: "data-sources", component: DataSources },
   { name: "Data Extraction", path: "inference-data", component: InferenceData },
   { name: "Current Data", path: "current-data", component: CurrentData },
+  // A confirmation surface rather than a configuration step, so it sits with
+  // the views of what the study has done rather than with the forms that
+  // precede a run. Note this array doubles as the wizard's next-step chain
+  // (getNextConf), so inserting here changes where Current Data advances to.
+  { name: "Ad Attributions", path: "ad-attributions", component: AdAttributions },
   { name: "Errors", path: "errors", component: StudyErrors },
   { name: "Optimize", path: "optimize", component: Optimize },
 ]
@@ -49,4 +55,5 @@ export type FormTypes =
   | 'inference-data'
   | 'optimize'
   | 'current-data'
+  | 'ad-attributions'
   | 'errors';

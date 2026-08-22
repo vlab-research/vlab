@@ -18,6 +18,7 @@ import {
   StudySegmentsProgressApiResponse,
   CurrentDataApiResponse,
   StudyErrorsApiResponse,
+  AdAttributionsApiResponse,
   RecruitmentStatsApiResponse,
   RespondentsOverTimeApiResponse,
   CostOverTimeApiResponse,
@@ -671,6 +672,67 @@ export const fetchStudyErrors = ({
   });
 };
 
+const fetchAdAttributions = ({
+  studySlug,
+  accessToken,
+  defaultErrorMessage = 'Could not fetch ad attributions',
+}: {
+  studySlug: string;
+  accessToken: string;
+  defaultErrorMessage?: string;
+}) =>
+  apiRequest<AdAttributionsApiResponse>(
+    `/${orgPrefix()}/studies/${studySlug}/ad-attributions`,
+    {
+      accessToken,
+      defaultErrorMessage,
+      baseURL: process.env.REACT_APP_CONF_SERVER_URL,
+    }
+  );
+
+/**
+ * Download the same mapping as a CSV.
+ *
+ * Not a plain <a href>: the endpoint is bearer-authenticated, and a link cannot
+ * carry the header. So the file is fetched, wrapped in an object URL and
+ * clicked — and the URL is revoked afterwards, because it pins the whole blob
+ * in memory until it is.
+ */
+const downloadAdAttributionsCsv = async ({
+  studySlug,
+  accessToken,
+}: {
+  studySlug: string;
+  accessToken: string;
+}) => {
+  const response = await fetchWithTimeout(
+    `/${orgPrefix()}/studies/${studySlug}/ad-attributions.csv`,
+    {
+      headers: { Authorization: `Bearer ${accessToken}` },
+      baseURL: process.env.REACT_APP_CONF_SERVER_URL,
+    }
+  );
+
+  if (!response.ok) {
+    throw new Error(
+      await getErrorMessageFor(response, 'Could not download ad attributions')
+    );
+  }
+
+  const url = URL.createObjectURL(await response.blob());
+
+  try {
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `${studySlug}-ad-attributions.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+};
+
 const fetchStudyRecruitmentStats = ({
   slug,
   accessToken,
@@ -707,5 +769,7 @@ export const authenticatedApiCalls = {
   copyConfs,
   fetchCurrentData,
   fetchStudyErrors,
+  fetchAdAttributions,
+  downloadAdAttributionsCsv,
   fetchStudyRecruitmentStats,
 };

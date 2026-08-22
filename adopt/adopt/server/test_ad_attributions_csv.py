@@ -31,7 +31,12 @@ os.environ["API_KEY_DOMAIN"] = "test-domain"
 os.environ["API_KEY_AUDIENCE"] = "test-audience"
 os.environ["API_KEY_SECRET"] = "api-key-secret"
 
-from .csv_export import ad_attributions_csv, column_name, metadata_columns
+from .csv_export import (
+    ad_attributions_csv,
+    ad_attributions_table,
+    column_name,
+    metadata_columns,
+)
 from .server import app
 
 client = TestClient(app)
@@ -313,3 +318,99 @@ def test_the_csv_columns_match_the_frozen_blob_keys(verify_mock):
     assert columns == set(frozen)
     for key, value in frozen.items():
         assert parsed[0][key] == value
+
+
+# The table the dashboard renders. Its whole reason for existing is that it must
+# not disagree with the file downloaded from the same page, so most of these
+# assert that equivalence rather than re-testing the column rules above.
+
+
+def test_table_columns_are_the_csv_columns():
+    rows = [
+        {"ad_id": "ad-1", "network": "facebook", "metadata": {"gender": "women"}},
+        {"ad_id": "ad-2", "network": "facebook", "metadata": {"Age": "25-34"}},
+    ]
+
+    table = ad_attributions_table(rows)
+    csv_header = next(csv.reader(io.StringIO(ad_attributions_csv(rows))))
+
+    assert table["columns"] == csv_header
+
+
+def test_table_values_are_the_csv_values():
+    """One thing in two places: a researcher comparing them must see no diff."""
+    rows = [
+        {
+            "ad_id": "ad-1",
+            "network": "facebook",
+            "ref_token": "a1b2c3d4e5",
+            "created": datetime(2026, 8, 21, 12, 0, tzinfo=timezone.utc),
+            "metadata": {"creative": "Static English", "gender": "women"},
+        }
+    ]
+
+    table = ad_attributions_table(rows)
+    from_csv = _parse(ad_attributions_csv(rows))
+
+    assert table["rows"] == from_csv
+
+
+def test_table_takes_the_union_across_rows():
+    """A conf edited mid-flight leaves rows frozen under two shapes, and
+    append-only means both survive."""
+    rows = [
+        {"ad_id": "ad-1", "metadata": {"gender": "women"}},
+        {"ad_id": "ad-2", "metadata": {"gender": "men", "Region": "South East"}},
+    ]
+
+    table = ad_attributions_table(rows)
+
+    assert "gender" in table["columns"]
+    assert "Region" in table["columns"]
+    # The row frozen without it renders blank rather than short.
+    assert table["rows"][0]["Region"] == ""
+
+
+def test_table_of_an_empty_study_still_names_its_columns():
+    """So the empty state can say "no ads built yet" rather than render nothing
+    and look broken."""
+    table = ad_attributions_table([])
+
+    assert table["rows"] == []
+    assert table["columns"] == ["ad_id", "network", "ref_token", "created"]
+
+
+@patch("adopt.server.auth.verify_token")
+def test_table_endpoint_returns_the_study_mapping(verify_mock):
+    _reset_db()
+    verify_mock.return_value = {"sub": user_id}
+    org_id, study_id, headers = _setup()
+
+    _insert_attribution(study_id, "ad-1", {"gender": "women", "form": "mnchweek"})
+
+    res = client.get(f"/{org_id}/studies/foo-study/ad-attributions", headers=headers)
+
+    assert res.status_code == 200
+    data = res.json()["data"]
+    assert [r["ad_id"] for r in data["rows"]] == ["ad-1"]
+    assert data["rows"][0]["gender"] == "women"
+
+
+@patch("adopt.server.auth.verify_token")
+def test_table_endpoint_404s_for_a_study_the_user_does_not_own(verify_mock):
+    """Same org-scoped ownership as every other study endpoint; the mapping is
+    a study's stratum design and is not shared."""
+    _reset_db()
+    verify_mock.return_value = {"sub": user_id}
+    org_id, _, headers = _setup()
+
+    other_uid = "test|222"
+    _create_user(other_uid)
+    other_org = _create_org(other_uid, "other-org")
+    _create_study(other_uid, other_org, "other-study")
+
+    res = client.get(
+        f"/{other_org}/studies/other-study/ad-attributions", headers=headers
+    )
+
+    assert res.status_code == 404
