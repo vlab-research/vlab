@@ -67,14 +67,14 @@ export interface PipelineExperiment {
 //                free on Messenger, where the ref is invisible; Messenger-only,
 //                because on WhatsApp it sits in the respondent's compose box.
 //
-// A third mode, 'shortcode' (a clean ref that attributes nobody), exists in
-// adopt's RefMode literal and is deliberately not in this union: it is not
-// offered by the form. It stays resolvable in adopt because an old conf with
-// ref_mode absent resolves to it from the legacy include_metadata_in_ref flag.
+// There is no third mode. A ref either carries the stratum or carries a token
+// that resolves to it; "carry neither" attributes nobody and is not something
+// anyone chooses. A study with no stratification simply gets a short ref,
+// because there is nothing to put in it.
 //
 // Optional, and absent is meaningful: it means the conf was written before this
-// field existed, and adopt resolves it per channel from that legacy flag. The
-// form must never write a default onto a conf that arrived without one — see
+// field existed, which makes it a thick Messenger one. The form must never
+// write a default onto a conf that arrived without one — see
 // forms/destinations/refMode.ts.
 export type RefMode = 'encoded' | 'metadata';
 
@@ -109,11 +109,11 @@ export interface App {
 // (WhatsApp has no quick-reply button — the respondent gets a prefilled compose
 // box) and plus the number the ad's clicks land on.
 //
-// include_metadata_in_ref is deliberately absent from the form. It defaults off
-// in adopt, the autofill text is visible and editable by the respondent, and
-// turning it on can make a study's refs unparseable by fly — which fails
-// closed at config-save time rather than in the UI. Ship it as a form field
-// only once there is a reason to.
+// The form always sends ref_mode, and for this channel it is worth knowing why
+// encoded is what it sends: the autofill text sits in the respondent's compose
+// box, visible and editable, and stratum values there can also make a study's
+// refs unparseable by fly — which fails closed at config-save time rather than
+// in the UI.
 export interface WhatsApp {
   type: string;
   name: string;

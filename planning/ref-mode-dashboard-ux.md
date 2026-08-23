@@ -9,12 +9,19 @@ documented in `documentation/ad-attributions.md`.
 summarised here, because the reasoning in this document is what someone will
 read first:
 
+0. **Thin does not exist, and now does not exist in the code either.** §3 kept
+   `"shortcode"` in the model on migration-safety grounds. That was wrong: a ref
+   carrying neither the stratum nor a token attributes nobody, which nobody
+   chooses — what it actually described is a study with no stratification, whose
+   ref is short because there is nothing to put in it. Thick with nothing to
+   say, not a mode. The mode and `include_metadata_in_ref` are both deleted, and
+   deleting them deleted the round-trip bug in (3) rather than patching it.
 1. **§5.3 was resolved by deletion, not suppression.** The monitoring noise it
    files as a "residual" turned out to be a category error in the outcome
    classification itself, not a side effect to scope away. `ad=organic` is gone.
 2. **§6's "422 at save" is one-directional**, and deliberately so — refusing
    both directions would make the flip in §5 unperformable in either order.
-3. **A latent round-trip bug had to be fixed first.** Storing an explicit
+3. **A latent round-trip bug surfaced, and (0) removed its cause.** Storing an explicit
    `ref_mode` made the conf permanently unparseable, which would have broken
    reconciliation for any study that used this feature.
 **Scope:** the dashboard UX for how a study's ads carry attribution, and the

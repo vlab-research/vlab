@@ -342,9 +342,9 @@ without the other and the study has no attribution at all — the ref no longer
 carries the stratum and nothing looks the token up, so every stratum counts zero
 and the optimizer reallocates on empty data.
 `thins_its_ref_without_reading_the_mapping` (`study_conf.py`) detects that
-shape: a fly destination whose resolved `ref_mode` is not `"metadata"` while no
-extraction conf declares `mapping: "ad_table_lookup"`. Both thin modes count,
-`"shortcode"` and `"encoded"` alike. `warn_on_thinned_ref_without_mapping`
+shape: a fly destination whose resolved `ref_mode` is `"encoded"` while no
+extraction conf declares `mapping: "ad_table_lookup"`.
+`warn_on_thinned_ref_without_mapping`
 (`malaria.py`) logs it on every reconciliation run. It warns rather than
 raises, because a study recruiting uniformly with no `question_targeting` needs
 no stratum attribution and is entitled to a thin ref. It covers WhatsApp
@@ -377,18 +377,28 @@ Two properties are deliberate and easy to "fix" by mistake:
 Use `find_study_conf` (`server/db.py`) rather than `get_study_conf` when a
 missing conf is an ordinary answer: the latter raises.
 
-### Serialising `ref_mode`
+### `ref_mode` is the only setting
 
-`RefModeDestination` drops `include_metadata_in_ref` from its dump once
-`ref_mode` is stated, and this is load-bearing rather than tidiness. Confs are
-stored as `model_dump()`, which writes defaults — so an encoded Messenger
-destination would be stored as `{"ref_mode": "encoded",
-"include_metadata_in_ref": true}`, since Messenger defaults that flag `True`.
-Reading it back puts the flag in `model_fields_set`, which is exactly what
-`ref_mode_must_not_contradict_the_legacy_flag` rejects, so the conf would raise
-on every subsequent parse and the study's reconciliation would stop — from a
-save that returned 201. A conf that never states `ref_mode` still serialises the
-flag, because for those confs it is the only thing that says what the ads do.
+`resolved_ref_mode` is `self.ref_mode or "metadata"`: two modes, and an unstated
+one means the conf predates the field, which makes it a thick Messenger one.
+
+There used to be a second field expressing the same thing,
+`include_metadata_in_ref`, plus a third mode `"shortcode"` that it selected —
+a ref carrying neither the stratum nor a token, and so attributing nobody. That
+is not something anyone chooses: a study with no stratification simply has a
+short ref, because `creative_metadata` has nothing to put in it. Both are gone.
+
+Removing them removed a live bug rather than merely tidying. Confs are stored as
+`model_dump()`, which writes defaults, so an encoded Messenger destination was
+stored as `{"ref_mode": "encoded", "include_metadata_in_ref": true}` — and
+reading it back tripped the validator that rejected exactly that pair. The study
+saved cleanly and was unloadable afterwards, stopping its reconciliation. With
+one field there is nothing left to contradict.
+
+Stored confs still carry the retired flag. Pydantic ignores unknown keys, so
+they parse unchanged; `test_a_stored_conf_carrying_the_retired_flag_still_parses`
+pins that, because a model that forbade extras would stop every legacy
+destination in the database from loading.
 
 ### Validating the mapping conf
 

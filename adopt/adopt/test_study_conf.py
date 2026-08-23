@@ -765,7 +765,7 @@ def _whatsapp_destination(shortcode="mnchweek", full_ref=False):
         initial_shortcode=shortcode,
         welcome_message="Tap send to start",
         whatsapp_phone_number="+1-541-920-2635",
-        include_metadata_in_ref=full_ref,
+        **({} if full_ref else {"ref_mode": "encoded"}),
     )
 
 
@@ -986,13 +986,13 @@ def test_destination_type_is_not_checked_for_studies_without_whatsapp():
 # ---------------------------------------------------------------------------
 # Thinning the ref without reading the mapping (A4).
 #
-# include_metadata_in_ref off only works if the study also reads the ad ->
+# A thin ref only works if the study also reads the ad ->
 # stratum mapping. One without the other leaves the study with no attribution
 # at all -- the ref no longer carries the stratum and nothing looks the ad up.
 # ---------------------------------------------------------------------------
 
 
-def _messenger_study(include_metadata_in_ref, inference_data=None):
+def _messenger_study(ref_mode=None, inference_data=None):
     return StudyConf(
         id="00000000-0000-0000-0000-000000000001",
         user=UserInfo(survey_user="user", token="token"),
@@ -1010,7 +1010,7 @@ def _messenger_study(include_metadata_in_ref, inference_data=None):
                 initial_shortcode="mnchweek",
                 welcome_message="Welcome!",
                 button_text="OK",
-                include_metadata_in_ref=include_metadata_in_ref,
+                **({"ref_mode": ref_mode} if ref_mode else {}),
             )
         ],
         audiences=[],
@@ -1023,11 +1023,11 @@ def _messenger_study(include_metadata_in_ref, inference_data=None):
 
 def test_a_full_ref_study_is_never_flagged():
     # Every existing study.
-    assert thins_its_ref_without_reading_the_mapping(_messenger_study(True)) == []
+    assert thins_its_ref_without_reading_the_mapping(_messenger_study()) == []
 
 
 def test_thinning_the_ref_with_no_ad_confs_is_flagged():
-    study = _messenger_study(False, _inference_conf("md:gender"))
+    study = _messenger_study("encoded", _inference_conf("md:gender"))
     assert thins_its_ref_without_reading_the_mapping(study) == ["messenger"]
 
 
@@ -1035,7 +1035,7 @@ def test_thinning_the_ref_with_a_lookup_conf_is_fine():
     conf = InferenceDataConf(
         data_sources={"fly": SourceExtractionConf(extraction_confs=[_lookup_conf("gender")])}
     )
-    assert thins_its_ref_without_reading_the_mapping(_messenger_study(False, conf)) == []
+    assert thins_its_ref_without_reading_the_mapping(_messenger_study("encoded", conf)) == []
 
 
 # ---------------------------------------------------------------------------
@@ -1047,11 +1047,16 @@ def test_thinning_the_ref_with_a_lookup_conf_is_fine():
 
 
 def test_an_encoded_destination_survives_a_dump_and_reparse():
-    """The bug this guards: model_dump() writes defaults, so an encoded
-    Messenger destination would be stored carrying include_metadata_in_ref=True
-    -- which is exactly the contradiction the validator rejects. The conf would
-    save cleanly and then be permanently unparseable, stopping reconciliation
-    for that study."""
+    """Confs are stored as model_dump() and read back through the model, so
+    anything the dump writes is something the next parse has to accept.
+
+    This used to fail. A second field, include_metadata_in_ref, expressed the
+    same setting a second way, and model_dump() wrote its default -- so an
+    encoded Messenger destination was stored with both, which a validator then
+    rejected on every subsequent parse. The study saved cleanly and was
+    afterwards unloadable, stopping its reconciliation. Deleting the second
+    field deleted the bug; there is nothing left to contradict.
+    """
     dumped = FlyMessengerDestination(
         type="messenger",
         name="messenger",
@@ -1061,13 +1066,35 @@ def test_an_encoded_destination_survives_a_dump_and_reparse():
         ref_mode="encoded",
     ).model_dump()
 
-    assert "include_metadata_in_ref" not in dumped
     assert FlyMessengerDestination(**dumped).resolved_ref_mode == "encoded"
 
 
-def test_a_legacy_destination_still_serialises_the_flag():
-    """For a conf that never states ref_mode, the flag is the only thing that
-    says what its ads do."""
+def test_a_stored_conf_carrying_the_retired_flag_still_parses():
+    """Every legacy destination in the database still holds
+    include_metadata_in_ref. Pydantic ignores unknown keys, so they parse
+    unchanged and resolve to the inline stratum, exactly as they did.
+
+    Asserted rather than assumed: were these models to forbid extras instead,
+    every one of those confs would stop loading and reconciliation would halt.
+    """
+    dest = FlyMessengerDestination(
+        **{
+            "type": "messenger",
+            "name": "messenger",
+            "initial_shortcode": "mnchweek",
+            "welcome_message": "Welcome!",
+            "button_text": "OK",
+            "include_metadata_in_ref": True,
+        }
+    )
+
+    assert dest.resolved_ref_mode == "metadata"
+    assert dest.ref_mode is None
+
+
+def test_an_unstated_mode_carries_the_stratum_inline():
+    """What every conf written before this field existed resolves to, and what
+    keeps the migration free: nobody rewrites stored JSON."""
     dumped = FlyMessengerDestination(
         type="messenger",
         name="messenger",
@@ -1076,7 +1103,6 @@ def test_a_legacy_destination_still_serialises_the_flag():
         button_text="OK",
     ).model_dump()
 
-    assert dumped["include_metadata_in_ref"] is True
     assert dumped["ref_mode"] is None
     assert FlyMessengerDestination(**dumped).resolved_ref_mode == "metadata"
 
@@ -1196,10 +1222,27 @@ def test_a_missing_counterpart_conf_is_still_refused_by_the_predicate():
     assert ref_mode_incoherence([_messenger("encoded")], None) is not None
 
 
-def test_a_legacy_thin_destination_is_refused_too():
-    """"shortcode" and "encoded" differ in what carries the join key, not in
-    whether the ref ships the stratum -- neither does."""
-    thin = FlyWhatsAppDestination(
+def test_an_encoded_whatsapp_destination_is_refused_the_same_way():
+    """Nothing about the refusal is Messenger-specific: what matters is that the
+    ref carries no stratum and no conf reads the mapping."""
+    whatsapp = FlyWhatsAppDestination(
+        type="whatsapp",
+        name="whatsapp",
+        initial_shortcode="mnchweek",
+        welcome_message="Welcome!",
+        whatsapp_phone_number="+15419202635",
+        ref_mode="encoded",
+    )
+
+    assert ref_mode_incoherence([whatsapp], _inference_conf("gender")) is not None
+
+
+def test_an_unstated_whatsapp_destination_carries_the_stratum_inline():
+    """There is no third mode. A destination that states nothing carries the
+    stratum inline, on every channel -- the per-channel default that used to
+    make WhatsApp resolve differently is gone along with the mode it selected.
+    """
+    whatsapp = FlyWhatsAppDestination(
         type="whatsapp",
         name="whatsapp",
         initial_shortcode="mnchweek",
@@ -1207,8 +1250,7 @@ def test_a_legacy_thin_destination_is_refused_too():
         whatsapp_phone_number="+15419202635",
     )
 
-    assert thin.resolved_ref_mode == "shortcode"
-    assert ref_mode_incoherence([thin], _inference_conf("gender")) is not None
+    assert whatsapp.resolved_ref_mode == "metadata"
 
 
 def test_only_the_thinned_destinations_are_named():
@@ -1313,7 +1355,7 @@ def test_a_raw_conf_on_another_key_is_not_a_disagreement():
 
 def test_thinning_the_ref_with_no_inference_conf_at_all_is_flagged():
     assert thins_its_ref_without_reading_the_mapping(
-        _messenger_study(False, None)
+        _messenger_study("encoded", None)
     ) == ["messenger"]
 
 
@@ -1403,7 +1445,7 @@ def test_a_non_messaging_destination_type_makes_no_claim_to_check():
 
 
 def _multi_study(destination_type="MESSAGING_MESSENGER_WHATSAPP",
-                 optimization_goal="CONVERSATIONS"):
+                 optimization_goal="CONVERSATIONS", ref_mode=None):
     return StudyConf(
         id="00000000-0000-0000-0000-000000000001",
         user=UserInfo(survey_user="user", token="token"),
@@ -1422,6 +1464,7 @@ def _multi_study(destination_type="MESSAGING_MESSENGER_WHATSAPP",
                 welcome_message="Tap below or send to start",
                 button_text="Start survey",
                 whatsapp_phone_number="+1-541-920-2635",
+                **({"ref_mode": ref_mode} if ref_mode else {}),
             )
         ],
         audiences=[],
@@ -1526,10 +1569,10 @@ def test_a_multi_destination_exposes_the_number_in_metas_shape():
 
 
 def test_a_thin_multi_ref_without_an_ad_conf_is_reported():
-    """include_metadata_in_ref defaults False on multi, so the ad -> stratum
-    mapping is the only attribution it has. Reported for the same reason as the
-    other fly destinations."""
-    study = _multi_study()
+    """An encoded multi ref carries no stratum, so the ad -> stratum mapping is
+    the only attribution it has. Reported for the same reason as the other fly
+    destinations."""
+    study = _multi_study(ref_mode="encoded")
     assert thins_its_ref_without_reading_the_mapping(study) == ["multi"]
 
 
@@ -1556,15 +1599,16 @@ def test_the_dashboard_whatsapp_form_shape_parses():
             "initial_shortcode": "mnchweek",
             "welcome_message": "Tap send to start",
             "whatsapp_phone_number": "+1-541-920-2635",
+            "ref_mode": "encoded",
             "type": "whatsapp",
         }
     )
 
     assert dest.type == "whatsapp"
-    # Not sent by the form, and must therefore have a default. The WhatsApp
-    # default is off: the autofill text is visible to and editable by the
-    # respondent.
-    assert dest.include_metadata_in_ref is False
+    # The form writes the mode explicitly into every new destination, which is
+    # what makes an absent ref_mode in the database mean exactly one thing:
+    # created before the field existed.
+    assert dest.resolved_ref_mode == "encoded"
     assert dest.additional_metadata is None
 
 
@@ -1577,12 +1621,13 @@ def test_the_dashboard_multi_form_shape_parses():
             "welcome_message": "Tap below or send to start",
             "button_text": "Start survey",
             "whatsapp_phone_number": "+1-541-920-2635",
+            "ref_mode": "encoded",
             "type": "multi",
         }
     )
 
     assert dest.type == "multi"
-    assert dest.include_metadata_in_ref is False
+    assert dest.resolved_ref_mode == "encoded"
 
 
 def test_the_dashboard_additional_metadata_shape_parses():

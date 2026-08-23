@@ -62,8 +62,10 @@ keep the dotted ref indefinitely and are never migrated.
 
 Two later changes did touch the ref itself, both deliberately containable:
 
-- **A4** added `include_metadata_in_ref`, defaulting to the historical full ref.
-  A study only thins its ref when someone turns it off.
+- **A4** added a per-destination way to stop shipping the stratum in the ref,
+  defaulting to the historical full ref. A study only changes when someone
+  changes it. (A4 spelled this `include_metadata_in_ref`, a boolean; that field
+  and the `"shortcode"` mode it selected are gone — see *Two modes, not three*.)
 - **D2** made `make_ref` encode `.` and `~`. Only values actually containing
   those serialise differently, so only an already-broken study is affected — and
   a production measurement found none. See *Ref encoding* below.
@@ -370,13 +372,13 @@ The same census is why an absent `ref_mode` needs no per-channel reasoning:
 This split is what keeps the migration free, and it only works if the UI default
 is strictly a **new-conf** affordance.
 
-- **Model:** `ref_mode: Optional[RefMode] = None`, and `None` still resolves per
-  channel from `include_metadata_in_ref`. An untouched conf therefore resolves
-  to exactly what it does today, with nobody rewriting stored JSON.
+- **Model:** `ref_mode: Optional[RefMode] = None`, and `None` resolves to
+  `"metadata"` — the stratum inline. An untouched conf therefore resolves to
+  exactly what it does today, with nobody rewriting stored JSON.
 - **UI:** the dashboard writes `ref_mode` explicitly into every *new*
   destination. So `ref_mode is None` comes to mean exactly one thing: **created
-  before this feature existed** — in practice a thick Messenger study, since
-  there are no legacy WhatsApp or multi studies.
+  before this feature existed** — which is a thick Messenger study, since there
+  are no legacy WhatsApp or multi studies.
 
 The failure this guards against is specific: open a legacy thick study, edit its
 welcome message, save, and re-serialise `ref_mode` from `None` to `"encoded"` —
@@ -393,17 +395,33 @@ three are load-bearing:
 `dashboard/src/pages/StudyConfPage/forms/destinations/Messenger.test.tsx`
 exercises exactly that scenario.
 
-### One more round-trip trap, fixed
+### Two modes, not three — and the bug that deleted
 
-Confs are stored as `model_dump()`, which writes defaults. A destination saved
-with `ref_mode: "encoded"` therefore landed in the database as
-`{"ref_mode": "encoded", "include_metadata_in_ref": true}`, since Messenger
-defaults that flag `True`. Reading it back puts the flag in `model_fields_set`,
-which is precisely what `ref_mode_must_not_contradict_the_legacy_flag` looks
-for — so the conf raised, the study became permanently unparseable, and its
-reconciliation stopped, from a save that looked like it worked.
-`RefModeDestination` now drops the legacy flag on serialisation once `ref_mode`
-is stated, which is what the validator's own error message asks for.
+`resolved_ref_mode` is `self.ref_mode or "metadata"`. There used to be a second
+field saying the same thing, `include_metadata_in_ref`, and a third mode
+`"shortcode"` that it selected: a ref carrying neither the stratum nor a token.
+
+That mode was never coherent. A ref either carries the stratum or carries a
+token that resolves to it; carrying neither attributes nobody, which nobody
+would choose. What it was really describing is a study with no stratification,
+whose ref is short because `creative_metadata` has nothing to put in it — thick
+with nothing to say, not a mode.
+
+Removing both removed a live bug rather than tidying one. Confs are stored as
+`model_dump()`, which writes defaults, so a destination saved with
+`ref_mode: "encoded"` landed in the database as
+`{"ref_mode": "encoded", "include_metadata_in_ref": true}`, Messenger defaulting
+that flag `True`. Reading it back put the flag in `model_fields_set`, which is
+precisely what `ref_mode_must_not_contradict_the_legacy_flag` rejected — so the
+conf raised, the study became permanently unparseable and its reconciliation
+stopped, from a save that returned 201. With one field there is nothing left to
+contradict, and both the validator and the serialiser that had patched around it
+are gone.
+
+Stored confs still hold the retired flag. Pydantic ignores unknown keys, so they
+parse unchanged and resolve to the inline stratum exactly as before — asserted
+directly, because a model forbidding extras would stop every legacy destination
+in the database from loading.
 
 ## Declaring an ad-derived variable
 
@@ -562,15 +580,13 @@ pulls it, a lookup conf works but its ads still ship vlab's entire stratum
 vocabulary into fly on every message — the frozen row *duplicates* the ref
 rather than replacing it, and nothing is actually decoupled.
 
-`FlyMessengerDestination.include_metadata_in_ref` controls it, named to match
-the WhatsApp destination's field because it is one concept; the two channels
-differ only in default. Messenger defaults **True** — the historical behaviour,
-which every existing study depends on. Turned off, the ad emits
-`form.<initial_shortcode>` on **both** Messenger carriers: `url_tags`, which
-Meta surfaces as `referral.ref`, and the quick-reply payload inside
-`page_welcome_message`. Both, because a respondent can arrive by either, and two
-different refs would mean one ad describing two different people depending on
-how they tapped it.
+`ref_mode` controls it, and it is the only thing that does. An unstated mode is
+the historical behaviour, which every existing study depends on. Set to
+`"encoded"`, the ad emits the opaque ref on **both** Messenger carriers:
+`url_tags`, which Meta surfaces as `referral.ref`, and the quick-reply payload
+inside `page_welcome_message`. Both, because a respondent can arrive by either,
+and two different refs would mean one ad describing two different people
+depending on how they tapped it.
 
 `form.<shortcode>` is the minimum that still routes. fly's `getMetadata` parses
 `referral.ref` as dot-pairs and reads `md.form`, falling back to
@@ -733,7 +749,7 @@ There is deliberately no gating for this in code.
 
 `FlyWhatsAppDestination` is shaped after `FlyMessengerDestination`, minus
 `button_text` (WhatsApp has no quick-reply button — the respondent gets a
-prefilled compose box) and plus `include_metadata_in_ref`.
+prefilled compose box) and plus the number the ad's clicks land on.
 
 Both fly destinations fold `form` into `creative_metadata` identically, so the
 frozen `ad_attributions` blob has the same shape on either channel and a study
@@ -786,12 +802,12 @@ all undeliverable and now travel fine. The only residual is `/`, which
 `quote()` keeps literal by default and the gate does not accept — it corrupts
 nothing, it is simply refused at config time.
 
-`include_metadata_in_ref` stays **off by default** all the same, for reasons
-that never depended on deliverability: the optimizer does not need it, since
-the ad-table join carries stratum identity regardless, and the autofill text is
-**visible to and editable by the respondent**. The only reason to turn it on is
-fly survey logic that branches on ad metadata — but a study that wants it is no
-longer blocked by its stratum vocabulary.
+**Encoded is what a new WhatsApp destination is created with** all the same, for
+reasons that never depended on deliverability: the optimizer does not need the
+stratum in the ref, since the ad-table join carries stratum identity regardless,
+and the autofill text is **visible to and editable by the respondent**. The only
+reason to carry it inline is fly survey logic that branches on ad metadata — but
+a study that wants that is no longer blocked by its stratum vocabulary.
 
 **The shortcode keeps the narrow alphabet**, deliberately, even though the gate
 would now accept it encoded. A metadata value is only ever carried by an ad,
@@ -805,9 +821,9 @@ Two checks, because the ref's content and its deliverability live in different
 confs:
 
 - **The shortcode**, on `FlyWhatsAppDestination` itself. Applies in both modes,
-  since even the default token is `form.<shortcode>`.
+  since the encoded ref carries the shortcode too.
 - **The metadata**, in `StudyConf.check_whatsapp_refs_are_deliverable`, which
-  fires only for a destination with `include_metadata_in_ref` on. Destinations
+  fires only for a destination carrying the stratum inline. Destinations
   and strata are separate confs POSTed independently, so no per-conf validator
   can see both; `StudyConf` is where they first meet, and it is assembled at the
   start of every reconciliation run — still before any ad exists.
@@ -987,7 +1003,7 @@ study that opts into ad-id attribution.**
 | Ref decode (fly) | `replybot/lib/typewheels/utils.js`, `replybot/lib/event-normalizer.js` |
 | CSV export | `adopt/adopt/server/csv_export.py`, `adopt/adopt/server/server.py` |
 | WhatsApp destination + ref validation | `adopt/adopt/study_conf.py`, `adopt/adopt/marketing.py` |
-| Ref mode (`ref_mode`, `include_metadata_in_ref`) | `adopt/adopt/study_conf.py`, `marketing.messenger_ref` |
+| Ref mode (`ref_mode`) | `adopt/adopt/study_conf.py`, `marketing.{messenger_ref,whatsapp_ref}` |
 | Dashboard form (extraction) | `dashboard/src/pages/StudyConfPage/forms/inferenceData/{flyExtraction,qualtricsExtraction}.ts`, `FlyExtraction.tsx` |
 | Dashboard form (ref mode) | `dashboard/src/pages/StudyConfPage/forms/destinations/{refMode.ts,RefModeField.tsx}`, `{Messenger,WhatsApp,Multi}.tsx` |
 | Read-side defaults | `dashboard/src/pages/StudyConfPage/forms/inferenceData/generateLookupConfs.ts` |

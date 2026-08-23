@@ -291,13 +291,18 @@ def make_ref(creative_name: str, metadata: Metadata) -> str:
 
 
 def shortcode_ref(shortcode: str) -> str:
-    """The minimal ref: enough to route, and nothing else.
+    """The routing prefix a WhatsApp autofill is built on.
 
     `form` is the one key fly cannot do without — getMetadata falls back to
     FALLBACK_FORM when it is missing — and it is the one thing attribution
     cannot supply later, because routing happens at the first inbound message
-    while attribution is a batch join done afterwards. Everything the ref used
-    to carry beyond this is in the frozen ad_attributions row instead.
+    while attribution is a batch join done afterwards.
+
+    Not a ref in its own right. It was one briefly, for a mode that emitted
+    routing and nothing else; that mode is gone, because a ref carrying neither
+    the stratum nor a token attributes nobody and is not something anyone would
+    choose. `whatsapp_autofill` prepends this and appends whatever metadata
+    there is, which for an unstratified study is nothing at all.
 
     Encoded like every other ref token, so a shortcode is transported the same
     way on both channels — on Messenger `form` is an ordinary metadata value
@@ -325,15 +330,12 @@ def messenger_ref(
     zero, and the optimizer would reallocate on empty data — silently, and
     unrecoverably, because the blob is frozen at creation and never refreshed.
     """
-    mode = destination.resolved_ref_mode
+    if destination.resolved_ref_mode == "encoded":
+        return encoded_ref(
+            destination.initial_shortcode, _require_token(token, destination)
+        )
 
-    if mode == "metadata":
-        return make_ref(creative_name, metadata)
-
-    if mode == "encoded":
-        return encoded_ref(destination.initial_shortcode, _require_token(token, destination))
-
-    return shortcode_ref(destination.initial_shortcode)
+    return make_ref(creative_name, metadata)
 
 
 def messenger_call_to_action() -> dict:
@@ -408,16 +410,14 @@ def whatsapp_ref(
     to matter. A multi destination calls both, so its two arms always disclose
     the same amount -- one mode, two grammars.
     """
-    mode = destination.resolved_ref_mode
-
-    if mode == "encoded":
+    if destination.resolved_ref_mode == "encoded":
         return encoded_ref(
             destination.initial_shortcode, _require_token(token, destination)
         )
 
-    ref_md = ref_metadata(creative_name, metadata) if mode == "metadata" else None
-
-    return whatsapp_autofill(destination.initial_shortcode, ref_md)
+    return whatsapp_autofill(
+        destination.initial_shortcode, ref_metadata(creative_name, metadata)
+    )
 
 
 def whatsapp_autofill(shortcode: str, ref_md: Optional[Metadata] = None) -> str:

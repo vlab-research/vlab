@@ -131,7 +131,7 @@ class FlyMultiDestination(BaseModel):
     button_text: str                # the Messenger arm's quick reply
     whatsapp_phone_number: str      # the WhatsApp arm's promoted_object
     additional_metadata: Optional[dict[str, str]] = None
-    include_metadata_in_ref: bool = False
+    ref_mode: Optional[RefMode] = None    # inherited; None means inline
 ```
 
 A **third** destination type, not a `platforms` list on a merged class. The
@@ -145,9 +145,9 @@ misconfiguration costs.
 ad; a per-channel shortcode would mean one ad whose two arms belong to two
 surveys and one mapping row that can only name one of them.
 
-**`include_metadata_in_ref` defaults `False`** — WhatsApp's default wins, because
-the WhatsApp arm's token sits in the respondent's compose box where they can read
-and edit it. One flag drives both arms, so they cannot disagree about how much
+**Encoded is what the dashboard creates a multi destination with** — because
+the WhatsApp arm's ref sits in the respondent's compose box where they can read
+and edit it. One mode drives both arms, so they cannot disagree about how much
 they disclose.
 
 ### Three carriers on one creative
@@ -383,14 +383,12 @@ shapes `Destination.tsx`'s `emptyStates` produce parse into the right classes,
 and that the `type` literals still match what the union discriminates on. **Keep
 those tests in step with `emptyStates`.**
 
-`include_metadata_in_ref` is deliberately **not** a form field. It defaults off,
-the autofill text is respondent-visible and respondent-editable, and turning it
-on can make a study's refs unparseable by fly — which fails closed at save time.
-Add it to the form only when there is a concrete reason to.
-
-`Messenger.tsx` keeps its own inline copy of the metadata-parsing logic rather
-than using `additionalMetadata.ts`. That file is being edited on another branch;
-fold it in when that lands.
+`ref_mode` is a form field, rendered by the shared `RefModeField`, and a new
+multi destination is created with `encoded`. Both reasons are about the WhatsApp
+arm: the autofill text is respondent-visible and respondent-editable, and
+stratum values there can make a study's refs unparseable by fly — which fails
+closed at save time rather than in the UI. The inline option is not offered on
+this type at all.
 
 ## 6. What is deliberately not built
 
