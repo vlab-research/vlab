@@ -2,7 +2,6 @@ import {
   MESSENGER,
   REF_MODE_ENCODED,
   REF_MODE_THICK,
-  REF_MODE_THIN,
   carriesRefMode,
   displayedRefMode,
   initialRefMode,
@@ -60,91 +59,66 @@ describe('refMode', () => {
 
   describe('refModeOptions', () => {
     it('offers encoded and thick on a pure-messenger study', () => {
-      expect(
-        refModeOptions(MESSENGER, messengerOnly).map(o => o.name)
-      ).toEqual([REF_MODE_ENCODED, REF_MODE_THICK]);
+      expect(refModeOptions(messengerOnly).map(o => o.name)).toEqual([
+        REF_MODE_ENCODED,
+        REF_MODE_THICK,
+      ]);
     });
 
-    it('withholds thick from the messenger arm of a mixed study', () => {
-      // Thick's cost — a visible, editable ref — lands on the WhatsApp arm, so
-      // offering it here would make one study attribute two different ways.
-      expect(refModeOptions(MESSENGER, withWhatsApp).map(o => o.name)).toEqual([
+    it('withholds thick from every destination of a mixed study', () => {
+      // Including its Messenger arm. Thick's cost — a visible, editable ref —
+      // lands on the WhatsApp arm, so offering it anywhere in this study would
+      // make one study attribute two different ways.
+      expect(refModeOptions(withWhatsApp).map(o => o.name)).toEqual([
         REF_MODE_ENCODED,
       ]);
     });
 
-    it('never offers thick on whatsapp or multi', () => {
-      expect(refModeOptions('whatsapp', withWhatsApp).map(o => o.name)).toEqual([
-        REF_MODE_ENCODED,
-      ]);
-      expect(refModeOptions('multi', withMulti).map(o => o.name)).toEqual([
+    it('offers encoded only on a whatsapp or multi study', () => {
+      expect(refModeOptions(withMulti).map(o => o.name)).toEqual([
         REF_MODE_ENCODED,
       ]);
     });
 
-    it('never offers thin, on any channel', () => {
-      // Thin is a clean ref that attributes nobody. The census found no
-      // production population on the channels that defaulted to it, so there is
-      // no stored conf to preserve — making the footgun unreachable beats
-      // discouraging it.
-      const everywhere = [
-        ...refModeOptions(MESSENGER, messengerOnly),
-        ...refModeOptions('whatsapp', withWhatsApp),
-        ...refModeOptions('multi', withMulti),
-      ];
-      expect(everywhere.some(o => o.name === REF_MODE_THIN)).toBe(false);
+    it('never offers a mode that is not encoded or thick', () => {
+      // "shortcode" — a clean ref that attributes nobody — is not part of this
+      // module at all. No production conf resolves to it.
+      const offered = [
+        ...refModeOptions(messengerOnly),
+        ...refModeOptions(withWhatsApp),
+        ...refModeOptions(withMulti),
+      ].map(o => o.name);
+
+      expect(new Set(offered)).toEqual(
+        new Set([REF_MODE_ENCODED, REF_MODE_THICK])
+      );
     });
 
-    it('surfaces a stored legacy mode as a disabled current value', () => {
-      // Showing a destination's real mode beats displaying one it does not
-      // have, but it is a current value, not a choice.
-      const options = refModeOptions('whatsapp', withWhatsApp, REF_MODE_THIN);
-      const thin = options.find(o => o.name === REF_MODE_THIN);
-
-      expect(thin).toBeDefined();
-      expect(thin!.disabled).toBe(true);
-    });
-
-    it('does not duplicate a stored mode that is already offered', () => {
-      const options = refModeOptions(MESSENGER, messengerOnly, REF_MODE_ENCODED);
-      expect(options.filter(o => o.name === REF_MODE_ENCODED)).toHaveLength(1);
-    });
-
-    it('is empty for a destination type with no ref', () => {
-      expect(refModeOptions('website', nonFly)).toEqual([]);
+    it('labels every option it offers', () => {
+      refModeOptions(messengerOnly).forEach(o => {
+        expect(o.label).toBeTruthy();
+        expect(o.label).not.toBe(o.name);
+      });
     });
   });
 
   describe('displayedRefMode', () => {
     it('reports a stored mode as it is', () => {
-      expect(displayedRefMode(REF_MODE_THICK, MESSENGER)).toBe(REF_MODE_THICK);
-      expect(displayedRefMode(REF_MODE_ENCODED, 'whatsapp')).toBe(
-        REF_MODE_ENCODED
-      );
+      expect(displayedRefMode(REF_MODE_THICK)).toBe(REF_MODE_THICK);
+      expect(displayedRefMode(REF_MODE_ENCODED)).toBe(REF_MODE_ENCODED);
     });
 
-    it('reports an absent mode on messenger as thick, not as the UI default', () => {
-      // Absent means the conf predates this field, and adopt resolves it from
-      // the legacy include_metadata_in_ref flag — True on Messenger. Showing
-      // "encoded" here would tell a researcher their legacy study is something
-      // it is not.
-      expect(displayedRefMode(undefined, MESSENGER)).toBe(REF_MODE_THICK);
-    });
-
-    it('reports an absent mode on whatsapp and multi as thin', () => {
-      // Same resolution, opposite default: those channels default the legacy
-      // flag False.
-      expect(displayedRefMode(undefined, 'whatsapp')).toBe(REF_MODE_THIN);
-      expect(displayedRefMode(undefined, 'multi')).toBe(REF_MODE_THIN);
+    it('reports an absent mode as thick', () => {
+      // Absent means the conf predates this field, and every conf that predates
+      // it is a thick Messenger one.
+      expect(displayedRefMode(undefined)).toBe(REF_MODE_THICK);
     });
 
     it('never returns the UI default for an untouched conf', () => {
       // The property that keeps the migration free: nothing on the read path
-      // may produce "encoded" out of an absent field.
-      expect(displayedRefMode(undefined, MESSENGER)).not.toBe(REF_MODE_ENCODED);
-      expect(displayedRefMode(undefined, 'whatsapp')).not.toBe(
-        REF_MODE_ENCODED
-      );
+      // may produce "encoded" out of an absent field, or a researcher would be
+      // told their legacy study is something it is not.
+      expect(displayedRefMode(undefined)).not.toBe(REF_MODE_ENCODED);
     });
   });
 
@@ -158,29 +132,22 @@ describe('refMode', () => {
 
   describe('refModeWouldChange', () => {
     it('is false for an untouched legacy conf', () => {
-      // Opening a legacy destination and changing nothing is not a flip.
-      expect(refModeWouldChange(undefined, undefined, MESSENGER)).toBe(false);
+      expect(refModeWouldChange(undefined, undefined)).toBe(false);
     });
 
     it('is false when an absent mode is made explicit without changing it', () => {
       // Writing "metadata" onto a legacy Messenger conf changes no ad.
-      expect(refModeWouldChange(undefined, REF_MODE_THICK, MESSENGER)).toBe(
-        false
-      );
+      expect(refModeWouldChange(undefined, REF_MODE_THICK)).toBe(false);
     });
 
-    it('is true when a legacy messenger conf is switched to encoded', () => {
+    it('is true when a legacy conf is switched to encoded', () => {
       // The one flip that can actually occur, per the census: thick Messenger
       // to encoded, one direction, opt-in.
-      expect(refModeWouldChange(undefined, REF_MODE_ENCODED, MESSENGER)).toBe(
-        true
-      );
+      expect(refModeWouldChange(undefined, REF_MODE_ENCODED)).toBe(true);
     });
 
     it('is true when an explicit mode changes', () => {
-      expect(
-        refModeWouldChange(REF_MODE_ENCODED, REF_MODE_THICK, MESSENGER)
-      ).toBe(true);
+      expect(refModeWouldChange(REF_MODE_ENCODED, REF_MODE_THICK)).toBe(true);
     });
   });
 
@@ -197,9 +164,13 @@ describe('refMode', () => {
 
     it('never says "ref_mode" to a researcher', () => {
       // Frame by consequence, not by mechanism.
-      [REF_MODE_ENCODED, REF_MODE_THICK, REF_MODE_THIN].forEach(mode => {
+      [REF_MODE_ENCODED, REF_MODE_THICK].forEach(mode => {
         expect(refModeConsequence(mode)).not.toContain('ref_mode');
       });
     });
+  });
+
+  it('exports MESSENGER as the type the whole-study check compares against', () => {
+    expect(MESSENGER).toBe('messenger');
   });
 });

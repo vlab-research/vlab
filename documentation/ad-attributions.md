@@ -354,12 +354,16 @@ study with any WhatsApp or multi destination would reintroduce exactly that
 heterogeneity. The check is over the whole destination list, not per
 destination.
 
-**Thin (`shortcode`) is not offered at all.** It was only ever the WhatsApp/multi
-default, and a destination-type census on 2026-08-21 found no production
-population on those channels — 892 messenger, 11 web, 3 website, 0 whatsapp,
-0 multi — so there is no stored conf to preserve. It stays in adopt's `RefMode`
-literal because that is still what an untouched legacy WhatsApp conf resolves
-to; unreachable from the form is what "removed" means.
+**Thin (`shortcode`) is absent from the dashboard entirely** — not merely
+unselectable. It was only ever the WhatsApp/multi default, and a
+destination-type census on 2026-08-21 found no production population on those
+channels: 892 messenger, 11 web, 3 website, 0 whatsapp, 0 multi. No conf
+resolves to it, so any dashboard code mentioning it would be dead code defending
+an empty set. It stays in adopt's `RefMode` literal, because `resolved_ref_mode`
+still has to answer for a hypothetical API-authored conf.
+
+The same census is why an absent `ref_mode` needs no per-channel reasoning:
+**every legacy conf is a Messenger one**, so absent means thick, full stop.
 
 ### The model defaults to legacy; the UI defaults to encoded
 
@@ -379,8 +383,8 @@ welcome message, save, and re-serialise `ref_mode` from `None` to `"encoded"` �
 silently flipping a running study's ads. Three properties prevent it, and all
 three are load-bearing:
 
-1. `displayedRefMode` reports what a conf *actually does* — absent means thick
-   on Messenger, thin elsewhere — and is never written back.
+1. `displayedRefMode` reports what a conf *actually does* — absent means thick —
+   and is never written back.
 2. The encoded default lives only in the two empty-state constructors, both of
    which build new confs.
 3. `GenericList` renders stored data as-is and the forms spread `...data`, so a
@@ -403,21 +407,24 @@ is stated, which is what the validator's own error message asks for.
 
 ## Declaring an ad-derived variable
 
-vlab does not infer these confs silently, but it will write them for you. In the
-study's **Data Extraction** step, a fly source offers to **add one lookup
-variable per stratum variable declared in Variables**. The researcher already
-named those variables, and the name is exactly what the ad's frozen row is keyed
-by — so asking for them a second time, in a different vocabulary, is the split
-that produces silent half-configs.
+vlab does not infer these confs, but it does **default** them. In the study's
+**Data Extraction** step, a fly source with nothing saved starts with one lookup
+conf per stratum variable declared in Variables, in place of the single blank
+row the form used to seed. The researcher already named those variables, and the
+name is exactly what the ad's frozen row is keyed by — so asking for them a
+second time, in a different vocabulary, is the split that produces silent
+half-configs.
 
-Generation is additive by name and never overwrites a hand-written conf: a study
-can perfectly reasonably read `gender` from a survey answer rather than from the
-ad. It emits one token key across every conf, so it cannot create the
-disagreement `disagreeing_token_keys` warns about. It is idempotent, and the
-button is disabled when it would add nothing. The generated confs land as
-ordinary editable rows saved through the normal Submit — nothing is synthesised
-behind the researcher's back, so the stored conf stays the whole truth about
-what swoosh will run.
+It is only a default, and the rule is the simple one: **a source with saved
+confs shows those; a source without shows these.** There is no merging and no
+second copy held anywhere. The defaults render as ordinary editable rows and are
+replaced wholesale the moment anything is saved, so the stored conf stays the
+whole truth about what swoosh will run.
+
+Defaulted on **fly sources only** — Qualtrics and Typeform carry no ad token, so
+a lookup conf there would silently yield nothing forever — and one token key is
+used throughout, so a default can never create the disagreement
+`disagreeing_token_keys` warns about.
 
 A conf can still be written by hand, which is what a study attributing on a
 variable it did *not* stratify on does. In the same step, a fly source's
@@ -983,7 +990,7 @@ study that opts into ad-id attribution.**
 | Ref mode (`ref_mode`, `include_metadata_in_ref`) | `adopt/adopt/study_conf.py`, `marketing.messenger_ref` |
 | Dashboard form (extraction) | `dashboard/src/pages/StudyConfPage/forms/inferenceData/{flyExtraction,qualtricsExtraction}.ts`, `FlyExtraction.tsx` |
 | Dashboard form (ref mode) | `dashboard/src/pages/StudyConfPage/forms/destinations/{refMode.ts,RefModeField.tsx}`, `{Messenger,WhatsApp,Multi}.tsx` |
-| Read-side generation | `dashboard/src/pages/StudyConfPage/forms/inferenceData/generateLookupConfs.ts` |
+| Read-side defaults | `dashboard/src/pages/StudyConfPage/forms/inferenceData/generateLookupConfs.ts` |
 | Ad-attributions surface | `dashboard/src/pages/StudyConfPage/forms/adAttributions/AdAttributions.tsx`, `hooks/useAdAttributions.tsx` |
 | Save-time refusal | `adopt/adopt/study_conf.py` (`ref_mode_incoherence`), `adopt/adopt/server/server.py` |
 | Event fields + network constant | `inference/inference-data/inference_data.go` |

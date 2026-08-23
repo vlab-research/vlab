@@ -1,7 +1,23 @@
 # Ref mode in the dashboard — implementation plan
 
-**Status:** built. All six pieces landed; dashboard 191 tests, adopt 718, swoosh
-and the rest of inference green.
+**Status:** built, then simplified in review. Dashboard 184 tests, adopt 718,
+swoosh and the rest of inference green.
+
+**Review pass (PR #246) cut three things as over-built**, and the theme is worth
+keeping in mind for anything similar:
+
+- **Thin is gone from the dashboard entirely**, not merely unselectable. The
+  census says no conf resolves to it, so `REF_MODE_THIN`, the disabled
+  current-value option, the per-channel branch in `displayedRefMode`, and the
+  `disabled` support added to `Select` were all code defending an empty set.
+  Every legacy conf is a Messenger one, so absent means thick, full stop.
+- **`refModeOptions` collapsed** to "pure-Messenger study → both modes,
+  otherwise encoded". The per-destination type check was redundant: the
+  destination is in the list it judges.
+- **Generation became a plain default.** The button, `mergeLookupConfs`,
+  `wouldGenerateAnything` and the blank-row filtering are gone. The rule is
+  simply: a source with saved confs shows those; a source without shows the
+  generated ones. Nothing merges, and no second copy is held anywhere.
 
 **Design:** `planning/ref-mode-dashboard-ux.md`. That document is the decision
 record; this one is the build order. Read it first — every section below cites

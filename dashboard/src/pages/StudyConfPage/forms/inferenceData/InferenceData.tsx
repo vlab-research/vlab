@@ -13,6 +13,7 @@ import { getFinishQuestionRef } from '../strata/strata';
 import ConfWrapper from '../../components/ConfWrapper';
 import ErrorPlaceholder from '../../../../components/ErrorPlaceholder';
 import SourceExtraction from './SourceExtraction';
+import { initialExtractionConfs } from './generateLookupConfs';
 
 interface Props {
   id: string;
@@ -28,15 +29,14 @@ const InferenceData: React.FC<Props> = ({
 }: Props) => {
 
 
+  // A source with nothing saved starts from the study's declared variables
+  // rather than from a blank row: a stratified ad study attributes its
+  // respondents, and the researcher already named the variables. Purely a
+  // default — anything saved is loaded in preference to it, below.
+  const variableNames = globalData.variables.map(v => v.name);
+
   const dataSourceState = globalData.data_sources?.map(ds => [ds.name, {
-    extraction_confs: [{
-      name: '',
-      location: '',
-      key: '',
-      functions: [],
-      aggregate: '',
-      value_type: ''
-    }]
+    extraction_confs: initialExtractionConfs(ds.source, variableNames)
   }])
   const initialState = { data_sources: Object.fromEntries(dataSourceState) };
 
@@ -77,10 +77,9 @@ const InferenceData: React.FC<Props> = ({
   })
 
   const finishQuestionRef = getFinishQuestionRef(globalData.strata);
-  const variables = globalData.variables.map(v => v.name);
 
   const userVariables = dat.map(({ sourceExtraction }) => sourceExtraction.user_variable).filter(x => !!x) as string[];
-  const nameOptions = [finishQuestionRef, ...variables, ...userVariables];
+  const nameOptions = [finishQuestionRef, ...variableNames, ...userVariables];
 
   const multipleSources = dat.length > 1;
 
@@ -96,7 +95,6 @@ const InferenceData: React.FC<Props> = ({
               dataSource={dataSource}
               nameOptions={nameOptions}
               multipleSources={multipleSources}
-              variableNames={variables}
               data={sourceExtraction}
               setData={updateFormData} />
           )

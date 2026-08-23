@@ -1,21 +1,10 @@
 import {
   DEFAULT_TOKEN_KEY,
+  blankExtractionConf,
+  initialExtractionConfs,
   lookupConfsFromVariables,
-  mergeLookupConfs,
-  wouldGenerateAnything,
 } from './generateLookupConfs';
 import { AD_TABLE_LOOKUP_MAPPING } from './flyExtraction';
-import { Extraction } from '../../../../types/conf';
-
-const blank = (overrides: Partial<Extraction> = {}): Extraction => ({
-  name: '',
-  location: '',
-  key: '',
-  functions: [],
-  aggregate: '',
-  value_type: '',
-  ...overrides,
-});
 
 describe('generateLookupConfs', () => {
   describe('lookupConfsFromVariables', () => {
@@ -34,7 +23,7 @@ describe('generateLookupConfs', () => {
 
     it('names the conf after the stratum variable, which is also the row key', () => {
       // `name` does double duty: the output variable AND the key into the ad's
-      // frozen row. Generating from the variables conf is safe precisely
+      // frozen row. Defaulting from the variables conf is safe precisely
       // because those are one string and cannot drift.
       const [conf] = lookupConfsFromVariables(['gender']);
       expect(conf.name).toBe('gender');
@@ -49,7 +38,9 @@ describe('generateLookupConfs', () => {
 
     it('uses the identity select, since metadata has no response path', () => {
       const [conf] = lookupConfsFromVariables(['gender']);
-      expect(conf.functions).toEqual([{ function: 'select', params: { path: '' } }]);
+      expect(conf.functions).toEqual([
+        { function: 'select', params: { path: '' } },
+      ]);
     });
 
     it('emits one token key across every conf, never a disagreement', () => {
@@ -77,75 +68,45 @@ describe('generateLookupConfs', () => {
     });
   });
 
-  describe('mergeLookupConfs', () => {
-    const generated = lookupConfsFromVariables(['gender', 'Age']);
+  describe('initialExtractionConfs', () => {
+    it('defaults a fly source to one lookup per declared variable', () => {
+      const confs = initialExtractionConfs('fly', ['gender', 'Age']);
 
-    it('adds generated confs to an empty form', () => {
-      expect(mergeLookupConfs([], generated).map(c => c.name)).toEqual([
-        'gender',
-        'Age',
+      expect(confs.map(c => c.name)).toEqual(['gender', 'Age']);
+      expect(confs.every(c => c.mapping === AD_TABLE_LOOKUP_MAPPING)).toBe(true);
+    });
+
+    it('leaves other sources with a blank row', () => {
+      // Qualtrics and Typeform carry no ad token, so a lookup conf there would
+      // silently yield nothing forever.
+      expect(initialExtractionConfs('qualtrics', ['gender'])).toEqual([
+        blankExtractionConf(),
+      ]);
+      expect(initialExtractionConfs('typeform', ['gender'])).toEqual([
+        blankExtractionConf(),
       ]);
     });
 
-    it('drops the form\'s seeded blank row', () => {
-      // Left in place it would fail validation on save, for a reason nobody
-      // could see on screen.
-      expect(mergeLookupConfs([blank()], generated)).toHaveLength(2);
-    });
-
-    it('never overwrites a conf the researcher already wrote', () => {
-      // A study can perfectly reasonably read `gender` from a survey answer
-      // rather than from the ad. Overwriting that would make the button a trap.
-      const hand = blank({
-        name: 'gender',
-        location: 'variable',
-        key: 'q_gender',
-      });
-
-      const merged = mergeLookupConfs([hand], generated);
-
-      expect(merged.filter(c => c.name === 'gender')).toEqual([hand]);
-      expect(merged.map(c => c.name)).toEqual(['gender', 'Age']);
-    });
-
-    it('is idempotent', () => {
-      const once = mergeLookupConfs([], generated);
-      expect(mergeLookupConfs(once, generated)).toEqual(once);
-    });
-
-    it('keeps unrelated confs untouched', () => {
-      const unrelated = blank({ name: 'finished', location: 'variable' });
-      const merged = mergeLookupConfs([unrelated], generated);
-
-      expect(merged[0]).toEqual(unrelated);
-      expect(merged).toHaveLength(3);
+    it('falls back to a blank row when the study declares no variables', () => {
+      // An empty list would render nothing at all and look broken.
+      expect(initialExtractionConfs('fly', [])).toEqual([blankExtractionConf()]);
     });
   });
 
-  describe('wouldGenerateAnything', () => {
-    it('is true for a form holding only its seeded blank row', () => {
-      // The case a naive length comparison gets wrong: merging drops the blank,
-      // so the count is unchanged even though every variable would be added.
-      expect(wouldGenerateAnything([blank()], ['gender'])).toBe(true);
+  describe('blankExtractionConf', () => {
+    it('is empty in every field, so the form validates it as unfilled', () => {
+      const blank = blankExtractionConf();
+
+      expect(blank.name).toBe('');
+      expect(blank.location).toBe('');
+      expect(blank.key).toBe('');
+      expect(blank.functions).toEqual([]);
     });
 
-    it('is false once every declared variable has a row', () => {
-      const confs = lookupConfsFromVariables(['gender', 'Age']);
-      expect(wouldGenerateAnything(confs, ['gender', 'Age'])).toBe(false);
-    });
-
-    it('is false when the study declares no variables', () => {
-      expect(wouldGenerateAnything([], [])).toBe(false);
-    });
-
-    it('is true when a variable was added after the last generation', () => {
-      const confs = lookupConfsFromVariables(['gender']);
-      expect(wouldGenerateAnything(confs, ['gender', 'Region'])).toBe(true);
-    });
-
-    it('counts a hand-written conf as covering its variable', () => {
-      const hand = blank({ name: 'gender', location: 'variable' });
-      expect(wouldGenerateAnything([hand], ['gender'])).toBe(false);
+    it('is a fresh object each time', () => {
+      // It is appended to a list on every Add; a shared reference would make
+      // two rows edit each other.
+      expect(blankExtractionConf()).not.toBe(blankExtractionConf());
     });
   });
 });

@@ -83,7 +83,6 @@ const WhatsApp: React.FC<Props> = ({
       />
       <RefModeField
         refMode={data.ref_mode}
-        destinationType="whatsapp"
         destinations={destinations}
         handleChange={handleChange}
       />

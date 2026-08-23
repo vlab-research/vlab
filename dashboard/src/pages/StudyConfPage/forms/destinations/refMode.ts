@@ -13,7 +13,7 @@
  * option by what it does to the researcher's data — see refModeConsequence. The
  * word `ref_mode` is never shown, and neither is "encoded" as jargon.
  *
- * Two modes are offered:
+ * Two modes exist here:
  *
  *   encoded    `r.<token>` — clean AND attributes, via the ad_attributions
  *              join on ref_token. The default, on every channel.
@@ -21,15 +21,17 @@
  *              Correct and free on Messenger (the ref is invisible there), so
  *              it stays available as the legacy-but-useful path.
  *
- * A third mode, "shortcode" (thin — clean ref that attributes nobody), exists
- * in the model and is deliberately NOT offered here. It was only ever the
- * WhatsApp/multi default, and a destination-type census found no production
- * population on those channels: 892 messenger, 11 web, 3 website, 0 whatsapp,
- * 0 multi. So there is no stored conf to preserve, and making the footgun
- * unreachable beats discouraging it. It is still resolvable — an old conf with
- * `ref_mode` absent and `include_metadata_in_ref` false resolves to it — which
- * is why displayedRefMode can return it and refModeOptions can surface it as a
- * disabled current value. Unreachable from the form is what "removed" means.
+ * adopt's RefMode literal has a third, "shortcode" — a clean ref that
+ * attributes nobody. It is absent from this module entirely, not merely
+ * unselectable. It was only ever the WhatsApp/multi default, and the
+ * destination-type census found no production population on those channels:
+ * 892 messenger, 11 web, 3 website, 0 whatsapp, 0 multi. So no conf resolves to
+ * it, which makes every line of code that mentioned it dead code defending an
+ * empty set.
+ *
+ * The same census is why an absent `ref_mode` needs no per-channel reasoning:
+ * every legacy conf is a Messenger one, so absent means thick. See
+ * displayedRefMode.
  *
  * See planning/ref-mode-dashboard-ux.md and documentation/ad-attributions.md.
  */
@@ -45,10 +47,9 @@ export const REF_MODE_ENCODED = 'encoded';
  */
 export const REF_MODE_THICK = 'metadata';
 
-/** Thin. Never offered; see the module comment. */
-export const REF_MODE_THIN = 'shortcode';
-
 export const MESSENGER = 'messenger';
+export const WHATSAPP = 'whatsapp';
+export const MULTI = 'multi';
 
 /**
  * The destination types that carry a ref mode at all.
@@ -58,7 +59,7 @@ export const MESSENGER = 'messenger';
  * points at a specific survey. Routing is not a job the ref does for them, so
  * there is no mode to choose.
  */
-export const REF_MODE_DESTINATION_TYPES = [MESSENGER, 'whatsapp', 'multi'];
+export const REF_MODE_DESTINATION_TYPES = [MESSENGER, WHATSAPP, MULTI];
 
 export const carriesRefMode = (destinationType: string): boolean =>
   REF_MODE_DESTINATION_TYPES.includes(destinationType);
@@ -68,15 +69,12 @@ export const carriesRefMode = (destinationType: string): boolean =>
  *
  * Thick is offered on pure-Messenger studies only. Its one cost — a visible,
  * editable ref sitting in the respondent's compose box — lands entirely on the
- * WhatsApp arm, so offering it on a study that has any WhatsApp or multi
+ * WhatsApp arm, so offering it to a study that has any WhatsApp or multi
  * destination would reintroduce the per-channel heterogeneity the encoded
- * default exists to remove: a multi-channel study would attribute two different
- * ways, and the researcher would join their data two different ways depending
- * on which arm a respondent arrived through. That confusion surfaces at
- * analysis time, months later, to someone who was not in the room.
- *
- * Judged across the whole destination list rather than per destination, which
- * is why this takes the study's destinations and not just one.
+ * default exists to remove: that study would attribute two different ways, and
+ * the researcher would join their data two different ways depending on which
+ * arm a respondent arrived through. That confusion surfaces at analysis time,
+ * months later, to someone who was not in the room.
  */
 export const isPureMessengerStudy = (destinations: Destination[]): boolean => {
   const flyDestinations = destinations
@@ -86,18 +84,10 @@ export const isPureMessengerStudy = (destinations: Destination[]): boolean => {
   return flyDestinations.length > 0 && flyDestinations.every(t => t === MESSENGER);
 };
 
-export const refModeLabel = (mode: string): string => {
-  switch (mode) {
-    case REF_MODE_ENCODED:
-      return 'Clean link — look the stratum up afterwards';
-    case REF_MODE_THICK:
-      return 'Stratum values inline in the link (Messenger only)';
-    case REF_MODE_THIN:
-      return 'Legacy: clean link, no attribution';
-    default:
-      return mode;
-  }
-};
+export const refModeLabel = (mode: string): string =>
+  mode === REF_MODE_THICK
+    ? 'Stratum values inline in the link (Messenger only)'
+    : 'Clean link — look the stratum up afterwards';
 
 /**
  * What each mode does to the researcher's data.
@@ -113,65 +103,34 @@ export const refModeLabel = (mode: string): string => {
  * data ends up and what the key is. Give them the table and name the key: that
  * is the researcher-facing contract.
  */
-export const refModeConsequence = (mode: string): string => {
-  switch (mode) {
-    case REF_MODE_ENCODED:
-      return (
-        'Respondents see a short, opaque link. Their stratum is not in the ' +
-        'survey data — it comes from the ad-attributions export, joined on ' +
-        'ref_token. Works the same on every channel.'
-      );
-    case REF_MODE_THICK:
-      return (
-        'Stratum values ride inline in every response, so your export already ' +
-        'has gender, region and the rest as columns — nothing to join. The ' +
-        'link is long and, on WhatsApp, visible and editable by the ' +
-        'respondent, which is why this is Messenger-only.'
-      );
-    case REF_MODE_THIN:
-      return (
-        'This destination carries a clean link that attributes nobody. It ' +
-        'predates the current options and is no longer offered — switch it to ' +
-        'a clean link with attribution.'
-      );
-    default:
-      return '';
-  }
-};
+export const refModeConsequence = (mode: string): string =>
+  mode === REF_MODE_THICK
+    ? 'Stratum values ride inline in every response, so your export already ' +
+      'has gender, region and the rest as columns — nothing to join. The link ' +
+      'is long and, on WhatsApp, visible and editable by the respondent, ' +
+      'which is why this is Messenger-only.'
+    : 'Respondents see a short, opaque link. Their stratum is not in the ' +
+      'survey data — it comes from the ad-attributions export, joined on ' +
+      'ref_token. Works the same on every channel.';
 
 /**
  * The modes offered for one destination, given the study it sits in.
  *
- * `storedMode` is surfaced as an extra entry when it is something no longer
- * offered — today only a legacy "shortcode" conf. The census says that
- * population is zero, but showing a destination's real mode beats displaying
- * one it does not have, and it gives the researcher a way to see and change it.
- * Callers render that entry disabled: it is a current value, not a choice.
+ * Encoded always; thick as well on a pure-Messenger study.
+ *
+ * There is deliberately no `destinationType === MESSENGER` check alongside
+ * `isPureMessengerStudy`: it would be redundant. This destination is one of
+ * `destinations`, so if the study is pure Messenger then this destination is a
+ * Messenger one, and if it is not then the study is not pure.
  */
 export const refModeOptions = (
-  destinationType: string,
-  destinations: Destination[],
-  storedMode?: string
-): { name: string; label: string; disabled?: boolean }[] => {
-  if (!carriesRefMode(destinationType)) return [];
+  destinations: Destination[]
+): { name: string; label: string }[] => {
+  const modes = isPureMessengerStudy(destinations)
+    ? [REF_MODE_ENCODED, REF_MODE_THICK]
+    : [REF_MODE_ENCODED];
 
-  const options: { name: string; label: string; disabled?: boolean }[] = [
-    { name: REF_MODE_ENCODED, label: refModeLabel(REF_MODE_ENCODED) },
-  ];
-
-  if (destinationType === MESSENGER && isPureMessengerStudy(destinations)) {
-    options.push({ name: REF_MODE_THICK, label: refModeLabel(REF_MODE_THICK) });
-  }
-
-  if (storedMode && !options.some(o => o.name === storedMode)) {
-    options.push({
-      name: storedMode,
-      label: refModeLabel(storedMode),
-      disabled: true,
-    });
-  }
-
-  return options;
+  return modes.map(name => ({ name, label: refModeLabel(name) }));
 };
 
 /**
@@ -179,10 +138,8 @@ export const refModeOptions = (
  *
  * This is the load-bearing half of "the model defaults to legacy, the UI
  * defaults to encoded". An absent `ref_mode` is not missing data: it means the
- * conf was written before this feature existed, and adopt still resolves it
- * from the legacy `include_metadata_in_ref` flag, per channel. Messenger
- * defaults that flag True, so absent means thick; WhatsApp and multi default it
- * False, so absent means thin.
+ * conf was written before this feature existed, and every such conf is a thick
+ * Messenger one.
  *
  * Displaying the UI default instead would tell a researcher their legacy study
  * is encoded when it is not — and if that displayed value were ever written
@@ -191,14 +148,8 @@ export const refModeOptions = (
  * in initialRefMode, and reaches the form through the empty states in
  * Destination.tsx / Destinations.tsx.
  */
-export const displayedRefMode = (
-  storedMode: string | undefined,
-  destinationType: string
-): string => {
-  if (storedMode) return storedMode;
-
-  return destinationType === MESSENGER ? REF_MODE_THICK : REF_MODE_THIN;
-};
+export const displayedRefMode = (storedMode: string | undefined): string =>
+  storedMode || REF_MODE_THICK;
 
 /**
  * The mode a NEW destination is created with.
@@ -216,21 +167,14 @@ export const initialRefMode = (): RefMode => REF_MODE_ENCODED;
  * Whether a saved destination is about to change the mode its ads are built
  * with, which is what the flip warning gates on.
  *
- * False for a destination that had no stored mode and has not been touched:
- * absent is a real state, and leaving it alone is not a change. It becomes true
- * as soon as an explicit mode differs from what was loaded — including
- * absent -> explicit, because writing "metadata" onto a legacy Messenger conf
- * changes nothing about the ads but writing "encoded" onto it changes all of
- * them, and the caller cannot tell those apart without comparing resolved
- * modes.
+ * Compared through displayedRefMode so that absent and an explicit "metadata"
+ * count as the same thing: writing "metadata" onto a legacy Messenger conf
+ * changes no ad, while writing "encoded" onto it changes all of them.
  */
 export const refModeWouldChange = (
   loadedMode: string | undefined,
-  currentMode: string | undefined,
-  destinationType: string
-): boolean =>
-  displayedRefMode(loadedMode, destinationType) !==
-  displayedRefMode(currentMode, destinationType);
+  currentMode: string | undefined
+): boolean => displayedRefMode(loadedMode) !== displayedRefMode(currentMode);
 
 /**
  * What a flip actually costs, which is not what people expect.

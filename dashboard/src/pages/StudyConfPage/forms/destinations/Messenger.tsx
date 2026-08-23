@@ -69,7 +69,6 @@ const Messenger: React.FC<Props> = ({
       />
       <RefModeField
         refMode={data.ref_mode}
-        destinationType="messenger"
         destinations={destinations}
         handleChange={handleChange}
       />

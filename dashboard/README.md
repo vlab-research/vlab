@@ -148,12 +148,12 @@ exported precisely so `flyExtraction.test.ts` can assert the absence rather than
 the module merely not mentioning it, which is what stops a future merge of the
 two forms from reintroducing it.
 
-`generateLookupConfs.ts` is the third pure module here. It turns the study's
-declared variables into `ad_table_lookup` confs, behind an explicit button on
-fly sources — mirroring the Strata step's Regenerate. It is additive by name
-(a hand-written conf for a variable always wins), emits one token key across
-every conf it produces, and is idempotent, so the button is safe to press and
-disabled when it would add nothing.
+`generateLookupConfs.ts` is the third pure module here. It supplies what a
+source starts with when nothing is saved for it: for a fly source, one
+`ad_table_lookup` conf per variable declared in Variables, instead of the single
+blank row. Purely a default, consumed by `InferenceData.tsx` where it already
+builds `initialState` — a source with saved confs shows those, a source without
+shows these, and nothing merges the two.
 
 See `documentation/ad-attributions.md` for the join this feeds.
 
@@ -171,10 +171,15 @@ encoded default is that a multi-channel study attributes exactly one way.
 Two modes are offered, labelled by consequence rather than mechanism (the word
 `ref_mode` never appears on screen): a clean link whose stratum is looked up
 afterwards (`encoded`, the default everywhere), and stratum values inline in the
-link (`metadata`, Messenger-only). Thin (`shortcode`) is not offered at all.
+link (`metadata`, Messenger-only). adopt's third mode, `shortcode`, is absent
+from this module entirely rather than filtered out — no production conf resolves
+to it, so code mentioning it would defend an empty set.
+
 `isPureMessengerStudy` judges the inline option across the whole destination
 list, not per destination, so the Messenger arm of a WhatsApp study cannot take
-it.
+it. That is also why `refModeOptions` does not check this destination's own type
+— the destination is in the list, so a pure-Messenger study implies it is a
+Messenger one.
 
 **The one rule to preserve when editing these forms:** the encoded default is a
 *new-conf* affordance and must never be written onto a conf that arrived without

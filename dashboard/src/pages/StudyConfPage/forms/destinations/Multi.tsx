@@ -98,7 +98,6 @@ const Multi: React.FC<Props> = ({
       />
       <RefModeField
         refMode={data.ref_mode}
-        destinationType="multi"
         destinations={destinations}
         handleChange={handleChange}
       />

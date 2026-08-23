@@ -3,7 +3,6 @@ import { GenericSelect, SelectI } from '../../components/Select';
 import { Destination } from '../../../../types/conf';
 import {
   REF_MODE_FLIP_WARNING,
-  carriesRefMode,
   displayedRefMode,
   refModeConsequence,
   refModeOptions,
@@ -15,7 +14,6 @@ const Select = GenericSelect as SelectI<any>;
 interface Props {
   /** This destination's stored mode. Absent is a real state — see refMode.ts. */
   refMode?: string;
-  destinationType: string;
   /** Every destination in the study; thick is a whole-study question. */
   destinations: Destination[];
   handleChange: (e: any) => void;
@@ -38,7 +36,6 @@ interface Props {
  */
 const RefModeField: React.FC<Props> = ({
   refMode,
-  destinationType,
   destinations,
   handleChange,
 }: Props) => {
@@ -47,15 +44,9 @@ const RefModeField: React.FC<Props> = ({
   // compare against the mode at mount, not against the previous keystroke.
   const loadedMode = useRef(refMode);
 
-  if (!carriesRefMode(destinationType)) return null;
-
-  const current = displayedRefMode(refMode, destinationType);
-  const options = refModeOptions(destinationType, destinations, current);
-  const wouldChange = refModeWouldChange(
-    loadedMode.current,
-    refMode,
-    destinationType
-  );
+  const current = displayedRefMode(refMode);
+  const options = refModeOptions(destinations);
+  const wouldChange = refModeWouldChange(loadedMode.current, refMode);
 
   return (
     <div className="sm:my-4">
