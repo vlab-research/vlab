@@ -395,10 +395,11 @@ reading it back tripped the validator that rejected exactly that pair. The study
 saved cleanly and was unloadable afterwards, stopping its reconciliation. With
 one field there is nothing left to contradict.
 
-Stored confs still carry the retired flag. Pydantic ignores unknown keys, so
-they parse unchanged; `test_a_stored_conf_carrying_the_retired_flag_still_parses`
-pins that, because a model that forbade extras would stop every legacy
-destination in the database from loading.
+Neither field was ever deployed, so nothing stored carries them. The models
+tolerate unknown keys regardless — confs are stored as raw JSON, and a model
+that forbade extras would stop every conf written before any future field
+removal from loading. `test_a_conf_carrying_an_unknown_key_still_parses` pins
+that.
 
 ### Validating the mapping conf
 

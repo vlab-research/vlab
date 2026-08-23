@@ -1069,13 +1069,15 @@ def test_an_encoded_destination_survives_a_dump_and_reparse():
     assert FlyMessengerDestination(**dumped).resolved_ref_mode == "encoded"
 
 
-def test_a_stored_conf_carrying_the_retired_flag_still_parses():
-    """Every legacy destination in the database still holds
-    include_metadata_in_ref. Pydantic ignores unknown keys, so they parse
-    unchanged and resolve to the inline stratum, exactly as they did.
+def test_a_conf_carrying_an_unknown_key_still_parses():
+    """Confs are stored as raw JSON and read back through the model, so the
+    model must tolerate keys it no longer knows.
 
-    Asserted rather than assumed: were these models to forbid extras instead,
-    every one of those confs would stop loading and reconciliation would halt.
+    `include_metadata_in_ref` is the example to hand, though nothing in
+    production carries it -- it was never deployed. The property is what
+    matters: were these models to forbid extras, removing any field would stop
+    every conf written before the removal from loading, and reconciliation
+    would halt study-wide.
     """
     dest = FlyMessengerDestination(
         **{

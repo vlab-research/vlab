@@ -1581,13 +1581,10 @@ def test_an_unstated_mode_carries_the_stratum_inline_so_stored_confs_are_unaffec
     assert dest.resolved_ref_mode == "metadata"
 
 
-def test_a_stored_conf_carrying_the_retired_flag_still_parses():
-    """`include_metadata_in_ref` was removed, and stored confs still hold it.
-
-    Pydantic ignores unknown keys, so those confs parse unchanged and resolve to
-    the inline stratum, exactly as they did. Asserted rather than assumed: were
-    the model to forbid extras instead, every legacy destination in the database
-    would stop loading and reconciliation would halt study-wide.
+def test_a_conf_carrying_an_unknown_key_still_parses():
+    """The model must tolerate keys it no longer knows, since confs are stored
+    as raw JSON. `include_metadata_in_ref` is the example to hand; nothing in
+    production carries it, as it was never deployed.
     """
     dest = FlyMessengerDestination(
         **{

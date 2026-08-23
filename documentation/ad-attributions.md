@@ -418,10 +418,10 @@ stopped, from a save that returned 201. With one field there is nothing left to
 contradict, and both the validator and the serialiser that had patched around it
 are gone.
 
-Stored confs still hold the retired flag. Pydantic ignores unknown keys, so they
-parse unchanged and resolve to the inline stratum exactly as before — asserted
-directly, because a model forbidding extras would stop every legacy destination
-in the database from loading.
+Neither field was ever deployed, so no stored conf carries them. The models
+tolerate unknown keys regardless, which is asserted directly: confs are stored
+as raw JSON, and a model forbidding extras would stop every conf written before
+any future field removal from loading.
 
 ## Declaring an ad-derived variable
 
