@@ -17,6 +17,7 @@ from .facebook.update import Instruction
 from .marketing import (
     assert_ref_tokens_unique,
     _create_creative,
+    ad_ref_token,
     ad_provenance,
     adset_destination_type,
     adset_instructions,
@@ -29,7 +30,7 @@ from .marketing import (
     make_ref,
     manage_aud,
     messenger_call_to_action,
-    messenger_ref,
+    dotted_ref,
     pair_creatives_with_destinations,
     ref_metadata,
     shortcode_ref,
@@ -1634,8 +1635,8 @@ def test_messenger_ref_selects_only_the_serialisation():
     down and never what `md` contains."""
     md = {"creative": "Smiling", "gender": "women", "form": "mnchweek"}
 
-    inline = messenger_ref("Smiling", md, _messenger_dest_mode())
-    encoded = messenger_ref(
+    inline = dotted_ref("Smiling", md, _messenger_dest_mode())
+    encoded = dotted_ref(
         "Smiling", md, _messenger_dest_mode(ref_mode="encoded"), token="a1b2c3d4e5"
     )
 
@@ -1686,17 +1687,12 @@ def test_flipping_one_study_does_not_touch_another():
     assert untouched == []
 
 
-def test_web_and_app_destinations_still_carry_the_full_ref():
-    """Left on full refs deliberately: neither type has a shortcode to emit.
+def test_web_and_app_destinations_default_to_the_full_ref():
+    """An unstated mode is the inline ref, on every channel alike.
 
-    WebDestination has only `url_template` and AppDestination only
-    `deeplink_template` — there is no `initial_shortcode` on either, because
-    the URL or deeplink already points at a specific survey, so routing is not
-    something the ref does for them. Making them shortcode-only would mean
-    inventing a new conf field for a token neither needs; the equivalent
-    decoupling for a web platform is capturing the ad id from the ad URL, which
-    is a separate piece of work. Messenger is where every existing study lives
-    and where the ref actually costs something.
+    Web and app are ordinary ref-mode destinations now, so this pins the
+    default rather than an exemption: nothing stored states a mode, so nothing
+    stored changes.
     """
     template = _load_template("image_ad_messenger.json")
     stratum_md = {"gender": "women"}
@@ -1721,6 +1717,67 @@ def test_web_and_app_destinations_still_carry_the_full_ref():
 
     expected_app = make_ref("Smiling", app_md)
     assert expected_app in json.dumps(app_creative.export_all_data())
+
+
+def test_an_encoded_web_destination_carries_the_bare_token():
+    """The other mode, on a channel that never touches fly.
+
+    A fly destination's encoded ref is `r.<payload>`, packing the shortcode
+    alongside the token because fly's decoder recovers both from the one
+    string. Web and app have no shortcode and nothing decodes their ref -- the
+    url_template already points at the survey -- so the token travels as
+    itself, and the researcher's platform returns it as an ordinary field that
+    joins ad_attributions.ref_token verbatim.
+
+    Packing it would actively break: swoosh compares the extracted value to
+    ref_token, so an `r.` payload would resolve to nothing.
+    """
+    template = _load_template("image_ad_messenger.json")
+
+    web = WebDestination(
+        type="web",
+        name="web",
+        url_template="https://survey.example/?r={ref}",
+        ref_mode="encoded",
+    )
+    config = CreativeConf(destination="web", name="Smiling", template=template)
+    study = _study([web], [config])
+    stratum = _stratum_with_md("stratum-1", [config], {"gender": "women"})
+
+    token = ad_ref_token(study, stratum, config, web)
+    creative = create_creative(study, stratum, config, web)
+    body = json.dumps(creative.export_all_data())
+
+    assert token
+    assert f"https://survey.example/?r={token}" in body
+
+    # Not the fly grammar, and not the stratum inline.
+    assert "r.%s" % token not in body
+    assert "gender.women" not in body
+
+
+def test_an_encoded_web_destination_is_recorded_in_the_mapping():
+    """The write side is only half of it: the row the token joins to has to
+    exist, keyed by the same token the ad carries."""
+    template = _load_template("image_ad_messenger.json")
+
+    web = WebDestination(
+        type="web",
+        name="web",
+        url_template="https://survey.example/?r={ref}",
+        ref_mode="encoded",
+    )
+    config = CreativeConf(destination="web", name="Smiling", template=template)
+    study = _study([web], [config])
+    stratum = _stratum_with_md("stratum-1", [config], {"gender": "women"})
+
+    provenance = ad_provenance(study, "test-campaign-web", [stratum])
+    row = provenance[(stratum.id, "Smiling")]
+
+    assert row["ref_token"] == ad_ref_token(study, stratum, config, web)
+    assert row["metadata"]["gender"] == "women"
+    # Web destinations route by template, not by shortcode.
+    assert row["shortcode"] is None
 
 
 # ---------------------------------------------------------------------------
@@ -2048,7 +2105,7 @@ def test_the_multi_creative_matches_what_the_probe_builds():
     creative, study, stratum, config = _multi_creative(dest)
 
     md = creative_metadata(study, stratum, dest)
-    ref = messenger_ref(config.name, md, dest)
+    ref = dotted_ref(config.name, md, dest)
     # Built through whatsapp_ref rather than reassembled here, so this test
     # cannot drift from what the arm actually emits under whichever mode.
     autofill = whatsapp_ref(config.name, md, dest)
@@ -2072,7 +2129,7 @@ def test_the_multi_creative_carries_url_tags_and_the_messenger_fallback_cta(
     creative, study, stratum, config = _multi_creative(dest)
 
     md = creative_metadata(study, stratum, dest)
-    assert creative["url_tags"] == f"ref={messenger_ref(config.name, md, dest)}"
+    assert creative["url_tags"] == f"ref={dotted_ref(config.name, md, dest)}"
 
     assert creative["object_story_spec"]["link_data"][
         "call_to_action"

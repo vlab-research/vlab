@@ -47,9 +47,11 @@ class ExtractionConf(BaseModel):
     `key` and `name` are both contextual to the mapping, which is the one
     genuinely confusing part of this:
 
-        key   WHERE TO READ. For "raw" it addresses the value; for a lookup it
-              addresses the token. Never hardcoded -- fly stamps the token at
-              metadata.vt by convention and the conf says key: "vt" to match.
+        key   WHERE TO READ, within the location. For "raw" it addresses the
+              value; for a lookup it addresses the token. Never hardcoded --
+              fly stamps the token at metadata.vt by convention and the conf
+              says key: "vt" to match, while a platform returning it as a
+              survey answer declares location "variable" and that field's name.
         name  the output variable name and, for a lookup, ALSO the key into the
               frozen row (which stratum variable to pull). It does double duty
               because you name the output after the stratum variable anyway.
@@ -72,39 +74,16 @@ class ExtractionConf(BaseModel):
             )
         return self
 
-    @model_validator(mode="after")
-    def a_lookup_reads_the_token_from_metadata(self):
-        """A lookup is only coherent on a metadata read.
-
-        The token is something fly stamps on the event, not something the
-        respondent answered, so `location: "variable"` with this mapping cannot
-        mean anything. Rejected rather than ignored because of what `key` would
-        then be taken for: swoosh reads the key of a lookup conf as the
-        declaration of WHERE THE TOKEN LIVES, and picks the first such conf to
-        classify the whole source. One stray conf would therefore have every
-        respondent in the study checked against the wrong metadata key -- and
-        finding no token reads as an organic arrival, which does not alarm.
-        """
-        if self.mapping == MAPPING_AD_TABLE_LOOKUP and self.location != "metadata":
-            raise ValueError(
-                f"Extraction conf '{self.name}' declares mapping: "
-                f'"{MAPPING_AD_TABLE_LOOKUP}" on location: "{self.location}". '
-                "The ad token is stamped in the event's metadata, so a lookup "
-                'is only valid on location: "metadata".'
-            )
-        return self
-
     @property
     def is_ad_table_lookup(self) -> bool:
         """Whether this conf resolves through the ad table.
 
-        Checks the location as well as the mapping. The validator above makes
-        the incoherent combination unconstructible, so this is belt and braces
-        -- but it is the property everything else branches on, including which
-        conf declares the token's key, so it is worth it being true by
-        construction rather than by trusting the validator ran.
+        The mapping alone decides it. Location and mapping are independent
+        axes: a platform that returns the token as a survey field declares
+        `variable`, one that stamps it on the event declares `metadata`, and
+        the lookup that follows is the same either way.
         """
-        return self.mapping == MAPPING_AD_TABLE_LOOKUP and self.location == "metadata"
+        return self.mapping == MAPPING_AD_TABLE_LOOKUP
 
 
 class SourceExtractionConf(BaseModel):
@@ -160,12 +139,18 @@ RefMode = Literal["metadata", "encoded"]
 
 
 class RefModeDestination(BaseModel):
-    """Shared ref-mode resolution for the three fly destination types.
+    """Shared ref-mode resolution for every destination type.
 
-    A mixin rather than three copies because the modes must not drift: every
+    A base rather than a copy per class because the modes must not drift: every
     consumer -- marketing, the half-migration guard, reconciliation -- asks
     `resolved_ref_mode`, and a destination type that answered differently would
     be a silent routing difference between channels.
+
+    Every type, including web and app. What a ref carries is a property of the
+    ref, not of the channel that carries it: an ad either ships the stratum
+    inline or ships a token that resolves to it, and that is the same choice
+    wherever the ad points. Whether anything reads the token back is the read
+    side's business and is configured there.
     """
 
     # None means "not stated", which is what every conf written before this
@@ -200,13 +185,13 @@ class FlyMessengerDestination(RefModeDestination):
     additional_metadata: Optional[dict[str, str]] = None
 
 
-class WebDestination(BaseModel):
+class WebDestination(RefModeDestination):
     type: str
     name: str
     url_template: str  # create variables, like ref, which can be used.
 
 
-class AppDestination(BaseModel):
+class AppDestination(RefModeDestination):
     type: str
     name: str
     facebook_app_id: str
@@ -1308,13 +1293,7 @@ def thins_its_ref_without_reading_the_mapping(study: StudyConf) -> List[str]:
 
     """
     thinned = [
-        d.name
-        for d in study.destinations
-        if isinstance(
-            d,
-            (FlyMessengerDestination, FlyWhatsAppDestination, FlyMultiDestination),
-        )
-        and d.resolved_ref_mode != "metadata"
+        d.name for d in study.destinations if d.resolved_ref_mode != "metadata"
     ]
 
     if not thinned:
@@ -1327,114 +1306,6 @@ def thins_its_ref_without_reading_the_mapping(study: StudyConf) -> List[str]:
     )
 
     return [] if reads_the_mapping else sorted(thinned)
-
-
-def ref_mode_incoherence(
-    destinations: Sequence[DestinationConf],
-    inference_data: Optional[InferenceDataConf],
-) -> Optional[str]:
-    """The save-time refusal: a study that thins its ref while nothing reads it.
-
-    Takes the two confs rather than a StudyConf, because that is the only shape
-    available where it is used. Destinations and inference_data are POSTed
-    independently, so at save time there is no assembled study -- there is the
-    conf being written and whatever its counterpart already is.
-
-    Returns a message naming BOTH sides, or None. Naming both is the point:
-    being told only the half you are looking at is how someone confidently
-    fixes the wrong one.
-
-    Only ONE of the two possible incoherences is refused here, and the asymmetry
-    is deliberate.
-
-    **Refused: a thin write with no read.** The ads stop carrying the stratum
-    and nothing looks the token up, so the study has no attribution at all.
-    Every stratum counts zero and the optimizer reallocates budget on empty
-    data -- silently, because a respondent with no token is indistinguishable
-    from one who arrived organically. This is the failure the whole mechanism
-    exists to prevent, and it starts the moment the destination is saved.
-
-    **Allowed: a read with no thin write.** Lookup confs reading a token no ad
-    emits simply extract nothing, and swoosh skips a conf that finds nothing
-    rather than failing on it -- the respondent is still attributed inline, by
-    the raw confs, exactly as before. Nothing is lost.
-
-    That asymmetry is not merely tolerance; it prescribes the safe order for
-    switching a live study to the encoded ref. Add the lookup confs first
-    (harmless, they lie dormant), then flip the destination (at which point they
-    become live). Refusing both directions would make the flip unperformable in
-    either order, since each conf would be waiting for the other. Refusing this
-    one turns the 422 into the instruction: configure Data Extraction, then come
-    back.
-
-    The complementary case -- a study that never gets round to the read side --
-    stays covered by `thins_its_ref_without_reading_the_mapping`, which warns on
-    every reconciliation run and does not depend on anyone pressing Save.
-    """
-    thinned = [
-        d.name
-        for d in destinations
-        if isinstance(
-            d,
-            (FlyMessengerDestination, FlyWhatsAppDestination, FlyMultiDestination),
-        )
-        and d.resolved_ref_mode != "metadata"
-    ]
-
-    if not thinned:
-        return None
-
-    if any(
-        ec.is_ad_table_lookup
-        for source in (inference_data.data_sources.values() if inference_data else [])
-        for ec in source.extraction_confs
-    ):
-        return None
-
-    names = ", ".join(f"'{n}'" for n in sorted(thinned))
-
-    return (
-        f"Destination {names} carries a link that does not include the "
-        "stratum, but no variable in Data Extraction reads it back from the ad. "
-        "Respondents recruited by these ads would not be attributed to any "
-        "stratum, so every stratum would count zero and recruitment would "
-        "optimise on empty data. Add the ad-derived variables in Data "
-        "Extraction first -- they do nothing until a destination needs them -- "
-        "then save this."
-    )
-
-
-def disagreeing_token_keys(study: StudyConf) -> Dict[str, List[str]]:
-    """Per source, the several places its lookup confs think the token is.
-
-    One respondent has one token, in one place, so every `ad_table_lookup` conf
-    under a source must read it from the same metadata key. Two confs naming
-    different keys means at least one of them reads nothing — and reading
-    nothing is indistinguishable from an organic arrival, so it lands in the
-    do-not-alarm bucket and simply miscounts.
-
-    Returns only sources with a real disagreement, so an empty dict means the
-    config agrees with itself.
-
-    Returns rather than raises, and callers warn. swoosh takes the first key it
-    finds and carries on for the same reason: it recomputes whole studies
-    unattended, and refusing to classify would cost a study its counts over a
-    conf problem no run can fix from the inside. A raise here would also stop
-    ad reconciliation outright, which is a heavier consequence than the
-    miscount it is warning about.
-    """
-    if study.inference_data is None:
-        return {}
-
-    disagreements = {}
-    for name, source in study.inference_data.data_sources.items():
-        keys = sorted(
-            {ec.key for ec in source.extraction_confs if ec.is_ad_table_lookup}
-        )
-        if len(keys) > 1:
-            disagreements[name] = keys
-
-    return disagreements
 
 
 def missing_targeting_variables(study: StudyConf) -> Dict[str, set[str]]:

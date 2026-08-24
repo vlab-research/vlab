@@ -23,10 +23,8 @@ from .study_conf import (
     TargetVar,
     UserInfo,
     WebDestination,
-    disagreeing_token_keys,
     missing_targeting_variables,
     normalize_whatsapp_phone_number,
-    ref_mode_incoherence,
     ref_value,
     thins_its_ref_without_reading_the_mapping,
     unsafe_whatsapp_ref_tokens,
@@ -1141,139 +1139,6 @@ def test_every_ref_mode_destination_type_survives_the_round_trip():
 # confs rather than a study, because Destinations and Data Extraction are saved
 # independently and no assembled study exists at that point.
 # ---------------------------------------------------------------------------
-
-
-def _messenger(ref_mode=None, name="messenger"):
-    kwargs = {} if ref_mode is None else {"ref_mode": ref_mode}
-    return FlyMessengerDestination(
-        type="messenger",
-        name=name,
-        initial_shortcode="mnchweek",
-        welcome_message="Welcome!",
-        button_text="OK",
-        **kwargs,
-    )
-
-
-def _lookup_inference_conf(*stratum_vars):
-    return InferenceDataConf(
-        data_sources={
-            "fly": SourceExtractionConf(
-                extraction_confs=[_lookup_conf(v) for v in stratum_vars]
-            )
-        }
-    )
-
-
-def test_a_thick_destination_is_coherent_with_anything():
-    # Every existing study: the stratum rides in the ref, nothing to read back.
-    assert ref_mode_incoherence([_messenger()], None) is None
-    assert ref_mode_incoherence([_messenger("metadata")], _inference_conf("gender")) is None
-
-
-def test_an_encoded_destination_with_no_lookup_conf_is_refused():
-    message = ref_mode_incoherence([_messenger("encoded")], _inference_conf("gender"))
-
-    assert message is not None
-    # Names both sides. Being told only the half you are looking at is how
-    # someone confidently fixes the wrong one.
-    assert "messenger" in message
-    assert "Data Extraction" in message
-
-
-def test_an_encoded_destination_with_a_lookup_conf_is_coherent():
-    assert (
-        ref_mode_incoherence([_messenger("encoded")], _lookup_inference_conf("gender"))
-        is None
-    )
-
-
-def test_a_lookup_conf_with_no_thin_destination_is_allowed():
-    """The safe half of a flip, and the reason this check is one-directional.
-
-    Confs reading a token no ad emits extract nothing, and swoosh skips a conf
-    that finds nothing -- the respondent is still attributed inline by the raw
-    confs. Refusing this too would make switching a live study to the encoded
-    ref unperformable in either order, each conf waiting on the other.
-    """
-    assert ref_mode_incoherence([_messenger("metadata")], _lookup_inference_conf("gender")) is None
-
-
-def test_the_flip_is_performable_in_the_safe_order():
-    """Add the lookup confs first, then flip the destination."""
-    thick, encoded = _messenger("metadata"), _messenger("encoded")
-    raw_only, with_lookup = _inference_conf("gender"), _lookup_inference_conf("gender")
-
-    # Step 1: save the lookup confs while the destination is still thick.
-    assert ref_mode_incoherence([thick], with_lookup) is None
-    # Step 2: flip the destination, now that something reads the mapping.
-    assert ref_mode_incoherence([encoded], with_lookup) is None
-
-    # The other order is refused, which is what makes the 422 an instruction
-    # rather than a dead end.
-    assert ref_mode_incoherence([encoded], raw_only) is not None
-
-
-def test_a_missing_counterpart_conf_is_still_refused_by_the_predicate():
-    """The predicate says what is true; only the endpoint decides when to ask.
-
-    A study with no inference_data conf at all really does have an unattributed
-    encoded destination. The endpoint skips the call in that case, because a
-    study part way through the wizard is unfinished rather than wrong.
-    """
-    assert ref_mode_incoherence([_messenger("encoded")], None) is not None
-
-
-def test_an_encoded_whatsapp_destination_is_refused_the_same_way():
-    """Nothing about the refusal is Messenger-specific: what matters is that the
-    ref carries no stratum and no conf reads the mapping."""
-    whatsapp = FlyWhatsAppDestination(
-        type="whatsapp",
-        name="whatsapp",
-        initial_shortcode="mnchweek",
-        welcome_message="Welcome!",
-        whatsapp_phone_number="+15419202635",
-        ref_mode="encoded",
-    )
-
-    assert ref_mode_incoherence([whatsapp], _inference_conf("gender")) is not None
-
-
-def test_an_unstated_whatsapp_destination_carries_the_stratum_inline():
-    """There is no third mode. A destination that states nothing carries the
-    stratum inline, on every channel -- the per-channel default that used to
-    make WhatsApp resolve differently is gone along with the mode it selected.
-    """
-    whatsapp = FlyWhatsAppDestination(
-        type="whatsapp",
-        name="whatsapp",
-        initial_shortcode="mnchweek",
-        welcome_message="Welcome!",
-        whatsapp_phone_number="+15419202635",
-    )
-
-    assert whatsapp.resolved_ref_mode == "metadata"
-
-
-def test_only_the_thinned_destinations_are_named():
-    message = ref_mode_incoherence(
-        [_messenger("metadata", name="thick-one"), _messenger("encoded", name="thin-one")],
-        _inference_conf("gender"),
-    )
-
-    assert "thin-one" in message
-    assert "thick-one" not in message
-
-
-def test_web_and_app_destinations_are_never_implicated():
-    # Neither carries a ref mode: their url_template already points at a
-    # specific survey, so routing is not a job the ref does for them.
-    web = WebDestination(type="web", name="web", url_template="https://example.com")
-
-    assert ref_mode_incoherence([web], _inference_conf("gender")) is None
-
-
-# ---------------------------------------------------------------------------
 # The mapping field itself.
 
 
@@ -1284,75 +1149,23 @@ def test_mapping_defaults_to_raw():
     assert _extraction_conf("md:gender").is_ad_table_lookup is False
 
 
-def test_a_lookup_on_a_variable_is_rejected():
-    # The token is stamped by fly, not answered by the respondent, so this
-    # cannot mean anything. Rejected rather than ignored because of what `key`
-    # would then be taken for: swoosh reads a lookup conf's key as the
-    # declaration of where the token lives, and one stray conf would have every
-    # respondent in the study checked against the wrong metadata key -- which
-    # reads as an organic arrival and does not alarm.
-    with pytest.raises(ValidationError) as e:
-        _extraction_conf("q1", location="variable", mapping="ad_table_lookup")
+def test_a_lookup_can_read_its_token_from_a_variable():
+    # Location and mapping are independent: where the token is read from is a
+    # property of the platform the data came from, and what the value means is
+    # this conf's business. A web or app destination's respondent lands on the
+    # researcher's own page, so their token returns as a survey field.
+    #
+    # This used to be rejected outright, because swoosh took one lookup conf's
+    # key as a source-wide declaration of where the token lives. It no longer
+    # does; each conf reads its own.
+    conf = _extraction_conf("q1", location="variable", mapping="ad_table_lookup")
 
-    assert "metadata" in str(e.value)
+    assert conf.is_ad_table_lookup is True
 
 
 def test_an_unknown_mapping_is_rejected():
     with pytest.raises(ValidationError):
         _extraction_conf("md:gender", mapping="ad_id_lookup")
-
-
-def test_lookup_confs_agreeing_on_the_token_key_is_not_a_disagreement():
-    study = _study_with(
-        targeting=None,
-        inference_data=InferenceDataConf(
-            data_sources={
-                "fly": SourceExtractionConf(
-                    extraction_confs=[_lookup_conf("gender"), _lookup_conf("Age")]
-                )
-            }
-        ),
-    )
-    assert disagreeing_token_keys(study) == {}
-
-
-def test_lookup_confs_reading_different_token_keys_are_flagged():
-    # One respondent has one token, in one place. Confs on the other key
-    # attribute nobody -- and silently, because a token that is not there looks
-    # exactly like an organic arrival.
-    study = _study_with(
-        targeting=None,
-        inference_data=InferenceDataConf(
-            data_sources={
-                "fly": SourceExtractionConf(
-                    extraction_confs=[
-                        _lookup_conf("gender", key="vt"),
-                        _lookup_conf("Age", key="tok"),
-                    ]
-                )
-            }
-        ),
-    )
-    assert disagreeing_token_keys(study) == {"fly": ["tok", "vt"]}
-
-
-def test_a_raw_conf_on_another_key_is_not_a_disagreement():
-    # Only lookup confs read the token. A raw conf reading some other metadata
-    # key is ordinary and must not be dragged into this.
-    study = _study_with(
-        targeting=None,
-        inference_data=InferenceDataConf(
-            data_sources={
-                "fly": SourceExtractionConf(
-                    extraction_confs=[
-                        _lookup_conf("gender", key="vt"),
-                        _extraction_conf("md:city", key="city"),
-                    ]
-                )
-            }
-        ),
-    )
-    assert disagreeing_token_keys(study) == {}
 
 
 def test_thinning_the_ref_with_no_inference_conf_at_all_is_flagged():

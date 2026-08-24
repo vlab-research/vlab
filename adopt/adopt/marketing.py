@@ -311,29 +311,42 @@ def shortcode_ref(shortcode: str) -> str:
     return f"form.{ref_value(shortcode)}"
 
 
-def messenger_ref(
+def dotted_ref(
     creative_name: str,
     metadata: Metadata,
-    destination: Union[FlyMessengerDestination, FlyMultiDestination],
+    destination: DestinationConf,
     token: Optional[str] = None,
 ) -> str:
-    """What a Messenger ad puts in `referral.ref`.
+    """The ref in the dot-pair grammar, for every destination that uses it.
+
+    Messenger's `referral.ref` and quick-reply payload, multi's Messenger arm,
+    and the `{ref}` a web or app destination interpolates into its template.
+    One function because it is one string: the mode says what the ref carries,
+    and nothing about where the ad points changes that. Only WhatsApp's autofill
+    differs, because fly parses it under a different grammar -- see whatsapp_ref.
 
     The *only* place the ref mode is allowed to matter. It picks a
     serialisation and nothing else: `metadata` arrives already complete from
     creative_metadata and is passed straight through, because that same dict is
     what ref_metadata freezes into ad_attributions.metadata.
 
-    If this mode ever leaked back into creative_metadata, a shortcode-only
-    study would freeze mapping rows containing nothing but `form`, every
-    `location: "ad"` conf would resolve to nothing, every stratum would count
-    zero, and the optimizer would reallocate on empty data — silently, and
-    unrecoverably, because the blob is frozen at creation and never refreshed.
+    If this mode ever leaked back into creative_metadata, an encoded study
+    would freeze mapping rows containing nothing but `form`, every
+    `mapping: "ad_table_lookup"` conf would resolve to nothing, every stratum
+    would count zero, and the optimizer would reallocate on empty data —
+    silently, and unrecoverably, because the blob is frozen at creation and
+    never refreshed.
     """
     if destination.resolved_ref_mode == "encoded":
-        return encoded_ref(
-            destination.initial_shortcode, _require_token(token, destination)
-        )
+        tok = _require_token(token, destination)
+        shortcode = destination_shortcode(destination)
+
+        # A destination that routes through fly needs its shortcode packed
+        # alongside the token, because fly's decoder recovers both from the one
+        # string. Web and app destinations have no shortcode -- their template
+        # already points at the survey -- and nothing decodes their ref, so the
+        # token travels as itself and joins ad_attributions.ref_token verbatim.
+        return encoded_ref(shortcode, tok) if shortcode else tok
 
     return make_ref(creative_name, metadata)
 
@@ -385,12 +398,6 @@ def ad_ref_token(
     The grain is (study, stratum, creative, destination), which is exactly the
     grain of an ad and therefore of a mapping row.
     """
-    if not isinstance(
-        destination,
-        (FlyMessengerDestination, FlyWhatsAppDestination, FlyMultiDestination),
-    ):
-        return None
-
     if destination.resolved_ref_mode != "encoded":
         return None
 
@@ -405,7 +412,7 @@ def whatsapp_ref(
 ) -> str:
     """What a click-to-WhatsApp ad prefills, under whichever mode applies.
 
-    The WhatsApp counterpart of `messenger_ref`, and deliberately its mirror:
+    The WhatsApp counterpart of `dotted_ref`, and deliberately its mirror:
     one function per channel, each the only place that channel's mode is allowed
     to matter. A multi destination calls both, so its two arms always disclose
     the same amount -- one mode, two grammars.
@@ -855,7 +862,7 @@ def create_creative(
         # quick-reply payload — and a respondent can arrive by either. Emitting
         # different refs on the two paths would mean the same ad describing two
         # different people depending on how they tapped it.
-        ref = messenger_ref(config.name, md, destination, token)
+        ref = dotted_ref(config.name, md, destination, token)
         msg = make_welcome_message(
             destination.welcome_message, destination.button_text, ref
         )
@@ -898,12 +905,12 @@ def create_creative(
         # different people depending on how they tapped it. The third carries
         # the same facts in WhatsApp's form-first grammar.
         #
-        # `messenger_ref` and `whatsapp_autofill` are reused rather than
+        # `dotted_ref` and `whatsapp_autofill` are reused rather than
         # reimplemented. They differ deliberately -- WhatsApp's entry pattern
         # anchors on `form.` while make_ref leads with `creative.`, so make_ref
         # output can never match it -- and one ref mode drives both, so the two
         # arms of a single ad always agree about how much they disclose.
-        ref = messenger_ref(config.name, md, destination, token)
+        ref = dotted_ref(config.name, md, destination, token)
         autofill = whatsapp_ref(config.name, md, destination, token)
 
         msg = make_multi_welcome_message(
@@ -921,7 +928,7 @@ def create_creative(
         )
 
     if isinstance(destination, AppDestination):
-        ref = make_ref(config.name, md)
+        ref = dotted_ref(config.name, md, destination, token)
         deeplink = destination.deeplink_template.format(ref=ref)
         link = destination.app_install_link
 
@@ -932,7 +939,7 @@ def create_creative(
         )
 
     if isinstance(destination, WebDestination):
-        ref = make_ref(config.name, md)
+        ref = dotted_ref(config.name, md, destination, token)
         link = destination.url_template.format(ref=ref)
 
         return _create_creative(

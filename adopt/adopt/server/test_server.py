@@ -477,17 +477,21 @@ def test_health_check():
 
 
 # ---------------------------------------------------------------------------
-# Ref-mode coherence at save time.
+# The two confs save independently.
 #
-# The failure this refuses is silent: a study whose ads stop carrying the
-# stratum while nothing reads it back attributes nobody, so every stratum
-# counts zero and the optimizer reallocates on empty data. Nothing raises, and
-# the first sign is a swoosh log hours later.
+# Destinations and Data Extraction are one decision each, not two halves of
+# one: what a ref carries is the ad's business, and what reads it back is the
+# analysis's. Neither endpoint consults the other, in either order, at any
+# stage of configuration.
 #
-# The endpoint's job on top of the predicate is knowing WHEN to ask, and these
-# tests are mostly about that: the wizard saves Destinations at step four and
-# Data Extraction at step ten, so a study that has not got there yet is
-# unfinished rather than wrong.
+# There used to be a save-time 422 here refusing an encoded destination while
+# nothing read the mapping. It had to be conditional on the counterpart conf
+# existing (the wizard saves Destinations at step four and Data Extraction at
+# step ten) and one-directional (refusing both ways would deadlock the flip,
+# each conf waiting on the other) -- all of which was the cost of treating two
+# independent choices as one. A study that thins its ref without reading it
+# back is still caught by thins_its_ref_without_reading_the_mapping, which
+# warns every reconciliation run and does not depend on anyone pressing Save.
 # ---------------------------------------------------------------------------
 
 
@@ -500,10 +504,6 @@ def _encoded_messenger():
         "button_text": "OK",
         "ref_mode": "encoded",
     }
-
-
-def _thick_messenger():
-    return {**_encoded_messenger(), "ref_mode": "metadata"}
 
 
 def _extraction(name, mapping="raw", key="gender"):
@@ -529,12 +529,7 @@ def _post(org_id, headers, path, dat):
 
 
 @patch("adopt.server.auth.verify_token")
-def test_an_encoded_destination_saves_when_no_extraction_conf_exists_yet(verify_mock):
-    """Step four of ten. Unfinished is not wrong.
-
-    An unconditional check would make an encoded study unsaveable before the
-    researcher could possibly reach the step that satisfies it.
-    """
+def test_an_encoded_destination_saves_with_no_extraction_conf_at_all(verify_mock):
     _reset_db()
     verify_mock.return_value = {"sub": user_id}
     org_id, headers = _user_and_study_setup()
@@ -543,91 +538,26 @@ def test_an_encoded_destination_saves_when_no_extraction_conf_exists_yet(verify_
 
 
 @patch("adopt.server.auth.verify_token")
-def test_saving_extraction_confs_that_leave_a_destination_unattributed_is_refused(
-    verify_mock,
-):
+def test_extraction_confs_save_whatever_the_destinations_say(verify_mock):
     _reset_db()
     verify_mock.return_value = {"sub": user_id}
     org_id, headers = _user_and_study_setup()
 
-    _post(org_id, headers, "destinations", [_encoded_messenger()])
-
-    res = _post(
-        org_id, headers, "inference-data", _inference_data(_extraction("gender"))
-    )
-
-    assert res.status_code == 422
-    detail = res.json()["detail"]
-    # Names both sides, so the researcher cannot confidently fix the wrong one.
-    assert "messenger" in detail
-    assert "Data Extraction" in detail
-
-
-@patch("adopt.server.auth.verify_token")
-def test_the_pair_saves_once_something_reads_the_mapping(verify_mock):
-    _reset_db()
-    verify_mock.return_value = {"sub": user_id}
-    org_id, headers = _user_and_study_setup()
-
-    _post(org_id, headers, "destinations", [_encoded_messenger()])
-
-    res = _post(
-        org_id,
-        headers,
-        "inference-data",
-        _inference_data(_extraction("gender", mapping="ad_table_lookup", key="vt")),
-    )
-
-    assert res.status_code == 201
-
-
-@patch("adopt.server.auth.verify_token")
-def test_flipping_a_live_study_is_refused_in_the_dangerous_order(verify_mock):
-    """Destination first would leave every new respondent unattributed until
-    the confs land."""
-    _reset_db()
-    verify_mock.return_value = {"sub": user_id}
-    org_id, headers = _user_and_study_setup()
-
-    _post(org_id, headers, "destinations", [_thick_messenger()])
-    _post(org_id, headers, "inference-data", _inference_data(_extraction("gender")))
-
-    res = _post(org_id, headers, "destinations", [_encoded_messenger()])
-
-    assert res.status_code == 422
-
-
-@patch("adopt.server.auth.verify_token")
-def test_flipping_a_live_study_works_in_the_safe_order(verify_mock):
-    """Lookup confs first -- they lie dormant against a thick destination --
-    then the destination, at which point they become live.
-
-    Keeping the raw conf alongside the lookup is what lets both eras attribute:
-    the pre-flip respondent satisfies the raw conf and skips the lookup, the
-    post-flip respondent does the reverse.
-    """
-    _reset_db()
-    verify_mock.return_value = {"sub": user_id}
-    org_id, headers = _user_and_study_setup()
-
-    _post(org_id, headers, "destinations", [_thick_messenger()])
-    _post(org_id, headers, "inference-data", _inference_data(_extraction("gender")))
-
-    both_eras = _inference_data(
-        _extraction("gender"),
-        _extraction("gender", mapping="ad_table_lookup", key="vt"),
-    )
-    assert _post(org_id, headers, "inference-data", both_eras).status_code == 201
     assert _post(org_id, headers, "destinations", [_encoded_messenger()]).status_code == 201
 
+    raw_only = _inference_data(_extraction("gender"))
+    assert _post(org_id, headers, "inference-data", raw_only).status_code == 201
+
 
 @patch("adopt.server.auth.verify_token")
-def test_a_thick_study_is_unaffected(verify_mock):
-    """Every existing study. Nothing here changes what they can save."""
+def test_the_flip_works_in_either_order(verify_mock):
+    """The ordering the old 422 existed to prescribe is no longer a thing to
+    get right, because neither save can refuse the other."""
     _reset_db()
     verify_mock.return_value = {"sub": user_id}
     org_id, headers = _user_and_study_setup()
 
-    _post(org_id, headers, "inference-data", _inference_data(_extraction("gender")))
+    lookup = _inference_data(_extraction("gender", mapping="ad_table_lookup", key="vt"))
 
-    assert _post(org_id, headers, "destinations", [_thick_messenger()]).status_code == 201
+    assert _post(org_id, headers, "destinations", [_encoded_messenger()]).status_code == 201
+    assert _post(org_id, headers, "inference-data", lookup).status_code == 201
