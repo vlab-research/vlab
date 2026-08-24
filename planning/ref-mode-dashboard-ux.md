@@ -1,5 +1,8 @@
 # Ref mode in the dashboard — how a researcher chooses attribution
 
+**Handoff:** `planning/ref-mode-dashboard-HANDOFF.md` — read that first if
+you are picking this up.
+
 **Status:** built, 2026-08-22, on `feature/ref-mode-dashboard-ux`. Captures a
 decision reached 2026-08-21. Build order and the decisions taken during it are
 in `planning/ref-mode-dashboard-implementation.md`; the shipped behaviour is

@@ -1,5 +1,8 @@
 # Ref mode in the dashboard — implementation plan
 
+**Handoff:** `planning/ref-mode-dashboard-HANDOFF.md` — read that first if
+you are picking this up.
+
 **Status:** built, then simplified in review. Dashboard 184 tests, adopt 718,
 swoosh and the rest of inference green.
 
