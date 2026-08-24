@@ -1583,8 +1583,8 @@ def test_an_unstated_mode_carries_the_stratum_inline_so_stored_confs_are_unaffec
 
 def test_a_conf_carrying_an_unknown_key_still_parses():
     """The model must tolerate keys it no longer knows, since confs are stored
-    as raw JSON. `include_metadata_in_ref` is the example to hand; nothing in
-    production carries it, as it was never deployed.
+    as raw JSON. The key is fictional on purpose: the property has to hold for
+    the next field removal, not for any particular past one.
     """
     dest = FlyMessengerDestination(
         **{
@@ -1593,7 +1593,7 @@ def test_a_conf_carrying_an_unknown_key_still_parses():
             "initial_shortcode": "mnchweek",
             "welcome_message": "Welcome!",
             "button_text": "OK",
-            "include_metadata_in_ref": True,
+            "a_field_this_model_has_never_had": True,
         }
     )
     assert dest.resolved_ref_mode == "metadata"

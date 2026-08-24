@@ -80,29 +80,50 @@ def _cell(value: Any) -> str:
     return str(value)
 
 
+def headers(md_keys: Sequence[str]) -> List[str]:
+    """The column list: the ad's own columns, the metadata keys between them.
+
+    One definition, used by both renderings. The file and the table claiming
+    the same columns is the property this module exists to hold (see the module
+    docstring), and deriving them twice is how that claim quietly stops being
+    true -- the two would agree until someone edited one of them.
+    """
+    return LEADING_COLUMNS + [column_name(k) for k in md_keys] + TRAILING_COLUMNS
+
+
+def cells(row: Dict[str, Any], md_keys: Sequence[str]) -> List[str]:
+    """One row's values, positionally aligned with `headers(md_keys)`.
+
+    Same argument as `headers`, and the stronger half of it: the header order
+    and the cell order are one order, so they cannot drift into a file whose
+    columns are labelled with someone else's values.
+    """
+    md = row.get("metadata") or {}
+
+    return (
+        [_cell(row.get(c)) for c in LEADING_COLUMNS]
+        + [_cell(md.get(k)) for k in md_keys]
+        + [_cell(row.get(c)) for c in TRAILING_COLUMNS]
+    )
+
+
 def ad_attributions_csv(rows: Sequence[Dict[str, Any]]) -> str:
     """Render mapping rows as CSV.
 
     Every row is emitted, including rows whose ad Facebook no longer has.
     Reconciliation deletes ads that fall out of the desired set, but respondents
-    keep arriving from deleted ads through reshared page posts — so a CSV of
+    keep arriving from deleted ads through reshared page posts -- so a CSV of
     only live ads would silently lack rows the researcher needs to join against,
     and the missing rows would look like unattributed respondents.
     """
     md_keys = metadata_columns(rows)
-    header = LEADING_COLUMNS + [column_name(k) for k in md_keys] + TRAILING_COLUMNS
 
     out = io.StringIO()
     writer = csv.writer(out)
-    writer.writerow(header)
+    writer.writerow(headers(md_keys))
 
     for row in rows:
-        md = row.get("metadata") or {}
-        writer.writerow(
-            [_cell(row.get(c)) for c in LEADING_COLUMNS]
-            + [_cell(md.get(k)) for k in md_keys]
-            + [_cell(row.get(c)) for c in TRAILING_COLUMNS]
-        )
+        writer.writerow(cells(row, md_keys))
 
     return out.getvalue()
 
@@ -110,24 +131,19 @@ def ad_attributions_csv(rows: Sequence[Dict[str, Any]]) -> str:
 def ad_attributions_table(rows: Sequence[Dict[str, Any]]) -> Dict[str, Any]:
     """The same mapping, shaped for a table rather than a file.
 
-    Columns come from the same `metadata_columns` union the CSV uses, so the
-    dashboard cannot render a shape the download does not have. Values are
-    rendered through the same `_cell`, which means a timestamp reads identically
-    in both -- the researcher is looking at one thing in two places.
+    Columns and values come from the same `headers` and `cells` the CSV writes,
+    so the dashboard cannot render a shape -- or an alignment -- the download
+    does not have. A timestamp reads identically in both: the researcher is
+    looking at one thing in two places.
 
     Rows are dicts keyed by header rather than positional lists: the table is
     read by a human picking out one ad, not streamed into a parser, and a
     missing key is easier to render blank than a short row is to align.
     """
     md_keys = metadata_columns(rows)
-    headers = LEADING_COLUMNS + [column_name(k) for k in md_keys] + TRAILING_COLUMNS
+    cols = headers(md_keys)
 
-    def render(row: Dict[str, Any]) -> Dict[str, str]:
-        md = row.get("metadata") or {}
-        return {
-            **{c: _cell(row.get(c)) for c in LEADING_COLUMNS},
-            **{column_name(k): _cell(md.get(k)) for k in md_keys},
-            **{c: _cell(row.get(c)) for c in TRAILING_COLUMNS},
-        }
-
-    return {"columns": headers, "rows": [render(r) for r in rows]}
+    return {
+        "columns": cols,
+        "rows": [dict(zip(cols, cells(row, md_keys))) for row in rows],
+    }

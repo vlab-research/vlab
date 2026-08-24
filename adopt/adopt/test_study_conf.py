@@ -1073,11 +1073,11 @@ def test_a_conf_carrying_an_unknown_key_still_parses():
     """Confs are stored as raw JSON and read back through the model, so the
     model must tolerate keys it no longer knows.
 
-    `include_metadata_in_ref` is the example to hand, though nothing in
-    production carries it -- it was never deployed. The property is what
-    matters: were these models to forbid extras, removing any field would stop
-    every conf written before the removal from loading, and reconciliation
-    would halt study-wide.
+    Nothing to do with any particular retired field -- this is a guard on the
+    models' extra-key policy. Were they to forbid extras, removing any field
+    would stop every conf written before the removal from loading, and
+    reconciliation would halt study-wide. The field is deliberately fictional:
+    the property has to hold for the next removal, not the last one.
     """
     dest = FlyMessengerDestination(
         **{
@@ -1086,7 +1086,7 @@ def test_a_conf_carrying_an_unknown_key_still_parses():
             "initial_shortcode": "mnchweek",
             "welcome_message": "Welcome!",
             "button_text": "OK",
-            "include_metadata_in_ref": True,
+            "a_field_this_model_has_never_had": True,
         }
     )
 

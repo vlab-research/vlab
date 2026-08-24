@@ -184,10 +184,9 @@ class RefModeDestination(BaseModel):
 
         This used to resolve through `include_metadata_in_ref`, a boolean that
         expressed the same setting a second way and could not express "encoded".
-        That field is gone. Stored confs still carry it -- pydantic ignores
-        unknown keys, so they parse unchanged -- and it no longer means
-        anything, because the mode it used to select ("carry neither the stratum
-        nor a token") was never a coherent thing to ask for.
+        It is gone, and nothing stored carries it: it was never deployed. The
+        mode it selected -- carry neither the stratum nor a token -- was not a
+        coherent thing to ask for, so there is no third answer to give here.
         """
         return self.ref_mode or "metadata"
 

@@ -21,17 +21,15 @@
  *              Correct and free on Messenger (the ref is invisible there), so
  *              it stays available as the legacy-but-useful path.
  *
- * adopt's RefMode literal has a third, "shortcode" — a clean ref that
- * attributes nobody. It is absent from this module entirely, not merely
- * unselectable. It was only ever the WhatsApp/multi default, and the
- * destination-type census found no production population on those channels:
- * 892 messenger, 11 web, 3 website, 0 whatsapp, 0 multi. So no conf resolves to
- * it, which makes every line of code that mentioned it dead code defending an
- * empty set.
+ * Two, and only two, in adopt as well: RefMode is `"metadata" | "encoded"`.
+ * A ref either carries the stratum or carries a token that resolves to it;
+ * "carry neither" attributes nobody, which is not something anyone chooses. A
+ * study with no stratification simply has a short ref, because
+ * creative_metadata has nothing to put in it — thick with nothing to say.
  *
- * The same census is why an absent `ref_mode` needs no per-channel reasoning:
- * every legacy conf is a Messenger one, so absent means thick. See
- * displayedRefMode.
+ * The destination-type census is why an absent `ref_mode` needs no per-channel
+ * reasoning: 892 messenger, 11 web, 3 website, 0 whatsapp, 0 multi, so every
+ * legacy conf is a Messenger one and absent means thick. See displayedRefMode.
  *
  * See planning/ref-mode-dashboard-ux.md and documentation/ad-attributions.md.
  */
@@ -54,10 +52,29 @@ export const MULTI = 'multi';
 /**
  * The destination types that carry a ref mode at all.
  *
- * Web and app destinations are deliberately absent: neither has an
- * `initial_shortcode`, because their url_template / deeplink_template already
- * points at a specific survey. Routing is not a job the ref does for them, so
- * there is no mode to choose.
+ * Web and app destinations are absent, and the reason is the read side rather
+ * than the write side. They do get a ref: `create_creative` builds the same
+ * full `make_ref` string for them and interpolates it into url_template /
+ * deeplink_template, so their ads already carry the stratum inline. What they
+ * have no way to do is the other mode.
+ *
+ * An encoded ref is only worth emitting if something can resolve the token, and
+ * for these two nothing can. Their respondent lands on the researcher's own
+ * page, so their data comes back through a Qualtrics or Typeform source rather
+ * than through fly — and the lookup resolves out of fly-stamped event metadata
+ * only. swoosh's `isAdTableLookup` requires `location: "metadata"` and errors
+ * loudly on a lookup conf declared anywhere else, while the Qualtrics/Typeform
+ * form offers no mapping dropdown at all. A web destination set to encoded
+ * would mint a token that lands in a survey field no conf can read: ads that
+ * attribute nobody, which is the exact failure ref_mode_incoherence exists to
+ * refuse.
+ *
+ * So this is a gap, not a category difference — offering both modes here is a
+ * real feature, and it is the read side that has to move first. It needs
+ * `ad_table_lookup` to resolve from a survey field on a non-fly source, which
+ * is the `variable` + `ad_table_lookup` hole documentation/ad-attributions.md
+ * already calls out. Until then, listing web and app here would offer a choice
+ * whose second option cannot work.
  */
 export const REF_MODE_DESTINATION_TYPES = [MESSENGER, WHATSAPP, MULTI];
 
