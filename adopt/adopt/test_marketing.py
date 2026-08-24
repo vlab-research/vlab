@@ -1432,11 +1432,11 @@ def test_whatsapp_adsets_get_the_promoted_object_meta_requires():
 
 
 # ---------------------------------------------------------------------------
-# Shortcode-only Messenger refs (A4).
+# Thinned Messenger refs (A4).
 #
 # The payoff of the whole ad-id design: stop shipping vlab's stratum vocabulary
-# into fly inside every message and leave the ref doing only the job it cannot
-# delegate, routing. Attribution comes from the frozen ad_attributions row.
+# into fly inside every message and leave the ref carrying a token instead.
+# Attribution comes from the frozen ad_attributions row, joined on it.
 #
 # The hazard is that "what the ref carries" and "what gets frozen" are computed
 # from the same dict. They must not move together.
