@@ -344,53 +344,103 @@ func TestReduce_TakesTheMappingAsDataSoLookupsCostNothingPerEvent(t *testing.T) 
 	assert.Len(t, actual, 1000)
 }
 
-func TestReduce_ALookupOnAVariableCannotDeclareTheTokenKey(t *testing.T) {
-	// The hole this closes. swoosh reads a lookup conf's `key` as the
-	// declaration of WHERE THE TOKEN LIVES, and picks the first such conf to
-	// classify the whole source. A `variable` conf carrying the lookup mapping
-	// would therefore have every respondent checked against key "q1" -- and
-	// finding no token there is reported as nothing at all, so the study would
-	// lose its unmapped signal entirely and fail silently.
-	//
-	// Config-time validation rejects the combination outright; this pins that
-	// swoosh does not honour it either if one ever reaches it.
-	stray := &ExtractionConf{
-		Location: "variable", Mapping: MappingAdTableLookup, Key: "q1", Name: "q1",
-		ValueType: "categorical", Aggregate: "first",
+// surveyFieldEvent is a respondent whose token came back as an ordinary answer
+// in the researcher's own survey, rather than as fly-stamped event metadata.
+//
+// This is what a web or app destination produces: the ad puts the ref in the
+// URL, the respondent lands on the researcher's page, and the platform returns
+// it as a field like any other.
+func surveyFieldEvent(user, field, token string, ts time.Time) *InferenceDataEvent {
+	return &InferenceDataEvent{
+		User:       User{ID: user},
+		SourceConf: &SourceConf{Name: "typeform"},
+		Timestamp:  ts,
+		Variable:   field,
+		Value:      json.RawMessage(fmt.Sprintf("%q", token)),
+	}
+}
+
+// variableLookupConf reads its token from a survey field instead of metadata.
+// Same mapping, same join; only WHERE the token is read from differs.
+func variableLookupConf(field, stratumVar string) *ExtractionConf {
+	return &ExtractionConf{
+		Location:  "variable",
+		Mapping:   MappingAdTableLookup,
+		Key:       field,
+		Name:      stratumVar,
+		ValueType: "categorical",
+		Aggregate: "first",
 		Functions: []ExtractionFunctionConf{
-			{Function: "select", Params: []byte(`{"path": "response"}`)},
+			{Function: "select", Params: []byte(`{"path": ""}`)},
 		},
 	}
+}
 
-	events := []*InferenceDataEvent{tokenEvent("u1", "tok", ti("07"))}
+func typeformConfWith(confs ...*ExtractionConf) *InferenceDataConf {
+	return &InferenceDataConf{map[string]*DataSource{
+		"typeform": {ExtractionConfs: confs},
+	}}
+}
+
+func TestReduce_ALookupCanReadItsTokenFromASurveyVariable(t *testing.T) {
+	// What the decoupling buys, and the whole of it: location says WHERE to
+	// read, mapping says WHAT the value means, and the two do not know about
+	// each other. A platform that returns the token as a survey field declares
+	// `variable`; the join that follows is identical.
+	//
+	// This is the read side a web or app destination needs, and it used to be a
+	// hard error -- not because the join could not work, but because
+	// adAttributionOutcome took one conf's Key as a source-wide metadata key,
+	// which made "the token is in metadata" true of every conf everywhere.
+	// Nothing is source-wide now.
+	events := []*InferenceDataEvent{surveyFieldEvent("u1", "ref", "tok", ti("07"))}
 	attributions := loadedMapping(attribution("tok", "stratum-1", map[string]string{"gender": "women"}))
 
-	// The real lookup conf comes first, because extractValue is first-failure-
-	// wins: the stray conf's error ends this event's extraction either way, and
-	// putting it second keeps the classification claim readable.
-	actual, errs, err := Reduce(events, confWith(lookupConf("gender"), stray), attributions)
+	actual, errs, err := Reduce(events, typeformConfWith(variableLookupConf("ref", "gender")), attributions)
+
+	assert.Nil(t, err)
+	assert.Len(t, errs, 0)
+	assert.Equal(t, []byte(`"women"`), []byte(actual["u1"].Data["gender"].Value))
+}
+
+func TestReduce_AnUnresolvableSurveyFieldTokenIsStillUnmapped(t *testing.T) {
+	// The outcome signal follows the token wherever it is read from. Without
+	// this, moving the token off metadata would have silently cost a study its
+	// only alarm -- which is exactly how the old source-wide key failed.
+	events := []*InferenceDataEvent{surveyFieldEvent("u1", "ref", "missing", ti("07"))}
+	attributions := loadedMapping(attribution("tok", "stratum-1", map[string]string{"gender": "women"}))
+
+	_, errs, err := Reduce(events, typeformConfWith(variableLookupConf("ref", "gender")), attributions)
 
 	assert.Nil(t, err)
 
-	// The claim: the token key comes from the real lookup conf ("vt"), never
-	// from the stray one ("q1"). Asserted on tokenLookupKey directly, since a
-	// key that addresses nothing now produces no event at all — the observable
-	// it used to have (a spurious organic count) was itself the bug that got
-	// removed. What a wrong key would still cost is the unmapped signal: every
-	// respondent in the study would read as having no ad provenance, which is
-	// silence rather than an alarm.
-	key, declared := tokenLookupKey([]*ExtractionConf{lookupConf("gender"), stray})
-	assert.True(t, declared)
-	assert.Equal(t, "vt", key)
+	byEntity := errorsByEntity(errs)
+	outcome, ok := byEntity[entityAdUnmapped]
+	assert.True(t, ok)
+	assert.Equal(t, "variable", outcome.Details["token_location"])
+	assert.Equal(t, "ref", outcome.Details["token_key"])
+}
 
+func TestReduce_TwoLookupConfsNeedNotAgreeOnWhereTheTokenIs(t *testing.T) {
+	// The rule this replaces: every ad_table_lookup conf under one source had
+	// to declare the same Key, because the first one won for the whole source.
+	// adopt enforced it with disagreeing_token_keys. Now each conf reads its
+	// own token, so a source carrying two of them is merely two lookups.
+	events := []*InferenceDataEvent{surveyFieldEvent("u1", "ref", "tok", ti("07"))}
+	attributions := loadedMapping(attribution("tok", "stratum-1", map[string]string{"gender": "women"}))
+
+	conf := typeformConfWith(
+		variableLookupConf("ref", "gender"),
+		// Reads a field this event does not carry: it contributes nothing and
+		// costs nothing, rather than redefining where the token lives.
+		variableLookupConf("other_ref", "region"),
+	)
+
+	actual, errs, err := Reduce(events, conf, attributions)
+
+	assert.Nil(t, err)
+	assert.Len(t, errs, 0)
 	assert.Equal(t, []byte(`"women"`), []byte(actual["u1"].Data["gender"].Value))
-
-	// And the stray conf is itself a loud error, not a silent raw variable read.
-	assert.Contains(t, errorsByEntity(errs), "var=q1")
-
-	_, confErr := getRetrieveFunc(stray, attributions)
-	assert.NotNil(t, confErr)
-	assert.Contains(t, confErr.Error(), "metadata")
 }
 
 // --------------------------------------------------------------------------
