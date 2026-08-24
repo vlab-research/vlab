@@ -1,6 +1,7 @@
 import React from 'react';
 import { GenericTextInput, TextInputI } from '../../components/TextInput';
 import { Web as FormData } from '../../../../types/conf';
+import RefModeField from './RefModeField';
 
 const TextInput = GenericTextInput as TextInputI<FormData>;
 
@@ -30,6 +31,7 @@ const Web: React.FC<Props> = ({ data, updateFormData, index }: Props) => {
         placeholder="E.g 12345"
         value={data.url_template}
       />
+      <RefModeField refMode={data.ref_mode} handleChange={handleChange} />
     </>
   );
 };

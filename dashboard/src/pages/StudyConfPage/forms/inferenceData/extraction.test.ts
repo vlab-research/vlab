@@ -9,12 +9,7 @@ import {
   mappingOptions,
   namePrompt,
   responsePrompt,
-  showsMapping,
-} from './flyExtraction';
-import {
-  locationOptions as qualtricsLocationOptions,
-  mappingOptions as qualtricsMappingOptions,
-} from './qualtricsExtraction';
+} from './extraction';
 import { Extraction } from '../../../../types/conf';
 
 const blank = (overrides: Partial<Extraction> = {}): Extraction => ({
@@ -30,7 +25,7 @@ const blank = (overrides: Partial<Extraction> = {}): Extraction => ({
 const lookup = (overrides: Partial<Extraction> = {}): Extraction =>
   blank({ location: 'metadata', mapping: AD_TABLE_LOOKUP_MAPPING, ...overrides });
 
-describe('flyExtraction', () => {
+describe('extraction', () => {
   describe('locationOptions', () => {
     it('offers metadata and variable, and no longer an ad location', () => {
       // There is no `ad` location and there never really was one: the token
@@ -55,12 +50,12 @@ describe('flyExtraction', () => {
       expect(ad?.label).not.toMatch(/ad_id|token|attribution|join/i);
     });
 
-    it('is only offered for a metadata read', () => {
-      // The mapping says what to do with a metadata value. There is nothing for
-      // it to mean on a survey response.
-      expect(showsMapping('metadata')).toBe(true);
-      expect(showsMapping('variable')).toBe(false);
-      expect(showsMapping('')).toBe(false);
+    it('is offered on every location', () => {
+      // Where a value is read from and what it means are independent. A token
+      // read out of a survey answer is how a web or app destination's
+      // respondent is attributed, so `variable` + lookup is a real conf.
+      expect(isAdTableLookup(blank({ location: 'variable', mapping: AD_TABLE_LOOKUP_MAPPING }))).toBe(true);
+      expect(isAdTableLookup(blank({ location: 'metadata', mapping: AD_TABLE_LOOKUP_MAPPING }))).toBe(true);
     });
   });
 
@@ -132,14 +127,6 @@ describe('flyExtraction', () => {
       expect(applyChange(lookup(), 'location', 'metadata').mapping).toBe(
         AD_TABLE_LOOKUP_MAPPING
       );
-    });
-
-    it('resets the mapping to raw when switching away from metadata', () => {
-      // The bug this prevents: a conf left as `variable` + `ad_table_lookup` is
-      // rejected at config time — and worse, its `key` would look like a
-      // declaration of where the ad token lives, which is how a study ends up
-      // classifying every respondent against the wrong metadata key.
-      expect(applyChange(lookup(), 'location', 'variable').mapping).toBe('raw');
     });
 
     it('resets a stale response path when switching to metadata', () => {
@@ -224,20 +211,35 @@ describe('flyExtraction', () => {
     });
   });
 
-  describe('the ad lookup is fly-only', () => {
-    it('is absent from the Qualtrics/Typeform form', () => {
-      // A lookup joins on the ad token, and only the fly connector carries one.
-      // Offering it on a Qualtrics or Typeform source would let someone
-      // configure a variable that silently yields nothing forever — the exact
-      // quiet miscount this design exists to prevent. If these ever get merged
-      // into one shared component, this test is the thing that should stop it.
-      expect(qualtricsMappingOptions).toEqual([]);
-      expect(qualtricsLocationOptions.map(o => o.name)).toEqual([
+  describe('the ad lookup is offered everywhere', () => {
+    it('survives a location change rather than being reset', () => {
+      // The reset existed because `variable` + lookup was rejected at config
+      // time. It is now how a web or app destination is read back, so silently
+      // downgrading it to a raw read would be the surprising thing.
+      const lookup = blank({
+        location: 'metadata',
+        mapping: AD_TABLE_LOOKUP_MAPPING,
+        key: 'vt',
+        name: 'gender',
+      });
+
+      expect(applyChange(lookup, 'location', 'variable').mapping).toBe(
+        AD_TABLE_LOOKUP_MAPPING
+      );
+    });
+
+    it('is one form for every source', () => {
+      // There used to be a second module exporting an empty mappingOptions, so
+      // that a Qualtrics or Typeform source could not declare a lookup. Which
+      // data carries a token is a property of the platform, not something this
+      // form can know -- and a respondent who arrived through a web
+      // destination brings one back in the researcher's own survey.
+      expect(mappingOptions.map(o => o.name)).toContain(AD_TABLE_LOOKUP_MAPPING);
+      expect(locationOptions.map(o => o.name)).toEqual([
         '',
         'metadata',
         'variable',
       ]);
-      expect(qualtricsLocationOptions.map(o => o.name)).not.toContain('ad');
     });
   });
 

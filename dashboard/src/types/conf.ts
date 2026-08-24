@@ -58,23 +58,29 @@ export interface PipelineExperiment {
   efficiency_weight?: number;
 }
 
-// How a destination's ads carry attribution.
+// How a destination's ads carry attribution. One question, same on every
+// channel, because what a ref carries is a property of the ref rather than of
+// the thing carrying it.
 //
-//   'encoded'  — the ref is `r.<token>`: clean, and attributes via the
-//                ad_attributions join on ref_token. The default for every new
-//                destination, on every channel.
-//   'metadata' — "thick": the ref carries the whole stratum inline. Correct and
-//                free on Messenger, where the ref is invisible; Messenger-only,
-//                because on WhatsApp it sits in the respondent's compose box.
+//   'encoded'  — the ref is an opaque token, and the stratum comes off the
+//                ad-attributions export joined on it. The default for every new
+//                destination. On a fly destination the token is packed with the
+//                shortcode as `r.<payload>`, because fly's decoder needs both;
+//                on web and app it travels as itself.
+//   'metadata' — "thick": the ref carries the whole stratum inline, so it is
+//                already in the response data and there is nothing to join.
 //
 // There is no third mode. A ref either carries the stratum or carries a token
 // that resolves to it; "carry neither" attributes nobody and is not something
 // anyone chooses. A study with no stratification simply gets a short ref,
 // because there is nothing to put in it.
 //
+// Whether anything reads the token back is configured independently, in Data
+// Extraction. The two sides do not constrain each other.
+//
 // Optional, and absent is meaningful: it means the conf was written before this
-// field existed, which makes it a thick Messenger one. The form must never
-// write a default onto a conf that arrived without one — see
+// field existed, which resolves to the inline ref. The form must never write a
+// default onto a conf that arrived without one — see
 // forms/destinations/refMode.ts.
 export type RefMode = 'encoded' | 'metadata';
 
@@ -92,8 +98,9 @@ export interface Web {
   type: string;
   name: string;
   url_template: string;
-
+  ref_mode?: RefMode;
 }
+
 export interface App {
   type: string;
   name: string;
@@ -103,17 +110,17 @@ export interface App {
   deeplink_template: string;
   user_device: string[];
   user_os: string[];
+  ref_mode?: RefMode;
 }
 
 // A click-to-WhatsApp destination. Shaped after Messenger, minus button_text
 // (WhatsApp has no quick-reply button — the respondent gets a prefilled compose
 // box) and plus the number the ad's clicks land on.
 //
-// The form always sends ref_mode, and for this channel it is worth knowing why
-// encoded is what it sends: the autofill text sits in the respondent's compose
-// box, visible and editable, and stratum values there can also make a study's
-// refs unparseable by fly — which fails closed at config-save time rather than
-// in the UI.
+// The form always sends ref_mode. Worth knowing for this channel: the inline
+// ref's autofill text sits in the respondent's compose box, visible and
+// editable, and stratum values there can make a study's refs unparseable by fly
+// — which fails closed at config-save time rather than in the UI.
 export interface WhatsApp {
   type: string;
   name: string;

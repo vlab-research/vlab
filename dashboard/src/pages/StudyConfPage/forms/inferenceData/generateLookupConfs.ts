@@ -25,7 +25,7 @@ import {
   METADATA_LOCATION,
   aggregateForLocation,
   identityFunctions,
-} from './flyExtraction';
+} from './extraction';
 
 /**
  * Where fly stamps the ad token.
@@ -83,10 +83,15 @@ export const lookupConfsFromVariables = (
 /**
  * The confs a source starts with, before the researcher touches anything.
  *
- * Lookups are defaulted on **fly sources only**, for the same reason the ad
- * lookup mapping is offered on fly sources only: Qualtrics and Typeform carry
- * no ad token, so a lookup conf there would silently yield nothing forever.
- * Every other source keeps the blank row.
+ * Lookups are defaulted on **fly sources only**, and the reason is now only
+ * that the default has to guess where the token is: fly stamps it at
+ * metadata.vt by convention, so the guess is right. Any other source returns it
+ * as a field whose name only the researcher knows, and a default naming the
+ * wrong field is worse than no default. The lookup itself is offered
+ * everywhere — see extraction.ts.
+ *
+ * A convenience, in other words, not a statement about which source can carry a
+ * token. Every other source keeps the blank row.
  */
 export const initialExtractionConfs = (
   sourceType: string,

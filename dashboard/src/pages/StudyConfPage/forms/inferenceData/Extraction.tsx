@@ -10,8 +10,7 @@ import {
   mappingOptions,
   namePrompt,
   responsePrompt,
-  showsMapping,
-} from './flyExtraction';
+} from './extraction';
 
 
 interface FlyExtractionForm extends FormData {
@@ -28,7 +27,7 @@ interface Props {
   nameOptions: string[];
 }
 
-const FlyExtraction: React.FC<Props> = ({ data, nameOptions: names, update: updateFormData, index }: Props) => {
+const Extraction: React.FC<Props> = ({ data, nameOptions: names, update: updateFormData, index }: Props) => {
 
 
   const handleChange = (e: any) => {
@@ -66,14 +65,12 @@ const FlyExtraction: React.FC<Props> = ({ data, nameOptions: names, update: upda
         options={locationOptions}
         value={data.location}
       />
-      {showsMapping(data.location) && (
-        <Select
-          name="mapping"
-          handleChange={handleChange}
-          options={mappingOptions}
-          value={data.mapping || 'raw'}
-        />
-      )}
+      <Select
+        name="mapping"
+        handleChange={handleChange}
+        options={mappingOptions}
+        value={data.mapping || 'raw'}
+      />
       <TextInput
         name="key"
         handleChange={handleChange}
@@ -92,4 +89,4 @@ const FlyExtraction: React.FC<Props> = ({ data, nameOptions: names, update: upda
   );
 };
 
-export default FlyExtraction;
+export default Extraction;

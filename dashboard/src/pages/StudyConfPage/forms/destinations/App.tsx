@@ -5,6 +5,7 @@ import { createLabelFor } from '../../../../helpers/strings';
 import user_devices from '../../../../fixtures/destinations/user_devices';
 import user_os from '../../../../fixtures/destinations/user_os';
 import { App as FormData } from '../../../../types/conf';
+import RefModeField from './RefModeField';
 
 const TextInput = GenericTextInput as TextInputI<FormData>;
 
@@ -122,6 +123,7 @@ const App: React.FC<Props> = ({ data, updateFormData, index }: Props) => {
         handleMultiSelectChange={handleMultiSelectChange}
         value={data.user_os}
       ></MultiSelect>
+      <RefModeField refMode={data.ref_mode} handleChange={handleChange} />
     </>
   );
 };

@@ -1,6 +1,5 @@
 import React, { useRef } from 'react';
 import { GenericSelect, SelectI } from '../../components/Select';
-import { Destination } from '../../../../types/conf';
 import {
   REF_MODE_FLIP_WARNING,
   displayedRefMode,
@@ -14,18 +13,16 @@ const Select = GenericSelect as SelectI<any>;
 interface Props {
   /** This destination's stored mode. Absent is a real state — see refMode.ts. */
   refMode?: string;
-  /** Every destination in the study; thick is a whole-study question. */
-  destinations: Destination[];
   handleChange: (e: any) => void;
 }
 
 /**
  * How this destination's ads carry attribution.
  *
- * Shared by the Messenger, WhatsApp and multi forms rather than copied into
- * each, because the modes must not drift between channels — the point of
- * offering encoded everywhere is that a multi-channel study attributes exactly
- * one way, and three copies of this control is how that stops being true.
+ * Shared by every destination form rather than copied into each, because the
+ * modes must not drift between channels — the point of offering both
+ * everywhere is that a multi-channel study attributes exactly one way, and a
+ * copy of this control per form is how that stops being true.
  *
  * The select is valued by `displayedRefMode`, which reports what a conf
  * actually does rather than what the form would default to. It emits `ref_mode`
@@ -34,18 +31,14 @@ interface Props {
  * whole of the migration safety: see refMode.ts and
  * planning/ref-mode-dashboard-ux.md §4.3.
  */
-const RefModeField: React.FC<Props> = ({
-  refMode,
-  destinations,
-  handleChange,
-}: Props) => {
+const RefModeField: React.FC<Props> = ({ refMode, handleChange }: Props) => {
   // What this destination was loaded with, captured once. The flip warning is
   // about diverging from what the study's ads were BUILT with, so it has to
   // compare against the mode at mount, not against the previous keystroke.
   const loadedMode = useRef(refMode);
 
   const current = displayedRefMode(refMode);
-  const options = refModeOptions(destinations);
+  const options = refModeOptions();
   const wouldChange = refModeWouldChange(loadedMode.current, refMode);
 
   return (

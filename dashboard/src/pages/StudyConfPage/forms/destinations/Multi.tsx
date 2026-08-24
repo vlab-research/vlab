@@ -96,11 +96,7 @@ const Multi: React.FC<Props> = ({
         placeholder="E.g +1-541-920-2635 (the number, not the phone_number_id)"
         value={data.whatsapp_phone_number}
       />
-      <RefModeField
-        refMode={data.ref_mode}
-        destinations={destinations}
-        handleChange={handleChange}
-      />
+      <RefModeField refMode={data.ref_mode} handleChange={handleChange} />
       <TextInput
         name="additional_metadata"
         handleChange={handleMetadata}

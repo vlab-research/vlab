@@ -1,6 +1,4 @@
-import FlyExtraction from './FlyExtraction';
-import QualtricsExtraction from './QualtricsExtraction';
-import ErrorPlaceholder from '../../../../components/ErrorPlaceholder';
+import Extraction from './Extraction';
 import {
   DataSource as DataSourceType,
   SourceExtraction as SourceExtractionType,
@@ -37,23 +35,11 @@ const SourceExtraction: React.FC<Props> = ({ source, dataSource, setData, nameOp
     setData(source, { ...data, extraction_confs: a })
   }
 
-  const lookup = {
-    fly: FlyExtraction,
-    qualtrics: QualtricsExtraction,
-    typeform: QualtricsExtraction,
-  }
-  type sourceType = "fly" | "qualtrics"
-  const Element = lookup[dataSource.source as sourceType]
-
-  if (!Element) {
-    return (
-      <ErrorPlaceholder
-        showImage={true}
-        message={`Oops! We are missing a config for the source type: ${dataSource.source}`}
-        onClickTryAgain={() => window.location.reload()}
-      />
-    )
-  }
+  // One form, every source. There used to be two, because the ad lookup was
+  // offered on fly alone -- where the token is read from is a property of the
+  // platform, not a reason for a second form. The location lists were already
+  // identical.
+  const Element = Extraction
 
   return (
 

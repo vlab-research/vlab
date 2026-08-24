@@ -67,11 +67,7 @@ const Messenger: React.FC<Props> = ({
         placeholder="E.g OK"
         value={data.button_text}
       />
-      <RefModeField
-        refMode={data.ref_mode}
-        destinations={destinations}
-        handleChange={handleChange}
-      />
+      <RefModeField refMode={data.ref_mode} handleChange={handleChange} />
       <TextInput
         name="additional_metadata"
         handleChange={handleMetadata}

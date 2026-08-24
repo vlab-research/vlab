@@ -1,101 +1,38 @@
 import {
-  MESSENGER,
   REF_MODE_ENCODED,
   REF_MODE_THICK,
-  carriesRefMode,
   displayedRefMode,
   initialRefMode,
-  isPureMessengerStudy,
   refModeConsequence,
   refModeOptions,
   refModeWouldChange,
 } from './refMode';
-import { Destination } from '../../../../types/conf';
-
-const dest = (type: string): Destination => ({ type, name: type } as Destination);
-
-const messengerOnly = [dest('messenger')];
-const withWhatsApp = [dest('messenger'), dest('whatsapp')];
-const withMulti = [dest('multi')];
-const nonFly = [dest('website'), dest('app')];
 
 describe('refMode', () => {
-  describe('carriesRefMode', () => {
-    it('covers the three fly destination types', () => {
-      expect(carriesRefMode('messenger')).toBe(true);
-      expect(carriesRefMode('whatsapp')).toBe(true);
-      expect(carriesRefMode('multi')).toBe(true);
-    });
-
-    it('excludes web and app', () => {
-      // Neither has an initial_shortcode: their url_template /
-      // deeplink_template already points at a specific survey, so routing is
-      // not a job the ref does for them and there is no mode to choose.
-      expect(carriesRefMode('website')).toBe(false);
-      expect(carriesRefMode('app')).toBe(false);
-    });
-  });
-
-  describe('isPureMessengerStudy', () => {
-    it('is true when every fly destination is messenger', () => {
-      expect(isPureMessengerStudy(messengerOnly)).toBe(true);
-    });
-
-    it('ignores web and app destinations', () => {
-      // They carry no ref mode, so they cannot make a study heterogeneous.
-      expect(isPureMessengerStudy([...messengerOnly, ...nonFly])).toBe(true);
-    });
-
-    it('is false as soon as a whatsapp or multi destination exists', () => {
-      expect(isPureMessengerStudy(withWhatsApp)).toBe(false);
-      expect(isPureMessengerStudy(withMulti)).toBe(false);
-    });
-
-    it('is false for a study with no fly destinations at all', () => {
-      expect(isPureMessengerStudy(nonFly)).toBe(false);
-      expect(isPureMessengerStudy([])).toBe(false);
-    });
-  });
-
   describe('refModeOptions', () => {
-    it('offers encoded and thick on a pure-messenger study', () => {
-      expect(refModeOptions(messengerOnly).map(o => o.name)).toEqual([
+    it('offers both modes, and takes nothing to decide that', () => {
+      // The signature is the claim. This used to take the study's whole
+      // destination list, so that thick could be withheld from anything but a
+      // pure-Messenger study -- a form reasoning about other destinations to
+      // decide what one destination may do. What a ref carries is a property
+      // of the ref; the channel does not remove a mode.
+      expect(refModeOptions().map(o => o.name)).toEqual([
         REF_MODE_ENCODED,
         REF_MODE_THICK,
       ]);
     });
 
-    it('withholds thick from every destination of a mixed study', () => {
-      // Including its Messenger arm. Thick's cost — a visible, editable ref —
-      // lands on the WhatsApp arm, so offering it anywhere in this study would
-      // make one study attribute two different ways.
-      expect(refModeOptions(withWhatsApp).map(o => o.name)).toEqual([
-        REF_MODE_ENCODED,
-      ]);
-    });
-
-    it('offers encoded only on a whatsapp or multi study', () => {
-      expect(refModeOptions(withMulti).map(o => o.name)).toEqual([
-        REF_MODE_ENCODED,
-      ]);
-    });
-
     it('never offers a mode that is not encoded or thick', () => {
-      // "shortcode" — a clean ref that attributes nobody — is not part of this
-      // module at all. No production conf resolves to it.
-      const offered = [
-        ...refModeOptions(messengerOnly),
-        ...refModeOptions(withWhatsApp),
-        ...refModeOptions(withMulti),
-      ].map(o => o.name);
-
-      expect(new Set(offered)).toEqual(
+      // A ref either carries the stratum or carries a token that resolves to
+      // it. "Carry neither" attributes nobody and is not something anyone
+      // chooses.
+      expect(new Set(refModeOptions().map(o => o.name))).toEqual(
         new Set([REF_MODE_ENCODED, REF_MODE_THICK])
       );
     });
 
     it('labels every option it offers', () => {
-      refModeOptions(messengerOnly).forEach(o => {
+      refModeOptions().forEach(o => {
         expect(o.label).toBeTruthy();
         expect(o.label).not.toBe(o.name);
       });
@@ -109,8 +46,8 @@ describe('refMode', () => {
     });
 
     it('reports an absent mode as thick', () => {
-      // Absent means the conf predates this field, and every conf that predates
-      // it is a thick Messenger one.
+      // Absent means the conf predates this field, and adopt resolves it to
+      // the inline ref.
       expect(displayedRefMode(undefined)).toBe(REF_MODE_THICK);
     });
 
@@ -136,13 +73,11 @@ describe('refMode', () => {
     });
 
     it('is false when an absent mode is made explicit without changing it', () => {
-      // Writing "metadata" onto a legacy Messenger conf changes no ad.
+      // Writing "metadata" onto a legacy conf changes no ad.
       expect(refModeWouldChange(undefined, REF_MODE_THICK)).toBe(false);
     });
 
     it('is true when a legacy conf is switched to encoded', () => {
-      // The one flip that can actually occur, per the census: thick Messenger
-      // to encoded, one direction, opt-in.
       expect(refModeWouldChange(undefined, REF_MODE_ENCODED)).toBe(true);
     });
 
@@ -152,10 +87,12 @@ describe('refMode', () => {
   });
 
   describe('refModeConsequence', () => {
-    it('names ref_token for encoded, because that is the join key', () => {
+    it('sends the researcher to the export for an encoded study', () => {
       // The researcher-facing contract: with encoded, the stratum is not in the
-      // survey data — give them the table and name the key.
-      expect(refModeConsequence(REF_MODE_ENCODED)).toContain('ref_token');
+      // survey data -- name where it is instead.
+      expect(refModeConsequence(REF_MODE_ENCODED)).toContain(
+        'ad-attributions export'
+      );
     });
 
     it('says thick needs no join', () => {
@@ -168,9 +105,15 @@ describe('refMode', () => {
         expect(refModeConsequence(mode)).not.toContain('ref_mode');
       });
     });
-  });
 
-  it('exports MESSENGER as the type the whole-study check compares against', () => {
-    expect(MESSENGER).toBe('messenger');
+    it('claims nothing about which channel a mode is for', () => {
+      // Both consequence strings used to carry a "Messenger only" / "works the
+      // same on every channel" clause, which was the coupling showing through
+      // into the copy.
+      [REF_MODE_ENCODED, REF_MODE_THICK].forEach(mode => {
+        expect(refModeConsequence(mode)).not.toContain('Messenger');
+        expect(refModeConsequence(mode)).not.toContain('WhatsApp');
+      });
+    });
   });
 });

@@ -36,9 +36,10 @@ const Destination: React.FC<Props> = ({
 
   const emptyStates: any[] = [
     // ref_mode is set here, on creation, and nowhere that runs on load. That
-    // split is what lets the model keep defaulting to legacy (absent resolves
-    // per channel, so no stored conf is reinterpreted) while new confs are
-    // explicitly encoded. See refMode.ts and planning/ref-mode-dashboard-ux.md.
+    // split is what lets the model keep defaulting to legacy (an absent mode
+    // resolves to the inline ref, so no stored conf is reinterpreted) while new
+    // confs are explicitly encoded. Every type carries it: what a ref carries is
+    // a property of the ref, not of the channel. See refMode.ts.
     {
       name: '',
       initial_shortcode: '',
@@ -47,7 +48,7 @@ const Destination: React.FC<Props> = ({
       ref_mode: initialRefMode(),
       type: 'messenger'
     },
-    { name: '', url_template: '', type: 'website' },
+    { name: '', url_template: '', ref_mode: initialRefMode(), type: 'website' },
     {
       app_install_link: '',
       app_install_state: '',
@@ -56,6 +57,7 @@ const Destination: React.FC<Props> = ({
       user_device: [],
       user_os: [],
       name: '',
+      ref_mode: initialRefMode(),
       type: 'app',
     },
     // `type` must be exactly 'whatsapp' and 'multi': adopt discriminates its

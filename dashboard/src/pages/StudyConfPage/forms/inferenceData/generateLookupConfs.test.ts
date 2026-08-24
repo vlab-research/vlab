@@ -4,7 +4,7 @@ import {
   initialExtractionConfs,
   lookupConfsFromVariables,
 } from './generateLookupConfs';
-import { AD_TABLE_LOOKUP_MAPPING } from './flyExtraction';
+import { AD_TABLE_LOOKUP_MAPPING } from './extraction';
 
 describe('generateLookupConfs', () => {
   describe('lookupConfsFromVariables', () => {
