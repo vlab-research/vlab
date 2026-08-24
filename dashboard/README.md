@@ -184,7 +184,7 @@ Messenger one.
 **The one rule to preserve when editing these forms:** the encoded default is a
 *new-conf* affordance and must never be written onto a conf that arrived without
 one. `ref_mode` absent is a real, meaningful state — it means the conf predates
-the field, and adopt resolves it per channel from `include_metadata_in_ref`. So
+the field, and adopt resolves it to the inline ref on every channel. So
 `displayedRefMode` reports what a conf actually does and is never written back;
 the default lives only in the `emptyStates` in `Destination.tsx` and the
 `initialState` in `Destinations.tsx`; and the forms spread `...data` so an

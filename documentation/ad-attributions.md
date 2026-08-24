@@ -100,7 +100,7 @@ merely unattributable.
 | 2 | fly's responses view | Exposes `ad_id` as a first-class column, resolved at `conversation_started`. Captured for monitoring; not joined. |
 | 3 | `sources/fly/main.go` | The token rides `item.Metadata` into `User.Metadata` with no connector change — that is the whole point of "the token is in metadata". `AdID` / `AdNetwork` are still copied across. |
 | 4 | `swoosh/swoosh.go` | `GetAdAttributions` loads the study's mapping — once per run, before `Reduce`. |
-| 5 | `swoosh/inference_data.go` | `retrieveFromMetadata` closes over that mapping and resolves `mapping: "ad_table_lookup"` confs; `adAttributionOutcome` classifies each event three ways. |
+| 5 | `swoosh/inference_data.go` | `retrieveFromMetadata` closes over that mapping and resolves `mapping: "ad_table_lookup"` confs; `adAttributionOutcome` reports the unmappable and nothing else. |
 
 `AdID` and `AdNetwork` are **typed fields on `InferenceDataEvent`**, and remain
 so. The `ref_token` deliberately is **not**: it rides `User.Metadata` under a
@@ -573,7 +573,7 @@ cannot show a different shape from the file downloaded next to it. The `.csv`
 route also still takes an API key, which suits the other primary use: fetching
 it from an analysis script that is doing the join anyway.
 
-## Retiring the ref: shortcode-only Messenger ads
+## Retiring the ref: encoded Messenger ads
 
 This is the lever the rest of the design exists to make safe. Until a study
 pulls it, a lookup conf works but its ads still ship vlab's entire stratum
@@ -588,11 +588,11 @@ inside `page_welcome_message`. Both, because a respondent can arrive by either,
 and two different refs would mean one ad describing two different people
 depending on how they tapped it.
 
-`form.<shortcode>` is the minimum that still routes. fly's `getMetadata` parses
-`referral.ref` as dot-pairs and reads `md.form`, falling back to
-`FALLBACK_FORM` — a real survey — when it is absent. Routing is the one job the
-ref cannot delegate, because it happens at the first inbound message while
-attribution is a batch join done afterwards.
+It still routes. fly's `getMetadata` decodes the token into `md.form` plus
+`md.vt`, and `md.form` is what routing reads, falling back to `FALLBACK_FORM` —
+a real survey — when it is absent. Routing is the one job the ref cannot
+delegate, because it happens at the first inbound message while attribution is
+a batch join done afterwards.
 
 ### The trap: what the ref carries is not what gets frozen
 
@@ -600,14 +600,14 @@ attribution is a batch join done afterwards.
 `messenger_ref` is the only place the mode is allowed to matter. This separation
 is load-bearing.
 
-For a shortcode-only study the frozen `ad_attributions` blob is the *only*
+For an encoded study the frozen `ad_attributions` blob is the *only*
 attribution it will ever have. If the mode leaked into `creative_metadata`, such
 a study would freeze rows containing nothing but `form`; every lookup conf would
 resolve to nothing, every stratum would count zero, and the optimizer would
 reallocate on empty data. Silent, total, and unrecoverable after the fact,
 because the blob is frozen at creation and never refreshed.
 
-Two tests pin it: a shortcode-only and a full-ref destination over identical
+Two tests pin it: an encoded and an inline destination over identical
 strata produce identical frozen blobs (still containing `creative`, `form` and
 every stratum key), and `ad_provenance` — the thing that actually reaches the
 database — is identical under both modes.
@@ -661,25 +661,39 @@ ad, arrived at from the opposite direction.
 `study_conf.thins_its_ref_without_reading_the_mapping` detects it and
 `malaria.warn_on_thinned_ref_without_mapping` logs it: a fly destination whose
 resolved `ref_mode` is not `"metadata"` while no extraction conf declares
-`mapping: "ad_table_lookup"`. Both thin modes count, `"shortcode"` and
-`"encoded"` alike — they differ in what carries the join key, not in the thing
-this guard is about. It **warns rather than raises**, because it is not
+`mapping: "ad_table_lookup"`. `"encoded"` is the only mode that counts, since
+it is the only one that thins the ref. It **warns rather than raises**, because it is not
 certainly wrong — a study recruiting uniformly, with no `question_targeting`, needs no
 stratum attribution and is entitled to a thin ref. Same reasoning as the
 completeness check below.
 
-It covers WhatsApp destinations too, since their default is already thin: a
-CTWA study that never declares a lookup conf has no attribution at all, and
-should hear about it.
+It covers WhatsApp and multi destinations too. Their default is no longer thin
+— an unstated mode resolves to the inline ref on every channel — but the
+dashboard writes `"encoded"` into every new destination on those channels, so
+in practice a CTWA study that never declares a lookup conf has no attribution
+at all, and should hear about it.
 
 ### Web and App stay on full refs
 
-Deliberately. Neither type has an `initial_shortcode`, because their
-`url_template` / `deeplink_template` already points at a specific survey —
-routing is not a job the ref does for them. Making them shortcode-only would
-mean inventing a conf field for a token neither needs. The equivalent decoupling
-for a web platform is carrying the token in the ad URL, which is separate work. Messenger is where every existing study lives and where the ref actually
-costs something.
+Not a category difference — a gap, and it is on the read side.
+
+Both types do get a ref: `create_creative` builds the same full `make_ref`
+string for them and interpolates it into `url_template` / `deeplink_template`,
+so their ads already carry the stratum inline. What they cannot do is the other
+mode. Their respondent lands on the researcher's own page, so their data comes
+back through a Qualtrics or Typeform source rather than through fly — and the
+lookup resolves out of fly-stamped event metadata only. `isAdTableLookup`
+requires `location: "metadata"` and errors loudly on a lookup conf declared
+anywhere else, while the Qualtrics/Typeform form offers no mapping dropdown at
+all. A web destination set to encoded would mint a token that lands in a survey
+field no conf can read: ads that attribute nobody, which is what
+`ref_mode_incoherence` exists to refuse.
+
+Offering both modes there is a real feature, and the read side has to move
+first — `ad_table_lookup` resolving from a survey field on a non-fly source,
+which is the `variable` + `ad_table_lookup` hole described above. Messenger is
+meanwhile where every existing study lives and where the ref actually costs
+something.
 
 ## Ref encoding, and why the creative name mattered most
 

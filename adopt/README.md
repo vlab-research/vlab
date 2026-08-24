@@ -281,49 +281,51 @@ on liveness, and nothing should.
 Tests: `adopt/adopt/server/test_ad_attributions_csv.py`, needs `make
 test-db`.
 
-## Shortcode-only refs
+## Thinning the ref
 
 Before this, the ad-table join already worked, but ads still shipped vlab's
 whole stratum vocabulary into fly inside every message: the frozen row
 duplicated the ref rather than replacing it, so nothing was actually decoupled.
-`FlyMessengerDestination.include_metadata_in_ref` (`study_conf.py`) controls
-what the ref carries. It is named to match `FlyWhatsAppDestination`'s field
-of the same name — one concept, and the two channels differ only in their
-default. Messenger defaults **True**, the historical behaviour every existing
-study depends on.
+`ref_mode` (`study_conf.py`) controls what the ref carries. It is one field on
+`RefModeDestination`, shared by all three fly destination types, so the two
+channels cannot drift in what they disclose.
+
+Two modes, and only two. `"metadata"` carries the stratum inline and is what an
+unstated mode resolves to — the historical behaviour every existing study
+depends on. `"encoded"` carries a token instead.
 
 ### What it emits
 
-Turned off, the ref becomes `form.<initial_shortcode>` on **both** Messenger
-carriers: `url_tags` (which Meta surfaces as `referral.ref`) and the
-quick-reply payload inside `page_welcome_message`. Both, because a respondent
-can arrive by either, and emitting different refs on the two paths would mean
-one ad describing two different people depending on how they tapped it.
+Under `"encoded"` the ref becomes `r.<token>` on **both** Messenger carriers:
+`url_tags` (which Meta surfaces as `referral.ref`) and the quick-reply payload
+inside `page_welcome_message`. Both, because a respondent can arrive by either,
+and emitting different refs on the two paths would mean one ad describing two
+different people depending on how they tapped it.
 
-`form.<shortcode>` is the minimum that still routes: fly's `getMetadata`
-parses `referral.ref` as dot-pairs and reads `md.form`, falling back to
-`FALLBACK_FORM` — a real survey — when it is absent. Routing is the one job
-the ref cannot delegate, since it happens at the first inbound message, while
-attribution is a batch join done afterwards.
+It still routes: fly's `getMetadata` decodes the token into `md.form` plus
+`md.vt`, and `md.form` is what routing reads, falling back to `FALLBACK_FORM` —
+a real survey — when it is absent. Routing is the one job the ref cannot
+delegate, since it happens at the first inbound message, while attribution is a
+batch join done afterwards.
 
 ### The trap
 
 `creative_metadata` returns the complete metadata dict regardless of ref
-mode; `messenger_ref` is the ONLY place the mode is allowed to matter. For a
-shortcode-only study, the frozen `ad_attributions` blob is the only
-attribution it will ever have. If the mode leaked into `creative_metadata`,
+mode; `messenger_ref` is the ONLY place the mode is allowed to matter. For an
+encoded study, the frozen `ad_attributions` blob is the only attribution it
+will ever have. If the mode leaked into `creative_metadata`,
 that study would freeze rows containing nothing but `form` — every
 `mapping: "ad_table_lookup"` conf would resolve to nothing, every stratum would
 count zero, and the optimizer would reallocate on empty data. Silent, total, and
 unrecoverable, because the blob is frozen at creation and never refreshed.
 
-Two tests pin this: identical frozen blobs from a shortcode-only and a
-full-ref destination over identical strata, and identical `ad_provenance`
-output one layer up.
+Two tests pin this: identical frozen blobs from an encoded and an inline
+destination over identical strata, and identical `ad_provenance` output one
+layer up.
 
 ### Flipping a live study
 
-Toggling the flag changes the *creative*, and `update_ad` compares creatives
+Changing `ref_mode` changes the *creative*, and `update_ad` compares creatives
 via `field_contract.COMPARED_AD`, so a flip rewrites that study's ads on the
 next reconciliation run. That is intended — a deliberate per-study act — and
 it cannot cascade, since each study reconciles from its own conf.
@@ -421,16 +423,28 @@ unreachable and stop ad reconciliation over a miscount.
 
 ### Web and App stay on full refs
 
-Deliberately: neither has an `initial_shortcode`, because their
-`url_template` / `deeplink_template` already points at a specific survey, so
-routing is not a job the ref does for them. Making them shortcode-only would
-mean inventing a conf field for a token neither needs; the equivalent
-decoupling for a web platform is capturing the ad id from the ad URL, which
-is separate work.
+Not a category difference — a gap, and it is on the read side.
+
+Both types do get a ref: `create_creative` builds the same full `make_ref`
+string for them and interpolates it into `url_template` / `deeplink_template`,
+so their ads already carry the stratum inline. What they have no way to do is
+the other mode. An encoded ref is only worth emitting if something can resolve
+the token, and their respondent lands on the researcher's own page — so their
+data returns through a Qualtrics or Typeform source rather than through fly,
+while the lookup resolves out of fly-stamped event metadata only. swoosh's
+`isAdTableLookup` requires `location: "metadata"` and errors loudly on a lookup
+conf declared anywhere else, and the Qualtrics/Typeform form offers no mapping
+dropdown at all. A web destination set to encoded would mint a token that lands
+in a survey field no conf can read.
+
+Offering both modes here is a real feature, and the read side has to move
+first: `ad_table_lookup` resolving from a survey field on a non-fly source,
+which is the `variable` + `ad_table_lookup` hole
+`documentation/ad-attributions.md` already calls out.
 
 ### Tests
 
-The "Shortcode-only Messenger refs (A4)" section of
+The "Thinned Messenger refs (A4)" section of
 `adopt/adopt/test_marketing.py`.
 
 ## Ref encoding
@@ -518,7 +532,8 @@ branched only on `FlyMessengerDestination`, `AppDestination` and `WebDestination
 and nothing set an autofill message. `FlyWhatsAppDestination` (`study_conf.py`)
 adds the fourth branch. It is shaped after `FlyMessengerDestination`, minus
 `button_text` — WhatsApp has no quick-reply button, so the respondent gets a
-prefilled compose box instead — and plus `include_metadata_in_ref`.
+prefilled compose box instead. Both inherit `ref_mode` from
+`RefModeDestination`.
 
 ### Why the ref is a different string, not a reused one
 
@@ -550,18 +565,24 @@ upstream. fly's pattern rejects it, no `conversation_started` is derived, and
 the arrival falls through to `FALLBACK_FORM` — a real survey, so those
 respondents look like completions rather than errors.
 
-### Full-ref mode is opt-in and rare
+### The inline ref is what an unstated mode means here too
 
-`include_metadata_in_ref` puts the full stratum metadata in the autofill text,
-not just the shortcode. It defaults off. Of the production stratum values on
-record, encoding (see "Ref encoding" above) now delivers all of them — 9 of
-9, up from 5 of 9 before fly widened its gate — but one unsafe value still
-poisons the whole ref, so the config-time check remains a hard gate rather
-than a formality. The only reason to turn this on is fly survey logic that
-branches on ad metadata; the optimizer never needs it, since the ad-ID join
-(see above) carries stratum identity regardless. The autofill text is also
-respondent-visible and respondent-editable, which is the other reason the
-default is the shortcode alone.
+`ref_mode: "metadata"` puts the full stratum metadata in the autofill text, not
+just the shortcode, and an unstated mode resolves to it — the same one rule as
+every other fly destination. No stored WhatsApp conf states a mode (the census
+found 0 whatsapp and 0 multi), and the dashboard writes `"encoded"` into every
+new one, so the inline case is reachable here only by hand-authoring JSON.
+
+That it fails closed rather than quietly is the point:
+`check_whatsapp_refs_are_deliverable` fires for exactly this case. Of the
+production stratum values on record, encoding (see "Ref encoding" above) now
+delivers all of them — 9 of 9, up from 5 of 9 before fly widened its gate — but
+one unsafe value still poisons the whole ref, so the config-time check remains
+a hard gate rather than a formality. The only reason to want the metadata
+inline is fly survey logic that branches on it; the optimizer never needs it,
+since the ad-attributions join carries stratum identity regardless. The
+autofill text is also respondent-visible and respondent-editable, which is why
+the dashboard offers this channel `"encoded"` only.
 
 ### Validation is at config time, in two places
 
@@ -570,7 +591,9 @@ is split accordingly. `FlyWhatsAppDestination.shortcode_must_survive_the_entry_p
 validates the shortcode on the destination model itself, and applies in both
 modes — even the default token is `form.<shortcode>`, so an unsafe shortcode
 breaks the plain case too. `StudyConf.check_whatsapp_refs_are_deliverable`
-validates the metadata, and fires only when `include_metadata_in_ref` is on.
+validates the metadata, and fires only when the resolved `ref_mode` is
+`"metadata"` — which, since an unstated mode resolves there, includes a
+WhatsApp conf that states nothing.
 `StudyConf` is the earliest point this check is possible, because destinations
 and strata are separate confs, POSTed independently — it's the first place
 they meet. It fails closed: a study with an undeliverable ref creates no ads
@@ -666,9 +689,10 @@ builds a plain object and adopt parses it — so the "dashboard contract" tests 
 `emptyStates` produces parses into this class, and that the `type` literal still
 matches what the union discriminates on.
 
-`include_metadata_in_ref` is deliberately not exposed. It defaults off, its
-token is respondent-visible and respondent-editable, and turning it on can make
-a study's refs unparseable by fly.
+`ref_mode` is exposed, by `RefModeField`, but on this channel it offers
+`"encoded"` alone — the inline ref's token is respondent-visible and
+respondent-editable here, and can make a study's refs unparseable by fly. Thick
+is offered only on a study whose every fly destination is Messenger.
 
 ### Tests
 
