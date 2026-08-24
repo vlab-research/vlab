@@ -311,7 +311,7 @@ batch join done afterwards.
 ### The trap
 
 `creative_metadata` returns the complete metadata dict regardless of ref
-mode; `messenger_ref` is the ONLY place the mode is allowed to matter. For an
+mode; `dotted_ref` is the ONLY place the mode is allowed to matter. For an
 encoded study, the frozen `ad_attributions` blob is the only attribution it
 will ever have. If the mode leaked into `creative_metadata`,
 that study would freeze rows containing nothing but `form` — every
@@ -349,59 +349,31 @@ extraction conf declares `mapping: "ad_table_lookup"`.
 `warn_on_thinned_ref_without_mapping`
 (`malaria.py`) logs it on every reconciliation run. It warns rather than
 raises, because a study recruiting uniformly with no `question_targeting` needs
-no stratum attribution and is entitled to a thin ref. It covers WhatsApp
-destinations too, whose default is already thin.
+no stratum attribution and is entitled to a thin ref. It covers every
+destination type, since every one of them carries a mode.
 
-### The save-time refusal
+### The two sides save independently
 
-`ref_mode_incoherence` (`study_conf.py`) is the same failure caught one layer
-earlier: at the moment someone saves the conf that causes it, rather than on the
-next reconciliation run. `server.py` calls it from both
-`create_destinations_conf` and `create_inference_data_conf` and returns **422**,
-with a message naming both sides.
+What a ref carries and what reads it back are one decision each.
+`create_destinations_conf` and `create_inference_data_conf` do not consult one
+another, in either order, at any stage of configuration.
 
-It takes the two confs rather than a `StudyConf`, because Destinations and Data
-Extraction are POSTed independently and no assembled study exists at save time.
+There used to be a 422 here, `ref_mode_incoherence`, refusing a save that left a
+study's ads not carrying the stratum while nothing read it back. Everything
+subtle about it was the cost of treating two independent choices as one:
 
-Two properties are deliberate and easy to "fix" by mistake:
+- It had to be **one-directional**. A read with no thin write was allowed, so
+  that a live study could be switched at all — add the lookup confs first, where
+  they lie dormant, then flip the destination. Refusing both directions would
+  have deadlocked the flip, each conf waiting on the other.
+- It had to fire **only when the counterpart conf already existed**, because the
+  wizard saves Destinations at step four and Data Extraction at step ten, and an
+  unconditional check would have made an encoded study unsaveable before anyone
+  could reach the step that satisfied it.
 
-- **Only the thin-write-with-no-read direction is refused.** A read with no thin
-  write is allowed: confs reading a token no ad emits extract nothing, swoosh
-  skips them, and the respondent is still attributed inline. That asymmetry is
-  what makes switching a live study performable — add the lookup confs first,
-  where they lie dormant, then flip the destination. Refusing both directions
-  would deadlock the flip, each conf waiting on the other.
-- **It fires only when the counterpart conf already exists.** The dashboard
-  wizard saves Destinations at step four and Data Extraction at step ten, so an
-  unconditional check would make an encoded study unsaveable before the
-  researcher could reach the step that satisfies it.
-
-Use `find_study_conf` (`server/db.py`) rather than `get_study_conf` when a
-missing conf is an ordinary answer: the latter raises.
-
-### `ref_mode` is the only setting
-
-`resolved_ref_mode` is `self.ref_mode or "metadata"`: two modes, and an unstated
-one means the conf predates the field, which makes it a thick Messenger one.
-
-There used to be a second field expressing the same thing,
-`include_metadata_in_ref`, plus a third mode `"shortcode"` that it selected —
-a ref carrying neither the stratum nor a token, and so attributing nobody. That
-is not something anyone chooses: a study with no stratification simply has a
-short ref, because `creative_metadata` has nothing to put in it. Both are gone.
-
-Removing them removed a live bug rather than merely tidying. Confs are stored as
-`model_dump()`, which writes defaults, so an encoded Messenger destination was
-stored as `{"ref_mode": "encoded", "include_metadata_in_ref": true}` — and
-reading it back tripped the validator that rejected exactly that pair. The study
-saved cleanly and was unloadable afterwards, stopping its reconciliation. With
-one field there is nothing left to contradict.
-
-Neither field was ever deployed, so nothing stored carries them. The models
-tolerate unknown keys regardless — confs are stored as raw JSON, and a model
-that forbade extras would stop every conf written before any future field
-removal from loading. `test_a_conf_carrying_an_unknown_key_still_parses` pins
-that.
+Two exemptions to make one coupling tolerable. The failure itself is still
+reported, by `thins_its_ref_without_reading_the_mapping` above: unconditionally,
+every reconciliation run, without waiting for anyone to press Save.
 
 ### Validating the mapping conf
 
@@ -409,38 +381,35 @@ that.
 writes and swoosh reads, and validates it at parse time:
 
 - an unknown `mapping` is rejected.
-- `mapping: "ad_table_lookup"` on any location but `"metadata"` is rejected. The
-  token is stamped by fly, not answered by the respondent, so the combination is
-  incoherent — and dangerous, because swoosh reads a lookup conf's `key` as the
-  declaration of where the token lives.
 
-`disagreeing_token_keys` (`study_conf.py`) plus
-`warn_on_disagreeing_token_keys` (`malaria.py`) cover the one thing that cannot
-be checked per conf: every `ad_table_lookup` conf under a source must read the
-token from the same metadata key. It warns rather than raises, because swoosh
-takes the first key it finds and carries on — a raise would make that tolerance
-unreachable and stop ad reconciliation over a miscount.
+That is the whole of it, and `is_ad_table_lookup` is the mapping alone. Location
+and mapping are independent: a lookup on `location: "variable"` is how a web or
+app destination is read back, its token arriving as a field in the researcher's
+own survey.
 
-### Web and App stay on full refs
+Two checks used to live here and are gone. `ad_table_lookup` on a non-metadata
+location was rejected, and `disagreeing_token_keys` (plus
+`warn_on_disagreeing_token_keys` in `malaria.py`) required every lookup conf
+under a source to name the same metadata key. Both existed only because swoosh
+took the first lookup conf's key for the whole source; each conf now reads its
+own token, so there is nothing to agree about and no combination to reject.
 
-Not a category difference — a gap, and it is on the read side.
+### Web and App carry a mode like everything else
 
-Both types do get a ref: `create_creative` builds the same full `make_ref`
-string for them and interpolates it into `url_template` / `deeplink_template`,
-so their ads already carry the stratum inline. What they have no way to do is
-the other mode. An encoded ref is only worth emitting if something can resolve
-the token, and their respondent lands on the researcher's own page — so their
-data returns through a Qualtrics or Typeform source rather than through fly,
-while the lookup resolves out of fly-stamped event metadata only. swoosh's
-`isAdTableLookup` requires `location: "metadata"` and errors loudly on a lookup
-conf declared anywhere else, and the Qualtrics/Typeform form offers no mapping
-dropdown at all. A web destination set to encoded would mint a token that lands
-in a survey field no conf can read.
+They always got a ref — `create_creative` builds the same full `make_ref` string
+and interpolates it into `url_template` / `deeplink_template` — so the only
+question was whether they could carry the other kind. They can:
+`WebDestination` and `AppDestination` are `RefModeDestination`s, and
+`ad_ref_token` mints for them like any other.
 
-Offering both modes here is a real feature, and the read side has to move
-first: `ad_table_lookup` resolving from a survey field on a non-fly source,
-which is the `variable` + `ad_table_lookup` hole
-`documentation/ad-attributions.md` already calls out.
+An encoded web or app ref is the **bare token**, not `r.<payload>`. The packing
+exists so fly's decoder can recover the shortcode alongside the token; these
+have no shortcode, their template already points at the survey, and nothing
+decodes their ref. swoosh compares the extracted value to `ref_token` directly,
+so a packed payload would resolve to nothing.
+
+The read side is an ordinary lookup on a `variable` location — see
+`documentation/ad-attributions.md`.
 
 ### Tests
 

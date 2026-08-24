@@ -100,7 +100,7 @@ merely unattributable.
 | 2 | fly's responses view | Exposes `ad_id` as a first-class column, resolved at `conversation_started`. Captured for monitoring; not joined. |
 | 3 | `sources/fly/main.go` | The token rides `item.Metadata` into `User.Metadata` with no connector change — that is the whole point of "the token is in metadata". `AdID` / `AdNetwork` are still copied across. |
 | 4 | `swoosh/swoosh.go` | `GetAdAttributions` loads the study's mapping — once per run, before `Reduce`. |
-| 5 | `swoosh/inference_data.go` | `retrieveFromMetadata` closes over that mapping and resolves `mapping: "ad_table_lookup"` confs; `adAttributionOutcome` reports the unmappable and nothing else. |
+| 5 | `swoosh/inference_data.go` | `locationReader` reads the raw value, `resolveThroughAdTable` closes over the mapping and turns it into a stratum variable; `adAttributionOutcome` reports the unmappable and nothing else. |
 
 `AdID` and `AdNetwork` are **typed fields on `InferenceDataEvent`**, and remain
 so. The `ref_token` deliberately is **not**: it rides `User.Metadata` under a
@@ -157,10 +157,11 @@ new field, `mapping`, says what to do with the value read:
   `ad_attributions` by `ref_token` and return the stratum variable off the
   frozen row.
 
-`location` is **unchanged** (`metadata` | `variable`). The token lives in
-metadata, so reading it is an ordinary metadata read — which is why `"ad"` was
-never really a location, and why it is now **removed**. Both remaining fields
-are contextual to the mapping:
+`location` is **unchanged** (`metadata` | `variable`), and **independent of the
+mapping**. Location says where to read; mapping says what the value means.
+Neither constrains the other, which is why `"ad"` was never really a location
+and why it is now **removed**. Both remaining fields are contextual to the
+mapping:
 
 ```
 // legacy — the value rides the ref inline
@@ -183,20 +184,35 @@ are contextual to the mapping:
   It is acceptable because you name the output after the stratum variable
   anyway.
 
-A lookup is valid only on `location: "metadata"`. The combination with
-`"variable"` is rejected at config time *and* refused by `getRetrieveFunc`,
-because swoosh reads a lookup conf's `key` as the declaration of where the token
-lives — one stray conf would have every respondent in the study classified
-against the wrong metadata key, and a token that is not there reads as an
-organic arrival, which does not alarm.
+A lookup is valid on **either** location. Where the token is read from is a
+property of the platform the data came from: fly stamps it on the event, while a
+respondent who arrived through a web or app destination brings it back as a
+field in the researcher's own survey.
 
-### The token's metadata key is conf-declared, never hardcoded
+```
+// a web destination's respondent, returning through Typeform
+{location: "variable", key: "ref", mapping: "ad_table_lookup", name: "gender"}
+```
 
-swoosh never assumes the token is at `metadata["vt"]`. The conf's `key` field
-declares where it is; fly stamps `vt` as a convention and the conf says
-`key: "vt"` to match. A platform surfacing the token under a different key just
-declares that key. The only automatic part of the whole mechanism is
-`token -> ad_attributions row -> stratum metadata`.
+`variable` + `ad_table_lookup` used to be rejected at config time *and* refused
+by `getRetrieveFunc`. Not because the join could not work, but because
+`adAttributionOutcome` took the first lookup conf's `key` as a source-wide
+declaration of where the token lived, and read `User.Metadata[key]` directly. A
+`variable` conf would then have had every respondent in the study classified
+against a metadata key that was really a survey field name. That function is
+gone; each conf reads its own token through its own location, and nothing is
+source-wide.
+
+### The token's location is conf-declared, never hardcoded
+
+swoosh never assumes the token is at `metadata["vt"]`, or even that it is in
+metadata. The conf's `location` and `key` declare where it is; fly stamps `vt`
+as a convention and the conf says `metadata` + `key: "vt"` to match. A platform
+surfacing it elsewhere declares that instead. The only automatic part of the
+whole mechanism is `token -> ad_attributions row -> stratum metadata`.
+
+There is no requirement that two lookup confs agree about any of this. Each one
+reads its own token.
 
 **fly owns `vt`.** `getMetadata` deletes `md.vt` unconditionally, before the
 decode branch, exactly as it owns `ad_id`. Without that, a dotted ref like
@@ -246,9 +262,10 @@ combinations.
 Metadata values are JSON, so the token arrives as a quoted JSON string
 (`"a1b2c3d4e5"`) while `ref_token` comes out of a text column bare. Joining the
 raw bytes would miss **every single time**, on a value that looks correct in
-every log line it appears in. `metadataToken` does the unquoting; a value that
-is not a JSON string is treated as no token at all, so it lands in a counter
-someone can see rather than being stringified into a guess.
+every log line it appears in. `refToken` does the unquoting, wherever the value
+was read from; a value that is not a JSON string is treated as no token at all,
+so it lands in a counter someone can see rather than being stringified into a
+guess.
 
 ### Where the database touch lives
 
@@ -439,101 +456,81 @@ second copy held anywhere. The defaults render as ordinary editable rows and are
 replaced wholesale the moment anything is saved, so the stored conf stays the
 whole truth about what swoosh will run.
 
-Defaulted on **fly sources only** — Qualtrics and Typeform carry no ad token, so
-a lookup conf there would silently yield nothing forever — and one token key is
-used throughout, so a default can never create the disagreement
-`disagreeing_token_keys` warns about.
+Defaulted on **fly sources only**, and only because the default has to guess
+where the token is: fly stamps it at `metadata.vt` by convention, so the guess is
+right. Any other source returns it as a field whose name only the researcher
+knows, and a default naming the wrong field is worse than no default. A
+convenience, in other words — not a statement about which source can carry a
+token.
 
 A conf can still be written by hand, which is what a study attributing on a
-variable it did *not* stratify on does. In the same step, a fly source's
-location dropdown offers Metadata and Variable — and choosing **Metadata**
-reveals a second dropdown, the mapping:
+variable it did *not* stratify on does. In the same step, every source's
+location dropdown offers Metadata and Variable, and a second dropdown always
+offers the mapping:
 
 > **Use the value as it is** · **Ad (which ad recruited them)**
 
-Choosing the ad option produces `location: "metadata"`, `mapping:
-"ad_table_lookup"`. The two text fields then mean something different from
-usual, and the form's prompts say so, because getting them backwards is the easy
-mistake:
+Choosing the ad option sets `mapping: "ad_table_lookup"` on whichever location
+is selected. The two text fields then mean something different from usual, and
+the form's prompts say so, because getting them backwards is the easy mistake:
 
 | Field | For a raw read | For an ad lookup |
 |---|---|---|
-| `key` | the metadata key holding the value | the metadata key holding the **token** — usually `vt` |
+| `key` | the key or field holding the value | the key or field holding the **token** — `vt` on fly |
 | `name` | what to call the variable | the **stratum variable** to pull (`creative`, `gender`, `Age`) — which is also what it is called |
 
-There is no response to select in either case, because the value is looked up by
-key rather than found by walking a path into the respondent's answer.
+For a metadata read there is no response to select, because the value is looked
+up by key rather than by walking a path into the respondent's answer.
 
-Switching a conf away from Metadata resets its mapping to raw. Without that, a
-conf could end up `variable` + `ad_table_lookup`, whose `key` swoosh would read
-as a declaration of where the token lives.
+Changing the location leaves the mapping alone. It used to reset it to raw,
+because `variable` + `ad_table_lookup` was invalid; that combination is now how
+a web or app destination is read back.
 
-**The lookup is offered on fly sources only.** The Qualtrics and Typeform
-connectors carry no ad token, so offering it there would let someone configure a
-variable that silently yields nothing forever. The two forms are separate
-modules for that reason: since `location: "ad"` was removed, their *location*
-lists are identical, and what stays per-source is the *mapping*. Qualtrics
-exports an empty `mappingOptions` — exported precisely so a test can assert the
-absence rather than the module merely not mentioning it. The guard is there to
-survive a future refactor that merges the forms.
-
-The seam opens without a structural change: a platform that starts surfacing the
-token adds the option to its own form and declares whichever metadata key it
-arrives under.
+**One form, every source.** There were two modules, and the only thing that
+differed was that Qualtrics/Typeform exported an empty `mappingOptions` so a
+lookup could not be declared there. Which data carries a token is a property of
+the platform rather than something the form can know, so the split has been
+removed along with the second module: `extraction.ts` / `Extraction.tsx` now
+serve fly, Qualtrics and Typeform alike.
 
 Nothing between the form and swoosh constrains `location` or `mapping`: both are
 bare strings in the dashboard's TypeScript and in the Go API's opaque conf
-storage. Python's `ExtractionConf` is the one place that validates them —
-rejecting an unknown mapping, and a lookup on a non-metadata location.
+storage. Python's `ExtractionConf` is the one place that validates them, and it
+validates one thing: that the mapping is known.
 
-### Save-time refusal
+### The two sides save independently
 
-`ref_mode_incoherence` refuses, with a 422 naming **both** sides, a save that
-would leave a study's ads not carrying the stratum while nothing reads it back.
-Being told only the half you are looking at is how someone confidently fixes the
-wrong one.
+What a ref carries (the destination's `ref_mode`) and what reads it back (the
+conf's `mapping`) are one decision each. Neither endpoint consults the other, in
+either order, at any stage of configuration, and there is no order you have to
+switch a live study in.
 
-Only one of the two possible incoherences is refused, and the asymmetry is the
-design:
+There used to be a save-time 422, `ref_mode_incoherence`, refusing an encoded
+destination while nothing read the mapping. Everything subtle about it was the
+cost of treating two independent choices as one: it had to be **conditional** on
+the counterpart conf existing, because the wizard saves Destinations at step four
+of ten and an unconditional check would make an encoded study unsaveable before
+the researcher could reach the step that satisfied it; and it had to be
+**one-directional**, because refusing both ways would deadlock the flip, each
+conf waiting on the other. Two exemptions to make one coupling tolerable.
 
-- **Refused — a thin write with no read.** The ads stop carrying the stratum and
-  nothing looks the token up, so every stratum counts zero and the optimizer
-  reallocates on empty data. Silently, because a respondent with no token is
-  indistinguishable from one who never clicked an ad.
-- **Allowed — a read with no thin write.** Lookup confs reading a token no ad
-  emits extract nothing, and swoosh skips a conf that finds nothing. The
-  respondent is still attributed inline. Nothing is lost.
-
-That asymmetry prescribes the **safe order** for switching a live study: add the
-lookup confs first, where they lie dormant against a thick destination, then
-flip the destination, at which point they become live. Refusing both directions
-would make the flip unperformable in either order, each conf waiting on the
-other; refusing this one turns the 422 into the instruction.
-
-It fires **only when the counterpart conf exists**. Destinations and Data
-Extraction are separate POSTs and the wizard saves Destinations at step four of
-ten, so an unconditional check would make an encoded study unsaveable before the
-researcher could reach the step that satisfies it — a study part way through
-being configured is unfinished, not wrong. The never-configured case stays with
-`thins_its_ref_without_reading_the_mapping`, which warns on every reconciliation
-run and does not wait for anyone to press Save.
+The failure it guarded against is real and is still reported —
+`thins_its_ref_without_reading_the_mapping` warns on every reconciliation run,
+unconditionally, and does not wait for anyone to press Save.
 
 ### Config-time checks
 
-Two, both in `adopt/adopt/study_conf.py`. Note that `location: "ad"` is **not**
-one of them: it was never live in any study, so there is nothing to validate
-away and no migration to guard. It is simply an unknown location now, and gets
-the same error any typo does.
+One, in `adopt/adopt/study_conf.py`. Note that `location: "ad"` is **not**
+validated away: it was never live in any study, so there is nothing to guard. It
+is simply an unknown location now, and gets the same error any typo does.
 
-- **`disagreeing_token_keys`** — all `ad_table_lookup` confs under one source
-  must read the token from the same metadata key. One respondent has one token,
-  in one place; confs on another key attribute nobody, and silently, because a
-  token that is not there looks exactly like an organic arrival. It **warns**
-  rather than raising: swoosh takes the first key it finds and carries on, so a
-  raise here would make that tolerance unreachable and would stop ad
-  reconciliation over a miscount.
 - **`thins_its_ref_without_reading_the_mapping`** — see the half-migration guard
   below.
+
+`disagreeing_token_keys` used to sit here too, requiring every `ad_table_lookup`
+conf under one source to name the same metadata key. It existed only because
+swoosh took the first such conf's key for the whole source. Each conf now reads
+its own token, so there is nothing to agree about.
 
 ## The mapping CSV export
 
@@ -597,7 +594,7 @@ a batch join done afterwards.
 ### The trap: what the ref carries is not what gets frozen
 
 `creative_metadata` returns the **complete** dict regardless of ref mode, and
-`messenger_ref` is the only place the mode is allowed to matter. This separation
+`dotted_ref` is the only place the mode is allowed to matter. This separation
 is load-bearing.
 
 For an encoded study the frozen `ad_attributions` blob is the *only*
@@ -673,27 +670,25 @@ dashboard writes `"encoded"` into every new destination on those channels, so
 in practice a CTWA study that never declares a lookup conf has no attribution
 at all, and should hear about it.
 
-### Web and App stay on full refs
+### Web and App carry a mode like everything else
 
-Not a category difference — a gap, and it is on the read side.
+They always got a ref — `create_creative` builds the same full `make_ref` string
+and interpolates it into `url_template` / `deeplink_template` — so the only
+question was whether they could carry the other kind. They can.
 
-Both types do get a ref: `create_creative` builds the same full `make_ref`
-string for them and interpolates it into `url_template` / `deeplink_template`,
-so their ads already carry the stratum inline. What they cannot do is the other
-mode. Their respondent lands on the researcher's own page, so their data comes
-back through a Qualtrics or Typeform source rather than through fly — and the
-lookup resolves out of fly-stamped event metadata only. `isAdTableLookup`
-requires `location: "metadata"` and errors loudly on a lookup conf declared
-anywhere else, while the Qualtrics/Typeform form offers no mapping dropdown at
-all. A web destination set to encoded would mint a token that lands in a survey
-field no conf can read: ads that attribute nobody, which is what
-`ref_mode_incoherence` exists to refuse.
+An encoded web or app ref is the **bare token**, not `r.<payload>`. The packing
+exists so fly's decoder can recover the shortcode alongside the token; these
+destinations have no shortcode, their template already points at the survey, and
+nothing decodes their ref. swoosh compares the extracted value to `ref_token`
+directly, so a packed payload would resolve to nothing.
 
-Offering both modes there is a real feature, and the read side has to move
-first — `ad_table_lookup` resolving from a survey field on a non-fly source,
-which is the `variable` + `ad_table_lookup` hole described above. Messenger is
-meanwhile where every existing study lives and where the ref actually costs
-something.
+The read side is an ordinary lookup on a `variable` location: the respondent
+lands on the researcher's own page, and the token comes back as a field in
+Typeform or Qualtrics rather than as fly-stamped event metadata.
+
+This was blocked for a while, and the block was self-inflicted rather than
+structural — see "The `mapping` concept" above for the source-wide token key
+that caused it.
 
 ## Ref encoding, and why the creative name mattered most
 
@@ -1012,25 +1007,24 @@ study that opts into ad-id attribution.**
 | Provenance construction | `adopt/adopt/marketing.py` |
 | Instruction plumbing | `adopt/adopt/facebook/{update,reconciliation}.py` |
 | Write path | `adopt/adopt/{malaria,campaign_queries}.py` |
-| Completeness check, mapping validation, token-key agreement | `adopt/adopt/study_conf.py`, `adopt/adopt/malaria.py` |
+| Completeness check, mapping validation | `adopt/adopt/study_conf.py`, `adopt/adopt/malaria.py` |
 | Token minting + the encoded ref | `adopt/adopt/ref_encoding.py`, `adopt/adopt/marketing.py` |
 | Ref decode (fly) | `replybot/lib/typewheels/utils.js`, `replybot/lib/event-normalizer.js` |
 | CSV export | `adopt/adopt/server/csv_export.py`, `adopt/adopt/server/server.py` |
 | WhatsApp destination + ref validation | `adopt/adopt/study_conf.py`, `adopt/adopt/marketing.py` |
-| Ref mode (`ref_mode`) | `adopt/adopt/study_conf.py`, `marketing.{messenger_ref,whatsapp_ref}` |
-| Dashboard form (extraction) | `dashboard/src/pages/StudyConfPage/forms/inferenceData/{flyExtraction,qualtricsExtraction}.ts`, `FlyExtraction.tsx` |
-| Dashboard form (ref mode) | `dashboard/src/pages/StudyConfPage/forms/destinations/{refMode.ts,RefModeField.tsx}`, `{Messenger,WhatsApp,Multi}.tsx` |
+| Ref mode (`ref_mode`) | `adopt/adopt/study_conf.py`, `marketing.{dotted_ref,whatsapp_ref}` |
+| Dashboard form (extraction) | `dashboard/src/pages/StudyConfPage/forms/inferenceData/extraction.ts`, `Extraction.tsx` |
+| Dashboard form (ref mode) | `dashboard/src/pages/StudyConfPage/forms/destinations/{refMode.ts,RefModeField.tsx}`, `{Messenger,WhatsApp,Multi,Web,App}.tsx` |
 | Read-side defaults | `dashboard/src/pages/StudyConfPage/forms/inferenceData/generateLookupConfs.ts` |
 | Ad-attributions surface | `dashboard/src/pages/StudyConfPage/forms/adAttributions/AdAttributions.tsx`, `hooks/useAdAttributions.tsx` |
-| Save-time refusal | `adopt/adopt/study_conf.py` (`ref_mode_incoherence`), `adopt/adopt/server/server.py` |
 | Event fields + network constant | `inference/inference-data/inference_data.go` |
 | Connector | `inference/sources/fly/main.go` |
 | Mapping load | `inference/swoosh/ad_attributions.go` |
-| Extraction + three-way split | `inference/swoosh/inference_data.go` |
+| Extraction + outcome reporting | `inference/swoosh/inference_data.go` |
 | Event routing / severity | `inference/swoosh/events.go` |
 | Python tests (need `make test-db`) | `adopt/adopt/test_ad_attributions.py`, `adopt/adopt/test_marketing.py`, `adopt/adopt/facebook/test_reconciliation.py`, `adopt/adopt/test_study_conf.py`, `adopt/adopt/server/test_ad_attributions_csv.py` |
 | Go tests (need `make test-db`) | `inference/swoosh/ad_attributions_test.go`, `inference/sources/fly/main_test.go` |
-| Frontend tests | `dashboard/src/pages/StudyConfPage/forms/inferenceData/{flyExtraction,generateLookupConfs}.test.ts`, `forms/destinations/{refMode.test.ts,Messenger.test.tsx}` |
+| Frontend tests | `dashboard/src/pages/StudyConfPage/forms/inferenceData/{extraction,generateLookupConfs}.test.ts`, `forms/destinations/{refMode.test.ts,Messenger.test.tsx}` |
 
 Per-app detail: `adopt/README.md`, `inference/README.md` and
 `dashboard/README.md`.

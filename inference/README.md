@@ -203,18 +203,18 @@ from the counts.
 
 ### The token is unquoted before joining
 
-Metadata values are JSON, so the token arrives as a quoted JSON string
+Extracted values are JSON, so the token arrives as a quoted JSON string
 (`"a1b2c3d4e5"`) while `ad_attributions.ref_token` is scanned out of a text
 column bare. Joining the raw bytes would miss every single time, on a value that
-looks correct in every log line it appears in. `metadataToken`
-(`swoosh/inference_data.go`) does the unquoting; a value that is not a JSON
-string is treated as no token at all.
+looks correct in every log line it appears in. `refToken`
+(`swoosh/inference_data.go`) does the unquoting, wherever the value was read
+from; a value that is not a JSON string is treated as no token at all.
 
 ### Where the database touch lives
 
 `GetAdAttributions` (`swoosh/ad_attributions.go`) runs once per study in
 `swooshStudy`, before `Reduce`. `Reduce` takes the mapping as plain data and
-`retrieveFromMetadata` closes over it. This is deliberate: `RetrieveFunc` has no
+`resolveThroughAdTable` closes over it. This is deliberate: `RetrieveFunc` has no
 context and no error and runs once per event per conf, so a query inside it
 would be one query per response. The load is also per-study, so a foreign
 study's token misses the lookup rather than importing that study's strata —
@@ -238,9 +238,10 @@ event: could this respondent be attributed, and should they have been.
 | no ad provenance | no token on the event | expected; **no event at all** |
 | unmapped | token present, no mapping row | always a bug; counted at severity `error` |
 
-Classification happens once per *event*, not per conf, so one miss is not
-multiplied by the number of lookup confs a study declares (see
-`tokenLookupKey`). `classifyExtractionError` (`swoosh/events.go`) maps
+Reported once per *event*, not per conf: each lookup conf is asked where its own
+token is, and the first unresolved one ends the search, so one miss is not
+multiplied by the number of lookup confs a study declares.
+`classifyExtractionError` (`swoosh/events.go`) maps
 `unmapped` to `error` severity, alongside the existing `source=`-prefixed
 warnings. Its details name the mechanism (`ref_token`) and the key it read, so a
 miss is diagnosable from the row.
@@ -261,12 +262,25 @@ Unmapped is self-healing: swoosh recomputes everything each run, so inserting
 the missing `ad_attributions` row retroactively fixes prior runs, and the
 dashboard's recency window ages the stale error out on its own.
 
-`tokenLookupKey` takes the *first* lookup conf's key when a source declares
-several. All of them are supposed to agree — one respondent has one token in one
-place — and adopt's `disagreeing_token_keys` warns at config time when they do
-not. swoosh guesses rather than refusing because it recomputes whole studies
-unattended, and refusing to classify would cost a study its counts over a conf
-problem no run can fix from the inside.
+### Location and mapping are independent
+
+`locationReader` reads a raw value and knows nothing about what it means;
+`resolveThroughAdTable` turns a read value into a token, a row and a stratum
+variable, and knows nothing about where it came from. `getRetrieveFunc` composes
+them. So `isAdTableLookup` is the mapping alone, and a lookup works on either
+location — which is how a respondent recruited by a web or app destination is
+attributed, their token arriving as a field in the researcher's own survey
+rather than as fly-stamped event metadata.
+
+This used to be tangled, and the tangle started in `adAttributionOutcome`. It
+called `tokenLookupKey`, which took the *first* lookup conf's key for the whole
+source and read `User.Metadata[key]` directly, bypassing each conf's location.
+That made "the token lives at `metadata.<key>`" a fact about the source rather
+than about the conf, which forced `isAdTableLookup` to require the metadata
+location, forced `getRetrieveFunc` to error on `variable` + lookup, and made
+adopt enforce one token key per source (`disagreeing_token_keys`). All four are
+gone. Each conf reads its own token, and two lookup confs under one source need
+not agree about anything.
 
 ### Tests
 

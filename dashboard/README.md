@@ -98,9 +98,9 @@ The extraction-conf forms under
 `src/pages/StudyConfPage/forms/inferenceData/` follow the same split as the
 existing `forms/variables/extract.ts`: a pure module with no React
 dependencies, testable in isolation, plus a thin component that just wires
-that module's helpers to `Select`/`TextInput` fields. `flyExtraction.ts` and
-`qualtricsExtraction.ts` are the pure modules; `FlyExtraction.tsx` and
-`QualtricsExtraction.tsx` are the components that consume them.
+that module's helpers to `Select`/`TextInput` fields. `extraction.ts` is the
+pure module and `Extraction.tsx` the component that consumes it — one of each,
+serving fly, Qualtrics and Typeform alike.
 
 An extraction conf says where to find one variable's value in two parts.
 `location` says **where to read**: `variable` (walk a path into the
@@ -129,57 +129,55 @@ so, because getting them backwards is the easy mistake:
 
 | Field | Raw read | Ad lookup |
 |---|---|---|
-| `key` | the metadata key holding the value | the metadata key holding the **token** — usually `vt` |
+| `key` | the key or field holding the value | the key or field holding the **token** — `vt` on fly |
 | `name` | what to call the variable | the **stratum variable** to pull (`creative`, `gender`, `Age`), which is also what it is called |
 
-`applyChange` resets `mapping` to raw when the location moves away from
-metadata. Without that a conf could end up `variable` + `ad_table_lookup`, which
-is rejected at config time — and worse, its `key` would be read by swoosh as a
-declaration of where the token lives, misclassifying every respondent in the
-study.
+`applyChange` leaves `mapping` alone when the location changes. It used to reset
+it to raw, because `variable` + `ad_table_lookup` was invalid; that combination
+is now how a web or app destination is read back — its respondent lands on the
+researcher's own page, so the token returns as a survey field rather than as
+fly-stamped event metadata.
 
-The fly and Qualtrics/Typeform modules are deliberately separate and must stay
-that way. Now that `location: "ad"` is gone their *location* lists are
-identical; what is fly-only is the **mapping**. A lookup joins on the ad token
-and only the fly connector carries one, so offering it on a Qualtrics or
-Typeform source would let a user configure a variable that silently yields
-nothing forever. `qualtricsExtraction.ts` exports an empty `mappingOptions` —
-exported precisely so `flyExtraction.test.ts` can assert the absence rather than
-the module merely not mentioning it, which is what stops a future merge of the
-two forms from reintroducing it.
+**Location and mapping are independent, and so is the form from the source.**
+There were two modules, and the only difference was that Qualtrics/Typeform
+exported an empty `mappingOptions` so a lookup could not be declared there.
+Which data carries a token is a property of the platform, not something a form
+can know, so both the split and the second module are gone.
 
-`generateLookupConfs.ts` is the third pure module here. It supplies what a
+`generateLookupConfs.ts` is the other pure module here. It supplies what a
 source starts with when nothing is saved for it: for a fly source, one
 `ad_table_lookup` conf per variable declared in Variables, instead of the single
 blank row. Purely a default, consumed by `InferenceData.tsx` where it already
 builds `initialState` — a source with saved confs shows those, a source without
-shows these, and nothing merges the two.
+shows these, and nothing merges the two. Fly only, because the default has to
+guess the token's key and `vt` is right only there; not a claim about which
+source can carry one.
 
 See `documentation/ad-attributions.md` for the join this feeds.
 
 Tests:
-`src/pages/StudyConfPage/forms/inferenceData/{flyExtraction,generateLookupConfs}.test.ts`,
+`src/pages/StudyConfPage/forms/inferenceData/{extraction,generateLookupConfs}.test.ts`,
 run with `npm test`.
 
 ## Destination forms and the ref mode
 
 `src/pages/StudyConfPage/forms/destinations/refMode.ts` is the pure module
-behind `RefModeField.tsx`, which the Messenger, WhatsApp and multi forms all
-render — one control rather than three copies, because the whole point of the
-encoded default is that a multi-channel study attributes exactly one way.
+behind `RefModeField.tsx`, which every destination form renders — one control
+rather than a copy each, because the whole point of the encoded default is that
+a multi-channel study attributes exactly one way.
 
 Two modes are offered, labelled by consequence rather than mechanism (the word
 `ref_mode` never appears on screen): a clean link whose stratum is looked up
-afterwards (`encoded`, the default everywhere), and stratum values inline in the
-link (`metadata`, Messenger-only). adopt's third mode, `shortcode`, is absent
-from this module entirely rather than filtered out — no production conf resolves
-to it, so code mentioning it would defend an empty set.
+afterwards (`encoded`, the default), and stratum values inline in the link
+(`metadata`). There is no third: a ref either carries the stratum or carries a
+token that resolves to it, and "carry neither" attributes nobody.
 
-`isPureMessengerStudy` judges the inline option across the whole destination
-list, not per destination, so the Messenger arm of a WhatsApp study cannot take
-it. That is also why `refModeOptions` does not check this destination's own type
-— the destination is in the list, so a pure-Messenger study implies it is a
-Messenger one.
+`refModeOptions` takes no arguments, and the signature is the point. It used to
+take the study's whole destination list so that the inline option could be
+withheld from anything but a pure-Messenger study — a form reasoning about other
+destinations to decide what one destination may do. What a ref carries is a
+property of the ref; the channel does not remove a mode, and whether anything
+reads the token back is configured independently in Data Extraction.
 
 **The one rule to preserve when editing these forms:** the encoded default is a
 *new-conf* affordance and must never be written onto a conf that arrived without
