@@ -16,6 +16,7 @@ import {
   StudyConfData,
   SingleStudyConf,
   StudySegmentsProgressApiResponse,
+  AdAttributionsApiResponse,
   CurrentDataApiResponse,
   StudyErrorsApiResponse,
   RecruitmentStatsApiResponse,
@@ -671,6 +672,24 @@ export const fetchStudyErrors = ({
   });
 };
 
+export const fetchAdAttributions = ({
+  studySlug,
+  accessToken,
+  defaultErrorMessage = 'Could not fetch ad attributions',
+}: {
+  studySlug: string;
+  accessToken: string;
+  defaultErrorMessage?: string;
+}) => {
+  const path = `/${orgPrefix()}/studies/${studySlug}/ad-attributions`;
+
+  return apiRequest<AdAttributionsApiResponse>(path, {
+    accessToken,
+    defaultErrorMessage,
+    baseURL: process.env.REACT_APP_CONF_SERVER_URL,
+  });
+};
+
 const fetchStudyRecruitmentStats = ({
   slug,
   accessToken,
@@ -707,5 +726,6 @@ export const authenticatedApiCalls = {
   copyConfs,
   fetchCurrentData,
   fetchStudyErrors,
+  fetchAdAttributions,
   fetchStudyRecruitmentStats,
 };

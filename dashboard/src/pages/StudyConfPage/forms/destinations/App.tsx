@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Path } from 'react-hook-form';
 import { GenericTextInput, TextInputI } from '../../components/TextInput';
+import RefModeField from './RefModeField';
 import { createLabelFor } from '../../../../helpers/strings';
 import user_devices from '../../../../fixtures/destinations/user_devices';
 import user_os from '../../../../fixtures/destinations/user_os';
@@ -66,9 +67,11 @@ interface Props {
   data: FormData;
   updateFormData: (e: any, index: number) => void;
   index: number;
+  // This destination as saved, absent for one being added now.
+  savedDestination?: any;
 }
 
-const App: React.FC<Props> = ({ data, updateFormData, index }: Props) => {
+const App: React.FC<Props> = ({ data, updateFormData, index, savedDestination }: Props) => {
   const handleChange = (e: any) => {
     const { name, value } = e.target;
     updateFormData({ ...data, [name]: value }, index);
@@ -122,6 +125,7 @@ const App: React.FC<Props> = ({ data, updateFormData, index }: Props) => {
         handleMultiSelectChange={handleMultiSelectChange}
         value={data.user_os}
       ></MultiSelect>
+      <RefModeField data={data} handleChange={handleChange} saved={savedDestination} />
     </>
   );
 };

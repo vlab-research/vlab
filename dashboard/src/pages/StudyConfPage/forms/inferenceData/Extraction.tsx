@@ -9,16 +9,16 @@ import {
   locationOptions,
   mappingOptions,
   namePrompt,
+  responseOptions,
   responsePrompt,
-  showsMapping,
-} from './flyExtraction';
+} from './extraction';
 
 
-interface FlyExtractionForm extends FormData {
+interface ExtractionForm extends FormData {
   response: string;
 }
-const TextInput = GenericTextInput as TextInputI<FlyExtractionForm>;
-const Select = GenericSelect as SelectI<FlyExtractionForm>;
+const TextInput = GenericTextInput as TextInputI<ExtractionForm>;
+const Select = GenericSelect as SelectI<ExtractionForm>;
 
 
 interface Props {
@@ -26,25 +26,28 @@ interface Props {
   update: (e: any, index: number) => void;
   index: number;
   nameOptions: string[];
+  source: string;
 }
 
-const FlyExtraction: React.FC<Props> = ({ data, nameOptions: names, update: updateFormData, index }: Props) => {
-
+// One control for every source. Location says where to read and mapping says
+// what the value means, and neither depends on the connector, so a Typeform
+// source declares an ad lookup exactly as a fly source does — it just names the
+// field its token comes back in rather than a metadata key.
+const Extraction: React.FC<Props> = ({ data, nameOptions: names, update: updateFormData, index, source }: Props) => {
 
   const handleChange = (e: any) => {
     const { name, value } = e.target;
     updateFormData(applyChange(data, name, value), index);
   };
 
-  // `metadata` is a keyed lookup under either mapping, so it has no response
+  // `metadata` is a keyed read under either mapping, so it has no response
   // path to select. Expressed as one concept rather than scattered checks.
   const isKeyed = isKeyedLocation(data.location);
   const response = data?.functions[0]?.params.path || "";
 
-  const responseOptions = [
+  const responses = [
     { name: '', label: responsePrompt(data.location) },
-    { name: 'response', label: 'Response' },
-    { name: 'translated_response', label: 'Translated Response' },
+    ...responseOptions(source),
   ]
 
   const nameOptions = [
@@ -66,14 +69,12 @@ const FlyExtraction: React.FC<Props> = ({ data, nameOptions: names, update: upda
         options={locationOptions}
         value={data.location}
       />
-      {showsMapping(data.location) && (
-        <Select
-          name="mapping"
-          handleChange={handleChange}
-          options={mappingOptions}
-          value={data.mapping || 'raw'}
-        />
-      )}
+      <Select
+        name="mapping"
+        handleChange={handleChange}
+        options={mappingOptions}
+        value={data.mapping || 'raw'}
+      />
       <TextInput
         name="key"
         handleChange={handleChange}
@@ -83,7 +84,7 @@ const FlyExtraction: React.FC<Props> = ({ data, nameOptions: names, update: upda
       <Select
         name="response"
         handleChange={handleChange}
-        options={responseOptions}
+        options={responses}
         value={response}
         disabled={isKeyed}
         required={!isKeyed}
@@ -92,4 +93,4 @@ const FlyExtraction: React.FC<Props> = ({ data, nameOptions: names, update: upda
   );
 };
 
-export default FlyExtraction;
+export default Extraction;

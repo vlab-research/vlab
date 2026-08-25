@@ -200,6 +200,17 @@ export interface StudyErrorsApiResponse {
   errors: StudyError[];
 }
 
+// The study's ad -> stratum mapping, rendered as a table by adopt's
+// csv_export from the same definition the CSV file is written from — so the
+// table and a file saved seconds later cannot disagree about the columns.
+export interface AdAttributionsTable {
+  columns: string[];
+  rows: Record<string, string>[];
+}
+
+export interface AdAttributionsApiResponse
+  extends ApiResponse<AdAttributionsTable> {}
+
 export interface RecruitmentStatsRow {
   spend: number;
   frequency: number;

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { GenericTextInput, TextInputI } from '../../components/TextInput';
+import RefModeField from './RefModeField';
 import { Multi as FormData } from '../../../../types/conf';
 import { metadataToText, parseAdditionalMetadata } from './additionalMetadata';
 
@@ -9,6 +10,8 @@ interface Props {
   data: FormData;
   updateFormData: (e: any, index: number) => void;
   index: number;
+  // This destination as saved, absent for one being added now.
+  savedDestination?: any;
 }
 
 // One ad that opens either Messenger or WhatsApp, Meta choosing per respondent
@@ -22,7 +25,7 @@ interface Props {
 //  - Meta assigns the channel, so this cannot be used to *compare* channels.
 //    A study that wants that needs two single-destination destinations in a
 //    destination experiment instead.
-const Multi: React.FC<Props> = ({ data, updateFormData, index }: Props) => {
+const Multi: React.FC<Props> = ({ data, updateFormData, index, savedDestination }: Props) => {
   const handleChange = (e: any) => {
     const { name, value } = e.target;
     updateFormData({ ...data, [name]: value }, index);
@@ -96,6 +99,7 @@ const Multi: React.FC<Props> = ({ data, updateFormData, index }: Props) => {
         required={false}
         value={metadata}
       />
+      <RefModeField data={data} handleChange={handleChange} saved={savedDestination} />
     </>
   );
 };

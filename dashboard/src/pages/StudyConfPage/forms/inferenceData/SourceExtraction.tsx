@@ -1,6 +1,4 @@
-import FlyExtraction from './FlyExtraction';
-import QualtricsExtraction from './QualtricsExtraction';
-import ErrorPlaceholder from '../../../../components/ErrorPlaceholder';
+import Extraction from './Extraction';
 import {
   DataSource as DataSourceType,
   SourceExtraction as SourceExtractionType,
@@ -8,6 +6,7 @@ import {
 } from '../../../../types/conf';
 import { GenericTextInput, TextInputI } from '../../components/TextInput';
 import { GenericListFactory } from '../../components/GenericList';
+import { blankConf } from './generateLookupConfs';
 
 const ExtractionList = GenericListFactory<ExtractionType>();
 const TextInput = GenericTextInput as TextInputI<SourceExtractionType>;
@@ -21,15 +20,10 @@ interface Props {
   setData: (s: string, a: SourceExtractionType) => void;
 }
 
+// One component for every source. Location says where to read and mapping says
+// what the value means, and neither is a property of the connector, so all a
+// source decides is which response values its payload offers.
 const SourceExtraction: React.FC<Props> = ({ source, dataSource, setData, nameOptions, data, multipleSources }) => {
-  const initialState: ExtractionType[] = [{
-    name: '',
-    location: '',
-    key: '',
-    functions: [],
-    aggregate: '',
-    value_type: ''
-  }]
 
   const handleUserVariableChange = (e: any) => {
     const user: string = e.target.value;
@@ -38,24 +32,6 @@ const SourceExtraction: React.FC<Props> = ({ source, dataSource, setData, nameOp
 
   const handleExtractionChange = (a: ExtractionType[]) => {
     setData(source, { ...data, extraction_confs: a })
-  }
-
-  const lookup = {
-    fly: FlyExtraction,
-    qualtrics: QualtricsExtraction,
-    typeform: QualtricsExtraction,
-  }
-  type sourceType = "fly" | "qualtrics"
-  const Element = lookup[dataSource.source as sourceType]
-
-  if (!Element) {
-    return (
-      <ErrorPlaceholder
-        showImage={true}
-        message={`Oops! We are missing a config for the source type: ${dataSource.source}`}
-        onClickTryAgain={() => window.location.reload()}
-      />
-    )
   }
 
   return (
@@ -74,12 +50,12 @@ const SourceExtraction: React.FC<Props> = ({ source, dataSource, setData, nameOp
         />}
       <div className="ml-8">
         <ExtractionList
-          Element={Element}
+          Element={Extraction}
           elementName="variable to extract"
-          elementProps={{ nameOptions: nameOptions }}
+          elementProps={{ nameOptions: nameOptions, source: dataSource.source }}
           data={data.extraction_confs}
           setData={handleExtractionChange}
-          initialState={initialState}
+          initialState={[blankConf()]}
         />
       </div>
 

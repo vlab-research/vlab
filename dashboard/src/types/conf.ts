@@ -58,6 +58,14 @@ export interface PipelineExperiment {
   efficiency_weight?: number;
 }
 
+// What a destination's ad ref carries: the stratum inline ("metadata"), or an
+// opaque token the ad-attributions export resolves back to it ("encoded").
+//
+// Optional on every type, and meaningfully so: absent means the conf predates
+// the field and resolves to the behaviour it already has. Nothing writes a
+// default onto such a conf — see forms/destinations/refMode.ts.
+export type RefMode = 'metadata' | 'encoded';
+
 export interface Messenger {
   type: string;
   name: string;
@@ -65,13 +73,14 @@ export interface Messenger {
   welcome_message: string;
   button_text: string;
   additional_metadata: Record<string, string> | null;
+  ref_mode?: RefMode;
 }
 
 export interface Web {
   type: string;
   name: string;
   url_template: string;
-
+  ref_mode?: RefMode;
 }
 export interface App {
   type: string;
@@ -82,17 +91,12 @@ export interface App {
   deeplink_template: string;
   user_device: string[];
   user_os: string[];
+  ref_mode?: RefMode;
 }
 
 // A click-to-WhatsApp destination. Shaped after Messenger, minus button_text
 // (WhatsApp has no quick-reply button — the respondent gets a prefilled compose
 // box) and plus the number the ad's clicks land on.
-//
-// include_metadata_in_ref is deliberately absent from the form. It defaults off
-// in adopt, the autofill text is visible and editable by the respondent, and
-// turning it on can make a study's refs unparseable by fly — which fails
-// closed at config-save time rather than in the UI. Ship it as a form field
-// only once there is a reason to.
 export interface WhatsApp {
   type: string;
   name: string;
@@ -100,6 +104,7 @@ export interface WhatsApp {
   welcome_message: string;
   whatsapp_phone_number: string;
   additional_metadata: Record<string, string> | null;
+  ref_mode?: RefMode;
 }
 
 // One ad that opens either Messenger or WhatsApp, Meta choosing per respondent.
@@ -117,6 +122,7 @@ export interface Multi {
   button_text: string;
   whatsapp_phone_number: string;
   additional_metadata: Record<string, string> | null;
+  ref_mode?: RefMode;
 }
 
 export type Destination = Messenger | Web | App | WhatsApp | Multi;
