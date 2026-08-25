@@ -33,7 +33,7 @@ from ..study_conf import (
     VariableConf,
 )
 from .auth import AuthError, generate_api_token, verify_tokens
-from .csv_export import ad_attributions_csv
+from .csv_export import ad_attributions_csv, ad_attributions_table
 from .db import (
     copy_confs,
     create_study_conf,
@@ -282,6 +282,23 @@ async def get_ad_attributions_csv(
             "Content-Disposition": f'attachment; filename="{slug}-ad-attributions.csv"'
         },
     )
+
+
+@app.get("/{org_id}/studies/{slug}/ad-attributions")
+async def get_ad_attributions_json(
+    org_id: str,
+    slug: str,
+    user: Annotated[User, Depends(get_current_user)],
+):
+    """The same mapping as a table, for the dashboard's Ad Attributions step.
+
+    Columns and cells come from the same definition the CSV is written from, so
+    the table and a file downloaded seconds later cannot show different shapes.
+    """
+    study_id = get_study_id(user.user_id, org_id, slug)
+    rows = get_ad_attributions(study_id, db_cnf)
+
+    return {"data": ad_attributions_table(rows)}
 
 
 def run_study_opt(user_id: str, org_id: str, slug: str) -> Sequence[Instruction]:

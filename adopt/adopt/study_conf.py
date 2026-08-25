@@ -35,8 +35,8 @@ MAPPINGS = (MAPPING_RAW, MAPPING_AD_TABLE_LOOKUP)
 class ExtractionConf(BaseModel):
     """One declared variable: where to read it, and what to do with what is read.
 
-    `location` says where to read -- "metadata" or "variable". `mapping` says
-    what the read value means:
+    `location` says where to read -- "metadata" or "variable" -- and nothing
+    about what the value means. `mapping` says what the value read means:
 
         "raw"             the value read IS the answer. The default, and what
                           every conf written before this field existed means.
@@ -49,7 +49,10 @@ class ExtractionConf(BaseModel):
 
         key   WHERE TO READ. For "raw" it addresses the value; for a lookup it
               addresses the token. Never hardcoded -- fly stamps the token at
-              metadata.vt by convention and the conf says key: "vt" to match.
+              metadata.vt by convention and the conf says location "metadata",
+              key "vt" to match. A respondent recruited by a web or app
+              destination brings the token back as a survey field instead, so
+              a lookup reads from either location.
         name  the output variable name and, for a lookup, ALSO the key into the
               frozen row (which stratum variable to pull). It does double duty
               because you name the output after the stratum variable anyway.
@@ -72,39 +75,10 @@ class ExtractionConf(BaseModel):
             )
         return self
 
-    @model_validator(mode="after")
-    def a_lookup_reads_the_token_from_metadata(self):
-        """A lookup is only coherent on a metadata read.
-
-        The token is something fly stamps on the event, not something the
-        respondent answered, so `location: "variable"` with this mapping cannot
-        mean anything. Rejected rather than ignored because of what `key` would
-        then be taken for: swoosh reads the key of a lookup conf as the
-        declaration of WHERE THE TOKEN LIVES, and picks the first such conf to
-        classify the whole source. One stray conf would therefore have every
-        respondent in the study checked against the wrong metadata key -- and
-        finding no token reads as an organic arrival, which does not alarm.
-        """
-        if self.mapping == MAPPING_AD_TABLE_LOOKUP and self.location != "metadata":
-            raise ValueError(
-                f"Extraction conf '{self.name}' declares mapping: "
-                f'"{MAPPING_AD_TABLE_LOOKUP}" on location: "{self.location}". '
-                "The ad token is stamped in the event's metadata, so a lookup "
-                'is only valid on location: "metadata".'
-            )
-        return self
-
     @property
     def is_ad_table_lookup(self) -> bool:
-        """Whether this conf resolves through the ad table.
-
-        Checks the location as well as the mapping. The validator above makes
-        the incoherent combination unconstructible, so this is belt and braces
-        -- but it is the property everything else branches on, including which
-        conf declares the token's key, so it is worth it being true by
-        construction rather than by trusting the validator ran.
-        """
-        return self.mapping == MAPPING_AD_TABLE_LOOKUP and self.location == "metadata"
+        """Whether this conf resolves through the ad table."""
+        return self.mapping == MAPPING_AD_TABLE_LOOKUP
 
 
 class SourceExtractionConf(BaseModel):
@@ -135,99 +109,51 @@ class QuestionTargeting(BaseModel):
     vars: List[Union[TargetVar, QuestionTargeting]]  # type: ignore
 
 
-# How a fly destination serialises its ad's routing token. Three modes, and a
-# destination is in exactly one of them.
+# What a destination's ad ref carries. A ref either carries the stratum or it
+# carries a token that resolves to it.
 #
-#   "metadata"  the historical dotted ref: `creative.<name>.<k>.<v>...`. Carries
-#               the study's whole stratum vocabulary into fly on every message.
-#   "shortcode" `form.<shortcode>`. Routes and nothing else; attribution comes
-#               from the frozen ad_attributions row, joined on ad_id.
-#   "encoded"   `r.<base64url(v1|len|shortcode|token)>`. Routes AND carries an
-#               opaque join key, so attribution does not depend on Meta sending
-#               a referral -- which it does for only ~31% of Messenger ad
-#               entrants (documentation/recruitment-arrival-health.md).
+#   "metadata"  the dotted ref: `creative.<name>.<k>.<v>...`. The stratum rides
+#               inline, so the survey platform gets the study's whole stratum
+#               vocabulary in every message. A study with no stratification
+#               simply has a short ref, because creative_metadata has nothing to
+#               put in it.
+#   "encoded"   an opaque token that resolves to the frozen ad_attributions row.
+#               On a destination with a shortcode the token travels inside
+#               `r.<base64url(v1|len|shortcode|token)>`, which routes as well as
+#               attributes; on one without, it is the bare token.
 #
-# "encoded" exists because "shortcode" is only as good as ad_id coverage, and on
-# Messenger that coverage is a property of Meta's webhook behaviour rather than
-# anything vlab can fix. The token rides a carrier vlab authors -- the
-# quick-reply payload and the WhatsApp autofill -- so it reaches everyone.
-RefMode = Literal["metadata", "shortcode", "encoded"]
+# The two are independent of `ExtractionConf.mapping`, the read side. Neither
+# validates, gates or reads the other: this side knows nothing about channels or
+# sources, that side knows nothing about which platform can carry a token, and
+# the two confs are POSTed to separate endpoints and each saves on its own
+# terms, in any order.
+RefMode = Literal["metadata", "encoded"]
 
 
 class RefModeDestination(BaseModel):
-    """Shared ref-mode resolution for the three fly destination types.
+    """A destination, and what its ad's ref carries.
 
-    A mixin rather than three copies because the modes must not drift: every
-    consumer -- marketing, the half-migration guard, reconciliation -- asks
-    `resolved_ref_mode`, and a destination type that answered differently would
-    be a silent routing difference between channels.
+    Every destination type is one -- messenger, whatsapp, multi, web and app.
+    What a ref carries is a property of the ref, not of the channel carrying it,
+    so `ad_ref_token` and `thins_its_ref_without_reading_the_mapping` ask
+    `resolved_ref_mode` of any destination with no type check.
 
-    `include_metadata_in_ref` stays on the subclasses, because its *default*
-    differs per channel (Messenger True, WhatsApp and multi False) and that
-    difference is deliberate.
+    Unknown keys are tolerated, which is pydantic's default and is relied on
+    here: confs are stored as raw JSON and read back through the model, so
+    forbidding extras would stop every conf written before any future field
+    removal from loading, and halt that study's reconciliation.
     """
 
-    # Declared here without a default, and given one by each subclass. That is
-    # what makes `resolved_ref_mode` type-check: the property reads this field,
-    # so the class that defines the property has to promise it exists. The
-    # *default* still belongs to the subclasses, because it differs per channel
-    # (Messenger True, WhatsApp and multi False) and that difference is
-    # deliberate.
-    include_metadata_in_ref: bool
-
-    # None means "not stated" -- resolve from the legacy boolean, which is what
-    # every existing conf in the database carries. Making this Optional rather
-    # than defaulting it to a mode is what keeps the migration free: an untouched
-    # conf resolves to exactly the behaviour it has today, per channel, without
-    # anyone rewriting stored JSON.
+    # None means "not stated". Optional rather than defaulted to a mode is what
+    # keeps the migration free: a conf that states no mode resolves to exactly
+    # the behaviour it has today, and no stored JSON is rewritten. One field
+    # means there is nothing for a second field to contradict.
     ref_mode: Optional[RefMode] = None
 
     @property
     def resolved_ref_mode(self) -> str:
-        """The mode this destination actually serialises under.
-
-        The single source of truth. Nothing outside this class should read
-        `include_metadata_in_ref` -- it cannot express "encoded", so a consumer
-        branching on it would treat an encoded destination as a full-ref one and
-        emit the dotted grammar instead.
-        """
-        if self.ref_mode is not None:
-            return self.ref_mode
-
-        return "metadata" if self.include_metadata_in_ref else "shortcode"
-
-    @model_validator(mode="after")
-    def ref_mode_must_not_contradict_the_legacy_flag(self):
-        """Reject a conf that sets both fields to incompatible things.
-
-        Only when `include_metadata_in_ref` was *explicitly* given: its default
-        differs per channel, so treating the default as a statement would make
-        `ref_mode: "encoded"` an error on Messenger (default True) and fine on
-        WhatsApp (default False), which is incoherent.
-
-        Raising rather than picking a winner. Both fields are hand-written by a
-        researcher and they disagree about what the ad emits -- silently
-        honouring one would publish ads in a mode nobody asked for, and the cost
-        of a wrong ref is respondents in the wrong survey.
-        """
-        if self.ref_mode is None:
-            return self
-
-        if "include_metadata_in_ref" not in self.model_fields_set:
-            return self
-
-        implied = "metadata" if self.include_metadata_in_ref else "shortcode"
-
-        if implied != self.ref_mode:
-            raise InvalidConfigError(
-                f"Destination '{self.name}' sets ref_mode='{self.ref_mode}' and "
-                f"include_metadata_in_ref={self.include_metadata_in_ref}, which "
-                f"imply '{self.ref_mode}' and '{implied}'. They are the same "
-                "setting expressed two ways; set ref_mode alone (it is the one "
-                "that can express 'encoded') and drop include_metadata_in_ref."
-            )
-
-        return self
+        """The mode this destination actually serialises under."""
+        return self.ref_mode or "metadata"
 
 
 class FlyMessengerDestination(RefModeDestination):
@@ -238,31 +164,14 @@ class FlyMessengerDestination(RefModeDestination):
     button_text: str
     additional_metadata: Optional[dict[str, str]] = None
 
-    # Whether the ad's ref carries the full stratum metadata or only the
-    # shortcode. Named to match FlyWhatsAppDestination's field: it is one
-    # concept, and the two channels differ only in their default.
-    #
-    # Defaults True, the historical behaviour, because every existing study
-    # depends on it — and because turning it off changes the *creative*, which
-    # makes reconciliation rewrite that study's ads on its next run.
-    #
-    # Turning it off is the point of the whole ad-id design. It stops vlab
-    # shipping its stratum vocabulary into fly inside every message and leaves
-    # the ref doing only the job it cannot delegate: routing. Attribution then
-    # comes from the frozen ad_attributions row instead, so this is only safe
-    # for a study whose inference_data conf reads `location: "ad"`.
-    #
-    # This flag must never reach creative_metadata — see create_creative.
-    include_metadata_in_ref: bool = True
 
-
-class WebDestination(BaseModel):
+class WebDestination(RefModeDestination):
     type: str
     name: str
     url_template: str  # create variables, like ref, which can be used.
 
 
-class AppDestination(BaseModel):
+class AppDestination(RefModeDestination):
     type: str
     name: str
     facebook_app_id: str
@@ -422,9 +331,8 @@ def whatsapp_phone_number_valid(value: str) -> bool:
 class FlyWhatsAppDestination(RefModeDestination):
     """A click-to-WhatsApp destination.
 
-    Shaped after FlyMessengerDestination, minus `button_text` (WhatsApp has no
-    quick-reply button; the respondent gets a prefilled compose box) and plus
-    `include_metadata_in_ref`.
+    Shaped after FlyMessengerDestination, minus `button_text`: WhatsApp has no
+    quick-reply button, so the respondent gets a prefilled compose box.
 
     `type` is a Literal, unlike its siblings, because this model's required
     fields are a strict subset of FlyMessengerDestination's — without a
@@ -447,14 +355,6 @@ class FlyWhatsAppDestination(RefModeDestination):
     whatsapp_phone_number: str
 
     additional_metadata: Optional[dict[str, str]] = None
-
-    # Opt-in: put the full stratum metadata in the autofill text, not just the
-    # shortcode. Off by default, and rarely usable — see the module comment and
-    # StudyConf.check_whatsapp_refs_are_deliverable. The autofill text is
-    # visible to and editable by the respondent, and the ad-ID join (A5-A7)
-    # already carries stratum identity to the optimizer without it, so the only
-    # reason to turn this on is fly survey logic that branches on ad metadata.
-    include_metadata_in_ref: bool = False
 
     @property
     def promoted_phone_number(self) -> str:
@@ -513,10 +413,11 @@ class FlyMultiDestination(RefModeDestination):
     arms belong to two surveys and one mapping row that can only name one of
     them.
 
-    `include_metadata_in_ref` defaults False -- WhatsApp's default wins, because
-    the WhatsApp arm's token sits in the respondent's compose box where they can
-    read and edit it. Being described back to yourself as `gender.men.age.25_34`
-    before a survey starts is an ethical question, not a technical one.
+    One ref mode drives both arms, so they always disclose the same amount --
+    which is worth knowing when choosing it, because the WhatsApp arm's token
+    sits in the respondent's compose box where they can read and edit it. Being
+    described back to yourself as `gender.men.age.25_34` before a survey starts
+    is an ethical question, not a technical one.
 
     Asymmetric confidence between the two arms. The Messenger arm is MEASURED:
     on 2026-08-17 ad 120254903561240150 delivered its quick-reply payload with
@@ -549,7 +450,6 @@ class FlyMultiDestination(RefModeDestination):
     whatsapp_phone_number: str
 
     additional_metadata: Optional[dict[str, str]] = None
-    include_metadata_in_ref: bool = False
 
     @property
     def promoted_phone_number(self) -> str:
@@ -1238,9 +1138,8 @@ class StudyConf(BaseModel):
     def check_whatsapp_refs_are_deliverable(self):
         """Reject a full-metadata WhatsApp ref that fly could never parse.
 
-        Only fires for a WhatsApp destination with include_metadata_in_ref on,
-        so every other study — and every WhatsApp study on the default
-        shortcode-only setting — is untouched.
+        Only fires for a WhatsApp or multi destination resolving to "metadata",
+        which is the one mode that puts stratum values in the autofill text.
 
         This is the earliest point at which the check is possible: the ref's
         content comes from the strata and its deliverability from the
@@ -1259,7 +1158,7 @@ class StudyConf(BaseModel):
             d
             for d in self.destinations
             if isinstance(d, (FlyWhatsAppDestination, FlyMultiDestination))
-            and d.include_metadata_in_ref
+            and d.resolved_ref_mode == "metadata"
         ]
 
         if not full_ref_destinations:
@@ -1289,15 +1188,15 @@ class StudyConf(BaseModel):
                 unsafe = unsafe_whatsapp_ref_tokens(md)
                 if unsafe:
                     raise InvalidConfigError(
-                        f"WhatsApp destination '{destination.name}' has "
-                        f"include_metadata_in_ref set, but stratum "
-                        f"'{stratum.id}' has metadata that fly's WhatsApp entry "
-                        f"pattern cannot parse: {unsafe}. Only letters, digits, "
-                        "underscore and hyphen survive — a space or a "
-                        "percent-sign means the ad silently recruits into the "
-                        "fallback survey. Either rename these values or leave "
-                        "include_metadata_in_ref off; the ad-ID join carries "
-                        "stratum identity to the optimizer either way."
+                        f"WhatsApp destination '{destination.name}' carries the "
+                        f"stratum inline, but stratum '{stratum.id}' has "
+                        f"metadata that fly's WhatsApp entry pattern cannot "
+                        f"parse: {unsafe}. Only letters, digits, underscore and "
+                        "hyphen survive — a space or a percent-sign means the "
+                        "ad silently recruits into the fallback survey. Either "
+                        "rename these values or set ref_mode to 'encoded'; the "
+                        "ad table then carries stratum identity to the "
+                        "optimizer instead."
                     )
 
         return self
@@ -1371,19 +1270,15 @@ def thins_its_ref_without_reading_the_mapping(study: StudyConf) -> List[str]:
     stratum attribution and is entitled to a thin ref. Same reasoning as
     missing_targeting_variables.
 
-    Both thin modes count, "shortcode" and "encoded" alike. They differ in what
-    carries the join key -- Meta's referral versus vlab's own ref -- but not in
-    the thing this guard is about: neither ships the stratum vocabulary, so both
-    need something reading the mapping or the study has no attribution at all.
+    Every destination type is asked, with no type check. What a ref carries is
+    a property of the ref rather than of the channel carrying it, so a web
+    destination that stops carrying the stratum has the same problem a Messenger
+    one does.
     """
     thinned = [
         d.name
         for d in study.destinations
-        if isinstance(
-            d,
-            (FlyMessengerDestination, FlyWhatsAppDestination, FlyMultiDestination),
-        )
-        and d.resolved_ref_mode != "metadata"
+        if d.resolved_ref_mode != "metadata"
     ]
 
     if not thinned:
@@ -1396,39 +1291,6 @@ def thins_its_ref_without_reading_the_mapping(study: StudyConf) -> List[str]:
     )
 
     return [] if reads_the_mapping else sorted(thinned)
-
-
-def disagreeing_token_keys(study: StudyConf) -> Dict[str, List[str]]:
-    """Per source, the several places its lookup confs think the token is.
-
-    One respondent has one token, in one place, so every `ad_table_lookup` conf
-    under a source must read it from the same metadata key. Two confs naming
-    different keys means at least one of them reads nothing — and reading
-    nothing is indistinguishable from an organic arrival, so it lands in the
-    do-not-alarm bucket and simply miscounts.
-
-    Returns only sources with a real disagreement, so an empty dict means the
-    config agrees with itself.
-
-    Returns rather than raises, and callers warn. swoosh takes the first key it
-    finds and carries on for the same reason: it recomputes whole studies
-    unattended, and refusing to classify would cost a study its counts over a
-    conf problem no run can fix from the inside. A raise here would also stop
-    ad reconciliation outright, which is a heavier consequence than the
-    miscount it is warning about.
-    """
-    if study.inference_data is None:
-        return {}
-
-    disagreements = {}
-    for name, source in study.inference_data.data_sources.items():
-        keys = sorted(
-            {ec.key for ec in source.extraction_confs if ec.is_ad_table_lookup}
-        )
-        if len(keys) > 1:
-            disagreements[name] = keys
-
-    return disagreements
 
 
 def missing_targeting_variables(study: StudyConf) -> Dict[str, set[str]]:
