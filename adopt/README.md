@@ -153,21 +153,21 @@ It is read-only by default because it points at ads spending real money.
 
 Background on the incident that motivated this: `planning/field-contract.md`.
 
-## Ad-ID attribution
+## Ad attribution: the write half
 
 vlab creates exactly one ad per `(creative, stratum)` pair, so the ad id
 Facebook hands back already determines that ad's shortcode, creative and
-stratum metadata. Today that identity is encoded into a dotted `ref` string
-(`make_ref`) that rides to the survey platform inside every message. This
-phase adds the alternative: an `ad_attributions` table that persists
-`(network, ad_id) -> {shortcode, creative, stratum metadata, ref_token}` at ad-creation
-time, so it can be joined against later instead of parsed out of the ref.
+stratum metadata. Historically that identity was encoded into a dotted `ref`
+string (`make_ref`) that rode to the survey platform inside every message.
+`ad_attributions` persists it instead: a row per created ad, mapping
+`(network, ad_id) -> {shortcode, creative, stratum metadata, ref_token}` frozen
+at ad-creation time, joined against later rather than parsed out of the ref.
+swoosh reads it — see `inference/README.md`.
 
-This phase builds the capture and the table only. Nothing consumes the table
-yet, and no existing study's behaviour changes — `make_ref` and the ref
-emission in `create_creative` are deliberately untouched, because changing a
-creative triggers ad rewrites across every live study on the next
-reconciliation run.
+This half writes the table and mints the token. What an ad's ref actually
+carries is `ref_mode`, below; a conf that states no mode keeps the dotted ref it
+has always had, because changing a creative triggers ad rewrites across that
+study on the next reconciliation run.
 
 ### The data path
 
@@ -278,109 +278,161 @@ so a CSV of only live ads would silently lack rows the researcher needs, and
 those respondents would look unattributed. Nothing in the read path filters
 on liveness, and nothing should.
 
+`csv_export.py` renders the mapping two ways from one definition — `headers`
+gives the column list and `cells` one row's values in that order — so
+`ad_attributions_csv` (which writes them positionally) and
+`ad_attributions_table` (which zips them into dicts) cannot show different
+shapes seconds apart. The table is served as JSON at
+`GET /{org_id}/studies/{slug}/ad-attributions`, for the dashboard's Ad
+Attributions step.
+
 Tests: `adopt/adopt/server/test_ad_attributions_csv.py`, needs `make
 test-db`.
 
-## Shortcode-only refs
+## What a ref carries: `ref_mode`
 
 Before this, the ad-table join already worked, but ads still shipped vlab's
-whole stratum vocabulary into fly inside every message: the frozen row
-duplicated the ref rather than replacing it, so nothing was actually decoupled.
-`FlyMessengerDestination.include_metadata_in_ref` (`study_conf.py`) controls
-what the ref carries. It is named to match `FlyWhatsAppDestination`'s field
-of the same name — one concept, and the two channels differ only in their
-default. Messenger defaults **True**, the historical behaviour every existing
-study depends on.
+whole stratum vocabulary to the survey platform inside every message: the frozen
+row duplicated the ref rather than replacing it, so nothing was actually
+decoupled.
 
-### What it emits
+```python
+RefMode = Literal["metadata", "encoded"]
+```
 
-Turned off, the ref becomes `form.<initial_shortcode>` on **both** Messenger
-carriers: `url_tags` (which Meta surfaces as `referral.ref`) and the
-quick-reply payload inside `page_welcome_message`. Both, because a respondent
-can arrive by either, and emitting different refs on the two paths would mean
-one ad describing two different people depending on how they tapped it.
+A ref either carries the stratum inline or carries a token that resolves to it.
+A study with no stratification simply has a short ref, because
+`creative_metadata` has nothing to put in it.
 
-`form.<shortcode>` is the minimum that still routes: fly's `getMetadata`
-parses `referral.ref` as dot-pairs and reads `md.form`, falling back to
-`FALLBACK_FORM` — a real survey — when it is absent. Routing is the one job
-the ref cannot delegate, since it happens at the first inbound message, while
-attribution is a batch join done afterwards.
+`RefModeDestination` (`study_conf.py`) carries exactly one field:
+
+```python
+ref_mode: Optional[RefMode] = None
+
+@property
+def resolved_ref_mode(self) -> str:
+    return self.ref_mode or "metadata"
+```
+
+`Optional` is what keeps the migration free: a conf that states no mode resolves
+to exactly the behaviour it has today, and no stored JSON is rewritten. One
+field means there is nothing for a second field to contradict.
+
+**Every destination type is a `RefModeDestination`** — messenger, whatsapp,
+multi, web and app. What a ref carries is a property of the ref, not of the
+channel carrying it, so `ad_ref_token` and
+`thins_its_ref_without_reading_the_mapping` ask `resolved_ref_mode` of any
+destination, with no type check.
+
+The models tolerate unknown keys, which is pydantic's default and is relied on
+here: confs are stored as raw JSON and read back through the model, so
+forbidding extras would stop every conf written before any future field removal
+from loading, and halt that study's reconciliation.
+
+### Serialising the ref
+
+`dotted_ref(creative_name, metadata, destination, token)` produces the dot-pair
+grammar for every carrier that reads under it: Messenger's `url_tags` (which
+Meta surfaces as `referral.ref`) and the quick-reply payload inside
+`page_welcome_message`, multi's Messenger arm, and the `{ref}` a web or app
+destination interpolates into its `url_template` / `deeplink_template`.
+`whatsapp_ref` is its counterpart for the WhatsApp autofill, which fly parses
+under a different, `form.`-anchored grammar.
+
+Messenger ships its ref on both carriers because a respondent can arrive by
+either, and emitting different refs on the two paths would mean one ad
+describing two different people depending on how they tapped it.
+
+```python
+if destination.resolved_ref_mode == "encoded":
+    tok = _require_token(token, destination)
+    shortcode = destination_shortcode(destination)
+    return encoded_ref(shortcode, tok) if shortcode else tok
+
+return make_ref(creative_name, metadata)
+```
+
+A destination with a shortcode routes through fly, whose decoder recovers the
+shortcode and the token from one string, so its encoded ref is `r.<payload>` —
+and `encode_recruitment_ref` requires a shortcode of 1..255 bytes. A web or app
+destination has no shortcode: its `url_template` / `deeplink_template` already
+points at a specific survey, nothing decodes its ref, and swoosh compares the
+extracted value against `ad_attributions.ref_token` verbatim. So its encoded ref
+is the bare token.
+
+`ad_ref_token` mints at the grain of (study, stratum, creative, destination),
+which is the grain of an ad and therefore of a mapping row.
+`assert_ref_tokens_unique` refuses to publish a campaign whose ads share a
+token: a collision is a wrong answer rather than a missing one, and nothing
+downstream can detect it.
 
 ### The trap
 
-`creative_metadata` returns the complete metadata dict regardless of ref
-mode; `messenger_ref` is the ONLY place the mode is allowed to matter. For a
-shortcode-only study, the frozen `ad_attributions` blob is the only
-attribution it will ever have. If the mode leaked into `creative_metadata`,
-that study would freeze rows containing nothing but `form` — every
-`mapping: "ad_table_lookup"` conf would resolve to nothing, every stratum would
-count zero, and the optimizer would reallocate on empty data. Silent, total, and
-unrecoverable, because the blob is frozen at creation and never refreshed.
+`creative_metadata` returns the complete metadata dict regardless of ref mode;
+`dotted_ref` is the ONLY place the mode is allowed to matter. For an encoded
+study, the frozen `ad_attributions` blob is the only attribution it will ever
+have. If the mode leaked into `creative_metadata`, that study would freeze rows
+containing nothing but `form` — every `mapping: "ad_table_lookup"` conf would
+resolve to nothing, every stratum would count zero, and the optimizer would
+reallocate on empty data. Silent, total, and unrecoverable, because the blob is
+frozen at creation and never refreshed.
 
-Two tests pin this: identical frozen blobs from a shortcode-only and a
-full-ref destination over identical strata, and identical `ad_provenance`
-output one layer up.
+Two tests pin this: identical frozen blobs from an encoded and a metadata
+destination over identical strata, and identical `ad_provenance` output one
+layer up but for `ref_token`, which is the point of the mode.
 
 ### Flipping a live study
 
-Toggling the flag changes the *creative*, and `update_ad` compares creatives
-via `field_contract.COMPARED_AD`, so a flip rewrites that study's ads on the
-next reconciliation run. That is intended — a deliberate per-study act — and
-it cannot cascade, since each study reconciles from its own conf.
+Changing the mode changes the *creative*, and `update_ad` compares creatives via
+`field_contract.COMPARED_AD`, so a flip rewrites that study's ads on the next
+reconciliation run. That is intended — a deliberate per-study act — and it
+cannot cascade, since each study reconciles from its own conf.
 
-Importantly, the flip is an in-place ad **update against the same ad id**,
-not a delete-and-recreate: reconciliation matches ads by name, and the
-creative name does not change. That matters because `(network, ad_id)` is the
-table's primary key — a flip that minted new ids would strand every existing
-`ad_attributions` row and leave that study's past respondents
-unattributable. Both are asserted in tests.
+Importantly, the flip is an in-place ad **update against the same ad id**, not a
+delete-and-recreate: reconciliation matches ads by name, and the creative name
+does not change. That matters because `(network, ad_id)` is the table's primary
+key — a flip that minted new ids would strand every existing `ad_attributions`
+row and leave that study's past respondents unattributable. Both are asserted in
+tests.
 
 ### The half-migration guard
 
-Thinning the ref only works if the study also *reads* the mapping. Do one
-without the other and the study has no attribution at all — the ref no longer
-carries the stratum and nothing looks the token up, so every stratum counts zero
-and the optimizer reallocates on empty data.
+The one place the write side and the read side meet. Thinning the ref only works
+if the study also *reads* the mapping. Do one without the other and the study
+has no attribution at all — the ref no longer carries the stratum and nothing
+looks the token up, so every stratum counts zero and the optimizer reallocates
+on empty data.
+
 `thins_its_ref_without_reading_the_mapping` (`study_conf.py`) detects that
-shape: a fly destination whose resolved `ref_mode` is not `"metadata"` while no
-extraction conf declares `mapping: "ad_table_lookup"`. Both thin modes count,
-`"shortcode"` and `"encoded"` alike. `warn_on_thinned_ref_without_mapping`
-(`malaria.py`) logs it on every reconciliation run. It warns rather than
-raises, because a study recruiting uniformly with no `question_targeting` needs
-no stratum attribution and is entitled to a thin ref. It covers WhatsApp
-destinations too, whose default is already thin.
+shape: a destination whose resolved `ref_mode` is not `"metadata"` while no
+extraction conf declares `mapping: "ad_table_lookup"`.
+`warn_on_thinned_ref_without_mapping` (`malaria.py`) logs it on every
+reconciliation run. It warns rather than raises, because a study recruiting
+uniformly with no `question_targeting` needs no stratum attribution and is
+entitled to a thin ref.
+
+Every destination type is asked, with no type check, for the same reason
+`ad_ref_token` is: a web destination that stops carrying the stratum has exactly
+the problem a Messenger one does.
 
 ### Validating the mapping conf
 
 `ExtractionConf` (`study_conf.py`) carries the `mapping` field the dashboard
-writes and swoosh reads, and validates it at parse time:
+writes and swoosh reads, and validates one thing at parse time: that the mapping
+is a known value.
 
-- an unknown `mapping` is rejected.
-- `mapping: "ad_table_lookup"` on any location but `"metadata"` is rejected. The
-  token is stamped by fly, not answered by the respondent, so the combination is
-  incoherent — and dangerous, because swoosh reads a lookup conf's `key` as the
-  declaration of where the token lives.
-
-`disagreeing_token_keys` (`study_conf.py`) plus
-`warn_on_disagreeing_token_keys` (`malaria.py`) cover the one thing that cannot
-be checked per conf: every `ad_table_lookup` conf under a source must read the
-token from the same metadata key. It warns rather than raises, because swoosh
-takes the first key it finds and carries on — a raise would make that tolerance
-unreachable and stop ad reconciliation over a miscount.
-
-### Web and App stay on full refs
-
-Deliberately: neither has an `initial_shortcode`, because their
-`url_template` / `deeplink_template` already points at a specific survey, so
-routing is not a job the ref does for them. Making them shortcode-only would
-mean inventing a conf field for a token neither needs; the equivalent
-decoupling for a web platform is capturing the ad id from the ad URL, which
-is separate work.
+It does **not** constrain the location. Location says where to read and mapping
+says what the value means, and a lookup reads its token from either: a
+respondent recruited by a fly destination brings it back in event metadata, one
+recruited by a web or app destination lands on the researcher's own page and
+brings it back as a Typeform or Qualtrics field. Two lookup confs under one
+source need not agree about where their token is, either — swoosh asks each
+through its own reader.
 
 ### Tests
 
-The "Shortcode-only Messenger refs (A4)" section of
-`adopt/adopt/test_marketing.py`.
+The "The ref mode" section of `adopt/adopt/test_marketing.py`, and the thinning
+section of `adopt/adopt/test_study_conf.py`.
 
 ## Ref encoding
 
@@ -467,7 +519,7 @@ branched only on `FlyMessengerDestination`, `AppDestination` and `WebDestination
 and nothing set an autofill message. `FlyWhatsAppDestination` (`study_conf.py`)
 adds the fourth branch. It is shaped after `FlyMessengerDestination`, minus
 `button_text` — WhatsApp has no quick-reply button, so the respondent gets a
-prefilled compose box instead — and plus `include_metadata_in_ref`.
+prefilled compose box instead — and plus the number the ad's clicks land on.
 
 ### Why the ref is a different string, not a reused one
 
@@ -499,27 +551,34 @@ upstream. fly's pattern rejects it, no `conversation_started` is derived, and
 the arrival falls through to `FALLBACK_FORM` — a real survey, so those
 respondents look like completions rather than errors.
 
-### Full-ref mode is opt-in and rare
+### What the autofill carries
 
-`include_metadata_in_ref` puts the full stratum metadata in the autofill text,
-not just the shortcode. It defaults off. Of the production stratum values on
-record, encoding (see "Ref encoding" above) now delivers all of them — 9 of
-9, up from 5 of 9 before fly widened its gate — but one unsafe value still
-poisons the whole ref, so the config-time check remains a hard gate rather
-than a formality. The only reason to turn this on is fly survey logic that
-branches on ad metadata; the optimizer never needs it, since the ad-ID join
-(see above) carries stratum identity regardless. The autofill text is also
-respondent-visible and respondent-editable, which is the other reason the
-default is the shortcode alone.
+`ref_mode` (see "What a ref carries" above) decides it, as on every other
+destination type. In `"metadata"` the autofill text carries the full stratum
+vocabulary; in `"encoded"` it carries the opaque token instead.
+
+Of the production stratum values on record, encoding (see "Ref encoding" above)
+now delivers all of them — 9 of 9, up from 5 of 9 before fly widened its gate —
+but one unsafe value still poisons the whole ref, so the config-time check
+remains a hard gate rather than a formality.
+
+Worth knowing when choosing the mode: the optimizer never needs the stratum
+inline, since the ad-table join carries stratum identity regardless, and the
+autofill text is respondent-visible and respondent-editable — being described
+back to yourself as `gender.men.age.25_34` before a survey starts is an ethical
+question, not a technical one. The reason to carry it anyway is fly survey logic
+that branches on ad metadata.
 
 ### Validation is at config time, in two places
 
 The ref's content and its deliverability live in different confs, so the check
 is split accordingly. `FlyWhatsAppDestination.shortcode_must_survive_the_entry_pattern`
 validates the shortcode on the destination model itself, and applies in both
-modes — even the default token is `form.<shortcode>`, so an unsafe shortcode
-breaks the plain case too. `StudyConf.check_whatsapp_refs_are_deliverable`
-validates the metadata, and fires only when `include_metadata_in_ref` is on.
+modes — the autofill's head is `form.<shortcode>` either way, so an unsafe
+shortcode breaks the plain case too. `StudyConf.check_whatsapp_refs_are_deliverable`
+validates the metadata, and fires only for a WhatsApp or multi destination
+resolving to `"metadata"` — the one mode that puts stratum values in the
+autofill text.
 `StudyConf` is the earliest point this check is possible, because destinations
 and strata are separate confs, POSTed independently — it's the first place
 they meet. It fails closed: a study with an undeliverable ref creates no ads
@@ -615,9 +674,11 @@ builds a plain object and adopt parses it — so the "dashboard contract" tests 
 `emptyStates` produces parses into this class, and that the `type` literal still
 matches what the union discriminates on.
 
-`include_metadata_in_ref` is deliberately not exposed. It defaults off, its
-token is respondent-visible and respondent-editable, and turning it on can make
-a study's refs unparseable by fly.
+`ref_mode` is exposed on this form as on every other destination type, through
+the shared `RefModeField` — see `dashboard/README.md`. Choosing the inline mode
+here can make a study's refs unparseable by fly, which
+`check_whatsapp_refs_are_deliverable` catches at config time rather than in the
+UI, failing closed.
 
 ### Tests
 
