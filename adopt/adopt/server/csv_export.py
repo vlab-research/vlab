@@ -73,8 +73,24 @@ def _cell(value: Any) -> str:
     return str(value)
 
 
+def headers(md_keys: Sequence[str]) -> List[str]:
+    """The column list, in order."""
+    return LEADING_COLUMNS + [column_name(k) for k in md_keys] + TRAILING_COLUMNS
+
+
+def cells(row: Dict[str, Any], md_keys: Sequence[str]) -> List[str]:
+    """One row's values, in the order `headers` names them."""
+    md = row.get("metadata") or {}
+
+    return (
+        [_cell(row.get(c)) for c in LEADING_COLUMNS]
+        + [_cell(md.get(k)) for k in md_keys]
+        + [_cell(row.get(c)) for c in TRAILING_COLUMNS]
+    )
+
+
 def ad_attributions_csv(rows: Sequence[Dict[str, Any]]) -> str:
-    """Render mapping rows as CSV.
+    """Render mapping rows as a CSV file, positionally.
 
     Every row is emitted, including rows whose ad Facebook no longer has.
     Reconciliation deletes ads that fall out of the desired set, but respondents
@@ -83,18 +99,29 @@ def ad_attributions_csv(rows: Sequence[Dict[str, Any]]) -> str:
     and the missing rows would look like unattributed respondents.
     """
     md_keys = metadata_columns(rows)
-    header = LEADING_COLUMNS + [column_name(k) for k in md_keys] + TRAILING_COLUMNS
 
     out = io.StringIO()
     writer = csv.writer(out)
-    writer.writerow(header)
+    writer.writerow(headers(md_keys))
 
     for row in rows:
-        md = row.get("metadata") or {}
-        writer.writerow(
-            [_cell(row.get(c)) for c in LEADING_COLUMNS]
-            + [_cell(md.get(k)) for k in md_keys]
-            + [_cell(row.get(c)) for c in TRAILING_COLUMNS]
-        )
+        writer.writerow(cells(row, md_keys))
 
     return out.getvalue()
+
+
+def ad_attributions_table(rows: Sequence[Dict[str, Any]]) -> Dict[str, Any]:
+    """The same rendering as a table, for the dashboard.
+
+    Columns and cells come from `headers` and `cells`, the same definition the
+    file is written from. The columns are a union across rows in first-seen
+    order, so a table deriving them separately would show a different shape from
+    the file downloaded seconds later.
+    """
+    md_keys = metadata_columns(rows)
+    columns = headers(md_keys)
+
+    return {
+        "columns": columns,
+        "rows": [dict(zip(columns, cells(row, md_keys))) for row in rows],
+    }

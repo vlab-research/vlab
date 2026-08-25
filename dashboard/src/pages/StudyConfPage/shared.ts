@@ -7,6 +7,7 @@ import Audiences from './forms/audience/Audiences';
 import Strata from './forms/strata/Strata';
 import DataSources from './forms/dataSources/DataSources';
 import InferenceData from './forms/inferenceData/InferenceData';
+import AdAttributions from './forms/adAttributions/AdAttributions';
 import Initialize from './forms/initialize/Initialize';
 import Optimize from './forms/optimize/Optimize';
 import CurrentData from './forms/current/CurrentData';
@@ -24,6 +25,7 @@ export const confs = [
   { name: "Strata", path: "strata", component: Strata },
   { name: "Data Sources", path: "data-sources", component: DataSources },
   { name: "Data Extraction", path: "inference-data", component: InferenceData },
+  { name: "Ad Attributions", path: "ad-attributions", component: AdAttributions },
   { name: "Current Data", path: "current-data", component: CurrentData },
   { name: "Errors", path: "errors", component: StudyErrors },
   { name: "Optimize", path: "optimize", component: Optimize },
@@ -47,6 +49,7 @@ export type FormTypes =
   | 'strata'
   | 'data-sources'
   | 'inference-data'
+  | 'ad-attributions'
   | 'optimize'
   | 'current-data'
   | 'errors';

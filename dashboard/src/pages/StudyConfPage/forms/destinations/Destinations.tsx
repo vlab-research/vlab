@@ -7,6 +7,7 @@ import { Destinations as DestinationTypes } from '../../../../types/conf';
 import { Destination as DestinationType } from '../../../../types/conf';
 import ConfWrapper from '../../components/ConfWrapper';
 import { GenericListFactory } from '../../components/GenericList';
+import { METADATA_MODE } from './refMode';
 
 const DestinationList = GenericListFactory<DestinationType>();
 
@@ -17,6 +18,8 @@ interface Props {
 
 const Destinations: React.FC<Props> = ({ id, localData }: Props) => {
 
+  // A new conf, so it states its mode. See Destination.tsx's emptyStates for
+  // why that default lives only in the two constructors.
   const initialState = [
     {
       name: '',
@@ -25,6 +28,7 @@ const Destinations: React.FC<Props> = ({ id, localData }: Props) => {
       button_text: '',
       type: '',
       additional_metadata: null,
+      ref_mode: METADATA_MODE,
     },
   ];
 
@@ -56,6 +60,7 @@ const Destinations: React.FC<Props> = ({ id, localData }: Props) => {
           setData={setFormData}
           initialState={initialState}
           elementName="destination"
+          elementProps={{ savedDestinations: localData }}
         />
         <SubmitButton isLoading={isLoadingOnCreateStudyConf} />
       </form>

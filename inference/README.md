@@ -154,12 +154,12 @@ its `location`:
 | `""` / `"raw"` | the value read IS the answer. The default, so every conf written before the field existed keeps meaning what it meant. |
 | `"ad_table_lookup"` | the value read is an opaque token; the answer is a stratum variable off the frozen row that token identifies. |
 
-`location` is unchanged (`metadata` \| `variable`). There is no `"ad"` location
-and there never really was one — the token lives in metadata, so reading it is
-an ordinary metadata read. What makes a variable ad-derived is the mapping. The
-old `location: "ad"` is **removed**. It was never live in any study, so nothing
-migrates and nothing validates it away: `getRetrieveFunc` simply has no case for
-it, and it falls through to the same unknown-location error any typo gets.
+`location` is unchanged (`metadata` \| `variable`), and says only where a value
+is — never what it means. There is no `"ad"` location and there never really was
+one: what makes a variable ad-derived is the mapping. The old `location: "ad"`
+is **removed**. It was never live in any study, so nothing migrates and nothing
+validates it away: `locationReader` simply has no case for it, and it falls
+through to the same unknown-location error any typo gets.
 
 Both other fields are contextual to the mapping, which is the one genuinely
 confusing part:
@@ -172,18 +172,26 @@ confusing part:
   row.Metadata["gender"]        -> "women"          (name = which stratum var)
 ```
 
-- **`key`** addresses the token, never the stratum variable. It is never
-  hardcoded: fly stamps `vt` by convention and the conf says `key: "vt"` to
-  match, so a platform surfacing the token elsewhere just declares that key.
+- **`key`** addresses the token, never the stratum variable. Where the token is
+  is never hardcoded: fly stamps `vt` by convention and the conf says
+  `location: "metadata"`, `key: "vt"` to match.
 - **`name`** is the output variable name *and* the key into the frozen row. It
   does double duty because you name the output after the stratum variable it
   pulls anyway. This is the one constraint the design carries.
 
-A lookup is valid only on `location: "metadata"`. The combination with
-`"variable"` is rejected both at config time and in `getRetrieveFunc`, because
-swoosh reads a lookup conf's `key` as the declaration of where the token lives
-— one stray conf would otherwise have every respondent in the study classified
-against the wrong metadata key.
+### A lookup composes with either location
+
+`getRetrieveFunc` composes the two halves. `locationReader` returns the reader
+for a location, knowing nothing about mappings; `resolveThroughAdTable` wraps
+whichever reader that names, reading a raw value, unquoting it as a token,
+finding the row and returning `row.Metadata[conf.Name]`.
+
+So a lookup works on either location, and that is what the whole design buys. A
+respondent recruited by a fly destination brings the token back in event
+metadata; one recruited by a web or app destination lands on the researcher's
+own page and brings it back as a field in Typeform or Qualtrics. Each conf
+declares where its own token is, and two lookup confs under one source need not
+agree — a study can recruit through several routes at once.
 
 ### No runtime mechanism selection, and no fallback
 
@@ -203,10 +211,11 @@ from the counts.
 
 ### The token is unquoted before joining
 
-Metadata values are JSON, so the token arrives as a quoted JSON string
+Extracted values are JSON, so the token arrives as a quoted JSON string
 (`"a1b2c3d4e5"`) while `ad_attributions.ref_token` is scanned out of a text
-column bare. Joining the raw bytes would miss every single time, on a value that
-looks correct in every log line it appears in. `metadataToken`
+column bare. swoosh compares the extracted value to `ref_token` verbatim, so
+joining the raw bytes would miss every single time, on a value that looks
+correct in every log line it appears in. `refToken`
 (`swoosh/inference_data.go`) does the unquoting; a value that is not a JSON
 string is treated as no token at all.
 
@@ -227,39 +236,40 @@ is not in `ref_mode: "encoded"`. It has no join key, so there is nothing to
 index it under — and critically it must not land under `""`, where every
 tokenless respondent would match it.
 
-### The three-way split
+### The one outcome worth reporting
 
-`adAttributionOutcome` (`swoosh/inference_data.go`) classifies each event
-against the study's mapping:
+`adAttributionOutcome` (`swoosh/inference_data.go`) reports the one outcome that
+is a bug: a token that resolves to no `ad_attributions` row.
 
 | Outcome | Meaning | Handling |
 |---|---|---|
 | attributed | token present, mapping row found | normal, no event |
-| organic | no token on the event | expected; counted as a warning, does not alarm |
+| tokenless | no token on the event | expected; nothing reported |
 | unmapped | token present, no mapping row | always a bug; counted at severity `error` |
 
-Classification happens once per *event*, not per conf, so one organic arrival is
-not multiplied by the number of lookup confs a study declares (see
-`tokenLookupKey`). `classifyExtractionError` (`swoosh/events.go`) maps
-`unmapped` to `error` severity and `organic` to `warning`, alongside the
-existing `source=`-prefixed warnings. Every outcome's details name the mechanism
-(`ref_token`) and the key it read, so a miss is diagnosable from the row.
+An event carrying no token produces nothing. That is an expected arrival, not a
+failure: shortcodes are shareable by design, and a study can perfectly well
+recruit people who never clicked an ad.
+
+The walk asks each of the source's lookup confs through its own
+`locationReader`, because each conf declares where its own token is, and returns
+on the first token that does not resolve — so one event yields at most one
+outcome however many lookup confs a study declares. Reporting per conf would
+multiply one miss by the size of the conf list.
+
+`classifyExtractionError` (`swoosh/events.go`) maps `unmapped` to `error`
+severity, alongside the existing `source=`-prefixed warnings. The details name
+the mechanism (`ref_token`) and both `token_location` and `token_key`, so a miss
+is diagnosable from the row.
 
 Unmapped is self-healing: swoosh recomputes everything each run, so inserting
 the missing `ad_attributions` row retroactively fixes prior runs, and the
 dashboard's recency window ages the stale error out on its own.
 
-`tokenLookupKey` takes the *first* lookup conf's key when a source declares
-several. All of them are supposed to agree — one respondent has one token in one
-place — and adopt's `disagreeing_token_keys` warns at config time when they do
-not. swoosh guesses rather than refusing because it recomputes whole studies
-unattended, and refusing to classify would cost a study its counts over a conf
-problem no run can fix from the inside.
-
 ### Tests
 
-- `swoosh/ad_attributions_test.go` — the pure three-way-split and extraction
-  tests, plus DB-backed `swooshStudy` tests (needs `make test-db`).
+- `swoosh/ad_attributions_test.go` — the pure extraction and outcome tests,
+  plus DB-backed `swooshStudy` tests (needs `make test-db`).
 - The ad-attribution section of `sources/fly/main_test.go`.
 
 See `documentation/ad-attributions.md` and

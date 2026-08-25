@@ -7,6 +7,7 @@ import Multi from './Multi';
 import { GenericSelect, SelectI } from '../../components/Select';
 import destinationTypes from '../../../../fixtures/general/destinations';
 import { Destination as DestinationType } from '../../../../types/conf';
+import { METADATA_MODE } from './refMode';
 
 const Select = GenericSelect as SelectI<any>;
 
@@ -14,27 +15,41 @@ interface Props {
   data: any;
   index: number;
   update: (d: DestinationType, index: number) => void;
+  // The destinations conf as saved, so a form can say when changing the ref
+  // mode would rewrite ads that already exist.
+  savedDestinations?: DestinationType[];
 }
 
 const Destination: React.FC<Props> = ({
   data,
   index,
   update: updateFormData,
+  savedDestinations,
 }: Props) => {
 
   const type_ = data.type;
 
+  // Only a saved destination has ads in flight to rewrite. Read the saved conf
+  // rather than `data`, which is the edit in progress.
+  const savedDestination = savedDestinations?.[index];
+
   const [destinationType, setDestinationType] = useState<string>(type_);
 
+  // One of the two places a `ref_mode` default is written, the other being
+  // Destinations.tsx's initialState. Both build a NEW conf, which is the whole
+  // rule: a conf that arrived without the field predates it, and resolves to
+  // the behaviour it already has. Nothing here ever touches such a conf,
+  // because the forms spread `...data`.
   const emptyStates: any[] = [
     {
       name: '',
       initial_shortcode: '',
       welcome_message: '',
       button_text: '',
-      type: 'messenger'
+      type: 'messenger',
+      ref_mode: METADATA_MODE,
     },
-    { name: '', url_template: '', type: 'website' },
+    { name: '', url_template: '', type: 'website', ref_mode: METADATA_MODE },
     {
       app_install_link: '',
       app_install_state: '',
@@ -44,6 +59,7 @@ const Destination: React.FC<Props> = ({
       user_os: [],
       name: '',
       type: 'app',
+      ref_mode: METADATA_MODE,
     },
     // `type` must be exactly 'whatsapp' and 'multi': adopt discriminates its
     // destination union on these literals, and anything else resolves to the
@@ -54,6 +70,7 @@ const Destination: React.FC<Props> = ({
       welcome_message: '',
       whatsapp_phone_number: '',
       type: 'whatsapp',
+      ref_mode: METADATA_MODE,
     },
     {
       name: '',
@@ -62,6 +79,7 @@ const Destination: React.FC<Props> = ({
       button_text: '',
       whatsapp_phone_number: '',
       type: 'multi',
+      ref_mode: METADATA_MODE,
     },
   ];
 
@@ -84,19 +102,19 @@ const Destination: React.FC<Props> = ({
       ></Select>
 
       {destinationType === 'website' && (
-        <Web data={data} updateFormData={updateFormData} index={index} />
+        <Web data={data} updateFormData={updateFormData} index={index} savedDestination={savedDestination} />
       )}
       {destinationType === 'app' && (
-        <App data={data} updateFormData={updateFormData} index={index} />
+        <App data={data} updateFormData={updateFormData} index={index} savedDestination={savedDestination} />
       )}
       {destinationType === 'messenger' && (
-        <Messenger data={data} updateFormData={updateFormData} index={index} />
+        <Messenger data={data} updateFormData={updateFormData} index={index} savedDestination={savedDestination} />
       )}
       {destinationType === 'whatsapp' && (
-        <WhatsApp data={data} updateFormData={updateFormData} index={index} />
+        <WhatsApp data={data} updateFormData={updateFormData} index={index} savedDestination={savedDestination} />
       )}
       {destinationType === 'multi' && (
-        <Multi data={data} updateFormData={updateFormData} index={index} />
+        <Multi data={data} updateFormData={updateFormData} index={index} savedDestination={savedDestination} />
       )}
     </li>
   );

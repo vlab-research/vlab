@@ -31,7 +31,12 @@ os.environ["API_KEY_DOMAIN"] = "test-domain"
 os.environ["API_KEY_AUDIENCE"] = "test-audience"
 os.environ["API_KEY_SECRET"] = "api-key-secret"
 
-from .csv_export import ad_attributions_csv, column_name, metadata_columns
+from .csv_export import (
+    ad_attributions_csv,
+    ad_attributions_table,
+    column_name,
+    metadata_columns,
+)
 from .server import app
 
 client = TestClient(app)
@@ -313,3 +318,79 @@ def test_the_csv_columns_match_the_frozen_blob_keys(verify_mock):
     assert columns == set(frozen)
     for key, value in frozen.items():
         assert parsed[0][key] == value
+
+
+# ---------------------------------------------------------------------------
+# The same rendering as a table
+# ---------------------------------------------------------------------------
+
+
+def test_the_table_and_the_file_show_the_same_shape():
+    """One definition, two renderings.
+
+    The columns are a union across rows in first-seen order, so a table
+    deriving them separately would show a different shape from the file
+    downloaded seconds later.
+    """
+    rows = [
+        {"ad_id": "ad-1", "network": "facebook", "created": None, "metadata": {"gender": "women"}},
+        {"ad_id": "ad-2", "network": "facebook", "created": None, "metadata": {"gender": "men", "Age": "old"}},
+    ]
+
+    table = ad_attributions_table(rows)
+    parsed = _parse(ad_attributions_csv(rows))
+
+    assert table["columns"] == list(parsed[0].keys())
+    assert table["rows"] == parsed
+
+
+def test_the_table_carries_every_row_including_deleted_ads():
+    rows = [
+        {"ad_id": "live", "network": "facebook", "created": None, "metadata": {"gender": "women"}},
+        {"ad_id": "long-deleted", "network": "facebook", "created": None, "metadata": {"gender": "men"}},
+    ]
+
+    table = ad_attributions_table(rows)
+
+    assert [r["ad_id"] for r in table["rows"]] == ["live", "long-deleted"]
+
+
+def test_an_empty_study_still_names_its_columns():
+    table = ad_attributions_table([])
+
+    assert table["columns"] == ["ad_id", "network", "ref_token", "created"]
+    assert table["rows"] == []
+
+
+@patch("adopt.server.auth.verify_token")
+def test_the_json_endpoint_returns_the_same_rows_as_the_csv(verify_mock):
+    _reset_db()
+    verify_mock.return_value = {"sub": user_id}
+    org_id, study_id, headers = _setup()
+
+    _insert_attribution(study_id, "ad-1", {"creative": "Smiling", "gender": "women"})
+
+    res = client.get(f"/{org_id}/studies/foo-study/ad-attributions", headers=headers)
+    csv_res = client.get(
+        f"/{org_id}/studies/foo-study/ad-attributions.csv", headers=headers
+    )
+
+    table = res.json()["data"]
+
+    assert table["columns"] == list(_parse(csv_res.text)[0].keys())
+    assert table["rows"] == _parse(csv_res.text)
+
+
+@patch("adopt.server.auth.verify_token")
+def test_the_json_endpoint_is_scoped_to_the_requested_study(verify_mock):
+    _reset_db()
+    verify_mock.return_value = {"sub": user_id}
+    org_id, study_id, headers = _setup("mine")
+    theirs = _create_study(user_id, org_id, "theirs")
+
+    _insert_attribution(study_id, "ad-mine", {"gender": "women"})
+    _insert_attribution(theirs, "ad-theirs", {"gender": "men"})
+
+    res = client.get(f"/{org_id}/studies/mine/ad-attributions", headers=headers)
+
+    assert [r["ad_id"] for r in res.json()["data"]["rows"]] == ["ad-mine"]

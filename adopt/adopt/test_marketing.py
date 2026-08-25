@@ -11,7 +11,7 @@ from facebook_business.adobjects.adcreative import AdCreative
 from facebook_business.adobjects.customaudience import CustomAudience
 
 from .facebook.field_contract import COMPARED_ADSET
-from .ref_encoding import decode_recruitment_ref
+from .ref_encoding import decode_recruitment_ref, encoded_ref
 from .facebook.reconciliation import ad_dif
 from .facebook.update import Instruction
 from .marketing import (
@@ -20,21 +20,23 @@ from .marketing import (
     ad_provenance,
     adset_destination_type,
     adset_instructions,
+    ad_ref_token,
     adset_promoted_object,
     create_ad,
     create_creative,
     creative_metadata,
     destination_shortcode,
+    dotted_ref,
     make_multi_welcome_message,
     make_ref,
     manage_aud,
     messenger_call_to_action,
-    messenger_ref,
     pair_creatives_with_destinations,
     ref_metadata,
     shortcode_ref,
     web_call_to_action,
     whatsapp_autofill,
+    whatsapp_ref,
 )
 from .study_conf import (
     InvalidConfigError,
@@ -714,8 +716,10 @@ def _parse_ref(ref: str) -> dict:
     return dict(zip(tokens[::2], tokens[1::2]))
 
 
-def _web_dest(name, url_template="https://survey.example/?r={ref}"):
-    return WebDestination(type="web", name=name, url_template=url_template)
+def _web_dest(name, url_template="https://survey.example/?r={ref}", ref_mode=None):
+    return WebDestination(
+        type="web", name=name, url_template=url_template, ref_mode=ref_mode
+    )
 
 
 def _study(destinations, creatives, extra_metadata=None, destination_type="MESSENGER"):
@@ -1055,7 +1059,7 @@ def _fly_would_accept(text: str) -> bool:
     )
 
 
-def _whatsapp_dest(shortcode="mnchweek", full_ref=False, additional=None, ref_mode=None):
+def _whatsapp_dest(shortcode="mnchweek", additional=None, ref_mode=None):
     return FlyWhatsAppDestination(
         type="whatsapp",
         name="whatsapp",
@@ -1063,7 +1067,7 @@ def _whatsapp_dest(shortcode="mnchweek", full_ref=False, additional=None, ref_mo
         welcome_message="Tap send to start",
         whatsapp_phone_number="+1-541-920-2635",
         additional_metadata=additional,
-        **({"ref_mode": ref_mode} if ref_mode else {"include_metadata_in_ref": full_ref}),
+        ref_mode=ref_mode,
     )
 
 
@@ -1071,15 +1075,15 @@ def _whatsapp_study(destinations, creatives, extra_metadata=None):
     return _study(destinations, creatives, extra_metadata, destination_type="WHATSAPP")
 
 
-def test_shortcode_only_autofill_is_accepted_by_fly():
-    """The default, and the reason it is the default: it always parses."""
-    assert whatsapp_autofill("mnchweek") == "form.mnchweek"
-    assert _fly_would_accept(whatsapp_autofill("mnchweek"))
+def test_the_autofill_head_alone_is_accepted_by_fly():
+    """The head is what routes, and it always parses."""
+    assert shortcode_ref("mnchweek") == "form.mnchweek"
+    assert _fly_would_accept(shortcode_ref("mnchweek"))
 
 
-def test_shortcode_only_autofill_survives_underscores_and_hyphens():
+def test_the_autofill_head_survives_underscores_and_hyphens():
     for shortcode in ["mnch_week", "mnch-week-2", "MNCHweek2"]:
-        assert _fly_would_accept(whatsapp_autofill(shortcode)), shortcode
+        assert _fly_would_accept(shortcode_ref(shortcode)), shortcode
 
 
 def test_full_ref_with_pattern_safe_values_is_accepted_by_fly():
@@ -1108,7 +1112,7 @@ def test_full_ref_round_trips_back_to_the_frozen_blob():
     creation -- the same invariant make_ref has on Messenger, so a study can use
     either channel and get identical strata.
     """
-    dest = _whatsapp_dest(full_ref=True)
+    dest = _whatsapp_dest()
     creative = _creative("Smiling", "whatsapp")
     study = _whatsapp_study([dest], [creative])
     stratum = _stratum_with_md("stratum-1", [creative], {"gender": "women"})
@@ -1166,7 +1170,7 @@ def test_whatsapp_creative_uses_the_whatsapp_cta_and_carries_no_url_tags():
     assert "url_tags" not in creative
 
 
-def test_whatsapp_creative_prefills_the_shortcode_by_default():
+def test_whatsapp_creative_prefills_the_form_first_ref():
     dest = _whatsapp_dest()
     template = _load_template("image_ad_messenger.json")
     config = CreativeConf(destination="whatsapp", name="Smiling", template=template)
@@ -1180,9 +1184,9 @@ def test_whatsapp_creative_prefills_the_shortcode_by_default():
     )
     autofill = welcome["text_format"]["message"]["autofill_message"]["content"]
 
-    # The stratum here has spaces in its values; the default mode is unaffected
-    # by that precisely because it ships none of them.
-    assert autofill == "form.mnchweek"
+    # The stratum here has spaces in its values, which the widened gate accepts
+    # percent-encoded.
+    assert autofill.startswith("form.mnchweek.")
     assert _fly_would_accept(autofill)
     assert welcome["text_format"]["message"]["text"] == "Tap send to start"
 
@@ -1235,10 +1239,11 @@ def _template_with_page(page_id="page-123"):
     return {"object_story_spec": {"page_id": page_id, "link_data": {}}}
 
 
-def _app_dest(name="app"):
+def _app_dest(name="app", ref_mode=None):
     return AppDestination(
         type="app",
         name=name,
+        ref_mode=ref_mode,
         facebook_app_id="app-1",
         app_install_link="https://play.example/app",
         deeplink_template="myapp://start?ref={ref}",
@@ -1428,25 +1433,27 @@ def test_whatsapp_adsets_get_the_promoted_object_meta_requires():
 
 
 # ---------------------------------------------------------------------------
-# Shortcode-only Messenger refs (A4).
+# The ref mode: what an ad's ref carries.
 #
-# The payoff of the whole ad-id design: stop shipping vlab's stratum vocabulary
-# into fly inside every message and leave the ref doing only the job it cannot
-# delegate, routing. Attribution comes from the frozen ad_attributions row.
+# A ref either carries the stratum inline or carries a token that resolves to
+# it. The payoff of the second is that vlab stops shipping its whole stratum
+# vocabulary to the survey platform inside every message, and the ref does only
+# the job it cannot delegate: routing. Attribution comes from the frozen
+# ad_attributions row instead.
 #
 # The hazard is that "what the ref carries" and "what gets frozen" are computed
 # from the same dict. They must not move together.
 # ---------------------------------------------------------------------------
 
 
-def _messenger_dest_mode(shortcode="mnchweek", include_metadata=True):
+def _messenger_dest_mode(shortcode="mnchweek", ref_mode=None):
     return FlyMessengerDestination(
         type="messenger",
         name="messenger",
         initial_shortcode=shortcode,
         welcome_message="Welcome!",
         button_text="OK",
-        include_metadata_in_ref=include_metadata,
+        ref_mode=ref_mode,
     )
 
 
@@ -1463,56 +1470,71 @@ def test_ref_mode_does_not_change_what_gets_frozen():
     """THE guard on the project's core invariant.
 
     Two destinations identical but for the ref mode, over the same stratum,
-    must freeze exactly the same blob. The mode picks a serialisation; it must
-    never touch the metadata computation.
+    freeze exactly the same blob. The mode picks a serialisation; it never
+    touches the metadata computation.
 
-    If it did, a shortcode-only study would freeze rows holding nothing but
-    `form`, every `location: "ad"` conf would resolve to nothing, every stratum
-    would count zero, and the optimizer would reallocate on empty data --
-    silently, and unrecoverably, since the blob is frozen at creation.
+    For an encoded study that frozen row is the only attribution it will ever
+    have. If the mode leaked into creative_metadata, such a study would freeze
+    rows holding nothing but `form`, every lookup conf would resolve to nothing,
+    every stratum would count zero, and the optimizer would reallocate on empty
+    data -- silently, and unrecoverably, since the blob is frozen at creation.
     """
-    full = _messenger_dest_mode(include_metadata=True)
-    short = _messenger_dest_mode(include_metadata=False)
+    full = _messenger_dest_mode()
+    encoded = _messenger_dest_mode(ref_mode="encoded")
     creative = _creative("Smiling", "messenger")
 
     study_full = _study([full], [creative])
-    study_short = _study([short], [creative])
+    study_encoded = _study([encoded], [creative])
     stratum = _stratum_with_md("stratum-1", [creative], PRODUCTION_METADATA)
 
     md_full = creative_metadata(study_full, stratum, full)
-    md_short = creative_metadata(study_short, stratum, short)
+    md_encoded = creative_metadata(study_encoded, stratum, encoded)
 
-    assert md_full == md_short
+    assert md_full == md_encoded
 
     frozen_full = ref_metadata(creative.name, md_full)
-    frozen_short = ref_metadata(creative.name, md_short)
+    frozen_encoded = ref_metadata(creative.name, md_encoded)
 
-    assert frozen_full == frozen_short
+    assert frozen_full == frozen_encoded
 
     # ...and it is still the complete blob, not a shrunken one.
-    assert frozen_short["creative"] == "Smiling"
-    assert frozen_short["form"] == "mnchweek"
+    assert frozen_encoded["creative"] == "Smiling"
+    assert frozen_encoded["form"] == "mnchweek"
     for key, value in PRODUCTION_METADATA.items():
-        assert frozen_short[key] == value
+        assert frozen_encoded[key] == value
 
 
 def test_ad_provenance_is_identical_under_both_ref_modes():
-    """The same invariant one layer up, at what actually reaches the database."""
+    """The same invariant one layer up, at what actually reaches the database.
+
+    Only `ref_token` differs, which is the point of the mode: an encoded ad
+    carries a join key and a metadata ad does not.
+    """
     creative = _creative("Smiling", "messenger")
     stratum = _stratum_with_md("stratum-1", [creative], PRODUCTION_METADATA)
 
     provenances = []
-    for include in [True, False]:
-        dest = _messenger_dest_mode(include_metadata=include)
+    for mode in [None, "encoded"]:
+        dest = _messenger_dest_mode(ref_mode=mode)
         study = _study([dest], [creative])
         provenances.append(ad_provenance(study, "test-campaign-messenger", [stratum]))
 
-    assert provenances[0] == provenances[1]
+    without_token = [
+        {k: v for k, v in entry.items() if k != "ref_token"}
+        for provenance in provenances
+        for entry in provenance.values()
+    ]
+
+    assert without_token[0] == without_token[1]
 
 
-def test_shortcode_only_emits_the_form_token_on_both_carriers():
-    """Messenger ships the ref twice and a respondent can arrive by either."""
-    dest = _messenger_dest_mode(include_metadata=False)
+def test_an_encoded_ad_emits_the_same_token_on_both_carriers():
+    """Messenger ships the ref twice and a respondent can arrive by either.
+
+    Emitting different refs on the two paths would mean one ad describing two
+    different people depending on how they tapped it.
+    """
+    dest = _messenger_dest_mode(ref_mode="encoded")
     template = _load_template("image_ad_messenger.json")
     config = CreativeConf(destination="messenger", name="Smiling", template=template)
     study = _study([dest], [config])
@@ -1520,23 +1542,27 @@ def test_shortcode_only_emits_the_form_token_on_both_carriers():
 
     creative = create_creative(study, stratum, config, dest)
 
-    assert creative["url_tags"] == "ref=form.mnchweek"
-    assert _welcome_payload_ref(creative) == "form.mnchweek"
+    token = ad_ref_token(study, stratum, config, dest)
+    expected = encoded_ref("mnchweek", token)
+
+    assert creative["url_tags"] == f"ref={expected}"
+    assert _welcome_payload_ref(creative) == expected
 
 
-def test_shortcode_only_ref_still_routes_in_fly():
+def test_shortcode_ref_routes_in_fly():
     """fly parses referral.ref as dot-pairs and routes on `md.form`.
 
-    `form.<shortcode>` is the minimum that survives that: getMetadata falls
-    back to FALLBACK_FORM when `form` is absent, and the fallback is a real
-    survey, so a ref that loses `form` recruits people into the wrong study
-    without erroring.
+    `form.<shortcode>` is the head of the WhatsApp autofill, and the minimum
+    that survives that parse: getMetadata falls back to FALLBACK_FORM when
+    `form` is absent, and the fallback is a real survey, so a ref that loses
+    `form` recruits people into the wrong study without erroring.
     """
     assert _parse_ref(shortcode_ref("mnchweek")) == {"form": "mnchweek"}
 
 
-def test_full_ref_is_the_default_so_stored_confs_are_unaffected():
-    # An existing destinations conf has no such key. It must parse as full-ref.
+def test_the_metadata_mode_is_the_default_so_stored_confs_are_unaffected():
+    # An existing destinations conf has no such key. It must resolve to the
+    # behaviour it has today, without anyone rewriting stored JSON.
     dest = FlyMessengerDestination(
         type="messenger",
         name="messenger",
@@ -1544,10 +1570,26 @@ def test_full_ref_is_the_default_so_stored_confs_are_unaffected():
         welcome_message="Welcome!",
         button_text="OK",
     )
-    assert dest.include_metadata_in_ref is True
+    assert dest.ref_mode is None
+    assert dest.resolved_ref_mode == "metadata"
 
 
-def test_messenger_creatives_are_byte_identical_when_the_option_is_unset():
+def test_every_destination_type_carries_a_ref_mode():
+    """Web and app included. What a ref carries is a property of the ref, not
+    of the channel carrying it, so nothing asking `resolved_ref_mode` needs a
+    type check."""
+    destinations = [
+        _messenger_dest_mode(),
+        _whatsapp_dest(),
+        _multi_dest(),
+        _web_dest("web"),
+        _app_dest("app"),
+    ]
+
+    assert [d.resolved_ref_mode for d in destinations] == ["metadata"] * 5
+
+
+def test_messenger_creatives_are_byte_identical_when_the_mode_is_unset():
     """Asserted directly. Every live study runs through this path.
 
     `make_ref` is untouched, so pinning both carriers to its exact output is
@@ -1577,14 +1619,45 @@ def test_messenger_creatives_are_byte_identical_when_the_option_is_unset():
     assert "%20" in expected
 
 
-def test_messenger_ref_selects_only_the_serialisation():
+def test_dotted_ref_selects_only_the_serialisation():
     md = {"creative": "Smiling", "gender": "women", "form": "mnchweek"}
+    token = "a1b2c3d4e5"
 
-    full = messenger_ref("Smiling", md, _messenger_dest_mode(include_metadata=True))
-    short = messenger_ref("Smiling", md, _messenger_dest_mode(include_metadata=False))
+    full = dotted_ref("Smiling", md, _messenger_dest_mode())
+    encoded = dotted_ref("Smiling", md, _messenger_dest_mode(ref_mode="encoded"), token)
 
     assert full == make_ref("Smiling", md)
-    assert short == "form.mnchweek"
+    assert encoded == encoded_ref("mnchweek", token)
+
+
+def test_a_destination_without_a_shortcode_encodes_to_the_bare_token():
+    """A web or app destination's template already points at the survey, so
+    nothing decodes its ref -- and swoosh compares the extracted value to
+    ad_attributions.ref_token verbatim. Wrapping it in the `r.` envelope would
+    make it a string no reader unwraps, and encode_recruitment_ref needs a
+    shortcode of 1..255 bytes it does not have."""
+    md = {"creative": "Smiling", "gender": "women"}
+    token = "a1b2c3d4e5"
+
+    web = _web_dest("web", ref_mode="encoded")
+    app = _app_dest("app", ref_mode="encoded")
+
+    assert dotted_ref("Smiling", md, web, token) == token
+    assert dotted_ref("Smiling", md, app, token) == token
+
+
+def test_an_encoded_web_destination_interpolates_the_token_into_its_url():
+    template = _load_template("image_ad_messenger.json")
+    config = CreativeConf(destination="web", name="Smiling", template=template)
+    dest = _web_dest("web", ref_mode="encoded")
+    study = _study([dest], [config])
+    stratum = _stratum_with_md("stratum-1", [config], {"gender": "women"})
+
+    creative = create_creative(study, stratum, config, dest)
+
+    token = ad_ref_token(study, stratum, config, dest)
+    assert token is not None
+    assert token in json.dumps(creative.export_all_data())
 
 
 def test_flipping_one_study_does_not_touch_another():
@@ -1600,17 +1673,17 @@ def test_flipping_one_study_does_not_touch_another():
     stratum = _stratum_with_md("stratum-1", [config], PRODUCTION_METADATA)
     adset = {"id": "adset-1", "name": "stratum-1"}
 
-    def creative_for(include):
-        dest = _messenger_dest_mode(include_metadata=include)
+    def creative_for(mode):
+        dest = _messenger_dest_mode(ref_mode=mode)
         return create_creative(_study([dest], [config]), stratum, config, dest)
 
-    live = creative_for(True)
+    live = creative_for(None)
 
-    # Study A flips to shortcode-only: its ad is rewritten in place.
+    # Study A flips to encoded: its ad is rewritten in place.
     live_ad = create_ad(adset, live, "ACTIVE")
     live_ad["id"] = "ad-1"
     flipped = ad_dif(
-        adset, [live_ad], [create_ad(adset, creative_for(False), "ACTIVE")]
+        adset, [live_ad], [create_ad(adset, creative_for("encoded"), "ACTIVE")]
     )
     assert [(i.node, i.action) for i in flipped] == [("ad", "update")]
 
@@ -1625,23 +1698,14 @@ def test_flipping_one_study_does_not_touch_another():
     untouched = ad_dif(
         adset,
         [create_ad(adset, live, "ACTIVE")],
-        [create_ad(adset, creative_for(True), "ACTIVE")],
+        [create_ad(adset, creative_for(None), "ACTIVE")],
     )
     assert untouched == []
 
 
-def test_web_and_app_destinations_still_carry_the_full_ref():
-    """Left on full refs deliberately: neither type has a shortcode to emit.
-
-    WebDestination has only `url_template` and AppDestination only
-    `deeplink_template` — there is no `initial_shortcode` on either, because
-    the URL or deeplink already points at a specific survey, so routing is not
-    something the ref does for them. Making them shortcode-only would mean
-    inventing a new conf field for a token neither needs; the equivalent
-    decoupling for a web platform is capturing the ad id from the ad URL, which
-    is a separate piece of work. Messenger is where every existing study lives
-    and where the ref actually costs something.
-    """
+def test_web_and_app_destinations_default_to_the_full_ref():
+    """Same default as every other type: a conf that states no mode resolves to
+    the behaviour it has today."""
     template = _load_template("image_ad_messenger.json")
     stratum_md = {"gender": "women"}
 
@@ -1654,7 +1718,6 @@ def test_web_and_app_destinations_still_carry_the_full_ref():
 
     expected_web = make_ref("Smiling", web_md)
     assert expected_web in json.dumps(web_creative.export_all_data())
-    assert "form.mnchweek" not in json.dumps(web_creative.export_all_data())
 
     app = _app_dest("app")
     app_config = CreativeConf(destination="app", name="Smiling", template=template)
@@ -1840,7 +1903,7 @@ def test_whatsapp_deliverability_is_now_judged_on_the_encoded_form():
 
 
 def test_a_whatsapp_autofill_with_spaces_now_passes_flys_gate():
-    dest = _whatsapp_dest(full_ref=True)
+    dest = _whatsapp_dest()
     creative = _creative("Smiling", "whatsapp")
     study = _whatsapp_study([dest], [creative])
     stratum = _stratum_with_md("stratum-1", [creative], PRODUCTION_METADATA)
@@ -1873,7 +1936,7 @@ def test_a_whatsapp_autofill_with_spaces_now_passes_flys_gate():
 # ---------------------------------------------------------------------------
 
 
-def _multi_dest(shortcode="mnchweek", full_ref=False, additional=None, name="multi", ref_mode=None):
+def _multi_dest(shortcode="mnchweek", additional=None, name="multi", ref_mode=None):
     return FlyMultiDestination(
         type="multi",
         name=name,
@@ -1882,7 +1945,7 @@ def _multi_dest(shortcode="mnchweek", full_ref=False, additional=None, name="mul
         button_text="Start survey",
         whatsapp_phone_number="+1-541-920-2635",
         additional_metadata=additional,
-        **({"ref_mode": ref_mode} if ref_mode else {"include_metadata_in_ref": full_ref}),
+        ref_mode=ref_mode,
     )
 
 
@@ -1992,8 +2055,8 @@ def test_the_multi_creative_matches_what_the_probe_builds():
     creative, study, stratum, config = _multi_creative(dest)
 
     md = creative_metadata(study, stratum, dest)
-    ref = messenger_ref(config.name, md, dest)
-    autofill = whatsapp_autofill(dest.initial_shortcode, None)
+    ref = dotted_ref(config.name, md, dest)
+    autofill = whatsapp_ref(config.name, md, dest)
 
     assert creative["object_story_spec"]["link_data"][
         "page_welcome_message"
@@ -2014,7 +2077,7 @@ def test_the_multi_creative_carries_url_tags_and_the_messenger_fallback_cta(
     creative, study, stratum, config = _multi_creative(dest)
 
     md = creative_metadata(study, stratum, dest)
-    assert creative["url_tags"] == f"ref={messenger_ref(config.name, md, dest)}"
+    assert creative["url_tags"] == f"ref={dotted_ref(config.name, md, dest)}"
 
     assert creative["object_story_spec"]["link_data"][
         "call_to_action"
@@ -2077,7 +2140,7 @@ def test_both_tokens_round_trip_to_the_same_metadata_dict():
     frozen into ad_attributions.metadata -- otherwise one ad describes two
     different people depending on which arm Meta happened to pick.
     """
-    dest = _multi_dest(full_ref=True)
+    dest = _multi_dest()
     creative, study, stratum, config = _multi_creative(
         dest, metadata={"gender": "women", "Region": "South East"}
     )
@@ -2110,7 +2173,7 @@ def test_the_two_grammars_stay_two():
     structural, not a character-set problem, which is why multi serialises the
     same facts twice rather than reusing one string.
     """
-    dest = _multi_dest(full_ref=True)
+    dest = _multi_dest()
     creative, _, _, _ = _multi_creative(dest)
 
     message = _welcome(creative)["text_format"]["message"]
@@ -2121,24 +2184,22 @@ def test_the_two_grammars_stay_two():
     assert not _fly_would_accept(messenger_token)
 
 
-def test_the_default_is_the_shortcode_alone_on_both_arms():
-    """include_metadata_in_ref defaults False -- WhatsApp's default wins.
+def test_an_encoded_multi_ad_carries_one_token_on_both_arms():
+    """One mode drives both arms, so they cannot disagree about how much they
+    disclose -- which matters here because the WhatsApp arm's token sits in the
+    respondent's compose box, visible and editable."""
+    dest = _multi_dest(ref_mode="encoded")
+    creative, study, stratum, config = _multi_creative(dest)
 
-    The WhatsApp arm's token sits in the respondent's compose box, visible and
-    editable, and one flag drives both arms so they cannot disagree about how
-    much they disclose.
-    """
-    dest = _multi_dest()
-    creative, _, _, _ = _multi_creative(dest)
-
+    expected = encoded_ref("mnchweek", ad_ref_token(study, stratum, config, dest))
     message = _welcome(creative)["text_format"]["message"]
 
-    assert message["autofill_message"]["content"] == "form.mnchweek"
+    assert message["autofill_message"]["content"] == expected
     assert (
         json.loads(message["quick_replies"][0]["payload"])["referral"]["ref"]
-        == "form.mnchweek"
+        == expected
     )
-    assert creative["url_tags"] == "ref=form.mnchweek"
+    assert creative["url_tags"] == f"ref={expected}"
 
 
 # --- invariant 1: the frozen blob does not depend on the destination type ---
@@ -2195,8 +2256,8 @@ def test_the_ref_mode_does_not_change_the_multi_blob_either():
     stratum = _stratum_with_md("stratum-1", [creative], PRODUCTION_METADATA)
 
     blobs = []
-    for full in [True, False]:
-        dest = _multi_dest(full_ref=full)
+    for mode in [None, "encoded"]:
+        dest = _multi_dest(ref_mode=mode)
         study = _multi_study([dest], [creative])
         blobs.append(
             ref_metadata(creative.name, creative_metadata(study, stratum, dest))

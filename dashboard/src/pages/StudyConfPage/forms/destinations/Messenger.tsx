@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { GenericTextInput, TextInputI } from '../../components/TextInput';
+import RefModeField from './RefModeField';
 import { Messenger as FormData } from '../../../../types/conf';
 
 const TextInput = GenericTextInput as TextInputI<FormData>;
@@ -8,9 +9,11 @@ interface Props {
   data: FormData;
   updateFormData: (e: any, index: number) => void;
   index: number;
+  // This destination as saved, absent for one being added now.
+  savedDestination?: any;
 }
 
-const Messenger: React.FC<Props> = ({ data, updateFormData, index }: Props) => {
+const Messenger: React.FC<Props> = ({ data, updateFormData, index, savedDestination }: Props) => {
   const handleChange = (e: any) => {
     const { name, value } = e.target;
     updateFormData({ ...data, [name]: value }, index);
@@ -75,6 +78,7 @@ const Messenger: React.FC<Props> = ({ data, updateFormData, index }: Props) => {
         required={false}
         value={metadata}
       />
+      <RefModeField data={data} handleChange={handleChange} saved={savedDestination} />
     </>
   );
 };

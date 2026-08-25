@@ -22,7 +22,6 @@ from .study_conf import (
     StudyConf,
     TargetVar,
     UserInfo,
-    disagreeing_token_keys,
     missing_targeting_variables,
     normalize_whatsapp_phone_number,
     ref_value,
@@ -756,18 +755,18 @@ def test_unsafe_tokens_reports_keys_as_well_as_values():
     assert unsafe_whatsapp_ref_tokens({"my/key": "women"}) == ["my/key=women"]
 
 
-def _whatsapp_destination(shortcode="mnchweek", full_ref=False):
+def _whatsapp_destination(shortcode="mnchweek", ref_mode=None):
     return FlyWhatsAppDestination(
         type="whatsapp",
         name="whatsapp",
         initial_shortcode=shortcode,
         welcome_message="Tap send to start",
         whatsapp_phone_number="+1-541-920-2635",
-        include_metadata_in_ref=full_ref,
+        ref_mode=ref_mode,
     )
 
 
-def _whatsapp_study(metadata, full_ref=False, destination_name="whatsapp"):
+def _whatsapp_study(metadata, ref_mode=None, destination_name="whatsapp"):
     return StudyConf(
         id="00000000-0000-0000-0000-000000000001",
         user=UserInfo(survey_user="user", token="token"),
@@ -778,7 +777,7 @@ def _whatsapp_study(metadata, full_ref=False, destination_name="whatsapp"):
             ad_account="act_1",
             opt_window=48,
         ),
-        destinations=[_whatsapp_destination(full_ref=full_ref)],
+        destinations=[_whatsapp_destination(ref_mode=ref_mode)],
         audiences=[],
         creatives=[
             CreativeConf(destination=destination_name, name="Smiling", template={})
@@ -824,36 +823,36 @@ def test_safe_shortcodes_are_accepted():
 def test_full_ref_with_spaced_stratum_metadata_is_now_accepted():
     # This used to raise. The widened gate plus encoding is exactly what
     # unblocked it, and it is the single biggest practical change from D1.
-    study = _whatsapp_study({"State": "Bauchi State"}, full_ref=True)
+    study = _whatsapp_study({"State": "Bauchi State"})
     assert study.strata[0].metadata["State"] == "Bauchi State"
 
 
 def test_full_ref_with_a_genuinely_undeliverable_value_is_still_rejected():
     with pytest.raises(InvalidConfigError, match="North/South"):
-        _whatsapp_study({"Region": "North/South"}, full_ref=True)
+        _whatsapp_study({"Region": "North/South"})
 
 
 def test_full_ref_with_safe_stratum_metadata_is_accepted():
-    study = _whatsapp_study({"gender": "women", "creative": "3B"}, full_ref=True)
+    study = _whatsapp_study({"gender": "women", "creative": "3B"})
     assert study.strata[0].metadata["gender"] == "women"
 
 
-def test_shortcode_only_tolerates_metadata_it_never_ships():
-    """The reason shortcode-only is the default.
+def test_an_encoded_ref_tolerates_metadata_it_never_ships():
+    """The check fires only on the mode that puts values in the autofill text.
 
-    The same stratum that cannot have a full ref is perfectly fine on the
-    default setting, because none of those values travel in the autofill text.
-    The optimizer still gets the stratum via the ad-ID join.
+    A stratum whose values fly's entry pattern cannot parse is fine in ref_mode
+    "encoded", because none of them travel there — the ad table carries the
+    stratum instead.
     """
-    study = _whatsapp_study({"State": "Bauchi State"}, full_ref=False)
-    assert study.strata[0].metadata["State"] == "Bauchi State"
+    study = _whatsapp_study({"Region": "North/South"}, ref_mode="encoded")
+    assert study.strata[0].metadata["Region"] == "North/South"
 
 
 def test_full_ref_ignores_strata_that_do_not_publish_through_that_destination():
     # A stratum whose creatives all point elsewhere never produces a WhatsApp
     # ref, so its metadata cannot break one.
     study = _whatsapp_study(
-        {"State": "Bauchi State"}, full_ref=True, destination_name="somewhere-else"
+        {"State": "Bauchi State"}, destination_name="somewhere-else"
     )
     assert study.strata[0].metadata["State"] == "Bauchi State"
 
@@ -861,7 +860,7 @@ def test_full_ref_ignores_strata_that_do_not_publish_through_that_destination():
 def test_full_ref_validation_covers_the_form_key_and_extra_metadata():
     # `form` is folded in from the shortcode, which is already validated, but
     # extra_metadata is not -- and it rides in the ref too.
-    study = _whatsapp_study({"gender": "women"}, full_ref=True)
+    study = _whatsapp_study({"gender": "women"})
     study_dict = study.model_dump()
     study_dict["general"]["extra_metadata"] = {"country": "Sierra/Leone"}
 
@@ -982,15 +981,16 @@ def test_destination_type_is_not_checked_for_studies_without_whatsapp():
 
 
 # ---------------------------------------------------------------------------
-# Thinning the ref without reading the mapping (A4).
+# Thinning the ref without reading the mapping.
 #
-# include_metadata_in_ref off only works if the study also reads the ad ->
-# stratum mapping. One without the other leaves the study with no attribution
-# at all -- the ref no longer carries the stratum and nothing looks the ad up.
+# A ref that carries a token instead of the stratum only works if the study also
+# reads the ad -> stratum mapping. One without the other leaves the study with
+# no attribution at all -- the ref no longer carries the stratum and nothing
+# looks the ad up.
 # ---------------------------------------------------------------------------
 
 
-def _messenger_study(include_metadata_in_ref, inference_data=None):
+def _messenger_study(ref_mode=None, inference_data=None):
     return StudyConf(
         id="00000000-0000-0000-0000-000000000001",
         user=UserInfo(survey_user="user", token="token"),
@@ -1008,7 +1008,7 @@ def _messenger_study(include_metadata_in_ref, inference_data=None):
                 initial_shortcode="mnchweek",
                 welcome_message="Welcome!",
                 button_text="OK",
-                include_metadata_in_ref=include_metadata_in_ref,
+                ref_mode=ref_mode,
             )
         ],
         audiences=[],
@@ -1021,11 +1021,11 @@ def _messenger_study(include_metadata_in_ref, inference_data=None):
 
 def test_a_full_ref_study_is_never_flagged():
     # Every existing study.
-    assert thins_its_ref_without_reading_the_mapping(_messenger_study(True)) == []
+    assert thins_its_ref_without_reading_the_mapping(_messenger_study()) == []
 
 
 def test_thinning_the_ref_with_no_ad_confs_is_flagged():
-    study = _messenger_study(False, _inference_conf("md:gender"))
+    study = _messenger_study("encoded", _inference_conf("md:gender"))
     assert thins_its_ref_without_reading_the_mapping(study) == ["messenger"]
 
 
@@ -1033,7 +1033,10 @@ def test_thinning_the_ref_with_a_lookup_conf_is_fine():
     conf = InferenceDataConf(
         data_sources={"fly": SourceExtractionConf(extraction_confs=[_lookup_conf("gender")])}
     )
-    assert thins_its_ref_without_reading_the_mapping(_messenger_study(False, conf)) == []
+    assert (
+        thins_its_ref_without_reading_the_mapping(_messenger_study("encoded", conf))
+        == []
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -1047,17 +1050,14 @@ def test_mapping_defaults_to_raw():
     assert _extraction_conf("md:gender").is_ad_table_lookup is False
 
 
-def test_a_lookup_on_a_variable_is_rejected():
-    # The token is stamped by fly, not answered by the respondent, so this
-    # cannot mean anything. Rejected rather than ignored because of what `key`
-    # would then be taken for: swoosh reads a lookup conf's key as the
-    # declaration of where the token lives, and one stray conf would have every
-    # respondent in the study checked against the wrong metadata key -- which
-    # reads as an organic arrival and does not alarm.
-    with pytest.raises(ValidationError) as e:
-        _extraction_conf("q1", location="variable", mapping="ad_table_lookup")
+def test_a_lookup_reads_its_token_from_either_location():
+    # Location says where to read and mapping says what the value means, and
+    # neither constrains the other. A respondent recruited by a web or app
+    # destination lands on the researcher's own page, so their token comes back
+    # as a survey field rather than as metadata fly stamped.
+    conf = _extraction_conf("gender", location="variable", mapping="ad_table_lookup")
 
-    assert "metadata" in str(e.value)
+    assert conf.is_ad_table_lookup is True
 
 
 def test_an_unknown_mapping_is_rejected():
@@ -1065,69 +1065,34 @@ def test_an_unknown_mapping_is_rejected():
         _extraction_conf("md:gender", mapping="ad_id_lookup")
 
 
-def test_lookup_confs_agreeing_on_the_token_key_is_not_a_disagreement():
-    study = _study_with(
-        targeting=None,
-        inference_data=InferenceDataConf(
-            data_sources={
-                "fly": SourceExtractionConf(
-                    extraction_confs=[_lookup_conf("gender"), _lookup_conf("Age")]
-                )
-            }
-        ),
-    )
-    assert disagreeing_token_keys(study) == {}
-
-
-def test_lookup_confs_reading_different_token_keys_are_flagged():
-    # One respondent has one token, in one place. Confs on the other key
-    # attribute nobody -- and silently, because a token that is not there looks
-    # exactly like an organic arrival.
-    study = _study_with(
-        targeting=None,
-        inference_data=InferenceDataConf(
-            data_sources={
-                "fly": SourceExtractionConf(
-                    extraction_confs=[
-                        _lookup_conf("gender", key="vt"),
-                        _lookup_conf("Age", key="tok"),
-                    ]
-                )
-            }
-        ),
-    )
-    assert disagreeing_token_keys(study) == {"fly": ["tok", "vt"]}
-
-
-def test_a_raw_conf_on_another_key_is_not_a_disagreement():
-    # Only lookup confs read the token. A raw conf reading some other metadata
-    # key is ordinary and must not be dragged into this.
-    study = _study_with(
-        targeting=None,
-        inference_data=InferenceDataConf(
-            data_sources={
-                "fly": SourceExtractionConf(
-                    extraction_confs=[
-                        _lookup_conf("gender", key="vt"),
-                        _extraction_conf("md:city", key="city"),
-                    ]
-                )
-            }
-        ),
-    )
-    assert disagreeing_token_keys(study) == {}
-
-
 def test_thinning_the_ref_with_no_inference_conf_at_all_is_flagged():
     assert thins_its_ref_without_reading_the_mapping(
-        _messenger_study(False, None)
+        _messenger_study("encoded", None)
     ) == ["messenger"]
 
 
+def test_a_thinned_web_destination_is_flagged_the_same_way():
+    # No type check at all: a web destination whose ref stops carrying the
+    # stratum has exactly the problem a Messenger one does.
+    study = _messenger_study()
+    study_dict = study.model_dump()
+    study_dict["destinations"] = [
+        {
+            "type": "web",
+            "name": "web",
+            "url_template": "https://survey.example/?r={ref}",
+            "ref_mode": "encoded",
+        }
+    ]
+    study_dict["creatives"][0]["destination"] = "web"
+
+    assert thins_its_ref_without_reading_the_mapping(StudyConf(**study_dict)) == ["web"]
+
+
 def test_a_thinned_whatsapp_destination_is_flagged_the_same_way():
-    # Same concept, same field, same failure -- so the check spans both fly
-    # destination types rather than being Messenger-specific.
-    study = _whatsapp_study({"gender": "women"}, full_ref=False)
+    # Every destination type is asked, with no type check: what a ref carries is
+    # a property of the ref, not of the channel carrying it.
+    study = _whatsapp_study({"gender": "women"}, ref_mode="encoded")
     assert thins_its_ref_without_reading_the_mapping(study) == ["whatsapp"]
 
 
@@ -1210,7 +1175,7 @@ def test_a_non_messaging_destination_type_makes_no_claim_to_check():
 
 
 def _multi_study(destination_type="MESSAGING_MESSENGER_WHATSAPP",
-                 optimization_goal="CONVERSATIONS"):
+                 optimization_goal="CONVERSATIONS", ref_mode=None):
     return StudyConf(
         id="00000000-0000-0000-0000-000000000001",
         user=UserInfo(survey_user="user", token="token"),
@@ -1229,6 +1194,7 @@ def _multi_study(destination_type="MESSAGING_MESSENGER_WHATSAPP",
                 welcome_message="Tap below or send to start",
                 button_text="Start survey",
                 whatsapp_phone_number="+1-541-920-2635",
+                ref_mode=ref_mode,
             )
         ],
         audiences=[],
@@ -1333,10 +1299,9 @@ def test_a_multi_destination_exposes_the_number_in_metas_shape():
 
 
 def test_a_thin_multi_ref_without_an_ad_conf_is_reported():
-    """include_metadata_in_ref defaults False on multi, so the ad -> stratum
-    mapping is the only attribution it has. Reported for the same reason as the
-    other fly destinations."""
-    study = _multi_study()
+    """A multi destination in ref_mode "encoded" has the ad -> stratum mapping
+    as its only attribution. Reported for the same reason as the others."""
+    study = _multi_study(ref_mode="encoded")
     assert thins_its_ref_without_reading_the_mapping(study) == ["multi"]
 
 
@@ -1368,10 +1333,9 @@ def test_the_dashboard_whatsapp_form_shape_parses():
     )
 
     assert dest.type == "whatsapp"
-    # Not sent by the form, and must therefore have a default. The WhatsApp
-    # default is off: the autofill text is visible to and editable by the
-    # respondent.
-    assert dest.include_metadata_in_ref is False
+    # Not sent by a form that predates the field, and must therefore have a
+    # default: the mode it already runs under.
+    assert dest.resolved_ref_mode == "metadata"
     assert dest.additional_metadata is None
 
 
@@ -1389,7 +1353,7 @@ def test_the_dashboard_multi_form_shape_parses():
     )
 
     assert dest.type == "multi"
-    assert dest.include_metadata_in_ref is False
+    assert dest.resolved_ref_mode == "metadata"
 
 
 def test_the_dashboard_additional_metadata_shape_parses():

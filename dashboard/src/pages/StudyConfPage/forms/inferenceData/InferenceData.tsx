@@ -13,6 +13,7 @@ import { getFinishQuestionRef } from '../strata/strata';
 import ConfWrapper from '../../components/ConfWrapper';
 import ErrorPlaceholder from '../../../../components/ErrorPlaceholder';
 import SourceExtraction from './SourceExtraction';
+import { generateLookupConfs } from './generateLookupConfs';
 
 interface Props {
   id: string;
@@ -28,15 +29,13 @@ const InferenceData: React.FC<Props> = ({
 }: Props) => {
 
 
+  // What a source with nothing saved starts with. For fly that is one ad
+  // lookup per declared variable rather than a single blank row: the researcher
+  // already named those variables, and the name is what the ad's frozen row is
+  // keyed by. A default, not a merge — a source with saved confs shows those.
+  const variableNames = globalData.variables?.map(v => v.name) ?? [];
   const dataSourceState = globalData.data_sources?.map(ds => [ds.name, {
-    extraction_confs: [{
-      name: '',
-      location: '',
-      key: '',
-      functions: [],
-      aggregate: '',
-      value_type: ''
-    }]
+    extraction_confs: generateLookupConfs(ds.source, variableNames)
   }])
   const initialState = { data_sources: Object.fromEntries(dataSourceState) };
 

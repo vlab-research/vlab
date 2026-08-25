@@ -30,7 +30,6 @@ from .study_conf import (
     Stratum,
     StratumConf,
     StudyConf,
-    disagreeing_token_keys,
     missing_targeting_variables,
     thins_its_ref_without_reading_the_mapping,
 )
@@ -155,30 +154,8 @@ def warn_on_thinned_ref_without_mapping(study: StudyConf) -> None:
             "their ref, but this study has no inference_data conf with "
             'mapping: "ad_table_lookup". Nothing will attribute its respondents '
             "to a stratum: every stratum will count zero and the optimizer will "
-            "reallocate on empty data. Either add the lookup confs, or leave the "
-            "destination's ref_mode at 'metadata'."
-        )
-
-
-def warn_on_disagreeing_token_keys(study: StudyConf) -> None:
-    """Say so when a source's lookup confs disagree on where the token is.
-
-    One respondent has one token, in one place. Confs naming different keys
-    means at least one reads nothing — and reading nothing is indistinguishable
-    from an organic arrival, so it does not alarm, it just miscounts. swoosh
-    resolves the ambiguity by taking the first key it finds, which is a guess;
-    this is where anyone gets told a guess was needed.
-
-    A warning, not a raise — see disagreeing_token_keys for why.
-    """
-    for source, keys in disagreeing_token_keys(study).items():
-        logging.warning(
-            f"Source '{source}' has ad_table_lookup confs reading the token "
-            f"from more than one metadata key: {keys}. A respondent carries one "
-            "token in one place, so confs on the other key(s) will attribute "
-            "nobody — silently, because a token that is not there looks exactly "
-            "like an organic arrival. swoosh will use the first key it finds. "
-            "Point every ad_table_lookup conf on this source at the same key."
+            "reallocate on empty data. Either add the lookup confs, or set the "
+            "destination's ref_mode to 'metadata'."
         )
 
 
@@ -188,7 +165,6 @@ def update_ads_for_campaign(
     strata = hydrate_strata(state, study.strata, study.creatives)
     warn_on_incomplete_targeting(study)
     warn_on_thinned_ref_without_mapping(study)
-    warn_on_disagreeing_token_keys(study)
     now = datetime.utcnow()
 
     inf_start, inf_end = study.recruitment.get_inference_window(now)

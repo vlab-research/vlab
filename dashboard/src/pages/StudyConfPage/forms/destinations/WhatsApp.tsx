@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { GenericTextInput, TextInputI } from '../../components/TextInput';
+import RefModeField from './RefModeField';
 import { WhatsApp as FormData } from '../../../../types/conf';
 import { metadataToText, parseAdditionalMetadata } from './additionalMetadata';
 
@@ -9,12 +10,14 @@ interface Props {
   data: FormData;
   updateFormData: (e: any, index: number) => void;
   index: number;
+  // This destination as saved, absent for one being added now.
+  savedDestination?: any;
 }
 
 // A click-to-WhatsApp destination. Same shape as Messenger minus button_text —
 // WhatsApp has no quick-reply button, the respondent gets a prefilled compose
 // box instead — and plus the phone number the ad's clicks land on.
-const WhatsApp: React.FC<Props> = ({ data, updateFormData, index }: Props) => {
+const WhatsApp: React.FC<Props> = ({ data, updateFormData, index, savedDestination }: Props) => {
   const handleChange = (e: any) => {
     const { name, value } = e.target;
     updateFormData({ ...data, [name]: value }, index);
@@ -81,6 +84,7 @@ const WhatsApp: React.FC<Props> = ({ data, updateFormData, index }: Props) => {
         required={false}
         value={metadata}
       />
+      <RefModeField data={data} handleChange={handleChange} saved={savedDestination} />
     </>
   );
 };

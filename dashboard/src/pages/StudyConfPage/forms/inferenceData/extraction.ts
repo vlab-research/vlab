@@ -1,25 +1,26 @@
 /**
- * Pure logic for the fly source's extraction-conf form.
+ * Pure logic for the extraction-conf form, for every source.
  * No React dependencies; testable in isolation.
  *
  * An extraction conf tells swoosh where to find one variable, in two parts:
  *
  *   location  where to read      — `variable` (walk a path into the response
  *                                  the respondent produced) or `metadata`
- *                                  (look up a key in what fly stamped on the
- *                                  event)
+ *                                  (look up a key in what the connector
+ *                                  stamped on the event)
  *   mapping   what that means    — `raw` (the value read IS the answer) or
  *                                  `ad_table_lookup` (the value read is an
  *                                  opaque token identifying the ad that
  *                                  recruited them; the answer is a stratum
  *                                  variable off that ad's frozen row)
  *
- * There is no `ad` location and there never really was one: the token lives in
- * metadata, so reading it is an ordinary metadata read. What makes a variable
- * ad-derived is the mapping. The old `ad` location joined on ad_id and has been
- * removed — see documentation/ad-attributions.md.
+ * The two are independent, which is why one module serves every source. A
+ * respondent recruited by a fly destination brings the token back in event
+ * metadata; one recruited by a web or app destination lands on the researcher's
+ * own page and brings it back as a field in Typeform or Qualtrics. Each conf
+ * declares where its own token is.
  *
- * `metadata` is a *keyed* lookup under either mapping: you name a key and get a
+ * `metadata` is a *keyed* read under either mapping: you name a key and get a
  * value, so there is no response path to select. `variable` is the only
  * location with one. Most of the branching in this form is really that
  * distinction, so it is expressed once, here.
@@ -42,42 +43,36 @@ export const KEYED_LOCATIONS = [METADATA_LOCATION];
 export const isKeyedLocation = (location: string): boolean =>
   KEYED_LOCATIONS.includes(location);
 
-/**
- * The locations a fly-sourced variable can come from.
- *
- * Shared in shape with the Qualtrics/Typeform form now that `ad` is gone. They
- * are still separate modules, because what is fly-only is the *mapping* — see
- * mappingOptions.
- */
 export const locationOptions = [
   { name: '', label: 'Where is the data located in the source?' },
   { name: METADATA_LOCATION, label: 'Metadata' },
   { name: VARIABLE_LOCATION, label: 'Variable' },
 ];
 
-/**
- * What to do with the value read from metadata.
- *
- * Deliberately NOT shared with the Qualtrics/Typeform form. A lookup needs the
- * source to carry the ad token, and only fly does; offering it on a Qualtrics
- * source would let someone configure a variable that silently yields nothing
- * forever — exactly the quiet miscount this design exists to prevent.
- *
- * This is the seam that opens without a structural change: a platform that
- * starts surfacing the token just adds this option to its own form and declares
- * whichever metadata key it arrives under.
- */
+/** What to do with the value read from the location. */
 export const mappingOptions = [
   { name: RAW_MAPPING, label: 'Use the value as it is' },
   { name: AD_TABLE_LOOKUP_MAPPING, label: 'Ad (which ad recruited them)' },
 ];
 
-/** The mapping choice only makes sense for a metadata read. */
-export const showsMapping = (location: string): boolean =>
-  location === METADATA_LOCATION;
-
 export const isAdTableLookup = (data: Extraction): boolean =>
   data.mapping === AD_TABLE_LOOKUP_MAPPING;
+
+/**
+ * The response values a source's payload offers, for the one location that has
+ * a path to walk. fly events carry the answer and its translation; Qualtrics
+ * and Typeform answers carry a label and a value.
+ */
+export const responseOptions = (source: string) =>
+  source === 'fly'
+    ? [
+        { name: 'response', label: 'Response' },
+        { name: 'translated_response', label: 'Translated Response' },
+      ]
+    : [
+        { name: 'label', label: 'Label' },
+        { name: 'value', label: 'Value' },
+      ];
 
 /**
  * How repeat values for one respondent are resolved.
@@ -108,7 +103,7 @@ export const selectFunctions = (path: string) => [
  */
 export const keyPlaceholder = (data: Extraction): string => {
   if (isAdTableLookup(data)) {
-    return 'Which metadata key carries the ad token? Usually: vt';
+    return 'Which key or field carries the ad token? On fly: vt';
   }
   return 'What is the variable called in the data source?';
 };
@@ -131,18 +126,19 @@ export const responsePrompt = (location: string): string =>
 /**
  * Compute the next extraction conf from one form field change.
  *
- * Two resets, both guarding against a stale field surviving a change of mind:
- *
  * Switching to a keyed location resets `functions` to the identity select.
  * Without it, a conf built as `variable` with `path: "response"` would keep
  * trying to select "response" out of a bare metadata value and fail extraction
  * for every event.
  *
- * Switching AWAY from metadata resets `mapping` to raw. Without it, a conf
- * could end up `variable` + `ad_table_lookup`, which is rejected at config time
- * — and worse, its `key` would look like a declaration of where the token
- * lives, which is how a study ends up classifying every respondent against the
- * wrong metadata key.
+ * The mapping is left alone by a location change. Location says where to read
+ * and mapping says what the value means, and a conf can read its token from
+ * either place, so a change of location says nothing about what was read.
+ *
+ * `aggregate` is derived from the conf's own location on every change rather
+ * than pinned to "first". Pinned, an edit to any other field would quietly
+ * demote a `variable` conf back to the first value it ever saw — so a survey
+ * answer someone corrected mid-study would keep the answer they corrected.
  */
 export const applyChange = (
   data: Extraction,
@@ -161,7 +157,6 @@ export const applyChange = (
         location: value,
         aggregate: aggregateForLocation(value),
         functions: isKeyedLocation(value) ? identityFunctions() : data.functions,
-        mapping: showsMapping(value) ? data.mapping || RAW_MAPPING : RAW_MAPPING,
       };
       break;
 
@@ -172,7 +167,7 @@ export const applyChange = (
   return {
     ...data,
     value_type: 'categorical',
-    aggregate: 'first',
+    aggregate: aggregateForLocation(data.location),
     mapping: data.mapping || RAW_MAPPING,
     ...update,
   };
