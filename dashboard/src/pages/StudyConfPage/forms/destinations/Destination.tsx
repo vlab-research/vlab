@@ -12,12 +12,18 @@ interface Props {
   data: any;
   index: number;
   update: (d: DestinationType, index: number) => void;
+  // Passed through GenericList's elementProps by Destinations. Maps a destination
+  // name to the Facebook page id of its creatives, for building the m.me test link.
+  pageIdByName?: Record<string, string>;
+  fallbackPageId?: string;
 }
 
 const Destination: React.FC<Props> = ({
   data,
   index,
   update: updateFormData,
+  pageIdByName,
+  fallbackPageId,
 }: Props) => {
 
   const type_ = data.type;
@@ -70,7 +76,12 @@ const Destination: React.FC<Props> = ({
         <App data={data} updateFormData={updateFormData} index={index} />
       )}
       {destinationType === 'messenger' && (
-        <Messenger data={data} updateFormData={updateFormData} index={index} />
+        <Messenger
+          data={data}
+          updateFormData={updateFormData}
+          index={index}
+          pageId={(data.name && pageIdByName?.[data.name]) || fallbackPageId}
+        />
       )}
     </li>
   );

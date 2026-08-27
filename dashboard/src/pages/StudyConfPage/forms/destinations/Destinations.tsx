@@ -7,15 +7,20 @@ import { Destinations as DestinationTypes } from '../../../../types/conf';
 import { Destination as DestinationType } from '../../../../types/conf';
 import ConfWrapper from '../../components/ConfWrapper';
 import { GenericListFactory } from '../../components/GenericList';
+import { GlobalFormData } from '../../../../types/conf';
+import { pageIdForDestination } from './messengerTestLink';
 
 const DestinationList = GenericListFactory<DestinationType>();
 
 interface Props {
   id: string;
   localData: DestinationTypes;
+  // Threaded to every tab by Form; used here to resolve each destination's page id
+  // from the creatives conf for the Messenger test link.
+  globalData?: GlobalFormData;
 }
 
-const Destinations: React.FC<Props> = ({ id, localData }: Props) => {
+const Destinations: React.FC<Props> = ({ id, localData, globalData }: Props) => {
 
   const initialState = [
     {
@@ -47,6 +52,14 @@ const Destinations: React.FC<Props> = ({ id, localData }: Props) => {
     createStudyConf({ data: formData, studySlug, confType: id });
   };
 
+  const creatives = globalData?.creatives;
+  const pageIdByName = (creatives || []).reduce<Record<string, string>>((m, c) => {
+    const pid = pageIdForDestination([c], c.destination);
+    if (c.destination && pid) m[c.destination] = pid;
+    return m;
+  }, {});
+  const fallbackPageId = pageIdForDestination(creatives, undefined);
+
   return (
     <ConfWrapper>
       <form onSubmit={onSubmit}>
@@ -56,6 +69,7 @@ const Destinations: React.FC<Props> = ({ id, localData }: Props) => {
           setData={setFormData}
           initialState={initialState}
           elementName="destination"
+          elementProps={{ pageIdByName, fallbackPageId }}
         />
         <SubmitButton isLoading={isLoadingOnCreateStudyConf} />
       </form>

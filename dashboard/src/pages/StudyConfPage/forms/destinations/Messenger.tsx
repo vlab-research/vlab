@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { GenericTextInput, TextInputI } from '../../components/TextInput';
 import { Messenger as FormData } from '../../../../types/conf';
+import { messengerTestLink } from './messengerTestLink';
 
 const TextInput = GenericTextInput as TextInputI<FormData>;
 
@@ -8,9 +9,12 @@ interface Props {
   data: FormData;
   updateFormData: (e: any, index: number) => void;
   index: number;
+  // Facebook page id this destination lands on, derived from its creatives.
+  // Undefined until at least one creative exists, so the test link stays hidden.
+  pageId?: string;
 }
 
-const Messenger: React.FC<Props> = ({ data, updateFormData, index }: Props) => {
+const Messenger: React.FC<Props> = ({ data, updateFormData, index, pageId }: Props) => {
   const handleChange = (e: any) => {
     const { name, value } = e.target;
     updateFormData({ ...data, [name]: value }, index);
@@ -41,6 +45,8 @@ const Messenger: React.FC<Props> = ({ data, updateFormData, index }: Props) => {
   const additional_metadata = data.additional_metadata ? JSON.stringify(data.additional_metadata) : "";
 
   const [metadata, setMetadata] = useState<string>(additional_metadata);
+
+  const testLink = messengerTestLink(pageId, data.initial_shortcode);
 
   return (
     <>
@@ -75,6 +81,32 @@ const Messenger: React.FC<Props> = ({ data, updateFormData, index }: Props) => {
         required={false}
         value={metadata}
       />
+      <div className="mt-2 mb-4 text-sm">
+        {testLink ? (
+          <>
+            <a
+              href={testLink}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-blue-600 underline hover:text-blue-800"
+            >
+              Test this survey in Messenger →
+            </a>
+            <p className="mt-1 text-xs text-gray-500">
+              Opens the real ad-click funnel for shortcode{' '}
+              <span className="font-mono">{data.initial_shortcode}</span>. If the survey
+              starts, routing works; if nothing happens, the shortcode does not resolve
+              to a form.
+            </p>
+          </>
+        ) : (
+          <p className="text-xs text-gray-500">
+            {data.initial_shortcode
+              ? 'Add a creative to enable a Messenger test link.'
+              : 'Enter a shortcode to enable a Messenger test link.'}
+          </p>
+        )}
+      </div>
     </>
   );
 };
