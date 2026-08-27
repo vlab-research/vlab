@@ -229,3 +229,11 @@ devops/.env-*
 inference/swoosh/swoosh
 inference/fly
 inference/typeform
+
+# Local data dumps pulled out of production, and scratch backups. NOT
+# committable: `adopt/backtest_data/*/inference_data.jsonl` carries respondent
+# PSIDs and `variable`/`value` rows including `phone_number` — real phone
+# numbers, thousands of them — and this repository is PUBLIC. Use `git add -f`
+# if you ever genuinely need something from these paths, and look first.
+adopt/backtest_data/
+backup-stubs/
