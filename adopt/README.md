@@ -238,6 +238,31 @@ correcting it means knowing which network to reassign every existing row to.
   `make_ref`'s output back using a reimplementation of fly's own ref parser
   and asserts the result equals the frozen blob. That's the guard against
   `make_ref` and `ref_metadata` drifting apart from each other over time.
+- `adopt/adopt/test_ref_encoding_contract.py` — **the cross-repo deploy
+  contract**, and the only test here that is really about fly. It asserts vlab
+  mints the frozen vectors in `adopt/adopt/ref_encoding_vectors.json`, that the
+  mirror decoder round-trips them and refuses the negatives, and that the
+  vendored copy of fly's WhatsApp entry pattern agrees with the deployed one.
+  fly's half (`replybot/lib/typewheels/ref-encoding-contract.test.js`) decodes
+  the same vectors with the replybot **tag** named by fly's
+  `devops/values/production.yaml`, extracted straight out of git rather than
+  from whatever happens to be checked out. Three things are vendored across
+  that boundary — `decode_recruitment_ref`, `WHATSAPP_ENTRY_REF` and
+  `ENCODED_REF_VERSION` — and nothing detected drift in any of them until this
+  existed. Two had already accumulated. See `documentation/ad-attributions.md`,
+  "The deploy contract".
+
+### Probing production
+
+- `adopt/scripts/write_path_probe.py` — read-only. Answers whether adopt has
+  actually written an `ad_attributions` row for any ad it created since the
+  write path shipped, by comparing Meta's own `created_time` against the table.
+  Needed because adopt records nothing per instruction: the only trace of an ad
+  create is a log line in a cronjob pod Kubernetes keeps for three runs.
+- `adopt/scripts/ctwa_probe.py` — builds and reads back real Meta ads. Driven
+  by `planning/ctwa-probe-runbook.md`.
+- `planning/encoded-ref-probe-runbook.md` — the end-to-end encoded-ref probe,
+  and the record of what has and has not been proven in production.
 
 See `planning/ad-id-attribution.md` for the full design and the phases that
 build on this one.

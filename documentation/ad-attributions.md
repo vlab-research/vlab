@@ -647,6 +647,57 @@ handles `%2E` on production fly today. Only the **WhatsApp** gate needs fly's
 widened pattern deployed first; before that, an encoded value fails the match.
 There is deliberately no gating for this in code.
 
+## The deploy contract
+
+Three things in this design are **vendored across the repo boundary**, and each
+is a place where vlab and fly can disagree without anything failing:
+
+| In vlab | Is a copy of | Failure if it drifts |
+|---|---|---|
+| `ref_encoding.decode_recruitment_ref` | fly's `decodeRecruitmentRef` | a ref vlab believes is valid that fly refuses — every respondent from that ad lands in `FALLBACK_FORM` |
+| `test_marketing.WHATSAPP_ENTRY_REF` | fly's `WHATSAPP_ENTRY_REF` | adopt's config-time deliverability check answers about a gate that is not running |
+| `ref_encoding.ENCODED_REF_VERSION` | fly's `ENCODED_REF_VERSION` | a version bump on one side only, so the other rejects or mis-parses every ref |
+
+Nothing detected drift in any of them, and by 2026-08-26 two had accumulated —
+both in the vendored WhatsApp pattern, both one fly widening behind, and one of
+them had also propagated into this document as a "verified" claim (above).
+
+`adopt/adopt/ref_encoding_vectors.json` is the fix: a frozen set of v1 vectors
+— shortcodes and tokens, the exact base64url they must encode to, strings a v1
+decoder must **refuse**, and WhatsApp bodies the entry gate must accept, reject
+or admit-then-throw on.
+
+```
+vlab   adopt/adopt/test_ref_encoding_contract.py
+       -> asserts vlab MINTS these bytes, that its mirror decoder round-trips
+          and refuses the negatives, and that the vendored gate agrees
+
+fly    replybot/lib/typewheels/ref-encoding-contract.test.js
+       -> reads versionReplybot out of devops/values/production.yaml,
+          extracts THAT TAG's utils.js / errors.js / event-normalizer.js out
+          of git, and decodes the same vectors with it
+```
+
+Two properties make this worth more than an ordinary test:
+
+**It asserts against the tag, not against a checkout.** The mistake this
+project has already made once is code existing on a *branch* while a *tag* is
+what runs, and no test that does `require('./utils')` can see the difference.
+Measured in fly on 2026-08-26, minutes apart: `git show main:…/utils.js` had
+**zero** occurrences of `decodeRecruitmentRef` (the local `main` was five days
+stale), `git show replybot-v0.0.221:…/utils.js` had **three**, and a live
+feature branch's `errors.js` had no `RefDecodeError` at all. Three answers, one
+repository. Only the tag's answer is about production.
+
+**The fixture is duplicated, and the duplication is held closed.** A copy lives
+in each repo, so neither needs the other checked out and both halves run in
+ordinary CI. Both carry a sha256 over their own vectors; both halves recompute
+it *and* compare it against a constant hardcoded in the test file. Editing a
+vector fails the self-check; editing the vector and its digest together fails
+the constant. A format change is a **new version and a new file** — every ad
+already published carries exactly these bytes, so `ENCODED_REF_VERSION` is what
+moves, never this file.
+
 ## Click-to-WhatsApp destinations
 
 `FlyWhatsAppDestination` is shaped after `FlyMessengerDestination`, minus
@@ -663,20 +714,50 @@ A CTWA referral carries **no advertiser-settable `ref`** — `url_tags` was
 measured not to reach WhatsApp at all. fly instead recovers the shortcode from
 the ad's autofill text, which prefills the respondent's first message, and
 matches it against an anchored full-match pattern (`WHATSAPP_ENTRY_REF` in
-`replybot/lib/event-normalizer.js`):
+`replybot/lib/event-normalizer.js`), as it stands at **`replybot-v0.0.221`**,
+the tag deployed in `vprod` and `vstag`:
 
 ```
-/^(?:start\s+)?form\.((?:[A-Za-z0-9_-]|%[0-9A-Fa-f]{2})+
-                      (?:\.(?:[A-Za-z0-9_-]|%[0-9A-Fa-f]{2})+)*)$/i
+/^(?:start\s+)?((?:(?:[A-Za-z0-9_-]|%[0-9A-Fa-f]{2})+
+                   \.(?:[A-Za-z0-9_-]|%[0-9A-Fa-f]{2})+\.)*)
+               form\.((?:[A-Za-z0-9_-]|%[0-9A-Fa-f]{2})+)
+               ((?:\.(?:[A-Za-z0-9_-]|%[0-9A-Fa-f]{2})+)*)$/i
 ```
 
-Two things follow, both verified directly against that regex:
+Two things follow, both verified on 2026-08-26 by running the deployed tag's
+own `categorizeWhatsAppEvent` → `getMetadata` over the vectors in
+`adopt/adopt/ref_encoding_vectors.json` — not by reading the regex:
 
-1. **`make_ref`'s output can never match.** The pattern anchors on `form.`;
-   `make_ref` leads with `creative.`. No value is safe enough to fix that, so
-   WhatsApp needs its own **form-first** serialisation —
-   `marketing.whatsapp_autofill`, emitting `form.<shortcode>[.key.value…]`.
-   This one is structural and has not changed.
+1. **`make_ref`'s output matches it — which it did not use to.** ⚠️ **This
+   reverses a claim this document previously recorded as verified.** The gate
+   has been widened twice, and the second widening removed the property the
+   separate WhatsApp serialisation was justified by:
+
+   | tag | shape |
+   |---|---|
+   | `v0.0.218` | `form.` must LEAD; token alphabet `[A-Za-z0-9_-]` |
+   | `v0.0.219` | `form.` must LEAD; alphabet widened to accept `%XX` |
+   | **`v0.0.220`** | **the `form` *pair* may appear ANYWHERE in the pair list** |
+   | `v0.0.221` | unchanged from `v0.0.220`; **deployed** |
+
+   `creative.<name>` is itself two tokens and every metadata entry adds two
+   more, so `form` always lands on a pair boundary — meaning `make_ref`'s
+   output now matches **always** rather than never. Measured:
+   `creative.Smiling.form.mnchweek.gender.women` yields
+   `{form: mnchweek, creative: Smiling, gender: women}` on the deployed tag.
+
+   **Nothing is broken and nothing should change.** `whatsapp_ref` still emits
+   form-first, every live ad carries that, and rewriting it would rewrite ads
+   for no gain. What changes is the *reason*: form-first is the serialisation
+   vlab ships, not the only one fly can read. The structural fact that survives
+   is narrower — a ref with **no `form` pair at all** still cannot route, which
+   is exactly what a web or app destination's ref looks like, since
+   `creative_metadata` folds `form` in for fly destinations only.
+
+   Both this claim and adopt's vendored copy of the pattern
+   (`test_marketing.WHATSAPP_ENTRY_REF`) went stale without anything noticing,
+   and the vendored copy had been stale twice. That is what *The deploy
+   contract* below now exists to prevent.
 2. **Every token is `[A-Za-z0-9_-]` or a percent-encoded octet.** The `%XX`
    half was added on fly@`feature/ad-id-attribution` `37e1e06e`. Before it, a
    space was undeliverable raw *and* encoded, because `%` was not in the
@@ -894,6 +975,39 @@ catches per-study, so one study's failure does not stop the others.
 This is also why **A1 and A2 must be in production before the first ad of any
 study that opts into ad-id attribution.**
 
+## What has, and has not, been proven in production
+
+Every layer here is unit- and integration-tested and the contract vectors match
+across repos. That is not the same as a respondent having walked the path, and
+the difference is worth stating precisely rather than leaving a reader to infer
+capability from the absence of caveats. Status as of **2026-08-26**; the probe
+that closes the gaps is `planning/encoded-ref-probe-runbook.md`.
+
+| | Claim | Status |
+|---|---|---|
+| **write** | adopt records a row when it creates an ad | **not observed in production.** `ad_attributions` holds 0 rows, and 0 ads have been created by any study since adopt `v0.1.78` shipped the write path (2026-08-20 22:00 UTC) — checked against Meta across 105 of 134 study campaigns, the remaining 29 having finished recruiting before the cutoff. So the empty table is consistent with a healthy path with nothing to do, and equally with one that never fires. Covered by `test_ad_attributions.py` against a real database with a fake Graph updater; the one untested seam is the real SDK's created-id return. |
+| **format** | the deployed replybot decodes what adopt mints | **verified**, `replybot-v0.0.221`, 2026-08-26 — see *The deploy contract*. |
+| **carriers** | Meta stores an encoded ref intact in all three carriers | **not measured for encoded refs.** Measured for *dotted* refs on 2026-08-17 (`planning/ctwa-probe-runbook.md` §0.5). base64url is a strict subset of the alphabet those refs already survived, so this is expected to hold — but expected is not measured. |
+| **arrival** | a real respondent's encoded ref reaches `inference_data` | **never.** No study sets `ref_mode: "encoded"` (0 of 719 destination confs) and none declares an `ad_table_lookup` conf (0 of 691 inference confs). The feature is inert. |
+
+### The web and app path has no production evidence at all
+
+**Stated as a limit, deliberately, rather than left to look like a capability.**
+
+A web or app destination in `ref_mode: "encoded"` interpolates a **bare** token
+into its `url_template` / `deeplink_template`. Unlike the fly destinations,
+routing does not depend on that token — the template already points at the
+survey — so routing and attribution are **decoupled**. A token that fails to
+reach the survey platform therefore produces a perfectly successful respondent
+who is silently unattributed. There is no `FALLBACK_FORM` to make it visible,
+and no unmapped counter either: an event carrying no token is an *expected*
+arrival.
+
+Proving it needs a real Typeform or Qualtrics with a hidden field wired to the
+token, which we do not have. It has not been done and should not be faked. Until
+someone runs it, treat `ref_mode: "encoded"` on a web or app destination as
+**unproven**, and prefer `"metadata"` there.
+
 ## Where things live
 
 | Thing | Path |
@@ -920,10 +1034,17 @@ study that opts into ad-id attribution.**
 | Python tests (need `make test-db`) | `adopt/adopt/test_ad_attributions.py`, `adopt/adopt/test_marketing.py`, `adopt/adopt/facebook/test_reconciliation.py`, `adopt/adopt/test_study_conf.py`, `adopt/adopt/server/test_ad_attributions_csv.py` |
 | Go tests (need `make test-db`) | `inference/swoosh/ad_attributions_test.go`, `inference/sources/fly/main_test.go` |
 | Frontend tests | `.../inferenceData/extraction.test.ts`, `.../destinations/{refMode.test.ts,Destination.test.tsx}`, `.../adAttributions/adAttributions.test.ts` |
+| **Deploy contract — the vectors** | `adopt/adopt/ref_encoding_vectors.json` (fly copy: `replybot/lib/typewheels/ref_encoding_vectors.json`) |
+| **Deploy contract — vlab's half** | `adopt/adopt/test_ref_encoding_contract.py` |
+| **Deploy contract — fly's half** | `replybot/lib/typewheels/ref-encoding-contract.test.js` |
+| **Write-path probe (leg 0)** | `adopt/scripts/write_path_probe.py` |
+| **The end-to-end probe** | `planning/encoded-ref-probe-runbook.md` |
 
 Per-app detail: `adopt/README.md`, `inference/README.md` and
 `dashboard/README.md`.
 
 Full design: `planning/ad-id-attribution.md` for the original ad-id work, and
 `planning/encoded-ref-attribution-plan.md` for the encoded-ref rework that
-replaced its join half.
+replaced its join half. `planning/encoded-ref-probe-plan.md` specifies the
+production probe and `planning/encoded-ref-probe-runbook.md` is the procedure
+that runs it.

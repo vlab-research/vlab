@@ -1,0 +1,225 @@
+{
+  "note": [
+    "THE ENCODED-REF v1 DEPLOY CONTRACT. Frozen. Do not edit to make a test pass.",
+    "",
+    "vlab mints these strings (adopt/adopt/ref_encoding.py); the replybot tag",
+    "named by fly's devops/values/production.yaml decodes them",
+    "(replybot/lib/typewheels/utils.js decodeRecruitmentRef). Two copies of",
+    "this file exist, one per repo, so neither repo needs the other checked",
+    "out to run its half:",
+    "",
+    "  vlab  adopt/adopt/ref_encoding_vectors.json",
+    "  fly   replybot/lib/typewheels/ref_encoding_vectors.json",
+    "",
+    "`digest` is sha256 over json.dumps(vectors, sort_keys=True,",
+    "separators=(',',':'), ensure_ascii=False). Both repos recompute it AND",
+    "compare it to a constant hardcoded in their test, so the file cannot be",
+    "edited quietly on either side: changing a vector without the digest",
+    "fails the self-check, and changing both fails the constant.",
+    "",
+    "A format change is a NEW version, not an edit. Bump ENCODED_REF_VERSION",
+    "in both repos and add a v2 fixture beside this one; every ad already",
+    "live was published against exactly these bytes."
+  ],
+  "format_version": 1,
+  "digest": "86d3374214a993346ee9f83390597be3d1d757e441c0380b5f166c3cbeb082e6",
+  "vectors": {
+    "mint": [
+      {
+        "shortcode": "mnchweek",
+        "token": "5e1cd2e7c2",
+        "encoded": "AQhtbmNod2Vla14c0ufC",
+        "ref": "r.AQhtbmNod2Vla14c0ufC",
+        "why": "the ordinary case: an 8-byte shortcode and a 5-byte token"
+      },
+      {
+        "shortcode": "a",
+        "token": "5e1cd2e7c2",
+        "encoded": "AQFhXhzS58I",
+        "ref": "r.AQFhXhzS58I",
+        "why": "the shortest legal shortcode; length prefix 1"
+      },
+      {
+        "shortcode": "café",
+        "token": "5e1cd2e7c2",
+        "encoded": "AQVjYWbDqV4c0ufC",
+        "ref": "r.AQVjYWbDqV4c0ufC",
+        "why": "multi-byte UTF-8: the prefix counts BYTES (5), not characters (4)"
+      },
+      {
+        "shortcode": "MNCH-week_2",
+        "token": "5e1cd2e7c2",
+        "encoded": "AQtNTkNILXdlZWtfMl4c0ufC",
+        "ref": "r.AQtNTkNILXdlZWtfMl4c0ufC",
+        "why": "hyphen, underscore and mixed case all survive the shortcode"
+      },
+      {
+        "shortcode": "ecdenglishincentive",
+        "token": "5e1cd2e7c2",
+        "encoded": "ARNlY2RlbmdsaXNoaW5jZW50aXZlXhzS58I",
+        "ref": "r.ARNlY2RlbmdsaXNoaW5jZW50aXZlXhzS58I",
+        "why": "a 19-byte shortcode, the longest in production use"
+      },
+      {
+        "shortcode": "mnchweek",
+        "token": "00",
+        "encoded": "AQhtbmNod2VlawA",
+        "ref": "r.AQhtbmNod2VlawA",
+        "why": "a 1-byte token: the remainder rule at its minimum"
+      },
+      {
+        "shortcode": "mnchweek",
+        "token": "00000000000000000000",
+        "encoded": "AQhtbmNod2VlawAAAAAAAAAAAAA",
+        "ref": "r.AQhtbmNod2VlawAAAAAAAAAAAAA",
+        "why": "a 10-byte token: the remainder carries no length of its own"
+      },
+      {
+        "shortcode": "mnchweek",
+        "token": "ff00ff00ff",
+        "encoded": "AQhtbmNod2Vla_8A_wD_",
+        "ref": "r.AQhtbmNod2Vla_8A_wD_",
+        "why": "high bytes and NULs survive the hex round trip in both directions"
+      },
+      {
+        "shortcode": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+        "token": "5e1cd2e7c2",
+        "encoded": "Af94eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHheHNLnwg",
+        "ref": "r.Af94eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHheHNLnwg",
+        "why": "the longest shortcode a single length byte can describe"
+      },
+      {
+        "shortcode": "مرحبا",
+        "token": "5e1cd2e7c2",
+        "encoded": "AQrZhdix2K3YqNinXhzS58I",
+        "ref": "r.AQrZhdix2K3YqNinXhzS58I",
+        "why": "a shortcode with no ASCII in it at all"
+      },
+      {
+        "shortcode": "mnchweek",
+        "token": "c41996b048",
+        "encoded": "AQhtbmNod2Vla8QZlrBI",
+        "ref": "r.AQhtbmNod2Vla8QZlrBI",
+        "why": "a token exactly as mint_ref_token produces it, so the fixture pins the minting too and not only the packing"
+      }
+    ],
+    "reject": [
+      {
+        "encoded": "AQhtbmNod2Vla14c0ufC.",
+        "why": "a dot: outside base64url, and the separator of the OTHER ref grammar"
+      },
+      {
+        "encoded": "AQhtbmNod2Vla14c0ufC=",
+        "why": "padding: the wire format is unpadded, and Node re-encodes without it"
+      },
+      {
+        "encoded": "AQhtbmNod2Vla14c0uf/",
+        "why": "'/' is base64, not base64url"
+      },
+      {
+        "encoded": "AQhtbmNod2Vla14c0ufCx",
+        "why": "a lone trailing character: a length no base64 encoder can produce. Node's decoder is LENIENT here and returns a short buffer rather than failing, so this vector is what proves the round-trip check is present"
+      },
+      {
+        "encoded": "",
+        "why": "the empty string"
+      },
+      {
+        "encoded": "AQE",
+        "why": "two bytes: shorter than version + length + shortcode + token"
+      },
+      {
+        "encoded": "AghtbmNod2Vla14c0ufC",
+        "why": "version byte 2: a v1 decoder must refuse a future format rather than guess at its layout"
+      },
+      {
+        "encoded": "AQBtbmNod2Vla14c0ufC",
+        "why": "shortcode length 0"
+      },
+      {
+        "encoded": "AchtbmNod2Vla14c0ufC",
+        "why": "a length prefix of 200 with 13 bytes to read: the prefix must be checked against the buffer, never trusted"
+      },
+      {
+        "encoded": "AQhtbmNod2Vlaw",
+        "why": "a whole shortcode and NO token: the remainder must be at least one byte"
+      },
+      {
+        "encoded": "AQEgXhzS58I",
+        "why": "a shortcode of one space: legal bytes, unusable as a route, and guessing would put a respondent in an arbitrary survey"
+      }
+    ],
+    "whatsapp_entry_accept": [
+      {
+        "body": "r.AQhtbmNod2Vla14c0ufC",
+        "ref": "r.AQhtbmNod2Vla14c0ufC",
+        "form": "mnchweek",
+        "vt": "5e1cd2e7c2",
+        "why": "the encoded anchor, exactly as whatsapp_ref emits it"
+      },
+      {
+        "body": "  r.AQhtbmNod2Vla14c0ufC  ",
+        "ref": "r.AQhtbmNod2Vla14c0ufC",
+        "form": "mnchweek",
+        "vt": "5e1cd2e7c2",
+        "why": "the body is trimmed before matching; a respondent's compose box can carry whitespace"
+      },
+      {
+        "body": "start r.AQhtbmNod2Vla14c0ufC",
+        "ref": "r.AQhtbmNod2Vla14c0ufC",
+        "form": "mnchweek",
+        "vt": "5e1cd2e7c2",
+        "why": "the optional `start ` prefix applies to the encoded anchor too"
+      },
+      {
+        "body": "form.mnchweek",
+        "ref": "form.mnchweek",
+        "form": "mnchweek",
+        "vt": null,
+        "why": "the dotted anchor still routes, and carries NO token -- which is what `tokenless` means downstream, not a failure"
+      },
+      {
+        "body": "form.mnchweek.gender.men",
+        "ref": "form.mnchweek.gender.men",
+        "form": "mnchweek",
+        "vt": null,
+        "why": "form-first with trailing pairs: what whatsapp_autofill emits in metadata mode"
+      },
+      {
+        "body": "creative.3b.gender.men.form.hpvintrotriple",
+        "ref": "creative.3b.gender.men.form.hpvintrotriple",
+        "form": "hpvintrotriple",
+        "vt": null,
+        "why": "**form. NEED NOT LEAD on the deployed gate.** This is the vector adopt's vendored copy of the pattern rejected on 2026-08-26 -- the drift this fixture exists to make visible"
+      },
+      {
+        "body": "creative.foo.vt.bar.form.mnchweek",
+        "ref": "creative.foo.vt.bar.form.mnchweek",
+        "form": "mnchweek",
+        "vt": null,
+        "why": "an author-injected `vt` pair is STRIPPED. fly owns `vt` and deletes it unconditionally before the decode branch; without this the ref's author would choose the join key vlab attributes by"
+      }
+    ],
+    "whatsapp_entry_reject": [
+      {
+        "body": "r.AQhtbmNod2Vla14c0ufC.extra",
+        "why": "the encoded anchor is full-match: a dot after the payload means it is not an encoded ref, and the dotted pattern does not match it either"
+      },
+      {
+        "body": "r.",
+        "why": "the anchor with no payload"
+      },
+      {
+        "body": "hello I would like to join",
+        "why": "ordinary text. The gate is anchored and full-match precisely so a mid-survey free-text answer cannot re-trigger entry"
+      }
+    ],
+    "whatsapp_entry_throws": [
+      {
+        "body": "r.AAAA",
+        "error": "encoded ref is too short",
+        "why": "passes the gate's alphabet, fails the decode. getMetadata lets RefDecodeError escape DELIBERATELY -- the encoded ref is the only carrier of the shortcode, so swallowing it would route the respondent into FALLBACK_FORM, silently"
+      }
+    ]
+  }
+}

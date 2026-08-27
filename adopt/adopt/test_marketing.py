@@ -1017,17 +1017,32 @@ def test_ad_provenance_touches_no_database():
 # ---------------------------------------------------------------------------
 
 # Copied verbatim from WHATSAPP_ENTRY_REF in fly's
-# replybot/lib/event-normalizer.js, at fly@feature/ad-id-attribution 37e1e06e,
-# where the token alphabet was widened to accept percent-encoded octets. Kept
-# as a literal rather than imported (different repo, different language) -- if
-# fly's pattern changes again, these tests are what should fail.
+# replybot/lib/event-normalizer.js at replybot-v0.0.221 -- the tag deployed in
+# vprod and vstag, read off the tag rather than off any checkout on 2026-08-26.
+# Kept as a literal rather than imported (different repo, different language).
 #
-# NOTE: this copy went stale once already. When fly's gate moves, re-diff it
-# against the source before trusting anything below.
+# THIS COPY HAS NOW GONE STALE TWICE, both times one fly widening behind:
+#
+#   v0.0.218   `form.` must LEAD; token alphabet [A-Za-z0-9_-]
+#   v0.0.219   `form.` must LEAD; alphabet widened to accept %XX octets
+#   v0.0.220   the `form` PAIR MAY APPEAR ANYWHERE in the pair list
+#   v0.0.221   unchanged from v0.0.220; currently deployed
+#
+# The copy sat at v0.0.219 while v0.0.221 ran. Nothing detected it, in either
+# direction, in either repo. `test_ref_encoding_contract.py` now does: it runs
+# this pattern against gate vectors measured on the deployed tag, so the next
+# widening fails a test rather than aging quietly inside this comment.
+#
+# Both drifts happened to be in the safe direction -- this copy was STRICTER
+# than production, so adopt refused refs fly would have accepted, a false
+# negative on deliverability rather than a misroute. That is a fact about the
+# last two changes, not a property of the arrangement.
 WHATSAPP_ENTRY_REF = re.compile(
-    r"^(?:start\s+)?form\."
-    r"((?:[A-Za-z0-9_-]|%[0-9A-Fa-f]{2})+"
-    r"(?:\.(?:[A-Za-z0-9_-]|%[0-9A-Fa-f]{2})+)*)$",
+    r"^(?:start\s+)?"
+    r"((?:(?:[A-Za-z0-9_-]|%[0-9A-Fa-f]{2})+"
+    r"\.(?:[A-Za-z0-9_-]|%[0-9A-Fa-f]{2})+\.)*)"
+    r"form\.((?:[A-Za-z0-9_-]|%[0-9A-Fa-f]{2})+)"
+    r"((?:\.(?:[A-Za-z0-9_-]|%[0-9A-Fa-f]{2})+)*)$",
     re.IGNORECASE,
 )
 
@@ -1094,15 +1109,36 @@ def test_full_ref_with_pattern_safe_values_is_accepted_by_fly():
     assert _fly_would_accept(autofill)
 
 
-def test_make_ref_output_can_never_be_a_whatsapp_autofill():
-    """The structural reason WhatsApp needs its own serialisation.
+def test_the_deployed_gate_no_longer_rejects_make_ref_output():
+    """The disjointness this design was built on has been REMOVED under us.
 
-    fly's pattern anchors on `form.`; make_ref leads with `creative.`. So the
-    Messenger ref is rejected no matter how safe its values are -- this is not
-    a character-set problem and no amount of value-cleaning fixes it.
+    Until replybot-v0.0.219 fly's WhatsApp pattern anchored on `form.` while
+    `make_ref` leads with `creative.`, so a Messenger ref could not match it
+    whatever its values were. That structural fact is what
+    `whatsapp_autofill`'s separate form-first serialisation was justified by,
+    and it is what `documentation/ad-attributions.md` recorded as "verified
+    directly against that regex".
+
+    replybot-v0.0.220 widened the pattern so the `form` PAIR may appear
+    anywhere in the pair list, and v0.0.221 -- what runs -- carries that. Since
+    `creative.<name>` is itself two tokens and every metadata entry adds two
+    more, `form` always lands on a pair boundary, so `make_ref`'s output now
+    matches the deployed gate ALWAYS rather than never.
+
+    Nothing breaks: `whatsapp_ref` still emits form-first, every live ad
+    carries that, and this test does not license changing it. What changes is
+    the *reason* -- form-first is now the serialisation vlab ships, not the
+    only one fly can read. Asserted rather than deleted so the next person does
+    not rediscover the old claim in a docstring and trust it.
     """
     md = {"creative": "Smiling", "gender": "women", "form": "mnchweek"}
-    assert not _fly_would_accept(make_ref("Smiling", md))
+    assert _fly_would_accept(make_ref("Smiling", md))
+
+    # Still rejected, and this is the part that stayed structural: a ref with
+    # no `form` pair at all cannot route. That is what a web or app
+    # destination's ref looks like -- `creative_metadata` folds `form` in for
+    # fly destinations only.
+    assert not _fly_would_accept(make_ref("Smiling", {"gender": "women"}))
 
 
 def test_full_ref_round_trips_back_to_the_frozen_blob():
@@ -2167,11 +2203,19 @@ def test_both_tokens_round_trip_to_the_same_metadata_dict():
 
 
 def test_the_two_grammars_stay_two():
-    """make_ref output can never be a WhatsApp autofill, whatever the values.
+    """multi's two arms carry DIFFERENT strings, and that is what matters.
 
-    fly's pattern anchors on `form.`; make_ref leads with `creative.`. This is
-    structural, not a character-set problem, which is why multi serialises the
-    same facts twice rather than reusing one string.
+    This used to assert that multi's Messenger token could not pass fly's
+    WhatsApp gate -- true until replybot-v0.0.219, false on the deployed
+    v0.0.221, which lets the `form` pair float (see
+    `test_the_deployed_gate_no_longer_rejects_make_ref_output`).
+
+    The property worth pinning was never really "one of them is rejected". It
+    is that the two arms are two distinct strings built by two serialisers, so
+    a row in `chatroach.messages` says which arm delivered it -- the whole
+    reason the 2026-08-17 CTWA probe could tell Messenger delivery from
+    WhatsApp delivery at all. Reusing one string across both arms would have
+    made that unanswerable.
     """
     dest = _multi_dest()
     creative, _, _, _ = _multi_creative(dest)
@@ -2180,8 +2224,11 @@ def test_the_two_grammars_stay_two():
     messenger_token = json.loads(message["quick_replies"][0]["payload"])["referral"][
         "ref"
     ]
+    whatsapp_token = message["autofill_message"]["content"]
 
-    assert not _fly_would_accept(messenger_token)
+    assert messenger_token != whatsapp_token
+    assert messenger_token.startswith("creative.")
+    assert whatsapp_token.startswith("form.")
 
 
 def test_an_encoded_multi_ad_carries_one_token_on_both_arms():

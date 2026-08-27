@@ -272,6 +272,14 @@ dashboard's recency window ages the stale error out on its own.
   plus DB-backed `swooshStudy` tests (needs `make test-db`).
 - The ad-attribution section of `sources/fly/main_test.go`.
 
+**None of this has ever run against a real respondent.** No study sets
+`ref_mode: "encoded"` and none declares an `ad_table_lookup` conf, so the read
+path is inert and every test above exercises it against constructed events.
+What closes the gap, and what is already measured, is in
+`planning/encoded-ref-probe-runbook.md`; the summary is in
+`documentation/ad-attributions.md` under "What has, and has not, been proven in
+production".
+
 See `documentation/ad-attributions.md` and
 `planning/encoded-ref-attribution-plan.md` for more detail, including the write
 side in `adopt`.

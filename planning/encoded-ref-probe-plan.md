@@ -1,11 +1,39 @@
 # Plan — the encoded-ref probe
 
 **Date:** 2026-08-26
-**Status:** not started. Preconditions verified below; nothing here has been run.
-**Cost:** legs 0–2 are free. Leg 3 creates one `PAUSED` ad and spends nothing.
+**Status:** **legs 0, 1 and 2 done; leg 3 written and not run; leg 4 descoped.**
+This document is the specification and stays as written. The procedure and the
+results live in **`planning/encoded-ref-probe-runbook.md`** — read that to run
+anything.
+**Cost:** legs 0–2 were free. Leg 3 creates one ad under a `PAUSED` campaign and
+spends nothing.
 **Companion docs:** `planning/ctwa-probe-runbook.md` is the idiom this follows and
 records a probe already run on 2026-08-17. `planning/encoded-ref-handover.md` §6c
-frames the gap. `documentation/ad-attributions.md` is the mechanism.
+frames the gap — note its §6a and §6b are **stale**.
+`documentation/ad-attributions.md` is the mechanism.
+
+## Status, as of 2026-08-26
+
+| Leg | Status | Where the result is |
+|---|---|---|
+| **0** — does the write half produce a row? | **indeterminate, with complete coverage.** No study has created an ad since adopt v0.1.78 shipped the write path, so the empty table proves nothing either way. Answered by leg 3. | runbook §0.5; `adopt/scripts/write_path_probe.py` |
+| **1** — the deploy contract | **built and passing** against `replybot-v0.0.221`. Found two live drifts, both fixed. | runbook §0.5; `adopt/adopt/ref_encoding_vectors.json` and both halves |
+| **2** — do the carriers survive? | **folded into leg 3 as a read-back step** rather than built as a second creative builder. See the note under Leg 2 below. | runbook §5 |
+| **3** — one real arrival | **written, not run.** | runbook §§3–8 |
+| **4** — web/app bare token | **descoped, and stated as a limit** rather than implied to work. | `documentation/ad-attributions.md` |
+
+Two things this plan got wrong, corrected in the runbook rather than here:
+
+- **Leg 3 cannot use `ctwa_probe.py` to create the ad.** Rows are written only
+  on an `("ad", "create")` instruction carrying provenance, and only adopt
+  stamps provenance. A hand-made probe ad has no row by construction, so it
+  would answer leg 0 negatively for a reason unrelated to adopt. Leg 3 must go
+  through the dashboard and let the `vlab-adopt-ads` cronjob build the ad.
+- **"one PAUSED ad" is the wrong containment.** adopt creates ads `ACTIVE`
+  (`marketing.py:1236`). What keeps this free is that it creates the
+  **campaign** `PAUSED` (`:1244`), and an active ad in a paused campaign does
+  not deliver. Same zero cost, different lever, and the difference matters
+  because the campaign is the thing that must not be touched.
 
 ---
 
