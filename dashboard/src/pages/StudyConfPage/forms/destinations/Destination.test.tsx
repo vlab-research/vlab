@@ -88,6 +88,54 @@ describe('a destination saved before ref_mode existed', () => {
   });
 });
 
+describe('a destination saved with an explicit mode', () => {
+  const stored: any = {
+    type: 'messenger',
+    name: 'fly messenger',
+    initial_shortcode: 'mnchweek',
+    welcome_message: 'Welcome!',
+    button_text: 'OK',
+    additional_metadata: null,
+    ref_mode: 'encoded',
+  };
+
+  it('preserves that mode through an unrelated edit', () => {
+    // The counterpart of the absent case: a conf that states a mode keeps it,
+    // because the forms spread `...data` rather than rebuilding the conf.
+    const update = jest.fn();
+
+    render(
+      <Destination
+        data={{ ...stored }}
+        index={0}
+        update={update}
+        savedDestinations={[{ ...stored }]}
+      />
+    );
+
+    fireEvent.change(screen.getByDisplayValue('Welcome!'), {
+      target: { name: 'welcome_message', value: 'Hello!' },
+    });
+
+    const [conf] = update.mock.calls[update.mock.calls.length - 1];
+    expect(conf.welcome_message).toBe('Hello!');
+    expect(conf.ref_mode).toBe('encoded');
+  });
+
+  it('does not warn while the mode still matches what was loaded', () => {
+    render(
+      <Destination
+        data={{ ...stored }}
+        index={0}
+        update={jest.fn()}
+        savedDestinations={[{ ...stored }]}
+      />
+    );
+
+    expect(screen.queryByText(/rewrites every ad/i)).toBeNull();
+  });
+});
+
 describe('a destination being added now', () => {
   it('states its mode, because it is a new conf', () => {
     const update = jest.fn();

@@ -300,6 +300,25 @@ describe('extraction', () => {
     it('gives a fly source with no variables one blank row', () => {
       expect(generateLookupConfs('fly', [])).toHaveLength(1);
     });
+
+    it('skips a variable the researcher has not named yet', () => {
+      // `name` is both the output name and the key into the ad's frozen row, so
+      // a lookup without one reads nothing off the row while presenting itself
+      // as configured.
+      const confs = generateLookupConfs('fly', ['gender', '', 'Age']);
+
+      expect(confs.map(c => c.name)).toEqual(['gender', 'Age']);
+    });
+
+    it('falls back to a blank row when no variable is named', () => {
+      // One unnamed variable is length 1, so a length check lets it through.
+      const confs = generateLookupConfs('fly', ['']);
+
+      expect(confs).toHaveLength(1);
+      expect(confs[0].name).toBe('');
+      expect(confs[0].mapping).toBe('raw');
+      expect(confs[0].location).toBe('');
+    });
   });
 
   describe('round trip into what swoosh reads', () => {
