@@ -1,0 +1,485 @@
+{
+  "title": "VL Pulse Nigeria - Smoke",
+  "settings": {
+    "language": "en",
+    "is_public": true,
+    "progress_bar": "proportion",
+    "show_progress_bar": false
+  },
+  "hidden": [
+    "userid",
+    "surveyid",
+    "e_payment_reloadly_success",
+    "e_payment_reloadly_error_message"
+  ],
+  "fields": [
+    {
+      "ref": "consent_1",
+      "type": "multiple_choice",
+      "title": "We are a group of researchers at Virtual Lab conducting a study on the concerns, experiences, attitudes and practices of people.\n\nWe are excited to invite you to participate in our current survey, which will take approximately 3 minutes of your time.\n\nBy completing this survey, you will receive ₦500 in mobile airtime.\n\n- A. OK",
+      "properties": {
+        "allow_multiple_selection": false,
+        "choices": [
+          {
+            "ref": "consent_1_ok",
+            "label": "A"
+          }
+        ]
+      }
+    },
+    {
+      "ref": "consent_2",
+      "type": "statement",
+      "title": "Participation in the survey is completely voluntary. Your responses will be kept confidential.\n\nWe will ask you six short questions about your opinions. You can refuse to answer any question, or stop at any time, with no penalty.\n\nMessages are sent through Facebook Messenger or WhatsApp and are linked to your account on that service. Business chats are not end-to-end encrypted and are subject to Meta's standard policies, including data retention.\n\nThis survey uses an automated chatbot and is not monitored in real time.\n\nIf you have questions or comments at any point, or wish to have your personal data deleted, feel free to reach out to us at privacy@vlab.digital.",
+      "properties": {
+        "button_text": "Continue",
+        "hide_marks": false
+      }
+    },
+    {
+      "ref": "consent_3",
+      "type": "multiple_choice",
+      "title": "Do you agree to participate in the study? Agreeing to participate means you are willing to complete this survey.\n\n- A. Yes\n- B. No",
+      "properties": {
+        "allow_multiple_selection": false,
+        "choices": [
+          {
+            "ref": "consent_yes",
+            "label": "A"
+          },
+          {
+            "ref": "consent_no",
+            "label": "B"
+          }
+        ]
+      }
+    },
+    {
+      "ref": "start",
+      "type": "multiple_choice",
+      "title": "Thank you! Please read the questions carefully and answer truthfully. Keep in mind that your responses will remain confidential.\n\nIf at any point during the survey you stop responding, we will send a single reminder message. If you wish to stop the survey, you can stop replying.\n\nYou will receive your ₦500 airtime at the end of the survey.\n\n- A. OK",
+      "properties": {
+        "allow_multiple_selection": false,
+        "choices": [
+          {
+            "ref": "start_ok",
+            "label": "A"
+          }
+        ]
+      }
+    },
+    {
+      "ref": "age",
+      "type": "number",
+      "title": "How old are you?",
+      "properties": {},
+      "validations": {
+        "required": true,
+        "min_value": 1,
+        "max_value": 120
+      }
+    },
+    {
+      "ref": "gender",
+      "type": "multiple_choice",
+      "title": "Are you a man or a woman?\n\n- A. Man\n- B. Woman\n- C. Prefer not to say",
+      "properties": {
+        "allow_multiple_selection": false,
+        "choices": [
+          {
+            "ref": "gender_man",
+            "label": "A"
+          },
+          {
+            "ref": "gender_woman",
+            "label": "B"
+          },
+          {
+            "ref": "gender_pnts",
+            "label": "C"
+          }
+        ]
+      }
+    },
+    {
+      "ref": "concernco",
+      "type": "multiple_choice",
+      "title": "How concerned are you about how companies are using the data they collect online about you?\n\n- A. Very concerned\n- B. Somewhat concerned\n- C. Not too concerned\n- D. Not at all concerned\n- E. Don’t know",
+      "properties": {
+        "allow_multiple_selection": false,
+        "choices": [
+          {
+            "ref": "concernco_a",
+            "label": "A"
+          },
+          {
+            "ref": "concernco_b",
+            "label": "B"
+          },
+          {
+            "ref": "concernco_c",
+            "label": "C"
+          },
+          {
+            "ref": "concernco_d",
+            "label": "D"
+          },
+          {
+            "ref": "concernco_e",
+            "label": "E"
+          }
+        ]
+      }
+    },
+    {
+      "ref": "jobs_men",
+      "type": "multiple_choice",
+      "title": "Please tell me whether you disagree or agree with the following statement:\n\nWhen jobs are scarce, men should have more rights to a job than a woman.\n\n- A. Strongly disagree\n- B. Disagree\n- C. Neither agree nor disagree\n- D. Agree\n- E. Strongly agree",
+      "properties": {
+        "allow_multiple_selection": false,
+        "choices": [
+          {
+            "ref": "jobs_men_a",
+            "label": "A"
+          },
+          {
+            "ref": "jobs_men_b",
+            "label": "B"
+          },
+          {
+            "ref": "jobs_men_c",
+            "label": "C"
+          },
+          {
+            "ref": "jobs_men_d",
+            "label": "D"
+          },
+          {
+            "ref": "jobs_men_e",
+            "label": "E"
+          }
+        ]
+      }
+    },
+    {
+      "ref": "trust_ng",
+      "type": "multiple_choice",
+      "title": "How much do you trust other Nigerians?\n\n- A. Not at all\n- B. Just a little\n- C. Somewhat\n- D. A lot",
+      "properties": {
+        "allow_multiple_selection": false,
+        "choices": [
+          {
+            "ref": "trust_ng_a",
+            "label": "A"
+          },
+          {
+            "ref": "trust_ng_b",
+            "label": "B"
+          },
+          {
+            "ref": "trust_ng_c",
+            "label": "C"
+          },
+          {
+            "ref": "trust_ng_d",
+            "label": "D"
+          }
+        ]
+      }
+    },
+    {
+      "ref": "internet_use",
+      "type": "multiple_choice",
+      "title": "How often do you use the internet?\n\n- A. Every day\n- B. A few times a week\n- C. A few times a month\n- D. Less than once a month\n- E. Never",
+      "properties": {
+        "allow_multiple_selection": false,
+        "choices": [
+          {
+            "ref": "internet_use_a",
+            "label": "A"
+          },
+          {
+            "ref": "internet_use_b",
+            "label": "B"
+          },
+          {
+            "ref": "internet_use_c",
+            "label": "C"
+          },
+          {
+            "ref": "internet_use_d",
+            "label": "D"
+          },
+          {
+            "ref": "internet_use_e",
+            "label": "E"
+          }
+        ]
+      }
+    },
+    {
+      "ref": "phone_number",
+      "type": "phone_number",
+      "title": "Almost done! What mobile number should we send your ₦500 airtime to?",
+      "properties": {
+        "default_country_code": "NG"
+      },
+      "validations": {
+        "required": true
+      }
+    },
+    {
+      "ref": "mobile_provider",
+      "type": "multiple_choice",
+      "title": "Which mobile network is that number on?",
+      "properties": {
+        "allow_multiple_selection": false,
+        "choices": [
+          {
+            "ref": "op_mtn",
+            "label": "MTN Nigeria"
+          },
+          {
+            "ref": "op_glo",
+            "label": "Glo Nigeria"
+          },
+          {
+            "ref": "op_airtel",
+            "label": "Airtel Nigeria"
+          },
+          {
+            "ref": "op_9mobile",
+            "label": "9mobile Nigeria"
+          }
+        ]
+      }
+    },
+    {
+      "ref": "reloadly_ty",
+      "type": "statement",
+      "title": "Thank you. We are sending your airtime now. You should receive the credit shortly.",
+      "properties": {
+        "button_text": "Continue",
+        "hide_marks": false,
+        "description": "{\n\"type\": \"wait\",\n\"wait\": {\n\"type\": \"external\",\n\"value\": {\n\"type\": \"payment:reloadly\",\n\"id\": \"payment1\"\n}\n},\n\"payment\": {\n\"provider\": \"reloadly\",\n\"key\": \"vlab\",\n\"details\": {\n\"number\": \"{{field:phone_number}}\",\n\"amount\": 500,\n\"country\": \"NG\",\n\"operator\": \"{{field:mobile_provider}}\",\n\"tolerance\": 0,\n\"id\": \"payment1\"\n}\n}\n}"
+      }
+    },
+    {
+      "ref": "reloadly_er",
+      "type": "statement",
+      "title": "We are sorry, but we could not add credit to the number {{field:phone_number}}. The transaction failed with the following message: {{hidden:e_payment_reloadly_error_message}}.\n\nPlease email privacy@vlab.digital if you would like us to try again.",
+      "properties": {
+        "button_text": "Continue",
+        "hide_marks": false
+      }
+    },
+    {
+      "ref": "success",
+      "type": "statement",
+      "title": "Your ₦500 airtime is on its way. Thank you for taking part.",
+      "properties": {
+        "button_text": "Continue",
+        "hide_marks": false
+      }
+    },
+    {
+      "ref": "recontact",
+      "type": "multiple_choice",
+      "title": "We sometimes run other short surveys like this one, with the same kind of reward. Would you like us to contact you when we do?\n\n- A. Yes\n- B. No",
+      "properties": {
+        "allow_multiple_selection": false,
+        "choices": [
+          {
+            "ref": "recontact_yes",
+            "label": "A"
+          },
+          {
+            "ref": "recontact_no",
+            "label": "B"
+          }
+        ]
+      }
+    },
+    {
+      "ref": "email",
+      "type": "email",
+      "title": "What email address should we use?",
+      "properties": {},
+      "validations": {
+        "required": false
+      }
+    }
+  ],
+  "logic": [
+    {
+      "type": "field",
+      "ref": "consent_3",
+      "actions": [
+        {
+          "action": "jump",
+          "condition": {
+            "op": "is",
+            "vars": [
+              {
+                "type": "field",
+                "value": "consent_3"
+              },
+              {
+                "type": "choice",
+                "value": "consent_no"
+              }
+            ]
+          },
+          "details": {
+            "to": {
+              "type": "thankyou",
+              "value": "ty_declined"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "type": "field",
+      "ref": "age",
+      "actions": [
+        {
+          "action": "jump",
+          "condition": {
+            "op": "lower_than",
+            "vars": [
+              {
+                "type": "field",
+                "value": "age"
+              },
+              {
+                "type": "constant",
+                "value": 18
+              }
+            ]
+          },
+          "details": {
+            "to": {
+              "type": "thankyou",
+              "value": "ty_ineligible"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "type": "field",
+      "ref": "reloadly_ty",
+      "actions": [
+        {
+          "action": "jump",
+          "condition": {
+            "op": "not_equal",
+            "vars": [
+              {
+                "type": "hidden",
+                "value": "e_payment_reloadly_success"
+              },
+              {
+                "type": "constant",
+                "value": "true"
+              }
+            ]
+          },
+          "details": {
+            "to": {
+              "type": "field",
+              "value": "reloadly_er"
+            }
+          }
+        },
+        {
+          "action": "jump",
+          "condition": {
+            "op": "always",
+            "vars": []
+          },
+          "details": {
+            "to": {
+              "type": "field",
+              "value": "success"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "type": "field",
+      "ref": "reloadly_er",
+      "actions": [
+        {
+          "action": "jump",
+          "condition": {
+            "op": "always",
+            "vars": []
+          },
+          "details": {
+            "to": {
+              "type": "thankyou",
+              "value": "ty_done"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "type": "field",
+      "ref": "recontact",
+      "actions": [
+        {
+          "action": "jump",
+          "condition": {
+            "op": "is",
+            "vars": [
+              {
+                "type": "field",
+                "value": "recontact"
+              },
+              {
+                "type": "choice",
+                "value": "recontact_no"
+              }
+            ]
+          },
+          "details": {
+            "to": {
+              "type": "thankyou",
+              "value": "ty_done"
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "thankyou_screens": [
+    {
+      "ref": "ty_done",
+      "title": "Thank you again for your time. Your answers help us understand our society better.",
+      "properties": {
+        "show_button": false,
+        "share_icons": false
+      }
+    },
+    {
+      "ref": "ty_declined",
+      "title": "No problem — thank you for your time. You will not receive any further messages about this survey.",
+      "properties": {
+        "show_button": false,
+        "share_icons": false
+      }
+    },
+    {
+      "ref": "ty_ineligible",
+      "title": "Thank you for your interest. This survey is only for people aged 18 or older.",
+      "properties": {
+        "show_button": false,
+        "share_icons": false
+      }
+    }
+  ]
+}

@@ -1,14 +1,46 @@
-# Runbook — the encoded-ref end-to-end probe
+# Runbook — fielding `vl-pulse-nigeria-smoke`, the encoded-ref end-to-end test
 
-**Date:** 2026-08-26
-**Status:** **Legs 0, 1 and 2 run. Leg 3 written, NOT run.** Results in §0.5.
+**Date:** 2026-08-27
+**Status:** **Legs 0, 1 and 2 run (§0.5). Pass 1 written, NOT run. Pass 2 not
+written in detail.**
+**Study:** `vl-pulse-nigeria-smoke` — the study designed in
+`planning/smoke-study-nigeria.md`. Its survey (`vlpulseng`) and study record
+already exist in production; it has **no confs**, so §3 is where it gets built.
 **Operator:** a human with a phone, dashboard access, and `kubectl` on `vprod`.
-**Cost:** zero. adopt creates the campaign `PAUSED`; nothing is ever activated.
-**Companion docs:** `planning/encoded-ref-probe-plan.md` is the specification
-(§3 defines the legs). `planning/ctwa-probe-runbook.md` is the idiom this
-follows and the record of a probe run against live Meta ads on 2026-08-17;
+**Cost:** **pass 1 is free** — adopt creates the campaign `PAUSED` and nothing is
+ever activated. **Pass 2 spends $10** and is a separate decision (§11).
+**Companion docs:** `planning/smoke-study-nigeria.md` is the study design —
+instrument, consent, payment, parameters. `planning/encoded-ref-probe-plan.md`
+is the specification of the legs. `planning/ctwa-probe-runbook.md` is the idiom
+this follows and the record of a probe run against live Meta ads on 2026-08-17;
 several of its findings are reused here rather than re-measured.
 `documentation/ad-attributions.md` is the mechanism.
+
+## Two passes, and why they are not one
+
+`smoke-study-nigeria.md` designs three arms — messenger, whatsapp, multi — at
+$10 with ₦500 Reloadly incentives. It left open whether to field all three at
+once. **They are split here, and Messenger goes first, alone and unpaid.**
+
+Two measurements force it. A multi ad's WhatsApp arm was **never reachable by
+preview** on 2026-08-17 — every attempt followed the single-valued
+`MESSAGE_PAGE` CTA to Messenger (`ctwa-probe-runbook.md` decision row G, still
+open). And WhatsApp is not a live transport (fly
+`planning/multi-platform-plan.md`). So two of the three arms cannot be verified
+without spending, and fielding all three together would put the one arm that
+*can* be checked for free behind the two that cannot.
+
+| | Pass 1 (§§3–9) | Pass 2 (§11) |
+|---|---|---|
+| Arms | Messenger only | + whatsapp, + multi |
+| Campaign | stays `PAUSED` | activated |
+| Respondents | you, via the ad preview | real, in Kwara |
+| Cost | **zero** | $10 ad spend + ₦500/respondent |
+| Proves | the whole attribution chain: write, format, carriers, decode, join | delivery, WhatsApp, Reloadly payment, the recontact list |
+
+Pass 1 is the pre-flight the 2026-08-21 session promised and could not run.
+Everything it proves is a variable pass 2 no longer has to debug while money is
+moving.
 
 ---
 
@@ -42,7 +74,9 @@ person can re-check rather than re-measure.
 | adopt / swoosh in `vprod` | `v0.1.79` / `v0.1.11`, helm release `vlab` rev 137. |
 | `ad_attributions` exists and holds **0** rows | `SELECT count(*) FROM ad_attributions` on `gbv-cockroachdb-0`. |
 | The feature is inert | 0 of 719 destination confs carry `ref_mode`; 0 of 691 inference confs carry `mapping`. |
-| Messenger is the only live transport | fly `planning/multi-platform-plan.md`. WhatsApp is not live; this run is Messenger only. |
+| Messenger is the only live transport | fly `planning/multi-platform-plan.md`. WhatsApp is not live, which is half the reason pass 1 is Messenger-only. |
+| The dashboard exposes ref mode | `e7683333` (2026-08-24), `RefModeField.tsx` + `refMode.ts`, rendered by all five destination forms. The API-token path that blocked `vlpulseng` on 2026-08-21 is no longer needed. |
+| `vlpulseng` and `vl-pulse-nigeria-smoke` exist, with **no confs** | queried 2026-08-27; `study_confs` returns 0 rows and there is no `study_state` row. |
 | Preview clicks produce genuine referrals, with no activation, review or spend | Measured 2026-08-16, reconfirmed 2026-08-17 (`ctwa-probe-runbook.md` §0.5). |
 | A failed fallback cannot cross researchers | fly `7232c3b7`: `formcentral/db.go:82` resolves a survey by the owner of the account the conversation is already on. |
 | vlab **staging is unusable** | `toixo-staging.yaml` pins adopt `v0.0.106` and has no `migrations:` block. Do not try to run this there. |
@@ -171,7 +205,12 @@ is not measured.
 
 ### Leg 3 — one real arrival. **NOT RUN.**
 
-§§3–8 below. Fill in §0.5 here when it is.
+§§3–8 below are pass 1: `vl-pulse-nigeria-smoke` with its Messenger arm only,
+campaign paused, you as the respondent. Fill in §0.5 here when it is run.
+
+§11 is pass 2 — the paid Kwara field test `smoke-study-nigeria.md` designs. It
+is deliberately not written in step-by-step detail yet, because several of its
+parameters depend on what pass 1 finds.
 
 ### Leg 4 — the web/app bare token. **DESCOPED. Say so out loud.**
 
@@ -226,7 +265,7 @@ real person landing in someone else's study, so:
 **Pre-flight before clicking (§6.0): run the ad's actual minted ref through the
 actual deployed decoder.** Leg 1 proves the tag decodes the *contract vectors*;
 this proves it decodes *this ad's ref*. They are not the same claim — the
-shortcode is researcher-chosen text and none of the vectors is `flysmoke`.
+shortcode is researcher-chosen text and none of the vectors is `vlpulseng`.
 
 ### 1.3 The first adopt run creates only the campaign
 
@@ -269,7 +308,8 @@ adopt run to rebuild rather than debugging the preview.
 ### 1.6 fly's no-retake rule makes an *absent* survey start meaningless
 
 `machine.js:297-300`: if the referral's form is already in `state.forms`, the
-referral is a no-op. The tester's PSID has walked `flysmoke` before.
+referral is a no-op. The tester's PSID has walked `flysmoke` before, and will
+have walked `vlpulseng` after the first attempt — so this bites on any re-run.
 
 So **the raw row in `chatroach.messages` is the measurement**, not whether a
 survey visibly starts. Scribble writes `messages` straight off the Kafka topic,
@@ -318,8 +358,10 @@ retry from an account with no history on page `1855355231229529`.
 |---|---|---|
 | Ad account | `act_1342820622846299` (Virtual Lab — USD) | the account the probe and ECD Diagnostic both use |
 | Facebook Page | `1855355231229529` (Virtual Lab) | probe default |
-| Survey shortcode | **`flysmoke`** (`Fly Smoke Test - Part A`, owner `nandanmarkrao@gmail.com`) | a real production survey we own, so routing is observable at no extra cost. A nonexistent shortcode routes to `FALLBACK_FORM` = `305`, someone else's live survey. |
+| Study | **`vl-pulse-nigeria-smoke`** (`e460dfde-a010-49b3-b012-d48dbaadb34b`) | already exists, created 2026-08-21 18:54 UTC, with zero confs |
+| Survey shortcode | **`vlpulseng`** (`VL Pulse Nigeria - Smoke`, created 2026-08-21 16:24 UTC) | already synced into `chatroach.surveys`. A nonexistent shortcode routes to `FALLBACK_FORM` = `305`, someone else's live survey. |
 | Source study to copy from | `ecd-diagnostic` | same ad account, valid `template_adset` / `template_campaign` ids on every variable level |
+| Reloadly credentials key | `vlab`, on `nandanmarkrao@gmail.com` | the study must be owned by that account or the payment credential will not resolve. **Pass 1 never reaches a payment**, so this only gates §11. |
 | Meta access token | — | read from the prod `credentials` table by the scripts; never passed on argv |
 | Python | `adopt/.venv` | `cd adopt && poetry install` |
 | Cluster access | `kubectl` context on `vprod` | needed by every script and every SQL step |
@@ -339,43 +381,54 @@ All probe commands run from `adopt/` as `.venv/bin/python scripts/…`.
 
 ## 3. Build the study — all of this is the dashboard
 
-Nothing in this section is code. The point of the whole design is that a
-researcher can do it.
+**Pass 1.** Nothing in this section is code, and that is the point of the whole
+design: a researcher does it. It was not true on 2026-08-21, when ref mode was
+API-only and `vlpulseng` stalled needing an Auth0 bearer token. The dashboard
+control shipped as `e7683333` on 2026-08-24.
 
-### 3.1 Create the study and copy a working configuration
+The study **already exists** — `vl-pulse-nigeria-smoke`, created 2026-08-21,
+with zero confs. Open it and configure it; do not create a second one.
 
-New study, slug **`encoded-ref-probe`**. On the **Initialize** step, select
-**ECD Diagnostic** and click *Initialize Values*.
+### 3.1 Copy a working configuration
+
+On the **Initialize** step, select **ECD Diagnostic** and click *Initialize
+Values*.
 
 That copies every conf except `general`, which is what makes this cheap: the
 variables arrive with valid `facebook_targeting` and real `template_adset` /
 `template_campaign` ids on the account. Building those by hand is most of the
-work of a new study and none of what this probe is testing.
+work of a new study and none of what this test is about.
 
-> Initialize **overwrites** anything already configured on this study. Do it
-> first, not after editing.
+> Initialize **overwrites** anything already configured on this study. It has no
+> confs today, so nothing is at risk — but do it first, not after editing.
 
 ### 3.2 General
 
-Ad account `1342820622846299`, credentials as copied. Name it so nobody mistakes
-it for a live study — `Encoded Ref Probe`.
+Ad account `1342820622846299`. The study must stay owned by
+**`nandanmarkrao@gmail.com`** — that is where the Reloadly `vlab` key lives, and
+pass 2 cannot pay anyone from another account. Pass 1 never reaches a payment,
+so this costs nothing to get right now and is expensive to discover later.
 
 ### 3.3 Recruitment
 
-- **`ad_campaign_name`: `encoded-ref-probe`** — must be unique on the account,
-  and it is what the ad lives under and what §9 deletes.
+- **`ad_campaign_name`: `vl-pulse-nigeria-smoke`** — must be unique on the
+  account; it is what the ad lives under and what §9 deletes.
 - **start date in the past, end date a few days out.** adopt only touches a
-  study where `start_date < now < end_date`. Get this wrong and nothing happens,
-  silently, forever.
+  study where `start_date < now < end_date`, and this study currently has **no
+  `study_state` row at all** (both dates NULL). Get this wrong and nothing
+  happens, silently, forever — it is exactly what has been true since
+  2026-08-21.
 - `destination_type`: `MESSENGER`.
-- Budget: leave the copied values. Nothing can spend (§1.4); a low `min_budget`
-  is belt-and-braces, not the control.
+- Budget: leave the copied values for now. Nothing can spend in pass 1 (§1.4);
+  a low `min_budget` is belt-and-braces, not the control. §11 sets the real $10.
 
 ### 3.4 Destinations — the write side
 
-One Messenger destination:
+One Messenger destination. The whatsapp and multi arms of
+`smoke-study-nigeria.md` are **pass 2** — do not add them yet (see *Two passes*
+above).
 
-- `initial_shortcode`: **`flysmoke`**
+- `initial_shortcode`: **`vlpulseng`**
 - welcome message and button text: anything; the button label is what you tap.
 - **Ref mode: "Looked up afterwards, from the ad-attributions export."**
 
@@ -391,7 +444,9 @@ rewriting every ad in the study. On a new study there is nothing to rewrite.
 
 Trim the copied strata to **one**, with **one creative**. One stratum × one
 creative × one destination = exactly one ad, which is what makes §4 and §7
-unambiguous.
+unambiguous. `smoke-study-nigeria.md`'s Kwara targeting matters in pass 2, when
+delivery is real; in pass 1 nothing is delivered, so keep whatever ECD's copy
+gave you rather than spending time on targeting that cannot be exercised.
 
 Note which stratum variable you keep — `gender`, say, at level `women`. That
 name is what §3.6's lookup conf pulls, and it must be a key the ad's frozen
@@ -421,7 +476,14 @@ an unrelated reason.
 ### 3.7 Data Sources
 
 A fly source whose `survey_name` matches the study. Copied from ECD Diagnostic,
-so change it to this study's name.
+so change it — `VL Pulse Nigeria - Smoke`.
+
+### 3.7b What NOT to configure in pass 1
+
+The `vlpulseng` Typeform is already Reloadly-shaped — `payment:reloadly`, key
+`vlab`, with the operator selector. Leave it alone. Pass 1 never completes the
+survey (§3.8's warning), so the payment branch is never reached and no airtime
+moves. Do not "test" the payment by walking the form to the end.
 
 ### 3.8 Clear your own Messenger state
 
@@ -430,8 +492,11 @@ Open `m.me/1855355231229529?ref=form.reset` on the phone you will use.
 `_initialState()` — `{state: 'START', qa: [], forms: []}` — so §1.6's no-retake
 rule stops applying.
 
-> **Do not walk `flysmoke` to the end.** It is a 38-field gauntlet exercising
-> payments, media and webviews. You need the *first* message only.
+> **Do not walk `vlpulseng` to the end.** It is six questions and then a
+> **live Reloadly payout** of ₦500 to whatever number you type. You need the
+> *first* message only — enough to see which survey started. Completing it in
+> pass 1 spends real money outside the $10 that pass 2 accounts for, and pollutes
+> the study's own respondent counts before it has fielded.
 
 ---
 
@@ -485,7 +550,7 @@ Also check the frozen blob carries what you expect:
 
 ```sql
 SELECT metadata FROM ad_attributions WHERE study_id = '<uuid>';
--- expect {"creative": "<creative name>", "form": "flysmoke", "gender": "women", ...}
+-- expect {"creative": "<creative name>", "form": "vlpulseng", "gender": "women", ...}
 ```
 
 `creative` and `form` must both be there. Their absence is the trap
@@ -516,7 +581,7 @@ Compare each against what adopt should have minted:
 ```bash
 .venv/bin/python - <<'PY'
 from adopt.ref_encoding import encoded_ref
-print(encoded_ref("flysmoke", "<ref_token from the row>"))
+print(encoded_ref("vlpulseng", "<ref_token from the row>"))
 PY
 ```
 
@@ -540,7 +605,7 @@ something to re-assert forever.
 .venv/bin/python scripts/ctwa_probe.py --list-ads <CAMPAIGN_ID>
 
 # 2. THIS ad's ref decodes under THE DEPLOYED TAG. Leg 1 proved the tag decodes
-#    the contract vectors; none of them is `flysmoke`. §1.2.
+#    the contract vectors; none of them is `vlpulseng`. §1.2.
 cd /path/to/fly
 TAG="replybot-$(grep -m1 '^versionReplybot' devops/values/production.yaml | sed 's/.* //')"
 D=$(mktemp -d); mkdir -p "$D/lib/typewheels"
@@ -548,7 +613,7 @@ git show "$TAG:replybot/lib/typewheels/utils.js"  > "$D/lib/typewheels/utils.js"
 git show "$TAG:replybot/lib/errors.js"            > "$D/lib/errors.js"
 ln -s "$PWD/replybot/node_modules" "$D/node_modules"
 node -e "console.log(require('$D/lib/typewheels/utils').decodeRecruitmentRef('<payload after r.>'))"
-# expect { form: 'flysmoke', token: '<the ref_token from the row>' }
+# expect { form: 'vlpulseng', token: '<the ref_token from the row>' }
 rm -rf "$D"
 ```
 
@@ -577,8 +642,8 @@ Record, in order:
    because `vlab-prod-message-worker` was ~444 messages behind. The inbound
    referral lands in `chatroach.messages` immediately and independently. Read
    the database; do not wait on the phone.
-3. Whether the first question is `flysmoke`'s or another survey's. A different
-   survey means `FALLBACK_FORM`.
+3. Whether the first question is `vlpulseng`'s — *"How old are you?"* — or
+   another survey's. A different question means `FALLBACK_FORM`.
 
 ---
 
@@ -646,7 +711,7 @@ SELECT userid, current_form, current_state, updated,
  ORDER BY updated DESC LIMIT 1;
 ```
 
-Expect `md.form = "flysmoke"` and **`md.vt` = the `ref_token` from §4's row**,
+Expect `md.form = "vlpulseng"` and **`md.vt` = the `ref_token` from §4's row**,
 with **no `md.r`** — it is consumed by the decode branch and must never survive
 half-parsed.
 
@@ -691,7 +756,7 @@ whatever happens.
 | **B** | §5: a carrier's string ≠ the minted ref | Meta mangles base64url, or the carriers disagree. | The format changes. Legs 3+ are void. Record exactly which carrier and how it differs — this is the finding the whole encoding rests on. |
 | **C** | §6: no welcome button, **and** §7.2 shows no `quick_reply_payload` row | Either the returning-thread effect (§1.9) or a delivery change. | **Not a finding.** Inconclusive. Retry from a Messenger account with no history on page `1855355231229529`. |
 | **D** | §7.1: `current_form = '305'` | The ref reached fly and fly could not decode it. Under an encoded ref this is total (§1.2). | The deploy contract passed and production still failed — which would mean the tag running is not the tag `production.yaml` names. Check the actual pod image, not the values file. |
-| **E** | §7.3: `md.form = flysmoke`, **`md.vt` absent** | The ref was dotted, not encoded — the ad shipped `ref_mode: "metadata"`. | §3.4 did not save, or the ad predates the save. Not a decode failure. Check `ref_token` on the row and the carrier string from §5. |
+| **E** | §7.3: `md.form = vlpulseng`, **`md.vt` absent** | The ref was dotted, not encoded — the ad shipped `ref_mode: "metadata"`. | §3.4 did not save, or the ad predates the save. Not a decode failure. Check `ref_token` on the row and the carrier string from §5. |
 | **F** | §7.3 correct, §7.4 emits **`extraction_error` / `ref_token`** | The token round-tripped and joined to nothing. | The mapping row and the minted token disagree — the one thing `ad_ref_token` exists to prevent. Compare the row's `ref_token` against `md.vt` byte for byte; suspect quoting (`metadataToken` unquotes a JSON string). |
 | **G** | §7.3 correct, §7.4 emits nothing **and** `inference_data` has no row | The event never reached swoosh, or the conf did not name the variable. | Check `inference_data_events` first (§7.4). If the event is there, the lookup conf's `name` does not match a key in the frozen blob — which is deliberately *not* counted as unmapped. |
 | **H** | §7.4: `inference_data` carries the declared variable for your user | **Everything works.** Write path, format, carriers, decode, join. | The feature is proven end to end for Messenger. Record it in `documentation/ad-attributions.md` and in §0.5 above. WhatsApp repeats this walk once it is a live transport. |
@@ -710,7 +775,13 @@ expensive later:
 ## 9. Cleanup — the same day
 
 The campaign is `PAUSED` and cannot spend, but a paused campaign on a live ad
-account is one mis-click from recruiting real people into a smoke-test survey.
+account is one mis-click from recruiting real people into a live survey that
+pays ₦500 a head.
+
+**Skip this only if pass 2 is starting immediately.** If §11 is going ahead
+today, leave the campaign in place and go straight there — deleting and
+recreating it costs an adopt cycle and a new set of ad ids for no benefit. If
+pass 2 is days away or undecided, clean up.
 
 1. **Set the study's `end_date` to the past**, so adopt stops touching it. Do
    this *first* — deleting the campaign while the study is still active means
@@ -726,8 +797,8 @@ pkill -f 'kubectl.*port-forward'
 3. **Leave the `ad_attributions` row.** The table is append-only by design and a
    row must outlive its ad — respondents keep arriving from deleted ads. It is
    also the evidence for §0.5.
-4. Leave the `flysmoke` survey alone. It is the production smoke-test survey and
-   other runbooks use it.
+4. **Leave the survey and the study record in place.** Pass 2 (§11) reuses both.
+   Only the campaign and the confs' dates change between passes.
 
 ---
 
@@ -752,3 +823,65 @@ Marked so they are not mistaken for oversights.
    shifts mid-study, swoosh sees two people where there is one — and §7.4's
    step depends on the answer. Check the `inference_data_events` rows in §7.4
    for which shape yours arrived with.
+
+---
+
+## 11. Pass 2 — the paid Kwara field test
+
+**A separate decision, taken after pass 1 reports.** This is the study
+`planning/smoke-study-nigeria.md` designs: $10 of ad spend, ₦500 Reloadly
+airtime per respondent, `max_sample: 10` per arm across messenger, whatsapp and
+multi. Not written in step-by-step detail here, because three of its parameters
+depend on what pass 1 finds — which carriers fired, whether `url_tags` produced
+a top-level referral, and whether the frozen blob carried every key the lookup
+conf asks for.
+
+What changes from pass 1:
+
+| | Change | Why it is not free |
+|---|---|---|
+| Destinations | add a `whatsapp` and a `multi` destination, both `ref_mode: encoded` | a stratum may not mix channels, so this is three strata, three ads, three distinct `ref_token`s |
+| Strata | restore Kwara targeting and `max_sample: 10` per arm | targeting only matters once delivery is real |
+| Recruitment | the real $10 budget | |
+| Campaign | **activate it** | this is the irreversible step: real spend, and Meta ad review |
+| Survey | respondents complete it | each completion is a live ₦500 Reloadly payout |
+
+### What pass 1 does not de-risk
+
+Say these out loud before spending, because pass 1 proves none of them:
+
+1. **The WhatsApp and multi arms cannot be preview-verified.** On 2026-08-17
+   every preview of a multi ad followed `MESSAGE_PAGE` to Messenger and the
+   WhatsApp arm was never reached (row **G**, still open). Their first real test
+   is a paying respondent.
+2. **A WhatsApp decode failure is silent and lands in someone else's survey.**
+   `FALLBACK_FORM` is `305`, a real researcher's live study.
+   `RecruitmentAdArrivalsInFallback` fires at ≥2 such arrivals in an hour —
+   watch it from the first impression, not at the end of the day.
+3. **The Reloadly operator string is an exact match.** `go-reloadly`'s
+   `SearchOperator` does `op.Name == name` against the NG catalog; a wrong
+   string returns `OPERATOR_NOT_FOUND`. `MTN Nigeria` and `Glo Nigeria` are
+   verified exact (they are what `bauchiendpayENG` pays with).
+   `Airtel Nigeria` and `9mobile Nigeria` are **not verified**. A wrong string
+   is a handled failure, not vanished money — the form's `reloadly_er` branch
+   fires and the respondent sees the error — but it is a respondent who
+   answered and did not get paid.
+4. **`thins_its_ref_without_reading_the_mapping` only warns.** It will not stop
+   a save or a run. If a destination ends up thin with no lookup conf, every
+   stratum counts zero and the optimizer reallocates on empty data, silently.
+   Check §4's `ad_attributions` rows have non-NULL `ref_token`s — one per arm,
+   all distinct — **before** activating. That check is the whole reason pass 1
+   exists.
+5. **Consent flags 1–3 in `smoke-study-nigeria.md` are unresolved.** No IRB
+   claim, the platform-caveats screen must stay channel-neutral across three
+   arms, and the stated duration and prize must match the built form. An
+   inaccurate consent is the easiest thing to ship by accident when adapting
+   one.
+
+### The gate
+
+Do not activate until §4 shows **three** `ad_attributions` rows, one per arm,
+each with a distinct non-NULL `ref_token`, and §5's carriers match what
+`encoded_ref` mints for each. That is the pre-flight promised on 2026-08-21 and
+blocked by a dead postgres MCP; it now runs over `kubectl` and there is no
+excuse for skipping it.

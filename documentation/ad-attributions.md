@@ -980,8 +980,9 @@ study that opts into ad-id attribution.**
 Every layer here is unit- and integration-tested and the contract vectors match
 across repos. That is not the same as a respondent having walked the path, and
 the difference is worth stating precisely rather than leaving a reader to infer
-capability from the absence of caveats. Status as of **2026-08-26**; the probe
-that closes the gaps is `planning/encoded-ref-probe-runbook.md`.
+capability from the absence of caveats. Status as of **2026-08-26**; the run that
+closes the gaps is `planning/encoded-ref-probe-runbook.md`, fielding
+`vl-pulse-nigeria-smoke` (design: `planning/smoke-study-nigeria.md`).
 
 | | Claim | Status |
 |---|---|---|
@@ -1039,6 +1040,8 @@ someone runs it, treat `ref_mode: "encoded"` on a web or app destination as
 | **Deploy contract — fly's half** | `replybot/lib/typewheels/ref-encoding-contract.test.js` |
 | **Write-path probe (leg 0)** | `adopt/scripts/write_path_probe.py` |
 | **The end-to-end probe** | `planning/encoded-ref-probe-runbook.md` |
+| **The study it fields** | `planning/smoke-study-nigeria.md` (instrument, consent, payment) |
+| **Why the dashboard control looks like it does** | `planning/ref-mode-dashboard-ux.md` |
 
 Per-app detail: `adopt/README.md`, `inference/README.md` and
 `dashboard/README.md`.

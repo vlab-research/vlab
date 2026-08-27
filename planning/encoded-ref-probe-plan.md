@@ -19,7 +19,7 @@ frames the gap — note its §6a and §6b are **stale**.
 | **0** — does the write half produce a row? | **indeterminate, with complete coverage.** No study has created an ad since adopt v0.1.78 shipped the write path, so the empty table proves nothing either way. Answered by leg 3. | runbook §0.5; `adopt/scripts/write_path_probe.py` |
 | **1** — the deploy contract | **built and passing** against `replybot-v0.0.221`. Found two live drifts, both fixed. | runbook §0.5; `adopt/adopt/ref_encoding_vectors.json` and both halves |
 | **2** — do the carriers survive? | **folded into leg 3 as a read-back step** rather than built as a second creative builder. See the note under Leg 2 below. | runbook §5 |
-| **3** — one real arrival | **written, not run.** | runbook §§3–8 |
+| **3** — one real arrival | **written, not run.** Retargeted onto the study that already exists — `vl-pulse-nigeria-smoke` / `vlpulseng`, designed in `planning/smoke-study-nigeria.md` — rather than a new one, and split into a free Messenger pass and a paid three-arm pass. | runbook §§3–9 (pass 1), §11 (pass 2) |
 | **4** — web/app bare token | **descoped, and stated as a limit** rather than implied to work. | `documentation/ad-attributions.md` |
 
 Two things this plan got wrong, corrected in the runbook rather than here:
