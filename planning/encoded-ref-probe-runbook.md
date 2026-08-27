@@ -362,7 +362,9 @@ retry from an account with no history on page `1855355231229529`.
 | Org | `031963f3-0a38-4ca5-9714-0c9012f9ac91` | **not** ECD Diagnostic's org (`3bc602fc-…`). This constrains §3.1 — see there. |
 | Study owner | `auth0|62470aac9bf338006971a7d2` | holds `Facebook` (facebook), `toixo` (fly) and `virtual-lab-vlab` (facebook_ad_user) credentials. Verified 2026-08-27. |
 | Survey shortcode | **`vlpulseng`** (`VL Pulse Nigeria - Smoke`, created 2026-08-21 16:24 UTC) | already synced into `chatroach.surveys`. A nonexistent shortcode routes to `FALLBACK_FORM` = `305`, someone else's live survey. |
-| Source study to copy from | **`vapefree-evaluation-aim3`** | same org, same ad account, one variable with two levels, a Messenger fly destination, fly credential `toixo`, and templates confirmed alive 2026-08-27. §3.1 says why not `ecd-diagnostic`. |
+| Template campaign | **`Templates - VapeFree`** (`120227642396520150`) | on the ad account, `PAUSED`, 4 ad sets and 12 ads — verified 2026-08-27. Variables and Creatives are dropdowns over this; §3.1 says why the study is built from scratch rather than copied. |
+| Template ad set | **`Gender - Men`** (`120227643423940150`) | US, 18–25, men |
+| Template ad | **`RC34 Ad 4`** (`120235179318640150`) | any ad in that campaign works |
 | Reloadly credentials key | `vlab`, on `nandanmarkrao@gmail.com` | the study must be owned by that account or the payment credential will not resolve. **Pass 1 never reaches a payment**, so this only gates §11. |
 | Meta access token | — | read from the prod `credentials` table by the scripts; never passed on argv |
 | Python | `adopt/.venv` | `cd adopt && poetry install` |
@@ -391,41 +393,38 @@ control shipped as `e7683333` on 2026-08-24.
 The study **already exists** — `vl-pulse-nigeria-smoke`, created 2026-08-21,
 with zero confs. Open it and configure it; do not create a second one.
 
-### 3.1 Copy a working configuration
+### 3.1 Skip Initialize — build it from scratch
 
-On the **Initialize** step, select **`vapefree-evaluation-aim3`** and click
-*Initialize Values*.
+**Do not use the Initialize step.** It is the obvious shortcut and it is the
+wrong one here.
 
-That copies every conf except `general`, which is what makes this cheap: the
-variables arrive with valid `facebook_targeting` and real `template_adset` /
-`template_campaign` ids on the account. Building those by hand is most of the
-work of a new study and none of what this test is about.
+What copying another study buys is `variables` (targeting plus
+`template_adset` / `template_campaign`) and `creatives` (the Facebook creative
+blob). Both of those are *dropdowns* in the dashboard, sourced from the ad
+account's own template campaigns — §3.4 and §3.5 below — so the saving is a few
+minutes of clicking.
 
-**Not ECD Diagnostic**, and this is not a preference. `Initialize` lists the
-studies in the **current org**, and `vl-pulse-nigeria-smoke` is in org
-`031963f3-…` while `ecd-diagnostic` and `girl-effect` are in `3bc602fc-…` under
-a different owner. ECD will not appear in the dropdown. Its `data_sources` conf
-would not have worked either: it names fly credential `Fly`, and this study's
-owner holds `toixo`.
+What it costs is debris, and three of the four pieces fail **silently**:
 
-`vapefree-evaluation-aim3` was chosen over the other same-org candidates because
-it is the **smallest** — one variable (`Gender`), two levels — so §3.5's trim to
-a single stratum is a two-click edit rather than a cull. Its fly source already
-uses `toixo`, its destination is already a Messenger fly destination, and its
-templates were confirmed alive on 2026-08-27:
+| Inherited from `vapefree-evaluation-aim3` | What it does if you miss it |
+|---|---|
+| `excluded_audiences: ["VapeFree Evaluation Aim3 respondents"]` | the ad set depends on a custom audience this study does not own |
+| `question_targeting`'s `answered(would_like)` clause | `would_like` is a vapefree field `vlpulseng` has no equivalent of, so the predicate can never match; the stratum counts zero and `missing_targeting_variables` warns every run |
+| a fly source named `FLy`, with `inference_data` keyed by that exact string | rename one without the other and the study has a source with no confs and confs on a source that does not exist — no variables, silently |
+| six creatives on the stratum | six ads, six `ad_attributions` rows, and §4/§7 stop being unambiguous |
 
-```
-adset     120227643423940150  'Gender - Men'          CAMPAIGN_PAUSED
-campaign  120227642396520150  'Templates - VapeFree'  PAUSED
-```
+And the decisive one, which runs the other way entirely:
 
-`shujaaz-free2choose-digital-evaluation` (templates also alive) is the fallback
-if vapefree's have been deleted by the time you read this — it is a real
-Messenger study on the same account, just with five levels to trim instead of
-two.
+**Copying suppresses the thing that makes §3.6 automatic.** A fly source with
+*nothing saved* pre-fills one `ad_table_lookup` conf per variable declared in
+Variables, already pointing at `key: "vt"` — which is exactly the conf this
+whole test needs (`generateLookupConfs.ts`). It is a default, not a merge: *"a
+source with saved confs shows those, a source without shows these, nothing
+merges."* Initialize gives the source saved confs, so the pre-fill never fires
+and you hand-build what the dashboard would have handed you.
 
-> Initialize **overwrites** anything already configured on this study. It has no
-> confs today, so nothing is at risk — but do it first, not after editing.
+So from scratch is both less work downstream and less likely to go quietly
+wrong. Click straight past Initialize to **General**.
 
 ### 3.2 General
 
@@ -443,9 +442,15 @@ so this costs nothing to get right now and is expensive to discover later.
   `study_state` row at all** (both dates NULL). Get this wrong and nothing
   happens, silently, forever — it is exactly what has been true since
   2026-08-21.
-- `destination_type`: `MESSENGER`.
-- Budget: leave the copied values for now. Nothing can spend in pass 1 (§1.4);
-  a low `min_budget` is belt-and-braces, not the control. §11 sets the real $10.
+- `destination_type`: **`MESSENGER`**, objective **`OUTCOME_ENGAGEMENT`**,
+  optimization goal **`CONVERSATIONS`**. These are what every live Messenger
+  study on this account uses. (`CONVERSATIONS` is rejected for *click-to-WhatsApp*
+  on this Page under EU privacy rules — that is a pass 2 problem, not this one.)
+- Budget: anything small; `budget: 10`, `min_budget: 1`, `max_sample: 10`.
+  Nothing can spend in pass 1 (§1.4) — the paused campaign is the control, not
+  the number. §11 sets the real $10 against real delivery.
+- `incentive_per_respondent`: `0.34` (₦500 at ~1,470 NGN/USD) if you want the
+  optimiser's arithmetic to be honest; it changes nothing in pass 1.
 
 ### 3.4 Destinations — the write side
 
@@ -453,6 +458,7 @@ One Messenger destination. The whatsapp and multi arms of
 `smoke-study-nigeria.md` are **pass 2** — do not add them yet (see *Two passes*
 above).
 
+- `name`: **`Fly`** — remember it; §3.5's creative has to name this destination.
 - `initial_shortcode`: **`vlpulseng`**
 - welcome message and button text: anything; the button label is what you tap.
 - **Ref mode: "Looked up afterwards, from the ad-attributions export."**
@@ -465,111 +471,115 @@ gender and region arrive as columns,"* is the historical behaviour.
 Saving a *change* of mode on an existing destination raises a warning about
 rewriting every ad in the study. On a new study there is nothing to rewrite.
 
-### 3.5 Strata, and the variable the ad is frozen with
+### 3.5 Variables, Creatives, Strata
 
-vapefree's copy gives you two strata (`Gender:Men`, `Gender:Women`), six
-creatives each. Three edits:
+**Variables.** Pick the template campaign **`Templates - VapeFree`**
+(`120227642396520150`) — it is the account's most complete one, 4 ad sets and
+12 ads, all `PAUSED`. Then declare **one** variable:
 
-1. **Delete `Gender:Women`.** One stratum × one creative × one destination =
-   exactly one ad, which is what makes §4 and §7 unambiguous.
-2. **Trim `Gender:Men` to ONE creative.** It arrives with six (`RC34 Ad 4`,
-   `RC34 Ad 2 v2`, …); each one is another ad and another `ad_attributions`
-   row. Delete the rest from Creatives too, or the conf references creatives
-   the stratum no longer uses.
-3. **Clear `excluded_audiences`.** It arrives holding
-   `["VapeFree Evaluation Aim3 respondents"]` — another study's custom
-   audience. Leaving it makes this study's ad set depend on an audience it does
-   not own.
+| Field | Value |
+|---|---|
+| name | **`Gender`** |
+| levels | one only: name **`Men`**, template ad set **`Gender - Men`** (`120227643423940150`), quota `1.0` |
 
-**Simplify `question_targeting`.** vapefree's is
+Targeting is **extracted from the ad set you pick**, not typed — `Gender - Men`
+is US, 18–25, men. `smoke-study-nigeria.md`'s Kwara targeting belongs to pass 2,
+when delivery is real; in pass 1 nothing is delivered and any valid
+`facebook_targeting` block will do.
 
-```
-and( equal(variable Gender, constant "Men"),
-     answered(variable would_like) )
-```
+One variable with one level is deliberate: it makes **one stratum**, and with
+one creative and one destination that is **exactly one ad** — which is what
+makes §4 and §7 unambiguous.
 
-`would_like` is a vapefree survey question; `vlpulseng` has no such field, so
-that clause can never match. Drop it and keep only
-`equal(variable Gender, constant "Men")`.
+**Creatives.** One creative, from the same template campaign. Any ad in it
+works; **`RC34 Ad 4`** (`120235179318640150`) is a reasonable pick. Set its
+destination to the Messenger destination from §3.4.
 
-Two reasons, and the second is the one that matters. A predicate naming a
-variable nothing supplies makes `missing_targeting_variables` warn on every
-reconciliation run, which is noise you will then have to explain away. And
-`Gender` is exactly the variable §3.6's lookup conf produces **out of the ad
-table** — so keeping that clause and nothing else means the stratum matches if
-and only if the whole encoded mechanism worked. It turns the stratum count into
-a second, independent read on the same question §7.4 asks.
+> The image is a real VapeFree ad and its rendered text has nothing to do with
+> this survey. Acceptable because the campaign is never activated and only you
+> ever see it — the same posture the 2026-08-17 probe used. It is **not**
+> acceptable in pass 2, where real people see it.
 
-`smoke-study-nigeria.md`'s Kwara targeting matters in pass 2, when delivery is
-real. In pass 1 nothing is delivered, so leave vapefree's US/18–25/Android
-targeting alone rather than spending time on targeting that cannot be
-exercised — it is a valid `facebook_targeting` block, which is all adopt needs.
+**Strata.** One stratum, `Gender:Men`, metadata `{"Gender": "Men"}`, holding the
+one creative.
 
-The stratum's `metadata` is `{"Gender": "Men"}`. **That is the key §3.6's lookup
-conf pulls**, and it must be a key the ad's frozen `ad_attributions.metadata`
-blob carries — §4 checks exactly that.
-
-### 3.6 Data Extraction — the read side
-
-vapefree's copy arrives with two confs under its fly source, and **both are
-wrong for us**:
+Set `question_targeting` to exactly one clause:
 
 ```
-{location: "variable", key: "would_like", name: "would_like"}   <- a field vlpulseng does not have
-{location: "metadata", key: "Gender",     name: "Gender"}       <- a RAW read of an inline ref
+equal(variable Gender, constant "Men")
 ```
 
-The second is the interesting one: it is the *thick-ref* way of reading exactly
-the variable we are about to read through the ad table. Under
-`ref_mode: "encoded"` the ref no longer carries `Gender` inline, so that conf
-finds nothing and is skipped — harmless, but it proves nothing. Replace it.
+Nothing else. `Gender` is precisely the variable §3.6's lookup conf produces
+**out of the ad table**, so this predicate matches if and only if the whole
+encoded mechanism worked — the stratum count becomes a second, independent read
+on the same question §7.4 asks. Adding a clause about a survey answer would
+couple that signal to something else and make a zero ambiguous.
+
+The stratum's `metadata` key `Gender` is what §3.6's lookup conf pulls, and it
+must appear in the ad's frozen `ad_attributions.metadata` blob — §4 checks
+exactly that.
+
+### 3.6 Data Extraction — confirm, do not build
+
+Do **Data Sources** (§3.7) first, then come here. On a fly source with nothing
+saved the dashboard pre-fills one `ad_table_lookup` conf per variable declared
+in Variables (`generateLookupConfs.ts`), so with one variable named `Gender` you
+should already be looking at exactly this:
 
 | Field | Value | Means |
 |---|---|---|
 | Location | **Metadata** | where the value is |
 | Mapping | **"Ad (which ad recruited them)"** | the value read is a *token*; look it up |
 | Key | **`vt`** | the metadata key holding the token — fly's convention |
-| Name | **`Gender`** | the stratum variable to pull off the frozen row, *and* what to call the output. Capital G — it must match `stratum.metadata`'s key exactly. |
+| Name | **`Gender`** | the stratum variable to pull off the frozen row, *and* what to call the output |
 
-Delete the `would_like` conf. Optionally add one raw conf reading the survey's
-own `gender` field (`location: variable, key: gender, name: gender`) — lowercase,
-so it cannot collide — which gives you what the respondent *said* next to what
-the ad *targeted*. Not required, and not part of any decision below.
+**Confirm it and save.** If it is blank instead, the source is not `fly` or
+Variables has no variable declared — fix that rather than typing the conf by
+hand, because a blank row means the pre-fill did not fire and something upstream
+is wrong.
 
-**Key and name mean something different here than they do for a raw read**, and
-getting them backwards is the easy mistake. Under `ad_table_lookup`, `key` is
-where the **token** is and `name` is which **stratum variable** to pull.
+Two things to know about these two fields, because getting them backwards is the
+easy mistake and nothing downstream catches it:
 
-Cross-check: the study's `question_targeting` predicate must match on the same
-variable, or `missing_targeting_variables` warns and the stratum counts zero for
-an unrelated reason.
+- **`key` is where the TOKEN is**, not where the value is. For a raw read it
+  addresses the value itself; under a lookup it addresses the token.
+- **`name` does double duty** — the output variable name *and* the key pulled
+  off the frozen row. `Gender` with a capital G, matching `stratum.metadata`.
+
+Optionally add a second, raw conf reading the survey's own answer — `location:
+variable`, `key: gender`, `name: gender`, lowercase so it cannot collide. That
+gives you what the respondent *said* beside what the ad *targeted*. Not required
+and not part of any decision below.
 
 ### 3.7 Data Sources
 
-One fly source. From vapefree's copy, change **only** `survey_name`:
+One fly source, built from scratch:
 
 | Field | Value |
 |---|---|
-| source | `fly` |
-| name | `FLy` — **leave it exactly as copied, typo and all** |
-| credentials_key | `toixo` — this study's owner has no credential named `Fly` |
-| config.survey_name | **`VL Pulse Nigeria - Smoke`** (was `Washington University VapeFree`) |
+| source | **`fly`** |
+| name | **`Fly`** |
+| credentials_key | **`toixo`** — this study's owner has no credential named `Fly` |
+| config.survey_name | **`VL Pulse Nigeria - Smoke`** |
 
-The name looks like a typo because it is one, and it is load-bearing:
-`inference_data` is a map **keyed by the data source's name**
-(`{"data_sources": {"FLy": {"extraction_confs": [...]}}}`). Rename the source
-without renaming the key and the study has a source with no extraction confs
-and a set of confs attached to a source that does not exist — which produces no
-variables, silently, and looks exactly like a broken lookup.
+`credentials_key` is the one that bites. The owner
+(`auth0|62470aac9bf338006971a7d2`) holds a fly credential keyed **`toixo`**;
+`Fly` belongs to a different user in a different org. The source's *name* and
+its *credentials key* are unrelated fields and only the second has to match a
+credential.
 
-### 3.7b What NOT to configure in pass 1
+Save this **before** §3.6 — `inference_data` is a map keyed by the data source's
+name, and the extraction form has nothing to attach confs to until the source
+exists.
+
+### 3.8 What NOT to configure in pass 1
 
 The `vlpulseng` Typeform is already Reloadly-shaped — `payment:reloadly`, key
 `vlab`, with the operator selector. Leave it alone. Pass 1 never completes the
-survey (§3.8's warning), so the payment branch is never reached and no airtime
+survey (§3.9's warning), so the payment branch is never reached and no airtime
 moves. Do not "test" the payment by walking the form to the end.
 
-### 3.8 Clear your own Messenger state
+### 3.9 Clear your own Messenger state
 
 Open `m.me/1855355231229529?ref=form.reset` on the phone you will use.
 `REPLYBOT_RESET_SHORTCODE` is `reset` in production, and a `RESET` rebuilds from
@@ -701,7 +711,7 @@ node -e "console.log(require('$D/lib/typewheels/utils').decodeRecruitmentRef('<p
 rm -rf "$D"
 ```
 
-3. Your Messenger state is cleared (§3.8).
+3. Your Messenger state is cleared (§3.9).
 
 If the decode does not print exactly that, **do not click**. A respondent —
 you — would land in survey `305`.
@@ -730,7 +740,7 @@ Record, in order:
    — *"We are a group of researchers at Virtual Lab conducting a study…"* — not
    a question. `age` ("How old are you?") is the fifth field, after two more
    consent screens and a `start` prompt. Anything else means `FALLBACK_FORM`.
-   **Stop at the first message**; see §3.8.
+   **Stop at the first message**; see §3.9.
 
 ---
 
