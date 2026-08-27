@@ -491,14 +491,48 @@ One variable with one level is deliberate: it makes **one stratum**, and with
 one creative and one destination that is **exactly one ad** — which is what
 makes §4 and §7 unambiguous.
 
-**Creatives.** One creative, from the same template campaign. Any ad in it
-works; **`RC34 Ad 4`** (`120235179318640150`) is a reasonable pick. Set its
-destination to the Messenger destination from §3.4.
+**Creatives.** One creative. **Give it a name and never change it** — see the
+box below, this is the one field here with consequences. Then pick a template
+ad, and set its destination to the Messenger destination from §3.4.
 
-> The image is a real VapeFree ad and its rendered text has nothing to do with
-> this survey. Acceptable because the campaign is never activated and only you
-> ever see it — the same posture the 2026-08-17 probe used. It is **not**
-> acceptable in pass 2, where real people see it.
+Which template ad depends on whether the real Nigerian creative exists yet:
+
+- **If it does** — use it, and skip the swap entirely. Build it in Ads Manager
+  inside a templates campaign on this account (the dashboard's dropdown reads
+  ads from whichever template campaign you select), then pick it here.
+- **If it does not yet** — **`RC34 Ad 4`** (`120235179318640150`) is a
+  placeholder. Its image is a real VapeFree ad and its text has nothing to do
+  with this survey. Acceptable in pass 1 because the campaign is never
+  activated and only you ever see it — the posture the 2026-08-17 probe used.
+  **Not** acceptable in pass 2.
+
+> #### The creative NAME is a join key. The image is not.
+>
+> `mint_ref_token(study_id, stratum_id, **creative_name**, destination_name)` —
+> the token is derived from the creative's *name*, and reconciliation matches
+> ads by name too (the ad's name **is** the creative name).
+>
+> So the two edits behave completely differently:
+>
+> | Edit | What reconciliation does |
+> |---|---|
+> | swap the **template ad** behind the same creative name | the creative changed, so `COMPARED_AD` sees drift and adopt **updates the ad in place** — same ad id, same `ref_token`, same `ad_attributions` row |
+> | change the **creative name** | a different ad name, so adopt **deletes and recreates** — new ad id, new token, new row |
+>
+> Both are safe (the table is append-only), but only the first keeps pass 1's
+> evidence about the same ad pass 2 fields. **Name it once, now** — something
+> like `vlpulse-ng-1`, not the template ad's name — and swap the image freely
+> later.
+
+**The creative's copy is not cosmetic in pass 2.** It must agree with what the
+form and the consent actually promise, which is **₦500 in mobile airtime** for
+**about 3 minutes** (`consent_1`, `phone_number`, `success`, and the Reloadly
+block's `"amount": 500`). There is a precedent for getting this wrong: an
+earlier version of `ctwa_probe.py` borrowed a live study's ad copy and promised
+respondents **₦1,000** of airtime for a survey that did not exist
+(`ctwa-probe-runbook.md` §3.1). `smoke-study-nigeria.md`'s consent flag 3 says
+the same thing from the other end — duration and prize must match the built
+form.
 
 **Strata.** One stratum, `Gender:Men`, metadata `{"Gender": "Men"}`, holding the
 one creative.
