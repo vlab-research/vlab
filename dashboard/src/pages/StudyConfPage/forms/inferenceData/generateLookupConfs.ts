@@ -57,9 +57,18 @@ export const generateLookupConfs = (
   source: string,
   variables: string[]
 ): Extraction[] => {
-  if (source !== FLY_SOURCE || variables.length === 0) {
+  if (source !== FLY_SOURCE) {
     return [blankConf()];
   }
 
-  return variables.map(lookupConf);
+  // An unnamed variable produces no conf. `name` is both the output name and
+  // the key into the ad's frozen row, so a lookup without one reads nothing off
+  // the row while presenting itself as configured — the researcher sees a
+  // filled-in row that can only ever yield nothing.
+  //
+  // Filtered rather than counted: one unnamed variable is length 1, so a
+  // `variables.length === 0` guard lets it straight through.
+  const named = variables.filter(name => !!name);
+
+  return named.length ? named.map(lookupConf) : [blankConf()];
 };
