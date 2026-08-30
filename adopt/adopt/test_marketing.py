@@ -587,7 +587,6 @@ def _destination_experiment_study(destinations, creatives):
             ad_campaign_name_base="test-campaign",
             objective="OUTCOME_ENGAGEMENT",
             optimization_goal="CONVERSATIONS",
-            destination_type="MESSENGER",
             min_budget=1,
             budget_per_arm=100,
             max_sample_per_arm=100,
@@ -722,7 +721,7 @@ def _web_dest(name, url_template="https://survey.example/?r={ref}", ref_mode=Non
     )
 
 
-def _study(destinations, creatives, extra_metadata=None, destination_type="MESSENGER"):
+def _study(destinations, creatives, extra_metadata=None):
     return StudyConf(
         id="00000000-0000-0000-0000-000000000001",
         user=UserInfo(survey_user="user", token="token"),
@@ -742,7 +741,6 @@ def _study(destinations, creatives, extra_metadata=None, destination_type="MESSE
             ad_campaign_name_base="test-campaign",
             objective="OUTCOME_ENGAGEMENT",
             optimization_goal="CONVERSATIONS",
-            destination_type=destination_type,
             min_budget=1,
             budget_per_arm=100,
             max_sample_per_arm=100,
@@ -1087,7 +1085,7 @@ def _whatsapp_dest(shortcode="mnchweek", additional=None, ref_mode=None):
 
 
 def _whatsapp_study(destinations, creatives, extra_metadata=None):
-    return _study(destinations, creatives, extra_metadata, destination_type="WHATSAPP")
+    return _study(destinations, creatives, extra_metadata)
 
 
 def test_the_autofill_head_alone_is_accepted_by_fly():
@@ -1411,13 +1409,14 @@ class _FakeCampaignState:
         self.campaign = {"id": "campaign-1"}
 
 
-def _adset_for(destination, template, destination_type, campaign_suffix):
+def _adset_for(destination, template, campaign_suffix):
+    """No destination_type argument: the ad set's value is derived from the
+    destination, which is the whole point of the field being gone from the
+    recruitment conf. Each caller asserts the derived value."""
     config = CreativeConf(
         destination=destination.name, name="Smiling", template=template
     )
-    study = _study(
-        [destination], [config], destination_type=destination_type
-    )
+    study = _study([destination], [config])
     stratum = _stratum_with_md("stratum-1", [config], {"gender": "women"})
     state = _FakeCampaignState(f"test-campaign-{campaign_suffix}")
 
@@ -1428,10 +1427,7 @@ def _adset_for(destination, template, destination_type, campaign_suffix):
 def test_messenger_adsets_are_unchanged_and_carry_no_promoted_object():
     """Asserted directly, not inferred. Every live study runs through here."""
     data = _adset_for(
-        _messenger_dest("messenger", "mnchweek"),
-        _template_with_page(),
-        "MESSENGER",
-        "messenger",
+        _messenger_dest("messenger", "mnchweek"), _template_with_page(), "messenger"
     )
 
     assert "promoted_object" not in data
@@ -1439,14 +1435,14 @@ def test_messenger_adsets_are_unchanged_and_carry_no_promoted_object():
 
 
 def test_web_adsets_are_unchanged_and_carry_no_promoted_object():
-    data = _adset_for(_web_dest("web"), _template_with_page(), "WEBSITE", "web")
+    data = _adset_for(_web_dest("web"), _template_with_page(), "web")
 
     assert "promoted_object" not in data
     assert data["destination_type"] == "WEBSITE"
 
 
 def test_app_adsets_keep_exactly_the_promoted_object_they_always_had():
-    data = _adset_for(_app_dest("app"), _template_with_page(), "APP", "app")
+    data = _adset_for(_app_dest("app"), _template_with_page(), "app")
 
     assert data["promoted_object"] == {
         "application_id": "app-1",
@@ -1457,9 +1453,7 @@ def test_app_adsets_keep_exactly_the_promoted_object_they_always_had():
 def test_whatsapp_adsets_get_the_promoted_object_meta_requires():
     """Without this, Meta rejects the ad set outright and the destination type
     is a conf class that cannot produce a working ad."""
-    data = _adset_for(
-        _whatsapp_dest(), _template_with_page(), "WHATSAPP", "whatsapp"
-    )
+    data = _adset_for(_whatsapp_dest(), _template_with_page(), "whatsapp")
 
     assert data["promoted_object"] == {
         "page_id": "page-123",
@@ -1986,12 +1980,9 @@ def _multi_dest(shortcode="mnchweek", additional=None, name="multi", ref_mode=No
 
 
 def _multi_study(destinations, creatives, extra_metadata=None):
-    return _study(
-        destinations,
-        creatives,
-        extra_metadata,
-        destination_type="MESSAGING_MESSENGER_WHATSAPP",
-    )
+    # No destination_type: a FlyMultiDestination derives
+    # MESSAGING_MESSENGER_WHATSAPP on its own.
+    return _study(destinations, creatives, extra_metadata)
 
 
 def _probe_welcome_combined(greeting, button, ref, autofill):
@@ -2285,7 +2276,7 @@ def test_the_frozen_blob_is_identical_across_destination_types():
         (whatsapp, "WHATSAPP"),
         (multi, "MESSAGING_MESSENGER_WHATSAPP"),
     ]:
-        study = _study([dest], [creative], destination_type=dt)
+        study = _study([dest], [creative])
         frozen.append(
             ref_metadata(creative.name, creative_metadata(study, stratum, dest))
         )
@@ -2333,10 +2324,11 @@ def test_each_destination_implies_its_own_destination_type():
     assert destination_type_for(_whatsapp_dest()) == "WHATSAPP"
     assert destination_type_for(_multi_dest()) == "MESSAGING_MESSENGER_WHATSAPP"
 
-    # Web and App encode their target in a URL or deeplink, so they are
-    # indifferent to how Meta labels the ad set: the recruitment conf governs.
-    assert destination_type_for(_web_dest("web")) is None
-    assert destination_type_for(_app_dest()) is None
+    # Total: Web and App name their own Meta enum value too. They used to
+    # return None and let the recruitment conf's stored string govern, which is
+    # how `WEB` -- not a value Meta defines -- reached three production studies.
+    assert destination_type_for(_web_dest("web")) == "WEBSITE"
+    assert destination_type_for(_app_dest()) == "APP"
 
 
 def _pair(destination, name="A"):
@@ -2350,32 +2342,44 @@ def _pair(destination, name="A"):
 
 def test_derivation_returns_the_token_the_stratums_destinations_imply():
     assert (
-        adset_destination_type([_pair(_messenger_dest("m", "sc"))], "IGNORED")
+        adset_destination_type([_pair(_messenger_dest("m", "sc"))])
         == "MESSENGER"
     )
-    assert adset_destination_type([_pair(_whatsapp_dest())], "IGNORED") == "WHATSAPP"
+    assert adset_destination_type([_pair(_whatsapp_dest())]) == "WHATSAPP"
     assert (
-        adset_destination_type([_pair(_multi_dest())], "IGNORED")
+        adset_destination_type([_pair(_multi_dest())])
         == "MESSAGING_MESSENGER_WHATSAPP"
     )
 
 
-def test_web_and_app_fall_through_to_the_recruitment_default():
-    """What keeps the five legacy WEB/WEBSITE studies byte-identical.
+def test_web_and_app_derive_their_own_type_with_nothing_to_fall_back_on():
+    """There is no recruitment default any more, so there is nothing to fall
+    back to. Web and App name their own token.
 
-    Measured 2026-08-17 against production study_confs: every study whose
-    recruitment conf says WEB or WEBSITE has destinations that imply nothing, so
-    the stored value is used verbatim.
+    The four studies this used to protect (`WEB` x3, `WEBSITE` x1, plus a
+    `WEBSITE` sibling) all ended in 2024 and can never rebuild -- adopt only
+    touches a study where start_date < now < end_date -- so the compatibility
+    the fallback bought had no one left to buy it for.
     """
-    assert adset_destination_type([_pair(_web_dest("web"))], "WEBSITE") == "WEBSITE"
-    assert adset_destination_type([_pair(_app_dest())], "APP") == "APP"
-    assert adset_destination_type([], "MESSENGER") == "MESSENGER"
+    assert adset_destination_type([_pair(_web_dest("web"))]) == "WEBSITE"
+    assert adset_destination_type([_pair(_app_dest())]) == "APP"
+
+
+def test_an_adset_with_no_pairs_raises_rather_than_guessing():
+    """The one case the recruitment default silently covered.
+
+    An ad set with no creative/destination pairs used to take the study-wide
+    string; now it is what it is -- a stratum naming no creative, which cannot
+    produce an ad.
+    """
+    with pytest.raises(Exception, match="no creative/destination pairs"):
+        adset_destination_type([])
 
 
 def test_several_creatives_agreeing_derive_one_type():
     dest = _messenger_dest("m", "sc")
     pairs = [_pair(dest, n) for n in ["A", "B", "C"]]
-    assert adset_destination_type(pairs, "IGNORED") == "MESSENGER"
+    assert adset_destination_type(pairs) == "MESSENGER"
 
 
 def test_a_stratum_mixing_channels_raises_instead_of_picking_one():
@@ -2388,30 +2392,31 @@ def test_a_stratum_mixing_channels_raises_instead_of_picking_one():
     whatsapp = _whatsapp_dest()
 
     with pytest.raises(Exception, match="different ad set destination types"):
-        adset_destination_type(
-            [_pair(messenger, "A"), _pair(whatsapp, "B")], "MESSENGER"
-        )
+        adset_destination_type([_pair(messenger, "A"), _pair(whatsapp, "B")])
 
 
 def test_a_stratum_mixing_multi_with_plain_messenger_raises():
     with pytest.raises(Exception, match="different ad set destination types"):
         adset_destination_type(
-            [_pair(_messenger_dest("messenger", "sc"), "A"), _pair(_multi_dest(), "B")],
-            "MESSENGER",
+            [_pair(_messenger_dest("messenger", "sc"), "A"), _pair(_multi_dest(), "B")]
         )
 
 
-def test_a_destination_that_implies_nothing_does_not_veto_one_that_does():
-    """A stratum mixing a Web creative with a Messenger one still derives
-    MESSENGER: there is nothing to disagree about, exactly as promoted_object
-    treats a stratum whose creatives all want None."""
-    assert (
+def test_a_stratum_mixing_web_with_messenger_now_raises():
+    """A behaviour change, and the reason it is the right one.
+
+    This used to derive MESSENGER and build: Web implied nothing, so it could
+    not disagree with anything. But one stratum is one ad set and destination_type
+    is an ad-set field, so the Web creative's clicks were being served from an ad
+    set Meta labels MESSENGER. That is the same class of silent misroute the old
+    recruitment-level check existed to catch, reached from the other side.
+
+    Now Web names WEBSITE, the disagreement is visible, and it raises.
+    """
+    with pytest.raises(Exception, match="different ad set destination types"):
         adset_destination_type(
-            [_pair(_messenger_dest("messenger", "sc"), "A"), _pair(_web_dest("web"), "B")],
-            "WEBSITE",
+            [_pair(_messenger_dest("messenger", "sc"), "A"), _pair(_web_dest("web"), "B")]
         )
-        == "MESSENGER"
-    )
 
 
 def test_a_channel_experiment_gives_each_arm_its_own_destination_type():
@@ -2438,16 +2443,14 @@ def test_a_channel_experiment_gives_each_arm_its_own_destination_type():
             destination="WhatsApp arm", name="w0", template=_template_with_page()
         ),
     ]
-    study = _study([messenger, whatsapp], creatives, destination_type="MESSENGER")
+    study = _study([messenger, whatsapp], creatives)
     stratum = _stratum_with_md("stratum-1", creatives, {"gender": "women"})
 
     for arm, expected in [("Messenger arm", "MESSENGER"), ("WhatsApp arm", "WHATSAPP")]:
         pairs = pair_creatives_with_destinations(
             study, stratum, f"test-campaign-{arm}"
         )
-        assert adset_destination_type(pairs, study.recruitment.destination_type) == (
-            expected
-        )
+        assert adset_destination_type(pairs) == expected
 
 
 # --- invariant 2/3: existing studies are byte-identical --------------------
@@ -2479,10 +2482,7 @@ def test_messenger_adset_instructions_are_byte_identical():
     feeds AdsetConf, so the guard has to cover everything that dict produces.
     """
     data = _adset_for(
-        _messenger_dest("messenger", "mnchweek"),
-        _template_with_page(),
-        "MESSENGER",
-        "messenger",
+        _messenger_dest("messenger", "mnchweek"), _template_with_page(), "messenger"
     )
 
     assert _adset_snapshot(data) == {
@@ -2500,7 +2500,7 @@ def test_messenger_adset_instructions_are_byte_identical():
 
 def test_web_adset_instructions_are_byte_identical():
     """WEBSITE is kept verbatim: a Web destination implies nothing."""
-    data = _adset_for(_web_dest("web"), _template_with_page(), "WEBSITE", "web")
+    data = _adset_for(_web_dest("web"), _template_with_page(), "web")
 
     assert _adset_snapshot(data) == {
         "name": "stratum-1",
@@ -2516,7 +2516,7 @@ def test_web_adset_instructions_are_byte_identical():
 
 
 def test_app_adset_instructions_are_byte_identical():
-    data = _adset_for(_app_dest("app"), _template_with_page(), "APP", "app")
+    data = _adset_for(_app_dest("app"), _template_with_page(), "app")
 
     assert _adset_snapshot(data) == {
         "name": "stratum-1",
@@ -2580,7 +2580,7 @@ def test_ad_names_are_still_the_creative_name():
         config = CreativeConf(
             destination="d", name="Smiling", template=_template_with_page()
         )
-        study = _study([dest], [config], destination_type=dt)
+        study = _study([dest], [config])
         stratum = _stratum_with_md("stratum-1", [config], {"gender": "women"})
         state = _FakeCampaignState("test-campaign-d")
 
@@ -2589,9 +2589,7 @@ def test_ad_names_are_still_the_creative_name():
 
 
 def test_a_multi_adset_gets_the_derived_type_and_the_promoted_object():
-    data = _adset_for(
-        _multi_dest(), _template_with_page(), "MESSAGING_MESSENGER_WHATSAPP", "multi"
-    )
+    data = _adset_for(_multi_dest(), _template_with_page(), "multi")
 
     assert data["destination_type"] == "MESSAGING_MESSENGER_WHATSAPP"
     assert data["promoted_object"] == {
@@ -2600,23 +2598,34 @@ def test_a_multi_adset_gets_the_derived_type_and_the_promoted_object():
     }
 
 
-def test_the_derived_type_overrides_a_recruitment_conf_that_disagrees():
-    """A Messenger destination produces a MESSENGER ad set even if the
-    recruitment conf says WEB.
+def test_a_stale_stored_destination_type_cannot_reach_the_adset():
+    """The backward-compatibility guarantee, asserted end to end.
 
-    Two production studies were configured exactly this way (both ended in
-    2024). The ad set is now labelled by what its ads actually do. Note this
-    cannot rewrite anything live: destination_type is absent from
+    ~940 production recruitment confs still carry a `destination_type`, some of
+    them values Meta does not define (`WEB` on three studies, `MULTI` on one).
+    Loading such a conf must ignore the field entirely rather than send it: the
+    ad set is labelled by what its ads actually do.
+
+    Two production studies paired a `WEB` recruitment conf with Messenger
+    destinations (both ended in 2024). This is that shape. Note it cannot
+    rewrite anything live either -- destination_type is absent from
     COMPARED_ADSET, so it rides only on ad-set creates.
     """
-    data = _adset_for(
-        _messenger_dest("messenger", "mnchweek"),
-        _template_with_page(),
-        "WEB",
-        "messenger",
+    destination = _messenger_dest("messenger", "mnchweek")
+    config = CreativeConf(
+        destination=destination.name, name="Smiling", template=_template_with_page()
     )
 
-    assert data["destination_type"] == "MESSENGER"
+    stale = _study([destination], [config]).model_dump()
+    stale["recruitment"]["destination_type"] = "WEB"
+    study = StudyConf(**stale)
+
+    stratum = _stratum_with_md("stratum-1", [config], {"gender": "women"})
+    adset, _ = adset_instructions(
+        study, _FakeCampaignState("test-campaign-messenger"), stratum, 10.0
+    )
+
+    assert adset.export_all_data()["destination_type"] == "MESSENGER"
 
 
 def test_destination_type_and_promoted_object_ride_only_on_creates():

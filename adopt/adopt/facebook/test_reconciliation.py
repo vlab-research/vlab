@@ -2,6 +2,8 @@ import logging
 from datetime import datetime
 from typing import TypeVar
 
+import pytest
+
 from facebook_business.adobjects.ad import Ad
 from facebook_business.adobjects.adcreative import AdCreative
 from facebook_business.adobjects.adset import AdSet
@@ -1606,20 +1608,23 @@ def test_promoted_object_is_absent_from_a_generated_adset_update():
     assert instructions[0].params["daily_budget"] == 999
 
 
-def test_a_live_adset_with_a_different_destination_type_is_not_rewritten():
-    """The guard on moving destination_type from the conf to a derivation.
+def test_a_live_adset_whose_channel_changed_raises_rather_than_building_ads():
+    """`destination_type` still rides only on creates. Now it says so.
 
-    `destination_type` is absent from COMPARED_ADSET, so it rides only on ad-set
-    creates. That is what makes the derivation safe to land: a live study whose
-    stored recruitment destination_type disagrees with what its destinations now
-    imply -- two production studies were configured exactly that way -- keeps
-    its existing ad sets untouched rather than having every one of them
-    rewritten on the next reconciliation run.
+    It is deliberately absent from COMPARED_ADSET so a running study cannot
+    have its ad sets rewritten underneath its own ads. That guard is right and
+    is unchanged. What was missing was anyone reporting the case where it
+    bites: the ad set keeps its original channel while the study's destinations
+    imply a new one, so every ad built into it advertises a channel the ad set
+    does not open.
 
-    It is also why a running study can never change channel. Ad sets are matched
-    by name and the name is the stratum id, so they persist for the study's
-    lifetime. If anyone ever adds destination_type to COMPARED_ADSET, this test
-    fails and that trade-off gets made deliberately.
+    Measured on `vl-pulse-nigeria-smoke`, 2026-08-30. Its ad set was created
+    MESSENGER; the study was then pointed at a multi destination; Meta refused
+    each ad with "Inconsistent Campaign Destination Type With App Destination"
+    (subcode 2490279) -- an error naming neither the ad set nor the conf.
+
+    Silence here used to look like "no change needed". It meant "about to
+    generate ads Meta will reject".
     """
     now = datetime.utcnow()
     common = {
@@ -1630,15 +1635,57 @@ def test_a_live_adset_with_a_different_destination_type_is_not_rewritten():
         "optimization_goal": "REPLIES",
         "name": "stratum-1",
     }
-    live = _adobject({"id": "adset-1", **common, "destination_type": "WEB"}, AdSet)
-    desired = _adobject({**common, "destination_type": "MESSENGER"}, AdSet)
+    live = _adobject(
+        {"id": "adset-1", **common, "destination_type": "MESSENGER"}, AdSet
+    )
+    desired = _adobject(
+        {**common, "destination_type": "MESSAGING_MESSENGER_WHATSAPP"}, AdSet
+    )
 
-    assert update_adset(live, desired) == []
+    with pytest.raises(Exception, match="destination_type cannot be updated"):
+        update_adset(live, desired)
 
 
-def test_a_destination_type_change_cannot_ride_along_on_a_budget_update():
-    """Even when something else legitimately changed, the update is built from
-    COMPARED_ADSET alone, so destination_type is never in the params."""
+def test_the_channel_error_names_the_adset_and_the_remedy():
+    """An operator has to be able to act on it without reading this file.
+
+    Deleting the ad set is the remedy: reconciliation matches ad sets by name
+    and the name is the stratum id, so a deleted one is recreated with the
+    derived type on the next run.
+    """
+    now = datetime.utcnow()
+    common = {
+        "status": "ACTIVE",
+        "daily_budget": 100,
+        "end_time": now,
+        "targeting": {},
+        "optimization_goal": "REPLIES",
+        "name": "stratum-1",
+    }
+    live = _adobject(
+        {"id": "adset-1", **common, "destination_type": "MESSENGER"}, AdSet
+    )
+    desired = _adobject(
+        {**common, "destination_type": "MESSAGING_MESSENGER_WHATSAPP"}, AdSet
+    )
+
+    try:
+        update_adset(live, desired)
+    except Exception as e:
+        msg = str(e)
+        assert "adset-1" in msg
+        assert "MESSENGER" in msg and "MESSAGING_MESSENGER_WHATSAPP" in msg
+        assert "Delete" in msg
+    else:
+        raise AssertionError("expected the channel check to refuse")
+
+
+def test_destination_type_still_never_rides_along_on_an_update():
+    """The COMPARED_ADSET contract, asserted on an ad set that *can* update.
+
+    An update is built from COMPARED_ADSET alone, so destination_type is never
+    in the params even when something else legitimately changed.
+    """
     now = datetime.utcnow()
     common = {
         "status": "ACTIVE",
@@ -1646,14 +1693,10 @@ def test_a_destination_type_change_cannot_ride_along_on_a_budget_update():
         "targeting": {},
         "optimization_goal": "REPLIES",
         "name": "stratum-1",
+        "destination_type": "MESSENGER",
     }
-    live = _adobject(
-        {"id": "adset-1", **common, "daily_budget": 100, "destination_type": "WEB"},
-        AdSet,
-    )
-    desired = _adobject(
-        {**common, "daily_budget": 999, "destination_type": "MESSENGER"}, AdSet
-    )
+    live = _adobject({"id": "adset-1", **common, "daily_budget": 100}, AdSet)
+    desired = _adobject({**common, "daily_budget": 999}, AdSet)
 
     instructions = update_adset(live, desired)
 

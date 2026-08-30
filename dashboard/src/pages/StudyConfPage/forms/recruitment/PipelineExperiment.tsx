@@ -2,7 +2,6 @@ import React from 'react';
 import { GenericTextInput, TextInputI } from '../../components/TextInput';
 import { PipelineExperiment as FormData } from '../../../../types/conf';
 import objectives from '../../../../fixtures/general/objectives';
-import destinationTypes from '../../../../fixtures/general/destinations';
 import optimizationGoals from '../../../../fixtures/general/optimizationGoals';
 import { GenericSelect, SelectI } from '../../components/Select';
 const Select = GenericSelect as SelectI<FormData>;
@@ -59,13 +58,6 @@ const PipelineExperiment: React.FC<Props> = ({
         options={optimizationGoals}
         handleChange={handleChange}
         value={formData.optimization_goal}
-        getValue={(o: any) => o.name.toUpperCase()}
-      ></Select>
-      <Select
-        name="destination_type"
-        options={destinationTypes}
-        handleChange={handleChange}
-        value={formData.destination_type}
         getValue={(o: any) => o.name.toUpperCase()}
       ></Select>
       <TextInput

@@ -216,11 +216,10 @@ def probe_adsets(
             # derivation for every study whose destinations imply their channel
             # and disagreed for the ones that do not — so the probe would have
             # reported drift on exactly the studies the derivation exists to
-            # fix, and reported it against an adset production never sends.
+            # fix, and reported it against an adset production never sends. The
+            # recruitment conf no longer carries the field at all.
             promoted_object = adset_promoted_object(pairs)
-            destination_type = adset_destination_type(
-                pairs, study.recruitment.destination_type
-            )
+            destination_type = adset_destination_type(pairs)
 
             desired = create_adset(
                 AdsetConf(

@@ -123,7 +123,6 @@ export const makeServer = ({ environment = 'development' } = {}) => {
           name: 'most-used-programming-language-for-api-development',
           objective: 'MESSAGES',
           optimization_goal: 'REPLIES',
-          destination_type: 'MESSENGER',
           page_id: '1234567898765432',
           min_budget: 1.5,
           opt_window: 48,

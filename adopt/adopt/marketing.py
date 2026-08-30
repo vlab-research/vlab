@@ -1153,7 +1153,6 @@ def adset_promoted_object(
 
 def adset_destination_type(
     pairs: Sequence[Tuple[CreativeConf, DestinationConf]],
-    recruitment_default: str,
 ) -> str:
     """The ad set's destination_type, agreed across all of its creatives.
 
@@ -1170,12 +1169,12 @@ def adset_destination_type(
     channel assignment to Meta. And a study whose destination_type disagreed
     with its destinations built happily and misrouted silently.
 
-    Destinations that imply nothing (Web, App) fall through to the recruitment
-    conf's value, which is what keeps every existing study byte-identical: the
-    110 studies whose recruitment conf says MESSENGER have Messenger
-    destinations that derive MESSENGER anyway, and the 5 that say WEB or WEBSITE
-    have destinations that imply nothing and so keep their stored value
-    verbatim. Measured against production study_confs on 2026-08-17.
+    There is no fallback. `destination_type_for` is total, so every destination
+    names its own Meta enum value and the recruitment conf no longer carries the
+    field at all. It used to: a stored string, unvalidated, that the dashboard
+    populated from fly's *destination kinds* rather than Meta's enum — which is
+    how `WEB` and `MULTI` reached production. Deriving it is the only way the
+    value can be wrong in a way that is also visible.
 
     Note what this does *not* enable, because someone will ask: a running study
     still cannot change channel. `destination_type` is absent from
@@ -1187,7 +1186,7 @@ def adset_destination_type(
 
     distinct = []
     for t in wanted:
-        if t is not None and t not in distinct:
+        if t not in distinct:
             distinct.append(t)
 
     if len(distinct) > 1:
@@ -1201,7 +1200,14 @@ def adset_destination_type(
             "randomise channel."
         )
 
-    return distinct[0] if distinct else recruitment_default
+    if not distinct:
+        raise Exception(
+            "An ad set was built with no creative/destination pairs, so there "
+            "is nothing to take a destination_type from. A stratum must name at "
+            "least one creative."
+        )
+
+    return distinct[0]
 
 
 def adset_instructions(
@@ -1211,7 +1217,7 @@ def adset_instructions(
 
     creatives = [create_creative(study, stratum, c, d) for c, d in pairs]
     promoted_object = adset_promoted_object(pairs)
-    destination_type = adset_destination_type(pairs, study.recruitment.destination_type)
+    destination_type = adset_destination_type(pairs)
 
     # make paused adset if we have 0 budget
     status = "ACTIVE" if budget > 0 else "PAUSED"

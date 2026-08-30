@@ -19,14 +19,16 @@ const destinations = [
     name: 'whatsapp',
     label: 'WhatsApp',
   },
-  // Labelled as not-yet-enabled because it is: adopt refuses to load a multi
-  // destination until the WhatsApp arm has been measured against real Meta
-  // delivery. Left selectable rather than hidden so the capability is
-  // discoverable and the save error explains itself, instead of the option
-  // silently not existing.
+  // The "(not yet enabled)" label was wrong and worse than wrong: adopt did not
+  // refuse a multi destination, it silently loaded one as a Messenger
+  // destination. `DestinationConf` was an undiscriminated union whose first
+  // member accepted any `type`, so `multi` never once produced a
+  // FlyMultiDestination. Fixed 2026-08-30 by discriminating the union; the
+  // WhatsApp arm is now reachable but still unverified against real delivery,
+  // which is what the label says.
   {
     name: 'multi',
-    label: 'Messenger + WhatsApp (not yet enabled)',
+    label: 'Messenger + WhatsApp (WhatsApp arm unverified)',
   },
 ];
 

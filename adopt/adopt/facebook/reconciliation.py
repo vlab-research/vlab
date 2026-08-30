@@ -203,7 +203,51 @@ def _eq(a, b, fields=None, _path="", _subset=None) -> bool:
         return a == b
 
 
+def _check_destination_type_is_still_reachable(source: AdSet, adset: AdSet) -> None:
+    """Refuse to build ads into an ad set whose channel no longer matches.
+
+    `destination_type` is deliberately absent from COMPARED_ADSET: it rides
+    only on ad-set creates, so a running study cannot change channel underneath
+    its own ads. That guard is correct and stays. What was missing was anyone
+    saying so when it bites.
+
+    Measured on `vl-pulse-nigeria-smoke`, 2026-08-30. Its ad set was created
+    MESSENGER. The study was then pointed at a multi destination, so adopt
+    began building multi creatives -- carrying a WhatsApp call-to-action --
+    into the ad set Meta still labels MESSENGER. Meta refused every ad with
+    "Inconsistent Campaign Destination Type With App Destination" (subcode
+    2490279), an error naming neither the ad set nor the study conf, on a run
+    that had no other symptom. Hours went into it.
+
+    So: fail here, name both values, and name the remedy. Deleting the ad set
+    is the remedy because reconciliation matches ad sets by name and the name
+    is the stratum id -- a deleted one is simply recreated, with the derived
+    type, on the next run.
+    """
+    live = _safe_get(source, "destination_type")
+    desired = _safe_get(adset, "destination_type")
+
+    if not live or not desired or live == desired:
+        return
+
+    name = _safe_get(adset, "name")
+    raise Exception(
+        f"Ad set '{name}' (id={_safe_get(source, 'id')}) exists on Meta with "
+        f"destination_type '{live}', but this study's destinations now imply "
+        f"'{desired}'. destination_type cannot be updated on a live ad set — it "
+        "is set at create time only — so every ad built into this one would "
+        "advertise a channel the ad set does not open, and Meta would refuse "
+        f"it. Delete ad set {_safe_get(source, 'id')} in Ads Manager; "
+        "reconciliation matches ad sets by name, so it will be recreated with "
+        f"'{desired}' on the next run."
+    )
+
+
 def update_adset(source: AdSet, adset: AdSet) -> List[Instruction]:
+    # Before anything else: a channel change cannot be applied by update, and
+    # proceeding produces ads Meta refuses with an error naming nothing useful.
+    _check_destination_type_is_still_reachable(source, adset)
+
     # Declared, with rationale, in field_contract.COMPARED_ADSET.
     fields = list(field_contract.COMPARED_ADSET)
 

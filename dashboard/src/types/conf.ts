@@ -16,7 +16,6 @@ export interface RecruitmentSimple {
   ad_campaign_name: string;
   objective: string;
   optimization_goal: string;
-  destination_type: string;
   min_budget: number;
   budget: number;
   end_date: string;
@@ -31,7 +30,6 @@ export interface RecruitmentDestination {
   destinations: string[];
   objective: string;
   optimization_goal: string;
-  destination_type: string;
   min_budget: number;
   budget_per_arm: number;
   end_date: string;
@@ -45,7 +43,6 @@ export interface PipelineExperiment {
   ad_campaign_name_base: string;
   objective: string;
   optimization_goal: string;
-  destination_type: string;
   min_budget: number;
   budget_per_arm: number;
   end_date: string;

@@ -52,10 +52,11 @@ const Multi: React.FC<Props> = ({ data, updateFormData, index, savedDestination 
     <>
       <p className="text-sm text-gray-500 mb-2">
         One ad that opens either Messenger or WhatsApp — Meta picks per
-        respondent. Requires the recruitment optimization goal to be
-        CONVERSATIONS, and cannot be used to compare channels, since the channel
-        is not randomised. The WhatsApp arm has not yet been verified against
-        real delivery — watch its arrivals on the first study that uses it.
+        respondent. It cannot be used to compare channels, since the channel is
+        not randomised. Meta may constrain which optimization goal it accepts
+        and will say so when the ad set is created. The WhatsApp arm has not yet
+        been verified against real delivery — watch its arrivals on the first
+        study that uses it.
       </p>
       <TextInput
         name="name"
