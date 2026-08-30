@@ -545,6 +545,12 @@ def make_multi_welcome_message(
     )
 
 
+# The optimization_type a click-to-messaging ad's asset_feed_spec carries.
+# One spec holds exactly one, which is why an Advantage+ template and a
+# constructed destination array cannot coexist.
+MULTI_OPTIMIZATION_TYPE = "DOF_MESSAGING_DESTINATION"
+
+
 def multi_destination_asset_feed_spec() -> Dict[str, Any]:
     """The array of destinations, which lives on asset_feed_spec and nowhere else.
 
@@ -565,7 +571,7 @@ def multi_destination_asset_feed_spec() -> Dict[str, Any]:
     MESSENGER_LINK_FALLBACK already *is* the link from that sample.
     """
     return {
-        "optimization_type": "DOF_MESSAGING_DESTINATION",
+        "optimization_type": MULTI_OPTIMIZATION_TYPE,
         "call_to_actions": [
             {
                 "type": "MESSAGE_PAGE",
@@ -583,6 +589,118 @@ def multi_destination_asset_feed_spec() -> Dict[str, Any]:
             },
         ],
     }
+
+
+def messaging_destinations_of(asset_feed_spec: Dict[str, Any]) -> set:
+    """The app destinations an asset_feed_spec's call_to_actions actually open.
+
+    Compared rather than trusted. A template ad built in Ads Manager as
+    "Messenger and Instagram" carries a DOF_MESSAGING_DESTINATION spec that
+    looks exactly like a multi-destination one and opens a different pair of
+    apps -- and Meta rejects the resulting ad with "Inconsistent Campaign
+    Destination Type With App Destination" (subcode 2490279), naming neither
+    the template nor the creative. Measured on vl-pulse-nigeria-smoke,
+    2026-08-30.
+    """
+    return {
+        (cta.get("value") or {}).get("app_destination")
+        for cta in (asset_feed_spec.get("call_to_actions") or [])
+    } - {None}
+
+
+def messaging_destinations_for(destination: DestinationConf) -> set:
+    """The app destinations a study conf's destination means the ad should open.
+
+    The counterpart of `messaging_destinations_of`, which reads the same set off
+    a template. One is what vlab intends, the other is what the researcher's
+    template claims; `refuse_template_destination_conflicts` compares them.
+
+    Web and app destinations open no messaging app at all, so their set is
+    empty -- and a template carrying messaging call_to_actions is a
+    disagreement there too, not an irrelevance.
+    """
+    if isinstance(destination, FlyMessengerDestination):
+        return {"MESSENGER"}
+
+    if isinstance(destination, FlyWhatsAppDestination):
+        return {"WHATSAPP"}
+
+    if isinstance(destination, FlyMultiDestination):
+        return {"MESSENGER", "WHATSAPP"}
+
+    return set()
+
+
+def refuse_template_destination_conflicts(
+    config: CreativeConf, destination: DestinationConf
+) -> None:
+    """Refuse a template whose asset_feed_spec means a different destination.
+
+    A messaging ad states its destination in three places -- the ad set's
+    destination_type, link_data.call_to_action, and
+    asset_feed_spec.call_to_actions -- and Meta requires all three to agree,
+    rejecting the ad with subcode 2490279 ("Inconsistent Campaign Destination
+    Type With App Destination") when they do not. The rejection names neither
+    the ad set nor the template, which is why it costs hours.
+
+    Refused rather than silently overwritten. A researcher who built an
+    Instagram template *meant* Instagram, and quietly shipping them a Messenger
+    ad is the same silent-misroute failure this codebase fights everywhere
+    else. It is disagreement that is refused, not presence: refusing any
+    template that carries call_to_actions would refuse every template Ads
+    Manager can produce.
+
+    This is a closed-world check -- does this small set of strings equal that
+    one -- and deliberately not a reconciliation. There is one source of truth
+    for destination, the study conf; this is a cheap assertion that the
+    template did not mean something else. See
+    planning/creative-construction-contract.md ss1 for why the
+    template-authoritative alternative was rejected.
+    """
+    template_afs = config.template.get(AdCreative.Field.asset_feed_spec) or {}
+    if not template_afs:
+        return
+
+    wanted = messaging_destinations_for(destination)
+    have = messaging_destinations_of(template_afs)
+
+    # `have` empty means the template declares no destination at all -- an
+    # ordinary Advantage+ or plain image template. Nothing to disagree with.
+    if have and have != wanted:
+        opens = sorted(wanted) if wanted else "no messaging app"
+        raise Exception(
+            f"Creative '{config.name}' points at destination "
+            f"'{config.destination}', which opens {opens}, but its template "
+            f"ad's asset_feed_spec opens {sorted(have)}. Meta routes the ad "
+            "set by a single destination_type and refuses any ad whose "
+            "call_to_actions disagree with it, naming neither the template "
+            "nor this creative. Rebuild the template ad in Ads Manager to "
+            f"open {opens}, or point this creative at a destination that "
+            "matches the template."
+        )
+
+    # One asset_feed_spec holds exactly one optimization_type. A multi
+    # destination needs DOF_MESSAGING_DESTINATION for its destination array, so
+    # a template that is an Advantage+ creative -- whose variants are the whole
+    # point of *its* optimization_type -- genuinely cannot also be one. There
+    # is no way to know from here which the researcher wanted, so say so.
+    #
+    # Correctly scoped: this was once applied to every template carrying any
+    # asset_feed_spec, which refused the ordinary case. A template built in Ads
+    # Manager AS a click-to-messaging ad already carries a
+    # DOF_MESSAGING_DESTINATION spec, and nothing conflicts there.
+    if isinstance(destination, FlyMultiDestination):
+        ot = template_afs.get("optimization_type")
+        if ot is not None and ot != MULTI_OPTIMIZATION_TYPE:
+            raise Exception(
+                f"Creative '{config.name}' needs a multi-destination "
+                "asset_feed_spec, but its template already carries one with "
+                f"optimization_type '{ot}'. asset_feed_spec holds a single "
+                "optimization_type, so the destination array and the "
+                "template's creative variants cannot both apply. Use a "
+                "template without an asset_feed_spec, or one that is itself a "
+                "click-to-messaging ad."
+            )
 
 
 def app_download_call_to_action(deeplink) -> dict:
@@ -608,6 +726,95 @@ def convert_version(c):
         del cfs['standard_enhancements']
 
     return c
+
+
+# The Advantage+ variant fields: what the researcher chose to *show*. None of
+# them encodes destination, so all of them are copied -- and everything not on
+# this list is dropped rather than passed through, which is the whole point.
+# `optimization_type` and `call_to_actions` are handled separately below,
+# because whether they are copied or constructed depends on the destination.
+ASSET_FEED_SPEC_VARIANT_FIELDS = (
+    "bodies",
+    "titles",
+    "descriptions",
+    "images",
+    "videos",
+    "ad_formats",
+    "link_urls",
+)
+
+
+def _asset_feed_spec(
+    template_afs: Dict[str, Any] | None,
+    constructed: Dict[str, Any] | None,
+    page_welcome_message: str | None,
+    link: str | None,
+) -> Dict[str, Any]:
+    """asset_feed_spec, reconstructed key by key rather than copied wholesale.
+
+    This field was the single exception in an otherwise explicit allowlist --
+    `fields_to_copy` is a five-name list, `link_data` is rebuilt key by key,
+    `object_story_spec` is rebuilt from scratch -- and it is also the only
+    field besides the CTA that carries destination. Every one of 2026-08-30's
+    three Meta rejections came through that hole: a template's
+    `INSTAGRAM_MESSAGE -> INSTAGRAM_DIRECT` copied untouched into an ad set
+    built as MESSENGER, and so on. So it now gets the treatment
+    `object_story_spec` already had. See
+    planning/creative-construction-contract.md.
+
+    `constructed` is vlab's own destination array, passed in by the multi
+    branch of `create_creative`. When it is None the creative is
+    single-destination, and the template's own `optimization_type` and
+    `call_to_actions` are copied instead -- safely, because
+    `refuse_template_destination_conflicts` has already established that they
+    open exactly what the conf's destination means. Dropping them would rewrite
+    an Advantage+ template's optimization_type, or leave a click-to-messaging
+    template stating no destination at all.
+
+    Builds a new dict rather than mutating. The old code assigned the
+    template's own blob onto the creative and then wrote `additional_data` into
+    it, editing `config.template` in place -- so the second creative built from
+    one template saw the first one's welcome message.
+    """
+    template_afs = template_afs or {}
+
+    # A template with no asset_feed_spec and no constructed one produces no
+    # asset_feed_spec -- not an empty shell holding only the welcome message.
+    # The field is in field_contract.COMPARED_AD, so inventing it here would
+    # rewrite every ad in all 124 Messenger studies on the next run.
+    if not template_afs and constructed is None:
+        return {}
+
+    spec: Dict[str, Any] = {
+        k: template_afs[k]
+        for k in ASSET_FEED_SPEC_VARIANT_FIELDS
+        if k in template_afs
+    }
+
+    if constructed is not None:
+        spec.update(constructed)
+    else:
+        for k in ("optimization_type", "call_to_actions"):
+            if k in template_afs:
+                spec[k] = template_afs[k]
+
+    # Merged, not replaced. A template built in Ads Manager carries its own
+    # additional_data (is_click_to_message, multi_share_end_card); assigning a
+    # fresh dict dropped those along with whatever else Meta had put there.
+    additional_data = {**(template_afs.get("additional_data") or {})}
+    if page_welcome_message:
+        additional_data["page_welcome_message"] = page_welcome_message
+    if additional_data:
+        spec["additional_data"] = additional_data
+
+    # A destination that names its own URL (web, app) overrides the template's.
+    # Guarded on presence: a template can carry variants with no link_urls at
+    # all, and the unguarded version raised KeyError on it.
+    if link and spec.get("link_urls"):
+        spec["link_urls"] = [{**url, "website_url": link} for url in spec["link_urls"]]
+
+    return spec
+
 
 def _create_creative(
     config: CreativeConf,
@@ -719,41 +926,15 @@ def _create_creative(
 
     c[AdCreative.Field.object_story_spec] = object_story_spec
 
-    template_afs = config.template.get(AdCreative.Field.asset_feed_spec)
+    afs = _asset_feed_spec(
+        config.template.get(AdCreative.Field.asset_feed_spec),
+        asset_feed_spec,
+        page_welcome_message,
+        link,
+    )
 
-    # An injected asset_feed_spec (multi-destination's call_to_actions array)
-    # REPLACES the template's rather than merging with it, and refuses to run
-    # over a template that has one. Merging would mean silently rewriting the
-    # template's `optimization_type` -- asset_feed_spec has exactly one, and
-    # DOF_MESSAGING_DESTINATION is not the one an Advantage+ creative template
-    # carries -- which would change what respondents see while looking like a
-    # destination change. There is no way to know from here which the operator
-    # wanted, so say so instead of guessing.
-    if asset_feed_spec is not None and template_afs:
-        raise Exception(
-            f"Creative '{config.name}' needs a multi-destination asset_feed_spec, "
-            "but its template already carries one. asset_feed_spec holds a "
-            "single optimization_type, so the two cannot both apply: using the "
-            "template's would drop the destination array and the ad would only "
-            "ever open Messenger, and overriding it would silently discard the "
-            "template's creative variants. Use a template without an "
-            "asset_feed_spec for multi-destination creatives."
-        )
-
-    tafs = asset_feed_spec if asset_feed_spec is not None else template_afs
-
-    if tafs:
-        c[AdCreative.Field.asset_feed_spec] = tafs
-
-        if page_welcome_message:
-            c[AdCreative.Field.asset_feed_spec]["additional_data"] = {
-                "page_welcome_message": page_welcome_message
-            }
-
-        if link:
-            c[AdCreative.Field.asset_feed_spec]["link_urls"] = [
-                {**url, "website_url": link} for url in tafs["link_urls"]
-            ]
+    if afs:
+        c[AdCreative.Field.asset_feed_spec] = afs
 
     return c
 
@@ -845,6 +1026,12 @@ def create_creative(
     config: CreativeConf,
     destination: DestinationConf,
 ) -> AdCreative:
+    # Before anything is built: the template must not mean a different
+    # destination than the conf does. Checked once here rather than in
+    # `_create_creative` because it compares the DestinationConf against the
+    # template, and has nothing to do with what gets constructed.
+    refuse_template_destination_conflicts(config, destination)
+
     md = creative_metadata(study, stratum, destination)
 
     # Minted once per ad and threaded into every carrier below, so a multi

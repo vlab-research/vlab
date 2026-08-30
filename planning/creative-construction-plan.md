@@ -16,7 +16,7 @@ seam we have agreed to replace. The study below can wait.
 | # | What | Blocks |
 |---|---|---|
 | 1 | ~~`adopt-probe --print-creative`~~ — **done**, see §1 | 2 |
-| 2 | Reconstruct `asset_feed_spec` key by key (the contract, §4 of the design) | the study |
+| 2 | ~~Reconstruct `asset_feed_spec` key by key~~ — **done**, see §2 | the study |
 | 3 | Re-field `vl-pulse-nigeria-smoke` and measure the encoded ref end to end | — |
 | 4 | Page and WhatsApp number move to the conf (design §6.1) | nothing; deferred deliberately |
 
@@ -67,54 +67,63 @@ patch (design §7), which on a matching template discards the constructed
 *template's*, and the clean result says the two agree for this template — not
 that step 2 is unnecessary. Re-run it after step 2 and diff.
 
-## 2. The contract
+## 2. The contract — done
 
-One function: `_create_creative` in `adopt/adopt/marketing.py`.
+`asset_feed_spec` is reconstructed key by key in `_asset_feed_spec`
+(`adopt/adopt/marketing.py`), the way `object_story_spec` always was. The
+opaque-blob hole is closed: anything not on
+`ASSET_FEED_SPEC_VARIANT_FIELDS` — `bodies`, `titles`, `descriptions`,
+`images`, `videos`, `ad_formats`, `link_urls` — is dropped rather than passed
+through.
 
-**The whole job is one field.** `_create_creative` is *already* an allowlist —
-`fields_to_copy` is explicit, `link_data` is reconstructed key by key,
-`call_to_action` is constructed rather than copied, `photo_data` is converted,
-`video_data` has its own copy list, `object_story_spec` is rebuilt from scratch.
-The single exception:
+Destination handling splits on whether vlab constructed one:
 
-```python
-tafs = asset_feed_spec if asset_feed_spec is not None else template_afs
-```
+- **multi** — `call_to_actions` and `optimization_type` are constructed by
+  `multi_destination_asset_feed_spec()`. Never read from the template.
+- **single-destination** — the template's `optimization_type` and
+  `call_to_actions` are *copied*, which is safe only because the agreement
+  check below already ran. Dropping them would leave a click-to-messaging
+  template stating no destination at all, and would rewrite an Advantage+
+  template's `optimization_type`.
 
-`asset_feed_spec` is copied as an opaque blob, and it is the only field besides
-the CTA that carries destination. All three of 2026-08-30's failures came
-through that hole. Give it the treatment `object_story_spec` already gets.
+`refuse_template_destination_conflicts(config, destination)` runs at the top of
+`create_creative`, before anything is built, and holds both refusals:
 
-Four pieces:
+1. **Destination disagreement**, universal — not a multi special case.
+   `messaging_destinations_for(destination)` (what the conf means) against
+   `messaging_destinations_of(template_afs)` (what the template claims); refuse
+   on mismatch, naming both. Disagreement, not presence: a template declaring
+   nothing is fine. Web and app destinations imply the *empty* set, so a
+   messaging template is a disagreement there too.
+2. **`optimization_type` conflict**, multi only. A template whose
+   `optimization_type` is anything other than `DOF_MESSAGING_DESTINATION`
+   genuinely cannot also carry a constructed destination array.
 
-1. **Reconstruct it key by key** from an allowlist of the variant fields —
-   `bodies`, `titles`, `descriptions`, `images`, `videos`, `ad_formats`,
-   `link_urls`. Mirror how `link_data` is built. Anything not on the list is
-   dropped rather than passed through.
-2. **Construct** `call_to_actions`, `optimization_type`, and
-   `additional_data.page_welcome_message`. `multi_destination_asset_feed_spec()`
-   already produces the first two.
-3. **Refuse on destination disagreement.** Read the `app_destination` values the
-   template declares and compare to what the conf's destination implies; refuse
-   naming both sets. `messaging_destinations_of()` was drafted for this in the
-   abandoned patch — reachable in that diff, or trivially rewritten. Its role is
-   only to *read* what the template claims, never to reconcile.
-4. **Keep the `optimization_type` conflict refusal, correctly scoped.** A
-   template whose `optimization_type` is something other than
-   `DOF_MESSAGING_DESTINATION` genuinely cannot coexist with a constructed
-   destination array — one spec holds one `optimization_type`. That was the
-   original guard's real insight; it was simply applied to every template rather
-   than only to conflicting ones. The three cases are tabulated in design §4.
+Two bugs fixed in passing:
 
-Also fix, in the same function: `additional_data` is currently **replaced**
-wholesale when a welcome message is set, dropping the template's own keys
-(`is_click_to_message`, `multi_share_end_card`). Merge instead.
+- **`additional_data` was replaced wholesale**, dropping the template's
+  `is_click_to_message` and `multi_share_end_card`. Merged now.
+- **The template was mutated in place.** The old code assigned
+  `config.template`'s own `asset_feed_spec` dict onto the creative and then
+  wrote `additional_data` into it, so the second creative built from one
+  template inherited the first one's welcome message — one ad carrying another
+  stratum's ref. Reconstruction builds a new dict.
 
-**Acceptance:** `vl-pulse-nigeria-smoke`'s current template — an Ads Manager
-Messenger+WhatsApp click-to-messaging ad, `optimization_type:
-DOF_MESSAGING_DESTINATION` — builds cleanly. A template declaring
-`INSTAGRAM_DIRECT` against a multi destination is refused with a message naming
-Instagram. Tests cover all three rows of design §4's table.
+**Watch this one:** `_asset_feed_spec` returns `{}` — and the field is omitted
+— when the template has no `asset_feed_spec` and nothing was constructed.
+Without that, every Messenger creative would gain a spec holding only the
+welcome message, and `asset_feed_spec` is in `field_contract.COMPARED_AD`, so
+that rewrites every ad in all 124 Messenger studies on the next run. There is a
+test; do not "simplify" it away.
+
+**Verified.** 767 tests pass. `--print-creative` re-run against
+`e460dfde-a010-49b3-b012-d48dbaadb34b`: `MESSAGING_MESSENGER_WHATSAPP`,
+`optimization_type: DOF_MESSAGING_DESTINATION`, `call_to_actions` exactly
+`{MESSENGER, WHATSAPP}`, `additional_data` carrying
+`is_click_to_message`/`multi_share_end_card` plus the `r.` ref, and no other
+keys. The template's spec holds exactly `additional_data`, `call_to_actions`,
+`optimization_type` — so **nothing was dropped** by the allowlist for this
+study. That is the review §1 said it existed to enable, and it has been done.
 
 ## 3. Then field the study
 

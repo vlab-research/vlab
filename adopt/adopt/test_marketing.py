@@ -2828,3 +2828,174 @@ def test_rows_without_tokens_are_not_treated_as_colliding():
             ("stratum-2", "Frowning"): {"ref_token": None},
         }
     )
+
+
+# ---------------------------------------------------------------------------
+# The creative construction contract: asset_feed_spec is reconstructed key by
+# key, never copied as an opaque blob.
+#
+# planning/creative-construction-contract.md. It was the single exception in an
+# otherwise explicit allowlist, and the only field besides the CTA that carries
+# destination; all three of 2026-08-30's Meta rejections came through it. The
+# three rows of the design's ss4 table are covered below, plus the destination
+# agreement check that guards the copied case.
+# ---------------------------------------------------------------------------
+
+
+def _ctm_template(destinations=("MESSENGER", "WHATSAPP"), **afs):
+    """A template built in Ads Manager AS a click-to-messaging ad."""
+    links = {
+        "MESSENGER": "https://fb.com/messenger_doc/",
+        "WHATSAPP": "https://api.whatsapp.com/send",
+        "INSTAGRAM_DIRECT": "https://www.instagram.com/",
+    }
+    types = {
+        "MESSENGER": "MESSAGE_PAGE",
+        "WHATSAPP": "WHATSAPP_MESSAGE",
+        "INSTAGRAM_DIRECT": "INSTAGRAM_MESSAGE",
+    }
+    return {
+        "object_story_spec": {"page_id": "page-123", "link_data": {"image_hash": "h"}},
+        "asset_feed_spec": {
+            "optimization_type": "DOF_MESSAGING_DESTINATION",
+            "call_to_actions": [
+                {
+                    "type": types[d],
+                    "value": {"app_destination": d, "link": links[d]},
+                }
+                for d in destinations
+            ],
+            **afs,
+        },
+    }
+
+
+def _destinations_of(creative):
+    return {
+        cta["value"]["app_destination"]
+        for cta in creative["asset_feed_spec"]["call_to_actions"]
+    }
+
+
+def test_multi_constructs_over_an_agreeing_click_to_messaging_template():
+    """Design ss4, row 2 -- and the shape of the production study.
+
+    A template built in Ads Manager as a Messenger+WhatsApp click-to-messaging
+    ad already carries a DOF_MESSAGING_DESTINATION spec. It agrees, so it is
+    not refused; but the destination array is still constructed rather than
+    copied, so what ships does not depend on what a human built last Tuesday.
+    """
+    dest = _multi_dest()
+    template = _ctm_template(bodies=[{"text": "hello"}], titles=[{"text": "hi"}])
+
+    creative, _, _, _ = _multi_creative(dest, template=template)
+
+    afs = creative["asset_feed_spec"]
+    assert afs["optimization_type"] == "DOF_MESSAGING_DESTINATION"
+    assert _destinations_of(creative) == {"MESSENGER", "WHATSAPP"}
+    # The variant fields are the researcher's content and survive.
+    assert afs["bodies"] == [{"text": "hello"}]
+    assert afs["titles"] == [{"text": "hi"}]
+
+
+def test_multi_refuses_a_template_that_opens_instagram():
+    """Design ss4 REFUSE, and failure (a) of 2026-08-30.
+
+    The template was a Messenger+Instagram click-to-messaging ad. Its
+    INSTAGRAM_MESSAGE -> INSTAGRAM_DIRECT rode through untouched into an ad set
+    adopt had built as MESSENGER, and Meta rejected it with 2490279 naming
+    neither. Refused, not overwritten: a researcher who built an Instagram
+    template meant Instagram.
+    """
+    dest = _multi_dest()
+    template = _ctm_template(destinations=("MESSENGER", "INSTAGRAM_DIRECT"))
+
+    with pytest.raises(Exception, match="INSTAGRAM_DIRECT"):
+        _multi_creative(dest, template=template)
+
+
+def test_a_messenger_creative_refuses_a_whatsapp_template():
+    """The check is universal, not a multi-destination special case.
+
+    A single-destination creative copies its template's call_to_actions, which
+    is only safe because this has already established that they open what the
+    conf's destination means.
+    """
+    dest = _messenger_dest("messenger", "mnchweek")
+    template = _ctm_template(destinations=("WHATSAPP",))
+    config = CreativeConf(destination="messenger", name="Smiling", template=template)
+    study = _study([dest], [config])
+    stratum = _stratum_with_md("stratum-1", [config], PRODUCTION_METADATA)
+
+    with pytest.raises(Exception, match="WHATSAPP"):
+        create_creative(study, stratum, config, dest)
+
+
+def test_a_single_destination_creative_keeps_its_templates_destination_array():
+    """Design ss4, row 4. Nothing is constructed, so nothing may be dropped.
+
+    Dropping the array would leave a click-to-messaging template stating no
+    destination at all, and dropping optimization_type would rewrite an
+    Advantage+ template's.
+    """
+    dest = _messenger_dest("messenger", "mnchweek")
+    template = _ctm_template(destinations=("MESSENGER",), bodies=[{"text": "hello"}])
+    config = CreativeConf(destination="messenger", name="Smiling", template=template)
+    study = _study([dest], [config])
+    stratum = _stratum_with_md("stratum-1", [config], PRODUCTION_METADATA)
+
+    creative = create_creative(study, stratum, config, dest)
+
+    afs = creative["asset_feed_spec"]
+    assert afs["optimization_type"] == "DOF_MESSAGING_DESTINATION"
+    assert _destinations_of(creative) == {"MESSENGER"}
+    assert afs["bodies"] == [{"text": "hello"}]
+
+
+def test_asset_feed_spec_keys_that_are_not_on_the_allowlist_are_dropped():
+    """The hole itself. Anything unrecognised rode through before this.
+
+    A field nobody enumerated is exactly how a destination reached a live ad
+    three times in one day.
+    """
+    dest = _multi_dest()
+    template = _ctm_template(
+        bodies=[{"text": "hello"}],
+        some_future_meta_field={"that": "nobody enumerated"},
+    )
+
+    creative, _, _, _ = _multi_creative(dest, template=template)
+
+    assert "some_future_meta_field" not in creative["asset_feed_spec"]
+    assert creative["asset_feed_spec"]["bodies"] == [{"text": "hello"}]
+
+
+def test_additional_data_is_merged_rather_than_replaced():
+    """Meta puts its own keys there and the welcome message must join them."""
+    dest = _multi_dest()
+    template = _ctm_template(
+        additional_data={"is_click_to_message": True, "multi_share_end_card": False}
+    )
+
+    creative, _, _, _ = _multi_creative(dest, template=template)
+
+    additional = creative["asset_feed_spec"]["additional_data"]
+    assert additional["is_click_to_message"] is True
+    assert additional["multi_share_end_card"] is False
+    assert "page_welcome_message" in additional
+
+
+def test_building_a_creative_does_not_mutate_the_template():
+    """The old code assigned the template's own blob onto the creative.
+
+    Writing additional_data into it then edited config.template in place, so
+    the second creative built from one template inherited the first one's
+    welcome message -- one ad carrying another stratum's ref.
+    """
+    dest = _multi_dest()
+    template = _ctm_template()
+    before = json.dumps(template, sort_keys=True)
+
+    _multi_creative(dest, template=template)
+
+    assert json.dumps(template, sort_keys=True) == before
