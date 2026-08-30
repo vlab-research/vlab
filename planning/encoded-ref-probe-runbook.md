@@ -248,7 +248,25 @@ rather than never. Nothing is broken and `whatsapp_ref` should not change; what
 changed is the reason it exists. Document corrected, and the two tests that
 asserted the old claim rewritten to assert what is actually true.
 
-### Leg 2 — do the carriers survive? **DEFERRED into §5, deliberately.** **[not measured]**
+### Leg 2 — do the carriers survive? **MEASURED on the Messenger arm, 2026-08-30.**
+
+> **Meta stores *and delivers* the encoded ref intact.** Ad
+> `120255073669990150` (campaign `120255073666450150`, built by adopt
+> `v0.1.81`) carried `r.AQl2bHB1bHNlbmf9e4qBmQ` in `url_tags`, in the
+> quick-reply payload and in `autofill_message.content` — all three
+> identical, as §5.5 predicts for `ref_mode: encoded`. A real preview
+> click delivered the quick-reply payload byte-identical, and after a
+> §3.9 reset the survey started correctly, so decode and routing work end
+> to end on Messenger. Decision row **B** is excluded.
+>
+> **Not measured:** the WhatsApp arm (§6.2), and whether `url_tags` ever
+> populates `referral.ref` — no top-level `OPEN_THREAD` referral fired,
+> matching the 68%-carrier pattern. Decision row **I** applies.
+>
+> The first click was silently discarded because state was not cleared;
+> that is VIR-35, and §3.9 now carries it.
+
+**Original plan text follows.** **[superseded]**
 
 The plan proposed extending `ctwa_probe.py` to build an encoded creative and
 read all three carriers back. That was descoped once §4 was settled: leg 3
@@ -693,12 +711,36 @@ The `vlpulseng` Typeform is already Reloadly-shaped — `payment:reloadly`, key
 survey (§3.9's warning), so the payment branch is never reached and no airtime
 moves. Do not "test" the payment by walking the form to the end.
 
-### 3.9 Clear your own Messenger state
+### 3.9 Clear your own Messenger state — **MANDATORY, and it is a bug, not hygiene**
 
 Open `m.me/1855355231229529?ref=form.reset` on the phone you will use.
 `REPLYBOT_RESET_SHORTCODE` is `reset` in production, and a `RESET` rebuilds from
 `_initialState()` — `{state: 'START', qa: [], forms: []}` — so §1.6's no-retake
 rule stops applying.
+
+> ⚠️ **Skipping this does not degrade the test — it silently voids it.**
+> **[measured 2026-08-30, VIR-35]** With a non-empty `state.forms`, an
+> encoded-ref referral is **discarded**: `publish: false`, state byte-identical,
+> no error and no log line. The observed run, on deployed `replybot-v0.0.221`:
+>
+> ```
+> EVENT:  quick_reply.payload {"referral": {"ref": "r.AQl2bHB1bHNlbmf9e4qBmQ"}}
+> STATE:  { state: 'QOUT', forms: ['lachealthtestexp'], question: 'exp_food_4_tl' }
+> REPORT: { publish: false, newState: <byte-identical to STATE> }
+> ```
+>
+> The cause is `_refNamesForm` (`machine.js:373`), which tests the **dotted**
+> grammar only — `_group(ref.split('.')).form !== undefined`. For `r.<base64url>`
+> that yields `{"r": "..."}`, so it answers "names no form" and the
+> `state.forms.length` guard drops the referral, even though `getForm` on the
+> same event correctly returns `vlpulseng`.
+>
+> Two consequences for this runbook. **A missing reset looks exactly like a
+> broken ad**, and it cost an hour of debugging a correct ad on 2026-08-30. And
+> the fix is *not* a fix — an empty `forms` merely takes the other branch. Until
+> VIR-35 lands, **no returning respondent can be recruited by an encoded-ref
+> ad**, which is a real threat to pass 2's yield and must be stated in the
+> write-up.
 
 > **Do not walk `vlpulseng` to the end.** It is six questions and then a
 > **live Reloadly payout** of ₦500 to whatever number you type. You need the

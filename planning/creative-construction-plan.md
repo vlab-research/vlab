@@ -17,8 +17,9 @@ seam we have agreed to replace. The study below can wait.
 |---|---|---|
 | 1 | ~~`adopt-probe --print-creative`~~ — **done**, see §1 | 2 |
 | 2 | ~~Reconstruct `asset_feed_spec` key by key~~ — **done**, see §2 | the study |
-| 3 | Re-field `vl-pulse-nigeria-smoke` and measure the encoded ref end to end | — |
-| 4 | Page and WhatsApp number move to the conf (design §6.1) | nothing; deferred deliberately |
+| 3 | Re-field `vl-pulse-nigeria-smoke` and measure the encoded ref end to end — **in progress**, Messenger arm measured; blocked on §4's three items | — |
+| 4 | **Live state — read §4 first.** `internet_use`, an ACTIVE campaign, a disapproved ad, VIR-34/35 | 3 |
+| 5 | Page and WhatsApp number move to the conf (design §6.1) | nothing; deferred deliberately |
 
 Do **1 before 2**. The whole reason this plan exists is that every hypothesis
 cost a release plus a two-hour cron cycle, so three bugs were learned serially
@@ -168,7 +169,98 @@ available if it does; the check that used to force `CONVERSATIONS` was removed
 in `d382000c` because it enforced Meta's guide against this repo's own
 measurement (`planning/click-to-whatsapp-ads.md` §6a).
 
-## 4. Deferred
+## 4. Live state as of 2026-08-30 23:15 UTC — read this first
+
+Written at the end of the session that shipped `v0.1.81`. Everything here is
+measured, not inferred.
+
+### What now works
+
+The construction half is **done and proven against Meta**. adopt built four ads
+on `v0.1.81` and they are correct: ad set `MESSAGING_MESSENGER_WHATSAPP`,
+`asset_feed_spec.call_to_actions` exactly `{MESSENGER, WHATSAPP}`,
+`optimization_type: DOF_MESSAGING_DESTINATION`, `additional_data` carrying the
+template's `is_click_to_message` / `multi_share_end_card` **merged** with our
+`page_welcome_message`, and `url_tags` matching the quick-reply payload.
+
+**Leg 2 is measured on the Messenger arm.** A real preview click delivered
+`r.AQl2bHB1bHNlbmf9e4qBmQ` intact through the quick-reply carrier — Meta stores
+*and delivers* the encoded ref. After clearing state the survey started
+correctly, so decode and routing work end to end on Messenger. The WhatsApp arm
+remains unmeasured (runbook §6.2).
+
+### Three things blocking progress
+
+**1. The optimizer cannot count anybody. `internet_use`.** Both strata's
+`question_targeting` requires a variable no extraction conf produces, so
+targeting can never match, every stratum counts zero, and the optimizer has no
+data to move budget on. adopt warns about this every run and it is only a
+WARNING.
+
+The survey *does* ask it — `vlpulseng` field `internet_use`, "How often do you
+use the internet?" — it is simply never extracted. The fix is a Data Extraction
+conf, shape copied from a study that already extracts an answer:
+
+```json
+{ "aggregate": "first",
+  "functions": [{"function": "select", "params": {"path": "response"}}],
+  "key": "internet_use",
+  "location": "variable",
+  "name": "internet_use",
+  "value_type": "categorical" }
+```
+
+Note `location: "variable"` — the study's existing two confs (`Gender`,
+`Location`) are `location: "metadata"` with `mapping: ad_table_lookup`, because
+those come from the *ad*, not from an answer. Do not copy their shape for this.
+
+**The WA study has the same bug plus a typo:** its strata target
+`internet_usage`, which is not a survey field under any spelling. Adding an
+`internet_use` extraction conf will NOT fix that study — its targeting has to be
+corrected too.
+
+**2. The campaign is `ACTIVE`, not `PAUSED`.** ⚠️ Both ad sets live at
+`daily_budget: 100` (\$1/day) against real Kwara targeting, `end_time
+2026-09-01T02:00`. Pass 1 is designed to be free *because the campaign stays
+PAUSED* — that is runbook §6.0 pre-flight check #1, and it currently fails.
+Insights showed \$0 spend as of 23:10 UTC. When the old campaign was archived,
+adopt rebuilt this one active.
+
+**3. Ad `120255073670070150` (Creative A, Women) is `DISAPPROVED`.** Meta
+returned no `issues_info`; it needs Ads Manager to see why. That is half of one
+stratum.
+
+### Filed, not fixed
+
+| Ticket | What |
+|---|---|
+| [VIR-34](https://linear.app/vlab-research/issue/VIR-34) | adopt writes nothing to `study_run_events` — `inference/swoosh/events.go` is the only writer, so every optimizer refusal exists only in cronjob logs. Also: the derivation's 90-minute recency window is shorter than adopt-ads' 120-minute period, so an adopt error could never stay continuously visible even once adopt does write. |
+| [VIR-35](https://linear.app/vlab-research/issue/VIR-35) | **fly bug, and it affects this study directly.** `_refNamesForm` (`machine.js:373`) tests the dotted ref grammar only, so it reports "names no form" for every encoded `r.` ref while `getForm` on the same event resolves it correctly. Result: a referral is silently dropped for any user whose `state.forms` is non-empty. Empty state works, which is why it passes casual testing. |
+
+**VIR-35 is why runbook §3.9 is load-bearing and not hygiene.** "Clear your own
+Messenger state" is currently the difference between the ad working and the ad
+silently doing nothing, for anyone who has ever touched any survey on page
+`1855355231229529`. Until it is fixed, no returning respondent can be recruited
+by an encoded-ref ad.
+
+### Environment trap found the hard way
+
+`~/Documents/vlab-research/fly` is parked on `feature/enable-dingconnect-staging`
+(`c1afe338`), diverged from `origin/main` and 21 commits behind — it **predates
+the encoded-ref decoder**, which landed on main in `4d313a2a`. Reading files off
+disk there silently answers for a different codebase, with no error, and nearly
+produced a wrong diagnosis. There are ~40 sibling `fly-*` clones on different
+branches; `fly-arrival-health` (`feature/referral-blob`) does have the decoder.
+
+Always verify production behaviour against the deployed tag instead:
+
+```bash
+git show replybot-v0.0.221:replybot/lib/typewheels/machine.js
+```
+
+Prod runs `ghcr.io/vlab-research/replybot:v0.0.221`.
+
+## 5. Deferred
 
 Page and WhatsApp number move from the template to the conf — design §6.1.
 Separable, and it should not block anything above.
@@ -178,13 +270,18 @@ Separable, and it should not block anything above.
 ## What is already shipped
 
 Deployed to `vprod` on 2026-08-30 and verified: 5 adopt workloads plus the
-`vlab-conf-dashboard` pod on `ghcr.io/vlab-research/adopt:v0.1.80`,
-`check-imagepullbackoff.sh` clean.
+`vlab-conf-dashboard` pod on **`ghcr.io/vlab-research/adopt:v0.1.81`**
+(helm revision 139), `check-imagepullbackoff.sh` clean. The first cron run on
+`v0.1.81` completed with no creative refused anywhere.
 
 | Commit | What |
 |---|---|
 | `d382000c` | `DestinationConf` discriminated on `type`; `destination_type` removed from all three recruitment confs; `destination_type_for` made total; `CONVERSATIONS` requirement for multi removed; `update_adset` refuses a stale channel |
 | `306803fe` | `devops/values/toixo-prod.yaml` → adopt `v0.1.80` |
+| `034a88ec` | `adopt-probe --print-creative` (§1); `hydrate_strata(resolve_audiences=False)` |
+| `7d73802d` | `asset_feed_spec` reconstructed key by key; `refuse_template_destination_conflicts` (§2) |
+| `1eae0f58` | runbook amended for the multi ad's WhatsApp arm |
+| `7db81a53` | `devops/values/toixo-prod.yaml` → adopt `v0.1.81` |
 
 **The union fix is the one to understand before touching this area.**
 `DestinationConf` was a plain `Union` resolved by *shape*.
@@ -240,7 +337,10 @@ Verified the hard way on 2026-08-30. None is a code problem; all cost time.
 | Survey shortcode | `vlpulseng` (a nonexistent shortcode routes to `FALLBACK_FORM` = `305`, a real researcher's live survey) |
 | Ad account | `act_1342820622846299` |
 | Page | `1855355231229529` |
-| Study campaign | `120255044588540150` (`PAUSED`) |
+| Second study | **`VL Pulse Nigeria - Smoke WA`**, `3f01e25b-6f61-41af-b040-be425b4ab665`, campaign `vl-pulse-nigeria-smoke-wa` (`120255073762530150`) — added 2026-08-30 22:57 UTC. See §5. |
+| Study campaign | **`120255073666450150`** — `ACTIVE`, built 2026-08-30 22:39 UTC. ⚠️ see §5 |
+| ~~Old study campaign~~ | ~~`120255044588540150`~~ — **ARCHIVED**, and so are its ad sets `120255044592020150` / `120255044592260150`. Every id in this row is dead; earlier revisions of this file and of the runbook still name them. |
+| Study ads | `120255073669840150` (A/Men), `120255073669990150` (B/Men), `120255073670070150` (A/Women — **DISAPPROVED**), `120255073670160150` (B/Women) |
 | Template campaign | `120255043720330150` — `Templates - VL Pulse Nigeria` |
 | Template ad sets | `120255043720570150` (`Kwara - Men`), `120255043720930150` (`Kwara - Women`) |
 | Cockroach | `gbv-cockroachdb-0` in `vprod`; databases `vlab` and `chatroach` |
