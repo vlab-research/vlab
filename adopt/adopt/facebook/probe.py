@@ -1,7 +1,8 @@
 """Check the field contract against live Facebook ads.
 
-    adopt-probe <study-id-or-name>            # read-only report
-    adopt-probe <study-id-or-name> --update   # also rewrite DROPPED
+    adopt-probe <study-id-or-name>                    # read-only report
+    adopt-probe <study-id-or-name> --update           # also rewrite DROPPED
+    adopt-probe <study-id-or-name> --print-creative   # no ads, no Meta writes
 
 For every field in field_contract.COMPARED_AD, this builds the creative the
 study config says an ad should have — the same way `adset_instructions` does —
@@ -17,6 +18,12 @@ are the point of this tool. `--update` writes them into field_contract.DROPPED
 with today's date; review the git diff as you would any other change.
 
 Read-only by default: it points at ads that are spending real money.
+
+`--print-creative` is the other half: instead of comparing against live ads it
+stops after the build and prints the creative adopt *would* send, as JSON. No
+live ad, no deploy, no cron cycle -- which is what makes the field-by-field
+construction contract in planning/creative-construction-contract.md reviewable
+in one run rather than one Meta rejection at a time.
 """
 
 import argparse
@@ -31,7 +38,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from environs import Env
 
-from ..malaria import hydrate_strata, load_basics
+from ..malaria import get_study_conf, hydrate_strata, load_basics
 from ..marketing import (
     ADSET_HOURS,
     AdsetConf,
@@ -240,6 +247,86 @@ def probe_adsets(
     return findings, adsets_compared
 
 
+def constructed_creatives(
+    study: StudyConf,
+    strata,
+    stratum_id: Optional[str] = None,
+    creative_name: Optional[str] = None,
+) -> List[Dict[str, Any]]:
+    """The creatives adopt would build for this study, without asking Meta.
+
+    Everything below comes from the study conf and the template blob already
+    stored on the creative conf, so this needs no live ad, no ad-set create and
+    no cron cycle. That is the entire point: on 2026-08-30 three destination
+    bugs on one study were learned serially, each costing a release plus a
+    two-hour cron cycle, because there was no way to look at the creative adopt
+    *would* send. See planning/creative-construction-contract.md.
+
+    `adset_destination_type` is reported alongside because the bug all three
+    were instances of is a *disagreement*. A messaging ad states its
+    destination in three places -- the ad set's destination_type, the
+    creative's link_data.call_to_action, and asset_feed_spec.call_to_actions --
+    and Meta rejects the ad when they disagree, with subcode 2490279, naming
+    none of them. Printing all three together is how you see it before Meta
+    does. It is derived from the same function adset_instructions uses, and
+    from the *unfiltered* pairs, so --creative narrows what is printed without
+    changing the ad set it is printed against.
+
+    Failures are collected rather than raised, at whichever level they happen:
+    one bad stratum does not hide the other five, and one refused creative does
+    not hide its siblings. A run that stops at the first refusal reproduces
+    exactly the serial-discovery problem this exists to end.
+    """
+    entries: List[Dict[str, Any]] = []
+
+    for campaign_name in study.campaign_names:
+        for stratum in strata:
+            if stratum_id is not None and stratum.id != stratum_id:
+                continue
+
+            entry: Dict[str, Any] = {
+                "campaign": campaign_name,
+                "stratum": stratum.id,
+            }
+
+            # Pairing and the ad set's destination_type are both refusals in
+            # their own right -- an unconfigured destination name, or creatives
+            # in one stratum that disagree about channel -- and both are worth
+            # seeing here rather than at ad-set create.
+            try:
+                pairs = pair_creatives_with_destinations(study, stratum, campaign_name)
+                entry["adset_destination_type"] = (
+                    adset_destination_type(pairs) if pairs else None
+                )
+            except Exception as e:
+                entries.append({**entry, "error": f"{type(e).__name__}: {e}"})
+                continue
+
+            if not pairs:
+                continue
+
+            shown = [
+                (c, d)
+                for c, d in pairs
+                if creative_name is None or c.name == creative_name
+            ]
+            if not shown:
+                continue
+
+            creatives: List[Dict[str, Any]] = []
+            for c, d in shown:
+                row: Dict[str, Any] = {"creative": c.name, "destination": d.name}
+                try:
+                    row["spec"] = _unwrap(create_creative(study, stratum, c, d))
+                except Exception as e:
+                    row["error"] = f"{type(e).__name__}: {e}"
+                creatives.append(row)
+
+            entries.append({**entry, "creatives": creatives})
+
+    return entries
+
+
 def summarise(findings) -> Dict[str, Dict[str, Any]]:
     """Collapse per-ad findings into one row per path."""
     counts: Dict[str, Dict[str, int]] = defaultdict(lambda: defaultdict(int))
@@ -415,7 +502,22 @@ def main(argv: Optional[List[str]] = None) -> int:
         help="rewrite field_contract.DROPPED to match what was found",
     )
     parser.add_argument("--json", action="store_true", help="machine-readable output")
+    parser.add_argument(
+        "--print-creative",
+        action="store_true",
+        help="print the creative adopt would build, as JSON, and exit "
+        "(no live ads read, nothing written to Meta)",
+    )
+    parser.add_argument(
+        "--stratum", help="with --print-creative: only this stratum id"
+    )
+    parser.add_argument(
+        "--creative", help="with --print-creative: only this creative name"
+    )
     args = parser.parse_args(argv)
+
+    if (args.stratum or args.creative) and not args.print_creative:
+        parser.error("--stratum and --creative only apply to --print-creative")
 
     logging.basicConfig(level=logging.WARNING, format="%(levelname)s %(message)s")
 
@@ -423,6 +525,47 @@ def main(argv: Optional[List[str]] = None) -> int:
     db_conf = env("PG_URL")
 
     study_id = resolve_study_id(db_conf, args.study)
+
+    if args.print_creative:
+        # No FacebookState at all. A creative is built from the study conf and
+        # the template blob already stored on the creative conf; the only part
+        # of hydration that talks to Meta is audience resolution, which lands
+        # in targeting and which no creative reads. Skipping it is what lets
+        # this mode run with no Facebook credentials -- an unset
+        # FACEBOOK_APP_ID should not stand between someone and looking at the
+        # creative adopt would send.
+        study = get_study_conf(db_conf, study_id)
+        strata = hydrate_strata(
+            None, study.strata, study.creatives, resolve_audiences=False
+        )
+
+        entries = constructed_creatives(study, strata, args.stratum, args.creative)
+        if not entries:
+            raise SystemExit(
+                "nothing to build for that study"
+                + (f", stratum {args.stratum!r}" if args.stratum else "")
+                + (f", creative {args.creative!r}" if args.creative else "")
+                + f". Strata: {sorted(s.id for s in strata)}. "
+                + f"Creatives: {sorted(c.name for c in study.creatives)}"
+            )
+
+        print(json.dumps(entries, indent=2, sort_keys=True))
+
+        # Nonzero on any refusal, so this is usable as a check and not only as
+        # something to read.
+        failed = [(e["stratum"], None) for e in entries if "error" in e] + [
+            (e["stratum"], c["creative"])
+            for e in entries
+            for c in e.get("creatives", [])
+            if "error" in c
+        ]
+        if failed:
+            print(
+                f"\n{len(failed)} creative(s) could not be built: {failed}",
+                file=sys.stderr,
+            )
+        return 1 if failed else 0
+
     study, state = load_basics(study_id, db_conf, env)
 
     # Hydrated once and shared: hydrate_strata mutates the strata it is given.

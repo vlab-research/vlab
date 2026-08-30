@@ -1,11 +1,26 @@
+import json
+from datetime import datetime
 from typing import Dict
 
+from ..malaria import hydrate_strata
+from ..study_conf import (
+    CreativeConf,
+    FlyMessengerDestination,
+    FlyMultiDestination,
+    GeneralConf,
+    SimpleRecruitment,
+    Stratum,
+    StratumConf,
+    StudyConf,
+    UserInfo,
+)
 from . import field_contract
 from .probe import (
     DIFFERS,
     DROPPED,
     OK,
     classify,
+    constructed_creatives,
     render_dropped_block,
     summarise,
     update_contract,
@@ -136,3 +151,234 @@ def test_update_contract_is_a_noop_when_nothing_changed():
     }
 
     assert update_contract(rows, "2026-07-31") is None
+
+
+# ---------------------------------------------------------------------------
+# constructed_creatives -- `adopt-probe --print-creative`.
+#
+# The point of these is that the creative adopt would send is inspectable
+# without a deploy and without Meta. See
+# planning/creative-construction-contract.md; on 2026-08-30 three destination
+# bugs on one study were learned one release at a time for want of exactly
+# this.
+# ---------------------------------------------------------------------------
+
+
+# A minimal Ads Manager template: page and image, no destination of its own.
+# Construction reads object_story_spec.page_id, so {} is not a usable stand-in.
+def _template(**extra):
+    return {
+        "object_story_spec": {"page_id": "page-123", "link_data": {"image_hash": "h"}},
+        **extra,
+    }
+
+
+def _multi_dest(name="multi", shortcode="vlpulseng"):
+    return FlyMultiDestination(
+        type="multi",
+        name=name,
+        initial_shortcode=shortcode,
+        welcome_message="Welcome!",
+        button_text="Start",
+        whatsapp_phone_number="+1-541-920-2635",
+    )
+
+
+def _messenger_dest(name="messenger", shortcode="vlpulseng"):
+    return FlyMessengerDestination(
+        type="messenger",
+        name=name,
+        initial_shortcode=shortcode,
+        welcome_message="Welcome!",
+        button_text="Start",
+    )
+
+
+def _study(destinations, creatives, strata=()):
+    return StudyConf(
+        id="study-1",
+        user=UserInfo(survey_user="user", token="token"),
+        general=GeneralConf(
+            name="test-study",
+            credentials_key="page-1",
+            credentials_entity="facebook_page",
+            ad_account="act_1",
+            opt_window=48,
+        ),
+        destinations=destinations,
+        audiences=[],
+        creatives=creatives,
+        strata=list(strata),
+        recruitment=SimpleRecruitment(
+            ad_campaign_name="test-campaign",
+            objective="OUTCOME_ENGAGEMENT",
+            optimization_goal="CONVERSATIONS",
+            min_budget=1,
+            budget=100,
+            max_sample=100,
+            start_date=datetime(2026, 7, 1),
+            end_date=datetime(2026, 9, 1),
+        ),
+    )
+
+
+def _stratum(creatives, id="stratum-1"):
+    return Stratum(
+        id=id,
+        quota=1.0,
+        creatives=creatives,
+        facebook_targeting={},
+        metadata={"gender": "men"},
+    )
+
+
+def _app_destinations(spec):
+    return {
+        cta["value"]["app_destination"]
+        for cta in spec["asset_feed_spec"]["call_to_actions"]
+    }
+
+
+def test_print_creative_shows_all_three_places_a_destination_is_stated():
+    """The invariant the whole contract exists to protect.
+
+    Meta requires the ad set's destination_type, the creative's single-valued
+    call_to_action and asset_feed_spec's call_to_actions to agree, and rejects
+    the ad with subcode 2490279 when they do not, naming none of them. All
+    three have to be visible in one output or the check cannot be made by
+    reading it.
+    """
+    creative = CreativeConf(destination="multi", name="Smiling", template=_template())
+    study = _study([_multi_dest()], [creative])
+
+    entries = constructed_creatives(study, [_stratum([creative])])
+
+    assert len(entries) == 1
+    assert entries[0]["campaign"] == "test-campaign"
+    assert entries[0]["stratum"] == "stratum-1"
+    assert entries[0]["adset_destination_type"] == "MESSAGING_MESSENGER_WHATSAPP"
+
+    spec = entries[0]["creatives"][0]["spec"]
+    assert _app_destinations(spec) == {"MESSENGER", "WHATSAPP"}
+    assert (
+        spec["object_story_spec"]["link_data"]["call_to_action"]["type"]
+        == "MESSAGE_PAGE"
+    )
+
+
+def test_print_creative_carries_the_ref_into_the_welcome_message():
+    creative = CreativeConf(destination="multi", name="Smiling", template=_template())
+    study = _study([_multi_dest()], [creative])
+
+    entries = constructed_creatives(study, [_stratum([creative])])
+    spec = entries[0]["creatives"][0]["spec"]
+
+    welcome = spec["asset_feed_spec"]["additional_data"]["page_welcome_message"]
+    assert "Smiling" in welcome
+
+
+def test_print_creative_output_is_json_serialisable():
+    # It is printed as JSON; a Facebook SDK object anywhere in the tree would
+    # make the whole mode useless at exactly the moment it is needed.
+    creative = CreativeConf(destination="multi", name="Smiling", template=_template())
+    study = _study([_multi_dest()], [creative])
+
+    entries = constructed_creatives(study, [_stratum([creative])])
+
+    json.dumps(entries, sort_keys=True)
+
+
+def test_print_creative_filters_without_misreporting_the_adset():
+    """--creative narrows what is printed, not what the ad set would be.
+
+    destination_type is an ad-set field agreed across all of a stratum's
+    creatives, so deriving it from the filtered subset would print a value
+    production never sends -- the exact failure mode the probe exists to
+    catch, reintroduced by the tool doing the catching.
+    """
+    a = CreativeConf(destination="multi", name="A", template=_template())
+    b = CreativeConf(destination="multi", name="B", template=_template())
+    study = _study([_multi_dest()], [a, b])
+
+    entries = constructed_creatives(
+        study, [_stratum([a, b])], creative_name="A"
+    )
+
+    assert [c["creative"] for c in entries[0]["creatives"]] == ["A"]
+    assert entries[0]["adset_destination_type"] == "MESSAGING_MESSENGER_WHATSAPP"
+
+
+def test_print_creative_filters_by_stratum():
+    creative = CreativeConf(destination="multi", name="Smiling", template=_template())
+    study = _study([_multi_dest()], [creative])
+    strata = [_stratum([creative], id="a"), _stratum([creative], id="b")]
+
+    entries = constructed_creatives(study, strata, stratum_id="b")
+
+    assert [e["stratum"] for e in entries] == ["b"]
+
+
+def test_print_creative_reports_a_refused_creative_without_hiding_its_siblings():
+    """One refusal must not stop the run.
+
+    Three bugs cost three releases because each hypothesis could only be tested
+    by deploying and each rejection surfaced one problem. A mode that raises on
+    the first refusal has the same shape.
+    """
+    good = CreativeConf(destination="multi", name="Good", template=_template())
+    # An Advantage+ template: one asset_feed_spec holds one optimization_type,
+    # so its variants and a constructed destination array cannot both apply.
+    bad = CreativeConf(
+        destination="multi",
+        name="Bad",
+        template=_template(
+            asset_feed_spec={
+                "optimization_type": "DEGREES_OF_FREEDOM",
+                "bodies": [{"text": "hello"}],
+            }
+        ),
+    )
+    study = _study([_multi_dest()], [good, bad])
+
+    entries = constructed_creatives(study, [_stratum([good, bad])])
+    rows = {c["creative"]: c for c in entries[0]["creatives"]}
+
+    assert "spec" in rows["Good"]
+    assert "error" in rows["Bad"]
+    assert "Bad" in rows["Bad"]["error"]
+
+
+def test_print_creative_reports_a_stratum_that_cannot_be_paired():
+    creative = CreativeConf(destination="nowhere", name="Smiling", template=_template())
+    study = _study([_messenger_dest()], [creative])
+
+    entries = constructed_creatives(study, [_stratum([creative])])
+
+    assert "error" in entries[0]
+    assert "nowhere" in entries[0]["error"]
+
+
+def test_hydration_for_print_creative_needs_no_facebook_state():
+    """The production shape: real strata name vlab-managed audiences.
+
+    vl-pulse-nigeria-smoke's strata each exclude a respondents audience, and
+    resolving one is a Graph API call -- so hydrating them the normal way needs
+    Facebook credentials that --print-creative otherwise has no use for. A
+    creative never reads targeting, so the mode skips that step entirely; this
+    is the assertion that it can.
+    """
+    creative = CreativeConf(destination="multi", name="Smiling", template=_template())
+    conf = StratumConf(
+        id="stratum-1",
+        quota=1.0,
+        creatives=["Smiling"],
+        audiences=[],
+        excluded_audiences=["VL Pulse Nigeria - Smoke respondents"],
+        facebook_targeting={"genders": [1]},
+        metadata={"gender": "men"},
+    )
+
+    strata = hydrate_strata(None, [conf], [creative], resolve_audiences=False)
+
+    assert strata[0].facebook_targeting == {"genders": [1]}
+    assert [c.name for c in strata[0].creatives] == ["Smiling"]

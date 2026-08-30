@@ -562,7 +562,7 @@ def _add_aud(state, name) -> Optional[Dict[str, Any]]:
 
 
 def add_audience_targeting(
-    state: FacebookState, stratum: StratumConf
+    state: Optional[FacebookState], stratum: StratumConf
 ) -> FacebookTargeting:
     targeting = stratum.facebook_targeting
 
@@ -580,8 +580,24 @@ def add_audience_targeting(
 
 
 def hydrate_strata(
-    state: FacebookState, strata: List[StratumConf], creatives: List[CreativeConf]
+    state: Optional[FacebookState],
+    strata: List[StratumConf],
+    creatives: List[CreativeConf],
+    resolve_audiences: bool = True,
 ) -> List[Stratum]:
+    """Turn stratum configs into strata, resolving vlab-managed audiences.
+
+    `resolve_audiences=False` skips the only step that talks to the Graph API,
+    and then `state` may be None. It exists for `adopt-probe --print-creative`,
+    which builds creatives -- and a creative depends on the stratum's id,
+    metadata and creative list, never on its targeting. Reusing this rather
+    than building Stratum a second way is deliberate: a copy of these four
+    lines is exactly the kind of divergence the probe exists to catch.
+
+    The strata it returns carry only the *static* facebook_targeting in that
+    mode, so they must not be used to build ad sets. Nothing that does takes
+    the flag.
+    """
     # Validate strata
     uniqueness(strata)
     for s in strata:
@@ -597,7 +613,11 @@ def hydrate_strata(
                 if k not in {"audiences", "excluded_audiences"}
             },
             "creatives": [creative_lookup[c] for c in s.creatives],
-            "facebook_targeting": add_audience_targeting(state, s),
+            "facebook_targeting": (
+                add_audience_targeting(state, s)
+                if resolve_audiences
+                else s.facebook_targeting
+            ),
         }
         for s in strata
     ]
