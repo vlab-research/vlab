@@ -1,8 +1,9 @@
 # Runbook — fielding `vl-pulse-nigeria-smoke`, the encoded-ref end-to-end test
 
-**Date:** 2026-08-27
+**Date:** 2026-08-27, amended 2026-08-30 for the multi destination (§2.5)
 **Status:** **Legs 0, 1 and 2 run (§0.5). Pass 1 written, NOT run. Pass 2 not
-written in detail.**
+written in detail. The study's destination conf was changed to `multi` after
+this was written — read §2.5 before doing anything else.**
 **Study:** `vl-pulse-nigeria-smoke` — the study designed in
 `planning/smoke-study-nigeria.md`. Its survey (`vlpulseng`) and study record
 already exist in production; it has **no confs**, so §3 is where it gets built.
@@ -41,6 +42,68 @@ without spending, and fielding all three together would put the one arm that
 Pass 1 is the pre-flight the 2026-08-21 session promised and could not run.
 Everything it proves is a variable pass 2 no longer has to debug while money is
 moving.
+
+---
+
+## 2.5 The study is now `multi`. What that changes. **[added 2026-08-30]**
+
+Everything above this line was written for a Messenger-only pass 1. The study's
+destination conf in production is now:
+
+```
+type: multi, name: "Fly Multi", initial_shortcode: vlpulseng,
+ref_mode: encoded, whatsapp_phone_number: +1-541-920-2635
+```
+
+So the ad adopt builds is a Messenger **and** WhatsApp ad, its ad set is
+`MESSAGING_MESSENGER_WHATSAPP`, and **Meta chooses which arm each respondent
+gets**. The pass-1 procedure below reads one channel's carriers, queries one
+channel's rows, and has a decision table with one carrier in it. Run it
+unamended against this study and the WhatsApp arm is measured by a procedure
+that never looks at it.
+
+### The decision this forces, before §3
+
+**Option A — revert the conf to `messenger` for pass 1.** Change the
+destination's `type` back, let adopt rebuild, run §§3–9 exactly as written.
+Pass 1 then proves what it was designed to prove — the attribution chain, for
+free — and multi moves to pass 2 where it belongs. **This is what the two-pass
+split in the section above was for.**
+
+**Option B — run pass 1 against the multi ad**, using §§5.5, 6.2, 7.2b and
+decision rows J–L below. Everything pass 1 proves for Messenger still gets
+proved. The WhatsApp arm probably does **not** get proved, for the reason in
+the next paragraph, and you must say so out loud rather than reporting a pass.
+
+**Recommended: A.** Not because B is wrong, but because B's WhatsApp half is
+very likely to come back inconclusive and pass 1's entire purpose is to remove
+variables before money moves.
+
+### Why the WhatsApp arm probably stays unmeasured either way
+
+`whatsapp-destination-model.md` §8.1, **[measured 2026-08-17]**: on the multi
+probe ad, *every* preview attempt followed the single-valued
+`object_story_spec.link_data.call_to_action` (`MESSAGE_PAGE`) to Messenger. The
+preview does not appear to consult the `asset_feed_spec` destination array at
+all. Meta assigns the arm by predicted responsiveness, and the tester's account
+was a heavy Messenger responder, so one run establishes neither — but it means
+**you cannot assume a preview click will reach WhatsApp.** §6.2 has the three
+known ways to force it.
+
+### The stake, stated plainly
+
+That same section: the multi ad's WhatsApp arm rests on an **inference**, not a
+measurement. The Messenger arm demonstrably read its own sub-structure and
+ignored the sibling `autofill_message`; the WhatsApp arm is *assumed* to do the
+same. If that inference is wrong, Meta serves its own default prefill
+("Hello! Can I get more info on this?"), fly's event-normalizer still emits
+`conversation_started`, and **every WhatsApp arrival lands silently on
+`FALLBACK_FORM`** — a real researcher's live survey, where misrouted
+respondents reach END and look like completions. The source doc's words:
+*"`type: "multi"` must not ship on this inference."*
+
+Reading the compose box before sending (§6.2) is the whole ballgame. It is one
+observation and it closes the question in either direction.
 
 ---
 
@@ -362,9 +425,9 @@ retry from an account with no history on page `1855355231229529`.
 | Org | `031963f3-0a38-4ca5-9714-0c9012f9ac91` | **not** ECD Diagnostic's org (`3bc602fc-…`). This constrains §3.1 — see there. |
 | Study owner | `auth0|62470aac9bf338006971a7d2` | holds `Facebook` (facebook), `toixo` (fly) and `virtual-lab-vlab` (facebook_ad_user) credentials. Verified 2026-08-27. |
 | Survey shortcode | **`vlpulseng`** (`VL Pulse Nigeria - Smoke`, created 2026-08-21 16:24 UTC) | already synced into `chatroach.surveys`. A nonexistent shortcode routes to `FALLBACK_FORM` = `305`, someone else's live survey. |
-| Template campaign | **`Templates - VapeFree`** (`120227642396520150`) | on the ad account, `PAUSED`, 4 ad sets and 12 ads — verified 2026-08-27. Variables and Creatives are dropdowns over this; §3.1 says why the study is built from scratch rather than copied. |
-| Template ad set | **`Gender - Men`** (`120227643423940150`) | US, 18–25, men |
-| Template ad | **`RC34 Ad 4`** (`120235179318640150`) | any ad in that campaign works |
+| Template campaign | **`Templates - VL Pulse Nigeria`** (`120255043720330150`) | built for this study by `adopt/scripts/make_template_campaign.py` on 2026-08-27. `PAUSED`, no ads. Variables is a dropdown over this. |
+| Template ad sets | **`Kwara - Men`** (`120255043720570150`), **`Kwara - Women`** (`120255043720930150`) | Kwara (region key `2619`), 18–65, `advantage_audience: 0`, `MESSENGER`, both `PAUSED` |
+| Template ad (creative) | none in that campaign yet | Creatives reads **ads**, not ad sets. Until the Nigerian creative exists, select `Templates - VapeFree` (`120227642396520150`) for Creatives and pick `RC34 Ad 4` (`120235179318640150`) — the two forms choose their template campaign independently. |
 | Reloadly credentials key | `vlab`, on `nandanmarkrao@gmail.com` | the study must be owned by that account or the payment credential will not resolve. **Pass 1 never reaches a payment**, so this only gates §11. |
 | Meta access token | — | read from the prod `credentials` table by the scripts; never passed on argv |
 | Python | `adopt/.venv` | `cd adopt && poetry install` |
@@ -473,23 +536,39 @@ rewriting every ad in the study. On a new study there is nothing to rewrite.
 
 ### 3.5 Variables, Creatives, Strata
 
-**Variables.** Pick the template campaign **`Templates - VapeFree`**
-(`120227642396520150`) — it is the account's most complete one, 4 ad sets and
-12 ads, all `PAUSED`. Then declare **one** variable:
+**Variables.** Pick the template campaign **`Templates - VL Pulse Nigeria`**
+(`120255043720330150`), built for this study and already carrying Kwara
+targeting. Declare **one** variable with **two** levels:
 
 | Field | Value |
 |---|---|
 | name | **`Gender`** |
-| levels | one only: name **`Men`**, template ad set **`Gender - Men`** (`120227643423940150`), quota `1.0` |
+| properties | **`genders`, `age_min`, `age_max`, `geo_locations`, `targeting_automation`** |
+| level 1 | name **`Men`**, template ad set **`Kwara - Men`** (`120255043720570150`), quota `0.5` |
+| level 2 | name **`Women`**, template ad set **`Kwara - Women`** (`120255043720930150`), quota `0.5` |
 
-Targeting is **extracted from the ad set you pick**, not typed — `Gender - Men`
-is US, 18–25, men. `smoke-study-nigeria.md`'s Kwara targeting belongs to pass 2,
-when delivery is real; in pass 1 nothing is delivered and any valid
-`facebook_targeting` block will do.
+Targeting is **extracted from the ad set you pick**, not typed. Declare exactly
+those five properties: `extractFromAdset` throws `PropertyMissingError` if a
+declared property is absent from the ad set, and — the quieter failure —
+anything set on the ad set but *not* declared never reaches the study's own ad
+sets. `targeting_automation` is in the list for that second reason: without it
+Meta's Advantage audience expansion is on by default and delivery leaks outside
+the stratum.
 
-One variable with one level is deliberate: it makes **one stratum**, and with
-one creative and one destination that is **exactly one ad** — which is what
-makes §4 and §7 unambiguous.
+**Two levels, not one**, which is a change from this runbook's first draft. Two
+strata × one creative × one destination = **two ads**, and that is strictly
+better: `mint_ref_token` is keyed on `(study, stratum, creative, destination)`,
+so two strata are what actually exercise `assert_ref_tokens_unique` and make
+§4's "distinct non-NULL `ref_token`" check mean something. One ad can only show
+that a token exists. It is still unambiguous — the two rows differ by
+`stratum_id`.
+
+> **Kwara reaches more people than Kwara residents.** Meta rewrites
+> `location_types` on write, adding `frequently_in` to `["home", "recent"]`,
+> and it cannot be removed — an update sending only home/recent is accepted and
+> comes back with `frequently_in` still there (measured 2026-08-27). Irrelevant
+> in pass 1, where nothing delivers. A real sampling caveat in pass 2, and one
+> to state in the write-up rather than discover in the data.
 
 **Creatives.** One creative. **Give it a name and never change it** — see the
 box below, this is the one field here with consequences. Then pick a template
@@ -534,13 +613,14 @@ respondents **₦1,000** of airtime for a survey that did not exist
 the same thing from the other end — duration and prize must match the built
 form.
 
-**Strata.** One stratum, `Gender:Men`, metadata `{"Gender": "Men"}`, holding the
-one creative.
+**Strata.** Two, one per level — `Gender:Men` and `Gender:Women`, metadata
+`{"Gender": "Men"}` and `{"Gender": "Women"}` — each holding the same one
+creative.
 
-Set `question_targeting` to exactly one clause:
+Set each stratum's `question_targeting` to exactly one clause:
 
 ```
-equal(variable Gender, constant "Men")
+equal(variable Gender, constant "Men")      # and "Women" on the other
 ```
 
 Nothing else. `Gender` is precisely the variable §3.6's lookup conf produces
@@ -551,7 +631,7 @@ couple that signal to something else and make a zero ambiguous.
 
 The stratum's `metadata` key `Gender` is what §3.6's lookup conf pulls, and it
 must appear in the ad's frozen `ad_attributions.metadata` blob — §4 checks
-exactly that.
+exactly that, now for two rows rather than one.
 
 ### 3.6 Data Extraction — confirm, do not build
 
@@ -669,7 +749,7 @@ or, for the whole picture including what Meta says:
 
 | Observation | Verdict |
 |---|---|
-| an ad exists on Meta **and** a row exists, `ref_token` non-NULL | write half **works**. Record the ad id and the token. |
+| **two** ads exist on Meta and **two** rows exist, both `ref_token` non-NULL **and different from each other** | write half **works**, and `mint_ref_token` discriminates strata. Record both ad ids and both tokens. |
 | an ad exists, **no row** | write half **broken**. `record_ad_attribution` is not firing, or provenance is not reaching the create instruction. **Stop.** Everything downstream is moot; §6 onward would measure nothing. |
 | an ad exists, row exists, **`ref_token` is NULL** | the destination's mode is not `encoded`. §3.4 did not save. Fix and wait for the next run — the ad will be rewritten, not recreated. |
 | no ad after two cycles | not a finding yet. Check the study is active (§3.3), then read the adopt log for an exception. |
@@ -702,7 +782,7 @@ Record, byte for byte:
 |---|---|---|
 | `url_tags` | `url_tags present: 'ref=r.…'` | Messenger `referral.ref` (~32% of entrants) |
 | quick-reply payload | `page_welcome_message @ object_story_spec.link_data`, `quick_replies` | Messenger (~68%, their only carrier) |
-| `autofill_message.content` | same blob | WhatsApp only — **absent here**, and correctly so: this is a Messenger destination |
+| `autofill_message.content` | same blob | WhatsApp only — **absent** on a Messenger destination, and correctly so. On the multi study it is present and is §5.5 |
 
 Compare each against what adopt should have minted:
 
@@ -722,6 +802,51 @@ acceptance only; delivery is §6. Write the result into
 `documentation/ad-attributions.md` — it is a one-shot fact about Meta, not
 something to re-assert forever.
 
+### 5.5 The multi ad has three carriers, not two **[added 2026-08-30]**
+
+Skip if you took §2.5 option A. Under a `multi` destination `create_creative`
+emits a third:
+
+| Carrier | Where | Reaches |
+|---|---|---|
+| `url_tags` | `url_tags present: 'ref=r.…'` | Messenger `referral.ref` (~32%) |
+| `quick_replies[0].payload` | `page_welcome_message` blob | Messenger (~68%, their only carrier) |
+| `autofill_message.content` | same blob | **WhatsApp's only carrier of any kind** |
+
+**Under `ref_mode: encoded` all three carry the identical string.** This is
+worth knowing before you start diffing them: `dotted_ref` and `whatsapp_ref`
+both reduce to `encoded_ref(shortcode, token)` in encoded mode, so all three
+must equal the same `r.<payload>`. They diverge only under `ref_mode:
+metadata`, where the Messenger pair is `creative.`-led and the WhatsApp
+autofill is `form.`-anchored — deliberately different serialisations of the
+same facts, because fly parses them with different grammars. The study is
+`encoded`, so: **all three equal, byte for byte.**
+
+Read all three without touching Meta, no ad required:
+
+```bash
+cd adopt
+PG_URL="postgres://root@localhost:26257/vlab?sslmode=disable" \
+  poetry run python -m adopt.facebook.probe <STUDY_ID> --print-creative
+```
+
+`asset_feed_spec.additional_data.page_welcome_message` holds the quick-reply
+payload and the autofill; `url_tags` is a top-level key. This is the same
+construction adopt sends, so a disagreement here is a disagreement in
+production. Then confirm the live ad matches with `--read-back`.
+
+**Also record** `asset_feed_spec.call_to_actions` — it must carry exactly
+`MESSENGER` and `WHATSAPP`, and the ad set must be
+`MESSAGING_MESSENGER_WHATSAPP`. Meta rejects the ad with subcode `2490279` if
+these disagree, naming neither. `--print-creative` prints the ad set's
+`destination_type` alongside the creative for exactly this check.
+
+**One respondent-facing note.** The WhatsApp carrier sits in the respondent's
+compose box, where they can read and edit it before sending. Under `encoded`
+that is an opaque `r.…` token, which is the whole reason encoded mode exists.
+Under `metadata` it would describe them back to themselves
+(`gender.men.age.25_34`) before the survey starts.
+
 ---
 
 ## 6. Click it
@@ -732,8 +857,9 @@ something to re-assert forever.
 # 1. the campaign is still PAUSED. This is the only thing preventing spend.
 .venv/bin/python scripts/ctwa_probe.py --list-ads <CAMPAIGN_ID>
 
-# 2. THIS ad's ref decodes under THE DEPLOYED TAG. Leg 1 proved the tag decodes
-#    the contract vectors; none of them is `vlpulseng`. §1.2.
+# 2. EACH ad's ref decodes under THE DEPLOYED TAG -- run this for both, they
+#    carry different tokens. Leg 1 proved the tag decodes the contract vectors;
+#    none of them is `vlpulseng`. §1.2.
 cd /path/to/fly
 TAG="replybot-$(grep -m1 '^versionReplybot' devops/values/production.yaml | sed 's/.* //')"
 D=$(mktemp -d); mkdir -p "$D/lib/typewheels"
@@ -746,6 +872,12 @@ rm -rf "$D"
 ```
 
 3. Your Messenger state is cleared (§3.9).
+
+**Click one arm only.** Two ads exist, but fly's no-retake rule (§1.6) means
+the second referral is a no-op once `vlpulseng` is in your `state.forms`. Pick
+one, walk §§6.1 and 7 with it, and if you want the other, send `form.reset`
+again first. The second ad's *row* and *carriers* (§§4–5) are checked without
+clicking anything.
 
 If the decode does not print exactly that, **do not click**. A respondent —
 you — would land in survey `305`.
@@ -775,6 +907,41 @@ Record, in order:
    a question. `age` ("How old are you?") is the fifth field, after two more
    consent screens and a `start` prompt. Anything else means `FALLBACK_FORM`.
    **Stop at the first message**; see §3.9.
+
+### 6.2 Reaching the WhatsApp arm — and reading the compose box **[added 2026-08-30]**
+
+Skip if you took §2.5 option A.
+
+**Assume the preview goes to Messenger.** Every attempt on the 2026-08-17 multi
+probe did. If it does, you have measured the Messenger arm of a multi ad, which
+is worth having — record it as that, and record the WhatsApp arm as
+**unmeasured**. Do not report a multi pass.
+
+Three ways to force the WhatsApp arm, ascending cost
+(`whatsapp-destination-model.md` §8.1):
+
+1. **Log out of / disable Messenger on the test device**, then open the
+   preview. Free, and worth trying first.
+2. **A second Facebook account with no Messenger history on page
+   `1855355231229529`.** Meta assigns by predicted responsiveness, so an
+   account that has never replied on Messenger is the cheap lever.
+3. **Activate the ad with a tiny budget and narrow targeting.** Costs money,
+   needs ad review, and belongs to pass 2 — not pass 1.
+
+**If WhatsApp opens, do exactly one thing before anything else: read the
+compose box, and screenshot it.**
+
+| What is prefilled | What it means |
+|---|---|
+| `r.<payload>` — the string from §5.5 | The inference holds. The WhatsApp arm carries our ref and will route. **This is the measurement multi has been waiting for.** |
+| "Hello! Can I get more info on this?" or similar | Meta served its **own** default. Our autofill did not survive to the WhatsApp arm. **Stop — do not send.** Multi-destination cannot route to fly on WhatsApp with the current mechanism, and `type: "multi"` must not be fielded on real respondents until fly can route by ad id. |
+| Empty | Inconclusive. Record it; do not send. |
+
+If it is our token, send it, then go to §7.2b.
+
+**Do not send the default.** Sending it recruits you into `FALLBACK_FORM` — a
+live survey belonging to another researcher — which is exactly the failure this
+step exists to detect, and doing it manually just adds a junk row to their data.
 
 ---
 
@@ -831,6 +998,38 @@ The two carriers arrive as **separate rows**:
   welcome-message carrier.
 
 Whichever fired must carry **exactly** the `r.<payload>` from §5.
+
+### 7.2b The WhatsApp arm's row is shaped differently **[added 2026-08-30]**
+
+Skip if you took §2.5 option A. **§7.2's query will not find a WhatsApp
+arrival** — it filters on `content LIKE '%"source":"messenger"%'`. A WhatsApp
+arrival carries no `ref` field at all; the ref is in the message body.
+
+```sql
+SELECT timestamp, content
+  FROM messages
+ WHERE content LIKE '%"source":"whatsapp"%'
+   AND timestamp > now() - INTERVAL '1 hour'
+ ORDER BY timestamp DESC LIMIT 10;
+```
+
+Keep the `LIKE` prefilter for the reason §7.2 gives: at least one production row
+fails `content::jsonb` outright.
+
+Four things to record, from `whatsapp-destination-model.md` §8.1's measured
+single-destination arrival:
+
+| | Field | Expected |
+|---|---|---|
+| a | is there a `referral` object at all | yes |
+| b | `referral.source_type` | `"ad"` — exactly this; fly's gate compares it literally |
+| c | `referral.source_id` | the multi ad's id. **Open question** for a multi ad — the single-destination control returned exactly the ad created |
+| d | `text.body` | the `r.<payload>` from §5.5, verbatim. **This is the finding.** |
+
+`ctwa_clid` will be present and `ref` absent; both are normal for WhatsApp.
+
+**(d) is the whole question.** If it is Meta's default rather than our token,
+that is decision row **K** and multi does not ship.
 
 ### 7.3 The decode
 
@@ -892,6 +1091,22 @@ whatever happens.
 | **G** | §7.3 correct, §7.4 emits nothing **and** `inference_data` has no row | The event never reached swoosh, or the conf did not name the variable. | Check `inference_data_events` first (§7.4). If the event is there, the lookup conf's `name` does not match a key in the frozen blob — which is deliberately *not* counted as unmapped. |
 | **H** | §7.4: `inference_data` carries the declared variable for your user | **Everything works.** Write path, format, carriers, decode, join. | The feature is proven end to end for Messenger. Record it in `documentation/ad-attributions.md` and in §0.5 above. WhatsApp repeats this walk once it is a live transport. |
 | **I** | H, but only `quick_reply_payload` fired — no `top_level_ref` | The 68% carrier is proven; the 32% `url_tags` carrier is not. | Same as 2026-08-17 (§1.7). **Record it as unmeasured, not as working.** It is the carrier that would still route if the button were ever lost. |
+
+### Rows J–L — the multi ad's WhatsApp arm **[added 2026-08-30]**
+
+Skip if you took §2.5 option A. These are read against §§5.5, 6.2 and 7.2b, and
+they are deliberately separate rows: the Messenger half of a multi ad passing
+says **nothing** about the WhatsApp half.
+
+| # | Observation | What it means | Consequence |
+|---|---|---|---|
+| **J** | §6.2: the preview went to Messenger on every attempt, all three levers tried | The arm is not reachable for free, as on 2026-08-17. | **Not a finding, and not a failure.** Record the Messenger arm as passed and the WhatsApp arm as **unmeasured**. Multi does not ship on pass 1; it needs the paid activation in §11. Reporting this as "multi works" is the specific mistake this row exists to prevent. |
+| **K** | §6.2: WhatsApp opened and the compose box held **Meta's default**, not our `r.…` | The symmetry inference in `whatsapp-destination-model.md` §8.1 is **wrong**. Our autofill does not survive to the WhatsApp arm. | **Stop. Do not send it.** `type: "multi"` cannot route to fly on WhatsApp with the current mechanism, and every real WhatsApp arrival would land silently on `FALLBACK_FORM` looking like a completion. Multi is blocked until fly can route by ad id. Write this into `whatsapp-destination-model.md` §8.1 — it closes the project's biggest open question, negatively. |
+| **L** | §6.2: the compose box held our `r.…`; §7.2b shows `source_type: "ad"`, `source_id` = the ad, `text.body` = the same string; §7.3/§7.4 pass | **The inference is confirmed by measurement.** Both arms of one ad carry the same ref, decode to the same token, and join to the same row. | Multi is proven end to end. Record it in `whatsapp-destination-model.md` §8.1 and `documentation/ad-attributions.md`, and delete the "must not ship on this inference" warning. Note whether `source_id` matched — it was the last open question for multi specifically. |
+
+**Do not average J with H.** A run that passes every Messenger row and lands on
+J has proved the Messenger arm of a multi ad and nothing about WhatsApp. The
+honest summary is two sentences, not one.
 
 **Two things worth recording whatever happens**, because they are cheap now and
 expensive later:
