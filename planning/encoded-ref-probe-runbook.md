@@ -148,7 +148,12 @@ person can re-check rather than re-measure.
 
 ## 0.5 Results
 
-### Leg 0 — does the write half produce a row? **INDETERMINATE, with complete coverage.** **[measured 2026-08-26]**
+### Leg 0 — does the write half produce a row? **BROKEN.** **[measured 2026-08-26 INDETERMINATE, re-measured 2026-08-31]**
+
+> The 2026-08-26 run below is kept because its reasoning is still correct: with
+> no ads created in the window, an empty table proves nothing. The re-run five
+> days later had ads to look at and returned the finding — read that first.
+
 
 Run: `adopt/scripts/write_path_probe.py`.
 
@@ -194,6 +199,81 @@ writes no row, which would answer nothing.
 The write path is otherwise covered by `test_ad_attributions.py` against a real
 database with a fake Graph updater. The one seam no test reaches is the real
 SDK's created-id return value, and that is precisely what §4 exercises.
+
+#### Re-run 2026-08-31: **BROKEN.** The interesting outcome, and the fix. **[measured 2026-08-31]**
+
+The same probe, five days later, once the smoke study had ads:
+
+```
+ad_attributions     0 row(s) total
+studies scanned     91
+ads created since   8   -- all in vl-pulse-nigeria-smoke and -smoke-wa
+rows for those ads  0
+```
+
+Eight ads, no rows. Surfaced as a swoosh error the researcher saw in the UI:
+
+    ref token fd7b8a8199 (read from metadata vt) has no ad_attributions row for
+    this study; respondent 1989430067808669 is not attributed to any stratum
+
+The token was not wrong. `fd7b8a8199` is exactly what `mint_ref_token` produces
+for (smoke, `Gender:Men,Location:Kwara`, `Creative B`, Fly Multi), and decoding
+the ref off all eight live ads matched all eight computed tokens. The ads were
+right; the row was missing.
+
+**Cause: the ads were not created by the cron.** They were created through the
+dashboard's Optimize tab, which POSTs one hand-built instruction at a time to
+`server.run_single_instruction` — a path that carried no provenance and
+discarded the created id, with a comment saying so. `adopt_reports` shows the
+signature: bursts of `GET /optimize` runs seconds apart, each burst followed by
+ad `created_time`s two seconds later. Both halves of the *cron* path verified
+healthy at the time — instruction generation against live prod state attaches
+provenance with the right tokens, and the INSERT runs clean against the real
+schema — so nothing was wrong with the code that was being blamed.
+
+**The fix is one writer, and it reconciles.** `malaria.heal_ad_attributions`
+reads the ads that exist and writes a row for each that has none. That is the
+whole mechanism. The point is not that it runs more often — it is that it does
+not need to have been present when an ad was made, so there is no route by
+which an ad can appear and go unrecorded.
+
+`record_ad_attribution` was **deleted**, not kept as a fast path. It wrote at
+the ideal moment but only for ads it had made itself, and a second writer that
+covers a subset of the first one's cases is a liability: it has to be kept in
+step, and its failures look like nothing at all. Removing it also removed the
+plumbing that existed only to feed it — `Instruction.provenance`,
+`ad_dif`/`adset_dif`'s provenance parameter, `GraphUpdater.execute`'s captured
+ad id, `created_id`. Reconciliation is back to being only about what Facebook
+should hold.
+
+Where it runs:
+
+| Trigger | How healing is reached |
+|---|---|
+| ads cron | top of `update_ads_for_campaign`, then again after `run_instructions` if that run created ads |
+| dashboard `GET /optimize` | same `update_ads_for_campaign` — the two paths share one function |
+| dashboard `POST /optimize/{slug}/instruction` | explicitly after an ad create |
+
+The two post-create calls take a **fresh** `FacebookState`: the cached one
+predates the new ad and would find nothing wrong. They are only an
+optimization. Swoosh rebuilds a study's `inference_data` from scratch on every
+run (`inference/swoosh/persist.go`), so a row that lands late is applied
+retroactively and nothing is lost by waiting — there is just no reason to let a
+new ad spend for two hours while the optimizer cannot see who it recruited.
+
+Two things deliberately **not** added, both considered and dropped:
+
+- **A column marking healed rows.** Nothing reads it. swoosh does
+  `row.Metadata[conf.Name]` and does not care where the row came from; no code
+  branches on it; and if the conf did drift, the original is unrecoverable
+  either way. `created` already distinguishes the cases for anyone who needs it
+  — a row written at its ad's creation time versus days later.
+- **A backfill for the eight existing ads.** Healing writes them on the next
+  run, which is the same thing without a second mechanism.
+
+The same change moved the `FACEBOOK_ADOPT` report write into
+`update_ads_for_campaign`. It used to live in `run_updates`, so an optimization
+triggered from the UI left no record it had happened.
 
 ### Leg 1 — the deploy contract. **PASSES against the deployed tag, and found two live drifts.** **[measured 2026-08-26]**
 

@@ -10,19 +10,30 @@ the specification is planning/encoded-ref-probe-plan.md §3 "Leg 0".
 
 WHY THIS EXISTS
 ---------------
+**Answered 2026-08-31: (b), the write path was broken.** Eight ads existed with
+no rows. The cause: they were created through the dashboard's Optimize tab,
+which POSTs one hand-built instruction at a time and had no provenance to write
+a row from -- and `record_ad_attribution`, the writer this script was built to
+audit, only ever wrote for ads it had made itself.
+
+That writer is gone. `malaria.heal_ad_attributions` replaced it: it reads the
+ads that exist and writes a row for each that has none, so it does not need to
+have been present when an ad was made. This script keeps its job either way --
+it compares Meta against the table, which is the check that healing works, and
+it is still the only thing that can tell a healthy quiet period from a silent
+failure. Read the two states below as "write path" generally; the specific
+mechanism named in (a) and (b) has changed.
+
 `ad_attributions` holds **zero rows**. Not zero rows *carrying a token* -- zero
 rows, full stop. That single number is consistent with two states of the world
 that no other observation distinguishes:
 
   (a) the write path is healthy and has simply had nothing to do. Rows are
-      written only on ad **creates** (malaria.record_ad_attribution returns
-      early on anything that is not `("ad", "create")` with provenance), and a
-      steady-state study reconciles by *update*. A quiet period therefore
-      produces exactly zero rows.
+      written only for ads that exist, so a study that has created no ads
+      since the write path shipped produces exactly zero rows.
 
-  (b) `record_ad_attribution` never fires -- provenance never reaches the
-      instruction, or `GraphUpdater.execute` returns no created id, or the
-      insert silently no-ops.
+  (b) the write never fires -- it is not reached, or it is reached for a
+      different set of ads than the ones that exist, or the insert no-ops.
 
 Every later leg of the probe assumes (a). Leg 3 in particular spends a human's
 afternoon and creates a real ad on a live account on the premise that a row
@@ -43,7 +54,8 @@ one place that does keep an immutable timestamp for every ad ever created --
     ad_attributions rows for those ad ids          (what adopt recorded)
 
 CUTOFF is when adopt v0.1.78 -- the first tag containing
-`record_ad_attribution` -- reached production. Ads created before it are
+`record_ad_attribution` (since removed -- see the header) -- reached
+production. Ads created before it are
 outside the contract and prove nothing either way.
 
 Three outcomes, and the third is the interesting one:
@@ -417,7 +429,7 @@ def verdict(result: Dict[str, Any]) -> Tuple[str, str]:
     if missing:
         return ("BROKEN", (
             f"{missing} of {n} ad(s) created since the cutoff have no "
-            "ad_attributions row. record_ad_attribution is not firing, or the "
+            "ad_attributions row. heal_ad_attributions is not firing, or the "
             "provenance is not reaching the create instruction. STOP: legs 1-3 "
             "all assume the write half works, and leg 3 would fail at step 1 "
             "for a reason it is not built to diagnose."
