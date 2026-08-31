@@ -456,9 +456,10 @@ func TestReduce_AnEventWithNoTokenIsNotReported(t *testing.T) {
 	assert.Len(t, errs, 0)
 }
 
-func TestReduce_UnmappedTokenIsACountedError(t *testing.T) {
-	// Always a bug: vlab minted a token and failed to record what it meant.
-	// Every respondent it recruits is dropped from stratum counts.
+func TestReduce_UnmappedTokenIsACountedWarning(t *testing.T) {
+	// A token with no row for this study means the respondent is dropped from
+	// stratum counts, whichever of the two causes produced it -- vlab lost what
+	// the ad meant, or the token belongs to another study sharing this survey.
 	events := []*InferenceDataEvent{
 		tokenEvent("u1", "unknown", ti("07")),
 		tokenEvent("u2", "unknown", ti("08")),
@@ -484,10 +485,13 @@ func TestReduce_UnmappedTokenIsACountedError(t *testing.T) {
 	assert.Contains(t, unmapped.Message, "ref token unknown")
 	assert.Contains(t, unmapped.Message, "metadata vt")
 
-	// This is the one outcome that alarms.
+	// Warning, not error. The two causes are not both bugs -- a foreign token
+	// missing is the per-study lookup working as designed -- and a study that
+	// shares its survey re-emits this on every run forever, so an error here
+	// could never be cleared and would bury the ones that can.
 	eventType, severity := classifyExtractionError(entityAdUnmapped)
 	assert.Equal(t, eventExtractionError, eventType)
-	assert.Equal(t, severityError, severity)
+	assert.Equal(t, severityWarning, severity)
 }
 
 func TestReduce_ANonStringTokenIsNoTokenAtAll(t *testing.T) {

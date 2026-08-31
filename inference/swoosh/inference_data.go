@@ -430,13 +430,18 @@ const entityAdUnmapped = "ad=unmapped"
 // on rather than leaving the reader to infer it from the era of the row.
 const mechanismRefToken = "ref_token"
 
-// adAttributionOutcome reports the one ad-attribution outcome that is a bug: a
-// token that resolves to no ad_attributions row.
+// adAttributionOutcome reports the one ad-attribution outcome worth reporting:
+// a token that resolves to no ad_attributions row for this study.
 //
-// vlab minted an ad and lost what it meant, so every respondent that ad
-// recruits is dropped from stratum counts — a retrieve returning ok=false means
-// `continue`: no variable, no stratum match, optimizer undercount. It does not
-// error, it miscounts, which is why it is reported at severity error.
+// Whatever the cause, the effect on this study is the same — a retrieve
+// returning ok=false means `continue`: no variable, no stratum match, and a
+// respondent missing from stratum counts. It does not error, it miscounts,
+// which is why it is reported at all.
+//
+// It is reported at severity *warning*, not error, because the two causes are
+// not both bugs: the token may belong to another study sharing this survey,
+// in which case declining it is the mechanism working. classifyExtractionError
+// carries that reasoning and the cost of not separating them.
 //
 // An event carrying no token produces nothing. That is an expected arrival, not
 // a failure: shortcodes are shareable by design, and a study can perfectly well

@@ -1192,8 +1192,18 @@ SELECT event_type, severity, message, details, occurred_at
  ORDER BY occurred_at DESC;
 ```
 
-An `extraction_error` at severity `error` naming `ref_token` is the **unmapped**
-outcome: a token arrived and resolved to no row. That is always a bug.
+An `extraction_error` at severity `warning` naming `ref_token` is the
+**unmapped** outcome: a token arrived and resolved to no row *for this study*.
+Two causes, and only one is a bug — the row is genuinely missing, or the token
+belongs to another study sharing this survey, which is the per-study lookup
+working as designed. It was severity `error` until 2026-08-31; a study that
+shares its survey re-emits it on every run forever, so an error there could
+never be cleared. Read it against §L0's probe rather than on its own.
+
+For this probe that distinction matters: `vl-pulse-nigeria-smoke` and
+`-smoke-wa` both point at `vlpulseng`, so **each will report the other's tokens
+as unmapped, permanently, and that is expected.** Only a token this study's own
+ads mint is evidence of a real miss.
 
 ---
 

@@ -89,21 +89,41 @@ func recordExtractionError(pool *pgxpool.Pool, studyID, runID string, e Extracti
 // classifyExtractionError decides how loudly one aggregated extraction problem
 // is surfaced, from its entity key alone.
 //
-// unmapped (a ref token with no mapping row) is always a bug: vlab created an
-// ad and failed to record what it meant, and every respondent it recruits is
-// silently dropped from stratum counts. It is the one case that gets severity
-// "error", which sorts it above warnings in the dashboard's study-errors
-// derivation (adopt/adopt/server/db.py).
+// unmapped (a ref token with no mapping row) is a WARNING, and used to be an
+// error. The reasoning for "error" was that it is always a bug -- vlab created
+// an ad and failed to record what it meant. That covers one of the two causes.
 //
-// It is self-closing. The dashboard derivation keeps only events seen in the
-// last 90 minutes, so once a missing mapping row is inserted and the next run
-// stops emitting the error, it ages out on its own.
+// The other is ordinary: a token that belongs to a *different* study. Studies
+// that share a survey shortcode see each other's respondents, and the lookup is
+// per study precisely so a foreign token misses rather than silently importing
+// another study's strata (GetAdAttributions). That miss is the mechanism
+// working. It also never stops -- as long as the two studies share the survey,
+// every run re-emits it -- and an error that can never be cleared stops being
+// read as one, burying the errors that can.
+//
+// Warning does not mean hidden: the dashboard's derivation
+// (adopt/adopt/server/db.py) keeps warnings and sorts them below errors, which
+// is exactly the intended demotion.
+//
+// The cost is real and accepted: a genuinely lost mapping row -- the failure
+// that emptied ad_attributions across all of production on 2026-08-30 -- now
+// reports at the same level as a shared dataset. Two things carry that weight
+// instead. malaria.heal_ad_attributions repairs it on the next run rather than
+// leaving it permanent, and adopt/scripts/write_path_probe.py is the
+// purpose-built check that compares Meta's ads against the table.
+//
+// Either way it is self-closing: the derivation keeps only events seen in the
+// last 90 minutes, so once the row exists and the next run stops emitting, it
+// ages out on its own.
+//
+// Kept as an explicit case rather than folded into the default it now matches,
+// so that a future change to the default cannot silently re-classify this.
 func classifyExtractionError(entity string) (eventType, severity string) {
 	switch {
 	case strings.HasPrefix(entity, "source="):
 		return eventExtractionWarning, severityWarning
 	case entity == entityAdUnmapped:
-		return eventExtractionError, severityError
+		return eventExtractionError, severityWarning
 	default:
 		// Unchanged from before: other extraction failures are errors by type
 		// but were only ever recorded at warning severity.
