@@ -1174,11 +1174,15 @@ def ad_provenance(
     """What vlab knows about every ad it wants to exist, for one campaign.
 
     Keyed by (adset name, ad name) == (stratum.id, creative.name), which is how
-    reconciliation identifies an ad -- adset name is the stratum id
-    (create_adset) and ad name is the creative name (create_ad). Reconciliation
-    stamps the matching entry onto each ad-create instruction, and
-    run_instructions turns it into an ad_attributions row once Facebook returns
-    the id.
+    an ad is identified within a campaign -- adset name is the stratum id
+    (create_adset) and ad name is the creative name (create_ad).
+    `malaria.heal_ad_attributions` joins the live ads to this on that pair and
+    writes the rows.
+
+    Keying on names rather than ids is what lets the row be written by
+    something that was not present when the ad was made. Facebook's ids are
+    known only to whoever made the call; the names are in the conf, so any run
+    can rebuild the mapping from the ads that exist.
 
     Pure: no Graph API, no database. The pairing comes from the same functions
     adset_instructions uses to build the ads themselves, so an ad and its
@@ -1223,8 +1227,10 @@ def assert_ref_tokens_unique(provenance: Dict[Tuple[str, str], Dict[str, Any]]) 
     count the wrong people, and nothing downstream can detect it -- the token
     resolves, so it is not "unmapped", and the numbers look plausible.
 
-    Raising here, at instruction-generation time, is the last moment it is
-    cheap. Past this point the ads exist on Facebook and are spending money.
+    Raising here is the last moment it is cheap. `ad_provenance` is called by
+    `heal_ad_attributions`, which runs at the top of `update_ads_for_campaign`
+    -- before the run generates a single instruction, so before any colliding
+    ad can exist on Facebook and spend money.
 
     Two things can cause it, and both are worth a loud failure: a genuine
     40-bit digest collision (vanishingly unlikely -- see REF_TOKEN_BYTES), or
@@ -1475,13 +1481,7 @@ def update_instructions_for_campaign(
     sb = [(s, budget[s.id]) for s in strata]
     new_state = [adset_instructions(study, campaign_state, s, b) for s, b in sb]
 
-    # Built from campaign_state.campaign_name rather than the campaign_name
-    # argument so it is derived from exactly the value adset_instructions used
-    # to pick each stratum's creatives; in a destination experiment the
-    # campaign name selects the arm, so the two must not be able to disagree.
-    provenance = ad_provenance(study, campaign_state.campaign_name, strata)
-
-    return adset_dif(campaign_state.campaign_state, new_state, provenance)
+    return adset_dif(campaign_state.campaign_state, new_state)
 
 
 def update_instructions(

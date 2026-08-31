@@ -12,12 +12,18 @@ from .campaign_queries import (
     DBConf,
     create_ad_attribution,
     create_adopt_report,
+    get_ad_attributions,
     get_campaign_configs,
     get_user_info,
 )
 from .facebook.state import DateRange, FacebookState, StateNameError, get_api
 from .facebook.update import GraphUpdater, Instruction
-from .marketing import manage_audiences, update_instructions, validate_targeting
+from .marketing import (
+    ad_provenance,
+    manage_audiences,
+    update_instructions,
+    validate_targeting,
+)
 from .recruitment_data import (
     day_start,
     get_active_studies,
@@ -65,55 +71,138 @@ def make_window(hours, now):
     return DateRange(start, now)
 
 
-def record_ad_attribution(
-    i: Instruction, created_id: Optional[str], db_conf: DBConf
-) -> None:
-    """Freeze the ad -> stratum mapping for an ad we just created.
+def heal_ad_attributions(
+    study: StudyConf, state: FacebookState, db_conf: DBConf
+) -> List[str]:
+    """Write a mapping row for every live ad that has none. Returns the ad ids.
 
-    The imperative half of A1: instruction generation stayed pure, and this is
-    where the resulting fact meets the database. Only ad creates carry
-    provenance, so everything else falls straight through.
+    **This is the only thing that writes to ad_attributions.** That is the
+    design, not an accident of refactoring, and it is worth stating because the
+    alternative was tried and failed.
 
-    Raises on a failed write, deliberately. An ad that exists on Facebook with
-    no mapping row can never be attributed -- there is no backfill path, and
-    every respondent it recruits would be dropped from stratum counts silently
-    rather than loudly. Stopping the run leaves the remaining ads uncreated,
-    which is the recoverable failure; the next run creates them. Creating ads
-    we cannot map is the unrecoverable one.
+    The row used to be written at the moment of creation, by an imperative step
+    that read the ad id out of Facebook's response to an ad-create instruction.
+    That gives one chance per ad, to one writer, in one code path: an ad that
+    reached Facebook by any other route was unmapped forever -- not "until the
+    next run", forever, because reconciliation creates an ad once and the ad now
+    exists.
+
+    On 2026-08-30 all eight ads of `vl-pulse-nigeria-smoke` and `-smoke-wa` were
+    created through the dashboard's Optimize tab, which POSTs one hand-built
+    instruction at a time and never had the provenance to write a row from.
+    `ad_attributions` held zero rows in all of production, and swoosh dropped
+    every respondent those ads recruited:
+
+        ref token fd7b8a8199 (read from metadata vt) has no ad_attributions
+        row for this study; respondent ... is not attributed to any stratum
+
+    Reading the ads that exist, rather than remembering the ones this process
+    made, removes the whole class. A writer that has to be present at the
+    creation can be absent; one that reconciles cannot. So there is no second
+    writer to keep in step -- no provenance threaded through instructions, no
+    ad id captured out of a Graph response, no path that has to remember.
+
+    **It only ever adds.** Nothing here deletes or updates. Rows must outlive
+    their ads -- respondents keep arriving from ads that no longer exist,
+    because a page post can be reshared indefinitely -- so an ad's absence from
+    Facebook is never evidence its row should go (invariant 2, stated on the
+    table itself in devops/migrations/20260816000000_add_ad_attributions.up.sql).
+    A row already present wins by
+    `ON CONFLICT DO NOTHING`, so healing can never overwrite a true
+    frozen-at-creation snapshot with a reconstruction.
+
+    **A healed row is built from the conf as it reads now**, which is the only
+    source left -- Meta stores the ad, not the vocabulary vlab meant by it. So
+    if the stratum's metadata changed between the ad being built and this
+    running, the row carries today's answer rather than that day's. Narrow, and
+    only reachable under ref_mode "encoded": a dotted ref carries the metadata
+    itself, so editing it changes the creative and reconciliation rewrites the
+    ad. Worth knowing, not worth guarding -- the alternative to a slightly stale
+    row is no row and a silent undercount, and `created` already says when the
+    row was written for anyone who needs to compare it against the ad's age.
+
+    Strata are hydrated **without** resolving audiences. Healing needs only the
+    stratum id, its metadata and its creatives -- never its targeting -- and
+    making it depend on a Graph lookup would mean a study with a missing custom
+    audience could not repair its attribution. The repair path must not share
+    failure modes with the thing being repaired.
+
+    An ad whose (adset name, ad name) pair no longer appears in the conf cannot
+    be healed: there is nothing left to say what it meant. That is logged rather
+    than skipped quietly, because it is the one case this function cannot fix.
     """
-    if i.node != "ad" or i.action != "create" or i.provenance is None:
-        return
+    strata = hydrate_strata(
+        None, study.strata, study.creatives, resolve_audiences=False
+    )
 
-    if created_id is None:
-        logging.error(
-            f"Created an ad with provenance {i.provenance} but Facebook "
-            "returned no id. It will not be attributable."
-        )
-        return
+    existing = {r["ad_id"] for r in get_ad_attributions(study.id, db_conf)}
 
-    try:
-        create_ad_attribution(created_id, i.provenance, db_conf)
-    except BaseException:
-        logging.error(
-            f"Failed to write ad_attributions row for ad {created_id} "
-            f"with provenance {i.provenance}. The ad exists on Facebook and "
-            "is now unattributable until this row is written."
+    healed: List[str] = []
+    unmatched: List[Tuple[str, str]] = []
+
+    for campaign_name in study.campaign_names:
+        try:
+            campaign_state = state.campaign_state(campaign_name)
+            live = campaign_state.campaign_state
+        except StateNameError:
+            # No campaign yet, so no ads and nothing to heal. Not a failure:
+            # every study looks like this before its first run.
+            continue
+
+        # campaign_state.campaign_name, not the loop variable, for the same
+        # reason update_instructions_for_campaign uses it: in a destination
+        # experiment the campaign name selects the arm, and the provenance must
+        # be built from exactly the value the ads were.
+        provenance = ad_provenance(study, campaign_state.campaign_name, strata)
+
+        for adset, ads in live:
+            for ad in ads:
+                if ad["id"] in existing:
+                    continue
+
+                prov = provenance.get((adset["name"], ad["name"]))
+                if prov is None:
+                    unmatched.append((ad["id"], f'{adset["name"]}/{ad["name"]}'))
+                    continue
+
+                create_ad_attribution(ad["id"], prov, db_conf)
+                healed.append(ad["id"])
+
+    if healed:
+        logging.warning(
+            f"heal_ad_attributions: wrote {len(healed)} missing mapping row(s) "
+            f"for study {study.id}: {healed}. These ads existed on Facebook "
+            "with no ad_attributions row, so their respondents were being "
+            "dropped from stratum counts."
         )
-        raise
+
+    if unmatched:
+        logging.error(
+            f"heal_ad_attributions: {len(unmatched)} live ad(s) in study "
+            f"{study.id} have no mapping row and cannot be given one -- the "
+            "current conf describes no (stratum, creative) pair by that name: "
+            f"{unmatched}. Their respondents are not attributable."
+        )
+
+    return healed
 
 
 def run_instructions(
     instructions: Sequence[Instruction], state: FacebookState, db_conf: DBConf
 ):
+    """Execute instructions against Facebook. Writes nothing to the database.
+
+    `db_conf` is unused and kept only so the signature does not churn its
+    callers. It used to write ad_attributions rows here, from ids Facebook
+    returned; `heal_ad_attributions` does that now, from the ads that exist.
+    """
     updater = GraphUpdater(state)
     logging.info(f"Executing {len(instructions)} instruction(s)")
     for i in instructions:
         logging.info(
             f"Executing: {i.node}/{i.action} id={i.id} params={i.params}"
         )
-        report, created_id = updater.execute(i)
-        logging.info(report)
-        record_ad_attribution(i, created_id, db_conf)
+        logging.info(updater.execute(i))
 
 
 def warn_on_incomplete_targeting(study: StudyConf) -> None:
@@ -162,6 +251,13 @@ def warn_on_thinned_ref_without_mapping(study: StudyConf) -> None:
 def update_ads_for_campaign(
     db_conf: DBConf, study: StudyConf, state: FacebookState
 ) -> Tuple[Sequence[Instruction], Optional[AdOptReport]]:
+    # Before anything else, and unconditionally. Healing is not part of
+    # optimizing -- it is the run paying off whatever the last one failed to
+    # record, whichever entrypoint that was. Putting it here rather than in
+    # run_updates is what gets the dashboard's Optimize tab covered too: both
+    # the cron and the API call this one function.
+    heal_ad_attributions(study, state, db_conf)
+
     strata = hydrate_strata(state, study.strata, study.creatives)
     warn_on_incomplete_targeting(study)
     warn_on_thinned_ref_without_mapping(study)
@@ -218,6 +314,14 @@ def update_ads_for_campaign(
     min_budget = study.recruitment.min_budget
     budget = study.recruitment.spend_for_day(strata, min_budget, budget_lookup, now)
 
+    # Written here rather than by run_updates so that an optimization run
+    # recorded itself the same way whoever asked for it. The dashboard's
+    # Optimize tab reaches this function too, and used to leave no
+    # FACEBOOK_ADOPT report at all -- so the allocation a researcher acted on
+    # from the UI was the one allocation with no record of having happened.
+    if report:
+        create_adopt_report(study.id, "FACEBOOK_ADOPT", report, db_conf)
+
     return update_instructions(study, state, strata, budget), report
 
 
@@ -263,11 +367,21 @@ def load_basics(
 ) -> Tuple[StudyConf, FacebookState]:
     study = get_study_conf(db_conf, study_id)
 
-    state = FacebookState(
+    return study, fresh_state(study, env)
+
+
+def fresh_state(study: StudyConf, env: Env) -> FacebookState:
+    """A FacebookState that has not read anything yet.
+
+    CampaignState caches its adsets and ads on first access, which is what
+    makes a reconciliation run cheap and is exactly wrong after that run has
+    created something: the cached list predates the new ad. Anything that needs
+    to see what Facebook holds *now* takes one of these rather than reusing the
+    state it already has.
+    """
+    return FacebookState(
         get_api(env, study.user.token), study.general.ad_account, study.campaign_names
     )
-
-    return study, state
 
 
 def calculate_respondents_over_time_report(
@@ -396,10 +510,27 @@ def run_updates(fn: AdoptJob) -> None:
                 f"Generated {len(instructions)} instruction(s) for {study.general.name}"
             )
 
-            if report:
-                create_adopt_report(s, "FACEBOOK_ADOPT", report, db_conf)
+            # The FACEBOOK_ADOPT report is written by the job that produced it
+            # (update_ads_for_campaign), not here, so that every caller of that
+            # function records it and not just this one.
+            made_ads = any(
+                i.node == "ad" and i.action == "create" for i in instructions
+            )
 
             run_instructions(instructions, state, db_conf)
+
+            # Heal again if this run made ads. The heal at the top of
+            # update_ads_for_campaign ran before them, so without this their
+            # rows would wait for the next run -- two hours on the ads cron.
+            # Nothing is lost by waiting (swoosh rebuilds a study's
+            # inference_data from scratch each run, so a late row is applied
+            # retroactively), but there is no reason to make a new ad spend for
+            # two hours while the optimizer cannot see who it recruited.
+            #
+            # Conditional, so a steady-state run -- which creates nothing --
+            # pays no extra Graph reads at all.
+            if made_ads:
+                heal_ad_attributions(study, fresh_state(study, env), db_conf)
 
         except BaseException as e:
             logging.error(f"Error updating campaign {s}. Error: {e}")

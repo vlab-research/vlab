@@ -17,6 +17,8 @@ from ..campaign_queries import get_ad_attributions, get_user_info
 from ..facebook.update import GraphUpdater
 from ..malaria import (
     Instruction,
+    fresh_state,
+    heal_ad_attributions,
     load_basics,
     run_instructions,
     update_ads_for_campaign,
@@ -328,13 +330,34 @@ def run_single_instruction(
 
     updater = GraphUpdater(state)
 
-    # hack to cast OptimizeInstruction to Instruction
+    i = Instruction(**(instruction.model_dump()))  # hack to cast OptimizeInstruction
+    report = updater.execute(i)
+
+    # Heal, because this is the path that broke.
     #
-    # The created id is discarded here on purpose: this endpoint runs one
-    # hand-supplied instruction, which carries no provenance, so there is
-    # nothing to build an ad_attributions row from. Ads created through this
-    # path are not attributable -- see planning/ad-id-attribution.md.
-    report, _ = updater.execute(Instruction(**(instruction.model_dump())))
+    # Every ad of vl-pulse-nigeria-smoke and -smoke-wa was created here on
+    # 2026-08-30, one POST per ad, and every one of them went unmapped --
+    # swoosh then dropped their respondents with "has no ad_attributions row
+    # for this study". The cron could never repair it: reconciliation creates
+    # an ad once, and by then the ads existed.
+    #
+    # Through fresh_state, not the `state` above: that one was built before the
+    # create and caches its ad list, so it cannot see the ad this call just
+    # made. One extra campaign read per created ad is the whole cost.
+    #
+    # Failure here must not fail the request: the ad exists on Facebook either
+    # way, and the run that follows will heal it. Loud in the log, quiet to the
+    # caller.
+    if i.node == "ad" and i.action == "create":
+        try:
+            heal_ad_attributions(study, fresh_state(study, env), db_cnf)
+        except BaseException as e:
+            logging.error(
+                f"Could not heal ad_attributions for study {study_id} after "
+                f"creating an ad through the API: {e}. The next optimization "
+                "run will retry."
+            )
+
     return OptimizeReport(**report)
 
 

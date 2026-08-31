@@ -1,31 +1,44 @@
-"""Ad-ID attribution: the mapping row, end to end (A1 + A2).
+"""Ad-ID attribution: the mapping row.
 
-vlab is taking over the ad -> stratum join from the dotted ref string that used
-to ride to the survey platform inside every message. The join only works if a
-row lands in `ad_attributions` for every ad vlab creates, exactly once, frozen
-at creation, and never removed.
+vlab took the ad -> stratum join over from the dotted ref string that used to
+ride to the survey platform inside every message. The join works only if
+`ad_attributions` holds a row for every ad vlab has, once each, never removed.
 
 The failure mode these tests exist to prevent is quiet: a missing or wrong row
 does not raise, it attributes a respondent to no stratum. Recruitment then
 looks incomplete while the optimizer reallocates budget away from a stratum
-that is in fact recruiting fine. There is deliberately no backfill path -- the
-design rejected retrofitting existing studies -- so a row that is not written
-at creation is lost for good.
+that is in fact recruiting fine.
+
+**One writer.** `malaria.heal_ad_attributions` is the only thing that writes
+here, and it works by reconciliation: read the ads that exist, write a row for
+each that has none. There used to be a second writer that captured the ad id
+out of Facebook's response to a create -- it wrote at the ideal moment but only
+for ads it had made itself, so ads created any other way were unmapped forever.
+That is the bug these tests were extended for; see the healing section.
 
 These are integration tests against the real CockroachDB test instance. Run
 `make test-db` in adopt/ first.
 """
 
 import json
-from unittest.mock import patch
+from datetime import datetime
 
 import pytest
 from test.dbfix import _reset_db, cnf
 
 from .campaign_queries import create_ad_attribution, get_ad_attributions
 from .db import execute, query
-from .facebook.update import Instruction, created_id
-from .malaria import run_instructions
+from .facebook.state import StateNameError
+from .malaria import heal_ad_attributions
+from .study_conf import (
+    CreativeConf,
+    FlyMessengerDestination,
+    GeneralConf,
+    SimpleRecruitment,
+    StratumConf,
+    StudyConf,
+    UserInfo,
+)
 
 STUDY_ID = "00000000-0000-0000-0000-0000000000aa"
 OTHER_STUDY_ID = "00000000-0000-0000-0000-0000000000bb"
@@ -63,48 +76,6 @@ def _provenance(
     }
 
 
-def _ad_create(provenance=None, name="Smiling"):
-    return Instruction(
-        "ad",
-        "create",
-        {"adset_id": "adset-id", "name": name, "status": "ACTIVE"},
-        None,
-        provenance,
-    )
-
-
-class FakeUpdater:
-    """Stands in for GraphUpdater.
-
-    Everything under test happens *after* Facebook answers, so the Facebook
-    half is replaced wholesale rather than mocked at the SDK level. `results`
-    is consumed one entry per instruction: a string is the id Facebook
-    returned, None means it returned no id, and an exception instance is
-    raised as the create failing.
-    """
-
-    def __init__(self, results):
-        self.results = list(results)
-        self.executed = []
-
-    def execute(self, instruction):
-        self.executed.append(instruction)
-        res = self.results.pop(0) if self.results else None
-
-        if isinstance(res, BaseException):
-            raise res
-
-        return ({"instruction": {"node": instruction.node}}, res)
-
-
-def _run(instructions, results):
-    """run_instructions with the Graph API replaced. Returns the fake updater."""
-    fake = FakeUpdater(results)
-    with patch("adopt.malaria.GraphUpdater", lambda state: fake):
-        run_instructions(instructions, state=None, db_conf=cnf)
-    return fake
-
-
 def _all_rows():
     q = """
     SELECT network, ad_id, study_id, stratum_id, creative_name,
@@ -116,145 +87,8 @@ def _all_rows():
 
 
 # ---------------------------------------------------------------------------
-# The happy path, through run_instructions
+# The row outlives everything it refers to
 # ---------------------------------------------------------------------------
-
-
-def test_successful_ad_create_writes_exactly_one_correct_row():
-    _reset_db()
-    prov = _provenance()
-
-    _run([_ad_create(prov)], ["120254866237980150"])
-
-    rows = _all_rows()
-    assert len(rows) == 1
-
-    row = rows[0]
-    assert row["network"] == "facebook"
-    assert row["ad_id"] == "120254866237980150"
-    assert str(row["study_id"]) == STUDY_ID
-    assert row["stratum_id"] == "stratum-1"
-    assert row["creative_name"] == "Smiling"
-    assert row["shortcode"] == "mnchweek"
-    assert row["resolved_from"] == "ad_id"
-
-    # The whole point: the frozen blob survives the JSONB round trip intact,
-    # including `creative` and `form`.
-    assert row["metadata"] == prov["metadata"]
-
-
-def test_several_ad_creates_write_one_row_each_keyed_on_their_own_id():
-    _reset_db()
-
-    _run(
-        [
-            _ad_create(_provenance(stratum_id="s1", creative_name="Smiling")),
-            _ad_create(_provenance(stratum_id="s2", creative_name="Serious")),
-        ],
-        ["ad-1", "ad-2"],
-    )
-
-    rows = {r["ad_id"]: r for r in _all_rows()}
-    assert set(rows) == {"ad-1", "ad-2"}
-    assert rows["ad-1"]["stratum_id"] == "s1"
-    assert rows["ad-2"]["stratum_id"] == "s2"
-
-
-# ---------------------------------------------------------------------------
-# Nothing else writes a row
-# ---------------------------------------------------------------------------
-
-
-def test_failed_ad_create_writes_no_row():
-    """No ad, no row. A row for an ad that does not exist would be worse than
-    none: it would look like attribution coverage that isn't there."""
-    _reset_db()
-
-    with pytest.raises(RuntimeError):
-        _run([_ad_create(_provenance())], [RuntimeError("facebook said no")])
-
-    assert _all_rows() == []
-
-
-def test_ad_create_without_provenance_writes_no_row():
-    """The single-instruction server endpoint creates ads this way.
-
-    Nothing is known about the stratum, so there is nothing truthful to write.
-    """
-    _reset_db()
-
-    _run([_ad_create(provenance=None)], ["ad-1"])
-
-    assert _all_rows() == []
-
-
-def test_ad_create_that_returns_no_id_writes_no_row_and_does_not_raise():
-    """A create that succeeds but yields no id cannot be mapped.
-
-    Logged loudly rather than raised: the ad exists, so aborting would not
-    undo anything, and the miss surfaces later as an unmapped-ad count.
-    """
-    _reset_db()
-
-    _run([_ad_create(_provenance())], [None])
-
-    assert _all_rows() == []
-
-
-def test_non_ad_creates_write_no_row():
-    """Adsets, campaigns and audiences all return ids. None of them are ads."""
-    _reset_db()
-
-    _run(
-        [
-            Instruction("adset", "create", {"name": "stratum-1"}, None),
-            Instruction("campaign", "create", {"name": "campaign"}, None),
-            Instruction("custom_audience", "create", {"name": "aud"}, None),
-        ],
-        ["adset-1", "campaign-1", "aud-1"],
-    )
-
-    assert _all_rows() == []
-
-
-def test_ad_updates_and_deletes_write_no_row():
-    _reset_db()
-
-    _run(
-        [
-            Instruction("ad", "update", {"status": "PAUSED"}, "ad-1"),
-            Instruction("ad", "delete", {}, "ad-1"),
-        ],
-        [None, None],
-    )
-
-    assert _all_rows() == []
-
-
-# ---------------------------------------------------------------------------
-# Invariant 2: append-only
-# ---------------------------------------------------------------------------
-
-
-def test_deleting_the_ad_leaves_its_mapping_row_intact():
-    """The invariant reconciliation is most likely to violate.
-
-    Reconciliation deletes ads that fall out of the desired set, but
-    respondents keep arriving from deleted ads -- CTWA referrals carry
-    ads_context_data.post_id and page posts persist and can be reshared
-    indefinitely. The row has to outlive the ad, which is also why this table
-    can never be rebuilt from live Facebook state.
-    """
-    _reset_db()
-    _run([_ad_create(_provenance())], ["ad-1"])
-    assert len(_all_rows()) == 1
-
-    # A later reconciliation run drops the ad.
-    _run([Instruction("ad", "delete", {}, "ad-1")], [None])
-
-    rows = _all_rows()
-    assert len(rows) == 1
-    assert rows[0]["ad_id"] == "ad-1"
 
 
 def test_row_survives_deletion_of_its_study():
@@ -290,24 +124,6 @@ def test_row_survives_deletion_of_its_study():
 # ---------------------------------------------------------------------------
 # Invariant 3: frozen at creation, and therefore idempotent
 # ---------------------------------------------------------------------------
-
-
-def test_rerunning_reconciliation_neither_duplicates_nor_mutates():
-    """Re-running must be free.
-
-    In practice reconciliation emits no create for an ad that already exists,
-    so this is belt and braces -- but the belt matters, because the write is
-    the only thing standing between a conf edit and a rewritten snapshot.
-    """
-    _reset_db()
-    original = _provenance()
-
-    _run([_ad_create(original)], ["ad-1"])
-    _run([_ad_create(original)], ["ad-1"])
-
-    rows = _all_rows()
-    assert len(rows) == 1
-    assert rows[0]["metadata"] == original["metadata"]
 
 
 def test_a_later_write_cannot_overwrite_the_frozen_metadata():
@@ -408,54 +224,6 @@ def test_metadata_survives_unicode_and_punctuation():
 # ---------------------------------------------------------------------------
 
 
-def test_created_id_reads_the_id_from_a_created_object():
-    class _Created:
-        def __init__(self, data):
-            self._data = data
-
-        def __getitem__(self, k):
-            return self._data[k]
-
-    assert created_id(_Created({"id": "120254866237980150"})) == "120254866237980150"
-    assert created_id({"id": 12345}) == "12345"
-
-
-def test_created_id_is_none_when_there_is_nothing_to_read():
-    """Defensive on purpose: a missing id must not crash a run that has
-    already successfully created ads."""
-
-    class _NoId:
-        def __getitem__(self, k):
-            raise KeyError(k)
-
-    assert created_id(None) is None
-    assert created_id({}) is None
-    assert created_id(_NoId()) is None
-
-
-def test_a_write_failure_stops_the_run_rather_than_creating_unmappable_ads():
-    """Fail fast and loud.
-
-    An ad that exists on Facebook with no mapping row can never be attributed,
-    and there is no backfill. Stopping leaves the remaining ads uncreated,
-    which the next run fixes; carrying on would mint permanent silent gaps.
-    """
-    _reset_db()
-    instructions = [_ad_create(_provenance(), name="a"), _ad_create(_provenance(), name="b")]
-
-    with patch(
-        "adopt.malaria.create_ad_attribution",
-        side_effect=RuntimeError("db is down"),
-    ):
-        with pytest.raises(RuntimeError, match="db is down"):
-            _run(instructions, ["ad-1", "ad-2"])
-
-    assert _all_rows() == []
-
-
-# --- the encoded ref's join key -------------------------------------------
-
-
 def test_ref_token_round_trips_through_the_row():
     """The whole point of the column: what the ad ships must come back out.
 
@@ -515,3 +283,288 @@ def test_the_token_is_frozen_like_everything_else_on_the_row():
 
     assert len(rows) == 1
     assert rows[0]["ref_token"] == "a7f3c20b1e"
+
+
+# ---------------------------------------------------------------------------
+# Healing: the only writer
+# ---------------------------------------------------------------------------
+#
+# The write used to happen at ad-creation time, from the id Facebook returned.
+# That writer could only ever write for ads it had made itself, and
+# reconciliation creates an ad once -- so an ad that arrived any other way was
+# unmapped forever. On 2026-08-30 every ad of vl-pulse-nigeria-smoke and
+# -smoke-wa was created through the dashboard's Optimize tab, one POST per ad,
+# and `ad_attributions` held zero rows in all of production while swoosh
+# dropped every respondent those ads recruited.
+#
+# heal_ad_attributions replaced it rather than joining it: every run compares
+# the ads that exist against the rows that exist and fills the gap, so nothing
+# depends on having been present when an ad was made. These tests pin the three
+# things that must stay true of it -- it adds, it never removes, and it never
+# overwrites a row that is already there.
+
+
+def _healing_study(study_id=STUDY_ID, creative_names=("Creative A", "Creative B")):
+    """A study whose conf describes two strata x N creatives on one campaign."""
+    creatives = [
+        CreativeConf(destination="fly", name=n, template={}) for n in creative_names
+    ]
+
+    return StudyConf(
+        id=study_id,
+        user=UserInfo(survey_user="user", token="token"),
+        general=GeneralConf(
+            name="healing-study",
+            credentials_key="page-1",
+            credentials_entity="facebook_page",
+            ad_account="act_1",
+            opt_window=48,
+        ),
+        destinations=[
+            FlyMessengerDestination(
+                type="messenger",
+                name="fly",
+                initial_shortcode="mnchweek",
+                welcome_message="Welcome!",
+                button_text="OK",
+            )
+        ],
+        audiences=[],
+        creatives=creatives,
+        strata=[
+            StratumConf(
+                id=sid,
+                quota=1.0,
+                creatives=list(creative_names),
+                facebook_targeting={},
+                metadata={"gender": gender},
+                question_targeting=None,
+                audiences=[],
+                excluded_audiences=[],
+            )
+            for sid, gender in (("stratum-men", "men"), ("stratum-women", "women"))
+        ],
+        recruitment=SimpleRecruitment(
+            ad_campaign_name="healing-campaign",
+            objective="OUTCOME_ENGAGEMENT",
+            optimization_goal="CONVERSATIONS",
+            min_budget=1,
+            budget=100,
+            max_sample=100,
+            start_date=datetime(2026, 7, 1),
+            end_date=datetime(2026, 9, 1),
+        ),
+    )
+
+
+class _FakeCampaignState:
+    def __init__(self, name, state):
+        self.campaign_name = name
+        self.campaign_state = state
+
+
+class _FakeState:
+    """The bit of FacebookState healing reads: live adsets and their ads.
+
+    Adsets and ads are plain dicts because that is all `heal_ad_attributions`
+    asks of them -- a name and an id. A campaign the study names but Facebook
+    does not have raises StateNameError, exactly as CampaignState.campaign does
+    for a study that has not published yet.
+    """
+
+    def __init__(self, by_campaign):
+        self._by_campaign = by_campaign
+
+    def campaign_state(self, name):
+        if name not in self._by_campaign:
+            raise StateNameError(f"No campaign found with name: {name}")
+        return _FakeCampaignState(name, self._by_campaign[name])
+
+
+def _live(*pairs):
+    """[(adset_name, [(ad_id, ad_name), ...]), ...] -> the campaign_state shape."""
+    return [
+        ({"name": adset_name}, [{"id": i, "name": n} for i, n in ads])
+        for adset_name, ads in pairs
+    ]
+
+
+def _one_campaign(*pairs):
+    return _FakeState({"healing-campaign": _live(*pairs)})
+
+
+def _rows_by_ad():
+    return {r["ad_id"]: r for r in _all_rows()}
+
+
+def test_healing_writes_a_row_for_every_live_ad_that_has_none():
+    """The whole point: ads created by some other path get mapped anyway."""
+    _reset_db()
+    study = _healing_study()
+    state = _one_campaign(
+        ("stratum-men", [("ad-1", "Creative A"), ("ad-2", "Creative B")]),
+        ("stratum-women", [("ad-3", "Creative A"), ("ad-4", "Creative B")]),
+    )
+
+    healed = heal_ad_attributions(study, state, cnf)
+
+    assert sorted(healed) == ["ad-1", "ad-2", "ad-3", "ad-4"]
+
+    rows = _rows_by_ad()
+    assert rows["ad-1"]["stratum_id"] == "stratum-men"
+    assert rows["ad-1"]["creative_name"] == "Creative A"
+    assert rows["ad-4"]["stratum_id"] == "stratum-women"
+    assert rows["ad-4"]["creative_name"] == "Creative B"
+
+
+def test_healing_matches_an_ad_to_its_stratum_by_adset_name_not_by_order():
+    """The join key is (adset name, ad name) -- the same key ad_dif uses.
+
+    Two adsets carry ads with identical names, which is the normal shape: one
+    creative per stratum. Getting this wrong attributes every respondent to the
+    wrong stratum and nothing downstream can tell, because the row resolves.
+    """
+    _reset_db()
+    study = _healing_study()
+    state = _one_campaign(
+        ("stratum-women", [("w", "Creative A")]),
+        ("stratum-men", [("m", "Creative A")]),
+    )
+
+    heal_ad_attributions(study, state, cnf)
+
+    rows = _rows_by_ad()
+    assert rows["w"]["stratum_id"] == "stratum-women"
+    assert rows["m"]["stratum_id"] == "stratum-men"
+    assert rows["w"]["metadata"]["gender"] == "women"
+    assert rows["m"]["metadata"]["gender"] == "men"
+
+
+def test_healing_freezes_the_same_blob_a_create_time_write_would_have():
+    """A healed row is not a different kind of row. Same metadata contract.
+
+    `creative` and `form` are the two keys stratum.metadata lacks; a healed row
+    missing them would resolve and then match no extraction conf.
+    """
+    _reset_db()
+    study = _healing_study()
+    heal_ad_attributions(study, _one_campaign(("stratum-men", [("a", "Creative A")])), cnf)
+
+    md = _rows_by_ad()["a"]["metadata"]
+    assert md["creative"] == "Creative A"
+    assert md["form"] == "mnchweek"
+    assert md["gender"] == "men"
+
+
+def test_healing_never_overwrites_an_existing_row():
+    """Invariant 3. A snapshot beats a reconstruction, always.
+
+    The conf has moved on since the ad was built -- different stratum, different
+    metadata. Healing must leave the frozen row exactly as it was rather than
+    "correcting" it to today's answer.
+    """
+    _reset_db()
+    study = _healing_study()
+
+    frozen = _provenance(
+        stratum_id="stratum-as-it-was",
+        creative_name="Creative A",
+        metadata={"creative": "Creative A", "form": "old-form", "gender": "nonbinary"},
+    )
+    create_ad_attribution("ad-1", frozen, cnf)
+
+    healed = heal_ad_attributions(
+        study, _one_campaign(("stratum-men", [("ad-1", "Creative A")])), cnf
+    )
+
+    assert healed == []
+    row = _rows_by_ad()["ad-1"]
+    assert row["stratum_id"] == "stratum-as-it-was"
+    assert row["metadata"]["gender"] == "nonbinary"
+
+
+def test_healing_is_idempotent():
+    """Every run heals. Running it twice must cost nothing and change nothing."""
+    _reset_db()
+    study = _healing_study()
+    state = _one_campaign(("stratum-men", [("ad-1", "Creative A")]))
+
+    assert heal_ad_attributions(study, state, cnf) == ["ad-1"]
+    assert heal_ad_attributions(study, state, cnf) == []
+    assert len(_all_rows()) == 1
+
+
+def test_healing_never_removes_a_row_whose_ad_is_gone():
+    """Invariant 2, and the reason healing is add-only.
+
+    Respondents keep arriving from ads that no longer exist -- a page post can
+    be reshared indefinitely -- so an ad's absence from Facebook is never
+    evidence that its row should go.
+    """
+    _reset_db()
+    study = _healing_study()
+    create_ad_attribution("deleted-ad", _provenance(stratum_id="stratum-men"), cnf)
+
+    heal_ad_attributions(study, _one_campaign(("stratum-men", [])), cnf)
+
+    assert _rows_by_ad()["deleted-ad"]["stratum_id"] == "stratum-men"
+
+
+def test_healing_touches_no_other_study():
+    _reset_db()
+    create_ad_attribution("theirs", _provenance(study_id=OTHER_STUDY_ID), cnf)
+
+    heal_ad_attributions(
+        _healing_study(), _one_campaign(("stratum-men", [("mine", "Creative A")])), cnf
+    )
+
+    rows = _rows_by_ad()
+    assert str(rows["theirs"]["study_id"]) == OTHER_STUDY_ID
+    assert str(rows["mine"]["study_id"]) == STUDY_ID
+
+
+def test_healing_skips_an_ad_the_conf_no_longer_describes():
+    """The one hole healing cannot fill, and it must not guess.
+
+    An ad whose (adset, creative) pair is not in the conf has nothing left to
+    say what it meant. Inventing a row would attribute its respondents to a
+    stratum they were never recruited into, which is worse than counting none.
+    """
+    _reset_db()
+    study = _healing_study()
+    state = _one_campaign(
+        ("stratum-men", [("known", "Creative A"), ("orphan", "Creative Deleted")]),
+        ("stratum-that-was-renamed", [("stale", "Creative A")]),
+    )
+
+    healed = heal_ad_attributions(study, state, cnf)
+
+    assert healed == ["known"]
+    assert set(_rows_by_ad()) == {"known"}
+
+
+def test_healing_is_quiet_for_a_study_whose_campaign_does_not_exist_yet():
+    """Every study looks like this before its first run. Not a failure."""
+    _reset_db()
+
+    assert heal_ad_attributions(_healing_study(), _FakeState({}), cnf) == []
+    assert _all_rows() == []
+
+
+def test_healing_needs_no_graph_lookup_for_audiences():
+    """The repair path must not share failure modes with the thing it repairs.
+
+    Strata are hydrated with resolve_audiences=False, so a study whose stratum
+    names a custom audience can still be healed with `state` that would raise
+    on any audience lookup. Passing a state that has no audience machinery at
+    all is the assertion.
+    """
+    _reset_db()
+    study = _healing_study()
+    study.strata[0].excluded_audiences = ["an-audience-that-is-not-on-facebook"]
+
+    healed = heal_ad_attributions(
+        study, _one_campaign(("stratum-men", [("ad-1", "Creative A")])), cnf
+    )
+
+    assert healed == ["ad-1"]

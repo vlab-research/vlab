@@ -1,11 +1,9 @@
 from datetime import datetime, timezone
-from typing import Any, Dict, NamedTuple, Optional, Tuple
+from typing import Any, Dict, NamedTuple, Optional
 
 import requests
 
 from .state import FacebookState, call
-
-Provenance = Dict[str, Any]
 
 
 class Instruction(NamedTuple):
@@ -13,19 +11,6 @@ class Instruction(NamedTuple):
     action: str
     params: Dict[str, Any]
     id: Optional[str] = None
-
-    # What this instruction is *for*, in vlab's own vocabulary, as opposed to
-    # `params`, which is what Facebook is told. Only ad creates carry it, and
-    # only so the imperative shell can write the ad -> stratum mapping row once
-    # Facebook returns the new id. Optional and defaulted so that every
-    # existing construction site -- campaigns, adsets, audiences, updates,
-    # deletes -- is unchanged.
-    #
-    # Carried on the instruction rather than recomputed after the fact because
-    # the mapping has to be joined to the ad that was actually created, and
-    # `_diff` is the only place that knows which ads those are. Generating the
-    # instruction stays pure; the write happens in run_instructions.
-    provenance: Optional[Provenance] = None
 
 
 class InstructionError(BaseException):
@@ -42,30 +27,6 @@ def report(i: Instruction):
             "params": i.params,
         },
     }
-
-
-def created_id(res: Any) -> Optional[str]:
-    """The id of a freshly created Graph object, or None if we can't find one.
-
-    The SDK's create_* methods hand back an AbstractCrudObject whose `id` is
-    populated from the response. Not every node type is guaranteed to do so,
-    and `call` is generic, so this stays defensive: a missing id must not blow
-    up the reconciliation run that just successfully created an ad. The caller
-    treats None as "nothing to record" and the absence shows up as an unmapped
-    ad downstream, which is a counted, visible failure rather than a crash.
-    """
-    if res is None:
-        return None
-
-    try:
-        id_ = res["id"]
-    except (KeyError, TypeError, IndexError):
-        try:
-            id_ = res.get_id()
-        except AttributeError:
-            return None
-
-    return str(id_) if id_ is not None else None
 
 
 def add_users_to_custom_audience(token, aud_id, params):
@@ -118,29 +79,30 @@ class GraphUpdater:
     def get_object(self, type_, id_):
         return self.objects[type_](id_)
 
-    def execute(self, instruction: Instruction) -> Tuple[Dict[str, Any], Optional[str]]:
-        """Run one instruction. Returns (report, created_id).
+    def execute(self, instruction: Instruction) -> Dict[str, Any]:
+        """Run one instruction.
 
-        `created_id` is the id Facebook assigned to a newly created object, and
-        None for every other action. It used to be dropped on the floor; it is
-        the only moment at which vlab learns the ad id it needs in order to own
-        the ad -> stratum join, and there is no way to recover it afterwards
-        that does not go back to the Graph API.
+        Nothing is returned but the report. The ad id Facebook hands back on a
+        create used to be captured here and threaded into an ad_attributions
+        row; it no longer is, because that row is written by
+        `malaria.heal_ad_attributions`, which reads the ads that exist rather
+        than the ids of the ones this process happened to make. One writer, and
+        it does not depend on having been present at the creation.
         """
         if instruction.action == "update":
             obj = self.get_object(instruction.node, instruction.id)
             call(obj.api_update, params=instruction.params, fields=[])
-            return report(instruction), None
+            return report(instruction)
 
         if instruction.action == "delete":
             obj = self.get_object(instruction.node, instruction.id)
             call(obj.api_delete)
-            return report(instruction), None
+            return report(instruction)
 
         if instruction.action == "create":
             create = self.get_create(instruction.node)
-            res = call(create, params=instruction.params, fields=[])
-            return report(instruction), created_id(res)
+            call(create, params=instruction.params, fields=[])
+            return report(instruction)
 
         if instruction.action == "add_users":
             # special case, node-edge
@@ -149,7 +111,7 @@ class GraphUpdater:
 
             call(aud.create_users_replace, params=instruction.params, fields=[])
 
-            return report(instruction), None
+            return report(instruction)
 
         raise InstructionError(
             f"action: {instruction.action} not a valid instruction action"
