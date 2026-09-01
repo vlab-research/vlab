@@ -1,13 +1,12 @@
 import React from 'react';
-import { GenericSelect, SelectI } from '../../components/Select';
+import { RadioGroup } from '../../components/RadioGroup';
 import {
   REF_MODE_CHANGE_WARNING,
+  REF_MODE_LABEL,
   displayedRefMode,
   refModeChanges,
   refModeOptions,
 } from './refMode';
-
-const Select = GenericSelect as SelectI<any>;
 
 interface Props {
   data: any;
@@ -20,14 +19,20 @@ interface Props {
 
 // One control, rendered by all five destination forms rather than copied into
 // each, so that a multi-channel study attributes exactly one way.
+//
+// Radios rather than a select: the two options are terms the researcher is
+// being taught -- "plain ref" and "encoded ref" -- and a term is useless
+// without the sentence that defines it. An `<option>` can hold a name or an
+// explanation, never both, which is how this control ended up as a question
+// answered by two sentences with no names at all. See `refMode.ts`.
 const RefModeField: React.FC<Props> = ({ data, handleChange, saved }: Props) => {
   const warn = !!saved && refModeChanges(saved.ref_mode, data.ref_mode);
 
   return (
     <>
-      <Select
+      <RadioGroup
         name="ref_mode"
-        label="Where does this ad's stratum data end up?"
+        label={REF_MODE_LABEL}
         options={refModeOptions()}
         handleChange={handleChange}
         value={displayedRefMode(data.ref_mode)}

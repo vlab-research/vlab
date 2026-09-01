@@ -1,18 +1,31 @@
+const MS_PER_DAY = 24 * 60 * 60 * 1000;
+
+// The UTC calendar day a moment falls on, counted from the epoch.
+//
+// Counting absolute days is what makes the comparison below safe across month
+// and year boundaries. The previous version asked whether two dates shared a
+// year and a month before comparing `getUTCDate()`, which meant "yesterday"
+// could never be recognised on the 1st: on 2026-09-01 the day before is in
+// August, the month guard fails, and the dashboard rendered "August 31, 2026"
+// where it should have said "Yesterday". Same bug on Jan 1 across the year.
+const utcCalendarDay = (date: Date) =>
+  Math.floor(
+    Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()) /
+      MS_PER_DAY
+  );
+
 export const formatTimestamp = (timestamp: number) => {
   const providedDate = new Date(timestamp);
   const currentDate = new Date();
 
-  if (
-    providedDate.getUTCFullYear() === currentDate.getUTCFullYear() &&
-    providedDate.getUTCMonth() === currentDate.getUTCMonth()
-  ) {
-    if (providedDate.getUTCDate() === currentDate.getUTCDate()) {
-      return 'Today';
-    }
+  const daysAgo = utcCalendarDay(currentDate) - utcCalendarDay(providedDate);
 
-    if (providedDate.getUTCDate() === currentDate.getUTCDate() - 1) {
-      return 'Yesterday';
-    }
+  if (daysAgo === 0) {
+    return 'Today';
+  }
+
+  if (daysAgo === 1) {
+    return 'Yesterday';
   }
 
   return providedDate.toLocaleDateString('en', {

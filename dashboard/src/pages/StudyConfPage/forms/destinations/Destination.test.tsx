@@ -8,6 +8,20 @@ import { Destination as DestinationType } from '../../../../types/conf';
 const field = (container: HTMLElement, name: string) =>
   container.querySelector(`[name="${name}"]`) as HTMLSelectElement;
 
+// Ref mode is a radio group, so the answer is which radio is checked rather
+// than the value of any one of them. Queried by role and by conf value, not by
+// the mode's display name — these tests are about what gets saved, and
+// `refMode.test.ts` is where the wording is pinned.
+const refMode = () =>
+  (screen.getByRole('radio', { checked: true }) as HTMLInputElement).value;
+
+const chooseRefMode = (mode: string) =>
+  fireEvent.click(
+    screen
+      .getAllByRole('radio')
+      .find(r => (r as HTMLInputElement).value === mode) as HTMLInputElement
+  );
+
 // The scenario the whole absent-is-a-real-state rule exists for.
 //
 // A destination saved before ref_mode existed resolves to the behaviour it
@@ -42,9 +56,9 @@ describe('a destination saved before ref_mode existed', () => {
   };
 
   it('shows the mode it actually runs under', () => {
-    const { container } = renderIt();
+    renderIt();
 
-    expect(field(container, 'ref_mode').value).toBe('metadata');
+    expect(refMode()).toBe('metadata');
   });
 
   it('keeps the field absent through an unrelated edit', () => {
@@ -60,13 +74,11 @@ describe('a destination saved before ref_mode existed', () => {
   });
 
   it('warns before changing a mode that already has ads in flight', () => {
-    const { update, container } = renderIt();
+    const { update } = renderIt();
 
     expect(screen.queryByText(/rewrites every ad/i)).toBeNull();
 
-    fireEvent.change(field(container, 'ref_mode'), {
-      target: { name: 'ref_mode', value: 'encoded' },
-    });
+    chooseRefMode('encoded');
 
     const [conf] = update.mock.calls[update.mock.calls.length - 1];
     expect(conf.ref_mode).toBe('encoded');

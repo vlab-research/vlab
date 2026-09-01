@@ -2,6 +2,29 @@
 import { formatRelativeTime, formatTimestamp } from './dates';
 
 describe('formatTimestamp', () => {
+  afterEach(() => jest.useRealTimers());
+
+  // Regression: "Yesterday" used to be guarded by a same-month check, so it was
+  // wrong on the 1st of every month — on 2026-09-01 it rendered the day before
+  // as "August 31, 2026". These pin the clock rather than reading it, because
+  // the old bug was invisible on 28 days out of 30 and turned CI red on the 1st.
+  const dayBefore = (today: string) => {
+    jest.useFakeTimers().setSystemTime(new Date(today));
+    return formatTimestamp(Date.now() - 24 * 60 * 60 * 1000);
+  };
+
+  it('says Yesterday across a month boundary', () => {
+    expect(dayBefore('2026-09-01T12:00:00Z')).toBe('Yesterday');
+  });
+
+  it('says Yesterday across a year boundary', () => {
+    expect(dayBefore('2027-01-01T12:00:00Z')).toBe('Yesterday');
+  });
+
+  it('says Yesterday mid-month, as it always did', () => {
+    expect(dayBefore('2026-09-15T12:00:00Z')).toBe('Yesterday');
+  });
+
   it('can format a milliseconds timestamp into a human readable date', () => {
     const dayInMilliseconds = 24 * 60 * 60 * 1000;
     const currentTimestamp = Date.now();

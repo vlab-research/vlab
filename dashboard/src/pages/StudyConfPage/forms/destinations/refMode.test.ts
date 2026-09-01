@@ -16,15 +16,38 @@ describe('refModeOptions', () => {
     ]);
   });
 
-  it('labels by consequence, not by field value', () => {
-    // What a researcher needs is where their stratum data ends up and what the
-    // key is. The words `ref_mode` and `encoded` never reach the screen.
-    for (const option of refModeOptions()) {
-      expect(option.label).not.toMatch(/ref_mode|encoded|token|metadata/i);
-    }
+  it('names them, rather than describing them', () => {
+    // The control used to answer a question with two sentences and no names,
+    // which left a researcher nothing to refer to afterwards. These are the
+    // defined terms, and they are the same ones the docs use.
+    expect(refModeOptions().map(o => o.label)).toEqual([
+      'Plain ref',
+      'Encoded ref',
+    ]);
+  });
 
-    expect(refModeOptions()[0].label).toMatch(/columns/i);
-    expect(refModeOptions()[1].label).toMatch(/looked up/i);
+  it('defines each name where it is chosen', () => {
+    // A term is useless without its definition, and the moment of choosing is
+    // the only moment the researcher is looking. Every option carries one.
+    for (const option of refModeOptions()) {
+      expect(option.description).toBeTruthy();
+    }
+  });
+
+  it('says where the stratum data comes out, on both sides of the choice', () => {
+    // The one thing that decides it. Plain puts it in the response columns;
+    // encoded puts it in a separate export, and names the key to join on,
+    // because a researcher will not guess `ref_token`.
+    const [plain, encoded] = refModeOptions();
+
+    expect(plain.description).toMatch(/columns/i);
+    expect(encoded.description).toMatch(/ad-attributions export/i);
+    expect(encoded.description).toMatch(/ref_token/);
+  });
+
+  it('warns that a plain ref is readable where the respondent can see it', () => {
+    // Its one cost, and the whole reason a WhatsApp study cannot take it.
+    expect(refModeOptions()[0].description).toMatch(/whatsapp/i);
   });
 });
 

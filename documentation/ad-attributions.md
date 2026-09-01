@@ -69,7 +69,7 @@ keep the dotted ref indefinitely and are never migrated.
 
 Two later changes did touch the ref itself, both deliberately containable:
 
-- `ref_mode` was added, `Optional` and defaulting to the historical full ref. A
+- `ref_mode` was added, `Optional` and defaulting to the historical plain ref. A
   conf that states no mode resolves to exactly the behaviour it has today, and
   no stored JSON is rewritten. A study only thins its ref when someone sets it.
 - `make_ref` now encodes `.` and `~`. Only values actually containing those
@@ -437,6 +437,48 @@ A ref either carries the stratum or carries a token that resolves to it. A study
 with no stratification simply has a short ref, because `creative_metadata` has
 nothing to put in it.
 
+#### What we call them
+
+Two names, used in the dashboard, in this document, and in conversation with
+researchers. There is no third vocabulary:
+
+| name | `ref_mode` | the ref looks like | where the stratum comes out |
+|---|---|---|---|
+| **plain ref** | `"metadata"` | `creative.X.gender.women.form.Y` | inline, as columns on the response |
+| **encoded ref** | `"encoded"` | `r.<base64url(v1\|len\|shortcode\|token)>` | the ad-attributions export, joined on `ref_token` |
+
+**"Encoded" is deliberately the stored value.** The name a researcher hears and
+the string in the conf are one word, so there is nothing to keep in sync and a
+support conversation can be pasted into a JSON blob unchanged.
+
+**"Plain" is deliberately *not* the stored value.** It maps to `"metadata"`,
+which names where the stratum rides rather than how the ref reads — and which
+cannot be renamed, because it is in every destination conf in the database. The
+mapping is documented instead: here, and in `refMode.ts`.
+
+Older notes in `planning/` say **thick** for a plain ref, and **thin** for a
+third mode that carried neither the stratum nor a token. Thin attributed nobody
+and is gone from the UI; thick is now plain. Prefer plain/encoded.
+
+#### Telling a researcher which to use
+
+The choice turns on one question — *can the respondent see the ref?* — and one
+consequence.
+
+- **A plain ref is readable and editable wherever it is visible.** On Messenger
+  it is not visible, so a plain ref costs nothing and the stratum arrives as
+  columns with nothing to join. On WhatsApp it sits in the compose box, in
+  front of the respondent, who can edit it before sending.
+- **An encoded ref is a short code on every channel.** The stratum comes from
+  the ad-attributions export instead, joined to responses on `ref_token`.
+
+So: **WhatsApp and multi need an encoded ref.** A Messenger-only study may take
+either, and a plain ref is genuinely simpler there. **A study running on more
+than one channel should take an encoded ref everywhere** — not for purity, but
+because a study that is plain on Messenger and encoded on WhatsApp is joined two
+different ways depending on which arm a respondent came through, and that
+surfaces at analysis time, months later, to someone who was not in the room.
+
 `RefModeDestination` carries exactly one field:
 
 ```python
@@ -558,11 +600,19 @@ control, rendered by all five destination forms rather than copied into each, so
 that a multi-channel study attributes exactly one way. `refModeOptions()` takes
 no arguments and returns both modes — there is nothing to decide it from.
 
-It labels by consequence. The words `ref_mode` and `encoded` never reach the
-screen: what a researcher needs to decide is where their stratum data ends up
-and what the key is — inline, so the export already has `gender` and `region` as
-columns and there is nothing to join; or looked up afterwards from the
-ad-attributions export.
+It presents the two **named** modes — "Plain ref" and "Encoded ref" — each with
+the sentence that defines it: where the stratum data comes out, and what it
+costs. The encoded description names `ref_token` outright, because that is the
+key a researcher joins on and they will not find it by guessing.
+
+It renders as a radio group (`components/RadioGroup.tsx`) rather than a
+`<select>`, and that is the reason for the component's existence: an `<option>`
+holds flat text, so a select can show a name or an explanation, never both. It
+previously showed the explanation only — a question ("Where does this ad's
+stratum data end up?") answered by two sentences with no names at all — which
+left a researcher nothing to refer to once the form was closed. Naming the modes
+is what makes it possible to *tell* someone which one to use; the sentences did
+not disappear, they moved under the names they explain.
 
 **The rule that carries the migration.** The encoded default is a *new-conf*
 affordance and is never written onto a conf that arrived without one. An absent
@@ -770,7 +820,7 @@ rejects it, no `conversation_started` is derived, and the arrival falls through
 to `FALLBACK_FORM`: a real survey, so those respondents look like completions
 rather than errors. That is the VIR-19 shape, which took four days to spot.
 
-### Full-ref mode: once rare, now workable
+### Plain refs on WhatsApp: once rare, now workable
 
 The widened gate changed this substantially. Measured against the production
 stratum values recorded in `planning/ad-id-attribution.md`:
@@ -817,7 +867,7 @@ confs:
 It fails closed. A study with an undeliverable ref creates **no ads at all**,
 rather than ads that recruit people into the fallback survey.
 
-Ref content and inference source stay orthogonal: a study can emit full refs for
+Ref content and inference source stay orthogonal: a study can emit plain refs for
 fly survey logic *and* declare a lookup conf for the optimizer.
 
 ### The ad set half

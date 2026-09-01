@@ -17,6 +17,28 @@ What this unblocked: `vlpulseng` stalled on 2026-08-21 partly because ref mode
 was API-only and needed an Auth0 bearer token. It does not any more — the whole
 study is configurable in the dashboard. See
 `planning/encoded-ref-probe-runbook.md`.
+
+**Superseded on naming (2026-09-01).** §4.4's "the word 'encoded' need not
+appear as jargon; frame by consequence" was tried and did not work. Framing by
+consequence alone means the control is a *question* answered by two *sentences*,
+and a sentence cannot be referred to afterwards -- not in a support thread, not
+in a doc, not by a researcher asking a colleague which one their study uses. The
+two modes now have names, and the names are used everywhere:
+
+| name | `ref_mode` | this doc used to say |
+|---|---|---|
+| **plain ref** | `"metadata"` | thick |
+| **encoded ref** | `"encoded"` | encoded |
+
+"Encoded" is deliberately the stored value, so the researcher-facing word and
+the conf string are one word. "Plain" maps to `"metadata"`, which cannot be
+renamed -- it is in every stored conf -- so the mapping is documented instead.
+**Thin is gone** (§3), so read "thick" below as "plain ref". The consequence
+framing of §4.4 was not discarded; it became each option's description, where it
+explains a name instead of standing in for one. The control is now a radio group
+for exactly that reason: an `<option>` cannot hold a name *and* its definition.
+Canonical definition: `documentation/ad-attributions.md`, "What we call them".
+
 **Scope:** the dashboard UX for how a study's ads carry attribution, and the
 model/UI split that makes it migration-safe.
 **Reads with:** `documentation/ad-attributions.md` (the join, both sides),
