@@ -552,8 +552,20 @@ class AdSpec:
 # The substituted value is an id for a campaign / ad set / creative and the
 # image HASH for an image, because a hash is what a creative references. That
 # asymmetry is the only thing about the syntax worth remembering.
+#
+# WHY THE `vlab:` PREFIX. `_substitute` walks every string in a create's params,
+# and those params include the researcher's own ad copy. A bare `${...}` syntax
+# would mean a message reading exactly "${discount}" was either substituted or
+# -- because an unknown ref is treated as a planner bug -- a hard error at apply
+# time on an ad that was fine. Namespacing the placeholder makes a collision
+# require a message that is exactly `${vlab:<a ref this plan defines>}`, and
+# lets the unknown-ref guard stay a hard error, which is what catches a real
+# planner bug.
+PLACEHOLDER_PREFIX = "${vlab:"
+
+
 def ref_placeholder(ref: str) -> str:
-    return "${" + ref + "}"
+    return PLACEHOLDER_PREFIX + ref + "}"
 
 
 @dataclass(frozen=True)
@@ -1145,15 +1157,17 @@ def normalise_account_id(account_id: str) -> str:
 
 
 def _substitute(value: Any, table: Mapping[str, str]) -> Any:
-    """Replace `${ref}` placeholders, recursively.
+    """Replace `${vlab:ref}` placeholders, recursively.
 
     Whole-string only: a placeholder is always an entire value (an id, a hash),
     never embedded in a sentence, so there is no partial interpolation to get
     wrong and no way for a Meta-supplied string to be treated as a template.
+    Namespaced, so that a researcher's own ad copy cannot collide with one --
+    see `PLACEHOLDER_PREFIX`.
     """
     if isinstance(value, str):
-        if value.startswith("${") and value.endswith("}"):
-            ref = value[2:-1]
+        if value.startswith(PLACEHOLDER_PREFIX) and value.endswith("}"):
+            ref = value[len(PLACEHOLDER_PREFIX) : -1]
             if ref not in table:
                 raise TemplateApplyError(
                     f"Plan references {ref!r}, which nothing in it creates. "

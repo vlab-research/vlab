@@ -545,3 +545,25 @@ def test_importing_templates_cli_first_still_registers_the_group():
     reloaded = importlib.import_module("adopt.sdk.cli")
     assert "template" in reloaded.cli.commands
     assert templates_cli.template is reloaded.cli.commands["template"]
+
+
+def test_check_targeting_names_an_adset_with_no_targeting(runner, tmp_path):
+    """Refused locally rather than sent: `json.dumps(None)` is the string
+    "null", and Meta's answer about a malformed `targeting_spec` is true and
+    useless for finding which ad set is missing one.
+    """
+    path = tmp_path / "spec.yaml"
+    # Inserted into `adsets`, not appended -- SPEC ends inside `ads`.
+    path.write_text(
+        SPEC.replace("ads:\n", "  - name: Empty\n    kind: messenger\nads:\n"),
+        "utf8",
+    )
+    with patch.object(
+        FacebookAdsApi, "call", side_effect=AssertionError("sent a null spec")
+    ):
+        result = _run(
+            runner,
+            ["template", "check-targeting", "--account", ACCOUNT, "--spec", str(path)],
+        )
+    assert result.exit_code != 0
+    assert "Empty" in result.output

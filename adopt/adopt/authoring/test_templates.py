@@ -271,7 +271,7 @@ def test_the_plan_for_a_messenger_campaign_is_byte_stable():
                 "edge": "adsets",
                 "params": {
                     "name": "Kwara - Men",
-                    "campaign_id": "${campaign}",
+                    "campaign_id": "${vlab:campaign}",
                     "optimization_goal": "CONVERSATIONS",
                     "billing_event": "IMPRESSIONS",
                     "bid_strategy": "LOWEST_COST_WITHOUT_CAP",
@@ -296,7 +296,7 @@ def test_the_plan_for_a_messenger_campaign_is_byte_stable():
                 "edge": "adsets",
                 "params": {
                     "name": "Kwara - Women",
-                    "campaign_id": "${campaign}",
+                    "campaign_id": "${vlab:campaign}",
                     "optimization_goal": "CONVERSATIONS",
                     "billing_event": "IMPRESSIONS",
                     "bid_strategy": "LOWEST_COST_WITHOUT_CAP",
@@ -358,8 +358,8 @@ def test_the_plan_for_a_messenger_campaign_is_byte_stable():
                 "edge": "ads",
                 "params": {
                     "name": "vlpulse-ng-1",
-                    "adset_id": "${adset:Kwara - Men}",
-                    "creative": {"creative_id": "${creative:vlpulse-ng-1}"},
+                    "adset_id": "${vlab:adset:Kwara - Men}",
+                    "creative": {"creative_id": "${vlab:creative:vlpulse-ng-1}"},
                     "status": "PAUSED",
                 },
             },
@@ -1061,7 +1061,7 @@ def test_plan_template_ads_targets_an_existing_marked_campaign(api):
     # than being substituted into the create -- the placeholder syntax stays
     # uniform and `apply`'s "references something nothing creates" guard keeps
     # its teeth for every other ref.
-    assert ad.params["adset_id"] == "${adset}"
+    assert ad.params["adset_id"] == "${vlab:adset}"
     assert plan.seed == {"adset": "A1"}
 
     patcher, g = _graph(
@@ -1275,3 +1275,64 @@ def test_a_multi_adset_off_conversations_is_warned_about():
         ads=[_ad(tp.MULTI, adset="a")],
     )
     assert any("CONVERSATIONS is the only one accepted" in w for w in plan.warnings)
+
+
+def test_ad_copy_that_looks_like_a_placeholder_is_left_alone(api):
+    """`_substitute` walks the researcher's own copy, so it must not eat it.
+
+    A bare `${...}` syntax would either substitute this message or -- because
+    an unknown ref is treated as a planner bug -- fail the apply outright on an
+    ad that is perfectly fine. Namespacing the placeholder is what makes the
+    unknown-ref guard safe to keep as a hard error.
+
+    `${vlab:...}` itself IS reserved and still errors on an unknown ref; that
+    is the point, and the next test covers it. Nothing else is.
+    """
+    plan = tp.plan_template_campaign(
+        account_id=ACCOUNT,
+        name="Dollars",
+        adsets=_adsets(),
+        ads=[_ad(message="${campaign}", headline="$5 or ${creative:x}")],
+    )
+    patcher, g = _graph(
+        **{
+            "GET campaigns": [{"data": []}],
+            "POST campaigns": [{"id": "C1"}],
+            "POST adsets": [{"id": "A1"}, {"id": "A2"}],
+            "POST adcreatives": [{"id": "CR1"}],
+            "POST ads": [{"id": "AD1"}],
+            "GET CR1": [{"id": "CR1", "actor_id": PAGE, "object_story_spec": {}}],
+        }
+    )
+    with patcher:
+        tp.apply(plan, api)
+
+    link_data = g.posted("adcreatives")[0]["object_story_spec"]["link_data"]
+    assert link_data["message"] == "${campaign}"
+    assert link_data["name"] == "$5 or ${creative:x}"
+
+
+def test_a_placeholder_for_something_nothing_creates_is_a_planner_bug(api):
+    """The guard the namespace exists to protect: it stays a hard error."""
+    plan = tp.plan_template_campaign(
+        account_id=ACCOUNT, name="Broken", adsets=_adsets()
+    )
+    broken = tp.TemplatePlan(
+        account_id=plan.account_id,
+        creates=plan.creates[:1]
+        + (
+            tp.Create(
+                ref="adset:x",
+                node="adset",
+                edge="adsets",
+                params={"name": "x", "campaign_id": tp.ref_placeholder("nowhere")},
+            ),
+        ),
+        campaign_name=plan.campaign_name,
+    )
+    patcher, _ = _graph(
+        **{"GET campaigns": [{"data": []}], "POST campaigns": [{"id": "C1"}]}
+    )
+    with patcher:
+        with pytest.raises(tp.TemplateApplyError, match="nothing in it creates"):
+            tp.apply(broken, api)

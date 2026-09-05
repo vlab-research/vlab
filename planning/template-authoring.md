@@ -26,10 +26,10 @@ that needs paused-only and budget-ceiling guardrails plus an audit trail.
 | `adopt/adopt/meta_fields.py` | The Graph `fields` lists, extracted from `server/meta.py` so the builder and the proxy name the same fields. |
 | `adopt/adopt/facebook/state.py` | `api_for_token` — the one place a `FacebookSession` is constructed. `get_api` delegates to it. |
 | `adopt/adopt/sdk/cli.py` | **One line**: `from . import templates_cli` at the bottom. |
-| tests | `authoring/test_templates.py` (67), `sdk/test_templates_cli.py` (26). No database, no live Meta; the mock boundary is `FacebookAdsApi.call`, as in `server/test_meta.py`. |
+| tests | `authoring/test_templates.py` (69), `sdk/test_templates_cli.py` (27). No database, no live Meta; the mock boundary is `FacebookAdsApi.call`, as in `server/test_meta.py`. |
 | docs | `documentation/agent-api.md` §6a (new, and the single home for the Meta quirks §10 asked to have promoted), §3 `creatives` pointer, §7 item 2 corrected, §8 entry. `adopt/README.md` gains a `vlab template` section. |
 
-DB-free suite 1 564 → 1 657 passed locally (Docker is down on the author's
+DB-free suite 1 564 → 1 660 passed locally (Docker is down on the author's
 machine, so the ~100 database-backed tests were not run here); the full suite
 runs in CI.
 
@@ -62,12 +62,22 @@ as a `create_template_campaign(...)` that does the obvious thing:
    them four objects into an apply, with the first three left behind and no
    rollback.
 
-The placeholder is whole-string only (`"${campaign}"` is a value, never a
+The placeholder is whole-string only (`"${vlab:campaign}"` is a value, never a
 fragment inside a sentence), so there is no partial interpolation to get wrong
 and no way for a Meta-supplied string to be treated as a template. The one
-asymmetry worth remembering: a placeholder resolves to an **id** for a campaign,
-ad set or creative, and to the **image hash** for an upload — because a hash is
-what a creative references.
+asymmetry worth remembering: a placeholder resolves to an **id** for a
+campaign, ad set or creative, and to the **image hash** for an upload — because
+a hash is what a creative references.
+
+**The `vlab:` namespace was added in self-review, and it earns its ugliness.**
+`_substitute` walks every string in a create's params, and those params include
+the researcher's own ad copy. Under the original bare `${...}` syntax, a
+message reading exactly `"${discount}"` was either substituted or — because an
+unknown ref is deliberately a hard error, being a planner bug — failed the
+whole apply on an ad that was fine. Namespacing means a collision needs a
+message that is exactly `${vlab:<a ref this plan defines>}`, which lets the
+unknown-ref guard stay a hard error rather than degrading to "leave it alone",
+which would have hidden real bugs. Two tests pin both halves.
 
 Ordering is images → campaign → ad sets → creatives → ads. Uploads lead because
 an image is cheap, reusable and orphan-safe, while a campaign left behind by a

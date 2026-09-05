@@ -85,11 +85,20 @@ from typing import Any, Dict, List, Optional
 import click
 import yaml
 
-from ..authoring.templates import (CREATIVE_KINDS, DELIVERY_ESTIMATE,
-                                   REACH_ESTIMATE, AdsetSpec, AdSpec,
-                                   TemplateError, TemplatePlan, apply,
-                                   delete_template_campaign, plan_template_ads,
-                                   plan_template_campaign, validate_targeting)
+from ..authoring.templates import (
+    CREATIVE_KINDS,
+    DELIVERY_ESTIMATE,
+    REACH_ESTIMATE,
+    AdsetSpec,
+    AdSpec,
+    TemplateError,
+    TemplatePlan,
+    apply,
+    delete_template_campaign,
+    plan_template_ads,
+    plan_template_campaign,
+    validate_targeting,
+)
 from ..facebook.state import api_for_token
 from .cli import VlabGroup, cli, emit_json
 
@@ -601,6 +610,15 @@ def template_check_targeting(
         ]
         if not cases:
             raise click.ClickException(f"{spec_path} declares no ad sets.")
+        # Refused here rather than sent: `json.dumps(None)` is the string
+        # "null", which Meta answers with a message about `targeting_spec`
+        # being malformed -- true, and useless for finding the ad set that is
+        # missing it.
+        empty = [c["name"] for c in cases if not isinstance(c["targeting"], dict)]
+        if empty:
+            raise click.ClickException(
+                f"{spec_path}: ad set(s) {empty} have no targeting to check."
+            )
 
     out = []
     failed = False
