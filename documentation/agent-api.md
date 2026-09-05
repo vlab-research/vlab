@@ -1017,6 +1017,12 @@ to (`adopt/adopt/audiences.py:150`); a template lacking it raises a bare
 `KeyError("actor_id")`. `template_campaign` and `tags` have no read site under
 `adopt/`.
 
+**If no template ad exists yet**, §6a is how to build one:
+`vlab template create` returns `ads[].template` in exactly this shape, read
+back from Meta rather than echoed. §6a also lists which of the blob's fields
+the runtime copies verbatim and which it overrides per destination, which is
+what to check before hand-editing one.
+
 ### `audiences` — array
 
 Concepts: <https://docs.vlab.digital/vlab/study-configuration/audience/>
@@ -1599,19 +1605,318 @@ Everything else is the agent's.
 
 ---
 
+## 6a. Templates — where a study's targeting and creatives come from
+
+Every section of §6's runbook that mentions Meta assumes something already
+exists on the ad account: a **template campaign** whose ad sets carry the
+targeting a `variables` conf extracts, and whose ads carry the creative blob a
+`creatives` conf stores. Until 2026-09-05 the only way to build one was by hand
+in Ads Manager. `vlab template` builds one from a file.
+
+### What a template is, and what it is not
+
+A template campaign is **authoring-time scaffolding**. adopt never reads it at
+run time and never reads it by name: `Level.template_campaign` /
+`Level.template_adset` and `CreativeConf.template_campaign` are provenance,
+recorded so a human can find the thing a value came from. What the run path
+actually reads is:
+
+| The runtime reads | Out of | Written by |
+|---|---|---|
+| `strata[].facebook_targeting` | `variables[].levels[].facebook_targeting`, extracted from a template ad set by `extract_from_adset` | the Variables form, or `vlab strata extract-targeting` |
+| `creatives[].template` | one template **ad**'s `creative` blob, verbatim | the Creatives form, or `vlab template create --json` |
+
+So a template exists to be *read off*, once, at authoring time. It is created
+PAUSED, it stays PAUSED, and nothing delivers from it. Deleting it after a
+study is configured breaks nothing on the run path — but it does break the
+dashboard's "re-extract targeting" button and the Creatives form's template
+dropdown, so keep it.
+
+### What the runtime needs from a template ad set
+
+Only `targeting`, and only the keys the variable declares. `extract_from_adset`
+raises `PropertyMissingError` for a declared property absent from the ad set,
+and — the quieter failure — **anything set on the ad set but not declared never
+reaches the study's ad sets**, because extraction copies only what the variable
+asks for.
+
+One exception, and it is the one people get wrong:
+`targeting_automation` is **forced on by the extractor** —
+`{"advantage_audience": 0}` is written onto every extraction regardless of what
+was declared or what the source ad set held. So:
+
+* **Do set it on the template ad set.** Meta's Advantage audience expansion is
+  ON by default, and it expands delivery outside the stratum being measured,
+  which for a geographically stratified study means respondents from outside a
+  region counted inside it. `vlab template` always sets it.
+* **Do not declare it as a variable property.** It buys nothing (the extractor
+  forces it either way) and it pins the dashboard's "properties drifted" banner
+  on that variable forever, because `diffPropertyKeys` strips
+  `targeting_automation` from the *stored* key set but not from the declared
+  one. `vlab template plan` warns if you declare it.
+
+This corrects the advice in `adopt/scripts/make_template_campaign.py`, which
+said it had to be both set and declared. The first half is still true.
+
+### What the runtime needs from a template ad's creative
+
+`marketing._create_creative` copies some fields verbatim and overrides the rest
+per destination. That split is the whole contract:
+
+| Copied verbatim from the template | Overridden by the study conf |
+|---|---|
+| `actor_id`, `instagram_user_id`, `degrees_of_freedom_spec`, `thumbnail_url`, `contextual_multi_ads` | `link_data.call_to_action` |
+| `object_story_spec.page_id` / `instagram_user_id` | `link_data.link` (web and app only) |
+| `link_data.image_hash` / `message` / `name` / `description` | `page_welcome_message` (carries the ref) |
+| `video_data.image_hash` / `message` / `title` / `video_id` | `url_tags` (carries the ref) |
+| `asset_feed_spec` variant fields (`bodies`, `titles`, `images`, `videos`, `ad_formats`, `link_urls`, `descriptions`) | `asset_feed_spec.optimization_type` / `call_to_actions`, for a multi destination |
+
+Two fields are read with no guard and so are effectively required:
+
+* **`template["actor_id"]`** — `audiences.hydrate_audiences` indexes it
+  directly, so a template without it is a bare `KeyError` at audience-build
+  time. Meta derives it from `object_story_spec.page_id` and returns it on
+  read; `vlab template` reads the created creative back and warns if it is
+  missing rather than assuming.
+* **`template["object_story_spec"]`** — indexed unconditionally in
+  `_create_creative`.
+
+Everything else is copied only `if field in config.template`.
+
+### The destination must agree, and a good template says which one it is
+
+A messaging ad states its destination in three places — the ad set's
+`destination_type`, `link_data.call_to_action`, and
+`asset_feed_spec.call_to_actions` — and Meta requires all three to agree,
+rejecting the ad with **subcode 2490279, "Inconsistent Campaign Destination
+Type With App Destination"**, which names neither the ad set nor the template.
+`refuse_template_destination_conflicts` catches the disagreement first, at
+config time, with a message that names both.
+
+It can only catch it if the template *states* a destination, which is what its
+`asset_feed_spec` does. `vlab template` therefore emits a one-entry
+`DOF_MESSAGING_DESTINATION` spec on messenger and whatsapp creatives and the
+documented two-entry one on multi — the same shape Ads Manager produces for a
+click-to-messaging ad. **Web and app creatives state no messaging destination
+at all**, so a web template pointed at a Messenger destination is not refused
+by anything; see Known gaps.
+
+### The Meta quirks, in one place
+
+Every one of these was measured against the live API, and each is applied by
+`adopt/adopt/authoring/templates.py` with the date in a comment.
+
+| Quirk | Consequence |
+|---|---|
+| `is_adset_budget_sharing_enabled: false` is **required** on a campaign carrying no budget of its own | omitting it is a `400` with `error_subcode 4834011` |
+| Meta adds `frequently_in` to a region's `location_types` and **it cannot be removed** (measured 2026-08-27) | region targeting reaches people who frequently visit the region as well as residents, and `extract_from_adset` copies that into the study. A sampling caveat for the write-up, not a bug |
+| Meta canonicalises region names on write (`Kwara` → `Kwara State`) | stored targeting is not byte-identical to what you sent |
+| `targeting_automation.advantage_audience: 0` | see above |
+| Two campaigns with the same name | `FacebookState.campaign` raises `StateNameError` and the run path of any study naming that campaign breaks. `vlab template create` refuses a name already on the account rather than reusing it |
+| `promoted_object` is required for WhatsApp, multi and app ad sets | `page_id` must be the Page the *creative* posts as, or the ad set and the ad name different Pages. `vlab template` takes it from the ad and refuses to guess the WhatsApp number |
+| `link_data.link` is required even when the CTA routes the click | messaging creatives use Meta's own sample links: `https://fb.com/messenger_doc/` and `https://api.whatsapp.com/send` |
+| `page_welcome_message` is typed `string` on the API | the JSON object must be `json.dumps`'d. The runtime does this; a hand-built template is the usual first-attempt API error |
+
+### Conventions this tool imposes
+
+* **Everything is PAUSED**, always. `status` is a module constant, not a
+  parameter; nothing in `vlab template` can activate anything.
+* **A template campaign's name starts with `Templates - `.** That is the
+  marker. `vlab template create` adds it if you leave it off;
+  `vlab template delete` refuses any campaign without it, and
+  `vlab template creative` refuses to add an ad to one. It is a name and not an
+  ad label because a name is visible in Ads Manager, is already the convention
+  on the production account, and comes back from
+  `GET /{org}/meta/campaigns` whose `fields` is `name,id`.
+* **Daily budgets are capped** at 10 000 cents. A paused campaign cannot be
+  charged, so this is a typo guard, not a spend control.
+* **An ad's name is its creative's name.** vlab's reconciliation matches ads by
+  name and the ad it builds is named for the creative conf, so a template that
+  follows the same rule has one string in Ads Manager and in the study file.
+  **That name is a join key** — `mint_ref_token` is keyed on it — so changing
+  it later deletes an ad and creates another with a new attribution row. Name
+  it once.
+
+### The runbook
+
+```bash
+pipx install 'adopt[sdk]'
+export FACEBOOK_ACCESS_TOKEN=EAAB...      # see "Auth" below
+```
+
+**1. Write a spec.** YAML, no schema of its own; its keys are the `AdsetSpec` /
+`AdSpec` field names and an unknown key is an error.
+
+```yaml
+account: act_1342820622846299
+name: VL Pulse Nigeria                  # gains the "Templates - " marker
+properties: [genders, age_min, age_max, geo_locations]
+adsets:
+  - name: Kwara - Men
+    kind: messenger                     # messenger|whatsapp|multi|web|app
+    targeting:
+      genders: [1]
+      age_min: 18
+      age_max: 65
+      geo_locations:
+        regions: [{key: "2619", name: Kwara, country: "NG"}]
+        location_types: [home, recent]
+  - name: Kwara - Women
+    kind: messenger
+    targeting: {genders: [2], age_min: 18, age_max: 65, geo_locations: {…}}
+ads:
+  - name: vlpulse-ng-1                  # a JOIN KEY. Name it once.
+    kind: messenger
+    page_id: "1855355231229529"
+    message: Tell us what you think. It takes about three minutes.
+    headline: Chat with us
+    image: ./ad.png                     # uploaded; or image_hash: <existing>
+    adset: Kwara - Men
+```
+
+> **A bare `NO` in YAML 1.1 is the boolean `false`, not Norway.** Quote every
+> two-letter country code. The same trap applies to `study.yaml`.
+
+**2. Check the targeting without creating anything.**
+
+```bash
+vlab template check-targeting --account act_1342820622846299 --spec spec.yaml
+```
+
+Read-only: it asks Meta's `reachestimate` whether the spec is valid and how
+many people it reaches. A `geo_locations.regions[].key` wrong by one digit
+comes back as a Meta 400 naming the key, rather than being discovered at ad-set
+create time with a campaign already on the account. Exits 1 if any ad set is
+rejected.
+
+**3. Plan.** Pure — no network, no token needed.
+
+```bash
+vlab template plan spec.yaml            # human
+vlab template plan spec.yaml --json     # the exact Graph calls, as data
+```
+
+The plan is what `create` will send, in order, with `${ref}` placeholders for
+ids that do not exist yet. Everything checkable without Meta is checked here:
+the declared-property contract (the same `extract_from_adset` the dashboard
+runs), the budget ceiling, unknown spec keys, missing image files.
+
+**4. Create.** Requires `--create` (or `--yes`); without it you get the plan.
+
+```bash
+vlab template create spec.yaml --create --json
+```
+
+Prints (and, with `--json`, returns) the campaign id, the ad set ids and — the
+part you need — `ads[].template`: the creative as **Meta returns it**, which is
+exactly what a `creatives` conf wants. Not what was sent: Meta fills in
+`actor_id`, rewrites `object_story_spec` and drops what it did not accept.
+
+**5. Use it.** The ad set ids go into `variables[].levels[].template_adset`
+(with `template_campaign`), the creative blob into `creatives[].template`.
+Then `vlab validate && vlab push`.
+
+**6. Later: one more creative.**
+
+```bash
+vlab template creative --account act_… --campaign 120… --adset 120… \
+  --name vlpulse-ng-2 --kind whatsapp --page-id 1855… \
+  --message "…" --image ./ad2.png --create --json
+```
+
+**7. Clean up.**
+
+```bash
+vlab template delete 120255043720570150
+```
+
+Refuses any campaign not carrying the marker, and any marked one whose
+`effective_status` says it is delivering (`--force` skips only the second
+check — a delivering template is one somebody activated, and the reason is not
+knowable from the CLI).
+
+### Auth: why this one command group wants a Facebook token
+
+Every other `vlab` command talks to the vlab server, and `vlab meta …` reads
+Meta *through* it so no Facebook token ever reaches your machine. That is not
+available here. Creating a creative needs an image upload, which would make the
+conf service a bytes relay with size limits and event-loop discipline, and it
+would put money-spending liability on a service that today cannot spend money
+at all. The decision is recorded in `planning/agent-study-authoring.md` §10.
+
+So: `FACEBOOK_ACCESS_TOKEN` (or `--token`), for a user with a role on the ad
+account and on the Page. Nothing is written to disk and there is no login
+command.
+
+`FACEBOOK_APP_ID` / `FACEBOOK_APP_SECRET` are **optional**. With both, the
+session sends `appsecret_proof`, exactly as the conf service does. Without
+them it sends only the token, which Meta accepts unless the app has Settings →
+Advanced → **"Require app secret"** turned on. **Whether the vlab Facebook app
+has that on could not be determined from this repository** — the conf service
+always has both keys so it has never had to find out — so a token-only run
+prints a warning naming the error to expect if it is on (`code 1, Invalid
+appsecret_proof provided`).
+
+### Known gaps
+
+- **Nothing here has been run against live Meta.** Every shape is either lifted
+  from a script that was measured live (`make_template_campaign.py`,
+  `ctwa_probe.py`) or taken from Meta's own documented samples, and every test
+  mocks `FacebookAdsApi.call`. Treat the first live run as an experiment, on a
+  throwaway campaign name.
+- **`appsecret_proof`** — see above. Unresolved, and only a live call resolves
+  it.
+- **A web or app template states no destination, so a mismatch is not caught.**
+  `refuse_template_destination_conflicts` compares the `app_destination` values
+  in the template's `asset_feed_spec` against what the conf's destination
+  means; a web creative has none, so pairing one with a Messenger destination
+  is refused by nothing. It is not silently wrong — the runtime overrides the
+  CTA and the link, so the ad that ships is a correct Messenger ad — but it is
+  not the ad you were looking at in Ads Manager. Messenger, WhatsApp and multi
+  templates *are* checked, in both directions.
+- **Video templates are supported by id only.** `--video-id` references a video
+  already on the account; there is no upload, because Meta's video upload is a
+  resumable multi-request protocol rather than the single multipart POST an
+  image is.
+- **`reachestimate` versus `delivery_estimate` is unresolved.** Meta has been
+  migrating between them for years and neither this repo nor its docs pin a
+  version where one is gone. `check-targeting` defaults to `reachestimate` and
+  takes `--edge delivery_estimate --optimization-goal CONVERSATIONS`; neither
+  has been exercised live.
+- **No rollback.** A create that fails half way leaves what it already made.
+  The error names the object that failed and prints the
+  `vlab template delete <id>` that removes the rest.
+- **The template ad's `promoted_object` for WhatsApp carries the Page but not
+  the number.** The number lives on the study's `destinations` conf, and
+  guessing one is how you spend a day testing the wrong number — an org can
+  have several registered against one Page.
+
+---
+
 ## 7. What an agent cannot do today
 
 Stated plainly, because each of these will otherwise look like a bug in your
 client.
 
 1. **Discover its own `org_id`.** No API-key-reachable endpoint lists orgs.
-2. **Write anything to Meta through vlab, or connect a Facebook account.**
+2. **Write anything to Meta *through vlab*, or connect a Facebook account.**
    *Reading* Meta is solved — that is §2.5, and it is read-only by
    construction. But the OAuth exchange that creates the credential in the
    first place (`POST /facebook/token` on the Go service) is Auth0-only, so a
    human has to connect the account before the proxy has a token to read with.
    And nothing an API key can call writes to Meta except an optimize
    instruction (§5), which is a different thing entirely.
+
+   **Partly closed 2026-09-05, and deliberately not by an endpoint.** Building
+   a template campaign, its ad sets and — the hard part — its creatives is now
+   `vlab template` (§6a), which uses the Facebook Business SDK **directly**
+   from the client, with the researcher's own Facebook token. There is still no
+   `meta:write` route and there is not going to be one: a write proxy would
+   make the conf service an image-upload relay and would give it
+   money-spending liability it does not have today
+   (`planning/agent-study-authoring.md` §10). So an agent that can run Python
+   can author a template; an agent that can only speak HTTP still cannot, and
+   still needs a human with Ads Manager.
 3. **Derive strata from variables *over HTTP*.** The compiler is a library
    (`adopt.authoring`, §6.2 step 7) and a CLI (`vlab strata generate`, §6.1),
    not an endpoint; an agent that cannot run Python at all has to call it out
@@ -1633,6 +1938,36 @@ client.
 ---
 
 ## 8. What landed recently
+
+### 2026-09-05 — `vlab template`: authoring template campaigns and creatives
+
+The design record is `planning/template-authoring.md`; the reference is §6a.
+**No API change** — this is a client that talks to Meta directly, and no vlab
+endpoint gained a write.
+
+The gap it closes is the one §7 item 2 named: a template campaign and,
+above all, a template ad carrying a creative had to be built by hand in Ads
+Manager, which an agent cannot do. `vlab template plan|create|creative|
+delete|check-targeting` builds them from a YAML spec, everything PAUSED,
+dry run by default, refusing any campaign that does not carry the
+`Templates - ` marker. `vlab template create --json` hands back
+`ads[].template` in exactly the shape a `creatives` conf wants, read back from
+Meta rather than echoed.
+
+Why the client and not a `meta:write` route: an image upload would make the
+conf service a bytes relay and would hand it money-spending liability it does
+not have. That decision is `planning/agent-study-authoring.md` §10 and is not
+reopened.
+
+Two things worth knowing even if you never run it. **A template's
+`targeting_automation` should be set on the ad set and NOT declared as a
+variable property** — the extractor forces it on regardless, and declaring it
+pins the dashboard's drift banner on forever; this corrects the advice in
+`adopt/scripts/make_template_campaign.py`. And §6a is now the single place the
+Meta quirks live (`is_adset_budget_sharing_enabled`, the unremovable
+`frequently_in`, duplicate campaign names breaking `FacebookState.campaign`),
+which is what `planning/agent-study-authoring.md` §10 asked for when it said
+they should be promoted into this document.
 
 ### 2026-09-05 — the `vlab` SDK and CLI
 
