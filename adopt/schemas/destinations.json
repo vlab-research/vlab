@@ -1,7 +1,8 @@
 {
-  "$comment": "Generated from adopt/adopt/study_conf.py by adopt/adopt/schema_export.py. Do not edit by hand; run `make schemas`. Body of POST /{org_id}/studies/{slug}/confs/destinations (a JSON array).",
+  "$comment": "Generated from adopt/adopt/study_conf.py and adopt/adopt/study_conf_strict.py by adopt/adopt/schema_export.py. Do not edit by hand; run `make schemas`. Body of POST /{org_id}/studies/{slug}/confs/destinations (a JSON array).",
   "$defs": {
-    "AppDestination": {
+    "AppDestinationStrict": {
+      "additionalProperties": false,
       "properties": {
         "app_install_link": {
           "title": "App Install Link",
@@ -68,10 +69,11 @@
         "user_device",
         "user_os"
       ],
-      "title": "AppDestination",
+      "title": "AppDestinationStrict",
       "type": "object"
     },
-    "FlyMessengerDestination": {
+    "FlyMessengerDestinationStrict": {
+      "additionalProperties": false,
       "properties": {
         "additional_metadata": {
           "anyOf": [
@@ -132,11 +134,11 @@
         "welcome_message",
         "button_text"
       ],
-      "title": "FlyMessengerDestination",
+      "title": "FlyMessengerDestinationStrict",
       "type": "object"
     },
-    "FlyMultiDestination": {
-      "description": "A single ad that opens either Messenger or WhatsApp, Meta's choice.\n\nA third destination type, deliberately, rather than a `platforms` list on a\nmerged class or an implicit consequence of the ad set's destination_type.\nThe reasoning is in planning/whatsapp-destination-model.md: Messenger and\nWhatsApp differ in the grammar their routing token must obey, in whether the\nrespondent can see and edit it, in which fields are required, and in what a\nmisconfiguration costs. Multi is not the generalisation of the two -- it is\na third thing that carries both of their tokens at once, and it forecloses\nsomething they each allow (channel as an experimental arm, since Meta\nassigns the arm and you cannot randomise what Meta assigns).\n\nOne shortcode, not one per channel. `creative_metadata` folds\n`form: initial_shortcode` into the frozen ad_attributions blob, and there is\nexactly one blob per ad; a per-channel shortcode would mean one ad whose two\narms belong to two surveys and one mapping row that can only name one of\nthem.\n\nOne ref mode drives both arms, so they always disclose the same amount --\nwhich is worth knowing when choosing it, because the WhatsApp arm's token\nsits in the respondent's compose box where they can read and edit it. Being\ndescribed back to yourself as `gender.men.age.25_34` before a survey starts\nis an ethical question, not a technical one.\n\nAsymmetric confidence between the two arms. The Messenger arm is MEASURED:\non 2026-08-17 ad 120254903561240150 delivered its quick-reply payload with\nthe ref intact even though `text_format.customer_action_type` was the scalar\n\"autofill_message\", so Messenger reads its own sub-structure and ignores the\nsibling autofill (planning/whatsapp-destination-model.md 8.1). The WhatsApp\narm rests on the symmetry inference from that result and has not itself been\nobserved -- every preview followed the single-valued MESSAGE_PAGE\ncall_to_action to Messenger. If the inference is wrong and Meta serves its\nown default prefill, fly's event-normalizer still emits\nconversation_started, and those arrivals land on FALLBACK_FORM: a real\nsurvey belonging to another researcher, where misrouted respondents reach\nEND and look like completions. Watch the WhatsApp arm of the first multi\nstudy for that shape; documentation/multi-destination-ads.md has the\nprocedure.",
+    "FlyMultiDestinationStrict": {
+      "additionalProperties": false,
       "properties": {
         "additional_metadata": {
           "anyOf": [
@@ -202,11 +204,11 @@
         "button_text",
         "whatsapp_phone_number"
       ],
-      "title": "FlyMultiDestination",
+      "title": "FlyMultiDestinationStrict",
       "type": "object"
     },
-    "FlyWhatsAppDestination": {
-      "description": "A click-to-WhatsApp destination.\n\nShaped after FlyMessengerDestination, minus `button_text`: WhatsApp has no\nquick-reply button, so the respondent gets a prefilled compose box.\n\n`type` is a Literal, unlike its siblings, because this model's required\nfields are a strict subset of FlyMessengerDestination's — without a\ndiscriminator, pydantic's smart union could resolve a Messenger destination\nto this class by ignoring the extra `button_text`.",
+    "FlyWhatsAppDestinationStrict": {
+      "additionalProperties": false,
       "properties": {
         "additional_metadata": {
           "anyOf": [
@@ -267,10 +269,11 @@
         "welcome_message",
         "whatsapp_phone_number"
       ],
-      "title": "FlyWhatsAppDestination",
+      "title": "FlyWhatsAppDestinationStrict",
       "type": "object"
     },
-    "WebDestination": {
+    "WebDestinationStrict": {
+      "additionalProperties": false,
       "properties": {
         "name": {
           "title": "Name",
@@ -310,7 +313,7 @@
         "name",
         "url_template"
       ],
-      "title": "WebDestination",
+      "title": "WebDestinationStrict",
       "type": "object"
     }
   },
@@ -319,30 +322,30 @@
   "items": {
     "discriminator": {
       "mapping": {
-        "app": "#/$defs/AppDestination",
-        "messenger": "#/$defs/FlyMessengerDestination",
-        "multi": "#/$defs/FlyMultiDestination",
-        "web": "#/$defs/WebDestination",
-        "website": "#/$defs/WebDestination",
-        "whatsapp": "#/$defs/FlyWhatsAppDestination"
+        "app": "#/$defs/AppDestinationStrict",
+        "messenger": "#/$defs/FlyMessengerDestinationStrict",
+        "multi": "#/$defs/FlyMultiDestinationStrict",
+        "web": "#/$defs/WebDestinationStrict",
+        "website": "#/$defs/WebDestinationStrict",
+        "whatsapp": "#/$defs/FlyWhatsAppDestinationStrict"
       },
       "propertyName": "type"
     },
     "oneOf": [
       {
-        "$ref": "#/$defs/FlyMessengerDestination"
+        "$ref": "#/$defs/FlyMessengerDestinationStrict"
       },
       {
-        "$ref": "#/$defs/AppDestination"
+        "$ref": "#/$defs/AppDestinationStrict"
       },
       {
-        "$ref": "#/$defs/WebDestination"
+        "$ref": "#/$defs/WebDestinationStrict"
       },
       {
-        "$ref": "#/$defs/FlyWhatsAppDestination"
+        "$ref": "#/$defs/FlyWhatsAppDestinationStrict"
       },
       {
-        "$ref": "#/$defs/FlyMultiDestination"
+        "$ref": "#/$defs/FlyMultiDestinationStrict"
       }
     ]
   },

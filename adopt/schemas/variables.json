@@ -1,7 +1,8 @@
 {
-  "$comment": "Generated from adopt/adopt/study_conf.py by adopt/adopt/schema_export.py. Do not edit by hand; run `make schemas`. Body of POST /{org_id}/studies/{slug}/confs/variables (a JSON array).",
+  "$comment": "Generated from adopt/adopt/study_conf.py and adopt/adopt/study_conf_strict.py by adopt/adopt/schema_export.py. Do not edit by hand; run `make schemas`. Body of POST /{org_id}/studies/{slug}/confs/variables (a JSON array).",
   "$defs": {
-    "Level": {
+    "LevelStrict": {
+      "additionalProperties": false,
       "properties": {
         "facebook_targeting": {
           "title": "Facebook Targeting",
@@ -31,14 +32,16 @@
         "facebook_targeting",
         "quota"
       ],
-      "title": "Level",
+      "title": "LevelStrict",
       "type": "object"
     },
-    "VariableConf": {
+    "VariableConfStrict": {
+      "additionalProperties": false,
+      "description": "Strict via a sibling, like everything else, rather than in place.\n\n`planning/conf-extra-fields.md` §2 notes that `VariableConf` is the one\nmodel with no load path -- it is not a field of `StudyConf` and is read\nback only as raw JSON -- so it could take `extra=\"forbid\"` directly, with\nno sibling needed. It gets one anyway, for two reasons. The licence rests\non a fact about today (\"nothing reconstructs a VariableConf from storage\"),\nnot on a property of the model, and a `POST /studies/{slug}/validate`\nendpoint that re-reads stored confs is being built in parallel with this\nchange. And a single uniform mechanism means nobody has to remember which\none model is the exception, for a cost of four lines.",
       "properties": {
         "levels": {
           "items": {
-            "$ref": "#/$defs/Level"
+            "$ref": "#/$defs/LevelStrict"
           },
           "title": "Levels",
           "type": "array"
@@ -60,14 +63,14 @@
         "properties",
         "levels"
       ],
-      "title": "VariableConf",
+      "title": "VariableConfStrict",
       "type": "object"
     }
   },
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "description": "Experimental variables and their levels, used to derive strata.",
   "items": {
-    "$ref": "#/$defs/VariableConf"
+    "$ref": "#/$defs/VariableConfStrict"
   },
   "title": "variables conf",
   "type": "array"

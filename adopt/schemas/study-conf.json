@@ -1,5 +1,5 @@
 {
-  "$comment": "Generated from adopt/adopt/study_conf.py by adopt/adopt/schema_export.py. Do not edit by hand; run `make schemas`. The assembled whole-study configuration. Not accepted by any endpoint; adopt builds it from the per-section confs. Structural only — StudyConf's cross-section model validators (e.g. check_whatsapp_refs_are_deliverable) cannot be expressed in JSON Schema and are NOT represented here.",
+  "$comment": "Generated from adopt/adopt/study_conf.py and adopt/adopt/study_conf_strict.py by adopt/adopt/schema_export.py. Do not edit by hand; run `make schemas`. The assembled whole-study configuration. Not accepted by any endpoint; adopt builds it from the per-section confs. The only file here generated from the LENIENT models, because it describes what adopt LOADS, and adopt deliberately still loads a conf carrying keys it no longer declares — so this file permits additional properties where the per-section files do not. Structural only — StudyConf's cross-section model validators (e.g. check_whatsapp_refs_are_deliverable) cannot be expressed in JSON Schema and are NOT represented here.",
   "$defs": {
     "AppDestination": {
       "properties": {

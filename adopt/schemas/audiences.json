@@ -1,12 +1,13 @@
 {
-  "$comment": "Generated from adopt/adopt/study_conf.py by adopt/adopt/schema_export.py. Do not edit by hand; run `make schemas`. Body of POST /{org_id}/studies/{slug}/confs/audiences (a JSON array).",
+  "$comment": "Generated from adopt/adopt/study_conf.py and adopt/adopt/study_conf_strict.py by adopt/adopt/schema_export.py. Do not edit by hand; run `make schemas`. Body of POST /{org_id}/studies/{slug}/confs/audiences (a JSON array).",
   "$defs": {
-    "AudienceConf": {
+    "AudienceConfStrict": {
+      "additionalProperties": false,
       "properties": {
         "lookalike": {
           "anyOf": [
             {
-              "$ref": "#/$defs/Lookalike"
+              "$ref": "#/$defs/LookalikeStrict"
             },
             {
               "type": "null"
@@ -21,7 +22,7 @@
         "partitioning": {
           "anyOf": [
             {
-              "$ref": "#/$defs/Partitioning"
+              "$ref": "#/$defs/PartitioningStrict"
             },
             {
               "type": "null"
@@ -32,7 +33,7 @@
         "question_targeting": {
           "anyOf": [
             {
-              "$ref": "#/$defs/QuestionTargeting"
+              "$ref": "#/$defs/QuestionTargetingStrict"
             },
             {
               "type": "null"
@@ -49,27 +50,11 @@
         "name",
         "subtype"
       ],
-      "title": "AudienceConf",
+      "title": "AudienceConfStrict",
       "type": "object"
     },
-    "Lookalike": {
-      "properties": {
-        "spec": {
-          "$ref": "#/$defs/LookalikeSpec"
-        },
-        "target": {
-          "title": "Target",
-          "type": "integer"
-        }
-      },
-      "required": [
-        "target",
-        "spec"
-      ],
-      "title": "Lookalike",
-      "type": "object"
-    },
-    "LookalikeSpec": {
+    "LookalikeSpecStrict": {
+      "additionalProperties": false,
       "properties": {
         "country": {
           "title": "Country",
@@ -89,10 +74,30 @@
         "ratio",
         "starting_ratio"
       ],
-      "title": "LookalikeSpec",
+      "title": "LookalikeSpecStrict",
       "type": "object"
     },
-    "Partitioning": {
+    "LookalikeStrict": {
+      "additionalProperties": false,
+      "properties": {
+        "spec": {
+          "$ref": "#/$defs/LookalikeSpecStrict"
+        },
+        "target": {
+          "title": "Target",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "target",
+        "spec"
+      ],
+      "title": "LookalikeStrict",
+      "type": "object"
+    },
+    "PartitioningStrict": {
+      "additionalProperties": false,
+      "description": "Strict, but its own before-validator usually reports the typo first.\n\n`Partitioning.validate_scenario` runs at `mode=\"before\"`, i.e. ahead of\npydantic's extra-key check, and rejects any combination of set fields that\nis not one of three known scenarios. An unknown key with a non-None value\ntherefore fails as \"invalid partitioning config, the following fields were\nall set: {...}\" rather than \"extra inputs are not permitted\" -- a different\nmessage, but one that still names the offending key, which is the property\nthat matters. A key whose value is null falls through to the extra check\nand gets the ordinary message.",
       "properties": {
         "max_days": {
           "anyOf": [
@@ -138,10 +143,12 @@
       "required": [
         "min_users"
       ],
-      "title": "Partitioning",
+      "title": "PartitioningStrict",
       "type": "object"
     },
-    "QuestionTargeting": {
+    "QuestionTargetingStrict": {
+      "additionalProperties": false,
+      "description": "Strict, and still self-recursive.\n\n`vars` holds either a leaf `TargetVar` or another `QuestionTargeting`, to\narbitrary depth, so the strict twin has to re-declare the field in terms of\n*itself* -- otherwise strictness stops one level down, which is precisely\nwhere a hand-written targeting tree gets long enough to typo.",
       "properties": {
         "op": {
           "title": "Op",
@@ -151,10 +158,10 @@
           "items": {
             "anyOf": [
               {
-                "$ref": "#/$defs/TargetVar"
+                "$ref": "#/$defs/TargetVarStrict"
               },
               {
-                "$ref": "#/$defs/QuestionTargeting"
+                "$ref": "#/$defs/QuestionTargetingStrict"
               }
             ]
           },
@@ -166,10 +173,11 @@
         "op",
         "vars"
       ],
-      "title": "QuestionTargeting",
+      "title": "QuestionTargetingStrict",
       "type": "object"
     },
-    "TargetVar": {
+    "TargetVarStrict": {
+      "additionalProperties": false,
       "properties": {
         "type": {
           "title": "Type",
@@ -194,14 +202,14 @@
         "type",
         "value"
       ],
-      "title": "TargetVar",
+      "title": "TargetVarStrict",
       "type": "object"
     }
   },
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "description": "Custom audiences derived from responses, and lookalikes of them.",
   "items": {
-    "$ref": "#/$defs/AudienceConf"
+    "$ref": "#/$defs/AudienceConfStrict"
   },
   "title": "audiences conf",
   "type": "array"
