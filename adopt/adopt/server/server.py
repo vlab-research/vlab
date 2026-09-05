@@ -41,6 +41,7 @@ from .api_keys import add_scope_enforcement, router as api_keys_router
 # modules (studies, api keys, schemas) can depend on authentication without
 # importing server, which imports them — a cycle.
 from .deps import User, get_current_user, security
+from .meta import router as meta_router
 from .studies import router as studies_router
 from .csv_export import ad_attributions_csv, ad_attributions_table
 from .db import (
@@ -90,6 +91,11 @@ env = Env()
 # that owns `app`.
 app.include_router(studies_router)
 app.include_router(api_keys_router)
+
+# The read-only Meta Graph proxy. Mounted BEFORE the conf routes below only
+# because include_router calls happen here; its paths (/{org_id}/meta/...)
+# cannot collide with /{org_id}/studies/... .
+app.include_router(meta_router)
 
 
 class OptimizeInstruction(BaseModel):

@@ -76,6 +76,106 @@ def insert_credential(user_id: str, entity: str, key: str, details: Any):
     execute(db_cnf, q, (user_id, entity, key, deets))
 
 
+# --------------------------------------------------------------------------
+# Facebook credentials, for the Meta Graph proxy (`server/meta.py`)
+# --------------------------------------------------------------------------
+
+# The `entity` values a Facebook access token is stored under. There are two,
+# and the split is historical rather than meaningful:
+#
+#   * `facebook` — what the dashboard's OAuth exchange writes
+#     (`api/internal/storage/account.go`, entity = the account's auth type),
+#     and what the General form hardcodes into every `general` conf
+#     (`dashboard/.../forms/general/General.tsx:26`).
+#   * `facebook_ad_user` — the DEFAULT of the vestigial
+#     `studies.credentials_entity` column
+#     (`devops/migrations/20230322111807_init.up.sql:12`), and the entity real
+#     production rows are under (e.g. the `virtual-lab-vlab` credential in
+#     `planning/encoded-ref-probe-runbook.md:524`).
+#
+# Nothing in the running system has ever had to agree on which is right,
+# because the one query that resolves a token — `get_user_info`
+# (`adopt/campaign_queries.py:13`) — selects `credentials_entity` out of the
+# general conf and then never uses it in the join. Both are accepted here for
+# the same reason: refusing either would hide a credential a study is
+# demonstrably using.
+FACEBOOK_CREDENTIAL_ENTITIES = ("facebook", "facebook_ad_user")
+
+
+def list_facebook_credentials(user_id: str):
+    """The caller's Facebook credentials, WITHOUT their tokens.
+
+    Rows without an `access_token` are excluded: `get_user_info` reads exactly
+    that field, so a row lacking it cannot authenticate anything and offering
+    it as a choice would only produce a confusing failure later. (The dev seed
+    at `devops/seeds/20230405094547_credentials.up.sql:28` is such a row — it
+    stores `{"token": ...}` — which is why this is a real case and not a
+    hypothetical one.)
+
+    `credentials` is user-scoped, not org-scoped: the `org_id` column added by
+    the organisation migration is never populated by the Go account-create
+    path. So there is no org filter here, and the org segment in the route is
+    a membership check, not a partition of the data.
+    """
+    q = """
+    SELECT key, entity, created
+    FROM credentials
+    WHERE user_id = %s
+    AND entity = ANY(%s)
+    AND details ->> 'access_token' IS NOT NULL
+    ORDER BY created DESC
+    """
+    return list(
+        query(db_cnf, q, (user_id, list(FACEBOOK_CREDENTIAL_ENTITIES)), as_dict=True)
+    )
+
+
+def get_facebook_token(user_id: str, credentials_key: str):
+    """The access token for one named credential, or None.
+
+    Matched on `(user_id, key)` with the entity deliberately NOT in the
+    predicate. That is not sloppiness — it is bug-compatibility with
+    `get_user_info`, which is what actually resolves the token when adopt talks
+    to Meta on this study's behalf. If this query were stricter than that one,
+    the proxy could report "no such credential" for a key that a study is
+    happily running on, or — worse — resolve a *different* row and show the
+    agent an ad-account list the study will never be able to use.
+
+    `ORDER BY created DESC LIMIT 1` is likewise `get_user_info`'s tie-break.
+    `unique_entity_key_per_user` makes a tie possible only across entities
+    (same name under `facebook` and `facebook_ad_user`), and newest-wins is
+    what the run-time path already does with that.
+    """
+    q = """
+    SELECT details ->> 'access_token' AS token
+    FROM credentials
+    WHERE user_id = %s
+    AND key = %s
+    AND details ->> 'access_token' IS NOT NULL
+    ORDER BY created DESC
+    LIMIT 1
+    """
+    rows = list(query(db_cnf, q, (user_id, credentials_key), as_dict=True))
+    return rows[0]["token"] if rows else None
+
+
+def user_in_org(user_id: str, org_id: str) -> bool:
+    """Membership, as a standalone check.
+
+    Every other route in this service gets membership for free by joining
+    `orgs_lookup` on the way to a study. The Meta routes have no study to join
+    through, so the check has to be its own query.
+    """
+    q = """
+    SELECT 1
+    FROM orgs_lookup
+    WHERE user_id = %s
+    AND org_id = %s
+    LIMIT 1
+    """
+    return bool(list(query(db_cnf, q, (user_id, org_id))))
+
+
 def get_study_conf(user_id: str, org_id: str, study_slug: str, conf_type: str):
     q = """
     SELECT conf
