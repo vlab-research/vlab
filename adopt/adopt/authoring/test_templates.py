@@ -28,34 +28,24 @@ from __future__ import annotations
 
 import json
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 from unittest.mock import patch
 
 import pytest
 from facebook_business.api import FacebookAdsApi
 from facebook_business.exceptions import FacebookRequestError
 
-from ..marketing import (
-    _create_creative,
-    create_creative,
-    messenger_call_to_action,
-    refuse_template_destination_conflicts,
-)
-from ..meta_fields import CREATIVE_FIELD_LIST, REQUIRED_TEMPLATE_CREATIVE_FIELDS
-from ..study_conf import (
-    AppDestination,
-    CreativeConf,
-    DestinationRecruitmentExperiment,
-    FlyMessengerDestination,
-    FlyMultiDestination,
-    FlyWhatsAppDestination,
-    GeneralConf,
-    Stratum,
-    StudyConf,
-    UserInfo,
-    WebDestination,
-    destination_type_for,
-)
+from ..marketing import (_create_creative, create_creative,
+                         messenger_call_to_action,
+                         refuse_template_destination_conflicts)
+from ..meta_fields import (CREATIVE_FIELD_LIST,
+                           REQUIRED_TEMPLATE_CREATIVE_FIELDS)
+from ..study_conf import (AppDestination, CreativeConf,
+                          DestinationRecruitmentExperiment,
+                          FlyMessengerDestination, FlyMultiDestination,
+                          FlyWhatsAppDestination, GeneralConf, Stratum,
+                          StudyConf, UserInfo, WebDestination,
+                          destination_type_for)
 from . import templates as tp
 
 PAGE = "1855355231229529"  # Virtual Lab, the Page every production template uses
@@ -435,9 +425,7 @@ def test_a_missing_declared_property_fails_at_plan_time():
         tp.plan_template_campaign(
             account_id=ACCOUNT,
             name="Ungeo",
-            adsets=[
-                tp.AdsetSpec(name="a", targeting={"genders": [1], "age_min": 18})
-            ],
+            adsets=[tp.AdsetSpec(name="a", targeting={"genders": [1], "age_min": 18})],
             properties=["genders", "age_min", "geo_locations"],
         )
 
@@ -637,14 +625,13 @@ def test_an_app_creative_carries_the_install_cta_and_the_store_link():
 
 
 def test_a_multi_creative_carries_metas_two_destination_array():
-    c = tp.build_creative(
-        tp.MULTI, name="x", page_id=PAGE, message="m", image_hash="h"
-    )
+    c = tp.build_creative(tp.MULTI, name="x", page_id=PAGE, message="m", image_hash="h")
     afs = c["asset_feed_spec"]
     assert afs["optimization_type"] == "DOF_MESSAGING_DESTINATION"
-    assert {
-        cta["value"]["app_destination"] for cta in afs["call_to_actions"]
-    } == {"MESSENGER", "WHATSAPP"}
+    assert {cta["value"]["app_destination"] for cta in afs["call_to_actions"]} == {
+        "MESSENGER",
+        "WHATSAPP",
+    }
     # The single-valued CTA stays MESSAGE_PAGE, Meta's documented fallback.
     assert (
         c["object_story_spec"]["link_data"]["call_to_action"]
@@ -934,9 +921,7 @@ def test_apply_creates_everything_in_order_and_resolves_the_placeholders(api):
     plan = tp.plan_template_campaign(
         account_id=ACCOUNT, name="Apply Me", adsets=_adsets(), ads=[_ad()]
     )
-    sent_creative = next(
-        c for c in plan.creates if c.node == "creative"
-    ).params
+    sent_creative = next(c for c in plan.creates if c.node == "creative").params
 
     patcher, g = _graph(
         **{
@@ -956,8 +941,11 @@ def test_apply_creates_everything_in_order_and_resolves_the_placeholders(api):
         {"id": "A1", "name": "Kwara - Men"},
         {"id": "A2", "name": "Kwara - Women"},
     ]
-    assert [c["params"]["campaign_id"] for c in g.calls if c["path"].endswith("adsets")
-            and c["method"] == "POST"] == ["C1", "C1"]
+    assert [
+        c["params"]["campaign_id"]
+        for c in g.calls
+        if c["path"].endswith("adsets") and c["method"] == "POST"
+    ] == ["C1", "C1"]
     ad = g.posted("ads")[0]
     assert ad["adset_id"] == "A1"
     assert ad["creative"] == {"creative_id": "CR1"}
@@ -971,15 +959,9 @@ def test_apply_refuses_when_the_campaign_name_is_taken(api):
     reuse would not merely confuse a human -- it would break the run path of
     any study naming that campaign.
     """
-    plan = tp.plan_template_campaign(
-        account_id=ACCOUNT, name="Taken", adsets=_adsets()
-    )
+    plan = tp.plan_template_campaign(account_id=ACCOUNT, name="Taken", adsets=_adsets())
     patcher, g = _graph(
-        **{
-            "GET campaigns": [
-                {"data": [{"id": "OLD", "name": "Templates - Taken"}]}
-            ]
-        }
+        **{"GET campaigns": [{"data": [{"id": "OLD", "name": "Templates - Taken"}]}]}
     )
     with patcher:
         with pytest.raises(tp.TemplateApplyError, match="already exists"):
@@ -1192,9 +1174,7 @@ def test_validate_targeting_reads_and_creates_nothing(api):
 
 def test_delivery_estimate_needs_an_optimization_goal(api):
     with pytest.raises(tp.TemplatePlanError, match="optimization_goal"):
-        tp.validate_targeting(
-            api, ACCOUNT, _targeting([1]), edge=tp.DELIVERY_ESTIMATE
-        )
+        tp.validate_targeting(api, ACCOUNT, _targeting([1]), edge=tp.DELIVERY_ESTIMATE)
 
 
 def test_an_unknown_edge_is_refused(api):

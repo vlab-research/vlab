@@ -60,24 +60,10 @@ import os
 from dataclasses import dataclass, field, replace
 from typing import Any, Dict, List, Mapping, Optional, Sequence, Tuple
 
-from ..marketing import (
-    MESSENGER_LINK_FALLBACK,
-    MULTI_OPTIMIZATION_TYPE,
-    WHATSAPP_LINK,
-    app_download_call_to_action,
-    messenger_call_to_action,
-    multi_destination_asset_feed_spec,
-    web_call_to_action,
-    whatsapp_call_to_action,
-)
 from ..meta_fields import CREATIVE_FIELDS, REQUIRED_TEMPLATE_CREATIVE_FIELDS
-from ..study_conf import (
-    APP_DESTINATION_TYPE,
-    MESSENGER_DESTINATION_TYPE,
-    MULTI_DESTINATION_TYPE,
-    WEB_DESTINATION_TYPE,
-    WHATSAPP_DESTINATION_TYPE,
-)
+from ..study_conf import (APP_DESTINATION_TYPE, MESSENGER_DESTINATION_TYPE,
+                          MULTI_DESTINATION_TYPE, WEB_DESTINATION_TYPE,
+                          WHATSAPP_DESTINATION_TYPE)
 from .extract import PropertyMissingError, extract_from_adset
 
 __all__ = [
@@ -108,6 +94,27 @@ __all__ = [
 # ---------------------------------------------------------------------------
 # Errors
 # ---------------------------------------------------------------------------
+
+
+def _marketing():
+    """`adopt.marketing`, imported on use rather than at module load.
+
+    `marketing` imports `budget`, which imports cvxpy: **1.4 seconds**,
+    measured. `adopt.sdk.cli` registers the `vlab template` group at import
+    time, so a module-level import here would put that 1.4s in front of EVERY
+    `vlab` command -- `vlab validate` included, whose entire selling point is
+    that it is instant and offline.
+
+    This is not a copy of anything. `marketing` remains the single definition
+    of what a vlab call-to-action, structural link and multi-destination
+    asset_feed_spec are (plan §7, "one implementation"); all that moves is WHEN
+    it is read. Everything the planner does before a creative is built --
+    including the whole of `plan_template_campaign` for a campaign with no ads
+    -- costs nothing.
+    """
+    from .. import marketing
+
+    return marketing
 
 
 class TemplateError(Exception):
@@ -280,24 +287,25 @@ def _single_destination_asset_feed_spec(kind: str) -> Dict[str, Any]:
     CTA, and these two URLs are Meta's own sample values
     (`MESSENGER_LINK_FALLBACK`, `WHATSAPP_LINK`).
     """
+    m = _marketing()
     if kind == MULTI:
-        return multi_destination_asset_feed_spec()
+        return m.multi_destination_asset_feed_spec()
 
     cta = {
         MESSENGER: {
             "type": "MESSAGE_PAGE",
             "value": {
                 "app_destination": "MESSENGER",
-                "link": MESSENGER_LINK_FALLBACK,
+                "link": m.MESSENGER_LINK_FALLBACK,
             },
         },
         WHATSAPP: {
             "type": "WHATSAPP_MESSAGE",
-            "value": {"app_destination": "WHATSAPP", "link": WHATSAPP_LINK},
+            "value": {"app_destination": "WHATSAPP", "link": m.WHATSAPP_LINK},
         },
     }[kind]
 
-    return {"optimization_type": MULTI_OPTIMIZATION_TYPE, "call_to_actions": [cta]}
+    return {"optimization_type": m.MULTI_OPTIMIZATION_TYPE, "call_to_actions": [cta]}
 
 
 def _call_to_action_for(kind: str, link: Optional[str], deeplink: Optional[str]):
@@ -309,14 +317,15 @@ def _call_to_action_for(kind: str, link: Optional[str], deeplink: Optional[str])
     else. Multi takes MESSAGE_PAGE, which is Meta's documented fallback while
     `asset_feed_spec` carries the real array (`create_creative`, multi branch).
     """
+    m = _marketing()
     if kind in (MESSENGER, MULTI):
-        return messenger_call_to_action()
+        return m.messenger_call_to_action()
     if kind == WHATSAPP:
-        return whatsapp_call_to_action()
+        return m.whatsapp_call_to_action()
     if kind == WEB:
-        return web_call_to_action(link)
+        return m.web_call_to_action(link)
     if kind == APP:
-        return app_download_call_to_action(deeplink)
+        return m.app_download_call_to_action(deeplink)
     raise TemplatePlanError(f"Unknown creative kind {kind!r}.")
 
 
@@ -328,10 +337,11 @@ def _structural_link(kind: str, link: Optional[str]) -> str:
     template and the ad built from it carry the same value and reconciliation
     sees no drift. Web and app get the caller's URL.
     """
+    m = _marketing()
     if kind == WHATSAPP:
-        return WHATSAPP_LINK
+        return m.WHATSAPP_LINK
     if kind in (MESSENGER, MULTI):
-        return MESSENGER_LINK_FALLBACK
+        return m.MESSENGER_LINK_FALLBACK
     if not link:
         raise TemplatePlanError(
             f"A {kind!r} creative needs a link: it is the ad's destination, and "
@@ -368,7 +378,8 @@ def build_creative(
 
     | this builds | the runtime does |
     |---|---|
-    | `object_story_spec.page_id` | copied verbatim; also the ad set's `promoted_object.page_id` for WhatsApp/multi (`template_page_id`) |
+    | `object_story_spec.page_id` | copied verbatim; also the ad set's
+      `promoted_object.page_id` for WhatsApp/multi (`template_page_id`) |
     | `object_story_spec.instagram_user_id` | copied verbatim |
     | `link_data.image_hash` / `message` / `name` / `description` | copied verbatim |
     | `video_data.image_hash` / `message` / `title` / `video_id` | copied verbatim |
@@ -376,7 +387,8 @@ def build_creative(
     | `link_data.link` | **overridden** for web/app; kept for messaging |
     | `page_welcome_message` | **injected**, carrying the ref |
     | `url_tags` | **injected**, carrying the ref |
-    | `asset_feed_spec.optimization_type` / `call_to_actions` | copied for single-destination, **replaced** for multi |
+    | `asset_feed_spec.optimization_type` / `call_to_actions` | copied for
+      single-destination, **replaced** for multi |
 
     So the copy is the researcher's and the destination is the study conf's,
     which is exactly the split `planning/creative-construction-contract.md`
@@ -526,6 +538,7 @@ class AdSpec:
 # ---------------------------------------------------------------------------
 # The plan
 # ---------------------------------------------------------------------------
+
 
 # A create's `params` may reference an earlier create's result by this
 # placeholder syntax, substituted by `apply` once that create has an id. A
@@ -788,8 +801,7 @@ def _plan_ads(
     for spec in ads:
         if spec.image and spec.image_hash:
             raise TemplatePlanError(
-                f"Ad {spec.name!r}: give an image path or an image_hash, not "
-                "both."
+                f"Ad {spec.name!r}: give an image path or an image_hash, not " "both."
             )
         if spec.adset is not None and spec.adset not in known_adsets:
             raise TemplatePlanError(
@@ -990,9 +1002,7 @@ def plan_template_campaign(
     }
     adset_ref_for[None] = f"adset:{filled[0].name}"
 
-    image_creates, ad_creates = _plan_ads(
-        ads, adset_ref_for, [s.name for s in filled]
-    )
+    image_creates, ad_creates = _plan_ads(ads, adset_ref_for, [s.name for s in filled])
 
     warnings = _targeting_warnings(filled)
     if "targeting_automation" in props:
@@ -1239,9 +1249,7 @@ def apply(plan: TemplatePlan, api) -> TemplateResult:
         try:
             if create.node == "image":
                 assert create.source is not None
-                table[create.ref] = _upload_image(
-                    api, plan.account_id, create.source
-                )
+                table[create.ref] = _upload_image(api, plan.account_id, create.source)
                 continue
 
             # Every edge here hangs off the ad account -- `/act_x/campaigns`,
@@ -1273,9 +1281,7 @@ def apply(plan: TemplatePlan, api) -> TemplateResult:
             creative_id = params["creative"]["creative_id"]
             template = _read_creative(api, creative_id)
             missing = [
-                f
-                for f in REQUIRED_TEMPLATE_CREATIVE_FIELDS
-                if not template.get(f)
+                f for f in REQUIRED_TEMPLATE_CREATIVE_FIELDS if not template.get(f)
             ]
             if missing:
                 result.warnings.append(
@@ -1312,7 +1318,9 @@ def apply(plan: TemplatePlan, api) -> TemplateResult:
 DELIVERING_STATUSES = frozenset({"ACTIVE", "IN_PROCESS", "WITH_ISSUES"})
 
 
-def delete_template_campaign(api, campaign_id: str, force: bool = False) -> Dict[str, Any]:
+def delete_template_campaign(
+    api, campaign_id: str, force: bool = False
+) -> Dict[str, Any]:
     """Delete a campaign and everything under it -- if it is marked as a template.
 
     The marker is the name prefix (`TEMPLATE_CAMPAIGN_PREFIX`). Two refusals,
@@ -1322,7 +1330,9 @@ def delete_template_campaign(api, campaign_id: str, force: bool = False) -> Dict
     reason they did is not knowable from here. `force=True` skips only that
     second check; nothing skips the marker.
     """
-    campaign = _graph_get(api, (str(campaign_id),), {"fields": "name,id,effective_status"})
+    campaign = _graph_get(
+        api, (str(campaign_id),), {"fields": "name,id,effective_status"}
+    )
     name = campaign.get("name")
 
     if not is_template_campaign(name):
