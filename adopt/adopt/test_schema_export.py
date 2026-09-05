@@ -28,7 +28,7 @@ from typing import Any, get_args, get_origin
 
 import pytest
 
-from . import study_conf
+from . import study_conf, study_conf_strict
 from .schema_export import (
     CONF_ENDPOINTS,
     SCHEMA_DIR,
@@ -46,18 +46,30 @@ CONF_ROUTE_PREFIX = "/{org_id}/studies/{slug}/confs/"
 def _annotation_source(annotation: Any) -> str:
     """Render an annotation the way server.py spells it.
 
-    Names are found by identity in `study_conf` rather than via `__name__`,
-    because two of the conf types (`DestinationConf`, `RecruitmentConf`) are
-    annotated aliases and have no `__name__`.
+    Names are found by identity rather than via `__name__`, because two of the
+    conf types (`DestinationConfStrict`, `RecruitmentConfStrict`) are annotated
+    aliases and have no `__name__`.
+
+    Both modules are searched, and `study_conf_strict` FIRST, because that is
+    where the write-time types the routes actually annotate live. Searching
+    `study_conf` too keeps this test honest if a route is ever pointed back at
+    a lenient model: it would still resolve to a name, and the comparison
+    against `CONF_ENDPOINTS` would then fail on the mismatch, which is the
+    failure we want -- rather than an AssertionError about an unexported type,
+    which is not.
     """
     if get_origin(annotation) is list:
         return f"list[{_annotation_source(get_args(annotation)[0])}]"
 
-    for name, value in vars(study_conf).items():
-        if value is annotation or value == annotation:
-            return name
+    for module in (study_conf_strict, study_conf):
+        for name, value in vars(module).items():
+            if value is annotation or value == annotation:
+                return name
 
-    raise AssertionError(f"{annotation!r} is not exported from study_conf")
+    raise AssertionError(
+        f"{annotation!r} is exported from neither study_conf nor "
+        "study_conf_strict"
+    )
 
 
 def _routes_declared_in_server() -> dict[str, str]:

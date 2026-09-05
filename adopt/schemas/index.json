@@ -1,5 +1,5 @@
 {
-  "$comment": "Generated from adopt/adopt/study_conf.py by adopt/adopt/schema_export.py. Do not edit by hand; run `make schemas`. Manifest of the schemas in this directory.",
+  "$comment": "Generated from adopt/adopt/study_conf.py and adopt/adopt/study_conf_strict.py by adopt/adopt/schema_export.py. Do not edit by hand; run `make schemas`. Manifest of the schemas in this directory.",
   "confs": [
     {
       "body": "object",
@@ -12,7 +12,7 @@
     {
       "body": "object",
       "conf_type": "recruitment",
-      "description": "How the study spends: one of three recruitment strategies. NOTE: this union carries no tag field, so it is an untagged `anyOf` - a consumer must tell the arms apart by shape (`ad_campaign_name` vs `ad_campaign_name_base`, then `arms` vs `destinations`). See 'JSON Schemas' in adopt/README.md.",
+      "description": "How the study spends: one of three recruitment strategies, discriminated on `type` (`simple`, `pipeline_experiment`, `destination`). The tag may be omitted, in which case the arm is inferred from shape for backwards compatibility - but a written tag is the only way to be sure which arm you get.",
       "method": "POST",
       "schema": "recruitment.json",
       "url": "/{org_id}/studies/{slug}/confs/recruitment"

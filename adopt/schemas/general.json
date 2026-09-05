@@ -1,6 +1,7 @@
 {
-  "$comment": "Generated from adopt/adopt/study_conf.py by adopt/adopt/schema_export.py. Do not edit by hand; run `make schemas`. Body of POST /{org_id}/studies/{slug}/confs/general (a JSON object).",
+  "$comment": "Generated from adopt/adopt/study_conf.py and adopt/adopt/study_conf_strict.py by adopt/adopt/schema_export.py. Do not edit by hand; run `make schemas`. Body of POST /{org_id}/studies/{slug}/confs/general (a JSON object).",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
   "description": "Study-wide settings: name, ad account, credentials, opt window.",
   "properties": {
     "ad_account": {
@@ -39,6 +40,6 @@
     "ad_account",
     "opt_window"
   ],
-  "title": "GeneralConf",
+  "title": "GeneralConfStrict",
   "type": "object"
 }

@@ -22,16 +22,25 @@ from ..malaria import (
     run_instructions,
     update_ads_for_campaign,
 )
-from ..study_conf import (
-    AudienceConf,
-    CreativeConf,
-    DataSourceConf,
-    DestinationConf,
-    GeneralConf,
-    InferenceDataConf,
-    RecruitmentConf,
-    StratumConf,
-    VariableConf,
+# Lenient, and it must stay that way: `get_recruitment_stats` below rebuilds
+# strata from STORED JSON, which is a read path. A conf written before a field
+# was removed still has to load there, exactly as it does on the optimize cron.
+from ..study_conf import StratumConf
+
+# The nine POST /confs/<type> routes annotate the STRICT twins, which forbid
+# unknown keys; every read path (load_basics, get_study_conf, StudyConf, and
+# the StratumConf use above) keeps the lenient models.
+# adopt/adopt/study_conf_strict.py says why the two differ.
+from ..study_conf_strict import (
+    AudienceConfStrict,
+    CreativeConfStrict,
+    DataSourceConfStrict,
+    DestinationConfStrict,
+    GeneralConfStrict,
+    InferenceDataConfStrict,
+    RecruitmentConfStrict,
+    StratumConfStrict,
+    VariableConfStrict,
 )
 from .auth import AuthError, verify_tokens
 from .api_keys import add_scope_enforcement, router as api_keys_router
@@ -139,7 +148,7 @@ async def create_conf(user: User, org_id: str, slug: str, conf_type: str, config
 async def create_general_conf(
     org_id: str,
     slug: str,
-    config: GeneralConf,
+    config: GeneralConfStrict,
     user: Annotated[User, Depends(get_current_user)],
 ):
     return await create_conf(user, org_id, slug, "general", config)
@@ -149,7 +158,7 @@ async def create_general_conf(
 async def create_recruitment_conf(
     org_id: str,
     slug: str,
-    config: RecruitmentConf,
+    config: RecruitmentConfStrict,
     user: Annotated[User, Depends(get_current_user)],
 ):
     return await create_conf(user, org_id, slug, "recruitment", config)
@@ -159,7 +168,7 @@ async def create_recruitment_conf(
 async def create_destinations_conf(
     org_id: str,
     slug: str,
-    config: list[DestinationConf],
+    config: list[DestinationConfStrict],
     user: Annotated[User, Depends(get_current_user)],
 ):
     return await create_conf(user, org_id, slug, "destinations", config)
@@ -169,7 +178,7 @@ async def create_destinations_conf(
 async def create_creative_conf(
     org_id: str,
     slug: str,
-    config: list[CreativeConf],
+    config: list[CreativeConfStrict],
     user: Annotated[User, Depends(get_current_user)],
 ):
     return await create_conf(user, org_id, slug, "creatives", config)
@@ -179,7 +188,7 @@ async def create_creative_conf(
 async def create_audience_conf(
     org_id: str,
     slug: str,
-    config: list[AudienceConf],
+    config: list[AudienceConfStrict],
     user: Annotated[User, Depends(get_current_user)],
 ):
     return await create_conf(user, org_id, slug, "audiences", config)
@@ -189,7 +198,7 @@ async def create_audience_conf(
 async def create_variables_conf(
     org_id: str,
     slug: str,
-    config: list[VariableConf],
+    config: list[VariableConfStrict],
     user: Annotated[User, Depends(get_current_user)],
 ):
     return await create_conf(user, org_id, slug, "variables", config)
@@ -199,7 +208,7 @@ async def create_variables_conf(
 async def create_strata_conf(
     org_id: str,
     slug: str,
-    config: list[StratumConf],
+    config: list[StratumConfStrict],
     user: Annotated[User, Depends(get_current_user)],
 ):
     return await create_conf(user, org_id, slug, "strata", config)
@@ -209,7 +218,7 @@ async def create_strata_conf(
 async def create_data_sources_conf(
     org_id: str,
     slug: str,
-    config: list[DataSourceConf],
+    config: list[DataSourceConfStrict],
     user: Annotated[User, Depends(get_current_user)],
 ):
     return await create_conf(user, org_id, slug, "data_sources", config)
@@ -219,7 +228,7 @@ async def create_data_sources_conf(
 async def create_inference_data_conf(
     org_id: str,
     slug: str,
-    config: InferenceDataConf,
+    config: InferenceDataConfStrict,
     user: Annotated[User, Depends(get_current_user)],
 ):
     return await create_conf(user, org_id, slug, "inference_data", config)
@@ -240,6 +249,25 @@ async def copy_confs_from(
     return {"data": raw_config}
 
 
+# Two conf types are spelled with a hyphen in the URL and an underscore in the
+# database, because the POST routes name the URL segment and store something
+# else: `.../confs/data-sources` writes conf_type `data_sources`. The GET below
+# passed its segment straight to the query, so the URL that WROTE a section
+# could not read it back — `confs/data-sources` matched no row and
+# `get_study_conf` raised (→ 500). Fixes planning/agent-study-authoring.md
+# §11.4 item 5.
+#
+# Both spellings are accepted rather than only the URL one. The storage name is
+# what `GET /confs` returns as a key, so a caller that reads the map and then
+# asks for one section by its key is using the underscore — and that caller was,
+# until now, the only one that worked. Breaking it to fix the other would just
+# move the bug.
+CONF_TYPE_BY_URL_SEGMENT = {
+    "data-sources": "data_sources",
+    "inference-data": "inference_data",
+}
+
+
 @app.get("/{org_id}/studies/{slug}/confs/{conf_type}")
 async def get_conf(
     org_id: str,
@@ -247,7 +275,8 @@ async def get_conf(
     conf_type: str,
     user: Annotated[User, Depends(get_current_user)],
 ):
-    raw_config = get_study_conf(user.user_id, org_id, slug, conf_type)
+    stored_type = CONF_TYPE_BY_URL_SEGMENT.get(conf_type, conf_type)
+    raw_config = get_study_conf(user.user_id, org_id, slug, stored_type)
     return {"data": raw_config}
 
 

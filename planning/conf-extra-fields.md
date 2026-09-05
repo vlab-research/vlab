@@ -1,6 +1,11 @@
-# `extra="ignore"` on every conf model — investigation, not a fix
+# `extra="ignore"` on every conf model — investigation, and the fix
 
-Status: **investigation only, nothing changed**. Written for
+Status: **IMPLEMENTED, 2026-09-05** (adopt v0.1.85). §1–§6 below are the
+original investigation, left as written; §7 records what shipped, what §6's two
+open questions were settled to, and the one thing the investigation missed.
+Read §7 first if you are here to find out what the code does now.
+
+Originally written for
 `planning/agent-study-authoring.md` §11.4 item 2 / §11.5, which flags this as
 the defect that most needs settling before Phase 3 (the SDK) starts: an SDK
 that validates locally is worth much less if the server silently drops what it
@@ -240,6 +245,8 @@ need a one-time cleanup first), the shape of that query is:
 
 ## 6. Open questions
 
+*(Answered in §7.2 and §7.3.)*
+
 1. Is there a non-dashboard writer of these confs that could be carrying
    forward legacy/extra keys? Two candidates: the notebook era
    (`~/Documents/vlab-research/campaigns/*.ipynb`, per
@@ -255,8 +262,179 @@ need a one-time cleanup first), the shape of that query is:
    legacy data, so the strict variant may want to skip that default entirely
    rather than reuse it.
 
-## 7. What this doc does not do
+---
 
-No code changed as part of this investigation. `extra="ignore"` remains the
-behaviour on every model, on every path, until a follow-up implements one of
-§4's options and works through §5/§6.
+## 7. What shipped
+
+Option 1, as recommended, with three decisions the investigation left open and
+one correction to it.
+
+### 7.1 The shape
+
+`adopt/adopt/study_conf_strict.py`: an `XStrict(X)` twin per write-time model,
+each carrying `model_config = ConfigDict(extra="forbid")`, swapped into the
+nine POST route annotations in `server.py`. No handler body changed.
+`load_basics` / `get_study_conf` / `StudyConf`, and the `StratumConf` rebuild in
+`get_recruitment_stats`, keep the lenient classes — the forward-compatibility
+guarantee `RefModeDestination`'s docstring describes is untouched.
+
+**Strictness is recursive.** `extra="forbid"` on an outer class does nothing for
+the models nested inside it, so every model reachable from a route has a twin
+and every field pointing at one is re-declared to point at the twin. A typo at
+`levels[].facebok_targeting` is as likely as one at the top level and was
+exactly as silent. Because that re-declaration is the step a future change will
+forget,
+`test_study_conf_strict.py::test_every_nested_model_reachable_from_a_route_is_strict`
+walks annotations out from each route's type and fails on any model it reaches
+that is not strict.
+
+Arbitrary-key fields stay arbitrary — `FacebookTargeting` and
+`FacebookAdCreative` hold Meta's spec objects, and `extra_metadata` /
+`metadata` / `additional_metadata` hold user-chosen keys. Forbidding an unknown
+key there would forbid the feature.
+
+**`VariableConf` got a twin too**, though §2 licensed forbidding in place
+because nothing reloads it. That licence rests on a fact about today, not a
+property of the model, and a `POST /studies/{slug}/validate` endpoint that
+re-reads stored confs was being built alongside this. One uniform mechanism
+costs four lines and removes the need to remember which model is the exception.
+
+### 7.2 §6 question 1: partly answered, and the investigation missed the real risk
+
+§3 checked the dashboard's **forms** against the models and found them aligned.
+That was the wrong place to look. What round-trips through the dashboard's
+**edit** path is *stored JSON*, re-POSTed verbatim (`useState(localData ? ...)`)
+— and stored JSON is the last successful `model_dump()`, so it contains whatever
+the models declared on the day it was last saved, including fields since
+removed.
+
+Two such fields exist, both provable from git:
+
+| Key | Was | Removed |
+|---|---|---|
+| `recruitment.destination_type` | REQUIRED on all three arms | `d382000c`, 2026-08-30 |
+| `destinations[].include_metadata_in_ref` | required on the destination base | `065bacb8`, 2026-08-24 |
+
+Every recruitment conf older than 2026-08-30 carries `destination_type`, so a
+naive `extra="forbid"` would have turned "extend a study's end date" into a 422
+across the corpus. Both are now on a **closed list of retired keys**, accepted
+and stripped before validation — exactly the behaviour they have had since the
+day they were removed. Naming them rather than leaving `extra="ignore"` on is
+the whole point: two names citable to a commit is a bounded set; every possible
+misspelling is not. A future field removal adds a line there or breaks the
+dashboard's edit path.
+
+The rest of question 1 is still open and needs §5's production query, which was
+deliberately not run. If the notebook era or `copy-from` left some other key in
+the corpus, it is now a 422 on that conf's first re-save, naming the key — which
+is recoverable (add the name) and, unlike the old behaviour, visible.
+
+One live dashboard bug also surfaced, unrelated to retired keys: the
+recruitment form's destination-experiment `initialState` carried
+`destination: ''` — singular, a leftover, never a field on
+`DestinationRecruitmentExperiment`. Fixed in the dashboard rather than
+tolerated, because it is a bug and not history.
+
+**It sets the deploy order: dashboard before adopt.** The window is wider than
+"a fresh destination-experiment conf". `handleSelectChange` loads the same
+`initialState` object whenever the recruitment-type select changes, discarding
+`localData` wholesale — so on an OLD dashboard against a NEW adopt, switching an
+existing study to a destination experiment sends the stray key too, not just
+creating one from scratch. Still one rare form, still a legible 422 ("extra
+inputs are not permitted: destination"), but it reaches existing studies and not
+only new ones.
+
+### 7.3 §6 question 2: settled — the strict union KEEPS the legacy default
+
+The strict destination union applies `_default_missing_destination_type`, the
+same validator the lenient one uses, shared rather than copied.
+
+This was decided the other way first, on the argument §6 itself suggests: a
+fresh write never predates the `type` field, so a missing tag is an author who
+forgot it, and defaulting it hands them a destination they did not ask for. The
+argument does not survive contact with `extra="forbid"`, and the reason is the
+part worth keeping.
+
+A typeless payload is defaulted to `messenger` and *then validated against the
+strict messenger twin*. Anything that is not genuinely messenger-shaped carries
+fields messenger does not declare, and those are now unknown keys. Measured,
+per shape:
+
+| Typeless body | Result |
+|---|---|
+| messenger-shaped | accepted, stored as `type: "messenger"` |
+| whatsapp-shaped | 422 — `whatsapp_phone_number` extra, `button_text` missing |
+| **multi-shaped** | **422 — `whatsapp_phone_number` extra** |
+| web-shaped | 422 — `url_template` extra, three fields missing |
+| app-shaped | 422 — six extras, three missing |
+
+The multi row is the whole argument. That is the 2026-08-30 incident shape: it
+satisfies *every* field a Messenger destination requires, so no required-field
+check and no mandatory tag could distinguish it — it is caught solely by
+`whatsapp_phone_number` being an unknown key. **Forbidding extras is what closed
+that hole; requiring the tag was never what closed it.** So the default can only
+ever admit a payload that really is a messenger destination, which is the
+correct result rather than a silent mis-resolution.
+
+What the 422 did cost was real. The 45 typeless confs across 11 studies
+round-trip through the dashboard, which renders no subform for a destination
+whose type it cannot read and re-POSTs the conf verbatim. Refusing them makes
+editing destinations impossible on those studies, and whether any of them is
+live was not determined. Production breakage for zero added protection is not a
+trade worth making.
+
+There is a second, more immediate reason, found in review: **the dashboard
+writes `type: ''` on every newly created destination.**
+`forms/destinations/Destinations.tsx`'s `initialState` seeds a row with an empty
+`type`, and `_default_missing_destination_type` treats empty exactly as absent.
+So the default is not only a concession to 45 legacy confs — it is load-bearing
+for the current dashboard's create path. The row it seeds is messenger-shaped
+(`name`, `initial_shortcode`, `welcome_message`, `button_text`,
+`additional_metadata`, `ref_mode`), so it lands on the messenger twin and
+validates; a 422 there would have broken creating a destination at all, in the
+default flow, on every study. That this was not caught by the test suite is
+itself worth noting: nothing exercises the dashboard's create path against the
+models.
+
+The committed schema still marks `type` required, deliberately: an agent
+authoring new configuration should write the tag, and the file being stricter
+than the server on this one key is the right direction. `adopt/README.md` says
+so under "what the schemas do not say".
+
+### 7.4 The dependency in §4 was real, and was taken first
+
+§4 warned that building a strict variant of the already-ambiguous
+`RecruitmentConf` would forbid typos while still mis-resolving an
+under-specified body. So the union was tagged first, on `type`, following the
+destination precedent: a literal per arm, a BeforeValidator inferring the tag
+from shape for stored confs, `Field(discriminator=...)`.
+
+The tag values — `simple`, `pipeline_experiment`, `destination` — were not
+invented. The dashboard has been sending exactly those strings in a `type` key
+all along; `extra="ignore"` was eating them. §3 did not check the recruitment
+form, which is how that went unnoticed.
+
+The strict recruitment union **keeps** the shape inference, unlike the
+destination one. Every stored recruitment conf reads back untagged (the tag was
+dropped before storage), and the dashboard's edit path re-POSTs it, so
+requiring the tag would 422 every edit of every study. Nothing is lost:
+`extra="forbid"` is what makes an over-specified body a 422 naming
+`destinations` instead of a silent downgrade to the pipeline arm, which is what
+§11.4 item 3 actually asked for. The inference becomes removable once every
+stored conf carries a real tag, which `model_dump()` now writes.
+
+### 7.5 A bug found on the way
+
+`LOOKALIKE` and `PARTITIONED` audiences could never be written as JSON at all —
+`AudienceConf.__post_init__` runs at `mode="before"` but required the
+sub-object to be an already-parsed `Lookalike` / `Partitioning`. Found because
+the strict twins for those two models had no reachable code path to test
+against. Fixed (presence check only; shape is the field annotation's job) and
+recorded as `agent-study-authoring.md` §11.4 item 7.
+
+### 7.6 What §5 still buys
+
+The production query in §5 was not run and is still the right thing to run. It
+no longer gates the rollout — the retired-key list handles the two failures git
+can prove — but it is the only way to know whether anything *else* is out there
+before someone meets it as a 422.

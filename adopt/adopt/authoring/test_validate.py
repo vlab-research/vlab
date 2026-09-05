@@ -519,24 +519,22 @@ def test_a_dangling_exclusion_gets_its_own_code_and_says_what_it_costs():
     assert "re-recruit people it meant to exclude" in finding.message
 
 
-def test_a_partitioned_audience_cannot_be_written_as_json():
-    """A defect this work found, recorded rather than fixed.
+def test_a_partitioned_audience_can_now_be_written_as_json():
+    """Was `..._cannot_be_written_as_json`, pinning a defect this work found.
 
-    `AudienceConf`'s `mode="before"` validator asserts
-    `isinstance(values["partitioning"], Partitioning)` — an isinstance check
-    against the *parsed* model, run BEFORE pydantic has parsed anything. So a
-    partitioned (or lookalike) audience is only constructible from Python
-    objects, never from the JSON the API speaks, and `POST /confs/audiences`
-    with one is a 422. Every existing test in this repo builds them from
-    objects (`test_audiences.py:217`, `test_marketing.py:306`), which is why
-    nobody has hit it.
+    Two changes crossed in review and both found it independently: this one
+    recorded it and said "fixing it belongs in its own change", and §15's
+    `extra="forbid"` work was that change. `AudienceConf`'s `mode="before"`
+    validator asserted `isinstance(values["partitioning"], Partitioning)` — an
+    isinstance check against the *parsed* model, run BEFORE pydantic parses
+    anything — so a partitioned or lookalike audience was constructible only
+    from Python objects, never from the JSON the API speaks. Every existing
+    test builds them from objects, which is why nobody had hit it.
 
-    The validator's job here is to say so rather than to hide it: a study with
-    a stored partitioned audience conf fails `StudyConf` assembly in the cron
-    for exactly this reason, so `section.invalid` is the true answer.
-
-    Fixing it belongs in its own change — see
-    planning/agent-study-authoring.md §14.
+    `validate()` now checks presence only; the shape is the field annotation's
+    job, which it was already doing. So the correct report for this study is
+    that it is valid, and the assertion is inverted rather than deleted — the
+    docstring is the record that it was once the other way.
     """
     report = validate_study(
         broken(
@@ -551,9 +549,26 @@ def test_a_partitioned_audience_cannot_be_written_as_json():
         )
     )
 
+    assert not [e for e in report.errors if e.code == "section.invalid"]
+
+
+def test_a_partitioned_audience_missing_its_partitioning_is_still_invalid():
+    """The presence check that survived the fix above.
+
+    `partitioning` is `Optional` on the model, so nothing but that validator
+    can say a PARTITIONED audience without one is wrong.
+    """
+    report = validate_study(
+        broken(
+            audiences=[
+                {"name": "cohorts", "subtype": "PARTITIONED"},
+            ]
+        )
+    )
+
     assert report.valid is False
     invalid = [e for e in report.errors if e.code == "section.invalid"]
-    assert [e.path for e in invalid] == ["audiences[1]"]
+    assert [e.path for e in invalid] == ["audiences[0]"]
     assert "requires a" in invalid[0].message
 
 
