@@ -130,7 +130,10 @@ def parse_target(target: str) -> Tuple[str, str]:
     it needs to be told to ask for it, not told the syntax is wrong.
     """
     org, sep, slug = target.partition("/")
-    if not sep or not org or not slug:
+    # `"/" in slug` matters: without it `org/slug/extra` splits happily, the
+    # extra segment is percent-encoded into the path by `client._seg`, and the
+    # caller gets a 404 instead of being told the argument is malformed.
+    if not sep or not org or not slug or "/" in slug:
         raise click.BadParameter(
             f"Expected <org>/<slug>, got {target!r}. The org is a UUID a human "
             "has to hand you -- no endpoint an API key can call lists them."
@@ -319,11 +322,11 @@ def validate(
 
     if remote:
         org, slug = study.require_target()
-        body = client_validate(ctx, org, slug, study.sections)
+        body = client_validate(ctx, org, slug, study.all_sections())
         report = body.get("data", {})
         gaps = body.get("known_gaps", [])
     else:
-        report = validate_study(study.sections).model_dump()
+        report = validate_study(study.all_sections()).model_dump()
         gaps = list(KNOWN_GAPS)
 
     if as_json:
@@ -481,6 +484,17 @@ def print_diff(diffs: Sequence[SectionDiff], study: StudyFile) -> None:
             f"{', '.join(remote_only)}. `push` never touches these -- there is "
             "no way to remove a section through the API at all."
         )
+    if study.extra:
+        # A key outside the nine has no route, so it is not written, not
+        # rejected and not missed -- the worst outcome available. Say so here
+        # as well as in `validate`'s `section.unrecognized`, because `diff` is
+        # the command a caller runs to find out what `push` will do, and the
+        # honest answer for one of these is "nothing at all, ever".
+        click.echo(
+            f"Not a configuration section, so never written: "
+            f"{', '.join(sorted(study.extra))}. If one of those is a typo for a "
+            "section name, nothing will ever tell you but this line."
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -537,7 +551,7 @@ def push(
     org, slug = study.require_target()
     client = get_client(ctx)
 
-    report = validate_study(study.sections)
+    report = validate_study(study.all_sections())
     if report.errors and not force:
         print_report(report.model_dump(), list(KNOWN_GAPS), study)
         raise click.ClickException(
@@ -547,13 +561,31 @@ def push(
         )
 
     diffs = diff_sections(study.sections, client.get_confs(org, slug))
+    unchanged = [d.section for d in diffs if d.status == "unchanged"]
     plan = push_plan(diffs)
+    outstanding = [d.section for d in plan]
     if only:
         plan = [d for d in plan if d.section in set(only)]
 
     if not plan:
+        # The message has to distinguish "the study is in sync" from "the
+        # sections you asked for are, and others are not". Saying the first
+        # when the second is true tells an agent or a CI step that the study
+        # matches the server when it does not.
+        skipped_elsewhere = [s for s in outstanding if s not in set(only or ())]
         if as_json:
-            emit_json({"written": [], "skipped": [d.section for d in diffs]})
+            emit_json(
+                {
+                    "written": [],
+                    "skipped": unchanged,
+                    "outstanding": skipped_elsewhere,
+                }
+            )
+        elif skipped_elsewhere:
+            click.echo(
+                f"Nothing to push in {', '.join(sorted(only))}. "
+                f"Still outstanding elsewhere: {', '.join(skipped_elsewhere)}."
+            )
         else:
             click.echo("Nothing to push: every section matches the server.")
         return
@@ -604,7 +636,8 @@ def push(
         emit_json(
             {
                 "written": written,
-                "skipped": [d.section for d in diffs if d.status == "unchanged"],
+                "skipped": unchanged,
+                "outstanding": [s for s in outstanding if s not in set(written)],
             }
         )
         return
@@ -911,14 +944,23 @@ def meta_ads(
     "improved" blob is a perpetual no-op rewrite.
 
     Exactly one of --campaign or --adset, or --ad for a single creative.
+
+    --ad prints the creative blob as JSON with or without --json: it is the
+    thing you paste into `creatives[].template`, and there is no useful
+    one-line rendering of it. An ad has exactly one creative, so --limit and
+    --after mean nothing there and are refused rather than ignored.
     """
     client = get_client(ctx)
 
     if ad_id:
         if campaign or adset:
             raise click.BadParameter("--ad is on its own; drop --campaign/--adset.")
-        creative = client.meta_ad_creative(org, ad_id, credentials_key)
-        emit_json(creative)
+        if limit is not None or after is not None:
+            raise click.BadParameter(
+                "--limit and --after do not apply to --ad: an ad has exactly "
+                "one creative, so there is nothing to page."
+            )
+        emit_json(client.meta_ad_creative(org, ad_id, credentials_key))
         return
 
     if bool(campaign) == bool(adset):
@@ -1140,7 +1182,10 @@ def keys_list(ctx: click.Context, as_json: bool) -> None:
         scopes = ",".join(row.get("scopes") or []) or "(unrestricted)"
         flag = " EXPIRED" if row.get("expired") else ""
         click.echo(
-            f"{row.get('id')}  {row.get('name'):<24} {scopes:<40} "
+            # `or ""` on every field: a format spec applied to None is a
+            # TypeError, which is not a user error and would print a traceback
+            # at somebody who only ran `vlab keys list`.
+            f"{row.get('id') or ''}  {row.get('name') or '':<24} {scopes:<40} "
             f"expires {row.get('expires_at')}{flag}"
         )
     click.echo("")

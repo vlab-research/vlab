@@ -506,3 +506,33 @@ def test_describe_renders_one_line_per_field_error():
     text = str(e.value)
     assert "ad_account: Field required" in text
     assert "[0].name: Field required" in text
+
+
+def test_a_json_array_that_is_not_field_errors_is_not_pretended_to_be():
+    """The `detail` fallback puts a whole JSON body here when there is no
+    `detail` key, which an ingress or a proxy can produce. Handing a caller a
+    list of arbitrary dicts under a name that promises `loc` and `msg` turns
+    their `fe["loc"]` into a KeyError on the request that was already
+    failing."""
+    c = _client(_Response(502, [{"upstream": "down"}, {"upstream": "down"}]))
+
+    with pytest.raises(ServerError) as e:
+        c.get_confs("org", "slug")
+
+    assert e.value.field_errors == []
+    assert "upstream" in e.value.detail_lines()[0]
+
+
+def test_an_empty_detail_list_is_not_field_errors_either():
+    c = _client(_Response(422, {"detail": []}))
+    with pytest.raises(UnprocessableError) as e:
+        c.get_confs("org", "slug")
+    assert e.value.field_errors == []
+
+
+def test_real_field_errors_are_still_recognised():
+    detail = [{"loc": ["body", "x"], "msg": "Field required", "type": "missing"}]
+    c = _client(_Response(422, {"detail": detail}))
+    with pytest.raises(UnprocessableError) as e:
+        c.get_confs("org", "slug")
+    assert e.value.field_errors == detail

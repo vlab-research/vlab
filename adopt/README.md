@@ -1038,7 +1038,7 @@ the pieces the notebooks in `~/Documents/vlab-research/campaigns/` actually used
 | New home | |
 |---|---|
 | `adopt.authoring.sheets` | `parse_kv_sheet` (68 call sites, 17 notebooks), `parse_row_sheet` (17), `read_share_lookup` (17) |
-| `adopt.authoring.geo` | `location_levels` (24 calls, 20 notebooks), `create_location` — now public, because 14 notebooks each defined a byte-identical private copy of it |
+| `adopt.authoring.geo` | `location_levels` (24 calls, 20 notebooks), `create_location` — now public, because 15 call sites across 14 notebooks were each a byte-identical private copy of it |
 
 Two things changed in the move, both taken from what notebook authors kept
 rewriting by hand. `location_levels` emits `facebook_targeting` rather than

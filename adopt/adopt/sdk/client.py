@@ -13,6 +13,11 @@ The service answers a caller's mistakes with five distinguishable statuses and
 three different `detail` SHAPES, and the difference matters for what a program
 should do next:
 
+* `400` — your request was malformed in a way the handler names: a blank or
+  over-long study name, an ad-account id with the `act_` prefix, no Facebook
+  credential at all. Deliberately NOT given its own type: every one of them is
+  "read `detail` and fix the argument", which is what the base class already
+  says, and a type nothing branches on is a name to maintain for nothing.
 * `401` — the token is not usable at all. It never says why: signature, wrong
   audience, expired, revoked and tombstoned all collapse to
   `"Could not validate credentials"` (`server/deps.py`). Retrying is pointless.
@@ -148,7 +153,12 @@ class VlabHTTPError(VlabError):
             return [detail]
 
         if isinstance(detail, list):
-            return [_field_error_line(item) for item in detail]
+            if _looks_like_field_errors(detail):
+                return [_field_error_line(item) for item in detail]
+            # Some other JSON array. Rendering it as if it were FastAPI's
+            # per-field errors would print `: ` for every element and claim a
+            # structure it does not have.
+            return [_compact(detail)]
 
         if isinstance(detail, dict):
             # The Meta proxy shape: {message, meta_error: {...}} (§2.5). Keep
@@ -177,8 +187,15 @@ class VlabHTTPError(VlabError):
 
         Each is `{"loc": [...], "msg": ..., "type": ...}`. `loc` starts with
         `"body"`, so `loc[1:]` is the path inside the conf you sent.
+
+        Shape-checked, not merely type-checked. `detail` is whatever came back,
+        and the fallback in `_error` puts a whole JSON body here when it has no
+        `detail` key -- which an ingress or a proxy in front of the service can
+        produce. Handing a caller a list of arbitrary dicts under a name that
+        promises `loc` and `msg` turns their `fe["loc"]` into a `KeyError` on
+        exactly the request that was already failing.
         """
-        if isinstance(self.detail, list):
+        if _looks_like_field_errors(self.detail):
             return [item for item in self.detail if isinstance(item, dict)]
         return []
 
@@ -224,6 +241,20 @@ _STATUS_ERRORS = {
     409: ConflictError,
     422: UnprocessableError,
 }
+
+
+def _looks_like_field_errors(value: Any) -> bool:
+    """Is this FastAPI's `detail` for a 422, rather than some other array?
+
+    Every entry has to carry `msg` -- pydantic emits it on every error and
+    nothing else the service returns is a list of dicts with that key. An empty
+    list is not field errors either: there would be nothing to report.
+    """
+    return (
+        isinstance(value, list)
+        and len(value) > 0
+        and all(isinstance(item, dict) and "msg" in item for item in value)
+    )
 
 
 def _field_error_line(item: Any) -> str:

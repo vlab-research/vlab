@@ -17,7 +17,7 @@ first.
 
 | | |
 |---|---|
-| `adopt/adopt/sdk/client.py` | The HTTP client. Auth header, base URL, one exception type per status the service returns, `detail`'s three shapes rendered legibly, no retries. Takes an injectable `requests`-compatible session. |
+| `adopt/adopt/sdk/client.py` | The HTTP client. Auth header, base URL, a typed exception for each of 401/403/404/409/422/5xx (a 400 -- which study creation and the Meta proxy both return -- lands on the base `VlabHTTPError`), `detail`'s three shapes rendered legibly, no retries. Takes an injectable `requests`-compatible session. |
 | `adopt/adopt/sdk/study.py` | The file on disk: load, save, diff against the store, push ordering, unknown-key detection. Pure — no sockets. |
 | `adopt/adopt/sdk/cli.py` | `click`. Sixteen commands: seven at the top level, plus the `meta`, `strata` and `keys` groups. |
 | `adopt/adopt/authoring/sheets.py` | Salvaged: `parse_kv_sheet`, `parse_row_sheet`, `read_share_lookup`. |
@@ -247,7 +247,7 @@ the other 29 carry the import cell as copy-pasted boilerplate.
 | | `parse_row_sheet` | 17 calls, one shape: a `creative` tab into `list[CreativeConf]`. |
 | | `read_share_lookup` | 17 calls. `tab_name` is always the literal `"targeting_distribution"`. |
 | `authoring/geo.py` | `location_levels` | 24 calls, 20 notebooks. |
-| | `create_location` | 15 call sites — **all of them local copies**, because it was never exported. Now public. |
+| | `create_location` | 15 call sites across 14 notebooks — **every one a local copy**, because it was never exported. Now public. |
 
 **Two changes, both taken from what notebook authors kept rewriting by hand.**
 
@@ -293,8 +293,9 @@ people rewrote, so it is the thing that changed.
   `list[str]`.
 - `hyphen_case`, `conf_for_export`, `_creative_conf`, `stringify_column`,
   `origin_of`, `read_single_value_share_lookup` — zero notebook callers for the
-  library versions. `origin_of` and the single-value reader move as private
-  helpers of the functions that use them.
+  library versions. the single-value reader moves as a private helper of the
+  function that uses it; `origin_of` did not move at all -- `_cast_strings`
+  inlines `getattr(hint, "__origin__", None)`, which is all it ever needed.
 
 `configuration.py` is **not deleted**: 46 notebooks import it, and none of them
 is in this repo. Its docstring now points at the new homes.
@@ -356,7 +357,7 @@ there is a test pinning it. Both places in the document are corrected.
   has, and it is slow, it reads Meta and it writes rows. This is the most
   obviously missing command.
 - **No MCP shim.** Phase 4. The SDK is now shaped for it: the smart operations
-  (`validate_study`, `create_strata_from_variables`, `StudyFile.diff`) are
+  (`validate_study`, `create_strata_from_variables`, `diff_sections`) are
   library functions with no CLI in the way, which is the refactor fly had to do
   after the fact (`90cdce61`).
 - **No `vlab copy-from`.** `POST /copy-from` exists and is the dashboard's

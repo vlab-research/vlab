@@ -488,3 +488,65 @@ def test_the_two_hyphenated_url_segments():
     assert SECTION_URL_SEGMENTS["data_sources"] == "data-sources"
     assert SECTION_URL_SEGMENTS["inference_data"] == "inference-data"
     assert SECTION_URL_SEGMENTS["strata"] == "strata"
+
+
+# ---------------------------------------------------------------------------
+# The skeleton is interpolated text, so it has to quote what it interpolates
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "HPV: Lagos 2026",  # a colon: unparseable YAML
+        "- dash",  # a leading dash: unparseable YAML
+        "#1 study",  # a hash: the rest of the line is a comment, name is null
+        "Yes",  # YAML 1.1: parses as the boolean true
+        "NO",  # likewise, as false
+        "123",  # parses as an int
+        'quote " and \\ backslash',
+        "emoji 🎯 and ünïcödé",
+    ],
+)
+def test_the_skeleton_survives_any_study_name(name):
+    """`vlab create --init` is the FIRST command in the runbook, and by the time
+    it writes the file the study already exists server-side -- so a file broken
+    by its own name is not recoverable by re-running (that is a 409).
+
+    Every name here is one a researcher would plausibly type."""
+    study = StudyFile.loads(skeleton(org=ORG, slug="hpv", name=name))
+
+    assert study.name == name
+    assert study.sections["general"]["name"] == name
+    assert validate_study(study.sections).valid
+
+
+def test_a_yaml_error_is_a_value_error_naming_the_file():
+    """Not a `yaml.ScannerError` escaping to a traceback: a typo in the user's
+    YAML is the user's input being wrong, and the CLI's error handling has to
+    be able to catch it."""
+    with pytest.raises(ValueError) as e:
+        StudyFile.loads("general: {unclosed", path="study.yaml")
+
+    assert "study.yaml" in str(e.value)
+    # The parser's own message carries line and column; keep it.
+    assert "line" in str(e.value)
+
+
+# ---------------------------------------------------------------------------
+# A typo'd section name must not be silently nothing
+# ---------------------------------------------------------------------------
+
+
+def test_all_sections_carries_the_extras_to_the_validator():
+    """A key outside the nine has no route: not written, not rejected, not
+    missed. `validate_study` has `section.unrecognized` for exactly this, and
+    filtering the extras out before calling it would throw that away."""
+    study = StudyFile.loads(
+        yaml.safe_dump({"org": ORG, "slug": "s", "stratas": [], "notes": "mine"})
+    )
+
+    assert study.all_sections() == {"stratas": [], "notes": "mine"}
+
+    codes = {w.code for w in validate_study(study.all_sections()).warnings}
+    assert "section.unrecognized" in codes

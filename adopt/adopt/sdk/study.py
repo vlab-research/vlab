@@ -434,11 +434,11 @@ _ABSENT = _Absent()
 def push_plan(diffs: Sequence[SectionDiff]) -> List[SectionDiff]:
     """The subset of `diffs` that needs writing, in `PUSH_ORDER`."""
     by_name = {d.section: d for d in diffs if d.needs_push}
-    ordered = [by_name[n] for n in PUSH_ORDER if n in by_name]
-    # A section the file carries that is not one of the nine cannot be pushed
-    # (there is no route for it) and is reported by `StudyFile.extra_keys`
-    # instead, so nothing else is appended here.
-    return ordered
+    # A section outside the nine cannot be pushed -- there is no route for it --
+    # so nothing else is appended here. It is not silently forgotten either:
+    # `validate_study` reports it as `section.unrecognized`, which is how a
+    # typo'd section name (which would otherwise do nothing at all) surfaces.
+    return [by_name[n] for n in PUSH_ORDER if n in by_name]
 
 
 # ---------------------------------------------------------------------------
@@ -454,8 +454,13 @@ class StudyFile:
     sections: Dict[str, Any] = field(default_factory=dict)
     #: Top-level keys that are neither header nor one of the nine. Kept rather
     #: than dropped, so `save` after `strata generate` does not silently delete
-    #: a user's own annotations, and reported so a typo'd section name -- which
-    #: would otherwise do nothing at all -- is visible.
+    #: a user's own annotations.
+    #:
+    #: `all_sections()`, not `sections`, is what goes to the validator: a typo'd
+    #: section name would otherwise do NOTHING AT ALL -- not written, not
+    #: reported, not missed -- which is the worst outcome available. Passing the
+    #: extras through means `validate_study` reports `section.unrecognized`,
+    #: which is exactly the code it has for this.
     extra: Dict[str, Any] = field(default_factory=dict)
     path: Optional[str] = None
 
@@ -466,7 +471,16 @@ class StudyFile:
         # `safe_load`, never `load`: a study file may well arrive from an agent
         # or a shared repository, and `yaml.load` constructs arbitrary Python
         # objects. It also parses JSON, so one loader covers both formats.
-        raw = yaml.safe_load(text)
+        try:
+            raw = yaml.safe_load(text)
+        except yaml.YAMLError as e:
+            # Re-raised as a ValueError so the CLI's error handling catches it:
+            # a typo in the user's YAML is the user's input being wrong, not a
+            # defect in the SDK, and it must not print a traceback. The parser's
+            # own message carries the line and column, so it is kept verbatim.
+            where = f" in {path}" if path else ""
+            raise ValueError(f"Could not parse{where}: {e}") from e
+
         if raw is None:
             raw = {}
         if not isinstance(raw, dict):
@@ -557,6 +571,18 @@ class StudyFile:
 
     # -- convenience -------------------------------------------------------
 
+    def all_sections(self) -> Dict[str, Any]:
+        """`sections` plus anything unrecognised, for the validator.
+
+        `validate_study` has a `section.unrecognized` warning and it is the only
+        thing in the system that will ever notice a typo'd section name: the
+        server has no route for one, so a `stratas:` key is not written, not
+        rejected, and not missed -- the study simply has no strata and nothing
+        says why. Filtering the extras out before validating would throw away
+        the one report that catches it.
+        """
+        return {**self.sections, **self.extra}
+
     def require_target(self) -> Tuple[str, str]:
         """`(org, slug)` from the header, or a message saying which is missing."""
         missing = [k for k in ("org", "slug") if not getattr(self, k)]
@@ -594,6 +620,11 @@ _SKELETON = """\
 # Sections are the wire shapes verbatim: what `POST /confs/<type>` takes and
 # what `GET /confs` gives back. Writing a section REPLACES it whole -- there is
 # no partial update and no delete (study_confs is append-only).
+#
+# QUOTE YOUR STRINGS. This is YAML 1.1, where a bare `NO` is the boolean false,
+# not Norway -- so `countries: [NO]` silently targets nothing. `y`, `on`, `off`
+# and a bare number-like string are the same trap. Anything vlab writes back is
+# quoted for you; anything you type by hand is not.
 
 org: {org}
 slug: {slug}
@@ -662,7 +693,9 @@ strata:
     facebook_targeting:
       geo_locations:
         countries:
-          - NG
+          # Quoted deliberately: an unquoted two-letter code is a YAML 1.1
+          # trap, and `NO` in particular parses as the boolean false.
+          - "NG"
       targeting_automation:
         advantage_audience: 0
     question_targeting:
@@ -681,6 +714,32 @@ inference_data:
 """
 
 
+def _yaml_scalar(value: str) -> str:
+    """`value` as a YAML scalar that means exactly `value`.
+
+    The skeleton is interpolated text, not a dumped dict, so nothing quotes for
+    us -- and a study NAME is arbitrary user input that lands in two scalar
+    positions. Unquoted, `"HPV: Lagos 2026"` makes the file unparseable, `"#1
+    study"` reads as a comment and leaves `general.name` null, and `"Yes"` reads
+    as the boolean true and is pushed as `name: true`. All three are ordinary
+    study names, and `vlab create --init` is the first command in the runbook,
+    by which point the study already exists server-side -- so a broken file is
+    not recoverable by re-running.
+
+    `json.dumps` rather than `yaml.safe_dump`: a JSON string is always a valid
+    YAML double-quoted scalar, it never wraps or emits a block scalar, and it
+    keeps the output on one line where the template expects one.
+    """
+    return json.dumps(value, ensure_ascii=False)
+
+
 def skeleton(org: str = "REPLACE-ME", slug: str = "REPLACE-ME", name: str = "") -> str:
     """A commented, ready-to-edit study file."""
-    return _SKELETON.format(org=org, slug=slug, name=name or slug)
+    return _SKELETON.format(
+        # `org` is a UUID and `slug` is server-derived from the slug alphabet,
+        # so neither can need quoting -- but they go through the same function
+        # so that nobody has to re-derive that argument when editing this.
+        org=_yaml_scalar(org),
+        slug=_yaml_scalar(slug),
+        name=_yaml_scalar(name or slug),
+    )

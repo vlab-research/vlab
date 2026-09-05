@@ -1146,3 +1146,109 @@ def test_a_failed_json_push_still_says_what_landed(runner, obj, org, monkeypatch
     body = json.loads(res.output.split("Error:")[0])
     assert body["written"] == ["general", "destinations"]
     assert body["failed"] == "creatives"
+
+
+# ---------------------------------------------------------------------------
+# The findings of the pre-merge review
+# ---------------------------------------------------------------------------
+
+
+def test_create_init_survives_a_name_that_needs_yaml_quoting(runner, obj, org):
+    """`create --init` writes the file AFTER the study exists server-side, so a
+    file broken by its own name cannot be fixed by re-running -- that is a
+    409. `"HPV: Lagos"` used to make the file unparseable."""
+    res = run(runner, obj, "create", org, "HPV: Lagos 2026", "--init")
+
+    assert res.exit_code == 0
+    assert StudyFile.load("study.yaml").name == "HPV: Lagos 2026"
+    assert run(runner, obj, "validate").exit_code == 0
+
+
+def test_a_malformed_study_file_is_a_message_not_a_traceback(runner, obj):
+    open("study.yaml", "w").write("general: {unclosed\n")
+
+    res = run(runner, obj, "validate")
+
+    assert res.exit_code == 1
+    assert "Could not parse" in res.output
+    assert "Traceback" not in res.output
+
+
+def test_a_typod_section_name_is_reported_rather_than_silently_nothing(
+    runner, obj, org
+):
+    """The worst outcome available: no route exists for `stratas`, so it is not
+    written, not rejected and not missed -- the study just has no strata."""
+    data = study_dict(org, "hpv")
+    data["stratas"] = data.pop("strata")
+    write_study(data=data)
+
+    res = run(runner, obj, "validate")
+
+    assert res.exit_code == 1  # `strata` is now missing, which is an error
+    assert "section.unrecognized" in res.output
+    assert "stratas" in res.output
+
+
+def test_diff_names_a_key_that_is_not_a_section_at_all(runner, obj, org):
+    client = obj["client"]
+    slug = client.create_study(org, "HPV")["slug"]
+    data = study_dict(org, slug)
+    _push_everything(client, org, slug, data)
+    data["stratas"] = []
+    write_study(data=data)
+
+    res = run(runner, obj, "diff")
+
+    assert "never written: stratas" in res.output
+
+
+def test_push_section_does_not_claim_the_study_is_in_sync(runner, obj, org):
+    """It said "every section matches the server" while other sections
+    differed, which tells CI the study is in sync when it is not."""
+    client = obj["client"]
+    slug = client.create_study(org, "HPV")["slug"]
+    data = study_dict(org, slug)
+    _push_everything(client, org, slug, data)
+
+    data["strata"][0]["quota"] = 0.5
+    write_study(data=data)
+
+    res = run(runner, obj, "push", "--section", "audiences")
+
+    assert res.exit_code == 0
+    assert "every section matches" not in res.output
+    assert "Still outstanding elsewhere: strata" in res.output
+
+
+def test_push_json_reports_outstanding_when_the_filter_leaves_nothing(runner, obj, org):
+    client = obj["client"]
+    slug = client.create_study(org, "HPV")["slug"]
+    data = study_dict(org, slug)
+    _push_everything(client, org, slug, data)
+    data["strata"][0]["quota"] = 0.5
+    write_study(data=data)
+
+    body = json.loads(
+        run(runner, obj, "push", "--section", "audiences", "--json").output
+    )
+
+    assert body["written"] == []
+    assert body["outstanding"] == ["strata"]
+    # `skipped` means "unchanged", on this path as on the success path.
+    assert "strata" not in body["skipped"]
+    assert "audiences" in body["skipped"]
+
+
+def test_meta_ads_refuses_paging_options_that_cannot_apply(runner, obj, org):
+    _credential()
+    res = run(runner, obj, "meta", "ads", "--org", org, "--ad", "123", "--limit", "10")
+    assert res.exit_code == 2
+    assert "one creative" in res.output
+
+
+def test_a_target_with_too_many_segments_is_a_usage_error(runner, obj):
+    """Not a 404 from a percent-encoded slug."""
+    res = run(runner, obj, "pull", "org/slug/extra")
+    assert res.exit_code == 2
+    assert "<org>/<slug>" in res.output
