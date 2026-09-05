@@ -647,7 +647,8 @@ targeting. Declare **one** variable with **two** levels:
 
 Targeting is **extracted from the ad set you pick**, not typed. Declare exactly
 those five properties: `extractFromAdset` throws `PropertyMissingError` if a
-declared property is absent from the ad set, and — the quieter failure —
+declared property is absent from every level's ad set (a property only some
+levels carry is omitted on the others), and — the quieter failure —
 anything set on the ad set but *not* declared never reaches the study's own ad
 sets. `targeting_automation` is in the list for that second reason: without it
 Meta's Advantage audience expansion is on by default and delivery leaks outside

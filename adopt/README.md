@@ -745,7 +745,18 @@ make test
 
 `adopt/schemas/*.json` is the machine-readable contract for a study
 configuration: JSON Schema (2020-12) generated from the pydantic models in
-`adopt/adopt/study_conf.py` by `adopt/adopt/schema_export.py`.
+`adopt/adopt/study_conf.py` and `adopt/adopt/study_conf_strict.py` by
+`adopt/adopt/schema_export.py`.
+
+**They describe the WRITE shape.** Since 2026-09-05 the models are asymmetric:
+`POST /confs/<type>` validates through the `extra="forbid"` twins in
+`study_conf_strict.py`, while the load path keeps the lenient originals so a
+conf written before a field was removed still loads. The per-section files
+describe the strict side, because a consumer reading them is about to POST a
+body and needs to know what will be accepted — a lenient schema would tell them
+their misspelled key is fine when the server is about to 422. `study-conf.json`
+is the exception and says so in its `$comment`: it is the load shape, and it
+permits additional properties where the others do not.
 
 ```bash
 make schemas        # regenerate
@@ -787,25 +798,42 @@ generated files:
   rejects stratum metadata that fly's entry regex could not parse once
   percent-encoded. It cannot be expressed in JSON Schema, and it does not run at
   write time anyway (see `planning/agent-study-authoring.md` §2.5).
-- **The missing-`type` destination default.** `DestinationConf` runs a
+- **The missing-`type` destination default.** Both destination unions run a
   `BeforeValidator` that reads an absent or empty `type` as `"messenger"`, for
-  the 45 stored confs that predate the field. The schema marks `type` required
-  on every arm, so it is stricter than the server. Write the `type`; the
-  leniency is a migration affordance, not an API.
-- **Extra fields are dropped, not rejected.** These models use pydantic's
-  default `extra="ignore"`, and the export emits no `additionalProperties`, so
-  a validator will accept an unknown key and so will the server — silently. A
-  typo in a field name is a no-op, not an error, on both sides.
-- **`RecruitmentConf` is an untagged union.** `destinations.json` exports a real
-  `discriminator` (`propertyName: "type"`, with all six tags mapped), so a
-  consumer can pick the right arm from the tag. `recruitment.json` cannot: the
-  three recruitment classes carry no tag field, so it is a bare `anyOf` and the
-  arms are distinguishable only by shape — `ad_campaign_name` (simple) versus
-  `ad_campaign_name_base`, then `arms` (pipeline) versus `destinations`
-  (destination experiment). Those happen to be required fields today, so the
-  discrimination works, but it works by accident of field naming rather than by
-  design. This is the same shape that let every multi destination validate as a
-  Messenger one before 2026-08-30.
+  the 45 stored confs that predate the field — on write as well as on load, so
+  those confs stay re-saveable. `destinations.json` marks `type` required
+  anyway, which makes it stricter than the server on exactly this key, and
+  deliberately: an agent authoring a new conf should write the tag. The
+  leniency is a concession to the legacy corpus, not an API. It is safe because
+  the strict models forbid unknown fields — a typeless body is defaulted to
+  messenger and then rejected on its own type-specific fields unless it really
+  is a messenger destination.
+- **Retired keys are accepted on write and dropped.** A closed list of two —
+  `recruitment.destination_type` and `destinations[].include_metadata_in_ref`,
+  both fields this repo once declared and removed — is stripped before
+  validation, so a stored conf carrying one can still be re-saved. The schemas
+  say `additionalProperties: false` and so reject them, which makes the files
+  stricter than the server on exactly those two names. That is the right way
+  round: nothing should be *writing* them.
+- **The recruitment tag reads as required and is not.** `recruitment.json`
+  exports a real `discriminator` on `type`, as `destinations.json` does — but
+  unlike the destination arms, the three recruitment arms carry a *default* for
+  `type`, so pydantic emits it as optional and it appears in no arm's
+  `required`. What the file cannot express is the `BeforeValidator` that infers
+  the arm from shape (`ad_campaign_name` → simple, then `arms` → pipeline, then
+  `destinations` → destination experiment, and an error naming all four if none
+  is present), which is what keeps confs stored before the union was tagged
+  loading and saving.
+
+  In practice a plain validator is *more* permissive here than the
+  discriminator suggests. Verified with python-jsonschema (Draft 2020-12)
+  against the committed file: a complete but untagged `simple` conf is
+  **accepted**, because `type` is not required anywhere and a `const` binds
+  only when the key is present, so exactly one `oneOf` arm matches. Untagged
+  pipeline and destination confs likewise. Only discriminator-aware tooling
+  that insists on the tag, or a body carrying a retired key, is rejected.
+  New configuration should write the tag regardless — it is the only thing that
+  makes the arm unambiguous rather than merely inferable.
 
 
 

@@ -66,16 +66,22 @@ class PropertyMissingError(ExtractError):
 def extract_from_adset(
     adset: Optional[Dict[str, Any]],
     properties: List[str],
+    optional: Optional[List[str]] = None,
 ) -> Dict[str, Any]:
     """Extract the requested properties from an ad set's targeting.
 
     :param adset: the ad set as it comes back from the Meta API. Needs `id` and
         `targeting`; `name` is used for error messages when present.
     :param properties: property keys to extract, e.g. `["geo_locations", "age_min"]`.
+    :param optional: properties whose absence is tolerated: a missing one is
+        left out of the result rather than raised. `properties_on_some_level`
+        is where a caller gets this list. The TS default is `[]`; `None` here
+        so the two-argument call the conformance fixtures record is unchanged.
     :returns: the extracted properties, in `properties` order, plus a forced
         `targeting_automation`.
     :raises AdsetNotFoundError: if `adset` is None.
-    :raises PropertyMissingError: if a requested property is not present.
+    :raises PropertyMissingError: if a requested, non-optional property is not
+        present.
     :raises TypeError: if `adset` has no dict `targeting` and at least one
         property was requested. The TypeScript throws a TypeError here too
         (`'x' in undefined`); this raises one with a message that says what
@@ -95,6 +101,8 @@ def extract_from_adset(
     # a JSON name can hold. Typed `Any` because it is whatever the JSON held;
     # the TS interpolates it into the message without checking either.
     label: Any = adset.get("name") or adset.get("id")
+
+    tolerated = optional or []
 
     extracted: Dict[str, Any] = {}
 
@@ -118,6 +126,8 @@ def extract_from_adset(
         # not, and `in` is the same test. A key present with value `None` (JSON
         # `null`) is present in both languages and is copied through as-is.
         if property_key not in targeting:
+            if property_key in tolerated:
+                continue
             raise PropertyMissingError(label, property_key)
 
         extracted[property_key] = targeting[property_key]
@@ -134,6 +144,38 @@ def extract_from_adset(
     extracted["targeting_automation"] = {"advantage_audience": 0}
 
     return extracted
+
+
+def properties_on_some_level(
+    levels: List[Dict[str, Any]],
+    adsets: List[Dict[str, Any]],
+    properties: List[str],
+) -> List[str]:
+    """The subset of `properties` that at least one level's ad set carries.
+
+    A variable declares its properties once, but its levels come from
+    different ad sets and Meta only writes a targeting key when it is set.
+    `excluded_geo_locations` is the usual case: the "Urban" level excludes the
+    rural regions, the "Rural" level excludes nothing, and Meta stores nothing
+    for it. That absence is the level's real targeting, not an authoring
+    mistake, so the level copies what it has and omits the rest. A property
+    that *no* level carries is a different thing -- the variable is asking for
+    data none of its ad sets have -- and stays an error. The result is what a
+    caller passes to `extract_from_adset` as `optional`.
+
+    A level whose ad set is not in `adsets` contributes nothing; it reports
+    `AdsetNotFoundError` on its own. So does an ad set with no dict
+    `targeting` -- the TS tests `t && typeof t === 'object'`, which is what
+    `isinstance(..., dict)` is on the JSON wire shape.
+    """
+    targetings = []
+    for level in levels or []:
+        adset_id = level.get("template_adset")
+        adset = next((a for a in (adsets or []) if a.get("id") == adset_id), None)
+        targeting = adset.get("targeting") if adset is not None else None
+        if isinstance(targeting, dict):
+            targetings.append(targeting)
+    return [p for p in (properties or []) if any(p in t for t in targetings)]
 
 
 def _strip_targeting_automation(obj: Any) -> Dict[str, Any]:

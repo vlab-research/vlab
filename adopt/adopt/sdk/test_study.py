@@ -297,8 +297,9 @@ def test_a_file_omitting_a_defaulted_field_is_not_a_change():
 
 
 def test_a_type_tag_the_server_added_is_not_a_change():
-    """A server on PR #262 or later stores a `type` on every recruitment conf,
-    because `model_dump()` emits one. A file written before that carries none."""
+    """adopt v0.1.85 stores a `type` on every recruitment conf, because
+    `model_dump()` emits one. A file written before that carries none, and
+    would otherwise read as changed on every run forever."""
     stored = {**SIMPLE_RECRUITMENT, "type": "simple"}
     assert (
         _diff({"recruitment": SIMPLE_RECRUITMENT}, {"recruitment": stored})[
@@ -309,9 +310,12 @@ def test_a_type_tag_the_server_added_is_not_a_change():
 
 
 def test_a_type_tag_the_file_writes_is_not_a_change_against_an_older_server():
-    """The other direction, which is the one that would bite hardest: a server
-    older than #262 drops the tag on the way in, so a file that writes it (and
-    it should) would otherwise re-push recruitment on every single run."""
+    """The other direction, and the one that would bite hardest. A deployment
+    older than v0.1.85 drops the tag on the way in (`extra="ignore"` ate it),
+    so a file that writes the tag -- which it should, and which the skeleton
+    does -- would otherwise re-push recruitment on every single run, appending
+    a row to an append-only table each time. The SDK has to work against both
+    deployments; this is the older one."""
     local = {**SIMPLE_RECRUITMENT, "type": "simple"}
     assert (
         _diff({"recruitment": local}, {"recruitment": SIMPLE_RECRUITMENT})[
@@ -321,25 +325,31 @@ def test_a_type_tag_the_file_writes_is_not_a_change_against_an_older_server():
     )
 
 
-def test_a_type_tag_that_disagrees_with_the_shape_is_surfaced():
+def test_a_type_tag_that_disagrees_with_the_shape_is_a_change():
     """Tolerance covers a tag that restates the body, and only that.
 
-    A tag that CONTRADICTS the body is reported -- but as an unknown key rather
-    than as a change, and the distinction is version skew again. Against a
-    server older than PR #262 the tag is an undeclared field: the server drops
-    it exactly as normalisation does, so pushing really would store what is
-    stored, and calling that a change would be false. What is true either way
-    is that `type: destination` on a body with `ad_campaign_name` is wrong, and
-    that is what the `!` line says.
-
-    On a server from #262 onwards the same body is a 422 from the discriminated
-    union, and it is `push` that reports it.
+    `type: destination` on a body carrying `ad_campaign_name` is a real
+    disagreement about which recruitment strategy the study runs, and it is
+    reported. Since v0.1.85 the discriminated union rejects that body outright,
+    so `model_dump_section` cannot normalise it and the comparison falls back
+    to raw -- where the two tags differ. `push` then gets a 422 naming the arm,
+    which is the better message; the diff's job is only to not call it
+    unchanged.
     """
     local = {**SIMPLE_RECRUITMENT, "type": "destination"}
     d = _diff({"recruitment": local}, {"recruitment": SIMPLE_RECRUITMENT})[
         "recruitment"
     ]
-    assert d.unknown == ("type",)
+    assert d.status == "changed"
+
+
+def test_a_tag_that_restates_the_shape_is_still_tolerated_after_the_union_was_tagged():
+    """The narrowness of the rule, now that the model declares `type`: the tag
+    survives `model_dump()`, so `_strip_inferred_tag` is what has to remove it
+    on the side that has one when the other does not."""
+    assert normalise_section(
+        "recruitment", {**SIMPLE_RECRUITMENT, "type": "simple"}
+    ) == normalise_section("recruitment", SIMPLE_RECRUITMENT)
 
 
 def test_the_messenger_default_on_a_destination_is_not_a_change():

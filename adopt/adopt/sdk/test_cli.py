@@ -21,6 +21,7 @@ What is being asserted, beyond "it does not crash":
 import json
 import os
 import uuid
+from copy import deepcopy
 from test.dbfix import _reset_db
 from test.dbfix import cnf as db_conf
 from unittest.mock import patch
@@ -115,6 +116,19 @@ MESSENGER = {
 
 
 def study_dict(org, slug):
+    """A complete, valid study. A DEEP COPY every time.
+
+    Several tests below edit what they get back -- a quota, a creative name, a
+    deliberate typo -- and `MESSENGER` used to be shared by reference, so
+    `test_diff_flags_a_key_no_model_declares` planted `welcom_message` in every
+    subsequent test's destinations. That was invisible while the server ran on
+    `extra="ignore"` and became eleven failures the moment adopt v0.1.85 made
+    an unknown field a 422.
+    """
+    return deepcopy(_STUDY(org, slug))
+
+
+def _STUDY(org, slug):
     return {
         "org": org,
         "slug": slug,
@@ -381,23 +395,47 @@ def test_diff_shows_the_changed_leaf_not_just_the_section(runner, obj, org):
     assert "1.0" in res.output and "0.5" in res.output
 
 
-def test_a_type_tag_the_server_dropped_is_not_reported_as_a_change(runner, obj, org):
-    """The file writes `type: simple`; this server predates PR #262 and drops
-    it. Without the tolerance, `recruitment` would read as changed forever and
-    push would append a row on every run."""
+def test_a_recruitment_conf_written_before_the_union_was_tagged_reads_as_unchanged(
+    runner, obj, org
+):
+    """The version-skew case, end to end against the real server.
+
+    A file written before adopt v0.1.85 carries no `type`; this server stores
+    one, because `model_dump()` now emits it. Without the tolerance in
+    `_strip_inferred_tag`, `recruitment` would read as changed forever and
+    `push` would append a row to an append-only table on every single run.
+    """
     client = obj["client"]
     slug = client.create_study(org, "HPV")["slug"]
     data = study_dict(org, slug)
+    del data["recruitment"]["type"]  # a file older than the tag
+
     _push_everything(client, org, slug, data)
 
-    assert "type" in data["recruitment"]
-    assert "type" not in client.get_confs(org, slug)["recruitment"]
+    # The server really did add it -- otherwise this test proves nothing.
+    assert client.get_confs(org, slug)["recruitment"]["type"] == "simple"
 
     write_study(data=data)
     res = run(runner, obj, "diff")
 
     assert "~ recruitment" not in res.output
     assert "Nothing to push" in res.output
+
+
+def test_a_recruitment_conf_that_writes_the_tag_also_reads_as_unchanged(
+    runner, obj, org
+):
+    """The other direction: the file the skeleton writes, which carries the
+    tag, against the server that also stores it."""
+    client = obj["client"]
+    slug = client.create_study(org, "HPV")["slug"]
+    data = study_dict(org, slug)
+    assert data["recruitment"]["type"] == "simple"
+
+    _push_everything(client, org, slug, data)
+    write_study(data=data)
+
+    assert "Nothing to push" in run(runner, obj, "diff").output
 
 
 def test_diff_flags_a_key_no_model_declares(runner, obj, org):

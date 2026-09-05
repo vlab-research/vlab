@@ -18,10 +18,11 @@ first.
 | | |
 |---|---|
 | `adopt/adopt/sdk/client.py` | The HTTP client. Auth header, base URL, a typed exception for each of 401/403/404/409/422/5xx (a 400 -- which study creation and the Meta proxy both return -- lands on the base `VlabHTTPError`), `detail`'s three shapes rendered legibly, no retries. Takes an injectable `requests`-compatible session. |
-| `adopt/adopt/sdk/study.py` | The file on disk: load, save, diff against the store, push ordering, unknown-key detection. Pure — no sockets. |
+| `adopt/adopt/sdk/study.py` | The file on disk: load, save, diff against the store, push ordering, unknown-key detection. Pure — no sockets. Owns no list of conf types and no copy of the storage transform; see §6a. |
 | `adopt/adopt/sdk/cli.py` | `click`. Sixteen commands: seven at the top level, plus the `meta`, `strata` and `keys` groups. |
 | `adopt/adopt/authoring/sheets.py` | Salvaged: `parse_kv_sheet`, `parse_row_sheet`, `read_share_lookup`. |
 | `adopt/adopt/authoring/geo.py` | Salvaged: `location_levels`, and `create_location` made public. |
+| `adopt/adopt/confs.py` | The nine conf types, their two URL spellings, and the storage transform — one definition, read by the POST routes, the validator, the schema export and the SDK. §6a. |
 | `pyproject.toml` | `[tool.poetry.extras] sdk = ["click"]`, `[tool.poetry.scripts] vlab`. |
 | tests | `test_client.py`, `test_study.py`, `test_cli.py`, `test_sheets.py`, `test_geo.py` — 186 in all. |
 | docs | `documentation/agent-api.md` §6 rewritten around the SDK (§6.1) with raw HTTP kept as §6.2; new §8 entry; §2.3 and §7.3 corrected. `adopt/README.md` gains an SDK section. |
@@ -308,6 +309,93 @@ workbook, since `GeneralConf` has dropped `objective` and `page_id` since these
 were written. Both are now a `SheetError` naming the cell and, for the second,
 listing the fields the model does accept. Naming the cell is the entire reason a
 reader beats `read_excel` plus a dict comprehension.
+
+---
+
+## 6a. The duplication audit, and `adopt/confs.py`
+
+The brief for this phase was "the more the SDK and adopt share the same code,
+the better: one implementation, thin front doors." An explicit audit of
+everything under `adopt/adopt/sdk/` against the rest of `adopt` found one real
+duplication, one near-duplication that mattered more, and four things that
+turned out already to be single-sourced.
+
+### The nine conf types were listed in four places
+
+`server/server.py` (nine `@app.post` routes, plus the
+`CONF_TYPE_BY_URL_SEGMENT` map #262 added), `authoring/validate.py`
+(`SECTION_MODELS`), `schema_export.py` (`CONF_ENDPOINTS`), and the SDK
+(`SECTIONS`, `SECTION_URL_SEGMENTS`). Only one pair had a check between them —
+`test_schema_export.py`'s AST walk of the routes — so adding a tenth conf type
+meant finding four lists, and the SDK's copy would have failed silently: a
+section the server grew and the SDK did not know about is a section
+`vlab pull` drops on the way to `vlab push`.
+
+**`adopt/adopt/confs.py`** now owns `CONF_TYPES`, `URL_SEGMENT_BY_CONF_TYPE`,
+`CONF_TYPE_BY_URL_SEGMENT` and `conf_type_for_url_segment`. `server.py` imports
+the map it used to define; `validate.SECTIONS` is `CONF_TYPES`; the SDK holds
+no list of its own. `test_confs.py` walks the real route decorators and asserts
+each consumer covers exactly the nine — six tests, none needing a database.
+
+### The near-duplication that mattered more: the storage transform
+
+`create_conf` inlined `model_dump()` and handed it to `orjson`; the SDK's
+`model_dump_section` did `model_dump(mode="json")` and hoped the two agreed.
+Two parallel implementations of "what does the server store", where the cost of
+disagreement is a section rewritten on every push into a table with no delete.
+
+`confs.dump_conf` is the extracted transform, called by `create_conf` (a
+literal extraction, tested against the code it replaced) and `confs.stored_conf`
+is that put through the same orjson the driver uses, read back — which is what
+the SDK normalises with. The round-trip property now holds by construction: the
+diff compares against the server's own code, not against a close approximation
+of it, and the `mode="json"` guess is gone.
+
+### Two constants, imported rather than restated
+
+`DESTINATION_DEFAULT_TYPE` was an inline `"messenger"` literal inside
+`_default_missing_destination_type` and a second literal in the SDK's tag
+tolerance; it is now named in `study_conf.py` and imported. The recruitment tag
+strings were already `RECRUITMENT_SIMPLE` / `_PIPELINE` / `_DESTINATION` in
+`study_conf.py`, and the SDK's compatibility fallback now uses them.
+
+### Already single-sourced, confirmed rather than assumed
+
+* **`validate_study`** — the CLI calls it directly and reimplements none of
+  its assembly or checks; `--remote` calls the endpoint that wraps the same
+  function.
+* **strata and extract** — `create_strata_from_variables`,
+  `get_finish_question_ref` and `extract_from_adset` are direct calls into
+  `adopt.authoring`. No second derivation.
+* **the pydantic models** — the SDK declares none. The file format IS the wire
+  shape, which is the whole reason it has no schema of its own.
+* **`_infer_recruitment_type`** — already delegated to `study_conf`'s, with a
+  fallback only for a deployment older than v0.1.85 where the symbol does not
+  exist.
+
+### Deliberately not unified, with the reason
+
+**The Meta error shape.** `server/meta.py` builds `{message, meta_error: {code,
+subcode, type, message, http_status}}` as a dict literal and `sdk/client.py`
+renders those keys. Sharing them would mean the SDK importing
+`adopt.server.meta`, which pulls FastAPI, psycopg and the Meta SDK into a
+client that is installed with pipx on a laptop and must import without a
+database driver being usable. Six key names, documented in
+`documentation/agent-api.md` §2.5, are the cheaper coupling.
+`test_confs.py::test_the_sdk_does_not_import_the_server_package` makes that
+boundary explicit and static, so the tempting fix fails CI rather than quietly
+landing.
+
+**The skeleton.** It could be generated from the models or the committed
+schemas, and would then be worth much less: its value is the comment on every
+field saying which trap is attached to it, and none of that is derivable.
+Its anti-drift guarantee is `test_the_skeleton_is_a_valid_study` — a required
+field added to any model fails it — which is the property that actually matters.
+
+**`PUSH_ORDER`.** Not derivable from anything, because the reference order is
+not written down anywhere else: the server checks nothing across sections, so
+it has no such constant and does not want one. It stays in the SDK, with a test
+asserting it is a permutation of `CONF_TYPES`.
 
 ---
 

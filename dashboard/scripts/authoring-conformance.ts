@@ -73,6 +73,7 @@ import {
 } from '../src/pages/StudyConfPage/forms/strata/strata';
 import {
   extractFromAdset,
+  propertiesOnSomeLevel,
   isLevelInSync,
   diffPropertyKeys,
   AdsetNotFoundError,
@@ -88,7 +89,10 @@ const FNS: Record<string, (...args: any[]) => any> = {
     createStrataFromVariables(v, ref, cr, au, ex),
   strata_staleness_hint: (v: any, saved: any) => strataStalenessHint(v, saved),
   get_finish_question_ref: (strata: any) => getFinishQuestionRef(strata),
-  extract_from_adset: (adset: any, properties: any) => extractFromAdset(adset, properties),
+  extract_from_adset: (adset: any, properties: any, optional?: any) =>
+    optional === undefined ? extractFromAdset(adset, properties) : extractFromAdset(adset, properties, optional),
+  properties_on_some_level: (levels: any, adsets: any, properties: any) =>
+    propertiesOnSomeLevel(levels, adsets, properties),
   is_level_in_sync: (stored: any, wouldApply: any) => isLevelInSync(stored, wouldApply),
   diff_property_keys: (stored: any, current: any) => diffPropertyKeys(stored, current),
 };
@@ -721,6 +725,64 @@ extract('spec/extract-null-adset', 'extract_from_adset', [null, ['geo_locations'
 extract('spec/extract-undefined-adset', 'extract_from_adset', [undefined, ['geo_locations']]);
 extract('spec/extract-missing-property-among-others', 'extract_from_adset', [mockAdset, ['geo_locations', 'custom_audiences']]);
 extract('spec/extract-missing-property-alone', 'extract_from_adset', [mockAdset, ['custom_audiences']]);
+extract('spec/extract-optional-missing-property-is-omitted', 'extract_from_adset', [
+  mockAdset,
+  ['geo_locations', 'custom_audiences'],
+  ['custom_audiences'],
+]);
+extract('spec/extract-optional-present-property-is-copied', 'extract_from_adset', [
+  mockAdset,
+  ['geo_locations', 'age_min'],
+  ['age_min'],
+]);
+extract('spec/extract-non-optional-missing-still-throws', 'extract_from_adset', [
+  mockAdset,
+  ['custom_audiences', 'excluded_geo_locations'],
+  ['custom_audiences'],
+]);
+extract('spec/extract-optional-empty-list-is-strict', 'extract_from_adset', [mockAdset, ['custom_audiences'], []]);
+extract('spec/extract-optional-null-adset-still-not-found', 'extract_from_adset', [null, ['custom_audiences'], ['custom_audiences']]);
+const urbanAdset = {
+  id: 'adset-urban',
+  name: 'Argentina - Urban',
+  targeting: {
+    geo_locations: { regions: [{ key: '1', name: 'Buenos Aires' }] },
+    excluded_geo_locations: { regions: [{ key: '2', name: 'Pampa' }] },
+  },
+};
+const ruralAdset = {
+  id: 'adset-rural',
+  name: 'Argentina - Rural',
+  targeting: { geo_locations: { regions: [{ key: '2', name: 'Pampa' }] } },
+};
+const twoLevels = [{ template_adset: 'adset-urban' }, { template_adset: 'adset-rural' }];
+extract('spec/some-level-property-on-one-level', 'properties_on_some_level', [
+  twoLevels,
+  [urbanAdset, ruralAdset],
+  ['geo_locations', 'excluded_geo_locations', 'custom_audiences'],
+]);
+extract('spec/some-level-property-on-no-level', 'properties_on_some_level', [
+  twoLevels,
+  [urbanAdset, ruralAdset],
+  ['custom_audiences'],
+]);
+extract('spec/some-level-unknown-adset-contributes-nothing', 'properties_on_some_level', [
+  [{ template_adset: 'adset-rural' }, { template_adset: 'adset-gone' }],
+  [urbanAdset, ruralAdset],
+  ['geo_locations', 'excluded_geo_locations'],
+]);
+extract('spec/some-level-empty-levels', 'properties_on_some_level', [[], [urbanAdset], ['geo_locations']]);
+extract('spec/some-level-empty-properties', 'properties_on_some_level', [twoLevels, [urbanAdset, ruralAdset], []]);
+extract('spec/some-level-adset-without-targeting', 'properties_on_some_level', [
+  [{ template_adset: 'adset-bare' }],
+  [{ id: 'adset-bare', name: 'Bare' }],
+  ['geo_locations'],
+]);
+extract('spec/some-level-keeps-properties-order', 'properties_on_some_level', [
+  twoLevels,
+  [urbanAdset, ruralAdset],
+  ['excluded_geo_locations', 'geo_locations'],
+]);
 extract('spec/extract-no-requested-properties', 'extract_from_adset', [
   { id: 'adset-456', name: 'Minimal Adset', targeting: { targeting_automation: { advantage_audience: 1, individual_setting: { age: 1 } } } },
   [],

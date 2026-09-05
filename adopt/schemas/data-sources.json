@@ -1,7 +1,8 @@
 {
-  "$comment": "Generated from adopt/adopt/study_conf.py by adopt/adopt/schema_export.py. Do not edit by hand; run `make schemas`. Body of POST /{org_id}/studies/{slug}/confs/data-sources (a JSON array).",
+  "$comment": "Generated from adopt/adopt/study_conf.py and adopt/adopt/study_conf_strict.py by adopt/adopt/schema_export.py. Do not edit by hand; run `make schemas`. Body of POST /{org_id}/studies/{slug}/confs/data-sources (a JSON array).",
   "$defs": {
-    "DataSourceConf": {
+    "DataSourceConfStrict": {
+      "additionalProperties": false,
       "properties": {
         "config": {
           "default": null,
@@ -25,14 +26,14 @@
         "source",
         "credentials_key"
       ],
-      "title": "DataSourceConf",
+      "title": "DataSourceConfStrict",
       "type": "object"
     }
   },
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "description": "Response sources to pull from. Stored under the key `data_sources`.",
   "items": {
-    "$ref": "#/$defs/DataSourceConf"
+    "$ref": "#/$defs/DataSourceConfStrict"
   },
   "title": "data-sources conf",
   "type": "array"

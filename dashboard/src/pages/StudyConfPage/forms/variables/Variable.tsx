@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { GenericTextInput, TextInputI } from '../../components/TextInput';
 import { GenericMultiSelect, MultiSelectI } from '../../components/MultiSelect';
 import Level from './Level';
@@ -9,7 +9,7 @@ import {
   Variable as VariableType,
 } from '../../../../types/conf';
 import { GenericListFactory } from '../../components/GenericList';
-import { extractFromAdset } from './extract';
+import { extractFromAdset, propertiesOnSomeLevel } from './extract';
 
 const LevelList = GenericListFactory<LevelType>();
 const TextInput = GenericTextInput as TextInputI<FormData>;
@@ -84,11 +84,19 @@ const Variable: React.FC<Props> = ({
     return null;
   };
 
+  // A property is required of every level only if no level has it; one that
+  // some levels carry is copied where present and omitted where not. See
+  // `propertiesOnSomeLevel` for why absence is a real targeting state.
+  const optionalProperties = useMemo(
+    () => propertiesOnSomeLevel(data.levels, adsets, data.properties),
+    [data.levels, adsets, data.properties]
+  );
+
   const handleApply = () => {
     const updatedLevels = data.levels.map(level => {
       const adset = adsets.find((a: any) => a.id === level.template_adset);
       try {
-        const extracted = extractFromAdset(adset, data.properties);
+        const extracted = extractFromAdset(adset, data.properties, optionalProperties);
         return { ...level, facebook_targeting: extracted };
       } catch {
         return { ...level, facebook_targeting: {} };
@@ -140,6 +148,7 @@ const Variable: React.FC<Props> = ({
         elementProps={{
           adsets,
           properties: data.properties,
+          optionalProperties,
         }}
         data={data.levels}
         setData={setData}

@@ -56,6 +56,7 @@ from typing import Any, Dict, List, Mapping, Optional, Sequence, Tuple
 
 from pydantic import BaseModel, TypeAdapter, ValidationError
 
+from ..confs import CONF_TYPES
 from ..study_conf import (
     AudienceConf,
     CreativeConf,
@@ -81,13 +82,17 @@ from ..study_conf import (
 # stores `data_sources` (see `documentation/agent-api.md` §3). `get_all_study_confs`
 # returns exactly these keys, so a stored study drops straight in.
 #
-# The models are the ones `StudyConf` assembles from and the ones the POST
-# routes in `server/server.py` annotate their bodies with. They are named here
-# rather than introspected off the routes deliberately: what makes a study
-# *run* is what `StudyConf` accepts, and if a write path ever gets stricter than
-# the run path (a live proposal — §11.4 item 2, `extra="ignore"`) this table
-# must keep following the run path, or a report would call a study broken that
-# reconciles perfectly well.
+# The models are the ones `StudyConf` assembles from — the LENIENT ones, not the
+# strict twins the POST routes annotate their bodies with since adopt v0.1.85.
+# That divergence is deliberate and is why this table is written out rather than
+# introspected off the routes: what makes a study *run* is what `StudyConf`
+# accepts, and a report that called a study broken because a write path is
+# stricter than the run path would be answering the wrong question.
+#
+# The KEYS, though, are not this module's to choose: they are the nine conf
+# types, which `adopt/confs.py` now owns. `test_confs.py` asserts this table
+# covers exactly them, so adding a tenth section cannot leave the validator
+# silently ignoring it.
 SECTION_MODELS: Dict[str, Any] = {
     "general": GeneralConf,
     "recruitment": RecruitmentConf,
@@ -100,7 +105,9 @@ SECTION_MODELS: Dict[str, Any] = {
     "inference_data": InferenceDataConf,
 }
 
-SECTIONS: Tuple[str, ...] = tuple(SECTION_MODELS)
+# Re-exported from `adopt/confs.py` rather than derived from the table above,
+# so that there is one answer to "what are the nine and in what order".
+SECTIONS: Tuple[str, ...] = CONF_TYPES
 
 # The sections `StudyConf` declares without a default. Absent any one of them,
 # assembly raises and the cron cannot run the study at all, so they are errors

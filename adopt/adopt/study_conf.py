@@ -71,7 +71,7 @@ class ExtractionConf(BaseModel):
         if self.mapping not in MAPPINGS:
             raise ValueError(
                 f"Extraction conf '{self.name}' has mapping: "
-                f"\"{self.mapping}\", which is not one of {list(MAPPINGS)}."
+                f'"{self.mapping}", which is not one of {list(MAPPINGS)}.'
             )
         return self
 
@@ -475,6 +475,13 @@ class FlyMultiDestination(RefModeDestination):
         return self
 
 
+# The type a destination with no `type` is read as. Named rather than inlined
+# because the SDK's diff has to know it too: a conf stored before the tag
+# existed reads back as `messenger`, and a file that omits the tag must not
+# therefore look changed. One definition, two readers.
+DESTINATION_DEFAULT_TYPE = "messenger"
+
+
 def _default_missing_destination_type(value: Any) -> Any:
     """Absent `type` means Messenger, which is what it has always meant.
 
@@ -489,7 +496,7 @@ def _default_missing_destination_type(value: Any) -> Any:
     against is a destination quietly becoming a different destination.
     """
     if isinstance(value, dict) and not value.get("type"):
-        return {**value, "type": "messenger"}
+        return {**value, "type": DESTINATION_DEFAULT_TYPE}
     return value
 
 
@@ -631,7 +638,31 @@ def get_days_left(end_date: datetime, now: datetime):
     return delta.days
 
 
+# The recruitment strategies' discriminator values.
+#
+# These three strings are NOT invented here: the dashboard's recruitment form
+# has been putting exactly them in a `type` key of every freshly-created
+# recruitment conf since long before this union was tagged
+# (dashboard/src/pages/StudyConfPage/forms/recruitment/Recruitment.tsx,
+# `initialState`, and dashboard/src/fixtures/recruitment/types.ts). Until now
+# `extra="ignore"` swallowed the key on the way in. Adopting the vocabulary the
+# only existing writer already emits means the dashboard needs no change and no
+# stored conf disagrees with a newly written one -- inventing "pipeline" here
+# instead of "pipeline_experiment" would have created two spellings of the same
+# fact for no gain.
+RECRUITMENT_SIMPLE = "simple"
+RECRUITMENT_PIPELINE = "pipeline_experiment"
+RECRUITMENT_DESTINATION = "destination"
+
+
 class SimpleRecruitment(BaseRecruitmentConf):
+    # Defaulted, unlike the destination union's `type`, which is required.
+    # The default is a convenience for Python callers constructing the class
+    # directly (every site is a test); it does NOT satisfy the discriminator,
+    # because pydantic reads the tag off the raw INPUT before it has a model to
+    # apply defaults to. `_infer_recruitment_type` below is what actually lets
+    # an untagged stored conf load.
+    type: Literal["simple"] = RECRUITMENT_SIMPLE
     ad_campaign_name: str
     objective: str
     optimization_goal: str
@@ -696,6 +727,8 @@ def _pipeline_check_end_date(v):
 
 
 class PipelineRecruitmentExperiment(BaseRecruitmentConf):
+    # See SimpleRecruitment.type for why this is defaulted rather than required.
+    type: Literal["pipeline_experiment"] = RECRUITMENT_PIPELINE
     ad_campaign_name_base: str
     objective: str
     optimization_goal: str
@@ -798,6 +831,8 @@ class PipelineRecruitmentExperiment(BaseRecruitmentConf):
 
 
 class DestinationRecruitmentExperiment(BaseRecruitmentConf):
+    # See SimpleRecruitment.type for why this is defaulted rather than required.
+    type: Literal["destination"] = RECRUITMENT_DESTINATION
     ad_campaign_name_base: str
     objective: str
     optimization_goal: str
@@ -870,8 +905,94 @@ def _deal_with_mins(min_budget, budget):
     return {k: 0 if v < min_budget else v for k, v in budget.items()}
 
 
-RecruitmentConf = Union[
-    SimpleRecruitment, PipelineRecruitmentExperiment, DestinationRecruitmentExperiment
+def _infer_recruitment_type(value: Any) -> Any:
+    """Fill in the tag a stored recruitment conf predates, from its shape.
+
+    Every recruitment conf written before 2026-09-05 has no usable `type`: the
+    dashboard sent one on a freshly-created conf but `extra="ignore"` dropped
+    it before storage, and on the edit path it sends none at all because the
+    form re-renders whatever `GET /confs` handed back. Discriminating on `type`
+    without this would reject every one of them -- exactly the migration
+    `_default_missing_destination_type` exists to avoid, for the same reason.
+
+    The order of the tests is the load-bearing part. It reproduces, key by key,
+    what pydantic's untagged union already does with these three classes today:
+
+      `ad_campaign_name`  only SimpleRecruitment declares it, and the other two
+                          require `ad_campaign_name_base`, which Simple does
+                          not have -- so a body carrying it can only be Simple.
+      `arms`              only PipelineRecruitmentExperiment declares it.
+      `destinations`      only DestinationRecruitmentExperiment declares it.
+
+    `arms` is tested BEFORE `destinations` deliberately: a body carrying both
+    resolves to the pipeline arm under today's untagged union (union order
+    wins, and `destinations` is silently dropped as an extra). Loading must not
+    change what an existing study means, so the inference reproduces that
+    resolution rather than correcting it. Correcting it is the write side's
+    job, and `RecruitmentConfStrict` in study_conf_strict.py does it: with
+    `extra="forbid"` the same over-specified body is a 422 naming
+    `destinations` instead of a silent drop.
+
+    Deliberately narrow, like its destination twin: only a *missing* or empty
+    tag is inferred. An unknown one is an error, because the failure a tagged
+    union guards against is a recruitment strategy quietly becoming a
+    different strategy.
+    """
+    if not isinstance(value, dict) or value.get("type"):
+        return value
+
+    if "ad_campaign_name" in value:
+        inferred = RECRUITMENT_SIMPLE
+    elif "arms" in value:
+        inferred = RECRUITMENT_PIPELINE
+    elif "destinations" in value:
+        inferred = RECRUITMENT_DESTINATION
+    else:
+        # Nothing to go on. Raise here rather than falling through to the
+        # discriminator, which would produce a single `union_tag_not_found`
+        # with an EMPTY `loc` and the text "Unable to extract tag using
+        # discriminator 'type'" -- true, and useless to someone who has never
+        # heard of the tag, which is everyone whose conf predates it.
+        #
+        # This is the likeliest authoring mistake there is on this endpoint (a
+        # recruitment conf missing its campaign-name field), and before the
+        # union was tagged it produced 11 `missing` errors with
+        # `ad_campaign_name` first -- worse-formatted but far more actionable.
+        # Naming both routes out is strictly better than either.
+        raise InvalidConfigError(
+            "Cannot tell which recruitment strategy this is. Set `type` to one "
+            f"of '{RECRUITMENT_SIMPLE}', '{RECRUITMENT_PIPELINE}' or "
+            f"'{RECRUITMENT_DESTINATION}' -- or include the field that "
+            "identifies the arm: `ad_campaign_name` for a simple recruitment, "
+            "`arms` for a pipeline experiment, `destinations` for a destination "
+            "experiment. None of the four is present."
+        )
+
+    return {**value, "type": inferred}
+
+
+# Tagged since 2026-09-05, for the reason the destination union was tagged on
+# 2026-08-30 (see the comment above `_TaggedDestination`): a plain Union of
+# models is resolved by SHAPE, so the arms are told apart by which required
+# fields happen to be present. `PipelineRecruitmentExperiment` and
+# `DestinationRecruitmentExperiment` were separated by exactly `arms` vs
+# `destinations` -- one optional field added to either and they become mutually
+# satisfiable, at which point a study's budget quietly splits (or stops
+# splitting) across arms with nothing reporting it. The destination union cost
+# a rejected ad before it was tagged; this one had not yet cost anything, which
+# is the reason to tag it now rather than after it does.
+_TaggedRecruitment = Annotated[
+    Union[
+        SimpleRecruitment,
+        PipelineRecruitmentExperiment,
+        DestinationRecruitmentExperiment,
+    ],
+    Field(discriminator="type"),
+]
+
+RecruitmentConf = Annotated[
+    _TaggedRecruitment,
+    BeforeValidator(_infer_recruitment_type),
 ]
 
 
@@ -1007,6 +1128,32 @@ class Partitioning(BaseModel):
 
 
 def validate(values, subtype, subtype_confs):
+    """Check that a subtype was given the section it requires.
+
+    PRESENCE ONLY, deliberately, and this used to be a type check.
+
+    Its one caller is `AudienceConf.__post_init__`, a `mode="before"` model
+    validator -- so `values` is the RAW input, not a parsed model. The old
+    check was `isinstance(val, type_)` against the parsed class (`Partitioning`,
+    `Lookalike`), which a raw dict can never satisfy. The consequence was that a
+    PARTITIONED or LOOKALIKE audience could not be written as JSON at all: every
+    such POST was a 422 saying the subtype "requires a <class ...> value", and
+    a stored one would have failed `StudyConf` assembly on every cron run,
+    taking the whole study's reconciliation with it.
+
+    It went unnoticed for the same reason in both directions. Every test
+    constructs the nested models in Python first (`partitioning=Partitioning(
+    min_users=100)`), which satisfies the isinstance check; and the dashboard's
+    audience form renders only `name`, with the LOOKALIKE and PARTITIONED
+    controls disabled and marked "(not yet available)" -- so the only writer
+    vlab has has never written either subtype.
+
+    Whether the value has the right SHAPE is the field annotation's job, and it
+    does that job either way: `partitioning={"foo": "bar"}` still fails, now
+    from `Partitioning`'s own validator rather than from here. What is left
+    here is the check that annotation cannot express, because the fields are
+    `Optional`: this subtype requires this section to be present at all.
+    """
     if subtype not in subtype_confs:
         raise InvalidConfigError(
             f"Invalid subtype: {subtype}. " f"We support: {list(subtype_confs.keys())}"
@@ -1015,11 +1162,9 @@ def validate(values, subtype, subtype_confs):
     conf = subtype_confs[subtype]
     if conf:
         attr, type_ = conf
-        val = values.get(attr)
-        if not isinstance(val, type_):
+        if values.get(attr) is None:
             raise InvalidConfigError(
-                f"Invalid config. Subtype {subtype} "
-                f"requires a {type_} value for {attr}"
+                f"Invalid config. Subtype {subtype} requires a value for {attr}"
             )
 
 
@@ -1280,18 +1425,16 @@ def thins_its_ref_without_reading_the_mapping(study: StudyConf) -> List[str]:
     destination that stops carrying the stratum has the same problem a Messenger
     one does.
     """
-    thinned = [
-        d.name
-        for d in study.destinations
-        if d.resolved_ref_mode != "metadata"
-    ]
+    thinned = [d.name for d in study.destinations if d.resolved_ref_mode != "metadata"]
 
     if not thinned:
         return []
 
     reads_the_mapping = any(
         ec.is_ad_table_lookup
-        for source in (study.inference_data.data_sources.values() if study.inference_data else [])
+        for source in (
+            study.inference_data.data_sources.values() if study.inference_data else []
+        )
         for ec in source.extraction_confs
     )
 

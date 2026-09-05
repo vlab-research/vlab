@@ -1,7 +1,9 @@
 {
-  "$comment": "Generated from adopt/adopt/study_conf.py by adopt/adopt/schema_export.py. Do not edit by hand; run `make schemas`. Body of POST /{org_id}/studies/{slug}/confs/strata (a JSON array).",
+  "$comment": "Generated from adopt/adopt/study_conf.py and adopt/adopt/study_conf_strict.py by adopt/adopt/schema_export.py. Do not edit by hand; run `make schemas`. Body of POST /{org_id}/studies/{slug}/confs/strata (a JSON array).",
   "$defs": {
-    "QuestionTargeting": {
+    "QuestionTargetingStrict": {
+      "additionalProperties": false,
+      "description": "Strict, and still self-recursive.\n\n`vars` holds either a leaf `TargetVar` or another `QuestionTargeting`, to\narbitrary depth, so the strict twin has to re-declare the field in terms of\n*itself* -- otherwise strictness stops one level down, which is precisely\nwhere a hand-written targeting tree gets long enough to typo.",
       "properties": {
         "op": {
           "title": "Op",
@@ -11,10 +13,10 @@
           "items": {
             "anyOf": [
               {
-                "$ref": "#/$defs/TargetVar"
+                "$ref": "#/$defs/TargetVarStrict"
               },
               {
-                "$ref": "#/$defs/QuestionTargeting"
+                "$ref": "#/$defs/QuestionTargetingStrict"
               }
             ]
           },
@@ -26,10 +28,11 @@
         "op",
         "vars"
       ],
-      "title": "QuestionTargeting",
+      "title": "QuestionTargetingStrict",
       "type": "object"
     },
-    "StratumConf": {
+    "StratumConfStrict": {
+      "additionalProperties": false,
       "properties": {
         "audiences": {
           "items": {
@@ -70,7 +73,7 @@
         "question_targeting": {
           "anyOf": [
             {
-              "$ref": "#/$defs/QuestionTargeting"
+              "$ref": "#/$defs/QuestionTargetingStrict"
             },
             {
               "type": "null"
@@ -92,10 +95,11 @@
         "facebook_targeting",
         "metadata"
       ],
-      "title": "StratumConf",
+      "title": "StratumConfStrict",
       "type": "object"
     },
-    "TargetVar": {
+    "TargetVarStrict": {
+      "additionalProperties": false,
       "properties": {
         "type": {
           "title": "Type",
@@ -120,14 +124,14 @@
         "type",
         "value"
       ],
-      "title": "TargetVar",
+      "title": "TargetVarStrict",
       "type": "object"
     }
   },
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "description": "The recruitment cells: quota, creatives, audiences and targeting.",
   "items": {
-    "$ref": "#/$defs/StratumConf"
+    "$ref": "#/$defs/StratumConfStrict"
   },
   "title": "strata conf",
   "type": "array"

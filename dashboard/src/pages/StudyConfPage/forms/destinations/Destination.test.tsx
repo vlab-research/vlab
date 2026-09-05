@@ -166,3 +166,77 @@ describe('a destination being added now', () => {
     );
   });
 });
+
+// Two destinations on one page. The browser groups radios by DOM `name`, so
+// a shared name made every destination's ref-mode radios one group: choosing
+// a mode on one destination unchecked the other's. The name is now suffixed
+// with the destination's index, and the change event still reports the conf
+// key, so the fix is checked from both sides.
+describe('two destinations on one page', () => {
+  const stored = (name: string, ref_mode: string): any => ({
+    type: 'messenger',
+    name,
+    initial_shortcode: 'mnchweek',
+    welcome_message: 'Welcome!',
+    button_text: 'OK',
+    additional_metadata: null,
+    ref_mode,
+  });
+
+  const renderBoth = () => {
+    const first = stored('first', 'metadata');
+    const second = stored('second', 'metadata');
+    const update = jest.fn();
+
+    render(
+      <>
+        <Destination
+          data={first}
+          index={0}
+          update={update}
+          savedDestinations={[first, second]}
+        />
+        <Destination
+          data={second}
+          index={1}
+          update={update}
+          savedDestinations={[first, second]}
+        />
+      </>
+    );
+
+    return { update };
+  };
+
+  const radiosOf = (index: number) =>
+    screen
+      .getAllByRole('radio')
+      .filter(
+        r => (r as HTMLInputElement).name === `ref_mode-${index}`
+      ) as HTMLInputElement[];
+
+  it('gives each destination its own radio group', () => {
+    renderBoth();
+
+    expect(radiosOf(0)).toHaveLength(2);
+    expect(radiosOf(1)).toHaveLength(2);
+    expect(screen.getAllByRole('radio', { checked: true })).toHaveLength(2);
+  });
+
+  it('lets the second destination change mode without unchecking the first', () => {
+    const { update } = renderBoth();
+
+    fireEvent.click(radiosOf(1).find(r => r.value === 'encoded')!);
+
+    // Reported under the conf key, at the second destination's index.
+    expect(update).toHaveBeenLastCalledWith(
+      expect.objectContaining({ name: 'second', ref_mode: 'encoded' }),
+      1
+    );
+    const [conf] = update.mock.calls[update.mock.calls.length - 1];
+    expect('ref_mode-1' in conf).toBe(false);
+
+    // The first destination's choice survives in the DOM.
+    expect(radiosOf(0).find(r => r.value === 'metadata')!.checked).toBe(true);
+  });
+});

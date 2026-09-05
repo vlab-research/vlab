@@ -15,7 +15,7 @@ import {
 import { Account } from '../../../../types/account';
 import useCreateStudyConf from '../../hooks/useCreateStudyConf';
 import { GenericListFactory } from '../../components/GenericList';
-import { extractFromAdset, isLevelInSync } from './extract';
+import { extractFromAdset, isLevelInSync, propertiesOnSomeLevel } from './extract';
 
 const VariableList = GenericListFactory<VariableType>();
 
@@ -92,16 +92,18 @@ const Variables: React.FC<Props> = ({
 
   const outOfSyncCount = useMemo(() => {
     if (!metaAvailable) return 0;
-    return formData.reduce((acc, variable) =>
-      acc + variable.levels.filter(level => {
+    return formData.reduce((acc, variable) => {
+      const optional = propertiesOnSomeLevel(variable.levels, adsets, variable.properties);
+      return acc + variable.levels.filter(level => {
         try {
           const adset = adsets.find((a: any) => a.id === level.template_adset);
-          const wouldApply = extractFromAdset(adset, variable.properties);
+          const wouldApply = extractFromAdset(adset, variable.properties, optional);
           return !isLevelInSync(level.facebook_targeting, wouldApply);
         } catch {
           return true;
         }
-      }).length, 0);
+      }).length;
+    }, 0);
   }, [formData, adsets, metaAvailable]);
 
   const canSubmit = !hasEmptyTargeting;

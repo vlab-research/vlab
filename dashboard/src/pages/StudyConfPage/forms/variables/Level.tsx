@@ -10,6 +10,7 @@ import {
   PropertyMissingError,
   isLevelInSync,
   diffPropertyKeys,
+  expectedPropertyKeys,
 } from './extract';
 
 const TextInput = GenericTextInput as TextInputI<FormData>;
@@ -21,6 +22,9 @@ interface Props {
   adsets: any[];
   update: (d: any, index: number) => void;
   properties: string[];
+  // Properties some sibling level's adset carries, so this level may lack
+  // them without error. Computed once per variable; see `propertiesOnSomeLevel`.
+  optionalProperties: string[];
 }
 
 const Level: React.FC<Props> = ({
@@ -29,6 +33,7 @@ const Level: React.FC<Props> = ({
   index,
   update: handleChange,
   properties,
+  optionalProperties,
 }: Props) => {
   const [showRawJson, setShowRawJson] = useState(false);
 
@@ -45,7 +50,11 @@ const Level: React.FC<Props> = ({
   const computed = useMemo(() => {
     try {
       const adset = adsets.find((a: any) => a.id === data.template_adset);
-      const wouldApply = extractFromAdset(adset, properties || []);
+      const wouldApply = extractFromAdset(
+        adset,
+        properties || [],
+        optionalProperties || []
+      );
       return { error: null as ExtractionError | null, wouldApply };
     } catch (err) {
       if (err instanceof AdsetNotFoundError) {
@@ -66,10 +75,13 @@ const Level: React.FC<Props> = ({
       }
       throw err;
     }
-  }, [adsets, data.template_adset, properties]);
+  }, [adsets, data.template_adset, properties, optionalProperties]);
 
   const inSync = !computed.error && isLevelInSync(data.facebook_targeting, computed.wouldApply);
-  const keyDiff = diffPropertyKeys(data.facebook_targeting, properties || []);
+  const keyDiff = diffPropertyKeys(
+    data.facebook_targeting,
+    expectedPropertyKeys(computed.wouldApply, properties || [])
+  );
 
   const sourceAdset = adsets.find((a: any) => a.id === data.template_adset);
   const sourceAdvantageOn = sourceAdset?.targeting?.targeting_automation?.advantage_audience === 1;
@@ -109,7 +121,9 @@ const Level: React.FC<Props> = ({
               </div>
             ) : (
               <div>
-                Adset <strong>{computed.error.adsetName}</strong> has no <code>{computed.error.propertyKey}</code> property.
+                Adset <strong>{computed.error.adsetName}</strong> has no <code>{computed.error.propertyKey}</code> property,
+                and neither does any other level's adset in this variable. Pick an adset that has it, or remove it
+                from the variable's properties.
               </div>
             )}
           </div>

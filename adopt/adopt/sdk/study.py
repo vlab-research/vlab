@@ -47,28 +47,20 @@ import yaml
 from pydantic import TypeAdapter
 
 from ..authoring.validate import SECTION_MODELS
-
-# The nine, in the order they are written to a file. Canonical rather than
-# alphabetical: it is the order of `documentation/agent-api.md` §3 and of the
-# dashboard's own tabs, so a file reads top to bottom the way the docs do.
-SECTIONS: Tuple[str, ...] = (
-    "general",
-    "recruitment",
-    "destinations",
-    "creatives",
-    "audiences",
-    "variables",
-    "strata",
-    "data_sources",
-    "inference_data",
+from ..confs import CONF_TYPES, URL_SEGMENT_BY_CONF_TYPE, stored_conf
+from ..study_conf import (
+    DESTINATION_DEFAULT_TYPE,
+    RECRUITMENT_DESTINATION,
+    RECRUITMENT_PIPELINE,
+    RECRUITMENT_SIMPLE,
 )
 
-# Stored conf type -> the URL segment that writes it. Two of the nine differ,
-# and the mismatch is a real trap: you POST to `confs/data-sources` and the row
-# is stored as `data_sources` (`server/server.py`).
-SECTION_URL_SEGMENTS: Dict[str, str] = {
-    name: name.replace("_", "-") for name in SECTIONS
-}
+# The nine and their URLs come from `adopt/confs.py`, which the POST routes and
+# the whole-study validator also read. The SDK deliberately owns NO list of
+# conf types: a section the server grows and the SDK does not know about would
+# be a section `vlab pull` silently drops on the way to `vlab push`.
+SECTIONS: Tuple[str, ...] = CONF_TYPES
+SECTION_URL_SEGMENTS: Dict[str, str] = URL_SEGMENT_BY_CONF_TYPE
 
 # The order `push` writes in. The server checks NOTHING across sections, so
 # this order buys the server nothing; it is for the human and the agent reading
@@ -108,19 +100,28 @@ _ADAPTERS = {name: TypeAdapter(model) for name, model in SECTION_MODELS.items()}
 def infer_recruitment_type(body: Mapping[str, Any]) -> Optional[str]:
     """The `type` tag a recruitment conf would be given if it carried none.
 
-    Prefers `study_conf._infer_recruitment_type` when it exists, so that once
-    PR #262 lands there is one definition rather than two. The fallback
-    reproduces it exactly, INCLUDING the test order, which is load-bearing:
+    Delegates to `study_conf._infer_recruitment_type`, which is the definition
+    the server itself loads with (adopt v0.1.85 and later), so there is one
+    answer rather than two that can drift. The fallback below is for a
+    deployment older than that, where the symbol does not exist; it reproduces
+    the same tests in the same order, and the ORDER is load-bearing --
     `ad_campaign_name` then `arms` then `destinations` is what pydantic's
-    untagged union already resolves to today, and a body carrying both `arms`
-    and `destinations` therefore reads as pipeline in both places. Getting that
-    order wrong would make `vlab diff` claim a study's recruitment strategy had
+    untagged union resolved to before the tag existed, so a body carrying both
+    `arms` and `destinations` reads as pipeline in both places. Getting that
+    wrong would make `vlab diff` claim a study's recruitment strategy had
     changed when nothing had.
 
     `None` means "not inferable" -- an empty body, or one with none of the
     three discriminating keys. An explicit tag is returned as-is: only a
     missing or empty one is inferred, matching the narrowness of the real
     validator.
+
+    Note the real one RAISES for the not-inferable case (an `InvalidConfigError`
+    naming all four ways out, which is the right answer on a write path), where
+    this returns `None`. A diff is not a write path: it has to be able to ask
+    "what would this be tagged?" of a half-written or nonsense conf and get an
+    answer, because `validate` is what reports that the conf is broken and it
+    must not be pre-empted by an exception out of the differ.
     """
     if not isinstance(body, dict):
         return None
@@ -130,27 +131,29 @@ def infer_recruitment_type(body: Mapping[str, Any]) -> Optional[str]:
     except ImportError:
         pass
     else:
-        result = _infer_recruitment_type(dict(body))
+        try:
+            result = _infer_recruitment_type(dict(body))
+        except Exception:  # noqa: BLE001 -- "cannot tell" is an answer here
+            return None
         return result.get("type") if isinstance(result, dict) else None
 
     if body.get("type"):
         return body["type"]
     if "ad_campaign_name" in body:
-        return "simple"
+        return RECRUITMENT_SIMPLE
     if "arms" in body:
-        return "pipeline_experiment"
+        return RECRUITMENT_PIPELINE
     if "destinations" in body:
-        return "destination"
+        return RECRUITMENT_DESTINATION
     return None
 
 
-# A destination with no `type` is defaulted to `messenger`
-# (`study_conf._default_missing_destination_type`), for the 45 stored confs
-# that predate the field. There is no shape inference here and there must not
-# be: shape-matching destinations is exactly what silently turned every `multi`
-# destination into a `messenger` one and got a live study's ads rejected on
-# 2026-08-30.
-DESTINATION_DEFAULT_TYPE = "messenger"
+# A destination with no `type` is defaulted to `messenger` for the 45 stored
+# confs that predate the field. Imported, not restated, so the diff cannot
+# disagree with the validator that applies it. There is no shape inference here
+# and there must not be: shape-matching destinations is exactly what silently
+# turned every `multi` destination into a `messenger` one and got a live
+# study's ads rejected on 2026-08-30.
 
 
 def _strip_inferred_tag(section: str, value: Any) -> Any:
@@ -200,19 +203,23 @@ def _strip_inferred_tag(section: str, value: Any) -> Any:
 def model_dump_section(section: str, value: Any) -> Optional[Any]:
     """`value` as the server would store it, or `None` if it does not parse.
 
-    `create_conf` stores `config.model_dump()`, not the request body, so the
+    `create_conf` stores `confs.dump_conf(config)`, not the request body, so the
     stored conf differs from what was sent in two ways every time: unknown keys
     are gone and defaults are filled in (`agent-api.md` §2.1). Diffing a file
     against a stored conf without reproducing that would report a change on
-    every section whose file omits an optional field -- which is most of them.
+    every section whose file omits an optional field -- which is most of them,
+    because a readable study file omits optional fields.
 
-    `mode="json"` because the stored value went through `orjson.dumps`, so
-    dates and datetimes come back as ISO strings. `mode="python"` would leave
-    them as `datetime` objects and every recruitment conf would diff against
-    itself.
+    So it does not reproduce it: `confs.stored_conf` IS the server's transform,
+    `dump_conf` put through the same orjson the driver uses. Calling it rather
+    than writing `model_dump(mode="json")` here is the difference between the
+    round-trip property holding by construction and holding by coincidence --
+    and the cost of it not holding is a section rewritten on every push, into a
+    table with no delete.
 
-    The LENIENT models, not PR #262's strict twins: what a diff is asking is
-    "does the store hold what my file says", and the store is read by
+    Parsing is this module's own, and uses the LENIENT models rather than the
+    strict twins the POST routes annotate since adopt v0.1.85: what a diff asks
+    is "does the store hold what my file says", and the store is read by
     `StudyConf` on the run path. `unknown_keys` covers the write-side
     strictness separately, where it belongs.
     """
@@ -220,7 +227,7 @@ def model_dump_section(section: str, value: Any) -> Optional[Any]:
     if adapter is None:
         return None
     try:
-        return adapter.dump_python(adapter.validate_python(value), mode="json")
+        return stored_conf(adapter.validate_python(value))
     except Exception:  # noqa: BLE001
         # Every failure mode is the same answer: we cannot say what the server
         # would store, so compare raw. `AudienceConf` in particular raises a

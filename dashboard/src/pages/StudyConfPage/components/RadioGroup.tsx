@@ -11,11 +11,20 @@ export interface RadioOption {
 }
 
 interface RadioGroupProps {
+  // The DOM `name`, and half of each input's id. The browser groups radios by
+  // this alone, so it must be unique on the page: two groups sharing a name
+  // are one group, and checking either unchecks the other. The destination
+  // forms each render this control, so they suffix it with their index.
   name: string;
+  // The key the change event reports, when it differs from `name`. Form
+  // handlers write state as `{ [e.target.name]: value }`, so a `name` made
+  // unique per destination would otherwise land in state under that unique
+  // string rather than the field. Defaults to `name`.
+  fieldName?: string;
   label: string;
   options: RadioOption[];
   value: string;
-  // Receives a native change event, so a form's existing
+  // Receives an event shaped like a native change event, so a form's existing
   // `({ name, value }) => ...` handler works unchanged.
   handleChange: (e: any) => void;
   disabled?: boolean;
@@ -34,6 +43,7 @@ interface RadioGroupProps {
  */
 export const RadioGroup: React.FC<RadioGroupProps> = ({
   name,
+  fieldName = name,
   label,
   options,
   value,
@@ -54,7 +64,12 @@ export const RadioGroup: React.FC<RadioGroupProps> = ({
             value={option.name}
             checked={value === option.name}
             disabled={disabled}
-            onChange={handleChange}
+            onChange={e =>
+              handleChange({
+                ...e,
+                target: { ...e.target, name: fieldName, value: e.target.value },
+              })
+            }
             className={classNames(
               'mt-1 h-4 w-4 shrink-0',
               disabled ? 'opacity-50 cursor-not-allowed' : ''

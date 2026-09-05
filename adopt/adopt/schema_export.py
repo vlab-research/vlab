@@ -23,6 +23,25 @@ contract with two properties the in-memory models do not have:
 `make check-schemas` (and `test_schema_export.py`) fail when the committed
 files drift from the models, so property 2 cannot rot.
 
+Which shape these describe: the WRITE shape
+-------------------------------------------
+Since 2026-09-05 the models are asymmetric. `POST /confs/<type>` validates
+through the `extra="forbid"` twins in `study_conf_strict.py`; the load path
+(`get_study_conf`, `StudyConf`) keeps the lenient originals, so a conf written
+before a field was removed still loads. Two shapes, so these files have to pick
+one.
+
+They describe the **write** shape, because that is the one a consumer can act
+on. Someone reading these files is about to POST a body, and what they need to
+know is which keys will be accepted — a lenient schema would tell them their
+misspelled key is fine when the server is about to return 422. The difference
+is visible in the output as `"additionalProperties": false`.
+
+The consequence, stated so nobody has to rediscover it: a conf stored before a
+field was removed can validate on the load path and NOT against these files.
+That is not drift, it is the asymmetry working. `study-conf.json` is the
+exception — see its `$comment`.
+
 The conf-type keys
 ------------------
 Files are keyed by the **wire** conf-type — the last path segment of
@@ -54,17 +73,17 @@ from typing import Any, Optional, get_args, get_origin
 
 from pydantic import TypeAdapter
 
-from .study_conf import (
-    AudienceConf,
-    CreativeConf,
-    DataSourceConf,
-    DestinationConf,
-    GeneralConf,
-    InferenceDataConf,
-    RecruitmentConf,
-    StratumConf,
-    StudyConf,
-    VariableConf,
+from .study_conf import StudyConf
+from .study_conf_strict import (
+    AudienceConfStrict,
+    CreativeConfStrict,
+    DataSourceConfStrict,
+    DestinationConfStrict,
+    GeneralConfStrict,
+    InferenceDataConfStrict,
+    RecruitmentConfStrict,
+    StratumConfStrict,
+    VariableConfStrict,
 )
 
 # The 2020-12 dialect is what pydantic v2 emits. Stating it explicitly means a
@@ -111,51 +130,51 @@ class ConfEndpoint:
 CONF_ENDPOINTS: list[ConfEndpoint] = [
     ConfEndpoint(
         "general",
-        GeneralConf,
+        GeneralConfStrict,
         "Study-wide settings: name, ad account, credentials, opt window.",
     ),
     ConfEndpoint(
         "recruitment",
-        RecruitmentConf,
-        "How the study spends: one of three recruitment strategies. "
-        "NOTE: this union carries no tag field, so it is an untagged `anyOf` "
-        "- a consumer must tell the arms apart by shape "
-        "(`ad_campaign_name` vs `ad_campaign_name_base`, then `arms` vs "
-        "`destinations`). See 'JSON Schemas' in adopt/README.md.",
+        RecruitmentConfStrict,
+        "How the study spends: one of three recruitment strategies, "
+        "discriminated on `type` (`simple`, `pipeline_experiment`, "
+        "`destination`). The tag may be omitted, in which case the arm is "
+        "inferred from shape for backwards compatibility - but a written tag "
+        "is the only way to be sure which arm you get.",
     ),
     ConfEndpoint(
         "destinations",
-        list[DestinationConf],
+        list[DestinationConfStrict],
         "Where respondents are sent. Discriminated on `type`.",
     ),
     ConfEndpoint(
         "creatives",
-        list[CreativeConf],
+        list[CreativeConfStrict],
         "Ad creatives, each naming the destination it recruits into.",
     ),
     ConfEndpoint(
         "audiences",
-        list[AudienceConf],
+        list[AudienceConfStrict],
         "Custom audiences derived from responses, and lookalikes of them.",
     ),
     ConfEndpoint(
         "variables",
-        list[VariableConf],
+        list[VariableConfStrict],
         "Experimental variables and their levels, used to derive strata.",
     ),
     ConfEndpoint(
         "strata",
-        list[StratumConf],
+        list[StratumConfStrict],
         "The recruitment cells: quota, creatives, audiences and targeting.",
     ),
     ConfEndpoint(
         "data-sources",
-        list[DataSourceConf],
+        list[DataSourceConfStrict],
         "Response sources to pull from. Stored under the key `data_sources`.",
     ),
     ConfEndpoint(
         "inference-data",
-        InferenceDataConf,
+        InferenceDataConfStrict,
         "How to extract inference variables from responses. "
         "Stored under the key `inference_data`.",
     ),
@@ -191,7 +210,8 @@ def _decorate(
 
 def _provenance(extra: str) -> str:
     return (
-        "Generated from adopt/adopt/study_conf.py by adopt/adopt/schema_export.py. "
+        "Generated from adopt/adopt/study_conf.py and "
+        "adopt/adopt/study_conf_strict.py by adopt/adopt/schema_export.py. "
         "Do not edit by hand; run `make schemas`. " + extra
     )
 
@@ -220,10 +240,14 @@ def build_schemas() -> dict[str, dict[str, Any]]:
         title="StudyConf",
         comment=_provenance(
             "The assembled whole-study configuration. Not accepted by any "
-            "endpoint; adopt builds it from the per-section confs. Structural "
-            "only — StudyConf's cross-section model validators (e.g. "
-            "check_whatsapp_refs_are_deliverable) cannot be expressed in JSON "
-            "Schema and are NOT represented here."
+            "endpoint; adopt builds it from the per-section confs. The only "
+            "file here generated from the LENIENT models, because it "
+            "describes what adopt LOADS, and adopt deliberately still loads a "
+            "conf carrying keys it no longer declares — so this file permits "
+            "additional properties where the per-section files do not. "
+            "Structural only — StudyConf's cross-section model validators "
+            "(e.g. check_whatsapp_refs_are_deliverable) cannot be expressed "
+            "in JSON Schema and are NOT represented here."
         ),
         description=(
             "The full study configuration, as adopt assembles it from the "

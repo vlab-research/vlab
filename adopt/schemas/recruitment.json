@@ -1,7 +1,8 @@
 {
-  "$comment": "Generated from adopt/adopt/study_conf.py by adopt/adopt/schema_export.py. Do not edit by hand; run `make schemas`. Body of POST /{org_id}/studies/{slug}/confs/recruitment (a JSON object).",
+  "$comment": "Generated from adopt/adopt/study_conf.py and adopt/adopt/study_conf_strict.py by adopt/adopt/schema_export.py. Do not edit by hand; run `make schemas`. Body of POST /{org_id}/studies/{slug}/confs/recruitment (a JSON object).",
   "$defs": {
-    "DestinationRecruitmentExperiment": {
+    "DestinationRecruitmentExperimentStrict": {
+      "additionalProperties": false,
       "properties": {
         "ad_campaign_name_base": {
           "title": "Ad Campaign Name Base",
@@ -62,6 +63,11 @@
           "format": "date-time",
           "title": "Start Date",
           "type": "string"
+        },
+        "type": {
+          "const": "destination",
+          "default": "destination",
+          "title": "Type"
         }
       },
       "required": [
@@ -75,10 +81,11 @@
         "end_date",
         "destinations"
       ],
-      "title": "DestinationRecruitmentExperiment",
+      "title": "DestinationRecruitmentExperimentStrict",
       "type": "object"
     },
-    "PipelineRecruitmentExperiment": {
+    "PipelineRecruitmentExperimentStrict": {
+      "additionalProperties": false,
       "properties": {
         "ad_campaign_name_base": {
           "title": "Ad Campaign Name Base",
@@ -144,6 +151,11 @@
           "format": "date-time",
           "title": "Start Date",
           "type": "string"
+        },
+        "type": {
+          "const": "pipeline_experiment",
+          "default": "pipeline_experiment",
+          "title": "Type"
         }
       },
       "required": [
@@ -159,10 +171,11 @@
         "recruitment_days",
         "offset_days"
       ],
-      "title": "PipelineRecruitmentExperiment",
+      "title": "PipelineRecruitmentExperimentStrict",
       "type": "object"
     },
-    "SimpleRecruitment": {
+    "SimpleRecruitmentStrict": {
+      "additionalProperties": false,
       "properties": {
         "ad_campaign_name": {
           "title": "Ad Campaign Name",
@@ -216,6 +229,11 @@
           "format": "date-time",
           "title": "Start Date",
           "type": "string"
+        },
+        "type": {
+          "const": "simple",
+          "default": "simple",
+          "title": "Type"
         }
       },
       "required": [
@@ -228,22 +246,30 @@
         "start_date",
         "end_date"
       ],
-      "title": "SimpleRecruitment",
+      "title": "SimpleRecruitmentStrict",
       "type": "object"
     }
   },
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "anyOf": [
+  "description": "How the study spends: one of three recruitment strategies, discriminated on `type` (`simple`, `pipeline_experiment`, `destination`). The tag may be omitted, in which case the arm is inferred from shape for backwards compatibility - but a written tag is the only way to be sure which arm you get.",
+  "discriminator": {
+    "mapping": {
+      "destination": "#/$defs/DestinationRecruitmentExperimentStrict",
+      "pipeline_experiment": "#/$defs/PipelineRecruitmentExperimentStrict",
+      "simple": "#/$defs/SimpleRecruitmentStrict"
+    },
+    "propertyName": "type"
+  },
+  "oneOf": [
     {
-      "$ref": "#/$defs/SimpleRecruitment"
+      "$ref": "#/$defs/SimpleRecruitmentStrict"
     },
     {
-      "$ref": "#/$defs/PipelineRecruitmentExperiment"
+      "$ref": "#/$defs/PipelineRecruitmentExperimentStrict"
     },
     {
-      "$ref": "#/$defs/DestinationRecruitmentExperiment"
+      "$ref": "#/$defs/DestinationRecruitmentExperimentStrict"
     }
   ],
-  "description": "How the study spends: one of three recruitment strategies. NOTE: this union carries no tag field, so it is an untagged `anyOf` - a consumer must tell the arms apart by shape (`ad_campaign_name` vs `ad_campaign_name_base`, then `arms` vs `destinations`). See 'JSON Schemas' in adopt/README.md.",
   "title": "recruitment conf"
 }
