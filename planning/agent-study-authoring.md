@@ -4,10 +4,12 @@ Exploration and decision path for giving an AI agent (or a script, or a
 notebook) the ability to create and configure a vlab study without driving the
 React dashboard by hand.
 
-Status: **direction agreed, nothing implemented.** §1–§5 are findings read
-out of the code, with the file establishing each claim named next to it. §7
-records the decisions taken and why, §8 is the plan, §10 is what is still
-open.
+Status: **Phase 0 implemented; Phases 1–4 not started.** §1–§5 are findings
+read out of the code, with the file establishing each claim named next to it.
+§7 records the decisions taken and why, §8 is the plan, §10 is what is still
+open, and **§11 records what Phase 0 actually shipped and the six claims below
+that the implementation proved wrong** — several of them load-bearing, so read
+§11 before trusting a detail in §2 or Appendix A.
 
 The short version: an SDK (pipx-installable, shipped as an extra on `adopt`)
 that owns a *composable* study-authoring library and validates a whole study
@@ -101,7 +103,9 @@ Study creation is `POST /:org/studies` on the **Go** service
 Python service can write configuration for a study but has no way to bring one
 into existence: `create_study_conf` (`adopt/adopt/server/db.py:151`) inserts
 with a subselect against `studies` and simply writes nothing if the study is
-absent.
+absent. (Corrected in §11.3: it does not write nothing — the subselect yields
+NULL into a NOT NULL column, so it raises `NotNullViolation` and the caller
+gets a 500. Same consequence, louder.)
 
 So today an agent holding an API key must have a human create the study in the
 dashboard first. That is the single hardest blocker, and it is a small fix.
@@ -171,7 +175,9 @@ then executes exactly one.
 That is plan / review / apply, already built. It is the right shape for an
 agent and should be the centrepiece of the launch story, not an afterthought.
 (Caveat for the docs: the "preview" is not side-effect-free — it calls
-`heal_ad_attributions` and reads Meta.)
+`heal_ad_attributions` and reads Meta. It also *writes*: an `adopt_reports`
+FACEBOOK_ADOPT row, a respondents-over-time report and a cost-over-time report
+— see §11.3. "Preview" is a worse name for it than this section implies.)
 
 ---
 
@@ -450,6 +456,131 @@ right, and large if it is not.
   properties?). That turns validation into a network call and a slow one, so it
   may want to be a separate `vlab check --live`.
 
+
+---
+
+## 11. Phase 0: what shipped, and what it proved wrong
+
+Implemented 2026-09-04 on `feature/agent-study-authoring-phase0`. This section
+supersedes conflicting details in §2 and Appendix A; where they disagree, this
+section was verified against running code and they were not.
+
+### 11.1 What shipped
+
+| Commit | What |
+|---|---|
+| `83733d5d` | `server/deps.py` — auth dependency extracted so route modules do not have to import `server` |
+| `f75100ec` | `VLAB_TEST_PG_URL` — fixtures can point at another database, so concurrent test runs stop truncating each other |
+| `489bc680` | `adopt/schemas/*.json` — committed JSON Schemas, `make check-schemas`, own CI job |
+| `32980fe8` | `POST /{org_id}/studies` — study creation with an API key; `slugify.py` |
+| `9e924444` | `documentation/agent-api.md` — 1077 lines written for an agent reader |
+| `70248ea1` | API keys: `exp`, jti-backed revocation, scopes, list/revoke |
+| `ee7e21f6` | `copy-from` cross-tenant write fix (found while writing the docs) |
+
+Test suite went from 757 to 829 passing, no regressions. Phase 0's three
+planned items are all done; the dashboard was deliberately **not** repointed at
+the new study-creation endpoint (the Go one works, and repointing live UI buys
+the agent nothing), so `api/.../studies/create.go` carries a deprecation
+comment and nothing more.
+
+### 11.2 The API-key correction that would have been an outage
+
+**Appendix A.4 says legacy keys "carry no `jti`" and proposes fly's
+discriminator: require a live credentials row iff the token carries one. That
+is true of fly and false of vlab.** `generate_api_token` has *always* minted a
+`jti` — it just threw it away (that is precisely what the `# TODO: check
+payload ("id") against blacklist / whitelist` marked). So every key in
+production carries a `jti` with no row behind it, and fly's rule would have
+revoked all of them on deploy.
+
+The shipped discriminator is an explicit `https://vlab.digital/token-version: 2`
+claim, written only by the new mint path and unforgeable because it is inside
+the signature. Version 2 requires a live row, requires `exp`, honours scopes.
+An absent claim is a legacy key: accepted with no row and no expiry, exactly as
+before. Legacy keys have no row for positive validity to stand on, so their
+only lever is a coarse name-matched tombstone — names were never unique when
+nothing was stored. **The real migration path is reissue**, and old keys stay
+eternal until someone rotates them.
+
+Two smaller A.4 corrections: the `facebook_page_id` computed-column precedent is
+**fly's**, not vlab's — vlab had no such column, and the pattern was created
+fresh. And CockroachDB will not accept a partial index on a computed column in
+the transaction that added the column, so one logical change is two migration
+files.
+
+A.4's `exp` claim was **right**: `API_KEY_SECRET` is read only in `auth.py`,
+nothing else in the repo signs with it, so vlab can require `exp` where fly
+could not.
+
+### 11.3 Other claims the implementation disproved
+
+- **A.1: the name cap is 300 bytes, not characters.** Go's `len()` on a string
+  counts bytes; 151 `ñ` is already rejected by the dashboard today.
+- **A.1 understates the slug problem.** It suggests testing "spaces,
+  punctuation and non-ASCII". The genuinely non-obvious behaviour is
+  `languages_substitution.go`'s `init()`, which merges `defaultSub` into every
+  language map — quotes are *deleted*, so `Nandan's study` is `nandans-study`,
+  not `nandan-s-study`. Reading `enSub`'s literal, which is what the appendix
+  points you at, does not reveal this. The port was verified by running the real
+  Go implementation over 254,037 inputs and diffing; the first draft had seven
+  mismatches, all from this.
+- **§2.3: `create_study_conf` does not silently write nothing.** It raises
+  `NotNullViolation` and surfaces as a 500.
+- **§2.4 understates how dead `variables` is.** It is not merely that the
+  compiler lives in the browser — `StudyConf` has no `variables` field at all
+  (`study_conf.py:1071`), so pydantic drops it on read. The *output* of the
+  compiler is the only thing that exists server-side.
+- **§2.6's preview also writes.** Three `adopt_reports` rows, not just
+  `heal_ad_attributions` and Meta reads.
+
+### 11.4 New defects found, not fixed — candidates for Phase 1
+
+Reported by the implementation and verified, but deliberately left alone: they
+are design decisions, not mechanical fixes.
+
+1. **`InvalidConfigError` derives from `BaseException`** (`study_conf.py:928`),
+   so pydantic does not wrap it and Starlette's exception middleware does not
+   catch it. Every careful message in the WhatsApp, multi-destination, audience
+   and partitioning validators reaches the server log and never the caller, who
+   gets a bare 500. This is the most fixable bug on the list and it directly
+   undercuts §2.5's hope that validation errors are actionable.
+2. **Every conf model is `extra="ignore"`.** A misspelled *optional* field is
+   accepted and silently dropped. For a dashboard user the form supplies the
+   names; for an agent authoring JSON this is the likeliest failure mode there
+   is, and vlab's answer is to accept the write and discard the field. **This
+   is worse than the deferred-validation problem of §2.5, because nothing ever
+   surfaces at all**, and it should be settled before the SDK ships.
+3. **`RecruitmentConf` is an untagged union.** The three arms carry no tag, so
+   the server shape-matches on which required fields are present —
+   `PipelineRecruitmentExperiment` and `DestinationRecruitmentExperiment` are
+   separated by exactly `arms` vs `destinations`. Add one optional field to
+   either and they become mutually satisfiable. Same defect class as the
+   destination union, which per the comments at `study_conf.py:1090` cost a
+   live ad rejection on 2026-08-30. An over-specified body already resolves to
+   the pipeline arm and silently drops `destinations`.
+4. **Dangling cross-references fail three different ways**: a bad
+   stratum→creative name is a bare `KeyError` (`malaria.py:746`), a bad
+   creative→destination name is a clear exception, and a bad audience name is
+   dropped at `logging.info` (`malaria.py:689`) — where a dropped *exclusion*
+   means the ad set silently re-recruits people it meant to exclude.
+   Partitioned audiences are named `<name>-cohort-N` and never `<name>`, so a
+   stratum naming one by its conf name always dangles. The SDK's validator
+   should own this; it is exactly the whole-study check no single write can do.
+5. **`GET /confs/{conf_type}` takes the stored name, not the URL segment** —
+   `confs/data-sources` writes `data_sources`, so reading back with the hyphen
+   raises. Latent; the dashboard only uses `GET /confs`.
+6. **`devops/helm/migrations/init.sql` looks stale** — it declares `users.id`
+   as UUID where the live schema is VARCHAR, and has no `org_id`. Needs its own
+   decision.
+
+### 11.5 Still true, still open
+
+Everything in §10 stands. Phases 1–4 are untouched: the compiler is still only
+in browser TypeScript, there is still no Meta proxy, no SDK and no MCP. Item 2
+above (`extra="ignore"`) is the one that most deserves settling before Phase 3
+starts, because an SDK that validates locally is worth much less if the server
+silently drops what it does not recognise.
+
 ---
 
 ## Appendix A. Notes for whoever implements Phase 0
@@ -485,7 +616,9 @@ Specifically:
   handler maps the constraint violation to `409` with "The name is already in
   use." (`api/internal/server/handler/studies/create.go`); the port should
   return the same status and a comparable message.
-- Name is capped at 300 characters and rejected when blank, in the Go handler
+- Name is capped at 300 **bytes** — not characters; Go's `len()` on a string
+  counts bytes, so 151 `ñ` is already rejected today (corrected in §11) — and
+  rejected when blank, in the Go handler
   rather than in the database.
 
 ### A.2 `studies.credentials_key` is vestigial on the modern path
@@ -527,13 +660,18 @@ claim, so revocation is a row delete and reusing a name cannot resurrect a
 revoked token. The `jti` is written into `details` by the application and
 surfaced as a *computed, stored* column with a partial unique index, so the
 verifier's lookup is an index seek rather than a JSONB scan — vlab's
-`credentials` table already does this for `facebook_page_id`. Lookups are
+`credentials` table already does this for `facebook_page_id` — **wrong, that
+precedent is fly's `media`/`message_templates` tables; vlab had no such column
+and Phase 0 created the pattern fresh (§11.2)**. Lookups are
 cached with a bounded TTL cache that caches **negative** results too, so
 replaying random jtis cannot become a database amplification attack; the
 tradeoff is that revocation is "dead within a minute", not instant, and the
 docs must say so. Legacy keys carry no `jti` but do carry the token-name
 claim, so they stay revocable by (user, name) — with the one hazard that name
-reuse defeats it, which is exactly what `jti` fixes going forward. Scopes are
+reuse defeats it, which is exactly what `jti` fixes going forward.
+**⚠ That last sentence is true of fly and FALSE of vlab — see §11.2. vlab has
+always minted a `jti` and discarded it, so "requires a row iff it has a jti"
+would revoke every key in production. Do not carry fly's discriminator over.** Scopes are
 `<resource>:<action>`, `write` implies `read`, and **an absent scopes claim
 means unrestricted** so no existing key breaks. On `exp`: fly could not
 require it because its signing secret is shared with services that mint their
