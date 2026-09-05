@@ -1,4 +1,6 @@
 import json
+
+import pytest
 import os
 import uuid
 from datetime import datetime
@@ -513,3 +515,411 @@ def test_get_recruitment_stats_returns_404_for_missing_strata(
 def test_health_check():
     res = client.get("/health")
     assert res.status_code == 200
+
+
+# ---------------------------------------------------------------------------
+# Unknown fields on a write are a 422 that names the field.
+#
+# Until 2026-09-05 every conf model ran on pydantic's default, `extra="ignore"`,
+# so a misspelled key was accepted and dropped: `201 Created`, and the field
+# simply did not exist in the stored conf. That is invisible to a dashboard user
+# (the form supplies the names) and is the likeliest failure mode there is for
+# an agent authoring JSON. The nine POST routes now annotate the strict twins in
+# `study_conf_strict.py`. See planning/conf-extra-fields.md.
+#
+# `VALID_CONF_BODIES` is doing double duty and the second job is the important
+# one: these bodies mirror what the dashboard actually sends (verified
+# field-for-field against the forms under
+# dashboard/src/pages/StudyConfPage/forms/), so the happy-path test below is the
+# regression guard that `extra="forbid"` did not break the dashboard. Add a
+# required field to a model and it fails here, which is the point.
+# ---------------------------------------------------------------------------
+
+VALID_CONF_BODIES = {
+    "general": {
+        "name": "foo",
+        "credentials_key": "facebook",
+        "credentials_entity": "facebook",
+        "ad_account": "234",
+        "opt_window": 48,
+    },
+    "recruitment": {
+        "ad_campaign_name": "camp",
+        "objective": "OUTCOME_ENGAGEMENT",
+        "optimization_goal": "CONVERSATIONS",
+        "min_budget": 100,
+        "budget": 1000,
+        "max_sample": 500,
+        "start_date": "2022-01-01T00:00",
+        "end_date": "2022-03-01T00:00",
+        "incentive_per_respondent": 0,
+        "efficiency_weight": 1,
+    },
+    "destinations": [
+        {
+            "type": "web",
+            "name": "site",
+            "url_template": "https://x.example/{ref}",
+        }
+    ],
+    "creatives": [
+        {
+            "name": "creative-a",
+            "destination": "site",
+            "template": {"object_story_spec": {"page_id": "1"}},
+            "template_campaign": "tmpl",
+        }
+    ],
+    "audiences": [{"name": "aud", "subtype": "CUSTOM"}],
+    "variables": [
+        {
+            "name": "age",
+            "properties": ["age"],
+            "levels": [
+                {
+                    "name": "18_24",
+                    "template_campaign": "tmpl",
+                    "template_adset": "tmpl-adset",
+                    "facebook_targeting": {"age_min": 18, "age_max": 24},
+                    "quota": 0.5,
+                }
+            ],
+        }
+    ],
+    "strata": [
+        {
+            "id": "age_18_24",
+            "quota": 1.0,
+            "creatives": ["creative-a"],
+            "audiences": [],
+            "excluded_audiences": [],
+            "facebook_targeting": {"age_min": 18},
+            "question_targeting": {
+                "op": "equal",
+                "vars": [
+                    {"type": "variable", "value": "age"},
+                    {"type": "constant", "value": "18_24"},
+                ],
+            },
+            "metadata": {"age": "18_24"},
+        }
+    ],
+    "data-sources": [
+        {
+            "name": "fly",
+            "source": "typeform",
+            "credentials_key": "typeform",
+            "config": {"survey_name": "hpv"},
+        }
+    ],
+    "inference-data": {
+        "data_sources": {
+            "fly": {
+                "extraction_confs": [
+                    {
+                        "location": "variable",
+                        "key": "age",
+                        "name": "age",
+                        "functions": [{"function": "identity", "params": None}],
+                        "value_type": "categorical",
+                        "aggregate": "last",
+                    }
+                ],
+                "user_variable": "userid",
+            }
+        }
+    },
+}
+
+# Every route, so a new one cannot be added without a decision about strictness.
+CONF_PATHS = list(VALID_CONF_BODIES)
+
+
+def _post_conf(org_id, headers, path, body):
+    return client.post(
+        f"/{org_id}/studies/foo-study/confs/{path}", headers=headers, json=body
+    )
+
+
+def _with_extra_key(body, key, value="typo"):
+    """The same body with one unknown key, at the top level of the conf object.
+
+    A list-bodied section gets the key on its first element, which is the top
+    level of the model that section is a list of.
+    """
+    if isinstance(body, list):
+        return [{**body[0], key: value}, *body[1:]]
+    return {**body, key: value}
+
+
+@pytest.mark.parametrize("path", CONF_PATHS)
+@patch("adopt.server.auth.verify_token")
+def test_every_conf_route_accepts_the_body_the_dashboard_sends(verify_mock, path):
+    """The regression guard for `extra="forbid"`.
+
+    If forbidding extras ever starts rejecting a shape the dashboard sends, it
+    fails here rather than in production on someone's study.
+    """
+    _reset_db()
+    verify_mock.return_value = {"sub": user_id}
+    org_id, headers = _user_and_study_setup()
+
+    res = _post_conf(org_id, headers, path, VALID_CONF_BODIES[path])
+
+    assert res.status_code == 201, res.text
+
+
+@pytest.mark.parametrize("path", CONF_PATHS)
+@patch("adopt.server.auth.verify_token")
+def test_every_conf_route_rejects_an_unknown_top_level_key(verify_mock, path):
+    """422, and the response body names the key.
+
+    Naming it is the whole value of the change: "extra inputs are not permitted"
+    with no key would leave an agent no better off than the silent drop did.
+    """
+    _reset_db()
+    verify_mock.return_value = {"sub": user_id}
+    org_id, headers = _user_and_study_setup()
+
+    body = _with_extra_key(VALID_CONF_BODIES[path], "definitely_not_a_field")
+    res = _post_conf(org_id, headers, path, body)
+
+    assert res.status_code == 422, res.text
+    assert "definitely_not_a_field" in res.text
+
+
+# The four sections that nest a model inside another model, and a typo placed
+# at the deepest point each one reaches. `extra="forbid"` is per-class and does
+# not inherit into fields, so these would still be dropped silently if only the
+# outer class were strict -- and a hand-written targeting tree or extraction
+# conf is exactly where the typing, and the typos, happen.
+#
+# The other five sections nest nothing: `general`, `recruitment` and
+# `destinations` are flat, `creatives.template` is a Meta blob typed
+# `Dict[str, Any]`, and `data-sources.config` is `Any`. Their coverage is the
+# top-level test above.
+NESTED_TYPO_BODIES = {
+    "audiences": [
+        {
+            "name": "aud",
+            "subtype": "CUSTOM",
+            "question_targeting": {
+                "op": "equal",
+                "vars": [{"type": "variable", "value": "age", "vlaue": "typo"}],
+            },
+        }
+    ],
+    "variables": [
+        {
+            "name": "age",
+            "properties": ["age"],
+            "levels": [
+                {
+                    "name": "18_24",
+                    "template_campaign": "tmpl",
+                    "template_adset": "tmpl-adset",
+                    "facebok_targeting": {"age_min": 18},
+                    "facebook_targeting": {"age_min": 18},
+                    "quota": 0.5,
+                }
+            ],
+        }
+    ],
+    "strata": [
+        {
+            "id": "age_18_24",
+            "quota": 1.0,
+            "creatives": [],
+            "audiences": [],
+            "excluded_audiences": [],
+            "facebook_targeting": {},
+            "metadata": {},
+            "question_targeting": {
+                "op": "equal",
+                "vars": [{"type": "variable", "value": "age", "vlaue": "typo"}],
+            },
+        }
+    ],
+    "inference-data": {
+        "data_sources": {
+            "fly": {
+                "extraction_confs": [
+                    {
+                        "location": "variable",
+                        "key": "age",
+                        "name": "age",
+                        "functions": [{"function": "identity", "parms": None}],
+                        "value_type": "categorical",
+                        "aggregate": "last",
+                    }
+                ]
+            }
+        }
+    },
+}
+
+NESTED_TYPO_KEYS = {
+    "audiences": "vlaue",
+    "variables": "facebok_targeting",
+    "strata": "vlaue",
+    "inference-data": "parms",
+}
+
+
+@pytest.mark.parametrize("path", list(NESTED_TYPO_BODIES))
+@patch("adopt.server.auth.verify_token")
+def test_a_conf_route_rejects_an_unknown_key_nested_inside_the_body(verify_mock, path):
+    _reset_db()
+    verify_mock.return_value = {"sub": user_id}
+    org_id, headers = _user_and_study_setup()
+
+    res = _post_conf(org_id, headers, path, NESTED_TYPO_BODIES[path])
+
+    assert res.status_code == 422, res.text
+    assert NESTED_TYPO_KEYS[path] in res.text
+
+
+@patch("adopt.server.auth.verify_token")
+def test_a_destination_posted_without_a_type_is_a_422(verify_mock):
+    """The strict destination union drops the legacy `messenger` default.
+
+    `_default_missing_destination_type` fills in "messenger" so that the 45
+    stored confs predating the `type` field keep LOADING. Nothing POSTed today
+    predates the field, so a missing `type` on a write is an author who forgot
+    it, and quietly giving them a Messenger destination is the same silent
+    mis-resolution the discriminator was added to stop.
+    planning/conf-extra-fields.md §6 question 2.
+    """
+    _reset_db()
+    verify_mock.return_value = {"sub": user_id}
+    org_id, headers = _user_and_study_setup()
+
+    res = _post_conf(
+        org_id,
+        headers,
+        "destinations",
+        [
+            {
+                "name": "mess",
+                "initial_shortcode": "hpv",
+                "welcome_message": "Hi",
+                "button_text": "Start",
+            }
+        ],
+    )
+
+    assert res.status_code == 422, res.text
+    assert "type" in res.text
+
+
+@patch("adopt.server.auth.verify_token")
+def test_a_recruitment_conf_written_without_a_tag_is_still_accepted(verify_mock):
+    """Unlike destinations, and deliberately.
+
+    Every recruitment conf in existence is untagged -- `extra="ignore"` dropped
+    the `type` the dashboard sent before it was ever stored -- and the
+    dashboard's edit path re-POSTs what `GET /confs` returned. Requiring the
+    tag would 422 every edit of every study.
+    """
+    _reset_db()
+    verify_mock.return_value = {"sub": user_id}
+    org_id, headers = _user_and_study_setup()
+
+    body = dict(VALID_CONF_BODIES["recruitment"])
+    assert "type" not in body
+
+    res = _post_conf(org_id, headers, "recruitment", body)
+
+    assert res.status_code == 201, res.text
+    # The tag is filled in on the way to storage, which is what will eventually
+    # make the shape inference removable.
+    assert res.json()["data"]["conf"]["type"] == "simple"
+
+
+@patch("adopt.server.auth.verify_token")
+def test_an_over_specified_recruitment_conf_is_rejected_rather_than_downgraded(
+    verify_mock,
+):
+    """`arms` and `destinations` together used to mean "pipeline", silently.
+
+    Union order won and `destinations` was dropped as an extra, so a study
+    configured as a destination experiment could run as a pipeline one and
+    nothing said so (planning/agent-study-authoring.md §11.4 item 3).
+    """
+    _reset_db()
+    verify_mock.return_value = {"sub": user_id}
+    org_id, headers = _user_and_study_setup()
+
+    res = _post_conf(
+        org_id,
+        headers,
+        "recruitment",
+        {
+            "ad_campaign_name_base": "camp",
+            "objective": "OUTCOME_ENGAGEMENT",
+            "optimization_goal": "CONVERSATIONS",
+            "min_budget": 100,
+            "budget_per_arm": 1000,
+            "max_sample_per_arm": 500,
+            "start_date": "2022-01-01T00:00",
+            "end_date": "2022-03-01T00:00",
+            "arms": 3,
+            "recruitment_days": 7,
+            "offset_days": 7,
+            "destinations": ["wa", "mess"],
+        },
+    )
+
+    assert res.status_code == 422, res.text
+    assert "destinations" in res.text
+
+
+@patch("adopt.server.auth.verify_token")
+def test_a_retired_field_on_a_stored_conf_does_not_block_re_saving_it(verify_mock):
+    """`destination_type` was required on all three recruitment arms until
+    d382000c (2026-08-30), so every recruitment conf older than that has it in
+    its stored JSON -- and the dashboard re-POSTs stored JSON verbatim when you
+    edit a study. Without the retired-key allowance, "extend this study's end
+    date" would 422 on the existing corpus.
+    """
+    _reset_db()
+    verify_mock.return_value = {"sub": user_id}
+    org_id, headers = _user_and_study_setup()
+
+    body = {**VALID_CONF_BODIES["recruitment"], "destination_type": "MESSENGER"}
+    res = _post_conf(org_id, headers, "recruitment", body)
+
+    assert res.status_code == 201, res.text
+    # Accepted and dropped -- exactly what has happened to it since the day the
+    # field was removed. The list of such keys is closed; a typo'd one is not
+    # on it and is still a 422 (see test_study_conf_strict.py).
+    assert "destination_type" not in res.json()["data"]["conf"]
+
+
+@pytest.mark.parametrize(
+    "url_segment,stored_type",
+    [("data-sources", "data_sources"), ("inference-data", "inference_data")],
+)
+@patch("adopt.server.auth.verify_token")
+def test_a_hyphenated_conf_type_can_be_read_back_by_the_url_that_wrote_it(
+    verify_mock, url_segment, stored_type
+):
+    """`POST /confs/data-sources` stores `data_sources`, and `GET` used to pass
+    its URL segment straight to the query -- so the only URL that could write a
+    section was the one URL that could not read it back
+    (planning/agent-study-authoring.md §11.4 item 5). Both spellings work now:
+    the underscore is what `GET /confs` returns as a key, and that caller was
+    the only one that worked before.
+    """
+    _reset_db()
+    verify_mock.return_value = {"sub": user_id}
+    org_id, headers = _user_and_study_setup()
+
+    assert _post_conf(org_id, headers, url_segment, VALID_CONF_BODIES[url_segment])
+
+    for spelling in (url_segment, stored_type):
+        res = client.get(
+            f"/{org_id}/studies/foo-study/confs/{spelling}", headers=headers
+        )
+        assert res.status_code == 200, res.text
+        assert res.json()["data"] is not None
