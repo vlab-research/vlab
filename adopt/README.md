@@ -888,3 +888,170 @@ answer: `StudyConf` assembly in the cron fails on the same stored conf for the
 same reason. Before designing a fix, check whether any production study has a
 partitioned audience stored — if one does, it is already failing every
 reconciliation run.
+
+## The `vlab` SDK and CLI
+
+Phase 3 of `planning/agent-study-authoring.md` §8. What shipped, what was
+decided and what is still open: `planning/vlab-sdk.md`. The API it wraps:
+`documentation/agent-api.md`.
+
+```
+pipx install 'adopt[sdk]'
+export VLAB_API_KEY=eyJ...           # a human mints this; see below
+export VLAB_API_URL=https://vlab-study-conf-api.toixo.vlab.digital   # the default
+
+vlab create $ORG "HPV Nigeria" --init study.yaml
+$EDITOR study.yaml
+vlab validate && vlab diff && vlab push
+vlab plan  $ORG/hpv-nigeria
+vlab apply $ORG/hpv-nigeria 0 --yes
+```
+
+### Install
+
+The extra exists for the console script and for `click`; everything else the
+SDK needs (`requests`, `PyYAML`, pydantic, `pandas` for the sheet readers) is
+already a hard dependency of `adopt`, so `adopt[sdk]` is `adopt` plus one small
+package. `pipx` therefore pulls pandas, scipy and cvxpy along with it — accepted
+deliberately in plan §7, on the grounds that extracting a package is real work
+and nobody has yet been hurt by the download.
+
+`click` is `optional = true` in `pyproject.toml`, which is what keeps the server
+image (`poetry install --only main --no-root`) unchanged by this. It still lands
+there, as a transitive dependency of uvicorn and typer.
+
+### The file
+
+One `study.yaml` (JSON also parses): a three-key header and the nine
+configuration sections, keyed as STORED — `data_sources` and `inference_data`
+with underscores, not the hyphenated URL segments you POST to.
+
+```yaml
+org:  0f1e...            # a UUID a human has to hand you; no endpoint lists orgs
+slug: hpv-nigeria        # from the 201 of `vlab create`
+name: HPV Nigeria
+
+general:      {...}
+recruitment:  {...}
+destinations: [...]
+...
+```
+
+Section values are the wire shapes **verbatim** — exactly what
+`POST /confs/<type>` takes and exactly what `GET /confs` returns. There is no
+translation layer, deliberately: the moment the file has a schema of its own,
+the SDK owns a second definition of what a study is, which is the failure that
+made the dashboard's TypeScript compiler a problem in the first place. So
+`documentation/agent-api.md` §3 is the file format's documentation, and stays
+correct for free.
+
+### Commands
+
+| | |
+|---|---|
+| `vlab create <org> <name> [--init]` | `POST /{org}/studies`. Prints the slug — which you cannot compute yourself; apostrophes are *deleted*, so `Nandan's study` is `nandans-study`. `--init` writes an annotated skeleton that passes `vlab validate` as written. |
+| `vlab pull <org>/<slug> [-o]` | `GET /confs` to a file. Refuses to clobber without `--force`. |
+| `vlab validate [file] [--remote]` | Local and instant by default; exits 1 when invalid. `--remote` asks `POST /validate` instead — the same pure function behind an HTTP call, for when this package is older than the deployment. |
+| `vlab diff [file]` | Per-section, down to the changed leaf. |
+| `vlab push [file] [--section] [--force] [--dry-run]` | Validates first, then writes only what differs, in reference order. |
+| `vlab plan <org>/<slug>` | `GET /{org}/optimize/{slug}`, indexed. **Not side-effect free.** |
+| `vlab apply <org>/<slug> <index> [--yes]` | Re-plans, then posts that one instruction. |
+| `vlab meta credentials\|adaccounts\|campaigns\|adsets\|ads` | The read-only Meta proxy. `--json` output feeds the next command. |
+| `vlab strata generate [file] [--finish-question]` | The dashboard's Regenerate, in Python. |
+| `vlab strata extract-targeting <adsets.json> <prop>…` | `extract_from_adset` over a `vlab meta adsets --json` response. |
+| `vlab keys list\|revoke` | There is deliberately no `keys create`: minting needs a token you already have, and the first one needs an Auth0 login. |
+
+### Four decisions worth knowing
+
+**`diff` compares what would be STORED, not what would be sent.** The server
+keeps `model_dump()` of your body, so unknown keys are gone and defaults are
+filled in. Without reproducing that, every section whose file omits an optional
+field would read as changed forever — and since `study_confs` is append-only,
+`push` would append a row on every run with no way to remove any of them.
+
+**A `type` tag that merely restates a body's own shape is not a difference.**
+PR #262 tags the recruitment union and `model_dump()` then writes a `type` on
+every recruitment conf; a server older than it drops the tag on the way in. A
+file that writes the tag — which it should, since new configuration ought to be
+explicit — would otherwise diff against both of them permanently. The same rule
+covers a `messenger` destination, whose `type` an older stored conf may not
+carry. A tag that *contradicts* the shape is reported, as an undeclared key.
+
+**Push order is fixed, and `recruitment` is last.** general → destinations →
+creatives → audiences → variables → strata → data_sources → inference_data →
+recruitment. The server checks nothing across sections, so the order buys the
+server nothing: it means a push that stops half way leaves a *prefix* of the
+reference graph on the server rather than a middle of it. `recruitment` is last
+because its `start_date`/`end_date` window is what makes the study visible to
+the crons, so writing it last means the two-hourly `adopt-ads` run cannot pick
+up a half-configured study.
+
+**Unknown keys are reported by `diff` and `push`, not by `validate`.**
+`vlab validate` is a wrapper over `authoring.validate.validate_study` and must
+give the same answer as `POST /validate`, which uses the lenient models and does
+not report them. An undeclared key is a fact about the *wire*, so it belongs in
+the commands about the wire. It matters because every conf model runs on
+pydantic's default `extra="ignore"`: a misspelled optional field is accepted with
+a `201` and silently discarded. PR #262 makes it a 422 naming the key; reporting
+it locally works against both servers, and before the write rather than after.
+
+### Using it as a library
+
+The CLI is one caller of the SDK, not the only way in. A notebook that builds
+strata from a census spreadsheet and radius targeting — which the dashboard's
+Variables form cannot express at all — uses the same pieces:
+
+```python
+from adopt.authoring.sheets import read_share_lookup, parse_kv_sheet
+from adopt.authoring.geo import location_levels
+from adopt.authoring.strata import create_strata_from_variables
+from adopt.sdk import StudyFile, VlabClient, diff_sections
+
+share = read_share_lookup("targeting.xlsx", ["location"], "targeting_distribution")
+levels = [
+    location_levels(state, rows, quota=float(share.set_index("location").loc[state]))
+    for state, rows in towns.groupby("state")
+]
+
+study = StudyFile.load("study.yaml")
+study.sections["variables"] = [{"name": "location", "properties": ["geo_locations"],
+                               "levels": levels}]
+study.sections["strata"] = create_strata_from_variables(
+    study.sections["variables"], "finished",
+    study.sections["creatives"], study.sections["audiences"],
+    study.sections["strata"],
+)
+study.save()
+```
+
+`adopt.authoring.strata` is *a* helper, not the blessed pipeline. Hand-written
+strata are legitimate — the server stores whatever you send — and
+`validate_study` checks the result either way. That is the whole point of
+rejecting a server-side "compile study" endpoint (plan §6.D): the SDK should be
+able to do more than the dashboard, not the same thing over HTTP.
+
+### Salvaged from the notebook era
+
+`adopt/configuration.py` has been marked superseded since Phase 1. Phase 3 moved
+the pieces the notebooks in `~/Documents/vlab-research/campaigns/` actually used:
+
+| New home | |
+|---|---|
+| `adopt.authoring.sheets` | `parse_kv_sheet` (68 call sites, 17 notebooks), `parse_row_sheet` (17), `read_share_lookup` (17) |
+| `adopt.authoring.geo` | `location_levels` (24 calls, 20 notebooks), `create_location` — now public, because 14 notebooks each defined a byte-identical private copy of it |
+
+Two things changed in the move, both taken from what notebook authors kept
+rewriting by hand. `location_levels` emits `facebook_targeting` rather than
+`params`, so its output drops straight into a `variables` conf and through
+`create_strata_from_variables`; the old key was readable only by the old
+`configuration.format_group_product`. And its `rows` argument takes anything
+row-shaped — a DataFrame, Series, dicts — not specifically `list(df.iterrows())`.
+
+What was dropped, and why, is listed in `configuration.py`'s own marker. The
+module is not deleted: the notebooks still import it.
+
+`read_share_lookup`'s multi-level branch is inherited pandas that its original
+author's comment called "crazy pandas magic. Probably worth redoing from
+scratch", and four of its seventeen notebook callers shadowed it with their own
+rewrite. It is moved unchanged, with the five tests that pin its output, and
+marked rather than quietly shipped as general.

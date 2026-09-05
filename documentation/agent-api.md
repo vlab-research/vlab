@@ -14,6 +14,13 @@ configuration section at a time and never assemble the study, so a sequence of
 `201`s does not mean you built a working study. This is the single most
 dangerous property of the API for an automated caller.
 
+**If you can run Python, use the SDK rather than this API directly**:
+`pipx install 'adopt[sdk]'` gives you a `vlab` command that owns a study as a
+file and does `validate → diff → push → plan → apply` over exactly the
+endpoints below, with the traps of §4 and §1.1 handled. §6.1 is the runbook;
+`adopt/README.md` is the reference. Everything here still applies — the SDK is
+a client, not a different API — and §6.2 is the same runbook without it.
+
 The conceptual documentation for each configuration section — what a stratum
 *means*, why you would use a lookalike audience — lives at
 <https://docs.vlab.digital/vlab/study-configuration/> and is cross-linked from
@@ -481,7 +488,13 @@ regression test in `adopt/adopt/server/test_copy_confs.py`.)
 ### 2.3 Reading
 
 - `GET /{org_id}/studies/{slug}/confs` — newest row per conf type, as a map.
-  The read you want. Raises (→ `500`) if the study has no confs at all.
+  The read you want. A study with no configuration at all is
+  `200 {"data": {}}`, not an error. (This document said it raised a `500`
+  until 2026-09-05; it does not. `db.get_all_study_confs` builds a dict
+  comprehension over the result set, which is simply empty, and the
+  `except IndexError` beside it is unreachable. Pinned by a test in
+  `adopt/adopt/sdk/test_client.py`, because `vlab pull` on a new study depends
+  on it.)
 - `GET /{org_id}/studies/{slug}/confs/{conf_type}` — one section, by the
   *stored* type name (§1.2). Raises (→ `500`) when absent.
 - `GET /{org_id}/studies/{slug}/ad-attributions` — the frozen (ad → stratum,
@@ -1248,6 +1261,98 @@ cron's runs are what keeps the study reconciled thereafter.
 
 ## 6. End-to-end runbook
 
+Two ways, and they are the same API. **§6.1 is the one to use.** §6.2 is the
+raw HTTP underneath it, kept because an agent that cannot install Python has to
+do it that way, and because every step of §6.1 is worth understanding.
+
+### 6.1 With the SDK — `pipx install 'adopt[sdk]'`
+
+```
+pipx install 'adopt[sdk]'
+export VLAB_API_KEY=eyJ...     # a human mints this; see Authentication
+export VLAB_ORG=0f1e...        # a human tells you this; no endpoint lists orgs
+
+# 1. Create the study and a starter file.
+vlab create $VLAB_ORG "HPV vaccine uptake, Lagos 2026" --init study.yaml
+
+# 2. Find out what to put in `general` and `creatives[].template`.
+vlab meta credentials --org $VLAB_ORG            # -> credentials_key, entity
+vlab meta adaccounts  --org $VLAB_ORG            # -> account_id, for ad_account
+vlab meta campaigns   --org $VLAB_ORG --account 1234567890
+vlab meta ads         --org $VLAB_ORG --campaign 23851… --json > ads.json
+
+# 3. Targeting off a template ad set, for the variables' levels.
+vlab meta adsets --org $VLAB_ORG --campaign 23851… --json > adsets.json
+vlab strata extract-targeting adsets.json geo_locations age_min age_max genders \
+    --name geo-lagos
+
+# 4. Edit the file: general, destinations, creatives, audiences, variables.
+$EDITOR study.yaml
+
+# 5. Compile strata from the variables. Or hand-write them; both are fine.
+vlab strata generate --finish-question <your finish question ref>
+
+# 6. Check, review, write.
+vlab validate          # pure, instant, offline. Exits 1 if invalid.
+vlab diff              # what would change on the server, down to the leaf
+vlab push              # writes only what differs, in reference order
+
+# 7. The Meta-side half, which validation cannot see.
+vlab plan  $VLAB_ORG/hpv-vaccine-uptake-lagos-2026
+vlab apply $VLAB_ORG/hpv-vaccine-uptake-lagos-2026 0 --yes
+#   … then re-plan, apply, re-plan. Or wait: the adopt-ads cron does the whole
+#   loop every two hours at :30 for every study inside its recruitment window.
+```
+
+Three things the SDK does that are not obvious from the command names, each
+because doing it by hand is a trap:
+
+- **`diff` compares what would be STORED, not what you would send.** The server
+  keeps `model_dump()` of your body (§2.1), so unknown keys are gone and
+  defaults are filled in. A naive comparison reports every section whose file
+  omits an optional field as changed forever, and since `study_confs` is
+  append-only that means a row appended on every push with no way to remove
+  any of them.
+- **`push` refuses on validation errors and skips unchanged sections**, and
+  writes in an order that puts destinations before creatives before strata,
+  with `recruitment` last. The server checks nothing across sections, so the
+  order is not for the server: it means a push that stops half way leaves a
+  *prefix* of the reference graph rather than a middle of it, and it means the
+  two-hourly cron cannot pick up a half-configured study, because the
+  recruitment window is what makes a study visible to it.
+- **`diff` and `push` flag keys no model declares.** Every conf model runs on
+  `extra="ignore"`, so a misspelled *optional* field is accepted with a `201`
+  and silently discarded — the likeliest failure mode there is for an agent
+  authoring JSON. `vlab validate` deliberately does not report these: it must
+  agree with `POST /validate`, which uses the same lenient models.
+
+**The file.** One `study.yaml` (JSON also parses): a three-key header
+(`org`, `slug`, `name`) and the nine sections keyed **as stored** —
+`data_sources` and `inference_data` with underscores, not the hyphenated URL
+segments. The values are the wire shapes verbatim, so §3 of this document *is*
+the file format's documentation.
+
+**In Python, skip the CLI too.** `adopt.sdk.StudyFile` and
+`adopt.sdk.VlabClient` are the pieces the CLI is built from, and
+`adopt.authoring` is the composable half:
+`strata.create_strata_from_variables` is the dashboard's derivation,
+`sheets.read_share_lookup` turns a census tab into per-level quotas, and
+`geo.location_levels` builds radius targeting from a CSV of latitudes and
+longitudes — which the dashboard's Variables form cannot express at all.
+`adopt/README.md` has a worked example. Hand-written strata are legitimate: the
+server stores whatever you send, and `validate_study` checks it either way.
+
+**What the SDK deliberately does not do.** It never retries — a POST that timed
+out may well have inserted a row, and there is no idempotency key. It never
+stores a token: environment or flag only, no `vlab login` and no credentials
+file. And `vlab apply` re-plans rather than caching, because reconciliation is
+layered and an instruction list is stale the moment anything is applied.
+
+Design record: `planning/vlab-sdk.md`. Install and commands:
+`adopt/README.md`.
+
+### 6.2 Over raw HTTP
+
 Steps 1 and 3 are one-time per researcher and **cannot be done by an agent**.
 Everything else is the agent's.
 
@@ -1272,8 +1377,8 @@ Everything else is the agent's.
    handed to you.
 
 4. **Read whatever is already there.**
-   `GET /{org_id}/studies/{slug}/confs`. On a fresh study this raises; treat
-   that as "empty". Consider `copy-from` (§2.2) if a similar study exists.
+   `GET /{org_id}/studies/{slug}/confs`. A fresh study is `{"data": {}}`.
+   Consider `copy-from` (§2.2) if a similar study exists. (`vlab pull`.)
 
 5. **Write `general`.** `credentials_key: "Facebook"`,
    `credentials_entity: "facebook"`, the numeric `ad_account`, an `opt_window`
@@ -1414,11 +1519,14 @@ client.
    And nothing an API key can call writes to Meta except an optimize
    instruction (§5), which is a different thing entirely.
 3. **Derive strata from variables *over HTTP*.** The compiler is a library
-   (`adopt.authoring`, §6 step 7), not an endpoint; an agent that is not
-   running Python has to call it out of process or hand-write strata. Do not
-   use `adopt/adopt/configuration.py` for this: it is the pre-dashboard
-   ancestor, marked superseded, and its output disagrees with the dashboard's
-   in metadata keys, targeting refs, ids and quotas.
+   (`adopt.authoring`, §6.2 step 7) and a CLI (`vlab strata generate`, §6.1),
+   not an endpoint; an agent that cannot run Python at all has to call it out
+   of process or hand-write strata. Hand-writing is legitimate — the server
+   stores what you send — but do not use `adopt/adopt/configuration.py` for it:
+   it is the pre-dashboard ancestor, marked superseded, and its output
+   disagrees with the dashboard's in metadata keys, targeting refs, ids and
+   quotas. The pieces of it worth keeping now live in
+   `adopt.authoring.sheets` and `adopt.authoring.geo`.
 4. ~~**Get a whole-study validation over HTTP.**~~ **Closed** by
    `POST /{org_id}/studies/{slug}/validate` in adopt v0.1.85 (§2.6). What
    remains out of reach is the *Meta-dependent* half — does the template ad set
@@ -1431,6 +1539,51 @@ client.
 ---
 
 ## 8. What landed recently
+
+### 2026-09-05 — the `vlab` SDK and CLI
+
+Phase 3 of `planning/agent-study-authoring.md` §8; the design record is
+`planning/vlab-sdk.md`. **No API change at all** — this is a client, and every
+endpoint below is exactly what it was.
+
+`pipx install 'adopt[sdk]'` gives you `vlab`. A study is one `study.yaml`
+carrying the nine sections in the wire shapes of §3, and the loop is
+`vlab validate && vlab diff && vlab push`, then `vlab plan` / `vlab apply`.
+§6.1 is the runbook; `adopt/README.md` is the reference; `adopt.sdk` and
+`adopt.authoring` are the same thing as a library, for a notebook.
+
+The three things it exists to handle, all of them traps this document
+describes and none of them obvious to a first-time caller:
+
+- **The stored conf is not the body you sent.** `create_conf` stores
+  `model_dump()`, so defaults are filled in and unknown keys are gone (§2.1).
+  A diff that does not reproduce that reports every section as changed forever,
+  and `study_confs` is append-only (§1.1), so "push what changed" then appends
+  a row on every run.
+- **`extra="ignore"` eats misspelled optional fields.** `vlab diff` and
+  `vlab push` name them, using pydantic as the oracle — anything in your file
+  and absent from `model_dump()` of it was dropped, at any depth. `vlab
+  validate` deliberately does not: it must agree with `POST /validate`, which
+  uses the same lenient models.
+- **Order matters to you even though it does not to the server.** `push`
+  writes destinations before creatives before strata and `recruitment` last,
+  so a push that stops half way leaves a prefix of the reference graph rather
+  than a middle of it, and so the two-hourly cron cannot pick up a
+  half-configured study.
+
+Also landed with it: `adopt.authoring.sheets` and `adopt.authoring.geo`, the
+salvage of `configuration.py` the plan's §10 and §12.4 deferred to this phase.
+A census tab becomes per-level quotas; a CSV of latitudes and longitudes
+becomes radius targeting that feeds straight into
+`create_strata_from_variables`. Those are the compositions the dashboard's
+Variables form cannot express, and they are why the strata compiler is *a*
+helper rather than the blessed pipeline.
+
+One claim in this document was disproved and is now corrected: **§2.3 said
+`GET /confs` raises (→ 500) for a study with no confs. It does not** — the dict
+comprehension in `db.get_all_study_confs` over an empty result set is an empty
+dict, and its `except IndexError` is unreachable. `GET /confs` on a fresh study
+is `200 {"data": {}}`.
 
 ### 2026-09-05 — whole-study validation, as a library and as `POST /validate`
 
