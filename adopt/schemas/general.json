@@ -1,0 +1,44 @@
+{
+  "$comment": "Generated from adopt/adopt/study_conf.py by adopt/adopt/schema_export.py. Do not edit by hand; run `make schemas`. Body of POST /{org_id}/studies/{slug}/confs/general (a JSON object).",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "Study-wide settings: name, ad account, credentials, opt window.",
+  "properties": {
+    "ad_account": {
+      "title": "Ad Account",
+      "type": "string"
+    },
+    "credentials_entity": {
+      "title": "Credentials Entity",
+      "type": "string"
+    },
+    "credentials_key": {
+      "title": "Credentials Key",
+      "type": "string"
+    },
+    "extra_metadata": {
+      "additionalProperties": {
+        "type": "string"
+      },
+      "default": {},
+      "title": "Extra Metadata",
+      "type": "object"
+    },
+    "name": {
+      "title": "Name",
+      "type": "string"
+    },
+    "opt_window": {
+      "title": "Opt Window",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "name",
+    "credentials_key",
+    "credentials_entity",
+    "ad_account",
+    "opt_window"
+  ],
+  "title": "GeneralConf",
+  "type": "object"
+}

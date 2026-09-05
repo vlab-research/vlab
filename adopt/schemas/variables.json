@@ -1,0 +1,74 @@
+{
+  "$comment": "Generated from adopt/adopt/study_conf.py by adopt/adopt/schema_export.py. Do not edit by hand; run `make schemas`. Body of POST /{org_id}/studies/{slug}/confs/variables (a JSON array).",
+  "$defs": {
+    "Level": {
+      "properties": {
+        "facebook_targeting": {
+          "title": "Facebook Targeting",
+          "type": "object"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "quota": {
+          "title": "Quota",
+          "type": "number"
+        },
+        "template_adset": {
+          "title": "Template Adset",
+          "type": "string"
+        },
+        "template_campaign": {
+          "title": "Template Campaign",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "template_campaign",
+        "template_adset",
+        "facebook_targeting",
+        "quota"
+      ],
+      "title": "Level",
+      "type": "object"
+    },
+    "VariableConf": {
+      "properties": {
+        "levels": {
+          "items": {
+            "$ref": "#/$defs/Level"
+          },
+          "title": "Levels",
+          "type": "array"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "properties": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Properties",
+          "type": "array"
+        }
+      },
+      "required": [
+        "name",
+        "properties",
+        "levels"
+      ],
+      "title": "VariableConf",
+      "type": "object"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "Experimental variables and their levels, used to derive strata.",
+  "items": {
+    "$ref": "#/$defs/VariableConf"
+  },
+  "title": "variables conf",
+  "type": "array"
+}

@@ -1,0 +1,113 @@
+{
+  "$comment": "Generated from adopt/adopt/study_conf.py by adopt/adopt/schema_export.py. Do not edit by hand; run `make schemas`. Body of POST /{org_id}/studies/{slug}/confs/inference-data (a JSON object).",
+  "$defs": {
+    "ExtractionConf": {
+      "description": "One declared variable: where to read it, and what to do with what is read.\n\n`location` says where to read -- \"metadata\" or \"variable\" -- and nothing\nabout what the value means. `mapping` says what the value read means:\n\n    \"raw\"             the value read IS the answer. The default, and what\n                      every conf written before this field existed means.\n    \"ad_table_lookup\" the value read is an opaque token; the answer is a\n                      stratum variable off the frozen ad_attributions row\n                      that token identifies.\n\n`key` and `name` are both contextual to the mapping, which is the one\ngenuinely confusing part of this:\n\n    key   WHERE TO READ. For \"raw\" it addresses the value; for a lookup it\n          addresses the token. Never hardcoded -- fly stamps the token at\n          metadata.vt by convention and the conf says location \"metadata\",\n          key \"vt\" to match. A respondent recruited by a web or app\n          destination brings the token back as a survey field instead, so\n          a lookup reads from either location.\n    name  the output variable name and, for a lookup, ALSO the key into the\n          frozen row (which stratum variable to pull). It does double duty\n          because you name the output after the stratum variable anyway.",
+      "properties": {
+        "aggregate": {
+          "title": "Aggregate",
+          "type": "string"
+        },
+        "functions": {
+          "items": {
+            "$ref": "#/$defs/ExtractionFunctionConf"
+          },
+          "title": "Functions",
+          "type": "array"
+        },
+        "key": {
+          "title": "Key",
+          "type": "string"
+        },
+        "location": {
+          "title": "Location",
+          "type": "string"
+        },
+        "mapping": {
+          "default": "raw",
+          "title": "Mapping",
+          "type": "string"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "value_type": {
+          "title": "Value Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "location",
+        "key",
+        "name",
+        "functions",
+        "value_type",
+        "aggregate"
+      ],
+      "title": "ExtractionConf",
+      "type": "object"
+    },
+    "ExtractionFunctionConf": {
+      "properties": {
+        "function": {
+          "title": "Function",
+          "type": "string"
+        },
+        "params": {
+          "default": null,
+          "title": "Params"
+        }
+      },
+      "required": [
+        "function"
+      ],
+      "title": "ExtractionFunctionConf",
+      "type": "object"
+    },
+    "SourceExtractionConf": {
+      "properties": {
+        "extraction_confs": {
+          "items": {
+            "$ref": "#/$defs/ExtractionConf"
+          },
+          "title": "Extraction Confs",
+          "type": "array"
+        },
+        "user_variable": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "User Variable"
+        }
+      },
+      "required": [
+        "extraction_confs"
+      ],
+      "title": "SourceExtractionConf",
+      "type": "object"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "How to extract inference variables from responses. Stored under the key `inference_data`.",
+  "properties": {
+    "data_sources": {
+      "additionalProperties": {
+        "$ref": "#/$defs/SourceExtractionConf"
+      },
+      "title": "Data Sources",
+      "type": "object"
+    }
+  },
+  "required": [
+    "data_sources"
+  ],
+  "title": "InferenceDataConf",
+  "type": "object"
+}

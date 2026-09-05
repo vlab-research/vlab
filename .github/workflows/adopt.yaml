@@ -16,6 +16,24 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # Its own job, not a step in `tests`, because the schema export is a pure
+  # function of study_conf.py: it needs neither the database nor the ~minute
+  # `make test-db` spends starting one. Split out, a stale-schema PR is told so
+  # immediately and is still told so when the test database fails to come up.
+  schemas:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: adopt
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+      - run: pip install poetry
+      - run: poetry install
+      - run: make check-schemas
+
   tests:
     runs-on: ubuntu-latest
     defaults:

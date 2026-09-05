@@ -1,0 +1,249 @@
+{
+  "$comment": "Generated from adopt/adopt/study_conf.py by adopt/adopt/schema_export.py. Do not edit by hand; run `make schemas`. Body of POST /{org_id}/studies/{slug}/confs/recruitment (a JSON object).",
+  "$defs": {
+    "DestinationRecruitmentExperiment": {
+      "properties": {
+        "ad_campaign_name_base": {
+          "title": "Ad Campaign Name Base",
+          "type": "string"
+        },
+        "budget_per_arm": {
+          "title": "Budget Per Arm",
+          "type": "integer"
+        },
+        "destinations": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Destinations",
+          "type": "array"
+        },
+        "efficiency_weight": {
+          "default": 1.0,
+          "title": "Efficiency Weight",
+          "type": "number"
+        },
+        "end_date": {
+          "format": "date-time",
+          "title": "End Date",
+          "type": "string"
+        },
+        "incentive_per_respondent": {
+          "default": 0,
+          "title": "Incentive Per Respondent",
+          "type": "number"
+        },
+        "max_sample_per_arm": {
+          "title": "Max Sample Per Arm",
+          "type": "integer"
+        },
+        "min_budget": {
+          "title": "Min Budget",
+          "type": "integer"
+        },
+        "objective": {
+          "title": "Objective",
+          "type": "string"
+        },
+        "optimization_goal": {
+          "title": "Optimization Goal",
+          "type": "string"
+        },
+        "optimizer_version": {
+          "default": "closed_form",
+          "enum": [
+            "closed_form",
+            "lbfgs"
+          ],
+          "title": "Optimizer Version",
+          "type": "string"
+        },
+        "start_date": {
+          "format": "date-time",
+          "title": "Start Date",
+          "type": "string"
+        }
+      },
+      "required": [
+        "ad_campaign_name_base",
+        "objective",
+        "optimization_goal",
+        "min_budget",
+        "budget_per_arm",
+        "max_sample_per_arm",
+        "start_date",
+        "end_date",
+        "destinations"
+      ],
+      "title": "DestinationRecruitmentExperiment",
+      "type": "object"
+    },
+    "PipelineRecruitmentExperiment": {
+      "properties": {
+        "ad_campaign_name_base": {
+          "title": "Ad Campaign Name Base",
+          "type": "string"
+        },
+        "arms": {
+          "title": "Arms",
+          "type": "integer"
+        },
+        "budget_per_arm": {
+          "title": "Budget Per Arm",
+          "type": "integer"
+        },
+        "efficiency_weight": {
+          "default": 1.0,
+          "title": "Efficiency Weight",
+          "type": "number"
+        },
+        "end_date": {
+          "format": "date-time",
+          "title": "End Date",
+          "type": "string"
+        },
+        "incentive_per_respondent": {
+          "default": 0,
+          "title": "Incentive Per Respondent",
+          "type": "number"
+        },
+        "max_sample_per_arm": {
+          "title": "Max Sample Per Arm",
+          "type": "integer"
+        },
+        "min_budget": {
+          "title": "Min Budget",
+          "type": "integer"
+        },
+        "objective": {
+          "title": "Objective",
+          "type": "string"
+        },
+        "offset_days": {
+          "title": "Offset Days",
+          "type": "integer"
+        },
+        "optimization_goal": {
+          "title": "Optimization Goal",
+          "type": "string"
+        },
+        "optimizer_version": {
+          "default": "closed_form",
+          "enum": [
+            "closed_form",
+            "lbfgs"
+          ],
+          "title": "Optimizer Version",
+          "type": "string"
+        },
+        "recruitment_days": {
+          "title": "Recruitment Days",
+          "type": "integer"
+        },
+        "start_date": {
+          "format": "date-time",
+          "title": "Start Date",
+          "type": "string"
+        }
+      },
+      "required": [
+        "ad_campaign_name_base",
+        "objective",
+        "optimization_goal",
+        "min_budget",
+        "budget_per_arm",
+        "max_sample_per_arm",
+        "start_date",
+        "end_date",
+        "arms",
+        "recruitment_days",
+        "offset_days"
+      ],
+      "title": "PipelineRecruitmentExperiment",
+      "type": "object"
+    },
+    "SimpleRecruitment": {
+      "properties": {
+        "ad_campaign_name": {
+          "title": "Ad Campaign Name",
+          "type": "string"
+        },
+        "budget": {
+          "title": "Budget",
+          "type": "integer"
+        },
+        "efficiency_weight": {
+          "default": 1.0,
+          "title": "Efficiency Weight",
+          "type": "number"
+        },
+        "end_date": {
+          "format": "date-time",
+          "title": "End Date",
+          "type": "string"
+        },
+        "incentive_per_respondent": {
+          "default": 0,
+          "title": "Incentive Per Respondent",
+          "type": "number"
+        },
+        "max_sample": {
+          "title": "Max Sample",
+          "type": "integer"
+        },
+        "min_budget": {
+          "title": "Min Budget",
+          "type": "integer"
+        },
+        "objective": {
+          "title": "Objective",
+          "type": "string"
+        },
+        "optimization_goal": {
+          "title": "Optimization Goal",
+          "type": "string"
+        },
+        "optimizer_version": {
+          "default": "closed_form",
+          "enum": [
+            "closed_form",
+            "lbfgs"
+          ],
+          "title": "Optimizer Version",
+          "type": "string"
+        },
+        "start_date": {
+          "format": "date-time",
+          "title": "Start Date",
+          "type": "string"
+        }
+      },
+      "required": [
+        "ad_campaign_name",
+        "objective",
+        "optimization_goal",
+        "min_budget",
+        "budget",
+        "max_sample",
+        "start_date",
+        "end_date"
+      ],
+      "title": "SimpleRecruitment",
+      "type": "object"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "anyOf": [
+    {
+      "$ref": "#/$defs/SimpleRecruitment"
+    },
+    {
+      "$ref": "#/$defs/PipelineRecruitmentExperiment"
+    },
+    {
+      "$ref": "#/$defs/DestinationRecruitmentExperiment"
+    }
+  ],
+  "description": "How the study spends: one of three recruitment strategies. NOTE: this union carries no tag field, so it is an untagged `anyOf` - a consumer must tell the arms apart by shape (`ad_campaign_name` vs `ad_campaign_name_base`, then `arms` vs `destinations`). See 'JSON Schemas' in adopt/README.md.",
+  "title": "recruitment conf"
+}

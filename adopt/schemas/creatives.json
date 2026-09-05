@@ -1,0 +1,62 @@
+{
+  "$comment": "Generated from adopt/adopt/study_conf.py by adopt/adopt/schema_export.py. Do not edit by hand; run `make schemas`. Body of POST /{org_id}/studies/{slug}/confs/creatives (a JSON array).",
+  "$defs": {
+    "CreativeConf": {
+      "properties": {
+        "destination": {
+          "title": "Destination",
+          "type": "string"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "tags": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Tags"
+        },
+        "template": {
+          "title": "Template",
+          "type": "object"
+        },
+        "template_campaign": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Template Campaign"
+        }
+      },
+      "required": [
+        "destination",
+        "name",
+        "template"
+      ],
+      "title": "CreativeConf",
+      "type": "object"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "Ad creatives, each naming the destination it recruits into.",
+  "items": {
+    "$ref": "#/$defs/CreativeConf"
+  },
+  "title": "creatives conf",
+  "type": "array"
+}

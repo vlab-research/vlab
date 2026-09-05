@@ -1,0 +1,351 @@
+{
+  "$comment": "Generated from adopt/adopt/study_conf.py by adopt/adopt/schema_export.py. Do not edit by hand; run `make schemas`. Body of POST /{org_id}/studies/{slug}/confs/destinations (a JSON array).",
+  "$defs": {
+    "AppDestination": {
+      "properties": {
+        "app_install_link": {
+          "title": "App Install Link",
+          "type": "string"
+        },
+        "app_install_state": {
+          "title": "App Install State",
+          "type": "string"
+        },
+        "deeplink_template": {
+          "title": "Deeplink Template",
+          "type": "string"
+        },
+        "facebook_app_id": {
+          "title": "Facebook App Id",
+          "type": "string"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "ref_mode": {
+          "anyOf": [
+            {
+              "enum": [
+                "metadata",
+                "encoded"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Ref Mode"
+        },
+        "type": {
+          "const": "app",
+          "title": "Type"
+        },
+        "user_device": {
+          "items": {
+            "type": "string"
+          },
+          "title": "User Device",
+          "type": "array"
+        },
+        "user_os": {
+          "items": {
+            "type": "string"
+          },
+          "title": "User Os",
+          "type": "array"
+        }
+      },
+      "required": [
+        "type",
+        "name",
+        "facebook_app_id",
+        "app_install_link",
+        "deeplink_template",
+        "app_install_state",
+        "user_device",
+        "user_os"
+      ],
+      "title": "AppDestination",
+      "type": "object"
+    },
+    "FlyMessengerDestination": {
+      "properties": {
+        "additional_metadata": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Additional Metadata"
+        },
+        "button_text": {
+          "title": "Button Text",
+          "type": "string"
+        },
+        "initial_shortcode": {
+          "title": "Initial Shortcode",
+          "type": "string"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "ref_mode": {
+          "anyOf": [
+            {
+              "enum": [
+                "metadata",
+                "encoded"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Ref Mode"
+        },
+        "type": {
+          "const": "messenger",
+          "title": "Type"
+        },
+        "welcome_message": {
+          "title": "Welcome Message",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "name",
+        "initial_shortcode",
+        "welcome_message",
+        "button_text"
+      ],
+      "title": "FlyMessengerDestination",
+      "type": "object"
+    },
+    "FlyMultiDestination": {
+      "description": "A single ad that opens either Messenger or WhatsApp, Meta's choice.\n\nA third destination type, deliberately, rather than a `platforms` list on a\nmerged class or an implicit consequence of the ad set's destination_type.\nThe reasoning is in planning/whatsapp-destination-model.md: Messenger and\nWhatsApp differ in the grammar their routing token must obey, in whether the\nrespondent can see and edit it, in which fields are required, and in what a\nmisconfiguration costs. Multi is not the generalisation of the two -- it is\na third thing that carries both of their tokens at once, and it forecloses\nsomething they each allow (channel as an experimental arm, since Meta\nassigns the arm and you cannot randomise what Meta assigns).\n\nOne shortcode, not one per channel. `creative_metadata` folds\n`form: initial_shortcode` into the frozen ad_attributions blob, and there is\nexactly one blob per ad; a per-channel shortcode would mean one ad whose two\narms belong to two surveys and one mapping row that can only name one of\nthem.\n\nOne ref mode drives both arms, so they always disclose the same amount --\nwhich is worth knowing when choosing it, because the WhatsApp arm's token\nsits in the respondent's compose box where they can read and edit it. Being\ndescribed back to yourself as `gender.men.age.25_34` before a survey starts\nis an ethical question, not a technical one.\n\nAsymmetric confidence between the two arms. The Messenger arm is MEASURED:\non 2026-08-17 ad 120254903561240150 delivered its quick-reply payload with\nthe ref intact even though `text_format.customer_action_type` was the scalar\n\"autofill_message\", so Messenger reads its own sub-structure and ignores the\nsibling autofill (planning/whatsapp-destination-model.md 8.1). The WhatsApp\narm rests on the symmetry inference from that result and has not itself been\nobserved -- every preview followed the single-valued MESSAGE_PAGE\ncall_to_action to Messenger. If the inference is wrong and Meta serves its\nown default prefill, fly's event-normalizer still emits\nconversation_started, and those arrivals land on FALLBACK_FORM: a real\nsurvey belonging to another researcher, where misrouted respondents reach\nEND and look like completions. Watch the WhatsApp arm of the first multi\nstudy for that shape; documentation/multi-destination-ads.md has the\nprocedure.",
+      "properties": {
+        "additional_metadata": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Additional Metadata"
+        },
+        "button_text": {
+          "title": "Button Text",
+          "type": "string"
+        },
+        "initial_shortcode": {
+          "title": "Initial Shortcode",
+          "type": "string"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "ref_mode": {
+          "anyOf": [
+            {
+              "enum": [
+                "metadata",
+                "encoded"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Ref Mode"
+        },
+        "type": {
+          "const": "multi",
+          "title": "Type"
+        },
+        "welcome_message": {
+          "title": "Welcome Message",
+          "type": "string"
+        },
+        "whatsapp_phone_number": {
+          "title": "Whatsapp Phone Number",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "name",
+        "initial_shortcode",
+        "welcome_message",
+        "button_text",
+        "whatsapp_phone_number"
+      ],
+      "title": "FlyMultiDestination",
+      "type": "object"
+    },
+    "FlyWhatsAppDestination": {
+      "description": "A click-to-WhatsApp destination.\n\nShaped after FlyMessengerDestination, minus `button_text`: WhatsApp has no\nquick-reply button, so the respondent gets a prefilled compose box.\n\n`type` is a Literal, unlike its siblings, because this model's required\nfields are a strict subset of FlyMessengerDestination's — without a\ndiscriminator, pydantic's smart union could resolve a Messenger destination\nto this class by ignoring the extra `button_text`.",
+      "properties": {
+        "additional_metadata": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Additional Metadata"
+        },
+        "initial_shortcode": {
+          "title": "Initial Shortcode",
+          "type": "string"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "ref_mode": {
+          "anyOf": [
+            {
+              "enum": [
+                "metadata",
+                "encoded"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Ref Mode"
+        },
+        "type": {
+          "const": "whatsapp",
+          "title": "Type"
+        },
+        "welcome_message": {
+          "title": "Welcome Message",
+          "type": "string"
+        },
+        "whatsapp_phone_number": {
+          "title": "Whatsapp Phone Number",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "name",
+        "initial_shortcode",
+        "welcome_message",
+        "whatsapp_phone_number"
+      ],
+      "title": "FlyWhatsAppDestination",
+      "type": "object"
+    },
+    "WebDestination": {
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "ref_mode": {
+          "anyOf": [
+            {
+              "enum": [
+                "metadata",
+                "encoded"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Ref Mode"
+        },
+        "type": {
+          "enum": [
+            "web",
+            "website"
+          ],
+          "title": "Type",
+          "type": "string"
+        },
+        "url_template": {
+          "title": "Url Template",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "name",
+        "url_template"
+      ],
+      "title": "WebDestination",
+      "type": "object"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "Where respondents are sent. Discriminated on `type`.",
+  "items": {
+    "discriminator": {
+      "mapping": {
+        "app": "#/$defs/AppDestination",
+        "messenger": "#/$defs/FlyMessengerDestination",
+        "multi": "#/$defs/FlyMultiDestination",
+        "web": "#/$defs/WebDestination",
+        "website": "#/$defs/WebDestination",
+        "whatsapp": "#/$defs/FlyWhatsAppDestination"
+      },
+      "propertyName": "type"
+    },
+    "oneOf": [
+      {
+        "$ref": "#/$defs/FlyMessengerDestination"
+      },
+      {
+        "$ref": "#/$defs/AppDestination"
+      },
+      {
+        "$ref": "#/$defs/WebDestination"
+      },
+      {
+        "$ref": "#/$defs/FlyWhatsAppDestination"
+      },
+      {
+        "$ref": "#/$defs/FlyMultiDestination"
+      }
+    ]
+  },
+  "title": "destinations conf",
+  "type": "array"
+}
