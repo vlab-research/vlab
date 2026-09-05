@@ -238,6 +238,18 @@ def create_study_conf(
 
 
 def copy_confs(user_id: str, org_id: str, slug: str, source_study_slug: str):
+    # The destination is resolved through get_study_id, which scopes by user and
+    # org, rather than inline in the INSERT.
+    #
+    # It used to be `(SELECT id FROM studies WHERE slug = %s)` — no user, no org,
+    # no LIMIT — while `slug` comes straight off the request path and is unique
+    # only per user (`unique_slug UNIQUE(user_id, slug)`). Naming a slug you did
+    # not own therefore copied your configuration *into someone else's study*,
+    # and two users sharing a slug failed instead on a multi-row subquery. The
+    # source side above was always scoped correctly, which is what made the
+    # asymmetry easy to miss.
+    destination_study_id = get_study_id(user_id, org_id, slug)
+
     q = """
     with t AS (
                SELECT *,
@@ -253,14 +265,19 @@ def copy_confs(user_id: str, org_id: str, slug: str, source_study_slug: str):
                AND s.slug = %s
     )
     INSERT INTO study_confs(study_id, conf_type, conf)
-    SELECT (SELECT id FROM studies WHERE slug = %s), conf_type, conf
+    SELECT %s, conf_type, conf
     FROM t
     WHERE n = 1
     AND conf_type != 'general'
     RETURNING conf_type, conf
     """
 
-    res = query(db_cnf, q, (user_id, org_id, source_study_slug, slug), as_dict=True)
+    res = query(
+        db_cnf,
+        q,
+        (user_id, org_id, source_study_slug, destination_study_id),
+        as_dict=True,
+    )
     rr = list(res)
     if not rr:
         message = f"Could not copy configuration from {source_study_slug} to {slug}. Potentially there is no configuration to copy?"
