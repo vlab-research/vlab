@@ -42,6 +42,7 @@ from .api_keys import add_scope_enforcement, router as api_keys_router
 from .deps import User, async_timeout, get_current_user, security
 from .meta import router as meta_router
 from .studies import router as studies_router
+from .validate import router as validate_router
 from .csv_export import ad_attributions_csv, ad_attributions_table
 from .db import (
     copy_confs,
@@ -95,6 +96,13 @@ app.include_router(api_keys_router)
 # because include_router calls happen here; its paths (/{org_id}/meta/...)
 # cannot collide with /{org_id}/studies/... .
 app.include_router(meta_router)
+
+# Whole-study validation. Its own module for the same reason studies.py is:
+# all the logic is in `adopt.authoring.validate`, and the route is a wrapper
+# thin enough that the SDK importing the library gets identical answers.
+# /{org_id}/studies/{slug}/validate cannot collide with the conf routes below,
+# which all live under .../confs/.
+app.include_router(validate_router)
 
 
 class OptimizeInstruction(BaseModel):

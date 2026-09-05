@@ -7,6 +7,7 @@ from environs import Env
 from facebook_business.adobjects.targeting import Targeting
 
 from .audiences import hydrate_audiences
+from .authoring.validate import study_conf_from_sections
 from .budget import AdOptReport, get_budget_lookup, get_budget_lookup_with_db
 from .campaign_queries import (
     DBConf,
@@ -56,13 +57,23 @@ def get_db_conf(env: Env) -> DBConf:
 
 
 def get_study_conf(db_conf, study_id: str) -> StudyConf:
+    """The stored confs, assembled into the object the whole run path uses.
+
+    The assembly itself lives in `authoring.validate.study_conf_from_sections`
+    so that `POST /{org}/studies/{slug}/validate` and the SDK's `vlab validate`
+    build a study exactly the way the cron does. It used to be three lines
+    inline here, and a validator that reproduced them would have been a second
+    definition of "these sections are a study", free to drift from this one —
+    which is the drift that made the TypeScript compiler a problem (see
+    planning/agent-study-authoring.md §4). This function keeps the two things
+    validation cannot do: the database read, and the credential lookup.
+    """
     user_info = get_user_info(study_id, db_conf)
     confs = get_campaign_configs(study_id, db_conf)
     cd = {v["conf_type"]: v["conf"] for v in confs}
 
     # str() around study_id temp, is UUID in some tests now
-    params = {"id": str(study_id), "user": user_info, **cd}
-    return StudyConf(**params)
+    return study_conf_from_sections(cd, study_id, user_info)
 
 
 def make_window(hours, now):

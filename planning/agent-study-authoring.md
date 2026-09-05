@@ -453,10 +453,11 @@ right, and large if it is not.
 - **Whether the Go service gets fully retired**, and on what timeline. Phase 0
   starts it; nothing here finishes it. Segments-progress, accounts/credentials
   and the Facebook OAuth exchange still live there.
-- **Whether `POST /validate` should also run the Meta-dependent checks**
-  (does the template ad set still exist? does it still carry the declared
-  properties?). That turns validation into a network call and a slow one, so it
-  may want to be a separate `vlab check --live`.
+- ~~**Whether `POST /validate` should also run the Meta-dependent checks**~~
+  **Settled 2026-09-05 (§14.5): no.** Making validation a network call would
+  cost it the two properties that make it useful — instant, and runnable
+  offline on sections that have never been written. The live half wants to be a
+  separate `vlab check --live`, which does not exist yet.
 
 
 ---
@@ -568,6 +569,17 @@ are design decisions, not mechanical fixes.
    Partitioned audiences are named `<name>-cohort-N` and never `<name>`, so a
    stratum naming one by its conf name always dangles. The SDK's validator
    should own this; it is exactly the whole-study check no single write can do.
+
+   **ADDRESSED 2026-09-05, §14.** `adopt.authoring.validate.validate_study` and
+   `POST /{org}/studies/{slug}/validate` report all three with one shape and
+   one path format, ahead of any cron run. Note the split §14.2 argues for: the
+   stratum→creative edge is an error; a creative's dangling destination is an
+   error only when a stratum names that creative, and a warning otherwise
+   (nothing resolves an unreferenced creative); and **every** audience finding
+   is a warning, including naming a `PARTITIONED` conf by its bare name, since
+   audience names resolve against the ad account rather than the conf. The
+   run-time behaviour — the `KeyError`, the INFO-level drop — is unchanged;
+   validation is a layer in front of it, not a fix to it.
 5. **`GET /confs/{conf_type}` takes the stored name, not the URL segment** —
    `confs/data-sources` writes `data_sources`, so reading back with the hyphen
    raises. Latent; the dashboard only uses `GET /confs`.
@@ -581,6 +593,10 @@ Everything in §10 stands. Phase 1 is now done (§12); there is still no Meta
 proxy, no SDK and no MCP. Item 2 above (`extra="ignore"`) is the one that most
 deserves settling before Phase 3 starts, because an SDK that validates locally
 is worth much less if the server silently drops what it does not recognise.
+
+*(Written after Phase 1. Since: the Meta proxy shipped, §13; whole-study
+validation shipped, §14; §10's third bullet is settled. Item 2 is still open
+and §14.6 argues it now matters more, not less.)*
 
 ---
 
@@ -980,6 +996,221 @@ outside the thread, so a malformed request never occupies a worker.
   total.** A caller asking `limit=500` can pull 5,000 ads with full creative
   blobs in one request. Not observed to be a problem; not defended against
   either.
+
+---
+
+## 14. Phase 3a: whole-study validation, what shipped and what the plan got wrong
+
+Implemented 2026-09-05 on `feature/study-validate-endpoint`. Same discipline as
+§11 and §13. This is the *validation* half of Phase 3; the SDK and CLI it was
+built for do not exist yet.
+
+### 14.1 What shipped
+
+| Commit | What |
+|---|---|
+| `7fe975fd` | `adopt/adopt/authoring/validate.py` — `validate_study(sections) -> ValidationReport`, the assembly factored out of `malaria.get_study_conf` as `study_conf_from_sections`, 50 tests |
+| `ba4b9555` | `adopt/adopt/server/validate.py` — `POST /{org}/studies/{slug}/validate`, `required_scope` pinned to `studies:read` for that one path, 25 tests |
+
+Test suite 2120 → 2195, no regressions. Docs: `documentation/agent-api.md` §2.6
+(new), §4 rewritten, §6 steps 8 and 10 rewritten, §7 item 4 closed, §8 and §9
+updated.
+
+§8's whole description of this was two sentences: "whole-study assembly, errors
+and warnings, writes nothing. The SDK does not need it, but MCP clients and the
+dashboard do, and it is the same pydantic construction." The first and last
+clauses held. **"The SDK does not need it" is the one that was wrong**, and not
+in the way it reads: the SDK does not need the *endpoint*, but it very much
+needs the library, and the library is where all the work was. Building the
+endpoint first and letting the SDK call it would have put a network round trip
+inside `vlab validate` for a pure function. Building the library first and
+making the route a wrapper is the shape that survives.
+
+### 14.2 The one design decision: errors or warnings
+
+Everything else followed from this. The rule settled on:
+
+> **An error is a reference that provably cannot resolve from the study's own
+> configuration. A warning is anything whose resolution depends on something
+> this function cannot see.**
+
+That is what puts `stratum.creative_unknown` in errors — the join is entirely
+internal, every creative a stratum names is resolved unconditionally, and a
+dangling one kills the reconciliation run — and `stratum.audience_unknown` in
+warnings. §11.4 item 4 groups the audience case with the other two and reads as
+though it should be an error. It cannot be. `strata[].audiences` does not point
+at `audiences[].name`: it points at a custom audience **on the Meta ad
+account**, matched by name (`FacebookState.get_audience`), which may have been
+built by hand in Ads Manager or by another study. A pure, offline validator
+cannot distinguish a typo from a legitimate external audience, and calling it an
+error would fail studies that recruit perfectly well.
+
+**The first draft made one exception and it was wrong.**
+`audience.partitioned_bare_name` — a stratum naming a `PARTITIONED` conf by a
+name vlab provably never creates (`audiences.partition_name` makes
+`<name>-cohort-N`) — was an error, on the grounds that the author's intent is
+not in doubt. Review pointed out that this breaks the rule the section had just
+stated: `get_audience` still matches on the ad account, so an audience someone
+built by hand under exactly that name resolves fine, and validation cannot see
+that nobody did. Demoted to a warning; the message kept its sharpness. The
+lesson worth recording is that the most obviously-a-mistake case is exactly
+where a rule gets quietly suspended, so it is the one to check the rule
+against.
+
+**Review found a second, plainer false positive.**
+`creative.destination_unknown` was an error on any creative naming a missing
+destination. But `get_destination_for_creative` has exactly one caller,
+`marketing.creative_destination_pairs`, and it iterates `stratum.creatives` —
+never the whole `creatives` conf. A creative no stratum names is never
+resolved, so its dead destination costs nothing and the study reconciles fine.
+Split: the error now requires that some stratum name the creative, and an
+unreferenced one gets `creative.unreferenced_destination_unknown`, a warning
+about a latent landmine — harmless today, fatal the moment a stratum adds it.
+
+A general `creative.unreferenced` was considered and rejected: an unreferenced
+creative is ordinary editing debris, common and harmless, and warning on every
+one would bury the report. The *pair* of conditions is what makes a finding.
+
+The two log-only invariants stay warnings, unchanged, for the reasons their own
+docstrings give: a study with no `inference_data` yet is unfinished rather than
+broken, and a study recruiting uniformly is entitled to a thin ref. Making them
+errors would have been the easy call and the wrong one — `missing_targeting_variables`'
+false-positive rate has never been measured against the thousands of existing
+production studies, and this validator is now the thing an SDK will exit
+non-zero on.
+
+`valid` is `not errors`. Warnings never make a study invalid.
+
+### 14.3 Decisions worth their own line
+
+**The assembly is shared, not reproduced.** `study_conf_from_sections` was
+lifted out of `malaria.get_study_conf`, which now calls it. Three lines, and it
+matters: a validator with its own copy of "these sections are a study" is a
+second implementation free to drift, which is precisely the failure that made
+the TypeScript compiler a problem (§4). It also means every validator added to
+`StudyConf` in future is reported by `POST /validate` with no change here.
+
+**Collect, do not stop — but do not invent, either.** Each section is parsed
+independently, so one broken section cannot hide another's errors, and the
+cross-section checks run on whatever parsed. A study with an unparseable
+`recruitment` conf still gets told about its dangling creative references.
+
+The trap review caught: for the two *optional* sections, "absent" and "did not
+parse" both leave the value `None`, and they are not the same thing. An absent
+`inference_data` genuinely supplies no variables, so every stratum targeting one
+is a real warning — that is a study not yet wired to a survey platform. An
+unparseable one supplies none only because it could not be read, and the same
+warnings are then noise stacked on the `section.invalid` error that already says
+so. `_parse_sections` now returns a `failed` set alongside `parsed`, and a check
+is skipped when a section it reads is in it. The required sections need no such
+guard: a failed one is simply not in `parsed`.
+
+This is not free — it is why
+`missing_targeting_variables` and `thins_its_ref_without_reading_the_mapping`
+are *decomposed* into their pure halves here rather than called directly (they
+take a whole `StudyConf`, which a half-broken study cannot produce), with tests
+pinning the decomposition against the originals.
+
+**The whole-study assembly runs only when every required section parsed.**
+Otherwise pydantic re-reports the same field errors under a second code. So
+`study.invalid` is cross-section by construction.
+
+**`studies:read` on a POST.** The method is POST because the optional body
+carries a whole study's worth of proposed sections. It writes nothing — no
+`study_confs` row, no `adopt_reports` row, asserted by a test that counts rows
+across four tables before and after. Classifying by method would have demanded
+`studies:write` for a pure read, so a read-only key could not check its own
+study. `required_scope` special-cases the one path. Worth noting the contrast:
+`GET /{org}/optimize/{slug}` is a GET and *does* write (§11.3). Method has
+never been the guide on this service.
+
+**200 for an invalid study.** The report is the answer, not the outcome. A
+caller asking "is this sound?" gets 200 and a report saying no. 4xx stays for
+the request being wrong: 404 for a study that is not theirs, 422 for a body
+that is not `{"sections": {...}}`.
+
+**Overlay is whole-section replacement, never a deep merge.** A POST stores one
+complete section and the read-back is the newest row for that conf type
+(§1.1 of the API doc). A deep merge would validate a study no sequence of
+writes could produce. An explicit `null` removes the section, so "what breaks
+if I have not written this yet?" is askable.
+
+**`known_gaps` is echoed on every response** rather than living only in prose,
+so a client can show what the verdict did not cover.
+
+### 14.4 A defect found, recorded not fixed
+
+**`PARTITIONED` and `LOOKALIKE` audiences cannot be written as JSON at all.**
+`AudienceConf`'s `mode="before"` validator calls
+`validate(values, values["subtype"], ...)`, which does
+`isinstance(values.get("partitioning"), Partitioning)` — an isinstance check
+against the *parsed* model class, inside a validator that runs **before**
+pydantic has parsed anything. From a dict it always fails. So
+`POST /confs/audiences` with a partitioned audience is a 422, and only `CUSTOM`
+audiences are reachable over the wire.
+
+It went unnoticed because every test in the repo builds these from Python
+objects (`test_audiences.py:217`, `test_marketing.py:306`), and the fixture for
+this work was the first thing to build one from the JSON the API speaks.
+
+Not fixed here: it changes what a write accepts, it is in `study_conf.py`
+(which a concurrent change is editing), and it deserves a decision about
+whether the `validate`/`subtype_confs` mechanism should exist at all rather than
+a patch. `POST /validate` reports such a stored conf as `section.invalid`, which
+is the honest answer — `StudyConf` assembly in the cron fails on it for exactly
+the same reason. **Whether any production study has a partitioned audience
+stored was not checked**, and it should be before the fix is designed: if one
+does, that study is already failing every reconciliation run.
+
+Second, smaller: an `AudienceConf` with no `subtype` raises a bare `KeyError`
+from the same validator, which pydantic does not wrap (it converts only
+`ValueError` and `AssertionError`). `_parse_sections` catches `Exception` for
+this reason — without it, validating an incomplete audience conf would have
+crashed the validator, and through the endpoint returned a 500 for input whose
+whole purpose is to be described.
+
+### 14.5 Deliberately not done
+
+- **No Meta-dependent checks.** §10's third bullet asked whether `POST
+  /validate` should also verify the template ad set still exists and still
+  carries the declared properties. It should not, and the answer is now
+  recorded rather than open: making validation a network call would cost it the
+  two properties that make it useful — that it is instant, and that it runs
+  offline on sections that have never been written. The live half wants to be
+  `vlab check --live`, which does not exist. §10's bullet can be closed in
+  favour of that shape.
+- **No `credentials` check.** Both `credentials_key` edges (§1.3) need a
+  database read. The endpoint could do one; the library could not, and keeping
+  them identical was worth more than the extra edge. Marked in `KNOWN_GAPS`.
+- **The dashboard was not repointed at it.** Same reasoning as §13.5.
+- **`study_conf.py` was not touched.** A concurrent change owns it.
+
+### 14.6 What is still open
+
+- §11.4 item 4 is **addressed** — all three dangling-reference modes are
+  reported with one shape and one path format. The underlying run-time
+  behaviour (bare `KeyError`, INFO-level drop) is unchanged; validation is a
+  layer in front of it, not a fix to it.
+- §11.4 item 2 (`extra="ignore"`) is untouched and is the thing that most
+  undercuts this work: a validator that reports a study clean while the server
+  silently dropped a misspelled optional field is telling a true answer to the
+  wrong question. It matters more now, not less, because an agent will trust
+  the report.
+- The warning/error split for audience references is a judgement (§14.2), not a
+  measurement. Nobody has counted how often real studies name an ad-account
+  audience that no `audiences` conf creates. If the answer is "never", they
+  should be errors, `audience.partitioned_bare_name` first.
+- **A `LOOKALIKE` audience's own `<name>` is accepted unconditionally**, though
+  `audiences.hydrate_audience` creates it only once the origin holds
+  `lookalike.target` users. Deliberate: that is a respondent count, not
+  configuration, and validation cannot see it — the same blind spot as every
+  audience reference on a study's first runs. In `KNOWN_GAPS`.
+- **`creative.unreferenced_destination_unknown` rests on there being exactly
+  one caller of `get_destination_for_creative`.** A second caller that walked
+  the whole `creatives` conf would make that warning an error, and nothing
+  enforces that one does not appear.
+- Phase 3 proper — the SDK, `vlab validate`/`push`/`diff`/`plan`/`apply` — is
+  unstarted. This is the piece it imports.
 
 ---
 
