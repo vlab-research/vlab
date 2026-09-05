@@ -35,7 +35,7 @@ names. Both hosts are declared in
 | Host (prod) | `vlab-dashboard-api.toixo.vlab.digital` | `vlab-study-conf-api.toixo.vlab.digital` |
 | Source | `api/` | `adopt/adopt/server/` |
 | Helm service name | `dashboard` | `conf-dashboard` |
-| Owns | studies (list/read; create, now deprecated in favour of the Python route), users, orgs, accounts and credentials, the Facebook OAuth exchange, one legacy segments-progress route | **study creation and all study configuration**, optimize, instructions, study errors, ad attributions, recruitment stats, API keys (mint, list, revoke) |
+| Owns | studies (list/read; create, now deprecated in favour of the Python route), users, orgs, accounts and credentials, the Facebook OAuth exchange, one legacy segments-progress route | **study creation and all study configuration**, optimize, instructions, study errors, ad attributions, recruitment stats, the read-only Meta Graph proxy, API keys (mint, list, revoke) |
 | Auth | Auth0 RS256 **only** (`api/internal/server/server.go:43`) | Auth0 RS256 **or** a vlab API key |
 
 **Everything in this document is on the Python service** unless it says
@@ -57,7 +57,7 @@ specification and do not call those routes.
 POST /users/api-key
 Authorization: Bearer <Auth0 access token, or an API key scoped auth:write>
 { "name": "hpv-agent",
-  "scopes": ["studies:write", "optimize:read"],   // optional; omit = unrestricted
+  "scopes": ["studies:write", "meta:read", "optimize:read"],  // optional; omit = unrestricted
   "expires_in_days": 30 }                         // optional; default 90, max 365
 
 201 { "data": { "name": "hpv-agent", "id": "<jti>", "token": "eyJ…",
@@ -112,8 +112,8 @@ is written up at the top of `api_keys.py`; what matters to a caller:
   "legacy_revocations": [{name, created}]}}`. Needs `auth:read`.
 
 **Scopes** are `<resource>:<action>` with resources `studies`, `responses`,
-`stats`, `optimize`, `auth` and actions `read`, `write`, `*`; the bare `*`
-means everything. `write` implies `read` on the same resource. Which route
+`stats`, `optimize`, `meta`, `auth` and actions `read`, `write`, `*`; the bare
+`*` means everything. `write` implies `read` on the same resource. Which route
 needs which is `required_scope` in `api_keys.py`:
 
 | Route | Scope |
@@ -122,14 +122,20 @@ needs which is `required_scope` in `api_keys.py`:
 | `…/{slug}/ad-attributions`, `…/ad-attributions.csv` | `responses` |
 | `…/{slug}/recruitment-stats`, `…/segments-progress`, `…/cost-over-time` | `stats` |
 | `/{org}/optimize/…` (plan, instruction, errors) | `optimize` |
+| `/{org}/meta/…` (the Meta Graph proxy, §2.5) | `meta` |
 | `/users/api-key`, `/users/api-keys/…` | `auth` |
 
 `studies` and `responses` are separate on purpose: configuration is the
 researcher's work, ad-attributions are respondent-level records. `optimize` is
 separate from `studies` because applying an instruction spends money on Meta.
-`auth` is never implied by anything: a key can only mint keys if it was given
-`auth:write`, and then only with a subset of its own scopes
-(`403 "Cannot mint a key with more scopes than the key minting it"`).
+`meta` is separate from everything because it reads a *different system with a
+different credential* — the researcher's Facebook token, which can see every ad
+account, campaign and creative they have on Meta, including ones belonging to no
+vlab study at all; a key that can edit one study's config should not become a
+window onto all of that by implication. `auth` is never implied by anything: a
+key can only mint keys if it was given `auth:write`, and then only with a subset
+of its own scopes (`403 "Cannot mint a key with more scopes than the key minting
+it"`).
 
 Enforcement is a middleware that runs *before routing*, and it **fails
 closed**: a scoped key on a path the table above does not classify is
@@ -137,8 +143,9 @@ closed**: a scoped key on a path the table above does not classify is
 would otherwise accept it. A scoped key on a classified path it lacks is
 `403 {"detail": "This API key is not scoped for studies:write"}`. Unscoped keys
 and Auth0 sessions never see either. For an agent authoring a study, the useful
-grant is `["studies:write", "optimize:read"]`: write every section, run the plan
-endpoint, and be unable to launch ads, read respondents, or mint keys.
+grant is `["studies:write", "meta:read", "optimize:read"]`: read Meta for the
+ad account, template targeting and creative blob, write every section, run the
+plan endpoint, and be unable to launch ads, read respondents, or mint keys.
 
 Narrowing an existing key does not need a reissue — the row's scopes win over
 the token's when they differ (`effective_scopes`) — but there is no endpoint
@@ -531,6 +538,76 @@ that accepts an API key. Needs `studies:write`. Same rules as the dashboard:
 
 `createdAt` is milliseconds since the epoch, matching the dashboard.
 
+### 2.5 `GET /{org_id}/meta/…` — reading Meta without a Facebook token
+
+Three things you need before you can write a study live on Meta, not in vlab:
+the ad account number for `general.ad_account`, a template ad set's `targeting`
+(which becomes each variable level's `facebook_targeting`), and a template ad's
+creative blob (which becomes `creatives[].template`, stored verbatim). Until
+2026-09-05 the only way to get them was to hold the researcher's Facebook
+token yourself. Now the server reads Meta for you, with the token it already
+stores, and **you never see it**.
+
+All of these are `GET`, all need `meta:read`, and all are read-only —
+`adopt/adopt/server/meta.py`. The paths, `fields` and response nesting are
+lifted from what the dashboard requests today (`dashboard/src/helpers/api.ts`),
+so a creative blob read here is identical to one read in the browser.
+
+| Route | Returns |
+|---|---|
+| `GET /{org}/meta/credentials` | your Facebook credentials by name — `[{key, entity, created}]`. Never tokens. |
+| `GET /{org}/meta/adaccounts` | `[{id, account_id, name}]` — `account_id` is the bare number that goes in `general.ad_account`; `id` is the same prefixed `act_`. |
+| `GET /{org}/meta/campaigns?account=<act_123 or 123>` | `[{id, name}]`, every campaign regardless of status — a template campaign is usually paused. |
+| `GET /{org}/meta/adsets?campaign=<id>` | `[{id, name, targeting}]`. `targeting` is the whole point. |
+| `GET /{org}/meta/ads?campaign=<id>` *or* `?adset=<id>` | `[{id, name, creative: {…}}]` — the creative arrives **nested**, via field expansion, exactly as the dashboard receives it. Exactly one of the two parameters. |
+| `GET /{org}/meta/ads/{ad_id}/creative` | `{"data": {…creative…}}` — the one blob, when you already have an ad id. `404` if the ad has no readable creative (rather than a `null` you would store). |
+
+**Which Facebook credential.** A user can hold more than one, and different
+tokens see different ad accounts, so:
+
+- Pass `?credentials_key=<name>` to choose. It takes exactly the value that
+  goes into `general.credentials_key`, so you can point the proxy at the
+  credential the study will actually run on.
+- Omit it and you get your one Facebook credential, if you have exactly one.
+- Omit it with more than one and the request is
+  `409` naming them — the proxy will not pick, because a wrong pick surfaces
+  hours later as an unexplained Meta rejection at ad-set create time.
+  `GET /{org}/meta/credentials` lists the names.
+- No Facebook credential at all is `400` with a message saying so. **A human
+  must connect the account**; the OAuth exchange is Auth0-only (§6 step 1) and
+  no API key can do it.
+
+**Pagination.** Every list route returns
+
+```json
+{"data": [ … ], "paging": {"after": "<cursor|null>", "truncated": false, "pages_fetched": 2}}
+```
+
+Cursors are followed **server-side**, up to 10 pages. `truncated: true` means
+the page cap stopped it, not Meta; pass `paging.after` back as `?after=<cursor>`
+to continue. `truncated: false` means you have the whole collection and `after`
+is `null`. `?limit=` defaults to 100, max 500, and multiplies with the page cap
+— `limit=500` can pull 5,000 objects in one request, which for `/meta/ads` is a
+lot of creative blobs.
+
+**Errors.** Meta's rejections keep their identity rather than collapsing into a
+`500`. `detail` here is an **object**, not a string:
+
+```json
+{"detail": {"message": "Meta rejected the request: Error validating access token: Session has expired.",
+            "meta_error": {"code": 190, "subcode": null, "type": "OAuth",
+                           "message": "…", "http_status": 400}}}
+```
+
+A Meta `400`/`403`/`404` passes its status through (bad id, object not visible
+to this token, expired token — all yours to act on). Meta `429` and `5xx`, and
+a Graph API that cannot be reached at all, become `502` with
+`"meta_error": null` for the latter. Retry a `502`; do not retry a `400`.
+
+**What this is not.** There is no write proxy — `meta:write` is expressible and
+nothing serves it. There is no caching: every call is a live Graph read against
+Meta's per-app rate limits, so do not poll these in a loop.
+
 ---
 
 ## 3. The nine conf types
@@ -683,8 +760,10 @@ Concepts: <https://docs.vlab.digital/vlab/study-configuration/creative/>
 `template` is the creative object read off an existing Meta ad — it is passed
 through into the ad that gets created, with the ref, welcome message and
 call-to-action injected according to the destination
-(`create_creative`, `adopt/adopt/marketing.py:1023`). Reading that blob is
-today a browser operation with the researcher's Facebook token (§7).
+(`create_creative`, `adopt/adopt/marketing.py:1023`). Read it with
+`GET /{org_id}/meta/ads?campaign=<template_campaign>` and store `ad["creative"]`
+verbatim (§2.5); the dashboard reads the same fields in the browser with the
+researcher's token, so the two produce the same blob.
 
 `template["actor_id"]` is read to derive the page id every audience is scoped
 to (`adopt/adopt/audiences.py:150`); a template lacking it raises a bare
@@ -1014,7 +1093,7 @@ Everything else is the agent's.
    two derive identical slugs.)
 
 3. **A human mints you an API key** (see Authentication — ask for
-   `["studies:write", "optimize:read"]` unless you need to launch ads) and
+   `["studies:write", "meta:read", "optimize:read"]` unless you need to launch ads) and
    tells you the `org_id`. There is no endpoint an API key can call that lists organisations
    — `POST /users` on the Go service returns them (`{data: {id, orgs: [{id,
    name}]}}`) but is Auth0-only, and the dashboard keeps the current org in
@@ -1029,17 +1108,34 @@ Everything else is the agent's.
    `credentials_entity: "facebook"`, the numeric `ad_account`, an `opt_window`
    in hours.
 
+   Do not guess the first three. `GET /{org_id}/meta/credentials` (§2.5) gives
+   you the `key` and `entity` of every Facebook credential this account holds —
+   `"Facebook"`/`"facebook"` is the dashboard's hardcoded pair and the common
+   case, but it is not guaranteed. `GET /{org_id}/meta/adaccounts` gives you
+   `account_id`, which is what `ad_account` wants (the bare number, not the
+   `act_`-prefixed `id`).
+
 6. **Write `destinations`,** then **`creatives`** naming them, then
    **`audiences`**. Order does not matter to the server — nothing is checked
    across sections — but it matters to you, because you have to know the
    destination names before you can write creatives.
 
    The creative `template` blob is a Meta ad creative read off an existing ad.
-   Today the dashboard reads it in the browser with the researcher's Facebook
-   token (`GET /<campaign>/ads?fields=id,name,creative{…}`,
-   `dashboard/src/helpers/api.ts:610`); the backend never sees Facebook here.
-   **An agent must either read it from Meta itself with a token it has been
-   given, or be handed the blob.** There is no vlab endpoint that returns it.
+   The dashboard reads it in the browser with the researcher's Facebook token;
+   **you read it through the proxy** (§2.5), which requests the same fields and
+   returns the same nesting:
+
+   ```
+   GET /{org_id}/meta/campaigns?account=<account_id>   -> pick the template campaign
+   GET /{org_id}/meta/ads?campaign=<campaign_id>       -> [{id, name, creative: {…}}]
+   ```
+
+   Store `ad["creative"]` **verbatim** as the creative's `template`, and the
+   campaign's id as `template_campaign`. Do not reshape it; adopt diffs the
+   stored blob against the live ad field by field
+   (`adopt/adopt/facebook/field_contract.py`), and an "improved" blob is a
+   perpetual no-op rewrite. If you already have an ad id,
+   `GET /{org_id}/meta/ads/{ad_id}/creative` returns just the blob.
 
 7. **Write `strata`.** These are the real configuration (§1.5) and the hardest
    part. The dashboard derives them from `variables` with a cartesian product —
@@ -1053,13 +1149,46 @@ Everything else is the agent's.
    legitimate — the server only ever stores what you send.
 
    The `facebook_targeting` values themselves come from a template ad set on
-   Meta, read in the browser and passed through `extractFromAdset`
-   (`dashboard/src/pages/StudyConfPage/forms/variables/extract.ts`), which
-   throws if a declared property is missing and unconditionally forces
-   `targeting_automation: {advantage_audience: 0}`. If you build targeting by
-   hand, set that key yourself; adopt forces it at ad-set build time anyway
-   (`marketing.py:119`), but your stored conf will otherwise disagree with what
-   is deployed.
+   Meta. Read the ad sets through the proxy and extract from one:
+
+   ```
+   GET /{org_id}/meta/adsets?campaign=<campaign_id>
+   -> {"data": [{"id": "…", "name": "geo-lagos", "targeting": {…}}], "paging": {…}}
+   ```
+
+   ```python
+   # adopt.authoring.extract lands with PR #254 (branch
+   # feature/agent-study-authoring-phase1); until it merges, port
+   # dashboard/src/pages/StudyConfPage/forms/variables/extract.ts yourself.
+   from adopt.authoring.extract import extract_from_adset
+
+   adsets = resp["data"]
+   adset = next(a for a in adsets if a["name"] == "geo-lagos")
+
+   facebook_targeting = extract_from_adset(
+       adset,
+       ["geo_locations", "age_min", "age_max", "genders"],
+   )
+   # -> {"geo_locations": {…}, "age_min": 18, "age_max": 65, "genders": [1],
+   #     "targeting_automation": {"advantage_audience": 0}}
+   ```
+
+   The ad set object goes in **unchanged** — `extract_from_adset` reads `id`
+   and `targeting` off it and uses `name` for error messages, which is exactly
+   the shape `/meta/adsets` returns, on purpose. It raises
+   `PropertyMissingError` when a declared property is absent rather than
+   defaulting, and unconditionally forces
+   `targeting_automation: {advantage_audience: 0}` — a deliberate policy
+   decision with a real failure behind it (Advantage audience expansion leaking
+   delivery outside a geographic stratum), which is why it overwrites even a
+   `targeting_automation` you asked for by name.
+
+   Check `paging.truncated` before you conclude an ad set is not there: a
+   truncated page means you are looking at part of the campaign.
+
+   If you build targeting by hand instead, set `targeting_automation` yourself;
+   adopt forces it at ad-set build time anyway (`marketing.py:119`), but your
+   stored conf will otherwise disagree with what is deployed.
 
 8. **Write `data-sources` and `inference-data`.** Then check, yourself, that
    every variable named in every stratum's `question_targeting` appears as an
@@ -1092,12 +1221,13 @@ Stated plainly, because each of these will otherwise look like a bug in your
 client.
 
 1. **Discover its own `org_id`.** No API-key-reachable endpoint lists orgs.
-2. **Read anything from Meta through vlab.** Ad accounts, campaigns, ad sets
-   and creative blobs are all read client-side from `graph.facebook.com` with
-   the researcher's stored Facebook token (`facebookRequest`,
-   `dashboard/src/helpers/api.ts:412`). vlab proxies none of it. An agent that
-   needs a creative template or a template ad set's targeting must talk to Meta
-   directly, with a token it was given.
+2. **Write anything to Meta through vlab, or connect a Facebook account.**
+   *Reading* Meta is solved — that is §2.5, and it is read-only by
+   construction. But the OAuth exchange that creates the credential in the
+   first place (`POST /facebook/token` on the Go service) is Auth0-only, so a
+   human has to connect the account before the proxy has a token to read with.
+   And nothing an API key can call writes to Meta except an optimize
+   instruction (§5), which is a different thing entirely.
 3. **Derive strata from variables.** The compiler is browser TypeScript (§6
    step 7). There is an older Python ancestor at
    `adopt/adopt/configuration.py`, but **it disagrees with the TypeScript** —
@@ -1113,7 +1243,29 @@ client.
 
 ---
 
-## 8. What landed on 2026-09-04
+## 8. What landed recently
+
+### 2026-09-05 — the Meta Graph proxy
+
+Phase 2 of `planning/agent-study-authoring.md` (§13 there records the decisions
+and what the plan got wrong). Not yet deployed at the time of writing; check
+the adopt version in `devops/values/toixo-prod.yaml` before relying on it.
+
+- **`GET /{org_id}/meta/…`** — §2.5. Ad accounts, campaigns, ad sets, ads and
+  creative blobs, read server-side with the researcher's stored Facebook token,
+  which never reaches the caller. Paths and `fields` are the dashboard's, so a
+  creative blob read here is identical to one read in the browser.
+- **A `meta` scope resource** — folded into the table in "Authentication".
+  `meta` is deliberately not implied by `studies`.
+- **`GET /{org_id}/meta/credentials`** — the first API-key-reachable way to
+  discover a valid `general.credentials_key`.
+
+This closes the item that used to be §7.2 ("read anything from Meta through
+vlab"). It does not close §7.3: the strata compiler is still browser
+TypeScript, though `adopt.authoring` (PR #254) ports it and the `extract`
+half is what §6 step 7 now shows.
+
+### 2026-09-04 — Phase 0
 
 Phase 0 of `planning/agent-study-authoring.md` shipped as PR #251 and was
 deployed to production as adopt **v0.1.83** with migrations **v0.3.0** (helm
@@ -1140,6 +1292,24 @@ MCP shim over the SDK — is recorded in the same document.
 
 Marked here rather than guessed at.
 
+- **The Meta proxy (§2.5) has never been run against real Meta.** Every test
+  mocks `FacebookAdsApi.call`. The request shapes are copied from the
+  dashboard's live calls and the error mapping is exercised against
+  SDK-constructed `FacebookRequestError`s, but no response in this
+  documentation was observed coming back from `graph.facebook.com`.
+- **Whether the deployed `conf-dashboard` has `FACEBOOK_APP_ID` and
+  `FACEBOOK_APP_SECRET` was not verified.** It is inferred: the optimize
+  endpoint reaches the same `get_api` and those variables are read with
+  `environs`' `env()`, which raises when absent — so if `GET /{org}/optimize/…`
+  works in your environment, §2.5 will. If it does not, the first proxy call
+  fails with an unhelpful `500`.
+- **The Graph API version the proxy uses is the SDK's**, currently `v22.0`
+  (`facebook-business = "v22"`), which happens to match the dashboard's
+  `REACT_APP_FACEBOOK_API_VERSION`. Nothing enforces that they stay in step,
+  and a third place (`adopt/adopt/facebook/update.py:34`) hardcodes `v20.0`.
+- **Meta's real page-size ceiling per edge is unmeasured.** `?limit=` is capped
+  at 500 as a guard against absurd requests, not because Meta accepts 500
+  everywhere; Meta may quietly return fewer.
 - **Exact HTTP status for an `InvalidConfigError` in production is inferred,
   not observed.** The exception provably escapes FastAPI (measured with a
   `TestClient` against `list[DestinationConf]`), and the installed uvicorn's
