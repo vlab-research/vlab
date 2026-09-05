@@ -12,7 +12,18 @@ export interface General {
 
 export type Recruitment = RecruitmentSimple | RecruitmentDestination | PipelineExperiment;
 
+// The recruitment union's tag. adopt discriminates on it (`RecruitmentConf` in
+// adopt/adopt/study_conf.py); these three spellings are the ones this form has
+// always written, which is why adopt adopted them rather than inventing others.
+//
+// Optional, because every conf stored before adopt started keeping the key has
+// none: the server accepted it and `extra="ignore"` dropped it before storage.
+// adopt infers the arm from shape when it is absent, so an old conf still
+// loads and still saves.
+export type RecruitmentType = 'simple' | 'pipeline_experiment' | 'destination';
+
 export interface RecruitmentSimple {
+  type?: RecruitmentType;
   ad_campaign_name: string;
   objective: string;
   optimization_goal: string;
@@ -26,6 +37,7 @@ export interface RecruitmentSimple {
 }
 
 export interface RecruitmentDestination {
+  type?: RecruitmentType;
   ad_campaign_name_base: string;
   destinations: string[];
   objective: string;
@@ -40,6 +52,7 @@ export interface RecruitmentDestination {
 }
 
 export interface PipelineExperiment {
+  type?: RecruitmentType;
   ad_campaign_name_base: string;
   objective: string;
   optimization_goal: string;

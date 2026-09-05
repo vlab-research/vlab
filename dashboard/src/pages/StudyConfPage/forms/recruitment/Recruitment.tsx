@@ -23,8 +23,14 @@ interface Props {
   localData: any;
 }
 
+// Prefer the stored tag; fall back to shape for confs written before adopt
+// started keeping it. Same order adopt's own `_infer_recruitment_type` uses,
+// deliberately -- if these two ever disagreed, the form would render one
+// strategy and the server would store another.
 const duckTypeRecruitmentType = (localData: any) => {
-  if (localData?.arms) {
+  if (localData?.type) {
+    return localData.type;
+  } else if (localData?.arms) {
     return 'pipeline_experiment';
   } else if (localData?.ad_campaign_name_base) {
     return 'destination';
@@ -69,7 +75,6 @@ const Recruitment: React.FC<Props> = ({ id, globalData, localData }: Props) => {
       efficiency_weight: 1,
     },
     {
-      destination: '',
       ad_campaign_name_base: '',
       objective: '',
       optimization_goal: '',
@@ -84,9 +89,12 @@ const Recruitment: React.FC<Props> = ({ id, globalData, localData }: Props) => {
     },
   ];
 
+  // The tag is stamped onto localData rather than passed through untouched:
+  // a conf stored before adopt tagged the union has none, and re-POSTing it
+  // without one leaves the server inferring the arm from shape all over again.
   const [formData, setFormData] = useState<LocalData>(
     localData
-      ? localData
+      ? { ...localData, type: duckTypeRecruitmentType(localData) }
       : initialState.find((obj: any) => obj.type === recruitmentType)
   );
   const [error, setError] = useState<string | null>(null);
