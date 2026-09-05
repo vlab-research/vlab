@@ -1,0 +1,208 @@
+{
+  "$comment": "Generated from adopt/adopt/study_conf.py by adopt/adopt/schema_export.py. Do not edit by hand; run `make schemas`. Body of POST /{org_id}/studies/{slug}/confs/audiences (a JSON array).",
+  "$defs": {
+    "AudienceConf": {
+      "properties": {
+        "lookalike": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Lookalike"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "partitioning": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Partitioning"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "question_targeting": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/QuestionTargeting"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "subtype": {
+          "title": "Subtype",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "subtype"
+      ],
+      "title": "AudienceConf",
+      "type": "object"
+    },
+    "Lookalike": {
+      "properties": {
+        "spec": {
+          "$ref": "#/$defs/LookalikeSpec"
+        },
+        "target": {
+          "title": "Target",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "target",
+        "spec"
+      ],
+      "title": "Lookalike",
+      "type": "object"
+    },
+    "LookalikeSpec": {
+      "properties": {
+        "country": {
+          "title": "Country",
+          "type": "string"
+        },
+        "ratio": {
+          "title": "Ratio",
+          "type": "number"
+        },
+        "starting_ratio": {
+          "title": "Starting Ratio",
+          "type": "number"
+        }
+      },
+      "required": [
+        "country",
+        "ratio",
+        "starting_ratio"
+      ],
+      "title": "LookalikeSpec",
+      "type": "object"
+    },
+    "Partitioning": {
+      "properties": {
+        "max_days": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Max Days"
+        },
+        "max_users": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Max Users"
+        },
+        "min_days": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Min Days"
+        },
+        "min_users": {
+          "title": "Min Users",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "min_users"
+      ],
+      "title": "Partitioning",
+      "type": "object"
+    },
+    "QuestionTargeting": {
+      "properties": {
+        "op": {
+          "title": "Op",
+          "type": "string"
+        },
+        "vars": {
+          "items": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/TargetVar"
+              },
+              {
+                "$ref": "#/$defs/QuestionTargeting"
+              }
+            ]
+          },
+          "title": "Vars",
+          "type": "array"
+        }
+      },
+      "required": [
+        "op",
+        "vars"
+      ],
+      "title": "QuestionTargeting",
+      "type": "object"
+    },
+    "TargetVar": {
+      "properties": {
+        "type": {
+          "title": "Type",
+          "type": "string"
+        },
+        "value": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "integer"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Value"
+        }
+      },
+      "required": [
+        "type",
+        "value"
+      ],
+      "title": "TargetVar",
+      "type": "object"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "Custom audiences derived from responses, and lookalikes of them.",
+  "items": {
+    "$ref": "#/$defs/AudienceConf"
+  },
+  "title": "audiences conf",
+  "type": "array"
+}

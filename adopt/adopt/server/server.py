@@ -34,7 +34,14 @@ from ..study_conf import (
     StratumConf,
     VariableConf,
 )
-from .auth import AuthError, generate_api_token, verify_tokens
+from .auth import AuthError, verify_tokens
+from .api_keys import add_scope_enforcement, router as api_keys_router
+
+# Re-exported for backwards compatibility: these moved to deps.py so that route
+# modules (studies, api keys, schemas) can depend on authentication without
+# importing server, which imports them — a cycle.
+from .deps import User, get_current_user, security
+from .studies import router as studies_router
 from .csv_export import ad_attributions_csv, ad_attributions_table
 from .db import (
     copy_confs,
@@ -60,6 +67,12 @@ app = FastAPI()
 
 origins = ["*"]
 
+# Scope enforcement is added BEFORE CORS deliberately. Starlette runs the
+# last-added middleware outermost, so adding this first leaves CORS outside it
+# and a 403 from a scoped key still carries CORS headers — otherwise the
+# dashboard sees an opaque network error instead of the real status.
+add_scope_enforcement(app)
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
@@ -70,6 +83,13 @@ app.add_middleware(
 
 
 env = Env()
+
+
+# Study creation. Lives in its own module so that the route can be tested
+# without standing up the whole app; mounted here because this is the only file
+# that owns `app`.
+app.include_router(studies_router)
+app.include_router(api_keys_router)
 
 
 class OptimizeInstruction(BaseModel):
@@ -90,36 +110,6 @@ class InstructionResult(BaseModel):
 
 class OptimizeResult(BaseModel):
     data: Sequence[OptimizeInstruction]
-
-
-class User(BaseModel):
-    user_id: str
-
-
-security = HTTPBearer()
-
-
-async def get_current_user(
-    credentials: Annotated[HTTPAuthorizationCredentials, Depends(security)],
-) -> User:
-    token = credentials.credentials
-
-    credentials_exception = HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Could not validate credentials",
-        headers={"WWW-Authenticate": "Bearer"},
-    )
-    try:
-        payload = verify_tokens(token)
-        user: str = payload.get("sub")
-
-        if user is None:
-            raise credentials_exception
-
-        return User(user_id=user)
-
-    except AuthError:
-        raise credentials_exception
 
 
 async def create_conf(user: User, org_id: str, slug: str, conf_type: str, config: Any):
@@ -501,36 +491,6 @@ async def run_instruction(
     try:
         report = run_single_instruction(user.user_id, org_id, slug, instruction)
         return InstructionResult(data=report)
-    except BaseException as e:
-        raise HTTPException(status_code=500, detail=f"{e}")
-
-
-class CreateApiKeyRequest(BaseModel):
-    name: str
-
-
-class CreateApiKeyResponseData(BaseModel):
-    name: str
-    id: str
-    token: str
-
-
-class CreateApiKeyResponse(BaseModel):
-    data: CreateApiKeyResponseData
-
-
-@app.post("/users/api-key", status_code=201)
-async def create_api_key(
-    key_request: CreateApiKeyRequest,
-    user: Annotated[User, Depends(get_current_user)],
-) -> CreateApiKeyResponse:
-    try:
-        token, token_id = generate_api_token(
-            user_id=user.user_id, name=key_request.name
-        )
-        data = CreateApiKeyResponseData(name=key_request.name, token=token, id=token_id)
-        return CreateApiKeyResponse(data=data)
-
     except BaseException as e:
         raise HTTPException(status_code=500, detail=f"{e}")
 

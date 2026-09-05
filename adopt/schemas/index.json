@@ -1,0 +1,80 @@
+{
+  "$comment": "Generated from adopt/adopt/study_conf.py by adopt/adopt/schema_export.py. Do not edit by hand; run `make schemas`. Manifest of the schemas in this directory.",
+  "confs": [
+    {
+      "body": "object",
+      "conf_type": "general",
+      "description": "Study-wide settings: name, ad account, credentials, opt window.",
+      "method": "POST",
+      "schema": "general.json",
+      "url": "/{org_id}/studies/{slug}/confs/general"
+    },
+    {
+      "body": "object",
+      "conf_type": "recruitment",
+      "description": "How the study spends: one of three recruitment strategies. NOTE: this union carries no tag field, so it is an untagged `anyOf` - a consumer must tell the arms apart by shape (`ad_campaign_name` vs `ad_campaign_name_base`, then `arms` vs `destinations`). See 'JSON Schemas' in adopt/README.md.",
+      "method": "POST",
+      "schema": "recruitment.json",
+      "url": "/{org_id}/studies/{slug}/confs/recruitment"
+    },
+    {
+      "body": "array",
+      "conf_type": "destinations",
+      "description": "Where respondents are sent. Discriminated on `type`.",
+      "method": "POST",
+      "schema": "destinations.json",
+      "url": "/{org_id}/studies/{slug}/confs/destinations"
+    },
+    {
+      "body": "array",
+      "conf_type": "creatives",
+      "description": "Ad creatives, each naming the destination it recruits into.",
+      "method": "POST",
+      "schema": "creatives.json",
+      "url": "/{org_id}/studies/{slug}/confs/creatives"
+    },
+    {
+      "body": "array",
+      "conf_type": "audiences",
+      "description": "Custom audiences derived from responses, and lookalikes of them.",
+      "method": "POST",
+      "schema": "audiences.json",
+      "url": "/{org_id}/studies/{slug}/confs/audiences"
+    },
+    {
+      "body": "array",
+      "conf_type": "variables",
+      "description": "Experimental variables and their levels, used to derive strata.",
+      "method": "POST",
+      "schema": "variables.json",
+      "url": "/{org_id}/studies/{slug}/confs/variables"
+    },
+    {
+      "body": "array",
+      "conf_type": "strata",
+      "description": "The recruitment cells: quota, creatives, audiences and targeting.",
+      "method": "POST",
+      "schema": "strata.json",
+      "url": "/{org_id}/studies/{slug}/confs/strata"
+    },
+    {
+      "body": "array",
+      "conf_type": "data-sources",
+      "description": "Response sources to pull from. Stored under the key `data_sources`.",
+      "method": "POST",
+      "schema": "data-sources.json",
+      "url": "/{org_id}/studies/{slug}/confs/data-sources"
+    },
+    {
+      "body": "object",
+      "conf_type": "inference-data",
+      "description": "How to extract inference variables from responses. Stored under the key `inference_data`.",
+      "method": "POST",
+      "schema": "inference-data.json",
+      "url": "/{org_id}/studies/{slug}/confs/inference-data"
+    }
+  ],
+  "study": {
+    "schema": "study-conf.json"
+  }
+}

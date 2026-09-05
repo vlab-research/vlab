@@ -1,0 +1,1174 @@
+{
+  "$comment": "Generated from adopt/adopt/study_conf.py by adopt/adopt/schema_export.py. Do not edit by hand; run `make schemas`. The assembled whole-study configuration. Not accepted by any endpoint; adopt builds it from the per-section confs. Structural only — StudyConf's cross-section model validators (e.g. check_whatsapp_refs_are_deliverable) cannot be expressed in JSON Schema and are NOT represented here.",
+  "$defs": {
+    "AppDestination": {
+      "properties": {
+        "app_install_link": {
+          "title": "App Install Link",
+          "type": "string"
+        },
+        "app_install_state": {
+          "title": "App Install State",
+          "type": "string"
+        },
+        "deeplink_template": {
+          "title": "Deeplink Template",
+          "type": "string"
+        },
+        "facebook_app_id": {
+          "title": "Facebook App Id",
+          "type": "string"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "ref_mode": {
+          "anyOf": [
+            {
+              "enum": [
+                "metadata",
+                "encoded"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Ref Mode"
+        },
+        "type": {
+          "const": "app",
+          "title": "Type"
+        },
+        "user_device": {
+          "items": {
+            "type": "string"
+          },
+          "title": "User Device",
+          "type": "array"
+        },
+        "user_os": {
+          "items": {
+            "type": "string"
+          },
+          "title": "User Os",
+          "type": "array"
+        }
+      },
+      "required": [
+        "type",
+        "name",
+        "facebook_app_id",
+        "app_install_link",
+        "deeplink_template",
+        "app_install_state",
+        "user_device",
+        "user_os"
+      ],
+      "title": "AppDestination",
+      "type": "object"
+    },
+    "AudienceConf": {
+      "properties": {
+        "lookalike": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Lookalike"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "partitioning": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Partitioning"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "question_targeting": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/QuestionTargeting"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "subtype": {
+          "title": "Subtype",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "subtype"
+      ],
+      "title": "AudienceConf",
+      "type": "object"
+    },
+    "CreativeConf": {
+      "properties": {
+        "destination": {
+          "title": "Destination",
+          "type": "string"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "tags": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Tags"
+        },
+        "template": {
+          "title": "Template",
+          "type": "object"
+        },
+        "template_campaign": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Template Campaign"
+        }
+      },
+      "required": [
+        "destination",
+        "name",
+        "template"
+      ],
+      "title": "CreativeConf",
+      "type": "object"
+    },
+    "DataSourceConf": {
+      "properties": {
+        "config": {
+          "default": null,
+          "title": "Config"
+        },
+        "credentials_key": {
+          "title": "Credentials Key",
+          "type": "string"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "source": {
+          "title": "Source",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "source",
+        "credentials_key"
+      ],
+      "title": "DataSourceConf",
+      "type": "object"
+    },
+    "DestinationRecruitmentExperiment": {
+      "properties": {
+        "ad_campaign_name_base": {
+          "title": "Ad Campaign Name Base",
+          "type": "string"
+        },
+        "budget_per_arm": {
+          "title": "Budget Per Arm",
+          "type": "integer"
+        },
+        "destinations": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Destinations",
+          "type": "array"
+        },
+        "efficiency_weight": {
+          "default": 1.0,
+          "title": "Efficiency Weight",
+          "type": "number"
+        },
+        "end_date": {
+          "format": "date-time",
+          "title": "End Date",
+          "type": "string"
+        },
+        "incentive_per_respondent": {
+          "default": 0,
+          "title": "Incentive Per Respondent",
+          "type": "number"
+        },
+        "max_sample_per_arm": {
+          "title": "Max Sample Per Arm",
+          "type": "integer"
+        },
+        "min_budget": {
+          "title": "Min Budget",
+          "type": "integer"
+        },
+        "objective": {
+          "title": "Objective",
+          "type": "string"
+        },
+        "optimization_goal": {
+          "title": "Optimization Goal",
+          "type": "string"
+        },
+        "optimizer_version": {
+          "default": "closed_form",
+          "enum": [
+            "closed_form",
+            "lbfgs"
+          ],
+          "title": "Optimizer Version",
+          "type": "string"
+        },
+        "start_date": {
+          "format": "date-time",
+          "title": "Start Date",
+          "type": "string"
+        }
+      },
+      "required": [
+        "ad_campaign_name_base",
+        "objective",
+        "optimization_goal",
+        "min_budget",
+        "budget_per_arm",
+        "max_sample_per_arm",
+        "start_date",
+        "end_date",
+        "destinations"
+      ],
+      "title": "DestinationRecruitmentExperiment",
+      "type": "object"
+    },
+    "ExtractionConf": {
+      "description": "One declared variable: where to read it, and what to do with what is read.\n\n`location` says where to read -- \"metadata\" or \"variable\" -- and nothing\nabout what the value means. `mapping` says what the value read means:\n\n    \"raw\"             the value read IS the answer. The default, and what\n                      every conf written before this field existed means.\n    \"ad_table_lookup\" the value read is an opaque token; the answer is a\n                      stratum variable off the frozen ad_attributions row\n                      that token identifies.\n\n`key` and `name` are both contextual to the mapping, which is the one\ngenuinely confusing part of this:\n\n    key   WHERE TO READ. For \"raw\" it addresses the value; for a lookup it\n          addresses the token. Never hardcoded -- fly stamps the token at\n          metadata.vt by convention and the conf says location \"metadata\",\n          key \"vt\" to match. A respondent recruited by a web or app\n          destination brings the token back as a survey field instead, so\n          a lookup reads from either location.\n    name  the output variable name and, for a lookup, ALSO the key into the\n          frozen row (which stratum variable to pull). It does double duty\n          because you name the output after the stratum variable anyway.",
+      "properties": {
+        "aggregate": {
+          "title": "Aggregate",
+          "type": "string"
+        },
+        "functions": {
+          "items": {
+            "$ref": "#/$defs/ExtractionFunctionConf"
+          },
+          "title": "Functions",
+          "type": "array"
+        },
+        "key": {
+          "title": "Key",
+          "type": "string"
+        },
+        "location": {
+          "title": "Location",
+          "type": "string"
+        },
+        "mapping": {
+          "default": "raw",
+          "title": "Mapping",
+          "type": "string"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "value_type": {
+          "title": "Value Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "location",
+        "key",
+        "name",
+        "functions",
+        "value_type",
+        "aggregate"
+      ],
+      "title": "ExtractionConf",
+      "type": "object"
+    },
+    "ExtractionFunctionConf": {
+      "properties": {
+        "function": {
+          "title": "Function",
+          "type": "string"
+        },
+        "params": {
+          "default": null,
+          "title": "Params"
+        }
+      },
+      "required": [
+        "function"
+      ],
+      "title": "ExtractionFunctionConf",
+      "type": "object"
+    },
+    "FlyMessengerDestination": {
+      "properties": {
+        "additional_metadata": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Additional Metadata"
+        },
+        "button_text": {
+          "title": "Button Text",
+          "type": "string"
+        },
+        "initial_shortcode": {
+          "title": "Initial Shortcode",
+          "type": "string"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "ref_mode": {
+          "anyOf": [
+            {
+              "enum": [
+                "metadata",
+                "encoded"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Ref Mode"
+        },
+        "type": {
+          "const": "messenger",
+          "title": "Type"
+        },
+        "welcome_message": {
+          "title": "Welcome Message",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "name",
+        "initial_shortcode",
+        "welcome_message",
+        "button_text"
+      ],
+      "title": "FlyMessengerDestination",
+      "type": "object"
+    },
+    "FlyMultiDestination": {
+      "description": "A single ad that opens either Messenger or WhatsApp, Meta's choice.\n\nA third destination type, deliberately, rather than a `platforms` list on a\nmerged class or an implicit consequence of the ad set's destination_type.\nThe reasoning is in planning/whatsapp-destination-model.md: Messenger and\nWhatsApp differ in the grammar their routing token must obey, in whether the\nrespondent can see and edit it, in which fields are required, and in what a\nmisconfiguration costs. Multi is not the generalisation of the two -- it is\na third thing that carries both of their tokens at once, and it forecloses\nsomething they each allow (channel as an experimental arm, since Meta\nassigns the arm and you cannot randomise what Meta assigns).\n\nOne shortcode, not one per channel. `creative_metadata` folds\n`form: initial_shortcode` into the frozen ad_attributions blob, and there is\nexactly one blob per ad; a per-channel shortcode would mean one ad whose two\narms belong to two surveys and one mapping row that can only name one of\nthem.\n\nOne ref mode drives both arms, so they always disclose the same amount --\nwhich is worth knowing when choosing it, because the WhatsApp arm's token\nsits in the respondent's compose box where they can read and edit it. Being\ndescribed back to yourself as `gender.men.age.25_34` before a survey starts\nis an ethical question, not a technical one.\n\nAsymmetric confidence between the two arms. The Messenger arm is MEASURED:\non 2026-08-17 ad 120254903561240150 delivered its quick-reply payload with\nthe ref intact even though `text_format.customer_action_type` was the scalar\n\"autofill_message\", so Messenger reads its own sub-structure and ignores the\nsibling autofill (planning/whatsapp-destination-model.md 8.1). The WhatsApp\narm rests on the symmetry inference from that result and has not itself been\nobserved -- every preview followed the single-valued MESSAGE_PAGE\ncall_to_action to Messenger. If the inference is wrong and Meta serves its\nown default prefill, fly's event-normalizer still emits\nconversation_started, and those arrivals land on FALLBACK_FORM: a real\nsurvey belonging to another researcher, where misrouted respondents reach\nEND and look like completions. Watch the WhatsApp arm of the first multi\nstudy for that shape; documentation/multi-destination-ads.md has the\nprocedure.",
+      "properties": {
+        "additional_metadata": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Additional Metadata"
+        },
+        "button_text": {
+          "title": "Button Text",
+          "type": "string"
+        },
+        "initial_shortcode": {
+          "title": "Initial Shortcode",
+          "type": "string"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "ref_mode": {
+          "anyOf": [
+            {
+              "enum": [
+                "metadata",
+                "encoded"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Ref Mode"
+        },
+        "type": {
+          "const": "multi",
+          "title": "Type"
+        },
+        "welcome_message": {
+          "title": "Welcome Message",
+          "type": "string"
+        },
+        "whatsapp_phone_number": {
+          "title": "Whatsapp Phone Number",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "name",
+        "initial_shortcode",
+        "welcome_message",
+        "button_text",
+        "whatsapp_phone_number"
+      ],
+      "title": "FlyMultiDestination",
+      "type": "object"
+    },
+    "FlyWhatsAppDestination": {
+      "description": "A click-to-WhatsApp destination.\n\nShaped after FlyMessengerDestination, minus `button_text`: WhatsApp has no\nquick-reply button, so the respondent gets a prefilled compose box.\n\n`type` is a Literal, unlike its siblings, because this model's required\nfields are a strict subset of FlyMessengerDestination's — without a\ndiscriminator, pydantic's smart union could resolve a Messenger destination\nto this class by ignoring the extra `button_text`.",
+      "properties": {
+        "additional_metadata": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Additional Metadata"
+        },
+        "initial_shortcode": {
+          "title": "Initial Shortcode",
+          "type": "string"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "ref_mode": {
+          "anyOf": [
+            {
+              "enum": [
+                "metadata",
+                "encoded"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Ref Mode"
+        },
+        "type": {
+          "const": "whatsapp",
+          "title": "Type"
+        },
+        "welcome_message": {
+          "title": "Welcome Message",
+          "type": "string"
+        },
+        "whatsapp_phone_number": {
+          "title": "Whatsapp Phone Number",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "name",
+        "initial_shortcode",
+        "welcome_message",
+        "whatsapp_phone_number"
+      ],
+      "title": "FlyWhatsAppDestination",
+      "type": "object"
+    },
+    "GeneralConf": {
+      "properties": {
+        "ad_account": {
+          "title": "Ad Account",
+          "type": "string"
+        },
+        "credentials_entity": {
+          "title": "Credentials Entity",
+          "type": "string"
+        },
+        "credentials_key": {
+          "title": "Credentials Key",
+          "type": "string"
+        },
+        "extra_metadata": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "default": {},
+          "title": "Extra Metadata",
+          "type": "object"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "opt_window": {
+          "title": "Opt Window",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "name",
+        "credentials_key",
+        "credentials_entity",
+        "ad_account",
+        "opt_window"
+      ],
+      "title": "GeneralConf",
+      "type": "object"
+    },
+    "InferenceDataConf": {
+      "properties": {
+        "data_sources": {
+          "additionalProperties": {
+            "$ref": "#/$defs/SourceExtractionConf"
+          },
+          "title": "Data Sources",
+          "type": "object"
+        }
+      },
+      "required": [
+        "data_sources"
+      ],
+      "title": "InferenceDataConf",
+      "type": "object"
+    },
+    "Lookalike": {
+      "properties": {
+        "spec": {
+          "$ref": "#/$defs/LookalikeSpec"
+        },
+        "target": {
+          "title": "Target",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "target",
+        "spec"
+      ],
+      "title": "Lookalike",
+      "type": "object"
+    },
+    "LookalikeSpec": {
+      "properties": {
+        "country": {
+          "title": "Country",
+          "type": "string"
+        },
+        "ratio": {
+          "title": "Ratio",
+          "type": "number"
+        },
+        "starting_ratio": {
+          "title": "Starting Ratio",
+          "type": "number"
+        }
+      },
+      "required": [
+        "country",
+        "ratio",
+        "starting_ratio"
+      ],
+      "title": "LookalikeSpec",
+      "type": "object"
+    },
+    "Partitioning": {
+      "properties": {
+        "max_days": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Max Days"
+        },
+        "max_users": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Max Users"
+        },
+        "min_days": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Min Days"
+        },
+        "min_users": {
+          "title": "Min Users",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "min_users"
+      ],
+      "title": "Partitioning",
+      "type": "object"
+    },
+    "PipelineRecruitmentExperiment": {
+      "properties": {
+        "ad_campaign_name_base": {
+          "title": "Ad Campaign Name Base",
+          "type": "string"
+        },
+        "arms": {
+          "title": "Arms",
+          "type": "integer"
+        },
+        "budget_per_arm": {
+          "title": "Budget Per Arm",
+          "type": "integer"
+        },
+        "efficiency_weight": {
+          "default": 1.0,
+          "title": "Efficiency Weight",
+          "type": "number"
+        },
+        "end_date": {
+          "format": "date-time",
+          "title": "End Date",
+          "type": "string"
+        },
+        "incentive_per_respondent": {
+          "default": 0,
+          "title": "Incentive Per Respondent",
+          "type": "number"
+        },
+        "max_sample_per_arm": {
+          "title": "Max Sample Per Arm",
+          "type": "integer"
+        },
+        "min_budget": {
+          "title": "Min Budget",
+          "type": "integer"
+        },
+        "objective": {
+          "title": "Objective",
+          "type": "string"
+        },
+        "offset_days": {
+          "title": "Offset Days",
+          "type": "integer"
+        },
+        "optimization_goal": {
+          "title": "Optimization Goal",
+          "type": "string"
+        },
+        "optimizer_version": {
+          "default": "closed_form",
+          "enum": [
+            "closed_form",
+            "lbfgs"
+          ],
+          "title": "Optimizer Version",
+          "type": "string"
+        },
+        "recruitment_days": {
+          "title": "Recruitment Days",
+          "type": "integer"
+        },
+        "start_date": {
+          "format": "date-time",
+          "title": "Start Date",
+          "type": "string"
+        }
+      },
+      "required": [
+        "ad_campaign_name_base",
+        "objective",
+        "optimization_goal",
+        "min_budget",
+        "budget_per_arm",
+        "max_sample_per_arm",
+        "start_date",
+        "end_date",
+        "arms",
+        "recruitment_days",
+        "offset_days"
+      ],
+      "title": "PipelineRecruitmentExperiment",
+      "type": "object"
+    },
+    "QuestionTargeting": {
+      "properties": {
+        "op": {
+          "title": "Op",
+          "type": "string"
+        },
+        "vars": {
+          "items": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/TargetVar"
+              },
+              {
+                "$ref": "#/$defs/QuestionTargeting"
+              }
+            ]
+          },
+          "title": "Vars",
+          "type": "array"
+        }
+      },
+      "required": [
+        "op",
+        "vars"
+      ],
+      "title": "QuestionTargeting",
+      "type": "object"
+    },
+    "SimpleRecruitment": {
+      "properties": {
+        "ad_campaign_name": {
+          "title": "Ad Campaign Name",
+          "type": "string"
+        },
+        "budget": {
+          "title": "Budget",
+          "type": "integer"
+        },
+        "efficiency_weight": {
+          "default": 1.0,
+          "title": "Efficiency Weight",
+          "type": "number"
+        },
+        "end_date": {
+          "format": "date-time",
+          "title": "End Date",
+          "type": "string"
+        },
+        "incentive_per_respondent": {
+          "default": 0,
+          "title": "Incentive Per Respondent",
+          "type": "number"
+        },
+        "max_sample": {
+          "title": "Max Sample",
+          "type": "integer"
+        },
+        "min_budget": {
+          "title": "Min Budget",
+          "type": "integer"
+        },
+        "objective": {
+          "title": "Objective",
+          "type": "string"
+        },
+        "optimization_goal": {
+          "title": "Optimization Goal",
+          "type": "string"
+        },
+        "optimizer_version": {
+          "default": "closed_form",
+          "enum": [
+            "closed_form",
+            "lbfgs"
+          ],
+          "title": "Optimizer Version",
+          "type": "string"
+        },
+        "start_date": {
+          "format": "date-time",
+          "title": "Start Date",
+          "type": "string"
+        }
+      },
+      "required": [
+        "ad_campaign_name",
+        "objective",
+        "optimization_goal",
+        "min_budget",
+        "budget",
+        "max_sample",
+        "start_date",
+        "end_date"
+      ],
+      "title": "SimpleRecruitment",
+      "type": "object"
+    },
+    "SourceExtractionConf": {
+      "properties": {
+        "extraction_confs": {
+          "items": {
+            "$ref": "#/$defs/ExtractionConf"
+          },
+          "title": "Extraction Confs",
+          "type": "array"
+        },
+        "user_variable": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "User Variable"
+        }
+      },
+      "required": [
+        "extraction_confs"
+      ],
+      "title": "SourceExtractionConf",
+      "type": "object"
+    },
+    "StratumConf": {
+      "properties": {
+        "audiences": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Audiences",
+          "type": "array"
+        },
+        "creatives": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Creatives",
+          "type": "array"
+        },
+        "excluded_audiences": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Excluded Audiences",
+          "type": "array"
+        },
+        "facebook_targeting": {
+          "title": "Facebook Targeting",
+          "type": "object"
+        },
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "metadata": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "title": "Metadata",
+          "type": "object"
+        },
+        "question_targeting": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/QuestionTargeting"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "quota": {
+          "title": "Quota",
+          "type": "number"
+        }
+      },
+      "required": [
+        "id",
+        "quota",
+        "creatives",
+        "audiences",
+        "excluded_audiences",
+        "facebook_targeting",
+        "metadata"
+      ],
+      "title": "StratumConf",
+      "type": "object"
+    },
+    "TargetVar": {
+      "properties": {
+        "type": {
+          "title": "Type",
+          "type": "string"
+        },
+        "value": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "integer"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Value"
+        }
+      },
+      "required": [
+        "type",
+        "value"
+      ],
+      "title": "TargetVar",
+      "type": "object"
+    },
+    "UserInfo": {
+      "properties": {
+        "survey_user": {
+          "title": "Survey User",
+          "type": "string"
+        },
+        "token": {
+          "title": "Token",
+          "type": "string"
+        }
+      },
+      "required": [
+        "survey_user",
+        "token"
+      ],
+      "title": "UserInfo",
+      "type": "object"
+    },
+    "WebDestination": {
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "ref_mode": {
+          "anyOf": [
+            {
+              "enum": [
+                "metadata",
+                "encoded"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Ref Mode"
+        },
+        "type": {
+          "enum": [
+            "web",
+            "website"
+          ],
+          "title": "Type",
+          "type": "string"
+        },
+        "url_template": {
+          "title": "Url Template",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "name",
+        "url_template"
+      ],
+      "title": "WebDestination",
+      "type": "object"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "The full study configuration, as adopt assembles it from the per-section confs before running an optimization.",
+  "properties": {
+    "audiences": {
+      "items": {
+        "$ref": "#/$defs/AudienceConf"
+      },
+      "title": "Audiences",
+      "type": "array"
+    },
+    "creatives": {
+      "items": {
+        "$ref": "#/$defs/CreativeConf"
+      },
+      "title": "Creatives",
+      "type": "array"
+    },
+    "data_sources": {
+      "anyOf": [
+        {
+          "items": {
+            "$ref": "#/$defs/DataSourceConf"
+          },
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Data Sources"
+    },
+    "destinations": {
+      "items": {
+        "discriminator": {
+          "mapping": {
+            "app": "#/$defs/AppDestination",
+            "messenger": "#/$defs/FlyMessengerDestination",
+            "multi": "#/$defs/FlyMultiDestination",
+            "web": "#/$defs/WebDestination",
+            "website": "#/$defs/WebDestination",
+            "whatsapp": "#/$defs/FlyWhatsAppDestination"
+          },
+          "propertyName": "type"
+        },
+        "oneOf": [
+          {
+            "$ref": "#/$defs/FlyMessengerDestination"
+          },
+          {
+            "$ref": "#/$defs/AppDestination"
+          },
+          {
+            "$ref": "#/$defs/WebDestination"
+          },
+          {
+            "$ref": "#/$defs/FlyWhatsAppDestination"
+          },
+          {
+            "$ref": "#/$defs/FlyMultiDestination"
+          }
+        ]
+      },
+      "title": "Destinations",
+      "type": "array"
+    },
+    "general": {
+      "$ref": "#/$defs/GeneralConf"
+    },
+    "id": {
+      "title": "Id",
+      "type": "string"
+    },
+    "inference_data": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/InferenceDataConf"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "recruitment": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/SimpleRecruitment"
+        },
+        {
+          "$ref": "#/$defs/PipelineRecruitmentExperiment"
+        },
+        {
+          "$ref": "#/$defs/DestinationRecruitmentExperiment"
+        }
+      ],
+      "title": "Recruitment"
+    },
+    "strata": {
+      "items": {
+        "$ref": "#/$defs/StratumConf"
+      },
+      "title": "Strata",
+      "type": "array"
+    },
+    "user": {
+      "$ref": "#/$defs/UserInfo"
+    }
+  },
+  "required": [
+    "id",
+    "user",
+    "general",
+    "destinations",
+    "audiences",
+    "creatives",
+    "strata",
+    "recruitment"
+  ],
+  "title": "StudyConf",
+  "type": "object"
+}

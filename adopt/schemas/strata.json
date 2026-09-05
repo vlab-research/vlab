@@ -1,0 +1,134 @@
+{
+  "$comment": "Generated from adopt/adopt/study_conf.py by adopt/adopt/schema_export.py. Do not edit by hand; run `make schemas`. Body of POST /{org_id}/studies/{slug}/confs/strata (a JSON array).",
+  "$defs": {
+    "QuestionTargeting": {
+      "properties": {
+        "op": {
+          "title": "Op",
+          "type": "string"
+        },
+        "vars": {
+          "items": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/TargetVar"
+              },
+              {
+                "$ref": "#/$defs/QuestionTargeting"
+              }
+            ]
+          },
+          "title": "Vars",
+          "type": "array"
+        }
+      },
+      "required": [
+        "op",
+        "vars"
+      ],
+      "title": "QuestionTargeting",
+      "type": "object"
+    },
+    "StratumConf": {
+      "properties": {
+        "audiences": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Audiences",
+          "type": "array"
+        },
+        "creatives": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Creatives",
+          "type": "array"
+        },
+        "excluded_audiences": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Excluded Audiences",
+          "type": "array"
+        },
+        "facebook_targeting": {
+          "title": "Facebook Targeting",
+          "type": "object"
+        },
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "metadata": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "title": "Metadata",
+          "type": "object"
+        },
+        "question_targeting": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/QuestionTargeting"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "quota": {
+          "title": "Quota",
+          "type": "number"
+        }
+      },
+      "required": [
+        "id",
+        "quota",
+        "creatives",
+        "audiences",
+        "excluded_audiences",
+        "facebook_targeting",
+        "metadata"
+      ],
+      "title": "StratumConf",
+      "type": "object"
+    },
+    "TargetVar": {
+      "properties": {
+        "type": {
+          "title": "Type",
+          "type": "string"
+        },
+        "value": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "integer"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Value"
+        }
+      },
+      "required": [
+        "type",
+        "value"
+      ],
+      "title": "TargetVar",
+      "type": "object"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "The recruitment cells: quota, creatives, audiences and targeting.",
+  "items": {
+    "$ref": "#/$defs/StratumConf"
+  },
+  "title": "strata conf",
+  "type": "array"
+}

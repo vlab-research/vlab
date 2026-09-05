@@ -741,4 +741,70 @@ Then to run the tests
 make test
 ```
 
+## JSON Schemas for study configuration
+
+`adopt/schemas/*.json` is the machine-readable contract for a study
+configuration: JSON Schema (2020-12) generated from the pydantic models in
+`adopt/adopt/study_conf.py` by `adopt/adopt/schema_export.py`.
+
+```bash
+make schemas        # regenerate
+make check-schemas  # fail if the committed files have drifted
+```
+
+Files are keyed by the **wire** conf type — the last path segment of `POST
+/{org_id}/studies/{slug}/confs/<type>` — so `data-sources.json` and
+`inference-data.json` carry hyphens even though the database stores those confs
+under `data_sources` and `inference_data`. `index.json` is the manifest: conf
+type, URL, whether the body is an object or an array, and which file describes
+it. `study-conf.json` is the assembled whole-study shape, which no endpoint
+accepts (adopt builds it on the optimize path) but which a consumer can
+validate against to find out whether its sections add up.
+
+### Why it is committed rather than served
+
+The point is the diff. Adding a required field to `StratumConf` changes
+`strata.json` in the same pull request, next to the model change, where a
+reviewer can ask whether every conf already in the database still validates. An
+endpoint that generated the schema on demand would give a consumer the same
+JSON and give review nothing. `check-schemas` runs as its own CI job (no
+database needed) and `adopt/adopt/test_schema_export.py` runs the same check
+locally, so the artifact cannot quietly fall behind the models.
+
+`schema_export.py`'s `CONF_ENDPOINTS` restates the route table from
+`server.py`. That duplication is checked, not trusted:
+`test_covers_every_conf_endpoint` parses `server.py` with `ast` and fails if the
+two disagree. It parses rather than imports because importing the server
+evaluates `PG_URL` and the auth secrets at module scope.
+
+### What the schemas do not say
+
+JSON Schema is a structural language and these models are not purely
+structural. Four things are enforced by the server but invisible in the
+generated files:
+
+- **`StudyConf`'s cross-section validators.** `check_whatsapp_refs_are_deliverable`
+  rejects stratum metadata that fly's entry regex could not parse once
+  percent-encoded. It cannot be expressed in JSON Schema, and it does not run at
+  write time anyway (see `planning/agent-study-authoring.md` §2.5).
+- **The missing-`type` destination default.** `DestinationConf` runs a
+  `BeforeValidator` that reads an absent or empty `type` as `"messenger"`, for
+  the 45 stored confs that predate the field. The schema marks `type` required
+  on every arm, so it is stricter than the server. Write the `type`; the
+  leniency is a migration affordance, not an API.
+- **Extra fields are dropped, not rejected.** These models use pydantic's
+  default `extra="ignore"`, and the export emits no `additionalProperties`, so
+  a validator will accept an unknown key and so will the server — silently. A
+  typo in a field name is a no-op, not an error, on both sides.
+- **`RecruitmentConf` is an untagged union.** `destinations.json` exports a real
+  `discriminator` (`propertyName: "type"`, with all six tags mapped), so a
+  consumer can pick the right arm from the tag. `recruitment.json` cannot: the
+  three recruitment classes carry no tag field, so it is a bare `anyOf` and the
+  arms are distinguishable only by shape — `ad_campaign_name` (simple) versus
+  `ad_campaign_name_base`, then `arms` (pipeline) versus `destinations`
+  (destination experiment). Those happen to be required fields today, so the
+  discrimination works, but it works by accident of field naming rather than by
+  design. This is the same shape that let every multi destination validate as a
+  Messenger one before 2026-08-30.
+
 
