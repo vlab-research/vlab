@@ -4,8 +4,7 @@ Exploration and decision path for giving an AI agent (or a script, or a
 notebook) the ability to create and configure a vlab study without driving the
 React dashboard by hand.
 
-Status: **Phase 0 deployed (adopt v0.1.83); Phases 1 and 2 implemented and
-merged, releasing as adopt v0.1.84; Phases 3–4 not started.** §1–§5 are
+Status: **Phases 0–3 deployed or merged (adopt v0.1.85 in production; the SDK, `vlab` CLI and template authoring merged after it); Phase 4 (MCP) not started.** §1–§5 are
 findings read out of the code, with the file establishing each claim named
 next to it. §7 records the decisions taken and why, §8 is the plan, §10 is
 what is still open, and **§11 (Phase 0), §12 (Phase 1) and §13 (Phase 2)
@@ -437,6 +436,17 @@ type.
   diffed as such.
 
 ---
+
+### Phase notes that live in their own files
+
+- `planning/vlab-sdk.md` — Phase 3: the SDK and `vlab` CLI (PR #265), the
+  `confs.py` single-homing of conf types, what was salvaged from
+  `configuration.py`, and the install story (git URL, not PyPI).
+- `planning/template-authoring.md` — template campaigns, ad sets and creatives
+  from the SDK via the Facebook Business SDK (PR #267), the plan/apply split
+  and its guardrails, and the open `appsecret_proof` question.
+- `planning/conf-extra-fields.md` — the `extra="forbid"`-on-write decision
+  (PR #262).
 
 ## 9. Why this order
 
