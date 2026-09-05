@@ -183,9 +183,9 @@ def test_the_recruitment_tag_is_inferred_from_shape():
     assert infer_recruitment_type({"ad_campaign_name_base": "x", "arms": 3}) == (
         "pipeline_experiment"
     )
-    assert infer_recruitment_type({"ad_campaign_name_base": "x", "destinations": []}) == (
-        "destination"
-    )
+    assert infer_recruitment_type(
+        {"ad_campaign_name_base": "x", "destinations": []}
+    ) == ("destination")
 
 
 def test_arms_beats_destinations_because_the_untagged_union_does_too():
@@ -300,9 +300,12 @@ def test_a_type_tag_the_server_added_is_not_a_change():
     """A server on PR #262 or later stores a `type` on every recruitment conf,
     because `model_dump()` emits one. A file written before that carries none."""
     stored = {**SIMPLE_RECRUITMENT, "type": "simple"}
-    assert _diff({"recruitment": SIMPLE_RECRUITMENT}, {"recruitment": stored})[
-        "recruitment"
-    ].status == "unchanged"
+    assert (
+        _diff({"recruitment": SIMPLE_RECRUITMENT}, {"recruitment": stored})[
+            "recruitment"
+        ].status
+        == "unchanged"
+    )
 
 
 def test_a_type_tag_the_file_writes_is_not_a_change_against_an_older_server():
@@ -310,9 +313,12 @@ def test_a_type_tag_the_file_writes_is_not_a_change_against_an_older_server():
     older than #262 drops the tag on the way in, so a file that writes it (and
     it should) would otherwise re-push recruitment on every single run."""
     local = {**SIMPLE_RECRUITMENT, "type": "simple"}
-    assert _diff({"recruitment": local}, {"recruitment": SIMPLE_RECRUITMENT})[
-        "recruitment"
-    ].status == "unchanged"
+    assert (
+        _diff({"recruitment": local}, {"recruitment": SIMPLE_RECRUITMENT})[
+            "recruitment"
+        ].status
+        == "unchanged"
+    )
 
 
 def test_a_type_tag_that_disagrees_with_the_shape_is_surfaced():
@@ -340,16 +346,22 @@ def test_the_messenger_default_on_a_destination_is_not_a_change():
     """An absent destination `type` is defaulted to messenger for the 45 stored
     confs that predate the field."""
     without = {k: v for k, v in MESSENGER.items() if k != "type"}
-    assert _diff({"destinations": [without]}, {"destinations": [MESSENGER]})[
-        "destinations"
-    ].status == "unchanged"
+    assert (
+        _diff({"destinations": [without]}, {"destinations": [MESSENGER]})[
+            "destinations"
+        ].status
+        == "unchanged"
+    )
 
 
 def test_a_different_destination_type_is_still_a_change():
     web = {"type": "web", "name": "main", "url_template": "https://x/{ref}"}
-    assert _diff({"destinations": [web]}, {"destinations": [MESSENGER]})[
-        "destinations"
-    ].status == "changed"
+    assert (
+        _diff({"destinations": [web]}, {"destinations": [MESSENGER]})[
+            "destinations"
+        ].status
+        == "changed"
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -430,7 +442,7 @@ def test_value_diff_indexes_lists():
 
 def test_value_diff_distinguishes_absent_from_null():
     """`creatives[].tags` is genuinely null; that is not the same as absent."""
-    (path, stored, local), = value_diff({"a": None}, {})
+    ((path, stored, local),) = value_diff({"a": None}, {})
     assert path == "a"
     assert stored is None
     assert repr(local) == "(absent)"

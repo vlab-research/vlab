@@ -37,7 +37,7 @@ the strata compiler's shallow merge already does.
 
 from __future__ import annotations
 
-from typing import Any, Dict, Iterable, List, Mapping, Optional, Sequence
+from typing import Any, Dict, Iterable, Mapping, Optional, Sequence
 
 __all__ = ["create_location", "location_levels", "GeoError"]
 
@@ -47,13 +47,17 @@ __all__ = ["create_location", "location_levels", "GeoError"]
 # import cost and no version coupling. `test_geo.py` asserts each one equals the
 # SDK constant it names, so the literals cannot drift from the enum silently.
 GEO_LOCATIONS = "geo_locations"  # Targeting.Field.geo_locations
-EXCLUDED_GEO_LOCATIONS = "excluded_geo_locations"  # Targeting.Field.excluded_geo_locations
+EXCLUDED_GEO_LOCATIONS = (
+    "excluded_geo_locations"  # Targeting.Field.excluded_geo_locations
+)
 LOCATION_TYPES = "location_types"  # TargetingGeoLocation.Field.location_types
 CUSTOM_LOCATIONS = "custom_locations"  # TargetingGeoLocation.Field.custom_locations
 LATITUDE = "latitude"  # TargetingGeoLocationCustomLocation.Field.latitude
 LONGITUDE = "longitude"  # TargetingGeoLocationCustomLocation.Field.longitude
 RADIUS = "radius"  # TargetingGeoLocationCustomLocation.Field.radius
-DISTANCE_UNIT = "distance_unit"  # TargetingGeoLocationCustomLocation.Field.distance_unit
+DISTANCE_UNIT = (
+    "distance_unit"  # TargetingGeoLocationCustomLocation.Field.distance_unit
+)
 
 # "home" rather than Meta's default of "home,recent" -- a study stratified by
 # where people LIVE must not recruit a traveller who happened to be in the

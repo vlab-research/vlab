@@ -307,9 +307,7 @@ class VlabClient:
         conditionally at every call site.
         """
         url = f"{self.base_url}{path}"
-        query = (
-            {k: v for k, v in params.items() if v is not None} if params else None
-        )
+        query = {k: v for k, v in params.items() if v is not None} if params else None
 
         try:
             response = self.session.request(
@@ -352,7 +350,9 @@ class VlabClient:
             detail = None
 
         status = response.status_code
-        cls = _STATUS_ERRORS.get(status, ServerError if status >= 500 else VlabHTTPError)
+        cls = _STATUS_ERRORS.get(
+            status, ServerError if status >= 500 else VlabHTTPError
+        )
         return cls(status, detail, method, url, text)
 
     def _data(self, *args: Any, **kwargs: Any) -> Any:

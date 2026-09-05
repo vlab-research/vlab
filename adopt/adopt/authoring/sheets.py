@@ -36,7 +36,7 @@ Treat it as working-for-the-shapes-it-is-tested-on, not as general.
 from __future__ import annotations
 
 import json
-from typing import Any, Dict, List, Optional, Sequence, Type, TypeVar, get_type_hints
+from typing import Any, Dict, List, Sequence, Type, TypeVar, get_type_hints
 
 import pandas as pd
 
@@ -128,8 +128,7 @@ def _cast_strings(type_: Type[Any], values: Dict[str, Any]) -> Dict[str, Any]:
             # `general` tab still carries `objective` and `page_id`, which
             # `GeneralConf` dropped -- so it gets a message that says so.
             raise SheetError(
-                f"{type_.__name__} has no field {key!r}. Fields: "
-                f"{sorted(hints)}"
+                f"{type_.__name__} has no field {key!r}. Fields: {sorted(hints)}"
             )
 
         if _is_missing(value):
@@ -164,9 +163,7 @@ def _try(key: str, value: str, cast: Any, wanted: str) -> Any:
     try:
         return cast(value)
     except (TypeError, ValueError) as e:
-        raise SheetError(
-            f"Cell {key!r} holds {value!r}, which is not {wanted}."
-        ) from e
+        raise SheetError(f"Cell {key!r} holds {value!r}, which is not {wanted}.") from e
 
 
 def _is_missing(value: Any) -> bool:

@@ -352,9 +352,7 @@ def diff_sections(
 
         unknown = tuple(unknown_keys(name, local[name]))
         if not has_stored:
-            out.append(
-                SectionDiff(name, "new", local=local[name], unknown=unknown)
-            )
+            out.append(SectionDiff(name, "new", local=local[name], unknown=unknown))
             continue
 
         same = normalise_section(name, local[name]) == normalise_section(

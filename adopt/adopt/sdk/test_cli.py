@@ -343,7 +343,7 @@ def test_validate_needs_a_file(runner, obj):
 
 
 def _push_everything(client, org, slug, data):
-    from .study import SECTION_URL_SEGMENTS, PUSH_ORDER
+    from .study import PUSH_ORDER, SECTION_URL_SEGMENTS
 
     for name in PUSH_ORDER:
         if name in data:
@@ -715,7 +715,9 @@ def test_meta_adsets_json_is_what_extract_targeting_takes(runner, obj, org):
     adset = {"id": "1", "name": "geo-lagos", "targeting": {"genders": [1]}}
     with patch.object(FacebookAdsApi, "call") as call:
         call.return_value.json.return_value = {"data": [adset]}
-        res = run(runner, obj, "meta", "adsets", "--org", org, "--campaign", "9", "--json")
+        res = run(
+            runner, obj, "meta", "adsets", "--org", org, "--campaign", "9", "--json"
+        )
 
     body = json.loads(res.output)
     assert body["data"] == [adset]
@@ -832,7 +834,9 @@ def test_strata_generate_merges_like_the_dashboards_regenerate(runner, obj, org)
             "facebook_targeting": {"genders": [99]},  # stale: derived
             "question_targeting": {
                 "op": "and",
-                "vars": [{"op": "answered", "vars": [{"type": "variable", "value": "q9"}]}],
+                "vars": [
+                    {"op": "answered", "vars": [{"type": "variable", "value": "q9"}]}
+                ],
             },
             "metadata": {"old": "yes"},
         }
@@ -963,7 +967,14 @@ def test_extract_targeting_picks_by_name(runner, obj):
     open("adsets.json", "w").write(json.dumps(body))
 
     res = run(
-        runner, obj, "strata", "extract-targeting", "adsets.json", "age_min", "--name", "b"
+        runner,
+        obj,
+        "strata",
+        "extract-targeting",
+        "adsets.json",
+        "age_min",
+        "--name",
+        "b",
     )
 
     assert json.loads(res.output)["age_min"] == 25
@@ -986,9 +997,7 @@ def test_a_missing_property_is_an_error_not_a_default(runner, obj):
         json.dumps({"id": "1", "name": "a", "targeting": {"age_min": 18}})
     )
 
-    res = run(
-        runner, obj, "strata", "extract-targeting", "adset.json", "geo_locations"
-    )
+    res = run(runner, obj, "strata", "extract-targeting", "adset.json", "geo_locations")
 
     assert res.exit_code == 1
     assert "geo_locations" in res.output
@@ -1007,7 +1016,6 @@ def test_keys_list_is_empty_for_a_fresh_user(runner, obj):
 
 def test_keys_list_shows_scopes_and_expiry(runner, obj):
     from ..server.api_keys import clear_api_key_cache
-    from ..server.auth import generate_api_token
 
     clear_api_key_cache()
     obj["client"].request(
@@ -1027,9 +1035,7 @@ def test_keys_revoke(runner, obj):
     from ..server.api_keys import clear_api_key_cache
 
     clear_api_key_cache()
-    minted = obj["client"]._data(
-        "POST", "/users/api-key", json={"name": "agent"}
-    )
+    minted = obj["client"]._data("POST", "/users/api-key", json={"name": "agent"})
 
     res = run(runner, obj, "keys", "revoke", minted["id"], "--yes")
 
@@ -1052,7 +1058,9 @@ def test_there_is_no_keys_create(runner, obj):
 
 
 def test_no_api_key_says_a_human_has_to_mint_one(runner):
-    res = runner.invoke(cli, ["keys", "list"], obj={"api_url": "http://x", "api_key": None})
+    res = runner.invoke(
+        cli, ["keys", "list"], obj={"api_url": "http://x", "api_key": None}
+    )
     assert res.exit_code == 1
     assert "VLAB_API_KEY" in res.output
     assert "Auth0" in res.output

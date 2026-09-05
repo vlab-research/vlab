@@ -25,7 +25,7 @@ from unittest.mock import patch
 import pytest
 from fastapi.testclient import TestClient
 
-from ..db import execute, query
+from ..db import execute
 
 os.environ["PG_URL"] = db_conf
 os.environ["AUTH0_DOMAIN"] = "_"
@@ -347,7 +347,10 @@ def test_apply_posts_the_instruction_verbatim(client, org):
     }
 
     with patch("adopt.server.server.run_single_instruction") as m:
-        m.return_value = {"timestamp": "2026-01-01T00:00:00", "instruction": instruction}
+        m.return_value = {
+            "timestamp": "2026-01-01T00:00:00",
+            "instruction": instruction,
+        }
         result = client.apply(org, slug, instruction)
 
     assert result["instruction"] == instruction

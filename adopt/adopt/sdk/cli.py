@@ -39,7 +39,6 @@ from __future__ import annotations
 
 import json
 import os
-import sys
 from typing import Any, Dict, List, Mapping, Optional, Sequence, Tuple
 
 import click
@@ -500,9 +499,7 @@ def print_diff(diffs: Sequence[SectionDiff], study: StudyFile) -> None:
     is_flag=True,
     help="Write even though local validation found errors.",
 )
-@click.option(
-    "--dry-run", is_flag=True, help="Say what would be written and stop."
-)
+@click.option("--dry-run", is_flag=True, help="Say what would be written and stop.")
 @click.option("--json", "as_json", is_flag=True, help="Machine-readable output.")
 @click.pass_context
 def push(
@@ -589,7 +586,9 @@ def push(
         "newest row is what every reader takes."
     )
     if report.warnings:
-        click.echo(f"{len(report.warnings)} warning(s) -- `vlab validate` to read them.")
+        click.echo(
+            f"{len(report.warnings)} warning(s) -- `vlab validate` to read them."
+        )
     click.echo(f"Next: vlab plan {org}/{slug}")
 
 
@@ -695,9 +694,7 @@ def apply(
 
     if not yes:
         click.echo(json.dumps(instruction, indent=2, default=str))
-        click.confirm(
-            f"Apply this to {org}/{slug} on Meta?", abort=True, default=False
-        )
+        click.confirm(f"Apply this to {org}/{slug} on Meta?", abort=True, default=False)
 
     result = client.apply(org, slug, instruction)
 
@@ -768,7 +765,9 @@ _credentials_key = click.option(
 )
 _limit = click.option("--limit", type=int, default=None, help="Page size (max 500).")
 _after = click.option("--after", default=None, help="Resume cursor from paging.after.")
-_json_flag = click.option("--json", "as_json", is_flag=True, help="Machine-readable output.")
+_json_flag = click.option(
+    "--json", "as_json", is_flag=True, help="Machine-readable output."
+)
 
 
 @meta.command("credentials")
@@ -988,21 +987,29 @@ def strata_generate(
         return
 
     kept = {s.get("id") for s in existing} & {s["id"] for s in fresh}
-    dropped = [s.get("id") for s in existing if s.get("id") not in {f["id"] for f in fresh}]
+    dropped = [
+        s.get("id") for s in existing if s.get("id") not in {f["id"] for f in fresh}
+    ]
 
     study.sections["strata"] = fresh
     study.save()
 
     click.echo(f"{len(fresh)} strata written to {study.path}.")
-    click.echo(f"  {len(kept)} merged with an existing stratum (creatives, "
-               "audiences and exclusions kept; targeting, metadata and quota "
-               "recomputed)")
+    click.echo(
+        f"  {len(kept)} merged with an existing stratum (creatives, "
+        "audiences and exclusions kept; targeting, metadata and quota "
+        "recomputed)"
+    )
     if dropped:
-        click.echo(f"  {len(dropped)} no longer produced by the variables: "
-                   f"{', '.join(str(d) for d in dropped[:5])}"
-                   f"{' …' if len(dropped) > 5 else ''}")
-        click.echo("  A stratum id is a Meta ad set NAME. Pushing this deletes "
-                   "those ad sets, with their learning and their history.")
+        click.echo(
+            f"  {len(dropped)} no longer produced by the variables: "
+            f"{', '.join(str(d) for d in dropped[:5])}"
+            f"{' …' if len(dropped) > 5 else ''}"
+        )
+        click.echo(
+            "  A stratum id is a Meta ad set NAME. Pushing this deletes "
+            "those ad sets, with their learning and their history."
+        )
     click.echo("Nothing was pushed. `vlab diff` to see what would change.")
 
 

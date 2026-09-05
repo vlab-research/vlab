@@ -114,9 +114,9 @@ def test_the_long_spellings_work():
     level = location_levels(
         "here", [{"latitude": 1.0, "longitude": 2.0, "radius": 3.0}]
     )
-    assert level["facebook_targeting"][GEO_LOCATIONS][CUSTOM_LOCATIONS][0][
-        "radius"
-    ] == 3.0
+    assert (
+        level["facebook_targeting"][GEO_LOCATIONS][CUSTOM_LOCATIONS][0]["radius"] == 3.0
+    )
 
 
 def test_a_row_with_no_coordinates_says_so():
