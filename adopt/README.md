@@ -808,3 +808,61 @@ generated files:
   Messenger one before 2026-08-30.
 
 
+
+## Whole-study validation
+
+`adopt.authoring.validate.validate_study(sections)` takes the nine stored conf
+sections and returns a `ValidationReport` — `valid`, `errors`, `warnings`, each
+finding carrying a machine-readable `code`, the `section`, a `path` like
+`strata[0].creatives[1]`, and a message. `POST /{org}/studies/{slug}/validate`
+is a thin wrapper on it. Full taxonomy and wire shape:
+`documentation/agent-api.md` §2.6; the design record is
+`planning/agent-study-authoring.md` §14.
+
+Three things about it are structural rather than incidental.
+
+**It shares its assembly with the run path.** `study_conf_from_sections` was
+factored out of `malaria.get_study_conf`, which calls it. There is exactly one
+definition of "these nine sections are a `StudyConf`", so a validator cannot
+drift from what the cron actually builds, and every cross-section validator
+added to `StudyConf` later is reported with no change to `validate.py`.
+
+**It is pure.** No database, no Meta. That is what lets an SDK run it on
+sections that have never been written, and it is why neither `credentials_key`
+edge is checked and nothing Meta-side is. The gaps are enumerated as
+`validate.KNOWN_GAPS` and echoed on every HTTP response rather than left to
+prose.
+
+**Errors and warnings are drawn on one line.** An *error* is a reference that
+provably cannot resolve from the study's own configuration —
+`strata[].creatives[]` → `creatives[].name`, `creatives[].destination` →
+`destinations[].name`, and a stratum naming a `PARTITIONED` audience conf by
+its bare name (vlab creates `<name>-cohort-N` and never `<name>`). A *warning*
+is anything whose resolution depends on something the function cannot see: a
+general dangling audience name resolves against custom audiences on the Meta
+ad account, not against the `audiences` conf, so offline validation cannot tell
+a typo from an audience built by hand in Ads Manager. Warnings never make a
+study invalid.
+
+The two invariants that were `logging.warning` calls in a cron —
+`warn_on_incomplete_targeting` and `warn_on_thinned_ref_without_mapping` — are
+warnings here, deliberately keeping the status their own docstrings argue for.
+
+### Known defect: partitioned and lookalike audiences are unwritable as JSON
+
+Found while writing the fixtures for this and **not fixed**. `AudienceConf`'s
+`model_validator(mode="before")` calls `validate(values, values["subtype"], …)`,
+which does `isinstance(values.get("partitioning"), Partitioning)` — an
+isinstance check against the *parsed* model class, run before pydantic has
+parsed anything. From a dict it can never pass, so `PARTITIONED` and
+`LOOKALIKE` audiences are constructible only from Python objects and
+`POST /confs/audiences` with one is a 422. Every existing test builds them from
+objects (`test_audiences.py:217`, `test_marketing.py:306`), which is why nobody
+had hit it. A missing `subtype` likewise raises a bare `KeyError`, which
+pydantic does not wrap.
+
+`validate_study` reports such a section as `section.invalid`, which is the true
+answer: `StudyConf` assembly in the cron fails on the same stored conf for the
+same reason. Before designing a fix, check whether any production study has a
+partitioned audience stored — if one does, it is already failing every
+reconciliation run.

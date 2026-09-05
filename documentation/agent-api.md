@@ -291,6 +291,12 @@ Edge by edge, with the resolver and what a dangling name actually does:
 | `data_sources[].credentials_key` → `credentials.key` | `inference/connector/connector.go:52` | the study is silently not collected — the code's own comment at `connector.go:83` calls it "a form of silent failure" |
 | `general.credentials_key` → `credentials.key` | `get_user_info`, `adopt/adopt/campaign_queries.py:13` | `Exception("Could not find credentials for study id: …")`, raised before anything else loads |
 
+**Five of those seven edges are checked by `POST /validate` (§2.6)** — the
+three name joins inside the study, the targeting-variable join, and the
+`inference_data` → `data_sources` one. The two `credentials_key` edges are not:
+they need a database read, and validation is a pure function. So a study that
+validates clean can still fail on a credential.
+
 Two of these deserve their own warning.
 
 **`strata[].audiences` does not point at `audiences[].name`.** It points at a
@@ -306,9 +312,15 @@ those audiences on Meta, but it does not always name them after itself
   **never** a plain `<name>`
 
 So a stratum naming a partitioned audience by its conf name will always dangle
-and will always be dropped at INFO level. And on the *first* runs of any study,
-before the audience cron has created anything on Meta, every audience reference
-dangles and targeting is silently unfiltered.
+and will always be dropped at INFO level — `POST /validate` calls this one an
+error, `audience.partitioned_bare_name`, because vlab provably never creates
+that name. And on the *first* runs of any study, before the audience cron has
+created anything on Meta, every audience reference dangles and targeting is
+silently unfiltered; validation cannot see that, which is why every other
+audience finding is a warning.
+
+(In practice you can only get here with a `CUSTOM` audience today — see §9 on
+`PARTITIONED` and `LOOKALIKE` being unwritable over the wire.)
 
 **`general.credentials_entity` is inert.** `get_user_info`
 (`campaign_queries.py:13`) selects it and then joins on `credentials.key` and
@@ -617,6 +629,121 @@ lower `?limit=` rather than retrying identically.
 nothing serves it. There is no caching: every call is a live Graph read against
 Meta's per-app rate limits, so do not poll these in a loop.
 
+### 2.6 `POST /{org_id}/studies/{slug}/validate` — whole-study validation
+
+**Read §4 first, then use this instead of doing what §4 tells you to do by
+hand.** It assembles the whole `StudyConf` from the stored sections, runs every
+cross-section validator, and answers with a report. It reads no Meta and
+**writes nothing** — no `study_confs` row, no `adopt_reports` row, nothing. It
+is the only endpoint on this service that is genuinely side-effect free (the
+plan endpoint, §5, is not — see §11.3 of the plan document).
+
+Scope: **`studies:read`**, despite being a `POST`. The body carries a whole
+study's worth of proposed sections, which does not belong in a query string,
+but nothing is written, so a read-only key can check its own study.
+
+**Body is optional.**
+
+```
+POST /{org_id}/studies/{slug}/validate
+(no body)                                → validate what is stored
+{"sections": {"strata": [...]}}          → validate the stored sections with
+                                           `strata` REPLACED by these
+{"sections": {"recruitment": null}}      → validate as if `recruitment` had
+                                           never been written
+```
+
+`sections` is keyed by conf type **as stored** — `data_sources` and
+`inference_data`, with underscores, not the hyphenated URL segments. That is
+what `GET /{org_id}/studies/{slug}/confs` hands back, so a read-modify-validate
+loop needs no renaming.
+
+Replacement is **whole-section, never a deep merge**, because that is exactly
+what a `POST` does (§1.1): a write stores one complete section and the
+read-back is the newest row for that conf type. A merge here would validate a
+study that no sequence of writes could produce. This is what makes the endpoint
+worth having: `study_confs` is append-only, so a bad write cannot be taken
+back, only superseded — check first.
+
+**Response, always `200`:**
+
+```json
+{
+  "data": {
+    "valid": false,
+    "errors": [
+      {"code": "stratum.creative_unknown",
+       "section": "strata",
+       "path": "strata[0].creatives[1]",
+       "message": "Stratum 'men' names creative 'nope', which is not in the creatives conf. At run time this is a bare KeyError in hydrate_strata that aborts the whole study's reconciliation. Known creatives: ['frowning', 'smiling']."}
+    ],
+    "warnings": [
+      {"code": "stratum.targeting_variable_unsupplied",
+       "section": "strata",
+       "path": "strata[0].question_targeting",
+       "message": "Stratum 'men' targets variable(s) ['age'] that no inference_data extraction conf produces. …"}
+    ]
+  },
+  "known_gaps": ["…"]
+}
+```
+
+`200` in both the valid and the invalid case. **It is a report, not a
+rejection** — branch on `data.valid`, never on the status. A non-2xx would mean
+your *request* was wrong, which is reserved for exactly that: `404` for a study
+that does not exist or is not yours, `422` for a body that is not
+`{"sections": {…}}`.
+
+`valid` is `not errors`. **Warnings never make a study invalid**, because each
+one describes something that will run and may well be intended — the same
+reasoning that makes them `logging.warning` at run time (§4).
+
+**The taxonomy.** `code` is the stable, machine-readable half; `message` is
+prose and may be reworded.
+
+| `code` | | What it means |
+|---|---|---|
+| `section.missing` | error | A section `StudyConf` declares with no default has never been written: `general`, `recruitment`, `destinations`, `creatives`, `audiences`, `strata`. Assembly fails, so every cron run dies before it starts. `variables` is not on the list (it is inert, §1.5) and `inference_data`/`data_sources` are optional. |
+| `section.invalid` | error | Pydantic rejected the section. One finding per field error, so a section with six missing fields gives six findings, with `path` on each. |
+| `study.invalid` | error | A cross-section validator on `StudyConf` failed. Today that is `check_whatsapp_refs_are_deliverable`; anything added there later appears here automatically. Only runs when every required section parsed. |
+| `stratum.creative_unknown` | error | `strata[].creatives[]` names no `creatives[].name`. A bare `KeyError` at run time that kills the whole study's reconciliation — and unlike that `KeyError`, this message names the stratum. |
+| `creative.destination_unknown` | error | `creatives[].destination` names no `destinations[].name`. Also fatal at run time. |
+| `stratum.id_duplicated` | error | Two strata share an `id`. `uniqueness` raises at run time without saying which, and a stratum id is also the ad set's name on Meta. |
+| `audience.partitioned_bare_name` | error | A stratum names a `PARTITIONED` audience conf by its bare name. vlab creates `<name>-cohort-1`, `-cohort-2`, … and **never** `<name>` (§1.3), so the reference can never resolve. |
+| `stratum.audience_unknown` | warning | An audience name this study's `audiences` conf does not produce. A **warning**, not an error, because `strata[].audiences` resolves against custom audiences on the **Meta ad account**, which may hold one built by hand in Ads Manager. Offline validation cannot tell a typo from a legitimate external audience. |
+| `stratum.excluded_audience_unknown` | warning | The same on `excluded_audiences`, with its own code because the cost is worse: a dropped exclusion means the ad set re-recruits people it meant to exclude. |
+| `stratum.targeting_variable_unsupplied` | warning | `warn_on_incomplete_targeting`, which until now only reached a log. This is runbook step 8 (§6), done for you. |
+| `destination.thinned_ref_without_mapping` | warning | `warn_on_thinned_ref_without_mapping`, likewise. |
+| `inference_data.source_unknown` | warning | An `inference_data.data_sources` key naming no `data_sources[].name`. swoosh skips every event from it. A warning because it is swoosh's join, not adopt's, and the cost is dropped events rather than a dead study. |
+| `section.unrecognized` | warning | A key in your `sections` that is not one of the nine. It is ignored — which is how a typo'd section name silently does nothing. |
+
+**`known_gaps` is echoed on every response**, so a client can show what the
+verdict did *not* cover. It is a real list, not a disclaimer: `credentials_key`
+is not checked against the `credentials` table (a database read), audience
+names are not checked against the ad account, and **nothing Meta-side is
+checked at all** — whether the template campaign still exists, whether the
+creative template is still valid, whether your `objective` /
+`optimization_goal` pairing is one Meta accepts. That is deliberate: it would
+make validation a slow network call. The plan is a separate live check (`vlab
+check --live`, planning §10); until it exists, §5's plan endpoint is what
+exercises Meta.
+
+**In Python, skip the HTTP call.** The endpoint is a thin wrapper on a pure
+function and the two cannot disagree:
+
+```python
+from adopt.authoring.validate import validate_study
+
+report = validate_study(sections)   # keyed as stored; wire values or models
+if not report.valid:
+    for e in report.errors:
+        print(e.code, e.path, e.message)
+```
+
+`validate_study` never raises, whatever you hand it. `study_conf_from_sections`
+from the same module is the assembly itself — the one `malaria.get_study_conf`
+uses on the run path, so there is no second definition to drift.
+
 ---
 
 ## 3. The nine conf types
@@ -919,15 +1046,22 @@ So:
 > **A `201` means "this section parsed". It does not mean the study works.**
 > You can POST nine perfectly valid sections that name each other incorrectly,
 > receive nine `201`s, and have a study that will never create a single ad —
-> and unless you ask for a plan (§5) you will not find out until a cron run
-> hours later, in a log you cannot read. The study-errors endpoint will not
-> tell you: adopt writes no events to it (§2.3).
+> and unless you ask, you will not find out until a cron run hours later, in a
+> log you cannot read. The study-errors endpoint will not tell you: adopt
+> writes no events to it (§2.3).
+
+**Asking is now one call.** `POST /{org_id}/studies/{slug}/validate` (§2.6)
+runs every check in this section, plus the dangling-name checks below, and
+writes nothing. Everything that follows here is *why* the checks exist and what
+each failure costs — worth reading once, because the report names codes rather
+than explaining them. What you no longer have to do is run them yourself.
 
 The failure is not even uniform. From §1.3: a bad creative reference is a bare
 `KeyError`; a bad destination reference is a clear `Exception`; a bad audience
-reference is an INFO line and silently degraded targeting.
+reference is an INFO line and silently degraded targeting. §2.6 flattens all
+three into one report with one shape.
 
-### Two checks are warnings that reach nobody
+### Two checks are warnings that used to reach nobody
 
 `update_ads_for_campaign` runs two whole-study checks
 (`adopt/adopt/malaria.py:262-263`) and both are `logging.warning`:
@@ -944,19 +1078,24 @@ reference is an INFO line and silently degraded targeting.
   nothing resolves the token, so **every** stratum counts zero and the
   optimizer reallocates on empty data.
 
-Both are deliberately warnings (see the reasoning at `study_conf.py:1276`),
-and both are invisible to the API. **They are your responsibility to check
-before you write.** Concretely:
+Both are deliberately warnings at run time (see the reasoning at
+`study_conf.py:1276`) and both remain so — a study recruiting uniformly is
+entitled to a thin ref, and a study that has not been wired to a survey
+platform yet is unfinished rather than broken.
 
-1. Collect every `{"type": "variable"}` value in every stratum's
-   `question_targeting`. Every one of them must appear as an
-   `extraction_confs[].name` in the `inference_data` conf.
+**They are no longer invisible.** `POST /validate` (§2.6) reports them as
+`stratum.targeting_variable_unsupplied` and
+`destination.thinned_ref_without_mapping`, and so does `validate_study` in
+process. What they mean, concretely:
+
+1. Every `{"type": "variable"}` value in every stratum's `question_targeting`
+   must appear as an `extraction_confs[].name` in the `inference_data` conf.
 2. If any destination sets `ref_mode: "encoded"`, at least one extraction conf
    must set `mapping: "ad_table_lookup"`.
 
-You can run both checks locally against the pydantic models today —
+The underlying predicates are still pure functions over a `StudyConf` —
 `missing_targeting_variables` and `thins_its_ref_without_reading_the_mapping`
-are pure functions over a `StudyConf` (`study_conf.py:1231`, `:1269`).
+(`study_conf.py:1231`, `:1269`) — if you want them directly.
 
 ### One cross-section check is a hard failure — and it fails the whole study
 
@@ -968,7 +1107,8 @@ than ads that recruit people into the wrong survey.
 
 Because it runs on `StudyConf` assembly, it fails at *optimize time*, not at
 write time. A study broken this way accepts every POST and then produces
-nothing.
+nothing — unless you validate, where it comes back as `study.invalid` with the
+validator's own message.
 
 ### The failure timeline
 
@@ -986,16 +1126,19 @@ nothing.
 
 ### What you can do about it
 
-1. **Construct `StudyConf` locally before you push.** Import
-   `adopt.study_conf`, build the object from your nine sections plus an `id` and
-   a `user` stub, and every cross-section validator runs instantly and for
-   free. This is by far the highest-value thing an agent can do, and it costs
-   nothing.
-2. **Run the plan (§5) and read the instruction list.** It assembles the whole
-   `StudyConf`, so every cross-section validator runs, and a failure comes back
-   as `500 {"detail": "<the real message>"}`. It is the only way to see an
-   adopt-side configuration failure over HTTP. If the list is empty when you
-   expected ads, something is wrong.
+1. **`POST /{org_id}/studies/{slug}/validate` (§2.6), before and after every
+   write.** It runs every check in this section at once, writes nothing, and
+   costs one call. Send `{"sections": {...}}` to check a change *before*
+   writing it — the reason this matters is that `study_confs` is append-only
+   (§1.1), so a bad write can only be superseded, never withdrawn.
+   In Python, `adopt.authoring.validate.validate_study` is the same function
+   without the round trip.
+2. **Run the plan (§5) and read the instruction list.** Validation is pure, so
+   it cannot see Meta. The plan does: it resolves the template campaign, the ad
+   sets and the creative, and a failure there is a Meta-side one that no amount
+   of config checking would have caught. If the list is empty when you expected
+   ads, something is wrong. Note it is *not* side-effect free (§11.3 of the
+   plan document) — it writes reports and heals ad attributions.
 3. **Poll `GET /{org}/optimize/{slug}/errors` after writing** — but know what
    it covers: swoosh's extraction errors only, never adopt's (§2.3).
 
@@ -1199,19 +1342,32 @@ Everything else is the agent's.
    adopt forces it at ad-set build time anyway (`marketing.py:119`), but your
    stored conf will otherwise disagree with what is deployed.
 
-8. **Write `data-sources` and `inference-data`.** Then check, yourself, that
-   every variable named in every stratum's `question_targeting` appears as an
-   `extraction_confs[].name`. Nothing else will (§4).
+8. **Write `data-sources` and `inference-data`.** Every variable named in every
+   stratum's `question_targeting` must appear as an `extraction_confs[].name`,
+   and every `inference_data.data_sources` key must name a `data_sources[].name`.
+   `POST /{org_id}/studies/{slug}/validate` (§2.6) checks both — as
+   `stratum.targeting_variable_unsupplied` and `inference_data.source_unknown` —
+   which it did not before adopt v0.1.85, when this step said "check, yourself
+   … nothing else will".
 
 9. **Write `recruitment` last.** Its `start_date`/`end_date` window is what
    makes the study visible to the crons (§3), so writing it last means the
    automation only sees a complete study.
 
-10. **Validate.** Build a `StudyConf` locally from what you wrote (§4), then
-    `GET /{org_id}/optimize/{slug}` and read the instruction list. On a fresh
-    study a correct configuration returns exactly one `campaign`/`create` per
-    campaign the recruitment conf names — one for `SimpleRecruitment`, one per
-    arm for the two experiment types — and nothing else.
+10. **Validate, then plan.** `POST /{org_id}/studies/{slug}/validate` first
+    (§2.6): it is pure, fast, writes nothing, and catches everything that is
+    wrong with the configuration on its own terms. Expect
+    `{"valid": true, "errors": [], "warnings": []}`; read `known_gaps` for what
+    it did not cover. Then `GET /{org_id}/optimize/{slug}` for the half that
+    needs Meta — on a fresh study a correct configuration returns exactly one
+    `campaign`/`create` per campaign the recruitment conf names (one for
+    `SimpleRecruitment`, one per arm for the two experiment types) and nothing
+    else.
+
+    Validate again after every subsequent write, and before it when the change
+    is not trivial: `{"sections": {...}}` validates a proposal against the
+    stored rest, and `study_confs` is append-only, so this is the only way to
+    find out before the row is permanent.
 
 11. **Apply, re-plan, apply, re-plan, apply** (§5) — or wait up to two hours
     and let the cron do it.
@@ -1243,12 +1399,57 @@ client.
    use `adopt/adopt/configuration.py` for this: it is the pre-dashboard
    ancestor, marked superseded, and its output disagrees with the dashboard's
    in metadata keys, targeting refs, ids and quotas.
-4. **Get a whole-study validation over HTTP.** The closest thing is the plan
-   endpoint (§5), which is slow, reads Meta and writes rows.
+4. ~~**Get a whole-study validation over HTTP.**~~ **Closed** by
+   `POST /{org_id}/studies/{slug}/validate` in adopt v0.1.85 (§2.6). What
+   remains out of reach is the *Meta-dependent* half — does the template ad set
+   still exist, does it still carry the declared properties, is this
+   `objective`/`optimization_goal` pairing one Meta accepts. Validation is pure
+   by design; the plan endpoint (§5) is still the only thing that exercises
+   Meta, and it is slow, reads Meta and writes rows. A dedicated live check is
+   planned (`vlab check --live`, planning §10).
 
 ---
 
 ## 8. What landed recently
+
+### 2026-09-05 — whole-study validation, as a library and as `POST /validate`
+
+Check the adopt version in `devops/values/toixo-prod.yaml` before relying on
+this.
+
+**`POST /{org_id}/studies/{slug}/validate`** (§2.6) assembles the whole
+`StudyConf` from the stored sections, runs every cross-section validator plus
+the dangling-name checks of §1.3, and returns a report of errors and warnings.
+Scope `studies:read` despite the `POST`; writes nothing; `200` whether the
+study is valid or not. With `{"sections": {...}}` it validates a proposal
+against the stored rest, which is the point — `study_confs` is append-only, so
+checking after the write is checking too late.
+
+**The two checks that reached nobody now reach you.**
+`warn_on_incomplete_targeting` and `warn_on_thinned_ref_without_mapping` were
+`logging.warning` calls in a cron; they are `stratum.targeting_variable_unsupplied`
+and `destination.thinned_ref_without_mapping` in the report. **Runbook step 8's
+"nothing else will" is no longer true**, and §7 item 4 is closed for the
+configuration half.
+
+**Dangling references get one shape.** A bad `strata[].creatives[]` was a bare
+`KeyError`, a bad `creatives[].destination` a clear `Exception`, a bad audience
+name an INFO line — three failure modes for one class of mistake, all of them
+hours after the write. They are now `stratum.creative_unknown`,
+`creative.destination_unknown` and `stratum.audience_unknown` /
+`stratum.excluded_audience_unknown`, each with the path to the offending value.
+Naming a `PARTITIONED` audience by its conf name — which can never resolve,
+because vlab creates `<name>-cohort-N` — is its own error,
+`audience.partitioned_bare_name`.
+
+**In Python, use the library, not the endpoint.**
+`adopt.authoring.validate.validate_study(sections)` is the whole thing; the
+route is a wrapper over it, and `malaria.get_study_conf` now shares its
+assembly (`study_conf_from_sections`), so validation and the run path cannot
+disagree about what a study is.
+
+**Not included: anything Meta-side.** Deliberately — see `known_gaps` on every
+response, and §9.
 
 ### 2026-09-05 — adopt v0.1.84: Phase 1, Phase 2, and `422` for `InvalidConfigError`
 
@@ -1320,6 +1521,37 @@ MCP shim over the SDK — is recorded in the same document.
 
 Marked here rather than guessed at.
 
+- **A `PARTITIONED` or `LOOKALIKE` audience cannot be written as JSON at all.**
+  `AudienceConf`'s `mode="before"` validator does
+  `isinstance(values["partitioning"], Partitioning)` — an isinstance check
+  against the *parsed* model, run before pydantic has parsed anything — so the
+  nested object must already be a Python object. From the wire it always fails,
+  and `POST /confs/audiences` with one is a `422` reading "Subtype PARTITIONED
+  requires a `<class 'adopt.study_conf.Partitioning'>` value for partitioning".
+  Only `CUSTOM` audiences are reachable over HTTP today. Found while writing
+  §2.6's tests and **not fixed**: every test in the repo builds these from
+  objects (`test_audiences.py:217`, `test_marketing.py:306`), which is why
+  nobody had hit it, and the fix changes what a write accepts. `POST /validate`
+  reports such a stored conf as `section.invalid`, which is the true answer —
+  the cron fails on it for the same reason. **Whether any production study has
+  a partitioned audience stored was not checked.**
+- **An `AudienceConf` with no `subtype` raises a bare `KeyError`**, from the
+  same validator, rather than a field-missing error. `POST /validate` catches
+  it and reports `section.invalid`; a `POST /confs/audiences` presumably does
+  not, but that was not observed.
+- **`POST /validate` does not check `credentials_key` against the `credentials`
+  table**, for either `general` or `data_sources[]`. It is a pure function and
+  does no database read of its own. A dangling `general.credentials_key` raises
+  at `load_basics` time; a dangling `data_sources[].credentials_key` means the
+  study is silently never collected (§1.3).
+- **`POST /validate` checks nothing on Meta**, by design. See its `known_gaps`
+  field. The `vlab check --live` that would cover it does not exist.
+- **The `POST /validate` warning/error split for audience references is a
+  judgement, not a measurement.** An audience name absent from the `audiences`
+  conf is a warning because `strata[].audiences` resolves against the ad
+  account's custom audiences, which may hold one built by hand — but how often
+  that legitimately happens in real studies was not measured. If it never does,
+  these should be errors.
 - **The Meta proxy (§2.5) has never been run against real Meta.** Every test
   mocks `FacebookAdsApi.call`. The request shapes are copied from the
   dashboard's live calls and the error mapping is exercised against
