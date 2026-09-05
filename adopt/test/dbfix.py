@@ -1,9 +1,16 @@
+import os
+
 import psycopg
 import pytest
 
 from adopt.db import _connect
 
-cnf = "postgresql://root@localhost:5433/test"
+# `_reset_db` truncates every table, so two pytest processes pointed at the same
+# database will delete each other's fixtures mid-run. Overriding this lets
+# concurrent test runs (parallel agents, or a local run alongside CI) each get
+# their own migrated database in the same CockroachDB container. The default is
+# what `make -C devops test-db` creates, so nothing changes without the env var.
+cnf = os.getenv("VLAB_TEST_PG_URL", "postgresql://root@localhost:5433/test")
 
 
 def _reset_db():
