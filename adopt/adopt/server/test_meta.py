@@ -205,6 +205,14 @@ def _page(data, next_url=None, after="CURSOR"):
     return {"data": data, "paging": paging}
 
 
+def _page_without_cursors(data, next_url):
+    """A page carrying `paging.next` but no `paging.cursors`.
+
+    Meta normally sends both; some edges do not. See `_after_from_url`.
+    """
+    return {"data": data, "paging": {"next": next_url}}
+
+
 def _fb_error(http_status: int, code: int, message: str, subcode=None, type_="OAuth"):
     error: Dict[str, Any] = {"message": message, "code": code, "type": type_}
     if subcode is not None:
@@ -435,6 +443,80 @@ def test_truncation_is_announced_and_resumable():
         )
     assert res2.status_code == 200
     assert g2.calls[0]["params"]["after"] == f"C{meta.MAX_PAGES - 1}"
+
+
+def test_a_truncated_result_is_never_left_without_a_resume_cursor():
+    """`truncated: true` with `after: null` is the one unrecoverable answer.
+
+    A page can carry `paging.next` without `paging.cursors`. Reading the cursor
+    only out of `cursors.after` would then tell the caller "this list is
+    incomplete" and hand them nothing to continue with.
+    """
+    org_id, headers = _setup()
+    ctx, g = _graph(
+        *[
+            _page_without_cursors(
+                [{"id": str(i)}],
+                f"https://graph.facebook.com/v22.0/me/adaccounts"
+                f"?limit=100&after=FROMURL{i}",
+            )
+            for i in range(meta.MAX_PAGES + 2)
+        ]
+    )
+
+    with ctx:
+        res = client.get(f"/{org_id}/meta/adaccounts", headers=headers)
+
+    body = res.json()
+    assert body["paging"]["truncated"] is True
+    assert body["paging"]["after"] == f"FROMURL{meta.MAX_PAGES - 1}"
+    # ...and it was used to walk the pages, not just reported at the end.
+    assert g.calls[1]["params"]["after"] == "FROMURL0"
+
+
+def test_cursors_after_wins_over_the_next_url():
+    """The URL is a fallback, not a replacement — `cursors.after` is canonical."""
+    org_id, headers = _setup()
+    page = _page([{"id": "1"}], next_url="https://graph/x?after=FROMURL", after="C1")
+    ctx, g = _graph(page, _page([{"id": "2"}], after="C2"))
+
+    with ctx:
+        client.get(f"/{org_id}/meta/adaccounts", headers=headers)
+
+    assert g.calls[1]["params"]["after"] == "C1"
+
+
+def test_a_next_url_with_no_after_reports_a_null_cursor_rather_than_raising():
+    org_id, headers = _setup()
+    ctx, _ = _graph(
+        *[
+            _page_without_cursors([{"id": str(i)}], "https://graph/next?offset=10")
+            for i in range(meta.MAX_PAGES + 1)
+        ]
+    )
+
+    with ctx:
+        res = client.get(f"/{org_id}/meta/adaccounts", headers=headers)
+
+    # Honest, and no worse than before: the caller is told the list is partial
+    # and that we have no cursor for it.
+    assert res.status_code == 200, res.text
+    assert res.json()["paging"] == {
+        "after": None,
+        "truncated": True,
+        "pages_fetched": meta.MAX_PAGES,
+    }
+
+
+def test_after_from_url_is_total():
+    assert meta._after_from_url(None) is None
+    assert meta._after_from_url("") is None
+    assert meta._after_from_url("https://graph/x?after=ABC") == "ABC"
+    assert meta._after_from_url("https://graph/x?limit=2&after=ABC&pretty=0") == "ABC"
+    assert meta._after_from_url("https://graph/x?offset=10") is None
+    assert meta._after_from_url("not a url at all") is None
+    # Percent-encoded cursors are what Meta actually sends.
+    assert meta._after_from_url("https://graph/x?after=QVFIU%3D") == "QVFIU="
 
 
 def test_limit_is_bounded():

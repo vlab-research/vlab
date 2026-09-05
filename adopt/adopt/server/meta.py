@@ -53,6 +53,7 @@ import logging
 import re
 import uuid
 from typing import Annotated, Any, Dict, List, Optional, Tuple
+from urllib.parse import parse_qs, urlparse
 
 from environs import Env
 from facebook_business.api import FacebookAdsApi
@@ -386,6 +387,30 @@ def _graph_get(api: FacebookAdsApi, path: Tuple[str, ...], params: Dict[str, Any
     return body
 
 
+def _after_from_url(url: Optional[str]) -> Optional[str]:
+    """The `after` query parameter of a Meta `paging.next` URL, if it has one.
+
+    A fallback for the case where a page carries `paging.next` but no
+    `paging.cursors.after`. Meta normally sends both, but not universally —
+    some edges paginate with `offset`/`until` instead and still populate
+    `next`, and cursor-paginated edges have been observed to omit `cursors` on
+    a page. Without this, such a page comes back as
+    `{"truncated": true, "after": null}`: the caller is correctly told the list
+    is incomplete and given nothing to resume with, which is the one
+    unrecoverable shape this endpoint could return.
+
+    Returns None rather than raising on anything unparseable — the caller then
+    reports `after: null`, which is the honest answer and no worse than before.
+    """
+    if not url:
+        return None
+    try:
+        after = parse_qs(urlparse(url).query).get("after")
+    except ValueError:
+        return None
+    return after[0] if after else None
+
+
 def paged_get(
     api: FacebookAdsApi,
     path: Tuple[str, ...],
@@ -419,8 +444,9 @@ def paged_get(
         pages += 1
 
         paging = body.get("paging") or {}
-        cursor = (paging.get("cursors") or {}).get("after")
-        has_more = bool(paging.get("next"))
+        next_url = paging.get("next")
+        cursor = (paging.get("cursors") or {}).get("after") or _after_from_url(next_url)
+        has_more = bool(next_url)
         if not has_more:
             break
 
@@ -428,8 +454,10 @@ def paged_get(
         "data": collected,
         "paging": {
             # The cursor to resume from, or None when the collection is
-            # exhausted. Non-None with truncated=False means "there happened to
-            # be a cursor on the last page", which Meta always sends.
+            # exhausted. Taken from `paging.cursors.after`, falling back to the
+            # `after` in `paging.next` — see `_after_from_url` for why a page
+            # can have one and not the other, and why `truncated: true` with a
+            # null cursor is the one answer this endpoint must not give.
             "after": cursor if has_more else None,
             # True iff we stopped because of MAX_PAGES, not because Meta ran
             # out. An agent that ignores this reads an incomplete list; it is
