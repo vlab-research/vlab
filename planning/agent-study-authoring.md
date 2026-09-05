@@ -458,6 +458,28 @@ right, and large if it is not.
   cost it the two properties that make it useful — instant, and runnable
   offline on sections that have never been written. The live half wants to be a
   separate `vlab check --live`, which does not exist yet.
+- **Creating template campaigns, ad sets and ads — settled 2026-09-05: the
+  SDK uses the Facebook Business SDK directly, later; no write proxy.**
+  Templates are authoring-time sources, not runtime dependencies: adopt never
+  reads `template_campaign` / `template_adset` by name, only the extracted
+  `facebook_targeting` per level and the creative blob stored on each
+  creative. So "create a template" means two things — get a Meta-validated
+  targeting dict (a template ad set, or Meta's `reachestimate` endpoint,
+  which validates a targeting spec without creating anything and is a
+  worthwhile `meta:read` addition), and build a creative, which is an
+  unavoidable Meta write because it needs an uploaded image or video hash.
+  A write proxy on the conf service was considered and rejected for now: its
+  main cost is that the server becomes an image-upload relay (bytes in,
+  bytes to Meta, with size limits and the event-loop discipline of §13.4),
+  on top of taking on money-spending liability that needs paused-only and
+  budget-ceiling guardrails plus an audit trail. `meta:write` stays defined
+  and unserved. The existing knowledge about what a working template needs
+  — every declared property on the ad set, `advantage_audience` forced off,
+  `is_adset_budget_sharing_enabled: false`, the unremovable `frequently_in`
+  on region targeting, paused by convention, unique names — lives in
+  `adopt/scripts/make_template_campaign.py` and the planning docs and should
+  be promoted into `documentation/agent-api.md` when the template library is
+  built.
 
 
 ---
