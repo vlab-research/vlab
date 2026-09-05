@@ -676,11 +676,18 @@ of them is a dashboard change first, then a fixture regeneration.
   SDK gives `read_share_lookup` / `location_levels` a consumer to shape their
   API around. There is no `campaigns/` directory in this repo to read notebook
   usage from, so the read-through §10 asks for cannot happen here.
-- **Regenerating the fixtures needs node and `npm ci` in `dashboard/`**; CI
-  does not do it. The committed fixtures are the contract, and a TypeScript
-  change that forgets to regenerate them will not be caught until someone runs
-  `make -C adopt authoring-fixtures`. A CI job that regenerates and diffs is
-  the obvious follow-up.
+- ~~**Regenerating the fixtures needs node and `npm ci` in `dashboard/`**; CI
+  does not do it.~~ **Closed 2026-09-05.** `.github/workflows/authoring-fixtures.yml`
+  runs the generator on every change to the dashboard's strata/variables forms,
+  the generator itself, or the Python port, and fails on
+  `git diff --exit-code` of the committed fixture file. Pinned to Node
+  20.19.4, not dashboard.yml's 14.17.0 — the generator runs through `tsx`,
+  whose `engines` field requires Node >=18 (confirmed locally: Node 14.21.3
+  hangs trying to resolve `tsx` under npm 6). Neither `.nvmrc` nor
+  `netlify.toml` pin a dashboard-wide node version, so there was no existing
+  pin to reuse for this job specifically; dashboard.yml's 14.17.0 is scoped to
+  the CRA/craco app build and test, a different toolchain from the standalone
+  generator script.
 - **Not yet released.** `adopt` ships the package in its image (`COPY . .`),
   but nothing on the server calls it; the next release picks it up for free
   and the SDK (Phase 3) is its first consumer.
@@ -707,19 +714,30 @@ input**, and this library exists for input the dashboard did not write.
 
 Still open from the same review:
 
-- **The generator's blind spots**: no non-string names, no `quota: null`, no
-  pydantic-model inputs, no `variables=None`. The comparator does not compare
-  error *messages*, and every TypeError-producing input is excluded by
-  construction, so the port's error-type choices (§12.2) are untested by the
-  differential. Extending the generator is the right fix; the three cases
-  above are pinned in Python only until then.
-- **The "nine seeded divergences" negative control left no artifact.** The
-  merge-precedence reversal is reproducible (190 of 1,147 fail); the nine
-  mutations are not. Committing them as a skipped test block or a make target
-  would make the claim checkable.
-- **§12.3 bug 1 is a live dashboard crash**, not just a port note: an
+- ~~**The generator's blind spots**: no non-string names, no `quota: null`~~,
+  no pydantic-model inputs, no `variables=None`. **Partially closed
+  2026-09-05** (see §12.6): the generator now produces non-string level and
+  variable names (int, integral float, non-integral float, both booleans) and
+  a `quota: null` saved stratum, and the port passed every new case unmodified
+  — the three §12.5 pins above are now conformance-tested, not Python-only.
+  Pydantic-model inputs stay out of scope for the *TypeScript* differential —
+  there is no TypeScript equivalent to compare against, so
+  `test_pydantic_models_are_accepted_as_input` in `test_strata.py` remains the
+  only test for that path. `variables=None`/`undefined` stays excluded by
+  construction: the TypeScript throws (`!variables.length` on `undefined`),
+  so it is not a conformance target for the same reason the other
+  TypeError-producing inputs on the generator's exclusion list aren't. The
+  comparator still does not compare error *messages* — only names and the two
+  typed fields (§12.2 remains untested on that axis).
+- ~~**The "nine seeded divergences" negative control left no artifact.**~~
+  **Closed 2026-09-05** (§12.6): `test_negative_control.py` pins ten
+  deliberate mutations (including the merge-precedence reversal, now with its
+  190-failure claim behind an assertion rather than a comment) and asserts
+  each is caught by at least one fixture.
+- ~~**§12.3 bug 1 is a live dashboard crash**~~, not just a port note: an
   uncaught `TypeError` rendering the staleness banner for any conf whose
-  strata lack a `question_targeting`. It should be filed as a dashboard issue.
+  strata lack a `question_targeting`. **Filed 2026-09-05:**
+  [vlab-research/vlab#258](https://github.com/vlab-research/vlab/issues/258).
 
 Item 1 (`InvalidConfigError` derives from `BaseException`) is fixed — it now
 derives from `ValueError` (`adopt/adopt/study_conf.py:930`), so pydantic wraps
@@ -731,6 +749,41 @@ recommended "strict sibling classes on the POST routes only" shape.
 
 *Superseded in part: the Meta proxy shipped on 2026-09-05, see §13. §12 is
 Phase 1's record and lands with PR #254.*
+
+### 12.6 PR #254 review follow-ups, closed (2026-09-05)
+
+Branch `chore/authoring-conformance-followups`, off the same review this
+section already recorded (§12.5) and §12.4's fixture-CI gap. Four things,
+each a separate commit:
+
+1. **Extended the fixture generator** (`dashboard/scripts/authoring-conformance.ts`,
+   "2.5. Review follow-ups"): 14 new deterministic cases — int, integral
+   float, non-integral float, and both booleans as a level name and as a
+   variable name; a saved stratum with `quota: null` against both a non-zero
+   and a zero fresh quota. Regenerated with `make -C adopt authoring-fixtures`:
+   589 strata cases (was 575), extract unchanged at 567. **The Python port
+   passed every new case without modification** — §12.5's three pins were
+   already correct, this just proves it with the differential instead of only
+   with a hand-written Python test. `variables=undefined` and saved strata
+   with no `answered` term stay excluded, as the generator's header requires
+   (the TypeScript throws for both).
+2. **Committed the negative control**: `adopt/adopt/authoring/test_negative_control.py`,
+   ten mutations (one-ULP quota, `False` stringified as `"0"`, an extra output
+   key, reordered strata, a wrong `propertyKey` payload, a suppressed
+   exception, a renamed result key, quota returned as a string, a swapped
+   merge winner, and the merge-precedence reversal), each monkeypatched in and
+   asserted to fail at least one fixture. A meta-test guards the detector
+   itself against a false-positive that would make every mutation "pass" for
+   the wrong reason.
+3. **CI regenerate-and-diff**: `.github/workflows/authoring-fixtures.yml` —
+   see §12.4's now-closed bullet for the node-version reasoning.
+4. **Two dashboard issues filed**: [#258](https://github.com/vlab-research/vlab/issues/258)
+   (`strataStalenessHint`'s dead `"dummy"` fallback, §12.3 bug 1) and
+   [#259](https://github.com/vlab-research/vlab/issues/259) (Creatives/Variables
+   "load more" sending `cursor` where Graph expects `after` — the same
+   divergence §13.2 item 3 already documents from the Meta-proxy side; #259
+   is the dashboard-side ticket to actually fix it, since the proxy fixing it
+   server-side does not fix the dashboard's still-live direct-to-Meta calls).
 
 ---
 
