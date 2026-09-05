@@ -127,6 +127,45 @@ def test_server_create_and_get_destinations_conf(verify_mock):
 
 
 @patch("adopt.server.auth.verify_token")
+def test_server_rejects_invalid_destination_conf_with_422(verify_mock):
+    # `FlyWhatsAppDestination.shortcode_must_survive_the_entry_pattern` raises
+    # `InvalidConfigError` -- a cross-field validator on a single conf section,
+    # so it fires here at write time rather than hours later when
+    # `load_basics` assembles the whole `StudyConf` on the optimize cron. Built
+    # as a raw dict (not `FlyWhatsAppDestination(...)`) because constructing
+    # the model directly raises client-side before the request is ever sent;
+    # the point of this test is what the SERVER does with a bad payload.
+    #
+    # Before InvalidConfigError derived from ValueError (study_conf.py:930),
+    # this validator's message never reached the caller: pydantic does not
+    # wrap a raised BaseException into a ValidationError, so it propagated
+    # past Starlette's exception middleware and the caller got a bare 500 with
+    # no body. Guards against that regressing.
+    _reset_db()
+
+    verify_mock.return_value = {"sub": user_id}
+
+    dat = [
+        {
+            "type": "whatsapp",
+            "name": "whatsapp",
+            "initial_shortcode": "mnch week",  # space: unsafe per the entry regex
+            "welcome_message": "Hi",
+            "whatsapp_phone_number": "15419202635",
+        }
+    ]
+
+    org_id, headers = _user_and_study_setup()
+
+    res = client.post(
+        f"/{org_id}/studies/foo-study/confs/destinations", headers=headers, json=dat
+    )
+
+    assert res.status_code == 422
+    assert "initial_shortcode" in res.text
+
+
+@patch("adopt.server.auth.verify_token")
 def test_server_create_and_get_recruitment_conf(verify_mock):
     _reset_db()
 
