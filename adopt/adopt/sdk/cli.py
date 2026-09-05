@@ -566,12 +566,39 @@ def push(
                 click.echo(f"would write {d.section} ({d.status})")
         return
 
-    written = []
-    for d in plan:
-        client.post_conf(org, slug, SECTION_URL_SEGMENTS[d.section], d.local)
-        written.append(d.section)
-        if not as_json:
-            click.echo(f"wrote {d.section} ({d.status})")
+    written: List[str] = []
+    try:
+        for d in plan:
+            client.post_conf(org, slug, SECTION_URL_SEGMENTS[d.section], d.local)
+            written.append(d.section)
+            if not as_json:
+                click.echo(f"wrote {d.section} ({d.status})")
+    except VlabError as e:
+        # A push is nine separate POSTs with no transaction and no rollback, so
+        # a failure part way through leaves earlier sections WRITTEN -- and
+        # `study_confs` has no delete, so that cannot be undone. Which ones
+        # landed is therefore the single most important thing to report, and in
+        # `--json` mode nothing has been printed yet, so re-raising bare would
+        # lose it entirely. Re-run to continue: the next diff shows only what is
+        # still outstanding.
+        if as_json:
+            emit_json(
+                {
+                    "written": written,
+                    "failed": plan[len(written)].section,
+                    "error": str(e),
+                }
+            )
+        else:
+            click.echo("")
+            click.echo(f"FAILED on {plan[len(written)].section}.")
+            click.echo(
+                f"{len(written)} section(s) were already written and cannot be "
+                "withdrawn (study_confs is append-only). Fix the error and run "
+                "`vlab push` again -- it will write only what is still "
+                "outstanding."
+            )
+        raise click.ClickException(str(e))
 
     if as_json:
         emit_json(

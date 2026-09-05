@@ -1092,3 +1092,57 @@ def test_the_api_url_defaults_to_production():
     from .client import DEFAULT_API_URL
 
     assert DEFAULT_API_URL == "https://vlab-study-conf-api.toixo.vlab.digital"
+
+
+def test_a_push_that_fails_part_way_reports_what_was_already_written(
+    runner, obj, org, monkeypatch
+):
+    """Nine POSTs, no transaction, and `study_confs` has no delete -- so which
+    sections landed is the most important thing to say, and in --json mode
+    nothing has been printed yet when the failure arrives."""
+    from .client import ServerError
+
+    slug = obj["client"].create_study(org, "HPV")["slug"]
+    write_study(data=study_dict(org, slug))
+
+    real = obj["client"].post_conf
+    calls = []
+
+    def fail_on_creatives(o, s, segment, body):
+        if segment == "creatives":
+            raise ServerError(500, "boom", "POST", "http://x")
+        calls.append(segment)
+        return real(o, s, segment, body)
+
+    monkeypatch.setattr(obj["client"], "post_conf", fail_on_creatives)
+
+    res = run(runner, obj, "push")
+
+    assert res.exit_code == 1
+    assert "FAILED on creatives" in res.output
+    assert "append-only" in res.output
+    # general and destinations really did land, and really cannot be withdrawn.
+    assert [r["conf_type"] for r in _conf_rows(slug)] == ["general", "destinations"]
+
+
+def test_a_failed_json_push_still_says_what_landed(runner, obj, org, monkeypatch):
+    from .client import ServerError
+
+    slug = obj["client"].create_study(org, "HPV")["slug"]
+    write_study(data=study_dict(org, slug))
+
+    real = obj["client"].post_conf
+
+    def fail_on_creatives(o, s, segment, body):
+        if segment == "creatives":
+            raise ServerError(500, "boom", "POST", "http://x")
+        return real(o, s, segment, body)
+
+    monkeypatch.setattr(obj["client"], "post_conf", fail_on_creatives)
+
+    res = run(runner, obj, "push", "--json")
+
+    assert res.exit_code == 1
+    body = json.loads(res.output.split("Error:")[0])
+    assert body["written"] == ["general", "destinations"]
+    assert body["failed"] == "creatives"
