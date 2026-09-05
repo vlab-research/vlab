@@ -312,12 +312,15 @@ those audiences on Meta, but it does not always name them after itself
   **never** a plain `<name>`
 
 So a stratum naming a partitioned audience by its conf name will always dangle
-and will always be dropped at INFO level — `POST /validate` calls this one an
-error, `audience.partitioned_bare_name`, because vlab provably never creates
-that name. And on the *first* runs of any study, before the audience cron has
-created anything on Meta, every audience reference dangles and targeting is
-silently unfiltered; validation cannot see that, which is why every other
-audience finding is a warning.
+and will always be dropped at INFO level — `POST /validate` flags it as
+`audience.partitioned_bare_name`, the sharpest of its audience findings. Still
+a *warning*, not an error, for the reason this whole edge is one: `get_audience`
+matches on the ad account, so an audience someone built by hand under exactly
+that name would resolve, and validation cannot see that nobody did. And on the
+*first* runs of any study, before the audience cron has created anything on
+Meta, every audience reference dangles and targeting is silently unfiltered —
+also invisible to validation. The same applies to `<name>` for a `LOOKALIKE`
+conf, which exists only once the origin holds `lookalike.target` users.
 
 (In practice you can only get here with a `CUSTOM` audience today — see §9 on
 `PARTITIONED` and `LOOKALIKE` being unwritable over the wire.)
@@ -707,15 +710,31 @@ prose and may be reworded.
 | `section.invalid` | error | Pydantic rejected the section. One finding per field error, so a section with six missing fields gives six findings, with `path` on each. |
 | `study.invalid` | error | A cross-section validator on `StudyConf` failed. Today that is `check_whatsapp_refs_are_deliverable`; anything added there later appears here automatically. Only runs when every required section parsed. |
 | `stratum.creative_unknown` | error | `strata[].creatives[]` names no `creatives[].name`. A bare `KeyError` at run time that kills the whole study's reconciliation — and unlike that `KeyError`, this message names the stratum. |
-| `creative.destination_unknown` | error | `creatives[].destination` names no `destinations[].name`. Also fatal at run time. |
+| `creative.destination_unknown` | error | `creatives[].destination` names no `destinations[].name`, **and some stratum names that creative**. Fatal at run time. |
+| `creative.unreferenced_destination_unknown` | warning | The same dangling destination on a creative **no stratum names**. `get_destination_for_creative` is only ever called on `stratum.creatives`, so nothing resolves it and the study runs — until a stratum adds it. |
 | `stratum.id_duplicated` | error | Two strata share an `id`. `uniqueness` raises at run time without saying which, and a stratum id is also the ad set's name on Meta. |
-| `audience.partitioned_bare_name` | error | A stratum names a `PARTITIONED` audience conf by its bare name. vlab creates `<name>-cohort-1`, `-cohort-2`, … and **never** `<name>` (§1.3), so the reference can never resolve. |
+| `audience.partitioned_bare_name` | warning | A stratum names a `PARTITIONED` audience conf by its bare name. vlab creates `<name>-cohort-1`, `-cohort-2`, … and **never** `<name>` (§1.3). The sharpest audience finding, and still a warning — see the note below the table. |
 | `stratum.audience_unknown` | warning | An audience name this study's `audiences` conf does not produce. A **warning**, not an error, because `strata[].audiences` resolves against custom audiences on the **Meta ad account**, which may hold one built by hand in Ads Manager. Offline validation cannot tell a typo from a legitimate external audience. |
 | `stratum.excluded_audience_unknown` | warning | The same on `excluded_audiences`, with its own code because the cost is worse: a dropped exclusion means the ad set re-recruits people it meant to exclude. |
 | `stratum.targeting_variable_unsupplied` | warning | `warn_on_incomplete_targeting`, which until now only reached a log. This is runbook step 8 (§6), done for you. |
 | `destination.thinned_ref_without_mapping` | warning | `warn_on_thinned_ref_without_mapping`, likewise. |
 | `inference_data.source_unknown` | warning | An `inference_data.data_sources` key naming no `data_sources[].name`. swoosh skips every event from it. A warning because it is swoosh's join, not adopt's, and the cost is dropped events rather than a dead study. |
 | `section.unrecognized` | warning | A key in your `sections` that is not one of the nine. It is ignored — which is how a typo'd section name silently does nothing. |
+
+**Every audience finding is a warning, without exception.**
+`strata[].audiences` resolves against custom audiences **on the Meta ad
+account** (`FacebookState.get_audience`), not against the `audiences` conf, so
+an audience built by hand in Ads Manager is indistinguishable offline from a
+typo. That holds even for `audience.partitioned_bare_name`, which is otherwise
+about as clearly a mistake as this report gets. Treat audience warnings as the
+ones most worth reading.
+
+**A section that failed to parse suppresses the cross-section checks that read
+it.** An absent `inference_data` genuinely supplies no variables, and every
+stratum targeting one earns a warning. An *unparseable* one supplies none only
+because it could not be read, so warning about it would be noise stacked on the
+`section.invalid` error that already says so. Fix the parse error and validate
+again to see the rest.
 
 **`known_gaps` is echoed on every response**, so a client can show what the
 verdict did *not* cover. It is a real list, not a disclaimer: `credentials_key`
@@ -1094,8 +1113,9 @@ process. What they mean, concretely:
    must set `mapping: "ad_table_lookup"`.
 
 The underlying predicates are still pure functions over a `StudyConf` —
-`missing_targeting_variables` and `thins_its_ref_without_reading_the_mapping`
-(`study_conf.py:1231`, `:1269`) — if you want them directly.
+`study_conf.missing_targeting_variables` and
+`study_conf.thins_its_ref_without_reading_the_mapping` — if you want them
+directly.
 
 ### One cross-section check is a hard failure — and it fails the whole study
 
@@ -1438,9 +1458,12 @@ name an INFO line — three failure modes for one class of mistake, all of them
 hours after the write. They are now `stratum.creative_unknown`,
 `creative.destination_unknown` and `stratum.audience_unknown` /
 `stratum.excluded_audience_unknown`, each with the path to the offending value.
-Naming a `PARTITIONED` audience by its conf name — which can never resolve,
-because vlab creates `<name>-cohort-N` — is its own error,
-`audience.partitioned_bare_name`.
+Naming a `PARTITIONED` audience by its conf name — which vlab never creates,
+since it makes `<name>-cohort-N` — is its own code,
+`audience.partitioned_bare_name`. A creative's dangling destination is an error
+only when a stratum actually names that creative; on an unreferenced one
+nothing resolves it, so it is the warning
+`creative.unreferenced_destination_unknown` instead.
 
 **In Python, use the library, not the endpoint.**
 `adopt.authoring.validate.validate_study(sections)` is the whole thing; the
@@ -1546,12 +1569,23 @@ Marked here rather than guessed at.
   study is silently never collected (§1.3).
 - **`POST /validate` checks nothing on Meta**, by design. See its `known_gaps`
   field. The `vlab check --live` that would cover it does not exist.
-- **The `POST /validate` warning/error split for audience references is a
-  judgement, not a measurement.** An audience name absent from the `audiences`
-  conf is a warning because `strata[].audiences` resolves against the ad
+- **Every `POST /validate` audience finding is a warning, and that is a
+  judgement, not a measurement.** `strata[].audiences` resolves against the ad
   account's custom audiences, which may hold one built by hand — but how often
   that legitimately happens in real studies was not measured. If it never does,
-  these should be errors.
+  they should be errors, `audience.partitioned_bare_name` first.
+- **A `LOOKALIKE` audience's own `<name>` is accepted unconditionally**, though
+  `hydrate_audience` creates it only once the origin holds `lookalike.target`
+  users; until then only `<name>-origin` exists. That is a respondent count
+  rather than configuration, so validation cannot see it — as with every
+  audience reference on a study's first runs, before the audience cron has
+  created anything on Meta.
+- **`creative.unreferenced_destination_unknown` is a warning on the strength of
+  one call site.** `get_destination_for_creative` has exactly one caller
+  (`marketing.creative_destination_pairs`) and it iterates `stratum.creatives`,
+  so an unreferenced creative's dead destination is provably unreachable
+  *today*. A second caller that walked the whole `creatives` conf would make it
+  an error, and nothing enforces that one does not appear.
 - **The Meta proxy (§2.5) has never been run against real Meta.** Every test
   mocks `FacebookAdsApi.call`. The request shapes are copied from the
   dashboard's live calls and the error mapping is exercised against

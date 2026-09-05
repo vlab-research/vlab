@@ -305,6 +305,41 @@ def test_an_audience_with_no_subtype_is_an_error_not_a_keyerror():
     assert "KeyError" in invalid[0].message
 
 
+def test_an_unparseable_inference_data_does_not_also_warn_about_everything():
+    # `parsed.get("inference_data")` is None for "absent" and for "did not
+    # parse" alike, and treating the second as the first would report every
+    # targeted variable as unsupplied plus a spurious thinned-ref warning --
+    # noise piled on top of the section.invalid error that already says the conf
+    # is unreadable. Absent is a real finding; unreadable is not.
+    study = broken(inference_data={"data_sources": {"fly": "not an object"}})
+    study["destinations"][0]["ref_mode"] = "encoded"
+
+    report = validate_study(study)
+
+    assert codes(report.errors) == ["section.invalid"]
+    assert report.warnings == []
+
+
+def test_an_absent_inference_data_still_warns():
+    # The other half of the same rule: absent is not unreadable.
+    study = broken(inference_data=None)
+    study["destinations"][0]["ref_mode"] = "encoded"
+
+    report = validate_study(study)
+
+    assert set(codes(report.warnings)) == {
+        "stratum.targeting_variable_unsupplied",
+        "destination.thinned_ref_without_mapping",
+    }
+
+
+def test_an_unparseable_data_sources_does_not_warn_about_unknown_sources():
+    report = validate_study(broken(data_sources=[{"name": "fly"}]))
+
+    assert codes(report.errors) != []
+    assert "inference_data.source_unknown" not in codes(report.warnings)
+
+
 def test_cross_section_checks_still_run_when_another_section_is_broken():
     # The point of parsing sections independently. A broken recruitment conf
     # must not hide a dangling creative reference.
@@ -383,7 +418,9 @@ def test_a_stratum_naming_an_unknown_creative_is_an_error():
     assert "'men'" in finding.message
 
 
-def test_a_creative_naming_an_unknown_destination_is_an_error():
+def test_a_referenced_creative_naming_an_unknown_destination_is_an_error():
+    # "frowning" is named by the "women" stratum, so `creative_destination_pairs`
+    # resolves it and the run dies.
     study = valid_study()
     study["creatives"][1]["destination"] = "nope"
 
@@ -392,6 +429,69 @@ def test_a_creative_naming_an_unknown_destination_is_an_error():
     assert report.valid is False
     finding = next(e for e in report.errors if e.code == "creative.destination_unknown")
     assert finding.path == "creatives[1].destination"
+
+
+def test_an_unreferenced_creative_with_a_dead_destination_is_only_a_warning():
+    # `get_destination_for_creative` has exactly one caller,
+    # `marketing.creative_destination_pairs`, and it iterates `stratum.creatives`
+    # -- never the whole creatives conf. So a creative no stratum names is never
+    # resolved and its dead destination costs nothing today. Reporting it as an
+    # error would fail a study that reconciles perfectly well.
+    study = valid_study()
+    study["creatives"].append(
+        {"name": "orphan", "destination": "nope", "template": {"actor_id": "1"}}
+    )
+
+    report = validate_study(study)
+
+    assert report.valid is True
+    finding = next(
+        w
+        for w in report.warnings
+        if w.code == "creative.unreferenced_destination_unknown"
+    )
+    assert finding.path == "creatives[2].destination"
+    assert "No stratum names this creative" in finding.message
+
+
+def test_an_unreferenced_creative_with_a_good_destination_is_not_reported():
+    # Editing debris is not a finding. Only unreferenced AND dangling is.
+    study = valid_study()
+    study["creatives"].append(
+        {"name": "orphan", "destination": "site", "template": {"actor_id": "1"}}
+    )
+
+    report = validate_study(study)
+    assert report.errors == []
+    assert report.warnings == []
+
+
+def test_referencing_the_orphan_turns_the_warning_into_an_error():
+    # The same study, one stratum edit apart. This is what the warning is
+    # warning about.
+    study = valid_study()
+    study["creatives"].append(
+        {"name": "orphan", "destination": "nope", "template": {"actor_id": "1"}}
+    )
+    study["strata"][1]["creatives"] = ["frowning", "orphan"]
+
+    report = validate_study(study)
+
+    assert report.valid is False
+    assert [e.code for e in report.errors] == ["creative.destination_unknown"]
+
+
+def test_a_dead_destination_is_an_error_when_strata_cannot_be_read():
+    # With no strata to consult, nothing is known about which creatives are
+    # referenced. Under-claiming would hide a fatal problem, so this stays an
+    # error -- but see the section.invalid alongside it.
+    study = broken(strata=[{"id": "men"}])
+    study["creatives"][1]["destination"] = "nope"
+
+    report = validate_study(study)
+
+    codes_seen = codes(report.errors) + codes(report.warnings)
+    assert "creative.unreferenced_destination_unknown" in codes_seen
 
 
 def test_a_stratum_naming_an_unknown_audience_is_a_warning():
@@ -473,33 +573,49 @@ def _audiences_with_a_partitioned_one():
     ]
 
 
-def test_naming_a_partitioned_audience_by_its_conf_name_is_an_error():
+def test_naming_a_partitioned_audience_by_its_conf_name_is_a_warning():
     # The case §11.4 item 4 singles out: vlab creates `cohorts-cohort-N` and
-    # never `cohorts`, so this reference can never resolve.
+    # never `cohorts`. An error in the first draft; demoted in review, because
+    # `get_audience` matches on the AD ACCOUNT and an audience someone built by
+    # hand under exactly that name would resolve. The rule admits no exception
+    # just because this case is the most obviously a mistake.
     study = broken(audiences=_audiences_with_a_partitioned_one())
     study["strata"][0]["audiences"] = ["cohorts"]
 
     report = validate_study(study)
 
-    assert report.valid is False
+    assert report.valid is True
     finding = next(
-        e for e in report.errors if e.code == "audience.partitioned_bare_name"
+        w for w in report.warnings if w.code == "audience.partitioned_bare_name"
     )
     assert finding.path == "strata[0].audiences[0]"
     assert "cohorts-cohort-1" in finding.message
 
 
-def test_excluding_a_partitioned_audience_by_its_conf_name_is_also_an_error():
+def test_excluding_a_partitioned_audience_by_its_conf_name_says_what_it_costs():
     study = broken(audiences=_audiences_with_a_partitioned_one())
     study["strata"][0]["excluded_audiences"] = ["cohorts"]
 
     report = validate_study(study)
 
     finding = next(
-        e for e in report.errors if e.code == "audience.partitioned_bare_name"
+        w for w in report.warnings if w.code == "audience.partitioned_bare_name"
     )
     assert finding.path == "strata[0].excluded_audiences[0]"
     assert "without the exclusion" in finding.message
+
+
+def test_no_audience_finding_is_ever_an_error():
+    # The rule of §14.2, asserted rather than trusted: every audience edge
+    # resolves against the Meta ad account, which validation cannot see.
+    study = broken(audiences=_audiences_with_a_partitioned_one())
+    study["strata"][0]["audiences"] = ["cohorts", "typo", "cohorts-cohort-9"]
+    study["strata"][0]["excluded_audiences"] = ["cohorts", "another-typo"]
+
+    report = validate_study(study)
+
+    assert report.errors == []
+    assert len(report.warnings) == 4
 
 
 def test_a_partitioned_cohort_reference_is_accepted():
@@ -554,6 +670,31 @@ def test_a_lookalike_audience_may_be_named_directly_or_by_its_origin():
         ),
     ]
     study["strata"][0]["audiences"] = ["similar", "similar-origin"]
+
+    assert validate_study(study).warnings == []
+
+
+def test_a_lookalike_name_is_accepted_even_though_it_may_not_exist_yet():
+    # KNOWN GAP, asserted so it is a decision rather than an oversight.
+    # `hydrate_audience` creates `<name>` only once the origin audience holds
+    # `lookalike.target` users; until then only `<name>-origin` exists. That is
+    # a respondent count, not configuration, so validation cannot see it -- the
+    # same reason every audience reference on a study's first runs is
+    # unverifiable.
+    study = valid_study()
+    study["audiences"] = [
+        AudienceConf(name="respondents", subtype="CUSTOM"),
+        AudienceConf(name="already-asked", subtype="CUSTOM"),
+        AudienceConf(
+            name="similar",
+            subtype="LOOKALIKE",
+            lookalike=Lookalike(
+                target=1_000_000,
+                spec=LookalikeSpec(country="IN", ratio=0.1, starting_ratio=0.0),
+            ),
+        ),
+    ]
+    study["strata"][0]["audiences"] = ["similar"]
 
     assert validate_study(study).warnings == []
 

@@ -16,13 +16,13 @@ ad, and the author finds out hours later in a log they cannot read.
 Worse, the failures are not uniform (`documentation/agent-api.md` §1.3):
 
 * a stratum naming a creative that does not exist is a bare `KeyError` out of a
-  list comprehension in `hydrate_strata` (`malaria.py:746`), with no message
+  list comprehension in `malaria.hydrate_strata`, with no message
   naming the stratum — the whole study's reconciliation run dies;
 * a creative naming a destination that does not exist is a clear `Exception`
-  from `get_destination_for_creative` (`marketing.py:942`) — and also kills the
+  from `marketing.get_destination_for_creative` — and also kills the
   run;
 * a stratum naming an audience that does not exist is **dropped at
-  `logging.info`** (`_add_aud`, `malaria.py:685`), where a dropped *exclusion*
+  `logging.info`** (`malaria._add_aud`), where a dropped *exclusion*
   means the ad set quietly re-recruits people it meant to exclude;
 * two whole-study checks are `logging.warning` calls nobody reads
   (`warn_on_incomplete_targeting`, `warn_on_thinned_ref_without_mapping`).
@@ -227,8 +227,8 @@ _COHORT = re.compile(r"^(?P<name>.+)-cohort-(?P<n>[1-9][0-9]*)$")
 def audience_names_created_by(conf: AudienceConf) -> List[str]:
     """The Meta custom-audience names this conf will ever create.
 
-    Mirrors `audiences.hydrate_audience` (`audiences.py:105-137`), which is the
-    only thing that names them:
+    Mirrors `audiences.hydrate_audience`, which is the only thing that names
+    them:
 
         CUSTOM      -> `<name>`
         LOOKALIKE   -> `<name>-origin`, and `<name>` once the origin holds
@@ -256,27 +256,32 @@ def _audience_reference_finding(
 ) -> Optional[ValidationMessage]:
     """Classify one `strata[].audiences[]` / `excluded_audiences[]` entry.
 
-    Three outcomes, and the split between them is the whole point of this
-    function.
-
-    ERROR — the name IS an `audiences[].name` in this study, and that conf is
-    `PARTITIONED`. vlab provably never creates an audience with that name; it
-    creates `<name>-cohort-N`. The author has named a conf that exists in the
-    study they are writing, so their intent is not in doubt, and their reference
-    is dead on arrival. This is the case `planning/agent-study-authoring.md`
-    §11.4 item 4 singles out.
-
-    WARNING — the name matches nothing this study's `audiences` conf produces.
-    NOT an error, because `strata[].audiences` does not point at
+    **Every finding here is a warning.** `strata[].audiences` does not point at
     `audiences[].name`: it points at a custom audience **on the Meta ad
-    account**, matched by name (`FacebookState.get_audience`,
-    `facebook/state.py:301`), and that account may hold audiences built by hand
-    in Ads Manager or by another study. A pure, offline validator cannot tell a
-    typo from a legitimate external audience — only a live check against Meta
-    can, which is exactly the `vlab check --live` split proposed in §10. Calling
-    it an error would fail studies that recruit perfectly well.
+    account**, matched by name (`FacebookState.get_audience`), and that account
+    may hold audiences built by hand in Ads Manager or by another study. A pure,
+    offline validator cannot tell a typo from a legitimate external audience —
+    only a live check against Meta can, which is the `vlab check --live` split
+    proposed in `planning/agent-study-authoring.md` §10.
 
-    OK — anything this study's `audiences` conf does create.
+    `audience.partitioned_bare_name` is the sharpest of them and was an error in
+    the first draft: the name IS an `audiences[].name` in this study, that conf
+    is `PARTITIONED`, and vlab therefore creates `<name>-cohort-N` and never
+    `<name>` — the case §11.4 item 4 singles out, and one where the author's
+    intent is not in doubt. Review demoted it, correctly: the rule above admits
+    no exception. `get_audience` matches on the ad account, so an audience
+    someone built by hand under exactly that name would resolve, and the
+    validator cannot see that it did not. The message stays sharp; only the
+    severity moved.
+
+    (Over HTTP this finding is currently unreachable, because an `AudienceConf`
+    with `subtype: "PARTITIONED"` cannot be parsed from JSON at all — its
+    `mode="before"` validator isinstance-checks `partitioning` against the
+    parsed `Partitioning` class before pydantic has parsed anything, so the
+    section is reported as `section.invalid` first. That bug is being fixed
+    separately in `study_conf.py`; this check is already correct for the day it
+    lands, and is reachable now from Python objects, which is how an SDK will
+    hand a study over.)
     """
     created = {n for a in audiences for n in audience_names_created_by(a)}
     if name in created:
@@ -345,10 +350,11 @@ def _check_creative_references(
 ) -> List[ValidationMessage]:
     """`strata[].creatives[]` -> `creatives[].name`.
 
-    A dangling name is a bare `KeyError` out of `hydrate_strata`
-    (`malaria.py:746`) that kills the whole study's reconciliation run and names
-    neither the stratum nor the creative. Unambiguously an error: unlike
-    audiences, this edge resolves entirely inside the study's own config.
+    A dangling name is a bare `KeyError` out of `malaria.hydrate_strata` that
+    kills the whole study's reconciliation run and names neither the stratum nor
+    the creative. Unambiguously an error: unlike audiences, this edge resolves
+    entirely inside the study's own config, and every creative a stratum names
+    is resolved unconditionally.
     """
     known = {c.name for c in creatives}
     out = []
@@ -373,17 +379,52 @@ def _check_creative_references(
 
 
 def _check_destination_references(
-    creatives: Sequence[CreativeConf], destinations: Sequence[DestinationConf]
+    creatives: Sequence[CreativeConf],
+    destinations: Sequence[DestinationConf],
+    strata: Optional[Sequence[StratumConf]],
 ) -> List[ValidationMessage]:
     """`creatives[].destination` -> `destinations[].name`.
 
-    `get_destination_for_creative` (`marketing.py:942`) raises a clear
-    `Exception` here, and it too kills the run.
+    Split in two by whether any stratum actually names the creative, which is
+    the thing that decides whether a dangling destination is fatal.
+
+    `get_destination_for_creative` (`marketing.get_destination_for_creative`)
+    raises a clear `Exception`, and it kills the reconciliation run — but it has
+    exactly one caller, `creative_destination_pairs`, and that caller iterates
+    `stratum.creatives`, never the whole `creatives` conf. So a creative no
+    stratum references is never resolved and its dead destination costs
+    nothing: the study reconciles fine.
+
+    Hence:
+
+    ERROR (`creative.destination_unknown`) — a creative some stratum names.
+    This is reached at run time and kills the study.
+
+    WARNING (`creative.unreferenced_destination_unknown`) — a creative nothing
+    names. Latent: harmless today, fatal the moment a stratum adds it.
+
+    Why that narrow warning rather than a general `creative.unreferenced`: an
+    unreferenced creative is ordinary editing debris, common and harmless, and
+    warning about every one of them would bury the report in noise — which is
+    the thing that stops anyone reading it. The pair of conditions is what makes
+    a finding: unreferenced AND pointing at nothing.
+
+    When `strata` is unavailable (missing, or it failed to parse) nothing can be
+    known about which creatives are referenced, so every dangling destination is
+    reported as the latent warning. Under-claiming is the right direction: an
+    error the caller cannot act on is worse than a warning they can.
     """
     known = {d.name for d in destinations}
+    referenced = (
+        {name for s in strata for name in s.creatives} if strata is not None else set()
+    )
+
     out = []
     for i, creative in enumerate(creatives):
-        if creative.destination not in known:
+        if creative.destination in known:
+            continue
+
+        if creative.name in referenced:
             out.append(
                 ValidationMessage(
                     code="creative.destination_unknown",
@@ -392,9 +433,25 @@ def _check_destination_references(
                     message=(
                         f"Creative '{creative.name}' names destination "
                         f"'{creative.destination}', which is not in the "
-                        "destinations conf. At run time this aborts the "
-                        "study's reconciliation. Known destinations: "
-                        f"{sorted(known)}."
+                        "destinations conf. A stratum names this creative, so "
+                        "at run time this aborts the study's reconciliation. "
+                        f"Known destinations: {sorted(known)}."
+                    ),
+                )
+            )
+        else:
+            out.append(
+                ValidationMessage(
+                    code="creative.unreferenced_destination_unknown",
+                    section="creatives",
+                    path=_path("creatives", (i, "destination")),
+                    message=(
+                        f"Creative '{creative.name}' names destination "
+                        f"'{creative.destination}', which is not in the "
+                        "destinations conf. No stratum names this creative, so "
+                        "nothing resolves it today and the study runs — but the "
+                        "moment a stratum adds it, reconciliation aborts. "
+                        f"Known destinations: {sorted(known)}."
                     ),
                 )
             )
@@ -421,7 +478,7 @@ def _check_audience_references(
 
 
 def _check_stratum_ids_unique(strata: Sequence[StratumConf]) -> List[ValidationMessage]:
-    """`uniqueness` (`malaria.py:679`) raises on a duplicate, at run time only.
+    """`malaria.uniqueness` raises on a duplicate, at run time only.
 
     Included because it is the same class of whole-study failure and free here:
     the run-time message ("Strata IDs combinations are not unique") does not say
@@ -455,7 +512,7 @@ def _check_targeting_variables(
 ) -> List[ValidationMessage]:
     """`warn_on_incomplete_targeting`, as a report instead of a log line.
 
-    This is `missing_targeting_variables` (`study_conf.py:1301`) decomposed into
+    This is `study_conf.missing_targeting_variables` decomposed into
     its two pure halves, `targeting_variables` and `supplied_variables`, which
     are imported rather than reimplemented. The decomposition exists so the
     check can run on a study whose other sections did not parse;
@@ -500,8 +557,8 @@ def _check_thinned_refs(
 ) -> List[ValidationMessage]:
     """`warn_on_thinned_ref_without_mapping`, as a report instead of a log line.
 
-    `thins_its_ref_without_reading_the_mapping` (`study_conf.py:1263`)
-    decomposed the same way and for the same reason as
+    `study_conf.thins_its_ref_without_reading_the_mapping` decomposed the same
+    way and for the same reason as
     `_check_targeting_variables`, and pinned against it by a test.
 
     A WARNING for the reason that function gives: a study recruiting uniformly,
@@ -582,13 +639,25 @@ def _check_inference_data_sources(
 
 def _parse_sections(
     sections: Mapping[str, Any],
-) -> Tuple[Dict[str, Any], List[ValidationMessage], List[ValidationMessage]]:
-    """Parse each supplied section on its own. Returns (parsed, errors, warnings).
+) -> Tuple[Dict[str, Any], set, List[ValidationMessage], List[ValidationMessage]]:
+    """Parse each supplied section on its own.
+
+    Returns `(parsed, failed, errors, warnings)`.
 
     Independently, so that one broken section does not hide the others' errors,
     and so the cross-section checks below get everything that did parse.
+
+    `failed` is the set of sections that were supplied and did not parse, and it
+    exists because "absent" and "unparseable" are NOT the same thing to a
+    cross-section check even though both leave the section out of `parsed`. An
+    absent `inference_data` supplies no variables, and every stratum targeting
+    one is a genuine warning — that is a study not yet wired to a survey
+    platform. An *unparseable* `inference_data` supplies no variables only
+    because we could not read it, and warning that nothing is supplied would be
+    noise piled on top of the `section.invalid` error that already says so.
     """
     parsed: Dict[str, Any] = {}
+    failed: set = set()
     errors: List[ValidationMessage] = []
     warnings: List[ValidationMessage] = []
 
@@ -616,6 +685,7 @@ def _parse_sections(
         try:
             parsed[name] = _ADAPTERS[name].validate_python(value)
         except ValidationError as e:
+            failed.add(name)
             errors.extend(
                 ValidationMessage(
                     code="section.invalid",
@@ -633,6 +703,7 @@ def _parse_sections(
             # this, validating an incomplete audience conf would crash the
             # validator — and, through the endpoint, return a 500 for a report
             # whose whole purpose is to describe bad input.
+            failed.add(name)
             errors.append(
                 ValidationMessage(
                     code="section.invalid",
@@ -642,7 +713,7 @@ def _parse_sections(
                 )
             )
 
-    return parsed, errors, warnings
+    return parsed, failed, errors, warnings
 
 
 def validate_study(sections: Mapping[str, Any]) -> ValidationReport:
@@ -656,7 +727,7 @@ def validate_study(sections: Mapping[str, Any]) -> ValidationReport:
 
     Never raises for bad input: everything it finds comes back in the report.
     """
-    parsed, errors, warnings = _parse_sections(sections)
+    parsed, failed, errors, warnings = _parse_sections(sections)
 
     for name in REQUIRED_SECTIONS:
         if name in parsed:
@@ -715,25 +786,40 @@ def validate_study(sections: Mapping[str, Any]) -> ValidationReport:
     inference_data = parsed.get("inference_data")
     data_sources = parsed.get("data_sources")
 
+    # A check is skipped when a section it reads was SUPPLIED and did not parse
+    # (`failed`), as opposed to simply being absent. For the two optional
+    # sections the difference is invisible in `parsed` — both leave the value
+    # None — and it changes the answer: an absent `inference_data` genuinely
+    # supplies no variables, an unparseable one supplies none only because we
+    # could not read it. Warning in the second case is noise stacked on top of
+    # the `section.invalid` error that already says so, and noise is what stops
+    # anyone reading the report. The required sections need no such guard: a
+    # failed one is not in `parsed`, so the `is not None` tests already skip it.
+    read_inference_data = "inference_data" not in failed
+    read_data_sources = "data_sources" not in failed
+
     if strata is not None:
         errors += _check_stratum_ids_unique(strata)
-        warnings += _check_targeting_variables(strata, inference_data)
+        if read_inference_data:
+            warnings += _check_targeting_variables(strata, inference_data)
         if creatives is not None:
             errors += _check_creative_references(strata, creatives)
         if audiences is not None:
-            findings = _check_audience_references(strata, audiences)
-            errors += [f for f in findings if f.code == "audience.partitioned_bare_name"]
-            warnings += [
-                f for f in findings if f.code != "audience.partitioned_bare_name"
-            ]
+            # Every audience finding is a warning; see
+            # `_audience_reference_finding` for why, including the partitioned
+            # case that review demoted.
+            warnings += _check_audience_references(strata, audiences)
 
     if creatives is not None and destinations is not None:
-        errors += _check_destination_references(creatives, destinations)
+        findings = _check_destination_references(creatives, destinations, strata)
+        errors += [f for f in findings if f.code == "creative.destination_unknown"]
+        warnings += [f for f in findings if f.code != "creative.destination_unknown"]
 
-    if destinations is not None:
+    if destinations is not None and read_inference_data:
         warnings += _check_thinned_refs(destinations, inference_data)
 
-    warnings += _check_inference_data_sources(inference_data, data_sources)
+    if read_inference_data and read_data_sources:
+        warnings += _check_inference_data_sources(inference_data, data_sources)
 
     return ValidationReport(valid=not errors, errors=errors, warnings=warnings)
 
@@ -753,7 +839,15 @@ KNOWN_GAPS: Tuple[str, ...] = (
     "means the study is silently never collected (connector.go:83).",
     "Audience references are not checked against the ad account's real custom "
     "audiences, so an audience built by hand in Ads Manager is indistinguishable "
-    "from a typo. Both come back as a warning.",
+    "from a typo. Every audience finding is therefore a warning, including a "
+    "stratum naming a PARTITIONED conf by a name vlab never creates.",
+    "A LOOKALIKE audience's own `<name>` is accepted unconditionally, but "
+    "`audiences.hydrate_audience` only creates it once the origin audience "
+    "holds `lookalike.target` users -- until then only `<name>-origin` exists. "
+    "That is a respondent count, not configuration, so it is out of reach here: "
+    "a stratum may reference an audience that is correct and simply not built "
+    "yet. The same is true of every audience reference on a study's first runs, "
+    "before the audience cron has created anything.",
     "Nothing Meta-side is checked: whether the template campaign or ad set "
     "still exists, whether the creative template is still valid, or whether "
     "recruitment.objective and optimization_goal are a pairing Meta accepts. "

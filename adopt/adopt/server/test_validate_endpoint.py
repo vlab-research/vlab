@@ -268,20 +268,65 @@ def test_a_proposal_can_fix_a_broken_stored_study():
     assert res.json()["data"]["valid"] is True
 
 
-def test_the_overlay_replaces_a_section_rather_than_merging_into_it():
-    # Whole-section replacement, because that is what a POST does. If this were
-    # a deep merge, dropping a stratum in a proposal would leave it in place
-    # and the report would describe a study no write could produce.
-    org_id, _, headers = _setup(valid_study())
+def test_the_overlay_drops_a_stratum_rather_than_merging_it_back_in():
+    # Whole-section replacement, because that is what a POST does. Constructed
+    # so that an INDEX-WISE DEEP MERGE fails: the stored strata[1] carries a
+    # dangling creative reference, and the proposal is a one-element list. Under
+    # replacement, strata[1] is gone and the study is clean. Under a merge that
+    # keeps index 1, `stratum.creative_unknown` at strata[1] survives.
+    sections = deepcopy(valid_study())
+    sections["strata"][1]["creatives"] = ["does-not-exist"]
+    org_id, _, headers = _setup(sections)
+
+    stored = _post(org_id, headers).json()["data"]
+    assert [(e["code"], e["path"]) for e in stored["errors"]] == [
+        ("stratum.creative_unknown", "strata[1].creatives[0]")
+    ]
 
     one_stratum = [deepcopy(valid_study()["strata"][0])]
-    one_stratum[0]["creatives"] = ["frowning"]
-
     res = _post(org_id, headers, {"sections": {"strata": one_stratum}})
 
-    # "smiling" is now unused, which is not an error; the point is that the
-    # second stored stratum is gone rather than merged back in.
-    assert res.json()["data"]["valid"] is True
+    report = res.json()["data"]
+    assert report["errors"] == []
+    assert report["warnings"] == []
+    assert report["valid"] is True
+
+
+def test_the_overlay_drops_a_field_rather_than_merging_it_forward():
+    # The field-level half of the same property. The stored stratum targets a
+    # variable nothing supplies, which warns; the proposal is the same stratum
+    # with no `question_targeting` key at all. Under replacement the warning is
+    # gone. Under a per-field deep merge the stored predicate is carried
+    # forward and the warning survives.
+    sections = deepcopy(valid_study())
+    sections["strata"][0]["question_targeting"]["vars"][0]["value"] = "age"
+    org_id, _, headers = _setup(sections)
+
+    stored = _post(org_id, headers).json()["data"]
+    assert [(w["code"], w["path"]) for w in stored["warnings"]] == [
+        ("stratum.targeting_variable_unsupplied", "strata[0].question_targeting")
+    ]
+
+    untargeted = deepcopy(sections["strata"])
+    del untargeted[0]["question_targeting"]
+
+    report = _post(org_id, headers, {"sections": {"strata": untargeted}}).json()["data"]
+    assert report["warnings"] == []
+    assert report["valid"] is True
+
+
+def test_a_proposal_is_what_the_findings_describe_not_the_stored_section():
+    # The overlaid content is what gets reported, named in the message, so a
+    # proposal that is silently ignored cannot pass as a clean report.
+    org_id, _, headers = _setup(valid_study())
+
+    proposed = deepcopy(valid_study()["strata"])
+    proposed[0]["creatives"] = ["only-in-the-proposal"]
+
+    report = _post(org_id, headers, {"sections": {"strata": proposed}}).json()["data"]
+
+    assert [e["path"] for e in report["errors"]] == ["strata[0].creatives[0]"]
+    assert "only-in-the-proposal" in report["errors"][0]["message"]
 
 
 def test_an_explicit_null_section_asks_what_breaks_without_it():

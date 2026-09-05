@@ -834,15 +834,37 @@ edge is checked and nothing Meta-side is. The gaps are enumerated as
 prose.
 
 **Errors and warnings are drawn on one line.** An *error* is a reference that
-provably cannot resolve from the study's own configuration —
-`strata[].creatives[]` → `creatives[].name`, `creatives[].destination` →
-`destinations[].name`, and a stratum naming a `PARTITIONED` audience conf by
-its bare name (vlab creates `<name>-cohort-N` and never `<name>`). A *warning*
-is anything whose resolution depends on something the function cannot see: a
-general dangling audience name resolves against custom audiences on the Meta
-ad account, not against the `audiences` conf, so offline validation cannot tell
-a typo from an audience built by hand in Ads Manager. Warnings never make a
-study invalid.
+provably cannot resolve from the study's own configuration, **and that the run
+path actually resolves**. A *warning* is anything else worth saying. Two
+consequences that are easy to get wrong, and were, in the first draft:
+
+- `strata[].creatives[]` → `creatives[].name` is an error, because
+  `hydrate_strata` resolves every creative a stratum names. But
+  `creatives[].destination` → `destinations[].name` is an error *only for a
+  creative some stratum names*: `get_destination_for_creative` has exactly one
+  caller, `creative_destination_pairs`, and it iterates `stratum.creatives`.
+  An unreferenced creative's dead destination is
+  `creative.unreferenced_destination_unknown`, a warning — harmless today,
+  fatal the moment a stratum adds it. (A blanket `creative.unreferenced` was
+  rejected: unreferenced creatives are ordinary editing debris and warning on
+  all of them would bury the report.)
+- **Every audience finding is a warning, without exception.**
+  `strata[].audiences` resolves against custom audiences on the Meta *ad
+  account* (`FacebookState.get_audience`), not against the `audiences` conf, so
+  offline validation cannot tell a typo from an audience built by hand in Ads
+  Manager. That includes `audience.partitioned_bare_name` — a stratum naming a
+  `PARTITIONED` conf by a name vlab never creates — which was an error until
+  review pointed out that the rule admits no exception just because the mistake
+  is obvious.
+
+Warnings never make a study invalid.
+
+**Absent is not the same as unparseable.** For the two optional sections both
+leave the value `None`, and treating them alike would report every targeted
+variable as unsupplied whenever `inference_data` merely failed to parse — noise
+on top of the `section.invalid` error that already says so. `_parse_sections`
+returns a `failed` set for exactly this, and the checks that read a failed
+section are skipped.
 
 The two invariants that were `logging.warning` calls in a cron —
 `warn_on_incomplete_targeting` and `warn_on_thinned_ref_without_mapping` — are

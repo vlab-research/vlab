@@ -573,11 +573,13 @@ are design decisions, not mechanical fixes.
    **ADDRESSED 2026-09-05, §14.** `adopt.authoring.validate.validate_study` and
    `POST /{org}/studies/{slug}/validate` report all three with one shape and
    one path format, ahead of any cron run. Note the split §14.2 argues for: the
-   creative and destination edges are errors, a general dangling audience name
-   is a *warning* (it resolves against the ad account, not the conf), and
-   naming a `PARTITIONED` conf by its bare name is an error. The run-time
-   behaviour — the `KeyError`, the INFO-level drop — is unchanged; validation
-   is a layer in front of it, not a fix to it.
+   stratum→creative edge is an error; a creative's dangling destination is an
+   error only when a stratum names that creative, and a warning otherwise
+   (nothing resolves an unreferenced creative); and **every** audience finding
+   is a warning, including naming a `PARTITIONED` conf by its bare name, since
+   audience names resolve against the ad account rather than the conf. The
+   run-time behaviour — the `KeyError`, the INFO-level drop — is unchanged;
+   validation is a layer in front of it, not a fix to it.
 5. **`GET /confs/{conf_type}` takes the stored name, not the URL segment** —
    `confs/data-sources` writes `data_sources`, so reading back with the hyphen
    raises. Latent; the dashboard only uses `GET /confs`.
@@ -979,23 +981,42 @@ Everything else followed from this. The rule settled on:
 > configuration. A warning is anything whose resolution depends on something
 > this function cannot see.**
 
-That is what puts `stratum.creative_unknown` and `creative.destination_unknown`
-in errors — both joins are entirely internal, and both kill the reconciliation
-run — and `stratum.audience_unknown` in warnings, which is the interesting one.
-§11.4 item 4 groups the audience case with the other two, and reads as though
-it should be an error. It cannot be. `strata[].audiences` does not point at
-`audiences[].name`: it points at a custom audience **on the Meta ad account**,
-matched by name (`FacebookState.get_audience`, `facebook/state.py:301`), which
-may have been built by hand in Ads Manager or by another study. A pure,
-offline validator cannot distinguish a typo from a legitimate external
-audience, and calling it an error would fail studies that recruit perfectly
-well.
+That is what puts `stratum.creative_unknown` in errors — the join is entirely
+internal, every creative a stratum names is resolved unconditionally, and a
+dangling one kills the reconciliation run — and `stratum.audience_unknown` in
+warnings. §11.4 item 4 groups the audience case with the other two and reads as
+though it should be an error. It cannot be. `strata[].audiences` does not point
+at `audiences[].name`: it points at a custom audience **on the Meta ad
+account**, matched by name (`FacebookState.get_audience`), which may have been
+built by hand in Ads Manager or by another study. A pure, offline validator
+cannot distinguish a typo from a legitimate external audience, and calling it an
+error would fail studies that recruit perfectly well.
 
-The exception, and the case §11.4 actually singles out, *is* an error:
-`audience.partitioned_bare_name`. If the name is an `audiences[].name` in this
-very study and that conf is `PARTITIONED`, then vlab provably creates
-`<name>-cohort-N` and never `<name>` (`audiences.py:101`). The author's intent
-is not in doubt and their reference is dead on arrival.
+**The first draft made one exception and it was wrong.**
+`audience.partitioned_bare_name` — a stratum naming a `PARTITIONED` conf by a
+name vlab provably never creates (`audiences.partition_name` makes
+`<name>-cohort-N`) — was an error, on the grounds that the author's intent is
+not in doubt. Review pointed out that this breaks the rule the section had just
+stated: `get_audience` still matches on the ad account, so an audience someone
+built by hand under exactly that name resolves fine, and validation cannot see
+that nobody did. Demoted to a warning; the message kept its sharpness. The
+lesson worth recording is that the most obviously-a-mistake case is exactly
+where a rule gets quietly suspended, so it is the one to check the rule
+against.
+
+**Review found a second, plainer false positive.**
+`creative.destination_unknown` was an error on any creative naming a missing
+destination. But `get_destination_for_creative` has exactly one caller,
+`marketing.creative_destination_pairs`, and it iterates `stratum.creatives` —
+never the whole `creatives` conf. A creative no stratum names is never
+resolved, so its dead destination costs nothing and the study reconciles fine.
+Split: the error now requires that some stratum name the creative, and an
+unreferenced one gets `creative.unreferenced_destination_unknown`, a warning
+about a latent landmine — harmless today, fatal the moment a stratum adds it.
+
+A general `creative.unreferenced` was considered and rejected: an unreferenced
+creative is ordinary editing debris, common and harmless, and warning on every
+one would bury the report. The *pair* of conditions is what makes a finding.
 
 The two log-only invariants stay warnings, unchanged, for the reasons their own
 docstrings give: a study with no `inference_data` yet is unfinished rather than
@@ -1016,10 +1037,22 @@ second implementation free to drift, which is precisely the failure that made
 the TypeScript compiler a problem (§4). It also means every validator added to
 `StudyConf` in future is reported by `POST /validate` with no change here.
 
-**Collect, do not stop.** Each section is parsed independently, so one broken
-section cannot hide another's errors, and the cross-section checks run on
-whatever parsed. A study with an unparseable `recruitment` conf still gets told
-about its dangling creative references. This is not free — it is why
+**Collect, do not stop — but do not invent, either.** Each section is parsed
+independently, so one broken section cannot hide another's errors, and the
+cross-section checks run on whatever parsed. A study with an unparseable
+`recruitment` conf still gets told about its dangling creative references.
+
+The trap review caught: for the two *optional* sections, "absent" and "did not
+parse" both leave the value `None`, and they are not the same thing. An absent
+`inference_data` genuinely supplies no variables, so every stratum targeting one
+is a real warning — that is a study not yet wired to a survey platform. An
+unparseable one supplies none only because it could not be read, and the same
+warnings are then noise stacked on the `section.invalid` error that already says
+so. `_parse_sections` now returns a `failed` set alongside `parsed`, and a check
+is skipped when a section it reads is in it. The required sections need no such
+guard: a failed one is simply not in `parsed`.
+
+This is not free — it is why
 `missing_targeting_variables` and `thins_its_ref_without_reading_the_mapping`
 are *decomposed* into their pure halves here rather than called directly (they
 take a whole `StudyConf`, which a half-broken study cannot produce), with tests
@@ -1113,7 +1146,16 @@ whole purpose is to be described.
 - The warning/error split for audience references is a judgement (§14.2), not a
   measurement. Nobody has counted how often real studies name an ad-account
   audience that no `audiences` conf creates. If the answer is "never", they
-  should be errors.
+  should be errors, `audience.partitioned_bare_name` first.
+- **A `LOOKALIKE` audience's own `<name>` is accepted unconditionally**, though
+  `audiences.hydrate_audience` creates it only once the origin holds
+  `lookalike.target` users. Deliberate: that is a respondent count, not
+  configuration, and validation cannot see it — the same blind spot as every
+  audience reference on a study's first runs. In `KNOWN_GAPS`.
+- **`creative.unreferenced_destination_unknown` rests on there being exactly
+  one caller of `get_destination_for_creative`.** A second caller that walked
+  the whole `creatives` conf would make that warning an error, and nothing
+  enforces that one does not appear.
 - Phase 3 proper — the SDK, `vlab validate`/`push`/`diff`/`plan`/`apply` — is
   unstarted. This is the piece it imports.
 
