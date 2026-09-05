@@ -353,8 +353,10 @@ are dashboard bookkeeping, read only by
 
 **So: strata are the real configuration; variables are a convenience.** An
 agent may skip `variables` entirely and POST strata directly. If you do write
-`variables`, understand that nothing derives strata from it server-side — the
-derivation lives in browser TypeScript (§7).
+`variables`, understand that nothing derives strata from it server-side. The
+derivation is available in Python as `adopt.authoring.strata` (§6 step 7), a
+conformance-tested port of the dashboard's TypeScript; it is a library call,
+not an endpoint.
 
 ---
 
@@ -1047,19 +1049,24 @@ Everything else is the agent's.
    per-stratum `metadata` map and a `question_targeting` predicate ANDing each
    level equality with an `answered` filter on the study's finish question
    (`createStrataFromVariables`,
-   `dashboard/src/pages/StudyConfPage/forms/strata/strata.ts:53`). That code
-   runs in React and is reachable from nowhere else, so **an agent must
-   reproduce the derivation or hand-write the strata**. Hand-writing is
-   legitimate — the server only ever stores what you send.
+   `dashboard/src/pages/StudyConfPage/forms/strata/strata.ts:53`). The same
+   function exists in Python as
+   `adopt.authoring.strata.create_strata_from_variables(variables,
+   finish_question_ref, creatives, audiences, existing_strata)`, which takes
+   and returns the JSON wire shapes and is held identical to the TypeScript by
+   a replayed fixture set of 1,142 cases (`adopt/adopt/authoring/`). Use it,
+   or hand-write the strata — hand-writing is legitimate, the server only ever
+   stores what you send — but do not write a third derivation.
 
    The `facebook_targeting` values themselves come from a template ad set on
-   Meta, read in the browser and passed through `extractFromAdset`
-   (`dashboard/src/pages/StudyConfPage/forms/variables/extract.ts`), which
-   throws if a declared property is missing and unconditionally forces
+   Meta, which you still have to read yourself (§7). Pass the ad set through
+   `adopt.authoring.extract.extract_from_adset(adset, properties)` — the port
+   of the dashboard's `extractFromAdset` — which raises `PropertyMissingError`
+   if a declared property is missing and unconditionally forces
    `targeting_automation: {advantage_audience: 0}`. If you build targeting by
-   hand, set that key yourself; adopt forces it at ad-set build time anyway
-   (`marketing.py:119`), but your stored conf will otherwise disagree with what
-   is deployed.
+   hand instead, set that key yourself; adopt forces it at ad-set build time
+   anyway (`marketing.py:119`), but your stored conf will otherwise disagree
+   with what is deployed.
 
 8. **Write `data-sources` and `inference-data`.** Then check, yourself, that
    every variable named in every stratum's `question_targeting` appears as an
@@ -1098,14 +1105,12 @@ client.
    `dashboard/src/helpers/api.ts:412`). vlab proxies none of it. An agent that
    needs a creative template or a template ad set's targeting must talk to Meta
    directly, with a token it was given.
-3. **Derive strata from variables.** The compiler is browser TypeScript (§6
-   step 7). There is an older Python ancestor at
-   `adopt/adopt/configuration.py`, but **it disagrees with the TypeScript** —
-   different metadata keys (`stratum_<var>` vs `<var>`), different targeting
-   variable refs, quotas from an Excel share lookup rather than a product of
-   level quotas — and nothing imports it outside its own test. Do not treat it
-   as the reference implementation; production studies are built with the
-   TypeScript.
+3. **Derive strata from variables *over HTTP*.** The compiler is a library
+   (`adopt.authoring`, §6 step 7), not an endpoint; an agent that is not
+   running Python has to call it out of process or hand-write strata. Do not
+   use `adopt/adopt/configuration.py` for this: it is the pre-dashboard
+   ancestor, marked superseded, and its output disagrees with the dashboard's
+   in metadata keys, targeting refs, ids and quotas.
 4. **Get a whole-study validation over HTTP.** The closest thing is the plan
    endpoint (§5), which is slow, reads Meta and writes rows.
 5. **See why a `500` happened** on a conf POST whose model raised
@@ -1126,6 +1131,15 @@ disagrees with `adopt/adopt/server/`, the code is right and the doc is stale.
 - **Committed JSON Schemas** — `adopt/schemas/*.json`, kept current by
   `make -C adopt check-schemas` in CI; folded into §3.
 - **`copy-from` cross-tenant write fixed** — §2.2.
+
+**Phase 1 landed the same day, unreleased as of this revision:** the strata
+compiler and the ad-set targeting extractor as Python
+(`adopt/adopt/authoring/strata.py`, `extract.py`), each TypeScript test
+translated, plus a differential suite that replays 1,142 recorded runs of the
+real TypeScript through the port (`dashboard/scripts/authoring-conformance.ts`
+→ `conformance_fixtures.json` → `test_conformance.py`, regenerated with
+`make -C adopt authoring-fixtures`). `configuration.py` is marked superseded.
+See §6 step 7 and §12 of the planning doc.
 
 What the plan claimed and implementation disproved is in §11 of the planning
 doc; the six defects found and deliberately left alone (including the
