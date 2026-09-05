@@ -1,3 +1,37 @@
+"""SUPERSEDED — the notebook-era study configuration helpers.
+
+This module predates the dashboard. It built a study from an Excel workbook
+(`parse_kv_sheet`, `parse_row_sheet`, `read_share_lookup`) and derived strata
+with its own `format_group_product`, which does NOT agree with what the
+dashboard produces and what production studies are built with:
+
+  * metadata keys are `stratum_<var>`, the dashboard's are `<var>`;
+  * question-targeting variable refs are `md:stratum_<var>`, the dashboard's
+    are the bare variable name;
+  * stratum ids are hyphen-joined `var-level-var-level`, the dashboard's are
+    `var:level,var:level`;
+  * quotas come from an Excel share lookup, the dashboard's are the product of
+    the level quotas.
+
+The dashboard's derivation is now ported, with a conformance suite against the
+TypeScript, in `adopt.authoring` (`strata.py`, `extract.py`). Use that. Do not
+use `format_group_product` here to build strata for a study the dashboard will
+also touch — the two will disagree and the dashboard's staleness banner will
+flag every stratum.
+
+Nothing in production imports this module; its only importers are
+`test_configuration.py` (the `read_share_lookup` Excel tests, which still pass
+and still guard that reader) and `test_studies.py` (whose uses are commented
+out). It is kept, rather than deleted, for the pieces that are still the right
+idea for a composable authoring library and have no replacement yet:
+`read_share_lookup` (shares from a sheet), `parse_row_sheet`/`parse_kv_sheet`
+(typed rows from a sheet), and `location_levels`/`create_location` (radius
+geo-targeting from lat/lng rows). Those move into `adopt.authoring` when the
+SDK (plan §8, Phase 3) gives them a consumer to shape their API around — see
+`planning/agent-study-authoring.md` §10 and §12. `create_campaign` here is a
+stale duplicate of `marketing.create_campaign`, which is the live one.
+"""
+
 import json
 import re
 from typing import List, NamedTuple, Optional, Tuple, Type, TypeVar, get_type_hints

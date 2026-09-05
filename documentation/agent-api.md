@@ -360,8 +360,10 @@ are dashboard bookkeeping, read only by
 
 **So: strata are the real configuration; variables are a convenience.** An
 agent may skip `variables` entirely and POST strata directly. If you do write
-`variables`, understand that nothing derives strata from it server-side — the
-derivation lives in browser TypeScript (§7).
+`variables`, understand that nothing derives strata from it server-side. The
+derivation is available in Python as `adopt.authoring.strata` (§6 step 7), a
+conformance-tested port of the dashboard's TypeScript; it is a library call,
+not an endpoint.
 
 ---
 
@@ -417,22 +419,21 @@ body. Two consequences:
 | Condition | Result |
 |---|---|
 | Missing or wrong-typed field, unknown destination `type`, list where an object was expected | `422` with FastAPI's per-field detail — legible and actionable |
-| A model validator raising `InvalidConfigError` (bad WhatsApp phone number, unsafe `initial_shortcode`, invalid `audiences[].subtype`, invalid `partitioning` combination) | **`500 Internal Server Error` with the body `Internal Server Error` and no explanation.** See below |
+| A model validator raising `InvalidConfigError` (bad WhatsApp phone number, unsafe `initial_shortcode`, invalid `audiences[].subtype`, invalid `partitioning` combination) | `422`, with the validator's message verbatim in the `detail`. Since adopt v0.1.84 — before that it was a bare `500`; see below |
 | Study does not exist, or is not in `{org_id}`, or you are not in that org | `500`. The insert's study subselect yields `NULL` against a `NOT NULL` column |
 | Unparseable auth | `401` |
 
-> **`InvalidConfigError` does not become a `422`.** It derives from
-> `BaseException`, not `ValueError` (`adopt/adopt/study_conf.py:930`), so
-> pydantic does not wrap it in a `ValidationError` and Starlette's error
-> middleware — which catches `Exception` — does not see it either. uvicorn's
-> catch-all (`h11_impl.py:411`) logs it and emits a bare `500`. **The
-> explanatory message, which is often excellent, only reaches the server log.**
-> Measured by driving `list[DestinationConf]` through a FastAPI `TestClient`.
-> A `500` from a conf POST therefore usually means "your configuration is
-> wrong in a way the model knows how to describe, and you cannot see the
-> description". The models that behave this way are:
-> `FlyWhatsAppDestination`, `FlyMultiDestination` (phone number, shortcode),
-> `AudienceConf` (subtype), and `Partitioning`.
+> **`InvalidConfigError` is a `422` since adopt v0.1.84.** It used to derive
+> from `BaseException` (`adopt/adopt/study_conf.py:930`), so pydantic did not
+> wrap it in a `ValidationError`, Starlette's `except Exception` middleware
+> did not see it, and uvicorn emitted a bare `500` with the explanatory
+> message reaching only the server log. It now derives from `ValueError`, so
+> pydantic wraps it and FastAPI returns `422` with the message in `detail`.
+> If you are talking to a deployment older than v0.1.84, a `500` from a conf
+> POST usually means "your configuration is wrong in a way the model knows
+> how to describe, and you cannot see the description"; the models affected
+> are `FlyWhatsAppDestination`, `FlyMultiDestination` (phone number,
+> shortcode), `AudienceConf` (subtype), and `Partitioning`.
 
 > **A missing study is also a `500`, not a `404`.** `create_study_conf`
 > (`db.py:151`) inserts `(SELECT s.id FROM studies s JOIN orgs_lookup … )` as
@@ -745,12 +746,11 @@ Traps, all documented at length in the model's own comments:
   (`study_conf.py:168`). Both reached production.
 - **`whatsapp_phone_number` is the phone number, not the `phone_number_id`.**
   It must be 7–15 digits after punctuation is stripped; sending an id is
-  rejected. The rejection is an `InvalidConfigError`, so it arrives as an
-  unexplained `500` (§2.1).
+  rejected with a `422` naming the field (§2.1).
 - **`initial_shortcode` must be `[A-Za-z0-9_-]+`** for `whatsapp` and `multi`.
   fly recovers the shortcode from the ad's autofill text, which a human may
   also type by hand, and a literal space lands the respondent in a fallback
-  survey belonging to someone else. Also an `InvalidConfigError` → `500`.
+  survey belonging to someone else. Also a `422` (§2.1).
 - **`ref_mode: "encoded"` requires a matching read.** See §4.
 
 ### `creatives` — array
@@ -798,8 +798,8 @@ own sub-object (`AudienceConf.__post_init__`, `study_conf.py:1028`):
   (`Partitioning.validate_scenario`, `study_conf.py:956`)
 
 Both of those raise `InvalidConfigError`, so a bad subtype or an invalid
-partitioning combination is an unexplained `500` (§2.1). And remember §1.3: the
-names these produce on Meta are not always `name`.
+partitioning combination is a `422` carrying the message (§2.1). And remember
+§1.3: the names these produce on Meta are not always `name`.
 
 ### `variables` — array
 
@@ -1151,10 +1151,14 @@ Everything else is the agent's.
    per-stratum `metadata` map and a `question_targeting` predicate ANDing each
    level equality with an `answered` filter on the study's finish question
    (`createStrataFromVariables`,
-   `dashboard/src/pages/StudyConfPage/forms/strata/strata.ts:53`). That code
-   runs in React and is reachable from nowhere else, so **an agent must
-   reproduce the derivation or hand-write the strata**. Hand-writing is
-   legitimate — the server only ever stores what you send.
+   `dashboard/src/pages/StudyConfPage/forms/strata/strata.ts:53`). The same
+   function exists in Python as
+   `adopt.authoring.strata.create_strata_from_variables(variables,
+   finish_question_ref, creatives, audiences, existing_strata)`, which takes
+   and returns the JSON wire shapes and is held identical to the TypeScript by
+   a replayed fixture set of 1,142 cases (`adopt/adopt/authoring/`). Use it,
+   or hand-write the strata — hand-writing is legitimate, the server only ever
+   stores what you send — but do not write a third derivation.
 
    The `facebook_targeting` values themselves come from a template ad set on
    Meta. Read the ad sets through the proxy and extract from one:
@@ -1165,9 +1169,6 @@ Everything else is the agent's.
    ```
 
    ```python
-   # adopt.authoring.extract lands with PR #254 (branch
-   # feature/agent-study-authoring-phase1); until it merges, port
-   # dashboard/src/pages/StudyConfPage/forms/variables/extract.ts yourself.
    from adopt.authoring.extract import extract_from_adset
 
    adsets = resp["data"]
@@ -1236,28 +1237,39 @@ client.
    human has to connect the account before the proxy has a token to read with.
    And nothing an API key can call writes to Meta except an optimize
    instruction (§5), which is a different thing entirely.
-3. **Derive strata from variables.** The compiler is browser TypeScript (§6
-   step 7). There is an older Python ancestor at
-   `adopt/adopt/configuration.py`, but **it disagrees with the TypeScript** —
-   different metadata keys (`stratum_<var>` vs `<var>`), different targeting
-   variable refs, quotas from an Excel share lookup rather than a product of
-   level quotas — and nothing imports it outside its own test. Do not treat it
-   as the reference implementation; production studies are built with the
-   TypeScript.
+3. **Derive strata from variables *over HTTP*.** The compiler is a library
+   (`adopt.authoring`, §6 step 7), not an endpoint; an agent that is not
+   running Python has to call it out of process or hand-write strata. Do not
+   use `adopt/adopt/configuration.py` for this: it is the pre-dashboard
+   ancestor, marked superseded, and its output disagrees with the dashboard's
+   in metadata keys, targeting refs, ids and quotas.
 4. **Get a whole-study validation over HTTP.** The closest thing is the plan
    endpoint (§5), which is slow, reads Meta and writes rows.
-5. **See why a `500` happened** on a conf POST whose model raised
-   `InvalidConfigError` (§2.1).
 
 ---
 
 ## 8. What landed recently
 
-### 2026-09-05 — the Meta Graph proxy
+### 2026-09-05 — adopt v0.1.84: Phase 1, Phase 2, and `422` for `InvalidConfigError`
 
-Phase 2 of `planning/agent-study-authoring.md` (§13 there records the decisions
-and what the plan got wrong). Not yet deployed at the time of writing; check
-the adopt version in `devops/values/toixo-prod.yaml` before relying on it.
+Three PRs, one release. Check the adopt version in
+`devops/values/toixo-prod.yaml` before relying on any of it.
+
+**`InvalidConfigError` is a `422`, not a `500`** (PR #255). Every conf POST
+that trips a cross-field validator now returns the validator's message in
+`detail` — §2.1's failure-mode table and the WhatsApp / audience / partitioning
+notes in §4 were rewritten accordingly. The item that used to be §7.5 ("see why
+a `500` happened") is closed. The `extra="ignore"` behaviour is unchanged and
+is investigated in `planning/conf-extra-fields.md`.
+
+**The strata compiler is Python** (PR #254): `adopt.authoring.strata` and
+`adopt.authoring.extract`, held identical to the dashboard's TypeScript by a
+replayed fixture set — §6 step 7. Three divergences the fixtures could not
+reach (null saved quotas, non-string level names, an empty first stratum) were
+found in review and fixed before merge; §12.5 of the planning doc has them.
+
+**The Meta Graph proxy** (PR #256; Phase 2 of `planning/agent-study-authoring.md`,
+§13 there records the decisions and what the plan got wrong):
 
 - **`GET /{org_id}/meta/…`** — §2.5. Ad accounts, campaigns, ad sets, ads and
   creative blobs, read server-side with the researcher's stored Facebook token,
@@ -1269,9 +1281,8 @@ the adopt version in `devops/values/toixo-prod.yaml` before relying on it.
   discover a valid `general.credentials_key`.
 
 This closes the item that used to be §7.2 ("read anything from Meta through
-vlab"). It does not close §7.3: the strata compiler is still browser
-TypeScript, though `adopt.authoring` (PR #254) ports it and the `extract`
-half is what §6 step 7 now shows.
+vlab"). §7.3 narrows to "over HTTP": the compiler is a Python library, not an
+endpoint.
 
 ### 2026-09-04 — Phase 0
 
@@ -1286,6 +1297,15 @@ disagrees with `adopt/adopt/server/`, the code is right and the doc is stale.
 - **Committed JSON Schemas** — `adopt/schemas/*.json`, kept current by
   `make -C adopt check-schemas` in CI; folded into §3.
 - **`copy-from` cross-tenant write fixed** — §2.2.
+
+**Phase 1 landed the same day and released in v0.1.84 (above):** the strata
+compiler and the ad-set targeting extractor as Python
+(`adopt/adopt/authoring/strata.py`, `extract.py`), each TypeScript test
+translated, plus a differential suite that replays 1,142 recorded runs of the
+real TypeScript through the port (`dashboard/scripts/authoring-conformance.ts`
+→ `conformance_fixtures.json` → `test_conformance.py`, regenerated with
+`make -C adopt authoring-fixtures`). `configuration.py` is marked superseded.
+See §6 step 7 and §12 of the planning doc.
 
 What the plan claimed and implementation disproved is in §11 of the planning
 doc; the six defects found and deliberately left alone (including the
