@@ -1671,6 +1671,12 @@ per destination. That split is the whole contract:
 | `video_data.image_hash` / `message` / `title` / `video_id` | `url_tags` (carries the ref) |
 | `asset_feed_spec` variant fields (`bodies`, `titles`, `images`, `videos`, `ad_formats`, `link_urls`, `descriptions`) | `asset_feed_spec.optimization_type` / `call_to_actions`, for a multi destination |
 
+The `video_data` four — `image_hash`, `message`, `title`, `video_id` — are
+copied with **no null filter**, so a video template missing any of them deploys
+that field as `null`. An Ads-Manager video ad always sets all four, which is
+why nothing guards it; `vlab template` requires a thumbnail and a headline on
+every video creative for the same reason.
+
 Two fields are read with no guard and so are effectively required:
 
 * **`template["actor_id"]`** — `audiences.hydrate_audiences` indexes it
@@ -1730,7 +1736,13 @@ Every one of these was measured against the live API, and each is applied by
   on the production account, and comes back from
   `GET /{org}/meta/campaigns` whose `fields` is `name,id`.
 * **Daily budgets are capped** at 10 000 cents. A paused campaign cannot be
-  charged, so this is a typo guard, not a spend control.
+  charged, so this is a typo guard, not a spend control. Both the cap and the
+  PAUSED rule are re-checked when a plan is applied, not only when it is
+  planned — `apply` sends a plan's parameters verbatim, and a `TemplatePlan` is
+  a plain object anything can build.
+* **An ad set is checked against its campaign, not just named.** Adding an ad
+  needs a marked campaign *and* an ad set that belongs to it, because the ad
+  set is what actually decides where the ad lands.
 * **An ad's name is its creative's name.** vlab's reconciliation matches ads by
   name and the ad it builds is named for the creative conf, so a template that
   follows the same rule has one string in Ads Manager and in the study file.
@@ -1831,6 +1843,19 @@ vlab template creative --account act_… --campaign 120… --adset 120… \
   --message "…" --image ./ad2.png --create --json
 ```
 
+Two checks run before anything is created, and **both** are needed:
+`--campaign` must carry the marker, **and** `--adset` must actually belong to
+that campaign. An ad is created with an `adset_id` and no campaign of its own,
+so the *ad set* is what decides which campaign the ad lands in — checking only
+the campaign name would let a marked `--campaign` paired with someone else's ad
+set put a paused ad inside a live study.
+
+For a **video** creative pass `--video-id` **and** an image (`--image` or
+`--image-hash`, which is its thumbnail) **and** `--headline`. Meta's
+`video_data` wants all three, and `_create_creative` copies them with no null
+filter, so a template missing one deploys `null` rather than omitting the
+field.
+
 **7. Clean up.**
 
 ```bash
@@ -1884,7 +1909,8 @@ appsecret_proof provided`).
 - **Video templates are supported by id only.** `--video-id` references a video
   already on the account; there is no upload, because Meta's video upload is a
   resumable multi-request protocol rather than the single multipart POST an
-  image is.
+  image is. The thumbnail *is* uploadable — `--image` beside `--video-id` is
+  the video's `image_hash` — and, with `--headline`, is required.
 - **`reachestimate` versus `delivery_estimate` is unresolved.** Meta has been
   migrating between them for years and neither this repo nor its docs pin a
   version where one is gone. `check-targeting` defaults to `reachestimate` and

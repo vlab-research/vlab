@@ -26,10 +26,10 @@ that needs paused-only and budget-ceiling guardrails plus an audit trail.
 | `adopt/adopt/meta_fields.py` | The Graph `fields` lists, extracted from `server/meta.py` so the builder and the proxy name the same fields. |
 | `adopt/adopt/facebook/state.py` | `api_for_token` — the one place a `FacebookSession` is constructed. `get_api` delegates to it. |
 | `adopt/adopt/sdk/cli.py` | **One line**: `from . import templates_cli` at the bottom. |
-| tests | `authoring/test_templates.py` (74), `sdk/test_templates_cli.py` (27). No database, no live Meta; the mock boundary is `FacebookAdsApi.call`, as in `server/test_meta.py`. |
+| tests | `authoring/test_templates.py` (85), `sdk/test_templates_cli.py` (29). No database, no live Meta; the mock boundary is `FacebookAdsApi.call`, as in `server/test_meta.py`. |
 | docs | `documentation/agent-api.md` §6a (new, and the single home for the Meta quirks §10 asked to have promoted), §3 `creatives` pointer, §7 item 2 corrected, §8 entry. `adopt/README.md` gains a `vlab template` section. |
 
-DB-free suite 1 564 → 1 665 passed locally (Docker is down on the author's
+DB-free suite 1 564 → 1 678 passed locally (Docker is down on the author's
 machine, so the ~100 database-backed tests were not run here); the full suite
 runs in CI.
 
@@ -339,6 +339,70 @@ The transferable one is the first: **a guard that lives inside a helper only
 protects the branches that call that helper.** `build_creative` has two
 branches and the validation was in one of them; the fix was to hoist it to
 where every branch passes.
+
+---
+
+
+## 5b. What the PR review found
+
+A second review, on the open PR. It verified the auth story, the single-homing
+of the field lists, the lazy `marketing` import and the guardrails, and found
+one hole in the last of those that mattered a great deal.
+
+**1. The `vlab template creative` marker guard was checking a value nothing
+downstream reads.** An ad is created with an `adset_id` and **no campaign of
+its own** — Meta places it in whatever campaign that ad set belongs to. So
+`--campaign <a marked campaign> --adset <an ad set in a live study's campaign>
+--create` passed the marker check and created a paused ad **inside the live
+study**. The campaign name was, in effect, decoration.
+
+`apply` now resolves the ad set on Meta (`GET /<adset>?fields=campaign_id`) and
+refuses unless it belongs to the campaign whose marker was just checked. Both
+directions are tested, at the library and the CLI boundary, and a missing
+`campaign_id` on Meta's answer falls on the refusing side.
+
+`--campaign` is kept rather than derived from the ad set, now that the two are
+cross-checked: deriving alone would accept an ad set from *any* marked
+campaign, so a mis-pasted id that happens to name another template's ad set
+would be silently honoured. Naming both makes that a refusal. The CLI help
+claimed the marker was "the only thing standing between this command and a
+paused ad in a live study's campaign"; it is corrected to say what actually
+holds.
+
+**2. The key runtime test never reached `_create_creative`'s video branch.**
+`_template_for` always passed an `image_hash`, so five of the ten
+(kind × media) combinations did not exist — and the `video_data` branch shares
+almost no code with `link_data`. It is now parametrised over both, which
+immediately showed the defect the reviewer predicted: `_create_creative` copies
+`video_data`'s four fields with `tvd.get(k)` and **no None filter**
+(`marketing.py` ~905), so a template lacking `image_hash` or `title` deploys
+`image_hash: null` / `title: null` rather than omitting them.
+
+Fixed at plan time, not in `marketing.py`. `build_creative`'s image/video xor
+was the wrong shape — it made a video creative that *could not* carry a
+thumbnail — so an image is now required in both shapes (the ad's image, or the
+video's thumbnail, which is what `AdCreativeVideoData.image_hash` means and
+what Meta requires), and a video additionally requires a headline. The runtime
+code is pre-existing and shared with every hand-built Ads-Manager template,
+where both fields are always set — which is why nobody had hit it — so the
+right place to fix it is the builder that could produce a thinner one. The key
+test now also asserts that no key on a deployed `video_data` is None.
+
+**3. The budget ceiling and PAUSED were enforced at plan time only**, and
+`apply` posts `create.params` verbatim. A `TemplatePlan` is a plain dataclass
+anything can construct — a fixture, a plan round-tripped through JSON and
+edited, a future third planner — so `_refuse_unsafe_creates` re-checks both at
+the boundary that actually sends bytes, before the first Graph call. Two tests
+tamper with a real plan and assert nothing goes out.
+
+**4. `server/meta.py` restated the creative field expansion inline** on the
+`/meta/ads/{id}/creative` route while the `/meta/ads` route used the imported
+`AD_FIELDS` — the exact duplication the `meta_fields.py` extraction was for,
+one line below it. Collapsed.
+
+The transferable one is the first: **a guardrail has to check the field the
+write actually uses.** The name check read like a campaign check and was one;
+the ad never mentions a campaign.
 
 ---
 

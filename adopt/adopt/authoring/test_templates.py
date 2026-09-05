@@ -27,6 +27,7 @@ template that would KeyError in `audiences.py`.
 from __future__ import annotations
 
 import json
+from dataclasses import replace
 from datetime import datetime
 from typing import Any, Dict, List
 from unittest.mock import patch
@@ -232,6 +233,7 @@ def test_the_plan_for_a_messenger_campaign_is_byte_stable():
         "account_id": "act_1342820622846299",
         "campaign_name": "Templates - VL Pulse Nigeria",
         "campaign_id": None,
+        "adset_id": None,
         "properties": ["genders", "age_min", "age_max", "geo_locations"],
         "seed": {},
         "warnings": [
@@ -650,33 +652,56 @@ def test_a_multi_creative_carries_metas_two_destination_array():
 
 
 def test_a_video_creative_uses_video_data_and_spells_the_headline_title():
+    """And it carries the thumbnail: `image_hash` beside `video_id` is the
+    video's thumbnail, not a second creative. Every field `_create_creative`
+    copies is present, because it copies them with no None filter.
+    """
     c = tp.build_creative(
         tp.MESSENGER,
         name="v",
         page_id=PAGE,
         message="m",
         headline="H",
+        image_hash="thumb",
         video_id="99",
     )
     video = c["object_story_spec"]["video_data"]
     assert video["video_id"] == "99"
     assert video["title"] == "H"
+    assert video["image_hash"] == "thumb"
+    assert [k for k, v in video.items() if v is None] == []
     assert "link_data" not in c["object_story_spec"]
 
 
-def test_a_creative_with_neither_an_image_nor_a_video_is_refused():
-    with pytest.raises(tp.TemplatePlanError, match="exactly one"):
+def test_a_creative_with_no_image_is_refused():
+    with pytest.raises(tp.TemplatePlanError, match="an image is required"):
         tp.build_creative(tp.MESSENGER, name="x", page_id=PAGE, message="m")
 
 
-def test_a_creative_with_both_an_image_and_a_video_is_refused():
-    with pytest.raises(tp.TemplatePlanError, match="exactly one"):
+def test_a_video_creative_with_no_thumbnail_is_refused():
+    """This was an xor -- image OR video -- until review, which made a video
+    template that could not carry a thumbnail. `_create_creative` copies
+    `image_hash` with no None filter, so such a template deployed
+    `image_hash: null`; Ads Manager always sets one, which is why the
+    pre-existing runtime code never had to guard it.
+    """
+    with pytest.raises(tp.TemplatePlanError, match="an image is required"):
+        tp.build_creative(
+            tp.MESSENGER, name="x", page_id=PAGE, message="m", video_id="9"
+        )
+
+
+def test_a_video_creative_with_no_headline_is_refused():
+    """Same reason, other field: `title` is copied unconditionally, so leaving
+    the headline off deploys `title: null` rather than omitting it.
+    """
+    with pytest.raises(tp.TemplatePlanError, match="needs a headline"):
         tp.build_creative(
             tp.MESSENGER,
             name="x",
             page_id=PAGE,
             message="m",
-            image_hash="h",
+            image_hash="thumb",
             video_id="9",
         )
 
@@ -773,7 +798,15 @@ DESTINATIONS = {
 }
 
 
-def _template_for(kind: str) -> Dict[str, Any]:
+# The two carriers a creative can have. Every test that drives a template
+# through the runtime runs over BOTH: `_create_creative` has a `link_data`
+# branch and a `video_data` branch that share almost no code, and review found
+# the second one was never reached from here -- so a guard that only the image
+# branch enforced looked tested and was not.
+MEDIA = ("image", "video")
+
+
+def _template_for(kind: str, media: str = "image") -> Dict[str, Any]:
     """A creative this library builds, in the shape a study would store it."""
     return _as_meta_returns_it(
         tp.build_creative(
@@ -782,7 +815,10 @@ def _template_for(kind: str) -> Dict[str, Any]:
             page_id=PAGE,
             message="Tell us what you think.",
             headline="Chat with us",
+            # An image in both shapes: on its own it is the ad, alongside a
+            # video_id it is the thumbnail. See `build_creative`.
             image_hash="7fabd5c7072f2242195f6f5dbbfb512c",
+            video_id="120000000000000009" if media == "video" else None,
             link=(
                 "https://survey.example/start"
                 if kind == tp.WEB
@@ -795,8 +831,9 @@ def _template_for(kind: str) -> Dict[str, Any]:
     )
 
 
+@pytest.mark.parametrize("media", MEDIA)
 @pytest.mark.parametrize("kind", tp.CREATIVE_KINDS)
-def test_a_built_creative_deploys_through_the_runtime(kind):
+def test_a_built_creative_deploys_through_the_runtime(kind, media):
     """THE test. Build a creative, store it as a template, deploy it.
 
     `create_creative` is the real run-path entry point: it calls
@@ -811,7 +848,9 @@ def test_a_built_creative_deploys_through_the_runtime(kind):
     """
     destination = DESTINATIONS[kind]
     config = CreativeConf(
-        name="vlpulse-ng-1", destination=destination.name, template=_template_for(kind)
+        name="vlpulse-ng-1",
+        destination=destination.name,
+        template=_template_for(kind, media),
     )
     study = _study([destination], [config])
     stratum = Stratum(
@@ -826,13 +865,29 @@ def test_a_built_creative_deploys_through_the_runtime(kind):
 
     story = creative["object_story_spec"]
     assert story["page_id"] == PAGE
-    link_data = story["link_data"]
-    # The researcher's half, copied verbatim.
-    assert link_data["image_hash"] == "7fabd5c7072f2242195f6f5dbbfb512c"
-    assert link_data["message"] == "Tell us what you think."
-    assert link_data["name"] == "Chat with us"
+
+    # `link_data` for an image, `video_data` for a video -- two branches of
+    # `_create_creative` sharing almost no code, which is why this test runs
+    # over both. The headline is spelled differently in each: AdCreativeLinkData
+    # calls it `name`, AdCreativeVideoData calls it `title`.
+    carrier = story["video_data"] if media == "video" else story["link_data"]
+    headline_key = "title" if media == "video" else "name"
+
+    # The researcher's half, copied verbatim. `image_hash` is the ad's image
+    # for the image shape and the video's thumbnail for the video one; either
+    # way it must survive, because `_create_creative` copies it with no None
+    # filter and a null would be deployed rather than omitted.
+    assert carrier["image_hash"] == "7fabd5c7072f2242195f6f5dbbfb512c"
+    assert carrier["message"] == "Tell us what you think."
+    assert carrier[headline_key] == "Chat with us"
+    if media == "video":
+        assert carrier["video_id"] == "120000000000000009"
+        # No key on a deployed video_data may be None: that is exactly what the
+        # unconditional `tvd.get(k)` copy would produce from a thin template.
+        assert [k for k, v in carrier.items() if v is None] == []
+
     # The study conf's half, injected.
-    assert link_data["call_to_action"]["type"] in {
+    assert carrier["call_to_action"]["type"] in {
         "MESSAGE_PAGE",
         "WHATSAPP_MESSAGE",
         "OPEN_LINK",
@@ -843,7 +898,7 @@ def test_a_built_creative_deploys_through_the_runtime(kind):
     if kind in (tp.MESSENGER, tp.MULTI):
         assert "ref=creative.vlpulse-ng-1" in creative["url_tags"]
     if kind in tp.MESSAGING_KINDS:
-        assert "page_welcome_message" in link_data
+        assert "page_welcome_message" in carrier
 
 
 def _mismatches():
@@ -1080,6 +1135,7 @@ def test_plan_template_ads_targets_an_existing_marked_campaign(api):
     patcher, g = _graph(
         **{
             "GET C1": [{"id": "C1", "name": "Templates - Existing"}],
+            "GET A1": [{"id": "A1", "name": "Kwara - Men", "campaign_id": "C1"}],
             "POST adcreatives": [{"id": "CR9"}],
             "POST ads": [{"id": "AD9"}],
             "GET CR9": [{"id": "CR9", "actor_id": PAGE, "object_story_spec": {}}],
@@ -1338,7 +1394,12 @@ def test_a_placeholder_for_something_nothing_creates_is_a_planner_bug(api):
                 ref="adset:x",
                 node="adset",
                 edge="adsets",
-                params={"name": "x", "campaign_id": tp.ref_placeholder("nowhere")},
+                params={
+                    "name": "x",
+                    "campaign_id": tp.ref_placeholder("nowhere"),
+                    "daily_budget": tp.DEFAULT_DAILY_BUDGET,
+                    "status": "PAUSED",
+                },
             ),
         ),
         campaign_name=plan.campaign_name,
@@ -1359,7 +1420,15 @@ def test_a_web_video_creative_with_no_link_is_refused():
     already created. Exactly the failure plan-time checks exist to prevent.
     """
     with pytest.raises(tp.TemplatePlanError, match="needs a link"):
-        tp.build_creative(tp.WEB, name="w", page_id=PAGE, message="m", video_id="99")
+        tp.build_creative(
+            tp.WEB,
+            name="w",
+            page_id=PAGE,
+            message="m",
+            headline="H",
+            image_hash="thumb",
+            video_id="99",
+        )
 
 
 def test_an_app_video_creative_with_no_link_is_refused():
@@ -1369,6 +1438,8 @@ def test_an_app_video_creative_with_no_link_is_refused():
             name="a",
             page_id=PAGE,
             message="m",
+            headline="H",
+            image_hash="thumb",
             video_id="99",
             deeplink="myapp://x",
         )
@@ -1432,3 +1503,126 @@ def test_a_meta_rejection_is_reported_without_the_whole_request_context():
     assert "sauce" not in message
     # Anything that is not a Meta error keeps its own message.
     assert tp.meta_message(ValueError("connection reset")) == "connection reset"
+
+
+def test_an_adset_in_another_campaign_is_refused_even_with_a_marked_campaign(api):
+    """THE guardrail hole review found, and the reason it was a hole.
+
+    An ad is created with an `adset_id` and no campaign of its own -- Meta puts
+    it in whatever campaign that ad set belongs to. So the marker check on
+    `plan.campaign_id` was checking a value nothing downstream reads: a marked
+    `--campaign` paired with an ad set from a live study's campaign passed the
+    guard and created a paused ad inside the live study.
+    """
+    plan = tp.plan_template_ads(
+        account_id=ACCOUNT, campaign_id="C1", adset_id="A_LIVE", ads=[_ad()]
+    )
+    patcher, g = _graph(
+        **{
+            "GET C1": [{"id": "C1", "name": "Templates - Existing"}],
+            # The ad set is real, and it lives somewhere else.
+            "GET A_LIVE": [
+                {
+                    "id": "A_LIVE",
+                    "name": "Gender:Men",
+                    "campaign_id": "C_LIVE_STUDY",
+                }
+            ],
+        }
+    )
+    with patcher:
+        with pytest.raises(tp.TemplateApplyError, match="belongs to campaign"):
+            tp.apply(plan, api)
+
+    assert [c for c in g.calls if c["method"] == "POST"] == []
+
+
+def test_an_adset_inside_the_marked_campaign_is_accepted(api):
+    """The other half: the check must not refuse the ordinary case."""
+    plan = tp.plan_template_ads(
+        account_id=ACCOUNT, campaign_id="C1", adset_id="A1", ads=[_ad()]
+    )
+    assert plan.adset_id == "A1"
+
+    patcher, g = _graph(
+        **{
+            "GET C1": [{"id": "C1", "name": "Templates - Existing"}],
+            "GET A1": [{"id": "A1", "name": "Kwara - Men", "campaign_id": "C1"}],
+            "POST adcreatives": [{"id": "CR9"}],
+            "POST ads": [{"id": "AD9"}],
+            "GET CR9": [{"id": "CR9", "actor_id": PAGE, "object_story_spec": {}}],
+        }
+    )
+    with patcher:
+        result = tp.apply(plan, api)
+
+    assert result.ads[0]["id"] == "AD9"
+    assert g.posted("ads")[0]["adset_id"] == "A1"
+
+
+def test_an_adset_meta_will_not_name_a_campaign_for_is_refused(api):
+    """A missing `campaign_id` on the read is a refusal, not a pass.
+
+    Belt and braces on the shape of Meta's answer: comparing `None` against the
+    plan's campaign must fall on the safe side, because the whole point of the
+    check is that we do not know where this ad set lives until Meta says.
+    """
+    plan = tp.plan_template_ads(
+        account_id=ACCOUNT, campaign_id="C1", adset_id="A1", ads=[_ad()]
+    )
+    patcher, g = _graph(
+        **{
+            "GET C1": [{"id": "C1", "name": "Templates - Existing"}],
+            "GET A1": [{"id": "A1", "name": "Kwara - Men"}],
+        }
+    )
+    with patcher:
+        with pytest.raises(tp.TemplateApplyError, match="belongs to campaign"):
+            tp.apply(plan, api)
+    assert [c for c in g.calls if c["method"] == "POST"] == []
+
+
+def test_apply_re_checks_paused_on_the_plan_it_was_handed(api):
+    """`apply` posts `create.params` verbatim, and a `TemplatePlan` is a plain
+    dataclass anything can construct -- a fixture, a plan round-tripped through
+    JSON and edited. The two invariants this module exists for are re-checked
+    at the boundary that actually sends bytes.
+    """
+    plan = tp.plan_template_campaign(
+        account_id=ACCOUNT, name="Tampered", adsets=_adsets()
+    )
+    tampered = replace(
+        plan,
+        creates=tuple(
+            replace(c, params={**c.params, "status": "ACTIVE"})
+            if c.node == "adset"
+            else c
+            for c in plan.creates
+        ),
+    )
+    patcher, g = _graph()
+    with patcher:
+        with pytest.raises(tp.TemplateApplyError, match="not 'PAUSED'"):
+            tp.apply(tampered, api)
+    # Before the campaign-name lookup, so not even a read went out.
+    assert g.calls == []
+
+
+def test_apply_re_checks_the_budget_ceiling_on_the_plan_it_was_handed(api):
+    plan = tp.plan_template_campaign(
+        account_id=ACCOUNT, name="Spendy", adsets=_adsets()
+    )
+    tampered = replace(
+        plan,
+        creates=tuple(
+            replace(c, params={**c.params, "daily_budget": 10_000_000})
+            if c.node == "adset"
+            else c
+            for c in plan.creates
+        ),
+    )
+    patcher, g = _graph()
+    with patcher:
+        with pytest.raises(tp.TemplateApplyError, match="outside 1\\.\\."):
+            tp.apply(tampered, api)
+    assert g.calls == []

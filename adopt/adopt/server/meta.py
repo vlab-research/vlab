@@ -731,7 +731,10 @@ async def get_ad_creative(
         return _graph_get(
             _api_for(credential.token),
             (ad_id,),
-            {"fields": f"id,name,creative{{{CREATIVE_FIELDS}}}", "pretty": 0},
+            # `AD_FIELDS`, not the same string spelled again: this route and
+            # `/meta/ads` must return the SAME creative shape, since both feed
+            # `creatives[].template`. Restating it was how they could drift.
+            {"fields": AD_FIELDS, "pretty": 0},
         )
 
     body = await asyncio.to_thread(_work)

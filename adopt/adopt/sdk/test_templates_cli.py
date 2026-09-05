@@ -334,6 +334,7 @@ def test_creative_adds_one_paused_ad_to_a_marked_campaign(runner):
     patcher, g = _graph(
         **{
             "GET C1": [{"id": "C1", "name": "Templates - Existing"}],
+            "GET A1": [{"id": "A1", "name": "Kwara - Men", "campaign_id": "C1"}],
             "POST adcreatives": [{"id": "CR9"}],
             "POST ads": [{"id": "AD9"}],
             "GET CR9": [
@@ -583,3 +584,39 @@ def test_check_targeting_names_an_adset_with_no_targeting(runner, tmp_path):
         )
     assert result.exit_code != 0
     assert "Empty" in result.output
+
+
+def test_creative_refuses_an_adset_belonging_to_another_campaign(runner):
+    """The guardrail hole review found, at the CLI boundary.
+
+    An ad is created with an adset_id and no campaign of its own, so a marked
+    --campaign paired with a live study's ad set used to pass the marker check
+    and put a paused ad inside that study.
+    """
+    patcher, g = _graph(
+        **{
+            "GET C1": [{"id": "C1", "name": "Templates - Existing"}],
+            "GET A1": [
+                {"id": "A1", "name": "Gender:Men", "campaign_id": "C_LIVE_STUDY"}
+            ],
+        }
+    )
+    with patcher:
+        result = _run(runner, CREATIVE_ARGS + ["--create"])
+
+    assert result.exit_code == 1
+    assert "belongs to campaign" in result.output
+    assert [c for c in g.calls if c["method"] == "POST"] == []
+
+
+def test_a_video_creative_needs_a_thumbnail_and_a_headline(runner):
+    """Refused before any network: `_create_creative` copies video_data's four
+    fields with no null filter, so a thin video template deploys nulls.
+    """
+    args = [a for a in CREATIVE_ARGS if a not in ("--image-hash", "abc123")]
+    with patch.object(
+        FacebookAdsApi, "call", side_effect=AssertionError("hit the network")
+    ):
+        result = _run(runner, args + ["--video-id", "99", "--create"])
+    assert result.exit_code != 0
+    assert "an image is required" in result.output

@@ -85,12 +85,21 @@ from typing import Any, Dict, List, Optional
 import click
 import yaml
 
-from ..authoring.templates import (CREATIVE_KINDS, DELIVERY_ESTIMATE,
-                                   REACH_ESTIMATE, AdsetSpec, AdSpec,
-                                   TemplateError, TemplatePlan, apply,
-                                   delete_template_campaign, meta_message,
-                                   plan_template_ads, plan_template_campaign,
-                                   validate_targeting)
+from ..authoring.templates import (
+    CREATIVE_KINDS,
+    DELIVERY_ESTIMATE,
+    REACH_ESTIMATE,
+    AdsetSpec,
+    AdSpec,
+    TemplateError,
+    TemplatePlan,
+    apply,
+    delete_template_campaign,
+    meta_message,
+    plan_template_ads,
+    plan_template_campaign,
+    validate_targeting,
+)
 from ..facebook.state import api_for_token
 from .cli import VlabGroup, cli, emit_json
 
@@ -417,9 +426,19 @@ def template_create(
 @click.option("--message", required=True, help="The ad's primary text.")
 @click.option("--headline", default=None, help="link_data.name / video_data.title.")
 @click.option("--description", default=None)
-@click.option("--image", type=click.Path(), default=None, help="Local file to upload.")
+@click.option(
+    "--image",
+    type=click.Path(),
+    default=None,
+    help="Local file to upload. The ad's image, or a video's thumbnail.",
+)
 @click.option("--image-hash", default=None, help="An image already on the account.")
-@click.option("--video-id", default=None, help="A video already on the account.")
+@click.option(
+    "--video-id",
+    default=None,
+    help="A video already on the account. Also needs an image (thumbnail) "
+    "and a headline.",
+)
 @click.option("--instagram-user-id", default=None)
 @click.option("--link", default=None, help="Required for web and app.")
 @click.option("--deeplink", default=None, help="Required for app.")
@@ -458,9 +477,17 @@ def template_creative(
     be lifted off an ad set that already exists.
 
     \b
-    The campaign must already carry the "Templates - " marker. That is the only
-    thing standing between this command and a paused ad appearing inside a live
-    study's campaign, so it is checked before anything is created.
+    Two checks before anything is created, and BOTH are needed. --campaign must
+    carry the "Templates - " marker, AND --adset must actually belong to that
+    campaign: an ad is created with an adset_id and no campaign of its own, so
+    the AD SET is what decides which campaign the ad lands in. Checking only
+    the name would let a marked --campaign paired with someone else's ad set
+    put a paused ad inside a live study.
+
+    \b
+    For a video creative pass --video-id AND an image (--image or
+    --image-hash), which is its thumbnail, AND --headline. Meta's video_data
+    wants all three, and adopt copies them with no null filter.
 
     \b
     On success the JSON output carries `ads[0].template` -- the creative as

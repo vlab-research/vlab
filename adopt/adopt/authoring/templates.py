@@ -61,9 +61,13 @@ from dataclasses import dataclass, field, replace
 from typing import Any, Dict, List, Mapping, Optional, Sequence, Tuple
 
 from ..meta_fields import CREATIVE_FIELDS, REQUIRED_TEMPLATE_CREATIVE_FIELDS
-from ..study_conf import (APP_DESTINATION_TYPE, MESSENGER_DESTINATION_TYPE,
-                          MULTI_DESTINATION_TYPE, WEB_DESTINATION_TYPE,
-                          WHATSAPP_DESTINATION_TYPE)
+from ..study_conf import (
+    APP_DESTINATION_TYPE,
+    MESSENGER_DESTINATION_TYPE,
+    MULTI_DESTINATION_TYPE,
+    WEB_DESTINATION_TYPE,
+    WHATSAPP_DESTINATION_TYPE,
+)
 from .extract import PropertyMissingError, extract_from_adset
 
 __all__ = [
@@ -421,11 +425,37 @@ def build_creative(
             "audiences.py reads with a bare `template['actor_id']`), and for "
             "WhatsApp and multi it is also the ad set's promoted_object."
         )
-    if bool(image_hash) == bool(video_id):
+    if not image_hash:
+        # An image is required in BOTH shapes: on its own it is the ad, and
+        # alongside a `video_id` it is the video's thumbnail, which is what
+        # `AdCreativeVideoData.image_hash` means and what Meta requires
+        # (video_data takes image_hash or image_url).
+        #
+        # This used to be an xor -- image OR video, never both -- which review
+        # caught, and it was the wrong shape for a reason worth keeping: it
+        # made a video creative that could not carry a thumbnail, and
+        # `_create_creative`'s video branch copies its four fields with
+        # `tvd.get(k)` and NO None filter (marketing.py ~905), so such a
+        # template deployed `video_data: {image_hash: None, title: None, ...}`.
+        # Nobody had hit it because an Ads-Manager video template always has
+        # both. Required here rather than filtered there: the runtime code is
+        # pre-existing and shared with every hand-built template, and a
+        # template that cannot deploy should fail while someone is still
+        # looking at it.
         raise TemplatePlanError(
-            f"Creative {name!r}: give exactly one of an image or a video_id. "
-            "Meta has no creative with neither, and _create_creative reads "
-            "link_data (image) or video_data (video), not both."
+            f"Creative {name!r}: an image is required — as the ad's image, or "
+            "as the video's thumbnail when `video_id` is given. Meta's "
+            "video_data needs image_hash or image_url, and _create_creative "
+            "copies image_hash unconditionally, so a video template without "
+            "one deploys `image_hash: null`."
+        )
+    if video_id and not headline:
+        # Same reason: `_create_creative` copies `title` with no None filter,
+        # so a video template with no headline deploys `title: null`.
+        raise TemplatePlanError(
+            f"Creative {name!r}: a video creative needs a headline. It becomes "
+            "video_data.title, which _create_creative copies unconditionally, "
+            "so leaving it off deploys `title: null` rather than omitting it."
         )
     if kind == APP and not deeplink:
         raise TemplatePlanError(
@@ -464,16 +494,17 @@ def build_creative(
                 "(_create_creative copies image_hash, message, title and "
                 "video_id only). Put it in the message."
             )
-        video: Dict[str, Any] = {
+        # All four of `_create_creative`'s copied fields are present, and are
+        # required above rather than conditional here -- that function copies
+        # them with `tvd.get(k)` and no None filter, so an absent key becomes
+        # a null on the deployed ad rather than an omission.
+        story["video_data"] = {
             "video_id": str(video_id),
+            "image_hash": image_hash,
+            "title": headline,
             "message": message,
             "call_to_action": call_to_action,
         }
-        if headline:
-            video["title"] = headline
-        if image_hash:  # pragma: no cover - excluded by the xor check above
-            video["image_hash"] = image_hash
-        story["video_data"] = video
     else:
         link_data: Dict[str, Any] = {
             "image_hash": image_hash,
@@ -529,8 +560,11 @@ class AdSpec:
     """One template ad, and the creative it carries.
 
     `image` is a path on this machine, uploaded by `apply` and substituted for
-    `image_hash`; `image_hash` is one already on the account. `adset` names
-    which planned ad set the ad hangs on, defaulting to the first.
+    `image_hash`; `image_hash` is one already on the account. Exactly one of
+    the two is required -- **including for a video**, where it is the
+    thumbnail (`video_data.image_hash`) and a video also requires a
+    `headline`; see `build_creative`. `adset` names which planned ad set the ad
+    hangs on, defaulting to the first.
     """
 
     name: str
@@ -616,6 +650,12 @@ class TemplatePlan:
     # it does not carry the template marker.
     campaign_name: Optional[str] = None
     campaign_id: Optional[str] = None
+    # A PRE-EXISTING ad set every ad in this plan hangs on. Set only alongside
+    # `campaign_id`, and `apply` verifies on Meta that it really belongs to
+    # that campaign -- because an ad is created with an `adset_id` and no
+    # campaign of its own, so the ad set is what actually decides where the ad
+    # lands. See `plan_template_ads`.
+    adset_id: Optional[str] = None
     properties: Tuple[str, ...] = ()
     warnings: Tuple[str, ...] = ()
     # Refs whose values are already known -- an ad set that exists on Meta
@@ -627,6 +667,7 @@ class TemplatePlan:
             "account_id": self.account_id,
             "campaign_name": self.campaign_name,
             "campaign_id": self.campaign_id,
+            "adset_id": self.adset_id,
             "properties": list(self.properties),
             "warnings": list(self.warnings),
             "seed": dict(self.seed),
@@ -1131,9 +1172,22 @@ def plan_template_ads(
 
     The Creatives half on its own, because that is the half a researcher
     actually gets stuck on: targeting can be lifted off any ad set, but a
-    creative has to be built. `apply` refuses unless `campaign_id` carries the
-    template marker, so this cannot bolt a paused ad onto a live study
-    campaign.
+    creative has to be built.
+
+    `apply` refuses unless `campaign_id` carries the template marker AND
+    `adset_id` actually belongs to that campaign. Both, because **an ad is
+    created with an `adset_id` and no campaign of its own** -- Meta places it in
+    whatever campaign that ad set belongs to. Checking only the campaign name
+    therefore checked a value nothing downstream uses: a marked `--campaign`
+    paired with an ad set from a live study's campaign passed the guard and put
+    a paused ad inside the live study. Review caught it; `test_templates.py`
+    has both directions.
+
+    Keeping `campaign_id` as an argument rather than deriving it from the ad
+    set is deliberate now that they are cross-checked. Deriving alone would
+    accept an ad set from ANY marked campaign, so a mis-pasted id that happens
+    to name another template's ad set would be silently honoured; naming both
+    makes that a refusal.
     """
     if not ads:
         raise TemplatePlanError("Nothing to do: no ads given.")
@@ -1158,6 +1212,7 @@ def plan_template_ads(
         account_id=account,
         creates=tuple(image_creates + ad_creates),
         campaign_id=str(campaign_id),
+        adset_id=str(adset_id),
         seed={"adset": str(adset_id)},
     )
 
@@ -1321,6 +1376,69 @@ def _read_creative(api, creative_id: str) -> Dict[str, Any]:
     return _graph_get(api, (creative_id,), {"fields": CREATIVE_FIELDS})
 
 
+def _refuse_unsafe_creates(plan: TemplatePlan) -> None:
+    """Re-check PAUSED and the budget ceiling on the plan `apply` was handed.
+
+    Both are enforced by the planner already. This is not redundancy for its
+    own sake: `apply` posts `create.params` VERBATIM, and a `TemplatePlan` is a
+    plain dataclass that anything can construct -- a test fixture, a plan
+    round-tripped through JSON and edited, a future third planner. The two
+    invariants this module is *for* should hold at the boundary that actually
+    sends bytes, not only at the one that happens to be the usual entry point.
+
+    Cheap enough to be free (a walk over a list that is already in memory) and
+    it fails before the first Graph call, so an unsafe plan creates nothing.
+    """
+    for create in plan.creates:
+        if create.node in ("campaign", "adset", "ad"):
+            status = create.params.get("status")
+            if status != PAUSED:
+                raise TemplateApplyError(
+                    f"REFUSING: {create.node} {create.ref!r} has status "
+                    f"{status!r}, not {PAUSED!r}. This module never creates a "
+                    "delivering object; a plan that says otherwise did not "
+                    "come from its planner."
+                )
+        if create.node == "adset":
+            budget = create.params.get("daily_budget")
+            if not isinstance(budget, int) or not 0 < budget <= MAX_DAILY_BUDGET:
+                raise TemplateApplyError(
+                    f"REFUSING: ad set {create.ref!r} has daily_budget "
+                    f"{budget!r}, outside 1..{MAX_DAILY_BUDGET} cents."
+                )
+
+
+def _refuse_adset_outside_campaign(api, plan: TemplatePlan) -> None:
+    """The ad set a plan hangs its ads on must belong to the marked campaign.
+
+    THE HOLE THIS CLOSES, found in review of PR #267. An ad is created with an
+    `adset_id` and no campaign of its own -- Meta puts it in whatever campaign
+    that ad set belongs to. So checking the marker on `plan.campaign_id` was
+    checking a value nothing downstream reads: `--campaign <a "Templates - "
+    campaign> --adset <an ad set in a live study's campaign> --create` passed
+    the guard and created a paused ad inside the live study. The campaign name
+    was, in effect, decoration.
+
+    Resolved from Meta rather than trusted, and compared against the campaign
+    whose marker was just checked, so the two statements have to agree.
+    """
+    if plan.adset_id is None:
+        return
+
+    adset = _graph_get(api, (plan.adset_id,), {"fields": "id,name,campaign_id"})
+    actual = str(adset.get("campaign_id") or "")
+    if actual != str(plan.campaign_id):
+        raise TemplateApplyError(
+            f"REFUSING: ad set {plan.adset_id} ({adset.get('name')!r}) belongs "
+            f"to campaign {actual or '(unknown)'}, not to "
+            f"{plan.campaign_id}. An ad is created with an adset_id and no "
+            "campaign of its own, so the AD SET decides which campaign the ad "
+            "lands in -- a marked campaign paired with someone else's ad set "
+            "would put a paused ad inside whatever study owns that ad set. "
+            "Pass the campaign this ad set is actually in."
+        )
+
+
 def apply(plan: TemplatePlan, api) -> TemplateResult:
     """Execute a plan, in order, refusing before it starts if it is unsafe.
 
@@ -1333,14 +1451,19 @@ def apply(plan: TemplatePlan, api) -> TemplateResult:
       breaks the run path for any study pointing at that name. A half-populated
       reuse would also leave ad sets whose targeting nobody has checked. Delete
       and re-run is the recoverable path.
-    * an EXISTING campaign that does not carry the template marker. This is the
-      only thing standing between `vlab template creative` and a paused ad
+    * an EXISTING campaign that does not carry the template marker, AND a
+      pre-existing ad set that does not belong to that campaign. Both are
+      needed: an ad is created with an `adset_id` and no campaign of its own,
+      so the ad set is what actually decides where the ad lands. Together they
+      are what stands between `vlab template creative` and a paused ad
       appearing inside a live study's campaign.
 
     There is no rollback. A create that fails half way leaves what it already
     made; the message says which ref failed, and `delete_template_campaign`
     removes the campaign and everything under it.
     """
+    _refuse_unsafe_creates(plan)
+
     result = TemplateResult(warnings=list(plan.warnings))
     table: Dict[str, str] = dict(plan.seed)
 
@@ -1364,6 +1487,7 @@ def apply(plan: TemplatePlan, api) -> TemplateResult:
                 "campaigns marked as templates, so that it can never add an "
                 "object to a campaign that is actually recruiting."
             )
+        _refuse_adset_outside_campaign(api, plan)
         result.campaign_id = str(plan.campaign_id)
     else:
         # Neither field set. Not reachable from either constructor today, and

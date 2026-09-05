@@ -1157,8 +1157,10 @@ piece worth importing on its own.
 **Safety, and the shape of it.** Everything is created `PAUSED` — `status` is a
 module constant, not a parameter, so nothing here can activate anything. A
 template campaign's name starts with `Templates - `, which is the marker:
-`delete` refuses any campaign without it and `creative` refuses to add an ad to
-one. Daily budgets are capped at 10 000 cents (a typo guard — a paused campaign
+`delete` refuses any campaign without it, and `creative` refuses to add an ad
+unless the campaign is marked **and** the ad set actually belongs to it (an ad
+is created with an `adset_id` and no campaign of its own, so the ad set is what
+decides where it lands — checking only the name checked nothing). Daily budgets are capped at 10 000 cents (a typo guard — a paused campaign
 cannot be charged). Dry run is the default everywhere; a write needs `--create`
 or `--yes`, and refusing prints the plan rather than merely complaining.
 
