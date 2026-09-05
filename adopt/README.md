@@ -924,7 +924,6 @@ decided and what is still open: `planning/vlab-sdk.md`. The API it wraps:
 `documentation/agent-api.md`.
 
 ```
-pipx install 'adopt[sdk]'
 export VLAB_API_KEY=eyJ...           # a human mints this; see below
 export VLAB_API_URL=https://vlab-study-conf-api.toixo.vlab.digital   # the default
 
@@ -937,12 +936,49 @@ vlab apply $ORG/hpv-nigeria 0 --yes
 
 ### Install
 
-The extra exists for the console script and for `click`; everything else the
-SDK needs (`requests`, `PyYAML`, pydantic, `pandas` for the sheet readers) is
-already a hard dependency of `adopt`, so `adopt[sdk]` is `adopt` plus one small
-package. `pipx` therefore pulls pandas, scipy and cvxpy along with it — accepted
-deliberately in plan §7, on the grounds that extracting a package is real work
-and nobody has yet been hurt by the download.
+**`adopt` is not published to any index.** There is no `pip install adopt` and
+there never has been — the name on PyPI belongs to an unrelated project, so
+installing it would get you somebody else's package. Install from the
+repository:
+
+```
+pipx install "adopt[sdk] @ git+https://github.com/vlab-research/vlab.git#subdirectory=adopt"
+```
+
+or, inside a checkout:
+
+```
+cd adopt && poetry install --extras sdk && poetry run vlab --help
+```
+
+**Python `>=3.9,<3.11`** — `adopt`'s own constraint, which the SDK inherits, so
+`pipx install --python python3.10 ...` if your default is newer. `pipx` will
+pull pandas, scipy and cvxpy along with it: accepted deliberately in plan §7,
+on the grounds that extracting a package is real work and nobody has yet been
+hurt by the download.
+
+Verified on 2026-09-05 with pip 26.2.1 and CPython 3.10.13, from a clean venv:
+
+```
+$ python3.10 -m venv v && ./v/bin/pip install '/path/to/vlab/adopt[sdk]'
+Successfully installed adopt-0.1.85 click-8.5.0 pandas-1.5.3 … (78 packages)
+$ ./v/bin/vlab --help                     # works
+$ ./v/bin/vlab validate study.yaml
+valid (study.yaml): 1 warning(s), no errors.   # exit 0
+```
+
+and the VCS form, against a local clone so no credentials are involved:
+
+```
+$ ./v/bin/pip install "adopt[sdk] @ git+file:///path/to/vlab@feature/vlab-sdk#subdirectory=adopt"
+Successfully installed adopt-0.1.85 …
+```
+
+**Use the `name[extras] @ url` spelling.** The older
+`git+https://…#subdirectory=adopt&egg=adopt[sdk]` fragment is not merely
+deprecated — pip 26 refuses it outright, with
+`× The 'adopt[sdk]' egg fragment is invalid` and a hint pointing at the
+spelling above.
 
 `click` is `optional = true` in `pyproject.toml`, which is what keeps the server
 image (`poetry install --only main --no-root`) unchanged by this. It still lands

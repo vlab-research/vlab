@@ -26,6 +26,7 @@ from test.dbfix import _reset_db
 from test.dbfix import cnf as db_conf
 from unittest.mock import patch
 
+import click
 import pytest
 import yaml
 from click.testing import CliRunner
@@ -45,7 +46,7 @@ os.environ["FACEBOOK_APP_SECRET"] = "test-app-secret"
 from facebook_business.api import FacebookAdsApi  # noqa: E402
 
 from ..server.server import app  # noqa: E402
-from .cli import cli  # noqa: E402
+from .cli import auth_options, cli  # noqa: E402
 from .client import VlabClient  # noqa: E402
 from .study import StudyFile  # noqa: E402
 
@@ -1290,3 +1291,124 @@ def test_a_target_with_too_many_segments_is_a_usage_error(runner, obj):
     res = run(runner, obj, "pull", "org/slug/extra")
     assert res.exit_code == 2
     assert "<org>/<slug>" in res.output
+
+
+# ---------------------------------------------------------------------------
+# Interface claims the module docstring makes
+# ---------------------------------------------------------------------------
+
+
+def test_auth_options_work_after_the_subcommand(runner, obj, org):
+    """`vlab push --api-key X` was a usage error while `vlab --api-key X push`
+    worked, which is the wrong way round from how anyone types it.
+
+    The injected client makes the key inert here; what is being asserted is
+    that the option PARSES, which is the whole of the bug.
+    """
+    slug = obj["client"].create_study(org, "HPV")["slug"]
+    write_study(data=study_dict(org, slug))
+
+    res = run(runner, obj, "push", "--api-key", "X", "--dry-run")
+
+    assert res.exit_code == 0
+    assert "would write general" in res.output
+
+
+def test_a_subcommand_key_beats_the_group_key():
+    """The more specific of the two wins. Asserted on the context object rather
+    than through a request, so nothing reaches the network."""
+    seen = {}
+
+    @click.command()
+    @auth_options
+    @click.pass_context
+    def probe(ctx):
+        seen.update(ctx.obj)
+
+    group_obj = {"api_key": "group", "api_url": "group-url"}
+    CliRunner().invoke(
+        probe, ["--api-key", "sub"], obj=group_obj, catch_exceptions=False
+    )
+
+    assert seen["api_key"] == "sub"
+    assert seen["api_url"] == "group-url"  # untouched when not given
+
+
+@pytest.mark.parametrize(
+    "args",
+    [
+        ["pull", "ORG/hpv", "--json"],
+        ["strata", "generate", "--json", "--finish-question", "q"],
+        ["keys", "revoke", "abc", "--yes", "--json"],
+    ],
+)
+def test_the_three_commands_that_lacked_json_have_it(runner, obj, org, args):
+    """The module docstring said every command takes `--json`; three did not."""
+    args = [org if a == "ORG/hpv" else a for a in args]
+    if args[0] == "pull":
+        slug = obj["client"].create_study(org, "HPV")["slug"]
+        args[1] = f"{org}/{slug}"
+    if args[0] == "strata":
+        data = study_dict(org, "hpv")
+        data["variables"] = VARIABLES
+        data["strata"] = []
+        write_study(data=data)
+
+    res = run(runner, obj, *args)
+
+    assert res.exit_code in (0, 1)
+    if res.exit_code == 0:
+        json.loads(res.output)
+
+
+def test_apply_json_without_yes_is_a_usage_error(runner, obj, org):
+    """The confirmation prints the instruction and a prompt on stdout, which
+    would leave `--json` output that is not JSON — and nothing is there to
+    answer it. This is the one command that spends money on Meta."""
+    slug = obj["client"].create_study(org, "HPV")["slug"]
+
+    with patch("adopt.server.server.run_study_opt") as m:
+        m.return_value = _instructions()
+        res = run(runner, obj, "apply", f"{org}/{slug}", "0", "--json")
+
+    assert res.exit_code == 2
+    assert "--json needs --yes" in res.output
+
+
+def test_apply_json_with_yes_is_parseable(runner, obj, org):
+    slug = obj["client"].create_study(org, "HPV")["slug"]
+
+    with patch("adopt.server.server.run_study_opt") as plan_m, patch(
+        "adopt.server.server.run_single_instruction"
+    ) as apply_m:
+        plan_m.return_value = _instructions()
+        apply_m.return_value = {
+            "timestamp": "2026-01-01T00:00:00",
+            "instruction": {
+                "node": "campaign",
+                "action": "create",
+                "params": {},
+                "id": None,
+            },
+        }
+        res = run(runner, obj, "apply", f"{org}/{slug}", "0", "--yes", "--json")
+
+    assert res.exit_code == 0
+    json.loads(res.output)
+
+
+def test_a_file_with_an_unquoted_date_fails_validate_not_push(runner, obj, org):
+    """End to end. Before, `validate` and `diff` passed and `push` died inside
+    the JSON encoder as a fake network error, AFTER writing the sections
+    ordered before recruitment."""
+    slug = obj["client"].create_study(org, "HPV")["slug"]
+    data = study_dict(org, slug)
+    data["recruitment"]["start_date"] = __import__("datetime").date(2026, 6, 1)
+    write_study(data=data)
+
+    res = run(runner, obj, "push")
+
+    assert res.exit_code == 1
+    assert "section.invalid" in res.output
+    assert "start_date" in res.output
+    assert _conf_rows(slug) == []  # nothing was written

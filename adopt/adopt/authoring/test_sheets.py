@@ -93,15 +93,32 @@ def test_read_share_lookup_works_with_four_variables():
         "targeting_distribution_four",
     )
 
-    assert list(share_lookup.columns) == [
-        "location",
-        "gender",
-        "age",
-        "education",
-        "percentage",
-    ]
-    assert len(share_lookup) == 16
-    assert np.isclose(share_lookup.percentage.sum(), 2.0)
+    expect = pd.DataFrame(
+        [
+            ("West", "1", "18", "a", 0.12),
+            ("East", "1", "18", "a", 0.08),
+            ("West", "2", "18", "a", 0.04),
+            ("East", "2", "18", "a", 0.16),
+            ("West", "1", "40", "a", 0.18),
+            ("East", "1", "40", "a", 0.12),
+            ("West", "2", "40", "a", 0.06),
+            ("East", "2", "40", "a", 0.24),
+            ("West", "1", "18", "b", 0.12),
+            ("East", "1", "18", "b", 0.08),
+            ("West", "2", "18", "b", 0.04),
+            ("East", "2", "18", "b", 0.16),
+            ("West", "1", "40", "b", 0.18),
+            ("East", "1", "40", "b", 0.12),
+            ("West", "2", "40", "b", 0.06),
+            ("East", "2", "40", "b", 0.24),
+        ],
+        columns=["location", "gender", "age", "education", "percentage"],
+    )
+
+    assert expect[["location", "gender", "age"]].equals(
+        share_lookup[["location", "gender", "age"]]
+    )
+    assert np.allclose(share_lookup.percentage.values, expect.percentage.values)
 
 
 def test_read_share_lookup_works_with_four_variables_and_one_location():
@@ -111,8 +128,24 @@ def test_read_share_lookup_works_with_four_variables_and_one_location():
         "targeting_distribution_four_1",
     )
 
-    assert set(share_lookup.location.unique()) == {"West"}
-    assert len(share_lookup) == 8
+    expect = pd.DataFrame(
+        [
+            ("West", "1", "18", "a", 0.12),
+            ("West", "2", "18", "a", 0.04),
+            ("West", "1", "40", "a", 0.18),
+            ("West", "2", "40", "a", 0.06),
+            ("West", "1", "18", "b", 0.12),
+            ("West", "2", "18", "b", 0.04),
+            ("West", "1", "40", "b", 0.18),
+            ("West", "2", "40", "b", 0.06),
+        ],
+        columns=["location", "gender", "age", "education", "percentage"],
+    )
+
+    assert expect[["location", "gender", "age"]].equals(
+        share_lookup[["location", "gender", "age"]]
+    )
+    assert np.allclose(share_lookup.percentage.values, expect.percentage.values)
 
 
 def test_level_values_come_back_as_strings():
@@ -323,3 +356,43 @@ def test_a_malformed_json_cell_names_the_cell_too(tmp_path):
         parse_kv_sheet(path, "general", GeneralConf)
 
     assert "extra_metadata" in str(e.value)
+
+
+def test_a_stray_blank_column_is_not_an_unknown_field(tmp_path):
+    """`pd.read_excel` invents "Unnamed: 5" for a blank column, which a real
+    workbook grows the moment somebody widens a selection. Its every value is
+    NaN, and the ancestor tested `pd.isna` BEFORE looking the column up in the
+    model's hints, so it became `None` and the lenient model dropped it.
+
+    The salvage reversed that order and turned a workbook that used to load
+    into `SheetError: GeneralConf has no field 'Unnamed: 5'`. Order restored.
+    """
+    df = pd.DataFrame(
+        [
+            {
+                "name": "banner",
+                "destination": "fly",
+                "template": '{"actor_id": "1"}',
+                "tags": None,
+                "Unnamed: 5": np.nan,
+            }
+        ]
+    )
+    path = _write(tmp_path / "conf.xlsx", {"creative": df})
+
+    creatives = parse_row_sheet(path, "creative", CreativeConf)
+
+    assert [c.name for c in creatives] == ["banner"]
+
+
+def test_a_named_column_the_model_lacks_is_still_an_error(tmp_path):
+    """The blank-column tolerance is about MISSING VALUES, not about unknown
+    names: a column with real data that the model does not declare is still
+    the stale-workbook case worth reporting."""
+    df = pd.DataFrame([{"name": "banner", "destination": "fly", "image_hash": "abc"}])
+    path = _write(tmp_path / "conf.xlsx", {"creative": df})
+
+    with pytest.raises(SheetError) as e:
+        parse_row_sheet(path, "creative", CreativeConf)
+
+    assert "image_hash" in str(e.value)

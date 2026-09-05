@@ -15,7 +15,8 @@ configuration section at a time and never assemble the study, so a sequence of
 dangerous property of the API for an automated caller.
 
 **If you can run Python, use the SDK rather than this API directly**:
-`pipx install 'adopt[sdk]'` gives you a `vlab` command that owns a study as a
+`pipx install "adopt[sdk] @ git+https://github.com/vlab-research/vlab.git#subdirectory=adopt"`
+gives you a `vlab` command that owns a study as a
 file and does `validate → diff → push → plan → apply` over exactly the
 endpoints below, with the traps of §4 and §1.1 handled. §6.1 is the runbook;
 `adopt/README.md` is the reference. Everything here still applies — the SDK is
@@ -1354,10 +1355,14 @@ Two ways, and they are the same API. **§6.1 is the one to use.** §6.2 is the
 raw HTTP underneath it, kept because an agent that cannot install Python has to
 do it that way, and because every step of §6.1 is worth understanding.
 
-### 6.1 With the SDK — `pipx install 'adopt[sdk]'`
+### 6.1 With the SDK — the `vlab` CLI
 
 ```
-pipx install 'adopt[sdk]'
+# adopt is on no index -- there is no `pip install adopt`, and that name on
+# PyPI is an unrelated project. Install from the repo, on Python >=3.9,<3.11:
+pipx install --python python3.10 \
+  "adopt[sdk] @ git+https://github.com/vlab-research/vlab.git#subdirectory=adopt"
+
 export VLAB_API_KEY=eyJ...     # a human mints this; see Authentication
 export VLAB_ORG=0f1e...        # a human tells you this; no endpoint lists orgs
 
@@ -1635,7 +1640,8 @@ Phase 3 of `planning/agent-study-authoring.md` §8; the design record is
 `planning/vlab-sdk.md`. **No API change at all** — this is a client, and every
 endpoint below is exactly what it was.
 
-`pipx install 'adopt[sdk]'` gives you `vlab`. A study is one `study.yaml`
+`pipx install "adopt[sdk] @ git+https://github.com/vlab-research/vlab.git#subdirectory=adopt"`
+gives you `vlab` (Python >=3.9,<3.11; `adopt` is on no index). A study is one `study.yaml`
 carrying the nine sections in the wire shapes of §3, and the loop is
 `vlab validate && vlab diff && vlab push`, then `vlab plan` / `vlab apply`.
 §6.1 is the runbook; `adopt/README.md` is the reference; `adopt.sdk` and

@@ -97,6 +97,31 @@ def dump_conf(config: Any) -> Any:
     return config.model_dump()
 
 
+def json_safe(value: Any) -> Any:
+    """A JSON-shaped copy of arbitrary conf data, through the driver's orjson.
+
+    Not the same job as `stored_conf`, which starts from a parsed model. This
+    starts from whatever a caller is holding -- a section read out of a YAML
+    file, say -- and answers "what will this look like once it has been through
+    a JSON serialiser", WITHOUT dropping anything the models do not declare.
+
+    The case it exists for: YAML 1.1 parses an unquoted `start_date:
+    2026-06-01` into a `datetime.date`. pydantic accepts that happily, so
+    `validate` passes and `diff` is clean, and then the POST dies inside the
+    HTTP library with "Object of type date is not JSON serializable" -- a
+    local encoding failure that looks like the network. orjson serialises dates
+    and datetimes natively, and it is the same serialiser the database driver
+    uses, so a value put through here is a value the server will accept and
+    store unchanged.
+
+    Preserving undeclared keys is the point of doing this rather than posting
+    `stored_conf` of the parsed section: a misspelled field has to survive as
+    far as the server, so that the 422 names it. Silently dropping it here
+    would be the `extra="ignore"` failure all over again, moved client-side.
+    """
+    return orjson.loads(orjson.dumps(value))
+
+
 def stored_conf(config: Any) -> Any:
     """What `study_confs.conf` will actually hold, as JSON-shaped Python.
 
@@ -111,4 +136,4 @@ def stored_conf(config: Any) -> Any:
     changes what it stores, the diff follows it, because there is one
     definition rather than two.
     """
-    return orjson.loads(orjson.dumps(dump_conf(config)))
+    return json_safe(dump_conf(config))

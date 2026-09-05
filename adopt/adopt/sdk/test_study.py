@@ -560,3 +560,89 @@ def test_all_sections_carries_the_extras_to_the_validator():
 
     codes = {w.code for w in validate_study(study.all_sections()).warnings}
     assert "section.unrecognized" in codes
+
+
+# ---------------------------------------------------------------------------
+# YAML gives back Python objects JSON cannot carry
+# ---------------------------------------------------------------------------
+
+UNQUOTED_DATES = """
+org: 0f1e
+slug: hpv
+recruitment:
+  type: simple
+  ad_campaign_name: hpv
+  objective: OUTCOME_ENGAGEMENT
+  optimization_goal: LINK_CLICKS
+  min_budget: 100
+  budget: 10000
+  max_sample: 1000
+  start_date: 2026-06-01
+  end_date: 2026-09-01
+"""
+
+
+def test_yaml_really_does_hand_back_a_date_object():
+    """The premise of the two tests below, pinned so they cannot rot into
+    passing vacuously if PyYAML ever changes."""
+    import datetime
+
+    raw = yaml.safe_load(UNQUOTED_DATES)
+    assert isinstance(raw["recruitment"]["start_date"], datetime.date)
+
+
+def test_all_sections_is_json_safe():
+    """`validate` judges these and `validate --remote` POSTs them, so a
+    `datetime.date` here is a study that validates locally and cannot be sent
+    at all -- and `push` would fail in the JSON encoder after `diff` said the
+    section was fine."""
+    study = StudyFile.loads(UNQUOTED_DATES)
+
+    assert study.all_sections()["recruitment"]["start_date"] == "2026-06-01"
+    json.dumps(study.all_sections())  # would raise before
+
+
+def test_an_unquoted_date_is_now_reported_by_validate_rather_than_by_push():
+    """The verdict CHANGES here, deliberately, and this is the whole point.
+
+    A date-only string is not something the models accept -- pydantic wants a
+    `T` -- so `start_date: 2026-06-01` was never sendable. Before, the raw
+    `date` OBJECT satisfied pydantic, so `validate` passed and `diff` was
+    clean, and the failure arrived from inside the HTTP library as "Object of
+    type date is not JSON serializable", dressed as a network error, after
+    `push` had already written the sections ordered before recruitment.
+
+    Now `validate` sees exactly what `push` would send and says so, locally,
+    before anything is written. `--remote` agrees, because it POSTs the same
+    bytes and the server runs the same models.
+    """
+    study = StudyFile.loads(UNQUOTED_DATES)
+
+    # Only the recruitment findings: the fixture is one section, so the other
+    # eight are `section.missing` and say nothing about this.
+    errors = [
+        e
+        for e in validate_study(study.all_sections()).errors
+        if e.section == "recruitment"
+    ]
+
+    assert {e.code for e in errors} == {"section.invalid"}
+    assert any("start_date" in (e.path or "") for e in errors)
+
+
+def test_a_quoted_timestamp_is_the_spelling_that_works():
+    """What the skeleton writes, and what the fix asks a user for."""
+    fixed = UNQUOTED_DATES.replace(
+        "start_date: 2026-06-01", 'start_date: "2026-06-01T00:00:00"'
+    ).replace("end_date: 2026-09-01", 'end_date: "2026-09-01T00:00:00"')
+
+    study = StudyFile.loads(fixed)
+
+    assert not [
+        e
+        for e in validate_study(study.all_sections()).errors
+        if e.section == "recruitment"
+    ]
+    assert json.dumps(study.all_sections())
+    stored = normalise_section("recruitment", study.all_sections()["recruitment"])
+    assert stored["start_date"] == "2026-06-01T00:00:00"
