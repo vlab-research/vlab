@@ -55,16 +55,33 @@ def _js_str(value: Any) -> str:
 
     Level and variable names are typed `string` in `types/conf.ts`, so for
     every conf that type-checks this is the identity. It exists for the
-    non-string values that reach here off the wire anyway (a level named `18`
-    in YAML, say), where JS would interpolate `"18"` and so must we.
+    non-string values that reach here off the wire anyway -- a level named
+    `18` in YAML, or `1.0`, or `yes` -- where JS would interpolate "18", "1"
+    and "true", and so must we. The result is the stratum `id`, which is the
+    merge key against saved strata and the value the dashboard reads back, so
+    a divergence here is not cosmetic: an agent writing `age:1.0` produces a
+    stratum the dashboard (which would compute `age:1`) can never match.
 
-    Divergence, flagged rather than papered over: for `True`/`None` Python's
-    `str` gives "True"/"None" where JS gives "true"/"null". Neither can be a
-    level name in a conf the dashboard wrote, and normalising them here would
-    hide a malformed conf rather than fix it.
+    Coverage: bool, None, int and float. Floats follow JS `Number#toString`
+    for the range a level name could plausibly hold (integral floats print
+    without the ".0"; others print their shortest round-trip repr, which is
+    what Python's `repr` gives too). Exponent-notation thresholds (>= 1e21,
+    < 1e-6) are not reproduced; nothing names a level that way.
     """
     if isinstance(value, str):
         return value
+    if value is True:
+        return "true"
+    if value is False:
+        return "false"
+    if value is None:
+        return "null"
+    if isinstance(value, float):
+        if value != value or value in (float("inf"), float("-inf")):
+            return {float("inf"): "Infinity", float("-inf"): "-Infinity"}.get(value, "NaN")
+        if value.is_integer():
+            return str(int(value))
+        return repr(value)
     return str(value)
 
 
@@ -314,11 +331,19 @@ def strata_staleness_hint(
         fresh_stratum = _find_by_id(fresh_strata, saved_stratum["id"])
         if fresh_stratum is None:
             continue
-        saved_quota = saved_stratum.get("quota")
-        if saved_quota is None:
-            # JS would compute NaN here, and `NaN > 1e-9` is false, i.e. not
-            # stale. Skipping mirrors that instead of raising.
+        if "quota" not in saved_stratum:
+            # Absent key: JS reads `undefined`, `fresh - undefined` is NaN, and
+            # `NaN > 1e-9` is false, i.e. not stale. Skipping mirrors that.
             continue
+        saved_quota = saved_stratum["quota"]
+        if saved_quota is None:
+            # JSON null is a different case from a missing key: JS coerces
+            # `null` to 0 in arithmetic, so `fresh - null === fresh` and the
+            # stratum reads as stale whenever the fresh quota is non-zero.
+            # Conflating the two here (a `.get("quota")` returning None for
+            # both) gave the wrong answer for `quota: null` -- caught in review
+            # of the port, not by the fixtures, which never emit null quotas.
+            saved_quota = 0
         if abs(fresh_stratum["quota"] - saved_quota) > 1e-9:
             return True
 
@@ -343,7 +368,11 @@ def get_finish_question_ref(strata: Iterable[Any]) -> str:
     plausible `""` -- it would be written into every regenerated stratum.
     """
     strata = [_as_dict(s) for s in (strata or [])]
-    if not strata or not strata[0]:
+    # `strata[0]` is None, not `not strata[0]`: JS `!s` is false for `{}`, so
+    # an empty first stratum falls through to the property access and throws.
+    # Treating `{}` as "no strata" here returned "" instead, which the caller
+    # would then write into every regenerated stratum as the finish ref.
+    if not strata or strata[0] is None:
         return ""
 
     s = strata[0]

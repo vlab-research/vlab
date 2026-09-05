@@ -668,6 +668,42 @@ of them is a dashboard change first, then a fixture regeneration.
   but nothing on the server calls it; the next release picks it up for free
   and the SDK (Phase 3) is its first consumer.
 
+### 12.5 What review found that the fixtures did not
+
+A read-through of the port against the TypeScript (2026-09-05, before merge)
+found three divergences on inputs the fixture generator never produces. All
+three are fixed on the branch, each with a test in the "beyond the spec"
+section of `test_strata.py`, but they are worth recording because they are
+exactly the shape of gap the harness has: **it only generates dashboard-shaped
+input**, and this library exists for input the dashboard did not write.
+
+1. `quota: null` in a saved stratum. JS coerces `null` to 0 in arithmetic, so
+   the TypeScript reports stale; the port read `.get("quota") is None` and
+   skipped, conflating null with a missing key (which really is not-stale, via
+   NaN). JSON-representable, so a real wrong answer.
+2. Non-string level or variable names. `${1.0}` is `"1"` in JS and `"1.0"` in
+   Python; `True`/`None` likewise. The stratum id is the merge key, so an
+   agent loading `name: 1.0` from YAML wrote strata the dashboard could never
+   match. `_js_str` now follows JS for bool, None, int and float.
+3. `get_finish_question_ref([{}])` returned `""` because `not {}` is true in
+   Python where `!{}` is false in JS; the TypeScript throws. Now raises.
+
+Still open from the same review:
+
+- **The generator's blind spots**: no non-string names, no `quota: null`, no
+  pydantic-model inputs, no `variables=None`. The comparator does not compare
+  error *messages*, and every TypeError-producing input is excluded by
+  construction, so the port's error-type choices (§12.2) are untested by the
+  differential. Extending the generator is the right fix; the three cases
+  above are pinned in Python only until then.
+- **The "nine seeded divergences" negative control left no artifact.** The
+  merge-precedence reversal is reproducible (190 of 1,147 fail); the nine
+  mutations are not. Committing them as a skipped test block or a make target
+  would make the claim checkable.
+- **§12.3 bug 1 is a live dashboard crash**, not just a port note: an
+  uncaught `TypeError` rendering the staleness banner for any conf whose
+  strata lack a `question_targeting`. It should be filed as a dashboard issue.
+
 ---
 
 ## Appendix A. Notes for whoever implements Phase 0

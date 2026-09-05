@@ -1154,7 +1154,9 @@ class _Level(BaseModel):
 class _Variable(BaseModel):
     name: str
     properties: list
-    levels: list
+    # Typed, so the level below is dumped by the *variable's* model_dump: the
+    # test has to exercise a nested model, not a level pre-dumped by hand.
+    levels: list[_Level]
 
 
 def test_pydantic_models_are_accepted_as_input():
@@ -1171,7 +1173,7 @@ def test_pydantic_models_are_accepted_as_input():
                     template_adset="men",
                     facebook_targeting={"genders": [1]},
                     quota=0.5,
-                ).model_dump()
+                )
             ],
         )
     ]
@@ -1181,3 +1183,86 @@ def test_pydantic_models_are_accepted_as_input():
     assert len(strata) == 1
     assert strata[0]["id"] == "gender:men"
     assert strata[0]["facebook_targeting"] == {"genders": [1]}
+
+
+def _saved(stratum_id, quota_present=True, quota=0.5):
+    stratum = {
+        "id": stratum_id,
+        "creatives": [],
+        "audiences": [],
+        "excluded_audiences": [],
+        "facebook_targeting": {"age_min": 18},
+        "question_targeting": {
+            "op": "and",
+            "vars": [
+                {
+                    "op": "answered",
+                    "vars": [{"type": "variable", "value": "finish"}],
+                }
+            ],
+        },
+    }
+    if quota_present:
+        stratum["quota"] = quota
+    return stratum
+
+
+_ONE_LEVEL = [
+    {
+        "name": "a",
+        "properties": [],
+        "levels": [{"name": "a1", "facebook_targeting": {"age_min": 18}, "quota": 0.5}],
+    }
+]
+
+
+def test_staleness_treats_a_null_saved_quota_as_zero_like_js():
+    # `quota: null` is JSON-representable and JS coerces null to 0 in
+    # arithmetic, so `fresh - null` is `fresh` and the stratum is stale. This
+    # is a different case from a *missing* quota (below). The first cut of the
+    # port used `.get("quota") is None` for both and answered False here; the
+    # fixtures never emit a null quota, so only review caught it.
+    saved = [_saved("a:a1", quota=None)]
+    assert strata_staleness_hint(_ONE_LEVEL, saved) is True
+
+
+def test_staleness_ignores_a_missing_saved_quota_like_js():
+    # Missing key: JS reads `undefined`, the subtraction is NaN, and
+    # `NaN > 1e-9` is false. Not stale.
+    saved = [_saved("a:a1", quota_present=False)]
+    assert strata_staleness_hint(_ONE_LEVEL, saved) is False
+
+
+@pytest.mark.parametrize(
+    "name, expected",
+    [
+        (18, "18"),
+        (1.0, "1"),
+        (1.5, "1.5"),
+        (True, "true"),
+        (False, "false"),
+        (None, "null"),
+    ],
+)
+def test_stratum_id_interpolates_non_string_level_names_like_js(name, expected):
+    # The id is the merge key against saved strata and what the dashboard
+    # reads back, so it has to be byte-identical to the TypeScript's
+    # `${variableName}:${name}`. Level names are strings when they come off
+    # the dashboard; these arrive from YAML- or notebook-authored variables.
+    variables = [
+        {
+            "name": "age",
+            "properties": [],
+            "levels": [{"name": name, "facebook_targeting": {}, "quota": 1}],
+        }
+    ]
+    strata = create_strata_from_variables(variables, "finish")
+    assert strata[0]["id"] == f"age:{expected}"
+
+
+def test_get_finish_question_ref_raises_for_an_empty_first_stratum():
+    # JS `!{}` is false, so the TypeScript reaches `s.question_targeting.vars`
+    # and throws. Returning "" here instead would stamp an empty ref onto
+    # every regenerated stratum.
+    with pytest.raises(ValueError):
+        get_finish_question_ref([{}])
