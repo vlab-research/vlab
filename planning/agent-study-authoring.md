@@ -4,13 +4,14 @@ Exploration and decision path for giving an AI agent (or a script, or a
 notebook) the ability to create and configure a vlab study without driving the
 React dashboard by hand.
 
-Status: **Phase 0 deployed (adopt v0.1.83); Phase 1 implemented; Phases 2–4
-not started.** §1–§5 are findings read out of the code, with the file
-establishing each claim named next to it. §7 records the decisions taken and
-why, §8 is the plan, §10 is what is still open, **§11 records what Phase 0
-actually shipped and the six claims below that the implementation proved
-wrong** — several of them load-bearing, so read §11 before trusting a detail in
-§2 or Appendix A — and §12 records Phase 1.
+Status: **Phase 0 deployed (adopt v0.1.83); Phases 1 and 2 implemented and
+merged, releasing as adopt v0.1.84; Phases 3–4 not started.** §1–§5 are
+findings read out of the code, with the file establishing each claim named
+next to it. §7 records the decisions taken and why, §8 is the plan, §10 is
+what is still open, and **§11 (Phase 0), §12 (Phase 1) and §13 (Phase 2)
+record what actually shipped and the claims the implementations proved
+wrong** — several of them load-bearing, so read those before trusting a
+detail in §2, §8 or Appendix A.
 
 The short version: an SDK (pipx-installable, shipped as an extra on `adopt`)
 that owns a *composable* study-authoring library and validates a whole study
@@ -711,6 +712,221 @@ instead of a bare 500. Item 2 (`extra="ignore"`) is investigated but
 deliberately not changed: see `planning/conf-extra-fields.md` for the full
 model inventory, the dashboard-vs-pydantic field comparison, and the
 recommended "strict sibling classes on the POST routes only" shape.
+
+*Superseded in part: the Meta proxy shipped on 2026-09-05, see §13. §12 is
+Phase 1's record and lands with PR #254.*
+
+---
+
+## 13. Phase 2: the Meta proxy, what shipped and what the plan got wrong
+
+Implemented 2026-09-05 on `feature/agent-study-authoring-phase2`. Same
+discipline as §11: where this disagrees with §8's two-line description of Phase
+2, this was verified against running code and §8 was a sketch.
+
+### 13.1 What shipped
+
+| Commit | What |
+|---|---|
+| `a85bdff1` | `meta` added to `RESOURCES` and to `required_scope`, so `/{org}/meta/...` is a classified path for the fail-closed scope middleware |
+| `e2cd216a` | `server/meta.py` — five GET routes, credential resolution, pagination, Meta-error mapping; `db.py` credential helpers; 44 tests |
+
+Test suite 829 → 873, no regressions. The dashboard was deliberately **not**
+repointed at the proxy (§13.5).
+
+### 13.2 The routes, and why they are not quite §8's
+
+§8 named `adaccounts`, `campaigns`, `adsets`, `ads`. What shipped:
+
+| Route | Graph call | Dashboard equivalent |
+|---|---|---|
+| `GET /{org}/meta/credentials` | none — reads `credentials` | none (new) |
+| `GET /{org}/meta/adaccounts` | `/me/adaccounts` | `fetchAdAccounts`, `api.ts:475` |
+| `GET /{org}/meta/campaigns?account=` | `/act_<id>/campaigns` | `fetchCampaigns`, `api.ts:505` |
+| `GET /{org}/meta/adsets?campaign=` | `/<campaign>/adsets` | `fetchAdsets`, `api.ts:537` |
+| `GET /{org}/meta/ads?campaign=` or `?adset=` | `/<parent>/ads` | `fetchAds`, `api.ts:570` |
+| `GET /{org}/meta/ads/{ad_id}/creative` | `/<ad>?fields=creative{…}` | none (new) |
+
+Three things the plan did not know, all of them read out of the dashboard:
+
+1. **There is no "ads for an ad set" call in the dashboard, and no separate
+   creative call.** §2.4.3 describes the Creatives form as reading "the creative
+   blob off a template ad", which reads as a per-ad request. It is not: the form
+   fetches `/<campaign>/ads` with a `creative{…}` field expansion and picks one
+   ad in the browser (`Creative.tsx:53` stores `ad["creative"]` verbatim). So
+   `?campaign=` is the primary parameter for `/meta/ads`, `?adset=` is an
+   addition, and the standalone creative route is a convenience with no
+   precedent to copy.
+
+2. **`fields` is the contract, not the path.** The creative field list
+   (`api.ts:583`) is eleven names, and what is in it is exactly what ends up
+   stored as `creatives[].template` and therefore deployed. It is reproduced
+   verbatim, in order, and asserted as a literal in `test_meta.py` — a "tidy-up"
+   that drops a field silently changes what studies ship. Note the dashboard's
+   own `Ad` TypeScript interface disagrees with its own request: the interface
+   declares `effective_instagram_story_id` and `instagram_actor_id`, which are
+   not requested, and omits `contextual_multi_ads`, which is. The request wins.
+
+3. **The dashboard's pagination is broken and must not be copied.** All four
+   callers send the page token as `params['cursor']` (`api.ts:495`), but Graph's
+   parameter is `after`. Graph ignores `cursor`, so "load more" silently
+   re-fetches page one; with `limit: 100` nobody has noticed. The proxy sends
+   `after`.
+
+### 13.3 The credential decision, which §8 got wrong
+
+**§8 says "reading with the study owner's stored credential". There is no
+study.** These are the endpoints you call *before* you have written a `general`
+conf, precisely in order to find out what to put in it — the ad account number,
+the template campaign id, the creative blob. A per-study route would be
+unusable for the job.
+
+So the resolved credential is the **calling user's**. That is not a weakening:
+the API key's `sub` is a user, and the dashboard already reads Meta client-side
+with that same user's token. The proxy moves where the read happens, not whose
+token it is.
+
+The wrinkle is that a user can hold more than one Facebook credential — the
+production study owner in `planning/encoded-ref-probe-runbook.md:524` holds
+`Facebook` (entity `facebook`) *and* `virtual-lab-vlab` (entity
+`facebook_ad_user`) — and different tokens see different ad accounts. The rule
+shipped:
+
+- `?credentials_key=<name>` selects one, and takes exactly the value that goes
+  into `general.credentials_key`, so an agent can point the proxy at the
+  credential the study will actually run on.
+- No parameter, exactly one Facebook credential → that one. The common case.
+- No parameter, more than one → **409 naming them**, not a pick. Silently
+  choosing would hand back an ad-account list the study cannot use, and the
+  failure would surface hours later as a Meta rejection at ad-set create time
+  with nothing pointing at the cause.
+
+`GET /{org}/meta/credentials` exists so that the 409 is recoverable without a
+human. It also closes a gap that had nothing to do with the proxy: an agent
+needs `credentials_key` to write `general`, and no API-key-reachable endpoint
+listed the valid values. The Go service's `/accounts` does, but it is Auth0-only
+and it returns `details` — access token included — to the browser.
+
+**The lookup is bug-compatible with `get_user_info` on the part that matters,
+and not on the part that would leak.** `db.get_facebook_token` matches on
+`(user_id, key)` without requiring a *specific* entity, exactly as
+`campaign_queries.py:13` does — that query selects `credentials_entity` out of
+the general conf and then never joins on it. Being *stricter* than the query
+that resolves the token at run time is the dangerous direction: the proxy would
+report "no such credential" for a key a study is happily running on. That
+looseness is recorded rather than fixed, because fixing it means deciding which
+entity is correct, and the codebase has three answers (the dashboard hardcodes
+`facebook`, the `studies.credentials_entity` column defaults to
+`facebook_ad_user`, `ctwa_probe.py` queries `facebook_ad_user`) precisely
+because nothing has ever had to agree.
+
+It does, however, constrain `entity` to `FACEBOOK_CREDENTIAL_ENTITIES` — which
+narrows nothing `get_user_info` would have found, since both production
+entities are in the set, and closes something review caught after the first
+draft shipped. `credentials` holds tokens for other providers (`typeform`,
+`fly`, `whatsapp_business`) and several store a field called `access_token`.
+With no entity predicate at all, `?credentials_key=<my typeform credential>`
+would have sent that token to `graph.facebook.com`. The caller's own token, so
+not a cross-tenant leak — but a credential handed to a third party with no
+business seeing it. It also made the 404's "Available:" list contradict the
+lookup, because that list comes from `list_facebook_credentials`, which always
+filtered on entity. The two queries have to accept the same rows or the error
+message is a lie.
+
+### 13.4 Decisions worth their own line
+
+**Pagination: follow cursors server-side, up to 10 pages, and say so.** The
+response carries `paging: {after, truncated, pages_fetched}`. `truncated: true`
+means the cap stopped us, not Meta, and `after` is the resume token. Both
+alternatives were worse. A pure passthrough makes every caller page, and an
+agent that reads only the first page of ad sets builds a study missing strata
+and never finds out. Following forever assembles an unbounded response — a
+campaign's ads each carry a full creative blob — in memory behind a synchronous
+handler.
+
+**`meta` is its own scope resource, not part of `studies`.** The proxy reads a
+different system with a different credential, and that credential can see every
+ad account, campaign and creative the researcher has on Meta, including ones
+belonging to no vlab study. A key granted `studies:write` to author one study's
+config should not become a window onto all of that by implication. The Phase 0
+middleware is fail-closed, so this was not optional in any case: an
+unclassified `/{org}/meta/...` path is denied to every scoped key.
+
+**`adopt.facebook.api.call` is not reused.** It retries codes 2/17/368/80004
+forever at five-minute intervals with no attempt cap, and drains cursors with no
+page limit. Both are correct for a cron with hours to spend and fatal in an HTTP
+handler. `facebook.state.get_api` *is* reused, so the proxy authenticates
+identically to the optimize path — same `appsecret_proof`, same per-request
+session, no process-global `FacebookAdsApi.init` (which would be a cross-tenant
+credential bug in a multi-user service).
+
+**Meta errors keep their identity.** 400/403/404 pass their status through with
+`{code, subcode, type, message, http_status}`; 429 and 5xx become 502; an
+unreachable Graph API becomes 502. Never a bare 500 — §11.4's complaint about
+`InvalidConfigError` is the same complaint, and this is the half of it Phase 2
+could fix without touching `study_conf.py`. `str(FacebookRequestError)` is never
+echoed: the SDK interpolates the whole `request_context` into it.
+
+**The token never leaves the server, and that is a test, not a claim.**
+`test_the_access_token_never_appears_in_a_response` sweeps all six routes across
+four outcomes (success, Meta 4xx, Meta 5xx, network failure) and asserts neither
+the token nor its `appsecret_proof` is in the body or the headers.
+
+**Every handler does its work in `asyncio.to_thread`, under `async_timeout`.**
+Added after review; the first draft had `async def` handlers calling blocking
+psycopg and blocking `requests` directly, which pins the event loop for the
+whole request. The worst case — `MAX_PAGES` × `GRAPH_TIMEOUT_SECONDS` — is 200
+seconds during which the process would serve nothing at all, `/health`
+included, so one slow ad account would read as a dead pod to Kubernetes.
+`server.optimize_study` had already established the pattern for exactly this
+hazard and the proxy now follows it; `async_timeout` moved from `server.py` to
+`deps.py` so `meta.py` could use it without the import cycle. Plain `def`
+handlers would also have freed the loop (FastAPI threadpools those) but
+`asyncio.wait_for` cannot interrupt a sync handler, so there would be no bound
+on how long a client waits.
+
+The regression test is `test_the_event_loop_is_not_blocked_while_meta_is_slow`,
+which drives the real ASGI app on a real loop with a slow Graph call and counts
+how often an unrelated coroutine gets scheduled meanwhile. Verified
+non-vacuous: reverting one handler to the inline form drops it from ~40 ticks
+to 2. Cheap validation (ids, mutually-exclusive parameters) deliberately stays
+outside the thread, so a malformed request never occupies a worker.
+
+### 13.5 Deliberately not done
+
+- **The dashboard was not repointed.** It works, it holds the token already, and
+  repointing live UI buys the agent nothing. The proxy is *shaped* so that it
+  could be — same paths, same fields, same nesting — and that shape is what the
+  field-list assertions in `test_meta.py` protect. Cutting the dashboard over
+  would let the token stop being shipped to the browser at all, which is a real
+  security improvement and its own piece of work.
+- **No caching.** Every request is a live Graph read. Meta's rate limits are
+  per-app and an agent in a loop could hit them; nothing here defends against
+  that beyond the page cap.
+- **No write proxy.** `meta:write` is expressible and nothing serves it.
+
+### 13.6 Known gaps, marked rather than guessed
+
+- **Whether `conf-dashboard` has `FACEBOOK_APP_ID` / `FACEBOOK_APP_SECRET` in
+  production was not verified directly.** It is inferred: `get_api` reads them
+  with `environs`' `env()`, which raises when absent, and the optimize endpoint
+  reaches `get_api` through `load_basics`. If optimize works in prod, the proxy
+  will. If it does not, the proxy fails with a `KeyError`-shaped 500 on first
+  use rather than something actionable — worth a startup check if anyone touches
+  this again.
+- **Graph API version drift is unresolved and predates this work.** The
+  dashboard pins `v22.0` (`netlify.toml`), the SDK pins `v22.0`
+  (`facebook-business = "v22"`), and `facebook/update.py:34` hardcodes `v20.0`
+  in a raw `requests` call. The proxy inherits the SDK's version, so it agrees
+  with the dashboard — but nobody has decided what the version *should* be, or
+  who owns bumping it.
+- **Meta's real page-size ceiling per edge was not measured.** `MAX_LIMIT = 500`
+  is a guard against absurd requests, not a documented Meta limit; Meta may cap
+  lower on some edges and simply return fewer.
+- **`limit` interacts with `MAX_PAGES` multiplicatively and nothing enforces a
+  total.** A caller asking `limit=500` can pull 5,000 ads with full creative
+  blobs in one request. Not observed to be a problem; not defended against
+  either.
 
 ---
 

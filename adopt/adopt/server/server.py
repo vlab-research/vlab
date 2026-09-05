@@ -8,7 +8,6 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import BaseModel
 import pandas as pd
 import asyncio
-from functools import wraps
 import time
 
 from ..responses import get_inference_data
@@ -40,7 +39,8 @@ from .api_keys import add_scope_enforcement, router as api_keys_router
 # Re-exported for backwards compatibility: these moved to deps.py so that route
 # modules (studies, api keys, schemas) can depend on authentication without
 # importing server, which imports them — a cycle.
-from .deps import User, get_current_user, security
+from .deps import User, async_timeout, get_current_user, security
+from .meta import router as meta_router
 from .studies import router as studies_router
 from .csv_export import ad_attributions_csv, ad_attributions_table
 from .db import (
@@ -90,6 +90,11 @@ env = Env()
 # that owns `app`.
 app.include_router(studies_router)
 app.include_router(api_keys_router)
+
+# The read-only Meta Graph proxy. Mounted BEFORE the conf routes below only
+# because include_router calls happen here; its paths (/{org_id}/meta/...)
+# cannot collide with /{org_id}/studies/... .
+app.include_router(meta_router)
 
 
 class OptimizeInstruction(BaseModel):
@@ -349,23 +354,6 @@ def run_single_instruction(
             )
 
     return OptimizeReport(**report)
-
-
-def async_timeout(seconds: int = 300):
-    def decorator(func):
-        @wraps(func)
-        async def wrapper(*args, **kwargs):
-            try:
-                return await asyncio.wait_for(func(*args, **kwargs), timeout=seconds)
-            except asyncio.TimeoutError:
-                raise HTTPException(
-                    status_code=status.HTTP_504_GATEWAY_TIMEOUT,
-                    detail=f"Operation timed out after {seconds} seconds",
-                )
-
-        return wrapper
-
-    return decorator
 
 
 @app.get("/{org_id}/optimize/{slug}")
