@@ -200,7 +200,7 @@ def test_extract_conformance(case: Dict[str, Any]) -> None:
 # A truncated or half-written regeneration is the failure mode a fixture-driven
 # suite hides best: every case still passes, there are just fewer of them. These
 # floors are the counts the committed fixture file was generated with.
-MINIMUM_CASES = {"strata": 575, "extract": 567}
+MINIMUM_CASES = {"strata": 589, "extract": 567}
 MINIMUM_RANDOM_CASES = 500
 
 
