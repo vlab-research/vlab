@@ -1119,3 +1119,66 @@ author's comment called "crazy pandas magic. Probably worth redoing from
 scratch", and four of its seventeen notebook callers shadowed it with their own
 rewrite. It is moved unchanged, with the five tests that pin its output, and
 marked rather than quietly shipped as general.
+
+## `vlab template` — building the templates a study is configured from
+
+The design record is `planning/template-authoring.md`; the reference, including
+every Meta quirk and the full runbook, is `documentation/agent-api.md` §6a.
+
+Before a study can be configured, something has to exist on the ad account for
+it to be configured *from*: a **template campaign** whose ad sets carry the
+targeting a `variables` conf extracts, and whose ads carry the creative blob a
+`creatives` conf stores. Until 2026-09-05 the only way to build one was by hand
+in Ads Manager — which an agent cannot do, and which is where the creative half
+in particular got stuck.
+
+```
+export FACEBOOK_ACCESS_TOKEN=EAAB...          # NOT VLAB_API_KEY; see below
+
+vlab template check-targeting --account act_… --spec spec.yaml   # read-only
+vlab template plan   spec.yaml                # pure: no network, no token
+vlab template create spec.yaml --create --json
+vlab template creative --account act_… --campaign 120… --adset 120… \
+    --name my-creative --kind whatsapp --page-id 1855… \
+    --message "…" --image ./ad.png --create
+vlab template delete 120…
+```
+
+`create --json` returns `ads[].template`: the creative **as Meta returns it**,
+which is exactly what a `creatives` conf wants. Not what was sent — Meta fills
+in `actor_id` (which `audiences.py` reads with a bare `KeyError` if it is
+missing), rewrites `object_story_spec`, and drops what it did not accept.
+
+The library underneath is `adopt.authoring.templates`, and it is usable without
+the CLI: `plan_template_campaign(...)` is pure and returns the exact Graph
+calls as data, `apply(plan, api)` executes them, `build_creative(...)` is the
+piece worth importing on its own.
+
+**Safety, and the shape of it.** Everything is created `PAUSED` — `status` is a
+module constant, not a parameter, so nothing here can activate anything. A
+template campaign's name starts with `Templates - `, which is the marker:
+`delete` refuses any campaign without it, and `creative` refuses to add an ad
+unless the campaign is marked **and** the ad set actually belongs to it (an ad
+is created with an `adset_id` and no campaign of its own, so the ad set is what
+decides where it lands — checking only the name checked nothing). Daily budgets are capped at 10 000 cents (a typo guard — a paused campaign
+cannot be charged). Dry run is the default everywhere; a write needs `--create`
+or `--yes`, and refusing prints the plan rather than merely complaining.
+
+**Auth is different here, and that is the interesting part.** Every other
+`vlab` command talks to the vlab server, and `vlab meta …` reads Meta *through*
+it so no Facebook token ever reaches your machine. Creating a creative cannot
+work that way — it needs an image upload, which would make the conf service a
+bytes relay, and it would hand that service money-spending liability it does
+not have today. `planning/agent-study-authoring.md` §10 records the decision.
+So this group wants `FACEBOOK_ACCESS_TOKEN`, for a user with a role on the ad
+account and on the Page; nothing is written to disk and there is no login
+command. `FACEBOOK_APP_ID` / `FACEBOOK_APP_SECRET` are optional and enable
+`appsecret_proof`, which Meta requires only for apps with "Require app secret"
+turned on — whether the vlab app has it on is not readable from this repo, so
+a token-only run warns and names the error to expect if it does.
+
+**Not yet run against live Meta.** Every shape is either lifted from a script
+that was measured live (`adopt/scripts/make_template_campaign.py`,
+`adopt/scripts/ctwa_probe.py`) or taken from Meta's documented samples, and
+every test mocks `FacebookAdsApi.call`. Treat the first live run as an
+experiment, on a throwaway campaign name.

@@ -117,44 +117,18 @@ HANDLER_TIMEOUT_SECONDS = MAX_PAGES * GRAPH_TIMEOUT_SECONDS + 20
 # Field lists — the dashboard's, verbatim
 # --------------------------------------------------------------------------
 
-# `dashboard/src/helpers/api.ts:487` — 'name, id, account_id'. The spaces are
-# dropped here (Graph tolerates them, but they are an accident of the JS
-# literal, not part of the contract).
-AD_ACCOUNT_FIELDS = "name,id,account_id"
-
-# api.ts:517
-CAMPAIGN_FIELDS = "name,id"
-
-# api.ts:549. `targeting` is the load-bearing one: it is the entire input to
-# `adopt.authoring.extract.extract_from_adset`, which needs `id` and
-# `targeting` and uses `name` for error messages.
-ADSET_FIELDS = "name,id,targeting"
-
-# api.ts:583-595, verbatim and in the same order. This list is what ends up
-# stored as a creative `template`, so adding or removing a field here changes
-# what a study deploys. `contextual_multi_ads` is in the request but not in the
-# dashboard's `Ad` TypeScript interface; `effective_instagram_story_id` and
-# `instagram_actor_id` are in the interface but not in the request. The request
-# is what actually runs, so the request is what is reproduced.
-CREATIVE_FIELDS = ",".join(
-    [
-        "id",
-        "name",
-        "actor_id",
-        "asset_feed_spec",
-        "degrees_of_freedom_spec",
-        "effective_instagram_media_id",
-        "effective_object_story_id",
-        "instagram_user_id",
-        "object_story_spec",
-        "contextual_multi_ads",
-        "thumbnail_url",
-    ]
+# Moved to `adopt/meta_fields.py` (2026-09-05) so that
+# `adopt.authoring.templates`, which CREATES the objects these routes read, can
+# name the same fields. Two copies of `CREATIVE_FIELDS` would be two
+# definitions of what a study deploys. Re-exported here, unchanged, because
+# `fields` is this module's contract and its tests assert the literals.
+from ..meta_fields import (  # noqa: E402,F401  (re-export)
+    AD_ACCOUNT_FIELDS,
+    AD_FIELDS,
+    ADSET_FIELDS,
+    CAMPAIGN_FIELDS,
+    CREATIVE_FIELDS,
 )
-
-# api.ts:598 — the creative arrives NESTED under each ad, via field expansion,
-# not as a second request.
-AD_FIELDS = f"id,name,creative{{{CREATIVE_FIELDS}}}"
 
 
 # --------------------------------------------------------------------------
@@ -757,7 +731,10 @@ async def get_ad_creative(
         return _graph_get(
             _api_for(credential.token),
             (ad_id,),
-            {"fields": f"id,name,creative{{{CREATIVE_FIELDS}}}", "pretty": 0},
+            # `AD_FIELDS`, not the same string spelled again: this route and
+            # `/meta/ads` must return the SAME creative shape, since both feed
+            # `creatives[].template`. Restating it was how they could drift.
+            {"fields": AD_FIELDS, "pretty": 0},
         )
 
     body = await asyncio.to_thread(_work)

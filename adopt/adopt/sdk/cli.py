@@ -1340,6 +1340,15 @@ def keys_revoke(ctx: click.Context, key_id: str, yes: bool, as_json: bool) -> No
     click.echo(f"Revoked {key_id}. Other replicas may honour it for ~30 seconds.")
 
 
+# The `vlab template` group. Registered by importing the module, which hangs
+# itself off `cli` with its own `@cli.group` -- so this file's whole share of
+# that feature is one line, and merging changes into it stays trivial. The
+# import is at the BOTTOM because `templates_cli` imports `cli` and `VlabGroup`
+# from here; either import order works, and neither reaches for an attribute of
+# a half-initialised module. See planning/template-authoring.md.
+from . import templates_cli  # noqa: E402,F401  isort:skip
+
+
 def main() -> None:
     """Console-script entry point (`[tool.poetry.scripts] vlab`)."""
     cli(obj={})
