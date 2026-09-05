@@ -383,7 +383,7 @@ are dashboard bookkeeping, read only by
 **So: strata are the real configuration; variables are a convenience.** An
 agent may skip `variables` entirely and POST strata directly. If you do write
 `variables`, understand that nothing derives strata from it server-side. The
-derivation is available in Python as `adopt.authoring.strata` (§6 step 7), a
+derivation is available in Python as `adopt.authoring.strata` (§6.2 step 7), a
 conformance-tested port of the dashboard's TypeScript; it is a library call,
 not an endpoint.
 
@@ -603,7 +603,7 @@ tokens see different ad accounts, so:
   hours later as an unexplained Meta rejection at ad-set create time.
   `GET /{org}/meta/credentials` lists the names.
 - No Facebook credential at all is `400` with a message saying so. **A human
-  must connect the account**; the OAuth exchange is Auth0-only (§6 step 1) and
+  must connect the account**; the OAuth exchange is Auth0-only (§6.2 step 1) and
   no API key can do it.
 
 **Pagination.** Every list route returns
@@ -729,7 +729,7 @@ prose and may be reworded.
 | `audience.partitioned_bare_name` | warning | A stratum names a `PARTITIONED` audience conf by its bare name. vlab creates `<name>-cohort-1`, `-cohort-2`, … and **never** `<name>` (§1.3). The sharpest audience finding, and still a warning — see the note below the table. |
 | `stratum.audience_unknown` | warning | An audience name this study's `audiences` conf does not produce. A **warning**, not an error, because `strata[].audiences` resolves against custom audiences on the **Meta ad account**, which may hold one built by hand in Ads Manager. Offline validation cannot tell a typo from a legitimate external audience. |
 | `stratum.excluded_audience_unknown` | warning | The same on `excluded_audiences`, with its own code because the cost is worse: a dropped exclusion means the ad set re-recruits people it meant to exclude. |
-| `stratum.targeting_variable_unsupplied` | warning | `warn_on_incomplete_targeting`, which until now only reached a log. This is runbook step 8 (§6), done for you. |
+| `stratum.targeting_variable_unsupplied` | warning | `warn_on_incomplete_targeting`, which until now only reached a log. This is runbook step 8 (§6.2), done for you. |
 | `destination.thinned_ref_without_mapping` | warning | `warn_on_thinned_ref_without_mapping`, likewise. |
 | `inference_data.source_unknown` | warning | An `inference_data.data_sources` key naming no `data_sources[].name`. swoosh skips every event from it. A warning because it is swoosh's join, not adopt's, and the cost is dropped events rather than a dead study. |
 | `section.unrecognized` | warning | A key in your `sections` that is not one of the nine. It is ignored — which is how a typo'd section name silently does nothing. |
@@ -1641,7 +1641,7 @@ is investigated in `planning/conf-extra-fields.md`.
 
 **The strata compiler is Python** (PR #254): `adopt.authoring.strata` and
 `adopt.authoring.extract`, held identical to the dashboard's TypeScript by a
-replayed fixture set — §6 step 7. Three divergences the fixtures could not
+replayed fixture set — §6.2 step 7. Three divergences the fixtures could not
 reach (null saved quotas, non-string level names, an empty first stratum) were
 found in review and fixed before merge; §12.5 of the planning doc has them.
 
@@ -1668,7 +1668,7 @@ deployed to production as adopt **v0.1.83** with migrations **v0.3.0** (helm
 revision 142). This document was revised against that release; if a claim here
 disagrees with `adopt/adopt/server/`, the code is right and the doc is stale.
 
-- **Study creation on this service** — §2.4, §6 step 2.
+- **Study creation on this service** — §2.4, §6.2 step 2.
 - **Hardened API keys** — the whole of "Authentication": persisted `jti`,
   mandatory `exp`, scopes, list and revoke, and the legacy-key tombstone.
 - **Committed JSON Schemas** — `adopt/schemas/*.json`, kept current by
@@ -1682,7 +1682,7 @@ translated, plus a differential suite that replays 1,142 recorded runs of the
 real TypeScript through the port (`dashboard/scripts/authoring-conformance.ts`
 → `conformance_fixtures.json` → `test_conformance.py`, regenerated with
 `make -C adopt authoring-fixtures`). `configuration.py` is marked superseded.
-See §6 step 7 and §12 of the planning doc.
+See §6.2 step 7 and §12 of the planning doc.
 
 What the plan claimed and implementation disproved is in §11 of the planning
 doc; the six defects found and deliberately left alone (including the
