@@ -386,11 +386,25 @@ def test_a_web_creative_without_a_link_is_refused_before_any_network(runner):
 
 
 def test_delete_asks_before_it_deletes(runner):
-    with patch.object(
-        FacebookAdsApi, "call", side_effect=AssertionError("deleted without asking")
-    ):
+    """Answering "n" aborts, and nothing is sent.
+
+    Asserted as "no DELETE was made" rather than "exit code is non-zero":
+    a bare exit-code check passes just as happily when the delete DID go
+    through and the mock's AssertionError is what failed the command, which
+    makes the test vacuous in exactly the case it is meant to catch.
+    """
+    patcher, g = _graph(
+        **{
+            "GET C9": [
+                {"id": "C9", "name": "Templates - X", "effective_status": "PAUSED"}
+            ]
+        }
+    )
+    with patcher:
         result = _run(runner, ["template", "delete", "C9"], input="n\n")
+
     assert result.exit_code != 0
+    assert [c for c in g.calls if c["method"] == "DELETE"] == []
 
 
 def test_delete_removes_a_paused_marked_campaign(runner):
@@ -555,7 +569,9 @@ def test_check_targeting_names_an_adset_with_no_targeting(runner, tmp_path):
     path = tmp_path / "spec.yaml"
     # Inserted into `adsets`, not appended -- SPEC ends inside `ads`.
     path.write_text(
-        SPEC.replace("ads:\n", "  - name: Empty\n    kind: messenger\nads:\n"),
+        SPEC.replace(
+            "ads:\n", "  - name: Empty\n    kind: messenger\n    targeting:\nads:\n"
+        ),
         "utf8",
     )
     with patch.object(

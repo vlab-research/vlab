@@ -26,10 +26,10 @@ that needs paused-only and budget-ceiling guardrails plus an audit trail.
 | `adopt/adopt/meta_fields.py` | The Graph `fields` lists, extracted from `server/meta.py` so the builder and the proxy name the same fields. |
 | `adopt/adopt/facebook/state.py` | `api_for_token` — the one place a `FacebookSession` is constructed. `get_api` delegates to it. |
 | `adopt/adopt/sdk/cli.py` | **One line**: `from . import templates_cli` at the bottom. |
-| tests | `authoring/test_templates.py` (69), `sdk/test_templates_cli.py` (27). No database, no live Meta; the mock boundary is `FacebookAdsApi.call`, as in `server/test_meta.py`. |
+| tests | `authoring/test_templates.py` (74), `sdk/test_templates_cli.py` (27). No database, no live Meta; the mock boundary is `FacebookAdsApi.call`, as in `server/test_meta.py`. |
 | docs | `documentation/agent-api.md` §6a (new, and the single home for the Meta quirks §10 asked to have promoted), §3 `creatives` pointer, §7 item 2 corrected, §8 entry. `adopt/README.md` gains a `vlab template` section. |
 
-DB-free suite 1 564 → 1 660 passed locally (Docker is down on the author's
+DB-free suite 1 564 → 1 665 passed locally (Docker is down on the author's
 machine, so the ~100 database-backed tests were not run here); the full suite
 runs in CI.
 
@@ -279,6 +279,66 @@ hash". Both correct. What it did not anticipate is that the *third* thing —
 the ad — is where the join lives: the Creatives form reads ads, not creatives,
 so a campaign full of creatives with no ads configures nothing. The ad also
 carries the name that `mint_ref_token` is keyed on.
+
+---
+
+
+## 5a. What a pre-merge review found
+
+A read-through of the branch (2026-09-05, before the PR), with the plan and
+apply paths exercised for every creative kind. It found no way to create an
+ACTIVE object and no way to bypass either refusal from the CLI, and confirmed
+that `server/test_meta.py`'s four literal `fields` assertions still hold byte
+for byte after the `meta_fields.py` extraction (they could not be run locally:
+Docker is down, and that module's tests need a database). What it did find, all
+fixed on the branch:
+
+1. **A web *video* creative with no link planned cleanly and shipped
+   `call_to_action.value.link = null`.** The "a web creative needs a link"
+   guard lived in `_structural_link`, which only the `link_data` (image) branch
+   calls; the `video_data` branch went straight to `_call_to_action_for`. Meta
+   rejects that at `POST /adcreatives` — after the campaign and its ad sets
+   exist — which is the exact failure plan-time checks are for. The
+   requirement is now in `build_creative`'s validation block, beside the
+   app/deeplink one.
+2. **`_fill_promoted_object` treated an ad with no `adset` as belonging to
+   every ad set.** Such an ad actually hangs on the *first* one, so a WhatsApp
+   ad set with no ads of its own silently inherited a Page from an ad hanging
+   somewhere else — and the function's own "no ad in this plan hangs on it"
+   message was unreachable in precisely the case it describes. The default is
+   now resolved before filtering, from the same value `_plan_ads` uses.
+3. **`apply`'s two refusals were an `if/elif` with no `else`.** A plan naming
+   neither a campaign to create nor one to add to skipped both checks and
+   created objects. Not reachable from either constructor today, which is why
+   it is now a raise rather than a comment: this is the only place the
+   refusals live, and a future third constructor should have to notice.
+4. **`check-targeting --spec` skipped the unknown-key check `plan` applies.**
+   A spec with a misspelled ad-set key exited 0 here and 1 under `plan` — and
+   check-targeting is the command that runs *first*, so a green check on a spec
+   `plan` will reject is worse than no check. It now builds `AdsetSpec`s
+   through the same `_dataclass_from`. Only the ad sets: requiring the ads to
+   be valid would stop a researcher checking targeting before the creative
+   exists, which is the ordinary order of work.
+5. **`test_delete_asks_before_it_deletes` was vacuous** — a bare
+   `exit_code != 0` passes just as happily when the delete went through and the
+   mock's own `AssertionError` is what failed the command. It now asserts that
+   no `DELETE` was made.
+6. **`test_a_built_template_carries_every_field_the_runtime_reads` was half
+   circular**, asserting keys `_as_meta_returns_it` constructs. Renamed to what
+   it actually proves — that the builder's output survives the runtime's reader
+   — and the researcher's copy is now asserted on the far side.
+7. **`apply` echoed `str(FacebookRequestError)`**, which interpolates the whole
+   `request_context`. No token leaks (the token is on the session's params, not
+   in the context) and this prints to the user's own terminal, but it buries
+   the one sentence Meta said and it inverts a convention `server/meta.py`
+   states explicitly. `meta_message` now renders
+   `"<message> (code N, subcode M)"`, and falls back to `str(e)` for anything
+   that is not a Meta error.
+
+The transferable one is the first: **a guard that lives inside a helper only
+protects the branches that call that helper.** `build_creative` has two
+branches and the validation was in one of them; the fix was to hoist it to
+where every branch passes.
 
 ---
 

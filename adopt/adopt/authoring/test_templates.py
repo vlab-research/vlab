@@ -900,14 +900,22 @@ def test_the_matching_destination_is_not_refused(kind):
 
 
 @pytest.mark.parametrize("kind", tp.CREATIVE_KINDS)
-def test_a_built_template_carries_every_field_the_runtime_reads(kind):
-    """`_create_creative` and `audiences.py` index some of these directly.
+def test_a_built_template_is_readable_by_the_runtimes_own_reader(kind):
+    """`_create_creative` runs over the built template without raising.
 
-    `template["actor_id"]` is a bare `KeyError` in `audiences.hydrate_audiences`
-    and `template["object_story_spec"]` is indexed unconditionally in
-    `_create_creative`. Everything else on `CREATIVE_FIELD_LIST` is copied only
-    `if field in config.template`, so its absence is legal -- which is why the
-    required set is two names and not eleven.
+    Deliberately NOT named "carries every field the runtime reads", which is
+    what it was called until review pointed out that half of it was circular:
+    `_as_meta_returns_it` constructs `actor_id` and the `CREATIVE_FIELD_LIST`
+    subset, so asserting them back is asserting the fixture. The Meta read-back
+    shape is an ASSUMPTION (see that helper) and `apply` warns at run time
+    rather than trusting it; what is genuinely testable here is that the
+    BUILDER's output survives the runtime's reader, and that is the last line.
+
+    The two names in `REQUIRED_TEMPLATE_CREATIVE_FIELDS` are asserted anyway,
+    because they encode which fields are indexed with no guard -- `actor_id` is
+    a bare `KeyError` in `audiences.hydrate_audiences` and
+    `object_story_spec` is indexed unconditionally here. Everything else on
+    `CREATIVE_FIELD_LIST` is copied only `if field in config.template`.
     """
     template = _template_for(kind)
     for f in REQUIRED_TEMPLATE_CREATIVE_FIELDS:
@@ -915,11 +923,16 @@ def test_a_built_template_carries_every_field_the_runtime_reads(kind):
     assert set(template) <= set(CREATIVE_FIELD_LIST), set(template) - set(
         CREATIVE_FIELD_LIST
     )
-    # And the runtime's own reader is happy with it.
-    _create_creative(
+    # The load-bearing line: the runtime's own reader, over what we built.
+    built = _create_creative(
         CreativeConf(name="c", destination="d", template=template),
         call_to_action=messenger_call_to_action(),
     )
+    # And it kept the researcher's half, which is what a template is for.
+    story = built["object_story_spec"]
+    assert story["page_id"] == PAGE
+    carrier = story.get("link_data") or story.get("video_data")
+    assert carrier["message"] == "Tell us what you think."
 
 
 # ---------------------------------------------------------------------------
@@ -1336,3 +1349,86 @@ def test_a_placeholder_for_something_nothing_creates_is_a_planner_bug(api):
     with patcher:
         with pytest.raises(tp.TemplateApplyError, match="nothing in it creates"):
             tp.apply(broken, api)
+
+
+def test_a_web_video_creative_with_no_link_is_refused():
+    """Review caught this: the "web needs a link" guard lived in
+    `_structural_link`, which the video branch never calls -- so a web video
+    creative planned cleanly and shipped `call_to_action.value.link = null`,
+    for Meta to reject at `POST /adcreatives` with the campaign and its ad sets
+    already created. Exactly the failure plan-time checks exist to prevent.
+    """
+    with pytest.raises(tp.TemplatePlanError, match="needs a link"):
+        tp.build_creative(tp.WEB, name="w", page_id=PAGE, message="m", video_id="99")
+
+
+def test_an_app_video_creative_with_no_link_is_refused():
+    with pytest.raises(tp.TemplatePlanError, match="needs a link"):
+        tp.build_creative(
+            tp.APP,
+            name="a",
+            page_id=PAGE,
+            message="m",
+            video_id="99",
+            deeplink="myapp://x",
+        )
+
+
+def test_an_adset_takes_a_page_only_from_ads_that_actually_hang_on_it():
+    """An ad with no `adset` hangs on the FIRST ad set, and only that one.
+
+    Review caught the old filter (`a.adset in (None, spec.name)`), which made
+    such an ad a candidate Page for EVERY ad set -- so an ad set with no ads of
+    its own silently inherited a Page from an ad hanging somewhere else, and
+    the "no ad in this plan hangs on it" message became unreachable in the case
+    it describes.
+    """
+    with pytest.raises(tp.TemplatePlanError, match="No ad in this plan hangs on it"):
+        tp.plan_template_campaign(
+            account_id=ACCOUNT,
+            name="Orphan",
+            adsets=[
+                tp.AdsetSpec(name="first", targeting=_targeting([1])),
+                tp.AdsetSpec(
+                    name="second", targeting=_targeting([2]), kind=tp.WHATSAPP
+                ),
+            ],
+            # No `adset`, so it hangs on "first" -- and must not lend its Page
+            # to "second".
+            ads=[_ad(tp.MESSENGER)],
+        )
+
+
+def test_a_plan_that_names_no_campaign_at_all_creates_nothing(api):
+    """The `if/elif` in `apply` is where BOTH refusals live, so a plan matching
+    neither arm would create objects with nothing checked. Not reachable from
+    either constructor today; a future third one should have to notice.
+    """
+    plan = tp.TemplatePlan(account_id=ACCOUNT, creates=())
+    patcher, g = _graph()
+    with patcher:
+        with pytest.raises(tp.TemplateApplyError, match="neither a campaign"):
+            tp.apply(plan, api)
+    assert g.calls == []
+
+
+def test_a_meta_rejection_is_reported_without_the_whole_request_context():
+    """`str(FacebookRequestError)` interpolates every parameter of the failed
+    call, which buries the one sentence Meta actually said. `server/meta.py`
+    forbids echoing it; this does the same thing for the same reason.
+    """
+    error = FacebookRequestError(
+        message="Call was not successful",
+        request_context={"params": {"targeting": {"secret": "sauce"}}},
+        http_status=400,
+        http_headers={},
+        body=(
+            '{"error": {"message": "Invalid region key", "code": 100,'
+            ' "error_subcode": 4834011}}'
+        ),
+    )
+    message = tp.meta_message(error)
+    assert message == "Invalid region key (code 100, subcode 4834011)"
+    assert "sauce" not in message
+    # Anything that is not a Meta error keeps its own message.
+    assert tp.meta_message(ValueError("connection reset")) == "connection reset"

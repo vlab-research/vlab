@@ -61,13 +61,9 @@ from dataclasses import dataclass, field, replace
 from typing import Any, Dict, List, Mapping, Optional, Sequence, Tuple
 
 from ..meta_fields import CREATIVE_FIELDS, REQUIRED_TEMPLATE_CREATIVE_FIELDS
-from ..study_conf import (
-    APP_DESTINATION_TYPE,
-    MESSENGER_DESTINATION_TYPE,
-    MULTI_DESTINATION_TYPE,
-    WEB_DESTINATION_TYPE,
-    WHATSAPP_DESTINATION_TYPE,
-)
+from ..study_conf import (APP_DESTINATION_TYPE, MESSENGER_DESTINATION_TYPE,
+                          MULTI_DESTINATION_TYPE, WEB_DESTINATION_TYPE,
+                          WHATSAPP_DESTINATION_TYPE)
 from .extract import PropertyMissingError, extract_from_adset
 
 __all__ = [
@@ -92,6 +88,7 @@ __all__ = [
     "find_campaign_by_name",
     "delete_template_campaign",
     "validate_targeting",
+    "meta_message",
 ]
 
 
@@ -434,6 +431,19 @@ def build_creative(
         raise TemplatePlanError(
             f"Creative {name!r}: an app creative needs a deeplink for its "
             "INSTALL_MOBILE_APP call_to_action."
+        )
+    if kind in (WEB, APP) and not link:
+        # Checked HERE and not only in `_structural_link`, which review caught:
+        # `_structural_link` is called from the link_data branch alone, so a
+        # web VIDEO creative with no link sailed through the plan and shipped
+        # `call_to_action.value.link = null` -- rejected by Meta at
+        # `POST /adcreatives`, after the campaign and its ad sets already
+        # exist, which is the exact failure plan-time checks are for.
+        raise TemplatePlanError(
+            f"Creative {name!r}: a {kind!r} creative needs a link. It is the "
+            "ad's destination, it is what the call_to_action carries, and for "
+            "an image creative Meta additionally requires it as "
+            "object_story_spec.link_data.link."
         )
 
     call_to_action = _call_to_action_for(kind, link, deeplink)
@@ -937,7 +947,9 @@ def _plan_ads(
     return ordered_images, creates + ad_creates
 
 
-def _fill_promoted_object(spec: AdsetSpec, ads: Sequence[AdSpec]) -> AdsetSpec:
+def _fill_promoted_object(
+    spec: AdsetSpec, ads: Sequence[AdSpec], default_adset: str
+) -> AdsetSpec:
     """Give a WhatsApp/multi ad set the Page its own ads post as, if it has none.
 
     `promoted_object_for` reads the page off the CREATIVE
@@ -956,8 +968,18 @@ def _fill_promoted_object(spec: AdsetSpec, ads: Sequence[AdSpec]) -> AdsetSpec:
     if spec.promoted_object and spec.promoted_object.get("page_id"):
         return spec
 
+    # `a.adset or default_adset`, not `a.adset in (None, spec.name)`, which
+    # review caught: an ad with no `adset` hangs on the FIRST ad set, but the
+    # `in (None, ...)` form made it a candidate Page for every ad set — so an
+    # ad set with no ads of its own silently inherited a Page from an ad
+    # hanging somewhere else, and this function's own "no ad hangs on it"
+    # message became unreachable in exactly the case it describes.
     pages = sorted(
-        {a.page_id for a in ads if (a.adset in (None, spec.name)) and a.page_id}
+        {
+            a.page_id
+            for a in ads
+            if (a.adset or default_adset) == spec.name and a.page_id
+        }
     )
     if len(pages) != 1:
         raise TemplatePlanError(
@@ -1029,7 +1051,9 @@ def plan_template_campaign(
 
     _check_declared_properties(adsets, props)
 
-    filled = [_fill_promoted_object(s, ads) for s in adsets]
+    # `adsets[0].name` is where an ad with no `adset` hangs; passing it in is
+    # what keeps `_fill_promoted_object` agreeing with `_plan_ads` about that.
+    filled = [_fill_promoted_object(s, ads, adsets[0].name) for s in adsets]
 
     campaign_ref = "campaign"
     campaign = Create(
@@ -1207,6 +1231,40 @@ def _graph_get(api, path: Tuple[str, ...], params=None) -> Dict[str, Any]:
     return api.call("GET", path, params=params or {}).json()
 
 
+def meta_message(e: Exception) -> str:
+    """A Meta rejection as one readable line, without `str(e)`.
+
+    `str(FacebookRequestError)` interpolates the whole `request_context` --
+    every parameter of the failed call. `server/meta.py` forbids echoing it for
+    that reason, and although the access token is on the SESSION's params
+    rather than in `request_context` (so there is no token to leak here), a
+    creative body dumped into an exception message buries the one sentence Meta
+    actually said. The code and subcode are what a search engine and
+    `planning/click-to-whatsapp-ads.md` are indexed on.
+
+    Falls back to `str(e)` for anything that is not a Meta error at all -- a
+    connection reset, say -- where `str(e)` is the whole message.
+    """
+    getters = ("api_error_message", "api_error_code", "api_error_subcode")
+    if not all(hasattr(e, g) for g in getters):
+        return str(e)
+    try:
+        bits = [str(e.api_error_message())]  # type: ignore[attr-defined]
+        code = e.api_error_code()  # type: ignore[attr-defined]
+        subcode = e.api_error_subcode()  # type: ignore[attr-defined]
+        if code is not None:
+            bits.append(f"code {code}")
+        if subcode is not None:
+            bits.append(f"subcode {subcode}")
+        return (
+            " (".join([bits[0], ", ".join(bits[1:]) + ")"])
+            if len(bits) > 1
+            else bits[0]
+        )
+    except Exception:  # noqa: BLE001 -- a malformed error body must not mask the error
+        return str(e)
+
+
 def find_campaign_by_name(api, account_id: str, name: str) -> Optional[Dict[str, Any]]:
     """The first campaign on the account with exactly this name, or None."""
     body = _graph_get(
@@ -1307,6 +1365,18 @@ def apply(plan: TemplatePlan, api) -> TemplateResult:
                 "object to a campaign that is actually recruiting."
             )
         result.campaign_id = str(plan.campaign_id)
+    else:
+        # Neither field set. Not reachable from either constructor today, and
+        # that is precisely why it is worth a raise rather than a comment: this
+        # `if/elif` is the ONLY place the two refusals live, so a plan that
+        # matched neither arm would create objects with nothing checked at all.
+        # A future third constructor should have to notice this.
+        raise TemplateApplyError(
+            "This plan names neither a campaign to create nor a campaign to "
+            "add to, so neither the name-collision check nor the template "
+            "marker check can run. Refusing to create anything. This is a bug "
+            "in the planner, not in your input."
+        )
 
     for create in plan.creates:
         params = _substitute(create.params, table)
@@ -1326,8 +1396,8 @@ def apply(plan: TemplatePlan, api) -> TemplateResult:
             raise
         except Exception as e:  # noqa: BLE001 -- re-raised with the ref attached
             raise TemplateApplyError(
-                f"Meta refused {create.node} {create.ref!r}: {e}. Nothing after "
-                f"it was attempted; what came before it exists. "
+                f"Meta refused {create.node} {create.ref!r}: {meta_message(e)}. "
+                f"Nothing after it was attempted; what came before it exists. "
                 + (
                     f"Remove it with `vlab template delete {table['campaign']}`."
                     if "campaign" in table

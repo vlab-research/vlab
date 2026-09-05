@@ -85,20 +85,12 @@ from typing import Any, Dict, List, Optional
 import click
 import yaml
 
-from ..authoring.templates import (
-    CREATIVE_KINDS,
-    DELIVERY_ESTIMATE,
-    REACH_ESTIMATE,
-    AdsetSpec,
-    AdSpec,
-    TemplateError,
-    TemplatePlan,
-    apply,
-    delete_template_campaign,
-    plan_template_ads,
-    plan_template_campaign,
-    validate_targeting,
-)
+from ..authoring.templates import (CREATIVE_KINDS, DELIVERY_ESTIMATE,
+                                   REACH_ESTIMATE, AdsetSpec, AdSpec,
+                                   TemplateError, TemplatePlan, apply,
+                                   delete_template_campaign, meta_message,
+                                   plan_template_ads, plan_template_campaign,
+                                   validate_targeting)
 from ..facebook.state import api_for_token
 from .cli import VlabGroup, cli, emit_json
 
@@ -180,9 +172,13 @@ def _dataclass_from(kind: str, cls, raw: Any, where: str):
     try:
         return cls(**raw)
     except TypeError as e:
-        # A missing required key. The dataclass's own message names it, and it
-        # is clearer than anything reconstructed from `dataclass_fields`.
-        raise click.ClickException(f"{where}: {e}") from e
+        # A missing required key. The dataclass's own message names the field,
+        # and it is clearer than anything reconstructed from
+        # `dataclass_fields`; `where` is an index, so the entry's own `name` is
+        # added when it has one -- that is what a reader is scanning the file
+        # for.
+        named = f" ({raw['name']!r})" if isinstance(raw.get("name"), str) else ""
+        raise click.ClickException(f"{where}{named}: {e}") from e
 
 
 def _load_spec(path: str) -> Dict[str, Any]:
@@ -604,21 +600,33 @@ def template_check_targeting(
         cases = [{"name": "(--targeting)", "targeting": _read_json(targeting)}]
     else:
         raw = _load_spec(spec_path)  # type: ignore[arg-type]
-        cases = [
-            {"name": a.get("name", f"adsets[{i}]"), "targeting": a.get("targeting")}
+        # Through `_dataclass_from`, not straight off the YAML, so that this
+        # command applies the SAME unknown-key check `plan` does. Review caught
+        # the raw read: a spec with a misspelled ad-set key exited 0 here and 1
+        # under `plan`, and the whole point of check-targeting is that it runs
+        # BEFORE plan -- a green check on a spec plan will reject is worse than
+        # no check.
+        #
+        # Only the ad sets are built. The ads are irrelevant to a targeting
+        # question, and requiring them to be valid would stop a researcher
+        # checking their targeting before the creative exists, which is the
+        # ordinary order of work.
+        specs = [
+            _dataclass_from("adset", AdsetSpec, a, f"{spec_path}: adsets[{i}]")
             for i, a in enumerate(raw.get("adsets") or [])
         ]
-        if not cases:
+        if not specs:
             raise click.ClickException(f"{spec_path} declares no ad sets.")
         # Refused here rather than sent: `json.dumps(None)` is the string
         # "null", which Meta answers with a message about `targeting_spec`
         # being malformed -- true, and useless for finding the ad set that is
         # missing it.
-        empty = [c["name"] for c in cases if not isinstance(c["targeting"], dict)]
+        empty = [s.name for s in specs if not isinstance(s.targeting, dict)]
         if empty:
             raise click.ClickException(
                 f"{spec_path}: ad set(s) {empty} have no targeting to check."
             )
+        cases = [{"name": s.name, "targeting": s.targeting} for s in specs]
 
     out = []
     failed = False
@@ -634,7 +642,9 @@ def template_check_targeting(
             out.append({"name": case["name"], "ok": True, "result": body})
         except Exception as e:  # noqa: BLE001 -- a Meta rejection IS the answer
             failed = True
-            out.append({"name": case["name"], "ok": False, "error": str(e)})
+            # `meta_message`, not `str(e)`: the SDK's own string interpolates
+            # the whole request context, burying the one sentence Meta said.
+            out.append({"name": case["name"], "ok": False, "error": meta_message(e)})
 
     if as_json:
         emit_json(out)
