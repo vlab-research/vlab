@@ -1,6 +1,8 @@
 [tool.poetry]
 name = "adopt"
-version = "0.0.85"
+# Follows the adopt release tag (`adopt-v0.1.85`), not a series of its
+# own -- see planning/release-process.md, "The package version".
+version = "0.1.85"
 description = ""
 authors = ["Nandan Rao <nandanmarkrao@gmail.com>"]
 

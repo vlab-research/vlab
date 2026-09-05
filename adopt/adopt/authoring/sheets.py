@@ -120,6 +120,17 @@ def _cast_strings(type_: Type[Any], values: Dict[str, Any]) -> Dict[str, Any]:
     hints = get_type_hints(type_)
 
     for key, value in values.items():
+        # THE MISSING CHECK COMES FIRST, and the order is not arbitrary -- it
+        # is the ancestor's, and reversing it was a regression in the salvage.
+        # `pd.read_excel` invents a column called "Unnamed: 5" for a stray blank
+        # column, which a real workbook grows the moment somebody widens a
+        # selection; its every value is NaN. Testing membership first turned
+        # that into "GeneralConf has no field 'Unnamed: 5'", refusing a workbook
+        # that used to load fine. Blank in, `None` out, and the model decides.
+        if _is_missing(value):
+            out[key] = None
+            continue
+
         if key not in hints:
             # The ancestor raised a bare `KeyError` here, which reads as an
             # internal error rather than "your spreadsheet has a column this
@@ -130,10 +141,6 @@ def _cast_strings(type_: Type[Any], values: Dict[str, Any]) -> Dict[str, Any]:
             raise SheetError(
                 f"{type_.__name__} has no field {key!r}. Fields: {sorted(hints)}"
             )
-
-        if _is_missing(value):
-            out[key] = None
-            continue
 
         if not isinstance(value, str):
             continue

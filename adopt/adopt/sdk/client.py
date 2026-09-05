@@ -351,6 +351,19 @@ class VlabClient:
             )
         except VlabError:
             raise
+        except TypeError as e:
+            # NOT a transport failure. The HTTP libraries encode `json=` inside
+            # `request()`, so a body they cannot serialise -- a `datetime.date`
+            # out of a YAML file is the one that actually happens -- raises
+            # here, and calling it `TransportError` would tell the caller their
+            # network is broken when nothing left the machine. (A session whose
+            # signature does not match also lands here, hence both halves of
+            # the message.)
+            raise VlabError(
+                f"{method} {url} was never sent: the request body could not be "
+                f"encoded, or this session does not accept the arguments the "
+                f"client passes. {e}"
+            ) from e
         except Exception as e:  # noqa: BLE001 -- every transport failure, one type
             raise TransportError(f"{method} {url} failed: {e}") from e
 

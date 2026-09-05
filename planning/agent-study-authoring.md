@@ -355,6 +355,7 @@ where the caller is.
 | Meta access | **Server proxies Meta** | Campaigns, ad sets and creative blobs get read server-side with the stored credential. Works for a pure-MCP client with no install, and keeps the researcher's Facebook token off the agent's machine. |
 | Dashboard compiler | **Keep the TypeScript, conformance-test it** | Cutting the dashboard over is real front-end work on a live regenerate/staleness UI, and buys nothing the agent needs. A shared fixture suite asserting Python ≡ TypeScript is enough to stop the §4 drift. |
 | Study creation | **Port to FastAPI, deprecate the Go endpoint** | Closes §2.3 and starts the retirement of a service whose conf half is already dead code with drifted types. |
+| Code sharing | **One implementation; every front door imports it** | Reaffirmed 2026-09-05 while the SDK landed. The SDK, the server routes and the eventual MCP shim call the same functions in `adopt` — conf-type names and order, assembly, validation, strata compilation — never a second copy. Where two sides need a definition that does not exist yet, it is created once in `adopt` and both import it, with a test that they cannot drift. fly's `90cdce61` (§5) is the refactor this avoids. |
 
 ---
 

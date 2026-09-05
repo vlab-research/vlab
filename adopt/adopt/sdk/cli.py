@@ -1,6 +1,7 @@
 """`vlab` -- author, validate, push, plan and apply a study from a file.
 
-    pipx install 'adopt[sdk]'
+    pipx install --python python3.10 \\
+      "adopt[sdk] @ git+https://github.com/vlab-research/vlab.git#subdirectory=adopt"
     export VLAB_API_KEY=eyJ...        # a human mints this; see `vlab keys --help`
     vlab create $ORG "HPV Nigeria" --init study.yaml
     $EDITOR study.yaml
@@ -8,12 +9,18 @@
     vlab plan  $ORG/hpv-nigeria
     vlab apply $ORG/hpv-nigeria 0
 
-Everything prints for a human by default and `--json` for a program. Every
-command that talks to the server takes `--api-url` and `--api-key`, defaulting
-to `VLAB_API_URL` and `VLAB_API_KEY`. **No token is ever written to disk**:
-there is no `vlab login` and no credentials file, because the one thing an
-agent's working directory should not contain is a key that can spend money on
-Meta.
+Needs Python `>=3.9,<3.11` -- `adopt`'s own constraint, which the SDK inherits.
+
+Every command prints for a human by default and takes `--json` for a program.
+Every command that talks to the server takes `--api-url` and `--api-key`,
+before OR after the subcommand, defaulting to `VLAB_API_URL` and
+`VLAB_API_KEY`. **No token is ever written to disk**: there is no `vlab login`
+and no credentials file, because the one thing an agent's working directory
+should not contain is a key that can spend money on Meta.
+
+`--json` and a confirmation prompt are incompatible, so `apply` and
+`keys revoke` require `--yes` alongside it rather than emitting a prompt into
+what is supposed to be parseable output.
 
 EXIT CODES
 
@@ -48,6 +55,7 @@ from ..authoring.geo import GeoError
 from ..authoring.sheets import SheetError
 from ..authoring.strata import create_strata_from_variables, get_finish_question_ref
 from ..authoring.validate import KNOWN_GAPS, validate_study
+from ..confs import json_safe
 from .client import DEFAULT_API_URL, VlabClient, VlabError
 from .study import (
     SECTION_URL_SEGMENTS,
@@ -166,7 +174,50 @@ def short(value: Any, width: int = 60) -> str:
 # ---------------------------------------------------------------------------
 
 
-@click.group(cls=VlabGroup, context_settings={"help_option_names": ["-h", "--help"]})
+# `auto_envvar_prefix` is not used: the two options are declared with explicit
+# `envvar=`, and click's automatic prefixing would also invent VLAB_CREATE_ORG
+# and friends for every argument of every subcommand.
+GROUP_CONTEXT = {"help_option_names": ["-h", "--help"]}
+
+
+def auth_options(command):
+    """Let `--api-url` / `--api-key` be given after the subcommand as well.
+
+    They are group-level options, so `vlab --api-key X push` has always worked
+    and `vlab push --api-key X` was a usage error -- which is the wrong way
+    round from how anyone types it, and the module docstring claimed both. The
+    same env vars back both spellings, and a value given on the subcommand
+    wins over one given on the group, because it is the more specific of the
+    two.
+    """
+    command = click.option(
+        "--api-url",
+        envvar="VLAB_API_URL",
+        default=None,
+        expose_value=False,
+        callback=_remember("api_url"),
+        help="Base URL of the study-configuration service.",
+    )(command)
+    return click.option(
+        "--api-key",
+        envvar="VLAB_API_KEY",
+        default=None,
+        expose_value=False,
+        callback=_remember("api_key"),
+        help="Bearer token. Prefer the environment variable.",
+    )(command)
+
+
+def _remember(key: str):
+    def callback(ctx: click.Context, param: Any, value: Any) -> Any:
+        if value is not None:
+            ctx.ensure_object(dict)[key] = value
+        return value
+
+    return callback
+
+
+@click.group(cls=VlabGroup, context_settings=GROUP_CONTEXT)
 @click.option(
     "--api-url",
     envvar="VLAB_API_URL",
@@ -212,6 +263,7 @@ def cli(ctx: click.Context, api_url: str, api_key: Optional[str]) -> None:
     help="Also write a starter study file at this path.",
 )
 @click.option("--json", "as_json", is_flag=True, help="Machine-readable output.")
+@auth_options
 @click.pass_context
 def create(
     ctx: click.Context, org: str, name: str, init_path: Optional[str], as_json: bool
@@ -258,8 +310,12 @@ def create(
     help="Where to write. A .json extension writes JSON.",
 )
 @click.option("--force", is_flag=True, help="Overwrite an existing file.")
+@click.option("--json", "as_json", is_flag=True, help="Machine-readable output.")
+@auth_options
 @click.pass_context
-def pull(ctx: click.Context, target: str, output: str, force: bool) -> None:
+def pull(
+    ctx: click.Context, target: str, output: str, force: bool, as_json: bool
+) -> None:
     """Write <org>/<slug>'s stored configuration to a file."""
     org, slug = parse_target(target)
     client = get_client(ctx)
@@ -276,8 +332,20 @@ def pull(ctx: click.Context, target: str, output: str, force: bool) -> None:
     study.save()
 
     written = [s for s in SECTIONS if s in study.sections]
-    click.echo(f"Wrote {output}: {len(written)} of 9 sections.")
     missing = [s for s in SECTIONS if s not in study.sections]
+
+    if as_json:
+        emit_json(
+            {
+                "file": output,
+                "written": written,
+                "never_written": missing,
+                "unrecognised": sorted(study.extra),
+            }
+        )
+        return
+
+    click.echo(f"Wrote {output}: {len(written)} of 9 sections.")
     if missing:
         click.echo(f"  never written: {', '.join(missing)}")
     if study.extra:
@@ -297,6 +365,7 @@ def pull(ctx: click.Context, target: str, output: str, force: bool) -> None:
     help="Ask the server instead of validating in process.",
 )
 @click.option("--json", "as_json", is_flag=True, help="Machine-readable output.")
+@auth_options
 @click.pass_context
 def validate(
     ctx: click.Context, path: Optional[str], remote: bool, as_json: bool
@@ -391,6 +460,7 @@ def _wrap(text: str, width: int = 70) -> List[str]:
 @cli.command()
 @click.argument("path", required=False)
 @click.option("--json", "as_json", is_flag=True, help="Machine-readable output.")
+@auth_options
 @click.pass_context
 def diff(ctx: click.Context, path: Optional[str], as_json: bool) -> None:
     """Compare a study file against what the server holds.
@@ -518,6 +588,7 @@ def print_diff(diffs: Sequence[SectionDiff], study: StudyFile) -> None:
 )
 @click.option("--dry-run", is_flag=True, help="Say what would be written and stop.")
 @click.option("--json", "as_json", is_flag=True, help="Machine-readable output.")
+@auth_options
 @click.pass_context
 def push(
     ctx: click.Context,
@@ -601,7 +672,14 @@ def push(
     written: List[str] = []
     try:
         for d in plan:
-            client.post_conf(org, slug, SECTION_URL_SEGMENTS[d.section], d.local)
+            # `json_safe`, not `d.local`: YAML gives a `datetime.date` for an
+            # unquoted `start_date: 2026-06-01`, which pydantic accepts (so
+            # `validate` and `diff` both pass) and the JSON encoder does not.
+            # It is NOT `stored_conf` of the parsed section -- undeclared keys
+            # have to reach the server so the 422 can name them.
+            client.post_conf(
+                org, slug, SECTION_URL_SEGMENTS[d.section], json_safe(d.local)
+            )
             written.append(d.section)
             if not as_json:
                 click.echo(f"wrote {d.section} ({d.status})")
@@ -663,6 +741,7 @@ def push(
 @cli.command()
 @click.argument("target")
 @click.option("--json", "as_json", is_flag=True, help="Machine-readable output.")
+@auth_options
 @click.pass_context
 def plan(ctx: click.Context, target: str, as_json: bool) -> None:
     """The instruction list for <org>/<slug>, with indices for `vlab apply`.
@@ -726,6 +805,7 @@ def plan(ctx: click.Context, target: str, as_json: bool) -> None:
 @click.argument("index", type=int)
 @click.option("--yes", is_flag=True, help="Do not ask.")
 @click.option("--json", "as_json", is_flag=True, help="Machine-readable output.")
+@auth_options
 @click.pass_context
 def apply(
     ctx: click.Context, target: str, index: int, yes: bool, as_json: bool
@@ -756,6 +836,17 @@ def apply(
     instruction = instructions[index]
 
     if not yes:
+        if as_json:
+            # The confirmation prints the instruction and a prompt on stdout,
+            # which would leave `--json` output that is not JSON -- and a
+            # non-interactive caller cannot answer the prompt anyway. Refusing
+            # beats either silently applying or silently hanging: this is the
+            # one command that spends money on Meta.
+            raise click.UsageError(
+                "--json needs --yes. Without it this asks for confirmation on "
+                "stdout, which would not be parseable and which nothing is "
+                "there to answer."
+            )
         click.echo(json.dumps(instruction, indent=2, default=str))
         click.confirm(f"Apply this to {org}/{slug} on Meta?", abort=True, default=False)
 
@@ -836,6 +927,7 @@ _json_flag = click.option(
 @meta.command("credentials")
 @click.option("--org", required=True, envvar="VLAB_ORG")
 @_json_flag
+@auth_options
 @click.pass_context
 def meta_credentials(ctx: click.Context, org: str, as_json: bool) -> None:
     """Your Facebook credentials by name. Never tokens.
@@ -852,6 +944,7 @@ def meta_credentials(ctx: click.Context, org: str, as_json: bool) -> None:
 @_limit
 @_after
 @_json_flag
+@auth_options
 @click.pass_context
 def meta_adaccounts(
     ctx: click.Context,
@@ -874,6 +967,7 @@ def meta_adaccounts(
 @_limit
 @_after
 @_json_flag
+@auth_options
 @click.pass_context
 def meta_campaigns(
     ctx: click.Context,
@@ -897,6 +991,7 @@ def meta_campaigns(
 @_limit
 @_after
 @_json_flag
+@auth_options
 @click.pass_context
 def meta_adsets(
     ctx: click.Context,
@@ -925,6 +1020,7 @@ def meta_adsets(
 @_limit
 @_after
 @_json_flag
+@auth_options
 @click.pass_context
 def meta_ads(
     ctx: click.Context,
@@ -1000,12 +1096,14 @@ def strata() -> None:
 @click.option(
     "--dry-run", is_flag=True, help="Print the strata instead of writing the file."
 )
+@click.option("--json", "as_json", is_flag=True, help="Machine-readable output.")
 @click.pass_context
 def strata_generate(
     ctx: click.Context,
     path: Optional[str],
     finish_question: Optional[str],
     dry_run: bool,
+    as_json: bool,
 ) -> None:
     """Compile `variables` into `strata`, merging with the existing strata.
 
@@ -1065,6 +1163,17 @@ def strata_generate(
 
     study.sections["strata"] = fresh
     study.save()
+
+    if as_json:
+        emit_json(
+            {
+                "file": study.path,
+                "strata": [s["id"] for s in fresh],
+                "merged": sorted(str(i) for i in kept),
+                "no_longer_produced": [str(d) for d in dropped],
+            }
+        )
+        return
 
     click.echo(f"{len(fresh)} strata written to {study.path}.")
     click.echo(
@@ -1162,6 +1271,7 @@ def keys() -> None:
 
 @keys.command("list")
 @click.option("--json", "as_json", is_flag=True, help="Machine-readable output.")
+@auth_options
 @click.pass_context
 def keys_list(ctx: click.Context, as_json: bool) -> None:
     """Your live API keys. Needs `auth:read`.
@@ -1202,8 +1312,10 @@ def keys_list(ctx: click.Context, as_json: bool) -> None:
 @keys.command("revoke")
 @click.argument("key_id")
 @click.option("--yes", is_flag=True, help="Do not ask.")
+@click.option("--json", "as_json", is_flag=True, help="Machine-readable output.")
+@auth_options
 @click.pass_context
-def keys_revoke(ctx: click.Context, key_id: str, yes: bool) -> None:
+def keys_revoke(ctx: click.Context, key_id: str, yes: bool, as_json: bool) -> None:
     """Revoke a key by its id (the `jti` from the mint response). Needs `auth:write`.
 
     404 means it is not one of YOUR live keys -- never 403, so this cannot be
@@ -1214,8 +1326,17 @@ def keys_revoke(ctx: click.Context, key_id: str, yes: bool) -> None:
     Treat revocation as "dead within a minute", not "dead now".
     """
     if not yes:
+        if as_json:
+            raise click.UsageError(
+                "--json needs --yes: the confirmation prompt goes to stdout."
+            )
         click.confirm(f"Revoke key {key_id}?", abort=True, default=False)
+
     get_client(ctx).revoke_api_key(key_id)
+
+    if as_json:
+        emit_json({"revoked": key_id, "other_replicas_honour_until_seconds": 30})
+        return
     click.echo(f"Revoked {key_id}. Other replicas may honour it for ~30 seconds.")
 
 

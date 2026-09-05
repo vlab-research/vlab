@@ -20,13 +20,17 @@ without going through argv, which is the composability §6.D of the plan
 insists on: the authoring library is primitives, and the CLI is one caller of
 them rather than the only way in.
 
-Installed as an extra::
+Installed as an extra, from the repository -- `adopt` is on no package index,
+and the name `adopt` on PyPI is an unrelated project::
 
-    pipx install 'adopt[sdk]'      # then: vlab --help
+    pipx install --python python3.10 \\
+      "adopt[sdk] @ git+https://github.com/vlab-research/vlab.git#subdirectory=adopt"
 
-The extra exists for the console script and `click`; everything else the SDK
-needs (`requests`, `PyYAML`, pydantic, the authoring library) is already a
-hard dependency of `adopt`.
+Python >=3.9,<3.11, which is `adopt`'s own constraint. The extra exists for the
+console script and `click`; everything else the SDK needs (`requests`,
+`PyYAML`, pydantic, the authoring library) is already a hard dependency of
+`adopt` -- which is also why the install is not small. `adopt/README.md` has
+the in-checkout `poetry install --extras sdk` path and the verification.
 """
 
 from .client import (

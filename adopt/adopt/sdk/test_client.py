@@ -37,6 +37,7 @@ os.environ["API_KEY_SECRET"] = "api-key-secret"
 from ..server.server import app  # noqa: E402
 from .client import (  # noqa: E402
     ConflictError,
+    VlabError,
     NotAuthenticatedError,
     NotFoundError,
     ServerError,
@@ -536,3 +537,31 @@ def test_real_field_errors_are_still_recognised():
     with pytest.raises(UnprocessableError) as e:
         c.get_confs("org", "slug")
     assert e.value.field_errors == detail
+
+
+def test_a_body_that_cannot_be_encoded_is_not_a_transport_error():
+    """The HTTP libraries encode `json=` inside `request()`, so a body they
+    cannot serialise raises there. Calling that a TransportError tells the
+    caller their network is broken when nothing left the machine — and the
+    body that actually hits this is a `datetime.date` out of a YAML file."""
+    import datetime
+
+    def request(method, url, **kw):
+        raise TypeError("Object of type date is not JSON serializable")
+
+    session = _Session()
+    session.request = request
+    c = VlabClient(api_key="k", base_url="http://x", session=session)
+
+    with pytest.raises(VlabError) as e:
+        c.post_conf("org", "slug", "recruitment", {"d": datetime.date(2026, 6, 1)})
+
+    assert not isinstance(e.value, TransportError)
+    assert "never sent" in str(e.value)
+
+
+def test_a_real_transport_failure_is_still_a_transport_error():
+    """The narrowing must not swallow the case the type exists for."""
+    c = _client(error=ConnectionError("connection refused"))
+    with pytest.raises(TransportError):
+        c.get_confs("org", "slug")

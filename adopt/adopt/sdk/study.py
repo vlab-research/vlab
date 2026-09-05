@@ -47,7 +47,7 @@ import yaml
 from pydantic import TypeAdapter
 
 from ..authoring.validate import SECTION_MODELS
-from ..confs import CONF_TYPES, URL_SEGMENT_BY_CONF_TYPE, stored_conf
+from ..confs import CONF_TYPES, URL_SEGMENT_BY_CONF_TYPE, json_safe, stored_conf
 from ..study_conf import (
     DESTINATION_DEFAULT_TYPE,
     RECRUITMENT_DESTINATION,
@@ -579,7 +579,9 @@ class StudyFile:
     # -- convenience -------------------------------------------------------
 
     def all_sections(self) -> Dict[str, Any]:
-        """`sections` plus anything unrecognised, for the validator.
+        """`sections` plus anything unrecognised, JSON-safe, for the validator.
+
+        Two things at once, and both matter.
 
         `validate_study` has a `section.unrecognized` warning and it is the only
         thing in the system that will ever notice a typo'd section name: the
@@ -587,8 +589,15 @@ class StudyFile:
         rejected, and not missed -- the study simply has no strata and nothing
         says why. Filtering the extras out before validating would throw away
         the one report that catches it.
+
+        And `json_safe`, so that what `validate` judges is byte-for-byte what
+        `push` sends. YAML hands back `datetime.date` for an unquoted
+        `start_date: 2026-06-01`; pydantic accepts it, so validating the raw
+        value passes while POSTing it dies in the JSON encoder. Normalising
+        here means the two commands cannot disagree about what the file says --
+        and `validate --remote`, which POSTs these sections, works at all.
         """
-        return {**self.sections, **self.extra}
+        return json_safe({**self.sections, **self.extra})
 
     def require_target(self) -> Tuple[str, str]:
         """`(org, slug)` from the header, or a message saying which is missing."""

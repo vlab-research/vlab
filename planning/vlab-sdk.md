@@ -453,6 +453,93 @@ used names that need no quoting.
 
 ---
 
+## 6c. The second review, and what it found
+
+### The install instructions were false
+
+`pipx install 'adopt[sdk]'` was written in five places and cannot work: `adopt`
+is on no index and that name on PyPI is somebody else's project. The docs now
+give the VCS form, and it is verified rather than asserted — pip 26.2.1,
+CPython 3.10.13, a clean venv:
+
+```
+$ ./v/bin/pip install '/path/to/vlab/adopt[sdk]'
+Successfully installed adopt-0.1.85 click-8.5.0 … (78 packages)
+$ ./v/bin/vlab validate study.yaml
+valid (study.yaml): 1 warning(s), no errors.        # exit 0
+
+$ ./v/bin/pip install "adopt[sdk] @ git+file:///path/to/vlab@feature/vlab-sdk#subdirectory=adopt"
+Successfully installed adopt-0.1.85 …
+```
+
+The `#egg=adopt[sdk]` fragment, which is what the older documentation for this
+would have told you to write, turns out not to be merely deprecated: pip 26
+**refuses** it — `× The 'adopt[sdk]' egg fragment is invalid` — and hints at
+the `name[extras] @ url` spelling instead. Worth knowing before writing it into
+a runbook.
+
+### A YAML date passed validate and died in push
+
+`start_date: 2026-06-01`, unquoted, is a `datetime.date` after YAML. pydantic
+accepts a `date` object for a `datetime` field, so `validate` passed and `diff`
+was clean; then `push` handed the raw section to the HTTP library, which cannot
+encode a date, and `client.request`'s blanket `except Exception` reported it as
+a `TransportError` — a network failure, for a value that never left the
+machine, *after* the sections ordered before `recruitment` had been written.
+
+Two fixes and one discovery.
+
+`StudyFile.all_sections()` and `push` now go through `confs.json_safe`, the
+same orjson the driver uses, so **validate judges exactly what push sends** and
+`validate --remote` (which POSTs those sections) works at all. And
+`client.request` catches `TypeError` separately: a body that cannot be encoded
+is not a transport failure and must not say so.
+
+The discovery is that this does not make the file work. **pydantic accepts a
+`date` object but rejects the date-only string `"2026-06-01"`** — it wants a
+`T`. So an unquoted YAML date was never sendable: the server would have 422'd
+it too. The right outcome is therefore not to coerce it silently to midnight,
+which would push a value the file does not say, but to report it — and that is
+now what happens, as `section.invalid` naming `start_date`, locally, before
+anything is written. Coercion was the tempting fix and would have hidden a
+quoting mistake behind a value the author never typed.
+
+### A salvage regression the first review missed
+
+`_cast_strings` tested "is this column in the model's hints" *before* "is this
+value missing"; `configuration.py` did it the other way round. `pd.read_excel`
+invents an `Unnamed: 5` column for a stray blank column — which a real workbook
+grows the moment somebody widens a selection — whose every value is NaN. Under
+the ancestor's order it became `None` and the lenient model dropped it; under
+mine it was `SheetError: GeneralConf has no field 'Unnamed: 5'`, refusing a
+workbook that used to load. Order restored, with the test.
+
+That is the second regression in this salvage found by reading it against the
+original rather than by running it, and both were in the same function. The
+lesson for a "behaviour-preserving move" is that reordering two guards is a
+behaviour change even when neither guard changed.
+
+### Four smaller ones
+
+* **The version was `0.0.85` while the tags said `v0.1.85`.** Nothing read it
+  until `vlab --version` did, so it had drifted silently. Bumped, with a
+  paragraph in `planning/release-process.md` saying it follows the adopt tag.
+* **The module docstring oversold the interface**: `pull`, `strata generate`
+  and `keys revoke` had no `--json`, and `--api-key`/`--api-url` were
+  group-level, so `vlab push --api-key X` — the order anyone types — was a
+  usage error. All three now take `--json`; an `auth_options` decorator puts
+  the two auth options on every command that reaches the server, with the
+  subcommand's value beating the group's.
+* **`apply --json` without `--yes`** printed the instruction and a
+  confirmation prompt onto stdout, leaving output that is not JSON and a
+  question nothing was there to answer — on the one command that spends money
+  on Meta. It is a usage error now. Same for `keys revoke --json`.
+* **Two of the five moved-verbatim `read_share_lookup` cases had been weakened**
+  to length and sum checks during the salvage. The point of those five is that
+  they are the ancestor's, unchanged; the exact expected frames are restored.
+
+---
+
 ## 7. What the plan got wrong
 
 **§8's Phase 3 is four bullets and they are all right, which is itself the
@@ -571,8 +658,12 @@ there is a test pinning it. Both places in the document are corrected.
   skeleton warns and quotes its own country code. Fixing it properly means a
   YAML 1.2 loader (`ruamel.yaml`), which is a new dependency and would change
   what an existing file means.
-- **The `sdk` extra was not installed from a built wheel and tested end to
-  end.** `poetry check --lock` passes, the console-script entry point resolves,
-  and the CLI runs from the source tree; `pipx install 'adopt[sdk]'` from a
-  built artifact was not exercised, because `adopt` is not published to any
-  index and installing it means a git or path install.
+- **`adopt` is on no package index, and it should be.** There is no
+  `pip install adopt`; the name on PyPI belongs to an unrelated project, so the
+  install is `pipx install "adopt[sdk] @ git+https://github.com/vlab-research/vlab.git#subdirectory=adopt"`.
+  That works (verified, below) but it is not what anyone types, it needs
+  repository access, and it pins nothing. Publishing a wheel — and, with it,
+  splitting the SDK's dependencies out of the service's so that a CLI does not
+  drag pandas, scipy and cvxpy onto a laptop — is the obvious next step and is
+  not this PR. Plan §7 accepted the heavy dependencies deliberately; this is
+  the bill for that decision, now itemised.

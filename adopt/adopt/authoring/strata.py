@@ -78,7 +78,9 @@ def _js_str(value: Any) -> str:
         return "null"
     if isinstance(value, float):
         if value != value or value in (float("inf"), float("-inf")):
-            return {float("inf"): "Infinity", float("-inf"): "-Infinity"}.get(value, "NaN")
+            return {float("inf"): "Infinity", float("-inf"): "-Infinity"}.get(
+                value, "NaN"
+            )
         if value.is_integer():
             return str(int(value))
         return repr(value)
