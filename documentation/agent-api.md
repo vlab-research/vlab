@@ -349,7 +349,9 @@ checked for uniqueness anywhere; duplicates collapse silently in a dict
 `inference_data` and `data_sources`. **It has no `variables` field**, and it
 sets no `model_config`, so pydantic's default `extra="ignore"` silently drops
 the `variables` conf when `get_study_conf` (`malaria.py:58`) assembles the
-study from the stored rows.
+study from the stored rows. (That default is unchanged on the load path, and
+deliberately so — the `extra="forbid"` models added in v0.1.85 are used on
+write only, §2.1.)
 
 `variables` exists so the dashboard can regenerate strata from it and show a
 staleness banner. Nothing in adopt reads it, and neither
@@ -402,23 +404,51 @@ Routes: `adopt/adopt/server/server.py:110-197`. Models:
           "conf": { …the stored configuration… }}}
 ```
 
-**The server normalises what you send, and the normalisation is lossy.**
-`create_conf` (`server.py:100`) stores `config.model_dump()`, not your request
-body. Two consequences:
+**An unknown field is a `422` that names it.** Since adopt v0.1.85 the nine
+POST routes validate through `extra="forbid"` models
+(`adopt/adopt/study_conf_strict.py`), so a misspelled key is rejected rather
+than accepted and discarded:
 
-- **Unknown keys are silently dropped.** pydantic's default is `extra="ignore"`
-  and `model_dump()` emits only declared fields. A typo'd field name is not an
-  error; it simply does not exist in the stored conf. Verified against
-  pydantic 2.5.2 with `StratumConf`.
-- **Defaults are filled in.** POSTing a `general` conf without `extra_metadata`
-  stores `"extra_metadata": {}`. Read the `201` body if you want to know what
-  was actually saved.
+```json
+{"detail": [{"type": "extra_forbidden",
+             "loc": ["body", 0, "levels", 0, "facebok_targeting"],
+             "msg": "Extra inputs are not permitted"}]}
+```
+
+`loc` is the full path to the offending key, so this works at any depth — a
+typo inside `strata[].question_targeting.vars[]` is caught exactly like one at
+the top level. Two kinds of key are still free-form by design and always will
+be: **Meta spec objects** (`strata[].facebook_targeting`, `creatives[].template`,
+`data-sources[].config`) and **user-chosen metadata**
+(`general.extra_metadata`, `strata[].metadata`, `destinations[].additional_metadata`).
+
+Before v0.1.85 the models ran on pydantic's default, `extra="ignore"`: a typo'd
+field name was not an error, it simply did not exist in the stored conf. If you
+are talking to an older deployment, assume every optional field you send may
+have been discarded, and read it back (§2.3) to find out.
+
+**Reading is still lenient, deliberately.** The strict models are used on write
+only. adopt loads stored confs through the *lenient* originals, so a conf
+written before a field was removed still loads and still runs — otherwise
+removing a field would halt reconciliation on every study that predates the
+removal. Two names are on a closed list of retired fields that a write accepts
+and drops rather than rejecting, because stored confs still carry them:
+`recruitment.destination_type` (required until 2026-08-30) and
+`destinations[].include_metadata_in_ref` (replaced by `ref_mode` on
+2026-08-24). Do not send either in new configuration.
+
+**Defaults are filled in.** `create_conf` stores `config.model_dump()`, not your
+request body, so POSTing a `general` conf without `extra_metadata` stores
+`"extra_metadata": {}`. Read the `201` body if you want to know what was
+actually saved.
 
 **Failure modes.**
 
 | Condition | Result |
 |---|---|
-| Missing or wrong-typed field, unknown destination `type`, list where an object was expected | `422` with FastAPI's per-field detail — legible and actionable |
+| Missing or wrong-typed field, unknown or missing destination `type`, list where an object was expected | `422` with FastAPI's per-field detail — legible and actionable |
+| **Unknown field, at any depth** | `422`, `type: "extra_forbidden"`, with the full path to the key in `loc`. Since adopt v0.1.85 — before that it was a `201` and the field was discarded |
+| A recruitment body carrying fields from two arms (e.g. both `arms` and `destinations`) | `422` naming the field that does not belong to the arm. Since v0.1.85 — before that it silently became a `PipelineRecruitmentExperiment` |
 | A model validator raising `InvalidConfigError` (bad WhatsApp phone number, unsafe `initial_shortcode`, invalid `audiences[].subtype`, invalid `partitioning` combination) | `422`, with the validator's message verbatim in the `detail`. Since adopt v0.1.84 — before that it was a bare `500`; see below |
 | Study does not exist, or is not in `{org_id}`, or you are not in that org | `500`. The insert's study subselect yields `NULL` against a `NOT NULL` column |
 | Unparseable auth | `401` |
@@ -467,8 +497,12 @@ regression test in `adopt/adopt/server/test_copy_confs.py`.)
 
 - `GET /{org_id}/studies/{slug}/confs` — newest row per conf type, as a map.
   The read you want. Raises (→ `500`) if the study has no confs at all.
-- `GET /{org_id}/studies/{slug}/confs/{conf_type}` — one section, by the
-  *stored* type name (§1.2). Raises (→ `500`) when absent.
+- `GET /{org_id}/studies/{slug}/confs/{conf_type}` — one section. Since adopt
+  v0.1.85 either spelling works: the URL segment you POSTed to
+  (`confs/data-sources`) or the stored type name `GET /confs` returns as a key
+  (`data_sources`). Before that only the stored name worked, so the one URL
+  that could write those two sections was the one URL that could not read them
+  back. Still raises (→ `500`) when the section is absent.
 - `GET /{org_id}/studies/{slug}/ad-attributions` — the frozen (ad → stratum,
   creative, survey) mapping as a table (`server.py:264`).
 - `GET /{org_id}/studies/{slug}/ad-attributions.csv` — the same, as a CSV
@@ -633,6 +667,15 @@ drift-checked in CI. Program against those; read this section for what the
 schema cannot say. `adopt/README.md` ("JSON Schemas for study configuration")
 lists the four things the models enforce that JSON Schema cannot express.
 
+**The per-section files describe the WRITE shape**, i.e. what `POST` accepts:
+they carry `"additionalProperties": false`, so validating your body against the
+file tells you whether the server will take it. That is the shape you want when
+you are about to send something. `study-conf.json` is the one exception and
+says so in its `$comment` — it describes what adopt *loads*, which deliberately
+still tolerates keys the models no longer declare, so it permits additional
+properties where the others do not. A conf that validates on load and not
+against these files is that asymmetry working, not drift.
+
 ### `general` — object
 
 Concepts: <https://docs.vlab.digital/vlab/study-configuration/general/>
@@ -659,14 +702,25 @@ metadata, so a key present in both is won by `extra_metadata`
 belonging to the study's owner; `credentials_entity` is stored and never read
 (§1.3).
 
-### `recruitment` — object, an untagged three-way union
+### `recruitment` — object, a three-way union discriminated on `type`
 
 Concepts: <https://docs.vlab.digital/vlab/study-configuration/recruitment/>
 
 `RecruitmentConf` is `Union[SimpleRecruitment, PipelineRecruitmentExperiment,
-DestinationRecruitmentExperiment]` (`study_conf.py:873`) with **no
-discriminator field**. pydantic tells the arms apart by shape, so the field set
-you send selects the arm.
+DestinationRecruitmentExperiment]`, discriminated on `type` since adopt
+v0.1.85:
+
+| `type` | Class |
+|---|---|
+| `"simple"` | `SimpleRecruitment` |
+| `"pipeline_experiment"` | `PipelineRecruitmentExperiment` |
+| `"destination"` | `DestinationRecruitmentExperiment` |
+
+**Send the tag.** It is not required — omit it and adopt infers the arm from
+shape, which is what keeps the confs stored before the tag existed loading and
+re-saving — but the tag is the only way to be certain which arm you get, and a
+tagged body that carries a field from another arm is a `422` rather than a
+different strategy than you asked for.
 
 Common to all three: `objective`, `optimization_goal`, `min_budget`,
 `start_date`, `end_date`, and the optional `incentive_per_respondent` (0),
@@ -685,11 +739,13 @@ Common to all three: `objective`, `optimization_goal`, `min_budget`,
   `budget_per_arm`, `max_sample_per_arm`, `destinations` (a list of destination
   names). Campaigns are `<base>-<destination>`, one arm per destination.
 
-> **The union is ambiguous if you over-specify.** A body carrying both the
-> pipeline fields and `destinations` resolves to
-> `PipelineRecruitmentExperiment` — union order wins and `destinations` is
-> silently dropped. Measured against pydantic 2.5.2. Send exactly the fields of
-> the arm you want.
+> **Over-specifying is now an error, and used to be silent.** A body carrying
+> both the pipeline fields and `destinations` resolved to
+> `PipelineRecruitmentExperiment` — union order won and `destinations` was
+> dropped as an unknown field, so a study configured as a destination
+> experiment could run as a pipeline one with nothing reporting it. Since
+> v0.1.85 it is a `422` naming `destinations`. Send exactly the fields of the
+> arm you want, and name the arm.
 
 **`start_date` and `end_date` are the study's on/off switch.** The cron only
 touches studies where `start_date < now < end_date`, via the `study_state` view
@@ -736,12 +792,17 @@ Five types (`study_conf.py:526`). All accept an optional
 
 Traps, all documented at length in the model's own comments:
 
-- **`type` is a discriminator and it is load-bearing.** It was a plain
-  shape-matched union until 2026-08-30, and under that union every `multi`
-  destination silently became a `messenger` destination
-  (`study_conf.py:496-525`). An unknown `type` is now a `422`; an *absent*
-  `type` is defaulted to `messenger`, because 45 stored confs predate the field
-  (`_default_missing_destination_type`, `study_conf.py:478`).
+- **`type` is a discriminator, it is load-bearing, and you must send it.** It
+  was a plain shape-matched union until 2026-08-30, and under that union every
+  `multi` destination silently became a `messenger` destination
+  (`study_conf.py:496-525`). An unknown `type` is a `422`, and since adopt
+  v0.1.85 so is an **absent** one: `Unable to extract tag using discriminator
+  'type'`. The load path still defaults a missing `type` to `messenger`, because
+  45 stored confs predate the field
+  (`_default_missing_destination_type`, `study_conf.py:478`) — but that is a
+  concession to history, and nothing you write today is history. Omitting it on
+  a write would hand you a Messenger destination you did not ask for, with a
+  `201` saying it worked.
 - **`"web"` and `"website"` are both accepted** and mean the same class
   (`study_conf.py:168`). Both reached production.
 - **`whatsapp_phone_number` is the phone number, not the `phone_number_id`.**
@@ -797,9 +858,19 @@ own sub-object (`AudienceConf.__post_init__`, `study_conf.py:1028`):
   `{min_users, min_days}`, or `{min_users, max_users, max_days}`
   (`Partitioning.validate_scenario`, `study_conf.py:956`)
 
-Both of those raise `InvalidConfigError`, so a bad subtype or an invalid
-partitioning combination is a `422` carrying the message (§2.1). And remember
-§1.3: the names these produce on Meta are not always `name`.
+Both of those raise `InvalidConfigError`, so a bad subtype, a missing
+sub-object, or an invalid partitioning combination is a `422` carrying the
+message (§2.1). And remember §1.3: the names these produce on Meta are not
+always `name`.
+
+> **`LOOKALIKE` and `PARTITIONED` could not be written at all before adopt
+> v0.1.85.** `__post_init__` runs at `mode="before"`, so it saw your raw JSON,
+> but it required the sub-object to already be a parsed `Lookalike` /
+> `Partitioning` instance — which no request body can be. Every such POST was a
+> `422` reading "requires a <class 'adopt.study_conf.Lookalike'> value", and a
+> stored one would have broken `StudyConf` assembly on every cron run. Only
+> `CUSTOM` worked. If you are on an older deployment, these two subtypes are
+> unavailable over HTTP; there is no payload that gets past it.
 
 ### `variables` — array
 
@@ -1250,6 +1321,45 @@ client.
 
 ## 8. What landed recently
 
+### 2026-09-05 — adopt v0.1.85: unknown fields are a `422`
+
+Not yet released; check the adopt version in `devops/values/toixo-prod.yaml`
+before relying on any of it. The change with the widest blast radius for an
+agent since this document was written.
+
+**An unknown field is a `422` naming it, at any depth** — §2.1. The nine POST
+routes validate through `extra="forbid"` twins of the models
+(`adopt/adopt/study_conf_strict.py`), recursively, so a typo inside
+`strata[].question_targeting.vars[]` or `variables[].levels[]` fails the same
+way one at the top level does. Reading stays lenient, deliberately: adopt still
+loads a stored conf carrying keys the models no longer declare, because
+otherwise removing a field would halt reconciliation on every study written
+before the removal. Two such retired names (`recruitment.destination_type`,
+`destinations[].include_metadata_in_ref`) are accepted and dropped on write;
+that list is closed and everything else is an error.
+
+**A destination must now carry `type`** — §3. The legacy `messenger` default
+applies on load only.
+
+**The recruitment union is discriminated on `type`** — §3, §4. Values are
+`simple`, `pipeline_experiment`, `destination`. Omitting the tag still works
+(the arm is inferred from shape, which is what keeps existing confs saveable),
+but a body carrying fields from two arms is now a `422` instead of silently
+becoming a pipeline conf.
+
+**`LOOKALIKE` and `PARTITIONED` audiences can be written as JSON at all** — §3.
+They never could: a `mode="before"` validator required the sub-object to
+already be a parsed pydantic instance, so every such POST was a `422` no
+payload could satisfy, and a stored one would have broken `StudyConf` assembly
+on every cron run.
+
+**`GET /confs/data-sources` reads back what `POST /confs/data-sources` wrote** —
+§2.3. Same for `inference-data`.
+
+**The committed JSON Schemas describe the write shape** — §3. They now carry
+`"additionalProperties": false`, so validating locally tells you whether the
+server will accept the body. `study-conf.json` stays lenient and says so.
+
 ### 2026-09-05 — adopt v0.1.84: Phase 1, Phase 2, and `422` for `InvalidConfigError`
 
 Three PRs, one release. Check the adopt version in
@@ -1259,8 +1369,9 @@ Three PRs, one release. Check the adopt version in
 that trips a cross-field validator now returns the validator's message in
 `detail` — §2.1's failure-mode table and the WhatsApp / audience / partitioning
 notes in §4 were rewritten accordingly. The item that used to be §7.5 ("see why
-a `500` happened") is closed. The `extra="ignore"` behaviour is unchanged and
-is investigated in `planning/conf-extra-fields.md`.
+a `500` happened") is closed. The `extra="ignore"` behaviour was unchanged in
+this release and investigated in `planning/conf-extra-fields.md`; v0.1.85 above
+is the fix.
 
 **The strata compiler is Python** (PR #254): `adopt.authoring.strata` and
 `adopt.authoring.extract`, held identical to the dashboard's TypeScript by a
@@ -1308,9 +1419,10 @@ real TypeScript through the port (`dashboard/scripts/authoring-conformance.ts`
 See §6 step 7 and §12 of the planning doc.
 
 What the plan claimed and implementation disproved is in §11 of the planning
-doc; the six defects found and deliberately left alone (including the
-`InvalidConfigError` and `extra="ignore"` behaviours described in §4) are in
-§11.4 there. Beyond Phase 0, the direction — a composable Python authoring SDK,
+doc; the defects found are in §11.4 there — items 1, 2, 3 and 5 are now fixed
+(`InvalidConfigError` in v0.1.84; unknown fields, the untagged recruitment
+union and the unreadable hyphenated conf type in v0.1.85), and item 7 records
+the audience-subtype bug found while fixing item 2. Beyond Phase 0, the direction — a composable Python authoring SDK,
 server-side Meta proxy endpoints, `POST /{org}/studies/{slug}/validate`, and an
 MCP shim over the SDK — is recorded in the same document.
 
@@ -1325,12 +1437,10 @@ Marked here rather than guessed at.
   dashboard's live calls and the error mapping is exercised against
   SDK-constructed `FacebookRequestError`s, but no response in this
   documentation was observed coming back from `graph.facebook.com`.
-- **Whether the deployed `conf-dashboard` has `FACEBOOK_APP_ID` and
-  `FACEBOOK_APP_SECRET` was not verified.** It is inferred: the optimize
-  endpoint reaches the same `get_api` and those variables are read with
-  `environs`' `env()`, which raises when absent — so if `GET /{org}/optimize/…`
-  works in your environment, §2.5 will. If it does not, the first proxy call
-  fails with an unhelpful `500`.
+- ~~**Whether the deployed `conf-dashboard` has `FACEBOOK_APP_ID` and
+  `FACEBOOK_APP_SECRET` was not verified.**~~ **Closed 2026-09-05.** Both are
+  present on the production `vlab-conf-dashboard` deployment, supplied by the
+  `facebook-envs` secret. Key names were inspected; values were not read.
 - **The Graph API version the proxy uses is the SDK's**, currently `v22.0`
   (`facebook-business = "v22"`), which happens to match the dashboard's
   `REACT_APP_FACEBOOK_API_VERSION`. Nothing enforces that they stay in step,
@@ -1374,6 +1484,20 @@ Marked here rather than guessed at.
   leaves them `NULL` and Facebook credentials are resolved from the `general`
   conf instead (`campaign_queries.py:13`). Whether anything still reads the
   columns is undetermined; nothing in `adopt/` does.
+- **How many stored confs carry a retired key is unmeasured.** Two names are
+  provably once-declared-and-removed (`recruitment.destination_type`,
+  `destinations[].include_metadata_in_ref`) and are accepted-and-dropped on
+  write for that reason (§2.1). Whether any *other* key is out there — from the
+  notebook era, or propagated between studies by `copy-from`, which copies
+  stored JSON verbatim — was not checked against production data. If one exists,
+  it is now a `422` on the first re-save of that conf, naming the key.
+  `planning/conf-extra-fields.md` §5 sketches the query that would say.
+- **Destinations with no `type` cannot be re-saved.** 45 stored confs across 11
+  studies predate the field. They still load (the `messenger` default), but
+  writing one back is now a `422` (§3) — and the dashboard's edit path re-POSTs
+  a stored conf verbatim, so editing destinations on one of those studies fails
+  until a `type` is chosen. Deliberate: the dashboard cannot render such a conf
+  either, so it could not show you what you were saving.
 - **`PipelineRecruitmentExperiment` end-date consistency is unenforced.**
   `validate_dates` (`study_conf.py:714`) exists, carries a
   `TODO: this is useless`, and is called from nowhere. An inconsistent

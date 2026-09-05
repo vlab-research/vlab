@@ -546,20 +546,26 @@ are design decisions, not mechanical fixes.
    and partitioning validators reaches the server log and never the caller, who
    gets a bare 500. This is the most fixable bug on the list and it directly
    undercuts §2.5's hope that validation errors are actionable.
-2. **Every conf model is `extra="ignore"`.** A misspelled *optional* field is
-   accepted and silently dropped. For a dashboard user the form supplies the
-   names; for an agent authoring JSON this is the likeliest failure mode there
-   is, and vlab's answer is to accept the write and discard the field. **This
-   is worse than the deferred-validation problem of §2.5, because nothing ever
-   surfaces at all**, and it should be settled before the SDK ships.
-3. **`RecruitmentConf` is an untagged union.** The three arms carry no tag, so
-   the server shape-matches on which required fields are present —
-   `PipelineRecruitmentExperiment` and `DestinationRecruitmentExperiment` are
-   separated by exactly `arms` vs `destinations`. Add one optional field to
-   either and they become mutually satisfiable. Same defect class as the
-   destination union, which per the comments at `study_conf.py:1090` cost a
-   live ad rejection on 2026-08-30. An over-specified body already resolves to
-   the pipeline arm and silently drops `destinations`.
+2. ~~**Every conf model is `extra="ignore"`.**~~ **RESOLVED**, adopt v0.1.85.
+   A misspelled *optional* field was accepted and silently dropped — the
+   likeliest failure mode there is for an agent authoring JSON, and worse than
+   §2.5's deferred validation because nothing surfaced at all. Fixed by Option
+   1 of `planning/conf-extra-fields.md` §4: strict `extra="forbid"` twins of
+   every write-time model (`adopt/adopt/study_conf_strict.py`), recursively
+   through nested models, swapped into the nine POST route annotations. The
+   load path keeps the lenient classes, so a conf written before a field was
+   removed still loads. See that doc's §7 for what was settled and what it
+   cost.
+3. ~~**`RecruitmentConf` is an untagged union.**~~ **RESOLVED**, adopt v0.1.85.
+   The three arms carried no tag, so the server shape-matched on which required
+   fields were present — `PipelineRecruitmentExperiment` and
+   `DestinationRecruitmentExperiment` separated by exactly `arms` vs
+   `destinations`. Now discriminated on `type` (`simple`,
+   `pipeline_experiment`, `destination` — the spellings the dashboard was
+   already sending and `extra="ignore"` was already dropping), with a
+   BeforeValidator inferring the tag from shape so stored confs still load. An
+   over-specified body is a 422 naming the offending field rather than a silent
+   downgrade to the pipeline arm.
 4. **Dangling cross-references fail three different ways**: a bad
    stratum→creative name is a bare `KeyError` (`malaria.py:746`), a bad
    creative→destination name is a clear exception, and a bad audience name is
@@ -568,19 +574,44 @@ are design decisions, not mechanical fixes.
    Partitioned audiences are named `<name>-cohort-N` and never `<name>`, so a
    stratum naming one by its conf name always dangles. The SDK's validator
    should own this; it is exactly the whole-study check no single write can do.
-5. **`GET /confs/{conf_type}` takes the stored name, not the URL segment** —
-   `confs/data-sources` writes `data_sources`, so reading back with the hyphen
-   raises. Latent; the dashboard only uses `GET /confs`.
+5. ~~**`GET /confs/{conf_type}` takes the stored name, not the URL segment**~~
+   **RESOLVED**, adopt v0.1.85. `confs/data-sources` wrote `data_sources`, so
+   the one URL that could write a section was the one URL that could not read
+   it back. Both spellings are now accepted — the underscore too, because that
+   is what `GET /confs` returns as a key and was the only spelling that worked
+   before.
 6. **`devops/helm/migrations/init.sql` looks stale** — it declares `users.id`
    as UUID where the live schema is VARCHAR, and has no `org_id`. Needs its own
    decision.
+7. ~~**A `LOOKALIKE` or `PARTITIONED` audience cannot be written as JSON.**~~
+   **RESOLVED**, adopt v0.1.85. Found while implementing item 2, not before.
+   `AudienceConf.__post_init__` runs at `mode="before"`, so it sees the raw
+   body, but `validate()` asserted `isinstance(val, Lookalike)` — that the
+   sub-object was already a parsed model. No request body can satisfy that, so
+   both subtypes were an unconditional 422 on write, and a stored one would
+   have failed `StudyConf` assembly on every cron run. Invisible because every
+   test builds the nested models in Python first and the dashboard's audience
+   form writes neither subtype (its controls are disabled, "not yet
+   available"). `validate()` now checks presence only; shape is the field
+   annotation's job, which it was already doing.
+
+   The general lesson is worth more than the fix: a `mode="before"` validator
+   sees what the wire sent, and a test that constructs the model in Python
+   hands it something the wire never can. Two of the three before-validators in
+   `study_conf.py` were written as though they ran after parsing.
 
 ### 11.5 Still true, still open
 
-Everything in §10 stands. Phase 1 is now done (§12); there is still no Meta
-proxy, no SDK and no MCP. Item 2 above (`extra="ignore"`) is the one that most
-deserves settling before Phase 3 starts, because an SDK that validates locally
-is worth much less if the server silently drops what it does not recognise.
+Everything in §10 stands. Phases 1 (§12) and 2 (§13) are done, and of §11.4's
+defects only items 4 (dangling cross-references fail three different ways) and
+6 (the stale `init.sql`) remain — see §14 for what closing 2, 3, 5 and 7 cost.
+
+Item 2 was the blocker named here for Phase 3, and it is gone: the server no
+longer silently drops what it does not recognise, so an SDK that validates
+locally is now validating against something the server agrees with. What
+remains open for Phase 3 is item 4 — the whole-study reference check that no
+single write can do, which is the SDK's own job — plus the SDK and the MCP
+shim themselves.
 
 ---
 
@@ -907,13 +938,15 @@ outside the thread, so a malformed request never occupies a worker.
 
 ### 13.6 Known gaps, marked rather than guessed
 
-- **Whether `conf-dashboard` has `FACEBOOK_APP_ID` / `FACEBOOK_APP_SECRET` in
-  production was not verified directly.** It is inferred: `get_api` reads them
-  with `environs`' `env()`, which raises when absent, and the optimize endpoint
-  reaches `get_api` through `load_basics`. If optimize works in prod, the proxy
-  will. If it does not, the proxy fails with a `KeyError`-shaped 500 on first
-  use rather than something actionable — worth a startup check if anyone touches
-  this again.
+- ~~**Whether `conf-dashboard` has `FACEBOOK_APP_ID` / `FACEBOOK_APP_SECRET` in
+  production was not verified directly.**~~ **VERIFIED PRESENT, 2026-09-05.**
+  Both are on the production `vlab-conf-dashboard` deployment, supplied by the
+  `facebook-envs` secret. The key names were inspected; the values were not
+  read, and nothing here needs them. So the inference recorded above was
+  correct, and the proxy has the credentials it needs — but it is now a fact
+  rather than a deduction from "optimize works". The startup check suggested
+  here is still worth having for the case where the secret changes; nothing
+  fails loudly at boot today.
 - **Graph API version drift is unresolved and predates this work.** The
   dashboard pins `v22.0` (`netlify.toml`), the SDK pins `v22.0`
   (`facebook-business = "v22"`), and `facebook/update.py:34` hardcodes `v20.0`
@@ -927,6 +960,107 @@ outside the thread, so a malformed request never occupies a worker.
   total.** A caller asking `limit=500` can pull 5,000 ads with full creative
   blobs in one request. Not observed to be a problem; not defended against
   either.
+
+---
+
+## 14. Closing §11.4 items 2, 3, 5 and 7
+
+Shipped 2026-09-05 as one PR against adopt v0.1.84.
+`planning/conf-extra-fields.md` §7 has the full record; this is what a reader
+of §11 needs.
+
+### 14.1 What the shape turned out to be
+
+Option 1 of the investigation, unchanged: `XStrict(X)` twins carrying
+`model_config = ConfigDict(extra="forbid")`, in a new module
+`adopt/adopt/study_conf_strict.py`, swapped into the nine POST route
+annotations. No handler body changed — `create_conf` already treats the config
+generically via `model_dump()`.
+
+Two things the investigation had not decided, and one it did not know:
+
+**Strictness goes all the way down.** `extra="forbid"` is per-class and says
+nothing about nested models, so a twin exists for every model reachable from a
+route and every field pointing at one is re-declared to point at the twin. A
+typo at `audiences[].lookalike.spec.rati` is as likely and as silent as one at
+the top level. The re-declaration is what a future change will forget, so a
+test walks the annotations out from each route's type and fails on any model it
+reaches that is not strict — the set stays complete without anyone remembering
+to keep it complete. Arbitrary-key fields (`facebook_targeting`, `template`,
+`extra_metadata`, `metadata`, `config`) stay arbitrary; an unknown key there is
+the feature.
+
+**`VariableConf` got a twin like everything else**, though §2 of the
+investigation licensed forbidding in place because nothing reloads it. That
+licence rests on a fact about today, not a property of the model, and a
+`POST /studies/{slug}/validate` endpoint that re-reads stored confs was being
+built in parallel. One uniform mechanism costs four lines and removes the need
+to remember which model is the exception.
+
+### 14.2 The thing that would have broken production
+
+`extra="forbid"` alone would have 422'd the dashboard on the existing corpus,
+not on typos.
+
+The dashboard's edit path re-POSTs whatever `GET /confs` returned, verbatim.
+That is the last successful `model_dump()` — so it contains whatever the models
+declared on the day that conf was last saved, including fields this repo has
+since **removed**. `destination_type` was a REQUIRED field on all three
+recruitment classes until `d382000c` (2026-08-30), so every recruitment conf
+older than that carries it, and "open a study and extend its end date" would
+have become a 422 on studies that had done nothing wrong.
+`include_metadata_in_ref` is the same story on destinations until `065bacb8`.
+
+The answer is a closed list of retired keys, accepted and dropped, each cited
+to the commit that removed it. Two names one can point at a commit for is a
+bounded set; every possible misspelling is not. **A future field removal has to
+add a line to that list, next to the removal, or it breaks the dashboard's edit
+path** — which is a better prompt than the silence there is today.
+
+This was not in the investigation, which checked the dashboard's *forms*
+against the models (§3 there) and found them aligned. Alignment of the forms
+was never the question: what round-trips through the edit path is stored JSON,
+which is older than any form.
+
+### 14.3 §6 question 2, settled
+
+The strict destination union does **not** apply the legacy `messenger` default
+for a missing `type`. That BeforeValidator exists for 45 stored confs across 11
+studies predating the field, so they keep *loading* as what they have always
+been. Nothing POSTed today predates the field, so a missing `type` on a write
+is an author who forgot it, and defaulting it hands them a destination they did
+not ask for plus a `201` saying it worked — the same silent mis-resolution the
+discriminator was added to stop.
+
+The cost, recorded rather than left to be discovered: those typeless confs *do*
+round-trip through the dashboard, which renders no subform for a destination
+whose type it cannot read and re-POSTs it verbatim. Editing destinations on one
+of those 11 studies is now a 422 until a type is chosen. That is the right
+failure — the dashboard could not show the user what they were saving either.
+
+§6 question 1 (is there a non-dashboard writer carrying legacy keys?) is
+answered only partly: git proves which fields were once declared and removed,
+and both are on the retired list. Whether the notebook era or `copy-from` put
+anything else in the corpus needs the production query at §5 of that doc, which
+was deliberately not run. If such a key exists it is now a 422 on first re-save,
+naming the key — legible, and recoverable by adding the name to the list.
+
+### 14.4 The bug found on the way
+
+Item 7 of §11.4: `LOOKALIKE` and `PARTITIONED` audiences could never be written
+as JSON, on any path, because a `mode="before"` validator required the
+sub-object to already be a parsed pydantic instance. Found because the strict
+twins for `Lookalike` and `LookalikeSpec` had no reachable code path to write a
+test against.
+
+That is the transferable part. **A `mode="before"` validator sees what the wire
+sent; a test that constructs the model in Python hands it something the wire
+never can.** Both of `study_conf.py`'s remaining before-validators were written
+as though they ran after parsing. `Partitioning.validate_scenario` survives
+only because it reads keys rather than types — and under `extra="forbid"` it
+now sees unknown keys before the extra check does, so a typo there reports as
+"invalid partitioning config" rather than "extra inputs are not permitted". It
+still names the key, which is what matters.
 
 ---
 
