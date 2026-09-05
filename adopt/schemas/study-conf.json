@@ -260,6 +260,11 @@
           "format": "date-time",
           "title": "Start Date",
           "type": "string"
+        },
+        "type": {
+          "const": "destination",
+          "default": "destination",
+          "title": "Type"
         }
       },
       "required": [
@@ -751,6 +756,11 @@
           "format": "date-time",
           "title": "Start Date",
           "type": "string"
+        },
+        "type": {
+          "const": "pipeline_experiment",
+          "default": "pipeline_experiment",
+          "title": "Type"
         }
       },
       "required": [
@@ -851,6 +861,11 @@
           "format": "date-time",
           "title": "Start Date",
           "type": "string"
+        },
+        "type": {
+          "const": "simple",
+          "default": "simple",
+          "title": "Type"
         }
       },
       "required": [
@@ -1135,7 +1150,15 @@
       "default": null
     },
     "recruitment": {
-      "anyOf": [
+      "discriminator": {
+        "mapping": {
+          "destination": "#/$defs/DestinationRecruitmentExperiment",
+          "pipeline_experiment": "#/$defs/PipelineRecruitmentExperiment",
+          "simple": "#/$defs/SimpleRecruitment"
+        },
+        "propertyName": "type"
+      },
+      "oneOf": [
         {
           "$ref": "#/$defs/SimpleRecruitment"
         },

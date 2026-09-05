@@ -631,7 +631,31 @@ def get_days_left(end_date: datetime, now: datetime):
     return delta.days
 
 
+# The recruitment strategies' discriminator values.
+#
+# These three strings are NOT invented here: the dashboard's recruitment form
+# has been putting exactly them in a `type` key of every freshly-created
+# recruitment conf since long before this union was tagged
+# (dashboard/src/pages/StudyConfPage/forms/recruitment/Recruitment.tsx,
+# `initialState`, and dashboard/src/fixtures/recruitment/types.ts). Until now
+# `extra="ignore"` swallowed the key on the way in. Adopting the vocabulary the
+# only existing writer already emits means the dashboard needs no change and no
+# stored conf disagrees with a newly written one -- inventing "pipeline" here
+# instead of "pipeline_experiment" would have created two spellings of the same
+# fact for no gain.
+RECRUITMENT_SIMPLE = "simple"
+RECRUITMENT_PIPELINE = "pipeline_experiment"
+RECRUITMENT_DESTINATION = "destination"
+
+
 class SimpleRecruitment(BaseRecruitmentConf):
+    # Defaulted, unlike the destination union's `type`, which is required.
+    # The default is a convenience for Python callers constructing the class
+    # directly (every site is a test); it does NOT satisfy the discriminator,
+    # because pydantic reads the tag off the raw INPUT before it has a model to
+    # apply defaults to. `_infer_recruitment_type` below is what actually lets
+    # an untagged stored conf load.
+    type: Literal["simple"] = RECRUITMENT_SIMPLE
     ad_campaign_name: str
     objective: str
     optimization_goal: str
@@ -696,6 +720,8 @@ def _pipeline_check_end_date(v):
 
 
 class PipelineRecruitmentExperiment(BaseRecruitmentConf):
+    # See SimpleRecruitment.type for why this is defaulted rather than required.
+    type: Literal["pipeline_experiment"] = RECRUITMENT_PIPELINE
     ad_campaign_name_base: str
     objective: str
     optimization_goal: str
@@ -798,6 +824,8 @@ class PipelineRecruitmentExperiment(BaseRecruitmentConf):
 
 
 class DestinationRecruitmentExperiment(BaseRecruitmentConf):
+    # See SimpleRecruitment.type for why this is defaulted rather than required.
+    type: Literal["destination"] = RECRUITMENT_DESTINATION
     ad_campaign_name_base: str
     objective: str
     optimization_goal: str
@@ -870,8 +898,78 @@ def _deal_with_mins(min_budget, budget):
     return {k: 0 if v < min_budget else v for k, v in budget.items()}
 
 
-RecruitmentConf = Union[
-    SimpleRecruitment, PipelineRecruitmentExperiment, DestinationRecruitmentExperiment
+def _infer_recruitment_type(value: Any) -> Any:
+    """Fill in the tag a stored recruitment conf predates, from its shape.
+
+    Every recruitment conf written before 2026-09-05 has no usable `type`: the
+    dashboard sent one on a freshly-created conf but `extra="ignore"` dropped
+    it before storage, and on the edit path it sends none at all because the
+    form re-renders whatever `GET /confs` handed back. Discriminating on `type`
+    without this would reject every one of them -- exactly the migration
+    `_default_missing_destination_type` exists to avoid, for the same reason.
+
+    The order of the tests is the load-bearing part. It reproduces, key by key,
+    what pydantic's untagged union already does with these three classes today:
+
+      `ad_campaign_name`  only SimpleRecruitment declares it, and the other two
+                          require `ad_campaign_name_base`, which Simple does
+                          not have -- so a body carrying it can only be Simple.
+      `arms`              only PipelineRecruitmentExperiment declares it.
+      `destinations`      only DestinationRecruitmentExperiment declares it.
+
+    `arms` is tested BEFORE `destinations` deliberately: a body carrying both
+    resolves to the pipeline arm under today's untagged union (union order
+    wins, and `destinations` is silently dropped as an extra). Loading must not
+    change what an existing study means, so the inference reproduces that
+    resolution rather than correcting it. Correcting it is the write side's
+    job, and `RecruitmentConfStrict` in study_conf_strict.py does it: with
+    `extra="forbid"` the same over-specified body is a 422 naming
+    `destinations` instead of a silent drop.
+
+    Deliberately narrow, like its destination twin: only a *missing* or empty
+    tag is inferred. An unknown one is an error, because the failure a tagged
+    union guards against is a recruitment strategy quietly becoming a
+    different strategy.
+    """
+    if not isinstance(value, dict) or value.get("type"):
+        return value
+
+    if "ad_campaign_name" in value:
+        inferred = RECRUITMENT_SIMPLE
+    elif "arms" in value:
+        inferred = RECRUITMENT_PIPELINE
+    elif "destinations" in value:
+        inferred = RECRUITMENT_DESTINATION
+    else:
+        # Nothing to go on. Left alone so the discriminator produces its own
+        # "Unable to extract tag" rather than this function guessing.
+        return value
+
+    return {**value, "type": inferred}
+
+
+# Tagged since 2026-09-05, for the reason the destination union was tagged on
+# 2026-08-30 (see the comment above `_TaggedDestination`): a plain Union of
+# models is resolved by SHAPE, so the arms are told apart by which required
+# fields happen to be present. `PipelineRecruitmentExperiment` and
+# `DestinationRecruitmentExperiment` were separated by exactly `arms` vs
+# `destinations` -- one optional field added to either and they become mutually
+# satisfiable, at which point a study's budget quietly splits (or stops
+# splitting) across arms with nothing reporting it. The destination union cost
+# a rejected ad before it was tagged; this one had not yet cost anything, which
+# is the reason to tag it now rather than after it does.
+_TaggedRecruitment = Annotated[
+    Union[
+        SimpleRecruitment,
+        PipelineRecruitmentExperiment,
+        DestinationRecruitmentExperiment,
+    ],
+    Field(discriminator="type"),
+]
+
+RecruitmentConf = Annotated[
+    _TaggedRecruitment,
+    BeforeValidator(_infer_recruitment_type),
 ]
 
 

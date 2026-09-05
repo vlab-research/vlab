@@ -62,6 +62,11 @@
           "format": "date-time",
           "title": "Start Date",
           "type": "string"
+        },
+        "type": {
+          "const": "destination",
+          "default": "destination",
+          "title": "Type"
         }
       },
       "required": [
@@ -144,6 +149,11 @@
           "format": "date-time",
           "title": "Start Date",
           "type": "string"
+        },
+        "type": {
+          "const": "pipeline_experiment",
+          "default": "pipeline_experiment",
+          "title": "Type"
         }
       },
       "required": [
@@ -216,6 +226,11 @@
           "format": "date-time",
           "title": "Start Date",
           "type": "string"
+        },
+        "type": {
+          "const": "simple",
+          "default": "simple",
+          "title": "Type"
         }
       },
       "required": [
@@ -233,7 +248,16 @@
     }
   },
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "anyOf": [
+  "description": "How the study spends: one of three recruitment strategies. NOTE: this union carries no tag field, so it is an untagged `anyOf` - a consumer must tell the arms apart by shape (`ad_campaign_name` vs `ad_campaign_name_base`, then `arms` vs `destinations`). See 'JSON Schemas' in adopt/README.md.",
+  "discriminator": {
+    "mapping": {
+      "destination": "#/$defs/DestinationRecruitmentExperiment",
+      "pipeline_experiment": "#/$defs/PipelineRecruitmentExperiment",
+      "simple": "#/$defs/SimpleRecruitment"
+    },
+    "propertyName": "type"
+  },
+  "oneOf": [
     {
       "$ref": "#/$defs/SimpleRecruitment"
     },
@@ -244,6 +268,5 @@
       "$ref": "#/$defs/DestinationRecruitmentExperiment"
     }
   ],
-  "description": "How the study spends: one of three recruitment strategies. NOTE: this union carries no tag field, so it is an untagged `anyOf` - a consumer must tell the arms apart by shape (`ad_campaign_name` vs `ad_campaign_name_base`, then `arms` vs `destinations`). See 'JSON Schemas' in adopt/README.md.",
   "title": "recruitment conf"
 }
