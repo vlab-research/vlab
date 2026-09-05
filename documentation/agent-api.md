@@ -35,12 +35,12 @@ names. Both hosts are declared in
 | Host (prod) | `vlab-dashboard-api.toixo.vlab.digital` | `vlab-study-conf-api.toixo.vlab.digital` |
 | Source | `api/` | `adopt/adopt/server/` |
 | Helm service name | `dashboard` | `conf-dashboard` |
-| Owns | studies (create/list/read), users, orgs, accounts and credentials, the Facebook OAuth exchange, one legacy segments-progress route | **all study configuration**, optimize, instructions, study errors, ad attributions, recruitment stats, API-key minting |
+| Owns | studies (list/read; create, now deprecated in favour of the Python route), users, orgs, accounts and credentials, the Facebook OAuth exchange, one legacy segments-progress route | **study creation and all study configuration**, optimize, instructions, study errors, ad attributions, recruitment stats, API keys (mint, list, revoke) |
 | Auth | Auth0 RS256 **only** (`api/internal/server/server.go:43`) | Auth0 RS256 **or** a vlab API key |
 
 **Everything in this document is on the Python service** unless it says
-otherwise. An API key is accepted on every route there and on no route on the
-Go service.
+otherwise. An API key is accepted on every route there (subject to its scopes)
+and on no route on the Go service.
 
 The Go service also registers `POST/GET /:org/studies/:slug/conf`
 (`api/internal/server/server.go:77-78`) with a full set of conf structs in
@@ -55,55 +55,131 @@ specification and do not call those routes.
 
 ```
 POST /users/api-key
-Authorization: Bearer <Auth0 access token>
-{ "name": "hpv-agent" }
+Authorization: Bearer <Auth0 access token, or an API key scoped auth:write>
+{ "name": "hpv-agent",
+  "scopes": ["studies:write", "optimize:read"],   // optional; omit = unrestricted
+  "expires_in_days": 30 }                         // optional; default 90, max 365
 
-201 { "data": { "name": "hpv-agent", "id": "<uuid>", "token": "eyJ…" } }
+201 { "data": { "name": "hpv-agent", "id": "<jti>", "token": "eyJ…",
+                "scopes": ["studies:write", "optimize:read"],
+                "expires_at": "2026-10-04T…+00:00" } }
 ```
 
-`adopt/adopt/server/server.py:497`, minting in
-`generate_api_token` (`adopt/adopt/server/auth.py:21`).
+`adopt/adopt/server/api_keys.py` (`create_api_key`); minting in
+`generate_api_token` (`adopt/adopt/server/auth.py`). `name`, `id` and `token`
+are the shape the dashboard already consumes; `scopes` and `expires_at` are
+additive. A blank name is `400`; a name over 200 characters is `400`; a name
+you already hold a live key under is
+`409 {"detail": "An API key named 'hpv-agent' already exists"}`. Revoke the old
+one first, or pick another name — revocation frees the name.
 
-Note the bootstrap: **minting a key requires a token you already have**, and
-today that is an Auth0 token, which means a browser login. The dashboard has a
-button for it (`generateApiKey`, `dashboard/src/helpers/api.ts:292`). An agent
+Note the bootstrap: **minting a key requires a token you already have.** For
+the first key that is an Auth0 token, which means a browser login; the
+dashboard has a button for it (`generateApiKey`,
+`dashboard/src/helpers/api.ts:292`). After that a key can mint further keys
+*if* it holds `auth:write`, and only ever narrower ones (see Scopes). An agent
 cannot mint its own first key; a human hands it one.
 
-The key is an HS256 JWT carrying `iss`, `aud`, `iat`, `jti`, `sub` (the user
-id), `https://vlab.digital/token-name` and `type: "api_key"`. Send it as
-`Authorization: Bearer <token>` on every request. `verify_tokens`
-(`auth.py:157`) tries the Auth0 RS256 verifier first and falls back to the
-HS256 API-key verifier, so no route needed per-route work to accept keys and
-every route accepts them.
+The key is an HS256 JWT carrying `iss`, `aud`, `iat`, `exp`, `jti`, `sub` (the
+user id), `type: "api_key"`, `https://vlab.digital/token-name`,
+`https://vlab.digital/token-version: 2` and, when scoped,
+`https://vlab.digital/scopes`. Send it as `Authorization: Bearer <token>` on
+every request. `verify_tokens` (`auth.py`) tries the Auth0 RS256 verifier
+first and falls back to the HS256 API-key verifier, so every route on this
+service accepts either.
 
-### What the key is today, honestly
+### What the key is
 
-All four of these are visible in `generate_api_token` and
-`verify_api_token` (`adopt/adopt/server/auth.py:21`, `:50`):
+Since `20260904000000_api_token_hardening` (adopt v0.1.83) a key is a JWT
+**plus a row** in `credentials` (`entity = "api_token"`, `key = <name>`, the
+`jti` in `details`). The token itself is never stored. Validity is positive: a
+key is live iff its row is live, so the row is the only thing that has to be
+deleted to kill it, and there is no denylist to keep complete. The whole model
+is written up at the top of `api_keys.py`; what matters to a caller:
 
-- **No expiry.** The payload has `iat` and no `exp`. Keys are eternal.
-- **No revocation.** A `jti` is generated, put in the token, and thrown away —
-  nothing is persisted, so nothing can be checked. There is a
-  `# TODO: check payload ("id") against blacklist / whitelist` at `auth.py:62`
-  marking exactly this gap.
-- **No scopes.** A key *is* the user. A key handed to an agent can read every
-  respondent's data and mutate every study that user owns.
-- **No listing.** There is no endpoint that says which keys exist.
+- **Expiry.** Every key has an `exp`. Default 90 days, `expires_in_days` up to
+  365. An expired key is `401`.
+- **Revocation.** `DELETE /users/api-keys/{id}` — the `id` from the mint
+  response, which is the `jti`. `204`; `404` if the id is not one of *your*
+  live keys (never `403`, so it does not confirm someone else's key exists).
+  The revoking replica drops the key immediately; **other replicas keep
+  honouring it for up to 30 seconds** (`CACHE_TTL_SECONDS`), because row
+  lookups — including misses — are cached in-process. Treat revocation as
+  "dead within a minute".
+- **Scopes.** Optional, and absent means unrestricted. Details below.
+- **Listing.** `GET /users/api-keys` →
+  `{"data": {"keys": [{id, name, scopes, created, expires_at, expired}],
+  "legacy_revocations": [{name, created}]}}`. Needs `auth:read`.
 
-Treat an API key as a permanent, unrestricted credential for the account.
-Handing one to an agent is handing over the account, permanently.
+**Scopes** are `<resource>:<action>` with resources `studies`, `responses`,
+`stats`, `optimize`, `auth` and actions `read`, `write`, `*`; the bare `*`
+means everything. `write` implies `read` on the same resource. Which route
+needs which is `required_scope` in `api_keys.py`:
 
-> **This section is scheduled to change.** Hardened keys — persisted `jti`,
-> bounded TTL, `<resource>:<action>` scopes, list and revoke endpoints — are
-> being built now (§8). Nothing above describes them; it describes what is
-> deployed.
+| Route | Scope |
+|---|---|
+| `/{org}/studies`, `…/{slug}`, `…/{slug}/confs/…`, `…/{slug}/copy-from` | `studies` |
+| `…/{slug}/ad-attributions`, `…/ad-attributions.csv` | `responses` |
+| `…/{slug}/recruitment-stats`, `…/segments-progress`, `…/cost-over-time` | `stats` |
+| `/{org}/optimize/…` (plan, instruction, errors) | `optimize` |
+| `/users/api-key`, `/users/api-keys/…` | `auth` |
+
+`studies` and `responses` are separate on purpose: configuration is the
+researcher's work, ad-attributions are respondent-level records. `optimize` is
+separate from `studies` because applying an instruction spends money on Meta.
+`auth` is never implied by anything: a key can only mint keys if it was given
+`auth:write`, and then only with a subset of its own scopes
+(`403 "Cannot mint a key with more scopes than the key minting it"`).
+
+Enforcement is a middleware that runs *before routing*, and it **fails
+closed**: a scoped key on a path the table above does not classify is
+`403 {"detail": "This API key is not scoped for <path>"}`, even if the route
+would otherwise accept it. A scoped key on a classified path it lacks is
+`403 {"detail": "This API key is not scoped for studies:write"}`. Unscoped keys
+and Auth0 sessions never see either. For an agent authoring a study, the useful
+grant is `["studies:write", "optimize:read"]`: write every section, run the plan
+endpoint, and be unable to launch ads, read respondents, or mint keys.
+
+Narrowing an existing key does not need a reissue — the row's scopes win over
+the token's when they differ (`effective_scopes`) — but there is no endpoint
+for it; that is a SQL edit.
+
+### Keys minted before 2026-09-04
+
+Everything above applies to keys carrying `token-version: 2`. Keys minted
+before the hardening deploy carry no version claim, and vlab never stored
+anything for them, so they take a **legacy path** that is exactly the old
+behaviour: no row required, no expiry, no scopes, no listing. They remain
+permanent, unrestricted credentials for the account until reissued.
+
+The one lever a legacy key has is a tombstone by name:
+
+```
+POST /users/api-keys/legacy-revocations   { "name": "old-agent-key" }
+201 { "name": "old-agent-key", "created": "…" }
+```
+
+It denies every legacy key of yours whose `token-name` claim is that name.
+Names were never unique before the migration, so two legacy keys both called
+`agent` die together or not at all; that errs toward denying, which is the
+right direction. There is deliberately no un-revoke. The real fix for a legacy
+key is to revoke it by name and mint a v2 key in its place — and if you were
+handed a key before that date, ask for a reissued one, because nothing you can
+do makes the old one expire.
 
 ### Failures
 
 A token that verifies as neither Auth0 nor an API key is
 `401 {"detail": "Could not validate credentials"}` with a
-`WWW-Authenticate: Bearer` header (`adopt/adopt/server/deps.py:30`). The
-response never distinguishes which verifier rejected it.
+`WWW-Authenticate: Bearer` header (`adopt/adopt/server/deps.py`). The response
+never distinguishes which verifier rejected it, **nor why** — signature, wrong
+audience, expired, revoked and tombstoned all collapse to the same body. If a
+key stops working, `GET /users/api-keys` with a working credential tells you
+whether it is still listed and whether `expired` is set; a `401` on that call
+too means the key is gone.
+
+A `403` is always a scope problem. The body names the scope or path that was
+wanted, or, when minting, says the requested scopes exceed the caller's.
 
 ---
 
@@ -371,14 +447,13 @@ the copied confs; `404` if the source has no configuration to copy. This is
 what the dashboard's "Initialize" step uses, and it is the fastest way to stand
 up a study that resembles an existing one.
 
-Two caveats. The source is scoped to your user and org; **the destination is
-not** — the insert resolves it with a bare
-`(SELECT id FROM studies WHERE slug = %s)`, with no user or org predicate and
-no `LIMIT`. Slugs are unique per user (`unique_slug UNIQUE(user_id, slug)`,
-`devops/migrations/20230322111807_init.up.sql:14`), not globally, so if anyone
-else owns a study with the same slug the call either writes to the wrong study
-or fails outright on a multi-row subquery. Prefer explicit section POSTs when
-the slug is not distinctive.
+Both ends are scoped to your user and org. A destination slug that is not one
+of your studies in this org is `404 {"detail": "Study not found: <slug>"}`
+before anything is read; a source with nothing to copy is the `404` above.
+(Before adopt v0.1.83 the destination was resolved by slug alone, with no user
+or org predicate — slugs are unique per *user*, not globally — so naming a slug
+you did not own wrote into somebody else's study. Fixed in `ee7e21f6`, with a
+regression test in `adopt/adopt/server/test_copy_confs.py`.)
 
 ### 2.3 Reading
 
@@ -419,6 +494,42 @@ the slug is not distinctive.
 
 `recruitment-stats` and `segments-progress` read the **last stored report**,
 not live Meta, so they are empty until an optimization run has happened.
+
+### 2.4 `POST /{org_id}/studies` — creating a study
+
+```
+POST /{org_id}/studies
+{ "name": "HPV vaccine uptake, Lagos 2026" }
+
+201 { "data": { "id": "<uuid>", "name": "HPV vaccine uptake, Lagos 2026",
+                "slug": "hpv-vaccine-uptake-lagos-2026", "createdAt": 1756944000000 } }
+```
+
+`adopt/adopt/server/studies.py`, a port of the Go handler
+(`api/internal/server/handler/studies/create.go`, now marked deprecated)
+that accepts an API key. Needs `studies:write`. Same rules as the dashboard:
+
+- **Name** must not be blank (`400 "The name cannot be empty."`) and is capped
+  at **300 UTF-8 bytes**, not characters (`400 "The name cannot be larger than
+  300 characters."` — the wording is Go's, the count is bytes, so a long
+  non-Latin name trips it early). Stored untrimmed.
+- **Slug** is derived server-side with `slugify.py`, a verified port of
+  `gosimple/slug` — the same function the dashboard uses, so the same name
+  yields the same URL from either path. Lower-cased, transliterated,
+  non-alphanumerics collapsed to `-`; **apostrophes and quotes are deleted, not
+  replaced**, so `Nandan's study` is `nandans-study`. Read the slug from the
+  `201`; you need it for every subsequent call.
+- **Uniqueness** is per user, not per org: `409 "The name is already in use."`
+  on a duplicate name, and a different name that slugifies onto a slug you
+  already hold is `409` with a message that names the slug.
+- A name that slugifies to nothing (emoji only, say) is `400`; the Go route
+  would create an unaddressable study, this one refuses.
+- `org_id` must be an org you belong to, else `404 "Organization not found"`
+  — also for a malformed id. Membership is checked by the insert itself
+  (`INSERT … SELECT FROM orgs_lookup WHERE user_id AND org_id`), so there is
+  no window between check and write.
+
+`createdAt` is milliseconds since the epoch, matching the dashboard.
 
 ---
 
@@ -887,8 +998,8 @@ cron's runs are what keeps the study reconciled thereafter.
 
 ## 6. End-to-end runbook
 
-Steps 1–3 are one-time per researcher and **cannot be done by an agent today**.
-Steps 4 onward are the agent's.
+Steps 1 and 3 are one-time per researcher and **cannot be done by an agent**.
+Everything else is the agent's.
 
 1. **A human connects a Facebook account.** The OAuth exchange is
    `POST /facebook/token` on the *Go* service
@@ -897,15 +1008,14 @@ Steps 4 onward are the agent's.
    `key = "Facebook"`. Without it the study cannot resolve a Meta token and
    `get_user_info` fails before anything else runs.
 
-2. **A human creates the study.** `POST /{org}/studies {"name": "…"}` on the
-   **Go** service (`api/internal/server/handler/studies/create.go`), Auth0
-   only. Name is capped at 300 characters, must not be blank, and must be
-   unique per user (`409 {"error": "The name is already in use."}`). The slug
-   is derived with `gosimple/slug` (`api/internal/storage/study.go:110`) — you
-   need it for every subsequent call, so read it from the `201`.
+2. **Create the study.** `POST /{org_id}/studies {"name": "…"}` on this
+   service (§2.4), with your API key. Read the `slug` from the `201`; you need
+   it for every subsequent call. (The dashboard still uses the Go route; the
+   two derive identical slugs.)
 
-3. **A human mints you an API key** (see Authentication) and tells you the
-   `org_id`. There is no endpoint an API key can call that lists organisations
+3. **A human mints you an API key** (see Authentication — ask for
+   `["studies:write", "optimize:read"]` unless you need to launch ads) and
+   tells you the `org_id`. There is no endpoint an API key can call that lists organisations
    — `POST /users` on the Go service returns them (`{data: {id, orgs: [{id,
    name}]}}`) but is Auth0-only, and the dashboard keeps the current org in
    `sessionStorage['current-vlab-org']`, not in the URL. The org id has to be
@@ -981,16 +1091,14 @@ Steps 4 onward are the agent's.
 Stated plainly, because each of these will otherwise look like a bug in your
 client.
 
-1. **Create a study.** Study creation is Auth0-only on the Go service (§6
-   step 2). An API key cannot bring a study into existence.
-2. **Discover its own `org_id`.** No API-key-reachable endpoint lists orgs.
-3. **Read anything from Meta through vlab.** Ad accounts, campaigns, ad sets
+1. **Discover its own `org_id`.** No API-key-reachable endpoint lists orgs.
+2. **Read anything from Meta through vlab.** Ad accounts, campaigns, ad sets
    and creative blobs are all read client-side from `graph.facebook.com` with
    the researcher's stored Facebook token (`facebookRequest`,
    `dashboard/src/helpers/api.ts:412`). vlab proxies none of it. An agent that
    needs a creative template or a template ad set's targeting must talk to Meta
    directly, with a token it was given.
-4. **Derive strata from variables.** The compiler is browser TypeScript (§6
+3. **Derive strata from variables.** The compiler is browser TypeScript (§6
    step 7). There is an older Python ancestor at
    `adopt/adopt/configuration.py`, but **it disagrees with the TypeScript** —
    different metadata keys (`stratum_<var>` vs `<var>`), different targeting
@@ -998,32 +1106,33 @@ client.
    level quotas — and nothing imports it outside its own test. Do not treat it
    as the reference implementation; production studies are built with the
    TypeScript.
-5. **Get a whole-study validation over HTTP.** The closest thing is the plan
+4. **Get a whole-study validation over HTTP.** The closest thing is the plan
    endpoint (§5), which is slow, reads Meta and writes rows.
-6. **See why a `500` happened** on a conf POST whose model raised
+5. **See why a `500` happened** on a conf POST whose model raised
    `InvalidConfigError` (§2.1).
 
 ---
 
-## 8. Landing shortly — a revision list
+## 8. What landed on 2026-09-04
 
-Work in flight at the time of writing (2026-09-04) that will make parts of this
-document wrong. Nothing here is deployed; do not code against it.
+Phase 0 of `planning/agent-study-authoring.md` shipped as PR #251 and was
+deployed to production as adopt **v0.1.83** with migrations **v0.3.0** (helm
+revision 142). This document was revised against that release; if a claim here
+disagrees with `adopt/adopt/server/`, the code is right and the doc is stale.
 
-- **Study creation on the FastAPI service.** `POST /{org_id}/studies` on the
-  Python service, so an API key can create a study. Will retire §6 step 2 and
-  §7.1.
-- **Hardened API keys.** Persisted `jti` for real revocation, a bounded `exp`,
-  `<resource>:<action>` scopes with absent-means-unrestricted, plus list and
-  revoke endpoints. Will rewrite most of "Authentication". Migrations for it
-  were present but uncommitted in this worktree
-  (`devops/migrations/20260904000000_api_token_hardening.up.sql`).
-- ~~Committed JSON Schemas.~~ **Landed** as `489bc680` while this was being
-  written; folded into §3.
+- **Study creation on this service** — §2.4, §6 step 2.
+- **Hardened API keys** — the whole of "Authentication": persisted `jti`,
+  mandatory `exp`, scopes, list and revoke, and the legacy-key tombstone.
+- **Committed JSON Schemas** — `adopt/schemas/*.json`, kept current by
+  `make -C adopt check-schemas` in CI; folded into §3.
+- **`copy-from` cross-tenant write fixed** — §2.2.
 
-Beyond Phase 0, the direction — a composable Python authoring SDK, server-side
-Meta proxy endpoints, `POST /{org}/studies/{slug}/validate`, and an MCP shim
-over the SDK — is recorded in `planning/agent-study-authoring.md`.
+What the plan claimed and implementation disproved is in §11 of the planning
+doc; the six defects found and deliberately left alone (including the
+`InvalidConfigError` and `extra="ignore"` behaviours described in §4) are in
+§11.4 there. Beyond Phase 0, the direction — a composable Python authoring SDK,
+server-side Meta proxy endpoints, `POST /{org}/studies/{slug}/validate`, and an
+MCP shim over the SDK — is recorded in the same document.
 
 ---
 
@@ -1040,9 +1149,6 @@ Marked here rather than guessed at.
 - **The `500` on a POST to a nonexistent study is inferred from the schema**
   (`study_confs.study_id` is `NOT NULL`, the subselect yields `NULL`), not
   observed at run time. It is definitely not a `404`.
-- **`copy-from`'s unscoped destination lookup** is read out of the SQL
-  (`db.py:201`). What it does when two users hold the same slug — a wrong-study
-  write or a multi-row-subquery error — was not exercised.
 - **`value_type` vocabulary.** Only `"continuous"` has a behaviour
   (`inference/swoosh/extraction_functions.go:139`). `"categorical"`,
   `"metadata"` and `"existence"` appear in this repo's tests and fixtures; the
