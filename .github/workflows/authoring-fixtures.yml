@@ -1,0 +1,65 @@
+name: authoring-fixtures
+
+# Regenerates the differential-test fixtures for the Python port of the
+# dashboard's strata compiler and fails if the regenerated file differs from
+# what's committed. Without this, a TypeScript change to
+# `dashboard/src/pages/StudyConfPage/forms/{strata,variables}` (or a
+# generator change) can land without anyone running
+# `make -C adopt authoring-fixtures`, and `adopt/authoring/test_conformance.py`
+# keeps passing against a now-stale recording of the old TypeScript behaviour
+# (planning/agent-study-authoring.md §12.4, "the obvious follow-up").
+#
+# A sibling workflow rather than a job in adopt.yaml: GitHub Actions applies
+# `on.paths` per workflow, not per job, and this job's trigger set (dashboard
+# strata/variables forms + the generator + the Python port) doesn't line up
+# with either adopt.yaml's `adopt/**` or dashboard.yml's `dashboard/**`.
+#
+# Node version: NOT dashboard.yml's 14.17.0. That pins the CRA/craco test
+# toolchain for the dashboard app itself; the generator is a standalone
+# script run through `tsx` (see dashboard/scripts/authoring-conformance.ts),
+# and `tsx` (`npm view tsx engines`) requires Node >=18. There is no single
+# "the node version the dashboard uses" — .nvmrc and netlify.toml don't pin
+# one either — so this pins the version the fixtures were actually last
+# regenerated with locally.
+on:
+  pull_request:
+    paths:
+      - 'dashboard/src/pages/StudyConfPage/forms/**'
+      - 'dashboard/scripts/authoring-conformance.ts'
+      - 'adopt/adopt/authoring/**'
+      - '.github/workflows/authoring-fixtures.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'dashboard/src/pages/StudyConfPage/forms/**'
+      - 'dashboard/scripts/authoring-conformance.ts'
+      - 'adopt/adopt/authoring/**'
+      - '.github/workflows/authoring-fixtures.yml'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  regenerate-and-diff:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20.19.4'
+          cache: 'npm'
+          cache-dependency-path: dashboard/package-lock.json
+      - run: npm ci
+        working-directory: dashboard
+      - name: Regenerate conformance fixtures from the real TypeScript
+        working-directory: dashboard
+        run: |
+          npx --yes tsx scripts/authoring-conformance.ts \
+            > ../adopt/adopt/authoring/conformance_fixtures.json
+      - name: Fail if the committed fixtures are stale
+        run: |
+          git diff --exit-code -- adopt/adopt/authoring/conformance_fixtures.json || {
+            echo "::error::conformance_fixtures.json is stale. Run 'make -C adopt authoring-fixtures' and commit the result." >&2
+            exit 1
+          }

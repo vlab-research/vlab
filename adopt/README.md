@@ -836,3 +836,83 @@ generated files:
   makes the arm unambiguous rather than merely inferable.
 
 
+
+## Whole-study validation
+
+`adopt.authoring.validate.validate_study(sections)` takes the nine stored conf
+sections and returns a `ValidationReport` — `valid`, `errors`, `warnings`, each
+finding carrying a machine-readable `code`, the `section`, a `path` like
+`strata[0].creatives[1]`, and a message. `POST /{org}/studies/{slug}/validate`
+is a thin wrapper on it. Full taxonomy and wire shape:
+`documentation/agent-api.md` §2.6; the design record is
+`planning/agent-study-authoring.md` §14.
+
+Three things about it are structural rather than incidental.
+
+**It shares its assembly with the run path.** `study_conf_from_sections` was
+factored out of `malaria.get_study_conf`, which calls it. There is exactly one
+definition of "these nine sections are a `StudyConf`", so a validator cannot
+drift from what the cron actually builds, and every cross-section validator
+added to `StudyConf` later is reported with no change to `validate.py`.
+
+**It is pure.** No database, no Meta. That is what lets an SDK run it on
+sections that have never been written, and it is why neither `credentials_key`
+edge is checked and nothing Meta-side is. The gaps are enumerated as
+`validate.KNOWN_GAPS` and echoed on every HTTP response rather than left to
+prose.
+
+**Errors and warnings are drawn on one line.** An *error* is a reference that
+provably cannot resolve from the study's own configuration, **and that the run
+path actually resolves**. A *warning* is anything else worth saying. Two
+consequences that are easy to get wrong, and were, in the first draft:
+
+- `strata[].creatives[]` → `creatives[].name` is an error, because
+  `hydrate_strata` resolves every creative a stratum names. But
+  `creatives[].destination` → `destinations[].name` is an error *only for a
+  creative some stratum names*: `get_destination_for_creative` has exactly one
+  caller, `creative_destination_pairs`, and it iterates `stratum.creatives`.
+  An unreferenced creative's dead destination is
+  `creative.unreferenced_destination_unknown`, a warning — harmless today,
+  fatal the moment a stratum adds it. (A blanket `creative.unreferenced` was
+  rejected: unreferenced creatives are ordinary editing debris and warning on
+  all of them would bury the report.)
+- **Every audience finding is a warning, without exception.**
+  `strata[].audiences` resolves against custom audiences on the Meta *ad
+  account* (`FacebookState.get_audience`), not against the `audiences` conf, so
+  offline validation cannot tell a typo from an audience built by hand in Ads
+  Manager. That includes `audience.partitioned_bare_name` — a stratum naming a
+  `PARTITIONED` conf by a name vlab never creates — which was an error until
+  review pointed out that the rule admits no exception just because the mistake
+  is obvious.
+
+Warnings never make a study invalid.
+
+**Absent is not the same as unparseable.** For the two optional sections both
+leave the value `None`, and treating them alike would report every targeted
+variable as unsupplied whenever `inference_data` merely failed to parse — noise
+on top of the `section.invalid` error that already says so. `_parse_sections`
+returns a `failed` set for exactly this, and the checks that read a failed
+section are skipped.
+
+The two invariants that were `logging.warning` calls in a cron —
+`warn_on_incomplete_targeting` and `warn_on_thinned_ref_without_mapping` — are
+warnings here, deliberately keeping the status their own docstrings argue for.
+
+### Known defect: partitioned and lookalike audiences are unwritable as JSON
+
+Found while writing the fixtures for this and **not fixed**. `AudienceConf`'s
+`model_validator(mode="before")` calls `validate(values, values["subtype"], …)`,
+which does `isinstance(values.get("partitioning"), Partitioning)` — an
+isinstance check against the *parsed* model class, run before pydantic has
+parsed anything. From a dict it can never pass, so `PARTITIONED` and
+`LOOKALIKE` audiences are constructible only from Python objects and
+`POST /confs/audiences` with one is a 422. Every existing test builds them from
+objects (`test_audiences.py:217`, `test_marketing.py:306`), which is why nobody
+had hit it. A missing `subtype` likewise raises a bare `KeyError`, which
+pydantic does not wrap.
+
+`validate_study` reports such a section as `section.invalid`, which is the true
+answer: `StudyConf` assembly in the cron fails on the same stored conf for the
+same reason. Before designing a fix, check whether any production study has a
+partitioned audience stored — if one does, it is already failing every
+reconciliation run.

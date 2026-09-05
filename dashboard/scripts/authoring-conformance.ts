@@ -608,6 +608,88 @@ strata('edge/get-finish-ref-ref-is-empty-string', 'get_finish_question_ref', [[{
 }]]);
 
 // ---------------------------------------------------------------------------
+// 2.5. Review follow-ups (PR #254): non-string level/variable names, and a
+// null saved quota. `Level.name`/`Variable.name` are typed `string`, but
+// nothing stops a YAML- or notebook-authored variable from carrying a JSON
+// number or boolean there, and `${value}` in a template literal happily
+// stringifies it. `tsx` (the runner, see the file header) transpiles without
+// type-checking, so these compile and run despite the `as any` being needed
+// only to keep the *reader* honest about what is being smuggled past the
+// type system. None of these throw in the TypeScript, so none are on the
+// exclusion list above.
+// ---------------------------------------------------------------------------
+
+// Level names: int, integral float, non-integral float, both booleans. Each
+// exercises `${l.name}` in the id/metadata and the raw (non-interpolated)
+// `constant` value in question_targeting.
+const nonStringLevelCases: Array<[string, any]> = [
+  ['int', 18],
+  ['integral-float', 1.0],
+  ['non-integral-float', 1.5],
+  ['boolean-true', true],
+  ['boolean-false', false],
+];
+for (const [label, name] of nonStringLevelCases) {
+  strata(`edge/level-name-${label}`, 'create_strata_from_variables', [
+    [vbl('a', [lvl(name as any, { age_min: 18 }, 0.5)])], 'q1', null, null, null,
+  ]);
+}
+
+// Variable names: same four shapes, in `${v.name}` (the id/metadata key) via
+// `variableName` on the intermediate level.
+const nonStringVariableCases: Array<[string, any]> = [
+  ['int', 42],
+  ['integral-float', 2.0],
+  ['non-integral-float', 2.5],
+  ['boolean-true', true],
+  ['boolean-false', false],
+];
+for (const [label, name] of nonStringVariableCases) {
+  strata(`edge/variable-name-${label}`, 'create_strata_from_variables', [
+    [{ name: name as any, properties: [], levels: [lvl('x', { age_min: 18 }, 0.5)] }],
+    'q1', null, null, null,
+  ]);
+}
+
+// Both a non-string variable name AND a non-string level name together, so the
+// id (`${variableName}:${name}`) exercises the interpolation on both sides at
+// once rather than one at a time.
+strata('edge/variable-and-level-name-both-non-string', 'create_strata_from_variables', [
+  [{ name: 1 as any, properties: [], levels: [lvl(2.0 as any, { age_min: 18 }, 0.5)] }],
+  'q1', null, null, null,
+]);
+
+// format_group_product directly, with a non-string variableName -- the same
+// shape create_strata_from_variables builds internally, exercised standalone
+// as the existing 'edge/format-group-product-*' cases do for string names.
+strata('edge/format-group-product-non-string-variable-name', 'format_group_product', [
+  [{ ...lvl('a1', { age_min: 18 }, 0.5), variableName: 7 as any }], 'q1',
+]);
+
+// A saved stratum with `quota: null`. JSON-representable (unlike a genuinely
+// *missing* quota key, which the generator excludes because the TypeScript's
+// `NaN` result cannot round-trip through JSON -- see the file header). JS
+// coerces `null` to 0 in the staleness subtraction, so a null saved quota
+// reads as stale whenever the fresh quota is not itself ~0, and reads as NOT
+// stale when the fresh quota is 0 too. Caught in review of the port
+// (planning/agent-study-authoring.md §12.5 item 1): the first cut treated a
+// null quota the same as an absent one.
+strata('edge/staleness-saved-quota-null-fresh-nonzero', 'strata_staleness_hint', [
+  [vbl('a', [lvl('a1', { age_min: 18 }, 0.5)])],
+  [{
+    id: 'a:a1', quota: null, creatives: [], audiences: [], excluded_audiences: [],
+    facebook_targeting: { age_min: 18 }, question_targeting: qt('a', 'a1', 'q1'), metadata: {},
+  }],
+]);
+strata('edge/staleness-saved-quota-null-fresh-zero', 'strata_staleness_hint', [
+  [vbl('a', [lvl('a1', { age_min: 18 }, 0)])],
+  [{
+    id: 'a:a1', quota: null, creatives: [], audiences: [], excluded_audiences: [],
+    facebook_targeting: { age_min: 18 }, question_targeting: qt('a', 'a1', 'q1'), metadata: {},
+  }],
+]);
+
+// ---------------------------------------------------------------------------
 // 3. Literal inputs translated verbatim from extract.test.ts
 // ---------------------------------------------------------------------------
 
