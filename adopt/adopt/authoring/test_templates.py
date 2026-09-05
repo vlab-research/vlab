@@ -35,17 +35,27 @@ import pytest
 from facebook_business.api import FacebookAdsApi
 from facebook_business.exceptions import FacebookRequestError
 
-from ..marketing import (_create_creative, create_creative,
-                         messenger_call_to_action,
-                         refuse_template_destination_conflicts)
-from ..meta_fields import (CREATIVE_FIELD_LIST,
-                           REQUIRED_TEMPLATE_CREATIVE_FIELDS)
-from ..study_conf import (AppDestination, CreativeConf,
-                          DestinationRecruitmentExperiment,
-                          FlyMessengerDestination, FlyMultiDestination,
-                          FlyWhatsAppDestination, GeneralConf, Stratum,
-                          StudyConf, UserInfo, WebDestination,
-                          destination_type_for)
+from ..marketing import (
+    _create_creative,
+    create_creative,
+    messenger_call_to_action,
+    refuse_template_destination_conflicts,
+)
+from ..meta_fields import CREATIVE_FIELD_LIST, REQUIRED_TEMPLATE_CREATIVE_FIELDS
+from ..study_conf import (
+    AppDestination,
+    CreativeConf,
+    DestinationRecruitmentExperiment,
+    FlyMessengerDestination,
+    FlyMultiDestination,
+    FlyWhatsAppDestination,
+    GeneralConf,
+    Stratum,
+    StudyConf,
+    UserInfo,
+    WebDestination,
+    destination_type_for,
+)
 from . import templates as tp
 
 PAGE = "1855355231229529"  # Virtual Lab, the Page every production template uses
@@ -1215,3 +1225,53 @@ def test_get_api_still_reads_both_keys_off_the_env():
     env = {"FACEBOOK_APP_ID": "a", "FACEBOOK_APP_SECRET": "b"}.__getitem__
     api = get_api(env, "TOK")
     assert "appsecret_proof" in api._session.requests.params
+
+
+def test_a_web_adset_on_the_messaging_defaults_is_warned_about():
+    """Warned, not refused: Meta's own docs contradict each other about which
+    objective/optimization_goal/destination_type triples are legal
+    (`planning/click-to-whatsapp-ads.md` §1.1), and a hardcoded matrix in the
+    planner would go silently wrong and start refusing plans Meta accepts.
+    """
+    plan = tp.plan_template_campaign(
+        account_id=ACCOUNT,
+        name="Webby",
+        adsets=[tp.AdsetSpec(name="a", targeting=_targeting([1]), kind=tp.WEB)],
+        ads=[_ad(tp.WEB, adset="a")],
+    )
+    assert any("OUTCOME_TRAFFIC" in w for w in plan.warnings)
+
+
+def test_an_app_adset_without_a_promoted_object_is_warned_about():
+    """Unlike WhatsApp's Page, there is nothing on the creative to take the
+    application id from -- it lives on the study's `destinations` conf.
+    """
+    plan = tp.plan_template_campaign(
+        account_id=ACCOUNT,
+        name="Appy",
+        adsets=[tp.AdsetSpec(name="a", targeting=_targeting([1]), kind=tp.APP)],
+        ads=[_ad(tp.APP, adset="a")],
+    )
+    assert any("application_id" in w for w in plan.warnings)
+
+
+def test_a_multi_adset_off_conversations_is_warned_about():
+    """Meta's click-to-multidestination guide: CONVERSATIONS is the only
+    optimization_goal it accepts, strictly narrower than single-destination
+    click-to-WhatsApp.
+    """
+    plan = tp.plan_template_campaign(
+        account_id=ACCOUNT,
+        name="Multi",
+        adsets=[
+            tp.AdsetSpec(
+                name="a",
+                targeting=_targeting([1]),
+                kind=tp.MULTI,
+                optimization_goal="LINK_CLICKS",
+                promoted_object={"page_id": PAGE},
+            )
+        ],
+        ads=[_ad(tp.MULTI, adset="a")],
+    )
+    assert any("CONVERSATIONS is the only one accepted" in w for w in plan.warnings)

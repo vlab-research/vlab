@@ -26,10 +26,12 @@ that needs paused-only and budget-ceiling guardrails plus an audit trail.
 | `adopt/adopt/meta_fields.py` | The Graph `fields` lists, extracted from `server/meta.py` so the builder and the proxy name the same fields. |
 | `adopt/adopt/facebook/state.py` | `api_for_token` — the one place a `FacebookSession` is constructed. `get_api` delegates to it. |
 | `adopt/adopt/sdk/cli.py` | **One line**: `from . import templates_cli` at the bottom. |
-| tests | `authoring/test_templates.py` (64), `sdk/test_templates_cli.py` (26). No database, no live Meta; the mock boundary is `FacebookAdsApi.call`, as in `server/test_meta.py`. |
+| tests | `authoring/test_templates.py` (67), `sdk/test_templates_cli.py` (26). No database, no live Meta; the mock boundary is `FacebookAdsApi.call`, as in `server/test_meta.py`. |
 | docs | `documentation/agent-api.md` §6a (new, and the single home for the Meta quirks §10 asked to have promoted), §3 `creatives` pointer, §7 item 2 corrected, §8 entry. `adopt/README.md` gains a `vlab template` section. |
 
-DB-free suite 1 453 → 1 543 passed locally; the full suite runs in CI.
+DB-free suite 1 564 → 1 657 passed locally (Docker is down on the author's
+machine, so the ~100 database-backed tests were not run here); the full suite
+runs in CI.
 
 `adopt/scripts/make_template_campaign.py` is **superseded** by this library and
 should be deleted once someone has run `vlab template create` against live Meta
@@ -169,6 +171,20 @@ forever at five-minute intervals with no attempt cap. That is right for a cron
 with hours to spend and wrong for a CLI a human is watching — and worse than
 wrong for a *create*, where a retried POST that actually succeeded the first
 time leaves a duplicate object on the account.
+
+**Objective / optimization_goal / destination_type pairings are WARNED about,
+not refused.** Meta pairs the three, and its own documentation contradicts
+itself about which triples are legal — the `destination_type` guide's objective
+table omits WHATSAPP for OUTCOME_LEADS and OUTCOME_SALES while the
+click-to-WhatsApp page lists both (`planning/click-to-whatsapp-ads.md` §1.1) —
+and the allowed set moves between Graph versions. A hardcoded matrix in the
+planner would go wrong silently and would then refuse plans Meta would have
+accepted, which is worse than saying "check this". So the planner warns on the
+pairings that actually bite: a web or app ad set left on the click-to-messaging
+defaults, a multi ad set off CONVERSATIONS, an app ad set with no
+`promoted_object.application_id`. Contrast the budget ceiling and the
+declared-property check, which are refusals because both are facts about this
+repository rather than about Meta's current enum tables.
 
 **A YAML spec for `plan`/`create`, flags for everything else.** A campaign has
 many ad sets and many ads, and neither is expressible in flags without

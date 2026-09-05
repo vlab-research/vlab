@@ -61,9 +61,13 @@ from dataclasses import dataclass, field, replace
 from typing import Any, Dict, List, Mapping, Optional, Sequence, Tuple
 
 from ..meta_fields import CREATIVE_FIELDS, REQUIRED_TEMPLATE_CREATIVE_FIELDS
-from ..study_conf import (APP_DESTINATION_TYPE, MESSENGER_DESTINATION_TYPE,
-                          MULTI_DESTINATION_TYPE, WEB_DESTINATION_TYPE,
-                          WHATSAPP_DESTINATION_TYPE)
+from ..study_conf import (
+    APP_DESTINATION_TYPE,
+    MESSENGER_DESTINATION_TYPE,
+    MULTI_DESTINATION_TYPE,
+    WEB_DESTINATION_TYPE,
+    WHATSAPP_DESTINATION_TYPE,
+)
 from .extract import PropertyMissingError, extract_from_adset
 
 __all__ = [
@@ -753,6 +757,53 @@ def _targeting_warnings(adsets: Sequence[AdsetSpec]) -> List[str]:
     return out
 
 
+def _objective_warnings(objective: str, adsets: Sequence[AdsetSpec]) -> List[str]:
+    """Pairings Meta is likely to reject, warned about rather than enforced.
+
+    Warned and not refused, deliberately. Meta's own documentation contradicts
+    itself here -- the `destination_type` guide's objective table omits
+    WHATSAPP for OUTCOME_LEADS and OUTCOME_SALES while the click-to-WhatsApp
+    page lists both (`planning/click-to-whatsapp-ads.md` §1.1) -- and the
+    allowed set moves between Graph versions. A hardcoded matrix in here would
+    become wrong silently and would then refuse plans Meta would have accepted,
+    which is worse than saying "check this".
+
+    The defaults are the messaging ones, mirrored off a live template campaign,
+    so the pairing that actually bites is a web or app ad set left on them.
+    """
+    out: List[str] = []
+    messaging_defaults = objective == DEFAULT_OBJECTIVE
+    for spec in adsets:
+        if spec.kind in (WEB, APP) and messaging_defaults:
+            out.append(
+                f"Ad set {spec.name!r} is {spec.kind!r} but the campaign "
+                f"objective is {objective} and its optimization_goal is "
+                f"{spec.optimization_goal} -- the click-to-messaging defaults. "
+                "Meta pairs objective, optimization_goal and destination_type, "
+                "and a website or app ad set normally wants OUTCOME_TRAFFIC "
+                "with LINK_CLICKS or LANDING_PAGE_VIEWS. Check it before "
+                "creating; the rejection at ad-set create time does not "
+                "explain itself."
+            )
+        if spec.kind == APP and not (spec.promoted_object or {}).get("application_id"):
+            out.append(
+                f"Ad set {spec.name!r} is 'app' but has no "
+                "promoted_object.application_id / object_store_url. Meta "
+                "requires a promoted_object for an app-install ad set. Unlike "
+                "the WhatsApp Page, there is nothing on the creative to take "
+                "it from -- it lives on the study's `destinations` conf -- so "
+                "pass it explicitly."
+            )
+        if spec.kind == MULTI and spec.optimization_goal != "CONVERSATIONS":
+            out.append(
+                f"Ad set {spec.name!r} is 'multi' with optimization_goal "
+                f"{spec.optimization_goal!r}. Meta's click-to-multidestination "
+                "guide says CONVERSATIONS is the only one accepted, which is "
+                "strictly narrower than single-destination click-to-WhatsApp."
+            )
+    return out
+
+
 def _creative_params(spec: AdSpec, image_ref: Optional[str]) -> Dict[str, Any]:
     return build_creative(
         spec.kind,
@@ -1004,7 +1055,7 @@ def plan_template_campaign(
 
     image_creates, ad_creates = _plan_ads(ads, adset_ref_for, [s.name for s in filled])
 
-    warnings = _targeting_warnings(filled)
+    warnings = _targeting_warnings(filled) + _objective_warnings(objective, filled)
     if "targeting_automation" in props:
         warnings.append(
             "'targeting_automation' is in `properties`. It is set on every ad "

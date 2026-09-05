@@ -1716,6 +1716,7 @@ Every one of these was measured against the live API, and each is applied by
 | `promoted_object` is required for WhatsApp, multi and app ad sets | `page_id` must be the Page the *creative* posts as, or the ad set and the ad name different Pages. `vlab template` takes it from the ad and refuses to guess the WhatsApp number |
 | `link_data.link` is required even when the CTA routes the click | messaging creatives use Meta's own sample links: `https://fb.com/messenger_doc/` and `https://api.whatsapp.com/send` |
 | `page_welcome_message` is typed `string` on the API | the JSON object must be `json.dumps`'d. The runtime does this; a hand-built template is the usual first-attempt API error |
+| `objective`, `optimization_goal` and `destination_type` are paired, and Meta's own docs disagree about which triples are legal | `vlab template plan` **warns** rather than refusing: the allowed set moves between Graph versions, and a hardcoded matrix would start refusing plans Meta accepts. The defaults are the click-to-messaging ones (`OUTCOME_ENGAGEMENT` + `CONVERSATIONS`); a web or app ad set normally wants `OUTCOME_TRAFFIC` + `LINK_CLICKS`, and a multi ad set must be `CONVERSATIONS` |
 
 ### Conventions this tool imposes
 
