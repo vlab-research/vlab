@@ -241,6 +241,25 @@ async def copy_confs_from(
     return {"data": raw_config}
 
 
+# Two conf types are spelled with a hyphen in the URL and an underscore in the
+# database, because the POST routes name the URL segment and store something
+# else: `.../confs/data-sources` writes conf_type `data_sources`. The GET below
+# passed its segment straight to the query, so the URL that WROTE a section
+# could not read it back — `confs/data-sources` matched no row and
+# `get_study_conf` raised (→ 500). Fixes planning/agent-study-authoring.md
+# §11.4 item 5.
+#
+# Both spellings are accepted rather than only the URL one. The storage name is
+# what `GET /confs` returns as a key, so a caller that reads the map and then
+# asks for one section by its key is using the underscore — and that caller was,
+# until now, the only one that worked. Breaking it to fix the other would just
+# move the bug.
+CONF_TYPE_BY_URL_SEGMENT = {
+    "data-sources": "data_sources",
+    "inference-data": "inference_data",
+}
+
+
 @app.get("/{org_id}/studies/{slug}/confs/{conf_type}")
 async def get_conf(
     org_id: str,
@@ -248,7 +267,8 @@ async def get_conf(
     conf_type: str,
     user: Annotated[User, Depends(get_current_user)],
 ):
-    raw_config = get_study_conf(user.user_id, org_id, slug, conf_type)
+    stored_type = CONF_TYPE_BY_URL_SEGMENT.get(conf_type, conf_type)
+    raw_config = get_study_conf(user.user_id, org_id, slug, stored_type)
     return {"data": raw_config}
 
 
