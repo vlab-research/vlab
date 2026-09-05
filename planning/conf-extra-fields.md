@@ -335,6 +335,15 @@ recruitment form's destination-experiment `initialState` carried
 `DestinationRecruitmentExperiment`. Fixed in the dashboard rather than
 tolerated, because it is a bug and not history.
 
+**It sets the deploy order: dashboard before adopt.** The window is wider than
+"a fresh destination-experiment conf". `handleSelectChange` loads the same
+`initialState` object whenever the recruitment-type select changes, discarding
+`localData` wholesale — so on an OLD dashboard against a NEW adopt, switching an
+existing study to a destination experiment sends the stray key too, not just
+creating one from scratch. Still one rare form, still a legible 422 ("extra
+inputs are not permitted: destination"), but it reaches existing studies and not
+only new ones.
+
 ### 7.3 §6 question 2: settled — the strict union KEEPS the legacy default
 
 The strict destination union applies `_default_missing_destination_type`, the
@@ -373,6 +382,19 @@ whose type it cannot read and re-POSTs the conf verbatim. Refusing them makes
 editing destinations impossible on those studies, and whether any of them is
 live was not determined. Production breakage for zero added protection is not a
 trade worth making.
+
+There is a second, more immediate reason, found in review: **the dashboard
+writes `type: ''` on every newly created destination.**
+`forms/destinations/Destinations.tsx`'s `initialState` seeds a row with an empty
+`type`, and `_default_missing_destination_type` treats empty exactly as absent.
+So the default is not only a concession to 45 legacy confs — it is load-bearing
+for the current dashboard's create path. The row it seeds is messenger-shaped
+(`name`, `initial_shortcode`, `welcome_message`, `button_text`,
+`additional_metadata`, `ref_mode`), so it lands on the messenger twin and
+validates; a 422 there would have broken creating a destination at all, in the
+default flow, on every study. That this was not caught by the test suite is
+itself worth noting: nothing exercises the dashboard's create path against the
+models.
 
 The committed schema still marks `type` required, deliberately: an agent
 authoring new configuration should write the tag, and the file being stricter

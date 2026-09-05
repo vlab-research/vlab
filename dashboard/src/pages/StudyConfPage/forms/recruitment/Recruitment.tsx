@@ -24,9 +24,22 @@ interface Props {
 }
 
 // Prefer the stored tag; fall back to shape for confs written before adopt
-// started keeping it. Same order adopt's own `_infer_recruitment_type` uses,
-// deliberately -- if these two ever disagreed, the form would render one
-// strategy and the server would store another.
+// started keeping it.
+//
+// This order is NOT adopt's. `_infer_recruitment_type` (study_conf.py) tests
+// type -> ad_campaign_name -> arms -> destinations, and raises when none is
+// present; this tests type -> arms -> ad_campaign_name_base -> simple, and
+// treats "none of the above" as simple. They agree on every shape this form
+// can produce, which is the only set that matters here: each of the three
+// initialState objects carries exactly one arm's fields, so `arms` implies no
+// `ad_campaign_name` and `ad_campaign_name_base` implies the same. They would
+// disagree on a hand-authored body carrying fields from two arms -- which adopt
+// now rejects outright rather than resolving, so the disagreement is
+// unreachable through the API too.
+//
+// Left as-is rather than aligned: the fallback is legacy-only now. Every conf
+// saved from here on carries a real tag (see the useState below), so this
+// branch runs once per pre-tag conf and then never again for it.
 const duckTypeRecruitmentType = (localData: any) => {
   if (localData?.type) {
     return localData.type;

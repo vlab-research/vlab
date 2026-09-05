@@ -815,14 +815,24 @@ generated files:
   say `additionalProperties: false` and so reject them, which makes the files
   stricter than the server on exactly those two names. That is the right way
   round: nothing should be *writing* them.
-- **The recruitment tag is optional in a way the schema cannot show.**
-  `recruitment.json` exports a real `discriminator` on `type`, as
-  `destinations.json` does. What it cannot express is that omitting the tag is
-  also valid: a `BeforeValidator` infers the arm from shape
-  (`ad_campaign_name` → simple, then `arms` → pipeline, then `destinations` →
-  destination experiment) so that confs stored before the union was tagged
-  still load and still save. Validating a legacy untagged conf against this
-  file will fail even though the server accepts it. New configuration should
-  write the tag, at which point the file is exact.
+- **The recruitment tag reads as required and is not.** `recruitment.json`
+  exports a real `discriminator` on `type`, as `destinations.json` does — but
+  unlike the destination arms, the three recruitment arms carry a *default* for
+  `type`, so pydantic emits it as optional and it appears in no arm's
+  `required`. What the file cannot express is the `BeforeValidator` that infers
+  the arm from shape (`ad_campaign_name` → simple, then `arms` → pipeline, then
+  `destinations` → destination experiment, and an error naming all four if none
+  is present), which is what keeps confs stored before the union was tagged
+  loading and saving.
+
+  In practice a plain validator is *more* permissive here than the
+  discriminator suggests. Verified with python-jsonschema (Draft 2020-12)
+  against the committed file: a complete but untagged `simple` conf is
+  **accepted**, because `type` is not required anywhere and a `const` binds
+  only when the key is present, so exactly one `oneOf` arm matches. Untagged
+  pipeline and destination confs likewise. Only discriminator-aware tooling
+  that insists on the tag, or a body carrying a retired key, is rejected.
+  New configuration should write the tag regardless — it is the only thing that
+  makes the arm unambiguous rather than merely inferable.
 
 

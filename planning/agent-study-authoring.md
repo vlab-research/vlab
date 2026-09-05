@@ -540,12 +540,15 @@ could not.
 Reported by the implementation and verified, but deliberately left alone: they
 are design decisions, not mechanical fixes.
 
-1. **`InvalidConfigError` derives from `BaseException`** (`study_conf.py:928`),
-   so pydantic does not wrap it and Starlette's exception middleware does not
-   catch it. Every careful message in the WhatsApp, multi-destination, audience
-   and partitioning validators reaches the server log and never the caller, who
-   gets a bare 500. This is the most fixable bug on the list and it directly
-   undercuts §2.5's hope that validation errors are actionable.
+1. ~~**`InvalidConfigError` derives from `BaseException`**~~ **RESOLVED**,
+   adopt v0.1.84. pydantic did not wrap it and Starlette's exception middleware
+   did not catch it, so every careful message in the WhatsApp,
+   multi-destination, audience and partitioning validators reached the server
+   log and never the caller, who got a bare 500. It now derives from
+   `ValueError` (`class InvalidConfigError(ValueError)` in `study_conf.py`,
+   whose docstring records the two failure modes it caused), so pydantic wraps
+   it into a `ValidationError` and FastAPI returns a 422 with the message
+   intact. See §12.5 and `documentation/agent-api.md` §2.1.
 2. ~~**Every conf model is `extra="ignore"`.**~~ **RESOLVED**, adopt v0.1.85.
    A misspelled *optional* field was accepted and silently dropped — the
    likeliest failure mode there is for an agent authoring JSON, and worse than
@@ -597,8 +600,8 @@ are design decisions, not mechanical fixes.
 
    The general lesson is worth more than the fix: a `mode="before"` validator
    sees what the wire sent, and a test that constructs the model in Python
-   hands it something the wire never can. Two of the three before-validators in
-   `study_conf.py` were written as though they ran after parsing.
+   hands it something the wire never can. Two of `study_conf.py`'s
+   before-validators were written as though they ran after parsing.
 
 ### 11.5 Still true, still open
 
@@ -1051,6 +1054,16 @@ for a destination whose type it cannot read, so it re-POSTs the conf verbatim,
 and editing destinations on those studies would have failed. Whether any is live
 was never determined. That is production breakage bought with nothing.
 
+Review then found a second reason, and a more immediate one: **the dashboard
+writes `type: ''` on every newly created destination.**
+`forms/destinations/Destinations.tsx`'s `initialState` seeds a row with an empty
+`type`, and the default treats empty exactly as absent. So this is not only a
+concession to 45 legacy confs — it is load-bearing for the current dashboard's
+create path, on every study. The seeded row is messenger-shaped, so it lands on
+the messenger twin and validates. Nothing in the suite exercises the dashboard's
+create path against the models, which is why neither the original decision nor
+its first review caught this.
+
 The published schema still marks `type` required, so an agent writes it; the
 server is lenient on this one key for the legacy corpus, and `adopt/README.md`
 records that the file is deliberately stricter than the server there.
@@ -1072,8 +1085,8 @@ test against.
 
 That is the transferable part. **A `mode="before"` validator sees what the wire
 sent; a test that constructs the model in Python hands it something the wire
-never can.** Both of `study_conf.py`'s remaining before-validators were written
-as though they ran after parsing. `Partitioning.validate_scenario` survives
+never can.** Two of `study_conf.py`'s before-validators were written as though
+they ran after parsing. `Partitioning.validate_scenario` survives
 only because it reads keys rather than types — and under `extra="forbid"` it
 now sees unknown keys before the extra check does, so a typo there reports as
 "invalid partitioning config" rather than "extra inputs are not permitted". It

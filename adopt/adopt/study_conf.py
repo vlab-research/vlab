@@ -941,9 +941,25 @@ def _infer_recruitment_type(value: Any) -> Any:
     elif "destinations" in value:
         inferred = RECRUITMENT_DESTINATION
     else:
-        # Nothing to go on. Left alone so the discriminator produces its own
-        # "Unable to extract tag" rather than this function guessing.
-        return value
+        # Nothing to go on. Raise here rather than falling through to the
+        # discriminator, which would produce a single `union_tag_not_found`
+        # with an EMPTY `loc` and the text "Unable to extract tag using
+        # discriminator 'type'" -- true, and useless to someone who has never
+        # heard of the tag, which is everyone whose conf predates it.
+        #
+        # This is the likeliest authoring mistake there is on this endpoint (a
+        # recruitment conf missing its campaign-name field), and before the
+        # union was tagged it produced 11 `missing` errors with
+        # `ad_campaign_name` first -- worse-formatted but far more actionable.
+        # Naming both routes out is strictly better than either.
+        raise InvalidConfigError(
+            "Cannot tell which recruitment strategy this is. Set `type` to one "
+            f"of '{RECRUITMENT_SIMPLE}', '{RECRUITMENT_PIPELINE}' or "
+            f"'{RECRUITMENT_DESTINATION}' -- or include the field that "
+            "identifies the arm: `ad_campaign_name` for a simple recruitment, "
+            "`arms` for a pipeline experiment, `destinations` for a destination "
+            "experiment. None of the four is present."
+        )
 
     return {**value, "type": inferred}
 

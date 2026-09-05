@@ -350,6 +350,46 @@ def test_a_retired_recruitment_key_is_still_accepted():
     assert RETIRED_RECRUITMENT_KEYS == {"destination_type"}
 
 
+def test_a_recruitment_conf_with_no_arm_marker_says_how_to_disambiguate():
+    """The likeliest authoring mistake on this endpoint, and the tag made it
+    worse before this.
+
+    A body with none of `ad_campaign_name` / `arms` / `destinations` used to
+    produce 11 `missing` errors naming `ad_campaign_name` first -- badly
+    formatted, but it told you what to add. Falling through to the
+    discriminator instead produced ONE error, with an empty `loc`, reading
+    "Unable to extract tag using discriminator 'type'" -- which is useless to
+    anyone who has never heard of the tag, i.e. everyone whose conf predates
+    it. `_infer_recruitment_type` now names both ways out.
+    """
+    body = {
+        "objective": "OUTCOME_ENGAGEMENT",
+        "optimization_goal": "CONVERSATIONS",
+        "min_budget": 100,
+        "start_date": _START,
+        "end_date": _END,
+    }
+
+    for annotation in (RecruitmentConfStrict, RecruitmentConf):
+        with pytest.raises(ValidationError) as e:
+            TypeAdapter(annotation).validate_python(body)
+
+        message = str(e.value)
+        # Both routes out, and every value the tag can take.
+        for expected in (
+            "ad_campaign_name",
+            "arms",
+            "destinations",
+            "type",
+            "simple",
+            "pipeline_experiment",
+            "destination",
+        ):
+            assert expected in message, (expected, message)
+
+        assert "Unable to extract tag" not in message
+
+
 def test_an_unknown_recruitment_key_is_not_confused_for_a_retired_one():
     """The retired list is a closed set, not a licence to ignore extras."""
     body = {
