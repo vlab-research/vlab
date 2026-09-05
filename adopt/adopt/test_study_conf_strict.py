@@ -417,39 +417,90 @@ def test_arbitrary_key_fields_stay_arbitrary():
     assert stratum.metadata["whatever_the_researcher_wants"] == "yes"
 
 
-def test_a_lookalike_audience_still_cannot_be_written_as_json():
-    """Documents a PRE-EXISTING bug this change neither caused nor fixes.
+def test_a_subtyped_audience_validates_from_raw_json_through_both_models():
+    """Fixed here, not merely made strict: it was broken on BOTH paths.
 
-    `AudienceConf.__post_init__` is a `mode="before"` validator that requires
-    `values["lookalike"]` to already be a `Lookalike` INSTANCE
-    (`isinstance(val, type_)`). Raw JSON gives it a dict, so a LOOKALIKE or
-    PARTITIONED audience cannot be validated from JSON -- not on the write path,
-    and not on the load path either, which means a study carrying one cannot be
-    assembled by `get_study_conf` at all. Every test that exercises these
-    subtypes constructs the nested models in Python first, which is why nothing
-    caught it.
-
-    The dashboard has never written either subtype (its audience form renders
-    only `name`, with the targeting controls disabled), so the corpus may well
-    contain none. Pinned here rather than fixed because fixing it changes LOAD
-    behaviour and deserves its own decision -- see documentation/agent-api.md
-    §9. If this test starts failing, someone fixed it; delete the test.
+    `AudienceConf.__post_init__` is a `mode="before"` validator, so it sees raw
+    input, but it asserted `isinstance(values["lookalike"], Lookalike)` -- that
+    the nested value was ALREADY a parsed model. JSON hands it a dict, so a
+    LOOKALIKE or PARTITIONED audience could not be written at all, and a stored
+    one would have failed `StudyConf` assembly on every cron run. Every test
+    built the nested models in Python first, and the dashboard writes neither
+    subtype, so nothing ever hit it. `validate()` now checks presence only and
+    leaves the shape to the field annotation.
     """
-    body = [
-        {
-            "name": "lookalike-of-completers",
-            "subtype": "LOOKALIKE",
-            "lookalike": {
-                "target": 1000,
-                "spec": {"country": "NG", "ratio": 0.1, "starting_ratio": 0.0},
-            },
-        }
+    bodies = [
+        [
+            {
+                "name": "lookalike-of-completers",
+                "subtype": "LOOKALIKE",
+                "lookalike": {
+                    "target": 1000,
+                    "spec": {"country": "NG", "ratio": 0.1, "starting_ratio": 0.0},
+                },
+            }
+        ],
+        [{"name": "cohorts", "subtype": "PARTITIONED", "partitioning": {"min_users": 100}}],
     ]
 
-    with pytest.raises(ValidationError) as lenient:
-        TypeAdapter(list[AudienceConf]).validate_python(body)
-    assert "requires a" in str(lenient.value)
+    for body in bodies:
+        # The write path, and the load path the optimize cron uses.
+        assert TypeAdapter(list[AudienceConfStrict]).validate_python(body)
+        assert TypeAdapter(list[AudienceConf]).validate_python(body)
 
-    with pytest.raises(ValidationError) as strict:
-        TypeAdapter(list[AudienceConfStrict]).validate_python(body)
-    assert "requires a" in str(strict.value)
+
+def test_a_subtyped_audience_still_needs_the_section_its_subtype_requires():
+    """The presence check that survived, and the reason to keep one at all.
+
+    `lookalike` and `partitioning` are `Optional` on the model, so nothing but
+    this validator can say that a LOOKALIKE audience without a `lookalike` is
+    wrong.
+    """
+    with pytest.raises(ValidationError) as e:
+        TypeAdapter(list[AudienceConfStrict]).validate_python(
+            [{"name": "aud", "subtype": "LOOKALIKE"}]
+        )
+
+    assert "lookalike" in str(e.value)
+
+
+def test_a_wrongly_shaped_subtype_section_is_still_rejected():
+    """Shape is now the field annotation's job, and it does it.
+
+    Loosening the before-validator to a presence check must not make
+    `partitioning: {"foo": "bar"}` acceptable -- it just fails one layer in,
+    from `Partitioning`'s own validator instead of from `validate()`.
+    """
+    with pytest.raises(ValidationError):
+        TypeAdapter(list[AudienceConf]).validate_python(
+            [{"name": "aud", "subtype": "PARTITIONED", "partitioning": {"foo": "bar"}}]
+        )
+
+
+def test_a_typo_inside_a_lookalike_spec_is_named():
+    """Three levels down, and only reachable now that the subtype writes at all.
+
+    `audiences[].lookalike.spec` was unreachable from JSON until the fix above,
+    which means the strict twins for `Lookalike` and `LookalikeSpec` had never
+    validated anything. This is the test that they do.
+    """
+    with pytest.raises(ValidationError) as e:
+        TypeAdapter(list[AudienceConfStrict]).validate_python(
+            [
+                {
+                    "name": "lal",
+                    "subtype": "LOOKALIKE",
+                    "lookalike": {
+                        "target": 1000,
+                        "spec": {
+                            "country": "NG",
+                            "ratio": 0.1,
+                            "starting_ratio": 0.0,
+                            "rati": 0.2,
+                        },
+                    },
+                }
+            ]
+        )
+
+    assert "rati" in str(e.value)

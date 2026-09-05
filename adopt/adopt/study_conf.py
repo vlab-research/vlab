@@ -1105,6 +1105,32 @@ class Partitioning(BaseModel):
 
 
 def validate(values, subtype, subtype_confs):
+    """Check that a subtype was given the section it requires.
+
+    PRESENCE ONLY, deliberately, and this used to be a type check.
+
+    Its one caller is `AudienceConf.__post_init__`, a `mode="before"` model
+    validator -- so `values` is the RAW input, not a parsed model. The old
+    check was `isinstance(val, type_)` against the parsed class (`Partitioning`,
+    `Lookalike`), which a raw dict can never satisfy. The consequence was that a
+    PARTITIONED or LOOKALIKE audience could not be written as JSON at all: every
+    such POST was a 422 saying the subtype "requires a <class ...> value", and
+    a stored one would have failed `StudyConf` assembly on every cron run,
+    taking the whole study's reconciliation with it.
+
+    It went unnoticed for the same reason in both directions. Every test
+    constructs the nested models in Python first (`partitioning=Partitioning(
+    min_users=100)`), which satisfies the isinstance check; and the dashboard's
+    audience form renders only `name`, with the LOOKALIKE and PARTITIONED
+    controls disabled and marked "(not yet available)" -- so the only writer
+    vlab has has never written either subtype.
+
+    Whether the value has the right SHAPE is the field annotation's job, and it
+    does that job either way: `partitioning={"foo": "bar"}` still fails, now
+    from `Partitioning`'s own validator rather than from here. What is left
+    here is the check that annotation cannot express, because the fields are
+    `Optional`: this subtype requires this section to be present at all.
+    """
     if subtype not in subtype_confs:
         raise InvalidConfigError(
             f"Invalid subtype: {subtype}. " f"We support: {list(subtype_confs.keys())}"
@@ -1113,11 +1139,9 @@ def validate(values, subtype, subtype_confs):
     conf = subtype_confs[subtype]
     if conf:
         attr, type_ = conf
-        val = values.get(attr)
-        if not isinstance(val, type_):
+        if values.get(attr) is None:
             raise InvalidConfigError(
-                f"Invalid config. Subtype {subtype} "
-                f"requires a {type_} value for {attr}"
+                f"Invalid config. Subtype {subtype} requires a value for {attr}"
             )
 
 

@@ -923,3 +923,73 @@ def test_a_hyphenated_conf_type_can_be_read_back_by_the_url_that_wrote_it(
         )
         assert res.status_code == 200, res.text
         assert res.json()["data"] is not None
+
+
+# ---------------------------------------------------------------------------
+# The two audience subtypes that could never be written as JSON.
+#
+# `AudienceConf.__post_init__` is a `mode="before"` model validator, so it sees
+# the RAW request body -- but it asserted `isinstance(values["partitioning"],
+# Partitioning)`, i.e. that the nested value was already a parsed model
+# instance. A JSON body hands it a dict, so a PARTITIONED or LOOKALIKE audience
+# was a guaranteed 422 on the way in, and (worse) a stored one failed
+# `StudyConf` assembly on every cron run.
+#
+# Never caught because every existing test constructs the nested model in
+# Python first, and because the dashboard's audience form renders only `name`
+# with the targeting controls disabled -- so the only writer vlab has has never
+# written either subtype.
+# ---------------------------------------------------------------------------
+
+SUBTYPED_AUDIENCE_BODIES = {
+    "PARTITIONED": [
+        {
+            "name": "cohorts",
+            "subtype": "PARTITIONED",
+            "partitioning": {"min_users": 100},
+        }
+    ],
+    "LOOKALIKE": [
+        {
+            "name": "lookalike-of-completers",
+            "subtype": "LOOKALIKE",
+            "lookalike": {
+                "target": 1000,
+                "spec": {"country": "NG", "ratio": 0.1, "starting_ratio": 0.0},
+            },
+        }
+    ],
+}
+
+
+@pytest.mark.parametrize("subtype", list(SUBTYPED_AUDIENCE_BODIES))
+@patch("adopt.server.auth.verify_token")
+def test_a_subtyped_audience_can_be_written_as_json(verify_mock, subtype):
+    _reset_db()
+    verify_mock.return_value = {"sub": user_id}
+    org_id, headers = _user_and_study_setup()
+
+    res = _post_conf(org_id, headers, "audiences", SUBTYPED_AUDIENCE_BODIES[subtype])
+
+    assert res.status_code == 201, res.text
+    assert res.json()["data"]["conf"][0]["subtype"] == subtype
+
+
+@pytest.mark.parametrize("subtype", list(SUBTYPED_AUDIENCE_BODIES))
+@patch("adopt.server.auth.verify_token")
+def test_a_subtyped_audience_still_requires_its_config(verify_mock, subtype):
+    """The presence check the before-validator is actually for.
+
+    A PARTITIONED audience with no `partitioning` is still a 422 — that is the
+    check worth keeping. What it may not do is decide whether the value is the
+    RIGHT SHAPE, because at `mode="before"` it is looking at raw JSON.
+    """
+    _reset_db()
+    verify_mock.return_value = {"sub": user_id}
+    org_id, headers = _user_and_study_setup()
+
+    body = [{"name": "aud", "subtype": subtype}]
+    res = _post_conf(org_id, headers, "audiences", body)
+
+    assert res.status_code == 422, res.text
+    assert subtype in res.text
