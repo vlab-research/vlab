@@ -19,17 +19,42 @@ use `format_group_product` here to build strata for a study the dashboard will
 also touch — the two will disagree and the dashboard's staleness banner will
 flag every stratum.
 
+THE SALVAGE HAPPENED. THE PIECES WORTH KEEPING NOW LIVE IN `adopt.authoring`:
+
+  * `read_share_lookup`, `parse_kv_sheet`, `parse_row_sheet`
+        -> `adopt.authoring.sheets`
+  * `location_levels`, `create_location`  (create_location is now PUBLIC)
+        -> `adopt.authoring.geo`
+
+Use those. They were moved during Phase 3 (the SDK), which is what §10 and
+§12.4 of `planning/agent-study-authoring.md` said would give them a consumer to
+shape their API around, and both changed slightly in the move — `location_levels`
+emits `facebook_targeting` rather than `params`, so it composes with
+`adopt.authoring.strata.create_strata_from_variables`, and it takes any
+row-shaped input rather than specifically `list(df.iterrows())`. `planning/vlab-sdk.md`
+records what was salvaged, what was dropped and why.
+
+What was deliberately NOT salvaged, and stays here only so the ~46 notebooks in
+`~/Documents/vlab-research/campaigns/` that import this module keep working:
+
+  * `format_group_product` — superseded by `adopt.authoring.strata`, with the
+    four disagreements listed above.
+  * `get_adsets`, `_get_adsets`, `get_relevant_part`, `fb_property_lookup`,
+    `get_geo_name`, `make_variable_extraction`, `extraction_confs` — the
+    "scrape targeting out of a hand-built template campaign" workflow, replaced
+    by `GET /{org}/meta/adsets` plus `adopt.authoring.extract.extract_from_adset`.
+  * `create_campaign` — a stale duplicate of `marketing.create_campaign`, and
+    broken besides: it references `Instruction`, which this module never
+    imports, so calling it is a `NameError`.
+  * `TargetingConf`, `respondent_audience_name`, `hyphen_case`,
+    `conf_for_export`, `_creative_conf`, `stringify_column`, `origin_of` —
+    notebook-era conventions, or helpers with no caller.
+
 Nothing in production imports this module; its only importers are
 `test_configuration.py` (the `read_share_lookup` Excel tests, which still pass
-and still guard that reader) and `test_studies.py` (whose uses are commented
-out). It is kept, rather than deleted, for the pieces that are still the right
-idea for a composable authoring library and have no replacement yet:
-`read_share_lookup` (shares from a sheet), `parse_row_sheet`/`parse_kv_sheet`
-(typed rows from a sheet), and `location_levels`/`create_location` (radius
-geo-targeting from lat/lng rows). Those move into `adopt.authoring` when the
-SDK (plan §8, Phase 3) gives them a consumer to shape their API around — see
-`planning/agent-study-authoring.md` §10 and §12. `create_campaign` here is a
-stale duplicate of `marketing.create_campaign`, which is the live one.
+and still guard this copy of that reader — `authoring/test_sheets.py` has the
+same five against the new home) and `test_studies.py` (whose uses are
+commented out).
 """
 
 import json

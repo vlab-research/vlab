@@ -1,4 +1,22 @@
-"""Study authoring: the dashboard's strata compiler, in Python.
+"""Study authoring: composable primitives for building a study configuration.
+
+Five modules, and they are primitives rather than a pipeline (plan §6.D):
+
+* `strata`   the dashboard's compiler -- variables to strata, and the
+             staleness hint. A helper, not the blessed way.
+* `extract`  targeting properties off a template Meta ad set.
+* `validate` the whole-study check `POST /{org}/studies/{slug}/validate` wraps.
+* `sheets`   a workbook tab to a conf, and a census tab to per-level quotas.
+* `geo`      radius targeting from latitude/longitude rows.
+
+The last two are salvaged from the notebook era (`adopt/configuration.py`,
+superseded) and are the reason the compiler is *a* helper: they build strata
+the dashboard's Variables form cannot express at all, and a caller may combine
+them, bypass all of them, or hand-write strata -- `validate` checks the result
+either way.
+
+WHAT FOLLOWS IS ABOUT `strata` AND `extract` SPECIFICALLY.
+
 
 Phase 1 of `planning/agent-study-authoring.md` §8. Until this package existed
 the only code that could turn `variables` into `strata` — or pull
