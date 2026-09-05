@@ -4,12 +4,13 @@ Exploration and decision path for giving an AI agent (or a script, or a
 notebook) the ability to create and configure a vlab study without driving the
 React dashboard by hand.
 
-Status: **Phase 0 implemented; Phases 1–4 not started.** §1–§5 are findings
-read out of the code, with the file establishing each claim named next to it.
-§7 records the decisions taken and why, §8 is the plan, §10 is what is still
-open, and **§11 records what Phase 0 actually shipped and the six claims below
-that the implementation proved wrong** — several of them load-bearing, so read
-§11 before trusting a detail in §2 or Appendix A.
+Status: **Phase 0 deployed (adopt v0.1.83); Phase 1 implemented; Phases 2–4
+not started.** §1–§5 are findings read out of the code, with the file
+establishing each claim named next to it. §7 records the decisions taken and
+why, §8 is the plan, §10 is what is still open, **§11 records what Phase 0
+actually shipped and the six claims below that the implementation proved
+wrong** — several of them load-bearing, so read §11 before trusting a detail in
+§2 or Appendix A — and §12 records Phase 1.
 
 The short version: an SDK (pipx-installable, shipped as an extra on `adopt`)
 that owns a *composable* study-authoring library and validates a whole study
@@ -575,11 +576,97 @@ are design decisions, not mechanical fixes.
 
 ### 11.5 Still true, still open
 
-Everything in §10 stands. Phases 1–4 are untouched: the compiler is still only
-in browser TypeScript, there is still no Meta proxy, no SDK and no MCP. Item 2
-above (`extra="ignore"`) is the one that most deserves settling before Phase 3
-starts, because an SDK that validates locally is worth much less if the server
-silently drops what it does not recognise.
+Everything in §10 stands. Phase 1 is now done (§12); there is still no Meta
+proxy, no SDK and no MCP. Item 2 above (`extra="ignore"`) is the one that most
+deserves settling before Phase 3 starts, because an SDK that validates locally
+is worth much less if the server silently drops what it does not recognise.
+
+---
+
+## 12. Phase 1: the compiler, in Python, once
+
+Implemented 2026-09-04, the same day Phase 0 deployed. Three agents in
+parallel: one port each, and a third building the differential harness
+against the real TypeScript before either port existed.
+
+### 12.1 What shipped
+
+| | |
+|---|---|
+| `adopt/adopt/authoring/strata.py` | Port of `strata.ts`: `create_strata_from_variables`, `format_group_product`, `strata_staleness_hint`, `get_finish_question_ref`. Works on JSON wire shapes; accepts pydantic models by dumping them first. |
+| `adopt/adopt/authoring/extract.py` | Port of `extract.ts`: `extract_from_adset`, `is_level_in_sync`, `diff_property_keys`; typed errors under an `ExtractError(Exception)` base. |
+| `test_strata.py`, `test_extract.py` | `strata.spec.ts` and `extract.test.ts` translated test-for-test, plus a marked section of extra cases for behaviour the TypeScript leaves implicit. |
+| `dashboard/scripts/authoring-conformance.ts` | Runs the **real** TypeScript over 1,142 cases — every spec literal, 98 hand-written edge cases, 1,000 seeded-random (mulberry32) — and records `(fn, args, result \| error)`. Byte-reproducible. |
+| `conformance_fixtures.json`, `test_conformance.py` | Replays every recording through the Python. Comparator is stricter than `==`: booleans by identity, floats exact, key sets equal. Negative control: nine seeded divergences all caught; reversing the shallow-merge precedence in the port fails 190 cases. |
+| `make -C adopt authoring-fixtures` | Regenerates the fixtures (installs `dashboard/node_modules` if absent). Run it whenever the TypeScript changes. |
+| `configuration.py` | Marked superseded in its docstring, kept for `read_share_lookup`, `parse_*_sheet`, `location_levels`. |
+
+Result: 1,147 conformance tests plus 69 translated tests green; the rest of the
+adopt suite unchanged at 829.
+
+### 12.2 Decisions the TypeScript left implicit
+
+Each is documented at the point in the port where it bites; the ones that
+matter to a caller:
+
+- **The port works on dicts, not `StratumConf`.** The TypeScript is `any` at
+  every boundary and conformance is defined against its literal JSON output.
+  Building a `StratumConf` from the result is the caller's validation step.
+- **`create_strata_from_variables` merges `existing_strata` only for fields
+  actually present.** The TypeScript copies `undefined` for a missing
+  `creatives`/`audiences`/`excluded_audiences` and `JSON.stringify` drops the
+  key, erasing the fresh default; Python has no `undefined`. All three fields
+  are required in both type systems, so this only differs for hand-built input.
+- **Where the TypeScript throws a `TypeError`, the port raises a named
+  exception** (`ValueError` for saved strata with no `answered` term, or an
+  empty level list; `TypeError` with a message for an ad set with no
+  `targeting`). Those inputs are excluded from the fixtures by construction,
+  and the generator's header lists them.
+- **`isEqual` → `==`.** Identical on JSON-shaped data; they differ only on
+  `NaN` (unrepresentable in JSON) and `True == 1` (Python only, and Meta
+  returns one type per field).
+- **`quota` accumulates from `1.0`**, so it is a float even for integral level
+  quotas — JS has one number type and the JSON shape has to match.
+
+### 12.3 Bugs in the TypeScript, ported faithfully and not fixed
+
+The port reproduces these so the dashboard and the library agree. Fixing any
+of them is a dashboard change first, then a fixture regeneration.
+
+1. **`strataStalenessHint`'s `"dummy"` fallback is dead.** `getFinishQuestionRef`
+   returns `""` only for an empty array, which the guard above already
+   returned on; for a non-empty saved stratum with no `answered` term it
+   throws. So the dashboard gets an uncaught `TypeError` rendering the
+   staleness banner for any conf whose strata lack `question_targeting` —
+   plausible for older or hand-written confs.
+2. **Staleness check 1 is not a set comparison** — length plus `saved ⊆ fresh`
+   — so duplicate ids (two variables sharing a name) pass while the multisets
+   differ.
+3. **Staleness never inspects `question_targeting` or `metadata`.** A changed
+   finish-question ref is undetectable by construction, because the fresh
+   strata are generated *using* the saved ref.
+4. **`diffPropertyKeys` filters `targeting_automation` out of the stored keys
+   but not out of `current`.** A variable listing `targeting_automation` as a
+   property shows the two-line drift banner forever; `extractFromAdset` will
+   happily accept that property. `added`/`removed` also do not dedupe.
+5. **`strata.spec.ts`'s first case passes `creatives` in the
+   `finishQuestionRef` slot** and passes only because the empty-variables
+   guard fires first. Translated as-is with a comment.
+
+### 12.4 Still open after Phase 1
+
+- **The salvage of `configuration.py`** (§10) is deferred to Phase 3, when the
+  SDK gives `read_share_lookup` / `location_levels` a consumer to shape their
+  API around. There is no `campaigns/` directory in this repo to read notebook
+  usage from, so the read-through §10 asks for cannot happen here.
+- **Regenerating the fixtures needs node and `npm ci` in `dashboard/`**; CI
+  does not do it. The committed fixtures are the contract, and a TypeScript
+  change that forgets to regenerate them will not be caught until someone runs
+  `make -C adopt authoring-fixtures`. A CI job that regenerates and diffs is
+  the obvious follow-up.
+- **Not yet released.** `adopt` ships the package in its image (`COPY . .`),
+  but nothing on the server calls it; the next release picks it up for free
+  and the SDK (Phase 3) is its first consumer.
 
 ---
 
