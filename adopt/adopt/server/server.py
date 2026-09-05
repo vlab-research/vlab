@@ -35,6 +35,11 @@ from ..study_conf import (
     VariableConf,
 )
 from .auth import AuthError, generate_api_token, verify_tokens
+
+# Re-exported for backwards compatibility: these moved to deps.py so that route
+# modules (studies, api keys, schemas) can depend on authentication without
+# importing server, which imports them — a cycle.
+from .deps import User, get_current_user, security
 from .csv_export import ad_attributions_csv, ad_attributions_table
 from .db import (
     copy_confs,
@@ -90,36 +95,6 @@ class InstructionResult(BaseModel):
 
 class OptimizeResult(BaseModel):
     data: Sequence[OptimizeInstruction]
-
-
-class User(BaseModel):
-    user_id: str
-
-
-security = HTTPBearer()
-
-
-async def get_current_user(
-    credentials: Annotated[HTTPAuthorizationCredentials, Depends(security)],
-) -> User:
-    token = credentials.credentials
-
-    credentials_exception = HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Could not validate credentials",
-        headers={"WWW-Authenticate": "Bearer"},
-    )
-    try:
-        payload = verify_tokens(token)
-        user: str = payload.get("sub")
-
-        if user is None:
-            raise credentials_exception
-
-        return User(user_id=user)
-
-    except AuthError:
-        raise credentials_exception
 
 
 async def create_conf(user: User, org_id: str, slug: str, conf_type: str, config: Any):
