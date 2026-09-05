@@ -133,17 +133,34 @@ def list_facebook_credentials(user_id: str):
 def get_facebook_token(user_id: str, credentials_key: str):
     """The access token for one named credential, or None.
 
-    Matched on `(user_id, key)` with the entity deliberately NOT in the
-    predicate. That is not sloppiness — it is bug-compatibility with
-    `get_user_info`, which is what actually resolves the token when adopt talks
-    to Meta on this study's behalf. If this query were stricter than that one,
-    the proxy could report "no such credential" for a key that a study is
-    happily running on, or — worse — resolve a *different* row and show the
-    agent an ad-account list the study will never be able to use.
+    Matched on `(user_id, key, entity IN facebook-ish)`. Two halves, and both
+    of them matter:
+
+    * **`key`, not `(entity, key)`.** This is bug-compatibility with
+      `get_user_info`, which is what actually resolves the token when adopt
+      talks to Meta on a study's behalf: it selects `credentials_entity` out of
+      the general conf and then never joins on it. If this query were stricter
+      than that one, the proxy could report "no such credential" for a key a
+      study is happily running on, or resolve a *different* row and show the
+      agent an ad-account list the study can never use. Since both entities
+      that carry a Facebook token in production are in
+      `FACEBOOK_CREDENTIAL_ENTITIES`, the entity set below does not narrow
+      anything `get_user_info` would have found.
+
+    * **The entity set is still applied**, because `credentials` holds tokens
+      for other providers too (`typeform`, `fly`, `whatsapp_business`, …) and
+      several of those also store a field called `access_token`. Without this
+      predicate, `?credentials_key=<name of my typeform credential>` would ship
+      that token to graph.facebook.com — the caller's own token, so not a
+      cross-tenant leak, but a credential sent to a third party that has no
+      business seeing it. It would also make the 404's "Available:" list a lie,
+      since that list comes from `list_facebook_credentials`, which has always
+      filtered on entity: the two queries have to accept the same rows or the
+      error message contradicts the lookup.
 
     `ORDER BY created DESC LIMIT 1` is likewise `get_user_info`'s tie-break.
     `unique_entity_key_per_user` makes a tie possible only across entities
-    (same name under `facebook` and `facebook_ad_user`), and newest-wins is
+    (the same name under `facebook` and `facebook_ad_user`), and newest-wins is
     what the run-time path already does with that.
     """
     q = """
@@ -151,11 +168,19 @@ def get_facebook_token(user_id: str, credentials_key: str):
     FROM credentials
     WHERE user_id = %s
     AND key = %s
+    AND entity = ANY(%s)
     AND details ->> 'access_token' IS NOT NULL
     ORDER BY created DESC
     LIMIT 1
     """
-    rows = list(query(db_cnf, q, (user_id, credentials_key), as_dict=True))
+    rows = list(
+        query(
+            db_cnf,
+            q,
+            (user_id, credentials_key, list(FACEBOOK_CREDENTIAL_ENTITIES)),
+            as_dict=True,
+        )
+    )
     return rows[0]["token"] if rows else None
 
 

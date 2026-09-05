@@ -676,17 +676,31 @@ needs `credentials_key` to write `general`, and no API-key-reachable endpoint
 listed the valid values. The Go service's `/accounts` does, but it is Auth0-only
 and it returns `details` — access token included — to the browser.
 
-**The lookup is bug-compatible with `get_user_info` on purpose.**
-`db.get_facebook_token` matches on `(user_id, key)` and leaves `entity` out of
-the predicate, exactly as `campaign_queries.py:13` does — that query selects
-`credentials_entity` out of the general conf and then never joins on it. Being
-*stricter* than the query that resolves the token at run time is the dangerous
-direction: the proxy would report "no such credential" for a key a study is
-happily running on. This is recorded rather than fixed because fixing it means
-deciding which entity is correct, and the codebase has three answers (the
-dashboard hardcodes `facebook`, the `studies.credentials_entity` column defaults
-to `facebook_ad_user`, `ctwa_probe.py` queries `facebook_ad_user`) precisely
+**The lookup is bug-compatible with `get_user_info` on the part that matters,
+and not on the part that would leak.** `db.get_facebook_token` matches on
+`(user_id, key)` without requiring a *specific* entity, exactly as
+`campaign_queries.py:13` does — that query selects `credentials_entity` out of
+the general conf and then never joins on it. Being *stricter* than the query
+that resolves the token at run time is the dangerous direction: the proxy would
+report "no such credential" for a key a study is happily running on. That
+looseness is recorded rather than fixed, because fixing it means deciding which
+entity is correct, and the codebase has three answers (the dashboard hardcodes
+`facebook`, the `studies.credentials_entity` column defaults to
+`facebook_ad_user`, `ctwa_probe.py` queries `facebook_ad_user`) precisely
 because nothing has ever had to agree.
+
+It does, however, constrain `entity` to `FACEBOOK_CREDENTIAL_ENTITIES` — which
+narrows nothing `get_user_info` would have found, since both production
+entities are in the set, and closes something review caught after the first
+draft shipped. `credentials` holds tokens for other providers (`typeform`,
+`fly`, `whatsapp_business`) and several store a field called `access_token`.
+With no entity predicate at all, `?credentials_key=<my typeform credential>`
+would have sent that token to `graph.facebook.com`. The caller's own token, so
+not a cross-tenant leak — but a credential handed to a third party with no
+business seeing it. It also made the 404's "Available:" list contradict the
+lookup, because that list comes from `list_facebook_credentials`, which always
+filtered on entity. The two queries have to accept the same rows or the error
+message is a lie.
 
 ### 13.4 Decisions worth their own line
 

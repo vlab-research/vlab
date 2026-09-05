@@ -521,6 +521,37 @@ def test_unknown_credentials_key_is_404_listing_what_exists():
     assert "Available: Facebook." in res.json()["detail"]
 
 
+def test_a_non_facebook_credential_cannot_be_named_by_credentials_key():
+    """A typeform token must not be shipped to graph.facebook.com.
+
+    `credentials` holds tokens for other providers under the same
+    `(user_id, key)` shape, and several of them also store a field called
+    `access_token`. This is the caller's own credential, so it is not a
+    cross-tenant leak — it is a credential handed to a third party with no
+    business seeing it, and it made the 404's "Available:" list contradict what
+    the lookup actually accepted.
+    """
+    org_id = _org(USER)
+    _credential(USER, "facebook", "Facebook", {"access_token": TOKEN})
+    _credential(USER, "typeform", "my-typeform", {"access_token": "TYPEFORM-TOKEN"})
+    ctx, g = _graph()
+
+    with ctx:
+        res = client.get(
+            f"/{org_id}/meta/adaccounts",
+            params={"credentials_key": "my-typeform"},
+            headers=_key(),
+        )
+
+    assert res.status_code == 404
+    # The error names only what the lookup would actually have accepted.
+    assert "Available: Facebook." in res.json()["detail"]
+    assert "my-typeform" not in res.json()["detail"].split("Available:")[1]
+    # And nothing was sent to Meta.
+    assert g.calls == []
+    assert "TYPEFORM-TOKEN" not in res.text
+
+
 def test_another_users_credential_is_not_reachable():
     org_id = _org(USER, OTHER_USER)
     _credential(OTHER_USER, "facebook", "TheirAccount", {"access_token": OTHER_TOKEN})
