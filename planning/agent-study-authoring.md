@@ -704,6 +704,14 @@ Still open from the same review:
   uncaught `TypeError` rendering the staleness banner for any conf whose
   strata lack a `question_targeting`. It should be filed as a dashboard issue.
 
+Item 1 (`InvalidConfigError` derives from `BaseException`) is fixed — it now
+derives from `ValueError` (`adopt/adopt/study_conf.py:930`), so pydantic wraps
+it and `POST /confs/{conf_type}` returns a 422 with the validator's message
+instead of a bare 500. Item 2 (`extra="ignore"`) is investigated but
+deliberately not changed: see `planning/conf-extra-fields.md` for the full
+model inventory, the dashboard-vs-pydantic field comparison, and the
+recommended "strict sibling classes on the POST routes only" shape.
+
 ---
 
 ## Appendix A. Notes for whoever implements Phase 0

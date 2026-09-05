@@ -15,7 +15,6 @@ from .study_conf import (
     FlyWhatsAppDestination,
     GeneralConf,
     InferenceDataConf,
-    InvalidConfigError,
     MULTI_DESTINATION_TYPE,
     PipelineRecruitmentExperiment,
     QuestionTargeting,
@@ -803,7 +802,7 @@ def test_unsafe_shortcode_is_rejected_on_the_destination_itself():
     # texts `form.<shortcode>` straight into WhatsApp by hand, and a hand-typed
     # space is a literal space, not %20. It has to be typeable, not merely
     # encodable.
-    with pytest.raises(InvalidConfigError, match="initial_shortcode"):
+    with pytest.raises(ValidationError, match="initial_shortcode"):
         _whatsapp_destination(shortcode="mnch week")
 
 
@@ -826,7 +825,7 @@ def test_full_ref_with_spaced_stratum_metadata_is_now_accepted():
 
 
 def test_full_ref_with_a_genuinely_undeliverable_value_is_still_rejected():
-    with pytest.raises(InvalidConfigError, match="North/South"):
+    with pytest.raises(ValidationError, match="North/South"):
         _whatsapp_study({"Region": "North/South"})
 
 
@@ -862,7 +861,7 @@ def test_full_ref_validation_covers_the_form_key_and_extra_metadata():
     study_dict = study.model_dump()
     study_dict["general"]["extra_metadata"] = {"country": "Sierra/Leone"}
 
-    with pytest.raises(InvalidConfigError, match="Sierra/Leone"):
+    with pytest.raises(ValidationError, match="Sierra/Leone"):
         StudyConf(**study_dict)
 
 
@@ -896,7 +895,7 @@ def test_phone_number_validity_follows_e164_bounds():
 def test_malformed_phone_number_is_rejected_at_config_time():
     # Fails while someone is configuring the study, not when Meta rejects the
     # ad set on the next reconciliation run.
-    with pytest.raises(InvalidConfigError, match="dialable"):
+    with pytest.raises(ValidationError, match="dialable"):
         FlyWhatsAppDestination(
             type="whatsapp",
             name="whatsapp",
@@ -910,7 +909,7 @@ def test_a_phone_number_id_pasted_instead_of_a_number_is_rejected():
     # The trap ctwa_probe calls out by name: phone_number_id is not the number,
     # and sending it is "an easy way to spend a day testing the wrong number".
     # A 17-digit id exceeds E.164, so it is caught.
-    with pytest.raises(InvalidConfigError, match="phone_number_id"):
+    with pytest.raises(ValidationError, match="phone_number_id"):
         FlyWhatsAppDestination(
             type="whatsapp",
             name="whatsapp",
@@ -1400,7 +1399,7 @@ def test_a_multi_destination_shortcode_keeps_the_narrow_alphabet():
     WhatsApp; a hand-typed space is a literal space, not %20, and lands them in
     the fallback survey.
     """
-    with pytest.raises(InvalidConfigError, match="initial_shortcode"):
+    with pytest.raises(ValidationError, match="initial_shortcode"):
         FlyMultiDestination(
             type="multi",
             name="multi",
@@ -1412,7 +1411,7 @@ def test_a_multi_destination_shortcode_keeps_the_narrow_alphabet():
 
 
 def test_a_multi_destination_number_must_be_dialable():
-    with pytest.raises(InvalidConfigError, match="dialable"):
+    with pytest.raises(ValidationError, match="dialable"):
         FlyMultiDestination(
             type="multi",
             name="multi",

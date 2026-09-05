@@ -7,6 +7,7 @@ from unittest.mock import patch
 from urllib.parse import unquote
 
 import pytest
+from pydantic import ValidationError
 from facebook_business.adobjects.adcreative import AdCreative
 from facebook_business.adobjects.customaudience import CustomAudience
 
@@ -39,7 +40,6 @@ from .marketing import (
     whatsapp_ref,
 )
 from .study_conf import (
-    InvalidConfigError,
     AppDestination,
     Audience,
     AudienceConf,
@@ -273,7 +273,12 @@ def test_partitioning_valid_scenarios():
     Partitioning(min_users=100, min_days=2)
     Partitioning(min_users=10, max_users=100, max_days=2)
 
-    with pytest.raises(InvalidConfigError):
+    # Partitioning.validate_scenario raises InvalidConfigError, but it does so
+    # from inside a pydantic model_validator, so pydantic wraps it into a
+    # ValidationError (message preserved) rather than letting InvalidConfigError
+    # itself escape -- see study_conf.py:930 for why that wrapping is now
+    # wanted (it is what lets FastAPI turn it into a 422 at the server).
+    with pytest.raises(ValidationError):
         Partitioning(min_users=100, max_days=100)
         Partitioning(min_users=100, min_days=100, max_days=100)
 
@@ -286,7 +291,7 @@ def test_load_partitioning_works_with_errors():
     assert pt.scenario == {"min_users"}
 
     raw = {"min_users": 100, "max_days": 100}
-    with pytest.raises(InvalidConfigError):
+    with pytest.raises(ValidationError):
         Partitioning(**raw)
 
 
@@ -300,10 +305,13 @@ def test_AudienceConf_validates_config_based_on_subtype():
     # partitioned
     _ac("foo", "PARTITIONED", partitioning=Partitioning(min_users=100))
 
-    with pytest.raises(InvalidConfigError):
+    # AudienceConf.__post_init__ raises InvalidConfigError from a
+    # model_validator, so -- same as Partitioning above -- pydantic wraps it
+    # into a ValidationError rather than letting InvalidConfigError escape.
+    with pytest.raises(ValidationError):
         _ac("foo", "PARTITIONED")
 
-    with pytest.raises(InvalidConfigError):
+    with pytest.raises(ValidationError):
         _ac("foo", "PARTITIONED", partitioning={"foo": "bar"})
 
     # lookalike
@@ -315,10 +323,10 @@ def test_AudienceConf_validates_config_based_on_subtype():
         ),
     )
 
-    with pytest.raises(InvalidConfigError):
+    with pytest.raises(ValidationError):
         _ac("foo", "LOOKALIKE")
 
-    with pytest.raises(InvalidConfigError):
+    with pytest.raises(ValidationError):
         _ac("foo", "LOOKALIKE", lookalike={"foo": "bar"})
 
 

@@ -927,8 +927,40 @@ class VariableConf(BaseModel):
     levels: list[Level]
 
 
-class InvalidConfigError(BaseException):
-    pass
+class InvalidConfigError(ValueError):
+    """A cross-field or whole-conf validation failure raised from a validator.
+
+    Was `BaseException` until 2026-09. That looked like "fail loud" but cost
+    two different things instead:
+
+    1. Every `POST /confs/{conf_type}` handler in server.py validates the
+       posted section via FastAPI's request-body parsing, which is pydantic
+       underneath. Pydantic only converts a validator's raised exception into
+       a `ValidationError` (and FastAPI only turns *that* into a 422) when the
+       exception is a `ValueError` or `AssertionError` -- anything else,
+       `BaseException` included, propagates unwrapped past
+       pydantic and past Starlette's `except Exception` middleware, landing
+       the caller a bare 500 with the careful validator message (WhatsApp
+       entry-regex safety, destination-type coverage, partitioning scenarios,
+       ref-token collisions) sitting only in the server log.
+    2. `except Exception` in the report-healing cron
+       (`malaria.py::heal_reports_for_study`, `run_report_healing`) does not
+       catch `BaseException`. A single study whose stored conf now trips a
+       cross-section validator (e.g. `check_whatsapp_refs_are_deliverable`)
+       would abort `run_report_healing` entirely, taking every study after it
+       in that run down too -- the opposite of the per-study isolation the
+       `except Exception` there was written for.
+
+    Nothing in this codebase relies on `InvalidConfigError` escaping an
+    `except Exception`/`except BaseException` handler to force a louder
+    failure than that handler intended -- see
+    planning/agent-study-authoring.md §11.4 item 1 for the audit. The
+    `except BaseException` blocks in `malaria.run_updates` and
+    `server/server.py` already catch it either way, unaffected.
+    `ValueError` (not plain `Exception`) so pydantic wraps it into a
+    `ValidationError` and preserves the message verbatim, rather than
+    requiring a bespoke FastAPI exception handler.
+    """
 
 
 # scenario: I want to split every N users.
