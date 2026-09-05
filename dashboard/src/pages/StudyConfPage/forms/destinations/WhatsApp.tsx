@@ -84,7 +84,12 @@ const WhatsApp: React.FC<Props> = ({ data, updateFormData, index, savedDestinati
         required={false}
         value={metadata}
       />
-      <RefModeField data={data} handleChange={handleChange} saved={savedDestination} />
+      <RefModeField
+        data={data}
+        index={index}
+        handleChange={handleChange}
+        saved={savedDestination}
+      />
     </>
   );
 };

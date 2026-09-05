@@ -10,6 +10,10 @@ import {
 
 interface Props {
   data: any;
+  // Position in the study's destination list. Makes the radio group's DOM
+  // name unique per destination; without it every destination's radios are
+  // one browser-level group and only one destination can hold a choice.
+  index: number;
   handleChange: (e: any) => void;
   // The destination as saved, absent for one being added now. It is the conf
   // rather than its mode because a conf saved before the field existed has no
@@ -25,13 +29,19 @@ interface Props {
 // without the sentence that defines it. An `<option>` can hold a name or an
 // explanation, never both, which is how this control ended up as a question
 // answered by two sentences with no names at all. See `refMode.ts`.
-const RefModeField: React.FC<Props> = ({ data, handleChange, saved }: Props) => {
+const RefModeField: React.FC<Props> = ({
+  data,
+  index,
+  handleChange,
+  saved,
+}: Props) => {
   const warn = !!saved && refModeChanges(saved.ref_mode, data.ref_mode);
 
   return (
     <>
       <RadioGroup
-        name="ref_mode"
+        name={`ref_mode-${index}`}
+        fieldName="ref_mode"
         label={REF_MODE_LABEL}
         options={refModeOptions()}
         handleChange={handleChange}

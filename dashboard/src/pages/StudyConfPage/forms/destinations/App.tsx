@@ -125,7 +125,12 @@ const App: React.FC<Props> = ({ data, updateFormData, index, savedDestination }:
         handleMultiSelectChange={handleMultiSelectChange}
         value={data.user_os}
       ></MultiSelect>
-      <RefModeField data={data} handleChange={handleChange} saved={savedDestination} />
+      <RefModeField
+        data={data}
+        index={index}
+        handleChange={handleChange}
+        saved={savedDestination}
+      />
     </>
   );
 };
