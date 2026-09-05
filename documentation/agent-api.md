@@ -1797,10 +1797,16 @@ vlab template plan spec.yaml            # human
 vlab template plan spec.yaml --json     # the exact Graph calls, as data
 ```
 
-The plan is what `create` will send, in order, with `${ref}` placeholders for
-ids that do not exist yet. Everything checkable without Meta is checked here:
-the declared-property contract (the same `extract_from_adset` the dashboard
-runs), the budget ceiling, unknown spec keys, missing image files.
+The plan is what `create` will send, in order, with `${vlab:ref}` placeholders
+for ids that do not exist yet (`${vlab:campaign}`,
+`${vlab:adset:Kwara - Men}`, `${vlab:image:ad.png}` — which resolves to the
+image *hash*, because a hash is what a creative references). The `vlab:`
+namespace is there so that a placeholder can never collide with your own ad
+copy; `${vlab:...}` is reserved, everything else in a message is left alone.
+
+Everything checkable without Meta is checked here: the declared-property
+contract (the same `extract_from_adset` the dashboard runs), the budget
+ceiling, unknown spec keys, missing image files.
 
 **4. Create.** Requires `--create` (or `--yes`); without it you get the plan.
 
