@@ -34,7 +34,8 @@ from ..study_conf import (
     StratumConf,
     VariableConf,
 )
-from .auth import AuthError, generate_api_token, verify_tokens
+from .auth import AuthError, verify_tokens
+from .api_keys import add_scope_enforcement, router as api_keys_router
 
 # Re-exported for backwards compatibility: these moved to deps.py so that route
 # modules (studies, api keys, schemas) can depend on authentication without
@@ -66,6 +67,12 @@ app = FastAPI()
 
 origins = ["*"]
 
+# Scope enforcement is added BEFORE CORS deliberately. Starlette runs the
+# last-added middleware outermost, so adding this first leaves CORS outside it
+# and a 403 from a scoped key still carries CORS headers — otherwise the
+# dashboard sees an opaque network error instead of the real status.
+add_scope_enforcement(app)
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
@@ -82,6 +89,7 @@ env = Env()
 # without standing up the whole app; mounted here because this is the only file
 # that owns `app`.
 app.include_router(studies_router)
+app.include_router(api_keys_router)
 
 
 class OptimizeInstruction(BaseModel):
@@ -483,36 +491,6 @@ async def run_instruction(
     try:
         report = run_single_instruction(user.user_id, org_id, slug, instruction)
         return InstructionResult(data=report)
-    except BaseException as e:
-        raise HTTPException(status_code=500, detail=f"{e}")
-
-
-class CreateApiKeyRequest(BaseModel):
-    name: str
-
-
-class CreateApiKeyResponseData(BaseModel):
-    name: str
-    id: str
-    token: str
-
-
-class CreateApiKeyResponse(BaseModel):
-    data: CreateApiKeyResponseData
-
-
-@app.post("/users/api-key", status_code=201)
-async def create_api_key(
-    key_request: CreateApiKeyRequest,
-    user: Annotated[User, Depends(get_current_user)],
-) -> CreateApiKeyResponse:
-    try:
-        token, token_id = generate_api_token(
-            user_id=user.user_id, name=key_request.name
-        )
-        data = CreateApiKeyResponseData(name=key_request.name, token=token, id=token_id)
-        return CreateApiKeyResponse(data=data)
-
     except BaseException as e:
         raise HTTPException(status_code=500, detail=f"{e}")
 

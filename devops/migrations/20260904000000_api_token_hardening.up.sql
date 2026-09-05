@@ -1,0 +1,85 @@
+-- API token hardening (Phase 0 of planning/agent-study-authoring.md §8).
+--
+-- Makes researcher API keys revocable, expiring and scopable, so one can be
+-- handed to an AI agent without handing over the account permanently.
+--
+-- See adopt/adopt/server/api_keys.py for the model. In short: the token is
+-- never stored, so the credentials row is the only revocable thing, and
+-- validity is POSITIVE — a key is live iff its row is live — rather than a
+-- denylist of dead tokens. The `jti` claim is what ties one to the other, so
+-- deleting a key and creating a new one with the same name does not resurrect
+-- the old token.
+--
+-- ADDITIVE ONLY. No existing row is rewritten and no existing token is
+-- invalidated by this migration.
+--
+--
+-- WHY A COMPUTED COLUMN AND NOT A REAL ONE
+--
+-- `jti` and `scopes` are written into `details` by the application, which keeps
+-- one writer and one shape for the whole api_token record. The column exists
+-- only so the verifier's lookup is an index seek instead of a JSONB scan — it
+-- is derived, never written.
+--
+-- (This is the pattern fly uses on the same-shaped table for `facebook_page_id`
+-- — fly:devops/migrations/32-api-token-hardening.sql. Note that vlab's
+-- `credentials` has NO such precedent of its own; Appendix A.4 of the planning
+-- doc says it does, and that is wrong. Verified working on CockroachDB v24.1.28
+-- below, which is what devops/Makefile brings up.)
+--
+--
+-- WHAT HAPPENS TO EXISTING api_token JWTs
+--
+-- Nothing. This is where vlab diverges sharply from fly and the divergence
+-- matters: vlab has NEVER persisted anything for an API key. `generate_api_token`
+-- minted a jti, put it in the token and threw it away (the
+-- `# TODO: check payload ("id") against blacklist / whitelist` at auth.py:62).
+-- So there are no rows to migrate and no jtis to backfill — the jtis in the
+-- wild are unrecoverable.
+--
+-- That means "token has a jti" CANNOT be the discriminator between a hardened
+-- key and a legacy one, the way it is in fly: every vlab key ever minted has
+-- one. The discriminator is instead an explicit
+-- `https://vlab.digital/token-version: 2` claim, which only the new mint path
+-- writes. Tokens carrying it require a live row keyed by jti. Tokens without it
+-- are legacy and are accepted with no row, exactly as today.
+--
+--
+-- HOW A LEGACY KEY IS REVOKED
+--
+-- Legacy keys have no row, so positive validity is not available for them and a
+-- tombstone is the only option: `entity = 'api_token_revoked'`, `key = <token
+-- name>`, matched against the token's `https://vlab.digital/token-name` claim.
+-- Its presence denies the key.
+--
+-- This is a denylist, with a denylist's weaknesses. The concrete one: names
+-- were never unique before this migration, because nothing was stored to make
+-- them unique, so a user with two legacy keys both called "agent" tombstones
+-- both or neither. That imprecision errs towards denying, which is the right
+-- direction, and it is exactly what `jti` removes for every key minted from now
+-- on. Reissuing a key as a v2 one is the real fix.
+--
+-- Note the tombstone does NOT interfere with reusing the name for a new key: a
+-- v2 key is validated by jti and never consults tombstones, and the tombstone
+-- lives under a different `entity` so it does not hold the name hostage in
+-- unique_entity_key_per_user either.
+
+-- Derived from details->>'jti'. Written by nothing; read by the verifier.
+ALTER TABLE credentials
+      ADD COLUMN IF NOT EXISTS api_token_jti VARCHAR
+      AS (CASE WHEN entity = 'api_token' THEN details->>'jti' ELSE NULL END) STORED;
+
+-- SPLIT ACROSS TWO MIGRATIONS ON PURPOSE
+--
+-- The unique index over this column is 20260904000001, not the next statement
+-- here, because CockroachDB refuses to build an index on a column that is not
+-- yet public: golang-migrate runs each file in one transaction, and inside that
+-- transaction the freshly-added column is still in a write-only backfill state.
+-- Verified on v24.1.28:
+--
+--   pq: cannot create partial index on column "api_token_jti" (8)
+--       which is not public
+--
+-- One file per transaction is the only fix that keeps the migration atomic.
+-- Applying 000000 without 000001 is safe but slow — the verifier's lookup falls
+-- back to a full scan — so the two always ship together.
