@@ -185,10 +185,47 @@ def ads_for_adset(adset, ads):
     return [a for a in ads if a["adset_id"] == adset["id"]]
 
 
+def api_for_token(
+    token: str,
+    app_id: Optional[str] = None,
+    app_secret: Optional[str] = None,
+) -> FacebookAdsApi:
+    """One Meta API handle for one token — the only place a session is built.
+
+    Extracted from `get_api` (below) when `adopt.authoring.templates` needed to
+    authenticate from a pipx-installed CLI, where the service's `environs` env
+    does not exist and a researcher may hold nothing but an access token. Two
+    constructions of a Facebook session would be two answers to "does vlab send
+    appsecret_proof", and that is the difference between working and
+    `code 1, Invalid appsecret_proof provided` — a failure that names nothing
+    useful.
+
+    **`appsecret_proof` is sent if and only if an app secret is supplied.**
+    `FacebookSession` computes it in its constructor from `app_secret`; passing
+    None simply omits the parameter. Meta requires the proof only for apps with
+    Settings -> Advanced -> "Require app secret" turned on, which is off by
+    default; that setting is not readable from this repository, so a token-only
+    session is *offered* rather than blessed and the caller is warned. The conf
+    service always has both (`facebook-envs` secret, plan §13.6) and therefore
+    always sends the proof.
+
+    Never `FacebookAdsApi.init`: that installs a process-global default API,
+    which inside a multi-user service is a cross-tenant credential bug waiting
+    for two requests to interleave (plan §13.4). A per-caller handle costs
+    nothing and cannot do that.
+    """
+    return FacebookAdsApi(FacebookSession(app_id, app_secret, token))
+
+
 def get_api(env, token: str) -> FacebookAdsApi:
-    session = FacebookSession(env("FACEBOOK_APP_ID"), env("FACEBOOK_APP_SECRET"), token)
-    api = FacebookAdsApi(session)
-    return api
+    """The service's handle: `env` is an `environs.Env`, and both keys exist.
+
+    A thin wrapper over `api_for_token` rather than its own construction — see
+    that docstring. `env(...)` raises when a key is missing, which is what the
+    service wants: a deployment with no `FACEBOOK_APP_SECRET` should fail at
+    the first Meta call, loudly, not silently stop sending `appsecret_proof`.
+    """
+    return api_for_token(token, env("FACEBOOK_APP_ID"), env("FACEBOOK_APP_SECRET"))
 
 
 class CampaignState:
