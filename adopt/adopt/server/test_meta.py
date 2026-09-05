@@ -27,7 +27,9 @@ The properties worth asserting, and why each is here:
   the proxy exists, so it is asserted exhaustively rather than spot-checked.
 """
 
+import asyncio
 import os
+import time
 import uuid
 from datetime import datetime, timezone
 from test.dbfix import _reset_db
@@ -78,7 +80,8 @@ def _make_app() -> FastAPI:
     return app
 
 
-client = TestClient(_make_app(), raise_server_exceptions=False)
+APP = _make_app()
+client = TestClient(APP, raise_server_exceptions=False)
 
 
 # --------------------------------------------------------------------------
@@ -997,3 +1000,94 @@ def test_created_is_serialised_not_a_datetime():
     assert isinstance(created, str)
     assert datetime.fromisoformat(created).tzinfo is not None
     assert created <= datetime.now(timezone.utc).isoformat()
+
+
+# --------------------------------------------------------------------------
+# The event loop must stay free
+# --------------------------------------------------------------------------
+#
+# Everything these handlers do is blocking: psycopg for the org and credential
+# reads, `requests` inside `FacebookAdsApi.call` for Meta. Run directly in an
+# `async def` handler that would pin the event loop for the whole request, and
+# the process would serve nothing else meanwhile — `/health` included, so one
+# slow ad account reads as a dead pod. The fix is `asyncio.to_thread`, matching
+# `server.optimize_study`; these are the tests that hold it in place, because
+# every other test in this file passes either way.
+
+
+def test_the_event_loop_is_not_blocked_while_meta_is_slow():
+    """The load-bearing one.
+
+    Drives the real ASGI app on a real event loop, with a Graph call that takes
+    a visible amount of wall-clock time, and counts how many times an unrelated
+    coroutine gets scheduled while the request is in flight. If the handler ran
+    its blocking work on the loop, the answer would be ~0 no matter how long
+    the request took.
+    """
+    import httpx
+
+    org_id = _org(USER)
+    _credential(USER, "facebook", "Facebook", {"access_token": TOKEN})
+    headers = _key()
+
+    SLEEP = 0.4
+
+    def _slow_call(api_self, method, path, params=None, **kwargs):
+        time.sleep(SLEEP)
+        return _Response(_page([{"id": "act_1"}]))
+
+    async def _drive():
+        transport = httpx.ASGITransport(app=APP, raise_app_exceptions=False)
+        async with httpx.AsyncClient(transport=transport, base_url="http://t") as ac:
+            request = asyncio.ensure_future(
+                ac.get(f"/{org_id}/meta/adaccounts", headers=headers)
+            )
+            ticks = 0
+            while not request.done():
+                # If the loop were blocked, this sleep could not be scheduled
+                # until the handler returned.
+                await asyncio.sleep(0.01)
+                ticks += 1
+            return await request, ticks
+
+    with patch.object(FacebookAdsApi, "call", _slow_call):
+        res, ticks = asyncio.run(_drive())
+
+    assert res.status_code == 200, res.text
+    # A blocked loop yields 0-1 ticks. A free one yields roughly SLEEP/0.01.
+    # The floor is deliberately far below that so this cannot flake on a busy
+    # machine while still being impossible to pass with a blocked loop.
+    assert ticks >= 10, f"event loop appears blocked: only {ticks} ticks"
+
+
+def test_every_meta_route_carries_a_handler_timeout():
+    """A route added without `@async_timeout` can hang a client indefinitely.
+
+    `functools.wraps` in `deps.async_timeout` leaves `__wrapped__` on the
+    registered endpoint, so its presence is the marker. Checked over the router
+    rather than per route, so a new route is caught by default.
+    """
+    for route in meta.router.routes:
+        assert hasattr(
+            route.endpoint, "__wrapped__"
+        ), f"{route.path} is not wrapped in @async_timeout"
+
+
+def test_async_timeout_gives_up_with_504():
+    """`deps.async_timeout`, the shared decorator, as a unit.
+
+    It moved out of `server.py` so `meta.py` could use it without importing
+    `server` (which imports `meta`). Behaviour is unchanged; this pins it.
+    """
+    from fastapi import HTTPException as _HTTPException
+
+    from .deps import async_timeout
+
+    @async_timeout(0)
+    async def _forever():
+        await asyncio.sleep(10)
+
+    with pytest.raises(_HTTPException) as excinfo:
+        asyncio.run(_forever())
+
+    assert excinfo.value.status_code == 504

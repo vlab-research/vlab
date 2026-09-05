@@ -49,6 +49,7 @@ way the optimize path does — same `appsecret_proof`, same per-call session
 object, no process-global `FacebookAdsApi.init`.
 """
 
+import asyncio
 import logging
 import re
 import uuid
@@ -63,7 +64,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from ..facebook.state import get_api
 from .api_keys import require_scope
 from .db import get_facebook_token, list_facebook_credentials, user_in_org
-from .deps import User, get_current_user
+from .deps import User, async_timeout, get_current_user
 
 logger = logging.getLogger(__name__)
 
@@ -98,6 +99,18 @@ GRAPH_TIMEOUT_SECONDS = 20
 MAX_PAGES = 10
 DEFAULT_LIMIT = 100
 MAX_LIMIT = 500
+
+# The whole-handler budget, derived from the two limits above rather than
+# picked: MAX_PAGES Graph calls that each take the full GRAPH_TIMEOUT_SECONDS,
+# plus slack for the two database reads. It is a backstop against a socket that
+# neither returns nor times out, not a scheduling policy — the page cap is the
+# real bound on how much work one request can do.
+#
+# Deliberately generous rather than tight. A 504 here loses the resume cursor
+# (the caller gets an error body, not a `paging.after`), so a request that is
+# slow but genuinely making progress must be allowed to finish. The optimize
+# routes use the same decorator with 300s.
+HANDLER_TIMEOUT_SECONDS = MAX_PAGES * GRAPH_TIMEOUT_SECONDS + 20
 
 
 # --------------------------------------------------------------------------
@@ -511,9 +524,37 @@ LimitQuery = Annotated[int, Query(ge=1, le=MAX_LIMIT)]
 # --------------------------------------------------------------------------
 # Routes
 # --------------------------------------------------------------------------
+#
+# EVERY HANDLER BELOW IS `async def` AND DOES ITS WORK IN `asyncio.to_thread`.
+#
+# That is not decoration. All the work here is blocking: `user_in_org` and the
+# credential lookups are synchronous psycopg, and `FacebookAdsApi.call` is
+# synchronous `requests`. Run directly in an `async def` handler, a single
+# request would pin the event loop for as long as Meta took to answer — up to
+# `HANDLER_TIMEOUT_SECONDS` in the worst case — and while it did, this process
+# would serve nothing at all, `/health` included. One slow ad account would
+# read as a dead pod.
+#
+# `server.py` already established the pattern for exactly this hazard:
+# `optimize_study` does its Meta work with `await asyncio.to_thread(...)` under
+# `@async_timeout(300)`. These routes follow it, with the timeout derived from
+# this module's own limits.
+#
+# Plain `def` handlers would also have kept the loop free — FastAPI runs those
+# in its threadpool — but `asyncio.wait_for` cannot interrupt a sync handler,
+# so there would be no way to bound how long a client waits. `async def` plus
+# `to_thread` gets both. Note what the timeout can and cannot do: it frees the
+# loop and answers the client, but the worker thread runs to completion
+# regardless (see `deps.async_timeout`). The thread terminates on its own
+# because every Graph call carries `GRAPH_TIMEOUT_SECONDS` as a socket timeout.
+#
+# Cheap, non-blocking validation (ids, mutually-exclusive parameters) stays
+# OUTSIDE the thread, so a malformed request is rejected without occupying a
+# worker at all.
 
 
 @router.get("/{org_id}/meta/credentials")
+@async_timeout(HANDLER_TIMEOUT_SECONDS)
 async def list_credentials(
     org_id: str,
     user: CurrentUser,
@@ -527,20 +568,25 @@ async def list_credentials(
     it before. The Go service's `/accounts` does, but it is Auth0-only and it
     returns `details` — including the access token — to the browser.
     """
-    _check_org(user.user_id, org_id)
-    return {
-        "data": [
-            {
-                "key": c["key"],
-                "entity": c["entity"],
-                "created": c["created"].isoformat() if c.get("created") else None,
-            }
-            for c in list_facebook_credentials(user.user_id)
-        ]
-    }
+
+    def _work():
+        _check_org(user.user_id, org_id)
+        return {
+            "data": [
+                {
+                    "key": c["key"],
+                    "entity": c["entity"],
+                    "created": c["created"].isoformat() if c.get("created") else None,
+                }
+                for c in list_facebook_credentials(user.user_id)
+            ]
+        }
+
+    return await asyncio.to_thread(_work)
 
 
 @router.get("/{org_id}/meta/adaccounts")
+@async_timeout(HANDLER_TIMEOUT_SECONDS)
 async def list_ad_accounts(
     org_id: str,
     user: CurrentUser,
@@ -555,18 +601,23 @@ async def list_ad_accounts(
     the same thing prefixed `act_`. Both are returned because the dashboard
     returns both and the two are used in different places.
     """
-    _check_org(user.user_id, org_id)
-    credential = resolve_credential(user.user_id, credentials_key)
-    return paged_get(
-        _api_for(credential.token),
-        ("me", "adaccounts"),
-        AD_ACCOUNT_FIELDS,
-        limit,
-        after,
-    )
+
+    def _work():
+        _check_org(user.user_id, org_id)
+        credential = resolve_credential(user.user_id, credentials_key)
+        return paged_get(
+            _api_for(credential.token),
+            ("me", "adaccounts"),
+            AD_ACCOUNT_FIELDS,
+            limit,
+            after,
+        )
+
+    return await asyncio.to_thread(_work)
 
 
 @router.get("/{org_id}/meta/campaigns")
+@async_timeout(HANDLER_TIMEOUT_SECONDS)
 async def list_campaigns(
     org_id: str,
     user: CurrentUser,
@@ -582,19 +633,24 @@ async def list_campaigns(
     paused or completed, so filtering to active ones would hide exactly the
     campaigns an author is looking for.
     """
-    _check_org(user.user_id, org_id)
     account_id = normalize_account_id(account)
-    credential = resolve_credential(user.user_id, credentials_key)
-    return paged_get(
-        _api_for(credential.token),
-        (account_id, "campaigns"),
-        CAMPAIGN_FIELDS,
-        limit,
-        after,
-    )
+
+    def _work():
+        _check_org(user.user_id, org_id)
+        credential = resolve_credential(user.user_id, credentials_key)
+        return paged_get(
+            _api_for(credential.token),
+            (account_id, "campaigns"),
+            CAMPAIGN_FIELDS,
+            limit,
+            after,
+        )
+
+    return await asyncio.to_thread(_work)
 
 
 @router.get("/{org_id}/meta/adsets")
+@async_timeout(HANDLER_TIMEOUT_SECONDS)
 async def list_adsets(
     org_id: str,
     user: CurrentUser,
@@ -611,19 +667,24 @@ async def list_adsets(
     `feature/agent-study-authoring-phase1`, PR #254), which is why `targeting`
     is in the field list and must stay there.
     """
-    _check_org(user.user_id, org_id)
     _validate_id(campaign, "campaign")
-    credential = resolve_credential(user.user_id, credentials_key)
-    return paged_get(
-        _api_for(credential.token),
-        (campaign, "adsets"),
-        ADSET_FIELDS,
-        limit,
-        after,
-    )
+
+    def _work():
+        _check_org(user.user_id, org_id)
+        credential = resolve_credential(user.user_id, credentials_key)
+        return paged_get(
+            _api_for(credential.token),
+            (campaign, "adsets"),
+            ADSET_FIELDS,
+            limit,
+            after,
+        )
+
+    return await asyncio.to_thread(_work)
 
 
 @router.get("/{org_id}/meta/ads")
+@async_timeout(HANDLER_TIMEOUT_SECONDS)
 async def list_ads(
     org_id: str,
     user: CurrentUser,
@@ -646,8 +707,6 @@ async def list_ads(
     `/<adset>/ads` identically. Exactly one of the two is required: defaulting
     would mean guessing which id an ambiguous caller meant.
     """
-    _check_org(user.user_id, org_id)
-
     if bool(campaign) == bool(adset):
         raise HTTPException(
             status_code=400,
@@ -657,17 +716,22 @@ async def list_ads(
     parent = campaign or adset
     _validate_id(parent, "campaign" if campaign else "ad set")
 
-    credential = resolve_credential(user.user_id, credentials_key)
-    return paged_get(
-        _api_for(credential.token),
-        (parent, "ads"),
-        AD_FIELDS,
-        limit,
-        after,
-    )
+    def _work():
+        _check_org(user.user_id, org_id)
+        credential = resolve_credential(user.user_id, credentials_key)
+        return paged_get(
+            _api_for(credential.token),
+            (parent, "ads"),
+            AD_FIELDS,
+            limit,
+            after,
+        )
+
+    return await asyncio.to_thread(_work)
 
 
 @router.get("/{org_id}/meta/ads/{ad_id}/creative")
+@async_timeout(HANDLER_TIMEOUT_SECONDS)
 async def get_ad_creative(
     org_id: str,
     ad_id: str,
@@ -685,15 +749,18 @@ async def get_ad_creative(
 
     Unpaginated by construction — an ad has exactly one creative.
     """
-    _check_org(user.user_id, org_id)
     _validate_id(ad_id, "ad")
-    credential = resolve_credential(user.user_id, credentials_key)
 
-    body = _graph_get(
-        _api_for(credential.token),
-        (ad_id,),
-        {"fields": f"id,name,creative{{{CREATIVE_FIELDS}}}", "pretty": 0},
-    )
+    def _work():
+        _check_org(user.user_id, org_id)
+        credential = resolve_credential(user.user_id, credentials_key)
+        return _graph_get(
+            _api_for(credential.token),
+            (ad_id,),
+            {"fields": f"id,name,creative{{{CREATIVE_FIELDS}}}", "pretty": 0},
+        )
+
+    body = await asyncio.to_thread(_work)
 
     creative = body.get("creative")
     if not creative:

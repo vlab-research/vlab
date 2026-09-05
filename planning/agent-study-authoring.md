@@ -741,6 +741,26 @@ echoed: the SDK interpolates the whole `request_context` into it.
 four outcomes (success, Meta 4xx, Meta 5xx, network failure) and asserts neither
 the token nor its `appsecret_proof` is in the body or the headers.
 
+**Every handler does its work in `asyncio.to_thread`, under `async_timeout`.**
+Added after review; the first draft had `async def` handlers calling blocking
+psycopg and blocking `requests` directly, which pins the event loop for the
+whole request. The worst case — `MAX_PAGES` × `GRAPH_TIMEOUT_SECONDS` — is 200
+seconds during which the process would serve nothing at all, `/health`
+included, so one slow ad account would read as a dead pod to Kubernetes.
+`server.optimize_study` had already established the pattern for exactly this
+hazard and the proxy now follows it; `async_timeout` moved from `server.py` to
+`deps.py` so `meta.py` could use it without the import cycle. Plain `def`
+handlers would also have freed the loop (FastAPI threadpools those) but
+`asyncio.wait_for` cannot interrupt a sync handler, so there would be no bound
+on how long a client waits.
+
+The regression test is `test_the_event_loop_is_not_blocked_while_meta_is_slow`,
+which drives the real ASGI app on a real loop with a slow Graph call and counts
+how often an unrelated coroutine gets scheduled meanwhile. Verified
+non-vacuous: reverting one handler to the inline form drops it from ~40 ticks
+to 2. Cheap validation (ids, mutually-exclusive parameters) deliberately stays
+outside the thread, so a malformed request never occupies a worker.
+
 ### 13.5 Deliberately not done
 
 - **The dashboard was not repointed.** It works, it holds the token already, and

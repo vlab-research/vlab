@@ -604,6 +604,14 @@ to this token, expired token — all yours to act on). Meta `429` and `5xx`, and
 a Graph API that cannot be reached at all, become `502` with
 `"meta_error": null` for the latter. Retry a `502`; do not retry a `400`.
 
+A request that has not finished in 220 seconds is
+`504 {"detail": "Operation timed out after 220 seconds"}` — the same decorator
+the optimize routes use. You should never see it: the budget is the arithmetic
+worst case of the page cap and the per-call socket timeout, so it fires only
+when something upstream has genuinely hung. Note a `504` carries no
+`paging.after`, so there is nothing to resume from; if you are near the cap,
+lower `?limit=` rather than retrying identically.
+
 **What this is not.** There is no write proxy — `meta:write` is expressible and
 nothing serves it. There is no caching: every call is a live Graph read against
 Meta's per-app rate limits, so do not poll these in a loop.
