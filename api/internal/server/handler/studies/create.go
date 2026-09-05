@@ -21,6 +21,16 @@ type createResponse struct {
 
 // CreateHandler is a gin handler that is used to create
 // a new Study object in the database
+//
+// Deprecated: superseded by POST /{org_id}/studies on the Python conf service
+// (adopt/adopt/server/studies.py). This handler only accepts Auth0 tokens, so
+// an agent or script holding a vlab API key cannot use it and has to have a
+// human create the study in the dashboard first; the conf service accepts both
+// Auth0 and API keys. The replacement is a deliberate port of this handler's
+// semantics — same slug (gosimple/slug), same 300-byte name cap, same 409 on a
+// duplicate, same {"data": {...}} response shape — so callers can be moved over
+// without a client change. See planning/agent-study-authoring.md §2.3, §8
+// Phase 0 and Appendix A.1/A.3. Do not add behaviour here; add it there.
 func CreateHandler(r storage.Repositories) gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		var uri struct {

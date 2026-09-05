@@ -148,6 +148,61 @@ def get_study_id(user_id: str, org_id: str, study_slug: str):
         raise HTTPException(status_code=404, detail=f"Study not found: {study_slug}")
 
 
+def create_study(user_id: str, org_id: str, name: str, slug: str):
+    """Create a study row, owned by `user_id` and scoped to `org_id`.
+
+    This is the Python port of the Go dashboard API's `CreateStudy`
+    (`api/internal/storage/study.go`), which until now was the only way to
+    bring a study into existence and is Auth0-only — so an API key could
+    configure a study but not create one. See planning/agent-study-authoring.md
+    §2.3 and Appendix A.1; the Go semantics are the spec here, because every
+    live study was created through them.
+
+    Two traps, both recorded in Appendix A.1/A.2, both of which the *other*
+    Python implementation (`create_campaign_for_user`,
+    `adopt/campaign_queries.py:66`) gets wrong:
+
+    1. `org_id` is not optional. Every conf endpoint reaches a study through
+       `JOIN orgs_lookup ol ON ol.org_id = s.org_id AND s.org_id = %s` (see
+       `get_study_id` and `get_study_conf` above). A study row with a NULL
+       `org_id` is therefore invisible to all of them: creatable, and then
+       never configurable. `create_campaign_for_user` never sets it.
+
+    2. `credentials_key` stays NULL. The column and its FK to
+       `credentials(user_id, entity, key)` are vestigial on the modern path —
+       Facebook credentials are resolved from the *general* study conf by
+       `get_user_info` (`adopt/campaign_queries.py:13`), not from this column.
+       Writing a key here fails the FK unless a matching credentials row
+       already exists, and buys nothing. Leaving it NULL satisfies the FK
+       vacuously, exactly as the Go path does.
+
+    Authorisation is the INSERT itself. The row is built by selecting from
+    `orgs_lookup`, so a user who is not a member of `org_id` simply matches no
+    rows and nothing is written — there is no window between an "am I a
+    member?" check and the write in which membership could be revoked. That is
+    the same membership rule the read paths above enforce, expressed as a
+    write.
+
+    Returns the created row, or None if the caller is not a member of the org.
+    Raises psycopg.errors.UniqueViolation on `unique_name`/`unique_slug`; both
+    are per-USER, not per-org, and the caller maps them to 409.
+    """
+    q = """
+    INSERT INTO studies (slug, name, user_id, org_id)
+    SELECT %s, %s, ol.user_id, ol.org_id
+    FROM orgs_lookup ol
+    WHERE ol.user_id = %s
+    AND ol.org_id = %s
+    RETURNING id, name, slug, created
+    """
+
+    res = query(db_cnf, q, (slug, name, user_id, org_id), as_dict=True)
+    rows = list(res)
+    if not rows:
+        return None
+    return rows[0]
+
+
 def create_study_conf(
     user_id: str,
     org_id: str,

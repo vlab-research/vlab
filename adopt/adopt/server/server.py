@@ -40,6 +40,7 @@ from .auth import AuthError, generate_api_token, verify_tokens
 # modules (studies, api keys, schemas) can depend on authentication without
 # importing server, which imports them — a cycle.
 from .deps import User, get_current_user, security
+from .studies import router as studies_router
 from .csv_export import ad_attributions_csv, ad_attributions_table
 from .db import (
     copy_confs,
@@ -75,6 +76,12 @@ app.add_middleware(
 
 
 env = Env()
+
+
+# Study creation. Lives in its own module so that the route can be tested
+# without standing up the whole app; mounted here because this is the only file
+# that owns `app`.
+app.include_router(studies_router)
 
 
 class OptimizeInstruction(BaseModel):
