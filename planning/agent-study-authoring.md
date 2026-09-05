@@ -128,7 +128,9 @@ as dashboard TypeScript:
 2. **Targeting extraction from template ad sets.**
    `dashboard/src/pages/StudyConfPage/forms/variables/extract.ts` —
    `extractFromAdset` pulls the declared properties off a Meta ad set, throws
-   `PropertyMissingError` when one is absent, and unconditionally forces
+   `PropertyMissingError` when one is absent from every level's ad set (one
+   that some other level carries is simply omitted; see
+   `propertiesOnSomeLevel`), and unconditionally forces
    `targeting_automation: {advantage_audience: 0}`. That last line is a
    deliberate policy decision with a real-world failure behind it (Advantage
    audience expansion leaking delivery outside a geographic stratum).
@@ -672,7 +674,7 @@ against the real TypeScript before either port existed.
 | | |
 |---|---|
 | `adopt/adopt/authoring/strata.py` | Port of `strata.ts`: `create_strata_from_variables`, `format_group_product`, `strata_staleness_hint`, `get_finish_question_ref`. Works on JSON wire shapes; accepts pydantic models by dumping them first. |
-| `adopt/adopt/authoring/extract.py` | Port of `extract.ts`: `extract_from_adset`, `is_level_in_sync`, `diff_property_keys`; typed errors under an `ExtractError(Exception)` base. |
+| `adopt/adopt/authoring/extract.py` | Port of `extract.ts`: `extract_from_adset`, `properties_on_some_level`, `is_level_in_sync`, `diff_property_keys`; typed errors under an `ExtractError(Exception)` base. |
 | `test_strata.py`, `test_extract.py` | `strata.spec.ts` and `extract.test.ts` translated test-for-test, plus a marked section of extra cases for behaviour the TypeScript leaves implicit. |
 | `dashboard/scripts/authoring-conformance.ts` | Runs the **real** TypeScript over 1,142 cases — every spec literal, 98 hand-written edge cases, 1,000 seeded-random (mulberry32) — and records `(fn, args, result \| error)`. Byte-reproducible. |
 | `conformance_fixtures.json`, `test_conformance.py` | Replays every recording through the Python. Comparator is stricter than `==`: booleans by identity, floats exact, key sets equal. Negative control: nine seeded divergences all caught; reversing the shallow-merge precedence in the port fails 190 cases. |

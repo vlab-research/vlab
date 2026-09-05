@@ -22,6 +22,7 @@ from adopt.authoring.extract import (
     diff_property_keys,
     extract_from_adset,
     is_level_in_sync,
+    properties_on_some_level,
 )
 
 MOCK_ADSET = {
@@ -127,6 +128,111 @@ def test_should_return_only_targeting_automation_for_adset_with_no_requested_pro
 
     result = extract_from_adset(minimal_adset, [])
     assert result == {"targeting_automation": {"advantage_audience": 0}}
+
+
+def test_should_omit_a_missing_property_that_is_optional_rather_than_throw():
+    result = extract_from_adset(
+        MOCK_ADSET, ["geo_locations", "custom_audiences"], ["custom_audiences"]
+    )
+
+    assert result == {
+        "geo_locations": {"cities": [{"key": "NG-BA", "name": "Bauchi"}]},
+        "targeting_automation": {"advantage_audience": 0},
+    }
+    assert "custom_audiences" not in result
+
+
+def test_should_copy_an_optional_property_when_the_adset_has_it():
+    result = extract_from_adset(MOCK_ADSET, ["geo_locations", "age_min"], ["age_min"])
+
+    assert result["age_min"] == 18
+
+
+def test_should_still_throw_for_a_missing_property_that_is_not_optional():
+    with pytest.raises(PropertyMissingError) as excinfo:
+        extract_from_adset(
+            MOCK_ADSET,
+            ["custom_audiences", "excluded_geo_locations"],
+            ["custom_audiences"],
+        )
+
+    assert excinfo.value.property_key == "excluded_geo_locations"
+
+
+# --- propertiesOnSomeLevel -------------------------------------------------
+#
+# The rule behind `optional`: a property is required of every level only when
+# no level has it. One level with it makes it optional for the rest.
+
+URBAN = {
+    "id": "adset-urban",
+    "name": "Argentina - Urban",
+    "targeting": {
+        "geo_locations": {"regions": [{"key": "1", "name": "Buenos Aires"}]},
+        "excluded_geo_locations": {"regions": [{"key": "2", "name": "Pampa"}]},
+    },
+}
+RURAL = {
+    "id": "adset-rural",
+    "name": "Argentina - Rural",
+    "targeting": {"geo_locations": {"regions": [{"key": "2", "name": "Pampa"}]}},
+}
+LEVELS = [{"template_adset": "adset-urban"}, {"template_adset": "adset-rural"}]
+
+
+def test_returns_the_properties_at_least_one_level_carries():
+    result = properties_on_some_level(
+        LEVELS,
+        [URBAN, RURAL],
+        ["geo_locations", "excluded_geo_locations", "custom_audiences"],
+    )
+
+    assert result == ["geo_locations", "excluded_geo_locations"]
+
+
+def test_leaves_out_a_property_no_level_carries_so_it_stays_required():
+    assert properties_on_some_level(LEVELS, [URBAN, RURAL], ["custom_audiences"]) == []
+
+
+def test_lets_a_level_lacking_the_property_extract_once_another_level_has_it():
+    optional = properties_on_some_level(
+        LEVELS, [URBAN, RURAL], ["geo_locations", "excluded_geo_locations"]
+    )
+    result = extract_from_adset(
+        RURAL, ["geo_locations", "excluded_geo_locations"], optional
+    )
+
+    assert result == {
+        "geo_locations": {"regions": [{"key": "2", "name": "Pampa"}]},
+        "targeting_automation": {"advantage_audience": 0},
+    }
+
+
+def test_ignores_a_level_whose_adset_is_not_found():
+    result = properties_on_some_level(
+        [{"template_adset": "adset-rural"}, {"template_adset": "adset-gone"}],
+        [URBAN, RURAL],
+        ["geo_locations", "excluded_geo_locations"],
+    )
+
+    assert result == ["geo_locations"]
+
+
+def test_ignores_an_adset_with_no_targeting_object():
+    bare = {"id": "adset-bare", "name": "Bare"}
+
+    assert (
+        properties_on_some_level([{"template_adset": "adset-bare"}], [bare], ["geo_locations"])
+        == []
+    )
+
+
+def test_keeps_the_order_of_properties_not_of_levels():
+    result = properties_on_some_level(
+        LEVELS, [URBAN, RURAL], ["excluded_geo_locations", "geo_locations"]
+    )
+
+    assert result == ["excluded_geo_locations", "geo_locations"]
 
 
 # --- error types -----------------------------------------------------------

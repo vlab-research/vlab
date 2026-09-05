@@ -59,6 +59,19 @@ throws (`AdsetNotFoundError`, `PropertyMissingError`), we render the
 error block as before — the per-level error takes priority over the
 banner.
 
+A property is required of a level only if **no level in the variable has
+it** (Sep 2026). Meta writes a targeting key only when it is set, so a
+geographic variable's "Rural" ad set carries no `excluded_geo_locations`
+while its "Urban" one does; that absence is the rural level's real
+targeting. `propertiesOnSomeLevel(levels, adsets, properties)` computes
+the properties some level carries, and each level passes that list to
+`extractFromAdset` as `optional`: a missing optional property is omitted
+from that level's `facebook_targeting`, a missing property no level has
+still throws `PropertyMissingError`. The out-of-sync key diff compares
+against `expectedPropertyKeys(wouldApply, properties)` for the same
+reason, or a level that correctly omits a key would read as "added"
+forever.
+
 ## Out-of-sync banner (per level)
 
 Two-line when keys differ; one-line when only values drift:
@@ -89,7 +102,8 @@ One button per Variable row, in the same row cluster as `properties`.
 
 **Click** → run `extractFromAdset` for every level in this variable
 using **current** `useAdsets` cache + the variable's current
-`properties` + each level's `template_adset`. On success, write
+`properties` + each level's `template_adset`, with the properties some
+level carries passed as `optional`. On success, write
 `facebook_targeting`. On throw, write `facebook_targeting: {}` and let
 the per-level live preview surface the error inline.
 

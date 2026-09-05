@@ -59,6 +59,7 @@ _FUNCTION_LOOKUP: Dict[str, Tuple[Any, str]] = {
     "strata_staleness_hint": (strata_mod, "strata_staleness_hint"),
     "get_finish_question_ref": (strata_mod, "get_finish_question_ref"),
     "extract_from_adset": (extract_mod, "extract_from_adset"),
+    "properties_on_some_level": (extract_mod, "properties_on_some_level"),
     "is_level_in_sync": (extract_mod, "is_level_in_sync"),
     "diff_property_keys": (extract_mod, "diff_property_keys"),
 }

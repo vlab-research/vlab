@@ -149288,6 +149288,563 @@
    }
   },
   {
+   "name": "spec/extract-optional-missing-property-is-omitted",
+   "fn": "extract_from_adset",
+   "args": [
+    {
+     "id": "adset-123",
+     "name": "Test Adset",
+     "targeting": {
+      "geo_locations": {
+       "cities": [
+        {
+         "key": "NG-BA",
+         "name": "Bauchi"
+        }
+       ]
+      },
+      "age_min": 18,
+      "age_max": 65,
+      "genders": [
+       1
+      ],
+      "targeting_automation": {
+       "advantage_audience": 1,
+       "individual_setting": {
+        "age": 1,
+        "gender": 0,
+        "geo": 0
+       }
+      }
+     }
+    },
+    [
+     "geo_locations",
+     "custom_audiences"
+    ],
+    [
+     "custom_audiences"
+    ]
+   ],
+   "result": {
+    "geo_locations": {
+     "cities": [
+      {
+       "key": "NG-BA",
+       "name": "Bauchi"
+      }
+     ]
+    },
+    "targeting_automation": {
+     "advantage_audience": 0
+    }
+   }
+  },
+  {
+   "name": "spec/extract-optional-present-property-is-copied",
+   "fn": "extract_from_adset",
+   "args": [
+    {
+     "id": "adset-123",
+     "name": "Test Adset",
+     "targeting": {
+      "geo_locations": {
+       "cities": [
+        {
+         "key": "NG-BA",
+         "name": "Bauchi"
+        }
+       ]
+      },
+      "age_min": 18,
+      "age_max": 65,
+      "genders": [
+       1
+      ],
+      "targeting_automation": {
+       "advantage_audience": 1,
+       "individual_setting": {
+        "age": 1,
+        "gender": 0,
+        "geo": 0
+       }
+      }
+     }
+    },
+    [
+     "geo_locations",
+     "age_min"
+    ],
+    [
+     "age_min"
+    ]
+   ],
+   "result": {
+    "geo_locations": {
+     "cities": [
+      {
+       "key": "NG-BA",
+       "name": "Bauchi"
+      }
+     ]
+    },
+    "age_min": 18,
+    "targeting_automation": {
+     "advantage_audience": 0
+    }
+   }
+  },
+  {
+   "name": "spec/extract-non-optional-missing-still-throws",
+   "fn": "extract_from_adset",
+   "args": [
+    {
+     "id": "adset-123",
+     "name": "Test Adset",
+     "targeting": {
+      "geo_locations": {
+       "cities": [
+        {
+         "key": "NG-BA",
+         "name": "Bauchi"
+        }
+       ]
+      },
+      "age_min": 18,
+      "age_max": 65,
+      "genders": [
+       1
+      ],
+      "targeting_automation": {
+       "advantage_audience": 1,
+       "individual_setting": {
+        "age": 1,
+        "gender": 0,
+        "geo": 0
+       }
+      }
+     }
+    },
+    [
+     "custom_audiences",
+     "excluded_geo_locations"
+    ],
+    [
+     "custom_audiences"
+    ]
+   ],
+   "error": {
+    "name": "PropertyMissingError",
+    "adsetName": "Test Adset",
+    "propertyKey": "excluded_geo_locations"
+   }
+  },
+  {
+   "name": "spec/extract-optional-empty-list-is-strict",
+   "fn": "extract_from_adset",
+   "args": [
+    {
+     "id": "adset-123",
+     "name": "Test Adset",
+     "targeting": {
+      "geo_locations": {
+       "cities": [
+        {
+         "key": "NG-BA",
+         "name": "Bauchi"
+        }
+       ]
+      },
+      "age_min": 18,
+      "age_max": 65,
+      "genders": [
+       1
+      ],
+      "targeting_automation": {
+       "advantage_audience": 1,
+       "individual_setting": {
+        "age": 1,
+        "gender": 0,
+        "geo": 0
+       }
+      }
+     }
+    },
+    [
+     "custom_audiences"
+    ],
+    []
+   ],
+   "error": {
+    "name": "PropertyMissingError",
+    "adsetName": "Test Adset",
+    "propertyKey": "custom_audiences"
+   }
+  },
+  {
+   "name": "spec/extract-optional-null-adset-still-not-found",
+   "fn": "extract_from_adset",
+   "args": [
+    null,
+    [
+     "custom_audiences"
+    ],
+    [
+     "custom_audiences"
+    ]
+   ],
+   "error": {
+    "name": "AdsetNotFoundError",
+    "adsetName": "(unknown)"
+   }
+  },
+  {
+   "name": "spec/some-level-property-on-one-level",
+   "fn": "properties_on_some_level",
+   "args": [
+    [
+     {
+      "template_adset": "adset-urban"
+     },
+     {
+      "template_adset": "adset-rural"
+     }
+    ],
+    [
+     {
+      "id": "adset-urban",
+      "name": "Argentina - Urban",
+      "targeting": {
+       "geo_locations": {
+        "regions": [
+         {
+          "key": "1",
+          "name": "Buenos Aires"
+         }
+        ]
+       },
+       "excluded_geo_locations": {
+        "regions": [
+         {
+          "key": "2",
+          "name": "Pampa"
+         }
+        ]
+       }
+      }
+     },
+     {
+      "id": "adset-rural",
+      "name": "Argentina - Rural",
+      "targeting": {
+       "geo_locations": {
+        "regions": [
+         {
+          "key": "2",
+          "name": "Pampa"
+         }
+        ]
+       }
+      }
+     }
+    ],
+    [
+     "geo_locations",
+     "excluded_geo_locations",
+     "custom_audiences"
+    ]
+   ],
+   "result": [
+    "geo_locations",
+    "excluded_geo_locations"
+   ]
+  },
+  {
+   "name": "spec/some-level-property-on-no-level",
+   "fn": "properties_on_some_level",
+   "args": [
+    [
+     {
+      "template_adset": "adset-urban"
+     },
+     {
+      "template_adset": "adset-rural"
+     }
+    ],
+    [
+     {
+      "id": "adset-urban",
+      "name": "Argentina - Urban",
+      "targeting": {
+       "geo_locations": {
+        "regions": [
+         {
+          "key": "1",
+          "name": "Buenos Aires"
+         }
+        ]
+       },
+       "excluded_geo_locations": {
+        "regions": [
+         {
+          "key": "2",
+          "name": "Pampa"
+         }
+        ]
+       }
+      }
+     },
+     {
+      "id": "adset-rural",
+      "name": "Argentina - Rural",
+      "targeting": {
+       "geo_locations": {
+        "regions": [
+         {
+          "key": "2",
+          "name": "Pampa"
+         }
+        ]
+       }
+      }
+     }
+    ],
+    [
+     "custom_audiences"
+    ]
+   ],
+   "result": []
+  },
+  {
+   "name": "spec/some-level-unknown-adset-contributes-nothing",
+   "fn": "properties_on_some_level",
+   "args": [
+    [
+     {
+      "template_adset": "adset-rural"
+     },
+     {
+      "template_adset": "adset-gone"
+     }
+    ],
+    [
+     {
+      "id": "adset-urban",
+      "name": "Argentina - Urban",
+      "targeting": {
+       "geo_locations": {
+        "regions": [
+         {
+          "key": "1",
+          "name": "Buenos Aires"
+         }
+        ]
+       },
+       "excluded_geo_locations": {
+        "regions": [
+         {
+          "key": "2",
+          "name": "Pampa"
+         }
+        ]
+       }
+      }
+     },
+     {
+      "id": "adset-rural",
+      "name": "Argentina - Rural",
+      "targeting": {
+       "geo_locations": {
+        "regions": [
+         {
+          "key": "2",
+          "name": "Pampa"
+         }
+        ]
+       }
+      }
+     }
+    ],
+    [
+     "geo_locations",
+     "excluded_geo_locations"
+    ]
+   ],
+   "result": [
+    "geo_locations"
+   ]
+  },
+  {
+   "name": "spec/some-level-empty-levels",
+   "fn": "properties_on_some_level",
+   "args": [
+    [],
+    [
+     {
+      "id": "adset-urban",
+      "name": "Argentina - Urban",
+      "targeting": {
+       "geo_locations": {
+        "regions": [
+         {
+          "key": "1",
+          "name": "Buenos Aires"
+         }
+        ]
+       },
+       "excluded_geo_locations": {
+        "regions": [
+         {
+          "key": "2",
+          "name": "Pampa"
+         }
+        ]
+       }
+      }
+     }
+    ],
+    [
+     "geo_locations"
+    ]
+   ],
+   "result": []
+  },
+  {
+   "name": "spec/some-level-empty-properties",
+   "fn": "properties_on_some_level",
+   "args": [
+    [
+     {
+      "template_adset": "adset-urban"
+     },
+     {
+      "template_adset": "adset-rural"
+     }
+    ],
+    [
+     {
+      "id": "adset-urban",
+      "name": "Argentina - Urban",
+      "targeting": {
+       "geo_locations": {
+        "regions": [
+         {
+          "key": "1",
+          "name": "Buenos Aires"
+         }
+        ]
+       },
+       "excluded_geo_locations": {
+        "regions": [
+         {
+          "key": "2",
+          "name": "Pampa"
+         }
+        ]
+       }
+      }
+     },
+     {
+      "id": "adset-rural",
+      "name": "Argentina - Rural",
+      "targeting": {
+       "geo_locations": {
+        "regions": [
+         {
+          "key": "2",
+          "name": "Pampa"
+         }
+        ]
+       }
+      }
+     }
+    ],
+    []
+   ],
+   "result": []
+  },
+  {
+   "name": "spec/some-level-adset-without-targeting",
+   "fn": "properties_on_some_level",
+   "args": [
+    [
+     {
+      "template_adset": "adset-bare"
+     }
+    ],
+    [
+     {
+      "id": "adset-bare",
+      "name": "Bare"
+     }
+    ],
+    [
+     "geo_locations"
+    ]
+   ],
+   "result": []
+  },
+  {
+   "name": "spec/some-level-keeps-properties-order",
+   "fn": "properties_on_some_level",
+   "args": [
+    [
+     {
+      "template_adset": "adset-urban"
+     },
+     {
+      "template_adset": "adset-rural"
+     }
+    ],
+    [
+     {
+      "id": "adset-urban",
+      "name": "Argentina - Urban",
+      "targeting": {
+       "geo_locations": {
+        "regions": [
+         {
+          "key": "1",
+          "name": "Buenos Aires"
+         }
+        ]
+       },
+       "excluded_geo_locations": {
+        "regions": [
+         {
+          "key": "2",
+          "name": "Pampa"
+         }
+        ]
+       }
+      }
+     },
+     {
+      "id": "adset-rural",
+      "name": "Argentina - Rural",
+      "targeting": {
+       "geo_locations": {
+        "regions": [
+         {
+          "key": "2",
+          "name": "Pampa"
+         }
+        ]
+       }
+      }
+     }
+    ],
+    [
+     "excluded_geo_locations",
+     "geo_locations"
+    ]
+   ],
+   "result": [
+    "excluded_geo_locations",
+    "geo_locations"
+   ]
+  },
+  {
    "name": "spec/extract-no-requested-properties",
    "fn": "extract_from_adset",
    "args": [
