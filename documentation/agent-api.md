@@ -446,7 +446,7 @@ actually saved.
 
 | Condition | Result |
 |---|---|
-| Missing or wrong-typed field, unknown or missing destination `type`, list where an object was expected | `422` with FastAPI's per-field detail — legible and actionable |
+| Missing or wrong-typed field, unknown destination `type`, list where an object was expected | `422` with FastAPI's per-field detail — legible and actionable |
 | **Unknown field, at any depth** | `422`, `type: "extra_forbidden"`, with the full path to the key in `loc`. Since adopt v0.1.85 — before that it was a `201` and the field was discarded |
 | A recruitment body carrying fields from two arms (e.g. both `arms` and `destinations`) | `422` naming the field that does not belong to the arm. Since v0.1.85 — before that it silently became a `PipelineRecruitmentExperiment` |
 | A model validator raising `InvalidConfigError` (bad WhatsApp phone number, unsafe `initial_shortcode`, invalid `audiences[].subtype`, invalid `partitioning` combination) | `422`, with the validator's message verbatim in the `detail`. Since adopt v0.1.84 — before that it was a bare `500`; see below |
@@ -792,17 +792,27 @@ Five types (`study_conf.py:526`). All accept an optional
 
 Traps, all documented at length in the model's own comments:
 
-- **`type` is a discriminator, it is load-bearing, and you must send it.** It
-  was a plain shape-matched union until 2026-08-30, and under that union every
+- **`type` is a discriminator and it is load-bearing. Send it.** It was a
+  plain shape-matched union until 2026-08-30, and under that union every
   `multi` destination silently became a `messenger` destination
-  (`study_conf.py:496-525`). An unknown `type` is a `422`, and since adopt
-  v0.1.85 so is an **absent** one: `Unable to extract tag using discriminator
-  'type'`. The load path still defaults a missing `type` to `messenger`, because
-  45 stored confs predate the field
-  (`_default_missing_destination_type`, `study_conf.py:478`) — but that is a
-  concession to history, and nothing you write today is history. Omitting it on
-  a write would hand you a Messenger destination you did not ask for, with a
-  `201` saying it worked.
+  (`study_conf.py:496-525`). An unknown `type` is a `422`.
+
+  An **absent** `type` is read as `"messenger"`, on write as well as on read
+  (`_default_missing_destination_type`, `study_conf.py:478`), because 45 stored
+  confs predate the field and still have to be re-saveable. That is a
+  concession to the legacy corpus, not an API — the committed schemas mark
+  `type` required, and new configuration should write it.
+
+  It is nonetheless safe, and worth understanding why: a typeless body is
+  defaulted to `messenger` and then validated against the messenger model,
+  which since v0.1.85 forbids unknown fields. So anything that is not genuinely
+  messenger-shaped is rejected on its own fields — a `whatsapp` body on
+  `whatsapp_phone_number`, a `web` body on `url_template`. The `multi` case is
+  the one that matters: it satisfies every field messenger requires, so no
+  required-field check could ever catch it, and it fails on
+  `whatsapp_phone_number` being an unknown key. Forbidding extras is what
+  closed the 2026-08-30 hole; the tag being mandatory was never what closed
+  it.
 - **`"web"` and `"website"` are both accepted** and mean the same class
   (`study_conf.py:168`). Both reached production.
 - **`whatsapp_phone_number` is the phone number, not the `phone_number_id`.**
@@ -1338,8 +1348,12 @@ before the removal. Two such retired names (`recruitment.destination_type`,
 `destinations[].include_metadata_in_ref`) are accepted and dropped on write;
 that list is closed and everything else is an error.
 
-**A destination must now carry `type`** — §3. The legacy `messenger` default
-applies on load only.
+**A typeless destination is still read as `messenger`** — §3, unchanged, on
+write as well as on read. Worth a line here because forbidding unknown fields
+changes what that default can let through: a typeless body that is really a
+`whatsapp`, `multi`, `web` or `app` destination now fails on its own
+type-specific fields, so the default can only ever admit a genuinely
+messenger-shaped conf. Write the `type` anyway; the schemas require it.
 
 **The recruitment union is discriminated on `type`** — §3, §4. Values are
 `simple`, `pipeline_experiment`, `destination`. Omitting the tag still works
@@ -1492,12 +1506,6 @@ Marked here rather than guessed at.
   stored JSON verbatim — was not checked against production data. If one exists,
   it is now a `422` on the first re-save of that conf, naming the key.
   `planning/conf-extra-fields.md` §5 sketches the query that would say.
-- **Destinations with no `type` cannot be re-saved.** 45 stored confs across 11
-  studies predate the field. They still load (the `messenger` default), but
-  writing one back is now a `422` (§3) — and the dashboard's edit path re-POSTs
-  a stored conf verbatim, so editing destinations on one of those studies fails
-  until a `type` is chosen. Deliberate: the dashboard cannot render such a conf
-  either, so it could not show you what you were saving.
 - **`PipelineRecruitmentExperiment` end-date consistency is unenforced.**
   `validate_dates` (`study_conf.py:714`) exists, carries a
   `TODO: this is useless`, and is called from nowhere. An inconsistent

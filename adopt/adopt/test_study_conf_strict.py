@@ -119,13 +119,13 @@ def test_strict_models_list_matches_what_the_routes_reach():
 # --------------------------------------------------------------------------
 
 
-def test_a_destination_written_without_a_type_is_rejected():
-    """The strict union does NOT apply the legacy `messenger` default.
+def test_a_typeless_messenger_shaped_destination_is_accepted_and_defaulted():
+    """The strict union shares the lenient one's legacy `messenger` default.
 
-    `_default_missing_destination_type` exists for confs that predate the
-    field. Nothing being POSTed today predates it, so a missing `type` is an
-    authoring mistake, and defaulting it would hand the author a destination
-    they did not ask for. planning/conf-extra-fields.md §6 question 2.
+    45 stored confs across 11 studies predate the `type` field, and they
+    round-trip through the dashboard: it renders no subform for a destination
+    whose type it cannot read, so it re-POSTs the conf verbatim. Refusing them
+    would make editing destinations impossible on those studies.
     """
     body = [
         {
@@ -136,15 +136,70 @@ def test_a_destination_written_without_a_type_is_rejected():
         }
     ]
 
+    written = TypeAdapter(list[DestinationConfStrict]).validate_python(body)[0]
+
+    assert written.type == "messenger"
+    # And it is stored with the tag, because create_conf stores model_dump().
+    assert written.model_dump()["type"] == "messenger"
+
+    # Same answer on the load path, from the same shared validator.
+    assert TypeAdapter(list[DestinationConf]).validate_python(body)[0].type == "messenger"
+
+
+@pytest.mark.parametrize(
+    "shape,body,offending_key",
+    [
+        (
+            "whatsapp",
+            {
+                "name": "wa",
+                "initial_shortcode": "hpv",
+                "welcome_message": "Hi",
+                "whatsapp_phone_number": "+1-541-920-2635",
+            },
+            "whatsapp_phone_number",
+        ),
+        (
+            # The 2026-08-30 incident shape: every field messenger requires,
+            # PLUS whatsapp_phone_number. Under the old plain union this
+            # validated as a Messenger destination, adopt built a MESSENGER ad
+            # set for a study configured multi, and Meta rejected every ad.
+            "multi",
+            {
+                "name": "both",
+                "initial_shortcode": "hpv",
+                "welcome_message": "Hi",
+                "button_text": "Start",
+                "whatsapp_phone_number": "+1-541-920-2635",
+            },
+            "whatsapp_phone_number",
+        ),
+        (
+            "web",
+            {"name": "site", "url_template": "https://x.example/{ref}"},
+            "url_template",
+        ),
+    ],
+)
+def test_a_typeless_destination_that_is_not_messenger_shaped_is_rejected(
+    shape, body, offending_key
+):
+    """Why defaulting the tag is safe, and why 422 bought nothing.
+
+    A typeless payload is defaulted to `messenger` and then validated against
+    the STRICT messenger twin -- so anything that is not genuinely
+    messenger-shaped carries fields messenger does not declare, and those are
+    unknown keys. `extra="forbid"` is what closes the hole the discriminator
+    was added for; requiring the tag was never what closed it.
+
+    Note the multi case in particular: it satisfies every messenger field, so
+    NO amount of required-field checking would catch it. Only forbidding the
+    extra does.
+    """
     with pytest.raises(ValidationError) as e:
-        TypeAdapter(list[DestinationConfStrict]).validate_python(body)
+        TypeAdapter(list[DestinationConfStrict]).validate_python([body])
 
-    assert "type" in str(e.value)
-
-    # The lenient union, which the load path uses, still takes it -- that is
-    # the whole point of keeping two.
-    loaded = TypeAdapter(list[DestinationConf]).validate_python(body)
-    assert loaded[0].type == "messenger"
+    assert offending_key in str(e.value)
 
 
 def test_a_retired_destination_key_is_still_accepted():

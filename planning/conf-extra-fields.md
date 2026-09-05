@@ -335,19 +335,49 @@ recruitment form's destination-experiment `initialState` carried
 `DestinationRecruitmentExperiment`. Fixed in the dashboard rather than
 tolerated, because it is a bug and not history.
 
-### 7.3 §6 question 2: settled — the strict union rejects a missing `type`
+### 7.3 §6 question 2: settled — the strict union KEEPS the legacy default
 
-No `_default_missing_destination_type` on the write side. Nothing POSTed today
-predates the `type` field, so a missing one is an author who forgot it, and
-defaulting it hands them a Messenger destination they did not ask for with a
-`201` saying it worked — the silent mis-resolution the discriminator was added
-to stop.
+The strict destination union applies `_default_missing_destination_type`, the
+same validator the lenient one uses, shared rather than copied.
 
-Cost, recorded: the 45 typeless confs across 11 studies *do* round-trip through
-the dashboard, which renders no subform for a destination whose type it cannot
-read. Editing destinations on one of those studies is now a 422 until a type is
-chosen. That is the right failure; the dashboard could not show the user what
-they were saving either.
+This was decided the other way first, on the argument §6 itself suggests: a
+fresh write never predates the `type` field, so a missing tag is an author who
+forgot it, and defaulting it hands them a destination they did not ask for. The
+argument does not survive contact with `extra="forbid"`, and the reason is the
+part worth keeping.
+
+A typeless payload is defaulted to `messenger` and *then validated against the
+strict messenger twin*. Anything that is not genuinely messenger-shaped carries
+fields messenger does not declare, and those are now unknown keys. Measured,
+per shape:
+
+| Typeless body | Result |
+|---|---|
+| messenger-shaped | accepted, stored as `type: "messenger"` |
+| whatsapp-shaped | 422 — `whatsapp_phone_number` extra, `button_text` missing |
+| **multi-shaped** | **422 — `whatsapp_phone_number` extra** |
+| web-shaped | 422 — `url_template` extra, three fields missing |
+| app-shaped | 422 — six extras, three missing |
+
+The multi row is the whole argument. That is the 2026-08-30 incident shape: it
+satisfies *every* field a Messenger destination requires, so no required-field
+check and no mandatory tag could distinguish it — it is caught solely by
+`whatsapp_phone_number` being an unknown key. **Forbidding extras is what closed
+that hole; requiring the tag was never what closed it.** So the default can only
+ever admit a payload that really is a messenger destination, which is the
+correct result rather than a silent mis-resolution.
+
+What the 422 did cost was real. The 45 typeless confs across 11 studies
+round-trip through the dashboard, which renders no subform for a destination
+whose type it cannot read and re-POSTs the conf verbatim. Refusing them makes
+editing destinations impossible on those studies, and whether any of them is
+live was not determined. Production breakage for zero added protection is not a
+trade worth making.
+
+The committed schema still marks `type` required, deliberately: an agent
+authoring new configuration should write the tag, and the file being stricter
+than the server on this one key is the right direction. `adopt/README.md` says
+so under "what the schemas do not say".
 
 ### 7.4 The dependency in §4 was real, and was taken first
 

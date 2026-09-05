@@ -798,12 +798,16 @@ generated files:
   rejects stratum metadata that fly's entry regex could not parse once
   percent-encoded. It cannot be expressed in JSON Schema, and it does not run at
   write time anyway (see `planning/agent-study-authoring.md` §2.5).
-- **The missing-`type` destination default.** The lenient `DestinationConf`
-  runs a `BeforeValidator` that reads an absent or empty `type` as
-  `"messenger"`, for the 45 stored confs that predate the field. The write-side
-  union does not, so `destinations.json` marking `type` required is now exactly
-  what the server enforces. The leniency is a migration affordance on the load
-  path, not an API.
+- **The missing-`type` destination default.** Both destination unions run a
+  `BeforeValidator` that reads an absent or empty `type` as `"messenger"`, for
+  the 45 stored confs that predate the field — on write as well as on load, so
+  those confs stay re-saveable. `destinations.json` marks `type` required
+  anyway, which makes it stricter than the server on exactly this key, and
+  deliberately: an agent authoring a new conf should write the tag. The
+  leniency is a concession to the legacy corpus, not an API. It is safe because
+  the strict models forbid unknown fields — a typeless body is defaulted to
+  messenger and then rejected on its own type-specific fields unless it really
+  is a messenger destination.
 - **Retired keys are accepted on write and dropped.** A closed list of two —
   `recruitment.destination_type` and `destinations[].include_metadata_in_ref`,
   both fields this repo once declared and removed — is stripped before

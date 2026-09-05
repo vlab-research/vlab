@@ -780,15 +780,14 @@ def test_a_conf_route_rejects_an_unknown_key_nested_inside_the_body(verify_mock,
 
 
 @patch("adopt.server.auth.verify_token")
-def test_a_destination_posted_without_a_type_is_a_422(verify_mock):
-    """The strict destination union drops the legacy `messenger` default.
+def test_a_typeless_messenger_destination_is_stored_with_its_type(verify_mock):
+    """The strict destination union keeps the legacy `messenger` default.
 
-    `_default_missing_destination_type` fills in "messenger" so that the 45
-    stored confs predating the `type` field keep LOADING. Nothing POSTed today
-    predates the field, so a missing `type` on a write is an author who forgot
-    it, and quietly giving them a Messenger destination is the same silent
-    mis-resolution the discriminator was added to stop.
-    planning/conf-extra-fields.md §6 question 2.
+    45 stored confs across 11 studies predate the `type` field and re-POST
+    verbatim from the dashboard, which renders no subform for a destination
+    whose type it cannot read. Refusing them would make editing destinations
+    impossible on those studies, and forbidding extras already stops a typeless
+    payload from becoming the WRONG destination — see the sibling test below.
     """
     _reset_db()
     verify_mock.return_value = {"sub": user_id}
@@ -808,8 +807,42 @@ def test_a_destination_posted_without_a_type_is_a_422(verify_mock):
         ],
     )
 
+    assert res.status_code == 201, res.text
+    assert res.json()["data"]["conf"][0]["type"] == "messenger"
+
+
+@patch("adopt.server.auth.verify_token")
+def test_a_typeless_destination_carrying_another_types_fields_is_a_422(verify_mock):
+    """The 2026-08-30 shape, and the reason the default is safe.
+
+    A multi conf carries every field a Messenger conf requires plus
+    `whatsapp_phone_number`. Under the old plain union it silently BECAME a
+    Messenger destination, adopt built a MESSENGER ad set for a study
+    configured multi, and Meta rejected every ad. No required-field check can
+    catch that — only forbidding the extra key does, which is why defaulting
+    the tag costs nothing.
+    """
+    _reset_db()
+    verify_mock.return_value = {"sub": user_id}
+    org_id, headers = _user_and_study_setup()
+
+    res = _post_conf(
+        org_id,
+        headers,
+        "destinations",
+        [
+            {
+                "name": "both",
+                "initial_shortcode": "hpv",
+                "welcome_message": "Hi",
+                "button_text": "Start",
+                "whatsapp_phone_number": "+1-541-920-2635",
+            }
+        ],
+    )
+
     assert res.status_code == 422, res.text
-    assert "type" in res.text
+    assert "whatsapp_phone_number" in res.text
 
 
 @patch("adopt.server.auth.verify_token")

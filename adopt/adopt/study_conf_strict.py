@@ -80,6 +80,7 @@ from .study_conf import (
     TargetVar,
     VariableConf,
     WebDestination,
+    _default_missing_destination_type,
     _infer_recruitment_type,
 )
 
@@ -291,27 +292,46 @@ class FlyMultiDestinationStrict(FlyMultiDestination):
     model_config = STRICT
 
 
-# NO `_default_missing_destination_type` here, deliberately -- this is the one
-# place the strict union differs from the lenient one in more than extra-key
-# handling.
+def _prepare_destination_write(value: object) -> object:
+    """Drop retired keys, then fill in the legacy `messenger` default.
+
+    One function so the order is stated rather than left to how pydantic
+    composes stacked validators, exactly as on the recruitment side.
+    """
+    return _default_missing_destination_type(_without(value, RETIRED_DESTINATION_KEYS))
+
+
+# The legacy `messenger` default applies here too -- the SAME validator the
+# lenient union uses, shared rather than copied, so the two cannot drift.
 #
-# That BeforeValidator exists for 45 stored confs across 11 studies that predate
-# the `type` field, and it fills in "messenger" so they keep LOADING as what
-# they have always been. A fresh write is not that situation: nothing being
-# POSTed today predates the field, so a body arriving here with no `type` is an
-# author who forgot it, not history. Defaulting it would hand that author a
-# Messenger destination they did not ask for and a `201` saying it worked --
-# the same class of silent mis-resolution the discriminator was added to stop
-# (study_conf.py, the comment above `_TaggedDestination`). Without the default
-# they get a 422 saying "Unable to extract tag using discriminator 'type'".
+# This was 422 first, on the argument that a fresh write never predates the
+# `type` field, so a missing tag is an author who forgot it and defaulting it
+# hands them a destination they did not ask for. That argument does not survive
+# contact with `extra="forbid"`, which is the point worth recording:
 #
-# The known cost, recorded rather than discovered later: the 45 typeless confs
-# DO round-trip through the dashboard, because a destination whose `type` it
-# cannot read renders no subform and is re-POSTed verbatim. Editing destinations
-# on one of those 11 studies now returns that 422 instead of silently re-saving
-# a Messenger destination. That is the right failure -- the dashboard could not
-# show the user what they were saving either -- and the remedy is to pick a type
-# once, which also fixes the display.
+#   A typeless payload is defaulted to `messenger` and then validated against
+#   the STRICT messenger twin. Any destination that is not genuinely
+#   messenger-shaped carries fields messenger does not declare, and those are
+#   now unknown keys. Measured, per shape: a whatsapp body fails on
+#   `whatsapp_phone_number` (extra) and `button_text` (missing); a MULTI body --
+#   the 2026-08-30 incident shape, the one that silently became a Messenger
+#   destination and got every ad rejected -- fails on `whatsapp_phone_number`
+#   alone; web and app fail on several each.
+#
+# So the default can only ever admit a payload that IS a messenger destination,
+# which is the correct result rather than a silent mis-resolution. Forbidding
+# extras is what closes the hole the discriminator was added for; the tag being
+# mandatory was never what closed it.
+#
+# What 422 did cost was real: the 45 typeless confs across 11 studies round-trip
+# through the dashboard, which renders no subform for a destination whose type
+# it cannot read and re-POSTs it verbatim. Refusing them makes editing
+# destinations impossible on those studies, and whether any of them is live was
+# not determined. Production breakage for no added protection is not a trade.
+#
+# The published schema still marks `type` required, deliberately -- an agent
+# authoring a new conf should write it, and the leniency here is a concession to
+# the legacy corpus, not an API. adopt/README.md says so.
 #
 # Settles planning/conf-extra-fields.md §6 question 2.
 DestinationConfStrict = Annotated[
@@ -325,7 +345,7 @@ DestinationConfStrict = Annotated[
         ],
         Field(discriminator="type"),
     ],
-    BeforeValidator(lambda v: _without(v, RETIRED_DESTINATION_KEYS)),
+    BeforeValidator(_prepare_destination_write),
 ]
 
 

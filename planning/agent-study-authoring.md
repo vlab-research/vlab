@@ -1022,21 +1022,38 @@ against the models (§3 there) and found them aligned. Alignment of the forms
 was never the question: what round-trips through the edit path is stored JSON,
 which is older than any form.
 
-### 14.3 §6 question 2, settled
+### 14.3 §6 question 2, settled — the legacy default stays, on write too
 
-The strict destination union does **not** apply the legacy `messenger` default
-for a missing `type`. That BeforeValidator exists for 45 stored confs across 11
-studies predating the field, so they keep *loading* as what they have always
-been. Nothing POSTed today predates the field, so a missing `type` on a write
-is an author who forgot it, and defaulting it hands them a destination they did
-not ask for plus a `201` saying it worked — the same silent mis-resolution the
-discriminator was added to stop.
+The strict destination union applies `_default_missing_destination_type`, the
+same validator the lenient one uses. Decided the other way first, and reversed
+in review; the reversal is the more instructive half.
 
-The cost, recorded rather than left to be discovered: those typeless confs *do*
-round-trip through the dashboard, which renders no subform for a destination
-whose type it cannot read and re-POSTs it verbatim. Editing destinations on one
-of those 11 studies is now a 422 until a type is chosen. That is the right
-failure — the dashboard could not show the user what they were saving either.
+The case for rejecting a missing `type` on a fresh write was that nothing being
+POSTed today predates the field, so an absent tag is an author who forgot it.
+True, and beside the point once the twins forbid unknown fields. A typeless body
+is defaulted to `messenger` and then validated against the STRICT messenger
+model, so anything that is not genuinely messenger-shaped is rejected on its own
+type-specific fields — measured: whatsapp on `whatsapp_phone_number` plus a
+missing `button_text`, web on `url_template` plus three missing, app on six
+extras.
+
+**The multi case decides it.** A multi conf satisfies every field a Messenger
+conf requires — that is precisely why, under the old plain union, every multi
+destination silently became a Messenger one and Meta rejected every ad on
+`vl-pulse-nigeria-smoke`. No required-field check catches it, and neither would
+a mandatory tag on a body that simply omits one. It is caught by
+`whatsapp_phone_number` being an unknown key, and by nothing else. Forbidding
+extras closed that hole; the tag being mandatory never did.
+
+Against zero added protection, rejecting the tag cost the 45 typeless confs
+across 11 studies their ability to be re-saved: the dashboard renders no subform
+for a destination whose type it cannot read, so it re-POSTs the conf verbatim,
+and editing destinations on those studies would have failed. Whether any is live
+was never determined. That is production breakage bought with nothing.
+
+The published schema still marks `type` required, so an agent writes it; the
+server is lenient on this one key for the legacy corpus, and `adopt/README.md`
+records that the file is deliberately stricter than the server there.
 
 §6 question 1 (is there a non-dashboard writer carrying legacy keys?) is
 answered only partly: git proves which fields were once declared and removed,
