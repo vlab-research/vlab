@@ -217,6 +217,21 @@ def test_required_scope_maps_vlab_paths():
     assert ak.required_scope("POST", "/users/api-key") == "auth:write"
     assert ak.required_scope("GET", "/users/api-keys") == "auth:read"
 
+    # The Meta Graph proxy (Phase 2). Every route under /{org}/meta, including
+    # the nested creative one, classifies on the area segment alone.
+    assert ak.required_scope("GET", f"/{ORG}/meta/adaccounts") == "meta:read"
+    assert ak.required_scope("GET", f"/{ORG}/meta/campaigns") == "meta:read"
+    assert ak.required_scope("GET", f"/{ORG}/meta/adsets") == "meta:read"
+    assert ak.required_scope("GET", f"/{ORG}/meta/ads") == "meta:read"
+    assert ak.required_scope("GET", f"/{ORG}/meta/ads/123/creative") == "meta:read"
+    assert ak.required_scope("GET", f"/{ORG}/meta/credentials") == "meta:read"
+
+    # `meta` is deliberately NOT implied by `studies` — the proxy reads the
+    # researcher's whole Meta estate, not this org's study configuration.
+    assert not ak.is_authorized(["studies:write"], "GET", f"/{ORG}/meta/adaccounts")
+    assert ak.is_authorized(["meta:read"], "GET", f"/{ORG}/meta/adaccounts")
+    assert not ak.is_authorized(["meta:read"], "GET", f"/{ORG}/studies/s/confs")
+
     # Unknown -> None -> denied for a scoped key (fail closed).
     assert ak.required_scope("GET", f"/{ORG}/studies/s/unclassified") is None
     assert not ak.is_authorized(

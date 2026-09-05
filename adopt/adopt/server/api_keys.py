@@ -138,9 +138,20 @@ READ_METHODS = ("GET", "HEAD", "OPTIONS")
 # money on Meta. Being able to hand out "can read and write the config, cannot
 # launch ads" is worth a resource of its own.
 #
+# `meta` is the read-only Meta Graph proxy (`/{org}/meta/...`, see `meta.py`).
+# It is its own resource rather than part of `studies` because it reads a
+# DIFFERENT system with a DIFFERENT credential: the researcher's Facebook token,
+# which can see every ad account, campaign and creative that researcher has on
+# Meta — including ones belonging to no vlab study at all. A key scoped to
+# `studies:write` is a key that can edit this org's study configuration; it
+# should not, by that fact alone, become a window onto the researcher's whole
+# Meta estate. Only `meta:read` exists in practice — the proxy is read-only by
+# construction — but `meta:write` is expressible so that a future write proxy
+# does not have to re-cut the vocabulary.
+#
 # `auth` is key management and is NEVER implicitly granted: a scoped key that
 # could mint an unscoped one is not scoped at all.
-RESOURCES = ("studies", "responses", "stats", "optimize", "auth")
+RESOURCES = ("studies", "responses", "stats", "optimize", "meta", "auth")
 ACTIONS = (READ, WRITE, ANY)
 
 # Paths that carry no authentication at all, so there is nothing to authorize.
@@ -227,6 +238,13 @@ def required_scope(method: str, path: str) -> Optional[str]:
 
     if area == "optimize":
         return f"optimize:{action}"
+
+    # /{org_id}/meta/... — every route under here is the Graph proxy, including
+    # /{org_id}/meta/ads/{ad_id}/creative, so the area alone classifies it. The
+    # proxy registers only GET routes; a POST would map to `meta:write`, which
+    # nothing grants and no route serves, so it fails closed twice over.
+    if area == "meta":
+        return f"meta:{action}"
 
     if area == "studies":
         # /{org_id}/studies/{slug}/<tail>
