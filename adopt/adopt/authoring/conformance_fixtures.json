@@ -9942,6 +9942,949 @@
    "result": ""
   },
   {
+   "name": "edge/level-name-int",
+   "fn": "create_strata_from_variables",
+   "args": [
+    [
+     {
+      "name": "a",
+      "properties": [],
+      "levels": [
+       {
+        "name": 18,
+        "template_campaign": "tc",
+        "template_adset": "adset-18",
+        "facebook_targeting": {
+         "age_min": 18
+        },
+        "quota": 0.5
+       }
+      ]
+     }
+    ],
+    "q1",
+    null,
+    null,
+    null
+   ],
+   "result": [
+    {
+     "audiences": [],
+     "excluded_audiences": [],
+     "creatives": [],
+     "id": "a:18",
+     "quota": 0.5,
+     "facebook_targeting": {
+      "age_min": 18
+     },
+     "metadata": {
+      "a": 18
+     },
+     "question_targeting": {
+      "op": "and",
+      "vars": [
+       {
+        "op": "equal",
+        "vars": [
+         {
+          "type": "variable",
+          "value": "a"
+         },
+         {
+          "type": "constant",
+          "value": 18
+         }
+        ]
+       },
+       {
+        "op": "answered",
+        "vars": [
+         {
+          "type": "variable",
+          "value": "q1"
+         }
+        ]
+       }
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "name": "edge/level-name-integral-float",
+   "fn": "create_strata_from_variables",
+   "args": [
+    [
+     {
+      "name": "a",
+      "properties": [],
+      "levels": [
+       {
+        "name": 1,
+        "template_campaign": "tc",
+        "template_adset": "adset-1",
+        "facebook_targeting": {
+         "age_min": 18
+        },
+        "quota": 0.5
+       }
+      ]
+     }
+    ],
+    "q1",
+    null,
+    null,
+    null
+   ],
+   "result": [
+    {
+     "audiences": [],
+     "excluded_audiences": [],
+     "creatives": [],
+     "id": "a:1",
+     "quota": 0.5,
+     "facebook_targeting": {
+      "age_min": 18
+     },
+     "metadata": {
+      "a": 1
+     },
+     "question_targeting": {
+      "op": "and",
+      "vars": [
+       {
+        "op": "equal",
+        "vars": [
+         {
+          "type": "variable",
+          "value": "a"
+         },
+         {
+          "type": "constant",
+          "value": 1
+         }
+        ]
+       },
+       {
+        "op": "answered",
+        "vars": [
+         {
+          "type": "variable",
+          "value": "q1"
+         }
+        ]
+       }
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "name": "edge/level-name-non-integral-float",
+   "fn": "create_strata_from_variables",
+   "args": [
+    [
+     {
+      "name": "a",
+      "properties": [],
+      "levels": [
+       {
+        "name": 1.5,
+        "template_campaign": "tc",
+        "template_adset": "adset-1.5",
+        "facebook_targeting": {
+         "age_min": 18
+        },
+        "quota": 0.5
+       }
+      ]
+     }
+    ],
+    "q1",
+    null,
+    null,
+    null
+   ],
+   "result": [
+    {
+     "audiences": [],
+     "excluded_audiences": [],
+     "creatives": [],
+     "id": "a:1.5",
+     "quota": 0.5,
+     "facebook_targeting": {
+      "age_min": 18
+     },
+     "metadata": {
+      "a": 1.5
+     },
+     "question_targeting": {
+      "op": "and",
+      "vars": [
+       {
+        "op": "equal",
+        "vars": [
+         {
+          "type": "variable",
+          "value": "a"
+         },
+         {
+          "type": "constant",
+          "value": 1.5
+         }
+        ]
+       },
+       {
+        "op": "answered",
+        "vars": [
+         {
+          "type": "variable",
+          "value": "q1"
+         }
+        ]
+       }
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "name": "edge/level-name-boolean-true",
+   "fn": "create_strata_from_variables",
+   "args": [
+    [
+     {
+      "name": "a",
+      "properties": [],
+      "levels": [
+       {
+        "name": true,
+        "template_campaign": "tc",
+        "template_adset": "adset-true",
+        "facebook_targeting": {
+         "age_min": 18
+        },
+        "quota": 0.5
+       }
+      ]
+     }
+    ],
+    "q1",
+    null,
+    null,
+    null
+   ],
+   "result": [
+    {
+     "audiences": [],
+     "excluded_audiences": [],
+     "creatives": [],
+     "id": "a:true",
+     "quota": 0.5,
+     "facebook_targeting": {
+      "age_min": 18
+     },
+     "metadata": {
+      "a": true
+     },
+     "question_targeting": {
+      "op": "and",
+      "vars": [
+       {
+        "op": "equal",
+        "vars": [
+         {
+          "type": "variable",
+          "value": "a"
+         },
+         {
+          "type": "constant",
+          "value": true
+         }
+        ]
+       },
+       {
+        "op": "answered",
+        "vars": [
+         {
+          "type": "variable",
+          "value": "q1"
+         }
+        ]
+       }
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "name": "edge/level-name-boolean-false",
+   "fn": "create_strata_from_variables",
+   "args": [
+    [
+     {
+      "name": "a",
+      "properties": [],
+      "levels": [
+       {
+        "name": false,
+        "template_campaign": "tc",
+        "template_adset": "adset-false",
+        "facebook_targeting": {
+         "age_min": 18
+        },
+        "quota": 0.5
+       }
+      ]
+     }
+    ],
+    "q1",
+    null,
+    null,
+    null
+   ],
+   "result": [
+    {
+     "audiences": [],
+     "excluded_audiences": [],
+     "creatives": [],
+     "id": "a:false",
+     "quota": 0.5,
+     "facebook_targeting": {
+      "age_min": 18
+     },
+     "metadata": {
+      "a": false
+     },
+     "question_targeting": {
+      "op": "and",
+      "vars": [
+       {
+        "op": "equal",
+        "vars": [
+         {
+          "type": "variable",
+          "value": "a"
+         },
+         {
+          "type": "constant",
+          "value": false
+         }
+        ]
+       },
+       {
+        "op": "answered",
+        "vars": [
+         {
+          "type": "variable",
+          "value": "q1"
+         }
+        ]
+       }
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "name": "edge/variable-name-int",
+   "fn": "create_strata_from_variables",
+   "args": [
+    [
+     {
+      "name": 42,
+      "properties": [],
+      "levels": [
+       {
+        "name": "x",
+        "template_campaign": "tc",
+        "template_adset": "adset-x",
+        "facebook_targeting": {
+         "age_min": 18
+        },
+        "quota": 0.5
+       }
+      ]
+     }
+    ],
+    "q1",
+    null,
+    null,
+    null
+   ],
+   "result": [
+    {
+     "audiences": [],
+     "excluded_audiences": [],
+     "creatives": [],
+     "id": "42:x",
+     "quota": 0.5,
+     "facebook_targeting": {
+      "age_min": 18
+     },
+     "metadata": {
+      "42": "x"
+     },
+     "question_targeting": {
+      "op": "and",
+      "vars": [
+       {
+        "op": "equal",
+        "vars": [
+         {
+          "type": "variable",
+          "value": "42"
+         },
+         {
+          "type": "constant",
+          "value": "x"
+         }
+        ]
+       },
+       {
+        "op": "answered",
+        "vars": [
+         {
+          "type": "variable",
+          "value": "q1"
+         }
+        ]
+       }
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "name": "edge/variable-name-integral-float",
+   "fn": "create_strata_from_variables",
+   "args": [
+    [
+     {
+      "name": 2,
+      "properties": [],
+      "levels": [
+       {
+        "name": "x",
+        "template_campaign": "tc",
+        "template_adset": "adset-x",
+        "facebook_targeting": {
+         "age_min": 18
+        },
+        "quota": 0.5
+       }
+      ]
+     }
+    ],
+    "q1",
+    null,
+    null,
+    null
+   ],
+   "result": [
+    {
+     "audiences": [],
+     "excluded_audiences": [],
+     "creatives": [],
+     "id": "2:x",
+     "quota": 0.5,
+     "facebook_targeting": {
+      "age_min": 18
+     },
+     "metadata": {
+      "2": "x"
+     },
+     "question_targeting": {
+      "op": "and",
+      "vars": [
+       {
+        "op": "equal",
+        "vars": [
+         {
+          "type": "variable",
+          "value": "2"
+         },
+         {
+          "type": "constant",
+          "value": "x"
+         }
+        ]
+       },
+       {
+        "op": "answered",
+        "vars": [
+         {
+          "type": "variable",
+          "value": "q1"
+         }
+        ]
+       }
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "name": "edge/variable-name-non-integral-float",
+   "fn": "create_strata_from_variables",
+   "args": [
+    [
+     {
+      "name": 2.5,
+      "properties": [],
+      "levels": [
+       {
+        "name": "x",
+        "template_campaign": "tc",
+        "template_adset": "adset-x",
+        "facebook_targeting": {
+         "age_min": 18
+        },
+        "quota": 0.5
+       }
+      ]
+     }
+    ],
+    "q1",
+    null,
+    null,
+    null
+   ],
+   "result": [
+    {
+     "audiences": [],
+     "excluded_audiences": [],
+     "creatives": [],
+     "id": "2.5:x",
+     "quota": 0.5,
+     "facebook_targeting": {
+      "age_min": 18
+     },
+     "metadata": {
+      "2.5": "x"
+     },
+     "question_targeting": {
+      "op": "and",
+      "vars": [
+       {
+        "op": "equal",
+        "vars": [
+         {
+          "type": "variable",
+          "value": "2.5"
+         },
+         {
+          "type": "constant",
+          "value": "x"
+         }
+        ]
+       },
+       {
+        "op": "answered",
+        "vars": [
+         {
+          "type": "variable",
+          "value": "q1"
+         }
+        ]
+       }
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "name": "edge/variable-name-boolean-true",
+   "fn": "create_strata_from_variables",
+   "args": [
+    [
+     {
+      "name": true,
+      "properties": [],
+      "levels": [
+       {
+        "name": "x",
+        "template_campaign": "tc",
+        "template_adset": "adset-x",
+        "facebook_targeting": {
+         "age_min": 18
+        },
+        "quota": 0.5
+       }
+      ]
+     }
+    ],
+    "q1",
+    null,
+    null,
+    null
+   ],
+   "result": [
+    {
+     "audiences": [],
+     "excluded_audiences": [],
+     "creatives": [],
+     "id": "true:x",
+     "quota": 0.5,
+     "facebook_targeting": {
+      "age_min": 18
+     },
+     "metadata": {
+      "true": "x"
+     },
+     "question_targeting": {
+      "op": "and",
+      "vars": [
+       {
+        "op": "equal",
+        "vars": [
+         {
+          "type": "variable",
+          "value": "true"
+         },
+         {
+          "type": "constant",
+          "value": "x"
+         }
+        ]
+       },
+       {
+        "op": "answered",
+        "vars": [
+         {
+          "type": "variable",
+          "value": "q1"
+         }
+        ]
+       }
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "name": "edge/variable-name-boolean-false",
+   "fn": "create_strata_from_variables",
+   "args": [
+    [
+     {
+      "name": false,
+      "properties": [],
+      "levels": [
+       {
+        "name": "x",
+        "template_campaign": "tc",
+        "template_adset": "adset-x",
+        "facebook_targeting": {
+         "age_min": 18
+        },
+        "quota": 0.5
+       }
+      ]
+     }
+    ],
+    "q1",
+    null,
+    null,
+    null
+   ],
+   "result": [
+    {
+     "audiences": [],
+     "excluded_audiences": [],
+     "creatives": [],
+     "id": "false:x",
+     "quota": 0.5,
+     "facebook_targeting": {
+      "age_min": 18
+     },
+     "metadata": {
+      "false": "x"
+     },
+     "question_targeting": {
+      "op": "and",
+      "vars": [
+       {
+        "op": "equal",
+        "vars": [
+         {
+          "type": "variable",
+          "value": "false"
+         },
+         {
+          "type": "constant",
+          "value": "x"
+         }
+        ]
+       },
+       {
+        "op": "answered",
+        "vars": [
+         {
+          "type": "variable",
+          "value": "q1"
+         }
+        ]
+       }
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "name": "edge/variable-and-level-name-both-non-string",
+   "fn": "create_strata_from_variables",
+   "args": [
+    [
+     {
+      "name": 1,
+      "properties": [],
+      "levels": [
+       {
+        "name": 2,
+        "template_campaign": "tc",
+        "template_adset": "adset-2",
+        "facebook_targeting": {
+         "age_min": 18
+        },
+        "quota": 0.5
+       }
+      ]
+     }
+    ],
+    "q1",
+    null,
+    null,
+    null
+   ],
+   "result": [
+    {
+     "audiences": [],
+     "excluded_audiences": [],
+     "creatives": [],
+     "id": "1:2",
+     "quota": 0.5,
+     "facebook_targeting": {
+      "age_min": 18
+     },
+     "metadata": {
+      "1": 2
+     },
+     "question_targeting": {
+      "op": "and",
+      "vars": [
+       {
+        "op": "equal",
+        "vars": [
+         {
+          "type": "variable",
+          "value": "1"
+         },
+         {
+          "type": "constant",
+          "value": 2
+         }
+        ]
+       },
+       {
+        "op": "answered",
+        "vars": [
+         {
+          "type": "variable",
+          "value": "q1"
+         }
+        ]
+       }
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "name": "edge/format-group-product-non-string-variable-name",
+   "fn": "format_group_product",
+   "args": [
+    [
+     {
+      "name": "a1",
+      "template_campaign": "tc",
+      "template_adset": "adset-a1",
+      "facebook_targeting": {
+       "age_min": 18
+      },
+      "quota": 0.5,
+      "variableName": 7
+     }
+    ],
+    "q1"
+   ],
+   "result": {
+    "id": "7:a1",
+    "quota": 0.5,
+    "facebook_targeting": {
+     "age_min": 18
+    },
+    "metadata": {
+     "7": "a1"
+    },
+    "question_targeting": {
+     "op": "and",
+     "vars": [
+      {
+       "op": "equal",
+       "vars": [
+        {
+         "type": "variable",
+         "value": "7"
+        },
+        {
+         "type": "constant",
+         "value": "a1"
+        }
+       ]
+      },
+      {
+       "op": "answered",
+       "vars": [
+        {
+         "type": "variable",
+         "value": "q1"
+        }
+       ]
+      }
+     ]
+    }
+   }
+  },
+  {
+   "name": "edge/staleness-saved-quota-null-fresh-nonzero",
+   "fn": "strata_staleness_hint",
+   "args": [
+    [
+     {
+      "name": "a",
+      "properties": [],
+      "levels": [
+       {
+        "name": "a1",
+        "template_campaign": "tc",
+        "template_adset": "adset-a1",
+        "facebook_targeting": {
+         "age_min": 18
+        },
+        "quota": 0.5
+       }
+      ]
+     }
+    ],
+    [
+     {
+      "id": "a:a1",
+      "quota": null,
+      "creatives": [],
+      "audiences": [],
+      "excluded_audiences": [],
+      "facebook_targeting": {
+       "age_min": 18
+      },
+      "question_targeting": {
+       "op": "and",
+       "vars": [
+        {
+         "op": "equal",
+         "vars": [
+          {
+           "type": "variable",
+           "value": "a"
+          },
+          {
+           "type": "constant",
+           "value": "a1"
+          }
+         ]
+        },
+        {
+         "op": "answered",
+         "vars": [
+          {
+           "type": "variable",
+           "value": "q1"
+          }
+         ]
+        }
+       ]
+      },
+      "metadata": {}
+     }
+    ]
+   ],
+   "result": true
+  },
+  {
+   "name": "edge/staleness-saved-quota-null-fresh-zero",
+   "fn": "strata_staleness_hint",
+   "args": [
+    [
+     {
+      "name": "a",
+      "properties": [],
+      "levels": [
+       {
+        "name": "a1",
+        "template_campaign": "tc",
+        "template_adset": "adset-a1",
+        "facebook_targeting": {
+         "age_min": 18
+        },
+        "quota": 0
+       }
+      ]
+     }
+    ],
+    [
+     {
+      "id": "a:a1",
+      "quota": null,
+      "creatives": [],
+      "audiences": [],
+      "excluded_audiences": [],
+      "facebook_targeting": {
+       "age_min": 18
+      },
+      "question_targeting": {
+       "op": "and",
+       "vars": [
+        {
+         "op": "equal",
+         "vars": [
+          {
+           "type": "variable",
+           "value": "a"
+          },
+          {
+           "type": "constant",
+           "value": "a1"
+          }
+         ]
+        },
+        {
+         "op": "answered",
+         "vars": [
+          {
+           "type": "variable",
+           "value": "q1"
+          }
+         ]
+        }
+       ]
+      },
+      "metadata": {}
+     }
+    ]
+   ],
+   "result": false
+  },
+  {
    "name": "random/staleness-0",
    "fn": "strata_staleness_hint",
    "args": [
