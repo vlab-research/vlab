@@ -583,7 +583,9 @@ def _audiences_with_a_partitioned_one():
     return [
         AudienceConf(name="respondents", subtype="CUSTOM"),
         AudienceConf(
-            name="cohorts", subtype="PARTITIONED", partitioning=Partitioning(min_users=100)
+            name="cohorts",
+            subtype="PARTITIONED",
+            partitioning=Partitioning(min_users=100),
         ),
     ]
 

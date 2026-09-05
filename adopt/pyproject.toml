@@ -1,6 +1,8 @@
 [tool.poetry]
 name = "adopt"
-version = "0.0.85"
+# Follows the adopt release tag (`adopt-v0.1.85`), not a series of its
+# own -- see planning/release-process.md, "The package version".
+version = "0.1.85"
 description = ""
 authors = ["Nandan Rao <nandanmarkrao@gmail.com>"]
 
@@ -26,6 +28,16 @@ httpx = "^0.25.2"
 uvicorn = {extras = ["standard"], version = "^0.24.0.post1"}
 cvxpy = "^1.5"
 ecos = "^2.0"
+# The `sdk` extra: the `vlab` CLI. Only click is here, because everything else
+# the SDK needs -- requests, PyYAML, pydantic, pandas for the sheet readers --
+# is already a hard dependency above. click is `optional = true` so that the
+# server image (`poetry install --only main`) is unchanged by this; it lands
+# there anyway, as a transitive dependency of uvicorn and typer.
+click = {version = "^8.0.4", optional = true}
+
+[tool.poetry.extras]
+# pipx install 'adopt[sdk]'
+sdk = ["click"]
 
 [tool.poetry.group.dev.dependencies]
 future = "^0.18.2"
@@ -49,6 +61,10 @@ pytest-asyncio = "<0.26.0"
 [tool.poetry.scripts]
 # Checks field_contract.py against live Facebook ads. See adopt/README.md.
 adopt-probe = "adopt.facebook.probe:main"
+# The study-authoring CLI. Needs the `sdk` extra for click; declared
+# unconditionally because a console script that is absent is harder to diagnose
+# than one that fails with "No module named click".
+vlab = "adopt.sdk.cli:main"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]

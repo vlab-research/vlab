@@ -222,7 +222,9 @@ def test_ignores_an_adset_with_no_targeting_object():
     bare = {"id": "adset-bare", "name": "Bare"}
 
     assert (
-        properties_on_some_level([{"template_adset": "adset-bare"}], [bare], ["geo_locations"])
+        properties_on_some_level(
+            [{"template_adset": "adset-bare"}], [bare], ["geo_locations"]
+        )
         == []
     )
 

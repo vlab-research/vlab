@@ -71,7 +71,7 @@ class ExtractionConf(BaseModel):
         if self.mapping not in MAPPINGS:
             raise ValueError(
                 f"Extraction conf '{self.name}' has mapping: "
-                f"\"{self.mapping}\", which is not one of {list(MAPPINGS)}."
+                f'"{self.mapping}", which is not one of {list(MAPPINGS)}.'
             )
         return self
 
@@ -475,6 +475,13 @@ class FlyMultiDestination(RefModeDestination):
         return self
 
 
+# The type a destination with no `type` is read as. Named rather than inlined
+# because the SDK's diff has to know it too: a conf stored before the tag
+# existed reads back as `messenger`, and a file that omits the tag must not
+# therefore look changed. One definition, two readers.
+DESTINATION_DEFAULT_TYPE = "messenger"
+
+
 def _default_missing_destination_type(value: Any) -> Any:
     """Absent `type` means Messenger, which is what it has always meant.
 
@@ -489,7 +496,7 @@ def _default_missing_destination_type(value: Any) -> Any:
     against is a destination quietly becoming a different destination.
     """
     if isinstance(value, dict) and not value.get("type"):
-        return {**value, "type": "messenger"}
+        return {**value, "type": DESTINATION_DEFAULT_TYPE}
     return value
 
 
@@ -1418,18 +1425,16 @@ def thins_its_ref_without_reading_the_mapping(study: StudyConf) -> List[str]:
     destination that stops carrying the stratum has the same problem a Messenger
     one does.
     """
-    thinned = [
-        d.name
-        for d in study.destinations
-        if d.resolved_ref_mode != "metadata"
-    ]
+    thinned = [d.name for d in study.destinations if d.resolved_ref_mode != "metadata"]
 
     if not thinned:
         return []
 
     reads_the_mapping = any(
         ec.is_ad_table_lookup
-        for source in (study.inference_data.data_sources.values() if study.inference_data else [])
+        for source in (
+            study.inference_data.data_sources.values() if study.inference_data else []
+        )
         for ec in source.extraction_confs
     )
 

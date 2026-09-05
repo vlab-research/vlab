@@ -22,6 +22,7 @@ from ..malaria import (
     run_instructions,
     update_ads_for_campaign,
 )
+
 # Lenient, and it must stay that way: `get_recruitment_stats` below rebuilds
 # strata from STORED JSON, which is a read path. A conf written before a field
 # was removed still has to load there, exactly as it does on the optimize cron.
@@ -42,6 +43,7 @@ from ..study_conf_strict import (
     StratumConfStrict,
     VariableConfStrict,
 )
+from ..confs import CONF_TYPE_BY_URL_SEGMENT, dump_conf
 from .auth import AuthError, verify_tokens
 from .api_keys import add_scope_enforcement, router as api_keys_router
 
@@ -135,10 +137,13 @@ class OptimizeResult(BaseModel):
 
 
 async def create_conf(user: User, org_id: str, slug: str, conf_type: str, config: Any):
-    if isinstance(config, list):
-        dat = [c.model_dump() for c in config]
-    else:
-        dat = config.model_dump()
+    # `confs.dump_conf`, not an inline `model_dump()`, so that the SDK's diff
+    # can normalise against the SAME transform rather than a reimplementation
+    # of it. `vlab diff` compares a study file against what is stored, and the
+    # stored value is neither the request body nor quite the model dump; if
+    # those two ever disagree, `push` rewrites a section on every run and
+    # `study_confs` has no delete. See adopt/confs.py.
+    dat = dump_conf(config)
 
     conf = create_study_conf(user.user_id, org_id, slug, conf_type, dat)
     return {"data": conf}
@@ -262,10 +267,10 @@ async def copy_confs_from(
 # asks for one section by its key is using the underscore — and that caller was,
 # until now, the only one that worked. Breaking it to fix the other would just
 # move the bug.
-CONF_TYPE_BY_URL_SEGMENT = {
-    "data-sources": "data_sources",
-    "inference-data": "inference_data",
-}
+#
+# The mapping itself moved to `adopt/confs.py`, where it sits next to the list
+# of conf types it is a mapping of, and where the SDK and the schema export can
+# read it too. `test_confs.py` walks the routes below and fails if it drifts.
 
 
 @app.get("/{org_id}/studies/{slug}/confs/{conf_type}")
@@ -648,12 +653,14 @@ async def get_recruitment_stats(
 
 class SegmentParticipants(BaseModel):
     """Participants for a single segment at a point in time."""
+
     id: str
     participants: int
 
 
 class TimePointData(BaseModel):
     """Data for a single time point."""
+
     datetime: int  # milliseconds timestamp
     totalParticipants: int  # sum across all segments
     segments: list[SegmentParticipants]
@@ -661,11 +668,13 @@ class TimePointData(BaseModel):
 
 class RespondentsOverTimeResponse(BaseModel):
     """Response for respondents over time endpoint."""
+
     data: list[TimePointData]
 
 
 class CostTimePointData(BaseModel):
     """Cost metrics at a specific time point."""
+
     datetime: int  # milliseconds timestamp
     cumulativeSpend: float
     cumulativeRespondents: int
@@ -676,6 +685,7 @@ class CostTimePointData(BaseModel):
 
 class CostOverTimeResponse(BaseModel):
     """Response for cost over time endpoint."""
+
     data: list[CostTimePointData]
 
 
@@ -770,9 +780,7 @@ async def get_cost_over_time(
     if not report:
         return CostOverTimeResponse(data=[])
 
-    return CostOverTimeResponse(
-        data=[CostTimePointData(**point) for point in report]
-    )
+    return CostOverTimeResponse(data=[CostTimePointData(**point) for point in report])
 
 
 @app.get("/health", status_code=200)

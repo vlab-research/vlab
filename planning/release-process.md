@@ -86,6 +86,21 @@ Bumping the major number is for breaking-change connector protocol changes.
 Bump the minor for added functionality. Patch for bug fixes. Same semver
 contract as before, with the tag prefix ceremony added.
 
+## The package version
+
+`adopt/pyproject.toml`'s `version` follows the adopt release tag. Nothing reads
+it at run time — the image tag comes from the git tag, and `devops/values`
+carries it separately — so it drifted: it sat at `0.0.85` while the tags had
+long since reached `v0.1.85`, matching on the patch number and nothing else.
+
+That was harmless until `adopt[sdk]` shipped a console script:
+`vlab --version` reads the installed distribution's metadata, so it printed a
+version no tag, no image and no values file has ever had. Bump it with the tag.
+
+It is not automated, because the tag is cut from a commit and the version is
+in that commit — the ordering makes a build step that writes it awkward, and
+the honest fix is a habit plus this paragraph.
+
 ## CI contracts (the parts that broke)
 
 `release.yml` is plain and linear. It:

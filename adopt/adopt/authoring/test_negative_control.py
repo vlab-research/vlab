@@ -291,7 +291,9 @@ def test_swapped_merge_winner_is_detected(monkeypatch) -> None:
         # `existing_strata` directly, because it is keyed by stratum id and
         # so is `merged` -- swapping in the *fresh* value at each id is the
         # actual bug this simulates (Regenerate discarding user edits).
-        fresh_only = original(variables, finish_question_ref, creatives, audiences, None)
+        fresh_only = original(
+            variables, finish_question_ref, creatives, audiences, None
+        )
         fresh_by_id = {s["id"]: s for s in fresh_only}
         swapped = []
         for stratum in merged:
