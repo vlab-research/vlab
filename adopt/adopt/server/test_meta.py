@@ -142,6 +142,54 @@ def _setup(scopes: Optional[List[str]] = None):
     return org_id, _key(scopes=scopes)
 
 
+# Every route the proxy serves, with the minimum parameters that get past
+# validation. Used by the scope tests and the token-leak sweep, so that a route
+# added without being added here is conspicuous: both of those are properties
+# that must hold for ALL of them, and a per-route spot check is exactly how a
+# new route ends up unprotected.
+# (id, router path template, concrete path, query params)
+ROUTES = [
+    ("credentials", "/{org_id}/meta/credentials", "/meta/credentials", {}),
+    ("adaccounts", "/{org_id}/meta/adaccounts", "/meta/adaccounts", {}),
+    (
+        "campaigns",
+        "/{org_id}/meta/campaigns",
+        "/meta/campaigns",
+        {"account": "1234"},
+    ),
+    ("adsets", "/{org_id}/meta/adsets", "/meta/adsets", {"campaign": "23"}),
+    ("ads-by-campaign", "/{org_id}/meta/ads", "/meta/ads", {"campaign": "23"}),
+    ("ads-by-adset", "/{org_id}/meta/ads", "/meta/ads", {"adset": "77"}),
+    (
+        "creative",
+        "/{org_id}/meta/ads/{ad_id}/creative",
+        "/meta/ads/99/creative",
+        {},
+    ),
+]
+ROUTE_IDS = [r[0] for r in ROUTES]
+
+# (concrete path, params) for `@pytest.mark.parametrize`, which needs the cases
+# at collection time and so cannot have the org id baked in.
+_PARAMS = [(path, params) for _, _, path, params in ROUTES]
+
+
+def _every_route(org_id):
+    return [(f"/{org_id}{path}", params) for _, _, path, params in ROUTES]
+
+
+def test_routes_table_covers_every_registered_route():
+    """The table above is only worth anything if it is complete.
+
+    Without this, a route added to `meta.py` and not to `ROUTES` is silently
+    exempt from the scope sweep and the token-leak sweep — which is exactly the
+    kind of omission those sweeps exist to prevent.
+    """
+    registered = {r.path for r in meta.router.routes}
+    # `/meta/ads` is two ROUTES entries and one router route, hence sets.
+    assert {template for _, template, _, _ in ROUTES} == registered
+
+
 # --------------------------------------------------------------------------
 # The mocked Graph boundary
 # --------------------------------------------------------------------------
@@ -788,14 +836,22 @@ def test_a_non_dict_body_from_meta_is_502():
 # --------------------------------------------------------------------------
 
 
-def test_a_key_without_meta_read_is_denied():
+@pytest.mark.parametrize("path,params", _PARAMS, ids=ROUTE_IDS)
+def test_a_key_without_meta_read_is_denied_on_every_route(path, params):
+    """Denial is a property of the whole area, so assert it over the whole area.
+
+    A per-route spot check is how a route ends up reachable by a key that was
+    never granted `meta:read` — the middleware classifies on the area segment,
+    but a route registered outside `/{org}/meta/…` would not be covered by it
+    at all and nothing else here would notice.
+    """
     org_id = _org(USER)
     _credential(USER, "facebook", "Facebook", {"access_token": TOKEN})
     headers = _key(scopes=["studies:write", "optimize:read"], name="narrow")
     ctx, g = _graph(_page([]))
 
     with ctx:
-        res = client.get(f"/{org_id}/meta/adaccounts", headers=headers)
+        res = client.get(f"/{org_id}{path}", params=params, headers=headers)
 
     assert res.status_code == 403
     assert "meta:read" in res.json()["detail"]
@@ -803,14 +859,21 @@ def test_a_key_without_meta_read_is_denied():
     assert g.calls == []
 
 
-def test_a_key_with_meta_read_is_allowed():
+@pytest.mark.parametrize("path,params", _PARAMS, ids=ROUTE_IDS)
+def test_a_key_with_meta_read_is_allowed_on_every_route(path, params):
+    """The other half: a route denied to everyone would pass the test above."""
     org_id = _org(USER)
     _credential(USER, "facebook", "Facebook", {"access_token": TOKEN})
     headers = _key(scopes=["meta:read"], name="metaonly")
-    ctx, _ = _graph(_page([{"id": "act_1"}]))
+    # The creative route reads one object; the rest page. One body each is
+    # enough for both shapes.
+    ctx, _ = _graph(
+        {"id": "99", "creative": {"id": "5"}},
+        _page([{"id": "act_1"}]),
+    )
 
     with ctx:
-        res = client.get(f"/{org_id}/meta/adaccounts", headers=headers)
+        res = client.get(f"/{org_id}{path}", params=params, headers=headers)
 
     assert res.status_code == 200, res.text
 
@@ -846,17 +909,6 @@ def test_no_token_at_all_is_401():
 # --------------------------------------------------------------------------
 # The token must never come back
 # --------------------------------------------------------------------------
-
-
-def _every_route(org_id):
-    return [
-        (f"/{org_id}/meta/credentials", {}),
-        (f"/{org_id}/meta/adaccounts", {}),
-        (f"/{org_id}/meta/campaigns", {"account": "1234"}),
-        (f"/{org_id}/meta/adsets", {"campaign": "23"}),
-        (f"/{org_id}/meta/ads", {"campaign": "23"}),
-        (f"/{org_id}/meta/ads/99/creative", {}),
-    ]
 
 
 @pytest.mark.parametrize(
