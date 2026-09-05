@@ -429,6 +429,28 @@ def test_diff_reports_a_section_only_on_the_server(runner, obj, org):
     assert "no way to remove a section" in res.output
 
 
+def test_diffs_summary_lists_sections_in_the_order_push_will_write_them(
+    runner, obj, org
+):
+    """Otherwise `diff` and `push` disagree about the same study on the same
+    screen -- the summary is read as a preview of the next command."""
+    slug = obj["client"].create_study(org, "HPV")["slug"]
+    write_study(data=study_dict(org, slug))
+
+    diff_line = [
+        line
+        for line in run(runner, obj, "diff").output.splitlines()
+        if "would be written" in line
+    ][0]
+    push_lines = [
+        line.split()[1]
+        for line in run(runner, obj, "push").output.splitlines()
+        if line.startswith("wrote ")
+    ]
+
+    assert diff_line.split(": ", 1)[1].split(", ") == push_lines
+
+
 def test_diff_json(runner, obj, org):
     client = obj["client"]
     slug = client.create_study(org, "HPV")["slug"]

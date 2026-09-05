@@ -464,7 +464,10 @@ def print_diff(diffs: Sequence[SectionDiff], study: StudyFile) -> None:
             "write with a 422 naming the key."
         )
 
-    to_push = [d.section for d in diffs if d.needs_push]
+    # `push_plan`, not a filter over `diffs`: the summary must list the
+    # sections in the order `push` will actually write them, or the two
+    # commands disagree about the same study on the same screen.
+    to_push = [d.section for d in push_plan(diffs)]
     remote_only = [d.section for d in diffs if d.status == "remote_only"]
 
     click.echo("")
