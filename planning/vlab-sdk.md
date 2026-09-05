@@ -23,10 +23,10 @@ first.
 | `adopt/adopt/authoring/sheets.py` | Salvaged: `parse_kv_sheet`, `parse_row_sheet`, `read_share_lookup`. |
 | `adopt/adopt/authoring/geo.py` | Salvaged: `location_levels`, and `create_location` made public. |
 | `pyproject.toml` | `[tool.poetry.extras] sdk = ["click"]`, `[tool.poetry.scripts] vlab`. |
-| tests | `test_client.py`, `test_study.py`, `test_cli.py`, `test_sheets.py`, `test_geo.py` — 162 in all. |
+| tests | `test_client.py`, `test_study.py`, `test_cli.py`, `test_sheets.py`, `test_geo.py` — 186 in all. |
 | docs | `documentation/agent-api.md` §6 rewritten around the SDK (§6.1) with raw HTTP kept as §6.2; new §8 entry; §2.3 and §7.3 corrected. `adopt/README.md` gains an SDK section. |
 
-Whole suite **2231 → 2393 passed**, 1 skipped (pre-existing), no regressions.
+Whole suite **2231 → 2417 passed**, 1 skipped (pre-existing), no regressions.
 
 The commands, as built:
 
@@ -311,6 +311,60 @@ reader beats `read_excel` plus a dict comprehension.
 
 ---
 
+## 6b. What a pre-merge review found
+
+A read-through of the branch against the API contract (2026-09-05, before
+merge), with the diff machinery exercised by simulating the real storage path
+-- `TypeAdapter.validate_python` -> `model_dump()` -> `orjson.dumps` ->
+`json.loads`, which is what `server.create_conf` plus `db.create_study_conf`
+actually do -- over every conf shape: all three recruitment arms, all five
+destination types with and without `type`, tz-aware and naive datetimes,
+nested `question_targeting`, empty lists, null `tags`.
+
+**It found no bug in §2 or §3**, which is the part that matters: every case
+round-trips as `unchanged`, so `push` neither writes when it should not nor
+skips when it should. What it found instead, all fixed on the branch:
+
+1. **`vlab create --init` wrote a broken file for ordinary study names.** The
+   skeleton is interpolated text, not a dumped dict, so nothing quoted the one
+   piece of arbitrary user input in it. `"HPV: Lagos 2026"` and `"- dash"` made
+   the file unparseable; `"#1 study"` left `general.name` null; `"Yes"` and
+   `"NO"` became booleans. It is the FIRST command in the runbook and the study
+   already exists server-side by then, so re-running is a 409 and the file is
+   not recoverable. Everything interpolated now goes through `json.dumps`,
+   which is always a valid one-line YAML scalar.
+2. **A typo'd section name did nothing at all** -- not written, not rejected,
+   not missed. The SDK filtered extras out of `sections` before calling
+   `validate_study`, throwing away `section.unrecognized`, the only thing in
+   the system that catches it. Two comments claimed it was already reported,
+   via a `StudyFile.extra_keys` that did not exist. `all_sections()` now
+   carries them, and `diff` names them.
+3. **A malformed `study.yaml` printed a traceback**: `yaml.YAMLError` is
+   neither `ValueError` nor `OSError`, so it walked past `VlabGroup.invoke`.
+4. **`push --section X` claimed the whole study was in sync** when only the
+   filtered sections were.
+5. **`_error` treated any JSON array as FastAPI's per-field errors**, so
+   `field_errors` could hand a caller dicts with no `loc` or `msg` under a name
+   that promises both.
+6. Three smaller: `meta ads --ad` silently ignored `--limit`/`--after`;
+   `parse_target` turned `org/slug/extra` into a 404 rather than a usage error;
+   `keys list` would `TypeError` on a null name.
+
+**And one recorded rather than fixed:** the file is YAML 1.1, where a bare `NO`
+is the boolean false rather than Norway. `countries: [NO]` parses, dumps as
+`false`, pushes, and reads back as unchanged -- a one-time silent corruption
+with no further signal. A *pulled* file is safe, because `yaml.safe_dump`
+quotes it; only hand-authored files are exposed. The skeleton now warns, and
+quotes its own `- "NG"`. Making the loader itself YAML 1.2 would mean a new
+dependency (`ruamel.yaml`) and would change what an existing file means.
+
+The transferable lesson is the first one: **a template that interpolates rather
+than serialises has to do the serialiser's escaping job, and the test that
+would have caught it is a name with a colon in it.** Every fixture in the suite
+used names that need no quoting.
+
+---
+
 ## 7. What the plan got wrong
 
 **§8's Phase 3 is four bullets and they are all right, which is itself the
@@ -420,6 +474,15 @@ there is a test pinning it. Both places in the document are corrected.
   newer SDK against an older server — is not detectable at all, because no
   endpoint reports the deployed adopt version. Read
   `devops/values/toixo-prod.yaml`.
+- **The study file is loaded as YAML 1.1**, where a bare `NO` is the boolean
+  false rather than Norway, and `y`/`on`/`off` are likewise booleans.
+  `facebook_targeting` is `Dict[str, Any]`, so `countries: [NO]` parses, dumps
+  as `false`, pushes, and then reads back as unchanged -- a one-time silent
+  corruption with no further signal. A file written by `vlab pull` is safe
+  (`yaml.safe_dump` quotes it); only a hand-authored one is exposed. The
+  skeleton warns and quotes its own country code. Fixing it properly means a
+  YAML 1.2 loader (`ruamel.yaml`), which is a new dependency and would change
+  what an existing file means.
 - **The `sdk` extra was not installed from a built wheel and tested end to
   end.** `poetry check --lock` passes, the console-script entry point resolves,
   and the CLI runs from the source tree; `pipx install 'adopt[sdk]'` from a
