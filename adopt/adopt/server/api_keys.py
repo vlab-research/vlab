@@ -249,6 +249,13 @@ def required_scope(method: str, path: str) -> Optional[str]:
     if area == "studies":
         # /{org_id}/studies/{slug}/<tail>
         tail = segments[3] if len(segments) > 3 else ""
+        # `validate` is a POST that writes nothing — it assembles the stored
+        # confs in memory and returns a report (see `server/validate.py`).
+        # Classifying it by method would demand `studies:write` for a pure
+        # read, so a read-only key could not check its own study. Pinned to
+        # read, deliberately and regardless of method.
+        if tail == "validate":
+            return f"studies:{READ}"
         if tail in ("", "confs", "copy-from"):
             return f"studies:{action}"
         # ad-attributions and ad-attributions.csv
