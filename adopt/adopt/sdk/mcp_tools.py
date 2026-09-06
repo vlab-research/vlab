@@ -310,7 +310,7 @@ async def pull_study(org: str, slug: str) -> Dict[str, Any]:
 
 
 async def validate_study(sections: Dict[str, Any]) -> Dict[str, Any]:
-    """Check a whole study for errors and warnings, without writing. Needs `studies:read`.
+    """Check a whole study for errors and warnings. Needs `studies:read`.
 
     PURE and instant: it runs `adopt.authoring.validate.validate_study` in
     process, writes nothing, touches no database, and needs no study to exist. Use it on
@@ -379,8 +379,8 @@ async def diff_study(org: str, slug: str, sections: Dict[str, Any]) -> Dict[str,
                 "status": d.status,
                 "unknown_keys": list(d.unknown),
                 "changes": [
-                    {"path": p, "stored": repr(s), "proposed": repr(l)}
-                    for p, s, l in leaves[:MAX_DIFF_LEAVES]
+                    {"path": path, "stored": repr(was), "proposed": repr(now)}
+                    for path, was, now in leaves[:MAX_DIFF_LEAVES]
                 ],
                 "changes_elided": max(0, len(leaves) - MAX_DIFF_LEAVES),
             }
@@ -565,7 +565,7 @@ async def extract_targeting(
 
 
 async def plan_study(org: str, slug: str) -> Dict[str, Any]:
-    """The reconciliation plan for a study, with indices for `apply_instruction`. Needs `optimize:read`.
+    """The reconciliation plan, indexed for `apply_instruction`. Needs `optimize:read`.
 
     NOT SIDE-EFFECT FREE, despite being called a preview. Every run READS META
     with the researcher's stored credential, HEALS AD ATTRIBUTIONS (inserting
