@@ -4,7 +4,7 @@ Exploration and decision path for giving an AI agent (or a script, or a
 notebook) the ability to create and configure a vlab study without driving the
 React dashboard by hand.
 
-Status: **Phases 0–3 deployed or merged (adopt v0.1.85 in production; the SDK, `vlab` CLI and template authoring merged after it); Phase 4 (MCP) not started.** §1–§5 are
+Status: **Phases 0–3 in production (adopt v0.1.86); Phase 4 (MCP) planned in §16, not started.** §1–§5 are
 findings read out of the code, with the file establishing each claim named
 next to it. §7 records the decisions taken and why, §8 is the plan, §10 is
 what is still open, and **§11 (Phase 0), §12 (Phase 1) and §13 (Phase 2)
@@ -417,11 +417,11 @@ MCP clients and the dashboard do, and it is the same pydantic construction.
 
 **Phase 4 — MCP.**
 
-A shim over the SDK on the FastAPI service, with per-tool scopes (fly's
-delegated-route model: `/mcp` admits any authenticated key, a `TOOL_SCOPES`
-table is the real check). Tools should be the *smart* operations —
-`compile_strata`, `validate_study`, `plan_study` — not one write tool per conf
-type.
+A shim over the SDK, with per-tool scopes (fly's delegated-route model:
+`/mcp` admits any authenticated key, a `TOOL_SCOPES` table is the real check).
+Tools should be the *smart* operations — `compile_strata`, `validate_study`,
+`plan_study` — not one write tool per conf type. Worked out in detail in §16
+(2026-09-06): one tool module, two transports, one PR.
 
 **Documentation, running alongside from Phase 0.**
 
@@ -1435,6 +1435,128 @@ still names the key, which is what matters.
 
 
 ---
+
+## 16. Phase 4: the MCP shim — the plan, settled 2026-09-06
+
+Not started. This section is the brief for whoever implements it; it
+supersedes the §8 paragraph where they differ.
+
+### 16.1 Shape: one tool module, two transports, one PR
+
+The tool definitions are written once, in `adopt`, and every tool calls the
+same function the `vlab` CLI calls for that operation — `adopt.sdk.client`,
+`adopt.authoring.validate.validate_study`, `adopt.authoring.strata`,
+`adopt.confs`, the Meta proxy code. No tool contains logic of its own beyond
+argument shaping. This is the §7 "one implementation" row applied to MCP, and
+it is the whole reason Phase 3 came first: fly's `90cdce61` (§5) is the
+refactor this avoids.
+
+The same module is served two ways:
+
+- **Local, stdio: `vlab mcp`.** The SDK runs the server on the researcher's
+  or agent's machine with `VLAB_API_KEY`, and every tool reaches the service
+  over HTTP through `adopt.sdk.client`. Works with Claude Code and Claude
+  Desktop the day it merges, needs no deploy, and is the test harness for the
+  remote transport: if a tool works here it is provably the CLI with a
+  different front door. Scopes are enforced by the service's existing route
+  middleware on every underlying call, so the local transport needs no scope
+  logic at all.
+- **Remote, streamable HTTP: `POST /mcp` on the conf service.** The `mcp`
+  package's ASGI app mounted inside FastAPI under the existing bearer
+  dependency, stateless. For clients with no install. Tools here call the
+  library in-process and never pass through a route, so scopes must be
+  checked per tool (§16.3).
+
+Originally sketched as two steps (local first, remote second); collapsed into
+one PR because the delta is a mount, a scope table and a release, and the
+local transport is the natural harness for the remote one.
+
+### 16.2 Tools
+
+Smart operations, not one write per conf type. Each maps to an existing SDK
+call; the names are the CLI's, so the runbook in `documentation/agent-api.md`
+§6 reads the same whichever front door is used.
+
+| Tool | Calls | Scope |
+|---|---|---|
+| `create_study(org, name)` | `client.create_study` | `studies:write` |
+| `pull_study(org, slug)` | `client.get_confs` | `studies:read` |
+| `validate_study(sections)` | `validate_study` (in-process; local) | `studies:read` |
+| `diff_study(org, slug, sections)` | `study.diff` | `studies:read` |
+| `push_study(org, slug, sections, force=false)` | `study.push` (validates first, writes changed sections in reference order) | `studies:write` |
+| `compile_strata(variables, finish_question_ref, existing_strata)` | `strata.create_strata_from_variables` | none (pure) |
+| `extract_targeting(adset, properties)` | `extract.extract_from_adset` | none (pure) |
+| `plan_study(org, slug)` | optimize preview (§2.6; not side-effect free — say so in the description) | `studies:write` |
+| `apply_instruction(org, slug, index)` | `POST .../instruction` | `studies:write` |
+| `meta_credentials / meta_adaccounts / meta_campaigns / meta_adsets / meta_ads` | the Phase 2 proxy | `meta:read` |
+| `list_api_keys / revoke_api_key` | Phase 0 endpoints | `keys:*` as already defined |
+
+Tool descriptions are the product surface. They carry the mental model an
+agent needs — append-only confs and "POST is the update", the reference graph
+(creatives name destinations; strata name creatives and audiences), what
+"regenerate strata" means, that `plan_study` reads Meta and heals
+attributions — and they are code: a test asserts every tool has a description
+above a minimum length that mentions its scope and its side effects, and the
+descriptions are diffed in review like any other change.
+
+**Not a tool:** template creation (§10 last bullet — SDK via the Facebook
+Business SDK directly; it needs a Meta token and an image upload, neither of
+which belongs behind an API key). `vlab template` stays CLI-only.
+
+### 16.3 Scopes on the remote transport
+
+fly's delegated-route model (§5, A.4): `/mcp` is classified *delegated* in the
+Phase 0 middleware, so any authenticated key reaches it, and a `TOOL_SCOPES`
+table (the third column above) is the real check, evaluated per call against
+the key's scopes with the same `scope_grants` function the routes use
+(`write` implies `read`; absent scopes claim means unrestricted; a tool with
+no entry is denied, never allowed by default). Tests: every registered tool
+has a `TOOL_SCOPES` entry (introspect the server, fail on a missing one); a key
+lacking the scope gets a tool error naming the scope, not a transport error;
+a key with no scopes claim passes; the pure tools pass for any key.
+
+### 16.4 Dependencies and the Python pin
+
+The `mcp` package is the one new dependency, needed by both transports. It
+requires Python ≥ 3.10; the service is pinned to exactly 3.10
+(`python = ">=3.9,<3.11"`), so it fits today. Newer `mcp` releases may raise
+the floor, which is one more reason VIR-47 (pandas 2 / numpy 2, lift the pin)
+should not wait long. Put `mcp` in the main dependencies, not the `sdk` extra,
+since the service needs it for `/mcp`.
+
+### 16.5 Tests
+
+- Tool module: for each tool, one test that it calls the SDK function with
+  the shaped arguments and returns its result unchanged (mock at the SDK
+  client boundary, not at HTTP).
+- Local transport: drive `vlab mcp` over stdio with the `mcp` client library
+  against the FastAPI app served by `TestClient`-backed `adopt.sdk.client`;
+  run the runbook end to end (create → push → validate → plan) through tools.
+- Remote transport: the same runbook through `POST /mcp` with a scoped API
+  key; the scope tests of §16.3; a test that the tool list and descriptions
+  are identical on both transports (they are the same module, so this is a
+  drift guard against a transport-specific registration).
+- The static boundary test from Phase 3 (`sdk/` must not import
+  `adopt.server`) still holds; the remote mount lives under `adopt/server/`,
+  the tool module under `adopt/sdk/` or `adopt/authoring/`, and only the
+  server side imports both.
+
+### 16.6 Docs and release
+
+- `documentation/agent-api.md`: an MCP section with both transports, the
+  Claude Code / Claude Desktop configuration snippet for `vlab mcp`, the
+  scope table, and a Known gaps list (what could not be exercised).
+- `planning/mcp.md`: phase notes in the style of `planning/vlab-sdk.md`.
+- Release: a normal adopt tag via `scripts/release.sh`; no migrations
+  expected; the `/mcp` route is inert until a client uses it, so the values
+  bump carries no user-facing risk.
+
+### 16.7 Out of scope
+
+Template creation (above); a write proxy for Meta; any MCP resource or prompt
+surface beyond tools; caching; anything that would make a tool smarter than
+the CLI command it wraps.
+
 
 ## Appendix A. Notes for whoever implements Phase 0
 
