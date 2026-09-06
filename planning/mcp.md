@@ -1,6 +1,6 @@
 # Phase 4: the MCP shim
 
-Implemented 2026-09-06 on `feature/mcp`. This is the phase-notes file for
+Implemented 2026-09-06 on `feature/mcp`, merged in #271 and in production as adopt v0.1.87 the same day. Post-deploy checks: all four uvicorn workers started the session manager; `GET`/`DELETE /mcp` 405, unauthenticated `POST /mcp` 403, bad token 401; `/openapi.json` unchanged; cronjobs on v0.1.87. This is the phase-notes file for
 Phase 4 of `planning/agent-study-authoring.md` §16, written in the discipline
 of `planning/vlab-sdk.md`: what shipped, the decisions with their reasons,
 where the brief was wrong, and what is deliberately not done or still open.
