@@ -19,11 +19,11 @@ below and both are deliberate.
 | `adopt/adopt/sdk/cli.py` | `vlab mcp` — the stdio transport. Three lines, and `mcp` is imported inside them. |
 | `adopt/adopt/sdk/study.py` | `push_sections`, `PushResult`, `PushRefused`, `PushFailed` — the push loop lifted out of `cli.push` so the tool cannot own a second copy of it. |
 | `adopt/adopt/sdk/client.py` | `http_error()` split out of `VlabClient._error`, so the in-process backend can raise the exceptions the wire raises. |
-| `adopt/adopt/server/mcp_server.py` | `POST /mcp`. The stateless streamable-HTTP transport, `InProcessBackend`, the per-tool `authorizer`, the app lifespan, the mount. The **only** file that imports both `adopt.sdk` and `adopt.server`. |
+| `adopt/adopt/server/mcp_server.py` | `POST /mcp`, and POST only (§6). The stateless streamable-HTTP transport, `InProcessBackend`, the per-tool `authorizer`, the app lifespan, the mount. The **only** file that imports both `adopt.sdk` and `adopt.server`. |
 | `adopt/adopt/server/server.py` | `FastAPI(lifespan=mcp_lifespan)`, `mount_mcp(app)`, and `CONF_POST_HANDLERS` derived by walking `app.routes`. |
 | `adopt/adopt/server/api_keys.py` | `DELEGATED_PATHS = {"/mcp"}` and the short-circuit in `is_authorized`. |
-| `adopt/pyproject.toml` | `mcp = {version = "1.12.4", python = ">=3.10"}` in the MAIN dependencies; `httpx` and `typing-extensions` floors raised; `addopts = "-p no:anyio"`. Version → `0.1.87`. |
-| tests | `sdk/test_mcp_tools.py` (54), `sdk/test_mcp_stdio.py` (6), `server/test_mcp_server.py` (19). |
+| `adopt/pyproject.toml` | `mcp = "1.12.4"` in the MAIN dependencies; the project pin narrowed to `>=3.10,<3.11` (§5a); `pydantic` held at `~2.9.2` (§5); `httpx` and `typing-extensions` floors raised; `addopts = "-p no:anyio"`. Version → `0.1.87`. |
+| tests | `sdk/test_mcp_tools.py` (52), `sdk/test_mcp_stdio.py` (6), `server/test_mcp_server.py` (43) — 101 in all. |
 | docs | `documentation/agent-api.md` §6b (both transports, client config, the scope table, Known gaps), a §8 entry, and a pointer in the intro. |
 
 The tools, with the scope each needs:
@@ -114,6 +114,21 @@ enforce", evaluated "with the same `scope_grants` function the routes use".
 Where the two halves of the brief disagree, that rule wins. Pinned by
 `test_the_scopes_are_the_ones_the_routes_require`.
 
+**A third, smaller divergence.** §16.2 gives the key tools "`keys:*` as already
+defined in the routes". There is no `keys` resource: the vocabulary is
+`api_keys.RESOURCES`, and key management is `auth`. `list_api_keys` and
+`revoke_api_key` are therefore `auth:read` and `auth:write`, which is what
+`required_scope` returns for `/users/api-keys` and what the routes' own
+`require_scope` dependencies demand. The brief's own words -- "as already
+defined in the routes" -- pick the same answer; only its shorthand was wrong.
+
+All three are covered by one test rather than three:
+`test_each_tools_scope_is_what_its_route_requires` compares `TOOL_SCOPES`
+against `api_keys.required_scope` for the fourteen route-backed tools. Written
+that way deliberately -- an earlier version compared the table to a second
+hand-written table, which asserted only that someone had typed the same thing
+twice.
+
 ## 4. Where the brief was wrong: the boundary test
 
 §16.5 says "the existing static test that `adopt/sdk/` never imports
@@ -144,17 +159,26 @@ while this package declares `>=3.9,<3.11`, so poetry needs a
 install `vlab mcp` fails with "No module named mcp", which is honest. And
 `mcp` 1.13 raised its floor to `uvicorn>=0.31.1` while the service runs
 `uvicorn ^0.24`; 1.12.4 is the newest release whose floors this project already
-meets. Bumping the ASGI server in the change that mounts an inert route would
-have put deployment risk on a feature that carries none.
+meets. Bumping the ASGI server at the same time as mounting a new route would
+have been two deployment risks in one change rather than one.
 
 It was not a free addition. Four consequences, all absorbed in one commit:
 
 1. **httpx `^0.25.2` → `>=0.27.1,<0.29`.** Every `mcp` release requires
    `httpx>=0.27`. httpx is used here by FastAPI's `TestClient` and one ASGI
    test; neither pins a 0.25 behaviour.
-2. **pydantic 2.5.2 → 2.9.2** on Python 3.10 (`mcp` floors it at 2.8). 2.9
-   emits `enum` and `type` alongside `const` in JSON Schema, so the committed
-   schemas were regenerated — a richer schema for unchanged models.
+2. **pydantic 2.5.2 → 2.9.2** (`mcp` floors it at 2.8), and **pinned to
+   `~2.9.2` rather than left on a caret**. 2.9 emits `enum` and `type` alongside
+   `const` in JSON Schema, so the committed schemas were regenerated — a richer
+   schema for unchanged models. The pin is the point: `make check-schemas`
+   compares the committed schemas against what pydantic renders, and the
+   rendering moves between minors. `Literal["app"]` is `{const, title}` on
+   2.5.2, `{const, enum, title, type}` on 2.9.x, and `{const, title, type}` on
+   2.13 — the `enum` appears and then disappears again. Under `^2.5.2` the next
+   unrelated PR that re-resolved the lock would have failed `check-schemas` for
+   no reason its author could see. Moving the pin is now a deliberate act: bump
+   it, run `make schemas`, commit the result in the same change. Ideally under
+   VIR-47, with the Python pin.
 3. **pydantic 2.9 parses a bare `2026-06-01` as midnight**, where 2.5 refused
    it. An unquoted `start_date` in a study file is therefore now valid rather
    than a local `section.invalid`. Strictly more permissive; nothing that used
@@ -167,6 +191,15 @@ It was not a free addition. Four consequences, all absorbed in one commit:
    async tests drive their own loop with `asyncio.run`). Bumping pytest 6 → 8
    is a change to how ~2300 tests run and has nothing to do with MCP.
 
+Those four are the ones that changed BEHAVIOUR. The full lock delta is larger
+and is recorded in `pyproject.toml` next to the `mcp` entry so nobody has to
+diff a 600-line lockfile: nine packages added, one dropped (`sniffio`, which
+anyio 4 no longer needs), and seven moved — anyio 3.7.1 → 4.14.2, attrs
+21.4.0 → 26.1.0, httpx 0.25.2 → 0.28.1, pydantic 2.5.2 → 2.9.2, pydantic-core
+2.14.5 → 2.23.4, python-dotenv 0.19.2 → 1.2.3, typing-extensions 4.9.0 → 4.16.0.
+The three not listed above are transitive and were exercised only by the suite
+passing.
+
 `typing-extensions >= 4.13` is also declared, and it is not a direct import:
 `mcp` uses PEP 696 TypeVar defaults and declares no floor of its own. The lock
 held 4.9.0 and `import mcp` died with "Too few parameters for RequestContext",
@@ -174,7 +207,75 @@ a long way from its cause. The floor makes that a resolver error instead.
 
 ---
 
-## 6. Two things that bit, and are pinned
+## 5a. The route is inert; the deploy is not
+
+§16.6 says "the `/mcp` route is inert until a client uses it, so the values bump
+carries no user-facing risk". The first half is true and the second is not, and
+it is worth being precise about why.
+
+`server/server.py` imports `server/mcp_server.py` at module scope, and
+`mcp_server` imports `mcp` and builds the `FastMCP` instance at import.
+`server.py` also passes `mcp_server.lifespan` to `FastAPI(...)`, so the
+transport's session manager starts with the app. An `mcp` that fails to import,
+or a session manager that fails to start, therefore takes the WHOLE conf service
+down -- `/health` included -- rather than degrading `POST /mcp`.
+
+That is the right trade, and it is kept: a service that boots while
+half-serving a transport it advertises is worse than one that refuses to boot
+and gets rolled back, and the alternative (a lazy import behind a try/except,
+with `/mcp` answering 503) hides a broken deploy behind a route nobody watches.
+But it means this release carries ordinary deployment risk rather than none,
+and the release note in `documentation/agent-api.md` §8 and §6b's Known gaps
+now say so instead of repeating "inert".
+
+The direct consequence is the Python floor. §16.4 assumed `python =
+">=3.9,<3.11"` could stay, with a `python = ">=3.10"` marker keeping `mcp` off
+3.9 installs. That was true when only `vlab mcp` needed it -- "No module named
+mcp" is an honest answer from a CLI subcommand -- and false once the SERVICE
+imports it: on 3.9 the marker would leave `mcp` uninstalled and
+`import adopt.server.server` would raise. The pin is now `>=3.10,<3.11` and the
+marker is gone. Nothing was actually running on 3.9 (`Dockerfile` is
+`python:3.10-slim`, CI is `python-version: '3.10'`, and the SDK install line has
+said `--python python3.10` since Phase 3), so this narrows a claim rather than
+dropping support. The ceiling stays at `<3.11` for pandas 1.5.3 / numpy 1.x;
+VIR-47 is where both ends move.
+
+---
+
+## 6. Three things that bit, and are pinned
+
+**`GET /mcp` was a denial of service, and review caught it.** The endpoint was
+mounted with `Route(MCP_PATH, endpoint=MCPEndpoint())` — a class instance, so
+`methods` stayed `None` and every verb matched — and handed everything to
+`manager.handle_request`. Streamable HTTP defines GET (open a server-to-client
+SSE stream) and DELETE (end a session) alongside POST; in STATELESS mode both
+are meaningless, and the library does not say so.
+`StreamableHTTPServerTransport._handle_get_request` has no session-id guard to
+fail on when `mcp_session_id` is None, so it opens an `EventSourceResponse`
+that can never receive anything and never closes. Each such GET pinned a
+connection, a transport and an anyio task in the lifespan task group for the
+life of the worker.
+
+Reachable by ANY authenticated key, including one scoped to nothing at all:
+`/mcp` is a delegated path so the middleware lets a key through before any
+scope is looked at, and a GET never calls a tool, so `TOOL_SCOPES` never runs.
+Reproduced before fixing — a single unfixed GET through `TestClient` had to be
+killed after 90 seconds.
+
+Fixed in two places, belt and braces the way `meta.py` pairs its `require_scope`
+dependency with the scope middleware: `mount()` declares `methods=["POST"]` so
+Starlette answers first, and `MCPEndpoint.__call__` refuses anything but POST
+itself, so the endpoint is safe however it is mounted. The check is BEFORE
+authentication, because `verify_tokens` fetches Auth0's JWKS over the network
+for an RS256 token and a verb this endpoint does not serve must not cost an
+outbound request. Six tests, and the ones that matter carry a `timeout`: without
+the fix they do not fail, they stop.
+
+The general lesson is worth keeping: mounting a third-party ASGI app means
+inheriting every method it will answer, and "the transport only makes sense for
+POST" is not something the transport enforces.
+
+
 
 **A `StreamableHTTPSessionManager` can be `run()` exactly once per instance.**
 The first version built one at module import. That works in production, where
@@ -193,7 +294,7 @@ It answers 503 naming the cause instead. Pinned by
 
 ## 7. Testing, and what was not tested
 
-The suite is 79 new tests in three files, and they split by what they need:
+The suite is 101 new tests in three files, and they split by what they need:
 
 - **`sdk/test_mcp_tools.py`** — no database, no HTTP. One test per tool
   asserting which backend method it calls with which arguments and that the

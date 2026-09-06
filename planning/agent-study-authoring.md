@@ -1556,8 +1556,12 @@ since the service needs it for `/mcp`.
   scope table, and a Known gaps list (what could not be exercised).
 - `planning/mcp.md`: phase notes in the style of `planning/vlab-sdk.md`.
 - Release: a normal adopt tag via `scripts/release.sh`; no migrations
-  expected; the `/mcp` route is inert until a client uses it, so the values
-  bump carries no user-facing risk.
+  expected. **The "inert route, no user-facing risk" claim here is wrong and
+  `planning/mcp.md` §5a corrects it**: no tool runs until a client calls one,
+  but `server.py` imports the MCP module at start-up and runs the transport's
+  session manager in the app lifespan, so a failure there takes the whole conf
+  service down rather than degrading `/mcp`. The release carries ordinary
+  deployment risk. It is also why the package's Python floor moved to 3.10.
 
 ### 16.7 Out of scope
 

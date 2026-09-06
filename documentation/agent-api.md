@@ -1370,7 +1370,7 @@ do it that way, and because every step of §6.1 is worth understanding.
 
 ```
 # adopt is on no index -- there is no `pip install adopt`, and that name on
-# PyPI is an unrelated project. Install from the repo, on Python >=3.9,<3.11:
+# PyPI is an unrelated project. Install from the repo, on Python >=3.10,<3.11:
 pipx install --python python3.10 \
   "adopt[sdk] @ git+https://github.com/vlab-research/vlab.git#subdirectory=adopt"
 
@@ -1973,7 +1973,7 @@ any client that launches a stdio server:
 {
   "mcpServers": {
     "vlab": {
-      "command": "vlab",
+      "command": "/Users/you/.local/bin/vlab",
       "args": ["mcp"],
       "env": {
         "VLAB_API_KEY": "eyJ...",
@@ -1983,6 +1983,12 @@ any client that launches a stdio server:
   }
 }
 ```
+
+**Use the absolute path from `which vlab`** for `command`. Claude Desktop
+launches the server without a login shell, so `~/.local/bin` — where `pipx`
+puts it — is usually not on `PATH`, and a bare `"vlab"` fails with a spawn
+error that says nothing about `PATH`. The `claude mcp add` line above does not
+have this problem, because Claude Code inherits the shell you ran it from.
 
 `VLAB_API_URL` is optional; it defaults to the production conf service above.
 There is no `vlab login` and no credentials file — the key comes from the
@@ -2080,9 +2086,21 @@ to work. Treat them as unverified rather than broken.
   JSON-RPC in the test suite, against the real FastAPI app and a real database.
   Claude Desktop and Claude Code configuration above is the documented shape,
   not one that has been observed working end to end.
-- **`POST /mcp` is inert until a client uses it**, and no client had at the
-  time of writing. The mount adds a route and an app lifespan; it changes no
-  existing endpoint.
+- **The route is inert; the deploy is not.** No tool runs until a client calls
+  one, and no existing endpoint changed. But `server.py` imports the MCP module
+  at start-up and the transport's session manager runs in the app lifespan, so
+  an `mcp` that fails to import, or a session manager that fails to start,
+  takes the whole conf service down rather than degrading `/mcp`. Deliberate --
+  a service half-serving its own advertised transport is worse than one that
+  refuses to start and rolls back — but it means the release carries ordinary
+  deployment risk, not none. This is also why the package's Python floor is now
+  3.10: on 3.9 `mcp` is unavailable and `import adopt.server.server` fails.
+- **`POST` only.** `GET` and `DELETE` on `/mcp` are 405. In stateless mode a
+  GET would open an SSE stream that can never carry anything and never closes,
+  pinning a connection and a task per request — reachable by any authenticated
+  key, since a GET never calls a tool and so never reaches the scope table.
+  A client that insists on opening the optional server-to-client stream will
+  see the 405; none is known to require it.
 - **No `initialize` / capability negotiation is exercised.** Stateless mode
   does not require it, and the tests do not send one. A client that insists on
   the full handshake before `tools/list` should work — the transport implements
@@ -2159,7 +2177,7 @@ client.
 
 Phase 4 of `planning/agent-study-authoring.md` §8; the design record is
 `planning/mcp.md`; the reference is §6b. **One new endpoint, `POST /mcp`, and
-no change to any existing one.**
+one behaviour change to an existing one — see the bare-date note at the end.**
 
 `vlab mcp` serves sixteen tools on stdio, so an MCP client — Claude Code,
 Claude Desktop, anything that launches a stdio server — drives the §6.1 runbook
@@ -2184,6 +2202,25 @@ on Meta through a door it does not have over HTTP.
 
 Template creation is not a tool and is not going to be one, for the same reason
 §7 item 2 gives: it needs a Facebook token and an image upload.
+
+Two things that are not new capability but are new risk, both stated in §6b's
+Known gaps. `/mcp` serves **POST only** — in stateless mode a GET would open an
+SSE stream that can never carry anything and never closes, which any
+authenticated key could have used to exhaust a worker, so anything else is a
+405. And the conf service now imports the MCP module at start-up and runs the
+transport's session manager in its lifespan, so this release carries ordinary
+deployment risk rather than none: the route is inert, the boot path is not.
+The package's Python floor moved to 3.10 for the same reason.
+
+**One existing endpoint did change behaviour, and not on purpose.** `mcp`
+floors pydantic at >=2.8; the lock moved 2.5.2 → 2.9.2; and pydantic 2.9 parses
+a bare date where 2.5 refused one. So `POST /{org}/studies/{slug}/confs/recruitment`
+with `"start_date": "2026-06-01"` — a date with no time — used to be a 422 and
+is now a 201 storing `2026-06-01T00:00:00`. Strictly more permissive: nothing
+that used to be accepted is rejected, and a study file with an unquoted YAML
+date now simply works. It is pinned by a route-level test and `pydantic` is
+pinned to `~2.9.2`, so narrowing it again would be a deliberate act rather than
+a side effect of an unrelated lock refresh.
 
 §6b's "Known gaps" lists what was not exercised — chiefly that neither
 transport has been driven by a real MCP client against the deployed service.
@@ -2225,7 +2262,7 @@ Phase 3 of `planning/agent-study-authoring.md` §8; the design record is
 endpoint below is exactly what it was.
 
 `pipx install "adopt[sdk] @ git+https://github.com/vlab-research/vlab.git#subdirectory=adopt"`
-gives you `vlab` (Python >=3.9,<3.11; `adopt` is on no index). A study is one `study.yaml`
+gives you `vlab` (Python >=3.10,<3.11; `adopt` is on no index). A study is one `study.yaml`
 carrying the nine sections in the wire shapes of §3, and the loop is
 `vlab validate && vlab diff && vlab push`, then `vlab plan` / `vlab apply`.
 §6.1 is the runbook; `adopt/README.md` is the reference; `adopt.sdk` and
