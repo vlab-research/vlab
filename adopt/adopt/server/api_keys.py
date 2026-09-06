@@ -159,6 +159,25 @@ ACTIONS = (READ, WRITE, ANY)
 # something this layer can see.
 PUBLIC_PATHS = frozenset({"/health", "/docs", "/redoc", "/openapi.json"})
 
+# Paths that authenticate here and authorize somewhere else. fly's
+# delegated-route model (plan §5, A.4), and vlab has exactly one:
+#
+# `/mcp` is the MCP transport (`server/mcp_server.py`). Every tool call arrives
+# as a POST to this one path, so classifying it the way `required_scope`
+# classifies everything else -- by looking at the path -- would either demand
+# one scope for all sixteen tools or, since the path maps to no resource, deny
+# the whole endpoint to every scoped key. Neither says anything true. So any
+# authenticated key REACHES it, and `mcp_tools.TOOL_SCOPES` is the real check,
+# evaluated per call against the same `scopes_allow` used here.
+#
+# This is a narrower hole than it looks: it is not "unauthenticated", and it is
+# not "unauthorized". A key still cannot call a tool its scopes do not cover,
+# and a tool with no entry in TOOL_SCOPES is denied outright. What it does give
+# up is the fail-closed property for a route added under this prefix -- which is
+# why it is an exact path, matched exactly, and why `mcp_server.mount` uses a
+# `Route` rather than a `Mount` that would also claim `/mcp/anything`.
+DELEGATED_PATHS = frozenset({"/mcp"})
+
 
 def parse_scope(scope: str) -> tuple[str, Optional[str]]:
     resource, _, action = str(scope).partition(":")
@@ -269,6 +288,9 @@ def required_scope(method: str, path: str) -> Optional[str]:
 
 
 def is_authorized(scopes: Optional[Sequence[str]], method: str, path: str) -> bool:
+    if path in DELEGATED_PATHS:
+        # Authorized per tool, not per path. See DELEGATED_PATHS.
+        return True
     if scopes is None:
         return True
     if ANY in scopes:
