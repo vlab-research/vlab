@@ -631,9 +631,7 @@ def test_validate_judges_exactly_the_bytes_push_would_send():
     # What `push` would put on the wire, which is what `validate` was handed.
     assert json.loads(json.dumps(sections))["recruitment"]["start_date"] == "2026-06-01"
 
-    errors = [
-        e for e in validate_study(sections).errors if e.section == "recruitment"
-    ]
+    errors = [e for e in validate_study(sections).errors if e.section == "recruitment"]
     assert not errors, "pydantic 2.9 parses a bare date; see the docstring"
 
     # And what it stores: midnight, not the string.
