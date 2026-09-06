@@ -45,7 +45,6 @@ would be a session that half the requests could not find. It also means the
 makes a bare `POST /mcp` from a script work.
 """
 
-import logging
 from contextlib import asynccontextmanager
 from typing import Any, AsyncIterator, Dict, List, Optional
 
@@ -60,8 +59,6 @@ from ..sdk.client import http_error
 from ..sdk.mcp_tools import TOOL_SCOPES, ScopeError, ToolEnv, build_server, use
 from .api_keys import scopes_allow, scopes_for_token
 from .deps import User, get_current_user
-
-logger = logging.getLogger(__name__)
 
 # The path. One constant, because `api_keys.DELEGATED_PATHS` has to agree with
 # it: if the mount moves and the classification does not, every scoped key
