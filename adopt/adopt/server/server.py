@@ -5,6 +5,7 @@ from environs import Env
 from fastapi import Depends, FastAPI, HTTPException, Response, status, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from facebook_business.exceptions import FacebookRequestError
 from pydantic import BaseModel
 import pandas as pd
 import asyncio
@@ -13,6 +14,7 @@ import time
 from ..responses import get_inference_data
 
 from ..campaign_queries import get_ad_attributions, get_user_info
+from ..facebook.api import fail_fast, is_rate_limit
 from ..facebook.update import GraphUpdater
 from ..malaria import (
     Instruction,
@@ -398,6 +400,27 @@ def run_single_instruction(
     return OptimizeReport(**report)
 
 
+def facebook_http_error(e: FacebookRequestError) -> HTTPException:
+    """The HTTP shape of a Graph error raised under `fail_fast`.
+
+    A rate limit (code 17) is a 429 carrying Meta's own "wait a bit" text, so
+    the dashboard shows the researcher something they can act on instead of
+    "something went wrong". Every other Graph error stays a 500 with the
+    message, as before.
+    """
+    if is_rate_limit(e):
+        body = e.body() if isinstance(e.body(), dict) else {}
+        user_msg = body.get("error", {}).get("error_user_msg") or e.api_error_message()
+        return HTTPException(
+            status_code=429,
+            detail=(
+                "Facebook is rate limiting this ad account, so nothing was "
+                f"changed. {user_msg} (Graph error 17)"
+            ),
+        )
+    return HTTPException(status_code=500, detail=f"{e}")
+
+
 @app.get("/{org_id}/optimize/{slug}")
 @async_timeout(300)  # 5 minute timeout
 async def optimize_study(
@@ -405,10 +428,15 @@ async def optimize_study(
     slug: str,
     user: Annotated[User, Depends(get_current_user)],
 ) -> OptimizeResult:
+    # fail_fast: a researcher is waiting on this. See facebook/api.py.
     try:
-        instructions = await asyncio.to_thread(
-            run_study_opt, user.user_id, org_id, slug
-        )
+        with fail_fast():
+            instructions = await asyncio.to_thread(
+                run_study_opt, user.user_id, org_id, slug
+            )
+    except FacebookRequestError as e:
+        logging.error(f"Facebook error in optimize_study: {str(e)}")
+        raise facebook_http_error(e)
     except BaseException as e:
         logging.error(f"Error in optimize_study: {str(e)}")
         raise HTTPException(status_code=500, detail=f"{e}")
@@ -518,9 +546,21 @@ async def run_instruction(
     instruction: OptimizeInstruction,
     user: Annotated[User, Depends(get_current_user)],
 ) -> InstructionResult:
+    # to_thread, not a bare call: the Graph calls inside are synchronous, and
+    # run in the handler they block this worker's event loop -- including its
+    # /health route. On 2026-09-05 a backoff sleep did exactly that and the
+    # liveness probe killed the pod (exit 137). fail_fast is why that sleep no
+    # longer happens at all on this path; the thread is why nothing else that
+    # is slow here can take the worker down with it.
     try:
-        report = run_single_instruction(user.user_id, org_id, slug, instruction)
+        with fail_fast():
+            report = await asyncio.to_thread(
+                run_single_instruction, user.user_id, org_id, slug, instruction
+            )
         return InstructionResult(data=report)
+    except FacebookRequestError as e:
+        logging.error(f"Facebook error in run_instruction: {str(e)}")
+        raise facebook_http_error(e)
     except BaseException as e:
         raise HTTPException(status_code=500, detail=f"{e}")
 

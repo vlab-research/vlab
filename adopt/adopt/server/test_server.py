@@ -24,6 +24,9 @@ os.environ["API_KEY_AUDIENCE"] = "test-audience"
 os.environ["API_KEY_SECRET"] = "api-key-secret"
 
 from .auth import DifferentAuthError
+from facebook_business.exceptions import FacebookRequestError
+
+from ..facebook.api import FAIL_FAST
 from .server import OptimizeInstruction, OptimizeReport, app
 
 client = TestClient(app)
@@ -287,6 +290,100 @@ def test_optimize_instruction_returns_error_in_running(
     assert res.status_code == 500
     res_data = res.json()
     assert res_data == {"detail": "foo error"}
+
+
+def _rate_limit_error():
+    body = {
+        "error": {
+            "message": "User request limit reached",
+            "type": "OAuthException",
+            "code": 17,
+            "error_subcode": 2446079,
+            "error_user_title": "Ad Account Has Too Many API Calls",
+            "error_user_msg": "There have been too many calls from this ad-account. Please wait a bit and try again.",
+        }
+    }
+    return FacebookRequestError(
+        "Call was not successful", {}, 400, {}, json.dumps(body)
+    )
+
+
+@patch("adopt.server.server.run_single_instruction")
+@patch("adopt.server.auth.verify_token")
+def test_optimize_instruction_turns_a_facebook_rate_limit_into_a_429(
+    verify_mock, run_single_instruction
+):
+    _reset_db()
+    verify_mock.return_value = {"sub": user_id}
+
+    instruction = OptimizeInstruction(node="ad", action="create", params={})
+    run_single_instruction.side_effect = _rate_limit_error()
+
+    org_id, headers = _user_and_study_setup()
+
+    res = client.post(
+        f"/{org_id}/optimize/foo-study/instruction",
+        headers=headers,
+        json=instruction.model_dump(),
+    )
+
+    assert res.status_code == 429
+    detail = res.json()["detail"]
+    assert "rate limiting" in detail
+    assert "Please wait a bit and try again" in detail
+
+
+@patch("adopt.server.server.run_single_instruction")
+@patch("adopt.server.auth.verify_token")
+def test_optimize_instruction_runs_off_the_event_loop_with_fail_fast_set(
+    verify_mock, run_single_instruction
+):
+    # The Graph calls inside are synchronous: they must run in a worker thread
+    # (or they block /health), and the fail_fast flag must follow them there
+    # (or a rate limit sleeps five minutes). One side effect observes both.
+    import threading
+
+    _reset_db()
+    verify_mock.return_value = {"sub": user_id}
+
+    instruction = OptimizeInstruction(node="foo", action="bar", params={})
+    seen = {}
+
+    def observe(*args, **kwargs):
+        seen["fail_fast"] = FAIL_FAST.get()
+        seen["thread"] = threading.current_thread().name
+        return OptimizeReport(timestamp="10:00", instruction=instruction)
+
+    run_single_instruction.side_effect = observe
+
+    org_id, headers = _user_and_study_setup()
+
+    res = client.post(
+        f"/{org_id}/optimize/foo-study/instruction",
+        headers=headers,
+        json=instruction.model_dump(),
+    )
+
+    assert res.status_code == 201
+    assert seen["fail_fast"] is True
+    assert seen["thread"].startswith("asyncio_")
+    assert FAIL_FAST.get() is False
+
+
+@patch("adopt.server.server.run_study_opt")
+@patch("adopt.server.auth.verify_token")
+def test_optimize_study_turns_a_facebook_rate_limit_into_a_429(
+    verify_mock, run_study_opt
+):
+    _reset_db()
+    verify_mock.return_value = {"sub": user_id}
+    run_study_opt.side_effect = _rate_limit_error()
+
+    org_id, headers = _user_and_study_setup()
+
+    res = client.get(f"/{org_id}/optimize/foo-study", headers=headers)
+    assert res.status_code == 429
+    assert "rate limiting" in res.json()["detail"]
 
 
 @patch("adopt.server.server.fetch_current_data")
