@@ -602,32 +602,43 @@ def test_all_sections_is_json_safe():
     json.dumps(study.all_sections())  # would raise before
 
 
-def test_an_unquoted_date_is_now_reported_by_validate_rather_than_by_push():
-    """The verdict CHANGES here, deliberately, and this is the whole point.
+def test_validate_judges_exactly_the_bytes_push_would_send():
+    """The invariant, which is what this pair of tests is really for.
 
-    A date-only string is not something the models accept -- pydantic wants a
-    `T` -- so `start_date: 2026-06-01` was never sendable. Before, the raw
-    `date` OBJECT satisfied pydantic, so `validate` passed and `diff` was
-    clean, and the failure arrived from inside the HTTP library as "Object of
-    type date is not JSON serializable", dressed as a network error, after
-    `push` had already written the sections ordered before recruitment.
+    Before `all_sections` was made JSON-safe, the raw `date` OBJECT satisfied
+    pydantic, so `validate` passed and `diff` was clean, and then the failure
+    arrived from inside the HTTP library as "Object of type date is not JSON
+    serializable" -- dressed as a network error, after `push` had already
+    written the sections ordered before recruitment. Whatever the verdict is,
+    `validate` and `push` now have to reach it from the same value.
 
-    Now `validate` sees exactly what `push` would send and says so, locally,
-    before anything is written. `--remote` agrees, because it POSTs the same
-    bytes and the server runs the same models.
+    THE VERDICT ITSELF CHANGED ON 2026-09-06, and not by intent. Until then
+    pydantic rejected the date-only string this normalises to (`2026-06-01`
+    with no `T`), so an unquoted date was a local `section.invalid`. `mcp`
+    floors pydantic at 2.8 (`pyproject.toml`), the lock moved 2.5.2 -> 2.9.2,
+    and pydantic 2.9 parses a bare date into midnight. So the same file is now
+    simply valid, and pushes as `"2026-06-01"` -- which the server, running the
+    same models, stores as `2026-06-01T00:00:00`.
+
+    That is strictly more permissive: no file that used to be accepted is
+    rejected now. The assertion below is deliberately the invariant rather than
+    the verdict, so the next pydantic bump moves this test's meaning again only
+    if the two halves start disagreeing.
     """
     study = StudyFile.loads(UNQUOTED_DATES)
+    sections = study.all_sections()
 
-    # Only the recruitment findings: the fixture is one section, so the other
-    # eight are `section.missing` and say nothing about this.
+    # What `push` would put on the wire, which is what `validate` was handed.
+    assert json.loads(json.dumps(sections))["recruitment"]["start_date"] == "2026-06-01"
+
     errors = [
-        e
-        for e in validate_study(study.all_sections()).errors
-        if e.section == "recruitment"
+        e for e in validate_study(sections).errors if e.section == "recruitment"
     ]
+    assert not errors, "pydantic 2.9 parses a bare date; see the docstring"
 
-    assert {e.code for e in errors} == {"section.invalid"}
-    assert any("start_date" in (e.path or "") for e in errors)
+    # And what it stores: midnight, not the string.
+    stored = normalise_section("recruitment", sections["recruitment"])
+    assert stored["start_date"] == "2026-06-01T00:00:00"
 
 
 def test_a_quoted_timestamp_is_the_spelling_that_works():

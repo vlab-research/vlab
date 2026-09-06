@@ -2,7 +2,7 @@
 name = "adopt"
 # Follows the adopt release tag (`adopt-v0.1.85`), not a series of its
 # own -- see planning/release-process.md, "The package version".
-version = "0.1.85"
+version = "0.1.87"
 description = ""
 authors = ["Nandan Rao <nandanmarkrao@gmail.com>"]
 
@@ -24,9 +24,34 @@ orjson = "^3.6.6"
 pydantic = "^2.5.2"
 fastapi = {extras = ["standard"], version = "^0.115.0"}
 python-jose = {extras = ["cryptography"], version = "^3.3.0"}
-httpx = "^0.25.2"
+# Widened from ^0.25.2 for `mcp`, whose floor is httpx>=0.27. Nothing in this
+# package pins a 0.25 behaviour: httpx is here for FastAPI's TestClient and one
+# ASGI test, and both are unaffected across 0.25 -> 0.28.
+httpx = ">=0.27.1,<0.29"
 uvicorn = {extras = ["standard"], version = "^0.24.0.post1"}
 cvxpy = "^1.5"
+# The MCP shim (planning/mcp.md, plan §16). A MAIN dependency, not part of the
+# `sdk` extra, because both transports need it: `vlab mcp` on the researcher's
+# machine AND `POST /mcp` in the conf service.
+#
+# Pinned exactly, and to 1.12.4 specifically, because that is the newest
+# release whose own floors this project already satisfies: 1.13 raised
+# `uvicorn>=0.31.1` and we run `uvicorn ^0.24`. Bumping the ASGI server in the
+# same change that mounts an inert route would put deployment risk on a feature
+# that carries none. Revisit together with VIR-47.
+#
+# The `python = ">=3.10"` marker is not optional: every `mcp` release requires
+# Python >= 3.10 and this package still declares >=3.9, so poetry refuses to
+# resolve it without one. The service runs 3.10, so the marker costs nothing
+# there; on a 3.9 install `vlab mcp` fails with "No module named mcp", which is
+# the honest answer.
+mcp = {version = "1.12.4", python = ">=3.10"}
+# Not a direct import of ours: `mcp` declares PEP 696 TypeVar defaults and
+# needs a typing_extensions that understands them, but declares no floor of its
+# own. The lock held 4.9.0, and `import mcp` died with "Too few parameters for
+# RequestContext" -- an unreadable failure a long way from its cause. The floor
+# is here so that is a resolver error instead.
+typing-extensions = ">=4.13"
 ecos = "^2.0"
 # The `sdk` extra: the `vlab` CLI. Only click is here, because everything else
 # the SDK needs -- requests, PyYAML, pydantic, pandas for the sheet readers --
@@ -69,3 +94,12 @@ vlab = "adopt.sdk.cli:main"
 [build-system]
 requires = ["poetry-core>=1.0.0"]
 build-backend = "poetry.core.masonry.api"
+[tool.pytest.ini_options]
+# `mcp` drags in anyio 4, whose pytest plugin imports `_pytest.scope` -- a
+# module pytest 6 does not have, so merely INSTALLING the plugin made pytest
+# fail at collection with "No module named '_pytest.scope'". Nothing in this
+# suite uses it: the async tests drive their own loop with `asyncio.run`
+# (see `server/test_meta.py`). Disabled rather than fixed by bumping pytest,
+# because a pytest 6 -> 8 jump is a change to how ~2000 existing tests run and
+# has nothing to do with MCP. Drop this line when pytest is bumped.
+addopts = "-p no:anyio"

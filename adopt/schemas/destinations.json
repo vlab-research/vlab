@@ -42,7 +42,11 @@
         },
         "type": {
           "const": "app",
-          "title": "Type"
+          "enum": [
+            "app"
+          ],
+          "title": "Type",
+          "type": "string"
         },
         "user_device": {
           "items": {
@@ -120,7 +124,11 @@
         },
         "type": {
           "const": "messenger",
-          "title": "Type"
+          "enum": [
+            "messenger"
+          ],
+          "title": "Type",
+          "type": "string"
         },
         "welcome_message": {
           "title": "Welcome Message",
@@ -185,7 +193,11 @@
         },
         "type": {
           "const": "multi",
-          "title": "Type"
+          "enum": [
+            "multi"
+          ],
+          "title": "Type",
+          "type": "string"
         },
         "welcome_message": {
           "title": "Welcome Message",
@@ -251,7 +263,11 @@
         },
         "type": {
           "const": "whatsapp",
-          "title": "Type"
+          "enum": [
+            "whatsapp"
+          ],
+          "title": "Type",
+          "type": "string"
         },
         "welcome_message": {
           "title": "Welcome Message",

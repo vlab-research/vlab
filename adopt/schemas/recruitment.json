@@ -67,7 +67,11 @@
         "type": {
           "const": "destination",
           "default": "destination",
-          "title": "Type"
+          "enum": [
+            "destination"
+          ],
+          "title": "Type",
+          "type": "string"
         }
       },
       "required": [
@@ -155,7 +159,11 @@
         "type": {
           "const": "pipeline_experiment",
           "default": "pipeline_experiment",
-          "title": "Type"
+          "enum": [
+            "pipeline_experiment"
+          ],
+          "title": "Type",
+          "type": "string"
         }
       },
       "required": [
@@ -233,7 +241,11 @@
         "type": {
           "const": "simple",
           "default": "simple",
-          "title": "Type"
+          "enum": [
+            "simple"
+          ],
+          "title": "Type",
+          "type": "string"
         }
       },
       "required": [
