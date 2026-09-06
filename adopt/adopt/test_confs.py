@@ -196,9 +196,21 @@ def test_the_sdk_does_not_import_the_server_package():
         tree = ast.parse(path.read_text(encoding="utf-8"))
         for node in ast.walk(tree):
             if isinstance(node, ast.ImportFrom):
-                module = ("." * node.level) + (node.module or "")
-                if "server" in module.split("."):
-                    offenders.append(f"{path.name}: from {module}")
+                module = node.module or ""
+                # ADOPT's server, specifically. The first version of this
+                # matched any dotted path with a "server" segment anywhere in
+                # it, which made `from mcp.server.fastmcp import FastMCP` an
+                # offender -- a third-party package with an unlucky name, and
+                # the SDK cannot import ITSELF into a cycle by depending on it.
+                # A relative import is ours by construction; an absolute one has
+                # to name `adopt.server` to be.
+                offending = (
+                    module.split(".")[0] == "server"
+                    if node.level
+                    else module.startswith("adopt.server")
+                )
+                if offending:
+                    offenders.append(f"{path.name}: from {'.' * node.level}{module}")
             elif isinstance(node, ast.Import):
                 for alias in node.names:
                     if alias.name.startswith("adopt.server"):
