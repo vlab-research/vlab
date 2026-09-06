@@ -55,6 +55,9 @@ Backends are ASYNC because FastMCP runs a synchronous tool on its event loop:
 the in-process backend has to await route handlers, and blocking the loop with
 `requests` would be wrong on the remote transport (and merely rude on stdio).
 `ClientBackend` therefore puts the synchronous `VlabClient` on a worker thread.
+That is a real gain only on the local transport, where the thread is waiting on
+a socket; in process, a backend call is a handler call and occupies the loop for
+whatever the handler occupies it for. See `_CallableFromThread`.
 """
 
 import functools
@@ -231,6 +234,19 @@ class _CallableFromThread:
     its `client.get_confs` / `client.post_conf` calls back to the event loop.
 
     Works for any backend, so neither of them needs a synchronous twin.
+
+    WHAT THIS DOES AND DOES NOT BUY, because the shape invites a wrong reading.
+    The thread is there so `push_sections` can stay SYNCHRONOUS -- it is not a
+    way to get work off the event loop. Each hop back through
+    `anyio.from_thread.run` runs the backend method IN the loop, so on the
+    remote transport the handler's blocking psycopg runs there exactly as it
+    does when the same handler serves an HTTP request: net loop time is
+    identical to the HTTP path, which is why this is not a regression, and it is
+    not an improvement either. (`InProcessBackend` inherits whatever the handler
+    does about that -- `get_all_confs` blocks, `validate_study_endpoint` and the
+    meta routes use `asyncio.to_thread`.) On the local transport the inner
+    `ClientBackend` puts the real HTTP call on a thread of its own, so there the
+    loop is genuinely free while the request is in flight.
     """
 
     def __init__(self, backend: Any) -> None:

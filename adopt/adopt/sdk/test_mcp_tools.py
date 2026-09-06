@@ -533,18 +533,10 @@ def test_guarding_keeps_the_tools_signature():
     assert list(inspect.signature(guarded).parameters) == ["org", "slug"]
 
 
-def test_the_scopes_are_the_ones_the_routes_require():
-    """Deliberate divergence from plan §16.2, pinned so it is a decision rather
-    than a slip.
-
-    The plan's table gives plan_study and apply_instruction `studies:write`. The
-    routes they call require `optimize:read` and `optimize:write`. Following the
-    plan would make POST /mcp a way for a `studies:write` key to spend money on
-    Meta -- exactly the privilege `optimize` was cut out of `studies` to keep
-    separate, and one the same key does not have over HTTP.
-    """
-    assert mt.TOOL_SCOPES["plan_study"] == "optimize:read"
-    assert mt.TOOL_SCOPES["apply_instruction"] == "optimize:write"
+# The scope table is checked against `api_keys.required_scope` -- the real
+# function the routes are classified by -- in `server/test_mcp_server.py`.
+# It cannot live here: this module is deliberately free of the server and of
+# the environment variables importing it needs.
 
 
 # ---------------------------------------------------------------------------
