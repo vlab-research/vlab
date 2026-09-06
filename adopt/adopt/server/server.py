@@ -53,6 +53,7 @@ from .api_keys import add_scope_enforcement, router as api_keys_router
 # modules (studies, api keys, schemas) can depend on authentication without
 # importing server, which imports them — a cycle.
 from .deps import User, async_timeout, get_current_user, security
+from .mcp_server import lifespan as mcp_lifespan, mount as mount_mcp
 from .meta import router as meta_router
 from .studies import router as studies_router
 from .validate import router as validate_router
@@ -76,7 +77,13 @@ from ..recruitment_data import (
 from ..budget import prep_df_for_budget
 from ..responses import create_time_buckets
 
-app = FastAPI()
+# `lifespan` is here for one reason: the MCP transport (`mcp_server.py`) owns a
+# task group that has to be running for the whole life of the process, and
+# `POST /mcp` answers 503 without it. Everything else in this file is
+# lifespan-free and stays that way. NOTE for tests: a bare `TestClient(app)`
+# does NOT run the lifespan -- only `with TestClient(app) as client` does -- so
+# a test that exercises /mcp has to use the context-manager form.
+app = FastAPI(lifespan=mcp_lifespan)
 
 
 origins = ["*"]
@@ -116,6 +123,13 @@ app.include_router(meta_router)
 # /{org_id}/studies/{slug}/validate cannot collide with the conf routes below,
 # which all live under .../confs/.
 app.include_router(validate_router)
+
+# `POST /mcp` -- the same tools `vlab mcp` serves over stdio, for clients that
+# cannot install Python. Classified as a DELEGATED route in
+# `api_keys.DELEGATED_PATHS`: every tool call arrives on this one path, so the
+# path-based middleware can say nothing useful about it and
+# `mcp_tools.TOOL_SCOPES` is the real check. See `mcp_server.py`.
+mount_mcp(app)
 
 
 class OptimizeInstruction(BaseModel):
@@ -239,6 +253,38 @@ async def create_inference_data_conf(
     user: Annotated[User, Depends(get_current_user)],
 ):
     return await create_conf(user, org_id, slug, "inference_data", config)
+
+
+# The nine POST routes, addressable by URL segment, DERIVED FROM THE ROUTES
+# THEMSELVES rather than listed again.
+#
+# `mcp_server.InProcessBackend.post_conf` is the caller: it has a URL segment
+# and a body, exactly as `VlabClient.post_conf` does, and has to reach the same
+# handler with the same strict model -- including the 422 for an undeclared key,
+# which is what FastAPI does on the HTTP path and which the strict twins exist
+# for. A hand-written table here would be a tenth list of the nine conf types
+# (see `adopt/confs.py` on the four it replaced) and the first one with no test
+# behind it. Walking `app.routes` cannot drift: a route added without a segment
+# here is impossible, because the segment IS the route's path.
+def _conf_post_handlers() -> Dict[str, Any]:
+    import inspect
+
+    from pydantic import TypeAdapter
+
+    prefix = "/{org_id}/studies/{slug}/confs/"
+    out: Dict[str, Any] = {}
+    for route in app.routes:
+        path = getattr(route, "path", "")
+        methods = getattr(route, "methods", set()) or set()
+        if not path.startswith(prefix) or "POST" not in methods:
+            continue
+        segment = path[len(prefix) :]
+        if "{" in segment:  # the GET-by-conf_type route, which is not a POST
+            continue
+        endpoint = route.endpoint
+        annotation = inspect.signature(endpoint).parameters["config"].annotation
+        out[segment] = (endpoint, TypeAdapter(annotation))
+    return out
 
 
 class CopyFromConf(BaseModel):
@@ -827,3 +873,8 @@ async def get_cost_over_time(
 async def health():
     # TODO: add DB ping
     return "OK"
+
+
+# Built after every route is registered, which is why it is at the bottom
+# rather than beside `_conf_post_handlers`.
+CONF_POST_HANDLERS: Dict[str, Any] = _conf_post_handlers()

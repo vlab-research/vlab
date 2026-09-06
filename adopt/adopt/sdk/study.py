@@ -759,3 +759,164 @@ def skeleton(org: str = "REPLACE-ME", slug: str = "REPLACE-ME", name: str = "") 
         slug=_yaml_scalar(slug),
         name=_yaml_scalar(name or slug),
     )
+
+
+# ---------------------------------------------------------------------------
+# Push: validate, diff, write in reference order
+# ---------------------------------------------------------------------------
+#
+# WHY THIS LIVES HERE AND NOT IN `cli.py`
+#
+# `vlab push` and the MCP `push_study` tool are the same operation with
+# different front doors, and plan §16.1 is explicit that a tool must contain no
+# logic beyond argument shaping: "one implementation" applied to MCP. Before
+# the MCP shim this loop was inline in `cli.push`, interleaved with `click.echo`
+# calls; copying it into a tool would have produced two definitions of what a
+# push is -- what to validate, when to refuse, which order to write in, and what
+# to report when the seventh of nine POSTs fails against an append-only table.
+# It is now one function, and both callers only render its result.
+#
+# The module docstring says nothing here opens a socket, and that is still true:
+# `client` is a parameter, duck-typed on the two methods used. `study.py`
+# imports nothing from `client.py` and can still be used with a stub.
+
+
+@dataclass(frozen=True)
+class PushResult:
+    """What a push did, or -- with `dry_run` -- what it would have done."""
+
+    #: Sections actually written, in the order they were written.
+    written: List[str]
+    #: Sections that already matched the server and were deliberately skipped.
+    #: Re-POSTing one appends a row that changes nothing to an append-only table.
+    unchanged: List[str]
+    #: Sections that need a write and were NOT attempted, because `only`
+    #: filtered them out. Reporting these is what stops "nothing to push" from
+    #: being read as "the study matches the server".
+    outstanding: List[str]
+    #: What was (or would be) written, in `PUSH_ORDER`.
+    planned: List[SectionDiff]
+    #: The local validation report. Carried even on success, because its
+    #: warnings are worth showing and re-running the validator to get them
+    #: would be a second answer to the same question.
+    report: Any
+
+
+class PushRefused(Exception):
+    """Local validation found errors and `force` was not set. Nothing was written.
+
+    Carries the report so the caller can show it. A separate type from
+    `PushFailed` because the two mean opposite things about the server: this one
+    guarantees the server is untouched.
+    """
+
+    def __init__(self, report: Any) -> None:
+        self.report = report
+        self.errors = list(getattr(report, "errors", ()) or ())
+        super().__init__(
+            f"{len(self.errors)} validation error(s). Nothing was written. Fix "
+            "them, or force the push -- but note that study_confs is "
+            "append-only, so a bad write can only be superseded, never undone."
+        )
+
+
+class PushFailed(Exception):
+    """A write failed part way through. Earlier sections ARE on the server.
+
+    There is no transaction and no delete, so which sections landed is the most
+    important thing this can report; a bare re-raise would lose it. Re-running
+    the push writes only what is still outstanding.
+    """
+
+    def __init__(self, written: Sequence[str], failed: str, error: Exception) -> None:
+        self.written = list(written)
+        self.failed = failed
+        self.error = error
+        super().__init__(str(error))
+
+
+def push_sections(
+    client: Any,
+    org: str,
+    slug: str,
+    sections: Mapping[str, Any],
+    only: Sequence[str] = (),
+    force: bool = False,
+    dry_run: bool = False,
+    on_write: Optional[Any] = None,
+) -> PushResult:
+    """Validate `sections`, diff against the server, write what differs.
+
+    :param client: anything with `get_confs(org, slug)` and
+        `post_conf(org, slug, url_segment, body)` -- `VlabClient`, or the
+        in-process backend the remote MCP transport uses.
+    :param sections: the whole study, keyed as STORED, including any
+        unrecognised keys (see `StudyFile.all_sections`). Unrecognised sections
+        are validated -- that is the only report that catches a typo'd section
+        name -- and never written, since no route exists for them.
+    :param only: write just these sections. The rest that need a write are
+        returned in `outstanding` rather than silently dropped.
+    :param force: write even though local validation found errors.
+    :param dry_run: plan and return, writing nothing.
+    :param on_write: called with each `SectionDiff` as soon as its POST returns.
+        The CLI prints from it, so a nine-section push reports progress rather
+        than going silent for the whole run -- and so that what has already been
+        written is on screen before a failure part way through.
+    :raises PushRefused: validation errors and no `force`. Server untouched.
+    :raises PushFailed: a POST failed; `written` says what already landed.
+    """
+    from ..authoring.validate import validate_study  # noqa: PLC0415 -- see below
+
+    # Local import purely to keep this module's import graph acyclic-looking to
+    # a reader: `authoring.validate` is already imported at module scope for
+    # SECTION_MODELS, so this costs nothing at run time.
+    report = validate_study(dict(sections))
+    if report.errors and not force:
+        raise PushRefused(report)
+
+    diffs = diff_sections(sections, client.get_confs(org, slug))
+    # Restricted to the nine. A section outside them is skipped because there is
+    # no route that could write it, not because it matches the server, and
+    # reporting it as "unchanged" would say the opposite of what is true.
+    # `validate_study` is what reports it, as `section.unrecognized`.
+    unchanged = [
+        d.section for d in diffs if d.status == "unchanged" and d.section in SECTIONS
+    ]
+
+    plan = push_plan(diffs)
+    needed = [d.section for d in plan]
+    if only:
+        wanted = set(only)
+        plan = [d for d in plan if d.section in wanted]
+
+    attempted = {d.section for d in plan}
+    outstanding = [s for s in needed if s not in attempted]
+
+    if dry_run:
+        return PushResult([], unchanged, outstanding, plan, report)
+
+    written: List[str] = []
+    for d in plan:
+        try:
+            # `json_safe(d.local)`, not `stored_conf` of the parsed section:
+            # undeclared keys have to reach the server so that its 422 can name
+            # them. `json_safe` only does what the JSON encoder would do anyway,
+            # plus the `datetime.date` YAML hands back for an unquoted
+            # `start_date: 2026-06-01`, which pydantic accepts (so validate and
+            # diff both pass) and the encoder does not.
+            client.post_conf(
+                org, slug, SECTION_URL_SEGMENTS[d.section], json_safe(d.local)
+            )
+        except Exception as e:  # noqa: BLE001 -- re-raised, with what landed
+            raise PushFailed(written, d.section, e) from e
+        written.append(d.section)
+        if on_write is not None:
+            on_write(d)
+
+    return PushResult(
+        written,
+        unchanged,
+        [s for s in needed if s not in set(written)],
+        plan,
+        report,
+    )

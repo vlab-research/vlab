@@ -2,12 +2,23 @@
 name = "adopt"
 # Follows the adopt release tag (`adopt-v0.1.85`), not a series of its
 # own -- see planning/release-process.md, "The package version".
-version = "0.1.85"
+version = "0.1.87"
 description = ""
 authors = ["Nandan Rao <nandanmarkrao@gmail.com>"]
 
 [tool.poetry.dependencies]
-python = ">=3.9,<3.11"
+# NARROWED FROM ">=3.9,<3.11" ON 2026-09-06, and the floor is now real rather
+# than aspirational. `mcp` requires Python >= 3.10, and `server/server.py`
+# imports `server/mcp_server.py` at module scope to mount `POST /mcp` -- so on
+# 3.9 `mcp` would not be installed and the conf service would not IMPORT, let
+# alone start. Declaring 3.9 support that the service cannot honour is worse
+# than declaring 3.10.
+#
+# Nothing was actually running on 3.9: the Dockerfile is `python:3.10-slim`, CI
+# is `python-version: '3.10'`, and the SDK install line has said
+# `pipx install --python python3.10` since Phase 3. The ceiling stays at <3.11
+# for pandas 1.5.3 / numpy 1.x; VIR-47 is where it gets lifted.
+python = ">=3.10,<3.11"
 PyYAML = "^6.0.1"
 backoff = "^1.10.0"
 environs = "^9.3.2"
@@ -21,12 +32,64 @@ toolz = "^0.11.1"
 psycopg = {extras = ["binary", "pool"], version = "^3.0.9"}
 openpyxl = "^3.0.9"
 orjson = "^3.6.6"
-pydantic = "^2.5.2"
+# PINNED TO A PATCH RANGE, not a caret, and that is not caution -- it is that
+# `make check-schemas` compares committed JSON Schemas against what pydantic
+# renders, and pydantic changes the rendering between minors. `Literal["app"]`
+# is `{const, title}` on 2.5.2, `{const, enum, title, type}` on 2.9.x, and
+# `{const, title, type}` on 2.13 -- the `enum` appears and then disappears
+# again. Under `^2.5.2` the next unrelated PR that re-resolves the lock would
+# fail `check-schemas` for no reason its author could see.
+#
+# `mcp` floors this at >=2.8, so 2.5.2 is not available to go back to. Moving it
+# is a deliberate act: bump this pin, run `make schemas`, and commit the
+# regenerated schemas in the same change. Ideally under VIR-47, with the Python
+# pin.
+pydantic = "~2.9.2"
 fastapi = {extras = ["standard"], version = "^0.115.0"}
 python-jose = {extras = ["cryptography"], version = "^3.3.0"}
-httpx = "^0.25.2"
+# Widened from ^0.25.2 for `mcp`, whose floor is httpx>=0.27. The ceiling is
+# 0.29 rather than 0.28 because there is nothing here for a minor bump to break:
+# the only call site in this package is `httpx.ASGITransport` in
+# `server/test_meta.py`, which is unchanged across 0.25 -> 0.28, and nothing
+# passes the `proxies=` argument 0.28 removed. Checked against the 0.28.1 the
+# lock resolves to.
+httpx = ">=0.27.1,<0.29"
 uvicorn = {extras = ["standard"], version = "^0.24.0.post1"}
 cvxpy = "^1.5"
+# The MCP shim (planning/mcp.md, plan §16). A MAIN dependency, not part of the
+# `sdk` extra, because both transports need it: `vlab mcp` on the researcher's
+# machine AND `POST /mcp` in the conf service.
+#
+# Pinned exactly, and to 1.12.4 specifically, because that is the newest
+# release whose own floors this project already satisfies: 1.13 raised
+# `uvicorn>=0.31.1` and we run `uvicorn ^0.24`. Bumping the ASGI server at the
+# same time as mounting a new route would be two deployment risks in one change
+# rather than one. Revisit together with VIR-47.
+#
+# NOT OPTIONAL AT RUN TIME, despite serving one route: `server/server.py`
+# imports `server/mcp_server.py` at module scope, so an `mcp` that fails to
+# import takes the whole conf service down at start-up rather than degrading
+# `POST /mcp`. That is why the project's own Python floor moved to 3.10 above,
+# and why this carries no `python` marker: a marker here would make `mcp`
+# absent on an interpreter the package claims to support, which is exactly the
+# configuration that does not boot.
+#
+# THE FULL LOCK DELTA IT CAUSED, so nobody has to diff a 600-line lockfile to
+# find out. Nine packages added -- mcp, httpx-sse, sse-starlette,
+# pydantic-settings, jsonschema, jsonschema-specifications, referencing,
+# rpds-py, pywin32 -- one dropped (sniffio, which anyio 4 no longer needs), and
+# seven moved: anyio 3.7.1 -> 4.14.2, attrs 21.4.0 -> 26.1.0, httpx 0.25.2 ->
+# 0.28.1, pydantic 2.5.2 -> 2.9.2, pydantic-core 2.14.5 -> 2.23.4,
+# python-dotenv 0.19.2 -> 1.2.3, typing-extensions 4.9.0 -> 4.16.0. The four
+# that changed BEHAVIOUR are written up in `planning/mcp.md` §5; the rest are
+# transitive and were exercised only by the suite passing.
+mcp = "1.12.4"
+# Not a direct import of ours: `mcp` declares PEP 696 TypeVar defaults and
+# needs a typing_extensions that understands them, but declares no floor of its
+# own. The lock held 4.9.0, and `import mcp` died with "Too few parameters for
+# RequestContext" -- an unreadable failure a long way from its cause. The floor
+# is here so that is a resolver error instead.
+typing-extensions = ">=4.13"
 ecos = "^2.0"
 # The `sdk` extra: the `vlab` CLI. Only click is here, because everything else
 # the SDK needs -- requests, PyYAML, pydantic, pandas for the sheet readers --
@@ -69,3 +132,13 @@ vlab = "adopt.sdk.cli:main"
 [build-system]
 requires = ["poetry-core>=1.0.0"]
 build-backend = "poetry.core.masonry.api"
+[tool.pytest.ini_options]
+# `mcp` drags in anyio 4 (3.7.1 -> 4.14.2), whose pytest plugin imports
+# `_pytest.scope` -- a module pytest 6 does not have, so merely INSTALLING the
+# plugin made pytest fail at collection with "No module named '_pytest.scope'".
+# Nothing in this suite uses it: the async tests drive their own loop with
+# `asyncio.run` (see `server/test_meta.py`). Disabled rather than fixed by
+# bumping pytest, because a pytest 6 -> 8 jump is a change to how ~2400 existing
+# tests run and has nothing to do with MCP. Drop this line when pytest is
+# bumped.
+addopts = "-p no:anyio"

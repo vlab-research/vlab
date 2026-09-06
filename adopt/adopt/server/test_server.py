@@ -967,6 +967,35 @@ def test_a_recruitment_conf_written_without_a_tag_is_still_accepted(verify_mock)
 
 
 @patch("adopt.server.auth.verify_token")
+def test_a_date_only_start_date_is_accepted_and_stored_as_midnight(verify_mock):
+    """A WIRE CONTRACT that changed on 2026-09-06 without anyone asking for it.
+
+    `start_date: "2026-06-01"` -- a date with no time -- used to be a 422:
+    pydantic 2.5.2 wanted a `T`. `mcp` floors pydantic at >=2.8, the lock moved
+    to 2.9.2, and 2.9 parses a bare date into midnight. So the same body is now
+    a 201 and stores `2026-06-01T00:00:00`.
+
+    That is strictly more permissive -- nothing that used to be accepted is
+    rejected -- and it is what a YAML study file with an unquoted date now does
+    end to end (`sdk/test_study.py`, `sdk/test_cli.py`). It is pinned HERE,
+    against the route, because it is the API's promise rather than the SDK's:
+    the next pydantic bump that narrowed it again would be a silent 422 on
+    somebody's push, and `pyproject.toml` pins `pydantic = "~2.9.2"` partly so
+    this cannot move by accident.
+    """
+    _reset_db()
+    verify_mock.return_value = {"sub": user_id}
+    org_id, headers = _user_and_study_setup()
+
+    body = {**VALID_CONF_BODIES["recruitment"], "start_date": "2026-06-01"}
+
+    res = _post_conf(org_id, headers, "recruitment", body)
+
+    assert res.status_code == 201, res.text
+    assert res.json()["data"]["conf"]["start_date"] == "2026-06-01T00:00:00"
+
+
+@patch("adopt.server.auth.verify_token")
 def test_an_over_specified_recruitment_conf_is_rejected_rather_than_downgraded(
     verify_mock,
 ):

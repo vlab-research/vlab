@@ -9,7 +9,7 @@
     vlab plan  $ORG/hpv-nigeria
     vlab apply $ORG/hpv-nigeria 0
 
-Needs Python `>=3.9,<3.11` -- `adopt`'s own constraint, which the SDK inherits.
+Needs Python `>=3.10,<3.11` -- `adopt`'s own constraint, which the SDK inherits.
 
 Every command prints for a human by default and takes `--json` for a program.
 Every command that talks to the server takes `--api-url` and `--api-key`,
@@ -55,15 +55,16 @@ from ..authoring.geo import GeoError
 from ..authoring.sheets import SheetError
 from ..authoring.strata import create_strata_from_variables, get_finish_question_ref
 from ..authoring.validate import KNOWN_GAPS, validate_study
-from ..confs import json_safe
 from .client import DEFAULT_API_URL, VlabClient, VlabError
 from .study import (
-    SECTION_URL_SEGMENTS,
     SECTIONS,
+    PushFailed,
+    PushRefused,
     SectionDiff,
     StudyFile,
     diff_sections,
     push_plan,
+    push_sections,
     skeleton,
     value_diff,
 )
@@ -622,68 +623,34 @@ def push(
     org, slug = study.require_target()
     client = get_client(ctx)
 
-    report = validate_study(study.all_sections())
-    if report.errors and not force:
-        print_report(report.model_dump(), list(KNOWN_GAPS), study)
+    # All of the deciding is in `study.push_sections` -- what to validate, when
+    # to refuse, which order to write in, and what to report when the seventh of
+    # nine POSTs fails against an append-only table. The MCP `push_study` tool
+    # calls the same function (plan §16.1), so this command and that tool cannot
+    # drift into two different ideas of what a push is. Everything below is
+    # printing.
+    def announce(d: SectionDiff) -> None:
+        click.echo(f"wrote {d.section} ({d.status})")
+
+    try:
+        result = push_sections(
+            client,
+            org,
+            slug,
+            study.all_sections(),
+            only=only,
+            force=force,
+            dry_run=dry_run,
+            on_write=None if as_json else announce,
+        )
+    except PushRefused as e:
+        print_report(e.report.model_dump(), list(KNOWN_GAPS), study)
         raise click.ClickException(
-            f"{len(report.errors)} validation error(s). Nothing was written. "
+            f"{len(e.errors)} validation error(s). Nothing was written. "
             "Fix them, or pass --force -- but note that study_confs is "
             "append-only, so a bad write can only be superseded, never undone."
         )
-
-    diffs = diff_sections(study.sections, client.get_confs(org, slug))
-    unchanged = [d.section for d in diffs if d.status == "unchanged"]
-    plan = push_plan(diffs)
-    outstanding = [d.section for d in plan]
-    if only:
-        plan = [d for d in plan if d.section in set(only)]
-
-    if not plan:
-        # The message has to distinguish "the study is in sync" from "the
-        # sections you asked for are, and others are not". Saying the first
-        # when the second is true tells an agent or a CI step that the study
-        # matches the server when it does not.
-        skipped_elsewhere = [s for s in outstanding if s not in set(only or ())]
-        if as_json:
-            emit_json(
-                {
-                    "written": [],
-                    "skipped": unchanged,
-                    "outstanding": skipped_elsewhere,
-                }
-            )
-        elif skipped_elsewhere:
-            click.echo(
-                f"Nothing to push in {', '.join(sorted(only))}. "
-                f"Still outstanding elsewhere: {', '.join(skipped_elsewhere)}."
-            )
-        else:
-            click.echo("Nothing to push: every section matches the server.")
-        return
-
-    if dry_run:
-        if as_json:
-            emit_json({"would_write": [d.section for d in plan]})
-        else:
-            for d in plan:
-                click.echo(f"would write {d.section} ({d.status})")
-        return
-
-    written: List[str] = []
-    try:
-        for d in plan:
-            # `json_safe`, not `d.local`: YAML gives a `datetime.date` for an
-            # unquoted `start_date: 2026-06-01`, which pydantic accepts (so
-            # `validate` and `diff` both pass) and the JSON encoder does not.
-            # It is NOT `stored_conf` of the parsed section -- undeclared keys
-            # have to reach the server so the 422 can name them.
-            client.post_conf(
-                org, slug, SECTION_URL_SEGMENTS[d.section], json_safe(d.local)
-            )
-            written.append(d.section)
-            if not as_json:
-                click.echo(f"wrote {d.section} ({d.status})")
-    except VlabError as e:
+    except PushFailed as e:
         # A push is nine separate POSTs with no transaction and no rollback, so
         # a failure part way through leaves earlier sections WRITTEN -- and
         # `study_confs` has no delete, so that cannot be undone. Which ones
@@ -692,43 +659,68 @@ def push(
         # lose it entirely. Re-run to continue: the next diff shows only what is
         # still outstanding.
         if as_json:
-            emit_json(
-                {
-                    "written": written,
-                    "failed": plan[len(written)].section,
-                    "error": str(e),
-                }
-            )
+            emit_json({"written": e.written, "failed": e.failed, "error": str(e.error)})
         else:
             click.echo("")
-            click.echo(f"FAILED on {plan[len(written)].section}.")
+            click.echo(f"FAILED on {e.failed}.")
             click.echo(
-                f"{len(written)} section(s) were already written and cannot be "
+                f"{len(e.written)} section(s) were already written and cannot be "
                 "withdrawn (study_confs is append-only). Fix the error and run "
                 "`vlab push` again -- it will write only what is still "
                 "outstanding."
             )
-        raise click.ClickException(str(e))
+        raise click.ClickException(str(e.error))
+
+    if not result.planned:
+        # The message has to distinguish "the study is in sync" from "the
+        # sections you asked for are, and others are not". Saying the first
+        # when the second is true tells an agent or a CI step that the study
+        # matches the server when it does not.
+        if as_json:
+            emit_json(
+                {
+                    "written": [],
+                    "skipped": result.unchanged,
+                    "outstanding": result.outstanding,
+                }
+            )
+        elif result.outstanding:
+            click.echo(
+                f"Nothing to push in {', '.join(sorted(only))}. "
+                f"Still outstanding elsewhere: {', '.join(result.outstanding)}."
+            )
+        else:
+            click.echo("Nothing to push: every section matches the server.")
+        return
+
+    if dry_run:
+        if as_json:
+            emit_json({"would_write": [d.section for d in result.planned]})
+        else:
+            for d in result.planned:
+                click.echo(f"would write {d.section} ({d.status})")
+        return
 
     if as_json:
         emit_json(
             {
-                "written": written,
-                "skipped": unchanged,
-                "outstanding": [s for s in outstanding if s not in set(written)],
+                "written": result.written,
+                "skipped": result.unchanged,
+                "outstanding": result.outstanding,
             }
         )
         return
 
     click.echo("")
     click.echo(
-        f"{len(written)} section(s) written. Each POST inserted a NEW row; the "
-        "previous version of that section is still in study_confs and the "
+        f"{len(result.written)} section(s) written. Each POST inserted a NEW row; "
+        "the previous version of that section is still in study_confs and the "
         "newest row is what every reader takes."
     )
-    if report.warnings:
+    if result.report.warnings:
         click.echo(
-            f"{len(report.warnings)} warning(s) -- `vlab validate` to read them."
+            f"{len(result.report.warnings)} warning(s) -- "
+            "`vlab validate` to read them."
         )
     click.echo(f"Next: vlab plan {org}/{slug}")
 
@@ -1338,6 +1330,51 @@ def keys_revoke(ctx: click.Context, key_id: str, yes: bool, as_json: bool) -> No
         emit_json({"revoked": key_id, "other_replicas_honour_until_seconds": 30})
         return
     click.echo(f"Revoked {key_id}. Other replicas may honour it for ~30 seconds.")
+
+
+# ---------------------------------------------------------------------------
+# mcp
+# ---------------------------------------------------------------------------
+
+
+@cli.command("mcp")
+@auth_options
+@click.pass_context
+def mcp_server(ctx: click.Context) -> None:
+    """Serve these commands to an AI agent over MCP, on stdio.
+
+    \b
+      claude mcp add vlab -e VLAB_API_KEY=$VLAB_API_KEY -- vlab mcp
+
+    Speaks the Model Context Protocol on stdin/stdout, so it is started by the
+    client rather than run in a terminal: nothing is printed here and Ctrl-C is
+    how it stops. `documentation/agent-api.md` has the Claude Desktop JSON.
+
+    The tools are the commands: create_study, pull_study, validate_study,
+    diff_study, push_study, compile_strata, extract_targeting, plan_study,
+    apply_instruction, the meta_* readers and the key tools. Each calls exactly
+    what the matching command calls, so anything true of `vlab push` is true of
+    `push_study`.
+
+    Every tool reaches the service over HTTP with VLAB_API_KEY, so the key's
+    scopes are enforced by the server on every call and this process holds no
+    authority of its own. Hand an agent a key scoped to what it should be able
+    to do -- `optimize:write` is what lets it spend money on Meta, and it is a
+    separate resource from `studies` for that reason.
+
+    The conf service also serves the same tools at POST /mcp for clients that
+    cannot install Python; that transport takes the same API key as a bearer
+    token. See `documentation/agent-api.md`.
+    """
+    client = get_client(ctx)
+
+    # Imported here, not at module scope: `mcp` pulls in starlette, uvicorn and
+    # pydantic-settings, and every other `vlab` command would pay for it. The
+    # same reason `authoring.templates` defers `adopt.marketing`, and
+    # `test_cli.py` pins the cost.
+    from .mcp_tools import serve_stdio
+
+    serve_stdio(client)
 
 
 # The `vlab template` group. Registered by importing the module, which hangs

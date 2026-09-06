@@ -4,7 +4,7 @@ Exploration and decision path for giving an AI agent (or a script, or a
 notebook) the ability to create and configure a vlab study without driving the
 React dashboard by hand.
 
-Status: **Phases 0–3 in production (adopt v0.1.86); Phase 4 (MCP) planned in §16, not started.** §1–§5 are
+Status: **Phases 0–3 in production (adopt v0.1.86); Phase 4 (MCP) implemented and in PR on `feature/mcp`, adopt v0.1.87 — phase notes in `planning/mcp.md`, which is authoritative where it and §16 disagree.** §1–§5 are
 findings read out of the code, with the file establishing each claim named
 next to it. §7 records the decisions taken and why, §8 is the plan, §10 is
 what is still open, and **§11 (Phase 0), §12 (Phase 1) and §13 (Phase 2)
@@ -1438,8 +1438,16 @@ still names the key, which is what matters.
 
 ## 16. Phase 4: the MCP shim — the plan, settled 2026-09-06
 
-Not started. This section is the brief for whoever implements it; it
-supersedes the §8 paragraph where they differ.
+**Implemented 2026-09-06 on `feature/mcp`; `planning/mcp.md` is the phase-notes
+file and is authoritative where it and this section disagree.** Two places, and
+both are recorded there: the scopes for `plan_study` and `apply_instruction`
+(§16.2's table contradicts the routes it says it reproduces, and following it
+would have let a `studies:write` key spend money on Meta through a door that
+key does not have over HTTP), and the state of the two existing tests §16.5
+relies on.
+
+This section is the brief it was built from; it supersedes the §8 paragraph
+where they differ.
 
 ### 16.1 Shape: one tool module, two transports, one PR
 
@@ -1548,8 +1556,12 @@ since the service needs it for `/mcp`.
   scope table, and a Known gaps list (what could not be exercised).
 - `planning/mcp.md`: phase notes in the style of `planning/vlab-sdk.md`.
 - Release: a normal adopt tag via `scripts/release.sh`; no migrations
-  expected; the `/mcp` route is inert until a client uses it, so the values
-  bump carries no user-facing risk.
+  expected. **The "inert route, no user-facing risk" claim here is wrong and
+  `planning/mcp.md` §5a corrects it**: no tool runs until a client calls one,
+  but `server.py` imports the MCP module at start-up and runs the transport's
+  session manager in the app lifespan, so a failure there takes the whole conf
+  service down rather than degrading `/mcp`. The release carries ordinary
+  deployment risk. It is also why the package's Python floor moved to 3.10.
 
 ### 16.7 Out of scope
 

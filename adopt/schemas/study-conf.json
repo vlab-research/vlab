@@ -41,7 +41,11 @@
         },
         "type": {
           "const": "app",
-          "title": "Type"
+          "enum": [
+            "app"
+          ],
+          "title": "Type",
+          "type": "string"
         },
         "user_device": {
           "items": {
@@ -264,7 +268,11 @@
         "type": {
           "const": "destination",
           "default": "destination",
-          "title": "Type"
+          "enum": [
+            "destination"
+          ],
+          "title": "Type",
+          "type": "string"
         }
       },
       "required": [
@@ -392,7 +400,11 @@
         },
         "type": {
           "const": "messenger",
-          "title": "Type"
+          "enum": [
+            "messenger"
+          ],
+          "title": "Type",
+          "type": "string"
         },
         "welcome_message": {
           "title": "Welcome Message",
@@ -457,7 +469,11 @@
         },
         "type": {
           "const": "multi",
-          "title": "Type"
+          "enum": [
+            "multi"
+          ],
+          "title": "Type",
+          "type": "string"
         },
         "welcome_message": {
           "title": "Welcome Message",
@@ -523,7 +539,11 @@
         },
         "type": {
           "const": "whatsapp",
-          "title": "Type"
+          "enum": [
+            "whatsapp"
+          ],
+          "title": "Type",
+          "type": "string"
         },
         "welcome_message": {
           "title": "Welcome Message",
@@ -760,7 +780,11 @@
         "type": {
           "const": "pipeline_experiment",
           "default": "pipeline_experiment",
-          "title": "Type"
+          "enum": [
+            "pipeline_experiment"
+          ],
+          "title": "Type",
+          "type": "string"
         }
       },
       "required": [
@@ -865,7 +889,11 @@
         "type": {
           "const": "simple",
           "default": "simple",
-          "title": "Type"
+          "enum": [
+            "simple"
+          ],
+          "title": "Type",
+          "type": "string"
         }
       },
       "required": [

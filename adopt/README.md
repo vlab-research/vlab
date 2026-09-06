@@ -951,7 +951,7 @@ or, inside a checkout:
 cd adopt && poetry install --extras sdk && poetry run vlab --help
 ```
 
-**Python `>=3.9,<3.11`** — `adopt`'s own constraint, which the SDK inherits, so
+**Python `>=3.10,<3.11`** — `adopt`'s own constraint, which the SDK inherits, so
 `pipx install --python python3.10 ...` if your default is newer. `pipx` will
 pull pandas, scipy and cvxpy along with it: accepted deliberately in plan §7,
 on the grounds that extracting a package is real work and nobody has yet been
@@ -1119,6 +1119,65 @@ author's comment called "crazy pandas magic. Probably worth redoing from
 scratch", and four of its seventeen notebook callers shadowed it with their own
 rewrite. It is moved unchanged, with the five tests that pin its output, and
 marked rather than quietly shipped as general.
+
+## `vlab mcp` and `POST /mcp` — the same runbook as MCP tools
+
+Phase 4 of `planning/agent-study-authoring.md` §16. What shipped and why:
+`planning/mcp.md`. The reference, including the client configuration, the scope
+table and the known gaps: `documentation/agent-api.md` §6b.
+
+Sixteen tools, defined once in `adopt/adopt/sdk/mcp_tools.py` and served two
+ways:
+
+```
+# Local, stdio -- for anything that can run Python. The key stays here.
+claude mcp add vlab -e VLAB_API_KEY=$VLAB_API_KEY -- vlab mcp
+
+# Remote, streamable HTTP -- for clients that cannot install anything.
+POST https://vlab-study-conf-api.toixo.vlab.digital/mcp
+Authorization: Bearer $VLAB_API_KEY
+```
+
+The names are the CLI's -- `create_study`, `pull_study`, `validate_study`,
+`diff_study`, `push_study`, `compile_strata`, `extract_targeting`,
+`plan_study`, `apply_instruction`, the five `meta_*` readers, `list_api_keys`,
+`revoke_api_key` -- because each one calls exactly what the matching command
+calls. Nothing about the API changes: confs are still append-only, a section
+write still replaces the section whole, and `plan_study` still reads Meta and
+writes report rows despite being called a preview.
+
+Two things worth knowing before touching this code.
+
+**A tool contains no logic.** If a tool needs to decide something, the decision
+belongs in the shared function and both front doors get it. That is why the
+push loop lives in `sdk/study.py:push_sections` rather than in `cli.push`, and
+why `server/mcp_server.py:InProcessBackend` calls the route *handlers* rather
+than the database.
+
+**`POST /mcp` serves POST and nothing else.** In stateless mode a GET would
+open an SSE stream that can never carry anything and never closes, and any
+authenticated key could have used it to exhaust a worker -- a GET never calls a
+tool, so the scope table never runs. `mount()` declares `methods=["POST"]` and
+`MCPEndpoint` refuses other verbs itself; `planning/mcp.md` §6 has the detail.
+
+**The route is inert; the boot path is not.** `server.py` imports `mcp_server`
+at module scope and runs the transport's session manager in the app lifespan,
+so an import or start-up failure takes the conf service down rather than
+degrading `/mcp`. That is the intended trade, and it is why this package now
+requires Python >= 3.10 rather than >= 3.9.
+
+**Scopes are checked in two different places, on purpose.** Over stdio every
+tool goes out as HTTP and the service's own middleware enforces the key's
+scopes. Over `POST /mcp` nothing passes through a route, so `/mcp` is a
+*delegated* path and `mcp_tools.TOOL_SCOPES` is the real check, per call, with
+the same `scopes_allow` the routes use. A tool with no entry in that table is
+denied. `plan_study` and `apply_instruction` need `optimize:read` and
+`optimize:write` -- not `studies:write`, which is what §16.2 proposed and which
+would have let a study-authoring key launch ads.
+
+Template creation is deliberately not a tool: it needs a Facebook token and an
+image upload, and there is no `meta:write` route. `vlab template` stays
+CLI-only.
 
 ## `vlab template` — building the templates a study is configured from
 

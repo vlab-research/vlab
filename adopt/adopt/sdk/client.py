@@ -243,6 +243,29 @@ _STATUS_ERRORS = {
 }
 
 
+def http_error(
+    status_code: int,
+    detail: Any,
+    method: str = "",
+    url: str = "",
+    body_text: str = "",
+) -> VlabHTTPError:
+    """The right exception type for a status, built from its pieces.
+
+    Split out of `VlabClient._error` so that a caller who has a status and a
+    detail but no HTTP response can raise what this module raises. The MCP
+    remote transport is that caller: its tools reach the same handlers by
+    calling them in process, and a `404` from `get_study_id` has to arrive at a
+    tool as the same `NotFoundError` the wire would have produced -- otherwise
+    every tool needs two error paths, and the two front doors stop being the
+    same thing seen from different sides.
+    """
+    cls = _STATUS_ERRORS.get(
+        status_code, ServerError if status_code >= 500 else VlabHTTPError
+    )
+    return cls(status_code, detail, method, url, body_text)
+
+
 def _looks_like_field_errors(value: Any) -> bool:
     """Is this FastAPI's `detail` for a 422, rather than some other array?
 
@@ -393,11 +416,7 @@ class VlabClient:
         except ValueError:
             detail = None
 
-        status = response.status_code
-        cls = _STATUS_ERRORS.get(
-            status, ServerError if status >= 500 else VlabHTTPError
-        )
-        return cls(status, detail, method, url, text)
+        return http_error(response.status_code, detail, method, url, text)
 
     def _data(self, *args: Any, **kwargs: Any) -> Any:
         """`request`, unwrapping the `{"data": ...}` envelope the API uses.
