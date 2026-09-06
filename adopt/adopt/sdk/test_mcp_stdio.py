@@ -192,11 +192,27 @@ def test_diff_then_push_agree_about_what_changes(session, org):
     assert pushed["written"] == ["recruitment"]
 
 
-def test_a_study_that_does_not_exist_is_an_error_not_an_empty_study(session, org):
-    message, is_error = session("pull_study", {"org": org, "slug": "no-such-study"})
+def test_pulling_a_study_that_does_not_exist_returns_an_EMPTY_one(session, org):
+    """A trap, pinned rather than fixed.
 
-    assert is_error
-    assert "404" in message
+    `GET /{org}/studies/{slug}/confs` does not check that the study exists: it
+    builds a dict from the rows it finds, and for a slug that is not there it
+    finds none. So this is a 200 with `{}`, not a 404 -- the same answer as a
+    study that exists and has never been configured. `vlab pull` has always
+    behaved this way (it writes a file with zero sections), and a tool that
+    raised here would be a tool behaving differently from the command it wraps,
+    which is the one thing plan §16.1 forbids.
+
+    `never_written` listing all nine is the signal an agent has, and
+    `pull_study`'s description says so. `POST .../validate` is the endpoint
+    that does the ownership check, by calling `get_study_id` explicitly for
+    exactly this reason (`server/validate.py`).
+    """
+    out, is_error = session("pull_study", {"org": org, "slug": "no-such-study"})
+
+    assert not is_error, out
+    assert out["sections"] == {}
+    assert len(out["never_written"]) == 9
 
 
 def test_the_command_builds_the_server_and_serves_it_on_stdio():

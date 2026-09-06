@@ -1397,18 +1397,33 @@ def test_apply_json_with_yes_is_parseable(runner, obj, org):
     json.loads(res.output)
 
 
-def test_a_file_with_an_unquoted_date_fails_validate_not_push(runner, obj, org):
-    """End to end. Before, `validate` and `diff` passed and `push` died inside
-    the JSON encoder as a fake network error, AFTER writing the sections
-    ordered before recruitment."""
+def test_an_unquoted_date_reaches_the_server_as_the_string_it_will_store(
+    runner, obj, org
+):
+    """End to end for the `json_safe` fix, whose point survives its verdict
+    changing.
+
+    Before it, `validate` and `diff` saw a `datetime.date` OBJECT, passed, and
+    `push` then died inside the JSON encoder as a fake network error -- AFTER
+    writing the sections ordered before recruitment, which cannot be withdrawn.
+    Now the same value reaches all three as `"2026-06-01"`.
+
+    Until 2026-09-06 that string was itself rejected by pydantic, so this test
+    asserted exit 1 and `section.invalid`. `mcp` floors pydantic at 2.8
+    (`pyproject.toml`), the lock moved 2.5.2 -> 2.9.2, and 2.9 parses a bare
+    date into midnight -- so the push now succeeds and the server stores
+    `2026-06-01T00:00:00`. Strictly more permissive; nothing that used to be
+    accepted is rejected. What is asserted here is the invariant rather than
+    the verdict: whatever `validate` says, `push` sends the same bytes.
+    """
     slug = obj["client"].create_study(org, "HPV")["slug"]
     data = study_dict(org, slug)
     data["recruitment"]["start_date"] = __import__("datetime").date(2026, 6, 1)
     write_study(data=data)
 
+    assert run(runner, obj, "validate").exit_code == 0
     res = run(runner, obj, "push")
 
-    assert res.exit_code == 1
-    assert "section.invalid" in res.output
-    assert "start_date" in res.output
-    assert _conf_rows(slug) == []  # nothing was written
+    assert res.exit_code == 0, res.output
+    stored = obj["client"].get_confs(org, slug)["recruitment"]
+    assert stored["start_date"] == "2026-06-01T00:00:00"

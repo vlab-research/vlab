@@ -2097,6 +2097,11 @@ to work. Treat them as unverified rather than broken.
 - **`compile_strata` on a live study.** The merge semantics are the
   dashboard's, held identical by a replayed fixture set, but no one has yet run
   a regenerate through MCP against a study with ads already delivering.
+- **`pull_study` does not tell you a slug is wrong.** `GET /confs` never checked
+  that the study exists (§2.3), so a nonexistent slug and a study that has never
+  been configured both come back as `{}` with all nine in `never_written`. The
+  tool inherits that rather than adding a check the CLI does not have. Only a
+  write 404s.
 
 ---
 

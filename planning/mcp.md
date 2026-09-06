@@ -221,6 +221,15 @@ transport driven by a real MCP client against the deployed service; the
 a real client's tool timeout; concurrency between two agents on one study;
 `compile_strata` regenerating a study with ads already delivering.
 
+CI also caught two premises this file's author had wrong, and both are worth
+knowing. `GET /confs` does **not** check that the study exists, so
+`pull_study` on a nonexistent slug is `{}` with all nine in `never_written`
+rather than a 404 -- `vlab pull` has always behaved that way (it writes a file
+with zero sections), so the tool inherits it rather than growing a check the
+command does not have; the description says so. And the CLI had its own twin of
+the unquoted-date test, which the pydantic bump flipped for the same reason as
+`test_study.py`'s.
+
 **Not run locally:** every database-backed test. Docker on the development
 machine could not start a container at all (`failed to create shim:
 unsupported protocol: Yunix`), so the CockroachDB the suite needs was

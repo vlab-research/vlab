@@ -279,9 +279,14 @@ async def pull_study(org: str, slug: str) -> Dict[str, Any]:
 
     Returns the NEWEST row per conf type. `study_confs` is append-only: every
     write inserts a new row and supersedes the previous one, so what you get
-    back is the current state and the history is invisible here. A study that
-    has never been configured returns `{}` rather than an error -- an empty
-    result is not evidence that the study does not exist.
+    back is the current state and the history is invisible here.
+
+    AN EMPTY RESULT PROVES NOTHING EITHER WAY. This does not check that the
+    study exists: a slug that is not there and a study that has simply never
+    been configured both come back as `{}` with all nine sections in
+    `never_written`. Neither this tool nor `diff_study` will tell you a slug is
+    wrong -- only a write does. `create_study` is what hands you the slug, and
+    it is derived server-side, so keep it rather than recomputing it.
 
     Keys are the STORED names (`data_sources`, `inference_data`, with
     underscores), which is exactly what `validate_study`, `diff_study` and

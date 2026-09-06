@@ -491,15 +491,24 @@ def test_a_write_that_the_models_reject_is_a_422_not_a_stored_row(app_client, or
     assert result["written"] == ["general"]
 
 
-def test_a_study_in_another_users_org_is_a_404_through_mcp(app_client):
-    token, _ = generate_api_token(user_id=USER, name="x", scopes=["studies:read"])
+def test_a_handlers_404_reaches_a_tool_as_a_tool_error(app_client, org):
+    """`_wire_errors` in action: a handler raises `HTTPException(404)` and the
+    tool sees `NotFoundError`, exactly as the wire would have produced. Without
+    it, a tool would need one error path per transport.
+
+    `diff_study`, not `pull_study`: `GET /confs` does not check that the study
+    exists (see `test_mcp_stdio`), so it is the wrong tool to ask about a 404.
+    This one 404s because `create_study` on an org the caller is not in does.
+    """
+    token, _ = generate_api_token(user_id=USER, name="x", scopes=["studies:write"])
 
     message, is_error = call_tool(
         app_client,
-        "pull_study",
-        {"org": str(uuid.uuid4()), "slug": "nope"},
+        "create_study",
+        {"org": str(uuid.uuid4()), "name": "not my org"},
         token,
     )
 
     assert is_error
     assert "404" in message
+    assert "Organization not found" in message
