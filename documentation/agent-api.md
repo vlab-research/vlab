@@ -14,6 +14,11 @@ configuration section at a time and never assemble the study, so a sequence of
 `201`s does not mean you built a working study. This is the single most
 dangerous property of the API for an automated caller.
 
+**If your client speaks MCP, use that**: `vlab mcp` (local, stdio) and
+`POST /mcp` (remote, streamable HTTP) serve the whole runbook below as tools.
+§6b is the reference. Everything here still applies — the tools call the same
+code the CLI does, which calls these endpoints.
+
 **If you can run Python, use the SDK rather than this API directly**:
 `pipx install "adopt[sdk] @ git+https://github.com/vlab-research/vlab.git#subdirectory=adopt"`
 gives you a `vlab` command that owns a study as a
@@ -1926,6 +1931,175 @@ appsecret_proof provided`).
 
 ---
 
+## 6b. MCP — the runbook as tools
+
+Since adopt v0.1.87 the same operations are available over the **Model Context
+Protocol**, so an agent calls them as tools instead of shelling out to `vlab`
+or building HTTP requests. The design record is `planning/mcp.md`;
+`planning/agent-study-authoring.md` §16 is the brief.
+
+There is **no new capability here and no new endpoint semantics**. Every tool
+calls the same function the matching `vlab` command calls, so everything in §1
+through §6 is exactly as true through MCP as it is over HTTP — including that
+`study_confs` is append-only, that a section write replaces the section whole,
+and that `plan_study` writes.
+
+### Two transports, one tool module
+
+| | Local — `vlab mcp` | Remote — `POST /mcp` |
+|---|---|---|
+| Runs | on your machine, started by the MCP client | in the conf service |
+| Needs | Python 3.10 and `adopt[sdk]` installed | nothing but an HTTP client |
+| Reaches vlab | over HTTPS, as `VlabClient` | in process |
+| Scopes enforced by | the service's route middleware, on every call | a per-tool table (`TOOL_SCOPES`) |
+| Session | one per process | **stateless**: no `initialize`, no session id |
+
+**Prefer `vlab mcp`.** The key stays on the researcher's machine, every tool
+goes through the real routes, and it works against any deployment. `POST /mcp`
+exists for clients that cannot install anything.
+
+### Configuring a client for `vlab mcp`
+
+Claude Code:
+
+```
+claude mcp add vlab -e VLAB_API_KEY=$VLAB_API_KEY -- vlab mcp
+```
+
+Claude Desktop (`claude_desktop_config.json`) — and the same shape works for
+any client that launches a stdio server:
+
+```json
+{
+  "mcpServers": {
+    "vlab": {
+      "command": "vlab",
+      "args": ["mcp"],
+      "env": {
+        "VLAB_API_KEY": "eyJ...",
+        "VLAB_API_URL": "https://vlab-study-conf-api.toixo.vlab.digital"
+      }
+    }
+  }
+}
+```
+
+`VLAB_API_URL` is optional; it defaults to the production conf service above.
+There is no `vlab login` and no credentials file — the key comes from the
+environment and is never written to disk.
+
+Nothing is printed on stdout except protocol frames, so running `vlab mcp` in a
+terminal looks like a hang. That is correct: it is waiting for a client.
+
+### Using `POST /mcp`
+
+Streamable HTTP, stateless, under the same bearer token as every other route.
+Stateless means a `tools/call` needs no `initialize` handshake first, so a
+client with no MCP library at all can use it:
+
+```
+curl -sS https://vlab-study-conf-api.toixo.vlab.digital/mcp \
+  -H "Authorization: Bearer $VLAB_API_KEY" \
+  -H 'Content-Type: application/json' \
+  -H 'Accept: application/json, text/event-stream' \
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/call",
+       "params":{"name":"pull_study","arguments":{"org":"'$VLAB_ORG'","slug":"hpv-nigeria"}}}'
+```
+
+The response is `text/event-stream` with one `data:` frame carrying the
+JSON-RPC result. `tools/list` returns the same sixteen tools with the same
+descriptions and schemas as the local transport — a test diffs them.
+
+### The tools, and the scope each needs
+
+Names are the CLI's, so §6.1's runbook reads the same whichever front door you
+use: `create_study` → `push_study` → `validate_study` → `plan_study` →
+`apply_instruction`.
+
+| Tool | Does what `vlab` … does | Scope | Writes? |
+|---|---|---|---|
+| `create_study(org, name)` | `vlab create` | `studies:write` | yes — a study row, no delete |
+| `pull_study(org, slug)` | `vlab pull` | `studies:read` | no |
+| `validate_study(sections)` | `vlab validate` | `studies:read` | no — pure, in process |
+| `diff_study(org, slug, sections)` | `vlab diff` | `studies:read` | no |
+| `push_study(org, slug, sections, force)` | `vlab push` | `studies:write` | **yes, irreversibly** |
+| `compile_strata(variables, finish_question_ref, existing_strata, creatives, audiences)` | `vlab strata generate` | none — pure | no |
+| `extract_targeting(adset, properties)` | `vlab strata extract-targeting` | none — pure | no |
+| `plan_study(org, slug)` | `vlab plan` | `optimize:read` | **yes** — see below |
+| `apply_instruction(org, slug, index)` | `vlab apply` | `optimize:write` | **yes, on Meta, with money** |
+| `meta_credentials(org)` | `vlab meta credentials` | `meta:read` | no |
+| `meta_adaccounts(org, …)` | `vlab meta adaccounts` | `meta:read` | no |
+| `meta_campaigns(org, account, …)` | `vlab meta campaigns` | `meta:read` | no |
+| `meta_adsets(org, campaign, …)` | `vlab meta adsets` | `meta:read` | no |
+| `meta_ads(org, campaign\|adset, …)` | `vlab meta ads` | `meta:read` | no |
+| `list_api_keys()` | `vlab keys list` | `auth:read` | no |
+| `revoke_api_key(key_id)` | `vlab keys revoke` | `auth:write` | yes, irreversibly |
+
+`plan_study` is a preview that writes: it reads Meta, heals ad attributions,
+and writes an `adopt_reports` row plus two time-series reports (§5). It creates
+no Meta objects and spends nothing. `apply_instruction` is the one that spends.
+
+**Template creation is deliberately not a tool.** `vlab template` (§6a) needs a
+Facebook token and an image upload, neither of which belongs behind a vlab API
+key, and there is no `meta:write` route for it to use. It stays CLI-only.
+
+### How scopes behave, and what to hand an agent
+
+On `vlab mcp` there is nothing new: the service checks the key on every call,
+exactly as it does for `vlab push`.
+
+On `POST /mcp` every tool call arrives as a POST to one path, so the path-based
+check of the Authentication section can say nothing useful about it. `/mcp` is
+therefore a *delegated* route — any authenticated key reaches it — and the
+table above is enforced per call, with the same algebra as everywhere else:
+`write` implies `read`, `*` is everything, and **a key with no scopes claim is
+unrestricted**. A key that lacks a scope gets a *tool* error naming it, not a
+403, so an agent can report what to ask for:
+
+```
+Error executing tool apply_instruction: This API key is not scoped for
+optimize:write, which apply_instruction needs. Its scopes are: studies:read
+```
+
+A sensible key for an authoring agent is
+`["studies:write", "meta:read", "optimize:read"]` — it can build, check and
+plan a study, and cannot launch an ad. Add `optimize:write` only when you mean
+to let it spend money.
+
+### Known gaps
+
+Things that were **not** exercised while this was built, or that are known not
+to work. Treat them as unverified rather than broken.
+
+- **Neither transport has been driven by a real MCP client against the
+  deployed service.** Both were driven by the `mcp` client library and by raw
+  JSON-RPC in the test suite, against the real FastAPI app and a real database.
+  Claude Desktop and Claude Code configuration above is the documented shape,
+  not one that has been observed working end to end.
+- **`POST /mcp` is inert until a client uses it**, and no client had at the
+  time of writing. The mount adds a route and an app lifespan; it changes no
+  existing endpoint.
+- **No `initialize` / capability negotiation is exercised.** Stateless mode
+  does not require it, and the tests do not send one. A client that insists on
+  the full handshake before `tools/list` should work — the transport implements
+  it — but that path is untested here.
+- **No resources, no prompts, no sampling.** Tools only (§16.7).
+- **No caching and no rate limiting on the Meta tools.** Every `meta_*` call is
+  a live Graph read against Meta's per-app limits, shared with everything else
+  the account does. An agent that polls them will get the account throttled.
+- **Long calls.** `plan_study` has a five-minute server-side budget and the
+  local transport allows 310 seconds per HTTP call. Whether a given MCP client
+  waits that long for a tool is the client's business, and none was measured.
+- **Concurrency.** Nothing serialises two agents pushing to the same study.
+  `study_confs` is append-only, so the last write wins and both rows survive;
+  that is the same as two people in the dashboard, and no worse, but it is not
+  a lock.
+- **`compile_strata` on a live study.** The merge semantics are the
+  dashboard's, held identical by a replayed fixture set, but no one has yet run
+  a regenerate through MCP against a study with ads already delivering.
+
+---
+
 ## 7. What an agent cannot do today
 
 Stated plainly, because each of these will otherwise look like a bug in your
@@ -1971,6 +2145,39 @@ client.
 ---
 
 ## 8. What landed recently
+
+### 2026-09-06 — MCP: the same runbook as tools, over two transports
+
+Phase 4 of `planning/agent-study-authoring.md` §8; the design record is
+`planning/mcp.md`; the reference is §6b. **One new endpoint, `POST /mcp`, and
+no change to any existing one.**
+
+`vlab mcp` serves sixteen tools on stdio, so an MCP client — Claude Code,
+Claude Desktop, anything that launches a stdio server — drives the §6.1 runbook
+directly. The conf service serves the same sixteen at `POST /mcp`, streamable
+HTTP and stateless, for clients that cannot install Python.
+
+The tools are one module, registered once, served both ways: every one of them
+calls the same function the matching `vlab` command calls, so anything true of
+`vlab push` is true of `push_study`. A test diffs the tool list and the
+descriptions across the two transports, because a transport-specific
+registration would otherwise be invisible to whichever half of the users are on
+the other front door.
+
+The one thing genuinely new is where scopes are checked on the remote
+transport. Every tool call arrives as a POST to `/mcp`, so the path-based
+middleware cannot classify it; `/mcp` is a delegated route and a per-tool table
+is the real check, using the same scope algebra. A key that lacks a scope gets
+a tool error naming it rather than a 403. `plan_study` and `apply_instruction`
+need `optimize:read` and `optimize:write` — not `studies:write`, which the plan
+originally proposed and which would have let a study-authoring key spend money
+on Meta through a door it does not have over HTTP.
+
+Template creation is not a tool and is not going to be one, for the same reason
+§7 item 2 gives: it needs a Facebook token and an image upload.
+
+§6b's "Known gaps" lists what was not exercised — chiefly that neither
+transport has been driven by a real MCP client against the deployed service.
 
 ### 2026-09-05 — `vlab template`: authoring template campaigns and creatives
 
