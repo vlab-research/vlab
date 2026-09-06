@@ -34,6 +34,7 @@ from unittest.mock import patch
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
+from starlette.routing import Route
 
 from ..db import execute
 
@@ -160,15 +161,108 @@ def with_scopes(stub_client, scopes: Optional[List[str]]):
 # --------------------------------------------------------------------------
 
 
-def test_no_token_at_all_is_a_401(stub_client):
+def test_no_token_at_all_is_a_403_like_every_other_route(stub_client):
+    """403, not 401, because `deps.security` is `HTTPBearer(auto_error=True)`
+    and that is what FastAPI's HTTPBearer answers for a missing header. Being
+    wrong consistently beats being the one endpoint a client has to special-case.
+    """
     app, patches = with_scopes(stub_client, None)
     with patches[0], patches[1], patches[2], TestClient(app) as client:
         response = client.post(
             "/mcp", json={"jsonrpc": "2.0", "id": 1, "method": "tools/list"}
         )
 
-    assert response.status_code == 401
-    assert response.headers.get("www-authenticate") == "Bearer"
+    assert response.status_code == 403
+    assert response.json()["detail"] == "Not authenticated"
+
+
+def test_a_non_bearer_scheme_is_a_403(stub_client):
+    app, patches = with_scopes(stub_client, None)
+    with patches[0], patches[1], patches[2], TestClient(app) as client:
+        response = client.post(
+            "/mcp",
+            json={"jsonrpc": "2.0", "id": 1, "method": "tools/list"},
+            headers={"Authorization": "Basic abc"},
+        )
+
+    assert response.status_code == 403
+    assert response.json()["detail"] == "Invalid authentication credentials"
+
+
+# --------------------------------------------------------------------------
+# POST only
+# --------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("method", ["get", "delete", "put", "patch"])
+def test_only_post_is_served(stub_client, method):
+    """The fix for a real denial of service, not a tidiness rule.
+
+    Streamable HTTP defines GET (open a server-to-client SSE stream) and DELETE
+    (end a session) alongside POST. In STATELESS mode both are meaningless --
+    and the library does not say so: `_handle_get_request` has no session-id
+    guard to fail on when `mcp_session_id` is None, so it opens an
+    `EventSourceResponse` that can never receive anything and never closes. Each
+    one pins a connection, a transport and an anyio task in the lifespan task
+    group for the life of the worker.
+
+    `/mcp` is a delegated path, so ANY authenticated key reaches the endpoint
+    before a scope is looked at, and a GET never calls a tool so `TOOL_SCOPES`
+    never runs. A key scoped to nothing at all -- denied every tool there is --
+    could have exhausted the worker.
+
+    A `timeout` on the request, because the failure mode being guarded against
+    is a hang: without the fix this test does not fail, it stops.
+    """
+    app, patches = with_scopes(stub_client, [])
+    with patches[0], patches[1], patches[2], TestClient(app) as client:
+        response = getattr(client, method)(
+            "/mcp",
+            headers={
+                "Authorization": "Bearer tok",
+                "Accept": "text/event-stream",
+            },
+            timeout=10,
+        )
+
+    assert response.status_code == 405
+    assert "POST" in response.headers.get("allow", "")
+
+
+@pytest.mark.parametrize("method", ["get", "delete"])
+def test_an_unauthenticated_other_verb_is_405_before_any_token_work(
+    stub_client, method
+):
+    """Method first, authentication second, deliberately: `verify_tokens`
+    fetches Auth0's JWKS over the NETWORK for an RS256 token, and answering a
+    verb this endpoint does not serve must not cost an outbound request."""
+    app, patches = with_scopes(stub_client, None)
+    with patches[0] as get_user, patches[1], patches[2], TestClient(app) as client:
+        response = getattr(client, method)(
+            "/mcp", headers={"Accept": "text/event-stream"}, timeout=10
+        )
+
+    assert response.status_code == 405
+    assert get_user.call_count == 0
+
+
+def test_the_endpoint_refuses_a_get_even_when_mounted_without_methods():
+    """`mount()` declares `methods=["POST"]` so Starlette answers first, but the
+    endpoint has to be safe on its own -- that is the half that survives being
+    mounted some other way."""
+    app = FastAPI(lifespan=ms.lifespan)
+    app.router.routes.append(Route("/mcp", endpoint=ms.MCPEndpoint()))
+
+    with TestClient(app) as client:
+        response = client.get(
+            "/mcp",
+            headers={"Authorization": "Bearer x", "Accept": "text/event-stream"},
+            timeout=10,
+        )
+
+    assert response.status_code == 405
+    assert response.headers.get("allow") == "POST"
+    assert "stateless" in response.json()["detail"]
 
 
 def test_the_transport_answers_503_when_the_lifespan_did_not_run():
@@ -306,6 +400,68 @@ def test_mounting_mcp_does_not_disturb_the_rest_of_the_app():
     # OpenAPI document describes the REST surface, and MCP describes itself
     # through `tools/list`. §6b of documentation/agent-api.md says so.
     assert "/mcp" not in schema.json()["paths"]
+
+
+# --------------------------------------------------------------------------
+# The scope table against the routes it claims to reproduce
+# --------------------------------------------------------------------------
+
+ORG = "9d3d0f6a-0f0f-4b2a-9b7e-000000000001"
+
+# Every tool that is backed by a route, and the request that route serves. The
+# two pure tools are absent because there is no route to compare them to.
+#
+# `validate_study` runs in process and touches nothing, but it is scoped as the
+# `POST .../validate` endpoint is: the endpoint exists, an agent may reasonably
+# use either, and a tool that needed a NARROWER scope than the endpoint doing
+# the same job would be a distinction with no meaning behind it.
+ROUTE_BACKED_TOOLS = {
+    "create_study": ("POST", f"/{ORG}/studies"),
+    "pull_study": ("GET", f"/{ORG}/studies/hpv/confs"),
+    "diff_study": ("GET", f"/{ORG}/studies/hpv/confs"),
+    "validate_study": ("POST", f"/{ORG}/studies/hpv/validate"),
+    "push_study": ("POST", f"/{ORG}/studies/hpv/confs/general"),
+    "plan_study": ("GET", f"/{ORG}/optimize/hpv"),
+    "apply_instruction": ("POST", f"/{ORG}/optimize/hpv/instruction"),
+    "meta_credentials": ("GET", f"/{ORG}/meta/credentials"),
+    "meta_adaccounts": ("GET", f"/{ORG}/meta/adaccounts"),
+    "meta_campaigns": ("GET", f"/{ORG}/meta/campaigns"),
+    "meta_adsets": ("GET", f"/{ORG}/meta/adsets"),
+    "meta_ads": ("GET", f"/{ORG}/meta/ads"),
+    "list_api_keys": ("GET", "/users/api-keys"),
+    "revoke_api_key": ("DELETE", "/users/api-keys/abc"),
+}
+
+
+@pytest.mark.parametrize("tool", sorted(ROUTE_BACKED_TOOLS))
+def test_each_tools_scope_is_what_its_route_requires(tool):
+    """The guard that makes `/mcp` no more powerful than the HTTP API.
+
+    `TOOL_SCOPES` exists because a tool call never passes through
+    `scope_enforcement_middleware` -- so if it and `required_scope` disagree,
+    the same key gets different privileges depending on which front door it
+    uses, and the difference is silent. Comparing the table against the
+    function the routes are actually classified by is the only version of this
+    test that can catch that; comparing it against a second hand-written table
+    would only assert that someone typed the same thing twice.
+
+    This is also what pins the DELIBERATE divergence from plan §16.2, which
+    gives `plan_study` and `apply_instruction` `studies:write`. The routes say
+    `optimize:read` and `optimize:write`, and following the plan would have let
+    a study-authoring key spend money on Meta through a door it does not have
+    over HTTP. See `planning/mcp.md` §3.
+    """
+    method, path = ROUTE_BACKED_TOOLS[tool]
+
+    assert mt.TOOL_SCOPES[tool] == ak.required_scope(method, path)
+
+
+def test_every_tool_is_either_route_backed_or_pure():
+    """So a tool added later cannot quietly escape the check above."""
+    pure = {name for name, scope in mt.TOOL_SCOPES.items() if scope is None}
+
+    assert set(ROUTE_BACKED_TOOLS) | pure == set(mt.TOOL_SCOPES)
+    assert pure == {"compile_strata", "extract_targeting"}
 
 
 # --------------------------------------------------------------------------

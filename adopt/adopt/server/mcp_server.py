@@ -383,6 +383,42 @@ class MCPEndpoint:
         # `Request` here reads headers only; the body is left for the transport.
         request = Request(scope, receive)
 
+        # POST ONLY, AND THIS IS LOAD-BEARING.
+        #
+        # Streamable HTTP defines three verbs: POST for a request, GET to open a
+        # server-to-client SSE stream, DELETE to end a session. In STATELESS mode
+        # the last two are meaningless -- there is no session to end, and a GET
+        # stream can never carry anything, because nothing on this server sends
+        # a client an unsolicited message. The library does not refuse them:
+        # `StreamableHTTPServerTransport._handle_get_request` has no session-id
+        # guard to fail on when `mcp_session_id` is None, so it opens an
+        # `EventSourceResponse` that never receives and never closes. Every such
+        # GET then pins a connection, a transport and an anyio task inside the
+        # lifespan task group for the life of the worker.
+        #
+        # That is reachable by ANY authenticated key: `/mcp` is a delegated path
+        # (`api_keys.DELEGATED_PATHS`), so the middleware lets a key through
+        # before any scope is checked, and `TOOL_SCOPES` is only consulted once a
+        # tool is called -- which a GET never does. A key with an empty scopes
+        # list, which is denied every tool there is, could exhaust the worker.
+        #
+        # Checked BEFORE authentication on purpose: `verify_tokens` fetches
+        # Auth0's JWKS over the network for an RS256 token, so answering a
+        # method this endpoint does not serve should not cost an outbound
+        # request. `mount()` also declares `methods=["POST"]`, which makes
+        # Starlette answer first; this stays because it is what makes the
+        # endpoint safe on its own, however it is mounted.
+        if request.method != "POST":
+            await _json(
+                send,
+                405,
+                f"{request.method} is not served here. POST /mcp is the whole "
+                "transport: it is stateless, so there is no session to DELETE "
+                "and a GET stream would have nothing to carry.",
+                headers={"Allow": "POST"},
+            )
+            return
+
         manager = getattr(request.app.state, STATE_ATTRIBUTE, None)
         if manager is None:
             # Only reachable if the app was built without `lifespan`. A clear
@@ -398,9 +434,24 @@ class MCPEndpoint:
             return
 
         header = request.headers.get("authorization") or ""
-        method, _, token = header.partition(" ")
-        if method.lower() != "bearer" or not token:
-            await _json(send, 401, "Not authenticated")
+        scheme, _, token = header.partition(" ")
+        if scheme.lower() != "bearer" or not token:
+            # 403, not 401, because that is what every other route on this
+            # service answers: `deps.security` is `HTTPBearer(auto_error=True)`,
+            # and FastAPI's HTTPBearer raises 403 "Not authenticated" for a
+            # missing header and 403 "Invalid authentication credentials" for a
+            # scheme it does not recognise. Arguably both should be 401 with a
+            # `WWW-Authenticate` challenge -- but a client that special-cases
+            # this endpoint's status because it is the one that differs is worse
+            # than a service that is wrong consistently. A token that is present
+            # and bad still gets `get_current_user`'s 401 below.
+            await _json(
+                send,
+                403,
+                "Not authenticated"
+                if not header
+                else "Invalid authentication credentials",
+            )
             return
 
         try:
@@ -419,11 +470,16 @@ class MCPEndpoint:
             await manager.handle_request(scope, receive, send)
 
 
-async def _json(send: Any, status: int, detail: Any) -> None:
+async def _json(
+    send: Any, status: int, detail: Any, headers: Optional[Dict[str, str]] = None
+) -> None:
+    extra = dict(headers or {})
+    if status == 401:
+        extra.setdefault("WWW-Authenticate", "Bearer")
     response = JSONResponse(
         status_code=status,
         content={"detail": detail},
-        headers={"WWW-Authenticate": "Bearer"} if status == 401 else None,
+        headers=extra or None,
     )
     await response(
         {"type": "http", "headers": []}, _no_receive, send  # type: ignore[arg-type]
@@ -440,5 +496,13 @@ def mount(app: Any) -> None:
     A Starlette `Route` with an ASGI endpoint, not `app.mount`: a mount would
     also claim `/mcp/anything`, and the delegated-path classification in
     `api_keys` is an exact path.
+
+    `methods=["POST"]` is belt and braces with the check inside `MCPEndpoint`,
+    the same way `meta.py`'s `require_scope` dependency is belt and braces with
+    the scope middleware. This is the half that answers first -- Starlette's own
+    plain-text 405 -- and the endpoint's own check is the half that survives
+    being mounted some other way. Starlette honours `methods` here because a
+    class INSTANCE is not a function: it is treated as an ASGI app, and the
+    method set is applied by the router rather than ignored.
     """
-    app.router.routes.append(Route(MCP_PATH, endpoint=MCPEndpoint()))
+    app.router.routes.append(Route(MCP_PATH, endpoint=MCPEndpoint(), methods=["POST"]))
