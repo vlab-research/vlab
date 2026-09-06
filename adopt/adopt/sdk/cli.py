@@ -9,7 +9,7 @@
     vlab plan  $ORG/hpv-nigeria
     vlab apply $ORG/hpv-nigeria 0
 
-Needs Python `>=3.9,<3.11` -- `adopt`'s own constraint, which the SDK inherits.
+Needs Python `>=3.10,<3.11` -- `adopt`'s own constraint, which the SDK inherits.
 
 Every command prints for a human by default and takes `--json` for a program.
 Every command that talks to the server takes `--api-url` and `--api-key`,

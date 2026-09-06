@@ -26,7 +26,9 @@ and the name `adopt` on PyPI is an unrelated project::
     pipx install --python python3.10 \\
       "adopt[sdk] @ git+https://github.com/vlab-research/vlab.git#subdirectory=adopt"
 
-Python >=3.9,<3.11, which is `adopt`'s own constraint. The extra exists for the
+Python >=3.10,<3.11, which is `adopt`'s own constraint -- narrowed from >=3.9
+on 2026-09-06, because `mcp` needs 3.10 and the conf service imports it at
+start-up (`planning/mcp.md` §5a). The extra exists for the
 console script and `click`; everything else the SDK needs (`requests`,
 `PyYAML`, pydantic, the authoring library) is already a hard dependency of
 `adopt` -- which is also why the install is not small. `adopt/README.md` has

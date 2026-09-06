@@ -951,7 +951,7 @@ or, inside a checkout:
 cd adopt && poetry install --extras sdk && poetry run vlab --help
 ```
 
-**Python `>=3.9,<3.11`** — `adopt`'s own constraint, which the SDK inherits, so
+**Python `>=3.10,<3.11`** — `adopt`'s own constraint, which the SDK inherits, so
 `pipx install --python python3.10 ...` if your default is newer. `pipx` will
 pull pandas, scipy and cvxpy along with it: accepted deliberately in plan §7,
 on the grounds that extracting a package is real work and nobody has yet been
@@ -1153,6 +1153,18 @@ belongs in the shared function and both front doors get it. That is why the
 push loop lives in `sdk/study.py:push_sections` rather than in `cli.push`, and
 why `server/mcp_server.py:InProcessBackend` calls the route *handlers* rather
 than the database.
+
+**`POST /mcp` serves POST and nothing else.** In stateless mode a GET would
+open an SSE stream that can never carry anything and never closes, and any
+authenticated key could have used it to exhaust a worker -- a GET never calls a
+tool, so the scope table never runs. `mount()` declares `methods=["POST"]` and
+`MCPEndpoint` refuses other verbs itself; `planning/mcp.md` §6 has the detail.
+
+**The route is inert; the boot path is not.** `server.py` imports `mcp_server`
+at module scope and runs the transport's session manager in the app lifespan,
+so an import or start-up failure takes the conf service down rather than
+degrading `/mcp`. That is the intended trade, and it is why this package now
+requires Python >= 3.10 rather than >= 3.9.
 
 **Scopes are checked in two different places, on purpose.** Over stdio every
 tool goes out as HTTP and the service's own middleware enforces the key's
