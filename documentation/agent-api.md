@@ -2010,6 +2010,10 @@ The response is `text/event-stream` with one `data:` frame carrying the
 JSON-RPC result. `tools/list` returns the same sixteen tools with the same
 descriptions and schemas as the local transport — a test diffs them.
 
+`/mcp` does **not** appear in `/openapi.json` or `/docs`. That is deliberate:
+the OpenAPI document describes this service's REST surface, and MCP describes
+itself through `tools/list`.
+
 ### The tools, and the scope each needs
 
 Names are the CLI's, so §6.1's runbook reads the same whichever front door you

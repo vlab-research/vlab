@@ -288,6 +288,26 @@ def test_the_authorizer_uses_the_same_scope_algebra_as_the_routes():
         ms.authorizer(["optimize:read"])("apply_instruction")
 
 
+def test_mounting_mcp_does_not_disturb_the_rest_of_the_app():
+    """A raw ASGI `Route` appended to a FastAPI router is not an `APIRoute`, and
+    FastAPI's schema generation walks the router. If it choked on one, the
+    casualty would be `/openapi.json` and `/docs` -- for every other route, on a
+    change that was supposed to add one inert endpoint."""
+    from .server import app
+
+    client = TestClient(app)
+
+    schema = client.get("/openapi.json")
+    assert schema.status_code == 200
+    assert client.get("/docs").status_code == 200
+    assert client.get("/health").status_code == 200
+
+    # And `/mcp` is absent from it, which is expected rather than a bug: the
+    # OpenAPI document describes the REST surface, and MCP describes itself
+    # through `tools/list`. §6b of documentation/agent-api.md says so.
+    assert "/mcp" not in schema.json()["paths"]
+
+
 # --------------------------------------------------------------------------
 # The drift guard
 # --------------------------------------------------------------------------
