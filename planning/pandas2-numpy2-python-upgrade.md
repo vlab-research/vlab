@@ -176,3 +176,118 @@ emits zero pandas or numpy warnings; the 99 that remain are pre-existing
   unrelated to VIR-47, and it passes under `env -u VLAB_API_KEY`. Arguably the
   test should set `VLAB_API_KEY` to empty rather than relying on the ambient
   environment — its own small ticket.
+
+## 7. Phase B: what actually shipped (2026-09-07)
+
+`python = ">=3.10,<3.13"`. Green on **both** ends of the range, same numbers on
+each: **2754 passed, 1 skipped**, identical to Phase A's 3.10 result. `poetry
+check` and `make check-schemas` pass under 3.10 and 3.12. Interpreter used
+locally: **CPython 3.12.14** (`pyenv install 3.12.14`, the newest 3.12.x pyenv
+offers).
+
+Three commits: `build(adopt)` (pyproject + lock), `build(adopt)` (Dockerfile),
+`ci(adopt)` (workflow).
+
+### No 3.12 source fixes were needed — the breaks were all in the lockfile
+
+This is the headline and it is worth stating plainly, because it is not what §4
+predicted. Zero lines of `adopt/` changed. Nothing in this package uses
+`distutils`, `imp`, `asyncore`, `telnetlib`, `smtpd`, or any other module 3.12
+removed; nothing depends on the `asyncio` or `typing` behaviour that shifted.
+Even **pytest 6.2.5 runs fine on 3.12** despite emitting a pytest-asyncio
+"outdated version of pytest" warning — the `-p no:anyio` workaround from the MCP
+phase is still doing its job and still does not need a pytest bump.
+
+Every real problem was a *locked version with no cp312 wheel*. `poetry lock`
+preserves existing pins by design, so widening the Python range widened the
+markers and nothing else — which meant seven packages stayed on versions that
+literally cannot install on 3.12:
+
+| package | was | now | how |
+|---|---|---|---|
+| orjson | 3.6.7 | 3.12.0 | direct dep; `^3.6.6` already allowed it, just needed `poetry update` |
+| aiohttp | 3.8.1 | 3.14.3 | transitive via facebook-business (`aiohttp = "*"`) |
+| frozenlist | 1.3.0 | 1.8.0 | transitive via aiohttp |
+| multidict | 6.0.2 | 6.7.1 | transitive via aiohttp/yarl |
+| yarl | 1.7.2 | 1.24.5 | transitive via aiohttp |
+| ujson | 5.1.0 | 6.0.0 | transitive via python-lsp-server (dev) |
+| coverage | 5.5 | 7.16.0 | **needed a constraint change** — see below |
+
+orjson is the one that fails loudest: with no cp312 wheel poetry falls back to
+the sdist, which builds via `maturin`/`pyo3 0.15.1`, and pyo3 0.15 gates out
+`PyUnicode_READY` on `Py_3_12`. The install dies in a wall of Rust compiler
+errors that says nothing about wheels.
+
+**The generalisable technique**, since this will recur on the next ceiling lift:
+don't guess, scan the lockfile. Every `[[package]]` block lists its wheel
+filenames, so a package that has `cp310` tags but no `cp312`/`abi3` tag is a
+guaranteed failure before you install anything. That scan found all seven in one
+pass; iterating on `poetry install` failures would have taken seven rounds.
+
+**coverage was the only one a re-lock couldn't fix.** 5.5 is the last release in
+the 5.x line, so `^5.5` had nowhere to go, and its C tracer reaches into
+`PyFrameObject` internals 3.11 made opaque — the sdist doesn't build either.
+Floor moved to `^7.6`. Note it is dev-only and only `make coverage` uses it,
+never `make test`, which is exactly why Phase A never tripped over it.
+
+### The Phase A openpyxl analogue: marshmallow, and a bug tests cannot see
+
+`environs` asks only for `marshmallow>=3.0.0`; the lock held **3.14.1**, whose
+`__init__.py` does `from distutils.version import LooseVersion` **at module
+scope**. Python 3.12 removed `distutils`.
+
+The suite does not catch this, and the reason matters more than the fix:
+`virtualenv` seeds setuptools into `.venv`, and setuptools' `_distutils_hack`
+re-injects a `distutils` module. So `import environs` succeeds on 3.12 locally
+and every test passes. But the Dockerfile sets `virtualenvs.create false` and
+installs into `python:3.12-slim`'s **system** site-packages, and 3.12's
+`ensurepip` no longer bundles setuptools — no shim, no `distutils`,
+`ImportError`. `adopt/server/db.py` calls `env("PG_URL")` at module scope, so
+the conf service would have failed to *import*, not degraded.
+
+A fully green 2754-test run would have shipped a container that cannot start.
+Reproduce the production condition locally with:
+
+```
+SETUPTOOLS_USE_DISTUTILS=stdlib poetry run python -c "import environs"
+```
+
+Fixed with an explicit `marshmallow = "^3.15"` in `pyproject.toml` (3.15.0 is
+where marshmallow dropped distutils; capped below 4 because environs 9.x was
+never tested against marshmallow 4). This follows the `typing-extensions`
+precedent already in the file: declare a transitive floor the real consumer
+forgot to, with a comment saying why.
+
+**Lesson for future interpreter bumps**: a green suite is not evidence the image
+boots, because the test venv and the runtime image do not have the same
+site-packages. Grep the *runtime* dependency tree for module-scope imports of
+removed stdlib, and run the import check with the shim disabled.
+
+### Warning count jumped 219 -> 30434 on 3.12, and it is not ours
+
+`python-jose` calls `datetime.utcnow()` on every JWT decode, which 3.12
+deprecates, and the server tests decode a lot of tokens. Pre-existing library
+behaviour, zero warnings from `adopt/` itself. Left alone: `python-jose` was not
+in scope here and bumping it is an auth-path change deserving its own ticket.
+
+### Caveats and things left undone
+
+- **`docker build` was NOT run.** Same broken daemon as Phase A (§6). The
+  Dockerfile change is a one-line base-image swap and nothing else in the file
+  is interpreter-dependent, but neither the build nor the `python ./malaria.py`
+  import smoke-test from §5's definition of done has been executed. **The first
+  CI run is the real check** — and the marshmallow finding above is precisely
+  the class of bug that only that check would have caught, so do not treat the
+  green local suite as covering it.
+- **`adopt/.python-version` is gitignored** (`adopt/.gitignore:90`) and untracked
+  — §4's "bump `.python-version` to match" is therefore a local-only action, not
+  a committable one. It was bumped locally to `3.12.14`; every other dev sets
+  their own. Worth knowing before someone goes looking for that change in the
+  diff. (It also contained `3.10`, not a full patch version, before the bump.)
+- **CockroachDB reuse worked.** Phase A's standalone node on `localhost:5433`
+  was still up with all migrations applied (`curl
+  "http://localhost:8180/health?ready=1"` -> 200, 15 tables present). The suite's
+  default `postgresql://root@localhost:5433/test` from `test/dbfix.py` matches
+  what `make test-db` would produce, so nothing had to be rebuilt.
+- **Phase C (docs) not started** — `adopt/README.md` and
+  `documentation/agent-api.md` still say `--python python3.10`.
