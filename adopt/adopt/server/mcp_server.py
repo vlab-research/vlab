@@ -109,6 +109,35 @@ class InProcessBackend:
     def __init__(self, user: User) -> None:
         self.user = user
 
+    # -- discovery ---------------------------------------------------------
+
+    @_wire_errors
+    async def list_orgs(self) -> List[Dict[str, Any]]:
+        from .studies import list_orgs_endpoint
+
+        return (await list_orgs_endpoint(self.user))["data"]
+
+    @_wire_errors
+    async def list_studies(
+        self,
+        org_id: str,
+        limit: Optional[int] = None,
+        offset: Optional[int] = None,
+    ) -> List[Dict[str, Any]]:
+        from .studies import DEFAULT_STUDIES_LIMIT, list_studies_endpoint
+
+        # The defaults are FastAPI's `Query(...)` defaults, which only apply
+        # when the framework parses a query string -- calling the handler
+        # directly would otherwise pass the `Query` objects themselves into
+        # psycopg. Same reason `meta_adaccounts` below spells out DEFAULT_LIMIT.
+        body = await list_studies_endpoint(
+            org_id,
+            self.user,
+            limit if limit is not None else DEFAULT_STUDIES_LIMIT,
+            offset if offset is not None else 0,
+        )
+        return body["data"]
+
     # -- studies -----------------------------------------------------------
 
     @_wire_errors

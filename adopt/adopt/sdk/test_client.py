@@ -96,6 +96,56 @@ def org():
 
 
 # ---------------------------------------------------------------------------
+# Discovery
+# ---------------------------------------------------------------------------
+
+
+def test_list_orgs_returns_the_callers_orgs(client, org):
+    orgs = client.list_orgs()
+
+    assert orgs == [{"id": org, "name": "o"}]
+
+
+def test_list_orgs_is_empty_for_a_user_in_none(client):
+    """No `org` fixture: the user exists and belongs to nothing. A real
+    answer, not an error -- and the one case where nothing else will work."""
+    assert client.list_orgs() == []
+
+
+def test_list_studies_returns_slug_name_and_created(client, org):
+    client.create_study(org, "HPV Nigeria 2026")
+
+    rows = client.list_studies(org)
+
+    assert len(rows) == 1
+    assert rows[0]["slug"] == "hpv-nigeria-2026"
+    assert rows[0]["name"] == "HPV Nigeria 2026"
+    # ISO 8601 here, milliseconds on `create_study`. The two routes report the
+    # same column in different shapes, deliberately, and a caller has to know.
+    assert rows[0]["created"].endswith("+00:00")
+
+
+def test_list_studies_pages(client, org):
+    for name in ("A", "B", "C"):
+        client.create_study(org, name)
+
+    assert len(client.list_studies(org, limit=2)) == 2
+    assert len(client.list_studies(org, limit=2, offset=2)) == 1
+
+
+def test_list_studies_of_a_foreign_org_is_a_not_found_error(client):
+    with pytest.raises(NotFoundError):
+        client.list_studies(str(uuid.uuid4()))
+
+
+def test_list_studies_of_a_malformed_org_is_the_same_not_found(client):
+    """Not a 500 from the driver, and not a different status from the real
+    org's 404 -- the two must be indistinguishable."""
+    with pytest.raises(NotFoundError):
+        client.list_studies("not-a-uuid")
+
+
+# ---------------------------------------------------------------------------
 # Studies
 # ---------------------------------------------------------------------------
 

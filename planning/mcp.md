@@ -29,6 +29,8 @@ below and both are deliberate.
 The tools, with the scope each needs:
 
 ```
+list_orgs()                                          studies:read
+list_studies(org, limit, offset)                     studies:read
 create_study(org, name)                              studies:write
 pull_study(org, slug)                                studies:read
 validate_study(sections)                             studies:read
@@ -356,6 +358,14 @@ Deliberately not done (§16.7):
 - **Any tool smarter than the command it wraps.** In particular there is no
   "apply the whole plan": reconciliation is layered, so a list applied in one
   pass is a list computed before most of it was true.
+
+Closed since:
+
+- ~~**Nothing an API key can call lists orgs.**~~ The discovery gap, which
+  every tool description repeated back to the agent as "a human has to hand you
+  the id". `GET /orgs` and `GET /{org_id}/studies` landed in adopt v0.1.88 with
+  `list_orgs` and `list_studies` beside them, both `studies:read`, both on both
+  transports. Design record: `planning/list-orgs-studies.md`.
 
 Open, and worth doing next:
 

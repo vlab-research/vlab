@@ -185,6 +185,71 @@ def write_study(path="study.yaml", **overrides):
 
 
 # ---------------------------------------------------------------------------
+# orgs / studies
+# ---------------------------------------------------------------------------
+
+
+def test_orgs_lists_the_callers_orgs(runner, obj, org):
+    res = run(runner, obj, "orgs")
+
+    assert res.exit_code == 0
+    assert org in res.output
+    assert "1 row(s)." in res.output
+
+
+def test_orgs_json(runner, obj, org):
+    res = run(runner, obj, "orgs", "--json")
+    assert json.loads(res.output)["data"] == [{"id": org, "name": "o"}]
+
+
+def test_studies_lists_slugs(runner, obj, org):
+    run(runner, obj, "create", org, "HPV Nigeria")
+
+    res = run(runner, obj, "studies", org)
+
+    assert res.exit_code == 0
+    # Slug first: it is the argument every other command takes.
+    assert res.output.splitlines()[0].startswith("hpv-nigeria")
+    assert "1 row(s)." in res.output
+
+
+def test_studies_json(runner, obj, org):
+    run(runner, obj, "create", org, "HPV Nigeria")
+
+    rows = json.loads(run(runner, obj, "studies", org, "--json").output)["data"]
+
+    assert [r["slug"] for r in rows] == ["hpv-nigeria"]
+    assert rows[0]["created"].endswith("+00:00")
+
+
+def test_studies_takes_the_org_from_the_environment(runner, obj, org, monkeypatch):
+    monkeypatch.setenv("VLAB_ORG", org)
+    run(runner, obj, "create", org, "HPV Nigeria")
+
+    res = run(runner, obj, "studies")
+
+    assert res.exit_code == 0
+    assert "hpv-nigeria" in res.output
+
+
+def test_studies_without_an_org_says_where_to_get_one(runner, obj, monkeypatch):
+    monkeypatch.delenv("VLAB_ORG", raising=False)
+    res = runner.invoke(cli, ["studies"], obj=dict(obj))
+
+    assert res.exit_code == 2
+    assert "vlab orgs" in res.output
+
+
+def test_studies_of_a_foreign_org_is_a_clean_error_not_a_traceback(runner, obj, org):
+    res = runner.invoke(
+        cli, ["studies", str(uuid.uuid4())], obj=dict(obj), catch_exceptions=False
+    )
+
+    assert res.exit_code == 1
+    assert "Organization not found" in res.output
+
+
+# ---------------------------------------------------------------------------
 # create
 # ---------------------------------------------------------------------------
 
