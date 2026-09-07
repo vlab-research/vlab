@@ -16,12 +16,43 @@ authors = ["Nandan Rao <nandanmarkrao@gmail.com>"]
 #
 # Nothing was actually running on 3.9: the Dockerfile is `python:3.10-slim`, CI
 # is `python-version: '3.10'`, and the SDK install line has said
-# `pipx install --python python3.10` since Phase 3. The ceiling stays at <3.11
-# for pandas 1.5.3 / numpy 1.x; VIR-47 is where it gets lifted.
-python = ">=3.10,<3.11"
+# `pipx install --python python3.10` since Phase 3.
+#
+# CEILING LIFTED FROM <3.11 TO <3.13 ON 2026-09-07 (VIR-47 Phase B), now that
+# pandas 1.5.3 / numpy 1.x are gone. 3.13 is excluded for exactly one reason:
+# `ecos` 2.0.14 publishes no wheels past cp312, and 2.0.14 is both the current
+# AND the latest release, so there is nothing to wait for. Building it from
+# sdist would put a C toolchain in the runtime image for one solver. cvxpy,
+# scipy and numpy would all go further on their own -- ecos is the binding
+# constraint, and this is the line to revisit if it ever ships a cp313 wheel.
+#
+# The FLOOR is exercised, not just declared: `.github/workflows/adopt.yaml`
+# runs the `tests` job as a matrix over 3.10 and 3.12. Dockerfile and
+# `.python-version` track the ceiling (3.12), which is what production runs.
+python = ">=3.10,<3.13"
 PyYAML = "^6.0.1"
 backoff = "^1.10.0"
 environs = "^9.3.2"
+# Not a direct import of ours -- `environs` pulls it -- and declared here for
+# the same reason `typing-extensions` is below: to state a floor the real
+# consumer forgot to. environs 9.5.0 asks only for `marshmallow>=3.0.0`, and the
+# lock had settled on 3.14.1, whose `__init__.py` does
+# `from distutils.version import LooseVersion` AT MODULE SCOPE. Python 3.12
+# removed distutils.
+#
+# THIS DOES NOT FAIL IN THE TEST SUITE, which is precisely why it needs a
+# comment: virtualenv seeds setuptools into `.venv`, and setuptools'
+# `_distutils_hack` re-injects a `distutils`, so `import environs` succeeds
+# locally on 3.12. The Dockerfile runs `poetry config virtualenvs.create false`
+# and installs into `python:3.12-slim`'s system site-packages, where 3.12's
+# ensurepip no longer bundles setuptools -- so there is no shim, and
+# `adopt/server/db.py`'s module-scope `env("PG_URL")` would have taken the conf
+# service down at import. Reproduce the failure mode locally with
+# `SETUPTOOLS_USE_DISTUTILS=stdlib poetry run python -c "import environs"`.
+#
+# 3.15.0 is where marshmallow dropped distutils; capped below 4 because
+# environs 9.x was never tested against marshmallow 4.
+marshmallow = "^3.15"
 facebook-business = "v22"
 # THE NUMERIC STACK, lifted under VIR-47 (planning/pandas2-numpy2-python-upgrade.md,
 # Phase A). The old floor was pandas 1.5.3 pinned EXACTLY, which is what held the
@@ -132,7 +163,13 @@ sdk = ["click"]
 future = "^0.18.2"
 pytest = "^6.2.4"
 pytest-xdist = "^2.2.1"
-coverage = "^5.5"
+# Floor raised from ^5.5 by the Python ceiling (VIR-47 Phase B), and the caret
+# left no room to do it in the lockfile alone: 5.5 is the LAST 5.x release, and
+# its C tracer publishes no cp312 wheel. Building it from sdist fails -- the
+# extension reaches into `PyFrameObject` internals that 3.11 made opaque. 7.x is
+# the current line and has wheels through cp313. Only `make coverage` uses it;
+# `make test` does not, which is why this never blocked Phase A.
+coverage = "^7.6"
 types-requests = "^2.31.0.10"
 types-pyyaml = "^6.0.12.12"
 python-lsp-server = {extras = ["all"], version = "^1.12.0"}
