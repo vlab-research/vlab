@@ -249,6 +249,23 @@ def required_scope(method: str, path: str) -> Optional[str]:
     if segments[0] == "users":
         return f"auth:{action}"
 
+    # /orgs — the caller's organisations (`server/studies.py`). The only route
+    # on this service that is neither `/users/...` nor `/{org_id}/...`, for the
+    # obvious reason: it is what tells you what the org ids are.
+    #
+    # `studies:read` rather than an `orgs` resource of its own. An org is the
+    # namespace a study lives in, so a key that may list an org's studies may
+    # know the org exists; and minting a new resource would have widened, after
+    # the fact, the scope set every already-issued key needs to complete the
+    # runbook.
+    #
+    # Matched EXACTLY, unlike the `users` and `meta` branches which claim their
+    # whole subtree. `/orgs/{id}/members` is a route someone might plausibly
+    # add, it would not be a `studies` thing, and returning None for it (=>
+    # denied for scoped keys) is the direction that mistake should point.
+    if segments == ["orgs"]:
+        return f"studies:{action}"
+
     # Everything else is org-scoped: /{org_id}/<area>/...
     if len(segments) < 2:
         return None
@@ -275,6 +292,10 @@ def required_scope(method: str, path: str) -> Optional[str]:
         # read, deliberately and regardless of method.
         if tail == "validate":
             return f"studies:{READ}"
+        # The empty tail covers three shapes, not one: `/{org}/studies` (the
+        # list, GET, and the create, POST), `/{org}/studies/{slug}`, and
+        # `/{org}/studies/{slug}/confs` is the "confs" case beside it. The list
+        # route was therefore classified correctly before it was written.
         if tail in ("", "confs", "copy-from"):
             return f"studies:{action}"
         # ad-attributions and ad-attributions.csv

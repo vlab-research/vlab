@@ -85,6 +85,11 @@ def _make_app() -> FastAPI:
         "/{org_id}/studies/{slug}/ad-attributions",
         "/{org_id}/studies/{slug}/recruitment-stats",
         "/{org_id}/optimize/{slug}",
+        # The discovery pair. `/orgs` is the only path on this service that is
+        # neither `/users/...` nor `/{org_id}/...`, so it is the one that
+        # needed a branch of its own in `required_scope`.
+        "/orgs",
+        "/{org_id}/studies",
     ):
         app.get(path)(_ok)
 
@@ -216,6 +221,20 @@ def test_required_scope_maps_vlab_paths():
     )
     assert ak.required_scope("POST", "/users/api-key") == "auth:write"
     assert ak.required_scope("GET", "/users/api-keys") == "auth:read"
+
+    # Discovery. `/{org}/studies` needed no new branch: the `studies` area's
+    # empty tail already covered it, which is why the create route (a POST to
+    # the same path) has always been `studies:write`.
+    assert ak.required_scope("GET", f"/{ORG}/studies") == "studies:read"
+    assert ak.required_scope("POST", f"/{ORG}/studies") == "studies:write"
+    # `/orgs` is `studies:read` rather than an `orgs` resource of its own: an
+    # org is the namespace a study lives in, and inventing a resource would
+    # have widened, retroactively, what an already-issued key needs to
+    # complete the runbook.
+    assert ak.required_scope("GET", "/orgs") == "studies:read"
+    # Matched exactly. A deeper path under /orgs is unclassified and therefore
+    # denied for a scoped key, rather than inheriting `studies:read`.
+    assert ak.required_scope("GET", "/orgs/abc/members") is None
 
     # The Meta Graph proxy (Phase 2). Every route under /{org}/meta, including
     # the nested creative one, classifies on the area segment alone.
@@ -674,6 +693,35 @@ def test_write_scope_implies_read(verify_mock):
         ).status_code
         == 200
     )
+
+
+@patch("adopt.server.auth.verify_token")
+def test_a_read_only_key_can_discover_its_orgs_and_studies(verify_mock):
+    """The point of the discovery pair: a key minted `studies:read` is enough
+    to find out what to read. If these needed a wider scope, an agent would
+    have to be handed a more powerful key just to learn an org id."""
+    token = _mint(verify_mock, "reader", scopes=["studies:read"]).json()["data"][
+        "token"
+    ]
+
+    assert client.get("/orgs", headers=_headers(token)).status_code == 200
+    assert client.get(f"/{ORG}/studies", headers=_headers(token)).status_code == 200
+
+
+@patch("adopt.server.auth.verify_token")
+def test_a_key_scoped_elsewhere_is_denied_discovery_and_told_which_scope(verify_mock):
+    """`meta:read` reads the researcher's Meta estate and nothing of vlab's
+    own study structure, so it must not list orgs or studies -- and the 403
+    has to name `studies:read`, because a caller who gets one needs to be able
+    to say what to ask a human for."""
+    token = _mint(verify_mock, "meta-only", scopes=["meta:read"]).json()["data"][
+        "token"
+    ]
+
+    for path in ("/orgs", f"/{ORG}/studies"):
+        res = client.get(path, headers=_headers(token))
+        assert res.status_code == 403, (path, res.text)
+        assert "studies:read" in res.json()["detail"], (path, res.text)
 
 
 @patch("adopt.server.auth.verify_token")

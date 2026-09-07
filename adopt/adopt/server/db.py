@@ -189,7 +189,10 @@ def user_in_org(user_id: str, org_id: str) -> bool:
 
     Every other route in this service gets membership for free by joining
     `orgs_lookup` on the way to a study. The Meta routes have no study to join
-    through, so the check has to be its own query.
+    through, so the check has to be its own query -- and so does `list_studies`
+    below, for a different reason: a SELECT that returns no rows cannot say
+    whether the caller is not a member or the org is simply empty, and those
+    two need different answers.
     """
     q = """
     SELECT 1
@@ -199,6 +202,74 @@ def user_in_org(user_id: str, org_id: str) -> bool:
     LIMIT 1
     """
     return bool(list(query(db_cnf, q, (user_id, org_id))))
+
+
+def list_orgs(user_id: str):
+    """The organisations `user_id` belongs to. `[]` for a user in none.
+
+    The port of the Go dashboard API's `GetUserOrgIDs`
+    (`api/internal/storage/user.go`), which is Auth0-only -- so until now an
+    API key could configure a study inside an org but had no way to learn that
+    the org existed. See planning/list-orgs-studies.md.
+
+    ORDER BY is ours; Go has none. A list an agent reads twice should come back
+    the same way twice, and `orgs.name` is UNIQUE so it is a total order.
+    `name` is nullable in the schema (Go scans it into a `sql.NullString`),
+    which is why the route's model allows None rather than promising a string.
+    """
+    q = """
+    SELECT o.id, o.name
+    FROM orgs o
+    JOIN orgs_lookup ol ON ol.org_id = o.id
+    WHERE ol.user_id = %s
+    ORDER BY o.name
+    """
+    return list(query(db_cnf, q, (user_id,), as_dict=True))
+
+
+def list_studies(user_id: str, org_id: str, limit: int, offset: int):
+    """Studies in `org_id`, newest first, for a caller who is a member of it.
+
+    DELIBERATELY NOT the Go dashboard query, which is
+    `WHERE user_id = $3 OR org_id = $4` (`api/internal/storage/study.go`
+    `GetStudies`). Both halves of that OR are wrong on this service:
+
+    * `org_id = $4` with no membership check is safe in the dashboard because
+      the org id comes from the browser's own session state. Here it is a path
+      segment supplied by whoever holds the API key, so the Go query would let
+      any authenticated key list any org's studies by guessing a UUID.
+    * `user_id = $3` returns the caller's studies from OTHER orgs under the
+      requested org's URL. Harmless in a UI where the two sets coincide;
+      incoherent in an API whose every study address is `/{org}/studies/{slug}`.
+
+    So the rule is the one every other read here enforces by join and the
+    create route enforces by INSERT ... SELECT: studies in an org the caller is
+    a member of, whoever created them.
+
+    A consequence worth stating: a study with a NULL `org_id` -- rows predating
+    the 2023 organisation migration, and anything `create_campaign_for_user`
+    wrote (see `create_study` below) -- matches nothing here. That is not a
+    gap in this query; such a study is unreachable through EVERY route on this
+    service, and listing it would advertise a slug that 404s.
+
+    Membership is the caller's to check (`user_in_org`) before calling this:
+    an empty result here means "no studies", not "not your org".
+
+    `s.id` is in the ORDER BY as a tie-break, not for its own sake. `created`
+    is not unique -- two studies created in the same microsecond are entirely
+    possible from a script -- and LIMIT/OFFSET over a partial order can skip a
+    row and repeat another between two pages.
+    """
+    q = """
+    SELECT s.id, s.name, s.slug, s.created
+    FROM studies s
+    JOIN orgs_lookup ol ON ol.org_id = s.org_id
+    WHERE ol.user_id = %s
+    AND s.org_id = %s
+    ORDER BY s.created DESC, s.id DESC
+    LIMIT %s OFFSET %s
+    """
+    return list(query(db_cnf, q, (user_id, org_id, limit, offset), as_dict=True))
 
 
 def get_study_conf(user_id: str, org_id: str, study_slug: str, conf_type: str):
