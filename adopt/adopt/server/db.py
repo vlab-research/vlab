@@ -213,16 +213,18 @@ def list_orgs(user_id: str):
     the org existed. See planning/list-orgs-studies.md.
 
     ORDER BY is ours; Go has none. A list an agent reads twice should come back
-    the same way twice, and `orgs.name` is UNIQUE so it is a total order.
-    `name` is nullable in the schema (Go scans it into a `sql.NullString`),
-    which is why the route's model allows None rather than promising a string.
+    the same way twice. `orgs.name` is UNIQUE but NULLABLE (Go scans it into a
+    `sql.NullString`, and the route's model allows None for the same reason),
+    and SQL UNIQUE permits any number of NULLs -- so `name` alone is NOT a
+    total order for a user in two unnamed orgs. `id` is the tie-break, for the
+    same reason `list_studies` below orders on `created, id`.
     """
     q = """
     SELECT o.id, o.name
     FROM orgs o
     JOIN orgs_lookup ol ON ol.org_id = o.id
     WHERE ol.user_id = %s
-    ORDER BY o.name
+    ORDER BY o.name, o.id
     """
     return list(query(db_cnf, q, (user_id,), as_dict=True))
 

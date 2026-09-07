@@ -720,7 +720,7 @@ def test_discovery_through_mcp_with_a_read_only_key(app_client, org):
 
     listing, is_error = call_tool(app_client, "list_studies", {"org": org}, token)
     assert not is_error, listing
-    assert listing["count"] == 1
+    assert listing["page_size"] == 1
     assert listing["studies"][0]["slug"] == made["slug"]
     # The in-process path has to supply the Query defaults itself -- FastAPI is
     # not parsing a query string here, so an unsupplied `limit` would otherwise
@@ -741,13 +741,13 @@ def test_list_studies_paging_survives_the_in_process_call(app_client, org):
         app_client, "list_studies", {"org": org, "limit": 2}, token
     )
     assert not is_error, listing
-    assert listing["count"] == 2
+    assert listing["page_size"] == 2
 
     listing, is_error = call_tool(
         app_client, "list_studies", {"org": org, "limit": 2, "offset": 2}, token
     )
     assert not is_error, listing
-    assert listing["count"] == 1
+    assert listing["page_size"] == 1
 
 
 def test_an_out_of_range_limit_is_rejected_in_process_too(app_client, org):

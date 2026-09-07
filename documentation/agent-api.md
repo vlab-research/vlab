@@ -534,10 +534,15 @@ regression test in `adopt/adopt/server/test_copy_confs.py`.)
 - `GET /orgs` — the organisations you belong to, as `[{id, name}]`. Needs
   `studies:read`. **Step zero**: every other path on this service is
   `/{org_id}/...`, and until adopt v0.1.88 the id had to be handed to you by a
-  human. `name` may be `null` — the column is nullable and nothing has ever
-  required one, so identify an org by its `id`. An empty list means the key's
-  user is in no org at all, which no key can fix: there is no route that
-  creates an org or grants membership.
+  human. **What an org is today: a personal workspace, not a team.** Every
+  user has exactly one, created by the Go API on first dashboard login
+  (`api/internal/storage/user.go`, `UserRepository.Create`), and its `name` is
+  the user's Auth0 id (`auth0|…`), not a chosen label. There is no membership
+  and no route creates an org; multi-user orgs are scaffolding for later. So
+  expect one entry and take its `id`. The schema leaves `name` nullable, so
+  treat it as optional in code, and never identify an org by it. An empty
+  list should not happen for a key holder, since minting a key requires the
+  login that creates the org; if it does, no key can fix it.
 - `GET /{org_id}/studies` — the studies in that org, as
   `[{id, name, slug, created}]`, **newest first**. Needs `studies:read`.
   `?limit=` (1–500, default 100) and `?offset=` page it. This is where a
@@ -2174,7 +2179,8 @@ client.
    `GET /{org_id}/studies` in adopt v0.1.88 (§2.3), both `studies:read`, both
    also `vlab orgs` / `vlab studies` and the `list_orgs` / `list_studies` MCP
    tools. What remains out of reach is *changing* the answer: no key can create
-   an org or add a member, so a user in no organisation still needs a human.
+   an org or add a member. Today that is moot, because every user has exactly
+   one auto-created personal org and there is no membership model yet (§2.3).
 2. **Write anything to Meta *through vlab*, or connect a Facebook account.**
    *Reading* Meta is solved — that is §2.5, and it is read-only by
    construction. But the OAuth exchange that creates the credential in the

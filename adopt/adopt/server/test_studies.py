@@ -391,7 +391,8 @@ def test_list_orgs_is_empty_for_a_user_in_no_orgs():
 
 def test_list_orgs_is_ordered_by_name():
     """Go has no ORDER BY. A list an agent reads twice should be the same
-    twice, and `orgs.name` is UNIQUE, so it is a total order."""
+    twice. `orgs.name` is UNIQUE but nullable, so the query breaks ties on
+    `id`; this pins the named case, which is the one that reads well."""
     _reset_db()
     _as(user_id)
     _create_user(user_id)

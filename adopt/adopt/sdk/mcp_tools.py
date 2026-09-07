@@ -278,14 +278,23 @@ async def list_orgs() -> Dict[str, Any]:
     gets a 404 that deliberately refuses to say whether the org does not exist
     or is simply not yours.
 
-    Returns `{"orgs": [{"id", "name"}]}`. `id` is what every other tool wants.
-    `name` may be null -- the column is nullable and nothing has ever required
-    one -- so identify an org by its id, never by its name.
+    WHAT AN ORG IS TODAY: a personal workspace, not a team. Every vlab user
+    has exactly ONE, created automatically the first time they log in to the
+    dashboard, and its `name` is that user's Auth0 id (`auth0|...`), not a
+    label anyone chose. There is no membership: nobody can be added to another
+    user's org, and no route creates an org. So expect a single entry, take
+    its `id`, and do not describe the org to a researcher as a team or ask
+    which org they meant. Multi-user orgs are scaffolding for later; when they
+    arrive the shape here stays the same and only the count changes.
 
-    An empty list is a real answer and not an error: the key's user is in no
-    organisation at all, and NOTHING else here will work for them. That needs a
-    human to add them to one; no key can do it, because there is no route that
-    creates an org or grants membership.
+    Returns `{"orgs": [{"id", "name"}]}`. `id` is what every other tool wants.
+    Identify an org by its id, never by its name: the schema leaves `name`
+    nullable, so treat it as optional, and in practice it is the Auth0 id.
+
+    An empty list should not happen. Minting an API key requires having logged
+    in to the dashboard, and that first login is what creates the org. If you
+    see one, the server side is wrong in a way no tool here can fix -- there
+    is no route that creates an org or grants membership.
 
     Scoped `studies:read` rather than a scope of its own. An org is the
     namespace a study lives in, and the only thing this reveals is which
@@ -306,14 +315,19 @@ async def list_studies(
     server-side in a way you cannot compute (apostrophes are deleted rather
     than replaced, so "Nandan's study" is "nandans-study").
 
-    Returns `{"studies": [{"id", "name", "slug", "created"}], "count": n}`.
+    Returns `{"studies": [{"id", "name", "slug", "created"}], "page_size": n}`.
+    `page_size` is the length of THIS page, not the org's total: at the
+    default `limit` of 100 a page_size of 100 means there may be more, and the
+    next page is `offset=100`. There is no total count.
     `created` is ISO 8601 with an explicit UTC offset -- note that
     `create_study` reports the same field as `createdAt` in milliseconds, for
     compatibility with the dashboard, and the two are not the same shape.
 
-    You see every study in an org you are a MEMBER of, whoever created it. A
-    404 means the org is not yours or does not exist; the two are deliberately
-    indistinguishable, and a malformed UUID gets the same answer again.
+    You see every study in the org. Today an org is one user's personal
+    workspace (see `list_orgs`), so this is every study the key's user has
+    ever created, in the dashboard or through this API. A 404 means the org is
+    not yours or does not exist; the two are deliberately indistinguishable,
+    and a malformed UUID gets the same answer again.
 
     `limit` is 1..500 and defaults to 100; `offset` skips rows. An org with
     more studies than the limit is silently truncated, so page rather than
@@ -325,7 +339,7 @@ async def list_studies(
     configured, and only a write ever 404s on a bad slug.
     """
     studies = await backend().list_studies(org, limit, offset)
-    return {"studies": studies, "count": len(studies)}
+    return {"studies": studies, "page_size": len(studies)}
 
 
 # --------------------------------------------------------------------------
@@ -344,7 +358,8 @@ async def create_study(org: str, name: str) -> Dict[str, Any]:
     "nandans-study". Read it off this response and use it for every later call;
     computing it yourself gets 404s.
 
-    `org` is an organisation UUID; `list_orgs` is what hands you one. A 404
+    `org` is an organisation UUID; `list_orgs` is what hands you one, and
+    today it hands you exactly one, the user's personal workspace. A 404
     "Organization not found" means either that the org does not exist or that
     the caller is not a member of it; the two are deliberately
     indistinguishable, so check `list_orgs` rather than guessing which.

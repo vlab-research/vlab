@@ -163,6 +163,30 @@ silently truncates is worse than one with two optional integers.
   pins tool scope == route scope), and a `list_studies` call over `POST /mcp`
   with a `studies:read` key against the real database.
 
+## What an org actually is today
+
+Found the first time the route was run against production, 2026-09-07: the
+one org came back named `auth0|62470aac...`. That is not a missing name. The
+Go API's `UserRepository.Create` (`api/internal/storage/user.go`) runs on
+first dashboard login and, in one statement, upserts the user, inserts an org
+whose `name` IS the Auth0 user id, and links the two in `orgs_lookup`. So:
+
+- every user has exactly one org, and it is a personal workspace, not a team;
+- `orgs.name` is never null in practice, and it is never human-chosen;
+- there is no membership: nothing adds a user to another user's org, and no
+  route creates an org. Multi-user orgs were stubbed so a later model could
+  slot in, and that later model has not been built.
+
+The first version of the tool descriptions and of `agent-api.md` §2.3 wrote
+about nullable names, multiple orgs and "a human has to add you to one" --
+true of the schema, wrong about the product, and enough to make an agent plan
+for a choice it never faces. Rewritten the same day to say what is above.
+
+One thing the future org model will have to deal with: the personal org is
+keyed on `name` (`INSERT ... ON CONFLICT (name)`), so the Auth0 id is doing
+double duty as the org's identity. Real org names and the auto-created
+personal org cannot both live in that column without a rule for which wins.
+
 ## What this does not do
 
 - **No `GET /{org_id}/studies/{slug}`.** `GET /confs` is the read an agent

@@ -165,7 +165,7 @@ def test_list_studies_calls_the_client_and_counts():
     out = run(mt.list_studies, backend, org=ORG)
 
     assert backend.calls == [("list_studies", (ORG, None, None), {})]
-    assert out == {"studies": rows, "count": 1}
+    assert out == {"studies": rows, "page_size": 1}
 
 
 def test_list_studies_forwards_paging():
