@@ -137,6 +137,47 @@ def study() -> Dict[str, Any]:
 # ---------------------------------------------------------------------------
 
 
+def test_list_orgs_calls_the_client_and_names_the_list():
+    orgs = [{"id": ORG, "name": "vlab"}]
+    backend = Recorder(list_orgs=orgs)
+
+    assert run(mt.list_orgs, backend) == {"orgs": orgs}
+    assert backend.calls == [("list_orgs", (), {})]
+
+
+def test_list_orgs_passes_an_empty_list_through():
+    """Not an error: the key's user is in no org, and nothing else here will
+    work for them until a human adds them to one."""
+    assert run(mt.list_orgs, Recorder(list_orgs=[])) == {"orgs": []}
+
+
+def test_list_studies_calls_the_client_and_counts():
+    rows = [
+        {
+            "id": "1",
+            "name": "HPV",
+            "slug": "hpv",
+            "created": "2026-01-01T00:00:00+00:00",
+        }
+    ]
+    backend = Recorder(list_studies=rows)
+
+    out = run(mt.list_studies, backend, org=ORG)
+
+    assert backend.calls == [("list_studies", (ORG, None, None), {})]
+    assert out == {"studies": rows, "count": 1}
+
+
+def test_list_studies_forwards_paging():
+    """Without these an org past the server's default cap is silently
+    truncated and the tool has no way past it."""
+    backend = Recorder(list_studies=[])
+
+    run(mt.list_studies, backend, org=ORG, limit=10, offset=20)
+
+    assert backend.calls == [("list_studies", (ORG, 10, 20), {})]
+
+
 def test_create_study_calls_the_client_and_returns_it_unchanged():
     made = {"id": "1", "name": "HPV", "slug": "hpv", "createdAt": 0}
     backend = Recorder(create_study=made)
