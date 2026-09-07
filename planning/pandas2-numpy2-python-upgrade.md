@@ -291,3 +291,42 @@ in scope here and bumping it is an auth-path change deserving its own ticket.
   what `make test-db` would produce, so nothing had to be rebuilt.
 - **Phase C (docs) not started** — `adopt/README.md` and
   `documentation/agent-api.md` still say `--python python3.10`.
+
+## 8. Phase C: what actually shipped (2026-09-07)
+
+Docs-only, one commit (`docs(adopt)`). Three sites updated, matching §4's list
+exactly:
+
+- `adopt/README.md` (~954-968): the `>=3.10,<3.11` prose and
+  `pipx install --python python3.10 ...` instruction. Rewritten so the
+  *default* instruction is a plain `pipx install ...` with no `--python` flag
+  — the ceiling now covers 3.10/3.11/3.12, so pipx's own interpreter discovery
+  is enough for anyone whose default Python is in that range. `--python
+  python3.1x` is kept as a documented escape hatch for the two cases it's
+  still needed: a default older than 3.10, or 3.13+ (still blocked — see §3,
+  `ecos` has no cp313 wheel). The `python3.10 -m venv` verification example
+  keeps its literal command (it's a historical "Verified on 2026-09-05"
+  transcript, not reproduced here) but gained an inline note that 3.11/3.12
+  work too, so a reader doesn't infer 3.10 is still mandatory.
+- `documentation/agent-api.md:1373-1374`: same change — comment now says
+  `>=3.10,<3.13` and explicitly notes no `--python` pin is needed, and the
+  command drops `--python python3.10`.
+- `documentation/agent-api.md:2265`: prose constraint bumped from
+  `>=3.10,<3.11` to `>=3.10,<3.13`.
+
+`grep -rn "python3.10\|>=3.9,<3.11\|>=3.10,<3.11" adopt/README.md
+documentation/agent-api.md` after the edits returns exactly one hit — the
+`python3.10 -m venv` example line above, which is intentional (an example
+version, not a claimed ceiling) and carries its own "3.11/3.12 work too" note.
+
+Deliberately left alone: the `Successfully installed adopt-0.1.85 …
+pandas-1.5.3 …` line in the same README verification transcript. That's stale
+on a different axis (it predates Phase A's pandas 2 bump entirely) and isn't
+part of what Phase C's scope — the Python constraint and the `--python
+python3.10` workaround — asked to fix. Worth a follow-up if someone re-runs
+that verification and wants to refresh the transcript, but re-verifying pipx
+installs wasn't authorized here (no code changed, nothing was run beyond
+`grep`).
+
+Phase D (release) is explicitly not started — needs the user's go-ahead per
+§4 before anything is tagged or pushed.
