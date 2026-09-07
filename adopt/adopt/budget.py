@@ -41,10 +41,24 @@ class OptimizationResult:
 
 
 def _filter_by_join_time(df: pd.DataFrame, pred: Callable[[pd.Series], bool]):
-    initial_events = (
-        df.groupby("user_id")
-        .apply(lambda df: df.sort_values("timestamp").iloc[0])
-        .reset_index(drop=True)
+    # "Earliest event per user", then keep every event of the users whose
+    # earliest event satisfies `pred`.
+    #
+    # This used to be `groupby("user_id").apply(lambda df:
+    # df.sort_values("timestamp").iloc[0])`. pandas 2.2 deprecated GroupBy.apply
+    # operating on the grouping column, and pandas 3 will stop passing it to the
+    # callback -- which would silently strip `user_id` from `initial_events`,
+    # the one column `_users_by_predicate` reads back out. A global sort plus
+    # drop_duplicates is the same selection without the per-group Python call,
+    # and row order is irrelevant downstream: the result only feeds a
+    # `.user_id.unique()` that is consumed by `isin`.
+    #
+    # kind="stable" is deliberate. The old per-group sort_values used pandas'
+    # default (unstable) quicksort, so users with tied timestamps got an
+    # arbitrary "first" event; stable sorting breaks those ties by original row
+    # order instead, which is at least reproducible run to run.
+    initial_events = df.sort_values("timestamp", kind="stable").drop_duplicates(
+        "user_id", keep="first"
     )
 
     users = _users_by_predicate(initial_events, pred)
@@ -56,13 +70,12 @@ def _users_per_cluster(df: Optional[pd.DataFrame]) -> dict[str, int]:
     if df is None or df.shape[0] == 0:
         return {}
 
-    x = (
-        df.groupby("cluster", group_keys=False)
-        .apply(lambda df: df.user_id.unique().shape[0])
-        .to_dict()
-    )
-
-    return x
+    # Selecting `user_id` before aggregating, rather than `.apply(lambda df:
+    # df.user_id.unique().shape[0])` over the whole frame -- same count, but it
+    # keeps the grouping column out of the callback, which pandas 2.2 deprecated
+    # and pandas 3 removes. dropna=False preserves the old behaviour exactly:
+    # `Series.unique()` counts a NaN user_id, `nunique()` would drop it.
+    return df.groupby("cluster")["user_id"].nunique(dropna=False).to_dict()
 
 
 class AdDataError(BaseException):
