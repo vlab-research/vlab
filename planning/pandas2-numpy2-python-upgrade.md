@@ -112,3 +112,67 @@ commit it in sub-chunks by module (recruitment data, budget/optimization,
 - CI green on the PR.
 - README / agent-api.md no longer mention `--python python3.10`.
 - Nothing pushed, tagged, or released without explicit confirmation.
+
+## 6. Phase A: what actually shipped (2026-09-06)
+
+Green on Python 3.10: **2754 passed, 1 skipped**, against a pre-change
+baseline of 2753 passed / 1 skipped / 1 failed. `poetry check` and
+`make check-schemas` both pass. `python` is still `">=3.10,<3.11"` — Phase B
+has not been started.
+
+Resolved versions: pandas 2.3.3, numpy 2.2.6, scipy 1.15.3, psycopg 3.3.5,
+openpyxl 3.1.5. cvxpy/ecos/facebook-business constraints untouched as planned.
+
+Four commits, ordered so each one is green on its own (every source fix is
+valid on pandas 1.5 too, verified by running the touched modules against the
+old stack before the bump landed): `refactor(budget)`, `test(clustering)`,
+`test(budget)`, then `build(adopt)`.
+
+### The one dependency §3 missed
+
+**openpyxl** had to move from `^3.0.9` to `^3.1`, and it is not cosmetic:
+pandas 2.2 raises its minimum to 3.1.0 in `pandas.compat._optional.VERSIONS`
+and `read_excel` raises `ImportError` below it. The old range technically
+admitted 3.1, but the lock held 3.0.9, so all of `authoring/sheets.py` died
+until the floor was stated explicitly. Any future pandas bump should re-check
+that table rather than trusting caret ranges.
+
+### The only behaviour change that needed judgement
+
+`test_proportional_budget_with_max_recuits_optimizes_for_weights` asserted
+`round(expected["bar"]) == 50` where the exact optimum is `103 * goal - 1` =
+50.5. It passed only via Python's round-half-to-even; scipy 1.15's L-BFGS-B
+stops at 50.50058 instead of at-or-below 50.5, and `round()` flips to 51.
+**No optimum moved** — the closed-form optimizer still hits 29.9 / 50.5 / 19.6
+exactly, which is how we know. Now asserted with `abs=0.01`.
+
+Worth knowing for Phase B: that test is parametrized over both optimizers, and
+only the `lbfgs` arm is sensitive to solver-level float noise. If a Python or
+BLAS change shifts results again, check the closed-form arm first — if it
+still hits the analytic values, the objective is fine and only the iterate
+moved.
+
+### pandas 3 debt paid down while here
+
+`GroupBy.apply` over the grouping column (deprecated 2.2, removed in 3) was
+fixed rather than silenced in `budget.py` and `test_clustering.py`. In both,
+the callback read the grouping column, so the suggested `include_groups=False`
+remedy would have *broken* the code while quieting the warning. The suite now
+emits zero pandas or numpy warnings; the 99 that remain are pre-existing
+(marshmallow/distutils, pytest-asyncio vs pytest 6, facebook-business enums).
+
+### Two local-environment traps, not code problems
+
+- `make test-db` could not run: this host's docker daemon cannot start
+  containers (`unsupported protocol: Yunix` — a containerd shim mismatch
+  needing a root restart of dockerd). Worked around by `docker cp`-ing the
+  cockroach binary out of the image and running `start-single-node` on
+  port 5433 directly, then applying `devops/migrations/*.up.sql` in order with
+  the cockroach SQL client. The DB-backed tests did really run.
+- `test_no_api_key_says_a_human_has_to_mint_one` fails on any machine whose
+  shell exports `VLAB_API_KEY`: click picks it up via `envvar=` and overwrites
+  the `api_key: None` the test injects, so the guard under test never fires and
+  a real HTTP request goes out. This is the one baseline failure, it is
+  unrelated to VIR-47, and it passes under `env -u VLAB_API_KEY`. Arguably the
+  test should set `VLAB_API_KEY` to empty rather than relying on the ambient
+  environment — its own small ticket.
