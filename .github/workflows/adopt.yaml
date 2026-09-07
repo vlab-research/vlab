@@ -29,13 +29,28 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: '3.10'
+          # Single version on purpose. The schema export is pure pydantic over
+          # study_conf.py -- no pandas, no numpy, no interpreter-sensitive
+          # numerics -- so running it on both ends of the supported range would
+          # buy a duplicate job and no extra signal. It tracks the ceiling
+          # because that is what the Docker image runs.
+          python-version: '3.12'
       - run: pip install poetry
       - run: poetry install
       - run: make check-schemas
 
   tests:
     runs-on: ubuntu-latest
+    # BOTH ENDS OF pyproject.toml's `python = ">=3.10,<3.13"`, because a floor
+    # that is only declared is a floor nobody checks: before VIR-47 Phase B this
+    # job ran a single version and the range was aspirational. 3.11 is skipped
+    # deliberately -- it is bracketed by two versions that do run, and the
+    # failure modes worth catching here (numpy/scipy wheel availability at the
+    # floor, removed stdlib at the ceiling) live at the ends, not the middle.
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ['3.10', '3.12']
     defaults:
       run:
         working-directory: adopt
@@ -43,7 +58,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: '3.10'
+          python-version: ${{ matrix.python-version }}
       - run: pip install poetry
       - run: make test-db
       - run: poetry install
