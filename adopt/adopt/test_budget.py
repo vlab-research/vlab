@@ -311,9 +311,24 @@ def test_proportional_budget_with_max_recuits_optimizes_for_weights(optimizer):
         goal, spend, tot, price, budget=None, max_recruits=100, efficiency_weight=1.0
     , optimizer=optimizer)
 
-    assert round(expected["foo"]) == 30
-    assert round(expected["bar"]) == 50
-    assert round(expected["baz"]) == 20
+    # Compared against the analytic optimum, not against `round(...)`.
+    #
+    # Minimising sum(goal^2 / (tot + new)) at fixed total recruits puts
+    # `tot_i + new_i` proportional to `goal_i`, so with tot=[1,1,1] and
+    # max_recruits=100 the exact answer is `103 * goal - 1`: 29.9 / 50.5 / 19.6.
+    # `bar` therefore sits exactly on .5, and the old `round(expected["bar"]) ==
+    # 50` was only ever passing because Python rounds halves to even -- it read
+    # as an assertion about 50 but was really an assertion that L-BFGS-B landed
+    # at or below 50.5. scipy 1.15 (up from 1.11 under VIR-47) converges to the
+    # other side of that boundary, 50.50058, and round() gives 51.
+    #
+    # Nothing about the optimum moved; only which side of a hair-width line the
+    # solver stops on. So assert the optimum with a tolerance that admits both:
+    # 0.01 is still ~17x tighter than the 5.8e-4 error L-BFGS-B actually shows,
+    # and the closed-form optimizer hits all three exactly.
+    assert expected["foo"] == pytest.approx(29.9, abs=0.01)
+    assert expected["bar"] == pytest.approx(50.5, abs=0.01)
+    assert expected["baz"] == pytest.approx(19.6, abs=0.01)
 
 
 def test_proportional_budget_with_max_recruits_spends_on_missing_section(optimizer):
