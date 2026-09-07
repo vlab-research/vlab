@@ -23,14 +23,40 @@ PyYAML = "^6.0.1"
 backoff = "^1.10.0"
 environs = "^9.3.2"
 facebook-business = "v22"
-numpy = "^1.22.1"
-pandas = "1.5.3"
+# THE NUMERIC STACK, lifted under VIR-47 (planning/pandas2-numpy2-python-upgrade.md,
+# Phase A). The old floor was pandas 1.5.3 pinned EXACTLY, which is what held the
+# whole package on Python <3.11: pandas 1.5 publishes no wheels past cp310, so
+# every other ceiling here was downstream of it.
+#
+# The ceilings are not arbitrary and are not "latest":
+#   - numpy ^2.2, not ^2.0 and not ^2.3, because 2.2.x is the newest line that
+#     still declares `requires_python >=3.10`; 2.3 moved its own floor to 3.11
+#     and would silently drop this package's floor on the next re-lock.
+#   - scipy ^1.15 for the same reason -- 1.16 raised its floor to 3.11. 1.15 also
+#     satisfies cvxpy's `scipy>=1.13.0`.
+#   - pandas ^2.2 (caret, so pandas 3 -- already on PyPI -- stays out).
+# cvxpy and ecos are deliberately left on their existing constraints: their
+# cp310 wheels already extend past these picks, and ecos 2.0.14 is both current
+# and latest, so it is the real binding constraint on the Python ceiling.
+numpy = "^2.2"
+pandas = "^2.2"
 pystache = "^0.6.0"
 requests = "^2.25.1"
-scipy = "^1.6.3"
+scipy = "^1.15"
 toolz = "^0.11.1"
-psycopg = {extras = ["binary", "pool"], version = "^3.0.9"}
-openpyxl = "^3.0.9"
+# Floor lifted from ^3.0.9 as part of the same ticket. `psycopg[binary]` has no
+# cp311/cp312 wheels before 3.1.19 and 3.0.x tops out at cp310, so the old
+# constraint would have re-pinned us to 3.10 the moment the Python ceiling moves
+# (Phase B). ^3.2 has cp310-cp314 wheels, i.e. headroom rather than a fresh
+# ceiling.
+psycopg = {extras = ["binary", "pool"], version = "^3.2"}
+# Floor raised from ^3.0.9 by the pandas bump, and it is a HARD requirement, not
+# hygiene: pandas 2.2 lists openpyxl 3.1.0 as its minimum in
+# `pandas.compat._optional.VERSIONS`, and `pd.read_excel` raises ImportError --
+# not a warning -- on anything older. The old `^3.0.9` range technically admitted
+# 3.1, but the lock had resolved 3.0.9, so every `authoring/sheets.py` reader
+# died at import_optional_dependency until this floor made it explicit.
+openpyxl = "^3.1"
 orjson = "^3.6.6"
 # PINNED TO A PATCH RANGE, not a caret, and that is not caution -- it is that
 # `make check-schemas` compares committed JSON Schemas against what pydantic
