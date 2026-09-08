@@ -120,25 +120,14 @@ def _add_timestamp(df):
 
 def _add_time(df):
     # Gives every user a synthetic `md:startTime` row, copied off their first
-    # row so the other columns stay consistent. `include_groups=False` (pandas
-    # 2.2+) drops user_id from `g` before the callback sees it, so it's restored
-    # from the group key (`g.name`) rather than left for `iloc[0].to_dict()` to
-    # copy -- without that, every row in the group would lose its user_id, not
-    # just the synthetic one.
-    def _with_start_row(g):
-        g = g.assign(user_id=g.name)
-        start_row = {
-            **g.iloc[0].to_dict(),
-            "variable": "md:startTime",
-            "value": unix_time_millis(DATE),
-        }
-        return pd.concat([g, pd.DataFrame([start_row])])
-
-    return (
-        df.groupby("user_id", group_keys=False)
-        .apply(_with_start_row, include_groups=False)
-        .reset_index(drop=True)
+    # row. No groupby/apply needed: each user's first row already carries
+    # user_id, so drop_duplicates gets it directly instead of routing around
+    # pandas 2.2's grouping-column deprecation.
+    first_rows = df.drop_duplicates("user_id", keep="first")
+    start_rows = first_rows.assign(
+        variable="md:startTime", value=unix_time_millis(DATE)
     )
+    return pd.concat([df, start_rows]).reset_index(drop=True)
 
 
 def _format_df(df):
