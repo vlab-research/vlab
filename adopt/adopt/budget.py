@@ -41,10 +41,12 @@ class OptimizationResult:
 
 
 def _filter_by_join_time(df: pd.DataFrame, pred: Callable[[pd.Series], bool]):
-    initial_events = (
-        df.groupby("user_id")
-        .apply(lambda df: df.sort_values("timestamp").iloc[0])
-        .reset_index(drop=True)
+    # Equivalent to the old groupby("user_id").apply(...iloc[0]), but avoids
+    # pandas 2.2's deprecation of GroupBy.apply touching the grouping column
+    # (pandas 3 would drop user_id, which the caller reads back out below).
+    # kind="stable" so tied timestamps break by row order, not arbitrarily.
+    initial_events = df.sort_values("timestamp", kind="stable").drop_duplicates(
+        "user_id", keep="first"
     )
 
     users = _users_by_predicate(initial_events, pred)
@@ -56,13 +58,9 @@ def _users_per_cluster(df: Optional[pd.DataFrame]) -> dict[str, int]:
     if df is None or df.shape[0] == 0:
         return {}
 
-    x = (
-        df.groupby("cluster", group_keys=False)
-        .apply(lambda df: df.user_id.unique().shape[0])
-        .to_dict()
-    )
-
-    return x
+    # Avoids GroupBy.apply on the grouping column (deprecated in pandas 2.2).
+    # dropna=False matches the old Series.unique() behaviour, which counted NaN.
+    return df.groupby("cluster")["user_id"].nunique(dropna=False).to_dict()
 
 
 class AdDataError(BaseException):

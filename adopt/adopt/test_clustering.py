@@ -119,21 +119,15 @@ def _add_timestamp(df):
 
 
 def _add_time(df):
-    return (
-        df.groupby(["user_id"])
-        .apply(
-            lambda df: df.append(
-                [
-                    {
-                        **df.iloc[0].to_dict(),
-                        "variable": "md:startTime",
-                        "value": unix_time_millis(DATE),
-                    }
-                ]
-            )
-        )
-        .reset_index(drop=True)
+    # Gives every user a synthetic `md:startTime` row, copied off their first
+    # row. No groupby/apply needed: each user's first row already carries
+    # user_id, so drop_duplicates gets it directly instead of routing around
+    # pandas 2.2's grouping-column deprecation.
+    first_rows = df.drop_duplicates("user_id", keep="first")
+    start_rows = first_rows.assign(
+        variable="md:startTime", value=unix_time_millis(DATE)
     )
+    return pd.concat([df, start_rows]).reset_index(drop=True)
 
 
 def _format_df(df):

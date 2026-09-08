@@ -953,16 +953,20 @@ or, inside a checkout:
 cd adopt && poetry install --extras sdk && poetry run vlab --help
 ```
 
-**Python `>=3.10,<3.11`** — `adopt`'s own constraint, which the SDK inherits, so
-`pipx install --python python3.10 ...` if your default is newer. `pipx` will
-pull pandas, scipy and cvxpy along with it: accepted deliberately in plan §7,
-on the grounds that extracting a package is real work and nobody has yet been
-hurt by the download.
+**Python `>=3.10,<3.13`** — `adopt`'s own constraint, which the SDK inherits.
+Plain `pipx install ...` (as above) now works with whatever 3.10/3.11/3.12
+interpreter pipx finds by default; only pin one explicitly with
+`--python python3.1x` if your default falls outside that range (older than
+3.10, or 3.13+ — the ceiling is set by `ecos`'s cp312-only wheels, see
+`planning/pandas2-numpy2-python-upgrade.md` §3). `pipx` will pull pandas,
+scipy and cvxpy along with it: accepted deliberately in plan §7, on the
+grounds that extracting a package is real work and nobody has yet been hurt by
+the download.
 
 Verified on 2026-09-05 with pip 26.2.1 and CPython 3.10.13, from a clean venv:
 
 ```
-$ python3.10 -m venv v && ./v/bin/pip install '/path/to/vlab/adopt[sdk]'
+$ python3.10 -m venv v && ./v/bin/pip install '/path/to/vlab/adopt[sdk]'  # 3.11/3.12 work too
 Successfully installed adopt-0.1.85 click-8.5.0 pandas-1.5.3 … (78 packages)
 $ ./v/bin/vlab --help                     # works
 $ ./v/bin/vlab validate study.yaml

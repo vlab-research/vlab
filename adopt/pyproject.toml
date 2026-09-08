@@ -2,35 +2,39 @@
 name = "adopt"
 # Follows the adopt release tag (`adopt-v0.1.88`), not a series of its
 # own -- see planning/release-process.md, "The package version".
-version = "0.1.90"
+version = "0.1.91"
 description = ""
 authors = ["Nandan Rao <nandanmarkrao@gmail.com>"]
 
 [tool.poetry.dependencies]
-# NARROWED FROM ">=3.9,<3.11" ON 2026-09-06, and the floor is now real rather
-# than aspirational. `mcp` requires Python >= 3.10, and `server/server.py`
-# imports `server/mcp_server.py` at module scope to mount `POST /mcp` -- so on
-# 3.9 `mcp` would not be installed and the conf service would not IMPORT, let
-# alone start. Declaring 3.9 support that the service cannot honour is worse
-# than declaring 3.10.
-#
-# Nothing was actually running on 3.9: the Dockerfile is `python:3.10-slim`, CI
-# is `python-version: '3.10'`, and the SDK install line has said
-# `pipx install --python python3.10` since Phase 3. The ceiling stays at <3.11
-# for pandas 1.5.3 / numpy 1.x; VIR-47 is where it gets lifted.
-python = ">=3.10,<3.11"
+# Floor is 3.10: `mcp` requires it and is imported at module scope in
+# server/server.py, so a lower floor would claim support the service can't
+# honour. Ceiling is capped at <3.13 by ecos, which has no wheels past cp312.
+python = ">=3.10,<3.13"
 PyYAML = "^6.0.1"
 backoff = "^1.10.0"
 environs = "^9.3.2"
+# environs only requires marshmallow>=3.0.0, and the lock had settled on a
+# version that imports distutils at module scope -- gone in Python 3.12. Passes
+# locally (venv's setuptools shim papers over it) but breaks in the Dockerfile's
+# system site-packages, taking the conf service down at import.
+marshmallow = "^3.15"
 facebook-business = "v22"
-numpy = "^1.22.1"
-pandas = "1.5.3"
+# numpy ^2.2 and scipy ^1.15, not their newest lines: those are the last
+# releases still declaring support for Python 3.10 -- newer ones raised their
+# own floor to 3.11 and would silently drop ours on a re-lock. pandas ^2.2
+# stays off pandas 3 (already on PyPI) via the caret.
+numpy = "^2.2"
+pandas = "^2.2"
 pystache = "^0.6.0"
 requests = "^2.25.1"
-scipy = "^1.6.3"
+scipy = "^1.15"
 toolz = "^0.11.1"
-psycopg = {extras = ["binary", "pool"], version = "^3.0.9"}
-openpyxl = "^3.0.9"
+# ^3.2, not ^3.0: psycopg[binary] has no cp311/cp312 wheels before 3.1.19.
+psycopg = {extras = ["binary", "pool"], version = "^3.2"}
+# Hard requirement, not hygiene: pandas 2.2 requires openpyxl >=3.1.0 and
+# read_excel raises ImportError below it.
+openpyxl = "^3.1"
 orjson = "^3.6.6"
 # PINNED TO A PATCH RANGE, not a caret, and that is not caution -- it is that
 # `make check-schemas` compares committed JSON Schemas against what pydantic
@@ -106,7 +110,8 @@ sdk = ["click"]
 future = "^0.18.2"
 pytest = "^6.2.4"
 pytest-xdist = "^2.2.1"
-coverage = "^5.5"
+# 5.x's C tracer has no cp312 wheel and won't build from sdist past 3.11.
+coverage = "^7.6"
 types-requests = "^2.31.0.10"
 types-pyyaml = "^6.0.12.12"
 python-lsp-server = {extras = ["all"], version = "^1.12.0"}

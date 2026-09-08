@@ -1,4 +1,5 @@
-FROM python:3.10-slim
+# Tracks pyproject.toml's ceiling, not its floor -- CI's matrix covers 3.10.
+FROM python:3.12-slim
 
 WORKDIR /usr/src/app
 

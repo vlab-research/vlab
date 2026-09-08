@@ -1402,8 +1402,9 @@ do it that way, and because every step of §6.1 is worth understanding.
 
 ```
 # adopt is on no index -- there is no `pip install adopt`, and that name on
-# PyPI is an unrelated project. Install from the repo, on Python >=3.10,<3.11:
-pipx install --python python3.10 \
+# PyPI is an unrelated project. Install from the repo, on Python >=3.10,<3.13
+# (any 3.10/3.11/3.12 interpreter pipx finds by default works, no --python pin needed):
+pipx install \
   "adopt[sdk] @ git+https://github.com/vlab-research/vlab.git#subdirectory=adopt"
 
 export VLAB_API_KEY=eyJ...     # a human mints this; see Authentication
@@ -2344,7 +2345,7 @@ Phase 3 of `planning/agent-study-authoring.md` §8; the design record is
 endpoint below is exactly what it was.
 
 `pipx install "adopt[sdk] @ git+https://github.com/vlab-research/vlab.git#subdirectory=adopt"`
-gives you `vlab` (Python >=3.10,<3.11; `adopt` is on no index). A study is one `study.yaml`
+gives you `vlab` (Python >=3.10,<3.13; `adopt` is on no index). A study is one `study.yaml`
 carrying the nine sections in the wire shapes of §3, and the loop is
 `vlab validate && vlab diff && vlab push`, then `vlab plan` / `vlab apply`.
 §6.1 is the runbook; `adopt/README.md` is the reference; `adopt.sdk` and
