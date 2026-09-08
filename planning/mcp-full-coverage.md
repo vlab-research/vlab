@@ -1,7 +1,10 @@
 # MCP full coverage: everything the dashboard can do, over MCP
 
-**Status:** in progress, started 2026-09-08. Phase 1 on branch
-`feature/mcp-observability-tools`.
+**Status:** Phase A implemented 2026-09-08 on branch
+`feature/mcp-observability-tools`, adopt v0.1.90 — all seven tools, both
+transports, seven `vlab` commands, six new `VlabClient` methods (plus
+`ad_attributions_csv`), and the three guards extended to cover them. Phases B
+and C are not started.
 
 **Goal, in the researcher's words:** "full coverage so that everything we can
 do in the user interface, we can do over MCP." This document is the gap
@@ -24,16 +27,16 @@ directly from the browser.
 | List studies, create study | Go (`/{org}/studies`) | `list_studies`, `create_study` | none |
 | Read all conf sections | conf `GET .../confs` | `pull_study` | none |
 | Save each of the 9 conf sections | conf `POST .../confs/{type}` | `push_study` (+ `validate_study`, `diff_study`) | none |
-| Initialize: copy confs from another study | conf `POST .../copy-from` | — | **A7** |
+| Initialize: copy confs from another study | conf `POST .../copy-from` | `copy_study_from` | ~~A7~~ closed |
 | Regenerate strata, extract targeting from an ad set | client-side | `compile_strata`, `extract_targeting` | none |
 | Ad accounts, campaigns, ad sets, ads (with creatives) | Graph, from the browser | `meta_*` proxies | none |
 | Optimize (plan), run one instruction | conf `GET /optimize/{slug}`, `POST .../instruction` | `plan_study`, `apply_instruction` | none |
-| Errors tab and the sidebar badge | conf `GET /optimize/{slug}/errors` | — | **A1** |
-| Current Data tab | conf `GET /optimize/{slug}/current-data` | — | **A2** |
-| Ad Attributions tab (+ CSV) | conf `GET .../ad-attributions` | — | **A3** |
-| Recruitment Statistics table (spend, CPM, price per respondent, incentive and total cost, conversion) | conf `GET .../recruitment-stats` | — | **A4** |
-| Participants-over-time chart, "Current Participants" card | conf `GET .../segments-progress` | — | **A5** |
-| Total Spent, Avg Cost per Participant, spend and marginal-cost charts | conf `GET .../cost-over-time` | — | **A6** |
+| Errors tab and the sidebar badge | conf `GET /optimize/{slug}/errors` | `study_errors` | ~~A1~~ closed |
+| Current Data tab | conf `GET /optimize/{slug}/current-data` | `current_data` | ~~A2~~ closed |
+| Ad Attributions tab (+ CSV) | conf `GET .../ad-attributions` | `ad_attributions` (+ `vlab ad-attributions --csv`) | ~~A3~~ closed |
+| Recruitment Statistics table (spend, CPM, price per respondent, incentive and total cost, conversion) | conf `GET .../recruitment-stats` | `recruitment_stats` | ~~A4~~ closed |
+| Participants-over-time chart, "Current Participants" card | conf `GET .../segments-progress` | `respondents_over_time` | ~~A5~~ closed |
+| Total Spent, Avg Cost per Participant, spend and marginal-cost charts | conf `GET .../cost-over-time` | `cost_over_time` | ~~A6~~ closed |
 | Participants-per-segment table: %desired / %current / %expected, expected participants, **budget**, **price per participant** per stratum; "Expected Participants" card | **Go only** (`GET /{org}/studies/{slug}/segments-progress`, reads `adopt_reports` `FACEBOOK_ADOPT`) | — | **B1**: no conf-service route exists |
 | Study name by slug | Go `GET /{org}/studies/{slug}` | `list_studies` carries name and slug | none worth a tool |
 | Connected accounts: list, add (Typeform, Fly, Alchemer, Qualtrics, generic api_key), update, delete | **Go only** (`/accounts`, user-scoped, returns raw secrets to the browser) | `meta_credentials` (Facebook only, secrets stripped) | **C1** list, **C2** create/update, **C3** delete: no conf-service routes |
@@ -55,7 +58,7 @@ guards: `TOOL_SCOPES[tool] == required_scope(method, path)`
 (`ROUTE_BACKED_TOOLS` in `server/test_mcp_server.py`), the description test,
 and the stdio-vs-remote drift guard.
 
-### Phase A: the seven tools whose routes already exist
+### Phase A: the seven tools whose routes already exist — **shipped**
 
 Read-only unless marked. The rule from Phase 4 holds: **one implementation
 per capability**. Tool → `VlabClient` method (stdio) or `InProcessBackend`
@@ -95,6 +98,29 @@ Description content that the tests will enforce and that the agent needs:
   refreshes them, and it is not side-effect free.
 - `copy_study_from`: copies every section except `general`, appending new
   rows; nothing is deleted, and the copy supersedes whatever the target had.
+
+**What Phase A actually shipped, and the two things worth knowing.**
+
+`study_errors` on `VlabClient` already existed and was WRONG in a way nothing
+called: the errors route wraps its payload under `errors`, not `data`, so
+`_data` handed back the envelope where every neighbouring method returns the
+payload. It now unwraps, and a test pins it. That is the only pre-existing
+behaviour this phase changed, and no route moved.
+
+`ad-attributions` is two routes, and the CSV one answers `text/csv`. `request`
+raises `TransportError` for a body that is not JSON — correctly, everywhere
+else — so `VlabClient.request_text` was split out alongside it over a shared
+`_send`. `--csv` therefore writes the SERVER's rendering rather than the CLI's
+rendering of the JSON, which is what makes "the table and the file cannot
+disagree" true rather than aspirational. The tool deliberately exposes only the
+JSON: an MCP tool returning a CSV blob is a worse table than a table.
+
+The in-process backend calls `model_dump(mode="json")` on every pydantic
+response here, not `model_dump()`. The HTTP path serialises `last_seen` and
+`first_seen` through pydantic's JSON serializer, and a plain dump would hand a
+tool `datetime` objects on one transport and ISO strings on the other — a
+divergence no single-transport test could see, and exactly what the drift guard
+exists for.
 
 ### Phase B: the optimizer's per-stratum view
 

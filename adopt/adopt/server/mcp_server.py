@@ -189,6 +189,17 @@ class InProcessBackend:
 
         return await route(org_id, slug, parsed, self.user)
 
+    @_wire_errors
+    async def copy_from(
+        self, org_id: str, slug: str, source_slug: str
+    ) -> Dict[str, Any]:
+        from .server import CopyFromConf, copy_confs_from
+
+        body = await copy_confs_from(
+            org_id, slug, CopyFromConf(source_study_slug=source_slug), self.user
+        )
+        return body["data"]
+
     # -- optimize ----------------------------------------------------------
 
     @_wire_errors
@@ -208,6 +219,65 @@ class InProcessBackend:
             org_id, slug, OptimizeInstruction(**dict(instruction)), self.user
         )
         return result.data.model_dump()
+
+    @_wire_errors
+    async def study_errors(self, org_id: str, slug: str) -> List[Dict[str, Any]]:
+        from .server import get_errors
+
+        result = await get_errors(org_id, slug, self.user)
+        # `mode="json"` on every one of these, and it is not cosmetic: the HTTP
+        # path serialises `last_seen`/`first_seen` through pydantic's JSON
+        # serializer, so a plain `model_dump()` here would hand a tool
+        # `datetime` objects on one transport and ISO strings on the other --
+        # a difference no test of a single transport could see.
+        return result.model_dump(mode="json")["errors"]
+
+    # -- what the study is doing -------------------------------------------
+
+    @_wire_errors
+    async def current_data(self, org_id: str, slug: str) -> List[Dict[str, Any]]:
+        from .server import get_current_data
+
+        result = await get_current_data(org_id, slug, self.user)
+        return result.model_dump(mode="json")["data"]
+
+    @_wire_errors
+    async def ad_attributions(self, org_id: str, slug: str) -> Dict[str, Any]:
+        from .server import get_ad_attributions_json
+
+        return (await get_ad_attributions_json(org_id, slug, self.user))["data"]
+
+    @_wire_errors
+    async def ad_attributions_csv(self, org_id: str, slug: str) -> str:
+        from .server import get_ad_attributions_csv
+
+        # This route hands back a `Response` rather than a body, because it sets
+        # `text/csv` and a filename. `.body` is what the wire would have carried.
+        response = await get_ad_attributions_csv(org_id, slug, self.user)
+        return response.body.decode("utf8")
+
+    @_wire_errors
+    async def recruitment_stats(self, org_id: str, slug: str) -> Dict[str, Any]:
+        from .server import get_recruitment_stats
+
+        result = await get_recruitment_stats(org_id, slug, self.user)
+        return result.model_dump(mode="json")["data"]
+
+    @_wire_errors
+    async def respondents_over_time(
+        self, org_id: str, slug: str
+    ) -> List[Dict[str, Any]]:
+        from .server import get_segments_progress
+
+        result = await get_segments_progress(org_id, slug, self.user)
+        return result.model_dump(mode="json")["data"]
+
+    @_wire_errors
+    async def cost_over_time(self, org_id: str, slug: str) -> List[Dict[str, Any]]:
+        from .server import get_cost_over_time
+
+        result = await get_cost_over_time(org_id, slug, self.user)
+        return result.model_dump(mode="json")["data"]
 
     # -- the Meta proxy ----------------------------------------------------
 

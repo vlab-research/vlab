@@ -22,6 +22,7 @@ import json
 import os
 import uuid
 from copy import deepcopy
+from datetime import datetime, timezone
 from test.dbfix import _reset_db
 from test.dbfix import cnf as db_conf
 from unittest.mock import patch
@@ -798,6 +799,287 @@ def test_an_index_outside_the_current_plan_says_to_re_plan(runner, obj, org):
         res = run(runner, obj, "apply", f"{org}/{slug}", "9", "--yes")
     assert res.exit_code == 1
     assert "2 instruction(s)" in res.output
+
+
+# ---------------------------------------------------------------------------
+# errors / current-data / ad-attributions / stats / respondents / costs
+# ---------------------------------------------------------------------------
+
+
+def _study_id(org_id, slug):
+    rows = query(
+        db_conf,
+        "select id from studies where org_id = %s and slug = %s",
+        (org_id, slug),
+        as_dict=True,
+    )
+    return str(list(rows)[0]["id"])
+
+
+def test_errors_prints_the_open_errors(runner, obj, org):
+    slug = obj["client"].create_study(org, "HPV")["slug"]
+    execute(
+        db_conf,
+        """
+        insert into study_run_events
+            (study_id, source, event_type, fingerprint, severity, message)
+        values (%s, 'swoosh', 'extraction_failed', 'fp-1', 'error', 'boom')
+        """,
+        (_study_id(org, slug),),
+    )
+
+    res = run(runner, obj, "errors", f"{org}/{slug}")
+
+    assert res.exit_code == 0
+    assert res.output.splitlines()[0].startswith("error  swoosh  boom")
+    assert "1 row(s)." in res.output
+
+
+def test_errors_of_a_quiet_study_is_an_empty_table(runner, obj, org):
+    """Which is not the same as healthy, and the help text is where that is
+    said -- the table has no room for it."""
+    slug = obj["client"].create_study(org, "HPV")["slug"]
+
+    res = run(runner, obj, "errors", f"{org}/{slug}")
+
+    assert res.exit_code == 0
+    assert "0 row(s)." in res.output
+
+
+def test_errors_json_is_the_list(runner, obj, org):
+    slug = obj["client"].create_study(org, "HPV")["slug"]
+    res = run(runner, obj, "errors", f"{org}/{slug}", "--json")
+    assert json.loads(res.output)["data"] == []
+
+
+def test_current_data_prints_one_row_per_variable(runner, obj, org):
+    import pandas as pd
+
+    slug = obj["client"].create_study(org, "HPV")["slug"]
+    df = pd.DataFrame(
+        [
+            {
+                "user_id": "u1",
+                "variable": "age",
+                "value": "25",
+                "timestamp": datetime(2026, 1, 1, tzinfo=timezone.utc),
+            },
+            {
+                "user_id": "u1",
+                "variable": "gender",
+                "value": "f",
+                "timestamp": datetime(2026, 1, 1, tzinfo=timezone.utc),
+            },
+        ]
+    )
+
+    with patch("adopt.server.server.fetch_current_data") as m:
+        m.return_value = df
+        res = run(runner, obj, "current-data", f"{org}/{slug}")
+
+    assert res.exit_code == 0
+    # One person, two variables, two rows -- the thing a caller counting
+    # respondents off this table will otherwise get wrong.
+    assert "2 row(s)." in res.output
+    assert "u1  age  25" in res.output
+
+
+def test_ad_attributions_prints_the_columns_as_a_header(runner, obj, org):
+    slug = obj["client"].create_study(org, "HPV")["slug"]
+    execute(
+        db_conf,
+        """
+        insert into ad_attributions
+            (network, ad_id, study_id, stratum_id, creative_name, shortcode,
+             metadata, resolved_from)
+        values ('facebook', 'ad-1', %s, 'everyone', 'Smiling', 'mnchweek',
+                %s, 'ad_id')
+        """,
+        (_study_id(org, slug), json.dumps({"gender": "women"})),
+    )
+
+    res = run(runner, obj, "ad-attributions", f"{org}/{slug}")
+
+    assert res.exit_code == 0
+    assert res.output.splitlines()[0].startswith("ad_id  network")
+    assert "gender" in res.output.splitlines()[0]
+    assert "1 row(s)." in res.output
+
+
+def test_ad_attributions_csv_writes_the_servers_own_rendering(runner, obj, org):
+    """The file is the `.csv` route's body, not this command's rendering of the
+    JSON: the two are built from one definition and must not be able to
+    disagree."""
+    slug = obj["client"].create_study(org, "HPV")["slug"]
+    execute(
+        db_conf,
+        """
+        insert into ad_attributions
+            (network, ad_id, study_id, stratum_id, creative_name, shortcode,
+             metadata, resolved_from)
+        values ('facebook', 'ad-1', %s, 'everyone', 'Smiling', 'mnchweek',
+                %s, 'ad_id')
+        """,
+        (_study_id(org, slug), json.dumps({"gender": "women"})),
+    )
+
+    res = run(runner, obj, "ad-attributions", f"{org}/{slug}", "--csv", "out.csv")
+
+    assert res.exit_code == 0
+    with open("out.csv") as f:
+        body = f.read()
+    assert body.splitlines()[0].startswith("ad_id,network,")
+    assert "ad-1" in body
+
+
+def test_ad_attributions_csv_to_stdout(runner, obj, org):
+    slug = obj["client"].create_study(org, "HPV")["slug"]
+
+    res = run(runner, obj, "ad-attributions", f"{org}/{slug}", "--csv", "-")
+
+    assert res.exit_code == 0
+    assert res.output.startswith("ad_id,network,")
+
+
+def test_ad_attributions_refuses_csv_and_json_together(runner, obj, org):
+    slug = obj["client"].create_study(org, "HPV")["slug"]
+
+    res = runner.invoke(
+        cli,
+        ["ad-attributions", f"{org}/{slug}", "--csv", "-", "--json"],
+        obj=dict(obj),
+    )
+
+    assert res.exit_code == 2
+    assert "two different formats" in res.output
+
+
+def test_stats_before_any_plan_run_is_a_clean_404_not_a_traceback(runner, obj, org):
+    """The 404 that means "no plan has ever run", which is the commonest thing
+    a researcher hits on this command."""
+    slug = obj["client"].create_study(org, "HPV")["slug"]
+
+    res = run(runner, obj, "stats", f"{org}/{slug}")
+
+    assert res.exit_code == 1
+    assert "404" in res.output
+
+
+def test_respondents_and_costs_print_the_seeded_reports(runner, obj, org):
+    from ..campaign_queries import (
+        create_cost_over_time_report,
+        create_respondents_over_time_report,
+    )
+
+    slug = obj["client"].create_study(org, "HPV")["slug"]
+    study_id = _study_id(org, slug)
+    create_respondents_over_time_report(
+        study_id,
+        {
+            "data": [
+                {
+                    "datetime": 1767225600000,
+                    "totalParticipants": 3,
+                    "segments": [{"id": "everyone", "participants": 3}],
+                }
+            ]
+        },
+        db_conf,
+    )
+    create_cost_over_time_report(
+        study_id,
+        [
+            {
+                "datetime": 1767225600000,
+                "cumulativeSpend": 100.0,
+                "cumulativeRespondents": 3,
+                "marginalCost": 33.3,
+                "newRespondents": 3,
+                "dailySpend": 100.0,
+            }
+        ],
+        db_conf,
+    )
+
+    res = run(runner, obj, "respondents", f"{org}/{slug}")
+    assert res.exit_code == 0
+    assert res.output.splitlines()[0] == "datetime  totalParticipants"
+    assert "1767225600000" in res.output
+
+    res = run(runner, obj, "costs", f"{org}/{slug}")
+    assert res.exit_code == 0
+    assert "33.3" in res.output
+    assert "1 row(s)." in res.output
+
+
+def test_respondents_before_any_plan_run_is_an_empty_table(runner, obj, org):
+    slug = obj["client"].create_study(org, "HPV")["slug"]
+
+    res = run(runner, obj, "respondents", f"{org}/{slug}")
+
+    assert res.exit_code == 0
+    assert "0 row(s)." in res.output
+
+
+def test_costs_json_carries_the_reports_own_field_names(runner, obj, org):
+    """camelCase and all: these are the dashboard's chart fields, and renaming
+    them here would produce a payload nothing else on this service uses."""
+    from ..campaign_queries import create_cost_over_time_report
+
+    slug = obj["client"].create_study(org, "HPV")["slug"]
+    create_cost_over_time_report(
+        _study_id(org, slug),
+        [
+            {
+                "datetime": 1767225600000,
+                "cumulativeSpend": 100.0,
+                "cumulativeRespondents": 3,
+                "marginalCost": None,
+                "newRespondents": 0,
+                "dailySpend": 100.0,
+            }
+        ],
+        db_conf,
+    )
+
+    rows = json.loads(run(runner, obj, "costs", f"{org}/{slug}", "--json").output)
+
+    assert rows["data"][0]["cumulativeSpend"] == 100.0
+    # Null on a day that gained no respondents, not zero: zero would say the
+    # day's respondents were free.
+    assert rows["data"][0]["marginalCost"] is None
+
+
+# ---------------------------------------------------------------------------
+# copy-from
+# ---------------------------------------------------------------------------
+
+
+def test_copy_from_copies_every_section_but_general(runner, obj, org):
+    client = obj["client"]
+    source = client.create_study(org, "Source")["slug"]
+    target = client.create_study(org, "Target")["slug"]
+    client.post_conf(org, source, "general", _STUDY(org, source)["general"])
+    client.post_conf(org, source, "destinations", [MESSENGER])
+
+    res = run(runner, obj, "copy-from", f"{org}/{target}", source)
+
+    assert res.exit_code == 0
+    assert "destinations" in res.output
+    assert "general" not in res.output
+    assert "1 section(s) copied" in res.output
+    assert client.get_confs(org, target)["destinations"][0]["name"] == "main"
+
+
+def test_copy_from_a_source_with_nothing_is_a_clean_error(runner, obj, org):
+    client = obj["client"]
+    source = client.create_study(org, "Source")["slug"]
+    target = client.create_study(org, "Target")["slug"]
+
+    res = run(runner, obj, "copy-from", f"{org}/{target}", source)
+
+    assert res.exit_code == 1
+    assert "404" in res.output
 
 
 # ---------------------------------------------------------------------------

@@ -1024,6 +1024,13 @@ correct for free.
 | `vlab push [file] [--section] [--force] [--dry-run]` | Validates first, then writes only what differs, in reference order. |
 | `vlab plan <org>/<slug>` | `GET /{org}/optimize/{slug}`, indexed. **Not side-effect free.** |
 | `vlab apply <org>/<slug> <index> [--yes]` | Re-plans, then posts that one instruction. |
+| `vlab copy-from <org>/<slug> <source_slug>` | `POST .../copy-from`. Appends every section but `general` from the source. TARGET first, SOURCE last — reversing them overwrites the study you meant to copy from. |
+| `vlab errors <org>/<slug>` | Open errors and warnings. Only swoosh writes these, and they age out after 90 minutes: an empty table is not "healthy". |
+| `vlab current-data <org>/<slug>` | The rows the optimizer sees — one per respondent *per variable*, inside the inference window. |
+| `vlab ad-attributions <org>/<slug> [--csv PATH]` | The frozen ad → stratum mapping. `--csv` fetches the server's own rendering (`-` for stdout). |
+| `vlab stats <org>/<slug>` | Recruitment statistics per stratum. 404 until a plan run has written a report. |
+| `vlab respondents <org>/<slug>` | Participants over time. Empty until a plan run writes the report. |
+| `vlab costs <org>/<slug>` | Spend, daily spend and marginal cost over time. Same report story. |
 | `vlab meta credentials\|adaccounts\|campaigns\|adsets\|ads` | The read-only Meta proxy. `--json` output feeds the next command. |
 | `vlab strata generate [file] [--finish-question]` | The dashboard's Regenerate, in Python. |
 | `vlab strata extract-targeting <adsets.json> <prop>…` | `extract_from_adset` over a `vlab meta adsets --json` response. |
@@ -1130,8 +1137,8 @@ Phase 4 of `planning/agent-study-authoring.md` §16. What shipped and why:
 `planning/mcp.md`. The reference, including the client configuration, the scope
 table and the known gaps: `documentation/agent-api.md` §6b.
 
-Sixteen tools, defined once in `adopt/adopt/sdk/mcp_tools.py` and served two
-ways:
+Twenty-five tools, defined once in `adopt/adopt/sdk/mcp_tools.py` and served
+two ways:
 
 ```
 # Local, stdio -- for anything that can run Python. The key stays here.
@@ -1142,11 +1149,13 @@ POST https://vlab-study-conf-api.toixo.vlab.digital/mcp
 Authorization: Bearer $VLAB_API_KEY
 ```
 
-The names are the CLI's -- `create_study`, `pull_study`, `validate_study`,
-`diff_study`, `push_study`, `compile_strata`, `extract_targeting`,
-`plan_study`, `apply_instruction`, the five `meta_*` readers, `list_api_keys`,
-`revoke_api_key` -- because each one calls exactly what the matching command
-calls. Nothing about the API changes: confs are still append-only, a section
+The names are the CLI's -- `list_orgs`, `list_studies`, `create_study`,
+`pull_study`, `validate_study`, `diff_study`, `push_study`, `copy_study_from`,
+`compile_strata`, `extract_targeting`, `plan_study`, `apply_instruction`, the
+six study readers (`study_errors`, `current_data`, `ad_attributions`,
+`recruitment_stats`, `respondents_over_time`, `cost_over_time`), the five
+`meta_*` readers, `list_api_keys`, `revoke_api_key` -- because each one calls
+exactly what the matching command calls. Nothing about the API changes: confs are still append-only, a section
 write still replaces the section whole, and `plan_study` still reads Meta and
 writes report rows despite being called a preview.
 

@@ -2076,10 +2076,17 @@ use: `list_orgs` → `list_studies` → `create_study` → `push_study` →
 | `validate_study(sections)` | `vlab validate` | `studies:read` | no — pure, in process |
 | `diff_study(org, slug, sections)` | `vlab diff` | `studies:read` | no |
 | `push_study(org, slug, sections, force)` | `vlab push` | `studies:write` | **yes, irreversibly** |
+| `copy_study_from(org, slug, source_slug)` | `vlab copy-from` | `studies:write` | **yes, irreversibly** — appends every section but `general` |
 | `compile_strata(variables, finish_question_ref, existing_strata, creatives, audiences)` | `vlab strata generate` | none — pure | no |
 | `extract_targeting(adset, properties)` | `vlab strata extract-targeting` | none — pure | no |
 | `plan_study(org, slug)` | `vlab plan` | `optimize:read` | **yes** — see below |
 | `apply_instruction(org, slug, index)` | `vlab apply` | `optimize:write` | **yes, on Meta, with money** |
+| `study_errors(org, slug)` | `vlab errors` | `optimize:read` | no |
+| `current_data(org, slug)` | `vlab current-data` | `optimize:read` | no |
+| `ad_attributions(org, slug)` | `vlab ad-attributions` | `responses:read` | no |
+| `recruitment_stats(org, slug)` | `vlab stats` | `stats:read` | no |
+| `respondents_over_time(org, slug)` | `vlab respondents` | `stats:read` | no |
+| `cost_over_time(org, slug)` | `vlab costs` | `stats:read` | no |
 | `meta_credentials(org)` | `vlab meta credentials` | `meta:read` | no |
 | `meta_adaccounts(org, …)` | `vlab meta adaccounts` | `meta:read` | no |
 | `meta_campaigns(org, account, …)` | `vlab meta campaigns` | `meta:read` | no |
@@ -2091,6 +2098,22 @@ use: `list_orgs` → `list_studies` → `create_study` → `push_study` →
 `plan_study` is a preview that writes: it reads Meta, heals ad attributions,
 and writes an `adopt_reports` row plus two time-series reports (§5). It creates
 no Meta objects and spends nothing. `apply_instruction` is the one that spends.
+
+**The six study readers are the dashboard's study page, and three of them read
+what `plan_study` wrote.** `recruitment_stats` 404s until a plan run has
+written a `FACEBOOK_ADOPT` report; `respondents_over_time` and `cost_over_time`
+answer `[]` in the same situation. None of the three is stale-proof: a plan run
+is what refreshes them, the adopt-ads cron runs one every two hours for a study
+inside its recruitment window, and running one yourself is not free.
+`study_errors` is a different trap — it lists only what is still being
+re-emitted, within 90 minutes, and only swoosh writes those events at all, so
+`[]` is never evidence that ad building is healthy (§2.3).
+
+Their scopes are three different resources and the tool names do not say so:
+`study_errors` and `current_data` are served under `/{org}/optimize/…` and are
+therefore `optimize:read`, `ad_attributions` is `responses:read`, and the three
+report reads are `stats:read`. A key scoped only to `studies` reaches none of
+them.
 
 **Template creation is deliberately not a tool.** `vlab template` (§6a) needs a
 Facebook token and an image upload, neither of which belongs behind a vlab API
@@ -2220,6 +2243,36 @@ client.
 ---
 
 ## 8. What landed recently
+
+### 2026-09-08 — seven MCP tools: the study page, and copy-from
+
+Design record: `planning/mcp-full-coverage.md` §2 Phase A; the tool table is
+§6b; adopt v0.1.90. **No new endpoints and no route changed.** Seven routes
+that only the dashboard could reach are now tools, `vlab` commands and
+`VlabClient` methods:
+
+| | | |
+|---|---|---|
+| `study_errors` | `vlab errors` | `GET /{org}/optimize/{slug}/errors` |
+| `current_data` | `vlab current-data` | `GET /{org}/optimize/{slug}/current-data` |
+| `ad_attributions` | `vlab ad-attributions` (`--csv`) | `GET /{org}/studies/{slug}/ad-attributions[.csv]` |
+| `recruitment_stats` | `vlab stats` | `GET /{org}/studies/{slug}/recruitment-stats` |
+| `respondents_over_time` | `vlab respondents` | `GET /{org}/studies/{slug}/segments-progress` |
+| `cost_over_time` | `vlab costs` | `GET /{org}/studies/{slug}/cost-over-time` |
+| `copy_study_from` | `vlab copy-from` | `POST /{org}/studies/{slug}/copy-from` |
+
+Six reads and one write, on both transports, with the same three guards Phase 4
+shipped: `TOOL_SCOPES` compared against `api_keys.required_scope` for the real
+path, the description tests, and the stdio-vs-remote drift guard. Nothing here
+computes anything the route does not — an agent gets what the dashboard gets.
+
+Two things are worth reading before using them, and both are in §6b: the
+`stats` family answers `[]` or 404 until a plan run has written its report, and
+`study_errors` returning `[]` is not evidence of health.
+
+The gap that remains on this page is the optimizer's per-stratum budget and
+price view, which today only the Go service serves; that is Phase B in
+`planning/mcp-full-coverage.md`.
 
 ### 2026-09-07 — `GET /orgs` and `GET /{org_id}/studies`: discovery is step zero
 
