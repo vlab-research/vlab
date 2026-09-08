@@ -86,6 +86,14 @@ DROPPED: Dict[str, str] = {
         "Sent by adopt, absent from Facebook's response. Confirmed live 2026-08-01 "
         "by adopt-probe."
     ),
+    "degrees_of_freedom_spec.creative_features_spec.show_destination_blurbs": (
+        "Sent by adopt on all three LAC studies. Meta echoes it on Argentina (4/4 "
+        "ads) and Honduras (4/4) and omits it on 12 of Bolivia 16 -- those 12 were "
+        "rewritten on every run (VIR-49). Declared because a key we cannot read "
+        "back is not a change we can act on; the entry is inert on the ads that do "
+        "echo it, since it is consulted only when the key is missing. Confirmed "
+        "live 2026-09-08 by adopt-probe."
+    ),
     "degrees_of_freedom_spec.creative_features_spec.text_optimizations": (
         "Sent by adopt, absent from Facebook's response. Confirmed live 2026-08-01 "
         "by adopt-probe."
