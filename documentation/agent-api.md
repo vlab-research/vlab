@@ -959,6 +959,112 @@ Also `VlabClient.strata_progress(org, slug, history)`,
 `vlab strata-progress <org>/<slug> [--history N]`, and the `strata_progress` MCP
 tool (§6b).
 
+### 2.8 `/users/accounts` — connected accounts
+
+Since adopt v0.1.91. Three routes, all under `/users/...`, so all classified
+`auth:read` / `auth:write` by the method with no new branch in the scope map.
+Design record: `planning/mcp-full-coverage.md` §2 Phase C.
+
+A **connected account** is one row in `credentials`: a named third-party
+credential owned by a user. The name is what a `data-sources[]` entry means by
+`credentials_key`, and what `general.credentials_key` means for Facebook
+(§3) — so a study cannot extract responses or reconcile ads until a credential
+of the right name and type exists. Before these routes the only
+API-key-reachable answer to "which `credentials_key` do I use" was
+`GET /{org}/meta/credentials`, which covers Facebook alone.
+
+The Go dashboard API has `/accounts` for the same table and is not going away;
+the dashboard keeps using it. Two deliberate differences:
+
+* **Secrets are never returned here.** The Go list route returns `details`
+  verbatim to the browser — every token the user owns, in one response. An API
+  key reaches this service and agents hold API keys, so this port returns only
+  the non-secret fields. There is no way to read a stored credential back.
+* **The upsert is one transaction.** Both services implement "create" as
+  delete-then-insert, because `unique_entity_key_per_user UNIQUE(user_id,
+  entity, key)` makes `(auth_type, name)` the address and there is no update
+  route. Go issues the two statements loose; a failure between them leaves the
+  user with no credential under a name a study still points at. Here they
+  commit together or not at all.
+
+#### `GET /users/accounts[?auth_type=]` — `auth:read`
+
+```json
+{"data": [{"name": "typeform-main", "auth_type": "typeform",
+           "created": "2026-09-08T12:00:00+00:00", "id": null}]}
+```
+
+Sorted by `auth_type` then `name`. **No secret, on any type**: every field of
+every credential shape is one (`typeform.key`, `fly`/`qualtrics.api_key`,
+`alchemer`'s two, Facebook's `access_token`), so there is nothing else to show.
+The stripping is an allowlist — a provider added later shows name, type and
+`created` and nothing more until somebody deliberately widens it.
+
+`id` is non-null only for an `api_key` account, where it is the minted key's
+`jti`; that is not a secret (`list_api_keys` returns it as `id`, and
+`revoke_api_key` takes it) and it is what makes the row useful at all.
+
+`?auth_type=` filters; an unknown value is an empty list rather than an error.
+
+**vlab's own API-key rows are not accounts.** `credentials` also holds the
+`api_token` rows behind live keys and the `api_token_revoked` tombstones
+(§"Keys minted before 2026-09-04"). Those are `GET /users/api-keys`, with ids,
+scopes and expiry, and they are excluded here — including from the filter, so
+`?auth_type=api_token` is empty rather than a way round it. The one thing that
+does appear is an `api_key` *account*, which is the dashboard's separate
+bookkeeping record of a key it minted; deleting one does **not** revoke
+anything.
+
+#### `POST /users/accounts` — `auth:write`, 201
+
+```json
+{"name": "typeform-main", "auth_type": "typeform",
+ "credentials": {"key": "tfp_..."}}
+```
+
+Answers 201 with the same non-secret row the list returns; the secret is not
+echoed back. **An upsert**: the same `(auth_type, name)` replaces the stored
+credential, atomically, and the old secret is gone.
+
+`credentials` must match the provider's shape exactly — an unknown or
+misspelled key is a **422**, never a dropped field, because a credential
+missing the one field that matters fails hours later as an unexplained 401 from
+a third party. The shapes are `inference/sources/types/*.go`, which is what the
+extraction workers unmarshal:
+
+| `auth_type` | `credentials` |
+|---|---|
+| `typeform` | `{"key": "..."}` |
+| `fly` | `{"api_key": "..."}` |
+| `qualtrics` | `{"api_key": "..."}` |
+| `alchemer` | `{"api_token": "...", "api_token_secret": "..."}` |
+
+Two types are **refused with a 400** that names the alternative:
+
+* `facebook` — the access token has to come out of Meta's OAuth code exchange,
+  which needs a browser and a human (`POST /facebook/token` on the Go service).
+  Accepting one here would let a caller store any string as a Facebook token,
+  and the failure would surface hours later as an unauthenticated Graph call
+  from inside the optimizer. See §7 item 2.
+* `api_key` — that is the dashboard's record of a minted vlab key. Mint one
+  with `POST /users/api-key`, which returns the token once; this service never
+  stores an API key's token for its own keys and will not store one here.
+
+#### `DELETE /users/accounts/{auth_type}/{name}` — `auth:write`, 204
+
+404 — never 403 — when you have no such account, so this is not an oracle for
+whether another user has one by that name. An `auth_type` that is not an
+account type at all is a 400 naming the real ones; in particular
+`DELETE /users/accounts/api_token/<name>` is refused rather than 404'd, so it
+cannot be mistaken for a revocation that missed.
+
+**Irreversible, and nothing checks what is using it.** A study whose
+`data-sources[].credentials_key` names the deleted credential stops extracting;
+one whose `general.credentials_key` names it stops being able to reconcile onto
+Meta, and the next plan or apply fails to authenticate. Deleting a `facebook`
+account is allowed — the dashboard allows it — and it is the expensive one,
+because re-creating it needs the OAuth flow in a browser.
+
 ---
 
 ## 3. The nine conf types
@@ -2201,6 +2307,10 @@ use: `list_orgs` → `list_studies` → `create_study` → `push_study` →
 | `meta_ads(org, campaign\|adset, …)` | `vlab meta ads` | `meta:read` | no |
 | `list_api_keys()` | `vlab keys list` | `auth:read` | no |
 | `revoke_api_key(key_id)` | `vlab keys revoke` | `auth:write` | yes, irreversibly |
+| `create_api_key(name, scopes, expires_in_days)` | `vlab keys create` | `auth:write` | **yes** — and the token is shown once |
+| `list_accounts(auth_type)` | `vlab accounts list` | `auth:read` | no — and never a secret |
+| `create_account(name, auth_type, credentials)` | `vlab accounts add` | `auth:write` | **yes** — an upsert; the secret passes through the agent |
+| `delete_account(auth_type, name)` | `vlab accounts delete` | `auth:write` | **yes, irreversibly** |
 
 `plan_study` is a preview that writes: it reads Meta, heals ad attributions,
 and writes an `adopt_reports` row plus two time-series reports (§5). It creates
@@ -2252,6 +2362,16 @@ Their scopes are three different resources and the tool names do not say so:
 therefore `optimize:read`, `ad_attributions` is `responses:read`, and the three
 report reads are `stats:read`. A key scoped only to `studies` reaches none of
 them.
+
+The four `auth` tools are the credentials half (§2.8). `create_api_key` is
+backed by the existing `POST /users/api-key` — no new endpoint — and it
+**attenuates**: a key may only mint one no more powerful than itself, and
+omitting `scopes` is a request for FULL ACCESS rather than for none, so a
+scoped key must name what it wants. That check runs identically on both
+transports; `POST /mcp` hands the route handler the caller's own bearer token
+rather than recomputing the rule, so there is only ever one implementation of
+it. `create_account` is the one tool that carries a live third-party secret
+through an agent's context, and its description says so.
 
 **Template creation is deliberately not a tool.** `vlab template` (§6a) needs a
 Facebook token and an image upload, neither of which belongs behind a vlab API
@@ -2360,6 +2480,16 @@ client.
    (`planning/agent-study-authoring.md` §10). So an agent that can run Python
    can author a template; an agent that can only speak HTTP still cannot, and
    still needs a human with Ads Manager.
+
+   **Narrowed again 2026-09-08.** Every *other* kind of connected account —
+   Typeform, Fly, Qualtrics, Alchemer — is now creatable, listable and
+   deletable with an `auth:write` key (§2.8, and the `*_account` MCP tools), so
+   "an agent cannot set up the credential its data source needs" is closed for
+   everything except Meta. **Connecting a Facebook account stays human-only and
+   is the last irreducible piece**: the credential is the output of an OAuth
+   code exchange, and no key can perform one. `POST /users/accounts` refuses
+   `auth_type: facebook` with a 400 that says so rather than storing a string
+   that would fail later from inside the optimizer.
 3. **Derive strata from variables *over HTTP*.** The compiler is a library
    (`adopt.authoring`, §6.2 step 7) and a CLI (`vlab strata generate`, §6.1),
    not an endpoint; an agent that cannot run Python at all has to call it out
@@ -2381,6 +2511,56 @@ client.
 ---
 
 ## 8. What landed recently
+
+### 2026-09-08 — connected accounts and key minting over the API
+
+Design record: `planning/mcp-full-coverage.md` §2 Phase C; the contract is
+§2.8; adopt v0.1.91. **Three new endpoints under `/users/accounts`, four new
+MCP tools, and no behaviour change to anything that existed.**
+
+The gap was narrow and blocking. A `data-sources[]` entry names a credential by
+`credentials_key`, and until now no API key could find out what names existed
+for a non-Facebook provider, let alone make one — so an agent could author an
+entire study and still need a human in the dashboard before a single response
+could be extracted. `GET /users/accounts` lists the caller's credentials,
+`POST` connects or replaces one, `DELETE` removes it, all `auth:*`, and
+`list_accounts` / `create_account` / `delete_account` are the same three as
+tools on both MCP transports plus `vlab accounts list|add|delete`.
+
+**Nothing here returns a secret**, which is the one place this port
+deliberately does not reproduce the Go route it is a port of: that one returns
+`details` — every token the user owns — to the browser. The stripping is an
+allowlist rather than a denylist, so a provider added later is stripped bare
+until somebody widens it on purpose.
+
+**The upsert is atomic.** Both services implement create as delete-then-insert
+because `unique_entity_key_per_user` makes `(auth_type, name)` the address and
+there is no update route. Go's two statements are loose, so a failure between
+them leaves a study pointing at a credential that no longer exists; here they
+are one transaction.
+
+`create_api_key` is the fourth tool and adds **no route** — it is the existing
+`POST /users/api-key`, reachable as a tool and as `vlab keys create`, so a key
+holding `auth:write` can mint a narrower child for a sub-agent without a
+browser. The attenuation is the security-critical part and it is the route's
+own: on `POST /mcp` the transport hands the handler the caller's raw bearer
+token instead of recomputing what that key may grant, so an unrestricted key
+may mint anything and a scoped key cannot mint beyond itself, identically over
+HTTP and in process. Note that omitting `scopes` asks for FULL ACCESS, not for
+none — a scoped key asking for an unscoped one gets a 403.
+
+Two `auth_type`s are refused with a 400 that names the alternative. `api_key`
+points at `create_api_key`. **`facebook` is the last thing on this API a human
+still has to do**: the token is the output of an OAuth code exchange, which
+needs a browser. §7 item 2, narrowed but not closed.
+
+One thing worth saying plainly, because it is a judgement rather than a
+mechanism: `create_account` sends a live third-party secret through an agent's
+context, where it lands in transcripts and logs. The dashboard sends the same
+secret through a browser, so this is not a new class of exposure — but it is a
+new place for it, and the tool description says so. Where a human can paste it
+themselves, prefer that; `vlab accounts add` reads the secret from a file or
+stdin and never from a command line, for the same reason.
 
 ### 2026-09-08 — `strata-progress`: the optimizer's per-stratum plan, over an API key
 
