@@ -1135,3 +1135,34 @@ def test_the_http_backend_drives_a_real_app_from_the_event_loop():
         "strata",
         "recruitment",
     ]
+
+
+# ---------------------------------------------------------------------------
+# Review fixes: what the descriptions have to warn about
+# ---------------------------------------------------------------------------
+
+
+def test_create_account_warns_against_reusing_a_facebook_credentials_name():
+    """The route refuses it with a 409, but an agent that does not know WHY
+    will reasonably hunt for a way round the refusal instead of renaming."""
+    description = tool_descriptions()["create_account"]
+
+    assert "DO NOT REUSE A FACEBOOK CREDENTIAL'S NAME" in description
+    assert "NAME ALONE" in description
+    assert "409" in description
+
+
+def test_the_account_tools_say_whose_credentials_these_are():
+    """A study resolves credentials against ITS OWNER, not the caller. Moot
+    while an org is one person's workspace; a silent trap the moment it is
+    not."""
+    for name in ("list_accounts", "create_account", "delete_account"):
+        description = tool_descriptions()[name]
+        assert "studies.user_id" in description
+        assert "shared org" in description
+
+
+def test_create_account_names_the_facebook_twin_as_refused():
+    """`facebook_ad_user` is the entity real production rows are under, so a
+    caller who tries it must get the OAuth explanation and not 'unknown'."""
+    assert "facebook_ad_user" in tool_descriptions()["create_account"]

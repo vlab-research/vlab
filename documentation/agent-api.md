@@ -1006,6 +1006,20 @@ The stripping is an allowlist — a provider added later shows name, type and
 
 `?auth_type=` filters; an unknown value is an empty list rather than an error.
 
+**These are the caller's own accounts, and a study resolves its credentials
+against its OWNER** (`studies.user_id`), not against whoever is calling. Today
+an org is one person's personal workspace (§2.3), so the two are always the
+same person and the distinction is invisible. In a shared org it would not be:
+a `credentials_key` this route shows you, and that you can therefore write into
+a conf, can be dead for a study somebody else owns, and the failure appears at
+extraction or reconcile time rather than at write time.
+
+**Not every row in the table is listed.** The set is the dashboard's account
+types plus the Facebook twin; an entity outside it (`whatsapp_business` is the
+known case) is invisible here and cannot be deleted here either. That is the
+safe direction for a table shared with providers this route knows nothing
+about, but it is a gap rather than a non-issue.
+
 **vlab's own API-key rows are not accounts.** `credentials` also holds the
 `api_token` rows behind live keys and the `api_token_revoked` tombstones
 (§"Keys minted before 2026-09-04"). Those are `GET /users/api-keys`, with ids,
@@ -1041,14 +1055,35 @@ extraction workers unmarshal:
 
 Two types are **refused with a 400** that names the alternative:
 
-* `facebook` — the access token has to come out of Meta's OAuth code exchange,
-  which needs a browser and a human (`POST /facebook/token` on the Go service).
-  Accepting one here would let a caller store any string as a Facebook token,
-  and the failure would surface hours later as an unauthenticated Graph call
-  from inside the optimizer. See §7 item 2.
+* `facebook`, and its historical twin `facebook_ad_user` — the access token has
+  to come out of Meta's OAuth code exchange, which needs a browser and a human
+  (`POST /facebook/token` on the Go service). Accepting one here would let a
+  caller store any string as a Facebook token, and the failure would surface
+  hours later as an unauthenticated Graph call from inside the optimizer. See
+  §7 item 2.
 * `api_key` — that is the dashboard's record of a minted vlab key. Mint one
   with `POST /users/api-key`, which returns the token once; this service never
   stores an API key's token for its own keys and will not store one here.
+
+**A name already used by a Facebook credential is refused with a 409**, and
+this is the sharpest edge on the whole route. `campaign_queries.get_user_info`
+— the optimizer's run path — resolves a study's Facebook token by joining
+`credentials` on `(user_id, key)` **alone**: it selects `credentials_entity`
+out of the `general` conf and then never uses it, taking `created DESC LIMIT
+1`. So a Typeform credential named after an existing Facebook one becomes the
+newest row with that name, `details->>'access_token'` is NULL on it, and every
+study whose `general.credentials_key` is that name silently loses its Meta
+authentication until somebody deletes the row. The guard is route-local; the
+underlying resolver is a follow-up (`planning/mcp-full-coverage.md` §4).
+
+**Names** are 1–200 characters and may not contain `/`, `%`, or control
+characters. `/` because the delete route addresses an account as
+`/users/accounts/{auth_type}/{name}` and such a row could be created and then
+never deleted; `%` because `a%2Fb` encodes to `a%252Fb`, which the stack
+decodes twice back into a separator. A **422** carries FastAPI's per-field
+shape with `loc`, `msg` and `type` — and deliberately **not** pydantic's
+`input` or `ctx`, which would echo the credential you just sent back into the
+response body, a log line, and an agent's context window.
 
 #### `DELETE /users/accounts/{auth_type}/{name}` — `auth:write`, 204
 

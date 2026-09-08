@@ -1029,3 +1029,57 @@ def test_a_real_transport_failure_is_still_a_transport_error():
     c = _client(error=ConnectionError("connection refused"))
     with pytest.raises(TransportError):
         c.get_confs("org", "slug")
+
+
+# ---------------------------------------------------------------------------
+# Review fixes
+# ---------------------------------------------------------------------------
+
+
+def test_a_credential_named_after_a_facebook_one_is_a_conflict(client):
+    """The optimizer resolves a study's Facebook token by NAME alone, so this
+    write would silently break every study naming it."""
+    execute(
+        db_conf,
+        "insert into credentials (user_id, entity, key, details) values (%s,%s,%s,%s)",
+        (USER, "facebook", "Facebook", '{"access_token": "tok"}'),
+    )
+
+    with pytest.raises(ConflictError) as e:
+        client.create_account("Facebook", "typeform", {"key": "s"})
+
+    assert "SHADOW" in str(e.value)
+
+
+def test_a_validation_error_never_carries_the_credential_back(client):
+    secret = "SECRET-BACK-THROUGH-THE-CLIENT-2e8a"
+
+    with pytest.raises(UnprocessableError) as e:
+        client.create_account("x", "alchemer", {"api_token": secret})
+
+    # `str(e.value)` is `describe()`, which renders every field error, and
+    # `.detail` is the raw payload. Neither may hold it.
+    assert secret not in str(e.value)
+    assert secret not in str(e.value.detail)
+    assert "api_token_secret" in str(e.value)
+
+
+@pytest.mark.parametrize("name", ["a/b", "50%", "", "n" * 201])
+def test_a_name_that_could_not_be_deleted_is_refused(client, name):
+    with pytest.raises(UnprocessableError):
+        client.create_account(name, "fly", {"api_key": "k"})
+
+
+def test_facebook_ad_user_is_refused_with_the_oauth_explanation(client):
+    """The historical twin carries a Facebook token exactly as `facebook` does,
+    so it gets the same refusal rather than 'unknown auth_type'."""
+    with pytest.raises(VlabHTTPError) as e:
+        client.create_account("x", "facebook_ad_user", {"access_token": "t"})
+
+    assert e.value.status_code == 400
+    assert "OAuth" in str(e.value)
+
+
+def test_create_api_key_rejects_a_zero_ttl(client):
+    with pytest.raises(UnprocessableError):
+        client.create_api_key("k", expires_in_days=0)

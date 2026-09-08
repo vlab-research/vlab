@@ -29,6 +29,7 @@ from datetime import datetime, timezone
 from test.dbfix import _reset_db
 from test.dbfix import cnf as db_conf
 from unittest.mock import patch
+from urllib.parse import quote
 
 import orjson
 import pytest
@@ -47,6 +48,7 @@ os.environ["API_KEY_SECRET"] = "api-key-secret"
 from . import accounts as acc  # noqa: E402
 from . import api_keys as ak  # noqa: E402
 from .auth import DifferentAuthError, generate_api_token  # noqa: E402
+from .db import upsert_account  # noqa: E402
 
 USER = "test|accounts"
 OTHER_USER = "test|accounts-other"
@@ -443,17 +445,25 @@ def test_an_unknown_auth_type_names_the_creatable_ones():
     [
         ("typeform", {}),
         ("typeform", {"key": ""}),
-        ("typeform", {"keys": "x"}),
-        ("typeform", {"key": "x", "extra": "y"}),
-        ("fly", {"key": "x"}),
-        ("alchemer", {"api_token": "x"}),
-        ("alchemer", {"api_token": "x", "api_token_secret": ""}),
+        ("typeform", {"keys": SECRET}),
+        ("typeform", {"key": SECRET, "extra": "y"}),
+        ("fly", {"key": SECRET}),
+        ("alchemer", {"api_token": SECRET}),
+        ("alchemer", {"api_token": SECRET, "api_token_secret": ""}),
     ],
 )
 def test_a_credential_that_does_not_match_the_shape_is_a_422(auth_type, credentials):
     """An unknown key is REFUSED, never dropped: a credential missing the one
     field that matters fails hours later as a 401 from a third party, with
-    nothing pointing back here."""
+    nothing pointing back here.
+
+    AND THE 422 DOES NOT ECHO THE SECRET. Every case here carries the sentinel
+    in a field that is wrong, misspelled or extra, so a validation error that
+    quoted pydantic's `input` back -- which for a `missing` error is the WHOLE
+    submitted object -- would fail this. That was the actual behaviour before
+    `scrub_field_errors`: a request that forgot `api_token_secret` came back
+    carrying `api_token`.
+    """
     res = client.post(
         "/users/accounts",
         headers=_token(),
@@ -461,7 +471,43 @@ def test_a_credential_that_does_not_match_the_shape_is_a_422(auth_type, credenti
     )
 
     assert res.status_code == 422, res.text
+    assert SECRET not in res.text
     assert _stored() == []
+
+
+def test_the_422_keeps_what_a_caller_needs_to_fix_the_request():
+    """Stripping the value must not strip the diagnosis: `loc`, `msg` and
+    `type` are what says which field is wrong and why."""
+    res = client.post(
+        "/users/accounts",
+        headers=_token(),
+        json={
+            "name": "x",
+            "auth_type": "alchemer",
+            "credentials": {"api_token": SECRET},
+        },
+    )
+
+    error = res.json()["detail"][0]
+    assert error["type"] == "missing"
+    assert error["msg"]
+    assert "api_token_secret" in error["loc"]
+    # ...and nothing that quotes the submission back.
+    assert not {"input", "ctx", "url"} & set(error)
+
+
+def test_a_pydantic_validation_error_is_never_rendered_with_str():
+    """`str(ValidationError)` renders `input_value=...`, which is the secret by
+    another route -- so the fallback path must not be `str(exc)` either."""
+    from pydantic import ValidationError
+
+    try:
+        acc.TypeformCredentials(keys=SECRET)
+    except ValidationError as e:
+        assert SECRET in str(e), "the premise of this test no longer holds"
+        rendered = orjson.dumps(acc._field_errors(e)).decode("utf8")
+
+    assert SECRET not in rendered
 
 
 def test_the_422_detail_carries_the_field_location():
@@ -707,4 +753,284 @@ def test_a_provider_added_without_a_stripping_rule_is_stripped_bare():
         "name": "n",
         "auth_type": "something-new",
         "created": datetime(2026, 1, 1, tzinfo=timezone.utc),
+    }
+
+
+# --------------------------------------------------------------------------
+# The shadowing guard
+#
+# The one finding in review that was a live break rather than a rough edge:
+# `campaign_queries.get_user_info` -- the optimizer's run path -- joins
+# `credentials` on `(user_id, key)` alone, ignoring the entity it selects, and
+# takes `created DESC LIMIT 1`. So creating ANY credential named after a
+# study's `general.credentials_key` replaces that study's Facebook token with a
+# NULL one, from an `auth:write`-only key, answered 201.
+#
+# These tests demonstrate the break first and then the guard, because a guard
+# whose hazard is not reproduced is a guard nobody can safely remove later.
+# --------------------------------------------------------------------------
+
+
+def _study_with_credentials_key(user_id, key):
+    """A study whose `general` conf names `key`, as the run path reads it."""
+    org_id = str(uuid.uuid4())
+    study_id = str(uuid.uuid4())
+    execute(db_conf, "insert into orgs (id, name) values (%s, %s)", (org_id, org_id))
+    execute(
+        db_conf,
+        "insert into orgs_lookup (org_id, user_id) values (%s, %s)",
+        (org_id, user_id),
+    )
+    execute(
+        db_conf,
+        "insert into studies (id, slug, name, user_id, org_id) "
+        "values (%s, %s, %s, %s, %s)",
+        (study_id, "hpv", "HPV", user_id, org_id),
+    )
+    execute(
+        db_conf,
+        "insert into study_confs (study_id, conf_type, conf) values (%s, %s, %s)",
+        (
+            study_id,
+            "general",
+            orjson.dumps(
+                {"credentials_key": key, "credentials_entity": "facebook"}
+            ).decode("utf8"),
+        ),
+    )
+    return study_id
+
+
+def test_the_run_path_really_does_resolve_by_name_alone():
+    """The premise. If this ever fails, `get_user_info` has been fixed and the
+    guard below can go -- which is exactly why it is asserted rather than
+    assumed."""
+    from ..campaign_queries import get_user_info
+
+    study_id = _study_with_credentials_key(USER, "shared-name")
+    _row(USER, "facebook", "shared-name", {"access_token": SECRET})
+
+    assert get_user_info(study_id, db_conf)["token"] == SECRET
+
+    # A LATER row of a different type, written straight to the table so the
+    # route's guard is out of the picture. This is what `POST /users/accounts`
+    # used to do.
+    upsert_account(USER, "typeform", "shared-name", {"key": "a-typeform-token"})
+
+    assert get_user_info(study_id, db_conf)["token"] is None, (
+        "get_user_info no longer resolves by name alone -- see "
+        "planning/mcp-full-coverage.md §4 and drop the guard in accounts.py"
+    )
+
+
+def test_creating_a_credential_that_would_shadow_facebook_is_a_409():
+    from ..campaign_queries import get_user_info
+
+    study_id = _study_with_credentials_key(USER, "shared-name")
+    _row(USER, "facebook", "shared-name", {"access_token": SECRET})
+
+    res = client.post(
+        "/users/accounts",
+        headers=_token(),
+        json={
+            "name": "shared-name",
+            "auth_type": "typeform",
+            "credentials": {"key": "a-typeform-token"},
+        },
+    )
+
+    assert res.status_code == 409, res.text
+    detail = res.json()["detail"]
+    assert "shared-name" in detail
+    assert "SHADOW" in detail
+    # The refusal names the mechanism, not just the collision: a caller told
+    # only "that name is taken" would reasonably try `--force`.
+    assert "NAME ALONE" in detail
+
+    # Nothing was written, and the study can still authenticate.
+    assert [r["entity"] for r in _stored()] == ["facebook"]
+    assert get_user_info(study_id, db_conf)["token"] == SECRET
+
+
+def test_the_guard_covers_the_facebook_ad_user_entity_too():
+    """`facebook_ad_user` is the entity real production rows are under, and
+    `get_user_info` does not distinguish the two either."""
+    _row(USER, "facebook_ad_user", "prod-cred", {"access_token": SECRET})
+
+    res = client.post(
+        "/users/accounts",
+        headers=_token(),
+        json={
+            "name": "prod-cred",
+            "auth_type": "fly",
+            "credentials": {"api_key": "k"},
+        },
+    )
+
+    assert res.status_code == 409
+    assert "facebook_ad_user" in res.json()["detail"]
+
+
+def test_the_guard_does_not_block_an_ordinary_replace():
+    """Re-connecting a typeform credential under its own name is the upsert this
+    route exists for, and must not be caught by the guard."""
+    client.post(
+        "/users/accounts",
+        headers=_token(),
+        json={"name": "tf", "auth_type": "typeform", "credentials": {"key": "old"}},
+    )
+
+    res = client.post(
+        "/users/accounts",
+        headers=_token(),
+        json={"name": "tf", "auth_type": "typeform", "credentials": {"key": "new"}},
+    )
+
+    assert res.status_code == 201, res.text
+    assert _stored()[0]["details"] == {"key": "new"}
+
+
+def test_two_non_facebook_credentials_may_share_a_name():
+    """The guard is Facebook-specific on purpose: `get_user_info` is the only
+    resolver that matches on name alone, and it is looking for a Facebook
+    token. Everything else filters on entity, so this shadows nothing."""
+    for auth_type, creds in (("typeform", {"key": "a"}), ("fly", {"api_key": "b"})):
+        res = client.post(
+            "/users/accounts",
+            headers=_token(),
+            json={"name": "main", "auth_type": auth_type, "credentials": creds},
+        )
+        assert res.status_code == 201, res.text
+
+    assert len(_stored()) == 2
+
+
+def test_another_users_facebook_credential_does_not_block_your_name():
+    """The guard is per user, like every other query here. Two researchers each
+    calling their Facebook credential "Facebook" is the common case."""
+    _row(OTHER_USER, "facebook", "Facebook", {"access_token": SECRET})
+
+    res = client.post(
+        "/users/accounts",
+        headers=_token(),
+        json={
+            "name": "Facebook",
+            "auth_type": "typeform",
+            "credentials": {"key": "k"},
+        },
+    )
+
+    assert res.status_code == 201, res.text
+
+
+# --------------------------------------------------------------------------
+# Names have to stay addressable
+# --------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "a/b",
+        "/leading",
+        "trailing/",
+        "line\nbreak",
+        "\x7f",
+        # `%` is the same hazard by a longer road: `a%2Fb` encodes to `a%252Fb`,
+        # which httpx and Starlette between them decode TWICE, back to a literal
+        # separator. Verified against this stack, not assumed.
+        "a%2Fb",
+        "50%",
+    ],
+)
+def test_a_name_that_could_not_be_deleted_is_refused(name):
+    """`DELETE /users/accounts/{auth_type}/{name}` is a four-segment path, so a
+    name with a `/` in it produces a row that can be created and then never
+    deleted through this API."""
+    res = client.post(
+        "/users/accounts",
+        headers=_token(),
+        json={"name": name, "auth_type": "fly", "credentials": {"api_key": "k"}},
+    )
+
+    assert res.status_code == 422, res.text
+    assert _stored() == []
+
+
+def test_the_refusal_names_the_constraint():
+    res = client.post(
+        "/users/accounts",
+        headers=_token(),
+        json={"name": "a/b", "auth_type": "fly", "credentials": {"api_key": "k"}},
+    )
+
+    rendered = res.text
+    assert "'/'" in rendered
+    assert "never deleted" in rendered
+
+
+def test_an_over_long_name_is_refused():
+    res = client.post(
+        "/users/accounts",
+        headers=_token(),
+        json={
+            "name": "n" * 201,
+            "auth_type": "fly",
+            "credentials": {"api_key": "k"},
+        },
+    )
+
+    assert res.status_code == 422
+    assert _stored() == []
+
+
+@pytest.mark.parametrize(
+    "name",
+    ["main", "a b", "a.b", "a-b_c", "Ünïcøde", "200" + "x" * 197, "a?b", "a#b", "a&b"],
+)
+def test_every_name_this_route_accepts_is_deletable(name):
+    """The property the validator exists to keep: created implies deletable.
+
+    `a?b`, `a#b` and `a&b` are here because the client percent-encodes a path
+    segment (`client._seg`), so they exercise the encoding rather than the
+    validator: each of them would otherwise change what the path means.
+    """
+    created = client.post(
+        "/users/accounts",
+        headers=_token(),
+        json={"name": name, "auth_type": "fly", "credentials": {"api_key": "k"}},
+    )
+    assert created.status_code == 201, created.text
+
+    deleted = client.delete(
+        f"/users/accounts/fly/{quote(name, safe='')}", headers=_token()
+    )
+
+    assert deleted.status_code == 204, deleted.text
+    assert _stored() == []
+
+
+# --------------------------------------------------------------------------
+# Malformed rows
+# --------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("details", ['"a string"', "[1, 2]", "17", "null"])
+def test_a_details_blob_that_is_not_an_object_does_not_500_the_listing(details):
+    """`details` is JSONB NOT NULL, but nothing makes it an OBJECT. One
+    hand-written row must not take down the whole list."""
+    execute(
+        db_conf,
+        "insert into credentials (user_id, entity, key, details) values (%s,%s,%s,%s)",
+        (USER, "api_key", "weird", details),
+    )
+
+    res = client.get("/users/accounts", headers=_token())
+
+    assert res.status_code == 200, res.text
+    assert res.json()["data"][0] == {
+        "name": "weird",
+        "auth_type": "api_key",
+        "created": res.json()["data"][0]["created"],
+        "id": None,
     }

@@ -205,6 +205,21 @@ def get_facebook_token(user_id: str, credentials_key: str):
 # `facebook_ad_user` is in the set for the same reason `list_facebook_credentials`
 # accepts it: it is the entity real production Facebook rows are under, and
 # omitting it would hide a credential a study is demonstrably running on.
+#
+# WHAT IS DELIBERATELY MISSING, and the cost of that. This is the set the
+# dashboard's Accounts page offers plus the Facebook twin -- it is NOT every
+# entity the table can hold. `whatsapp_business` is the known case (see
+# `get_facebook_token`, which names it among the entities that also store a
+# field called `access_token`): a row under it is INVISIBLE to the list route
+# and UNDELETABLE through the delete route, which answers 400 for an entity not
+# in this tuple.
+#
+# That is the safe direction for a `credentials` table shared with providers
+# this module knows nothing about -- an unknown entity is not published and not
+# destroyed -- but it is a real gap rather than a non-issue, and closing it
+# means deciding what is non-secret in each such row (`_public_row` in
+# `server/accounts.py` publishes nothing it has not been told about, so
+# ADDING an entity here is safe; it is the omission that hides things).
 ACCOUNT_ENTITIES = (
     "typeform",
     "fly",
@@ -319,6 +334,57 @@ def delete_account(user_id: str, entity: str, key: str) -> bool:
     RETURNING key
     """
     return bool(list(query(db_cnf, q, (user_id, entity, key), as_dict=True)))
+
+
+def facebook_credential_named(user_id: str, key: str):
+    """The entity of this user's Facebook credential with this NAME, or None.
+
+    THE SHADOWING HAZARD, which is why this exists.
+
+    `campaign_queries.get_user_info` is what resolves the Facebook token on the
+    optimizer's run path, and it joins `credentials` on `(user_id, key)` ALONE:
+    it selects `credentials_entity` out of the general conf and then never uses
+    it, ordering `created DESC LIMIT 1`. So the newest row with a given NAME
+    wins, whatever its entity.
+
+    That makes a credential of ANY type, created with a name equal to a study's
+    `general.credentials_key`, silently shadow that study's Facebook token --
+    `details->>'access_token'` is NULL on a Typeform row, so `token` comes back
+    None and reconciliation breaks with no error at write time. Since the
+    upsert always inserts a row whose `created` is now, the new row always
+    wins.
+
+    `server/accounts.py` refuses the write rather than letting that happen. The
+    check is Facebook-specific because `get_user_info` is: it is the one
+    resolver that matches on name alone, and it is looking for a Facebook
+    token. Two non-Facebook credentials sharing a name shadow nothing, because
+    everything else that reads this table filters on entity as well
+    (`get_facebook_token`, `list_accounts`).
+
+    THIS IS A ROUTE-LOCAL GUARD, NOT THE FIX. The real fix is for
+    `get_user_info` to filter on `entity = credentials_entity`, which it
+    already selects; that is a change to the run path and belongs in its own
+    change with its own migration story for rows whose entity disagrees with
+    the conf. See `planning/mcp-full-coverage.md` §4.
+    """
+    q = """
+    SELECT entity
+    FROM credentials
+    WHERE user_id = %s
+    AND key = %s
+    AND entity = ANY(%s)
+    ORDER BY created DESC
+    LIMIT 1
+    """
+    rows = list(
+        query(
+            db_cnf,
+            q,
+            (user_id, key, list(FACEBOOK_CREDENTIAL_ENTITIES)),
+            as_dict=True,
+        )
+    )
+    return rows[0]["entity"] if rows else None
 
 
 def user_in_org(user_id: str, org_id: str) -> bool:

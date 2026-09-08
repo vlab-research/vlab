@@ -350,6 +350,51 @@ because absent means full access; a minted child works immediately and no
 further than its scopes; and `MCPEndpoint` is asserted to hand the backend the
 caller's token, so a regression in the wiring names itself.
 
+#### What review changed, 2026-09-08
+
+Independent review returned "merge after fixes". All applied in one commit on
+this branch.
+
+1. **The shadowing break, and the only one that was a live defect.** An
+   `auth:write` key could break a study's Meta authentication with a 201 and no
+   warning, because `get_user_info` resolves by name alone. Guarded route-locally
+   with a 409; the real fix is §4. The test suite REPRODUCES the break through
+   `get_user_info` before asserting the guard, so nobody can delete the guard
+   without seeing what it was for.
+2. **A 422 echoed the credential.** Pydantic puts the offending value in
+   `input`, and for a `missing` error that is the whole enclosing object — so a
+   request that forgot `api_token_secret` came back carrying `api_token`, into
+   a response body, a log, and on `/mcp` an agent's context. `input`, `ctx` and
+   `url` are now stripped in both `accounts._field_errors` and
+   `mcp_server._field_errors`, which share one helper; `str(exc)` is no longer
+   any fallback either, because pydantic renders `input_value=` in it.
+3. **Names had to stay addressable.** `/` in a name made a row that could be
+   created and never deleted through the four-segment DELETE path. `%` turned
+   out to do the same by a longer road — `a%2Fb` encodes to `a%252Fb`, which
+   httpx and Starlette between them decode twice back into a separator, verified
+   against this stack rather than assumed. Both refused, plus control characters,
+   1–200 characters, with a test that every accepted name is deletable.
+4. **In-process `create_api_key` skipped the request model's validation**, so a
+   bad `expires_in_days` surfaced as a raw pydantic string instead of a 422.
+   Wrapped as `create_account` already was, with a test that both transports
+   reject the same values the same way.
+5. **The two transports returned different account objects.** The in-process
+   path returned the handler's raw dict, so `id` was absent where HTTP had
+   `null` and `created` was a `datetime` where HTTP had a string. Both now go
+   through the route's `response_model` with `mode="json"`. `_public_row`
+   remains the stripping layer; `AccountResource` is only shape.
+6. **`_public_row` assumed `details` was an object.** It is JSONB NOT NULL,
+   which does not mean a dict — one hand-written row would have 500'd the whole
+   listing.
+7. Smaller: `facebook_ad_user` joined `REFUSED` so it gets the OAuth
+   explanation rather than "unknown auth_type"; the comment claiming the
+   in-process parse reproduces a 422 for an unknown TOP-LEVEL field was wrong
+   and now says why (FastMCP builds the argument schema from the signature and
+   drops extras before they arrive) and what it does still reproduce; the
+   entity allowlist says what it omits and at what cost; and the fact that a
+   study resolves credentials against ITS OWNER rather than the caller is now
+   in the tool descriptions, the CLI help and §2.8.
+
 #### The open decision, unchanged
 
 **C2 sends a third-party secret through an agent's context and stores it.** It
@@ -403,3 +448,39 @@ consistent oddity.
   come only from the four-hourly `adopt-recruitment-data` cron. An agent that
   wants current spend has to wait for it. Worth a route eventually; out of
   scope here.
+- **`get_user_info` should filter on `entity = credentials_entity`.** THE ONE
+  THAT IS A LATENT BUG RATHER THAN AN ODDITY, found in review of Phase C.
+  `campaign_queries.get_user_info` is what resolves a study's Facebook token on
+  the optimizer's run path. It selects `credentials_entity` out of the `general`
+  conf and then joins `credentials` on `(user_id, key)` alone, ordering
+  `created DESC LIMIT 1` — so the newest row with a given NAME wins whatever its
+  entity, and a credential of any other type named after a study's
+  `general.credentials_key` replaces that study's token with a NULL one.
+
+  This predates Phase C: the dashboard's Go `/accounts` has always been able to
+  write such a row, and `db.get_facebook_token` documents the same
+  bug-compatibility from the other side (it deliberately matches on `key` alone
+  so that the Meta proxy cannot report "no such credential" for a key a study is
+  happily running on). What Phase C changed is that an `auth:write` API key
+  could now do it too, which is why `server/accounts.py` refuses the write with
+  a 409 (`db.facebook_credential_named`).
+
+  **The guard is route-local and is not the fix.** The fix is one predicate in
+  `get_user_info`, but it is a run-path change with a data question attached:
+  production rows exist under both `facebook` and `facebook_ad_user`
+  (`db.FACEBOOK_CREDENTIAL_ENTITIES`), the `general` conf's
+  `credentials_entity` is a free-text field the dashboard hardcodes to
+  `facebook`, and a study whose conf and row disagree would go from working to
+  broken the moment the join got stricter. So it needs a survey of live rows
+  first, and `get_facebook_token`'s matching has to move with it or the proxy
+  and the run path start disagreeing about which credential is which.
+  `server/test_accounts.py::test_the_run_path_really_does_resolve_by_name_alone`
+  fails when this is fixed, and says to drop the guard.
+- **The account listing is an allowlist of entities.** `db.ACCOUNT_ENTITIES` is
+  the dashboard's account types plus the Facebook twin, so a row under any other
+  entity — `whatsapp_business` is the known case — is invisible to
+  `GET /users/accounts` and undeletable through it. Safe in the direction that
+  matters (an unknown row is neither published nor destroyed) but a real gap.
+  Closing it means deciding what is non-secret per provider; `_public_row`
+  publishes nothing it has not been told about, so adding an entity is safe and
+  it is the omission that hides things.

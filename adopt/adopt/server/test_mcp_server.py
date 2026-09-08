@@ -1377,3 +1377,117 @@ def test_facebook_accounts_are_refused_through_mcp(app_client, org):
     assert is_error
     assert "400" in message
     assert "OAuth" in message
+
+
+# --------------------------------------------------------------------------
+# Review fixes: transport parity, and what a 422 is allowed to say
+# --------------------------------------------------------------------------
+
+
+def test_the_two_transports_return_the_same_account_shape(app_client, org):
+    """`_public_row` omits `id` for every type but `api_key`, and `created` is a
+    `datetime` in process where the wire has a string. Without the response
+    model, an agent on `/mcp` saw a different object than an HTTP caller did --
+    a missing key and an unserialisable value.
+    """
+    token, _ = generate_api_token(user_id=USER, name="p", scopes=["auth:write"])
+
+    made, is_error = call_tool(
+        app_client,
+        "create_account",
+        {"name": "tf", "auth_type": "typeform", "credentials": {"key": "s"}},
+        token,
+    )
+    assert not is_error, made
+
+    over_http = app_client.get(
+        "/users/accounts", headers={"Authorization": f"Bearer {token}"}
+    ).json()["data"]
+    in_process, is_error = call_tool(app_client, "list_accounts", {}, token)
+    assert not is_error, in_process
+
+    assert in_process["accounts"] == over_http
+    assert made == over_http[0]
+    # Specifically: the key is present rather than absent, and the timestamp is
+    # a string rather than a datetime that json.dumps would have refused.
+    assert made["id"] is None
+    assert isinstance(made["created"], str)
+
+
+@pytest.mark.parametrize("expires_in_days", [0, -1, 100000])
+def test_both_transports_reject_a_bad_ttl_the_same_way(
+    app_client, org, expires_in_days
+):
+    """`Field(ge=1, le=MAX)` is enforced by FastAPI's parse on the HTTP path.
+    The in-process path constructs the request model itself, so without its own
+    try/except a caller got a raw pydantic string instead of a 422."""
+    token, _ = generate_api_token(user_id=USER, name="p", scopes=["auth:write"])
+
+    over_http = app_client.post(
+        "/users/api-key",
+        headers={"Authorization": f"Bearer {token}"},
+        json={"name": "k", "expires_in_days": expires_in_days},
+    )
+    assert over_http.status_code == 422
+
+    message, is_error = call_tool(
+        app_client,
+        "create_api_key",
+        {"name": "k", "expires_in_days": expires_in_days},
+        token,
+    )
+
+    assert is_error
+    assert "422" in message
+
+
+def test_a_tool_validation_error_does_not_echo_the_secret(app_client, org):
+    """The leak this transport made worst: a tool error goes straight into an
+    agent's context window, and pydantic's `input` on a `missing` error is the
+    whole submitted object."""
+    token, _ = generate_api_token(user_id=USER, name="p", scopes=["auth:write"])
+    secret = "SECRET-IN-A-TOOL-ERROR-6b4c"
+
+    message, is_error = call_tool(
+        app_client,
+        "create_account",
+        {
+            "name": "x",
+            "auth_type": "alchemer",
+            "credentials": {"api_token": secret},
+        },
+        token,
+    )
+
+    assert is_error
+    assert "422" in message
+    assert secret not in message
+    # The diagnosis survives the stripping.
+    assert "api_token_secret" in message
+
+
+def test_the_shadowing_guard_holds_on_this_transport_too(app_client, org):
+    """An `auth:write` key reaching the tool must not be able to break a study's
+    Meta authentication, which is what this used to do with a 201."""
+    token, _ = generate_api_token(user_id=USER, name="p", scopes=["auth:write"])
+    execute(
+        db_conf,
+        "insert into credentials (user_id, entity, key, details) values "
+        "(%s,%s,%s,%s)",
+        (USER, "facebook", "Facebook", '{"access_token": "tok"}'),
+    )
+
+    message, is_error = call_tool(
+        app_client,
+        "create_account",
+        {
+            "name": "Facebook",
+            "auth_type": "typeform",
+            "credentials": {"key": "s"},
+        },
+        token,
+    )
+
+    assert is_error
+    assert "409" in message
+    assert "SHADOW" in message

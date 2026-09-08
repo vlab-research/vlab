@@ -2134,3 +2134,73 @@ def test_an_unquoted_date_reaches_the_server_as_the_string_it_will_store(
     assert res.exit_code == 0, res.output
     stored = obj["client"].get_confs(org, slug)["recruitment"]
     assert stored["start_date"] == "2026-06-01T00:00:00"
+
+
+# ---------------------------------------------------------------------------
+# Review fixes on the accounts group
+# ---------------------------------------------------------------------------
+
+
+def test_accounts_add_surfaces_the_shadowing_refusal(runner, obj):
+    """The 409 has to reach the terminal as a sentence, not a traceback -- and
+    it has to say why, or the researcher will just pick `--force`, which does
+    not exist, and then edit the database."""
+    execute(
+        db_conf,
+        "insert into credentials (user_id, entity, key, details) values (%s,%s,%s,%s)",
+        (USER, "facebook", "Facebook", '{"access_token": "tok"}'),
+    )
+    with open("creds.json", "w", encoding="utf8") as f:
+        json.dump({"key": "s"}, f)
+
+    res = run(
+        runner,
+        obj,
+        "accounts",
+        "add",
+        "Facebook",
+        "--type",
+        "typeform",
+        "--credentials-json",
+        "creds.json",
+    )
+
+    assert res.exit_code == 1
+    assert "409" in res.output
+    assert "SHADOW" in res.output
+
+
+def test_accounts_add_does_not_print_the_secret_on_a_validation_failure(runner, obj):
+    """A CLI error goes to the terminal and into any CI log that captures it."""
+    secret = "SECRET-IN-CLI-OUTPUT-3f9d"
+    with open("creds.json", "w", encoding="utf8") as f:
+        json.dump({"api_token": secret}, f)
+
+    res = run(
+        runner,
+        obj,
+        "accounts",
+        "add",
+        "x",
+        "--type",
+        "alchemer",
+        "--credentials-json",
+        "creds.json",
+    )
+
+    assert res.exit_code == 1
+    assert secret not in res.output
+    assert "api_token_secret" in res.output
+
+
+def test_the_accounts_add_help_warns_about_reusing_a_facebook_name(runner, obj):
+    res = run(runner, obj, "accounts", "add", "--help")
+
+    assert "DO NOT REUSE A FACEBOOK CREDENTIAL'S NAME" in res.output
+    assert "NAMES may not contain" in res.output
+
+
+def test_the_accounts_help_says_whose_credentials_these_are(runner, obj):
+    res = run(runner, obj, "accounts", "--help")
+
+    assert "shared org" in res.output

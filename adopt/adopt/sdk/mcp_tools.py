@@ -1268,6 +1268,15 @@ _ACCOUNT_NOTE = """
     SECRETS ARE NEVER RETURNED, by any tool here, on any type. There is no way
     to read a stored credential back; a lost token is re-connected, not
     recovered.
+
+    THESE ARE THE CALLING KEY'S USER'S ACCOUNTS, and a study resolves its
+    credentials against ITS OWN OWNER (`studies.user_id`), not against whoever
+    is calling. Today that distinction is invisible, because an org is one
+    person's personal workspace. In a shared org it would matter: a
+    `credentials_key` that `list_accounts` shows you, and that you can
+    therefore write into a conf, can be DEAD for a study somebody else owns,
+    and the failure appears at extraction or reconcile time rather than at
+    write time. If a study is not yours, confirm the name with its owner.
 """
 
 
@@ -1327,17 +1336,28 @@ async def create_account(
         qualtrics  {"api_key": "..."}
         alchemer   {"api_token": "...", "api_token_secret": "..."}
 
+    DO NOT REUSE A FACEBOOK CREDENTIAL'S NAME. The optimizer resolves a study's
+    Facebook token by NAME ALONE -- it ignores the type, and takes the newest
+    row -- so a `typeform` credential named after an existing Facebook one
+    SHADOWS it, and every study whose `general.credentials_key` is that name
+    stops being able to authenticate to Meta, with no error until the next
+    reconcile. This tool refuses that write with a 409 naming the conflict, so
+    you cannot cause it by accident; pick a different name rather than trying to
+    work around the refusal. `list_accounts` shows which names are taken and by
+    what.
+
     TWO TYPES ARE REFUSED, both with a 400 that says what to do instead:
 
-    * `facebook` -- the token comes out of Meta's OAuth code exchange, which
-      needs a browser and a human. Connect it on the dashboard's Accounts page;
-      then `list_accounts` and `meta_credentials` will show its name. This is
-      the one gap in the runbook that no key can close.
+    * `facebook` (and its historical twin `facebook_ad_user`) -- the token comes
+      out of Meta's OAuth code exchange, which needs a browser and a human.
+      Connect it on the dashboard's Accounts page; then `list_accounts` and
+      `meta_credentials` will show its name. This is the one gap in the runbook
+      that no key can close.
     * `api_key` -- that is the dashboard's record of a minted vlab key. Use
       `create_api_key`, which returns the token once.
 
     Returns the same non-secret row `list_accounts` returns; the secret is not
-    echoed back.
+    echoed back, and neither is it echoed back inside a validation error.
     """
     return await backend().create_account(name, auth_type, credentials)
 

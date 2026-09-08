@@ -443,35 +443,73 @@ class InProcessBackend:
                 ),
             )
 
-        body = await create_api_key(
-            CreateApiKeyRequest(
+        # The request model is constructed inside the try for the same reason
+        # `create_account` below does it: FastAPI parses the body into
+        # `CreateApiKeyRequest` on the HTTP path, and its `Field(ge=1, le=...)`
+        # on `expires_in_days` is enforced by THAT parse. Constructing it bare
+        # here would surface `expires_in_days=0` as a raw pydantic
+        # `ValidationError` string instead of the 422 the route gives.
+        try:
+            request = CreateApiKeyRequest(
                 name=name, scopes=scopes, expires_in_days=expires_in_days
-            ),
+            )
+        except Exception as e:
+            raise HTTPException(status_code=422, detail=_field_errors(e)) from e
+
+        body = await create_api_key(
+            request,
             self.user,
             HTTPAuthorizationCredentials(scheme="Bearer", credentials=self.token),
         )
         return body.data.model_dump()
 
     # -- connected accounts ------------------------------------------------
+    #
+    # Both readers wrap the handler's dict in the route's `response_model`
+    # before returning it, which the HTTP path gets for free from FastAPI. It is
+    # not decoration: without it the two transports return different things.
+    # `_public_row` omits `id` for every type but `api_key`, so `AccountResource`
+    # is what fills it in as `null`, and `created` is a `datetime` in process
+    # where the wire has an ISO string. `mode="json"` is what makes the second
+    # half true.
+    #
+    # `_public_row` remains the STRIPPING layer -- it decides what is safe to
+    # publish. `AccountResource` is only shape, and adding a field to it would
+    # not publish anything `_public_row` had not already put there.
 
     @_wire_errors
     async def list_accounts(
         self, auth_type: Optional[str] = None
     ) -> List[Dict[str, Any]]:
-        from .accounts import list_accounts_endpoint
+        from .accounts import ListAccountsResponse, list_accounts_endpoint
 
-        return (await list_accounts_endpoint(self.user, auth_type))["data"]
+        body = await list_accounts_endpoint(self.user, auth_type)
+        return ListAccountsResponse(**body).model_dump(mode="json")["data"]
 
     @_wire_errors
     async def create_account(
         self, name: str, auth_type: str, credentials: Dict[str, Any]
     ) -> Dict[str, Any]:
-        from .accounts import CreateAccountRequest, create_account_endpoint
+        from .accounts import (
+            CreateAccountRequest,
+            CreateAccountResponse,
+            create_account_endpoint,
+        )
 
-        # The route annotates the strict model, and FastAPI is what parses the
-        # body into it on the HTTP path -- so parsing it here is what reproduces
-        # the 422 for a misspelled top-level field. Same reason `post_conf`
-        # above runs the section's `TypeAdapter` itself.
+        # The route annotates the strict model and FastAPI is what parses the
+        # body into it on the HTTP path, so parsing it here is what reproduces
+        # the 422 for a value the model rejects -- a blank name, a name with a
+        # `/` in it, an over-long one. Same reason `post_conf` above runs the
+        # section's `TypeAdapter` itself.
+        #
+        # It does NOT reproduce the 422 for an unknown TOP-LEVEL field, and
+        # cannot: FastMCP builds the tool's argument schema from this method's
+        # signature and drops anything not in it, so an extra key never reaches
+        # here to be refused. `extra="forbid"` on the request model still earns
+        # its place on the HTTP path, and the unknown-key case inside
+        # `credentials` -- the one that matters, because that is where a
+        # misspelled provider field would be silently dropped -- IS reproduced,
+        # by the per-type model in the handler.
         try:
             parsed = CreateAccountRequest(
                 name=name, auth_type=auth_type, credentials=dict(credentials)
@@ -479,7 +517,8 @@ class InProcessBackend:
         except Exception as e:
             raise HTTPException(status_code=422, detail=_field_errors(e)) from e
 
-        return (await create_account_endpoint(parsed, self.user))["data"]
+        body = await create_account_endpoint(parsed, self.user)
+        return CreateAccountResponse(**body).model_dump(mode="json")["data"]
 
     @_wire_errors
     async def delete_account(self, auth_type: str, name: str) -> None:
@@ -492,18 +531,26 @@ def _field_errors(exc: Exception) -> Any:
     """A pydantic `ValidationError` in FastAPI's 422 `detail` shape.
 
     So that a client parsing `detail[i].loc` off the HTTP route can parse it off
-    a tool error too. Anything that is not a `ValidationError` falls back to its
-    message rather than being reshaped into a lie.
+    a tool error too. `body` first, matching FastAPI, which prefixes `loc` with
+    where the value came from.
+
+    THE SUBMITTED VALUE IS STRIPPED (`accounts.scrub_field_errors`). Every error
+    this produced used to carry pydantic's `input`, and for a `missing` error
+    that is the whole enclosing object -- so `create_account` with a field
+    missing echoed the credential the caller had just sent, into a tool result
+    and therefore into an agent's context. `loc`, `msg` and `type` are what a
+    caller needs to fix the request; the value is what they already have.
+
+    `str(exc)` is deliberately not the fallback for a `ValidationError` either:
+    pydantic's `__str__` renders `input_value=...`, which is the same leak by
+    another route.
     """
+    from .accounts import scrub_field_errors
+
     errors = getattr(exc, "errors", None)
     if errors is None:
-        return str(exc)
-    try:
-        # `body` first, matching FastAPI, which prefixes `loc` with where the
-        # value came from.
-        return [{**e, "loc": ["body", *e.get("loc", ())]} for e in errors()]
-    except Exception:  # noqa: BLE001 -- never let error reporting raise
-        return str(exc)
+        return "the request body did not validate"
+    return scrub_field_errors(errors(), ("body",))
 
 
 # --------------------------------------------------------------------------

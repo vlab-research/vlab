@@ -1899,6 +1899,10 @@ def accounts() -> None:
     Secrets are never printed by anything here, and there is no way to read a
     stored credential back: a lost token is re-connected, not recovered.
 
+    These are YOUR accounts, and a study resolves credentials against its own
+    owner. Today an org is one person's workspace so the two are the same; in a
+    shared org, a name you can see may be dead for somebody else's study.
+
     Connecting a FACEBOOK account is not possible from a terminal -- the token
     comes out of Meta's OAuth code exchange, which needs a browser. Do that on
     the dashboard's Accounts page; `vlab accounts list` will then show it.
@@ -1959,6 +1963,17 @@ def accounts_add(
       fly        {"api_key": "..."}
       qualtrics  {"api_key": "..."}
       alchemer   {"api_token": "...", "api_token_secret": "..."}
+
+    DO NOT REUSE A FACEBOOK CREDENTIAL'S NAME. The optimizer resolves a study's
+    Facebook token by NAME alone, newest row first, so a credential of any other
+    type with that name shadows it and every study whose
+    `general.credentials_key` is that name stops being able to reach Meta --
+    silently, until the next reconcile. This refuses such a write with a 409;
+    pick another name. `vlab accounts list` shows which are taken.
+
+    NAMES may not contain `/` (the delete route addresses an account as
+    `<type>/<name>`, so such a name could never be deleted) and are capped at
+    200 characters.
 
     \b
       vlab accounts add typeform-main --type typeform --credentials-json creds.json

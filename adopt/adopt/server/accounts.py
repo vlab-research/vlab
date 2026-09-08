@@ -60,13 +60,19 @@ Both refusals are 400s that name the alternative, rather than silent drops.
 
 import asyncio
 from datetime import datetime
-from typing import Annotated, Any, Dict, List, Optional
+from typing import Annotated, Any, Dict, List, Optional, Sequence
 
 import psycopg
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-from .db import ACCOUNT_ENTITIES, delete_account, list_accounts, upsert_account
+from .db import (
+    ACCOUNT_ENTITIES,
+    delete_account,
+    facebook_credential_named,
+    list_accounts,
+    upsert_account,
+)
 from .deps import User, get_current_user
 
 router = APIRouter()
@@ -132,18 +138,27 @@ CREATABLE: Dict[str, Any] = {
     "alchemer": AlchemerCredentials,
 }
 
-# The 400s for the two refused types, worded so the caller knows where to go
+# The 400s for the refused types, worded so the caller knows where to go
 # instead. Kept as data rather than as branches so that the list route, the
 # create route and the tool description cannot drift apart on what is refused.
+_FACEBOOK_REFUSAL = (
+    "A Facebook account cannot be created through the API. The access "
+    "token has to come from Meta's OAuth code exchange, which needs a "
+    "browser and a human: connect it on the dashboard's Accounts page, "
+    "then `list_accounts` (or `meta_credentials`) will show its name. "
+    "Storing an arbitrary string as a Facebook token would fail later, "
+    "from inside the optimizer, as an unexplained Graph rejection."
+)
+
 REFUSED: Dict[str, str] = {
-    "facebook": (
-        "A Facebook account cannot be created through the API. The access "
-        "token has to come from Meta's OAuth code exchange, which needs a "
-        "browser and a human: connect it on the dashboard's Accounts page, "
-        "then `list_accounts` (or `meta_credentials`) will show its name. "
-        "Storing an arbitrary string as a Facebook token would fail later, "
-        "from inside the optimizer, as an unexplained Graph rejection."
-    ),
+    "facebook": _FACEBOOK_REFUSAL,
+    # The historical twin. It carries a Facebook access token exactly as
+    # `facebook` does (`db.FACEBOOK_CREDENTIAL_ENTITIES` says why there are two
+    # and why both are honoured), so it has to be refused for the same reason
+    # and with the same explanation. Falling through to the "unknown auth_type"
+    # branch instead would have told a caller that the entity real production
+    # rows are stored under does not exist.
+    "facebook_ad_user": _FACEBOOK_REFUSAL,
     "api_key": (
         "An 'api_key' account is the dashboard's record of a vlab API key, "
         "written after minting one. Mint a key with POST /users/api-key "
@@ -163,7 +178,9 @@ REFUSED: Dict[str, str] = {
 class CreateAccountRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    name: str
+    # 200 characters, matching the cap `create_api_key` puts on a key name, so
+    # that the two things a user names in this table are bounded the same way.
+    name: str = Field(min_length=1, max_length=200)
     auth_type: str
     # Validated against the per-type model in the handler, not here: which
     # model applies depends on a sibling field, and a discriminated union would
@@ -173,9 +190,43 @@ class CreateAccountRequest(BaseModel):
 
     @field_validator("name")
     @classmethod
-    def _name_is_not_blank(cls, v: str) -> str:
+    def _name_is_addressable(cls, v: str) -> str:
+        """Blank, `/`, `%`, and control characters are refused.
+
+        THE PROPERTY THIS KEEPS: a name that can be created can be deleted.
+
+        `DELETE /users/accounts/{auth_type}/{name}` is a four-segment path, so
+        a name containing `/` produces a row that can be CREATED and then never
+        DELETED through this API -- the client percent-encodes the segment,
+        the stack decodes it before matching, and the request addresses a
+        five-segment path that no route serves.
+
+        `%` is refused for the same reason by a longer road, and this was
+        verified rather than assumed: a name of `a%2Fb` encodes to `a%252Fb`,
+        which httpx and Starlette between them decode TWICE, back to a literal
+        `/`. So percent-encoding is not a way to carry an arbitrary name
+        through this path, and any `%` is refused rather than only the
+        sequences that happen to decode into a separator today. Control
+        characters go for the third version of the same reason -- a newline in
+        a path is not something the stack agrees about.
+
+        Rejected at write time rather than worked around at delete time,
+        because the alternative is a route shape that takes the name somewhere
+        other than the path, and the Go service's answer to that (a body on a
+        DELETE) is what this port was moving away from. The cost is real but
+        small: these are labels a researcher chooses, `/` and `%` in one buy
+        nothing, and the refusal says so.
+        """
         if not v.strip():
             raise ValueError("name must not be blank")
+        if "/" in v or "%" in v:
+            raise ValueError(
+                "name must not contain '/' or '%': the delete route addresses "
+                "an account as /users/accounts/{auth_type}/{name}, and such a "
+                "name could be created and then never deleted"
+            )
+        if any(ord(c) < 32 or ord(c) == 127 for c in v):
+            raise ValueError("name must not contain control characters")
         return v
 
 
@@ -225,7 +276,13 @@ def _public_row(row: Dict[str, Any]) -> Dict[str, Any]:
     inserted, which the Go path and a re-connect both move -- so publishing it
     would read as an expiry date and not be one.)
     """
-    details = row.get("details") or {}
+    # `details` is JSONB and NOT NULL, but nothing constrains it to an OBJECT:
+    # a row written by hand, or by some future producer, could hold a list or a
+    # bare string, and `.get` on one of those is an AttributeError -- a 500 on
+    # the whole listing because of one malformed row. Anything that is not a
+    # dict is treated as having no readable fields, which is true.
+    details = row.get("details")
+    details = details if isinstance(details, dict) else {}
     public: Dict[str, Any] = {
         "name": row["key"],
         "auth_type": row["entity"],
@@ -324,6 +381,35 @@ async def create_account_endpoint(
         raise HTTPException(status_code=422, detail=_field_errors(e)) from e
 
     def _work():
+        # THE SHADOWING GUARD. Checked inside the worker, immediately before the
+        # write, rather than up in the handler: it is one more query on the same
+        # thread, and the gap between the check and the write is then as small
+        # as it can be without a lock. It is still a check-then-act -- two
+        # requests racing could both pass it -- which is acceptable because the
+        # hazard needs a Facebook credential to already exist, and the loser of
+        # such a race is repaired by deleting the row this route also serves.
+        #
+        # `db.facebook_credential_named` has the full explanation. Short
+        # version: `campaign_queries.get_user_info` resolves a study's Facebook
+        # token by NAME alone, newest row wins, so writing any credential named
+        # after a study's `general.credentials_key` silently replaces that
+        # study's token with a NULL one.
+        shadowed = facebook_credential_named(user.user_id, name)
+        if shadowed is not None:
+            raise HTTPException(
+                status_code=409,
+                detail=(
+                    f"A Facebook credential named '{name}' already exists "
+                    f"(entity '{shadowed}'). The optimizer resolves a study's "
+                    "Facebook credential by NAME ALONE, newest row first, so a "
+                    f"'{auth_type}' credential with this name would SHADOW it: "
+                    "any study whose general.credentials_key is "
+                    f"'{name}' would stop being able to authenticate to Meta, "
+                    "with no error until the next reconcile. Choose a "
+                    "different name."
+                ),
+            )
+
         try:
             return upsert_account(
                 user.user_id, auth_type, name, credentials.model_dump()
@@ -409,21 +495,57 @@ async def delete_account_endpoint(
     # not carry one. Same reason `api_keys.revoke_api_key` is explicit about it.
 
 
+# Keys pydantic puts on an error that ECHO WHAT WAS SUBMITTED, and which must
+# never reach a response from this module.
+#
+# `input` is the offending value itself -- and for a `missing` error it is the
+# whole enclosing object, so a request that forgot `api_token_secret` would come
+# back carrying `api_token`. `ctx` carries validator context that can hold the
+# value too (a `string_too_short` error's context, for instance). `url` is a
+# docs link, harmless but noise.
+#
+# This is the reason a 422 from this route is not simply `exc.errors()`. Every
+# other 422 on this service echoes a study conf, which the caller may see; this
+# one would echo a live third-party credential into a response body, a log line
+# and, on the MCP transports, an agent's context window.
+_ECHOING_ERROR_KEYS = ("input", "ctx", "url")
+
+
+def scrub_field_errors(errors: Any, prefix: Sequence[Any] = ()) -> Any:
+    """Pydantic errors in FastAPI's 422 `detail` shape, with the values removed.
+
+    Keeps `loc`, `msg` and `type` -- which is everything a caller needs to fix
+    the request -- and drops anything that quotes the submitted value back. See
+    `_ECHOING_ERROR_KEYS`.
+
+    Shared by this module and `mcp_server._field_errors` so that the two
+    front doors strip identically; `server/` still does not import the MCP
+    module, the dependency runs the other way.
+    """
+    try:
+        return [
+            {
+                **{k: v for k, v in e.items() if k not in _ECHOING_ERROR_KEYS},
+                "loc": [*prefix, *e.get("loc", ())],
+            }
+            for e in errors
+        ]
+    except Exception:  # noqa: BLE001 -- never let error reporting raise
+        return "the request body did not validate"
+
+
 def _field_errors(exc: Exception) -> Any:
     """A pydantic `ValidationError` in FastAPI's 422 `detail` shape.
 
-    A copy of `mcp_server._field_errors` in spirit and deliberately not an
-    import of it: `server/` must not depend on the MCP module for anything a
-    plain HTTP route needs, and this one prefixes `loc` with
-    `["body", "credentials"]` because that is where the value actually came
-    from in THIS route's body.
+    `loc` is prefixed `["body", "credentials"]` because that is where the value
+    actually came from in THIS route's body.
+
+    Note `str(exc)` is NOT the fallback for a `ValidationError`: pydantic's
+    `__str__` renders `input_value=...`, which is the secret. A non-pydantic
+    exception has no such rendering and is a defect rather than a validation
+    failure, so it gets a fixed sentence too.
     """
     errors = getattr(exc, "errors", None)
     if errors is None:
-        return str(exc)
-    try:
-        return [
-            {**e, "loc": ["body", "credentials", *e.get("loc", ())]} for e in errors()
-        ]
-    except Exception:  # noqa: BLE001 -- never let error reporting raise
-        return str(exc)
+        return "the credentials could not be validated"
+    return scrub_field_errors(errors(), ("body", "credentials"))
