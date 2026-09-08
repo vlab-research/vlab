@@ -26,6 +26,7 @@ import asyncio
 import json
 import os
 import uuid
+from datetime import datetime, timezone
 from test.dbfix import _reset_db
 from test.dbfix import cnf as db_conf
 from typing import Any, Dict, List, Optional
@@ -426,8 +427,21 @@ ROUTE_BACKED_TOOLS = {
     "diff_study": ("GET", f"/{ORG}/studies/hpv/confs"),
     "validate_study": ("POST", f"/{ORG}/studies/hpv/validate"),
     "push_study": ("POST", f"/{ORG}/studies/hpv/confs/general"),
+    "copy_study_from": ("POST", f"/{ORG}/studies/hpv/copy-from"),
     "plan_study": ("GET", f"/{ORG}/optimize/hpv"),
     "apply_instruction": ("POST", f"/{ORG}/optimize/hpv/instruction"),
+    # The study page, tool for tool. Three different resources, which is the
+    # point of pinning them: `errors` and `current-data` live under
+    # `/optimize/` and are therefore `optimize`, `ad-attributions` is
+    # `responses`, and the three report reads are `stats`. Nothing about the
+    # tool names says that, and a wrong guess here would hand a `stats:read`
+    # key the optimizer's view.
+    "study_errors": ("GET", f"/{ORG}/optimize/hpv/errors"),
+    "current_data": ("GET", f"/{ORG}/optimize/hpv/current-data"),
+    "ad_attributions": ("GET", f"/{ORG}/studies/hpv/ad-attributions"),
+    "recruitment_stats": ("GET", f"/{ORG}/studies/hpv/recruitment-stats"),
+    "respondents_over_time": ("GET", f"/{ORG}/studies/hpv/segments-progress"),
+    "cost_over_time": ("GET", f"/{ORG}/studies/hpv/cost-over-time"),
     "meta_credentials": ("GET", f"/{ORG}/meta/credentials"),
     "meta_adaccounts": ("GET", f"/{ORG}/meta/adaccounts"),
     "meta_campaigns": ("GET", f"/{ORG}/meta/campaigns"),
@@ -762,6 +776,251 @@ def test_an_out_of_range_limit_is_rejected_in_process_too(app_client, org):
 
     assert is_error
     assert "422" in message
+
+
+# --------------------------------------------------------------------------
+# The study page, over the real transport
+# --------------------------------------------------------------------------
+
+
+def _study_id(org_id: str, slug: str) -> str:
+    from ..db import query
+
+    rows = query(
+        db_conf,
+        "select id from studies where org_id = %s and slug = %s",
+        (org_id, slug),
+        as_dict=True,
+    )
+    return str(list(rows)[0]["id"])
+
+
+def test_cost_over_time_reads_the_report_a_plan_run_wrote(app_client, org):
+    """The whole `stats:read` family in one exercise, against real rows.
+
+    The report is seeded directly rather than by running a plan, because a plan
+    run means Meta. What is being asserted is the path from a JSON-RPC frame to
+    an `adopt_reports` row and back -- including that the in-process handler
+    call returns the same shape the HTTP route serialises, which is the half
+    that has no other test.
+    """
+    writer, _ = generate_api_token(user_id=USER, name="w", scopes=["studies:write"])
+    made, is_error = call_tool(
+        app_client, "create_study", {"org": org, "name": "HPV"}, writer
+    )
+    assert not is_error, made
+
+    from ..campaign_queries import create_cost_over_time_report
+
+    create_cost_over_time_report(
+        _study_id(org, made["slug"]),
+        [
+            {
+                "datetime": 1767225600000,
+                "cumulativeSpend": 100.0,
+                "cumulativeRespondents": 10,
+                "marginalCost": 10.0,
+                "newRespondents": 10,
+                "dailySpend": 100.0,
+            }
+        ],
+        db_conf,
+    )
+
+    token, _ = generate_api_token(user_id=USER, name="s", scopes=["stats:read"])
+    out, is_error = call_tool(
+        app_client, "cost_over_time", {"org": org, "slug": made["slug"]}, token
+    )
+
+    assert not is_error, out
+    assert out["count"] == 1
+    assert out["points"][0]["cumulativeSpend"] == 100.0
+    # Milliseconds, not ISO. The report's own key names and units survive the
+    # in-process call unchanged, which is what the dashboard's charts read.
+    assert out["points"][0]["datetime"] == 1767225600000
+
+
+def test_respondents_over_time_is_empty_before_any_plan_run(app_client, org):
+    """Empty, not 404 -- and the description is what has to say that the
+    difference between "no report yet" and "nobody answered" is invisible."""
+    writer, _ = generate_api_token(user_id=USER, name="w", scopes=["studies:write"])
+    made, _ = call_tool(app_client, "create_study", {"org": org, "name": "HPV"}, writer)
+
+    token, _ = generate_api_token(user_id=USER, name="s", scopes=["stats:read"])
+    out, is_error = call_tool(
+        app_client, "respondents_over_time", {"org": org, "slug": made["slug"]}, token
+    )
+
+    assert not is_error, out
+    assert out == {"points": [], "count": 0}
+
+
+def test_study_errors_is_empty_for_a_study_with_no_events(app_client, org):
+    """`[]` is the answer, not an error -- and it is not evidence of health:
+    only swoosh writes these events, and they age out after 90 minutes."""
+    writer, _ = generate_api_token(user_id=USER, name="w", scopes=["studies:write"])
+    made, _ = call_tool(app_client, "create_study", {"org": org, "name": "HPV"}, writer)
+
+    token, _ = generate_api_token(user_id=USER, name="o", scopes=["optimize:read"])
+    out, is_error = call_tool(
+        app_client, "study_errors", {"org": org, "slug": made["slug"]}, token
+    )
+
+    assert not is_error, out
+    assert out == {"errors": [], "count": 0}
+
+
+def _make_study(app_client, org, name="HPV"):
+    writer, _ = generate_api_token(user_id=USER, name=f"w-{name}", scopes=["*"])
+    made, is_error = call_tool(
+        app_client, "create_study", {"org": org, "name": name}, writer
+    )
+    assert not is_error, made
+    return made["slug"], writer
+
+
+def test_study_errors_serialises_its_timestamps_the_way_the_wire_does(app_client, org):
+    """The guard for `model_dump(mode="json")` in `InProcessBackend`.
+
+    A plain `model_dump()` returns `datetime` OBJECTS. Over HTTP the same
+    handler's `last_seen` arrives as an ISO string, because FastAPI serialises
+    the response model through pydantic's JSON serializer -- so without the
+    mode this tool would answer with two different types depending on which
+    front door was used, and the difference would surface as a JSON-encoding
+    failure or a type error in an agent, a long way from its cause. Nothing
+    else can see it: the drift guard compares tool LISTINGS, not results, and
+    the stdio path goes over real HTTP and is therefore always strings.
+    """
+    slug, _ = _make_study(app_client, org)
+    execute(
+        db_conf,
+        """
+        insert into study_run_events
+            (study_id, source, event_type, fingerprint, severity, message)
+        values (%s, 'swoosh', 'extraction_failed', 'fp-1', 'error', 'boom')
+        """,
+        (_study_id(org, slug),),
+    )
+
+    token, _ = generate_api_token(user_id=USER, name="o", scopes=["optimize:read"])
+    out, is_error = call_tool(
+        app_client, "study_errors", {"org": org, "slug": slug}, token
+    )
+
+    assert not is_error, out
+    assert out["count"] == 1
+    assert out["errors"][0]["message"] == "boom"
+    assert isinstance(out["errors"][0]["last_seen"], str)
+    assert isinstance(out["errors"][0]["first_seen"], str)
+
+
+def test_ad_attributions_comes_back_as_a_table_over_mcp(app_client, org):
+    """One of three tools whose in-process method nothing else calls: a typo in
+    the handler import would have shipped green before this."""
+    slug, _ = _make_study(app_client, org)
+    execute(
+        db_conf,
+        """
+        insert into ad_attributions
+            (network, ad_id, study_id, stratum_id, creative_name, shortcode,
+             metadata, resolved_from)
+        values ('facebook', 'ad-1', %s, 'everyone', 'Smiling', 'mnchweek',
+                %s, 'ad_id')
+        """,
+        (_study_id(org, slug), json.dumps({"gender": "women"})),
+    )
+
+    token, _ = generate_api_token(user_id=USER, name="r", scopes=["responses:read"])
+    out, is_error = call_tool(
+        app_client, "ad_attributions", {"org": org, "slug": slug}, token
+    )
+
+    assert not is_error, out
+    assert out["count"] == 1
+    assert out["columns"][0] == "ad_id"
+    # The metadata blob flattened under its own key name: the join story.
+    assert out["rows"][0]["gender"] == "women"
+
+
+def test_current_data_comes_back_over_mcp(app_client, org):
+    """Mocked at `fetch_current_data`, the boundary that reads the study's
+    Facebook credential and its survey data -- the same one the route's own
+    tests mock. Everything from the JSON-RPC frame to the response model is
+    real, including the timestamp serialisation."""
+    import pandas as pd
+
+    slug, _ = _make_study(app_client, org)
+    df = pd.DataFrame(
+        [
+            {
+                "user_id": "u1",
+                "variable": "age",
+                "value": "25",
+                "timestamp": datetime(2026, 1, 1, tzinfo=timezone.utc),
+            }
+        ]
+    )
+
+    token, _ = generate_api_token(user_id=USER, name="o2", scopes=["optimize:read"])
+    with patch("adopt.server.server.fetch_current_data") as m:
+        m.return_value = df
+        out, is_error = call_tool(
+            app_client, "current_data", {"org": org, "slug": slug}, token
+        )
+
+    assert not is_error, out
+    assert out["count"] == 1
+    assert out["rows"][0]["user_id"] == "u1"
+    assert out["rows"][0]["timestamp"] == "2026-01-01T00:00:00Z"
+
+
+def test_copy_study_from_writes_through_mcp(app_client, org):
+    """The one WRITE in this group, end to end: the copy has to actually land
+    in the target's confs, and `general` has to stay behind."""
+    source, writer = _make_study(app_client, org, "Source")
+    target, _ = _make_study(app_client, org, "Target")
+
+    pushed, is_error = call_tool(
+        app_client,
+        "push_study",
+        {"org": org, "slug": source, "sections": study()},
+        writer,
+    )
+    assert not is_error, pushed
+
+    token, _ = generate_api_token(user_id=USER, name="cw", scopes=["studies:write"])
+    copied, is_error = call_tool(
+        app_client,
+        "copy_study_from",
+        {"org": org, "slug": target, "source_slug": source},
+        token,
+    )
+
+    assert not is_error, copied
+    assert "general" not in copied
+    assert "destinations" in copied
+
+    pulled, is_error = call_tool(
+        app_client, "pull_study", {"org": org, "slug": target}, writer
+    )
+    assert not is_error, pulled
+    assert pulled["sections"]["destinations"][0]["name"] == "main"
+    # `general` is the ad account and the Facebook credential; it does not
+    # follow a study around, so the target is still missing it.
+    assert "general" in pulled["never_written"]
+
+
+def test_a_studies_read_key_cannot_call_recruitment_stats(app_client, org):
+    """`stats` is its own resource, and `studies:read` does not imply it. The
+    error names the scope so an agent can say what to ask a human for."""
+    token, _ = generate_api_token(user_id=USER, name="ro", scopes=["studies:read"])
+
+    message, is_error = call_tool(
+        app_client, "recruitment_stats", {"org": org, "slug": "anything"}, token
+    )
+
+    assert is_error
+    assert "stats:read" in message
 
 
 def test_a_read_only_key_can_discover_but_a_meta_key_cannot(app_client, org):

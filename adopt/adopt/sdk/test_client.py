@@ -16,8 +16,10 @@ covering (Meta's `detail` object, a non-JSON body from an ingress) cannot be
 produced by this app at all.
 """
 
+import json
 import os
 import uuid
+from datetime import datetime, timezone
 from test.dbfix import _reset_db
 from test.dbfix import cnf as db_conf
 from unittest.mock import patch
@@ -25,7 +27,7 @@ from unittest.mock import patch
 import pytest
 from fastapi.testclient import TestClient
 
-from ..db import execute
+from ..db import execute, query
 
 os.environ["PG_URL"] = db_conf
 os.environ["AUTH0_DOMAIN"] = "_"
@@ -406,6 +408,240 @@ def test_apply_posts_the_instruction_verbatim(client, org):
 
     assert result["instruction"] == instruction
     assert m.call_args[0][3].model_dump() == instruction
+
+
+# ---------------------------------------------------------------------------
+# What a running study is doing
+# ---------------------------------------------------------------------------
+
+
+def _study_id(org_id, slug):
+    rows = query(
+        db_conf,
+        "select id from studies where org_id = %s and slug = %s",
+        (org_id, slug),
+        as_dict=True,
+    )
+    return str(list(rows)[0]["id"])
+
+
+def test_study_errors_returns_the_list_not_the_envelope(client, org):
+    """This route wraps under `errors`, not `data`, so `_data` would hand back
+    `{"errors": [...]}` -- the one method on this client that would return an
+    envelope where every neighbour returns a payload."""
+    slug = client.create_study(org, "HPV")["slug"]
+
+    assert client.study_errors(org, slug) == []
+
+
+def test_study_errors_reports_an_open_error(client, org):
+    slug = client.create_study(org, "HPV")["slug"]
+    execute(
+        db_conf,
+        """
+        insert into study_run_events
+            (study_id, source, event_type, fingerprint, severity, message)
+        values (%s, 'swoosh', 'extraction_failed', 'fp-1', 'error', 'boom')
+        """,
+        (_study_id(org, slug),),
+    )
+
+    rows = client.study_errors(org, slug)
+
+    assert [r["message"] for r in rows] == ["boom"]
+    assert rows[0]["severity"] == "error"
+
+
+def test_ad_attributions_is_a_table_of_columns_and_rows(client, org):
+    slug = client.create_study(org, "HPV")["slug"]
+    execute(
+        db_conf,
+        """
+        insert into ad_attributions
+            (network, ad_id, study_id, stratum_id, creative_name, shortcode,
+             metadata, resolved_from)
+        values ('facebook', 'ad-1', %s, 'everyone', 'Smiling', 'mnchweek',
+                %s, 'ad_id')
+        """,
+        (_study_id(org, slug), json.dumps({"gender": "women"})),
+    )
+
+    table = client.ad_attributions(org, slug)
+
+    assert table["columns"][0] == "ad_id"
+    # The metadata blob is flattened into columns under its own key names --
+    # that is the whole join story, and a rename here breaks it silently.
+    assert "gender" in table["columns"]
+    assert table["rows"][0]["gender"] == "women"
+
+
+def test_ad_attributions_csv_is_text_and_not_a_transport_error(client, org):
+    """The `.csv` route answers `text/csv`. Going through `request` would raise
+    `TransportError` on a perfectly good response, which is why `request_text`
+    exists at all."""
+    slug = client.create_study(org, "HPV")["slug"]
+    execute(
+        db_conf,
+        """
+        insert into ad_attributions
+            (network, ad_id, study_id, stratum_id, creative_name, shortcode,
+             metadata, resolved_from)
+        values ('facebook', 'ad-1', %s, 'everyone', 'Smiling', 'mnchweek',
+                %s, 'ad_id')
+        """,
+        (_study_id(org, slug), json.dumps({"gender": "women"})),
+    )
+
+    body = client.ad_attributions_csv(org, slug)
+
+    assert body.splitlines()[0].startswith("ad_id,network,")
+    assert "ad-1" in body
+
+
+def test_current_data_is_the_inference_windows_rows(client, org):
+    """Mocked at `fetch_current_data`, which is where the real thing reads a
+    study's Facebook credential and its survey data -- the same boundary the
+    app's own tests for this route mock. What is exercised here is the client
+    method and the route's serialisation of it."""
+    import pandas as pd
+
+    slug = client.create_study(org, "HPV")["slug"]
+    df = pd.DataFrame(
+        [
+            {
+                "user_id": "u1",
+                "variable": "age",
+                "value": "25",
+                "timestamp": datetime(2026, 1, 1, tzinfo=timezone.utc),
+            }
+        ]
+    )
+
+    with patch("adopt.server.server.fetch_current_data") as m:
+        m.return_value = df
+        rows = client.current_data(org, slug)
+
+    assert rows == [
+        {
+            "user_id": "u1",
+            "variable": "age",
+            "value": "25",
+            "timestamp": "2026-01-01T00:00:00Z",
+        }
+    ]
+
+
+def test_current_data_is_empty_when_there_is_none(client, org):
+    slug = client.create_study(org, "HPV")["slug"]
+
+    with patch("adopt.server.server.fetch_current_data") as m:
+        m.return_value = None
+        assert client.current_data(org, slug) == []
+
+
+def test_recruitment_stats_is_a_404_before_any_plan_run(client, org):
+    """Not an empty dict: respondent counts come from the latest
+    FACEBOOK_ADOPT report, and reporting zero respondents against real spend
+    would be a wrong answer rather than a missing one."""
+    slug = client.create_study(org, "HPV")["slug"]
+
+    with pytest.raises(NotFoundError):
+        client.recruitment_stats(org, slug)
+
+
+def test_the_two_time_series_are_empty_before_any_plan_run(client, org):
+    """Empty, not 404 -- the routes differ from `recruitment-stats` here, and
+    a caller has to know which of the three it is talking to."""
+    slug = client.create_study(org, "HPV")["slug"]
+
+    assert client.respondents_over_time(org, slug) == []
+    assert client.cost_over_time(org, slug) == []
+
+
+def test_the_time_series_come_back_as_the_reports_were_written(client, org):
+    """Seeded directly rather than by running a plan, which would mean Meta.
+    What matters is that the report's own key names and its millisecond
+    `datetime` survive the round trip: the dashboard's charts read them."""
+    from ..campaign_queries import (
+        create_cost_over_time_report,
+        create_respondents_over_time_report,
+    )
+
+    slug = client.create_study(org, "HPV")["slug"]
+    study_id = _study_id(org, slug)
+
+    create_respondents_over_time_report(
+        study_id,
+        {
+            "data": [
+                {
+                    "datetime": 1767225600000,
+                    "totalParticipants": 3,
+                    "segments": [{"id": "everyone", "participants": 3}],
+                }
+            ]
+        },
+        db_conf,
+    )
+    create_cost_over_time_report(
+        study_id,
+        [
+            {
+                "datetime": 1767225600000,
+                "cumulativeSpend": 100.0,
+                "cumulativeRespondents": 3,
+                "marginalCost": 33.3,
+                "newRespondents": 3,
+                "dailySpend": 100.0,
+            }
+        ],
+        db_conf,
+    )
+
+    points = client.respondents_over_time(org, slug)
+    assert points[0]["totalParticipants"] == 3
+    assert points[0]["segments"][0]["id"] == "everyone"
+    assert points[0]["datetime"] == 1767225600000
+
+    costs = client.cost_over_time(org, slug)
+    assert costs[0]["cumulativeSpend"] == 100.0
+    assert costs[0]["marginalCost"] == 33.3
+
+
+def test_copy_from_appends_every_section_but_general(client, org):
+    """Append-only: the copy supersedes what the target held and deletes
+    nothing. `general` is skipped because it names the ad account and the
+    Facebook credential, which should not follow a study around."""
+    source = client.create_study(org, "Source")["slug"]
+    target = client.create_study(org, "Target")["slug"]
+
+    client.post_conf(
+        org,
+        source,
+        "general",
+        {
+            "name": "x",
+            "credentials_key": "Facebook",
+            "credentials_entity": "facebook",
+            "ad_account": "123",
+            "opt_window": 48,
+        },
+    )
+    client.post_conf(org, source, "destinations", [MESSENGER])
+
+    copied = client.copy_from(org, target, source)
+
+    assert "general" not in copied
+    assert "destinations" in copied
+    assert client.get_confs(org, target)["destinations"][0]["name"] == "main"
+
+
+def test_copying_from_a_study_with_nothing_to_copy_is_a_404(client, org):
+    source = client.create_study(org, "Source")["slug"]
+    target = client.create_study(org, "Target")["slug"]
+
+    with pytest.raises(NotFoundError):
+        client.copy_from(org, target, source)
 
 
 # ---------------------------------------------------------------------------

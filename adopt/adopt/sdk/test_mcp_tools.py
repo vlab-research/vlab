@@ -327,6 +327,18 @@ def test_push_study_reports_what_landed_when_a_write_fails():
     assert "422" in out["error"]
 
 
+def test_copy_study_from_is_the_client_call_and_returns_what_was_copied():
+    copied = {"strata": [], "creatives": []}
+    backend = Recorder(copy_from=copied)
+
+    out = run(mt.copy_study_from, backend, org=ORG, slug=SLUG, source_slug="old")
+
+    # Argument ORDER is the thing worth pinning: target first, source last, and
+    # reversing them overwrites the study you meant to copy from.
+    assert backend.calls == [("copy_from", (ORG, SLUG, "old"), {})]
+    assert out == copied
+
+
 def test_compile_strata_is_the_dashboards_regeneration():
     variables = [
         {
@@ -445,6 +457,112 @@ def test_apply_instruction_refuses_an_index_outside_the_current_plan():
         run(mt.apply_instruction, backend, org=ORG, slug=SLUG, index=0)
 
     assert backend.names == ["plan"]
+
+
+# ---------------------------------------------------------------------------
+# The study-page tools
+# ---------------------------------------------------------------------------
+
+
+def test_study_errors_names_and_counts_the_list():
+    rows = [
+        {
+            "source": "swoosh",
+            "fingerprint": "abc",
+            "severity": "error",
+            "message": "boom",
+            "details": None,
+            "last_seen": "2026-09-08T10:00:00Z",
+            "first_seen": "2026-09-08T09:00:00Z",
+        }
+    ]
+    backend = Recorder(study_errors=rows)
+
+    out = run(mt.study_errors, backend, org=ORG, slug=SLUG)
+
+    assert backend.calls == [("study_errors", (ORG, SLUG), {})]
+    assert out == {"errors": rows, "count": 1}
+
+
+def test_study_errors_passes_an_empty_list_through():
+    """`[]` is the answer for a healthy study AND for one whose cron stopped
+    running, which is why the description carries the caveat rather than the
+    tool inventing a status field the route does not have."""
+    assert run(mt.study_errors, Recorder(study_errors=[]), org=ORG, slug=SLUG) == {
+        "errors": [],
+        "count": 0,
+    }
+
+
+def test_current_data_names_and_counts_the_rows():
+    rows = [
+        {
+            "user_id": "u1",
+            "variable": "age",
+            "value": "25",
+            "timestamp": "2026-09-08T10:00:00Z",
+        }
+    ]
+    backend = Recorder(current_data=rows)
+
+    out = run(mt.current_data, backend, org=ORG, slug=SLUG)
+
+    assert backend.calls == [("current_data", (ORG, SLUG), {})]
+    assert out == {"rows": rows, "count": 1}
+
+
+def test_ad_attributions_keeps_the_table_and_adds_a_count():
+    table = {"columns": ["ad_id", "stratum"], "rows": [{"ad_id": "1", "stratum": "a"}]}
+    backend = Recorder(ad_attributions=table)
+
+    out = run(mt.ad_attributions, backend, org=ORG, slug=SLUG)
+
+    assert backend.calls == [("ad_attributions", (ORG, SLUG), {})]
+    # `columns` survives verbatim: it is a union across rows in first-seen
+    # order, and a caller deriving it from the rows would get a different shape
+    # from the CSV the server writes.
+    assert out["columns"] == ["ad_id", "stratum"]
+    assert out["rows"] == table["rows"]
+    assert out["count"] == 1
+
+
+def test_recruitment_stats_is_the_per_stratum_dict():
+    stats = {"everyone": {"spend": 10.0, "respondents": 2}}
+    backend = Recorder(recruitment_stats=stats)
+
+    out = run(mt.recruitment_stats, backend, org=ORG, slug=SLUG)
+
+    assert backend.calls == [("recruitment_stats", (ORG, SLUG), {})]
+    assert out == {"strata": stats}
+
+
+def test_respondents_over_time_names_and_counts_the_points():
+    points = [{"datetime": 1767225600000, "totalParticipants": 3, "segments": []}]
+    backend = Recorder(respondents_over_time=points)
+
+    out = run(mt.respondents_over_time, backend, org=ORG, slug=SLUG)
+
+    assert backend.calls == [("respondents_over_time", (ORG, SLUG), {})]
+    assert out == {"points": points, "count": 1}
+
+
+def test_cost_over_time_names_and_counts_the_points():
+    points = [{"datetime": 1767225600000, "cumulativeSpend": 10.0}]
+    backend = Recorder(cost_over_time=points)
+
+    out = run(mt.cost_over_time, backend, org=ORG, slug=SLUG)
+
+    assert backend.calls == [("cost_over_time", (ORG, SLUG), {})]
+    assert out == {"points": points, "count": 1}
+
+
+@pytest.mark.parametrize("tool", ["respondents_over_time", "cost_over_time"])
+def test_the_report_tools_pass_an_empty_series_through(tool):
+    """Empty means "no plan run has written the report", which is the one thing
+    a caller reading a blank chart will otherwise get wrong."""
+    backend = Recorder(**{tool: []})
+
+    assert run(getattr(mt, tool), backend, org=ORG, slug=SLUG)["count"] == 0
 
 
 @pytest.mark.parametrize(
@@ -644,6 +762,97 @@ def test_plan_study_says_it_reads_meta_and_heals_attributions():
     assert "NOT SIDE-EFFECT FREE" in description
     assert "META" in description
     assert "HEALS AD ATTRIBUTIONS" in description
+
+
+def test_study_errors_says_why_an_empty_list_is_not_health():
+    """The single most misleadable answer this service gives. An agent that
+    reads `[]` as "healthy" will report a study as fine when its cron is dead
+    and when adopt has failed to build a single ad."""
+    description = tool_descriptions()["study_errors"]
+
+    assert "90 MINUTES" in description
+    assert "swoosh" in description
+    assert "adopt" in description
+
+
+def test_current_data_says_it_is_one_row_per_respondent_per_variable():
+    """A caller who reads it as one row per respondent will report the wrong
+    sample size, and the count is the first thing anyone looks at."""
+    description = tool_descriptions()["current_data"]
+
+    assert "ONE ROW PER RESPONDENT PER VARIABLE" in description
+    assert "five minutes" in description
+
+
+def test_recruitment_stats_says_what_its_404_means():
+    """Not "the study does not exist": no plan run has ever written the report
+    respondent counts come from. The fix is to run one, and it is not free."""
+    description = tool_descriptions()["recruitment_stats"]
+
+    assert "404" in description
+    assert "plan_study" in description
+
+
+def test_recruitment_stats_does_not_claim_to_be_live_meta_data():
+    """It reads `recruitment_data_events`, which a cron fills every four hours.
+    Calling it "live Meta insights" -- as an earlier draft of this description
+    did -- would have an agent reporting four-hour-old spend as current."""
+    description = tool_descriptions()["recruitment_stats"]
+
+    assert "recruitment_data_events" in description
+    assert "FOUR HOURS" in description
+    # And the field that is not what its name says.
+    assert "cpm" in description.lower()
+    assert "impressions / spend" in description
+
+
+def test_cost_over_time_says_that_cumulative_spend_includes_incentives():
+    """`cumulativeSpend` is ad spend plus incentives and `dailySpend` is ad
+    spend alone, so the first is not the running sum of the second. An agent
+    that assumed it was would report the wrong total for any study that pays
+    respondents."""
+    description = tool_descriptions()["cost_over_time"]
+
+    assert "incentive" in description.lower()
+    assert "not the running sum" in description
+
+
+def test_current_data_names_the_real_inference_window():
+    """`general.opt_window` is the recruitment-data lookback, not this. Naming
+    the wrong field would send a reader to change a number that has no effect
+    on what this returns."""
+    description = tool_descriptions()["current_data"]
+
+    assert "start_date" in description
+    assert "pipeline_experiment" in description
+    assert "opt_window" in description
+
+
+def test_respondents_over_time_says_the_last_point_is_not_the_total():
+    """It counts inside the inference window and across currently-configured
+    strata only, so a renamed stratum's respondents silently vanish from it."""
+    description = tool_descriptions()["respondents_over_time"]
+
+    assert "HOURLY" in description
+    assert "CURRENTLY-CONFIGURED" in description
+
+
+@pytest.mark.parametrize("name", ["respondents_over_time", "cost_over_time"])
+def test_the_report_tools_say_that_only_a_plan_run_refreshes_them(name):
+    """Both read a pre-computed report, so empty means "not computed yet"
+    rather than "nothing happened" -- and the thing that computes it writes."""
+    description = tool_descriptions()[name]
+
+    assert "EMPTY" in description
+    assert "plan_study" in description
+
+
+def test_copy_study_from_says_what_it_appends_and_what_it_skips():
+    description = tool_descriptions()["copy_study_from"]
+
+    assert "append-only" in description
+    assert "general" in description
+    assert "recruitment" in description
 
 
 def test_the_server_instructions_carry_the_reference_graph():

@@ -361,6 +361,18 @@ Deliberately not done (§16.7):
 
 Closed since:
 
+- ~~**Everything the dashboard's study page shows is out of reach.**~~ The
+  Errors tab, Current Data, Ad Attributions, Recruitment Statistics, the
+  participants chart, the spend charts and "initialize from an existing study"
+  were seven routes with no tool, no CLI command and no client method. All
+  seven landed in adopt v0.1.91 as `study_errors`, `current_data`,
+  `ad_attributions`, `recruitment_stats`, `respondents_over_time`,
+  `cost_over_time` and `copy_study_from`, on both transports, under three
+  different scope resources (`optimize:read`, `responses:read`, `stats:read`,
+  and `studies:write` for the copy) — which is what the guard in §3 pinned,
+  because the tool names do not say which. Design record and what remains:
+  `planning/mcp-full-coverage.md`, Phase A.
+
 - ~~**Nothing an API key can call lists orgs.**~~ The discovery gap, which
   every tool description repeated back to the agent as "a human has to hand you
   the id". `GET /orgs` and `GET /{org_id}/studies` landed in adopt v0.1.88 with

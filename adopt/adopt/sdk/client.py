@@ -2,9 +2,11 @@
 
 Wraps exactly the API `documentation/agent-api.md` describes, and nothing else:
 org and study discovery, study creation, the nine conf writes and the two
-reads, whole-study validation, the optimize plan/apply pair, the read-only Meta
-proxy, and API-key listing and revocation. Every method returns the parsed
-`data` payload and raises on a non-2xx.
+reads, whole-study validation, the optimize plan/apply pair, the study's
+observability reads (errors, current data, ad attributions, recruitment stats
+and the two time series), the read-only Meta proxy, and API-key listing and
+revocation. Every method returns the parsed `data` payload and raises on a
+non-2xx.
 
 WHY THE ERRORS ARE TYPED
 ------------------------
@@ -341,8 +343,16 @@ class VlabClient:
 
     # -- plumbing ----------------------------------------------------------
 
-    def _headers(self) -> Dict[str, str]:
-        headers = {"Accept": "application/json"}
+    def _headers(self, accept: str = "application/json") -> Dict[str, str]:
+        """The request headers. `accept` is a parameter for exactly one route.
+
+        `…/ad-attributions.csv` answers `text/csv` and always has -- FastAPI's
+        `Response(media_type=...)` does not negotiate -- so sending
+        `Accept: application/json` at it would be the client asking for
+        something it knows it will not get, and a proxy or a future content
+        negotiation would be entitled to answer 406.
+        """
+        headers = {"Accept": accept}
         if self.api_key:
             headers["Authorization"] = f"Bearer {self.api_key}"
         return headers
@@ -360,6 +370,52 @@ class VlabClient:
         pass optional query parameters positionally without building the dict
         conditionally at every call site.
         """
+        response = self._send(method, path, params, json)
+
+        if response.status_code == 204 or not (response.text or "").strip():
+            return None
+
+        try:
+            return response.json()
+        except ValueError as e:
+            raise TransportError(
+                f"{method} {self.base_url}{path} returned {response.status_code} "
+                f"with a body that is not JSON: {(response.text or '')[:200]!r}"
+            ) from e
+
+    def request_text(
+        self,
+        method: str,
+        path: str,
+        params: Optional[Mapping[str, Any]] = None,
+        json: Any = None,
+        accept: str = "text/csv",
+    ) -> str:
+        """One request whose body is not JSON. Returns it as text.
+
+        Exists for exactly one route -- `…/ad-attributions.csv` -- which answers
+        `text/csv`. Going through `request` would raise `TransportError` on a
+        perfectly good response, because "the body is not JSON" is a real
+        failure everywhere else on this service.
+        """
+        return self._send(method, path, params, json, accept).text or ""
+
+    def _send(
+        self,
+        method: str,
+        path: str,
+        params: Optional[Mapping[str, Any]] = None,
+        json: Any = None,
+        accept: str = "application/json",
+    ) -> Any:
+        """Put one request on the wire and raise on a non-2xx. The response object.
+
+        Split out of `request` so that the CSV route can read `.text` off the
+        same plumbing: everything up to "did this fail" is identical for both
+        callers and only the decoding differs, and two copies of the error
+        mapping is exactly how two front doors start reporting a 404
+        differently.
+        """
         url = f"{self.base_url}{path}"
         query = {k: v for k, v in params.items() if v is not None} if params else None
 
@@ -369,7 +425,7 @@ class VlabClient:
                 url,
                 params=query,
                 json=json,
-                headers=self._headers(),
+                headers=self._headers(accept),
                 timeout=self.timeout,
             )
         except VlabError:
@@ -393,16 +449,7 @@ class VlabClient:
         if response.status_code >= 400:
             raise self._error(method, url, response)
 
-        if response.status_code == 204 or not (response.text or "").strip():
-            return None
-
-        try:
-            return response.json()
-        except ValueError as e:
-            raise TransportError(
-                f"{method} {url} returned {response.status_code} with a body that "
-                f"is not JSON: {(response.text or '')[:200]!r}"
-            ) from e
+        return response
 
     def _error(self, method: str, url: str, response: Any) -> VlabHTTPError:
         text = response.text or ""
@@ -508,7 +555,17 @@ class VlabClient:
         )
 
     def copy_from(self, org_id: str, slug: str, source_slug: str) -> Dict[str, Any]:
-        """`POST /{org}/studies/{slug}/copy-from` -- every section but `general`."""
+        """`POST /{org}/studies/{slug}/copy-from` -- every section but `general`.
+
+        Appends the source's newest row per conf type to the destination, so
+        the copy supersedes whatever the destination held and nothing is
+        deleted. `general` is skipped because it names the ad account and the
+        Facebook credential, which are the two things a copy should not carry.
+
+        Both slugs are resolved against the caller's own studies in this org,
+        so a source you do not own is a 404 rather than a copy. 404 also when
+        the source has nothing to copy.
+        """
         return self._data(
             "POST",
             f"/{_seg(org_id)}/studies/{_seg(slug)}/copy-from",
@@ -564,12 +621,122 @@ class VlabClient:
         )
 
     def study_errors(self, org_id: str, slug: str) -> List[Dict[str, Any]]:
-        """`GET /{org}/optimize/{slug}/errors`.
+        """`GET /{org}/optimize/{slug}/errors` -- the list, unwrapped.
 
         swoosh's extraction errors only -- adopt writes no events at all, so an
         empty list is not evidence that ad building is healthy (§2.3).
+
+        This route wraps its payload under `errors`, not `data`, which is the
+        one place on this service where `_data` would hand back the envelope
+        instead of the contents. Unwrapped here rather than at the call sites,
+        so that every method on this class returns the payload and none of them
+        returns "the payload, unless it is this one".
         """
-        return self._data("GET", f"/{_seg(org_id)}/optimize/{_seg(slug)}/errors")
+        body = self.request("GET", f"/{_seg(org_id)}/optimize/{_seg(slug)}/errors")
+        return body["errors"] if isinstance(body, dict) and "errors" in body else body
+
+    def current_data(self, org_id: str, slug: str) -> List[Dict[str, Any]]:
+        """`GET /{org}/optimize/{slug}/current-data` -- what the optimizer sees.
+
+        One row per respondent per variable inside the study's inference
+        window, `{user_id, variable, value, timestamp}`.
+
+        The window is `Recruitment.get_inference_window(now)`:
+        `start_date`..`end_date` for `simple` and `destination` studies, and the
+        CURRENT WAVE only for a `pipeline_experiment`. Not `general.opt_window`,
+        which is the recruitment-data lookback for budget arithmetic and has no
+        effect here.
+
+        Can be large: the server allows this one five minutes, which is why
+        `DEFAULT_TIMEOUT_SECONDS` is above that.
+        """
+        return self._data("GET", f"/{_seg(org_id)}/optimize/{_seg(slug)}/current-data")
+
+    # -- the study's reports -----------------------------------------------
+
+    def ad_attributions(self, org_id: str, slug: str) -> Dict[str, Any]:
+        """`GET /{org}/studies/{slug}/ad-attributions` -- `{columns, rows}`.
+
+        The frozen ad -> stratum mapping, with the metadata blob flattened into
+        columns under its own key names. Every mapping row is included,
+        including ads Meta no longer has: respondents keep arriving from
+        deleted ads through reshared page posts, and a missing row there would
+        look exactly like an unattributed respondent.
+        """
+        return self._data(
+            "GET", f"/{_seg(org_id)}/studies/{_seg(slug)}/ad-attributions"
+        )
+
+    def ad_attributions_csv(self, org_id: str, slug: str) -> str:
+        """`GET /{org}/studies/{slug}/ad-attributions.csv` -- the CSV body.
+
+        The same rows as `ad_attributions`, rendered by the same definition, so
+        the table and a file downloaded seconds later cannot disagree. Text
+        rather than JSON, hence `request_text`.
+        """
+        return self.request_text(
+            "GET", f"/{_seg(org_id)}/studies/{_seg(slug)}/ad-attributions.csv"
+        )
+
+    def recruitment_stats(self, org_id: str, slug: str) -> Dict[str, Any]:
+        """`GET /{org}/studies/{slug}/recruitment-stats` -- per stratum. `stats:read`.
+
+        Spend, reach, clicks, impressions and the derived price per
+        respondent, incentive cost, total cost and conversion rate, keyed by
+        stratum id.
+
+        Neither half is live and the two are stale by different amounts. Spend,
+        reach, clicks and impressions are summed over all time from
+        `recruitment_data_events`, which the `adopt-recruitment-data` cron
+        writes every four hours; `respondents` comes from the latest
+        `FACEBOOK_ADOPT` report, which a plan run writes. No Meta call happens
+        on this route.
+
+        `cpm` is `impressions / spend` -- impressions per dollar, not cost per
+        mille (`recruitment_data.calculate_stat_sql`). That is the dashboard's
+        figure and this reports it unchanged.
+
+        404 when the study has never had a plan run: respondent counts come
+        from the latest `FACEBOOK_ADOPT` report and there is none.
+        """
+        return self._data(
+            "GET", f"/{_seg(org_id)}/studies/{_seg(slug)}/recruitment-stats"
+        )
+
+    def respondents_over_time(self, org_id: str, slug: str) -> List[Dict[str, Any]]:
+        """`GET /{org}/studies/{slug}/segments-progress` -- the participants series.
+
+        `[{datetime, totalParticipants, segments: [{id, participants}]}]`,
+        hourly buckets, `datetime` in milliseconds. Read off a pre-computed
+        report, so `[]` means no plan run has written one yet rather than
+        "nobody has answered".
+
+        Cumulative WITHIN the inference window and across CURRENTLY-configured
+        strata only: a respondent attributed to a since-renamed stratum is not
+        counted (`malaria.calculate_respondents_over_time_report`).
+
+        NOT the Go service's route of the same path, which is the per-stratum
+        budget-and-price table (`planning/mcp-full-coverage.md` B1).
+        """
+        return self._data(
+            "GET", f"/{_seg(org_id)}/studies/{_seg(slug)}/segments-progress"
+        )
+
+    def cost_over_time(self, org_id: str, slug: str) -> List[Dict[str, Any]]:
+        """`GET /{org}/studies/{slug}/cost-over-time` -- the spend series.
+
+        `[{datetime, cumulativeSpend, cumulativeRespondents, marginalCost,
+        newRespondents, dailySpend}]`, one point per day, `datetime` in
+        milliseconds. Same pre-computed report story as
+        `respondents_over_time`: `[]` until a plan run writes one.
+
+        `cumulativeSpend` includes INCENTIVES as well as ad spend; `dailySpend`
+        is ad spend alone; `marginalCost` is
+        `(dailySpend + that day's incentives) / newRespondents`, null when
+        there were none. Days on which nothing changed are omitted, so the
+        points are not consecutive days (`cost_over_time.py`).
+        """
+        return self._data("GET", f"/{_seg(org_id)}/studies/{_seg(slug)}/cost-over-time")
 
     # -- the Meta proxy ----------------------------------------------------
 

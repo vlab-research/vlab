@@ -44,10 +44,15 @@ user with different scopes.
 THE BACKEND CONTRACT
 --------------------
 
-`VlabClient`'s method surface, exactly, and returning exactly what it returns:
-`list_orgs`, `list_studies`, `create_study`, `get_confs`, `post_conf`,
-`validate`, `plan`, `apply`, `meta_*`, `list_api_keys`, `revoke_api_key`.
-`ClientBackend` below is the HTTP
+`VlabClient`'s method surface AS THE TOOLS USE IT, returning exactly what it
+returns: `list_orgs`, `list_studies`, `create_study`, `get_confs`, `post_conf`,
+`copy_from`, `validate`, `plan`, `apply`, `study_errors`, `current_data`,
+`ad_attributions`, `recruitment_stats`, `respondents_over_time`,
+`cost_over_time`, `meta_*`, `list_api_keys`, `revoke_api_key`. A client method
+no tool calls -- `ad_attributions_csv`, which exists for `vlab
+ad-attributions --csv` -- is deliberately NOT part of the contract and has no
+in-process twin: an unreachable method on one backend only is the first thing
+to rot. `ClientBackend` below is the HTTP
 one; `server/mcp_server.InProcessBackend` is the other, and it raises the same
 `client.VlabHTTPError` subclasses so that a 404 reads the same to a tool
 whichever side of the wire it came from.
@@ -128,8 +133,15 @@ TOOL_SCOPES: Dict[str, Optional[str]] = {
     "push_study": "studies:write",
     "compile_strata": None,
     "extract_targeting": None,
+    "copy_study_from": "studies:write",
     "plan_study": "optimize:read",
     "apply_instruction": "optimize:write",
+    "study_errors": "optimize:read",
+    "current_data": "optimize:read",
+    "ad_attributions": "responses:read",
+    "recruitment_stats": "stats:read",
+    "respondents_over_time": "stats:read",
+    "cost_over_time": "stats:read",
     "meta_credentials": "meta:read",
     "meta_adaccounts": "meta:read",
     "meta_campaigns": "meta:read",
@@ -573,6 +585,39 @@ async def push_study(
     return result
 
 
+async def copy_study_from(org: str, slug: str, source_slug: str) -> Dict[str, Any]:
+    """Copy another study's configuration into this one. Needs `studies:write`.
+
+    WRITES, IRREVERSIBLY, and this is the dashboard's "initialize from an
+    existing study". It appends the SOURCE's newest row per conf type to the
+    TARGET, so the copy supersedes whatever the target held. Nothing is
+    deleted, nothing is merged, and there is no undo: `study_confs` is
+    append-only, so an unwanted copy can only be written over section by
+    section with `push_study`.
+
+    `slug` is the study being written to and `source_slug` is the one being
+    read. Getting them the wrong way round overwrites the study you meant to
+    copy FROM, and there is nothing here that can tell the difference.
+
+    `general` is deliberately NOT copied: it names the Meta ad account and the
+    stored Facebook credential, which are the two things that should not follow
+    a study around. Everything else is -- destinations, creatives, audiences,
+    variables, strata, data_sources, inference_data, recruitment -- INCLUDING
+    `recruitment`, whose start/end window is the study's on/off switch, so a
+    copy can switch a study on. Read the result and check it.
+
+    Returns the sections that were copied, keyed as stored. Both slugs are
+    resolved against your own studies in this org, so a source you do not own
+    is a 404 rather than a copy; 404 also when the source has no configuration
+    to copy at all.
+
+    Follow it with `pull_study` to see what the target now holds, and
+    `validate_study` before `plan_study`: a copied `strata` section names
+    creatives and audiences by name, and those came from the source.
+    """
+    return await backend().copy_from(org, slug, source_slug)
+
+
 # --------------------------------------------------------------------------
 # Tools: the pure authoring helpers
 # --------------------------------------------------------------------------
@@ -723,6 +768,223 @@ async def apply_instruction(org: str, slug: str, index: int) -> Dict[str, Any]:
     instruction = instructions[index]
     result = await backend().apply(org, slug, instruction)
     return {"applied": instruction, "result": result}
+
+
+# --------------------------------------------------------------------------
+# Tools: what a running study is doing
+# --------------------------------------------------------------------------
+#
+# These are the dashboard's study page, tool for tool: the Errors tab, Current
+# Data, Ad Attributions, Recruitment Statistics, the participants chart and the
+# spend charts. Every one is a READ of something a CRON already wrote -- there
+# is no live Meta call anywhere in this group -- and none computes anything the
+# route does not.
+#
+# What refreshes what, because the descriptions below all have to repeat it:
+# `plan_study` (and the adopt-ads cron, two-hourly) writes the FACEBOOK_ADOPT
+# report and the two time series; the adopt-recruitment-data cron, FOUR-hourly,
+# writes the spend rows `recruitment_stats` sums; swoosh, half-hourly, writes
+# the events `study_errors` derives from. Nothing here refreshes anything.
+
+
+async def study_errors(org: str, slug: str) -> Dict[str, Any]:
+    """The study's currently open errors and warnings. Needs `optimize:read`.
+
+    Reads only; writes nothing. This is the dashboard's Errors tab and the
+    badge beside it.
+
+    Returns `{"errors": [{source, fingerprint, severity, message, details,
+    first_seen, last_seen}], "count": n}`, errors before warnings and newest
+    first. Derived from the `study_run_events` log rather than stored as a
+    status: the LATEST event per (source, fingerprint), kept only when it is an
+    error or a warning AND was seen in the last 90 MINUTES.
+
+    THAT WINDOW IS WHY AN EMPTY LIST IS NOT "HEALTHY". It is a dead-man's
+    switch -- a problem that stops being re-emitted ages out by itself, with
+    nobody having closed it -- so `[]` means "nothing is currently
+    re-emitting", which also describes a study whose cron stopped running at
+    all. 90 minutes is three times the 30-minute swoosh cron.
+
+    AND ONLY ONE WRITER EXISTS. Today only swoosh (survey-data extraction)
+    writes these events. adopt, which builds the ads, writes NONE, so an
+    ad-building failure never appears here whatever went wrong. To see that,
+    run `plan_study` and read its error. `documentation/agent-api.md` §2.3.
+
+    Errors are served even when a study has no data at all -- a hard extraction
+    failure means no rows exist, which is exactly when this matters.
+    """
+    errors = await backend().study_errors(org, slug)
+    return {"errors": errors, "count": len(errors)}
+
+
+async def current_data(org: str, slug: str) -> Dict[str, Any]:
+    """The respondent data the optimizer works from. Needs `optimize:read`.
+
+    Reads only; writes nothing. This is the dashboard's Current Data tab, and
+    it is the answer to "why did the optimizer decide that": these rows, and
+    nothing else, are what the quota and budget arithmetic sees.
+
+    Returns `{"rows": [{user_id, variable, value, timestamp}], "count": n}` --
+    ONE ROW PER RESPONDENT PER VARIABLE, not one per respondent, so a survey
+    with twenty questions produces twenty rows for each person who finished it.
+
+    Scoped to the study's INFERENCE WINDOW, which is
+    `recruitment.start_date`..`recruitment.end_date` for a `simple` or
+    `destination` study and, for a `pipeline_experiment`, the CURRENT WAVE
+    only -- so on a wave study this is a slice, not the study's history, and it
+    changes underneath you as waves turn over. A respondent outside the window
+    is simply absent, and that is a configuration fact rather than missing data.
+    (`general.opt_window` is a different thing entirely: it is the
+    recruitment-data lookback the budget arithmetic uses, and it has no effect
+    here.)
+
+    CAN BE LARGE and can be slow: the server allows this call five minutes.
+    Ask for it once and work from the answer; there is no paging and no filter.
+
+    An empty list means no respondent has answered inside the window -- which
+    is either a young study or a broken data pipeline, and `study_errors` is
+    what tells the two apart.
+    """
+    rows = await backend().current_data(org, slug)
+    return {"rows": rows, "count": len(rows)}
+
+
+async def ad_attributions(org: str, slug: str) -> Dict[str, Any]:
+    """The frozen ad -> stratum mapping, as a table. Needs `responses:read`.
+
+    Reads only; writes nothing. This is the dashboard's Ad Attributions tab,
+    and it is what a survey export is joined against: left-join your export on
+    `ad_id` and every stratum and metadata column comes back, named as it was
+    when the ad was created.
+
+    Returns `{"columns": [...], "rows": [{column: value}], "count": n}`.
+    `columns` is a union across the rows in first-seen order, because the
+    metadata blob is flattened into columns under its own key names and
+    different ads can carry different keys.
+
+    FROZEN AND APPEND-ONLY. A row is written once, when the ad is created, and
+    is never updated: it records what the stratum meant AT THAT MOMENT, so
+    editing a stratum later does not rewrite history. Ads Meta no longer has
+    are still listed, deliberately -- respondents keep arriving from deleted
+    ads through reshared page posts, and a missing row would be
+    indistinguishable from an unattributed respondent.
+
+    Rows appear as ads are created, and `plan_study` also HEALS this table
+    (inserting rows for live ads that have none), so a gap here can sometimes
+    be closed by running a plan. This tool itself changes nothing.
+    """
+    table = await backend().ad_attributions(org, slug)
+    rows = (table or {}).get("rows") or []
+    return {**(table or {}), "count": len(rows)}
+
+
+async def recruitment_stats(org: str, slug: str) -> Dict[str, Any]:
+    """Spend, reach and cost per respondent, per stratum. Needs `stats:read`.
+
+    Reads only; writes nothing. This is the dashboard's Recruitment Statistics
+    table, and it is the money question: what has each stratum cost, and what
+    is a respondent costing there.
+
+    Returns `{"strata": {stratum_id: {spend, cpm, reach, frequency,
+    impressions, unique_clicks, unique_ctr, respondents,
+    price_per_respondent, incentive_cost, total_cost, conversion_rate}}}`.
+
+    NOTHING HERE IS LIVE, AND THE TWO HALVES ARE STALE BY DIFFERENT AMOUNTS.
+    `spend`, `reach`, `unique_clicks` and `impressions` are SUMMED OVER ALL TIME
+    from `recruitment_data_events`, which the `adopt-recruitment-data` cron
+    writes EVERY FOUR HOURS -- no Meta call happens when you call this.
+    `respondents` comes from the latest `FACEBOOK_ADOPT` report, which a plan
+    run writes. The four derived figures combine the two, with `incentive_cost`
+    using `recruitment.incentive_per_respondent`. Calling this tool refreshes
+    NEITHER half; `plan_study` refreshes only the respondent half, and nothing
+    an API key can call refreshes the spend half.
+
+    `cpm` IS NOT COST PER MILLE. It is computed as impressions / spend --
+    impressions per dollar, so a bigger number is cheaper delivery. That is
+    what the dashboard shows, and this tool reports the field as the service
+    computes it rather than quietly redefining it.
+
+    404 WHEN THE STUDY HAS NEVER HAD A PLAN RUN. There is no report to take
+    respondent counts from, so the route refuses rather than reporting zero
+    respondents against real spend. `plan_study` writes that report -- and is
+    not side-effect free. A 404 also means the study has no strata configured.
+    """
+    return {"strata": await backend().recruitment_stats(org, slug)}
+
+
+async def respondents_over_time(org: str, slug: str) -> Dict[str, Any]:
+    """The participants-over-time series, per segment. Needs `stats:read`.
+
+    Reads only; writes nothing. This is the dashboard's participants chart and
+    its "Current Participants" card.
+
+    Returns `{"points": [{datetime, totalParticipants, segments: [{id,
+    participants}]}], "count": n}`, oldest first, in HOURLY buckets, with
+    `datetime` in MILLISECONDS since the epoch (not ISO, unlike every other
+    timestamp here). Counts are CUMULATIVE, so the difference between two
+    points is what arrived between them.
+
+    THE LAST POINT IS NOT NECESSARILY THE STUDY'S TOTAL. It is the total
+    WITHIN THE INFERENCE WINDOW (see `current_data` -- one wave only, for a
+    `pipeline_experiment`) and only across CURRENTLY-CONFIGURED strata: a
+    respondent attributed to a stratum that has since been renamed or removed
+    is not counted here at all, though `ad_attributions` still remembers the
+    ad. Buckets are anchored to the first and last interaction in the data
+    rather than to the configured start and end dates.
+
+    READ FROM A PRE-COMPUTED REPORT, not from the responses. An EMPTY list
+    therefore means no report has been written yet, NOT that nobody has
+    answered -- and the thing that writes one is a plan run. `plan_study`
+    refreshes it, and `plan_study` reads Meta and writes rows, so refreshing
+    this is not free. The adopt-ads cron does the same every two hours for a
+    study inside its recruitment window, which is why this is usually current
+    without anyone asking.
+
+    `segments` are stratum ids, which are also Meta ad set names. This is the
+    conf service's `segments-progress`; the Go service serves a route of the
+    same name with a different payload, and the two are not interchangeable.
+    """
+    points = await backend().respondents_over_time(org, slug)
+    return {"points": points, "count": len(points)}
+
+
+async def cost_over_time(org: str, slug: str) -> Dict[str, Any]:
+    """The spend and marginal-cost series. Needs `stats:read`.
+
+    Reads only; writes nothing. This is the dashboard's Total Spent card, its
+    Avg Cost per Participant card and the two spend charts.
+
+    Returns `{"points": [{datetime, cumulativeSpend, cumulativeRespondents,
+    marginalCost, newRespondents, dailySpend}], "count": n}`, oldest first,
+    `datetime` in MILLISECONDS, one point per DAY.
+
+    SPEND MEANS TWO DIFFERENT THINGS IN THE SAME ROW, and the difference is
+    `recruitment.incentive_per_respondent`. `cumulativeSpend` is ad spend PLUS
+    INCENTIVES (`newRespondents * incentive_per_respondent`, accumulated);
+    `dailySpend` is that day's AD SPEND ALONE, with no incentive in it; and
+    `marginalCost` is `(dailySpend + that day's incentives) / newRespondents`,
+    null on a day that gained none -- which is the number that says whether
+    recruitment is getting harder. So `cumulativeSpend` is not the running sum
+    of `dailySpend` unless the study pays no incentive.
+
+    THE POINTS ARE NOT CONSECUTIVE DAYS. A day on which neither spend nor
+    respondents changed is omitted, because it is a flat segment on a
+    cumulative chart; the first and last active days are always present.
+    Leading and trailing days with no activity at all are trimmed, so the
+    series starts when the study really started rather than at
+    `recruitment.start_date`.
+
+    READ FROM A PRE-COMPUTED REPORT, exactly as `respondents_over_time` is: an
+    EMPTY list means no plan run has written one yet, not that nothing has been
+    spent. `plan_study` is what refreshes it and it is not side-effect free;
+    the adopt-ads cron refreshes it every two hours for a study inside its
+    recruitment window.
+
+    For per-stratum money rather than a series over time, use
+    `recruitment_stats`.
+    """
+    points = await backend().cost_over_time(org, slug)
+    return {"points": points, "count": len(points)}
 
 
 # --------------------------------------------------------------------------
@@ -887,10 +1149,17 @@ TOOLS: Sequence[Callable[..., Any]] = (
     validate_study,
     diff_study,
     push_study,
+    copy_study_from,
     compile_strata,
     extract_targeting,
     plan_study,
     apply_instruction,
+    study_errors,
+    current_data,
+    ad_attributions,
+    recruitment_stats,
+    respondents_over_time,
+    cost_over_time,
     meta_credentials,
     meta_adaccounts,
     meta_campaigns,
@@ -948,7 +1217,13 @@ organisation UUID and a study slug, and neither is guessable.
 A study is nine configuration sections. Read them with `pull_study`, change
 them, check with `validate_study`, see what would change with `diff_study`,
 write with `push_study`, then reconcile onto Meta with `plan_study` and
-`apply_instruction`.
+`apply_instruction`. `copy_study_from` initialises one study from another.
+
+Once a study is running, `study_errors`, `current_data`, `ad_attributions`,
+`recruitment_stats`, `respondents_over_time` and `cost_over_time` are what it
+is doing. The last three read reports that only a plan run refreshes, so an
+empty answer usually means "no plan has run yet" rather than "nothing has
+happened".
 
 Two things govern everything here. Configuration is APPEND-ONLY: a write
 inserts a new row that supersedes the previous one, there is no delete, and a

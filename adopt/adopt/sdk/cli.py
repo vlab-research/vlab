@@ -10,6 +10,7 @@
     vlab validate && vlab diff && vlab push
     vlab plan  $ORG/hpv-nigeria
     vlab apply $ORG/hpv-nigeria 0
+    vlab errors $ORG/hpv-nigeria      # and stats, respondents, costs
 
 Needs Python `>=3.10,<3.11` -- `adopt`'s own constraint, which the SDK inherits.
 
@@ -173,7 +174,9 @@ def short(value: Any, width: int = 60) -> str:
     return text if len(text) <= width else text[: width - 1] + "…"
 
 
-def rows_out(body: Any, as_json: bool, columns: Sequence[str]) -> None:
+def rows_out(
+    body: Any, as_json: bool, columns: Sequence[str], header: bool = False
+) -> None:
     """A `{"data": [...]}` envelope as columns, or as JSON.
 
     Was `_meta_out`, private to the meta group, until `vlab orgs` and
@@ -182,6 +185,13 @@ def rows_out(body: Any, as_json: bool, columns: Sequence[str]) -> None:
     key only the Meta proxy sends -- so generalising it is a rename, not a
     behaviour change, and one table renderer is one place to fix a column that
     prints badly.
+
+    `header` echoes the column names first. Opt-in rather than always, because
+    `orgs`, `studies` and `meta` predate it and print two or three columns
+    whose meaning is obvious; the study-page tables print up to eleven numeric
+    ones, where an unlabelled row is unreadable. Every command added with a
+    numeric or wide table passes it, and one flag on one renderer is what keeps
+    that a rule rather than a habit.
     """
     if as_json:
         emit_json(body)
@@ -191,6 +201,9 @@ def rows_out(body: Any, as_json: bool, columns: Sequence[str]) -> None:
     if isinstance(rows, dict):
         rows = [rows]
     rows = rows or []
+
+    if header:
+        click.echo("  ".join(str(column) for column in columns))
 
     for row in rows:
         cells = []
@@ -950,6 +963,331 @@ def apply(
 
 
 # ---------------------------------------------------------------------------
+# What a running study is doing -- the dashboard's study page, as commands
+# ---------------------------------------------------------------------------
+#
+# Every one of these is a read. The three that read a REPORT (stats,
+# respondents, costs) are empty or 404 until a plan run has written one, and
+# `vlab plan` is the thing that writes it -- which is why each says so rather
+# than letting an empty table read as "nothing has happened".
+
+
+@cli.command()
+@click.argument("target")
+@click.option("--json", "as_json", is_flag=True, help="Machine-readable output.")
+@auth_options
+@click.pass_context
+def errors(ctx: click.Context, target: str, as_json: bool) -> None:
+    """Currently open errors and warnings for <org>/<slug>. Needs `optimize:read`.
+
+    \b
+    AN EMPTY LIST IS NOT "HEALTHY", for two separate reasons.
+    An error is kept only while it is still being RE-EMITTED -- the latest
+    event per fingerprint, seen in the last 90 minutes (three swoosh crons) --
+    so a problem whose cron stopped running ages out exactly like one that was
+    fixed. And only swoosh, which extracts survey data, writes these events at
+    all: adopt writes none, so no ad-building failure ever appears here. For
+    that, run `vlab plan` and read the error it returns.
+
+    Served even for a study with no data at all, which is when it matters most.
+    """
+    org, slug = parse_target(target)
+    rows = get_client(ctx).study_errors(org, slug)
+    rows_out(
+        {"data": rows},
+        as_json,
+        ["severity", "source", "message", "last_seen"],
+        header=True,
+    )
+
+
+@cli.command("current-data")
+@click.argument("target")
+@click.option("--json", "as_json", is_flag=True, help="Machine-readable output.")
+@auth_options
+@click.pass_context
+def current_data(ctx: click.Context, target: str, as_json: bool) -> None:
+    """The respondent data the optimizer is working from. Needs `optimize:read`.
+
+    One row per respondent PER VARIABLE, so a twenty-question survey produces
+    twenty rows for each person who finished it. This is the data the quota and
+    budget arithmetic sees, and nothing else -- which makes it the answer to
+    "why did the optimizer decide that".
+
+    \b
+    Scoped to the study's INFERENCE WINDOW, not to all time. That window is
+    `recruitment.start_date`..`end_date` for a simple or destination study, and
+    for a pipeline_experiment the CURRENT WAVE only -- so on a wave study this
+    is a slice rather than the study's history. It is NOT `general.opt_window`,
+    which is the recruitment-data lookback the budget arithmetic uses.
+
+    Can be large and can be slow; the server allows five minutes.
+    """
+    org, slug = parse_target(target)
+    rows = get_client(ctx).current_data(org, slug)
+    rows_out(
+        {"data": rows},
+        as_json,
+        ["user_id", "variable", "value", "timestamp"],
+        header=True,
+    )
+
+
+@cli.command("ad-attributions")
+@click.argument("target")
+@click.option(
+    "--csv",
+    "csv_path",
+    default=None,
+    help="Write the CSV route's body to this path; - for stdout.",
+)
+@click.option("--json", "as_json", is_flag=True, help="Machine-readable output.")
+@auth_options
+@click.pass_context
+def ad_attributions(
+    ctx: click.Context, target: str, csv_path: Optional[str], as_json: bool
+) -> None:
+    """The frozen ad -> stratum mapping. Needs `responses:read`.
+
+    What a survey export is joined against: left-join your export on `ad_id`
+    and the stratum and metadata columns come back, named as they were when the
+    ad was created.
+
+    `--csv` fetches the `.csv` route rather than rendering the table, so the
+    file is the server's own rendering rather than this command's -- the two
+    are built from one definition and cannot disagree. An existing file is
+    overwritten.
+
+    Frozen and append-only: a row is written once, when the ad is created, and
+    records what the stratum meant then. Ads Meta no longer has are still
+    listed, deliberately -- respondents keep arriving from deleted ads via
+    reshared page posts, and a missing row would look like an unattributed
+    respondent.
+    """
+    org, slug = parse_target(target)
+    client = get_client(ctx)
+
+    if csv_path:
+        if as_json:
+            raise click.UsageError(
+                "--csv and --json ask for two different formats of the same "
+                "table. Pick one."
+            )
+        body = client.ad_attributions_csv(org, slug)
+        if csv_path == "-":
+            click.echo(body, nl=False)
+            return
+        # `newline=""`: the body is already RFC 4180 CSV with \r\n line
+        # endings, and Python's default newline translation would rewrite them
+        # on a platform whose os.linesep differs -- turning the server's file
+        # into a different file on the way to disk, which is the one thing
+        # `--csv` exists to prevent.
+        with open(csv_path, "w", encoding="utf8", newline="") as f:
+            f.write(body)
+        click.echo(f"Wrote {csv_path}")
+        return
+
+    table = client.ad_attributions(org, slug)
+
+    if as_json:
+        emit_json(table)
+        return
+
+    # The one renderer, like every other table here: it prints a string cell as
+    # itself, where a hand-rolled `short()` loop JSON-quoted every value.
+    rows_out(
+        {"data": table.get("rows") or []},
+        False,
+        table.get("columns") or [],
+        header=True,
+    )
+
+
+# The numeric columns of a `RecruitmentStats`, in the order the dashboard's
+# table reads them: what was spent, then what it bought, then what it cost.
+STATS_COLUMNS = (
+    "stratum",
+    "spend",
+    "cpm",
+    "reach",
+    "impressions",
+    "unique_clicks",
+    "respondents",
+    "price_per_respondent",
+    "incentive_cost",
+    "total_cost",
+    "conversion_rate",
+)
+
+
+@cli.command()
+@click.argument("target")
+@click.option("--json", "as_json", is_flag=True, help="Machine-readable output.")
+@auth_options
+@click.pass_context
+def stats(ctx: click.Context, target: str, as_json: bool) -> None:
+    """Recruitment statistics per stratum: spend, reach, cost. Needs `stats:read`.
+
+    \b
+    404 WHEN THE STUDY HAS NEVER HAD A PLAN RUN.
+    Respondent counts come from the latest FACEBOOK_ADOPT report, and without
+    one the route refuses rather than reporting zero respondents against real
+    spend. `vlab plan <org>/<slug>` writes that report -- and is not
+    side-effect free. The same 404 means "no strata configured".
+
+    \b
+    NOTHING HERE IS LIVE, AND THE HALVES AGE DIFFERENTLY.
+    Spend, reach, clicks and impressions are summed over all time from
+    recruitment_data_events, which the adopt-recruitment-data cron writes every
+    FOUR HOURS -- no Meta call happens when you run this. Respondents come from
+    the last plan run. This command refreshes neither; `vlab plan` refreshes
+    only the respondent half.
+
+    `cpm` is impressions / spend -- impressions per dollar, NOT cost per mille.
+    That is what the dashboard shows and this prints it unchanged.
+    """
+    org, slug = parse_target(target)
+    strata = get_client(ctx).recruitment_stats(org, slug)
+
+    if as_json:
+        emit_json(strata)
+        return
+
+    rows = [{"stratum": key, **value} for key, value in sorted(strata.items())]
+    rows_out({"data": rows}, False, STATS_COLUMNS, header=True)
+
+
+# The report's own key names, camelCase and all: these are the dashboard's
+# chart fields, and renaming them here would mean a `--json` payload that
+# nothing else on this service uses.
+RESPONDENT_COLUMNS = ("datetime", "totalParticipants")
+COST_COLUMNS = (
+    "datetime",
+    "cumulativeSpend",
+    "cumulativeRespondents",
+    "newRespondents",
+    "dailySpend",
+    "marginalCost",
+)
+
+
+@cli.command()
+@click.argument("target")
+@click.option("--json", "as_json", is_flag=True, help="Machine-readable output.")
+@auth_options
+@click.pass_context
+def respondents(ctx: click.Context, target: str, as_json: bool) -> None:
+    """Participants over time, one row per time point. Needs `stats:read`.
+
+    Cumulative counts in HOURLY buckets, oldest first, with `datetime` in
+    MILLISECONDS since the epoch rather than ISO. `--json` also carries the
+    per-segment breakdown, which the table leaves out because a study with
+    forty strata has forty numbers per row.
+
+    \b
+    THE LAST ROW IS NOT NECESSARILY THE STUDY'S TOTAL.
+    It counts respondents inside the INFERENCE WINDOW (one wave only, for a
+    pipeline study) and only across CURRENTLY-configured strata: a respondent
+    attributed to a stratum that has since been renamed is not here at all.
+    Buckets start at the first interaction in the data, not at start_date.
+
+    \b
+    AN EMPTY TABLE MEANS NO PLAN RUN HAS WRITTEN THE REPORT.
+    It does not mean nobody has answered: this reads a pre-computed report, and
+    `vlab plan` is what refreshes it -- along with reading Meta and writing
+    rows, so refreshing it is not free. The adopt-ads cron does the same every
+    two hours for a study inside its recruitment window.
+    """
+    org, slug = parse_target(target)
+    points = get_client(ctx).respondents_over_time(org, slug)
+
+    if as_json:
+        emit_json({"data": points})
+        return
+
+    rows_out({"data": points}, False, RESPONDENT_COLUMNS, header=True)
+
+
+@cli.command()
+@click.argument("target")
+@click.option("--json", "as_json", is_flag=True, help="Machine-readable output.")
+@auth_options
+@click.pass_context
+def costs(ctx: click.Context, target: str, as_json: bool) -> None:
+    """Spend and marginal cost over time, one row per time point. Needs `stats:read`.
+
+    \b
+    SPEND MEANS TWO THINGS IN THE SAME ROW.
+    cumulativeSpend is ad spend PLUS INCENTIVES (newRespondents times
+    recruitment.incentive_per_respondent, accumulated); dailySpend is that
+    day's AD SPEND ALONE; marginalCost is (dailySpend + that day's incentives)
+    / newRespondents, empty on a day that gained none -- and it is the column
+    that says whether recruitment is getting harder. So cumulativeSpend is not
+    the running sum of dailySpend unless the study pays no incentive.
+
+    \b
+    THE ROWS ARE NOT CONSECUTIVE DAYS.
+    A day on which neither spend nor respondents changed is omitted; leading
+    and trailing dead days are trimmed, so the series starts when the study
+    really started rather than at recruitment.start_date.
+
+    Same report story as `vlab respondents`: an empty table means no plan run
+    has written one, not that nothing has been spent. For money per stratum
+    rather than over time, use `vlab stats`.
+    """
+    org, slug = parse_target(target)
+    points = get_client(ctx).cost_over_time(org, slug)
+
+    if as_json:
+        emit_json({"data": points})
+        return
+
+    rows_out({"data": points}, False, COST_COLUMNS, header=True)
+
+
+@cli.command("copy-from")
+@click.argument("target")
+@click.argument("source_slug")
+@click.option("--json", "as_json", is_flag=True, help="Machine-readable output.")
+@auth_options
+@click.pass_context
+def copy_from(ctx: click.Context, target: str, source_slug: str, as_json: bool) -> None:
+    """Copy SOURCE_SLUG's configuration into <org>/<slug>. Needs `studies:write`.
+
+    \b
+    WRITES, AND THE ARGUMENT ORDER MATTERS.
+    TARGET is written to, SOURCE_SLUG is read: reversing them overwrites the
+    study you meant to copy from, and nothing here can tell the difference.
+    Each section is appended as a new row that supersedes whatever the target
+    held -- `study_confs` has no delete, so an unwanted copy can only be
+    written over section by section.
+
+    `general` is not copied: it names the ad account and the Facebook
+    credential, which should not follow a study around. Everything else is,
+    INCLUDING `recruitment`, whose start/end window is the study's on/off
+    switch -- so a copy can switch a study on.
+
+    Both slugs are resolved against your own studies in this org, so a source
+    you do not own is a 404 rather than a copy; so is a source with nothing to
+    copy. Follow with `vlab pull` and `vlab validate`.
+    """
+    org, slug = parse_target(target)
+    copied = get_client(ctx).copy_from(org, slug, source_slug)
+
+    if as_json:
+        emit_json(copied)
+        return
+
+    for section in sorted(copied):
+        click.echo(section)
+    click.echo("")
+    click.echo(f"{len(copied)} section(s) copied from {source_slug} into {slug}.")
+    click.echo(
+        f"Check what the study now holds: vlab pull {org}/{slug} && vlab validate"
+    )
+
+
+# ---------------------------------------------------------------------------
 # meta
 # ---------------------------------------------------------------------------
 
@@ -1419,11 +1757,13 @@ def mcp_server(ctx: click.Context) -> None:
     client rather than run in a terminal: nothing is printed here and Ctrl-C is
     how it stops. `documentation/agent-api.md` has the Claude Desktop JSON.
 
-    The tools are the commands: create_study, pull_study, validate_study,
-    diff_study, push_study, compile_strata, extract_targeting, plan_study,
-    apply_instruction, the meta_* readers and the key tools. Each calls exactly
-    what the matching command calls, so anything true of `vlab push` is true of
-    `push_study`.
+    The tools are the commands: list_orgs, list_studies, create_study,
+    pull_study, validate_study, diff_study, push_study, copy_study_from,
+    compile_strata, extract_targeting, plan_study, apply_instruction, the
+    study readers (study_errors, current_data, ad_attributions,
+    recruitment_stats, respondents_over_time, cost_over_time), the meta_*
+    readers and the key tools. Each calls exactly what the matching command
+    calls, so anything true of `vlab push` is true of `push_study`.
 
     Every tool reaches the service over HTTP with VLAB_API_KEY, so the key's
     scopes are enforced by the server on every call and this process holds no
