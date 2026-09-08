@@ -179,6 +179,34 @@ Deviations from what is written below, all deliberate:
    the annotation enforces nothing there. Same pattern, and the same comment, as
    `list_studies_endpoint`.
 
+Review fixes, 2026-09-08 (second commit on the branch):
+
+7. **`_valid_org_or_404` before `get_study_id`.** A malformed `org_id` reached
+   psycopg as a UUID comparison and came back a 500, where a non-member gets a
+   404; the two have to be indistinguishable or the route is an oracle for which
+   org UUIDs exist.
+8. **The three `*_percentage` facts are FRACTIONS, 0..1** (`_normalize_values`
+   is `v / sum`), and `current_budget` is `budget_lookup` — the allocation over
+   the REST OF THE RECRUITMENT PERIOD, not a daily budget: the ad set's daily
+   budget is `spend_for_day` of it (divided by days left and by destination
+   arms, floored to the cent, zeroed below `min_budget`), so a non-zero
+   allocation here can still be a paused ad set. And
+   `current_price_per_participant` is `estimate_price`, a Gamma-Poisson
+   posterior shrunk toward a prior of 2 + `incentive_per_respondent`, not a
+   measurement. The first draft of the descriptions got all three wrong; they
+   are the product surface, so this was the most expensive of the review's
+   findings. The CLI's column heads lost their `%` accordingly, and it still
+   multiplies nothing.
+9. **A fact present but JSON-null defaults too**, not just an absent one. A
+   stored `null` would otherwise 422 out of the model and reach the caller as a
+   500 on a row nobody can fix.
+10. **The missing-fact warning is the UNION of what each stratum lacks**, not
+    the intersection, so a partially written report is reported. The two
+    counterfactuals are excluded from that check — `budget.py` writes them only
+    when a constraint binds, so including them would fire the warning on almost
+    every healthy report, which is how a warning stops being read. Still one log
+    line per report.
+
 Original brief, unchanged:
 
 B1 is the "optimization results and prices" question. The Go route explodes

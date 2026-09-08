@@ -51,6 +51,7 @@ from pydantic import BaseModel
 from ..campaign_queries import get_adopt_reports
 from .db import db_cnf, get_study_id
 from .deps import User, get_current_user
+from .studies import _valid_org_or_404
 
 router = APIRouter()
 
@@ -76,11 +77,26 @@ class StratumProgress(BaseModel):
 
     id: str
     current_participants: int = 0
+    # FRACTIONS, 0..1, not percentages despite the names, which are the
+    # report's: `budget.py`'s `_normalize_values` is v/sum. The names are kept
+    # because they are the JSONB keys, and renaming them here would mean two
+    # vocabularies for one number.
     desired_percentage: float = 0.0
     current_percentage: float = 0.0
     expected_percentage: float = 0.0
     expected_participants: float = 0.0
+    # `budget_lookup`: the optimizer's allocation of the REMAINING optimization
+    # budget across the rest of the recruitment period -- NOT a daily budget.
+    # The ad set's daily budget is `StudyConf.spend_for_day` of this: divided by
+    # the days left (0.0 once fewer than one remains), divided by the number of
+    # destination arms, floored to the cent, and zeroed below `min_budget`
+    # (`study_conf.py`, `_divide_among_days_left` / `_deal_with_mins`). So a
+    # non-zero allocation here can still be a paused ad set.
     current_budget: float = 0.0
+    # `estimate_price`: a Gamma-Poisson posterior over the study's `opt_window`,
+    # shrunk toward a prior of 2 + incentive_per_respondent dollars
+    # (`budget.py`, `_calc_price`). An estimate, not a measurement -- a stratum
+    # with little data sits near that prior rather than near its own history.
     current_price_per_participant: float = 0.0
     total_spent: float = 0.0
     lifetime_spent: float = 0.0
@@ -116,6 +132,17 @@ _REPORT_FACTS = frozenset(StratumProgress.model_fields) - {
     "percentage_deviation_from_goal",
 }
 
+# The two facts `budget.py` appends only when a constraint binds. They are
+# absent from most healthy reports, so the missing-fact warning below has to
+# skip them -- a warning that fires on almost every request is a warning nobody
+# reads, and it would drown out the case it exists for.
+_OPTIONAL_FACTS = frozenset(
+    {
+        "counterfactual_spend_to_fill_sample",
+        "counterfactual_participants_with_unlimited_budget",
+    }
+)
+
 
 def _stratum(stratum_id: str, facts: Dict[str, Any]) -> StratumProgress:
     """One report entry as a row, with the deviation the dashboard shows.
@@ -126,7 +153,13 @@ def _stratum(stratum_id: str, facts: Dict[str, Any]) -> StratumProgress:
     it here would mean an agent could not recover the real number from what it
     was given.
     """
-    known = {k: v for k, v in facts.items() if k in _REPORT_FACTS}
+    # `v is not None` as well as the key filter: a fact PRESENT and JSON-null is
+    # a different failure from a fact absent, and only the second one pydantic
+    # would have defaulted. `current_budget: null` in a stored report would
+    # otherwise 422 out of the model and reach the caller as a 500 on a row
+    # nobody can fix -- the report is already written. Null means the same thing
+    # absent does here: take the default.
+    known = {k: v for k, v in facts.items() if k in _REPORT_FACTS and v is not None}
     row = StratumProgress(id=stratum_id, **known)
     row.percentage_deviation_from_goal = abs(
         row.desired_percentage - row.current_percentage
@@ -142,17 +175,21 @@ def _report(row: Dict[str, Any]) -> ReportProgress:
         for stratum_id, facts in sorted(details.items())
     ]
 
-    # ONE warning per report, not one per stratum: a report written before a
-    # fact existed is missing it for every stratum in it, and a study with 200
-    # strata would otherwise put 200 identical lines in the log for one old
-    # row. Aggregated over the strata for the same reason.
+    # The UNION of what each stratum is missing, not the intersection: a fact
+    # that one stratum lacks and the others carry is exactly the interesting
+    # case -- a partially written report -- and an intersection would stay
+    # silent about it. A null counts as missing here for the same reason
+    # `_stratum` treats it as one.
+    #
+    # Still ONE line per report, not one per stratum: a report written before a
+    # fact existed lacks it for every stratum in it, and a study with 200 strata
+    # would otherwise put 200 identical lines in the log for one old row.
     missing = sorted(
-        _REPORT_FACTS
-        - {
+        {
             fact
             for facts in details.values()
-            for fact in (facts or {})
-            if fact in _REPORT_FACTS
+            for fact in _REPORT_FACTS - _OPTIONAL_FACTS
+            if (facts or {}).get(fact) is None
         }
     )
     if missing and details:
@@ -209,9 +246,14 @@ async def strata_progress_endpoint(
             detail=(f"history must be between 1 and {MAX_HISTORY}; got {history}."),
         )
 
+    # BEFORE `get_study_id`, which compares `org_id` against a UUID column: an
+    # unparseable org id blows up in the driver as a 500 rather than the 404 a
+    # non-member gets, and the two must be indistinguishable. `studies.py` says
+    # why at length. `get_study_id` raises its own 404 when the study is not the
+    # caller's, so there is nothing to check on its return.
+    _valid_org_or_404(org_id)
+
     study_id = get_study_id(user.user_id, org_id, slug)
-    if not study_id:
-        raise HTTPException(status_code=404, detail=f"Study not found: {slug}")
 
     # `to_thread` like its neighbours: psycopg is synchronous, and a report for
     # a study with hundreds of strata is not a cheap row to fetch or parse.

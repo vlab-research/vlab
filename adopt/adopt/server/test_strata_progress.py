@@ -233,6 +233,21 @@ def test_a_report_missing_a_fact_defaults_rather_than_500ing(org, study):
     assert stratum["counterfactual_spend_to_fill_sample"] is None
 
 
+def test_a_fact_that_is_present_but_null_defaults_rather_than_500ing(org, study):
+    """A stored `null` is not the same as an absent key, and only the absent one
+    is what pydantic defaults. Without the explicit `is not None` filter this
+    422s out of the model and reaches the caller as a 500 on a row nobody can
+    fix -- the report is already written."""
+    _report(study, {"s": {"current_budget": None, "current_participants": 2}})
+
+    res = _get(org)
+
+    assert res.status_code == 200, res.text
+    (stratum,) = res.json()["data"][0]["strata"]
+    assert stratum["current_budget"] == 0.0
+    assert stratum["current_participants"] == 2
+
+
 def test_a_missing_fact_is_logged_once_for_the_report(org, study, caplog):
     """Once per REPORT. A row written before a fact existed is missing it for
     every stratum in it, and a 200-stratum study would otherwise put 200
@@ -245,6 +260,42 @@ def test_a_missing_fact_is_logged_once_for_the_report(org, study, caplog):
     warnings = [r for r in caplog.records if "strata-progress" in r.getMessage()]
     assert len(warnings) == 1
     assert "efficiency_weight" in warnings[0].getMessage()
+
+
+def test_a_fact_missing_from_only_one_stratum_is_still_reported(org, study, caplog):
+    """The UNION of what each stratum lacks, not the intersection. A partially
+    written report -- one stratum short of a fact the others carry -- is exactly
+    the interesting case, and an intersection would say nothing about it."""
+    _report(
+        study,
+        {
+            "whole": FULL,
+            "partial": {k: v for k, v in FULL.items() if k != "total_spent"},
+        },
+    )
+
+    with caplog.at_level("WARNING"):
+        assert _get(org).status_code == 200
+
+    warnings = [r for r in caplog.records if "strata-progress" in r.getMessage()]
+    assert len(warnings) == 1
+    assert "total_spent" in warnings[0].getMessage()
+
+
+def test_a_complete_report_logs_nothing(org, study, caplog):
+    """The counterfactuals are absent from most healthy reports -- `budget.py`
+    appends them only when a constraint binds -- so they are excluded from the
+    check. A warning that fired on almost every request would be a warning
+    nobody reads."""
+    _report(
+        study,
+        {"s": {k: v for k, v in FULL.items() if not k.startswith("counterfactual_")}},
+    )
+
+    with caplog.at_level("WARNING"):
+        assert _get(org).status_code == 200
+
+    assert [r for r in caplog.records if "strata-progress" in r.getMessage()] == []
 
 
 def test_an_unknown_fact_in_the_report_is_ignored_not_an_error(org, study):
@@ -347,6 +398,28 @@ def test_reports_of_another_type_do_not_count_as_a_plan_run(org, study):
     assert _get(org).status_code == 404
 
 
+def test_another_studys_report_is_not_this_studys(org, study):
+    """`adopt_reports` is one table for every study in the deployment, so the
+    `study_id` predicate is the only thing keeping one study's allocation out of
+    another's answer. Two studies in the SAME org, so nothing but that predicate
+    can be doing the work."""
+    res = query(
+        db_conf,
+        "insert into studies (user_id, org_id, name, slug)"
+        " values (%s, %s, %s, %s) returning id",
+        (USER, org, "other study", "other-study"),
+        as_dict=True,
+    )
+    other_study = str(list(res)[0]["id"])
+    _report(other_study, {"theirs": FULL})
+
+    assert _get(org).status_code == 404
+
+    _report(study, {"ours": FULL})
+    (report,) = _get(org).json()["data"]
+    assert [s["id"] for s in report["strata"]] == ["ours"]
+
+
 def test_a_study_in_an_org_you_are_not_in_is_404(org, study):
     other_org = str(uuid.uuid4())
     execute(db_conf, "insert into orgs (id, name) values (%s, %s)", (other_org, "x"))
@@ -361,6 +434,19 @@ def test_a_study_in_an_org_you_are_not_in_is_404(org, study):
 
     assert res.status_code == 404
     assert "Study not found" in res.json()["detail"]
+
+
+def test_a_malformed_org_id_is_404_not_500(org, study):
+    """`orgs_lookup.org_id` is UUID, so an unparseable org id blows up in the
+    driver unless the handler rejects it first. It has to be indistinguishable
+    from a real org the caller is not in: telling them apart would make this
+    route an oracle for which org UUIDs exist."""
+    _report(study, {"s": FULL})
+
+    res = _get("not-a-uuid")
+
+    assert res.status_code == 404, res.text
+    assert "Organization not found" in res.json()["detail"]
 
 
 def test_an_unknown_slug_is_404(org, study):

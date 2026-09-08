@@ -750,6 +750,12 @@ class VlabClient:
         participant, spend, the desired/current/expected percentages, and the
         deviation from goal. `history` is 1..200 and defaults to 1 server-side.
 
+        Two traps in the names. `current_budget` is the optimizer's allocation
+        over the REST OF THE RECRUITMENT PERIOD, not a daily budget (the ad
+        set's daily budget is that divided by the days left, floored to the cent
+        and zeroed below `min_budget`). And the three `*_percentage` facts, and
+        the deviation, are fractions between 0 and 1.
+
         404 -- not an empty list -- when no plan has ever run for the study,
         because that is the report this reads and nothing else writes it.
         `plan` is what refreshes it.

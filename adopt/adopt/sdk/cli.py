@@ -1327,8 +1327,23 @@ def strata_progress(
 
     \b
     Where the money is going and what a respondent is costing you, per stratum:
-    the budget the optimizer set for that stratum's ad set, the current price
-    per participant, and the desired/current/expected percentage triple.
+    the optimizer's budget allocation, its price estimate, and the
+    desired/current/expected share triple.
+
+    \b
+    Two traps in the columns:
+    * `current_budget` is the optimizer's allocation for that stratum over the
+      REST OF THE RECRUITMENT PERIOD. The ad set's daily budget is this divided
+      by the days left, floored to the cent and zeroed if below the study's
+      min_budget, so a non-zero allocation here can still mean a paused ad set.
+    * the three `*_percentage` columns are FRACTIONS between 0 and 1, not
+      percentages, whatever their names say. The route returns the report's own
+      numbers and this prints them; nothing is multiplied on the way.
+
+    `current_price_per_participant` is an estimate, not a measurement: a
+    Gamma-Poisson posterior over the study's opt_window shrunk toward a prior of
+    2 + incentive_per_respondent dollars, so a stratum with little data sits
+    near that prior.
 
     Reads only. Every number comes from the report `vlab plan` writes at the
     end of a plan run and nothing else writes it, so these are the numbers as
@@ -1336,8 +1351,9 @@ def strata_progress(
     them. The adopt-ads cron plans every study inside its recruitment window
     every two hours, so a running study is at most that stale on its own.
 
-    A 404 means no plan has ever run for this study, not that the study is
-    missing.
+    "No adopt report found" means no plan has ever run for this study.
+    "Study not found" is the other 404: wrong slug, or an org that is not
+    yours.
 
     --history N prints one table per run, newest first, which is how you see
     budget move rather than a snapshot. Every number is the report's own,

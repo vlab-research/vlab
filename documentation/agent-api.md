@@ -898,11 +898,24 @@ GET /{org_id}/studies/{slug}/strata-progress?history=1
 }
 ```
 
-- `current_budget` is the **daily** budget the optimizer set for that stratum's
-  Meta ad set. It is a decision, not a measurement.
-- `current_price_per_participant` is what recruiting one more respondent in that
-  stratum currently costs. It is why budget moves between strata: the optimizer
-  buys where it is cheap until the quota shape says stop.
+- `current_budget` is the optimizer's allocation for that stratum **over the rest
+  of the recruitment period** — `budget_lookup`, not a daily budget. The ad set's
+  daily budget is this divided by the days left, floored to the cent and zeroed
+  if below the study's `min_budget`, so **a non-zero allocation here can still
+  mean a paused ad set** (`StudyConf.spend_for_day`, `_divide_among_days_left`
+  and `_deal_with_mins` in `study_conf.py`; it is also divided by the number of
+  destination arms). Once fewer than one day remains, every daily budget is
+  `0.0`.
+- `current_price_per_participant` is an **estimate**, not a measurement: a
+  Gamma-Poisson posterior over the study's `opt_window`, shrunk toward a prior of
+  `2 + incentive_per_respondent` dollars (`budget.py`, `_calc_price` /
+  `estimate_price`). A stratum with little data sits near that prior rather than
+  near its own history. It is nonetheless why budget moves between strata: the
+  optimizer buys where it is cheap until the quota shape says stop.
+- **The three `*_percentage` facts and `percentage_deviation_from_goal` are
+  fractions between 0 and 1, not 0–100**, despite the names, which are the
+  report's own keys (`budget.py`'s `_normalize_values` is `v / sum`). They are
+  shares of the sample.
 - `percentage_deviation_from_goal` is `abs(desired − current)` on the **raw**
   values. The Go route rounds both to two places first and subtracts the rounded
   pair; that is a display decision, and an agent gets the number it can compare
@@ -924,7 +937,11 @@ not that the study is missing. This is the one report read on this service that
 404s instead of answering `{"data": []}`: `segments-progress` and
 `cost-over-time` next door are drawn as empty charts by the dashboard, but an
 agent asking for the current allocation cannot tell "no plan has run" from "the
-plan allocated nothing", and those want opposite actions.
+plan allocated nothing", and those want opposite actions. The **other** `404`
+here is the ordinary one, `"Study not found: <slug>"` — wrong slug, or an org
+you are not in — so the message is what tells the two apart. A malformed org id
+gets `"Organization not found"`, the same answer a real org you are not in
+gets.
 
 Everything here comes out of the `FACEBOOK_ADOPT` report that a plan run writes
 at the end (§5), and **nothing else writes it** — so these are the numbers as of
@@ -2140,10 +2157,10 @@ curl -sS https://vlab-study-conf-api.toixo.vlab.digital/mcp \
 ```
 
 The response is `text/event-stream` with one `data:` frame carrying the
-JSON-RPC result. `tools/list` returns the same tools, with the same
-descriptions and schemas, as the local transport — a test diffs them. (The
-count moves as tools are added; the table below is the list. It said "sixteen"
-until 2026-09-08, by which time there were eighteen.)
+JSON-RPC result. `tools/list` returns the same tools, listed below, with the
+same descriptions and schemas as the local transport — a test diffs them. (No
+count here: it goes stale. This sentence said "sixteen" until 2026-09-08, by
+which time there were twenty-six.)
 
 `/mcp` does **not** appear in `/openapi.json` or `/docs`. That is deliberate:
 the OpenAPI document describes this service's REST surface, and MCP describes

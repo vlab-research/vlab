@@ -1001,14 +1001,23 @@ async def strata_progress(org: str, slug: str, history: int = 1) -> Dict[str, An
     going, and what is a respondent costing me" -- the dashboard's
     "Participants per Segment" table, one row per stratum:
 
-    * `current_budget` -- the DAILY budget the optimizer set for that stratum's
-      Meta ad set at the last plan run. It is a decision, not a measurement.
-    * `current_price_per_participant` -- what recruiting one more respondent in
-      that stratum currently costs, and the reason budget moves between strata:
-      the optimizer buys where it is cheap until the quota shape says stop.
+    * `current_budget` -- the optimizer's allocation for that stratum over the
+      rest of the recruitment period. NOT a daily budget: the ad set's daily
+      budget is this divided by the days left, floored to the cent and zeroed if
+      below the study's `min_budget`, so a non-zero allocation here can still
+      mean a paused ad set.
+    * `current_price_per_participant` -- an ESTIMATE of what one more respondent
+      in that stratum costs, not a measurement: a Gamma-Poisson posterior over
+      the study's `opt_window` shrunk toward a prior of 2 +
+      `incentive_per_respondent` dollars, so a stratum with little data sits
+      near that prior rather than near its own history. It is nonetheless the
+      reason budget moves between strata -- the optimizer buys where it is
+      cheap until the quota shape says stop.
     * `current_participants`, and the `desired`/`current`/`expected` percentage
       triple -- where the sample is, where it should be, and where this
-      allocation expects it to land. `percentage_deviation_from_goal` is
+      allocation expects it to land. THE THREE `*_percentage` FACTS AND
+      `percentage_deviation_from_goal` ARE FRACTIONS BETWEEN 0 AND 1, not 0-100,
+      despite the names: they are shares of the sample. Deviation is
       `abs(desired - current)`, unrounded.
     * `total_spent` and `lifetime_spent` -- the optimization window and all
       time; `efficiency_weight` -- how hard this study trades cost against
@@ -1023,9 +1032,11 @@ async def strata_progress(org: str, slug: str, history: int = 1) -> Dict[str, An
     every study inside its recruitment window every two hours, so on a running
     study this is at most two hours stale on its own.
 
-    A 404 means NO PLAN HAS EVER RUN for this study, not that the study is
-    missing. On a study that is configured but never planned, that is the
-    expected answer and `plan_study` is what changes it.
+    TWO DIFFERENT 404s, and the message tells them apart. "No adopt report found
+    for study <slug>" means NO PLAN HAS EVER RUN for it -- on a study that is
+    configured but never planned that is the expected answer, and `plan_study`
+    is what changes it. "Study not found: <slug>" is the other case: wrong slug,
+    or an org that is not yours (`list_studies` is what settles both).
 
     `history` is 1..200 (default 1) and returns that many reports NEWEST FIRST,
     which is how you see budget MOVE between runs rather than a snapshot.

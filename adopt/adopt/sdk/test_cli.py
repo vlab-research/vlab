@@ -1151,6 +1151,8 @@ def test_strata_progress_prints_a_row_per_stratum(runner, obj, org):
     assert lines[1].split() == list(STRATA_COLUMNS)
     assert lines[2].split()[0] == "rural"
     assert "12.5" in lines[2]
+    # The share printed as the fraction it is: 0.5, never 50.
+    assert lines[2].split()[3] == "0.5"
     assert "1 report(s)." in res.output
 
 
