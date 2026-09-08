@@ -1436,3 +1436,92 @@ def test_destination_type_still_never_rides_along_on_an_update():
     assert len(instructions) == 1
     assert "destination_type" not in instructions[0].params
     assert instructions[0].params["daily_budget"] == 999
+
+
+# ---------------------------------------------------------------------------
+# VIR-49: show_destination_blurbs. adopt sends it on every multi-destination
+# creative; Meta stored it and never echoed it back on the LAC Bolivia
+# campaign, so _eq saw a difference and update_ad rewrote all 12 ads on every
+# two-hourly run — 144 no-op writes a day, each minting a fresh creative.
+# ---------------------------------------------------------------------------
+
+
+def _blurbs_creative(features):
+    return {
+        "name": "Ad1",
+        "actor_id": "111",
+        "url_tags": "ref=foo",
+        "degrees_of_freedom_spec": {"creative_features_spec": features},
+    }
+
+
+def test_eq_tolerates_show_destination_blurbs_missing_from_source():
+    # The Bolivia shape: we opt in, Meta returns the rest of the spec without
+    # the key. Declared in DROPPED, so this must compare equal.
+    desired = _blurbs_creative(
+        {
+            "advantage_plus_creative": {"enroll_status": "OPT_IN"},
+            "show_destination_blurbs": {"enroll_status": "OPT_IN"},
+        }
+    )
+    source = _blurbs_creative(
+        {
+            "advantage_plus_creative": {"enroll_status": "OPT_IN"},
+            "image_enhancement": {"enroll_status": "OPT_OUT"},
+        }
+    )
+
+    assert _eq(desired, source, _CREATIVE_FIELDS)
+
+
+def test_ad_dif_does_not_rewrite_the_bolivia_creative():
+    # The symptom the ticket was filed on, at the level it was observed:
+    # `Generated N instruction(s)` must be 0 while the study is unchanged.
+    adset = {"id": "adset"}
+    desired = _blurbs_creative({"show_destination_blurbs": {"enroll_status": "OPT_IN"}})
+    running_ads = [
+        _adobject(
+            {
+                "id": "foo",
+                "status": "ACTIVE",
+                "name": "Ad1",
+                "creative": _blurbs_creative(
+                    {"image_enhancement": {"enroll_status": "OPT_OUT"}}
+                ),
+            },
+            Ad,
+        )
+    ]
+
+    assert ad_dif(adset, running_ads, [_ad(desired, adset)]) == []
+
+
+def test_declaring_the_drop_does_not_blind_us_where_meta_echoes_it():
+    # The Argentina shape. DROPPED is consulted only when the key is absent,
+    # so on the studies whose creatives *do* return show_destination_blurbs a
+    # genuine opt-out must still register. Without this, declaring the drop
+    # would silently stop applying the setting on two of the three studies.
+    desired = _blurbs_creative({"show_destination_blurbs": {"enroll_status": "OPT_IN"}})
+    source = _blurbs_creative({"show_destination_blurbs": {"enroll_status": "OPT_OUT"}})
+
+    assert not _eq(desired, source, _CREATIVE_FIELDS)
+
+
+def test_undeclared_sibling_of_a_declared_drop_still_warns(caplog):
+    # _eq returns on the first undeclared drop it meets, so a single warning
+    # line is a sample, not the whole list — which is why the fix for VIR-49
+    # is a probe run and not a log grep. Declaring show_destination_blurbs
+    # must uncover whatever was sitting behind it rather than silence it.
+    desired = _blurbs_creative(
+        {
+            "show_destination_blurbs": {"enroll_status": "OPT_IN"},
+            "some_new_meta_field": {"enroll_status": "OPT_IN"},
+        }
+    )
+    source = _blurbs_creative({"advantage_plus_creative": {"enroll_status": "OPT_IN"}})
+
+    with caplog.at_level(logging.WARNING):
+        assert not _eq(desired, source, _CREATIVE_FIELDS)
+
+    assert "some_new_meta_field" in caplog.text
+    assert "show_destination_blurbs" not in caplog.text

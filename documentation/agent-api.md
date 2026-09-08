@@ -531,6 +531,38 @@ regression test in `adopt/adopt/server/test_copy_confs.py`.)
 
 ### 2.3 Reading
 
+- `GET /orgs` — the organisations you belong to, as `[{id, name}]`. Needs
+  `studies:read`. **Step zero**: every other path on this service is
+  `/{org_id}/...`, and until adopt v0.1.88 the id had to be handed to you by a
+  human. **What an org is today: a personal workspace, not a team.** Every
+  user has exactly one, created by the Go API on first dashboard login
+  (`api/internal/storage/user.go`, `UserRepository.Create`), and its `name` is
+  the user's Auth0 id (`auth0|…`), not a chosen label. There is no membership
+  and no route creates an org; multi-user orgs are scaffolding for later. So
+  expect one entry and take its `id`. The schema leaves `name` nullable, so
+  treat it as optional in code, and never identify an org by it. An empty
+  list should not happen for a key holder, since minting a key requires the
+  login that creates the org; if it does, no key can fix it.
+- `GET /{org_id}/studies` — the studies in that org, as
+  `[{id, name, slug, created}]`, **newest first**. Needs `studies:read`.
+  `?limit=` (1–500, default 100) and `?offset=` page it. This is where a
+  **slug** comes from, and the slug is what every other route addresses a study
+  by. `created` is ISO 8601 with an explicit `+00:00` — note that
+  `POST /{org_id}/studies` reports the same column as `createdAt` in
+  *milliseconds*; the create route is a port whose number the dashboard parses,
+  this one is not. A non-member, an unknown org and a malformed UUID all get
+  the same `404 "Organization not found"` the create route gives.
+  **Access is org membership**, and that is a deliberate divergence from the Go
+  dashboard route (`api/internal/storage/study.go`), whose query is
+  `WHERE user_id = $3 OR org_id = $4`. Neither half of that OR is reproduced:
+  the `org_id` half has no membership check at all — safe in the dashboard,
+  where the org comes from the browser's own session, and an open door here,
+  where it is a path segment supplied by whoever holds the key — and the
+  `user_id` half returns *your* studies from *other* orgs under this org's URL.
+  So you see every study in an org you are a member of, whoever created it, and
+  nothing else. Studies with a `NULL org_id` (rows predating the 2023
+  organisation migration) are invisible here, exactly as they are to every
+  other route on this service. Design record: `planning/list-orgs-studies.md`.
 - `GET /{org_id}/studies/{slug}/confs` — newest row per conf type, as a map.
   The read you want. A study with no configuration at all is
   `200 {"data": {}}`, not an error. (This document said it raised a `500`
@@ -1376,7 +1408,13 @@ pipx install \
   "adopt[sdk] @ git+https://github.com/vlab-research/vlab.git#subdirectory=adopt"
 
 export VLAB_API_KEY=eyJ...     # a human mints this; see Authentication
-export VLAB_ORG=0f1e...        # a human tells you this; no endpoint lists orgs
+
+# 0. Discovery. Nobody has to hand you a UUID any more.
+vlab orgs                                        # -> id, name
+export VLAB_ORG=0f1e...                          # one of them
+vlab studies $VLAB_ORG                           # -> slug, name, created
+#   `vlab pull $VLAB_ORG/<slug>` if you are picking up an existing study;
+#   step 1 if you are starting a new one.
 
 # 1. Create the study and a starter file.
 vlab create $VLAB_ORG "HPV vaccine uptake, Lagos 2026" --init study.yaml
@@ -1475,12 +1513,15 @@ Everything else is the agent's.
    two derive identical slugs.)
 
 3. **A human mints you an API key** (see Authentication — ask for
-   `["studies:write", "meta:read", "optimize:read"]` unless you need to launch ads) and
-   tells you the `org_id`. There is no endpoint an API key can call that lists organisations
-   — `POST /users` on the Go service returns them (`{data: {id, orgs: [{id,
-   name}]}}`) but is Auth0-only, and the dashboard keeps the current org in
-   `sessionStorage['current-vlab-org']`, not in the URL. The org id has to be
-   handed to you.
+   `["studies:write", "meta:read", "optimize:read"]` unless you need to launch
+   ads). The `org_id` you can now find yourself: `GET /orgs` (§2.3), which
+   needs only `studies:read`, and then `GET /{org_id}/studies` for the slugs
+   already there. Until adopt v0.1.88 there was no such route and the id had to
+   be handed to you — the Go service's `POST /users` returns them
+   (`{data: {id, orgs: [{id, name}]}}`) but is Auth0-only, and the dashboard
+   keeps the current org in `sessionStorage['current-vlab-org']`, not in the
+   URL. What still has to be done by a human is *joining* an org: no key can
+   create one or add a member.
 
 4. **Read whatever is already there.**
    `GET /{org_id}/studies/{slug}/confs`. A fresh study is `{"data": {}}`.
@@ -2024,11 +2065,13 @@ itself through `tools/list`.
 ### The tools, and the scope each needs
 
 Names are the CLI's, so §6.1's runbook reads the same whichever front door you
-use: `create_study` → `push_study` → `validate_study` → `plan_study` →
-`apply_instruction`.
+use: `list_orgs` → `list_studies` → `create_study` → `push_study` →
+`validate_study` → `plan_study` → `apply_instruction`.
 
 | Tool | Does what `vlab` … does | Scope | Writes? |
 |---|---|---|---|
+| `list_orgs()` | `vlab orgs` | `studies:read` | no |
+| `list_studies(org, limit, offset)` | `vlab studies` | `studies:read` | no |
 | `create_study(org, name)` | `vlab create` | `studies:write` | yes — a study row, no delete |
 | `pull_study(org, slug)` | `vlab pull` | `studies:read` | no |
 | `validate_study(sections)` | `vlab validate` | `studies:read` | no — pure, in process |
@@ -2133,7 +2176,12 @@ to work. Treat them as unverified rather than broken.
 Stated plainly, because each of these will otherwise look like a bug in your
 client.
 
-1. **Discover its own `org_id`.** No API-key-reachable endpoint lists orgs.
+1. ~~**Discover its own `org_id`.**~~ **Closed** by `GET /orgs` and
+   `GET /{org_id}/studies` in adopt v0.1.88 (§2.3), both `studies:read`, both
+   also `vlab orgs` / `vlab studies` and the `list_orgs` / `list_studies` MCP
+   tools. What remains out of reach is *changing* the answer: no key can create
+   an org or add a member. Today that is moot, because every user has exactly
+   one auto-created personal org and there is no membership model yet (§2.3).
 2. **Write anything to Meta *through vlab*, or connect a Facebook account.**
    *Reading* Meta is solved — that is §2.5, and it is read-only by
    construction. But the OAuth exchange that creates the credential in the
@@ -2173,6 +2221,40 @@ client.
 ---
 
 ## 8. What landed recently
+
+### 2026-09-07 — `GET /orgs` and `GET /{org_id}/studies`: discovery is step zero
+
+Design record: `planning/list-orgs-studies.md`; the contract is §2.3; adopt
+v0.1.88. **Two new read-only endpoints, both `studies:read`, no behaviour
+change to anything that existed.**
+
+§7 item 1 said an agent could not discover its own `org_id`, and it was true in
+a way that quietly shaped everything else: a key that could author a whole
+study still needed a human to paste it a UUID, and a wrong one produced a 404
+that deliberately refuses to say whether the org is missing or merely not
+yours. Now `GET /orgs` lists the caller's organisations and
+`GET /{org_id}/studies` lists that org's studies with their slugs, newest
+first.
+
+Both scopes are `studies:read` rather than a new `orgs` resource. An org is the
+namespace a study lives in — every study address here is
+`/{org_id}/studies/...` — so a key that may read a study may find out where to
+look for it, and inventing a resource would have widened, retroactively, the
+scope set every already-issued key needs to complete the runbook.
+`GET /{org_id}/studies` needed no classification work at all: the middleware's
+`studies` branch already mapped that path's empty tail, which is why the create
+route (a POST to the same path) has always been `studies:write`.
+
+The one thing worth reading carefully is the access model, which **diverges
+from the dashboard's Go route on purpose** — §2.3 has it in full. Short version:
+this service lists studies in an org you are a *member* of, whoever created
+them, because the Go query (`user_id = $3 OR org_id = $4`) both skips the
+membership check — fine when the org comes from a browser session, an open door
+when it comes from a path segment — and mixes in your studies from other orgs.
+
+Every front door got them together: `vlab orgs` / `vlab studies <org>`,
+`VlabClient.list_orgs` / `list_studies`, and the `list_orgs` / `list_studies`
+MCP tools on both transports. The runbook in §6.1 now starts one step earlier.
 
 ### 2026-09-06 — MCP: the same runbook as tools, over two transports
 

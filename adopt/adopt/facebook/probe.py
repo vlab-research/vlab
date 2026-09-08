@@ -11,11 +11,16 @@ fetches the live ad, and classifies each leaf path:
     ok       we sent it, Facebook echoed it back unchanged
     dropped  we sent it, Facebook did not return it at all
     differs  we sent it, Facebook returned something else
-    stale    declared DROPPED, but Facebook does return it now
+    stale    declared DROPPED, but Facebook does return it on this study
 
 `dropped` paths that are not declared are what cause endless rewrites, so they
 are the point of this tool. `--update` writes them into field_contract.DROPPED
 with today's date; review the git diff as you would any other change.
+
+`--update` only ever adds. One study cannot prove a declaration is stale --
+Meta drops `show_destination_blurbs` on 12 of LAC Bolivia's 16 ads and echoes
+it on all of LAC Argentina's -- so removing one on this evidence would restart
+another study's rewrite loop. Undeclaring is a hand edit. See update_contract.
 
 Read-only by default: it points at ads that are spending real money.
 
@@ -399,9 +404,18 @@ def render(
         out.append("")
 
     if stale:
-        out.append("STALE DECLARATIONS — Facebook returns these now, undeclare them:")
+        # Deliberately not "undeclare them". This study echoing a key says
+        # nothing about the studies it was declared for -- Meta drops
+        # show_destination_blurbs on 12 of LAC Bolivia's 16 ads and echoes it
+        # on all of LAC Argentina's -- and undeclaring on this evidence
+        # restarts the other study's rewrite loop. See update_contract.
+        out.append("DECLARED DROPS THAT THIS STUDY ECHOES BACK — harmless here:")
         for p in stale:
             out.append(f"  {p}")
+        out.append(
+            "  they stay declared: --update never removes. Undeclare by hand "
+            "only after\n  probing the studies that declared them."
+        )
         out.append("")
 
     if declared:
@@ -412,7 +426,11 @@ def render(
 
     out.append(f"clean: {len(ok)} paths")
 
-    if not undeclared and not differs and not stale:
+    # Stale is not counted here, and does not fail the run below. It is not a
+    # contract violation for this study: an over-declared drop reconciles
+    # correctly, it is only untidy. Failing on it would push whoever sees the
+    # red run toward undeclaring, which is the one action that breaks things.
+    if not undeclared and not differs:
         out.append("\ncontract matches live Facebook behaviour.")
 
     return "\n".join(out)
@@ -447,13 +465,40 @@ def _wrap(text: str, width: int) -> List[str]:
 
 
 def update_contract(rows: Dict[str, Dict[str, Any]], today: str) -> Optional[str]:
-    """Rewrite DROPPED to match what the probe just saw. Returns new file text."""
-    keep = {
-        p: why
-        for p, why in field_contract.DROPPED.items()
-        # Drop declarations Facebook has started honouring again.
-        if rows.get(f".{p}", {}).get("verdict") != "stale"
-    }
+    """Add newly-found drops to DROPPED. Returns new file text, or None.
+
+    Only ever adds. A probe run covers one study, but DROPPED is a single
+    namespace shared by all of them, so the two directions carry very
+    different weight:
+
+    - Seeing a key dropped is positive evidence about Meta's behaviour, and
+      one study is enough to establish it.
+    - Seeing a key echoed is not evidence that it is echoed everywhere. Meta
+      demonstrably does both for the same key, and not only across studies:
+      probed 2026-09-08, `show_destination_blurbs` is missing from 12 of LAC
+      Bolivia's 16 live creatives and present on the other 4, and on all of
+      LAC Argentina's and Honduras's.
+
+    So removing a declaration because *this* study echoed it would undeclare a
+    drop confirmed on another study and restart its rewrite loop — VIR-49 was
+    144 no-op ad writes a day. Automatic removal used to do that; now a stale
+    declaration is reported and left alone, and undeclaring is a hand edit
+    somebody makes after looking at more than one study.
+
+    The asymmetry is safe because the costs are asymmetric. A declaration Meta
+    no longer needs is inert: `_eq` consults DROPPED only when the key is
+    missing from the live object, so once Meta echoes it the values are
+    compared as normal. A declaration wrongly removed is a rewrite loop.
+
+    This guard is defensive rather than a fix for something seen firing. Every
+    path in DROPPED today is dict-valued, and `_walk` emits a parent path as
+    its own row only when it is *missing* from the live object — when it is
+    present it recurses and reports the leaves instead. So a dict-valued
+    declaration can never be marked stale, which is why probing Argentina
+    reports no stale rows for a key it echoes on all 4 ads. The removal path
+    would wake up the first time a scalar-valued path is declared.
+    """
+    keep = dict(field_contract.DROPPED)
 
     for path, row in rows.items():
         if row["verdict"] == DROPPED and not row["declared_dropped"]:
@@ -608,14 +653,21 @@ def main(argv: Optional[List[str]] = None) -> int:
             CONTRACT_PATH.write_text(new)
             print(f"\nwrote {CONTRACT_PATH} — review the diff")
 
-    def _dirty(rows):
-        return any(
-            r["verdict"] == DROPPED and not r["declared_dropped"] or r["verdict"] == "stale"
-            for r in rows.values()
-        )
-
-    dirty = _dirty(ad_rows) or _dirty(adset_rows)
+    dirty = has_undeclared_drops(ad_rows) or has_undeclared_drops(adset_rows)
     return 1 if dirty and not args.update else 0
+
+
+def has_undeclared_drops(rows: Dict[str, Dict[str, Any]]) -> bool:
+    """Whether this run found a rewrite loop — the probe's failure condition.
+
+    Only undeclared drops count. A "stale" declaration used to fail here too,
+    but a red run is read as "go undeclare it", and on a key Meta echoes for
+    one study and drops for another that is the change that breaks production.
+    See update_contract.
+    """
+    return any(
+        r["verdict"] == DROPPED and not r["declared_dropped"] for r in rows.values()
+    )
 
 
 def _jsonable(rows: Dict[str, Dict[str, Any]]) -> Dict[str, Dict[str, Any]]:

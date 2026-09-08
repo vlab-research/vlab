@@ -4,7 +4,7 @@ Exploration and decision path for giving an AI agent (or a script, or a
 notebook) the ability to create and configure a vlab study without driving the
 React dashboard by hand.
 
-Status: **Phases 0–4 in production (adopt v0.1.87, helm revision 146, 2026-09-06); Phase 4 (MCP) merged in #271 — phase notes in `planning/mcp.md`, which is authoritative where it and §16 disagree.** §1–§5 are
+Status: **Phases 0–4 in production (adopt v0.1.88, helm revision 147, 2026-09-07; #274 added org and study listing); Phase 4 (MCP) merged in #271 — phase notes in `planning/mcp.md`, which is authoritative where it and §16 disagree.** §1–§5 are
 findings read out of the code, with the file establishing each claim named
 next to it. §7 records the decisions taken and why, §8 is the plan, §10 is
 what is still open, and **§11 (Phase 0), §12 (Phase 1) and §13 (Phase 2)

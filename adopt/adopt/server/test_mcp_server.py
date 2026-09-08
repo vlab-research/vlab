@@ -416,6 +416,11 @@ ORG = "9d3d0f6a-0f0f-4b2a-9b7e-000000000001"
 # use either, and a tool that needed a NARROWER scope than the endpoint doing
 # the same job would be a distinction with no meaning behind it.
 ROUTE_BACKED_TOOLS = {
+    # Discovery. `/orgs` is the one path here that is not org-scoped, which is
+    # why `required_scope` needed a branch of its own for it; the assertion
+    # below is what pins the tool to whatever that branch decided.
+    "list_orgs": ("GET", "/orgs"),
+    "list_studies": ("GET", f"/{ORG}/studies"),
     "create_study": ("POST", f"/{ORG}/studies"),
     "pull_study": ("GET", f"/{ORG}/studies/hpv/confs"),
     "diff_study": ("GET", f"/{ORG}/studies/hpv/confs"),
@@ -688,3 +693,83 @@ def test_a_handlers_404_reaches_a_tool_as_a_tool_error(app_client, org):
     assert is_error
     assert "404" in message
     assert "Organization not found" in message
+
+
+def test_discovery_through_mcp_with_a_read_only_key(app_client, org):
+    """The gap this pair closes, exercised on the remote transport: a key that
+    can only READ finds its org and then that org's slugs, without a human
+    having handed over a UUID.
+
+    `studies:read` and nothing else, deliberately. If either tool needed more,
+    an agent would have to be given a key that can also write in order to find
+    out what it could write to.
+    """
+    token, _ = generate_api_token(user_id=USER, name="ro", scopes=["studies:read"])
+
+    # A study to find. Created with a second, wider key -- the read-only one
+    # must not be able to do this, which the test below the runbook pins.
+    writer, _ = generate_api_token(user_id=USER, name="w", scopes=["studies:write"])
+    made, is_error = call_tool(
+        app_client, "create_study", {"org": org, "name": "HPV Nigeria"}, writer
+    )
+    assert not is_error, made
+
+    orgs, is_error = call_tool(app_client, "list_orgs", {}, token)
+    assert not is_error, orgs
+    assert [o["id"] for o in orgs["orgs"]] == [org]
+
+    listing, is_error = call_tool(app_client, "list_studies", {"org": org}, token)
+    assert not is_error, listing
+    assert listing["page_size"] == 1
+    assert listing["studies"][0]["slug"] == made["slug"]
+    # The in-process path has to supply the Query defaults itself -- FastAPI is
+    # not parsing a query string here, so an unsupplied `limit` would otherwise
+    # arrive at psycopg as a `Query` object.
+    assert listing["studies"][0]["created"].endswith("+00:00")
+
+
+def test_list_studies_paging_survives_the_in_process_call(app_client, org):
+    token, _ = generate_api_token(user_id=USER, name="rw", scopes=["studies:write"])
+
+    for name in ("A", "B", "C"):
+        made, is_error = call_tool(
+            app_client, "create_study", {"org": org, "name": name}, token
+        )
+        assert not is_error, made
+
+    listing, is_error = call_tool(
+        app_client, "list_studies", {"org": org, "limit": 2}, token
+    )
+    assert not is_error, listing
+    assert listing["page_size"] == 2
+
+    listing, is_error = call_tool(
+        app_client, "list_studies", {"org": org, "limit": 2, "offset": 2}, token
+    )
+    assert not is_error, listing
+    assert listing["page_size"] == 1
+
+
+def test_an_out_of_range_limit_is_rejected_in_process_too(app_client, org):
+    """FastAPI's `Query(ge=1, le=500)` only runs when FastAPI parses a query
+    string, and this transport calls the handler directly. Without the
+    handler's own check a negative offset reaches psycopg as a 500."""
+    token, _ = generate_api_token(user_id=USER, name="ro", scopes=["studies:read"])
+
+    message, is_error = call_tool(
+        app_client, "list_studies", {"org": org, "limit": 10_000}, token
+    )
+
+    assert is_error
+    assert "422" in message
+
+
+def test_a_read_only_key_can_discover_but_a_meta_key_cannot(app_client, org):
+    """`meta:read` reads the researcher's Meta estate; it has no business
+    enumerating vlab's own orgs. The error names the scope to ask for."""
+    token, _ = generate_api_token(user_id=USER, name="m", scopes=["meta:read"])
+
+    message, is_error = call_tool(app_client, "list_orgs", {}, token)
+
+    assert is_error
+    assert "studies:read" in message

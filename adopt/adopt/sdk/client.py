@@ -1,10 +1,10 @@
 """The HTTP client for the vlab study-configuration service.
 
 Wraps exactly the API `documentation/agent-api.md` describes, and nothing else:
-study creation, the nine conf writes and the two reads, whole-study validation,
-the optimize plan/apply pair, the read-only Meta proxy, and API-key listing and
-revocation. Every method returns the parsed `data` payload and raises on a
-non-2xx.
+org and study discovery, study creation, the nine conf writes and the two
+reads, whole-study validation, the optimize plan/apply pair, the read-only Meta
+proxy, and API-key listing and revocation. Every method returns the parsed
+`data` payload and raises on a non-2xx.
 
 WHY THE ERRORS ARE TYPED
 ------------------------
@@ -429,6 +429,45 @@ class VlabClient:
         if isinstance(body, dict) and "data" in body:
             return body["data"]
         return body
+
+    # -- discovery ---------------------------------------------------------
+
+    def list_orgs(self) -> List[Dict[str, Any]]:
+        """`GET /orgs` -- the orgs you belong to, as `[{id, name}]`. `studies:read`.
+
+        Step zero: every other path on this service is `/{org_id}/...`, and
+        until this route existed the id had to be handed over out of band.
+        `name` can be null -- the column is nullable and nothing enforces it.
+        """
+        return self._data("GET", "/orgs")
+
+    def list_studies(
+        self,
+        org_id: str,
+        limit: Optional[int] = None,
+        offset: Optional[int] = None,
+    ) -> List[Dict[str, Any]]:
+        """`GET /{org}/studies` -- `[{id, name, slug, created}]`, newest first.
+
+        Studies in an org you are a MEMBER of, whoever created them. That is
+        not what the dashboard's Go route does (`user_id = $3 OR org_id = $4`,
+        which both skips the membership check and mixes in your studies from
+        other orgs); `server/db.py`'s `list_studies` says why neither half is
+        reproduced.
+
+        `created` is ISO 8601 here, where `create_study` answers `createdAt` in
+        milliseconds. The create route is a port whose number the dashboard
+        parses; this one has no such constraint.
+
+        `limit` is 1..500 and defaults to 100 server-side; `offset` is a plain
+        row offset, not the Go route's base64 cursor. A 404 means the org is
+        not yours or does not exist -- deliberately the same answer.
+        """
+        return self._data(
+            "GET",
+            f"/{_seg(org_id)}/studies",
+            params={"limit": limit, "offset": offset},
+        )
 
     # -- studies -----------------------------------------------------------
 

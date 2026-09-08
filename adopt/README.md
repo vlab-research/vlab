@@ -927,6 +927,8 @@ decided and what is still open: `planning/vlab-sdk.md`. The API it wraps:
 export VLAB_API_KEY=eyJ...           # a human mints this; see below
 export VLAB_API_URL=https://vlab-study-conf-api.toixo.vlab.digital   # the default
 
+vlab orgs                            # which orgs is this key in?
+vlab studies $ORG                    # what is already there?
 vlab create $ORG "HPV Nigeria" --init study.yaml
 $EDITOR study.yaml
 vlab validate && vlab diff && vlab push
@@ -995,8 +997,8 @@ configuration sections, keyed as STORED — `data_sources` and `inference_data`
 with underscores, not the hyphenated URL segments you POST to.
 
 ```yaml
-org:  0f1e...            # a UUID a human has to hand you; no endpoint lists orgs
-slug: hpv-nigeria        # from the 201 of `vlab create`
+org:  0f1e...            # a UUID, from `vlab orgs`
+slug: hpv-nigeria        # from `vlab studies <org>`, or the 201 of `vlab create`
 name: HPV Nigeria
 
 general:      {...}
@@ -1017,6 +1019,8 @@ correct for free.
 
 | | |
 |---|---|
+| `vlab orgs` | `GET /orgs`. The organisations your key belongs to. Step zero: every other address on this service is `/{org}/...`. |
+| `vlab studies <org> [--limit] [--offset]` | `GET /{org}/studies`. Slug, name and creation time, newest first. Every study in an org you are a *member* of, whoever created it. |
 | `vlab create <org> <name> [--init]` | `POST /{org}/studies`. Prints the slug — which you cannot compute yourself; apostrophes are *deleted*, so `Nandan's study` is `nandans-study`. `--init` writes an annotated skeleton that passes `vlab validate` as written. |
 | `vlab pull <org>/<slug> [-o]` | `GET /confs` to a file. Refuses to clobber without `--force`. |
 | `vlab validate [file] [--remote]` | Local and instant by default; exits 1 when invalid. `--remote` asks `POST /validate` instead — the same pure function behind an HTTP call, for when this package is older than the deployment. |

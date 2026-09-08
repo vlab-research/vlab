@@ -351,3 +351,204 @@ def test_malformed_org_id_is_404_not_500():
     # InvalidTextRepresentation from the driver and a 500.
     assert res.status_code == 404, res.text
     assert _study_rows() == []
+
+
+# --------------------------------------------------------------------------
+# GET /orgs and GET /{org_id}/studies — the discovery half
+# --------------------------------------------------------------------------
+#
+# These close `documentation/agent-api.md` §7 item 1: until they existed, an
+# agent holding an API key could configure a study but had no way to learn
+# which org to put it in. planning/list-orgs-studies.md is the design record.
+
+
+def _get_orgs():
+    return client.get("/orgs", headers=HEADERS)
+
+
+def _get_studies(org_id, **params):
+    return client.get(f"/{org_id}/studies", headers=HEADERS, params=params)
+
+
+def test_list_orgs_returns_only_the_callers_orgs():
+    org_id = _setup()
+    _create_user(other_user_id)
+    _create_org("not mine", other_user_id)
+
+    res = _get_orgs()
+
+    assert res.status_code == 200, res.text
+    assert res.json()["data"] == [{"id": str(org_id), "name": "test org"}]
+
+
+def test_list_orgs_is_empty_for_a_user_in_no_orgs():
+    _setup()
+    _create_user(other_user_id)
+    _as(other_user_id)
+
+    assert _get_orgs().json()["data"] == []
+
+
+def test_list_orgs_is_ordered_by_name():
+    """Go has no ORDER BY. A list an agent reads twice should be the same
+    twice. `orgs.name` is UNIQUE but nullable, so the query breaks ties on
+    `id`; this pins the named case, which is the one that reads well."""
+    _reset_db()
+    _as(user_id)
+    _create_user(user_id)
+    for name in ("zebra", "alpha", "middle"):
+        _create_org(name, user_id)
+
+    assert [o["name"] for o in _get_orgs().json()["data"]] == [
+        "alpha",
+        "middle",
+        "zebra",
+    ]
+
+
+def _create_studies_in_order(org_id, *names):
+    """Create studies and stamp `created` so the order is not a race.
+
+    Three inserts a few microseconds apart could share a timestamp, and a test
+    that asserts an order has to be asserting a real one. The stamps are a day
+    apart and ascending in argument order, so `names[-1]` is the newest.
+    """
+    for i, name in enumerate(names):
+        assert _post(org_id, name).status_code == 201
+        execute(
+            db_conf,
+            "update studies set created = %s where name = %s",
+            (f"2026-01-{i + 1:02d} 00:00:00", name),
+        )
+
+
+def test_list_studies_is_newest_first_with_the_documented_fields():
+    org_id = _setup()
+
+    _create_studies_in_order(org_id, "First", "Second", "Third")
+
+    res = _get_studies(org_id)
+
+    assert res.status_code == 200, res.text
+    rows = res.json()["data"]
+    assert [r["name"] for r in rows] == ["Third", "Second", "First"]
+    assert rows[0]["slug"] == "third"
+    assert uuid.UUID(rows[0]["id"])
+    # ISO 8601 with an explicit offset — NOT the create route's `createdAt`
+    # milliseconds. `studies.created` is naive UTC; stamping the offset is what
+    # makes the string unambiguous.
+    assert rows[0]["created"].endswith("+00:00")
+
+
+def test_list_studies_shows_every_members_studies_not_just_your_own():
+    """The access rule is org membership, which is what every other read on
+    this service enforces by joining orgs_lookup. The Go dashboard query is
+    `user_id = $3 OR org_id = $4`; see db.list_studies for why neither half of
+    that OR is reproduced here."""
+    org_id = _setup()
+    _create_user(other_user_id)
+    execute(
+        db_conf,
+        "insert into orgs_lookup (org_id, user_id) values (%s, %s)",
+        (org_id, other_user_id),
+    )
+
+    _as(other_user_id)
+    assert _post(org_id, "Theirs").status_code == 201
+
+    _as(user_id)
+    assert [r["name"] for r in _get_studies(org_id).json()["data"]] == ["Theirs"]
+
+
+def test_list_studies_does_not_leak_your_studies_from_other_orgs():
+    """The other half of the Go query's OR. A study belongs to the org whose
+    URL addresses it, and nothing else."""
+    org_id = _setup()
+    elsewhere = _create_org("elsewhere", user_id)
+
+    assert _post(elsewhere, "Somewhere Else").status_code == 201
+
+    assert _get_studies(org_id).json()["data"] == []
+    assert [r["name"] for r in _get_studies(elsewhere).json()["data"]] == [
+        "Somewhere Else"
+    ]
+
+
+def test_an_org_with_no_studies_is_200_not_404():
+    """The distinction the membership check exists to make: no rows because
+    the org is empty is not no rows because it is not yours."""
+    org_id = _setup()
+
+    res = _get_studies(org_id)
+    assert res.status_code == 200, res.text
+    assert res.json()["data"] == []
+
+
+def test_studies_with_a_null_org_id_are_invisible():
+    """Rows predating the 2023 organisation migration, and anything
+    `create_campaign_for_user` wrote. They are unreachable through every conf
+    route on this service, so listing them would advertise a 404."""
+    org_id = _setup()
+    execute(
+        db_conf,
+        "insert into studies (slug, name, user_id) values (%s, %s, %s)",
+        ("orphan", "Orphan", user_id),
+    )
+
+    assert _get_studies(org_id).json()["data"] == []
+
+
+def test_cannot_list_studies_of_an_org_you_do_not_belong_to():
+    _setup()
+    _create_user(other_user_id)
+    other_org = _create_org("someone elses org", other_user_id)
+
+    _as(other_user_id)
+    assert _post(other_org, "Theirs").status_code == 201
+
+    _as(user_id)
+    res = _get_studies(other_org)
+    assert res.status_code == 404, res.text
+    # Byte for byte the create route's sentence: a non-member, an unknown org
+    # and a malformed id are deliberately indistinguishable.
+    assert res.json()["detail"] == f"Organization not found: {other_org}"
+
+
+def test_unknown_org_is_the_same_404():
+    _setup()
+    missing = uuid.uuid4()
+
+    res = _get_studies(missing)
+    assert res.status_code == 404, res.text
+    assert res.json()["detail"] == f"Organization not found: {missing}"
+
+
+def test_malformed_org_id_is_404_not_500_on_the_list_route():
+    _setup()
+
+    # orgs_lookup.org_id is UUID; without the guard this is an
+    # InvalidTextRepresentation from the driver and a 500.
+    res = _get_studies("not-a-uuid")
+    assert res.status_code == 404, res.text
+    assert res.json()["detail"] == "Organization not found: not-a-uuid"
+
+
+def test_limit_and_offset_page_the_list():
+    org_id = _setup()
+    _create_studies_in_order(org_id, "First", "Second", "Third")
+
+    assert [r["name"] for r in _get_studies(org_id, limit=2).json()["data"]] == [
+        "Third",
+        "Second",
+    ]
+    assert [
+        r["name"] for r in _get_studies(org_id, limit=2, offset=2).json()["data"]
+    ] == ["First"]
+
+
+def test_out_of_range_paging_is_422_not_a_query():
+    org_id = _setup()
+
+    assert _get_studies(org_id, limit=0).status_code == 422
+    assert _get_studies(org_id, limit=501).status_code == 422
+    assert _get_studies(org_id, offset=-1).status_code == 422

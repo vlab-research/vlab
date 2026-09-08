@@ -3,6 +3,8 @@
     pipx install --python python3.10 \\
       "adopt[sdk] @ git+https://github.com/vlab-research/vlab.git#subdirectory=adopt"
     export VLAB_API_KEY=eyJ...        # a human mints this; see `vlab keys --help`
+    vlab orgs                         # which orgs is this key in?
+    vlab studies $ORG                 # what is already there?
     vlab create $ORG "HPV Nigeria" --init study.yaml
     $EDITOR study.yaml
     vlab validate && vlab diff && vlab push
@@ -134,9 +136,9 @@ def parse_target(target: str) -> Tuple[str, str]:
     """`<org>/<slug>` -> `(org, slug)`.
 
     An org id is a UUID and a slug never contains a slash, so one split is
-    unambiguous. The error names both halves because "org" is not discoverable
-    from any endpoint an API key can call (§7.1) and a user who does not have
-    it needs to be told to ask for it, not told the syntax is wrong.
+    unambiguous. The error names both halves and says where to get them: the
+    org used to be undiscoverable from any endpoint an API key could call
+    (§7.1), and the habit of assuming a user already has it outlived the gap.
     """
     org, sep, slug = target.partition("/")
     # `"/" in slug` matters: without it `org/slug/extra` splits happily, the
@@ -144,8 +146,9 @@ def parse_target(target: str) -> Tuple[str, str]:
     # caller gets a 404 instead of being told the argument is malformed.
     if not sep or not org or not slug or "/" in slug:
         raise click.BadParameter(
-            f"Expected <org>/<slug>, got {target!r}. The org is a UUID a human "
-            "has to hand you -- no endpoint an API key can call lists them."
+            f"Expected <org>/<slug>, got {target!r}. The org is a UUID: "
+            "`vlab orgs` lists yours, and `vlab studies <org>` lists that "
+            "org's slugs."
         )
     return org, slug
 
@@ -168,6 +171,43 @@ def short(value: Any, width: int = 60) -> str:
     """A value on one line, truncated. For diff and plan output."""
     text = json.dumps(value, default=str, ensure_ascii=False)
     return text if len(text) <= width else text[: width - 1] + "…"
+
+
+def rows_out(body: Any, as_json: bool, columns: Sequence[str]) -> None:
+    """A `{"data": [...]}` envelope as columns, or as JSON.
+
+    Was `_meta_out`, private to the meta group, until `vlab orgs` and
+    `vlab studies` wanted the same two lines. Nothing in it was ever
+    Meta-specific except the truncation notice, which is guarded on a `paging`
+    key only the Meta proxy sends -- so generalising it is a rename, not a
+    behaviour change, and one table renderer is one place to fix a column that
+    prints badly.
+    """
+    if as_json:
+        emit_json(body)
+        return
+
+    rows = body.get("data") if isinstance(body, dict) else body
+    if isinstance(rows, dict):
+        rows = [rows]
+    rows = rows or []
+
+    for row in rows:
+        cells = []
+        for column in columns:
+            value = row.get(column)
+            cells.append(value if isinstance(value, str) else short(value, 40))
+        click.echo("  ".join(cells))
+
+    paging = body.get("paging") if isinstance(body, dict) else None
+    click.echo("")
+    click.echo(f"{len(rows)} row(s).")
+    if paging and paging.get("truncated"):
+        click.echo(
+            f"TRUNCATED at the server's 10-page cap after "
+            f"{paging.get('pages_fetched')} pages. Continue with "
+            f"--after {paging.get('after')}, or lower --limit."
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -245,6 +285,63 @@ def cli(ctx: click.Context, api_url: str, api_key: Optional[str]) -> None:
     obj = ctx.ensure_object(dict)
     obj.setdefault("api_url", api_url)
     obj.setdefault("api_key", api_key)
+
+
+# ---------------------------------------------------------------------------
+# orgs / studies -- discovery, which is step zero
+# ---------------------------------------------------------------------------
+
+
+@cli.command()
+@click.option("--json", "as_json", is_flag=True, help="Machine-readable output.")
+@auth_options
+@click.pass_context
+def orgs(ctx: click.Context, as_json: bool) -> None:
+    """The organisations your key belongs to. Needs `studies:read`.
+
+    Step zero. Every other address on this service is `/{org}/...`, and until
+    this existed a human had to hand you the UUID; a wrong one produced a 404
+    that deliberately tells you nothing. Feed an id here to `vlab studies`.
+
+    Reads only. An org whose `name` is empty is not a bug -- the column is
+    nullable and the dashboard has never required one.
+    """
+    rows_out({"data": get_client(ctx).list_orgs()}, as_json, ["id", "name"])
+
+
+@cli.command()
+@click.argument("org", required=False, envvar="VLAB_ORG")
+@click.option("--limit", type=int, default=None, help="How many (1-500, default 100).")
+@click.option("--offset", type=int, default=None, help="Skip this many rows.")
+@click.option("--json", "as_json", is_flag=True, help="Machine-readable output.")
+@auth_options
+@click.pass_context
+def studies(
+    ctx: click.Context,
+    org: Optional[str],
+    limit: Optional[int],
+    offset: Optional[int],
+    as_json: bool,
+) -> None:
+    """The studies in ORG, newest first. Needs `studies:read`.
+
+    Prints slug, name and creation time; the slug is what `vlab pull`,
+    `vlab plan` and every other command address a study by. ORG defaults to
+    $VLAB_ORG.
+
+    You see every study in an org you are a MEMBER of, whoever created it --
+    which is not quite what the dashboard shows. A 404 means the org is not
+    yours or does not exist, deliberately without saying which.
+    """
+    if not org:
+        raise click.UsageError(
+            "No org. Pass one, or set VLAB_ORG. `vlab orgs` lists yours."
+        )
+
+    rows = get_client(ctx).list_studies(org, limit=limit, offset=offset)
+    # Slug first: it is the argument every other command wants, and a column
+    # you have to hunt for is a column that gets copied wrong.
+    rows_out({"data": rows}, as_json, ["slug", "name", "created"])
 
 
 # ---------------------------------------------------------------------------
@@ -876,34 +973,6 @@ def meta() -> None:
     """
 
 
-def _meta_out(body: Any, as_json: bool, columns: Sequence[str]) -> None:
-    if as_json:
-        emit_json(body)
-        return
-
-    rows = body.get("data") if isinstance(body, dict) else body
-    if isinstance(rows, dict):
-        rows = [rows]
-    rows = rows or []
-
-    for row in rows:
-        cells = []
-        for column in columns:
-            value = row.get(column)
-            cells.append(value if isinstance(value, str) else short(value, 40))
-        click.echo("  ".join(cells))
-
-    paging = body.get("paging") if isinstance(body, dict) else None
-    click.echo("")
-    click.echo(f"{len(rows)} row(s).")
-    if paging and paging.get("truncated"):
-        click.echo(
-            f"TRUNCATED at the server's 10-page cap after "
-            f"{paging.get('pages_fetched')} pages. Continue with "
-            f"--after {paging.get('after')}, or lower --limit."
-        )
-
-
 _credentials_key = click.option(
     "--credentials-key",
     default=None,
@@ -927,7 +996,7 @@ def meta_credentials(ctx: click.Context, org: str, as_json: bool) -> None:
     The only API-key-reachable way to discover a valid `general.credentials_key`.
     """
     rows = get_client(ctx).meta_credentials(org)
-    _meta_out({"data": rows}, as_json, ["key", "entity", "created"])
+    rows_out({"data": rows}, as_json, ["key", "entity", "created"])
 
 
 @meta.command("adaccounts")
@@ -949,7 +1018,7 @@ def meta_adaccounts(
     """Ad accounts. `account_id` is what general.ad_account wants -- the BARE
     number, not the act_-prefixed `id`."""
     body = get_client(ctx).meta_adaccounts(org, credentials_key, limit, after)
-    _meta_out(body, as_json, ["account_id", "id", "name"])
+    rows_out(body, as_json, ["account_id", "id", "name"])
 
 
 @meta.command("campaigns")
@@ -973,7 +1042,7 @@ def meta_campaigns(
     """Campaigns on an ad account, whatever their status -- a template campaign
     is usually paused, so filtering to active ones would hide it."""
     body = get_client(ctx).meta_campaigns(org, account, credentials_key, limit, after)
-    _meta_out(body, as_json, ["id", "name"])
+    rows_out(body, as_json, ["id", "name"])
 
 
 @meta.command("adsets")
@@ -1000,7 +1069,7 @@ def meta_adsets(
     set object is what that command takes, unchanged.
     """
     body = get_client(ctx).meta_adsets(org, campaign, credentials_key, limit, after)
-    _meta_out(body, as_json, ["id", "name"])
+    rows_out(body, as_json, ["id", "name"])
 
 
 @meta.command("ads")
@@ -1055,7 +1124,7 @@ def meta_ads(
         raise click.BadParameter("Pass exactly one of --campaign or --adset.")
 
     body = client.meta_ads(org, campaign, adset, credentials_key, limit, after)
-    _meta_out(body, as_json, ["id", "name"])
+    rows_out(body, as_json, ["id", "name"])
 
 
 # ---------------------------------------------------------------------------

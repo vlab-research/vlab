@@ -21,6 +21,8 @@ from .probe import (
     OK,
     classify,
     constructed_creatives,
+    has_undeclared_drops,
+    render,
     render_dropped_block,
     summarise,
     update_contract,
@@ -134,14 +136,54 @@ def test_update_contract_adds_undeclared_drops():
     assert "image_text_translation" in new
 
 
-def test_update_contract_removes_stale_declarations():
+def test_update_contract_keeps_a_declaration_this_study_echoes_back():
+    # VIR-49. show_destination_blurbs is dropped on 12 of LAC Bolivia's 16 ads
+    # and echoed on all of LAC Argentina's. Removing a declaration because the
+    # study in front of you echoes it would restart the other study's rewrite
+    # loop — 12 no-op ad writes every two hours. One study is not enough to
+    # undeclare, so --update must keep what it cannot disprove.
     declared = next(iter(field_contract.DROPPED))
     rows = {f".{declared}": {"verdict": "stale", "declared_dropped": True, "ads": 1, "hits": 1}}
+
+    assert update_contract(rows, "2026-07-31") is None
+
+
+def test_update_contract_still_adds_while_another_path_reads_stale():
+    # The two directions are independent: a stale reading must not stop the
+    # run from declaring a genuine new drop found alongside it.
+    declared = next(iter(field_contract.DROPPED))
+    rows = {
+        f".{declared}": {"verdict": "stale", "declared_dropped": True, "ads": 1, "hits": 1},
+        ".url_tags": {"verdict": DROPPED, "declared_dropped": False, "ads": 3, "hits": 3},
+    }
 
     new = update_contract(rows, "2026-07-31")
 
     assert new is not None
-    assert declared not in new
+    assert '"url_tags"' in new
+    assert declared in new
+
+
+def test_stale_declarations_do_not_fail_the_run():
+    # A red run is read as "go undeclare it", which is the one action that
+    # breaks a key Meta drops on another study. Only undeclared drops fail.
+    declared = next(iter(field_contract.DROPPED))
+    stale = {f".{declared}": {"verdict": "stale", "declared_dropped": True, "ads": 1, "hits": 1}}
+    undeclared = {".url_tags": {"verdict": DROPPED, "declared_dropped": False, "ads": 1, "hits": 1}}
+
+    assert not has_undeclared_drops(stale)
+    assert has_undeclared_drops(undeclared)
+
+
+def test_report_does_not_tell_you_to_undeclare_a_stale_path():
+    declared = next(iter(field_contract.DROPPED))
+    rows = summarise([(f".{declared}", OK, {"enroll_status": "OPT_IN"}, {"enroll_status": "OPT_IN"})])
+
+    out = render(rows, ads_compared=1)
+
+    assert declared in out
+    assert "undeclare them" not in out
+    assert "--update never removes" in out
 
 
 def test_update_contract_is_a_noop_when_nothing_changed():

@@ -45,8 +45,9 @@ THE BACKEND CONTRACT
 --------------------
 
 `VlabClient`'s method surface, exactly, and returning exactly what it returns:
-`create_study`, `get_confs`, `post_conf`, `validate`, `plan`, `apply`,
-`meta_*`, `list_api_keys`, `revoke_api_key`. `ClientBackend` below is the HTTP
+`list_orgs`, `list_studies`, `create_study`, `get_confs`, `post_conf`,
+`validate`, `plan`, `apply`, `meta_*`, `list_api_keys`, `revoke_api_key`.
+`ClientBackend` below is the HTTP
 one; `server/mcp_server.InProcessBackend` is the other, and it raises the same
 `client.VlabHTTPError` subclasses so that a 404 reads the same to a tool
 whichever side of the wire it came from.
@@ -118,6 +119,8 @@ MAX_DIFF_LEAVES = 100
 # the plan disagree, that rule wins. It also means the two transports demand the
 # same scopes, which is what makes the drift guard meaningful.
 TOOL_SCOPES: Dict[str, Optional[str]] = {
+    "list_orgs": "studies:read",
+    "list_studies": "studies:read",
     "create_study": "studies:write",
     "pull_study": "studies:read",
     "validate_study": "studies:read",
@@ -262,6 +265,84 @@ class _CallableFromThread:
 
 
 # --------------------------------------------------------------------------
+# Tools: discovery
+# --------------------------------------------------------------------------
+
+
+async def list_orgs() -> Dict[str, Any]:
+    """List the organisations this API key belongs to. Needs `studies:read`.
+
+    Reads only; writes nothing. START HERE. Every other tool takes an `org`,
+    and an organisation UUID is the one argument you cannot guess or derive:
+    every address on this service is `/{org}/studies/...`, and a wrong org id
+    gets a 404 that deliberately refuses to say whether the org does not exist
+    or is simply not yours.
+
+    WHAT AN ORG IS TODAY: a personal workspace, not a team. Every vlab user
+    has exactly ONE, created automatically the first time they log in to the
+    dashboard, and its `name` is that user's Auth0 id (`auth0|...`), not a
+    label anyone chose. There is no membership: nobody can be added to another
+    user's org, and no route creates an org. So expect a single entry, take
+    its `id`, and do not describe the org to a researcher as a team or ask
+    which org they meant. Multi-user orgs are scaffolding for later; when they
+    arrive the shape here stays the same and only the count changes.
+
+    Returns `{"orgs": [{"id", "name"}]}`. `id` is what every other tool wants.
+    Identify an org by its id, never by its name: the schema leaves `name`
+    nullable, so treat it as optional, and in practice it is the Auth0 id.
+
+    An empty list should not happen. Minting an API key requires having logged
+    in to the dashboard, and that first login is what creates the org. If you
+    see one, the server side is wrong in a way no tool here can fix -- there
+    is no route that creates an org or grants membership.
+
+    Scoped `studies:read` rather than a scope of its own. An org is the
+    namespace a study lives in, and the only thing this reveals is which
+    `/{org}/...` prefixes will not 404 -- so any key that can read a study can
+    find out where to look for it. Next: `list_studies`.
+    """
+    return {"orgs": await backend().list_orgs()}
+
+
+async def list_studies(
+    org: str, limit: Optional[int] = None, offset: Optional[int] = None
+) -> Dict[str, Any]:
+    """List the studies in an organisation, newest first. Needs `studies:read`.
+
+    Reads only; writes nothing. This is how you get a SLUG, which is what
+    `pull_study`, `diff_study`, `push_study`, `plan_study` and
+    `apply_instruction` all address a study by, and which is derived
+    server-side in a way you cannot compute (apostrophes are deleted rather
+    than replaced, so "Nandan's study" is "nandans-study").
+
+    Returns `{"studies": [{"id", "name", "slug", "created"}], "page_size": n}`.
+    `page_size` is the length of THIS page, not the org's total: at the
+    default `limit` of 100 a page_size of 100 means there may be more, and the
+    next page is `offset=100`. There is no total count.
+    `created` is ISO 8601 with an explicit UTC offset -- note that
+    `create_study` reports the same field as `createdAt` in milliseconds, for
+    compatibility with the dashboard, and the two are not the same shape.
+
+    You see every study in the org. Today an org is one user's personal
+    workspace (see `list_orgs`), so this is every study the key's user has
+    ever created, in the dashboard or through this API. A 404 means the org is
+    not yours or does not exist; the two are deliberately indistinguishable,
+    and a malformed UUID gets the same answer again.
+
+    `limit` is 1..500 and defaults to 100; `offset` skips rows. An org with
+    more studies than the limit is silently truncated, so page rather than
+    assuming one call is the whole list.
+
+    An empty list means the org has no studies YET -- it is not evidence that a
+    slug you already hold is wrong. Nothing here validates a slug: `pull_study`
+    returns `{}` for a study that does not exist just as it does for one never
+    configured, and only a write ever 404s on a bad slug.
+    """
+    studies = await backend().list_studies(org, limit, offset)
+    return {"studies": studies, "page_size": len(studies)}
+
+
+# --------------------------------------------------------------------------
 # Tools: studies
 # --------------------------------------------------------------------------
 
@@ -277,10 +358,11 @@ async def create_study(org: str, name: str) -> Dict[str, Any]:
     "nandans-study". Read it off this response and use it for every later call;
     computing it yourself gets 404s.
 
-    `org` is an organisation UUID. Nothing an API key can call lists orgs -- a
-    human has to hand you the id. A 404 "Organization not found" means either
-    that the org does not exist or that the caller is not a member of it; the
-    two are deliberately indistinguishable.
+    `org` is an organisation UUID; `list_orgs` is what hands you one, and
+    today it hands you exactly one, the user's personal workspace. A 404
+    "Organization not found" means either that the org does not exist or that
+    the caller is not a member of it; the two are deliberately
+    indistinguishable, so check `list_orgs` rather than guessing which.
 
     A study created here has NO configuration at all. Next: `push_study` with
     the nine sections, then `plan_study`.
@@ -798,6 +880,8 @@ async def revoke_api_key(key_id: str) -> Dict[str, Any]:
 # Ordered as a study is authored, because a client lists them in this order and
 # that ordering is itself a hint about the runbook.
 TOOLS: Sequence[Callable[..., Any]] = (
+    list_orgs,
+    list_studies,
     create_study,
     pull_study,
     validate_study,
@@ -857,6 +941,9 @@ def register_tools(server: Any) -> Any:
 
 INSTRUCTIONS = """\
 Author, validate and launch a vlab recruitment study.
+
+Start with `list_orgs` and `list_studies`: everything else takes an
+organisation UUID and a study slug, and neither is guessable.
 
 A study is nine configuration sections. Read them with `pull_study`, change
 them, check with `validate_study`, see what would change with `diff_study`,
