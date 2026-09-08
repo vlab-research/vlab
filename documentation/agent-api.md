@@ -2383,9 +2383,9 @@ client.
 
 ### 2026-09-08 — `strata-progress`: the optimizer's per-stratum plan, over an API key
 
-Design record: `planning/mcp-full-coverage.md` §2 Phase B; the contract is §2.7.
-**One new read-only endpoint, `stats:read`, no behaviour change to anything that
-existed.**
+Design record: `planning/mcp-full-coverage.md` §2 Phase B; the contract is §2.7;
+adopt v0.1.92, alongside Phase A. **One new read-only endpoint, `stats:read`, no
+behaviour change to anything that existed.**
 
 The dashboard's "Participants per Segment" table — budget and price per
 participant per stratum, and the %desired / %current / %expected triple — was
@@ -2422,7 +2422,7 @@ on both transports.
 ### 2026-09-08 — seven MCP tools: the study page, and copy-from
 
 Design record: `planning/mcp-full-coverage.md` §2 Phase A; the tool table is
-§6b; adopt v0.1.91. **No new endpoints and no route changed.** Seven routes
+§6b; adopt v0.1.92. **No new endpoints and no route changed.** Seven routes
 that only the dashboard could reach are now tools, `vlab` commands and
 `VlabClient` methods:
 

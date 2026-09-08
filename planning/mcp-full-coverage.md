@@ -1,10 +1,15 @@
 # MCP full coverage: everything the dashboard can do, over MCP
 
-**Status:** Phase A implemented 2026-09-08 on branch
-`feature/mcp-observability-tools`, adopt v0.1.91 — all seven tools, both
-transports, seven `vlab` commands, six new `VlabClient` methods (plus
-`ad_attributions_csv`), and the three guards extended to cover them. Phases B
-and C are not started.
+**Status:** Phases A and B implemented 2026-09-08 and shipping together as
+**adopt v0.1.92** — Phase A on `feature/mcp-observability-tools` (all seven
+tools, both transports, seven `vlab` commands, six new `VlabClient` methods
+plus `ad_attributions_csv`, and the three guards extended to cover them),
+Phase B on `feature/strata-progress` rebased onto it (the `strata-progress`
+route and its tool, twenty-six tools in all). Phase C is not started.
+
+0.1.91 is SKIPPED, not missing: another session tagged that version at a
+different commit while these branches were being written, so the code here has
+never shipped under it and reusing the number would make the tag ambiguous.
 
 **Goal, in the researcher's words:** "full coverage so that everything we can
 do in the user interface, we can do over MCP." This document is the gap
@@ -144,7 +149,8 @@ exists for.
 
 ### Phase B: the optimizer's per-stratum view — IMPLEMENTED 2026-09-08
 
-Shipped on `feature/strata-progress`. Route `server/strata_progress.py`, SQL
+Shipped on `feature/strata-progress`, rebased onto Phase A and released with it
+as adopt v0.1.92. Route `server/strata_progress.py`, SQL
 `campaign_queries.get_adopt_reports`, client `VlabClient.strata_progress`,
 backend `InProcessBackend.strata_progress`, CLI `vlab strata-progress`, tool
 `strata_progress`, reference `documentation/agent-api.md` §2.7. Tests:
