@@ -264,3 +264,36 @@ def get_latest_cost_over_time_report(study_id: str, cnf: DBConf) -> list | None:
     """
     result = list(query(cnf, q, (study_id,)))
     return result[0][0] if result else None
+
+
+def get_adopt_reports(
+    study_id: str, cnf: DBConf, limit: int = 1
+) -> List[Dict[str, Any]]:
+    """The last `limit` FACEBOOK_ADOPT reports for a study, NEWEST FIRST.
+
+    This is the optimizer's own per-stratum plan: `budget.py`'s `make_report`
+    writes exactly one of these rows at the end of every plan run, keyed by
+    stratum id, and nothing else writes them. Served by
+    `GET /{org}/studies/{slug}/strata-progress` (`server/strata_progress.py`).
+
+    Sibling of the two `get_latest_*_report` readers above, and deliberately
+    shaped differently from them in two ways. It returns `created` alongside
+    `details`, because a caller comparing two runs has no other way to say
+    which is which -- the row carries no id. And it is plural, because the
+    whole point of `?history=N` is to show how budget moved between runs;
+    `server.get_latest_adopt_report` stays the single-row reader for
+    `recruitment-stats`, which only ever wants the current counts.
+
+    `LIMIT %s` is a bound parameter, not interpolation. The route checks the
+    range for the caller's sake; the driver is what keeps it out of the SQL.
+    """
+    q = """
+    SELECT created, details
+    FROM adopt_reports
+    WHERE study_id = %s
+    AND report_type = 'FACEBOOK_ADOPT'
+    ORDER BY created DESC
+    LIMIT %s
+    """
+
+    return list(query(cnf, q, (study_id, limit), as_dict=True))

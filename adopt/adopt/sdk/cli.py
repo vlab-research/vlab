@@ -1288,6 +1288,98 @@ def copy_from(ctx: click.Context, target: str, source_slug: str, as_json: bool) 
 
 
 # ---------------------------------------------------------------------------
+# reports
+# ---------------------------------------------------------------------------
+
+# One stratum's row, in reading order: who, how many, what share of the sample,
+# what the optimizer is paying for it and what it costs. The REPORT'S OWN key
+# names, like STATS_COLUMNS and COST_COLUMNS above: a heading of my own
+# invention would give one number two names, and the three `*_percentage`
+# fields are fractions rather than percentages, so a `%` heading would be a
+# lie the reader has no way to catch.
+STRATA_COLUMNS = (
+    "id",
+    "current_participants",
+    "expected_participants",
+    "desired_percentage",
+    "current_percentage",
+    "expected_percentage",
+    "current_budget",
+    "current_price_per_participant",
+)
+
+
+@cli.command("strata-progress")
+@click.argument("target")
+@click.option(
+    "--history",
+    type=int,
+    default=None,
+    help="How many plan runs, newest first (1-200, default 1).",
+)
+@click.option("--json", "as_json", is_flag=True, help="Machine-readable output.")
+@auth_options
+@click.pass_context
+def strata_progress(
+    ctx: click.Context, target: str, history: Optional[int], as_json: bool
+) -> None:
+    """Per-stratum budget, price and progress for <org>/<slug>. Needs `stats:read`.
+
+    \b
+    Where the money is going and what a respondent is costing you, per stratum:
+    the optimizer's budget allocation, its price estimate, and the
+    desired/current/expected share triple.
+
+    \b
+    Two traps in the columns:
+    * `current_budget` is the optimizer's allocation for that stratum over the
+      REST OF THE RECRUITMENT PERIOD. The ad set's daily budget is this divided
+      by the days left, floored to the cent and zeroed if below the study's
+      min_budget, so a non-zero allocation here can still mean a paused ad set.
+    * the three `*_percentage` columns are FRACTIONS between 0 and 1, not
+      percentages, whatever their names say. The route returns the report's own
+      numbers and this prints them; nothing is multiplied on the way.
+
+    `current_price_per_participant` is an estimate, not a measurement: a
+    Gamma-Poisson posterior over the study's opt_window shrunk toward a prior of
+    2 + incentive_per_respondent dollars, so a stratum with little data sits
+    near that prior.
+
+    Reads only. Every number comes from the report `vlab plan` writes at the
+    end of a plan run and nothing else writes it, so these are the numbers as
+    of that run rather than live Meta -- and re-planning is what refreshes
+    them. The adopt-ads cron plans every study inside its recruitment window
+    every two hours, so a running study is at most that stale on its own.
+
+    "No adopt report found" means no plan has ever run for this study.
+    "Study not found" is the other 404: wrong slug, or an org that is not
+    yours.
+
+    --history N prints one table per run, newest first, which is how you see
+    budget move rather than a snapshot. Every number is the report's own,
+    unrounded; nothing here is computed and nothing is reformatted.
+    """
+    org, slug = parse_target(target)
+    reports = get_client(ctx).strata_progress(org, slug, history=history)
+
+    if as_json:
+        emit_json(reports)
+        return
+
+    for i, report in enumerate(reports):
+        if i:
+            click.echo("")
+        click.echo(report.get("created", ""))
+        # The one renderer, with its header, exactly as the study-page tables
+        # above use it: eight numeric columns are unreadable unlabelled.
+        rows_out(
+            {"data": report.get("strata") or []}, False, STRATA_COLUMNS, header=True
+        )
+
+    click.echo(f"{len(reports)} report(s).")
+
+
+# ---------------------------------------------------------------------------
 # meta
 # ---------------------------------------------------------------------------
 

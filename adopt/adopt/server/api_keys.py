@@ -301,7 +301,17 @@ def required_scope(method: str, path: str) -> Optional[str]:
         # ad-attributions and ad-attributions.csv
         if tail.startswith("ad-attributions"):
             return f"responses:{action}"
-        if tail in ("recruitment-stats", "segments-progress", "cost-over-time"):
+        # `strata-progress` is the conf service's own name for the optimizer's
+        # per-stratum allocation (`server/strata_progress.py`). It is NOT the
+        # Go route's `segments-progress`, which on this service is the
+        # participants-over-time series beside it -- same resource, so the same
+        # scope, different payloads on purpose.
+        if tail in (
+            "recruitment-stats",
+            "segments-progress",
+            "cost-over-time",
+            "strata-progress",
+        ):
             return f"stats:{action}"
         return None
 

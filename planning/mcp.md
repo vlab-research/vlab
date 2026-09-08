@@ -365,7 +365,7 @@ Closed since:
   Errors tab, Current Data, Ad Attributions, Recruitment Statistics, the
   participants chart, the spend charts and "initialize from an existing study"
   were seven routes with no tool, no CLI command and no client method. All
-  seven landed in adopt v0.1.91 as `study_errors`, `current_data`,
+  seven landed in adopt v0.1.92 as `study_errors`, `current_data`,
   `ad_attributions`, `recruitment_stats`, `respondents_over_time`,
   `cost_over_time` and `copy_study_from`, on both transports, under three
   different scope resources (`optimize:read`, `responses:read`, `stats:read`,

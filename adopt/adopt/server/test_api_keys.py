@@ -84,6 +84,7 @@ def _make_app() -> FastAPI:
         "/{org_id}/studies/{slug}/confs/{conf_type}",
         "/{org_id}/studies/{slug}/ad-attributions",
         "/{org_id}/studies/{slug}/recruitment-stats",
+        "/{org_id}/studies/{slug}/strata-progress",
         "/{org_id}/optimize/{slug}",
         # The discovery pair. `/orgs` is the only path on this service that is
         # neither `/users/...` nor `/{org_id}/...`, so it is the one that
@@ -215,6 +216,10 @@ def test_required_scope_maps_vlab_paths():
         ak.required_scope("GET", f"/{ORG}/studies/s/recruitment-stats") == "stats:read"
     )
     assert ak.required_scope("GET", f"/{ORG}/studies/s/cost-over-time") == "stats:read"
+    # The optimizer's per-stratum allocation. Same resource as the three above
+    # -- it is the same report `recruitment-stats` counts respondents out of --
+    # so it needed a name in the tail tuple and nothing else.
+    assert ak.required_scope("GET", f"/{ORG}/studies/s/strata-progress") == "stats:read"
     assert ak.required_scope("GET", f"/{ORG}/optimize/s") == "optimize:read"
     assert (
         ak.required_scope("POST", f"/{ORG}/optimize/s/instruction") == "optimize:write"
@@ -756,6 +761,28 @@ def test_studies_scope_does_not_grant_responses(verify_mock):
         ).status_code
         == 403
     )
+
+
+@patch("adopt.server.auth.verify_token")
+def test_stats_scope_reaches_strata_progress_and_studies_scope_does_not(verify_mock):
+    """The pair for the route added in Phase B, matching `recruitment-stats`.
+
+    `strata-progress` carries per-stratum SPEND and price per participant, so
+    it belongs with the other three `stats` reads and not with the
+    configuration a `studies` key edits. The 403 names the scope, which is what
+    lets an agent say what to ask a human for."""
+    stats = _mint(verify_mock, "stats", scopes=["stats:read"]).json()["data"]["token"]
+    author = _mint(verify_mock, "author2", scopes=["studies:read"]).json()["data"][
+        "token"
+    ]
+
+    path = f"/{ORG}/studies/s/strata-progress"
+
+    assert client.get(path, headers=_headers(stats)).status_code == 200
+
+    denied = client.get(path, headers=_headers(author))
+    assert denied.status_code == 403
+    assert "stats:read" in denied.json()["detail"]
 
 
 @patch("adopt.server.auth.verify_token")

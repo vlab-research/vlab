@@ -47,7 +47,7 @@ os.environ["FACEBOOK_APP_SECRET"] = "test-app-secret"
 from facebook_business.api import FacebookAdsApi  # noqa: E402
 
 from ..server.server import app  # noqa: E402
-from .cli import auth_options, cli  # noqa: E402
+from .cli import STRATA_COLUMNS, auth_options, cli  # noqa: E402
 from .client import VlabClient  # noqa: E402
 from .study import StudyFile  # noqa: E402
 
@@ -1094,6 +1094,120 @@ def test_copy_from_a_source_with_nothing_is_a_clean_error(runner, obj, org):
 
     assert res.exit_code == 1
     assert "404" in res.output
+
+
+# ---------------------------------------------------------------------------
+# strata-progress
+# ---------------------------------------------------------------------------
+
+
+def _adopt_report(study_id, details, created=None):
+    """A `FACEBOOK_ADOPT` row, as a plan run would have written it.
+
+    Written directly: `vlab strata-progress` is a read, and planning it for
+    real would put Meta and the budget optimizer between the fixture and the
+    output being asserted.
+    """
+    if created is None:
+        execute(
+            db_conf,
+            "insert into adopt_reports (study_id, report_type, details)"
+            " values (%s, 'FACEBOOK_ADOPT', %s)",
+            (study_id, json.dumps(details)),
+        )
+    else:
+        execute(
+            db_conf,
+            "insert into adopt_reports (study_id, report_type, details, created)"
+            " values (%s, 'FACEBOOK_ADOPT', %s, %s)",
+            (study_id, json.dumps(details), created),
+        )
+
+
+_STRATUM = {
+    "current_participants": 32,
+    "expected_participants": 48.75,
+    "desired_percentage": 0.5,
+    "current_percentage": 0.4,
+    "expected_percentage": 0.55,
+    "current_budget": 12.5,
+    "current_price_per_participant": 1.25,
+}
+
+
+def test_strata_progress_prints_a_row_per_stratum(runner, obj, org):
+    study = obj["client"].create_study(org, "HPV")
+    _adopt_report(study["id"], {"urban": _STRATUM, "rural": _STRATUM})
+
+    res = run(runner, obj, "strata-progress", f"{org}/{study['slug']}")
+
+    assert res.exit_code == 0
+    lines = res.output.splitlines()
+    # created, header, two strata.
+    assert lines[0].endswith("+00:00")
+    # The report's own field names as the header, through the one renderer the
+    # study-page tables use. No invented `%desired`: the three share fields are
+    # fractions, and a percent sign over `0.5` would be a lie.
+    assert lines[1].split() == list(STRATA_COLUMNS)
+    assert lines[2].split()[0] == "rural"
+    assert "12.5" in lines[2]
+    # The share printed as the fraction it is: 0.5, never 50.
+    assert lines[2].split()[3] == "0.5"
+    assert "1 report(s)." in res.output
+
+
+def test_strata_progress_history_prints_one_table_per_run(runner, obj, org):
+    from datetime import datetime, timedelta, timezone
+
+    study = obj["client"].create_study(org, "HPV")
+    now = datetime.now(timezone.utc)
+    _adopt_report(
+        study["id"], {"s": {**_STRATUM, "current_budget": 1.0}}, now - timedelta(1)
+    )
+    _adopt_report(study["id"], {"s": {**_STRATUM, "current_budget": 2.0}}, now)
+
+    res = run(
+        runner, obj, "strata-progress", f"{org}/{study['slug']}", "--history", "2"
+    )
+
+    assert res.exit_code == 0
+    assert "2 report(s)." in res.output
+    # Newest first, so the budget the optimizer set most recently is the first
+    # table -- which is what someone reading a terminal sees without scrolling.
+    budgets = [
+        line.split()[-2] for line in res.output.splitlines() if line.startswith("s ")
+    ]
+    assert budgets == ["2.0", "1.0"]
+
+
+def test_strata_progress_json_is_unrounded(runner, obj, org):
+    """Nothing is rounded on either path -- the CLI prints what the route
+    returned -- and `--json` is the shape an agent parses."""
+    study = obj["client"].create_study(org, "HPV")
+    _adopt_report(
+        study["id"],
+        {"s": {**_STRATUM, "desired_percentage": 0.3334, "current_percentage": 0.3331}},
+    )
+
+    res = run(runner, obj, "strata-progress", f"{org}/{study['slug']}", "--json")
+
+    (report,) = json.loads(res.output)
+    assert report["strata"][0]["desired_percentage"] == 0.3334
+    assert report["strata"][0]["percentage_deviation_from_goal"] < 0.001
+
+
+def test_strata_progress_before_any_plan_run_is_a_clean_error(runner, obj, org):
+    study = obj["client"].create_study(org, "HPV")
+
+    res = runner.invoke(
+        cli,
+        ["strata-progress", f"{org}/{study['slug']}"],
+        obj=dict(obj),
+        catch_exceptions=False,
+    )
+
+    assert res.exit_code == 1
+    assert "No adopt report found" in res.output
 
 
 # ---------------------------------------------------------------------------

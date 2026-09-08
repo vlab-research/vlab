@@ -1,10 +1,15 @@
 # MCP full coverage: everything the dashboard can do, over MCP
 
-**Status:** Phase A implemented 2026-09-08 on branch
-`feature/mcp-observability-tools`, adopt v0.1.91 — all seven tools, both
-transports, seven `vlab` commands, six new `VlabClient` methods (plus
-`ad_attributions_csv`), and the three guards extended to cover them. Phases B
-and C are not started.
+**Status:** Phases A and B implemented 2026-09-08 and shipping together as
+**adopt v0.1.92** — Phase A on `feature/mcp-observability-tools` (all seven
+tools, both transports, seven `vlab` commands, six new `VlabClient` methods
+plus `ad_attributions_csv`, and the three guards extended to cover them),
+Phase B on `feature/strata-progress` rebased onto it (the `strata-progress`
+route and its tool, twenty-six tools in all). Phase C is not started.
+
+0.1.91 is SKIPPED, not missing: another session tagged that version at a
+different commit while these branches were being written, so the code here has
+never shipped under it and reusing the number would make the tag ambiguous.
 
 **Goal, in the researcher's words:** "full coverage so that everything we can
 do in the user interface, we can do over MCP." This document is the gap
@@ -37,7 +42,7 @@ directly from the browser.
 | Recruitment Statistics table (spend, CPM, price per respondent, incentive and total cost, conversion) | conf `GET .../recruitment-stats` | `recruitment_stats` | ~~A4~~ closed |
 | Participants-over-time chart, "Current Participants" card | conf `GET .../segments-progress` | `respondents_over_time` | ~~A5~~ closed |
 | Total Spent, Avg Cost per Participant, spend and marginal-cost charts | conf `GET .../cost-over-time` | `cost_over_time` | ~~A6~~ closed |
-| Participants-per-segment table: %desired / %current / %expected, expected participants, **budget**, **price per participant** per stratum; "Expected Participants" card | **Go only** (`GET /{org}/studies/{slug}/segments-progress`, reads `adopt_reports` `FACEBOOK_ADOPT`) | — | **B1**: no conf-service route exists |
+| Participants-per-segment table: %desired / %current / %expected, expected participants, **budget**, **price per participant** per stratum; "Expected Participants" card | **Go only** (`GET /{org}/studies/{slug}/segments-progress`, reads `adopt_reports` `FACEBOOK_ADOPT`) | `strata_progress` | ~~**B1**~~ **closed** 2026-09-08 by `GET /{org}/studies/{slug}/strata-progress` |
 | Study name by slug | Go `GET /{org}/studies/{slug}` | `list_studies` carries name and slug | none worth a tool |
 | Connected accounts: list, add (Typeform, Fly, Alchemer, Qualtrics, generic api_key), update, delete | **Go only** (`/accounts`, user-scoped, returns raw secrets to the browser) | `meta_credentials` (Facebook only, secrets stripped) | **C1** list, **C2** create/update, **C3** delete: no conf-service routes |
 | Create an API key | conf `POST /users/api-key` (then stored as an account via Go) | `list_api_keys`, `revoke_api_key` | **C4** |
@@ -142,7 +147,73 @@ tool `datetime` objects on one transport and ISO strings on the other — a
 divergence no single-transport test could see, and exactly what the drift guard
 exists for.
 
-### Phase B: the optimizer's per-stratum view
+### Phase B: the optimizer's per-stratum view — IMPLEMENTED 2026-09-08
+
+Shipped on `feature/strata-progress`, rebased onto Phase A and released with it
+as adopt v0.1.92. Route `server/strata_progress.py`, SQL
+`campaign_queries.get_adopt_reports`, client `VlabClient.strata_progress`,
+backend `InProcessBackend.strata_progress`, CLI `vlab strata-progress`, tool
+`strata_progress`, reference `documentation/agent-api.md` §2.7. Tests:
+`server/test_strata_progress.py` (the route), plus cases in `test_api_keys.py`,
+`test_mcp_server.py`, `sdk/test_mcp_tools.py`, `sdk/test_client.py` and
+`sdk/test_cli.py`.
+
+Deviations from what is written below, all deliberate:
+
+1. **404, not "the same text as `recruitment-stats` uses" verbatim.** The
+   sentence is `get_latest_adopt_report`'s, with the SLUG substituted for the
+   study id — an agent is never handed an id, so naming one in an error tells
+   it nothing it can act on. `get_latest_adopt_report` itself is untouched.
+2. **`percentage_deviation_from_goal` is computed, and on raw values.** Go
+   rounds `desired` and `current` to two places and subtracts the rounded pair.
+   That is a display decision; rounding here would mean the caller cannot
+   recover the real number. Everything else is the report's own float.
+3. **No `desired_participants`.** Go declares it as a nullable field and reads
+   it if present. `budget.py`'s `report_facts` is the exhaustive list of what
+   `make_report` writes and it has never contained that key, so the field would
+   always be null. Recorded as a comment in `strata_progress.py`.
+4. **A missing fact is a model default, not a 500**, with one warning logged per
+   report rather than per stratum. Reports are JSONB written by whatever
+   `budget.py` was deployed at the time; `efficiency_weight` and the
+   counterfactuals postdate the earliest rows.
+5. **The route is its own module** rather than another block in `server.py`,
+   following `studies.py` / `validate.py` / `meta.py`. Its whole shape is an
+   argument with the Go route it replaces, and that argument is a long docstring
+   nobody should have to scroll past to reach the conf routes.
+6. **`history` is bounded twice** — `Query(ge=1, le=200)` and an explicit check
+   in the handler — because `InProcessBackend` calls the handler directly and
+   the annotation enforces nothing there. Same pattern, and the same comment, as
+   `list_studies_endpoint`.
+
+Review fixes, 2026-09-08 (second commit on the branch):
+
+7. **`_valid_org_or_404` before `get_study_id`.** A malformed `org_id` reached
+   psycopg as a UUID comparison and came back a 500, where a non-member gets a
+   404; the two have to be indistinguishable or the route is an oracle for which
+   org UUIDs exist.
+8. **The three `*_percentage` facts are FRACTIONS, 0..1** (`_normalize_values`
+   is `v / sum`), and `current_budget` is `budget_lookup` — the allocation over
+   the REST OF THE RECRUITMENT PERIOD, not a daily budget: the ad set's daily
+   budget is `spend_for_day` of it (divided by days left and by destination
+   arms, floored to the cent, zeroed below `min_budget`), so a non-zero
+   allocation here can still be a paused ad set. And
+   `current_price_per_participant` is `estimate_price`, a Gamma-Poisson
+   posterior shrunk toward a prior of 2 + `incentive_per_respondent`, not a
+   measurement. The first draft of the descriptions got all three wrong; they
+   are the product surface, so this was the most expensive of the review's
+   findings. The CLI's column heads lost their `%` accordingly, and it still
+   multiplies nothing.
+9. **A fact present but JSON-null defaults too**, not just an absent one. A
+   stored `null` would otherwise 422 out of the model and reach the caller as a
+   500 on a row nobody can fix.
+10. **The missing-fact warning is the UNION of what each stratum lacks**, not
+    the intersection, so a partially written report is reported. The two
+    counterfactuals are excluded from that check — `budget.py` writes them only
+    when a constraint binds, so including them would fire the warning on almost
+    every healthy report, which is how a warning stops being read. Still one log
+    line per report.
+
+Original brief, unchanged:
 
 B1 is the "optimization results and prices" question. The Go route explodes
 every `FACEBOOK_ADOPT` report ever written into per-stratum rows with
