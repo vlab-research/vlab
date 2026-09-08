@@ -120,25 +120,25 @@ def _add_timestamp(df):
 
 def _add_time(df):
     # Gives every user a synthetic `md:startTime` row, copied off their first
-    # row so the other columns (user_id included) stay consistent. Loops the
-    # groups rather than `.apply(lambda df: df.append(...))`: DataFrame.append
-    # was removed in pandas 2.0, and GroupBy.apply on the grouping column is
-    # deprecated in 2.2 (would drop user_id, which iloc[0].to_dict() needs).
-    out = []
-    for _, group in df.groupby("user_id"):
-        out.append(group)
-        out.append(
-            pd.DataFrame(
-                [
-                    {
-                        **group.iloc[0].to_dict(),
-                        "variable": "md:startTime",
-                        "value": unix_time_millis(DATE),
-                    }
-                ]
-            )
-        )
-    return pd.concat(out).reset_index(drop=True)
+    # row so the other columns stay consistent. `include_groups=False` (pandas
+    # 2.2+) drops user_id from `g` before the callback sees it, so it's restored
+    # from the group key (`g.name`) rather than left for `iloc[0].to_dict()` to
+    # copy -- without that, every row in the group would lose its user_id, not
+    # just the synthetic one.
+    def _with_start_row(g):
+        g = g.assign(user_id=g.name)
+        start_row = {
+            **g.iloc[0].to_dict(),
+            "variable": "md:startTime",
+            "value": unix_time_millis(DATE),
+        }
+        return pd.concat([g, pd.DataFrame([start_row])])
+
+    return (
+        df.groupby("user_id", group_keys=False)
+        .apply(_with_start_row, include_groups=False)
+        .reset_index(drop=True)
+    )
 
 
 def _format_df(df):
