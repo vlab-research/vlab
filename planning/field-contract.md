@@ -108,12 +108,19 @@ the asymmetry is deliberate rather than an accident waiting to be "tidied up".
 
 ```bash
 poetry run adopt-probe <study>            # report
-poetry run adopt-probe <study> --update   # rewrite DROPPED, stamped with today
+poetry run adopt-probe <study> --update   # add new drops, stamped with today
 ```
 
 Run it when Facebook ships API changes, when a study starts using creative
 options it hasn't before, or when the `undeclared drop` warning appears. It
-exits non-zero while the contract and Facebook disagree.
+exits non-zero while there is an undeclared drop.
+
+`--update` only ever adds; it never removes a declaration, because one study
+cannot establish that Meta echoes a key everywhere. See "The same key can be
+dropped on one study and echoed on another" below.
+
+Probe every study that shares a creative shape, not just the one that
+complained. The contract is one namespace across all of them.
 
 The probe reuses the real code path — `pair_creatives_with_destinations` then
 `create_creative` — so what it compares is what the cron would actually
@@ -261,6 +268,115 @@ Nothing is wrong. It does mean **a probe report on an inactive study will never
 be clean**, and that `end_time` diff carries no information. Worth knowing
 before anyone wires the probe's exit code into a scheduled check across all
 studies rather than active ones.
+
+## The same key can be dropped on one study and echoed on another (VIR-49)
+
+On 2026-09-07, `vlab-adopt-ads` was rewriting 12 ads of
+`vlab-lac-healthy-diets-bolivia` on every two-hourly run — 144 no-op ad writes
+a day on `act_1342820622846299`, each minting a new creative. Argentina and
+Honduras, 4 ads each and the same creative shape, issued none.
+
+The undeclared drop was
+`degrees_of_freedom_spec.creative_features_spec.show_destination_blurbs`. adopt
+sends it on multi-destination creatives (`asset_feed_spec.optimization_type =
+DOF_MESSAGING_DESTINATION`). Meta accepts the write and, on Bolivia's
+creatives, does not return the key.
+
+The new thing here, and the reason this is worth its own section: **Meta's echo
+is not uniform for a single key.** Probed on 2026-09-08, across all three LAC
+studies adopt sends `show_destination_blurbs` on every ad, and Meta:
+
+| study | ads | echoes it | omits it |
+|---|---|---|---|
+| Bolivia | 16 | 4 | **12** |
+| Argentina | 4 | 4 | 0 |
+| Honduras | 4 | 4 | 0 |
+
+The 12 is exactly the 12 rewrites the ticket was filed on. Note that the split
+is not even across studies — it runs *within* Bolivia, whose own 16 ads divide
+4/12 on the same key. Every earlier entry in `DROPPED` was uniform, so the
+contract had quietly been read as a statement about a field. It is a statement
+about a field *on the ads probed so far*.
+
+Declaring the drop is still right. A key we cannot read back is not a change we
+can act on, and the declaration is inert wherever Meta does echo it — `_eq`
+consults `DROPPED` only when the key is missing from the live object, so on
+Argentina and Honduras the values are compared as normal.
+`test_declaring_the_drop_does_not_blind_us_where_meta_echoes_it` pins that,
+because the alternative reading — that declaring a drop stops the setting being
+applied everywhere — is the `targeting_automation` trap above, and the two are
+worth being able to tell apart.
+
+### `--update` no longer removes declarations
+
+`summarise` marks a declared drop that the current run saw echoed as `stale`,
+and `update_contract` used to delete stale entries — so probing a sibling study
+could in principle undo the fix for the study that needed it, and back again,
+each flip re-opening a 144-writes-a-day loop.
+
+**It does not currently fire, and it is worth knowing why.** `_walk` emits a
+parent path as its own row only when that path is *missing* from the live
+creative; when it is present it recurses and reports the leaves instead. Every
+path in `DROPPED` today is dict-valued (`{"enroll_status": ...}`), so the
+declared path never appears as a row with a non-`dropped` verdict, and the
+stale flip cannot trigger. That is why probing Argentina — which echoes
+`show_destination_blurbs` on all 4 ads — reports no stale rows at all, and why
+no declaration has ever been auto-removed.
+
+So the change below is defensive, not a fix for observed damage. The removal
+path would wake up the first time a scalar-valued path is declared, which is a
+one-line change nobody would think of as dangerous. It is also why the "STALE
+DECLARATIONS" report has never fired: **the probe cannot presently tell you a
+declaration has gone stale.** Worth remembering before trusting a clean report
+to mean the contract has no dead entries.
+
+`--update` now only ever adds. The two directions are not symmetric evidence:
+
+- Seeing a key dropped is positive evidence about Meta's behaviour. One study
+  establishes it.
+- Seeing a key echoed says nothing about the studies that declared it.
+
+And the costs are not symmetric either. A declaration Meta no longer needs is
+inert. A declaration wrongly removed is a rewrite loop. So removal is a hand
+edit somebody makes after looking at more than one study, and the report says
+so rather than "undeclare them".
+
+For the same reason a `stale` reading no longer fails the run. It used to, and
+a red exit code is read as *go undeclare it* — which on a key like this one is
+the single action that breaks production. `has_undeclared_drops` is now the
+whole failure condition.
+
+### Verified against live Facebook (2026-09-08)
+
+Read-only, via a port-forward to the prod database, with the declaration in
+place:
+
+```
+LAC Healthy Diets - Bolivia    ADS 34 paths / 16 ads   2 declared drops, 32 clean   exit 0
+LAC Healthy Diets - Argentina  ADS 32 paths /  4 ads   0 drops, 32 clean            exit 0
+LAC Healthy Diets - Honduras   ADS 32 paths /  4 ads   0 drops, 32 clean            exit 0
+```
+
+All three report `contract matches live Facebook behaviour` on both ads and
+adsets. Before the declaration, Bolivia's 12 ads showed the undeclared drop and
+the probe exited 1.
+
+### One warning line is not the list
+
+`_eq` returns on the first undeclared drop it meets, so each Bolivia ad logged
+exactly one `undeclared drop` warning. That is not evidence that
+`show_destination_blurbs` was the only one — anything after it in dict order
+was never reached. It is the same "a sample cannot tell you the shape of the
+whole" lesson as the six-fields case above, one level down, and the reason the
+fix procedure is a probe run rather than a log grep.
+`test_undeclared_sibling_of_a_declared_drop_still_warns` checks that declaring
+this key uncovers whatever was behind it instead of silencing it.
+
+This time nothing was hiding. The probe over all 16 Bolivia ads found exactly
+two drops — `show_destination_blurbs` and the already-declared
+`image_brightness_and_contrast` — so unlike July, the one-line diagnosis
+happened to be complete. That is a result, not a reason to skip the probe next
+time: it was only knowable by running it.
 
 ## What this does not cover
 
