@@ -1,7 +1,7 @@
 # MCP full coverage: everything the dashboard can do, over MCP
 
 **Status:** Phase A implemented 2026-09-08 on branch
-`feature/mcp-observability-tools`, adopt v0.1.90 — all seven tools, both
+`feature/mcp-observability-tools`, adopt v0.1.91 — all seven tools, both
 transports, seven `vlab` commands, six new `VlabClient` methods (plus
 `ad_attributions_csv`), and the three guards extended to cover them. Phases B
 and C are not started.

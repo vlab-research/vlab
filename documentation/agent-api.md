@@ -2247,7 +2247,7 @@ client.
 ### 2026-09-08 — seven MCP tools: the study page, and copy-from
 
 Design record: `planning/mcp-full-coverage.md` §2 Phase A; the tool table is
-§6b; adopt v0.1.90. **No new endpoints and no route changed.** Seven routes
+§6b; adopt v0.1.91. **No new endpoints and no route changed.** Seven routes
 that only the dashboard could reach are now tools, `vlab` commands and
 `VlabClient` methods:
 
