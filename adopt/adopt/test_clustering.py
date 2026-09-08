@@ -120,17 +120,10 @@ def _add_timestamp(df):
 
 def _add_time(df):
     # Gives every user a synthetic `md:startTime` row, copied off their first
-    # row so the other columns (user_id included) stay consistent.
-    #
-    # Rewritten for pandas 2. It used to be `groupby(...).apply(lambda df:
-    # df.append([{...}]))`, which breaks twice over: DataFrame.append was
-    # deprecated in 1.4 and REMOVED in 2.0, and `GroupBy.apply` operating on the
-    # grouping column is deprecated in 2.2 -- pandas 3 will hide `user_id` from
-    # the callback, which is exactly the column `iloc[0].to_dict()` needs to
-    # copy. `include_groups=False` would therefore silence the warning by
-    # breaking the helper. Looping over the groups sidesteps both: iteration
-    # yields groups in the same sorted-key order `apply` stitched them in, so
-    # the resulting row order is unchanged.
+    # row so the other columns (user_id included) stay consistent. Loops the
+    # groups rather than `.apply(lambda df: df.append(...))`: DataFrame.append
+    # was removed in pandas 2.0, and GroupBy.apply on the grouping column is
+    # deprecated in 2.2 (would drop user_id, which iloc[0].to_dict() needs).
     out = []
     for _, group in df.groupby("user_id"):
         out.append(group)

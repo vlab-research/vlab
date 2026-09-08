@@ -311,21 +311,12 @@ def test_proportional_budget_with_max_recuits_optimizes_for_weights(optimizer):
         goal, spend, tot, price, budget=None, max_recruits=100, efficiency_weight=1.0
     , optimizer=optimizer)
 
-    # Compared against the analytic optimum, not against `round(...)`.
-    #
-    # Minimising sum(goal^2 / (tot + new)) at fixed total recruits puts
-    # `tot_i + new_i` proportional to `goal_i`, so with tot=[1,1,1] and
-    # max_recruits=100 the exact answer is `103 * goal - 1`: 29.9 / 50.5 / 19.6.
-    # `bar` therefore sits exactly on .5, and the old `round(expected["bar"]) ==
-    # 50` was only ever passing because Python rounds halves to even -- it read
-    # as an assertion about 50 but was really an assertion that L-BFGS-B landed
-    # at or below 50.5. scipy 1.15 (up from 1.11 under VIR-47) converges to the
-    # other side of that boundary, 50.50058, and round() gives 51.
-    #
-    # Nothing about the optimum moved; only which side of a hair-width line the
-    # solver stops on. So assert the optimum with a tolerance that admits both:
-    # 0.01 is still ~17x tighter than the 5.8e-4 error L-BFGS-B actually shows,
-    # and the closed-form optimizer hits all three exactly.
+    # Exact optimum is 103 * goal - 1 = 29.9 / 50.5 / 19.6. The old
+    # `round(expected["bar"]) == 50` only held because bar sits exactly on .5
+    # and Python rounds half-to-even; scipy 1.15's L-BFGS-B now converges to
+    # 50.50058, the other side of that line, so round() gives 51. The optimum
+    # itself didn't move, so assert it directly with a tolerance looser than
+    # L-BFGS-B's real error (~5.8e-4) but far tighter than a rounding artifact.
     assert expected["foo"] == pytest.approx(29.9, abs=0.01)
     assert expected["bar"] == pytest.approx(50.5, abs=0.01)
     assert expected["baz"] == pytest.approx(19.6, abs=0.01)

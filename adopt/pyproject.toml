@@ -7,86 +7,33 @@ description = ""
 authors = ["Nandan Rao <nandanmarkrao@gmail.com>"]
 
 [tool.poetry.dependencies]
-# NARROWED FROM ">=3.9,<3.11" ON 2026-09-06, and the floor is now real rather
-# than aspirational. `mcp` requires Python >= 3.10, and `server/server.py`
-# imports `server/mcp_server.py` at module scope to mount `POST /mcp` -- so on
-# 3.9 `mcp` would not be installed and the conf service would not IMPORT, let
-# alone start. Declaring 3.9 support that the service cannot honour is worse
-# than declaring 3.10.
-#
-# Nothing was actually running on 3.9: the Dockerfile is `python:3.10-slim`, CI
-# is `python-version: '3.10'`, and the SDK install line has said
-# `pipx install --python python3.10` since Phase 3.
-#
-# CEILING LIFTED FROM <3.11 TO <3.13 ON 2026-09-07 (VIR-47 Phase B), now that
-# pandas 1.5.3 / numpy 1.x are gone. 3.13 is excluded for exactly one reason:
-# `ecos` 2.0.14 publishes no wheels past cp312, and 2.0.14 is both the current
-# AND the latest release, so there is nothing to wait for. Building it from
-# sdist would put a C toolchain in the runtime image for one solver. cvxpy,
-# scipy and numpy would all go further on their own -- ecos is the binding
-# constraint, and this is the line to revisit if it ever ships a cp313 wheel.
-#
-# The FLOOR is exercised, not just declared: `.github/workflows/adopt.yaml`
-# runs the `tests` job as a matrix over 3.10 and 3.12. Dockerfile and
-# `.python-version` track the ceiling (3.12), which is what production runs.
+# Floor is 3.10: `mcp` requires it and is imported at module scope in
+# server/server.py, so a lower floor would claim support the service can't
+# honour. Ceiling is capped at <3.13 by ecos, which has no wheels past cp312.
 python = ">=3.10,<3.13"
 PyYAML = "^6.0.1"
 backoff = "^1.10.0"
 environs = "^9.3.2"
-# Not a direct import of ours -- `environs` pulls it -- and declared here for
-# the same reason `typing-extensions` is below: to state a floor the real
-# consumer forgot to. environs 9.5.0 asks only for `marshmallow>=3.0.0`, and the
-# lock had settled on 3.14.1, whose `__init__.py` does
-# `from distutils.version import LooseVersion` AT MODULE SCOPE. Python 3.12
-# removed distutils.
-#
-# THIS DOES NOT FAIL IN THE TEST SUITE, which is precisely why it needs a
-# comment: virtualenv seeds setuptools into `.venv`, and setuptools'
-# `_distutils_hack` re-injects a `distutils`, so `import environs` succeeds
-# locally on 3.12. The Dockerfile runs `poetry config virtualenvs.create false`
-# and installs into `python:3.12-slim`'s system site-packages, where 3.12's
-# ensurepip no longer bundles setuptools -- so there is no shim, and
-# `adopt/server/db.py`'s module-scope `env("PG_URL")` would have taken the conf
-# service down at import. Reproduce the failure mode locally with
-# `SETUPTOOLS_USE_DISTUTILS=stdlib poetry run python -c "import environs"`.
-#
-# 3.15.0 is where marshmallow dropped distutils; capped below 4 because
-# environs 9.x was never tested against marshmallow 4.
+# environs only requires marshmallow>=3.0.0, and the lock had settled on a
+# version that imports distutils at module scope -- gone in Python 3.12. Passes
+# locally (venv's setuptools shim papers over it) but breaks in the Dockerfile's
+# system site-packages, taking the conf service down at import.
 marshmallow = "^3.15"
 facebook-business = "v22"
-# THE NUMERIC STACK, lifted under VIR-47 (planning/pandas2-numpy2-python-upgrade.md,
-# Phase A). The old floor was pandas 1.5.3 pinned EXACTLY, which is what held the
-# whole package on Python <3.11: pandas 1.5 publishes no wheels past cp310, so
-# every other ceiling here was downstream of it.
-#
-# The ceilings are not arbitrary and are not "latest":
-#   - numpy ^2.2, not ^2.0 and not ^2.3, because 2.2.x is the newest line that
-#     still declares `requires_python >=3.10`; 2.3 moved its own floor to 3.11
-#     and would silently drop this package's floor on the next re-lock.
-#   - scipy ^1.15 for the same reason -- 1.16 raised its floor to 3.11. 1.15 also
-#     satisfies cvxpy's `scipy>=1.13.0`.
-#   - pandas ^2.2 (caret, so pandas 3 -- already on PyPI -- stays out).
-# cvxpy and ecos are deliberately left on their existing constraints: their
-# cp310 wheels already extend past these picks, and ecos 2.0.14 is both current
-# and latest, so it is the real binding constraint on the Python ceiling.
+# numpy ^2.2 and scipy ^1.15, not their newest lines: those are the last
+# releases still declaring support for Python 3.10 -- newer ones raised their
+# own floor to 3.11 and would silently drop ours on a re-lock. pandas ^2.2
+# stays off pandas 3 (already on PyPI) via the caret.
 numpy = "^2.2"
 pandas = "^2.2"
 pystache = "^0.6.0"
 requests = "^2.25.1"
 scipy = "^1.15"
 toolz = "^0.11.1"
-# Floor lifted from ^3.0.9 as part of the same ticket. `psycopg[binary]` has no
-# cp311/cp312 wheels before 3.1.19 and 3.0.x tops out at cp310, so the old
-# constraint would have re-pinned us to 3.10 the moment the Python ceiling moves
-# (Phase B). ^3.2 has cp310-cp314 wheels, i.e. headroom rather than a fresh
-# ceiling.
+# ^3.2, not ^3.0: psycopg[binary] has no cp311/cp312 wheels before 3.1.19.
 psycopg = {extras = ["binary", "pool"], version = "^3.2"}
-# Floor raised from ^3.0.9 by the pandas bump, and it is a HARD requirement, not
-# hygiene: pandas 2.2 lists openpyxl 3.1.0 as its minimum in
-# `pandas.compat._optional.VERSIONS`, and `pd.read_excel` raises ImportError --
-# not a warning -- on anything older. The old `^3.0.9` range technically admitted
-# 3.1, but the lock had resolved 3.0.9, so every `authoring/sheets.py` reader
-# died at import_optional_dependency until this floor made it explicit.
+# Hard requirement, not hygiene: pandas 2.2 requires openpyxl >=3.1.0 and
+# read_excel raises ImportError below it.
 openpyxl = "^3.1"
 orjson = "^3.6.6"
 # PINNED TO A PATCH RANGE, not a caret, and that is not caution -- it is that
@@ -163,12 +110,7 @@ sdk = ["click"]
 future = "^0.18.2"
 pytest = "^6.2.4"
 pytest-xdist = "^2.2.1"
-# Floor raised from ^5.5 by the Python ceiling (VIR-47 Phase B), and the caret
-# left no room to do it in the lockfile alone: 5.5 is the LAST 5.x release, and
-# its C tracer publishes no cp312 wheel. Building it from sdist fails -- the
-# extension reaches into `PyFrameObject` internals that 3.11 made opaque. 7.x is
-# the current line and has wheels through cp313. Only `make coverage` uses it;
-# `make test` does not, which is why this never blocked Phase A.
+# 5.x's C tracer has no cp312 wheel and won't build from sdist past 3.11.
 coverage = "^7.6"
 types-requests = "^2.31.0.10"
 types-pyyaml = "^6.0.12.12"
