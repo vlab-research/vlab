@@ -47,6 +47,7 @@ from ..study_conf_strict import (
 )
 from ..confs import CONF_TYPE_BY_URL_SEGMENT, dump_conf
 from .auth import AuthError, verify_tokens
+from .accounts import router as accounts_router
 from .api_keys import add_scope_enforcement, router as api_keys_router
 
 # Re-exported for backwards compatibility: these moved to deps.py so that route
@@ -112,6 +113,12 @@ env = Env()
 # that owns `app`.
 app.include_router(studies_router)
 app.include_router(api_keys_router)
+
+# Connected accounts -- the named third-party credentials a `data-sources`
+# section refers to by `credentials_key`. Its own module for the same reason
+# `api_keys.py` is one: every path is `/users/...`, so it shares the api-key
+# routes' scope classification and none of the org-scoped routing below.
+app.include_router(accounts_router)
 
 # The read-only Meta Graph proxy. Mounted BEFORE the conf routes below only
 # because include_router calls happen here; its paths (/{org_id}/meta/...)
