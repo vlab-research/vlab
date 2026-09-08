@@ -661,6 +661,125 @@ def test_revoke_api_key_says_how_long_other_replicas_honour_it():
 
 
 # ---------------------------------------------------------------------------
+# Connected accounts and key minting (Phase C of mcp-full-coverage.md)
+# ---------------------------------------------------------------------------
+
+
+def test_create_api_key_passes_the_scopes_and_ttl_through():
+    """Positionally, in the client's order, so a reordered signature is a
+    failure here rather than a key minted with the wrong lifetime."""
+    minted = {"name": "child", "id": "j", "token": "eyJ", "scopes": ["studies:read"]}
+    backend = Recorder(create_api_key=minted)
+
+    out = run(
+        mt.create_api_key,
+        backend,
+        name="child",
+        scopes=["studies:read"],
+        expires_in_days=7,
+    )
+
+    assert backend.calls == [("create_api_key", ("child", ["studies:read"], 7), {})]
+    assert out == minted
+
+
+def test_create_api_key_defaults_both_optional_arguments_to_none():
+    """`None` for `scopes` is a request for an UNRESTRICTED key, not for none,
+    and the server refuses it from a scoped caller. The tool must pass the
+    absence through rather than substituting `[]`, which would mean the
+    opposite."""
+    backend = Recorder(create_api_key={})
+
+    run(mt.create_api_key, backend, name="k")
+
+    assert backend.calls == [("create_api_key", ("k", None, None), {})]
+
+
+def test_list_accounts_names_the_list_and_forwards_the_filter():
+    rows = [{"name": "tf", "auth_type": "typeform", "created": None}]
+    backend = Recorder(list_accounts=rows)
+
+    assert run(mt.list_accounts, backend) == {"accounts": rows}
+    assert run(mt.list_accounts, backend, auth_type="typeform") == {"accounts": rows}
+    assert backend.calls == [
+        ("list_accounts", (None,), {}),
+        ("list_accounts", ("typeform",), {}),
+    ]
+
+
+def test_create_account_calls_the_client_and_returns_the_row_unchanged():
+    row = {"name": "tf", "auth_type": "typeform", "created": None}
+    backend = Recorder(create_account=row)
+
+    out = run(
+        mt.create_account,
+        backend,
+        name="tf",
+        auth_type="typeform",
+        credentials={"key": "s"},
+    )
+
+    assert backend.calls == [("create_account", ("tf", "typeform", {"key": "s"}), {})]
+    assert out == row
+
+
+def test_delete_account_reports_what_it_deleted():
+    """The route answers 204 with no body, so the tool has to say what happened
+    -- an empty result reads as "nothing to report" rather than "done"."""
+    backend = Recorder()
+
+    out = run(mt.delete_account, backend, auth_type="typeform", name="tf")
+
+    assert backend.calls == [("delete_account", ("typeform", "tf"), {})]
+    assert out == {"deleted": {"auth_type": "typeform", "name": "tf"}}
+
+
+def test_the_account_tools_all_carry_the_shared_caveats():
+    """`_ACCOUNT_NOTE` is appended once rather than written out three times,
+    for the same reason `_META_NOTE` is: an agent reads one description, and
+    three hand-copied paragraphs are three chances to drift."""
+    for name in ("list_accounts", "create_account", "delete_account"):
+        description = tool_descriptions()[name]
+        assert "credentials_key" in description
+        assert "SECRETS ARE NEVER RETURNED" in description
+
+
+def test_create_account_warns_that_the_secret_passes_through_the_agent():
+    """The one thing a researcher would want said out loud before an agent
+    handles a live third-party token on their behalf."""
+    description = tool_descriptions()["create_account"]
+
+    assert "THE SECRET PASSES THROUGH THIS CONVERSATION" in description
+    assert "transcript" in description
+
+
+def test_create_api_key_says_the_token_is_shown_once_and_that_it_attenuates():
+    description = tool_descriptions()["create_api_key"]
+
+    assert "ONCE AND NEVER AGAIN" in description
+    assert "ATTENUATING" in description
+    # The refusal that is otherwise a baffling 403: no `scopes` means "give me
+    # everything", which a scoped key may not ask for.
+    assert "FULL ACCESS" in description
+
+
+def test_delete_account_says_what_it_breaks():
+    """A study naming the deleted credential stops working, and nothing checks
+    for you -- so the description is the only warning there is."""
+    description = tool_descriptions()["delete_account"]
+
+    assert "IRREVERSIBLY" in description
+    assert "RECONCILE ONTO META" in description
+
+
+def test_create_account_says_facebook_is_refused_and_why():
+    description = tool_descriptions()["create_account"]
+
+    assert "OAuth" in description
+    assert "create_api_key" in description
+
+
+# ---------------------------------------------------------------------------
 # Registration, scopes and the environment
 # ---------------------------------------------------------------------------
 

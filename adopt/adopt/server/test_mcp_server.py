@@ -152,7 +152,13 @@ def with_scopes(stub_client, scopes: Optional[List[str]]):
     patches = (
         patch("adopt.server.mcp_server.get_current_user", side_effect=as_our_user),
         patch("adopt.server.mcp_server.scopes_for_token", return_value=scopes),
-        patch("adopt.server.mcp_server.InProcessBackend", lambda user: _NoBackend()),
+        # Two parameters since Phase C: the backend also carries the caller's
+        # raw bearer token, because the mint route attenuates against the
+        # calling key's own scopes and `User` does not carry them.
+        patch(
+            "adopt.server.mcp_server.InProcessBackend",
+            lambda user, token=None: _NoBackend(),
+        ),
     )
     return app, patches
 
@@ -450,6 +456,13 @@ ROUTE_BACKED_TOOLS = {
     "meta_ads": ("GET", f"/{ORG}/meta/ads"),
     "list_api_keys": ("GET", "/users/api-keys"),
     "revoke_api_key": ("DELETE", "/users/api-keys/abc"),
+    # Connected accounts and key minting. `create_api_key` is backed by the
+    # EXISTING mint route -- no new endpoint -- which is why the same path
+    # appears here and nowhere in `server/accounts.py`.
+    "create_api_key": ("POST", "/users/api-key"),
+    "list_accounts": ("GET", "/users/accounts"),
+    "create_account": ("POST", "/users/accounts"),
+    "delete_account": ("DELETE", "/users/accounts/typeform/main"),
 }
 
 
@@ -1135,3 +1148,232 @@ def test_a_read_only_key_can_discover_but_a_meta_key_cannot(app_client, org):
 
     assert is_error
     assert "studies:read" in message
+
+
+# --------------------------------------------------------------------------
+# Phase C: minting a key through `POST /mcp`, and connected accounts
+#
+# The security-critical half is attenuation. `create_api_key` is the one route
+# whose authorization depends on something `User` does not carry -- the SCOPES
+# of the key doing the minting -- so it is the one place where the in-process
+# path could quietly become more powerful than the HTTP one. It is not: the
+# backend carries the caller's raw bearer token and hands it to the handler, so
+# the handler runs the same `scopes_for_token` / `can_grant_scopes` it runs for
+# an HTTP request. These tests pin that on the real service.
+# --------------------------------------------------------------------------
+
+
+def test_a_key_without_auth_write_cannot_mint_through_mcp(app_client, org):
+    """Denied by `TOOL_SCOPES` before the handler, so the agent is told which
+    scope to ask for rather than getting an opaque 403."""
+    token, _ = generate_api_token(user_id=USER, name="ro-mint", scopes=["studies:read"])
+
+    message, is_error = call_tool(
+        app_client, "create_api_key", {"name": "escalation"}, token
+    )
+
+    assert is_error
+    assert "auth:write" in message
+
+
+def test_minting_through_mcp_attenuates_exactly_as_the_route_does(app_client, org):
+    """The property that would be silently lost if the in-process path computed
+    attenuation from anything other than the caller's own token.
+
+    An `auth:write` + `studies:read` key may mint a `studies:read` child and may
+    NOT reach for `optimize:write` -- a scope it does not hold -- even though
+    `TOOL_SCOPES` has already let it through, because that table only knows the
+    tool needs `auth:write`.
+    """
+    token, _ = generate_api_token(
+        user_id=USER, name="parent", scopes=["auth:write", "studies:read"]
+    )
+
+    child, is_error = call_tool(
+        app_client,
+        "create_api_key",
+        {"name": "child", "scopes": ["studies:read"]},
+        token,
+    )
+    assert not is_error, child
+    assert child["scopes"] == ["studies:read"]
+    # The token comes back exactly once, and it is a real one.
+    assert child["token"]
+    assert child["id"]
+
+    message, is_error = call_tool(
+        app_client,
+        "create_api_key",
+        {"name": "greedy", "scopes": ["optimize:write"]},
+        token,
+    )
+    assert is_error
+    assert "more scopes than the key minting it" in message
+
+
+def test_a_scoped_key_cannot_mint_an_unscoped_one_through_mcp(app_client, org):
+    """Omitting `scopes` is a request for FULL ACCESS, not for none. Reading it
+    as an empty list would let any `auth:write` key mint an unrestricted one and
+    make the whole scheme decorative -- on this transport as on the other."""
+    token, _ = generate_api_token(
+        user_id=USER, name="scoped", scopes=["auth:write", "studies:read"]
+    )
+
+    message, is_error = call_tool(
+        app_client, "create_api_key", {"name": "unscoped"}, token
+    )
+
+    assert is_error
+    assert "more scopes than the key minting it" in message
+
+
+def test_a_minted_key_works_immediately_on_the_same_transport(app_client, org):
+    """End to end: the token that came back is a usable key, with exactly the
+    scopes it was minted with."""
+    parent, _ = generate_api_token(
+        user_id=USER, name="p", scopes=["auth:write", "studies:read"]
+    )
+
+    child, is_error = call_tool(
+        app_client,
+        "create_api_key",
+        {"name": "c", "scopes": ["studies:read"]},
+        parent,
+    )
+    assert not is_error, child
+
+    listing, is_error = call_tool(
+        app_client, "list_studies", {"org": org}, child["token"]
+    )
+    assert not is_error, listing
+
+    # ...and no further than that.
+    message, is_error = call_tool(
+        app_client, "create_study", {"org": org, "name": "X"}, child["token"]
+    )
+    assert is_error
+    assert "studies:write" in message
+
+
+def test_the_backend_refuses_to_mint_without_the_callers_token():
+    """Fail closed. Without the calling key there is no way to know what it may
+    grant, and assuming unrestricted would make this a scope-escalation route.
+    Reachable only by building a backend by hand -- `MCPEndpoint` always passes
+    the token -- which is exactly why it is asserted here."""
+    backend = ms.InProcessBackend(User(user_id=USER))
+
+    with pytest.raises(Exception) as e:
+        asyncio.run(backend.create_api_key("x"))
+
+    assert "attenuate" in str(e.value)
+
+
+def test_the_endpoint_hands_the_backend_the_callers_token(stub_client):
+    """The wiring the attenuation tests depend on, asserted on its own so a
+    regression names itself instead of surfacing as a mint that succeeds."""
+    seen = {}
+
+    def record(user, token=None):
+        seen["user"] = user
+        seen["token"] = token
+        return _NoBackend()
+
+    app, as_our_user, _ = stub_client(None)
+    with patch(
+        "adopt.server.mcp_server.get_current_user", side_effect=as_our_user
+    ), patch("adopt.server.mcp_server.scopes_for_token", return_value=None), patch(
+        "adopt.server.mcp_server.InProcessBackend", record
+    ), TestClient(
+        app
+    ) as client:
+        call_tool(client, "list_accounts", {}, token="the-callers-token")
+
+    assert seen["token"] == "the-callers-token"
+
+
+def test_connected_accounts_round_trip_through_mcp(app_client, org):
+    """create -> list -> delete, with one `auth:write` key, against the real
+    service and the real table. The secret goes in and never comes back."""
+    token, _ = generate_api_token(user_id=USER, name="creds", scopes=["auth:write"])
+    secret = "SECRET-THROUGH-MCP-1a2b"
+
+    made, is_error = call_tool(
+        app_client,
+        "create_account",
+        {
+            "name": "typeform-main",
+            "auth_type": "typeform",
+            "credentials": {"key": secret},
+        },
+        token,
+    )
+    assert not is_error, made
+    assert made["name"] == "typeform-main"
+    assert secret not in json.dumps(made)
+
+    listing, is_error = call_tool(app_client, "list_accounts", {}, token)
+    assert not is_error, listing
+    assert [a["name"] for a in listing["accounts"]] == ["typeform-main"]
+    assert secret not in json.dumps(listing)
+
+    gone, is_error = call_tool(
+        app_client,
+        "delete_account",
+        {"auth_type": "typeform", "name": "typeform-main"},
+        token,
+    )
+    assert not is_error, gone
+
+    listing, _ = call_tool(app_client, "list_accounts", {}, token)
+    assert listing["accounts"] == []
+
+
+def test_a_studies_key_cannot_touch_accounts_through_mcp(app_client, org):
+    """`auth` is never implicitly granted, on this transport either."""
+    token, _ = generate_api_token(user_id=USER, name="a", scopes=["studies:write"])
+
+    for name, args in (
+        ("list_accounts", {}),
+        ("create_account", {"name": "x", "auth_type": "fly", "credentials": {}}),
+        ("delete_account", {"auth_type": "fly", "name": "x"}),
+    ):
+        message, is_error = call_tool(app_client, name, args, token)
+        assert is_error, (name, message)
+        assert "auth:" in message, (name, message)
+
+
+def test_a_bad_credential_shape_is_a_422_in_process_too(app_client, org):
+    """FastAPI parses the body on the HTTP path; this transport has to do it
+    itself, or a misspelled field would be silently dropped into the table."""
+    token, _ = generate_api_token(user_id=USER, name="c", scopes=["auth:write"])
+
+    message, is_error = call_tool(
+        app_client,
+        "create_account",
+        {"name": "x", "auth_type": "typeform", "credentials": {"keys": "typo"}},
+        token,
+    )
+
+    assert is_error
+    assert "422" in message
+
+
+def test_facebook_accounts_are_refused_through_mcp(app_client, org):
+    """The one gap no key can close: the token has to come from Meta's OAuth
+    exchange, which needs a browser and a human."""
+    token, _ = generate_api_token(user_id=USER, name="f", scopes=["auth:write"])
+
+    message, is_error = call_tool(
+        app_client,
+        "create_account",
+        {
+            "name": "fb",
+            "auth_type": "facebook",
+            "credentials": {"access_token": "x"},
+        },
+        token,
+    )
+
+    assert is_error
+    assert "400" in message
+    assert "OAuth" in message

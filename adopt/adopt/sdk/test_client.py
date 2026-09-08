@@ -733,6 +733,114 @@ def test_revoking_a_key_that_is_not_yours_is_a_not_found_error(client):
 
 
 # ---------------------------------------------------------------------------
+# Minting, and connected accounts (Phase C of planning/mcp-full-coverage.md)
+# ---------------------------------------------------------------------------
+
+
+def test_create_api_key_returns_the_token_once(client):
+    """The whole response, `token` included -- this is the only moment it
+    exists. `list_api_keys` shows the same key afterwards, without one."""
+    from ..server.api_keys import clear_api_key_cache
+
+    clear_api_key_cache()
+
+    minted = client.create_api_key("agent", ["studies:read"], 7)
+
+    assert minted["name"] == "agent"
+    assert minted["scopes"] == ["studies:read"]
+    assert minted["token"]
+    assert minted["id"]
+
+    clear_api_key_cache()
+    listed = client.list_api_keys()["keys"]
+    assert [k["id"] for k in listed] == [minted["id"]]
+    assert "token" not in listed[0]
+
+
+def test_create_api_key_omits_the_optional_fields_when_not_given(client):
+    """`scopes: None` has to be ABSENT from the body, not `null`: absent is
+    what "unrestricted" means, and the caller here is an unrestricted Auth0
+    session, which is the only kind that may ask for it."""
+    from ..server.api_keys import clear_api_key_cache
+
+    clear_api_key_cache()
+
+    minted = client.create_api_key("plain")
+
+    assert minted["scopes"] is None
+
+
+def test_minting_a_duplicate_name_is_a_conflict(client):
+    from ..server.api_keys import clear_api_key_cache
+
+    clear_api_key_cache()
+    client.create_api_key("agent")
+
+    with pytest.raises(ConflictError):
+        client.create_api_key("agent")
+
+
+def test_accounts_round_trip_without_ever_returning_the_secret(client):
+    secret = "SECRET-THROUGH-THE-CLIENT-9d2f"
+
+    made = client.create_account("typeform-main", "typeform", {"key": secret})
+    assert made == {
+        "name": "typeform-main",
+        "auth_type": "typeform",
+        "created": made["created"],
+        "id": None,
+    }
+
+    rows = client.list_accounts()
+    assert [r["name"] for r in rows] == ["typeform-main"]
+    assert secret not in str(rows)
+
+    assert client.delete_account("typeform", "typeform-main") is None
+    assert client.list_accounts() == []
+
+
+def test_list_accounts_filters_by_type(client):
+    client.create_account("tf", "typeform", {"key": "a"})
+    client.create_account("f", "fly", {"api_key": "b"})
+
+    assert [r["name"] for r in client.list_accounts("fly")] == ["f"]
+    # `None` is dropped from the query string rather than sent as "None".
+    assert len(client.list_accounts()) == 2
+
+
+def test_creating_an_account_twice_replaces_it(client):
+    client.create_account("main", "typeform", {"key": "old"})
+    client.create_account("main", "typeform", {"key": "new"})
+
+    assert len(client.list_accounts()) == 1
+
+
+def test_a_credential_the_provider_shape_rejects_is_unprocessable(client):
+    with pytest.raises(UnprocessableError) as e:
+        client.create_account("x", "typeform", {"keys": "typo"})
+
+    # `field_errors` is parseable, which is the point of reproducing FastAPI's
+    # 422 shape rather than a sentence.
+    assert e.value.field_errors
+    assert "credentials" in str(e.value.field_errors[0]["loc"])
+
+
+def test_deleting_an_account_that_is_not_there_is_a_not_found_error(client):
+    with pytest.raises(NotFoundError):
+        client.delete_account("typeform", "nope")
+
+
+def test_a_facebook_account_cannot_be_created_through_the_client(client):
+    """The one gap no key closes: the token comes out of Meta's OAuth code
+    exchange, which needs a browser and a human."""
+    with pytest.raises(VlabHTTPError) as e:
+        client.create_account("fb", "facebook", {"access_token": "x"})
+
+    assert e.value.status_code == 400
+    assert "OAuth" in str(e.value)
+
+
+# ---------------------------------------------------------------------------
 # Error rendering, on shapes this app cannot produce
 # ---------------------------------------------------------------------------
 

@@ -106,8 +106,33 @@ class InProcessBackend:
     process that serves `/mcp` has paid for it already by the time a tool runs.
     """
 
-    def __init__(self, user: User) -> None:
+    def __init__(self, user: User, token: Optional[str] = None) -> None:
         self.user = user
+
+        # THE CALLER'S RAW BEARER TOKEN, and it is load-bearing for exactly one
+        # method: `create_api_key`.
+        #
+        # Every other handler here needs only the authenticated `User`. The
+        # mint route needs more -- it ATTENUATES, so it has to know the scopes
+        # of the key doing the minting, and it gets them by calling
+        # `scopes_for_token` on the credentials FastAPI injected. `User` does
+        # not carry scopes (`deps.py` builds it from `sub` alone), so without
+        # the token this path would have to recompute attenuation from
+        # something else, which is a second copy of the security rule that
+        # matters most: an unrestricted key may mint anything, and a scoped key
+        # must not mint beyond itself, identically on both transports.
+        #
+        # So the token is carried and handed straight back to the handler,
+        # which then does byte for byte what the HTTP route does. It is the
+        # same token that arrived in this request's `Authorization` header and
+        # it lives no longer than the request; `scopes_for_token` is cached, so
+        # the second call is a cache hit rather than a second verification.
+        #
+        # `None` is allowed so that a caller with no token (tests, and any
+        # future in-process user of this class) gets a clear 403 from
+        # `create_api_key` rather than a `TypeError`, and so that every other
+        # method keeps working without one.
+        self.token = token
 
     # -- discovery ---------------------------------------------------------
 
@@ -388,6 +413,80 @@ class InProcessBackend:
 
         await revoke_api_key(key_id, self.user)
 
+    @_wire_errors
+    async def create_api_key(
+        self,
+        name: str,
+        scopes: Optional[List[str]] = None,
+        expires_in_days: Optional[int] = None,
+    ) -> Dict[str, Any]:
+        """Mint a key, attenuated against THIS caller's key. See `__init__`.
+
+        The handler is called with a reconstructed `HTTPAuthorizationCredentials`
+        rather than with pre-computed scopes, so the attenuation it performs is
+        the very same code path the HTTP route takes -- `scopes_for_token` on
+        the caller's bearer token, then `scopes_allow(..., "auth:write")` and
+        `can_grant_scopes`. There is no second implementation of the rule and
+        so nothing for the two transports to drift on.
+        """
+        from .api_keys import CreateApiKeyRequest, create_api_key
+
+        if self.token is None:
+            # Fail closed. Without the caller's token there is no way to know
+            # what the caller may grant, and "assume unrestricted" would make
+            # this transport a scope-escalation route.
+            raise HTTPException(
+                status_code=403,
+                detail=(
+                    "Minting a key needs the calling key itself, to attenuate "
+                    "against; this backend was built without one."
+                ),
+            )
+
+        body = await create_api_key(
+            CreateApiKeyRequest(
+                name=name, scopes=scopes, expires_in_days=expires_in_days
+            ),
+            self.user,
+            HTTPAuthorizationCredentials(scheme="Bearer", credentials=self.token),
+        )
+        return body.data.model_dump()
+
+    # -- connected accounts ------------------------------------------------
+
+    @_wire_errors
+    async def list_accounts(
+        self, auth_type: Optional[str] = None
+    ) -> List[Dict[str, Any]]:
+        from .accounts import list_accounts_endpoint
+
+        return (await list_accounts_endpoint(self.user, auth_type))["data"]
+
+    @_wire_errors
+    async def create_account(
+        self, name: str, auth_type: str, credentials: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        from .accounts import CreateAccountRequest, create_account_endpoint
+
+        # The route annotates the strict model, and FastAPI is what parses the
+        # body into it on the HTTP path -- so parsing it here is what reproduces
+        # the 422 for a misspelled top-level field. Same reason `post_conf`
+        # above runs the section's `TypeAdapter` itself.
+        try:
+            parsed = CreateAccountRequest(
+                name=name, auth_type=auth_type, credentials=dict(credentials)
+            )
+        except Exception as e:
+            raise HTTPException(status_code=422, detail=_field_errors(e)) from e
+
+        return (await create_account_endpoint(parsed, self.user))["data"]
+
+    @_wire_errors
+    async def delete_account(self, auth_type: str, name: str) -> None:
+        from .accounts import delete_account_endpoint
+
+        await delete_account_endpoint(auth_type, name, self.user)
+
 
 def _field_errors(exc: Exception) -> Any:
     """A pydantic `ValidationError` in FastAPI's 422 `detail` shape.
@@ -582,7 +681,12 @@ class MCPEndpoint:
             await _json(send, e.status_code, e.detail)
             return
 
-        env = ToolEnv(InProcessBackend(user), authorizer(scopes_for_token(token)))
+        # The token goes to the backend as well as to the authorizer: the mint
+        # route attenuates against the calling key's own scopes, and `User`
+        # does not carry them. See `InProcessBackend.__init__`.
+        env = ToolEnv(
+            InProcessBackend(user, token), authorizer(scopes_for_token(token))
+        )
         # The session manager spawns the server task from inside this block, and
         # a task keeps its own copy of the context, so the environment survives
         # for as long as the response does.
