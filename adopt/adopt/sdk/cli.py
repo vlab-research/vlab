@@ -1288,6 +1288,82 @@ def copy_from(ctx: click.Context, target: str, source_slug: str, as_json: bool) 
 
 
 # ---------------------------------------------------------------------------
+# reports
+# ---------------------------------------------------------------------------
+
+# One stratum's row, in reading order: who, how many, what share of the sample,
+# what the optimizer is paying for it and what it costs. The REPORT'S OWN key
+# names, like STATS_COLUMNS and COST_COLUMNS above: a heading of my own
+# invention would give one number two names, and the three `*_percentage`
+# fields are fractions rather than percentages, so a `%` heading would be a
+# lie the reader has no way to catch.
+STRATA_COLUMNS = (
+    "id",
+    "current_participants",
+    "expected_participants",
+    "desired_percentage",
+    "current_percentage",
+    "expected_percentage",
+    "current_budget",
+    "current_price_per_participant",
+)
+
+
+@cli.command("strata-progress")
+@click.argument("target")
+@click.option(
+    "--history",
+    type=int,
+    default=None,
+    help="How many plan runs, newest first (1-200, default 1).",
+)
+@click.option("--json", "as_json", is_flag=True, help="Machine-readable output.")
+@auth_options
+@click.pass_context
+def strata_progress(
+    ctx: click.Context, target: str, history: Optional[int], as_json: bool
+) -> None:
+    """Per-stratum budget, price and progress for <org>/<slug>. Needs `stats:read`.
+
+    \b
+    Where the money is going and what a respondent is costing you, per stratum:
+    the budget the optimizer set for that stratum's ad set, the current price
+    per participant, and the desired/current/expected percentage triple.
+
+    Reads only. Every number comes from the report `vlab plan` writes at the
+    end of a plan run and nothing else writes it, so these are the numbers as
+    of that run rather than live Meta -- and re-planning is what refreshes
+    them. The adopt-ads cron plans every study inside its recruitment window
+    every two hours, so a running study is at most that stale on its own.
+
+    A 404 means no plan has ever run for this study, not that the study is
+    missing.
+
+    --history N prints one table per run, newest first, which is how you see
+    budget move rather than a snapshot. Every number is the report's own,
+    unrounded; nothing here is computed and nothing is reformatted.
+    """
+    org, slug = parse_target(target)
+    reports = get_client(ctx).strata_progress(org, slug, history=history)
+
+    if as_json:
+        emit_json(reports)
+        return
+
+    for i, report in enumerate(reports):
+        if i:
+            click.echo("")
+        click.echo(report.get("created", ""))
+        # The one renderer, with its header, exactly as the study-page tables
+        # above use it: eight numeric columns are unreadable unlabelled.
+        rows_out(
+            {"data": report.get("strata") or []}, False, STRATA_COLUMNS, header=True
+        )
+
+    click.echo(f"{len(reports)} report(s).")
+
+
+# ---------------------------------------------------------------------------
 # meta
 # ---------------------------------------------------------------------------
 

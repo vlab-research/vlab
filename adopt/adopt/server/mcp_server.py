@@ -276,6 +276,30 @@ class InProcessBackend:
         result = await get_cost_over_time(org_id, slug, self.user)
         return result.model_dump(mode="json")["data"]
 
+    # -- reports -----------------------------------------------------------
+
+    @_wire_errors
+    async def strata_progress(
+        self, org_id: str, slug: str, history: Optional[int] = None
+    ) -> List[Dict[str, Any]]:
+        from .strata_progress import DEFAULT_HISTORY, strata_progress_endpoint
+
+        # The `Query(...)` default spelled out, for the same reason
+        # `list_studies` spells its two out: FastAPI is not parsing a query
+        # string here, so an unsupplied `history` would arrive at psycopg as
+        # the `Query` object itself.
+        body = await strata_progress_endpoint(
+            org_id,
+            slug,
+            self.user,
+            history if history is not None else DEFAULT_HISTORY,
+        )
+        # `mode="json"` so the remote transport hands a tool the same
+        # JSON-able values the wire does -- `created` is already a string, but
+        # dumping in python mode would leave anything added later as whatever
+        # object pydantic holds, and the two transports would diverge silently.
+        return body.model_dump(mode="json")["data"]
+
     # -- the Meta proxy ----------------------------------------------------
 
     @_wire_errors

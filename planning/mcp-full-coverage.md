@@ -37,7 +37,7 @@ directly from the browser.
 | Recruitment Statistics table (spend, CPM, price per respondent, incentive and total cost, conversion) | conf `GET .../recruitment-stats` | `recruitment_stats` | ~~A4~~ closed |
 | Participants-over-time chart, "Current Participants" card | conf `GET .../segments-progress` | `respondents_over_time` | ~~A5~~ closed |
 | Total Spent, Avg Cost per Participant, spend and marginal-cost charts | conf `GET .../cost-over-time` | `cost_over_time` | ~~A6~~ closed |
-| Participants-per-segment table: %desired / %current / %expected, expected participants, **budget**, **price per participant** per stratum; "Expected Participants" card | **Go only** (`GET /{org}/studies/{slug}/segments-progress`, reads `adopt_reports` `FACEBOOK_ADOPT`) | — | **B1**: no conf-service route exists |
+| Participants-per-segment table: %desired / %current / %expected, expected participants, **budget**, **price per participant** per stratum; "Expected Participants" card | **Go only** (`GET /{org}/studies/{slug}/segments-progress`, reads `adopt_reports` `FACEBOOK_ADOPT`) | `strata_progress` | ~~**B1**~~ **closed** 2026-09-08 by `GET /{org}/studies/{slug}/strata-progress` |
 | Study name by slug | Go `GET /{org}/studies/{slug}` | `list_studies` carries name and slug | none worth a tool |
 | Connected accounts: list, add (Typeform, Fly, Alchemer, Qualtrics, generic api_key), update, delete | **Go only** (`/accounts`, user-scoped, returns raw secrets to the browser) | `meta_credentials` (Facebook only, secrets stripped) | **C1** list, **C2** create/update, **C3** delete: no conf-service routes |
 | Create an API key | conf `POST /users/api-key` (then stored as an account via Go) | `list_api_keys`, `revoke_api_key` | **C4** |
@@ -142,7 +142,44 @@ tool `datetime` objects on one transport and ISO strings on the other — a
 divergence no single-transport test could see, and exactly what the drift guard
 exists for.
 
-### Phase B: the optimizer's per-stratum view
+### Phase B: the optimizer's per-stratum view — IMPLEMENTED 2026-09-08
+
+Shipped on `feature/strata-progress`. Route `server/strata_progress.py`, SQL
+`campaign_queries.get_adopt_reports`, client `VlabClient.strata_progress`,
+backend `InProcessBackend.strata_progress`, CLI `vlab strata-progress`, tool
+`strata_progress`, reference `documentation/agent-api.md` §2.7. Tests:
+`server/test_strata_progress.py` (the route), plus cases in `test_api_keys.py`,
+`test_mcp_server.py`, `sdk/test_mcp_tools.py`, `sdk/test_client.py` and
+`sdk/test_cli.py`.
+
+Deviations from what is written below, all deliberate:
+
+1. **404, not "the same text as `recruitment-stats` uses" verbatim.** The
+   sentence is `get_latest_adopt_report`'s, with the SLUG substituted for the
+   study id — an agent is never handed an id, so naming one in an error tells
+   it nothing it can act on. `get_latest_adopt_report` itself is untouched.
+2. **`percentage_deviation_from_goal` is computed, and on raw values.** Go
+   rounds `desired` and `current` to two places and subtracts the rounded pair.
+   That is a display decision; rounding here would mean the caller cannot
+   recover the real number. Everything else is the report's own float.
+3. **No `desired_participants`.** Go declares it as a nullable field and reads
+   it if present. `budget.py`'s `report_facts` is the exhaustive list of what
+   `make_report` writes and it has never contained that key, so the field would
+   always be null. Recorded as a comment in `strata_progress.py`.
+4. **A missing fact is a model default, not a 500**, with one warning logged per
+   report rather than per stratum. Reports are JSONB written by whatever
+   `budget.py` was deployed at the time; `efficiency_weight` and the
+   counterfactuals postdate the earliest rows.
+5. **The route is its own module** rather than another block in `server.py`,
+   following `studies.py` / `validate.py` / `meta.py`. Its whole shape is an
+   argument with the Go route it replaces, and that argument is a long docstring
+   nobody should have to scroll past to reach the conf routes.
+6. **`history` is bounded twice** — `Query(ge=1, le=200)` and an explicit check
+   in the handler — because `InProcessBackend` calls the handler directly and
+   the annotation enforces nothing there. Same pattern, and the same comment, as
+   `list_studies_endpoint`.
+
+Original brief, unchanged:
 
 B1 is the "optimization results and prices" question. The Go route explodes
 every `FACEBOOK_ADOPT` report ever written into per-stratum rows with

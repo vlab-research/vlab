@@ -606,6 +606,11 @@ regression test in `adopt/adopt/server/test_copy_confs.py`.)
   report exists yet rather than failing (`get_segments_progress`).
 - `GET /{org_id}/studies/{slug}/cost-over-time` — cumulative spend and marginal
   cost per respondent (`get_cost_over_time`).
+- `GET /{org_id}/studies/{slug}/strata-progress` — per-stratum budget, price per
+  participant and progress, out of the same report `recruitment-stats` counts
+  respondents from. `?history=N` (1–200) walks back through plan runs. **§2.7
+  has it in full**, including why this one 404s where the two above answer
+  `{"data": []}`.
 - `GET /health` — `"OK"`, unauthenticated.
 
 `recruitment-stats` and `segments-progress` read the **last stored report**,
@@ -855,6 +860,87 @@ if not report.valid:
 `validate_study` never raises, whatever you hand it. `study_conf_from_sections`
 from the same module is the assembly itself — the one `malaria.get_study_conf`
 uses on the run path, so there is no second definition to drift.
+
+### 2.7 `GET /{org_id}/studies/{slug}/strata-progress` — the optimizer's plan
+
+Where the money is going, per stratum. Needs `stats:read`. This is the
+dashboard's **Participants per Segment** table, which until now existed only on
+the Go dashboard API (`GET /{org}/studies/{slug}/segments-progress`) — an
+Auth0-only service, so no API key and therefore no agent could read it.
+
+```
+GET /{org_id}/studies/{slug}/strata-progress?history=1
+
+200 {
+  "data": [
+    {
+      "created": "2026-09-08T11:30:04.512+00:00",
+      "strata": [
+        {
+          "id": "urban-women-25-34",
+          "current_participants": 32,
+          "desired_percentage": 0.25,
+          "current_percentage": 0.19,
+          "expected_percentage": 0.24,
+          "expected_participants": 48.75,
+          "current_budget": 12.5,
+          "current_price_per_participant": 1.25,
+          "total_spent": 40.0,
+          "lifetime_spent": 90.5,
+          "efficiency_weight": 0.8,
+          "counterfactual_spend_to_fill_sample": null,
+          "counterfactual_participants_with_unlimited_budget": null,
+          "percentage_deviation_from_goal": 0.06
+        }
+      ]
+    }
+  ]
+}
+```
+
+- `current_budget` is the **daily** budget the optimizer set for that stratum's
+  Meta ad set. It is a decision, not a measurement.
+- `current_price_per_participant` is what recruiting one more respondent in that
+  stratum currently costs. It is why budget moves between strata: the optimizer
+  buys where it is cheap until the quota shape says stop.
+- `percentage_deviation_from_goal` is `abs(desired − current)` on the **raw**
+  values. The Go route rounds both to two places first and subtracts the rounded
+  pair; that is a display decision, and an agent gets the number it can compare
+  across runs instead.
+- `efficiency_weight` is the study's cost-versus-quota trade-off and is the same
+  for every stratum in a report. The two `counterfactual_*` facts are `null`
+  unless the corresponding constraint bound on that run.
+- **Every value is the report's own, unrounded**, and a fact an older report
+  does not carry comes back as `0` (or `null` for the counterfactuals) rather
+  than failing the read. There is no `desired_participants`: Go declares it, but
+  `budget.py`'s `report_facts` has never written it, so it would always be null.
+
+`?history=N` — **1–200, default 1** — returns the last N reports, **newest
+first**, which is how you see budget *move* rather than a snapshot. Out of range
+is a `422`.
+
+**`404 "No adopt report found for study <slug>"` means no plan has ever run**,
+not that the study is missing. This is the one report read on this service that
+404s instead of answering `{"data": []}`: `segments-progress` and
+`cost-over-time` next door are drawn as empty charts by the dashboard, but an
+agent asking for the current allocation cannot tell "no plan has run" from "the
+plan allocated nothing", and those want opposite actions.
+
+Everything here comes out of the `FACEBOOK_ADOPT` report that a plan run writes
+at the end (§5), and **nothing else writes it** — so these are the numbers as of
+that run, not live Meta, and `GET /optimize/{slug}` is what refreshes them (and
+is not side-effect free). The adopt-ads cron plans every study inside its
+recruitment window every two hours, so a running study is at most that stale on
+its own.
+
+**The name is deliberately not the Go route's.** This service already serves
+`segments-progress`, and it is a different payload — cumulative participants
+over time. Two routes with one name and two shapes is the trap the dashboard
+already lives with; it calls both, from two hosts.
+
+Also `VlabClient.strata_progress(org, slug, history)`,
+`vlab strata-progress <org>/<slug> [--history N]`, and the `strata_progress` MCP
+tool (§6b).
 
 ---
 
@@ -2054,8 +2140,10 @@ curl -sS https://vlab-study-conf-api.toixo.vlab.digital/mcp \
 ```
 
 The response is `text/event-stream` with one `data:` frame carrying the
-JSON-RPC result. `tools/list` returns the same sixteen tools with the same
-descriptions and schemas as the local transport — a test diffs them.
+JSON-RPC result. `tools/list` returns the same tools, with the same
+descriptions and schemas, as the local transport — a test diffs them. (The
+count moves as tools are added; the table below is the list. It said "sixteen"
+until 2026-09-08, by which time there were eighteen.)
 
 `/mcp` does **not** appear in `/openapi.json` or `/docs`. That is deliberate:
 the OpenAPI document describes this service's REST surface, and MCP describes
@@ -2087,6 +2175,7 @@ use: `list_orgs` → `list_studies` → `create_study` → `push_study` →
 | `recruitment_stats(org, slug)` | `vlab stats` | `stats:read` | no |
 | `respondents_over_time(org, slug)` | `vlab respondents` | `stats:read` | no |
 | `cost_over_time(org, slug)` | `vlab costs` | `stats:read` | no |
+| `strata_progress(org, slug, history)` | `vlab strata-progress` | `stats:read` | no |
 | `meta_credentials(org)` | `vlab meta credentials` | `meta:read` | no |
 | `meta_adaccounts(org, …)` | `vlab meta adaccounts` | `meta:read` | no |
 | `meta_campaigns(org, account, …)` | `vlab meta campaigns` | `meta:read` | no |
@@ -2274,6 +2363,44 @@ client.
 ---
 
 ## 8. What landed recently
+
+### 2026-09-08 — `strata-progress`: the optimizer's per-stratum plan, over an API key
+
+Design record: `planning/mcp-full-coverage.md` §2 Phase B; the contract is §2.7.
+**One new read-only endpoint, `stats:read`, no behaviour change to anything that
+existed.**
+
+The dashboard's "Participants per Segment" table — budget and price per
+participant per stratum, and the %desired / %current / %expected triple — was
+the last thing on the study page that **only** the Go dashboard API served. That
+service is Auth0-only, so it was unreachable with an API key: an agent could
+launch a study and spend money on it, and then could not answer "what is a
+respondent costing me in Lagos". The data was never the problem; every number is
+in the `FACEBOOK_ADOPT` report the optimizer already writes.
+
+`GET /{org_id}/studies/{slug}/strata-progress` serves it here, with three
+differences from the Go route, all deliberate:
+
+- **Every fact the report holds.** Go's `details` struct declares seven fields
+  and silently drops `total_spent`, `lifetime_spent`, `efficiency_weight` and
+  the two counterfactuals.
+- **Unrounded.** Go rounds each percentage to two places for display and then
+  computes the deviation from goal from the *rounded* pair. Here the numbers are
+  the report's own and `percentage_deviation_from_goal` is `abs(desired −
+  current)` on them.
+- **`?history=N`, newest first, bounded 1–200.** Go returns every report ever
+  written, ascending, unbounded — thousands of rows for a study a year into
+  recruitment.
+
+It is **not** called `segments-progress`, which is the Go path. This service
+already serves that name and it is a different payload (participants over time),
+and two routes with one name and two shapes is the trap the dashboard lives with
+today. The `404` when no plan has ever run is likewise a divergence from its
+neighbours here, for the reason in §2.7.
+
+Every front door got it together: `vlab strata-progress <org>/<slug>
+[--history N]`, `VlabClient.strata_progress`, and the `strata_progress` MCP tool
+on both transports.
 
 ### 2026-09-08 — seven MCP tools: the study page, and copy-from
 

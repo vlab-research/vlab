@@ -442,6 +442,7 @@ ROUTE_BACKED_TOOLS = {
     "recruitment_stats": ("GET", f"/{ORG}/studies/hpv/recruitment-stats"),
     "respondents_over_time": ("GET", f"/{ORG}/studies/hpv/segments-progress"),
     "cost_over_time": ("GET", f"/{ORG}/studies/hpv/cost-over-time"),
+    "strata_progress": ("GET", f"/{ORG}/studies/hpv/strata-progress"),
     "meta_credentials": ("GET", f"/{ORG}/meta/credentials"),
     "meta_adaccounts": ("GET", f"/{ORG}/meta/adaccounts"),
     "meta_campaigns": ("GET", f"/{ORG}/meta/campaigns"),
@@ -1017,6 +1018,108 @@ def test_a_studies_read_key_cannot_call_recruitment_stats(app_client, org):
 
     message, is_error = call_tool(
         app_client, "recruitment_stats", {"org": org, "slug": "anything"}, token
+    )
+
+    assert is_error
+    assert "stats:read" in message
+
+
+def test_strata_progress_through_mcp_with_a_stats_key(app_client, org):
+    """Phase B's route on the remote transport, end to end with a real key.
+
+    The report row is written directly rather than by planning: this asserts
+    that the tool reaches the handler and that the handler's values survive
+    `model_dump(mode="json")`, and a real plan run would put Meta and the
+    optimizer between the two.
+    """
+    import json as _json
+
+    writer, _ = generate_api_token(user_id=USER, name="w2", scopes=["studies:write"])
+    made, is_error = call_tool(
+        app_client, "create_study", {"org": org, "name": "Strata"}, writer
+    )
+    assert not is_error, made
+
+    execute(
+        db_conf,
+        "insert into adopt_reports (study_id, report_type, details)"
+        " values (%s, %s, %s)",
+        (
+            made["id"],
+            "FACEBOOK_ADOPT",
+            _json.dumps(
+                {
+                    "s1": {
+                        "current_budget": 12.5,
+                        "current_participants": 4,
+                        "desired_percentage": 0.5,
+                        "current_percentage": 0.25,
+                        "current_price_per_participant": 3.0,
+                    }
+                }
+            ),
+        ),
+    )
+
+    token, _ = generate_api_token(user_id=USER, name="stats", scopes=["stats:read"])
+    payload, is_error = call_tool(
+        app_client, "strata_progress", {"org": org, "slug": made["slug"]}, token
+    )
+
+    assert not is_error, payload
+    assert payload["count"] == 1
+    (stratum,) = payload["reports"][0]["strata"]
+    assert stratum["id"] == "s1"
+    assert stratum["current_budget"] == 12.5
+    # Computed by the route, not the tool: one implementation per capability.
+    assert stratum["percentage_deviation_from_goal"] == 0.25
+    # A fact the report did not carry is the model's default here too, exactly
+    # as it is over HTTP.
+    assert stratum["efficiency_weight"] == 0.0
+    assert payload["reports"][0]["created"].endswith("+00:00")
+
+
+def test_strata_progress_is_a_404_before_any_plan_has_run(app_client, org):
+    """The answer a configured-but-never-planned study gives, and the reason
+    it is not `{"data": []}`: an agent has to be able to tell "no plan has run"
+    from "the plan allocated nothing"."""
+    token, _ = generate_api_token(user_id=USER, name="rw2", scopes=["studies:write"])
+    made, _ = call_tool(
+        app_client, "create_study", {"org": org, "name": "Fresh"}, token
+    )
+
+    stats, _ = generate_api_token(user_id=USER, name="s2", scopes=["stats:read"])
+    message, is_error = call_tool(
+        app_client, "strata_progress", {"org": org, "slug": made["slug"]}, stats
+    )
+
+    assert is_error
+    assert "404" in message
+    assert f"No adopt report found for study {made['slug']}" in message
+
+
+def test_strata_progress_history_is_bounded_in_process_too(app_client, org):
+    """`Query(ge=1, le=200)` never runs on this transport; the handler's own
+    check is what answers."""
+    token, _ = generate_api_token(user_id=USER, name="s3", scopes=["stats:read"])
+
+    message, is_error = call_tool(
+        app_client,
+        "strata_progress",
+        {"org": org, "slug": "anything", "history": 10_000},
+        token,
+    )
+
+    assert is_error
+    assert "422" in message
+
+
+def test_a_studies_key_cannot_read_strata_progress_through_mcp(app_client, org):
+    """Per-stratum spend is a `stats` read on both front doors."""
+    token, _ = generate_api_token(user_id=USER, name="ro2", scopes=["studies:read"])
+
+    message, is_error = call_tool(
+        app_client, "strata_progress", {"org": org, "slug": "anything"}, token
     )
 
     assert is_error

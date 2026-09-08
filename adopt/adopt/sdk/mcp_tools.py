@@ -48,7 +48,8 @@ THE BACKEND CONTRACT
 returns: `list_orgs`, `list_studies`, `create_study`, `get_confs`, `post_conf`,
 `copy_from`, `validate`, `plan`, `apply`, `study_errors`, `current_data`,
 `ad_attributions`, `recruitment_stats`, `respondents_over_time`,
-`cost_over_time`, `meta_*`, `list_api_keys`, `revoke_api_key`. A client method
+`cost_over_time`, `strata_progress`, `meta_*`, `list_api_keys`,
+`revoke_api_key`. A client method
 no tool calls -- `ad_attributions_csv`, which exists for `vlab
 ad-attributions --csv` -- is deliberately NOT part of the contract and has no
 in-process twin: an unreachable method on one backend only is the first thing
@@ -142,6 +143,7 @@ TOOL_SCOPES: Dict[str, Optional[str]] = {
     "recruitment_stats": "stats:read",
     "respondents_over_time": "stats:read",
     "cost_over_time": "stats:read",
+    "strata_progress": "stats:read",
     "meta_credentials": "meta:read",
     "meta_adaccounts": "meta:read",
     "meta_campaigns": "meta:read",
@@ -988,6 +990,51 @@ async def cost_over_time(org: str, slug: str) -> Dict[str, Any]:
 
 
 # --------------------------------------------------------------------------
+# Tools: the optimizer's reports
+# --------------------------------------------------------------------------
+
+
+async def strata_progress(org: str, slug: str, history: int = 1) -> Dict[str, Any]:
+    """The optimizer's per-stratum allocation and prices. Needs `stats:read`.
+
+    Reads only; writes nothing. This is the answer to "where is the money
+    going, and what is a respondent costing me" -- the dashboard's
+    "Participants per Segment" table, one row per stratum:
+
+    * `current_budget` -- the DAILY budget the optimizer set for that stratum's
+      Meta ad set at the last plan run. It is a decision, not a measurement.
+    * `current_price_per_participant` -- what recruiting one more respondent in
+      that stratum currently costs, and the reason budget moves between strata:
+      the optimizer buys where it is cheap until the quota shape says stop.
+    * `current_participants`, and the `desired`/`current`/`expected` percentage
+      triple -- where the sample is, where it should be, and where this
+      allocation expects it to land. `percentage_deviation_from_goal` is
+      `abs(desired - current)`, unrounded.
+    * `total_spent` and `lifetime_spent` -- the optimization window and all
+      time; `efficiency_weight` -- how hard this study trades cost against
+      matching the quota exactly. The two `counterfactual_*` facts appear only
+      when a constraint binds, and are null otherwise.
+
+    WHERE THE NUMBERS COME FROM, which decides how you read them. Every value
+    is read out of the report `plan_study` writes at the end of a plan run, and
+    NOTHING ELSE WRITES IT. So these are the numbers as of that run, not live
+    Meta, and calling `plan_study` is the only way to refresh them -- which is
+    not free: it reads Meta and heals ad attributions. The adopt-ads cron plans
+    every study inside its recruitment window every two hours, so on a running
+    study this is at most two hours stale on its own.
+
+    A 404 means NO PLAN HAS EVER RUN for this study, not that the study is
+    missing. On a study that is configured but never planned, that is the
+    expected answer and `plan_study` is what changes it.
+
+    `history` is 1..200 (default 1) and returns that many reports NEWEST FIRST,
+    which is how you see budget MOVE between runs rather than a snapshot.
+    """
+    reports = await backend().strata_progress(org, slug, history)
+    return {"reports": reports, "count": len(reports)}
+
+
+# --------------------------------------------------------------------------
 # Tools: the read-only Meta proxy
 # --------------------------------------------------------------------------
 
@@ -1160,6 +1207,7 @@ TOOLS: Sequence[Callable[..., Any]] = (
     recruitment_stats,
     respondents_over_time,
     cost_over_time,
+    strata_progress,
     meta_credentials,
     meta_adaccounts,
     meta_campaigns,

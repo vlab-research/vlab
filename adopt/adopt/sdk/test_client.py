@@ -645,6 +645,76 @@ def test_copying_from_a_study_with_nothing_to_copy_is_a_404(client, org):
 
 
 # ---------------------------------------------------------------------------
+# Reports
+# ---------------------------------------------------------------------------
+
+
+def _write_report(study_id, details, created=None):
+    """A `FACEBOOK_ADOPT` row, as a plan run would have written it.
+
+    Directly, rather than by planning: `strata_progress` is a read, and a real
+    plan would put Meta and the budget optimizer between the fixture and the
+    assertion. `server/test_strata_progress.py` owns the route's own cases.
+    """
+    import json
+
+    if created is None:
+        execute(
+            db_conf,
+            "insert into adopt_reports (study_id, report_type, details)"
+            " values (%s, 'FACEBOOK_ADOPT', %s)",
+            (study_id, json.dumps(details)),
+        )
+    else:
+        execute(
+            db_conf,
+            "insert into adopt_reports (study_id, report_type, details, created)"
+            " values (%s, 'FACEBOOK_ADOPT', %s, %s)",
+            (study_id, json.dumps(details), created),
+        )
+
+
+def test_strata_progress_returns_the_reports_newest_first(client, org):
+    from datetime import datetime, timedelta, timezone
+
+    study = client.create_study(org, "HPV")
+    now = datetime.now(timezone.utc)
+    _write_report(study["id"], {"s": {"current_budget": 1.0}}, now - timedelta(1))
+    _write_report(study["id"], {"s": {"current_budget": 2.0}}, now)
+
+    reports = client.strata_progress(org, study["slug"], history=2)
+
+    assert [r["strata"][0]["current_budget"] for r in reports] == [2.0, 1.0]
+    assert reports[0]["created"].endswith("+00:00")
+
+
+def test_strata_progress_defaults_to_one_report(client, org):
+    study = client.create_study(org, "HPV")
+    _write_report(study["id"], {"s": {"current_budget": 1.0}})
+    _write_report(study["id"], {"s": {"current_budget": 2.0}})
+
+    assert len(client.strata_progress(org, study["slug"])) == 1
+
+
+def test_strata_progress_before_any_plan_run_is_a_not_found_error(client, org):
+    """404 rather than an empty list, unlike its neighbours: "no plan has ever
+    run" and "the plan allocated nothing" want opposite actions."""
+    study = client.create_study(org, "HPV")
+
+    with pytest.raises(NotFoundError) as e:
+        client.strata_progress(org, study["slug"])
+
+    assert study["slug"] in str(e.value)
+
+
+def test_strata_progress_rejects_an_out_of_range_history(client, org):
+    study = client.create_study(org, "HPV")
+
+    with pytest.raises(UnprocessableError):
+        client.strata_progress(org, study["slug"], history=0)
+
+
+# ---------------------------------------------------------------------------
 # API keys
 # ---------------------------------------------------------------------------
 

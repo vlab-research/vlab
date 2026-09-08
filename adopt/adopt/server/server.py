@@ -55,6 +55,7 @@ from .api_keys import add_scope_enforcement, router as api_keys_router
 from .deps import User, async_timeout, get_current_user, security
 from .mcp_server import lifespan as mcp_lifespan, mount as mount_mcp
 from .meta import router as meta_router
+from .strata_progress import router as strata_progress_router
 from .studies import router as studies_router
 from .validate import router as validate_router
 from .csv_export import ad_attributions_csv, ad_attributions_table
@@ -123,6 +124,13 @@ app.include_router(meta_router)
 # /{org_id}/studies/{slug}/validate cannot collide with the conf routes below,
 # which all live under .../confs/.
 app.include_router(validate_router)
+
+# The optimizer's per-stratum allocation, exploded out of the FACEBOOK_ADOPT
+# report. Its own module, like the routes above and unlike the report reads
+# further down this file, because it is new work rather than an edit to old
+# work -- and because its whole shape is an argument with the Go route it
+# replaces, which is a long docstring nobody should have to scroll past here.
+app.include_router(strata_progress_router)
 
 # `POST /mcp` -- the same tools `vlab mcp` serves over stdio, for clients that
 # cannot install Python. Classified as a DELEGATED route in

@@ -565,6 +565,31 @@ def test_the_report_tools_pass_an_empty_series_through(tool):
     assert run(getattr(mt, tool), backend, org=ORG, slug=SLUG)["count"] == 0
 
 
+def test_strata_progress_passes_history_through_and_counts():
+    """The tool computes nothing the route does not: it forwards `history` and
+    reports how many reports came back. The deviation from goal, the defaults
+    for a missing fact and the ordering are all the route's
+    (`server/strata_progress.py`)."""
+    reports = [
+        {"created": "2026-09-08T10:00:00+00:00", "strata": [{"id": "a"}]},
+        {"created": "2026-09-08T08:00:00+00:00", "strata": [{"id": "a"}]},
+    ]
+    backend = Recorder(strata_progress=reports)
+
+    out = run(mt.strata_progress, backend, org=ORG, slug=SLUG, history=2)
+
+    assert backend.calls == [("strata_progress", (ORG, SLUG, 2), {})]
+    assert out == {"reports": reports, "count": 2}
+
+
+def test_strata_progress_defaults_to_the_latest_report_alone():
+    backend = Recorder(strata_progress=[])
+
+    run(mt.strata_progress, backend, org=ORG, slug=SLUG)
+
+    assert backend.calls == [("strata_progress", (ORG, SLUG, 1), {})]
+
+
 @pytest.mark.parametrize(
     "tool,kwargs,method,args",
     [
