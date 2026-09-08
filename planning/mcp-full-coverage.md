@@ -89,10 +89,30 @@ Description content that the tests will enforce and that the agent needs:
   failures do not appear here (`agent-api.md` §2.3).
 - `current_data`: one row per respondent per variable inside the study's
   inference window; this is the data the optimizer sees. Can be large; the
-  server allows five minutes.
+  server allows five minutes. The window is
+  `Recruitment.get_inference_window(now)` — `start_date`..`end_date` for
+  `simple` and `destination`, and the CURRENT WAVE only for
+  `pipeline_experiment` (`study_conf.py`). Not `general.opt_window`, which is
+  the recruitment-data lookback for the budget arithmetic and lives on
+  `general`, not `recruitment`.
 - `recruitment_stats`: per-stratum dict; 404 when the study has never had a
   plan run, because respondent counts come from the latest `FACEBOOK_ADOPT`
-  report. Spend and clicks are live Meta insights summed over all time.
+  report. **Nothing in it is live.** `spend`, `reach`, `unique_clicks` and
+  `impressions` are summed over all time from `recruitment_data_events`, which
+  the `adopt-recruitment-data` cron writes every FOUR HOURS
+  (`devops/values/toixo-prod.yaml`); the route makes no Meta call at all
+  (`recruitment_data.calculate_stat_sql`). Calling the tool refreshes neither
+  half, and `plan_study` refreshes only the respondent half.
+- `respondents_over_time`: hourly buckets, cumulative WITHIN the inference
+  window and across CURRENTLY-configured strata only — a respondent attributed
+  to a since-renamed stratum is dropped — and anchored to the first and last
+  interaction in the data rather than to the configured dates
+  (`malaria.calculate_respondents_over_time_report`).
+- `cost_over_time`: `cumulativeSpend` is ad spend PLUS incentives
+  (`newRespondents * incentive_per_respondent`), `dailySpend` is ad spend
+  alone, and `marginalCost` is `(dailySpend + incentives) / newRespondents`;
+  days on which nothing changed are omitted, so the points are not consecutive
+  days (`cost_over_time.py`).
 - `respondents_over_time`, `cost_over_time`: read the latest pre-computed
   report; empty until the first plan run. A plan run (`plan_study`) is what
   refreshes them, and it is not side-effect free.
@@ -179,3 +199,27 @@ If that is unwelcome, C1 and C4 alone still close the runbook gap "which
   browser from the JSON; an agent has the JSON.
 - **The Go routes themselves.** Nothing here touches `api/`; the dashboard
   keeps using it. Retiring Go routes is `agent-study-authoring.md` §7.
+
+## 4. Follow-ups this phase found and did not fix
+
+Phase A was a wrapping exercise, so anything wrong on the far side of a route
+was documented rather than changed: a tool that quietly corrected a field would
+disagree with the dashboard showing the same study, which is worse than a
+consistent oddity.
+
+- **`recruitment_stats.cpm` is not cost per mille.** It is computed as
+  `impressions / spend` — impressions per dollar, so bigger is cheaper
+  (`recruitment_data.calculate_stat_sql`, the `AdPlatformRecruitmentStats`
+  construction). Cost per mille would be `spend / impressions * 1000`, which is
+  a different number and moves the other way. The dashboard's Recruitment
+  Statistics table shows this figure under the label CPM, so the tool, the CLI
+  and the client report it as-is and say what it is. Fixing it means either
+  renaming the field (a dashboard change and a payload change) or changing the
+  arithmetic (which would silently redefine a number researchers have been
+  reading for a year). Neither belongs in a phase whose rule is "the tool
+  returns what the route returns".
+- **Nothing an API key can call refreshes the spend half.** `plan_study`
+  refreshes the FACEBOOK_ADOPT report and the two time series; the spend rows
+  come only from the four-hourly `adopt-recruitment-data` cron. An agent that
+  wants current spend has to wait for it. Worth a route eventually; out of
+  scope here.

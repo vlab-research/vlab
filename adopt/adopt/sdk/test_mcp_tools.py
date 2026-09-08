@@ -793,6 +793,50 @@ def test_recruitment_stats_says_what_its_404_means():
     assert "plan_study" in description
 
 
+def test_recruitment_stats_does_not_claim_to_be_live_meta_data():
+    """It reads `recruitment_data_events`, which a cron fills every four hours.
+    Calling it "live Meta insights" -- as an earlier draft of this description
+    did -- would have an agent reporting four-hour-old spend as current."""
+    description = tool_descriptions()["recruitment_stats"]
+
+    assert "recruitment_data_events" in description
+    assert "FOUR HOURS" in description
+    # And the field that is not what its name says.
+    assert "cpm" in description.lower()
+    assert "impressions / spend" in description
+
+
+def test_cost_over_time_says_that_cumulative_spend_includes_incentives():
+    """`cumulativeSpend` is ad spend plus incentives and `dailySpend` is ad
+    spend alone, so the first is not the running sum of the second. An agent
+    that assumed it was would report the wrong total for any study that pays
+    respondents."""
+    description = tool_descriptions()["cost_over_time"]
+
+    assert "incentive" in description.lower()
+    assert "not the running sum" in description
+
+
+def test_current_data_names_the_real_inference_window():
+    """`general.opt_window` is the recruitment-data lookback, not this. Naming
+    the wrong field would send a reader to change a number that has no effect
+    on what this returns."""
+    description = tool_descriptions()["current_data"]
+
+    assert "start_date" in description
+    assert "pipeline_experiment" in description
+    assert "opt_window" in description
+
+
+def test_respondents_over_time_says_the_last_point_is_not_the_total():
+    """It counts inside the inference window and across currently-configured
+    strata only, so a renamed stratum's respondents silently vanish from it."""
+    description = tool_descriptions()["respondents_over_time"]
+
+    assert "HOURLY" in description
+    assert "CURRENTLY-CONFIGURED" in description
+
+
 @pytest.mark.parametrize("name", ["respondents_over_time", "cost_over_time"])
 def test_the_report_tools_say_that_only_a_plan_run_refreshes_them(name):
     """Both read a pre-computed report, so empty means "not computed yet"

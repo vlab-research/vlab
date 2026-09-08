@@ -1028,13 +1028,21 @@ correct for free.
 | `vlab errors <org>/<slug>` | Open errors and warnings. Only swoosh writes these, and they age out after 90 minutes: an empty table is not "healthy". |
 | `vlab current-data <org>/<slug>` | The rows the optimizer sees — one per respondent *per variable*, inside the inference window. |
 | `vlab ad-attributions <org>/<slug> [--csv PATH]` | The frozen ad → stratum mapping. `--csv` fetches the server's own rendering (`-` for stdout). |
-| `vlab stats <org>/<slug>` | Recruitment statistics per stratum. 404 until a plan run has written a report. |
+| `vlab stats <org>/<slug>` | Recruitment statistics per stratum. 404 until a plan run has written a report. Not live: spend comes from a four-hourly cron, and `cpm` here is impressions/spend, not cost per mille. |
 | `vlab respondents <org>/<slug>` | Participants over time. Empty until a plan run writes the report. |
-| `vlab costs <org>/<slug>` | Spend, daily spend and marginal cost over time. Same report story. |
+| `vlab costs <org>/<slug>` | Spend, daily spend and marginal cost over time. Same report story. `cumulativeSpend` includes incentives; `dailySpend` does not. |
 | `vlab meta credentials\|adaccounts\|campaigns\|adsets\|ads` | The read-only Meta proxy. `--json` output feeds the next command. |
 | `vlab strata generate [file] [--finish-question]` | The dashboard's Regenerate, in Python. |
 | `vlab strata extract-targeting <adsets.json> <prop>…` | `extract_from_adset` over a `vlab meta adsets --json` response. |
 | `vlab keys list\|revoke` | There is deliberately no `keys create`: minting needs a token you already have, and the first one needs an Auth0 login. |
+
+**`--json` shape follows the route, not this table.** A command whose route
+answers a LIST wraps it as `{"data": [...]}` — `orgs`, `studies`, `errors`,
+`current-data`, `respondents`, `costs`. A command whose route answers an OBJECT
+emits that object as it stands — `stats` (keyed by stratum id),
+`ad-attributions` (`{columns, rows}`), `copy-from` (keyed by conf type). The
+human table is this command's rendering; `--json` is the API's, which is what
+makes it safe to pipe into something that also talks to the service directly.
 
 ### Four decisions worth knowing
 

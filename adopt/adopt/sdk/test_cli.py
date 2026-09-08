@@ -831,7 +831,11 @@ def test_errors_prints_the_open_errors(runner, obj, org):
     res = run(runner, obj, "errors", f"{org}/{slug}")
 
     assert res.exit_code == 0
-    assert res.output.splitlines()[0].startswith("error  swoosh  boom")
+    lines = res.output.splitlines()
+    # Every study-page table leads with its column names, `errors` included:
+    # one rule, one `header=True` on the one renderer.
+    assert lines[0] == "severity  source  message  last_seen"
+    assert lines[1].startswith("error  swoosh  boom")
     assert "1 row(s)." in res.output
 
 
@@ -878,6 +882,7 @@ def test_current_data_prints_one_row_per_variable(runner, obj, org):
         res = run(runner, obj, "current-data", f"{org}/{slug}")
 
     assert res.exit_code == 0
+    assert res.output.splitlines()[0] == "user_id  variable  value  timestamp"
     # One person, two variables, two rows -- the thing a caller counting
     # respondents off this table will otherwise get wrong.
     assert "2 row(s)." in res.output
@@ -901,8 +906,17 @@ def test_ad_attributions_prints_the_columns_as_a_header(runner, obj, org):
     res = run(runner, obj, "ad-attributions", f"{org}/{slug}")
 
     assert res.exit_code == 0
-    assert res.output.splitlines()[0].startswith("ad_id  network")
-    assert "gender" in res.output.splitlines()[0]
+    lines = res.output.splitlines()
+    assert lines[0].startswith("ad_id  network")
+    assert "gender" in lines[0]
+    # A string cell prints as ITSELF. The hand-rolled loop this replaced ran
+    # every value through `short()`, which is `json.dumps` -- so the ad id came
+    # out as `"ad-1"`, quotes included, and a researcher copying a column out
+    # of this table copied the quotes with it.
+    cells = lines[1].split("  ")
+    assert cells[0] == "ad-1"
+    assert "women" in cells
+    assert '"' not in lines[1]
     assert "1 row(s)." in res.output
 
 

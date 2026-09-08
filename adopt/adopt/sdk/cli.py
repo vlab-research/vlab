@@ -174,7 +174,9 @@ def short(value: Any, width: int = 60) -> str:
     return text if len(text) <= width else text[: width - 1] + "…"
 
 
-def rows_out(body: Any, as_json: bool, columns: Sequence[str]) -> None:
+def rows_out(
+    body: Any, as_json: bool, columns: Sequence[str], header: bool = False
+) -> None:
     """A `{"data": [...]}` envelope as columns, or as JSON.
 
     Was `_meta_out`, private to the meta group, until `vlab orgs` and
@@ -183,6 +185,13 @@ def rows_out(body: Any, as_json: bool, columns: Sequence[str]) -> None:
     key only the Meta proxy sends -- so generalising it is a rename, not a
     behaviour change, and one table renderer is one place to fix a column that
     prints badly.
+
+    `header` echoes the column names first. Opt-in rather than always, because
+    `orgs`, `studies` and `meta` predate it and print two or three columns
+    whose meaning is obvious; the study-page tables print up to eleven numeric
+    ones, where an unlabelled row is unreadable. Every command added with a
+    numeric or wide table passes it, and one flag on one renderer is what keeps
+    that a rule rather than a habit.
     """
     if as_json:
         emit_json(body)
@@ -192,6 +201,9 @@ def rows_out(body: Any, as_json: bool, columns: Sequence[str]) -> None:
     if isinstance(rows, dict):
         rows = [rows]
     rows = rows or []
+
+    if header:
+        click.echo("  ".join(str(column) for column in columns))
 
     for row in rows:
         cells = []
@@ -981,7 +993,12 @@ def errors(ctx: click.Context, target: str, as_json: bool) -> None:
     """
     org, slug = parse_target(target)
     rows = get_client(ctx).study_errors(org, slug)
-    rows_out({"data": rows}, as_json, ["severity", "source", "message", "last_seen"])
+    rows_out(
+        {"data": rows},
+        as_json,
+        ["severity", "source", "message", "last_seen"],
+        header=True,
+    )
 
 
 @cli.command("current-data")
@@ -997,14 +1014,23 @@ def current_data(ctx: click.Context, target: str, as_json: bool) -> None:
     budget arithmetic sees, and nothing else -- which makes it the answer to
     "why did the optimizer decide that".
 
-    Scoped to the study's inference window (`recruitment.opt_window`, relative
-    to now), not to all time: a respondent who answered before it opened is
-    absent by configuration rather than missing. Can be large and can be slow;
-    the server allows five minutes.
+    \b
+    Scoped to the study's INFERENCE WINDOW, not to all time. That window is
+    `recruitment.start_date`..`end_date` for a simple or destination study, and
+    for a pipeline_experiment the CURRENT WAVE only -- so on a wave study this
+    is a slice rather than the study's history. It is NOT `general.opt_window`,
+    which is the recruitment-data lookback the budget arithmetic uses.
+
+    Can be large and can be slow; the server allows five minutes.
     """
     org, slug = parse_target(target)
     rows = get_client(ctx).current_data(org, slug)
-    rows_out({"data": rows}, as_json, ["user_id", "variable", "value", "timestamp"])
+    rows_out(
+        {"data": rows},
+        as_json,
+        ["user_id", "variable", "value", "timestamp"],
+        header=True,
+    )
 
 
 @cli.command("ad-attributions")
@@ -1051,7 +1077,12 @@ def ad_attributions(
         if csv_path == "-":
             click.echo(body, nl=False)
             return
-        with open(csv_path, "w", encoding="utf8") as f:
+        # `newline=""`: the body is already RFC 4180 CSV with \r\n line
+        # endings, and Python's default newline translation would rewrite them
+        # on a platform whose os.linesep differs -- turning the server's file
+        # into a different file on the way to disk, which is the one thing
+        # `--csv` exists to prevent.
+        with open(csv_path, "w", encoding="utf8", newline="") as f:
             f.write(body)
         click.echo(f"Wrote {csv_path}")
         return
@@ -1062,14 +1093,14 @@ def ad_attributions(
         emit_json(table)
         return
 
-    columns = table.get("columns") or []
-    rows = table.get("rows") or []
-    if columns:
-        click.echo("  ".join(str(c) for c in columns))
-    for row in rows:
-        click.echo("  ".join(short(row.get(c), 40) for c in columns))
-    click.echo("")
-    click.echo(f"{len(rows)} row(s).")
+    # The one renderer, like every other table here: it prints a string cell as
+    # itself, where a hand-rolled `short()` loop JSON-quoted every value.
+    rows_out(
+        {"data": table.get("rows") or []},
+        False,
+        table.get("columns") or [],
+        header=True,
+    )
 
 
 # The numeric columns of a `RecruitmentStats`, in the order the dashboard's
@@ -1104,9 +1135,16 @@ def stats(ctx: click.Context, target: str, as_json: bool) -> None:
     spend. `vlab plan <org>/<slug>` writes that report -- and is not
     side-effect free. The same 404 means "no strata configured".
 
-    Spend, CPM, reach and clicks are LIVE Meta insights summed over all time;
-    respondents are as of the last plan run. The two halves can therefore
-    disagree, and the derived costs are only as fresh as the older of them.
+    \b
+    NOTHING HERE IS LIVE, AND THE HALVES AGE DIFFERENTLY.
+    Spend, reach, clicks and impressions are summed over all time from
+    recruitment_data_events, which the adopt-recruitment-data cron writes every
+    FOUR HOURS -- no Meta call happens when you run this. Respondents come from
+    the last plan run. This command refreshes neither; `vlab plan` refreshes
+    only the respondent half.
+
+    `cpm` is impressions / spend -- impressions per dollar, NOT cost per mille.
+    That is what the dashboard shows and this prints it unchanged.
     """
     org, slug = parse_target(target)
     strata = get_client(ctx).recruitment_stats(org, slug)
@@ -1116,8 +1154,7 @@ def stats(ctx: click.Context, target: str, as_json: bool) -> None:
         return
 
     rows = [{"stratum": key, **value} for key, value in sorted(strata.items())]
-    click.echo("  ".join(STATS_COLUMNS))
-    rows_out({"data": rows}, False, STATS_COLUMNS)
+    rows_out({"data": rows}, False, STATS_COLUMNS, header=True)
 
 
 # The report's own key names, camelCase and all: these are the dashboard's
@@ -1142,10 +1179,17 @@ COST_COLUMNS = (
 def respondents(ctx: click.Context, target: str, as_json: bool) -> None:
     """Participants over time, one row per time point. Needs `stats:read`.
 
-    Cumulative counts, oldest first, with `datetime` in MILLISECONDS since the
-    epoch rather than ISO. `--json` also carries the per-segment breakdown,
-    which the table leaves out because a study with forty strata has forty
-    numbers per row.
+    Cumulative counts in HOURLY buckets, oldest first, with `datetime` in
+    MILLISECONDS since the epoch rather than ISO. `--json` also carries the
+    per-segment breakdown, which the table leaves out because a study with
+    forty strata has forty numbers per row.
+
+    \b
+    THE LAST ROW IS NOT NECESSARILY THE STUDY'S TOTAL.
+    It counts respondents inside the INFERENCE WINDOW (one wave only, for a
+    pipeline study) and only across CURRENTLY-configured strata: a respondent
+    attributed to a stratum that has since been renamed is not here at all.
+    Buckets start at the first interaction in the data, not at start_date.
 
     \b
     AN EMPTY TABLE MEANS NO PLAN RUN HAS WRITTEN THE REPORT.
@@ -1161,8 +1205,7 @@ def respondents(ctx: click.Context, target: str, as_json: bool) -> None:
         emit_json({"data": points})
         return
 
-    click.echo("  ".join(RESPONDENT_COLUMNS))
-    rows_out({"data": points}, False, RESPONDENT_COLUMNS)
+    rows_out({"data": points}, False, RESPONDENT_COLUMNS, header=True)
 
 
 @cli.command()
@@ -1173,10 +1216,20 @@ def respondents(ctx: click.Context, target: str, as_json: bool) -> None:
 def costs(ctx: click.Context, target: str, as_json: bool) -> None:
     """Spend and marginal cost over time, one row per time point. Needs `stats:read`.
 
-    `cumulativeSpend` and `cumulativeRespondents` run to date; `dailySpend` and
-    `newRespondents` are that day alone; `marginalCost` is what the day's
-    respondents cost, and is empty on a day that gained none. That last column
-    is the one that says whether recruitment is getting harder.
+    \b
+    SPEND MEANS TWO THINGS IN THE SAME ROW.
+    cumulativeSpend is ad spend PLUS INCENTIVES (newRespondents times
+    recruitment.incentive_per_respondent, accumulated); dailySpend is that
+    day's AD SPEND ALONE; marginalCost is (dailySpend + that day's incentives)
+    / newRespondents, empty on a day that gained none -- and it is the column
+    that says whether recruitment is getting harder. So cumulativeSpend is not
+    the running sum of dailySpend unless the study pays no incentive.
+
+    \b
+    THE ROWS ARE NOT CONSECUTIVE DAYS.
+    A day on which neither spend nor respondents changed is omitted; leading
+    and trailing dead days are trimmed, so the series starts when the study
+    really started rather than at recruitment.start_date.
 
     Same report story as `vlab respondents`: an empty table means no plan run
     has written one, not that nothing has been spent. For money per stratum
@@ -1189,8 +1242,7 @@ def costs(ctx: click.Context, target: str, as_json: bool) -> None:
         emit_json({"data": points})
         return
 
-    click.echo("  ".join(COST_COLUMNS))
-    rows_out({"data": points}, False, COST_COLUMNS)
+    rows_out({"data": points}, False, COST_COLUMNS, header=True)
 
 
 @cli.command("copy-from")

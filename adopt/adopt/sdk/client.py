@@ -343,8 +343,16 @@ class VlabClient:
 
     # -- plumbing ----------------------------------------------------------
 
-    def _headers(self) -> Dict[str, str]:
-        headers = {"Accept": "application/json"}
+    def _headers(self, accept: str = "application/json") -> Dict[str, str]:
+        """The request headers. `accept` is a parameter for exactly one route.
+
+        `…/ad-attributions.csv` answers `text/csv` and always has -- FastAPI's
+        `Response(media_type=...)` does not negotiate -- so sending
+        `Accept: application/json` at it would be the client asking for
+        something it knows it will not get, and a proxy or a future content
+        negotiation would be entitled to answer 406.
+        """
+        headers = {"Accept": accept}
         if self.api_key:
             headers["Authorization"] = f"Bearer {self.api_key}"
         return headers
@@ -381,6 +389,7 @@ class VlabClient:
         path: str,
         params: Optional[Mapping[str, Any]] = None,
         json: Any = None,
+        accept: str = "text/csv",
     ) -> str:
         """One request whose body is not JSON. Returns it as text.
 
@@ -389,7 +398,7 @@ class VlabClient:
         perfectly good response, because "the body is not JSON" is a real
         failure everywhere else on this service.
         """
-        return self._send(method, path, params, json).text or ""
+        return self._send(method, path, params, json, accept).text or ""
 
     def _send(
         self,
@@ -397,6 +406,7 @@ class VlabClient:
         path: str,
         params: Optional[Mapping[str, Any]] = None,
         json: Any = None,
+        accept: str = "application/json",
     ) -> Any:
         """Put one request on the wire and raise on a non-2xx. The response object.
 
@@ -415,7 +425,7 @@ class VlabClient:
                 url,
                 params=query,
                 json=json,
-                headers=self._headers(),
+                headers=self._headers(accept),
                 timeout=self.timeout,
             )
         except VlabError:
@@ -629,8 +639,15 @@ class VlabClient:
         """`GET /{org}/optimize/{slug}/current-data` -- what the optimizer sees.
 
         One row per respondent per variable inside the study's inference
-        window, `{user_id, variable, value, timestamp}`. Can be large: the
-        server allows this one five minutes, which is why
+        window, `{user_id, variable, value, timestamp}`.
+
+        The window is `Recruitment.get_inference_window(now)`:
+        `start_date`..`end_date` for `simple` and `destination` studies, and the
+        CURRENT WAVE only for a `pipeline_experiment`. Not `general.opt_window`,
+        which is the recruitment-data lookback for budget arithmetic and has no
+        effect here.
+
+        Can be large: the server allows this one five minutes, which is why
         `DEFAULT_TIMEOUT_SECONDS` is above that.
         """
         return self._data("GET", f"/{_seg(org_id)}/optimize/{_seg(slug)}/current-data")
@@ -664,12 +681,23 @@ class VlabClient:
     def recruitment_stats(self, org_id: str, slug: str) -> Dict[str, Any]:
         """`GET /{org}/studies/{slug}/recruitment-stats` -- per stratum. `stats:read`.
 
-        Spend, CPM, reach, clicks and the derived price per respondent,
-        incentive cost, total cost and conversion rate, keyed by stratum id.
+        Spend, reach, clicks, impressions and the derived price per
+        respondent, incentive cost, total cost and conversion rate, keyed by
+        stratum id.
+
+        Neither half is live and the two are stale by different amounts. Spend,
+        reach, clicks and impressions are summed over all time from
+        `recruitment_data_events`, which the `adopt-recruitment-data` cron
+        writes every four hours; `respondents` comes from the latest
+        `FACEBOOK_ADOPT` report, which a plan run writes. No Meta call happens
+        on this route.
+
+        `cpm` is `impressions / spend` -- impressions per dollar, not cost per
+        mille (`recruitment_data.calculate_stat_sql`). That is the dashboard's
+        figure and this reports it unchanged.
 
         404 when the study has never had a plan run: respondent counts come
-        from the latest `FACEBOOK_ADOPT` report and there is none. The spend
-        half is live Meta insights, summed over all time.
+        from the latest `FACEBOOK_ADOPT` report and there is none.
         """
         return self._data(
             "GET", f"/{_seg(org_id)}/studies/{_seg(slug)}/recruitment-stats"
@@ -679,8 +707,13 @@ class VlabClient:
         """`GET /{org}/studies/{slug}/segments-progress` -- the participants series.
 
         `[{datetime, totalParticipants, segments: [{id, participants}]}]`,
-        `datetime` in milliseconds. Read off a pre-computed report, so `[]`
-        means no plan run has written one yet rather than "nobody has answered".
+        hourly buckets, `datetime` in milliseconds. Read off a pre-computed
+        report, so `[]` means no plan run has written one yet rather than
+        "nobody has answered".
+
+        Cumulative WITHIN the inference window and across CURRENTLY-configured
+        strata only: a respondent attributed to a since-renamed stratum is not
+        counted (`malaria.calculate_respondents_over_time_report`).
 
         NOT the Go service's route of the same path, which is the per-stratum
         budget-and-price table (`planning/mcp-full-coverage.md` B1).
@@ -693,9 +726,15 @@ class VlabClient:
         """`GET /{org}/studies/{slug}/cost-over-time` -- the spend series.
 
         `[{datetime, cumulativeSpend, cumulativeRespondents, marginalCost,
-        newRespondents, dailySpend}]`, `datetime` in milliseconds. Same
-        pre-computed report story as `respondents_over_time`: `[]` until a plan
-        run writes one.
+        newRespondents, dailySpend}]`, one point per day, `datetime` in
+        milliseconds. Same pre-computed report story as
+        `respondents_over_time`: `[]` until a plan run writes one.
+
+        `cumulativeSpend` includes INCENTIVES as well as ad spend; `dailySpend`
+        is ad spend alone; `marginalCost` is
+        `(dailySpend + that day's incentives) / newRespondents`, null when
+        there were none. Days on which nothing changed are omitted, so the
+        points are not consecutive days (`cost_over_time.py`).
         """
         return self._data("GET", f"/{_seg(org_id)}/studies/{_seg(slug)}/cost-over-time")
 

@@ -44,12 +44,15 @@ user with different scopes.
 THE BACKEND CONTRACT
 --------------------
 
-`VlabClient`'s method surface, exactly, and returning exactly what it returns:
-`list_orgs`, `list_studies`, `create_study`, `get_confs`, `post_conf`,
+`VlabClient`'s method surface AS THE TOOLS USE IT, returning exactly what it
+returns: `list_orgs`, `list_studies`, `create_study`, `get_confs`, `post_conf`,
 `copy_from`, `validate`, `plan`, `apply`, `study_errors`, `current_data`,
 `ad_attributions`, `recruitment_stats`, `respondents_over_time`,
-`cost_over_time`, `meta_*`, `list_api_keys`, `revoke_api_key`.
-`ClientBackend` below is the HTTP
+`cost_over_time`, `meta_*`, `list_api_keys`, `revoke_api_key`. A client method
+no tool calls -- `ad_attributions_csv`, which exists for `vlab
+ad-attributions --csv` -- is deliberately NOT part of the contract and has no
+in-process twin: an unreachable method on one backend only is the first thing
+to rot. `ClientBackend` below is the HTTP
 one; `server/mcp_server.InProcessBackend` is the other, and it raises the same
 `client.VlabHTTPError` subclasses so that a 404 reads the same to a tool
 whichever side of the wire it came from.
@@ -773,9 +776,15 @@ async def apply_instruction(org: str, slug: str, index: int) -> Dict[str, Any]:
 #
 # These are the dashboard's study page, tool for tool: the Errors tab, Current
 # Data, Ad Attributions, Recruitment Statistics, the participants chart and the
-# spend charts. Every one of them is a READ of something the optimizer already
-# wrote or of live Meta insights; none computes anything the route does not, and
-# none refreshes a report. `plan_study` is what refreshes them, and it writes.
+# spend charts. Every one is a READ of something a CRON already wrote -- there
+# is no live Meta call anywhere in this group -- and none computes anything the
+# route does not.
+#
+# What refreshes what, because the descriptions below all have to repeat it:
+# `plan_study` (and the adopt-ads cron, two-hourly) writes the FACEBOOK_ADOPT
+# report and the two time series; the adopt-recruitment-data cron, FOUR-hourly,
+# writes the spend rows `recruitment_stats` sums; swoosh, half-hourly, writes
+# the events `study_errors` derives from. Nothing here refreshes anything.
 
 
 async def study_errors(org: str, slug: str) -> Dict[str, Any]:
@@ -809,7 +818,7 @@ async def study_errors(org: str, slug: str) -> Dict[str, Any]:
 
 
 async def current_data(org: str, slug: str) -> Dict[str, Any]:
-    """The respondent data the optimizer is currently working from. Needs `optimize:read`.
+    """The respondent data the optimizer works from. Needs `optimize:read`.
 
     Reads only; writes nothing. This is the dashboard's Current Data tab, and
     it is the answer to "why did the optimizer decide that": these rows, and
@@ -819,10 +828,15 @@ async def current_data(org: str, slug: str) -> Dict[str, Any]:
     ONE ROW PER RESPONDENT PER VARIABLE, not one per respondent, so a survey
     with twenty questions produces twenty rows for each person who finished it.
 
-    Scoped to the study's INFERENCE WINDOW, which `recruitment.opt_window`
-    defines relative to now, not to all time. A respondent who answered before
-    the window opened is simply absent, and that is a configuration fact rather
-    than missing data.
+    Scoped to the study's INFERENCE WINDOW, which is
+    `recruitment.start_date`..`recruitment.end_date` for a `simple` or
+    `destination` study and, for a `pipeline_experiment`, the CURRENT WAVE
+    only -- so on a wave study this is a slice, not the study's history, and it
+    changes underneath you as waves turn over. A respondent outside the window
+    is simply absent, and that is a configuration fact rather than missing data.
+    (`general.opt_window` is a different thing entirely: it is the
+    recruitment-data lookback the budget arithmetic uses, and it has no effect
+    here.)
 
     CAN BE LARGE and can be slow: the server allows this call five minutes.
     Ask for it once and work from the answer; there is no paging and no filter.
@@ -874,18 +888,26 @@ async def recruitment_stats(org: str, slug: str) -> Dict[str, Any]:
     Returns `{"strata": {stratum_id: {spend, cpm, reach, frequency,
     impressions, unique_clicks, unique_ctr, respondents,
     price_per_respondent, incentive_cost, total_cost, conversion_rate}}}`.
-    Spend and the other ad metrics are LIVE Meta insights summed over ALL TIME,
-    not over a window; `respondents` comes from the latest `FACEBOOK_ADOPT`
-    report; the four derived figures combine the two, with `incentive_cost`
-    using `recruitment.incentive_per_respondent`.
+
+    NOTHING HERE IS LIVE, AND THE TWO HALVES ARE STALE BY DIFFERENT AMOUNTS.
+    `spend`, `reach`, `unique_clicks` and `impressions` are SUMMED OVER ALL TIME
+    from `recruitment_data_events`, which the `adopt-recruitment-data` cron
+    writes EVERY FOUR HOURS -- no Meta call happens when you call this.
+    `respondents` comes from the latest `FACEBOOK_ADOPT` report, which a plan
+    run writes. The four derived figures combine the two, with `incentive_cost`
+    using `recruitment.incentive_per_respondent`. Calling this tool refreshes
+    NEITHER half; `plan_study` refreshes only the respondent half, and nothing
+    an API key can call refreshes the spend half.
+
+    `cpm` IS NOT COST PER MILLE. It is computed as impressions / spend --
+    impressions per dollar, so a bigger number is cheaper delivery. That is
+    what the dashboard shows, and this tool reports the field as the service
+    computes it rather than quietly redefining it.
 
     404 WHEN THE STUDY HAS NEVER HAD A PLAN RUN. There is no report to take
     respondent counts from, so the route refuses rather than reporting zero
     respondents against real spend. `plan_study` writes that report -- and is
     not side-effect free. A 404 also means the study has no strata configured.
-
-    Because the two halves come from different places, they can disagree: spend
-    is current to seconds ago and respondents are as of the last plan run.
     """
     return {"strata": await backend().recruitment_stats(org, slug)}
 
@@ -897,10 +919,18 @@ async def respondents_over_time(org: str, slug: str) -> Dict[str, Any]:
     its "Current Participants" card.
 
     Returns `{"points": [{datetime, totalParticipants, segments: [{id,
-    participants}]}], "count": n}`, oldest first, with `datetime` in
-    MILLISECONDS since the epoch (not ISO, unlike every other timestamp here).
-    Counts are CUMULATIVE, so the last point is the study's total to date and
-    the difference between two points is what arrived between them.
+    participants}]}], "count": n}`, oldest first, in HOURLY buckets, with
+    `datetime` in MILLISECONDS since the epoch (not ISO, unlike every other
+    timestamp here). Counts are CUMULATIVE, so the difference between two
+    points is what arrived between them.
+
+    THE LAST POINT IS NOT NECESSARILY THE STUDY'S TOTAL. It is the total
+    WITHIN THE INFERENCE WINDOW (see `current_data` -- one wave only, for a
+    `pipeline_experiment`) and only across CURRENTLY-CONFIGURED strata: a
+    respondent attributed to a stratum that has since been renamed or removed
+    is not counted here at all, though `ad_attributions` still remembers the
+    ad. Buckets are anchored to the first and last interaction in the data
+    rather than to the configured start and end dates.
 
     READ FROM A PRE-COMPUTED REPORT, not from the responses. An EMPTY list
     therefore means no report has been written yet, NOT that nobody has
@@ -926,11 +956,23 @@ async def cost_over_time(org: str, slug: str) -> Dict[str, Any]:
 
     Returns `{"points": [{datetime, cumulativeSpend, cumulativeRespondents,
     marginalCost, newRespondents, dailySpend}], "count": n}`, oldest first,
-    `datetime` in MILLISECONDS. `cumulativeSpend` and `cumulativeRespondents`
-    run to date; `dailySpend` and `newRespondents` are that day alone;
-    `marginalCost` is the cost of the respondents gained that day and is null
-    where none were, which is the number that says whether recruitment is
-    getting harder.
+    `datetime` in MILLISECONDS, one point per DAY.
+
+    SPEND MEANS TWO DIFFERENT THINGS IN THE SAME ROW, and the difference is
+    `recruitment.incentive_per_respondent`. `cumulativeSpend` is ad spend PLUS
+    INCENTIVES (`newRespondents * incentive_per_respondent`, accumulated);
+    `dailySpend` is that day's AD SPEND ALONE, with no incentive in it; and
+    `marginalCost` is `(dailySpend + that day's incentives) / newRespondents`,
+    null on a day that gained none -- which is the number that says whether
+    recruitment is getting harder. So `cumulativeSpend` is not the running sum
+    of `dailySpend` unless the study pays no incentive.
+
+    THE POINTS ARE NOT CONSECUTIVE DAYS. A day on which neither spend nor
+    respondents changed is omitted, because it is a flat segment on a
+    cumulative chart; the first and last active days are always present.
+    Leading and trailing days with no activity at all are trimmed, so the
+    series starts when the study really started rather than at
+    `recruitment.start_date`.
 
     READ FROM A PRE-COMPUTED REPORT, exactly as `respondents_over_time` is: an
     EMPTY list means no plan run has written one yet, not that nothing has been

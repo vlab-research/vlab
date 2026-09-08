@@ -26,6 +26,7 @@ import asyncio
 import json
 import os
 import uuid
+from datetime import datetime, timezone
 from test.dbfix import _reset_db
 from test.dbfix import cnf as db_conf
 from typing import Any, Dict, List, Optional
@@ -867,6 +868,146 @@ def test_study_errors_is_empty_for_a_study_with_no_events(app_client, org):
 
     assert not is_error, out
     assert out == {"errors": [], "count": 0}
+
+
+def _make_study(app_client, org, name="HPV"):
+    writer, _ = generate_api_token(user_id=USER, name=f"w-{name}", scopes=["*"])
+    made, is_error = call_tool(
+        app_client, "create_study", {"org": org, "name": name}, writer
+    )
+    assert not is_error, made
+    return made["slug"], writer
+
+
+def test_study_errors_serialises_its_timestamps_the_way_the_wire_does(app_client, org):
+    """The guard for `model_dump(mode="json")` in `InProcessBackend`.
+
+    A plain `model_dump()` returns `datetime` OBJECTS. Over HTTP the same
+    handler's `last_seen` arrives as an ISO string, because FastAPI serialises
+    the response model through pydantic's JSON serializer -- so without the
+    mode this tool would answer with two different types depending on which
+    front door was used, and the difference would surface as a JSON-encoding
+    failure or a type error in an agent, a long way from its cause. Nothing
+    else can see it: the drift guard compares tool LISTINGS, not results, and
+    the stdio path goes over real HTTP and is therefore always strings.
+    """
+    slug, _ = _make_study(app_client, org)
+    execute(
+        db_conf,
+        """
+        insert into study_run_events
+            (study_id, source, event_type, fingerprint, severity, message)
+        values (%s, 'swoosh', 'extraction_failed', 'fp-1', 'error', 'boom')
+        """,
+        (_study_id(org, slug),),
+    )
+
+    token, _ = generate_api_token(user_id=USER, name="o", scopes=["optimize:read"])
+    out, is_error = call_tool(
+        app_client, "study_errors", {"org": org, "slug": slug}, token
+    )
+
+    assert not is_error, out
+    assert out["count"] == 1
+    assert out["errors"][0]["message"] == "boom"
+    assert isinstance(out["errors"][0]["last_seen"], str)
+    assert isinstance(out["errors"][0]["first_seen"], str)
+
+
+def test_ad_attributions_comes_back_as_a_table_over_mcp(app_client, org):
+    """One of three tools whose in-process method nothing else calls: a typo in
+    the handler import would have shipped green before this."""
+    slug, _ = _make_study(app_client, org)
+    execute(
+        db_conf,
+        """
+        insert into ad_attributions
+            (network, ad_id, study_id, stratum_id, creative_name, shortcode,
+             metadata, resolved_from)
+        values ('facebook', 'ad-1', %s, 'everyone', 'Smiling', 'mnchweek',
+                %s, 'ad_id')
+        """,
+        (_study_id(org, slug), json.dumps({"gender": "women"})),
+    )
+
+    token, _ = generate_api_token(user_id=USER, name="r", scopes=["responses:read"])
+    out, is_error = call_tool(
+        app_client, "ad_attributions", {"org": org, "slug": slug}, token
+    )
+
+    assert not is_error, out
+    assert out["count"] == 1
+    assert out["columns"][0] == "ad_id"
+    # The metadata blob flattened under its own key name: the join story.
+    assert out["rows"][0]["gender"] == "women"
+
+
+def test_current_data_comes_back_over_mcp(app_client, org):
+    """Mocked at `fetch_current_data`, the boundary that reads the study's
+    Facebook credential and its survey data -- the same one the route's own
+    tests mock. Everything from the JSON-RPC frame to the response model is
+    real, including the timestamp serialisation."""
+    import pandas as pd
+
+    slug, _ = _make_study(app_client, org)
+    df = pd.DataFrame(
+        [
+            {
+                "user_id": "u1",
+                "variable": "age",
+                "value": "25",
+                "timestamp": datetime(2026, 1, 1, tzinfo=timezone.utc),
+            }
+        ]
+    )
+
+    token, _ = generate_api_token(user_id=USER, name="o2", scopes=["optimize:read"])
+    with patch("adopt.server.server.fetch_current_data") as m:
+        m.return_value = df
+        out, is_error = call_tool(
+            app_client, "current_data", {"org": org, "slug": slug}, token
+        )
+
+    assert not is_error, out
+    assert out["count"] == 1
+    assert out["rows"][0]["user_id"] == "u1"
+    assert out["rows"][0]["timestamp"] == "2026-01-01T00:00:00Z"
+
+
+def test_copy_study_from_writes_through_mcp(app_client, org):
+    """The one WRITE in this group, end to end: the copy has to actually land
+    in the target's confs, and `general` has to stay behind."""
+    source, writer = _make_study(app_client, org, "Source")
+    target, _ = _make_study(app_client, org, "Target")
+
+    pushed, is_error = call_tool(
+        app_client,
+        "push_study",
+        {"org": org, "slug": source, "sections": study()},
+        writer,
+    )
+    assert not is_error, pushed
+
+    token, _ = generate_api_token(user_id=USER, name="cw", scopes=["studies:write"])
+    copied, is_error = call_tool(
+        app_client,
+        "copy_study_from",
+        {"org": org, "slug": target, "source_slug": source},
+        token,
+    )
+
+    assert not is_error, copied
+    assert "general" not in copied
+    assert "destinations" in copied
+
+    pulled, is_error = call_tool(
+        app_client, "pull_study", {"org": org, "slug": target}, writer
+    )
+    assert not is_error, pulled
+    assert pulled["sections"]["destinations"][0]["name"] == "main"
+    # `general` is the ad account and the Facebook credential; it does not
+    # follow a study around, so the target is still missing it.
+    assert "general" in pulled["never_written"]
 
 
 def test_a_studies_read_key_cannot_call_recruitment_stats(app_client, org):

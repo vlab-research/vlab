@@ -247,14 +247,11 @@ class InProcessBackend:
 
         return (await get_ad_attributions_json(org_id, slug, self.user))["data"]
 
-    @_wire_errors
-    async def ad_attributions_csv(self, org_id: str, slug: str) -> str:
-        from .server import get_ad_attributions_csv
-
-        # This route hands back a `Response` rather than a body, because it sets
-        # `text/csv` and a filename. `.body` is what the wire would have carried.
-        response = await get_ad_attributions_csv(org_id, slug, self.user)
-        return response.body.decode("utf8")
+    # No `ad_attributions_csv` here, deliberately. `VlabClient` has one because
+    # `vlab ad-attributions --csv` writes the server's own rendering of the
+    # file; no TOOL asks for it -- a CSV blob is a worse table than a table --
+    # so an in-process twin would be code no transport could reach, and the
+    # first thing to rot. `mcp_tools`' backend contract says so too.
 
     @_wire_errors
     async def recruitment_stats(self, org_id: str, slug: str) -> Dict[str, Any]:

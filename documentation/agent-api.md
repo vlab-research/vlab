@@ -2099,15 +2099,46 @@ use: `list_orgs` → `list_studies` → `create_study` → `push_study` →
 and writes an `adopt_reports` row plus two time-series reports (§5). It creates
 no Meta objects and spends nothing. `apply_instruction` is the one that spends.
 
-**The six study readers are the dashboard's study page, and three of them read
-what `plan_study` wrote.** `recruitment_stats` 404s until a plan run has
-written a `FACEBOOK_ADOPT` report; `respondents_over_time` and `cost_over_time`
-answer `[]` in the same situation. None of the three is stale-proof: a plan run
-is what refreshes them, the adopt-ads cron runs one every two hours for a study
-inside its recruitment window, and running one yourself is not free.
-`study_errors` is a different trap — it lists only what is still being
-re-emitted, within 90 minutes, and only swoosh writes those events at all, so
-`[]` is never evidence that ad building is healthy (§2.3).
+**The six study readers are the dashboard's study page, and none of them is
+live.** Every one reads what a cron already wrote; not one makes a Meta call,
+and not one refreshes anything.
+
+| What you are reading | Written by | How often |
+|---|---|---|
+| `recruitment_stats` spend, reach, clicks, impressions | `adopt-recruitment-data` cron → `recruitment_data_events` | **every 4 hours** |
+| `recruitment_stats` respondents; `respondents_over_time`; `cost_over_time` | a plan run → `adopt_reports` (`plan_study`, or the `adopt-ads` cron) | every 2 hours, per study in its window |
+| `study_errors` | swoosh → `study_run_events` | every 30 minutes |
+| `ad_attributions` | written once when an ad is created; healed by a plan run | — |
+| `current_data` | the survey pipeline; read live from the database | — |
+
+So `recruitment_stats` 404s until a plan run has written a `FACEBOOK_ADOPT`
+report, and `respondents_over_time` / `cost_over_time` answer `[]` in the same
+situation. `plan_study` refreshes the report half and only that half — **there
+is no way for an API key to refresh the spend half**, and running a plan is not
+free either way.
+
+Three details that reliably mislead a reader:
+
+- **`recruitment_stats.cpm` is not cost per mille.** It is `impressions /
+  spend` — impressions per dollar, so a bigger number is cheaper delivery. That
+  is what the dashboard has always shown; the tool reports it unchanged rather
+  than quietly redefining it (`planning/mcp-full-coverage.md` §4).
+- **`cost_over_time.cumulativeSpend` includes incentives** (`newRespondents ×
+  `recruitment.incentive_per_respondent`) while `dailySpend` is ad spend alone,
+  so the first is not the running sum of the second. Days on which nothing
+  changed are omitted, so the points are not consecutive days.
+- **`study_errors` returning `[]` is never evidence of health.** It lists only
+  what is still being re-emitted, within 90 minutes, and only swoosh writes
+  those events — adopt writes none, so no ad-building failure appears there
+  (§2.3).
+
+`current_data` and `respondents_over_time` are both scoped to the study's
+**inference window**: `recruitment.start_date`..`end_date` for a `simple` or
+`destination` study and the current WAVE only for a `pipeline_experiment`. (Not
+`general.opt_window`, which is the recruitment-data lookback for budget
+arithmetic.) `respondents_over_time` additionally counts only
+currently-configured strata, so a respondent attributed to a since-renamed
+stratum is absent from it while `ad_attributions` still remembers the ad.
 
 Their scopes are three different resources and the tool names do not say so:
 `study_errors` and `current_data` are served under `/{org}/optimize/…` and are
@@ -2266,9 +2297,11 @@ shipped: `TOOL_SCOPES` compared against `api_keys.required_scope` for the real
 path, the description tests, and the stdio-vs-remote drift guard. Nothing here
 computes anything the route does not — an agent gets what the dashboard gets.
 
-Two things are worth reading before using them, and both are in §6b: the
-`stats` family answers `[]` or 404 until a plan run has written its report, and
-`study_errors` returning `[]` is not evidence of health.
+§6b has the freshness table, which is the thing to read before using any of
+them: **none of these is live**, every one reads what a cron already wrote, and
+they age at three different rates. It also names the three figures whose names
+mislead — `cpm` is impressions per dollar, `cumulativeSpend` includes
+incentives, and `study_errors` returning `[]` is not evidence of health.
 
 The gap that remains on this page is the optimizer's per-stratum budget and
 price view, which today only the Go service serves; that is Phase B in
