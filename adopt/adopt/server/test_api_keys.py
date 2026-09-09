@@ -895,3 +895,109 @@ def test_auth0_sessions_are_never_scope_restricted(verify_mock):
 
 def test_health_is_reachable_without_a_token():
     assert client.get("/health").status_code == 200
+
+
+# --------------------------------------------------------------------------
+# Connected accounts (`server/accounts.py`), Phase C of
+# planning/mcp-full-coverage.md
+#
+# Self-contained: its own app, so that `_make_app` above is untouched and this
+# block can be moved or rebased whole. The point is that the three account
+# paths needed NO new branch in `required_scope` -- they are `/users/...`, so
+# the branch that already classified `/users/api-key` classifies them -- and
+# that this is asserted rather than assumed.
+# --------------------------------------------------------------------------
+
+
+def _accounts_app() -> FastAPI:
+    """Stubs at the three account paths, classified by the real middleware."""
+    app = FastAPI()
+    ak.add_scope_enforcement(app)
+
+    async def _ok(user: Annotated[User, Depends(get_current_user)]):
+        return {"user": user.user_id}
+
+    app.get("/users/accounts")(_ok)
+    app.post("/users/accounts")(_ok)
+    app.delete("/users/accounts/{auth_type}/{name}")(_ok)
+    return app
+
+
+accounts_client = TestClient(_accounts_app())
+
+
+def test_required_scope_maps_the_account_paths():
+    """`auth`, by the method, with no branch of its own. An account IS a
+    credential, and `auth` is the resource that is never implicitly granted --
+    a key that can author studies must not be able to read, replace or delete
+    the researcher's third-party credentials."""
+    assert ak.required_scope("GET", "/users/accounts") == "auth:read"
+    assert ak.required_scope("POST", "/users/accounts") == "auth:write"
+    assert ak.required_scope("DELETE", "/users/accounts/typeform/main") == "auth:write"
+
+    # A name with a slash in it cannot fall out of the `/users` subtree, which
+    # claims everything beneath it -- unlike the `/orgs` branch, matched
+    # exactly. The client percent-encodes the segment anyway (`client._seg`).
+    assert ak.required_scope("DELETE", "/users/accounts/typeform/a/b") == "auth:write"
+
+
+@patch("adopt.server.auth.verify_token")
+def test_an_auth_read_key_reaches_the_account_list_and_not_the_writes(verify_mock):
+    token = _mint(verify_mock, "cred-reader", scopes=["auth:read"]).json()["data"][
+        "token"
+    ]
+
+    assert (
+        accounts_client.get("/users/accounts", headers=_headers(token)).status_code
+        == 200
+    )
+
+    created = accounts_client.post("/users/accounts", headers=_headers(token))
+    assert created.status_code == 403
+    assert "auth:write" in created.json()["detail"]
+
+    deleted = accounts_client.delete(
+        "/users/accounts/typeform/main", headers=_headers(token)
+    )
+    assert deleted.status_code == 403
+
+
+@patch("adopt.server.auth.verify_token")
+def test_an_auth_write_key_reaches_all_three(verify_mock):
+    """`write` implies `read` on the same resource, here as everywhere."""
+    token = _mint(verify_mock, "cred-writer", scopes=["auth:write"]).json()["data"][
+        "token"
+    ]
+
+    assert (
+        accounts_client.get("/users/accounts", headers=_headers(token)).status_code
+        == 200
+    )
+    assert (
+        accounts_client.post("/users/accounts", headers=_headers(token)).status_code
+        == 200
+    )
+    assert (
+        accounts_client.delete(
+            "/users/accounts/typeform/main", headers=_headers(token)
+        ).status_code
+        == 200
+    )
+
+
+@patch("adopt.server.auth.verify_token")
+def test_a_studies_key_is_denied_every_account_path_and_told_the_scope(verify_mock):
+    """The 403 names the scope, because a caller who gets one has to be able to
+    say what to ask a human for."""
+    token = _mint(verify_mock, "author", scopes=["studies:write"]).json()["data"][
+        "token"
+    ]
+
+    for method, path in (
+        ("get", "/users/accounts"),
+        ("post", "/users/accounts"),
+        ("delete", "/users/accounts/typeform/main"),
+    ):
+        res = getattr(accounts_client, method)(path, headers=_headers(token))
+        assert res.status_code == 403, (path, res.text)
+        assert "auth:" in res.json()["detail"], (path, res.text)

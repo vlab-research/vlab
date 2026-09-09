@@ -152,7 +152,13 @@ def with_scopes(stub_client, scopes: Optional[List[str]]):
     patches = (
         patch("adopt.server.mcp_server.get_current_user", side_effect=as_our_user),
         patch("adopt.server.mcp_server.scopes_for_token", return_value=scopes),
-        patch("adopt.server.mcp_server.InProcessBackend", lambda user: _NoBackend()),
+        # Two parameters since Phase C: the backend also carries the caller's
+        # raw bearer token, because the mint route attenuates against the
+        # calling key's own scopes and `User` does not carry them.
+        patch(
+            "adopt.server.mcp_server.InProcessBackend",
+            lambda user, token=None: _NoBackend(),
+        ),
     )
     return app, patches
 
@@ -450,6 +456,13 @@ ROUTE_BACKED_TOOLS = {
     "meta_ads": ("GET", f"/{ORG}/meta/ads"),
     "list_api_keys": ("GET", "/users/api-keys"),
     "revoke_api_key": ("DELETE", "/users/api-keys/abc"),
+    # Connected accounts and key minting. `create_api_key` is backed by the
+    # EXISTING mint route -- no new endpoint -- which is why the same path
+    # appears here and nowhere in `server/accounts.py`.
+    "create_api_key": ("POST", "/users/api-key"),
+    "list_accounts": ("GET", "/users/accounts"),
+    "create_account": ("POST", "/users/accounts"),
+    "delete_account": ("DELETE", "/users/accounts/typeform/main"),
 }
 
 
@@ -1135,3 +1148,467 @@ def test_a_read_only_key_can_discover_but_a_meta_key_cannot(app_client, org):
 
     assert is_error
     assert "studies:read" in message
+
+
+# --------------------------------------------------------------------------
+# Phase C: minting a key through `POST /mcp`, and connected accounts
+#
+# The security-critical half is attenuation. `create_api_key` is the one route
+# whose authorization depends on something `User` does not carry -- the SCOPES
+# of the key doing the minting -- so it is the one place where the in-process
+# path could quietly become more powerful than the HTTP one. It is not: the
+# backend carries the caller's raw bearer token and hands it to the handler, so
+# the handler runs the same `scopes_for_token` / `can_grant_scopes` it runs for
+# an HTTP request. These tests pin that on the real service.
+# --------------------------------------------------------------------------
+
+
+def test_a_key_without_auth_write_cannot_mint_through_mcp(app_client, org):
+    """Denied by `TOOL_SCOPES` before the handler, so the agent is told which
+    scope to ask for rather than getting an opaque 403."""
+    token, _ = generate_api_token(user_id=USER, name="ro-mint", scopes=["studies:read"])
+
+    message, is_error = call_tool(
+        app_client, "create_api_key", {"name": "escalation"}, token
+    )
+
+    assert is_error
+    assert "auth:write" in message
+
+
+def test_minting_through_mcp_attenuates_exactly_as_the_route_does(app_client, org):
+    """The property that would be silently lost if the in-process path computed
+    attenuation from anything other than the caller's own token.
+
+    An `auth:write` + `studies:read` key may mint a `studies:read` child and may
+    NOT reach for `optimize:write` -- a scope it does not hold -- even though
+    `TOOL_SCOPES` has already let it through, because that table only knows the
+    tool needs `auth:write`.
+    """
+    token, _ = generate_api_token(
+        user_id=USER, name="parent", scopes=["auth:write", "studies:read"]
+    )
+
+    child, is_error = call_tool(
+        app_client,
+        "create_api_key",
+        {"name": "child", "scopes": ["studies:read"]},
+        token,
+    )
+    assert not is_error, child
+    assert child["scopes"] == ["studies:read"]
+    # The token comes back exactly once, and it is a real one.
+    assert child["token"]
+    assert child["id"]
+
+    message, is_error = call_tool(
+        app_client,
+        "create_api_key",
+        {"name": "greedy", "scopes": ["optimize:write"]},
+        token,
+    )
+    assert is_error
+    assert "more scopes than the key minting it" in message
+
+
+def test_a_scoped_key_cannot_mint_an_unscoped_one_through_mcp(app_client, org):
+    """Omitting `scopes` is a request for FULL ACCESS, not for none. Reading it
+    as an empty list would let any `auth:write` key mint an unrestricted one and
+    make the whole scheme decorative -- on this transport as on the other."""
+    token, _ = generate_api_token(
+        user_id=USER, name="scoped", scopes=["auth:write", "studies:read"]
+    )
+
+    message, is_error = call_tool(
+        app_client, "create_api_key", {"name": "unscoped"}, token
+    )
+
+    assert is_error
+    assert "more scopes than the key minting it" in message
+
+
+def test_a_minted_key_works_immediately_on_the_same_transport(app_client, org):
+    """End to end: the token that came back is a usable key, with exactly the
+    scopes it was minted with."""
+    parent, _ = generate_api_token(
+        user_id=USER, name="p", scopes=["auth:write", "studies:read"]
+    )
+
+    child, is_error = call_tool(
+        app_client,
+        "create_api_key",
+        {"name": "c", "scopes": ["studies:read"]},
+        parent,
+    )
+    assert not is_error, child
+
+    listing, is_error = call_tool(
+        app_client, "list_studies", {"org": org}, child["token"]
+    )
+    assert not is_error, listing
+
+    # ...and no further than that.
+    message, is_error = call_tool(
+        app_client, "create_study", {"org": org, "name": "X"}, child["token"]
+    )
+    assert is_error
+    assert "studies:write" in message
+
+
+def test_the_backend_refuses_to_mint_without_the_callers_token():
+    """Fail closed. Without the calling key there is no way to know what it may
+    grant, and assuming unrestricted would make this a scope-escalation route.
+    Reachable only by building a backend by hand -- `MCPEndpoint` always passes
+    the token -- which is exactly why it is asserted here."""
+    backend = ms.InProcessBackend(User(user_id=USER))
+
+    with pytest.raises(Exception) as e:
+        asyncio.run(backend.create_api_key("x"))
+
+    assert "attenuate" in str(e.value)
+
+
+def test_the_endpoint_hands_the_backend_the_callers_token(stub_client):
+    """The wiring the attenuation tests depend on, asserted on its own so a
+    regression names itself instead of surfacing as a mint that succeeds."""
+    seen = {}
+
+    def record(user, token=None):
+        seen["user"] = user
+        seen["token"] = token
+        return _NoBackend()
+
+    app, as_our_user, _ = stub_client(None)
+    with patch(
+        "adopt.server.mcp_server.get_current_user", side_effect=as_our_user
+    ), patch("adopt.server.mcp_server.scopes_for_token", return_value=None), patch(
+        "adopt.server.mcp_server.InProcessBackend", record
+    ), TestClient(
+        app
+    ) as client:
+        call_tool(client, "list_accounts", {}, token="the-callers-token")
+
+    assert seen["token"] == "the-callers-token"
+
+
+def test_connected_accounts_round_trip_through_mcp(app_client, org):
+    """create -> list -> delete, with one `auth:write` key, against the real
+    service and the real table. The secret goes in and never comes back."""
+    token, _ = generate_api_token(user_id=USER, name="creds", scopes=["auth:write"])
+    secret = "SECRET-THROUGH-MCP-1a2b"
+
+    made, is_error = call_tool(
+        app_client,
+        "create_account",
+        {
+            "name": "typeform-main",
+            "auth_type": "typeform",
+            "credentials": {"key": secret},
+        },
+        token,
+    )
+    assert not is_error, made
+    assert made["name"] == "typeform-main"
+    assert secret not in json.dumps(made)
+
+    listing, is_error = call_tool(app_client, "list_accounts", {}, token)
+    assert not is_error, listing
+    assert [a["name"] for a in listing["accounts"]] == ["typeform-main"]
+    assert secret not in json.dumps(listing)
+
+    gone, is_error = call_tool(
+        app_client,
+        "delete_account",
+        {"auth_type": "typeform", "name": "typeform-main"},
+        token,
+    )
+    assert not is_error, gone
+
+    listing, _ = call_tool(app_client, "list_accounts", {}, token)
+    assert listing["accounts"] == []
+
+
+def test_a_studies_key_cannot_touch_accounts_through_mcp(app_client, org):
+    """`auth` is never implicitly granted, on this transport either."""
+    token, _ = generate_api_token(user_id=USER, name="a", scopes=["studies:write"])
+
+    for name, args in (
+        ("list_accounts", {}),
+        ("create_account", {"name": "x", "auth_type": "fly", "credentials": {}}),
+        ("delete_account", {"auth_type": "fly", "name": "x"}),
+    ):
+        message, is_error = call_tool(app_client, name, args, token)
+        assert is_error, (name, message)
+        assert "auth:" in message, (name, message)
+
+
+def test_a_bad_credential_shape_is_a_422_in_process_too(app_client, org):
+    """FastAPI parses the body on the HTTP path; this transport has to do it
+    itself, or a misspelled field would be silently dropped into the table."""
+    token, _ = generate_api_token(user_id=USER, name="c", scopes=["auth:write"])
+
+    message, is_error = call_tool(
+        app_client,
+        "create_account",
+        {"name": "x", "auth_type": "typeform", "credentials": {"keys": "typo"}},
+        token,
+    )
+
+    assert is_error
+    assert "422" in message
+
+
+def test_facebook_accounts_are_refused_through_mcp(app_client, org):
+    """The one gap no key can close: the token has to come from Meta's OAuth
+    exchange, which needs a browser and a human."""
+    token, _ = generate_api_token(user_id=USER, name="f", scopes=["auth:write"])
+
+    message, is_error = call_tool(
+        app_client,
+        "create_account",
+        {
+            "name": "fb",
+            "auth_type": "facebook",
+            "credentials": {"access_token": "x"},
+        },
+        token,
+    )
+
+    assert is_error
+    assert "400" in message
+    assert "OAuth" in message
+
+
+# --------------------------------------------------------------------------
+# Review fixes: transport parity, and what a 422 is allowed to say
+# --------------------------------------------------------------------------
+
+
+def test_the_two_transports_return_the_same_account_shape(app_client, org):
+    """`_public_row` omits `id` for every type but `api_key`, and `created` is a
+    `datetime` in process where the wire has a string. Without the response
+    model, an agent on `/mcp` saw a different object than an HTTP caller did --
+    a missing key and an unserialisable value.
+    """
+    token, _ = generate_api_token(user_id=USER, name="p", scopes=["auth:write"])
+
+    made, is_error = call_tool(
+        app_client,
+        "create_account",
+        {"name": "tf", "auth_type": "typeform", "credentials": {"key": "s"}},
+        token,
+    )
+    assert not is_error, made
+
+    over_http = app_client.get(
+        "/users/accounts", headers={"Authorization": f"Bearer {token}"}
+    ).json()["data"]
+    in_process, is_error = call_tool(app_client, "list_accounts", {}, token)
+    assert not is_error, in_process
+
+    assert in_process["accounts"] == over_http
+    assert made == over_http[0]
+    # Specifically: the key is present rather than absent, and the timestamp is
+    # a string rather than a datetime that json.dumps would have refused.
+    assert made["id"] is None
+    assert isinstance(made["created"], str)
+
+
+@pytest.mark.parametrize("expires_in_days", [0, -1, 100000])
+def test_both_transports_reject_a_bad_ttl_the_same_way(
+    app_client, org, expires_in_days
+):
+    """`Field(ge=1, le=MAX)` is enforced by FastAPI's parse on the HTTP path.
+    The in-process path constructs the request model itself, so without its own
+    try/except a caller got a raw pydantic string instead of a 422."""
+    token, _ = generate_api_token(user_id=USER, name="p", scopes=["auth:write"])
+
+    over_http = app_client.post(
+        "/users/api-key",
+        headers={"Authorization": f"Bearer {token}"},
+        json={"name": "k", "expires_in_days": expires_in_days},
+    )
+    assert over_http.status_code == 422
+
+    message, is_error = call_tool(
+        app_client,
+        "create_api_key",
+        {"name": "k", "expires_in_days": expires_in_days},
+        token,
+    )
+
+    assert is_error
+    assert "422" in message
+
+
+def test_a_tool_validation_error_does_not_echo_the_secret(app_client, org):
+    """The leak this transport made worst: a tool error goes straight into an
+    agent's context window, and pydantic's `input` on a `missing` error is the
+    whole submitted object."""
+    token, _ = generate_api_token(user_id=USER, name="p", scopes=["auth:write"])
+    secret = "SECRET-IN-A-TOOL-ERROR-6b4c"
+
+    message, is_error = call_tool(
+        app_client,
+        "create_account",
+        {
+            "name": "x",
+            "auth_type": "alchemer",
+            "credentials": {"api_token": secret},
+        },
+        token,
+    )
+
+    assert is_error
+    assert "422" in message
+    assert secret not in message
+    # The diagnosis survives the stripping.
+    assert "api_token_secret" in message
+
+
+def test_the_shadowing_guard_holds_on_this_transport_too(app_client, org):
+    """An `auth:write` key reaching the tool must not be able to break a study's
+    Meta authentication, which is what this used to do with a 201."""
+    token, _ = generate_api_token(user_id=USER, name="p", scopes=["auth:write"])
+    execute(
+        db_conf,
+        "insert into credentials (user_id, entity, key, details) values "
+        "(%s,%s,%s,%s)",
+        (USER, "facebook", "Facebook", '{"access_token": "tok"}'),
+    )
+
+    message, is_error = call_tool(
+        app_client,
+        "create_account",
+        {
+            "name": "Facebook",
+            "auth_type": "typeform",
+            "credentials": {"key": "s"},
+        },
+        token,
+    )
+
+    assert is_error
+    assert "409" in message
+    assert "SHADOW" in message
+
+
+# --------------------------------------------------------------------------
+# Where the 422 is raised, and what it is allowed to say
+#
+# Two different layers reject a bad argument on this transport, and only one of
+# them is ours. FastMCP validates `tools/call` arguments against the schema it
+# built from the tool's signature, BEFORE the tool body runs, and its rejection
+# renders `input_value='...'`. For `create_account.credentials` that value is a
+# live third-party token, so that parameter is annotated `Any` and the tool's
+# own scrubbing parse owns the type check.
+# --------------------------------------------------------------------------
+
+
+def test_a_bare_string_credentials_does_not_echo_the_secret(app_client, org):
+    """The argument validator's message is not ours to format, so the fix is to
+    stop it having an opinion about this parameter."""
+    token, _ = generate_api_token(user_id=USER, name="p", scopes=["auth:write"])
+    secret = "SECRET-AS-A-BARE-STRING-7d1e"
+
+    message, is_error = call_tool(
+        app_client,
+        "create_account",
+        {"name": "x", "auth_type": "typeform", "credentials": secret},
+        token,
+    )
+
+    assert is_error
+    assert secret not in message
+    assert "422" in message
+
+
+def test_the_credentials_parameter_is_untyped_in_the_tool_schema():
+    """Pins the mechanism rather than only the symptom: if the annotation goes
+    back to `Dict[str, Any]`, FastMCP starts rejecting a mistyped value itself
+    and quoting it back, and the test above would be the only warning."""
+    schema = {t["name"]: t["schema"] for t in _stdio_tools()}
+    create_account = json.loads(schema["create_account"])
+
+    credentials = create_account["properties"]["credentials"]
+    assert "type" not in credentials, (
+        "create_account.credentials must stay untyped in the tool schema, so "
+        "that a mistyped value is reported by the tool (which strips the "
+        "value) rather than by FastMCP (which quotes it back)"
+    )
+    # And only that one: nothing else here can carry a secret.
+    assert create_account["properties"]["name"]["type"] == "string"
+    assert create_account["properties"]["auth_type"]["type"] == "string"
+
+
+def test_a_conf_422_over_mcp_still_carries_the_offending_value(app_client, org):
+    """THE REGRESSION GUARD. `_field_errors` is shared with `post_conf`, and
+    scrubbing it for everyone stripped the most useful half of a conf error.
+
+    A study conf is the caller's own configuration, so echoing it back reveals
+    nothing they did not send, and the value is what makes the error actionable.
+
+    Asserted on the structured `detail`, not on the rendered message:
+    `VlabHTTPError.detail_lines` has only ever printed `loc: msg`, so the value
+    was never in the sentence and this would pass either way there. `detail` is
+    what a client parses, and `input` is the field that went missing.
+    """
+    from ..sdk.client import UnprocessableError
+
+    backend = ms.InProcessBackend(User(user_id=USER))
+    section = [
+        {
+            "type": "messenger",
+            "name": "main",
+            "initial_shortcode": "abc123",
+            "welcome_message": "hello",
+            "button_text": "Start",
+            "welcom_message": "THE-OFFENDING-VALUE",
+        }
+    ]
+
+    with pytest.raises(UnprocessableError) as e:
+        asyncio.run(backend.post_conf(org, "hpv", "destinations", section))
+
+    error = e.value.detail[0]
+    assert "welcom_message" in error["loc"]
+    assert (
+        error["input"] == "THE-OFFENDING-VALUE"
+    ), "a conf 422 must keep the offending value -- see _field_errors(scrub=)"
+
+
+def test_a_create_account_422_does_not_carry_the_value(app_client, org):
+    """The same helper, the same shape, the opposite decision -- because here
+    the value is a live third-party secret and the error goes into an agent's
+    context window."""
+    from ..sdk.client import UnprocessableError
+
+    backend = ms.InProcessBackend(User(user_id=USER))
+    secret = "SECRET-IN-A-DETAIL-PAYLOAD-8c2f"
+
+    with pytest.raises(UnprocessableError) as e:
+        asyncio.run(
+            backend.create_account(
+                name="x", auth_type="alchemer", credentials={"api_token": secret}
+            )
+        )
+
+    error = e.value.detail[0]
+    assert "api_token_secret" in error["loc"]
+    assert "input" not in error
+    assert secret not in json.dumps(e.value.detail)
+
+
+def test_a_non_pydantic_failure_keeps_its_message_on_the_conf_path(app_client, org):
+    """The other half of the restored behaviour: `str(exc)` is the fallback for
+    a conf error, because a defect reaching there is only reportable if its real
+    message survives."""
+    detail = ms._field_errors(RuntimeError("something specific broke"))
+
+    assert detail == "something specific broke"
+
+    # ...and NOT on the credential path, where pydantic's `__str__` renders
+    # `input_value=` and a defect is no reason to leak a token.
+    assert ms._field_errors(RuntimeError("x"), scrub=True) == (
+        "the request body did not validate"
+    )

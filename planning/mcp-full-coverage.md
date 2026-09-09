@@ -1,11 +1,16 @@
 # MCP full coverage: everything the dashboard can do, over MCP
 
-**Status:** Phases A and B implemented 2026-09-08 and shipping together as
-**adopt v0.1.92** — Phase A on `feature/mcp-observability-tools` (all seven
-tools, both transports, seven `vlab` commands, six new `VlabClient` methods
-plus `ad_attributions_csv`, and the three guards extended to cover them),
-Phase B on `feature/strata-progress` rebased onto it (the `strata-progress`
-route and its tool, twenty-six tools in all). Phase C is not started.
+**Status:** Phases A and B implemented 2026-09-08 and shipped as **adopt
+v0.1.92** — Phase A on `feature/mcp-observability-tools` (all seven tools, both
+transports, seven `vlab` commands, six new `VlabClient` methods plus
+`ad_attributions_csv`, and the three guards extended to cover them), Phase B on
+`feature/strata-progress` rebased onto it (the `strata-progress` route and its
+tool, twenty-six tools in all).
+
+**Phase C implemented 2026-09-08 on `feature/mcp-accounts`, adopt v0.1.93**:
+three `/users/accounts` routes and four tools, thirty in all. It is NOT merged
+on the strength of the code alone — C2 stores a third-party secret that passed
+through an agent's context, and that is the researcher's call. See §2 Phase C.
 
 0.1.91 is SKIPPED, not missing: another session tagged that version at a
 different commit while these branches were being written, so the code here has
@@ -44,8 +49,8 @@ directly from the browser.
 | Total Spent, Avg Cost per Participant, spend and marginal-cost charts | conf `GET .../cost-over-time` | `cost_over_time` | ~~A6~~ closed |
 | Participants-per-segment table: %desired / %current / %expected, expected participants, **budget**, **price per participant** per stratum; "Expected Participants" card | **Go only** (`GET /{org}/studies/{slug}/segments-progress`, reads `adopt_reports` `FACEBOOK_ADOPT`) | `strata_progress` | ~~**B1**~~ **closed** 2026-09-08 by `GET /{org}/studies/{slug}/strata-progress` |
 | Study name by slug | Go `GET /{org}/studies/{slug}` | `list_studies` carries name and slug | none worth a tool |
-| Connected accounts: list, add (Typeform, Fly, Alchemer, Qualtrics, generic api_key), update, delete | **Go only** (`/accounts`, user-scoped, returns raw secrets to the browser) | `meta_credentials` (Facebook only, secrets stripped) | **C1** list, **C2** create/update, **C3** delete: no conf-service routes |
-| Create an API key | conf `POST /users/api-key` (then stored as an account via Go) | `list_api_keys`, `revoke_api_key` | **C4** |
+| Connected accounts: list, add (Typeform, Fly, Alchemer, Qualtrics, generic api_key), update, delete | **Go only** (`/accounts`, user-scoped, returns raw secrets to the browser) | `list_accounts`, `create_account`, `delete_account` (secrets stripped everywhere); `meta_credentials` unchanged | ~~**C1**/**C2**/**C3**~~ closed 2026-09-08, except that `facebook` is not creatable |
+| Create an API key | conf `POST /users/api-key` (then stored as an account via Go) | `list_api_keys`, `revoke_api_key`, `create_api_key` | ~~**C4**~~ closed 2026-09-08 |
 | Connect a Facebook account | Facebook OAuth dialog + Go `POST /facebook/token` | — | **not closable**: the OAuth code exchange needs a browser and a human; documented in `agent-api.md` §7 item 2 |
 | Log in | Auth0 | — | not applicable: an API key *is* the login |
 
@@ -238,29 +243,222 @@ Not the Go path name: the conf service already serves `segments-progress`
 with a different shape, and two routes with one name and two payloads is the
 trap the dashboard already lives with.
 
-### Phase C: connected accounts and key minting (needs a decision)
+### Phase C: connected accounts and key minting — IMPLEMENTED 2026-09-08
 
-These are writes of secrets, and the researcher should say yes before they
-ship. Built as a PR, not merged until they do.
+Branch `feature/mcp-accounts`. **Still needs the researcher's yes before it
+merges**, for the reason at the bottom of this section: C2 stores a
+third-party secret that passed through an agent's context.
 
-- **C1** `GET /users/accounts` → `list_accounts()`: every credential row of
-  the caller's, `name`, `auth_type`, `created`, entity/identifier fields,
-  **never the secret**. `auth:read`. This is `meta_credentials` widened to all
-  providers; the Meta one stays because it is org-addressed and the Meta
-  proxy's own.
+What shipped:
+
+- **C1** `GET /users/accounts[?auth_type=]` → `list_accounts(auth_type=None)`,
+  `auth:read`. Every connected-account row of the caller's: `name`,
+  `auth_type`, `created`, **never the secret**. Sorted `(auth_type, name)`.
+  `meta_credentials` stays as it was — org-addressed, `meta:read`, the Meta
+  proxy's own — and this is the same question asked of every provider under
+  `auth:read`.
 - **C2** `POST /users/accounts` → `create_account(name, auth_type,
-  credentials)`: the Go upsert, on the conf service, `auth:write`. The value
-  is that a `data-sources` section needs a `credentials_key`, and today an
-  agent cannot make one.
-- **C3** `DELETE /users/accounts/{name}` → `delete_account`: `auth:write`.
-- **C4** `create_api_key(name, scopes, expires_in_days)` on the existing
-  `POST /users/api-key`, `auth:write`, attenuated by the route (a child key
-  cannot exceed its parent). The token is returned once and the tool says so.
+  credentials)`, `auth:write`, 201. The Go upsert, in ONE transaction.
+- **C3** `DELETE /users/accounts/{auth_type}/{name}` →
+  `delete_account(auth_type, name)`, `auth:write`, 204/404.
+- **C4** `create_api_key(name, scopes=None, expires_in_days=None)`,
+  `auth:write`, on the EXISTING `POST /users/api-key`. No new route.
 
-Open question for the researcher: C2 sends a third-party secret through an
-agent's context and stores it. The dashboard does the same through a browser.
-If that is unwelcome, C1 and C4 alone still close the runbook gap "which
-`credentials_key` do I use".
+Plus `VlabClient.list_accounts` / `create_account` / `delete_account` /
+`create_api_key`, `InProcessBackend` twins, and `vlab accounts list|add|delete`
+and `vlab keys create`. New module `adopt/adopt/server/accounts.py`; SQL in
+`server/db.py` beside `list_facebook_credentials`. Contract:
+`documentation/agent-api.md` §2.7, §6b, §8 (2026-09-08).
+
+#### Deviations from the plan above, and why
+
+1. **C3's path is `/{auth_type}/{name}`, not `/{name}`.** The plan's shape
+   cannot address a row: `unique_entity_key_per_user` is on
+   `(user_id, entity, key)`, so `main` may exist under both `typeform` and
+   `fly` and a name alone is ambiguous. The dashboard's Go route takes both in
+   a DELETE *body*; a path is the same information somewhere a DELETE can
+   legitimately carry it.
+
+2. **`list_accounts` returns no "entity/identifier fields" for most types**,
+   because there are none: every field of every credential shape IS the secret
+   (`typeform.key`, `fly`/`qualtrics.api_key`, `alchemer`'s two, Facebook's
+   `access_token`). The stripping is an ALLOWLIST — a provider added later is
+   stripped bare until somebody widens it deliberately. The one exception is
+   an `api_key` account's `details.id`, the minted key's `jti`, which
+   `list_api_keys` already publishes and `revoke_api_key` takes.
+
+   Facebook rows deliberately carry nothing extra either, so this and
+   `GET /{org}/meta/credentials` describe a Facebook credential identically.
+   `details.expires_in` is non-secret but is a duration from an issue time the
+   row does not independently record, so publishing it would read as an expiry
+   and not be one.
+
+3. **vlab's own API-token rows are excluded from the listing**, and from the
+   filter. They live in the same table (`api_token`, `api_token_revoked`) and
+   the Go route lists them, because it filters on nothing. Listing them here
+   would report one key twice under two shapes and offer a DELETE that looks
+   like revocation and is not. `DELETE /users/accounts/api_token/<name>` is a
+   400 pointing at `DELETE /users/api-keys/{id}` rather than a 404.
+
+4. **`facebook` and `api_key` are 400s at create**, as the brief asked, with
+   the alternative named in the message. Both remain listable and deletable:
+   the dashboard allows deleting a Facebook account, and refusing here would
+   diverge for no gain — the cost (a study whose `general.credentials_key`
+   names it stops being able to reconcile) is stated in the tool and CLI
+   descriptions instead.
+
+5. **The upsert is one transaction, where Go's is two loose statements.**
+   `db.upsert_account` opens one connection and lets psycopg's context manager
+   commit both or neither, so a failure between the DELETE and the INSERT can
+   no longer leave a user with no credential under a name a study still points
+   at. `ON CONFLICT ... DO UPDATE` was rejected because it would preserve the
+   original `created`, which is the field that distinguishes a re-connected
+   credential from a stale one.
+
+6. **A `ForeignKeyViolation` becomes a 409, not a 500.**
+   `studies.credentials_key_exists` still references `credentials`, and though
+   the modern create path leaves `studies.credentials_key` NULL, a legacy row
+   written by `create_campaign_for_user` may not. Go answers an opaque 400.
+
+#### The attenuation design for C4, which is the security-critical part
+
+`create_api_key` is the one handler whose authorization depends on something
+`deps.User` does not carry: the SCOPES of the key doing the minting. Over HTTP
+it gets them by calling `scopes_for_token` on the `HTTPAuthorizationCredentials`
+FastAPI injected, then `scopes_allow(..., "auth:write")` and
+`can_grant_scopes`.
+
+`InProcessBackend` had only the `User`. Two ways to give it what it needs:
+refactor the handler to accept pre-computed scopes, or carry the caller's raw
+bearer token and hand it back. **The token was chosen**, because it makes the
+in-process path run the handler's own code rather than a second copy of the
+rule, and a second copy of exactly this rule is how a transport quietly becomes
+a privilege-escalation route. `MCPEndpoint` already has the token in hand — it
+passes it to `scopes_for_token` for the per-tool authorizer — the token lives
+no longer than the request, and the lookup is cached, so the second call is a
+cache hit rather than a second verification.
+
+`InProcessBackend(user, token=None)` keeps `token` optional so every other
+method works without one, and `create_api_key` fails CLOSED with a 403 when it
+is absent: assuming "unrestricted" there would be the escalation.
+
+Pinned by `server/test_mcp_server.py`: a `studies:read` key is denied
+`create_api_key` by `TOOL_SCOPES` naming `auth:write`; an
+`auth:write`+`studies:read` key gets the route's own attenuation error when it
+asks for `optimize:write`; omitting `scopes` from a scoped key is refused
+because absent means full access; a minted child works immediately and no
+further than its scopes; and `MCPEndpoint` is asserted to hand the backend the
+caller's token, so a regression in the wiring names itself.
+
+#### What review changed, 2026-09-08
+
+Independent review returned "merge after fixes". All applied in one commit on
+this branch.
+
+1. **The shadowing break, and the only one that was a live defect.** An
+   `auth:write` key could break a study's Meta authentication with a 201 and no
+   warning, because `get_user_info` resolves by name alone. Guarded route-locally
+   with a 409; the real fix is §4. The test suite REPRODUCES the break through
+   `get_user_info` before asserting the guard, so nobody can delete the guard
+   without seeing what it was for.
+2. **A 422 echoed the credential.** Pydantic puts the offending value in
+   `input`, and for a `missing` error that is the whole enclosing object — so a
+   request that forgot `api_token_secret` came back carrying `api_token`, into
+   a response body, a log, and on `/mcp` an agent's context. `input`, `ctx` and
+   `url` are now stripped in both `accounts._field_errors` and
+   `mcp_server._field_errors`, which share one helper; `str(exc)` is no longer
+   any fallback either, because pydantic renders `input_value=` in it.
+3. **Names had to stay addressable.** `/` in a name made a row that could be
+   created and never deleted through the four-segment DELETE path. `%` turned
+   out to do the same by a longer road — `a%2Fb` encodes to `a%252Fb`, which
+   httpx and Starlette between them decode twice back into a separator, verified
+   against this stack rather than assumed. Both refused, plus control characters,
+   1–200 characters, with a test that every accepted name is deletable.
+4. **In-process `create_api_key` skipped the request model's validation**, so a
+   bad `expires_in_days` surfaced as a raw pydantic string instead of a 422.
+   Wrapped as `create_account` already was, with a test that both transports
+   reject the same values the same way.
+5. **The two transports returned different account objects.** The in-process
+   path returned the handler's raw dict, so `id` was absent where HTTP had
+   `null` and `created` was a `datetime` where HTTP had a string. Both now go
+   through the route's `response_model` with `mode="json"`. `_public_row`
+   remains the stripping layer; `AccountResource` is only shape.
+6. **`_public_row` assumed `details` was an object.** It is JSONB NOT NULL,
+   which does not mean a dict — one hand-written row would have 500'd the whole
+   listing.
+7. Smaller: `facebook_ad_user` joined `REFUSED` so it gets the OAuth
+   explanation rather than "unknown auth_type"; the comment claiming the
+   in-process parse reproduces a 422 for an unknown TOP-LEVEL field was wrong
+   and now says why (FastMCP builds the argument schema from the signature and
+   drops extras before they arrive) and what it does still reproduce; the
+   entity allowlist says what it omits and at what cost; and the fact that a
+   study resolves credentials against ITS OWNER rather than the caller is now
+   in the tool descriptions, the CLI help and §2.8.
+
+#### Second review pass, 2026-09-08
+
+Re-verification confirmed 1, 4, 5, 6 and 7 fixed and found three more.
+
+A. **422s raised BEFORE the handler still echoed the secret.** The scrubbing
+   lived in `accounts.py`, so it only covered errors the handler itself raised;
+   a body FastAPI rejects during its own parse never gets there. Two shapes did
+   that: `credentials` sent as a bare string (`dict_type`), and an unknown
+   top-level field under `extra="forbid"` — and pydantic's `input` for both is
+   the token. Fixed with an app-level `RequestValidationError` handler in
+   `server.py`, **path-scoped** to `/users/accounts` and `/users/api-key`, that
+   reproduces FastAPI's default body byte for byte everywhere else. Registering
+   an override replaces the default for every route, so the untouched half has
+   to be answered identically or this becomes a service-wide change.
+
+   On MCP the leak was one layer higher again: FastMCP validates `tools/call`
+   arguments against the schema built from the tool's signature, before the
+   body runs, and renders `input_value='...'` — a message this repo does not
+   format. `create_account.credentials` is therefore annotated `Any`, which
+   moves the type check inside the tool where the scrubbing parse owns it. A
+   test asserts the parameter stays untyped in the served schema, because
+   restoring `Dict[str, Any]` would silently hand validation back.
+
+B. **`.` and `..` were creatable and undeletable.** The third road to the
+   hazard the name validator already guarded, and the one no encoding closes:
+   both are RFC 3986 unreserved, so `quote(name, safe="")` leaves them alone,
+   and the path stack normalises the whole segment away — `.` leaves
+   `/users/accounts/typeform` (404) and `..` removes the preceding segment too
+   (405). Refused. The round-trip test now states the property over both
+   outcomes: a name is either rejected at create or it deletes.
+
+C. **A regression of my own, and the sharpest lesson here.** `_field_errors` in
+   `mcp_server.py` is shared with `post_conf`, so scrubbing it wholesale
+   stripped `input` and `ctx` from every study-conf 422 over MCP, and replaced
+   a genuine non-pydantic exception message with a fixed sentence. The value is
+   the useful half of a conf error and a conf is the caller's own configuration.
+   The helper now takes `scrub: bool = False` — the default restores the old
+   behaviour, and only `create_account` and `create_api_key` pass `True`.
+
+   The general shape: a security fix applied at a shared helper rather than at
+   the call sites that need it silently degrades every other caller. The
+   discriminator is not "is this a validation error" but "is this value a
+   secret", and only the call site knows.
+
+#### The open decision, unchanged
+
+**C2 sends a third-party secret through an agent's context and stores it.** It
+is in the transcript, in any log of the session, and in the request to vlab.
+The dashboard sends the same secret through a browser, so this is not a new
+class of exposure — but it is a new place for it, and it is the researcher's
+call, not the implementation's. The mitigations that are in the code:
+
+* the `create_account` tool description says so in as many words, and tells an
+  agent to prefer having the human do it;
+* `vlab accounts add` reads the secret from a file or stdin and has **no flag
+  that takes one on a command line** — a token in argv is in the shell history
+  and in `ps` for every user on the machine;
+* nothing ever reads a secret back out, so an agent cannot exfiltrate one it
+  did not already hold.
+
+If the answer is no, **C1, C3 and C4 stand on their own**: listing closes the
+runbook gap "which `credentials_key` do I use", deleting closes rotation, and
+minting closes sub-agent keys. Dropping C2 means deleting one route, one tool,
+one client method and one CLI command; nothing else depends on it.
 
 ## 3. What stays out
 
@@ -294,3 +492,39 @@ consistent oddity.
   come only from the four-hourly `adopt-recruitment-data` cron. An agent that
   wants current spend has to wait for it. Worth a route eventually; out of
   scope here.
+- **`get_user_info` should filter on `entity = credentials_entity`.** THE ONE
+  THAT IS A LATENT BUG RATHER THAN AN ODDITY, found in review of Phase C.
+  `campaign_queries.get_user_info` is what resolves a study's Facebook token on
+  the optimizer's run path. It selects `credentials_entity` out of the `general`
+  conf and then joins `credentials` on `(user_id, key)` alone, ordering
+  `created DESC LIMIT 1` — so the newest row with a given NAME wins whatever its
+  entity, and a credential of any other type named after a study's
+  `general.credentials_key` replaces that study's token with a NULL one.
+
+  This predates Phase C: the dashboard's Go `/accounts` has always been able to
+  write such a row, and `db.get_facebook_token` documents the same
+  bug-compatibility from the other side (it deliberately matches on `key` alone
+  so that the Meta proxy cannot report "no such credential" for a key a study is
+  happily running on). What Phase C changed is that an `auth:write` API key
+  could now do it too, which is why `server/accounts.py` refuses the write with
+  a 409 (`db.facebook_credential_named`).
+
+  **The guard is route-local and is not the fix.** The fix is one predicate in
+  `get_user_info`, but it is a run-path change with a data question attached:
+  production rows exist under both `facebook` and `facebook_ad_user`
+  (`db.FACEBOOK_CREDENTIAL_ENTITIES`), the `general` conf's
+  `credentials_entity` is a free-text field the dashboard hardcodes to
+  `facebook`, and a study whose conf and row disagree would go from working to
+  broken the moment the join got stricter. So it needs a survey of live rows
+  first, and `get_facebook_token`'s matching has to move with it or the proxy
+  and the run path start disagreeing about which credential is which.
+  `server/test_accounts.py::test_the_run_path_really_does_resolve_by_name_alone`
+  fails when this is fixed, and says to drop the guard.
+- **The account listing is an allowlist of entities.** `db.ACCOUNT_ENTITIES` is
+  the dashboard's account types plus the Facebook twin, so a row under any other
+  entity — `whatsapp_business` is the known case — is invisible to
+  `GET /users/accounts` and undeletable through it. Safe in the direction that
+  matters (an unknown row is neither published nor destroyed) but a real gap.
+  Closing it means deciding what is non-secret per provider; `_public_row`
+  publishes nothing it has not been told about, so adding an entity is safe and
+  it is the omission that hides things.

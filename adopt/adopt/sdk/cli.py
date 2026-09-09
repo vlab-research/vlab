@@ -1749,14 +1749,14 @@ def strata_extract(
 
 @cli.group(cls=VlabGroup)
 def keys() -> None:
-    """List and revoke API keys.
+    """Mint, list and revoke API keys.
 
-    There is deliberately no `vlab keys create`. Minting needs a token you
-    already have, and for the first key that is an Auth0 token -- a browser
-    login, from the dashboard's Accounts page. A key can mint further keys only
-    if it holds `auth:write`, and then only narrower ones. An agent cannot mint
-    its own first key; a human hands it one. Exposing a create command would
-    mostly produce a confusing 403.
+    The FIRST key cannot be minted here. Minting needs a token you already
+    have, and for the first one that is an Auth0 token -- a browser login, from
+    the dashboard's Accounts page. `vlab keys create` mints a FURTHER key from
+    the one you already hold, which works only if that key holds `auth:write`
+    and only for scopes it already has. An agent still cannot mint its own
+    first key; a human hands it one.
     """
 
 
@@ -1831,6 +1831,224 @@ def keys_revoke(ctx: click.Context, key_id: str, yes: bool, as_json: bool) -> No
     click.echo(f"Revoked {key_id}. Other replicas may honour it for ~30 seconds.")
 
 
+@keys.command("create")
+@click.argument("name")
+@click.option(
+    "--scope",
+    "scopes",
+    multiple=True,
+    help="Repeatable, e.g. --scope studies:write --scope meta:read. "
+    "OMITTING IT ASKS FOR AN UNRESTRICTED KEY.",
+)
+@click.option(
+    "--expires-in-days",
+    type=int,
+    default=None,
+    help="Key lifetime. Server default and ceiling apply.",
+)
+@click.option("--json", "as_json", is_flag=True, help="Machine-readable output.")
+@auth_options
+@click.pass_context
+def keys_create(
+    ctx: click.Context,
+    name: str,
+    scopes: Sequence[str],
+    expires_in_days: Optional[int],
+    as_json: bool,
+) -> None:
+    """Mint a new API key. Needs `auth:write`. THE TOKEN IS SHOWN ONCE.
+
+    It is not stored anywhere -- the service keeps only its id -- so it cannot
+    be shown again. `vlab keys list` shows names and scopes, never tokens.
+
+    ATTENUATING: a key can only mint one no more powerful than itself, and
+    passing NO `--scope` is a request for full access rather than for none, so
+    a scoped key must name the scopes it wants. Give the narrowest set that
+    does the job; `optimize:write` is what lets a key spend money on Meta.
+    """
+    body = get_client(ctx).create_api_key(name, list(scopes) or None, expires_in_days)
+
+    if as_json:
+        # No warning banner: `--json` output is parsed, and a sentence on
+        # stdout would be in whatever the caller redirects to a file.
+        emit_json(body)
+        return
+
+    click.echo(f"Minted {body.get('name')}  id {body.get('id')}")
+    click.echo(f"scopes  {', '.join(body.get('scopes') or []) or '(unrestricted)'}")
+    click.echo(f"expires {body.get('expires_at')}")
+    click.echo("")
+    click.echo("TOKEN (shown once, never again -- store it now):")
+    click.echo(body.get("token") or "")
+
+
+# ---------------------------------------------------------------------------
+# accounts
+# ---------------------------------------------------------------------------
+
+
+@cli.group(cls=VlabGroup)
+def accounts() -> None:
+    """Connected accounts: the credentials a study names by `credentials_key`.
+
+    A `data-sources[]` entry names one of these in `credentials_key`, and so
+    does `general.credentials_key` for Facebook. Until a credential of the
+    right name and type exists, the study cannot extract responses or reconcile
+    ads.
+
+    Secrets are never printed by anything here, and there is no way to read a
+    stored credential back: a lost token is re-connected, not recovered.
+
+    These are YOUR accounts, and a study resolves credentials against its own
+    owner. Today an org is one person's workspace so the two are the same; in a
+    shared org, a name you can see may be dead for somebody else's study.
+
+    Connecting a FACEBOOK account is not possible from a terminal -- the token
+    comes out of Meta's OAuth code exchange, which needs a browser. Do that on
+    the dashboard's Accounts page; `vlab accounts list` will then show it.
+    """
+
+
+@accounts.command("list")
+@click.option("--type", "auth_type", default=None, help="Only this account type.")
+@click.option("--json", "as_json", is_flag=True, help="Machine-readable output.")
+@auth_options
+@click.pass_context
+def accounts_list(ctx: click.Context, auth_type: Optional[str], as_json: bool) -> None:
+    """Your connected accounts, by type and name. Needs `auth:read`.
+
+    `name` is what goes in a `credentials_key`. No secret is shown, on any
+    type, because every field of every credential shape is one.
+    """
+    rows = get_client(ctx).list_accounts(auth_type)
+    rows_out({"data": rows}, as_json, ["auth_type", "name", "created"])
+
+
+@accounts.command("add")
+@click.argument("name")
+@click.option(
+    "--type",
+    "auth_type",
+    required=True,
+    help="typeform | fly | qualtrics | alchemer.",
+)
+@click.option(
+    "--credentials-json",
+    required=True,
+    help="Path to a JSON file with the credential fields, or - for stdin.",
+)
+@click.option("--json", "as_json", is_flag=True, help="Machine-readable output.")
+@auth_options
+@click.pass_context
+def accounts_add(
+    ctx: click.Context,
+    name: str,
+    auth_type: str,
+    credentials_json: str,
+    as_json: bool,
+) -> None:
+    """Connect an account, or REPLACE one of the same name. Needs `auth:write`.
+
+    An upsert: the same name and type replaces the stored credential, in one
+    transaction, and the old secret is gone.
+
+    THE SECRET IS READ FROM A FILE OR STDIN, never from an argument. A token on
+    a command line is in the shell history, in `ps` output for every user on
+    the machine, and in any CI log that echoes the command; there is no flag
+    here that takes one. The file's shape is the provider's, exactly -- an
+    unknown key is refused rather than dropped:
+
+    \b
+      typeform   {"key": "..."}
+      fly        {"api_key": "..."}
+      qualtrics  {"api_key": "..."}
+      alchemer   {"api_token": "...", "api_token_secret": "..."}
+
+    DO NOT REUSE A FACEBOOK CREDENTIAL'S NAME. The optimizer resolves a study's
+    Facebook token by NAME alone, newest row first, so a credential of any other
+    type with that name shadows it and every study whose
+    `general.credentials_key` is that name stops being able to reach Meta --
+    silently, until the next reconcile. This refuses such a write with a 409;
+    pick another name. `vlab accounts list` shows which are taken.
+
+    NAMES may not contain `/` (the delete route addresses an account as
+    `<type>/<name>`, so such a name could never be deleted) and are capped at
+    200 characters.
+
+    \b
+      vlab accounts add typeform-main --type typeform --credentials-json creds.json
+      pass show typeform | jq -R '{key: .}' | vlab accounts add tf --type typeform --credentials-json -
+    """
+    if credentials_json == "-":
+        raw = click.get_text_stream("stdin").read()
+    else:
+        # `load_study`'s error style: name the file, do not print a traceback.
+        if not os.path.exists(credentials_json):
+            raise click.ClickException(f"No such file: {credentials_json}")
+        with open(credentials_json, "r", encoding="utf8") as f:
+            raw = f.read()
+
+    try:
+        credentials = json.loads(raw)
+    except ValueError as e:
+        raise click.ClickException(f"{credentials_json} is not valid JSON: {e}") from e
+
+    if not isinstance(credentials, dict):
+        raise click.ClickException(
+            "The credentials JSON has to be an object of the provider's "
+            f"fields, not a {type(credentials).__name__}."
+        )
+
+    row = get_client(ctx).create_account(name, auth_type, credentials)
+
+    if as_json:
+        emit_json(row)
+        return
+    click.echo(f"Connected {row.get('auth_type')} account {row.get('name')!r}.")
+    click.echo(f"Use it as credentials_key: {row.get('name')}")
+
+
+@accounts.command("delete")
+@click.argument("auth_type")
+@click.argument("name")
+@click.option("--yes", is_flag=True, help="Do not ask.")
+@click.option("--json", "as_json", is_flag=True, help="Machine-readable output.")
+@auth_options
+@click.pass_context
+def accounts_delete(
+    ctx: click.Context, auth_type: str, name: str, yes: bool, as_json: bool
+) -> None:
+    """Delete a connected account. IRREVERSIBLE. Needs `auth:write`.
+
+    Nothing checks whether a study is using it. A study whose
+    `data-sources[].credentials_key` names this credential stops extracting,
+    and one whose `general.credentials_key` names it stops being able to
+    reconcile onto Meta. A deleted Facebook account can only be re-connected
+    through the dashboard's OAuth flow.
+
+    Deleting an `api_key` account does NOT revoke that key -- `vlab keys
+    revoke` does. 404 means you have no such account.
+    """
+    if not yes:
+        if as_json:
+            raise click.UsageError(
+                "--json needs --yes: the confirmation prompt goes to stdout."
+            )
+        click.confirm(
+            f"Delete the {auth_type} account {name!r}? Any study naming it as "
+            "credentials_key will stop working.",
+            abort=True,
+            default=False,
+        )
+
+    get_client(ctx).delete_account(auth_type, name)
+
+    if as_json:
+        emit_json({"deleted": {"auth_type": auth_type, "name": name}})
+        return
+    click.echo(f"Deleted the {auth_type} account {name!r}.")
+
+
 # ---------------------------------------------------------------------------
 # mcp
 # ---------------------------------------------------------------------------
@@ -1853,9 +2071,10 @@ def mcp_server(ctx: click.Context) -> None:
     pull_study, validate_study, diff_study, push_study, copy_study_from,
     compile_strata, extract_targeting, plan_study, apply_instruction, the
     study readers (study_errors, current_data, ad_attributions,
-    recruitment_stats, respondents_over_time, cost_over_time), the meta_*
-    readers and the key tools. Each calls exactly what the matching command
-    calls, so anything true of `vlab push` is true of `push_study`.
+    recruitment_stats, respondents_over_time, cost_over_time, strata_progress),
+    the meta_* readers, and the account and key tools. Each calls exactly what
+    the matching command calls, so anything true of `vlab push` is true of
+    `push_study`.
 
     Every tool reaches the service over HTTP with VLAB_API_KEY, so the key's
     scopes are enforced by the server on every call and this process holds no

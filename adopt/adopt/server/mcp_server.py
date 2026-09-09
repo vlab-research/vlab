@@ -106,8 +106,33 @@ class InProcessBackend:
     process that serves `/mcp` has paid for it already by the time a tool runs.
     """
 
-    def __init__(self, user: User) -> None:
+    def __init__(self, user: User, token: Optional[str] = None) -> None:
         self.user = user
+
+        # THE CALLER'S RAW BEARER TOKEN, and it is load-bearing for exactly one
+        # method: `create_api_key`.
+        #
+        # Every other handler here needs only the authenticated `User`. The
+        # mint route needs more -- it ATTENUATES, so it has to know the scopes
+        # of the key doing the minting, and it gets them by calling
+        # `scopes_for_token` on the credentials FastAPI injected. `User` does
+        # not carry scopes (`deps.py` builds it from `sub` alone), so without
+        # the token this path would have to recompute attenuation from
+        # something else, which is a second copy of the security rule that
+        # matters most: an unrestricted key may mint anything, and a scoped key
+        # must not mint beyond itself, identically on both transports.
+        #
+        # So the token is carried and handed straight back to the handler,
+        # which then does byte for byte what the HTTP route does. It is the
+        # same token that arrived in this request's `Authorization` header and
+        # it lives no longer than the request; `scopes_for_token` is cached, so
+        # the second call is a cache hit rather than a second verification.
+        #
+        # `None` is allowed so that a caller with no token (tests, and any
+        # future in-process user of this class) gets a clear 403 from
+        # `create_api_key` rather than a `TypeError`, and so that every other
+        # method keeps working without one.
+        self.token = token
 
     # -- discovery ---------------------------------------------------------
 
@@ -388,23 +413,173 @@ class InProcessBackend:
 
         await revoke_api_key(key_id, self.user)
 
+    @_wire_errors
+    async def create_api_key(
+        self,
+        name: str,
+        scopes: Optional[List[str]] = None,
+        expires_in_days: Optional[int] = None,
+    ) -> Dict[str, Any]:
+        """Mint a key, attenuated against THIS caller's key. See `__init__`.
 
-def _field_errors(exc: Exception) -> Any:
+        The handler is called with a reconstructed `HTTPAuthorizationCredentials`
+        rather than with pre-computed scopes, so the attenuation it performs is
+        the very same code path the HTTP route takes -- `scopes_for_token` on
+        the caller's bearer token, then `scopes_allow(..., "auth:write")` and
+        `can_grant_scopes`. There is no second implementation of the rule and
+        so nothing for the two transports to drift on.
+        """
+        from .api_keys import CreateApiKeyRequest, create_api_key
+
+        if self.token is None:
+            # Fail closed. Without the caller's token there is no way to know
+            # what the caller may grant, and "assume unrestricted" would make
+            # this transport a scope-escalation route.
+            raise HTTPException(
+                status_code=403,
+                detail=(
+                    "Minting a key needs the calling key itself, to attenuate "
+                    "against; this backend was built without one."
+                ),
+            )
+
+        # The request model is constructed inside the try for the same reason
+        # `create_account` below does it: FastAPI parses the body into
+        # `CreateApiKeyRequest` on the HTTP path, and its `Field(ge=1, le=...)`
+        # on `expires_in_days` is enforced by THAT parse. Constructing it bare
+        # here would surface `expires_in_days=0` as a raw pydantic
+        # `ValidationError` string instead of the 422 the route gives.
+        try:
+            request = CreateApiKeyRequest(
+                name=name, scopes=scopes, expires_in_days=expires_in_days
+            )
+        except Exception as e:
+            # `scrub=True`: nothing here is a third-party secret, but `scopes`
+            # and `name` are echoed on a `missing`-shaped error alongside
+            # whatever else was in the model, and this is the key-minting path.
+            # Cheap consistency with `create_account` beats reasoning about
+            # which field pydantic will quote.
+            raise HTTPException(
+                status_code=422, detail=_field_errors(e, scrub=True)
+            ) from e
+
+        body = await create_api_key(
+            request,
+            self.user,
+            HTTPAuthorizationCredentials(scheme="Bearer", credentials=self.token),
+        )
+        return body.data.model_dump()
+
+    # -- connected accounts ------------------------------------------------
+    #
+    # Both readers wrap the handler's dict in the route's `response_model`
+    # before returning it, which the HTTP path gets for free from FastAPI. It is
+    # not decoration: without it the two transports return different things.
+    # `_public_row` omits `id` for every type but `api_key`, so `AccountResource`
+    # is what fills it in as `null`, and `created` is a `datetime` in process
+    # where the wire has an ISO string. `mode="json"` is what makes the second
+    # half true.
+    #
+    # `_public_row` remains the STRIPPING layer -- it decides what is safe to
+    # publish. `AccountResource` is only shape, and adding a field to it would
+    # not publish anything `_public_row` had not already put there.
+
+    @_wire_errors
+    async def list_accounts(
+        self, auth_type: Optional[str] = None
+    ) -> List[Dict[str, Any]]:
+        from .accounts import ListAccountsResponse, list_accounts_endpoint
+
+        body = await list_accounts_endpoint(self.user, auth_type)
+        return ListAccountsResponse(**body).model_dump(mode="json")["data"]
+
+    @_wire_errors
+    async def create_account(
+        self, name: str, auth_type: str, credentials: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        from .accounts import (
+            CreateAccountRequest,
+            CreateAccountResponse,
+            create_account_endpoint,
+        )
+
+        # The route annotates the strict model and FastAPI is what parses the
+        # body into it on the HTTP path, so parsing it here is what reproduces
+        # the 422 for a value the model rejects -- a blank name, a name with a
+        # `/` in it, an over-long one. Same reason `post_conf` above runs the
+        # section's `TypeAdapter` itself.
+        #
+        # It does NOT reproduce the 422 for an unknown TOP-LEVEL field, and
+        # cannot: FastMCP builds the tool's argument schema from this method's
+        # signature and drops anything not in it, so an extra key never reaches
+        # here to be refused. `extra="forbid"` on the request model still earns
+        # its place on the HTTP path, and the unknown-key case inside
+        # `credentials` -- the one that matters, because that is where a
+        # misspelled provider field would be silently dropped -- IS reproduced,
+        # by the per-type model in the handler.
+        try:
+            parsed = CreateAccountRequest(
+                name=name, auth_type=auth_type, credentials=credentials
+            )
+        except Exception as e:
+            # `scrub=True`: the value pydantic would quote back IS the caller's
+            # live third-party token, and a tool error goes straight into an
+            # agent's context window.
+            raise HTTPException(
+                status_code=422, detail=_field_errors(e, scrub=True)
+            ) from e
+
+        body = await create_account_endpoint(parsed, self.user)
+        return CreateAccountResponse(**body).model_dump(mode="json")["data"]
+
+    @_wire_errors
+    async def delete_account(self, auth_type: str, name: str) -> None:
+        from .accounts import delete_account_endpoint
+
+        await delete_account_endpoint(auth_type, name, self.user)
+
+
+def _field_errors(exc: Exception, scrub: bool = False) -> Any:
     """A pydantic `ValidationError` in FastAPI's 422 `detail` shape.
 
     So that a client parsing `detail[i].loc` off the HTTP route can parse it off
-    a tool error too. Anything that is not a `ValidationError` falls back to its
-    message rather than being reshaped into a lie.
+    a tool error too. `body` first, matching FastAPI, which prefixes `loc` with
+    where the value came from.
+
+    `scrub` DEFAULTS TO FALSE, AND THAT IS THE POINT OF THE PARAMETER. For
+    `post_conf` -- which is almost every 422 this module raises -- the offending
+    VALUE is the most useful half of the report: an agent told "expected int,
+    got '48 hours'" can fix its conf, where one told only `loc` and `msg` has to
+    go and look. A study conf is the caller's own configuration, so echoing it
+    back reveals nothing they did not send. That was the behaviour before Phase
+    C and it is restored here; scrubbing it for everyone was a regression.
+
+    The credential call sites (`create_account`, `create_api_key`) pass
+    `scrub=True`, because there the submitted value IS a live third-party
+    secret, a tool error goes straight into an agent's context window, and
+    pydantic's `input` on a `missing` error is the whole enclosing object.
+
+    The `str(exc)` fallback is likewise restored for the unscrubbed path: a
+    non-`ValidationError` reaching here is a defect, and its real message is
+    what makes it reportable. On the scrubbed path it stays suppressed, because
+    pydantic's `__str__` renders `input_value=...` and a defect is not a reason
+    to leak a token.
     """
     errors = getattr(exc, "errors", None)
+
+    if not scrub:
+        if errors is None:
+            return str(exc)
+        try:
+            return [{**e, "loc": ["body", *e.get("loc", ())]} for e in errors()]
+        except Exception:  # noqa: BLE001 -- never let error reporting raise
+            return str(exc)
+
+    from .accounts import scrub_field_errors
+
     if errors is None:
-        return str(exc)
-    try:
-        # `body` first, matching FastAPI, which prefixes `loc` with where the
-        # value came from.
-        return [{**e, "loc": ["body", *e.get("loc", ())]} for e in errors()]
-    except Exception:  # noqa: BLE001 -- never let error reporting raise
-        return str(exc)
+        return "the request body did not validate"
+    return scrub_field_errors(errors(), ("body",))
 
 
 # --------------------------------------------------------------------------
@@ -582,7 +757,12 @@ class MCPEndpoint:
             await _json(send, e.status_code, e.detail)
             return
 
-        env = ToolEnv(InProcessBackend(user), authorizer(scopes_for_token(token)))
+        # The token goes to the backend as well as to the authorizer: the mint
+        # route attenuates against the calling key's own scopes, and `User`
+        # does not carry them. See `InProcessBackend.__init__`.
+        env = ToolEnv(
+            InProcessBackend(user, token), authorizer(scopes_for_token(token))
+        )
         # The session manager spawns the server task from inside this block, and
         # a task keeps its own copy of the context, so the environment survives
         # for as long as the response does.

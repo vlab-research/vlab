@@ -184,6 +184,209 @@ def get_facebook_token(user_id: str, credentials_key: str):
     return rows[0]["token"] if rows else None
 
 
+# --------------------------------------------------------------------------
+# Connected accounts, for `server/accounts.py`
+# --------------------------------------------------------------------------
+
+# The `entity` values that are CONNECTED ACCOUNTS -- a named third-party
+# credential a study's `data-sources` section (or, for Facebook,
+# `general.credentials_key`) refers to by name.
+#
+# Enumerated rather than "everything in `credentials`", which is what the Go
+# service's `/accounts` list does. That table is not only accounts: since the
+# 2026-09-04 hardening it also holds vlab's own API-token rows (`api_token`)
+# and the legacy-key tombstones (`api_token_revoked`), and those are
+# `list_api_keys`'s business, with their own shape and their own revocation
+# route. Listing them here would report the same key twice under two shapes and
+# offer a `DELETE` that looks like revocation and is not (deleting the account
+# row for a minted key does NOT revoke the key -- only removing the `api_token`
+# row does).
+#
+# `facebook_ad_user` is in the set for the same reason `list_facebook_credentials`
+# accepts it: it is the entity real production Facebook rows are under, and
+# omitting it would hide a credential a study is demonstrably running on.
+#
+# WHAT IS DELIBERATELY MISSING, and the cost of that. This is the set the
+# dashboard's Accounts page offers plus the Facebook twin -- it is NOT every
+# entity the table can hold. `whatsapp_business` is the known case (see
+# `get_facebook_token`, which names it among the entities that also store a
+# field called `access_token`): a row under it is INVISIBLE to the list route
+# and UNDELETABLE through the delete route, which answers 400 for an entity not
+# in this tuple.
+#
+# That is the safe direction for a `credentials` table shared with providers
+# this module knows nothing about -- an unknown entity is not published and not
+# destroyed -- but it is a real gap rather than a non-issue, and closing it
+# means deciding what is non-secret in each such row (`_public_row` in
+# `server/accounts.py` publishes nothing it has not been told about, so
+# ADDING an entity here is safe; it is the omission that hides things).
+ACCOUNT_ENTITIES = (
+    "typeform",
+    "fly",
+    "alchemer",
+    "qualtrics",
+    "facebook",
+    "facebook_ad_user",
+    "api_key",
+)
+
+
+def list_accounts(user_id: str, auth_type=None):
+    """The caller's connected-account rows, INCLUDING their `details`.
+
+    The secret stripping happens in the route (`server/accounts.py`), not here,
+    because what counts as non-secret is per auth type and the route is where
+    that table lives. Nothing else calls this.
+
+    `credentials` is user-scoped, not org-scoped: the `org_id` column added by
+    the organisation migration is never populated by the Go account-create path
+    (see `list_facebook_credentials`). So there is no org filter, and these
+    routes live under `/users/...` rather than `/{org_id}/...` to say so.
+
+    Sorted by `(entity, key)` rather than the Go route's `created DESC`: the
+    caller's question is "which credentials_key do I use", and a stable
+    alphabetical listing answers it the same way twice running, where a
+    recency ordering reshuffles on every write.
+    """
+    if auth_type is None:
+        q = """
+        SELECT key, entity, details, created
+        FROM credentials
+        WHERE user_id = %s
+        AND entity = ANY(%s)
+        ORDER BY entity, key
+        """
+        vals = (user_id, list(ACCOUNT_ENTITIES))
+    else:
+        q = """
+        SELECT key, entity, details, created
+        FROM credentials
+        WHERE user_id = %s
+        AND entity = ANY(%s)
+        AND entity = %s
+        ORDER BY entity, key
+        """
+        # Still ANDed with the whole set, so a filter cannot be used to reach a
+        # row the unfiltered listing would not have returned -- `?auth_type=api_token`
+        # has to be empty, not a way around the enumeration above.
+        vals = (user_id, list(ACCOUNT_ENTITIES), auth_type)
+
+    return list(query(db_cnf, q, vals, as_dict=True))
+
+
+def upsert_account(user_id: str, entity: str, key: str, details: Any):
+    """Replace one credential row, in ONE transaction. Returns its `created`.
+
+    DELETE-then-INSERT because that is what the Go handler does
+    (`api/internal/server/handler/accounts/create.go`): `credentials` has
+    `unique_entity_key_per_user` on `(user_id, entity, key)` and no update
+    route, so re-connecting an account under a name it already has is a
+    replace.
+
+    THE DIFFERENCE FROM GO, DELIBERATE. Go issues the two statements on
+    separate connections with no transaction around them, so a failure between
+    them -- or a crash, or the insert violating some other constraint -- leaves
+    the user with NO credential under a name their study's
+    `general.credentials_key` still points at, and the next reconcile of that
+    study cannot authenticate. One transaction makes the replace atomic: either
+    the new row is there or the old one still is, never neither.
+
+    An `ON CONFLICT ... DO UPDATE` would be atomic too and is the obvious
+    alternative. It is not used because the conflict target would have to name
+    the constraint, and `details` is the only column it could set -- so it
+    would silently preserve the original `created`, which is the one field a
+    caller uses to tell a re-connected credential from a stale one.
+    """
+    q_delete = """
+    DELETE FROM credentials
+    WHERE user_id = %s AND entity = %s AND key = %s
+    """
+    q_insert = """
+    INSERT INTO credentials (user_id, entity, key, details)
+    VALUES (%s, %s, %s, %s)
+    RETURNING created
+    """
+
+    payload = orjson.dumps(details).decode("utf8")
+
+    # One connection, one transaction: psycopg3's connection context manager
+    # commits on a clean exit and rolls back on an exception, so the two
+    # statements land together or not at all. `db.execute` opens a connection
+    # per call and could not give that.
+    with psycopg.connect(db_cnf) as conn:
+        with conn.cursor() as cur:
+            cur.execute(q_delete, (user_id, entity, key))
+            cur.execute(q_insert, (user_id, entity, key, payload))
+            return cur.fetchone()[0]
+
+
+def delete_account(user_id: str, entity: str, key: str) -> bool:
+    """Delete one credential row. True if there was one.
+
+    Scoped to the caller in SQL rather than checked afterwards, the same way
+    `api_keys._delete_api_token_row` is: a miss and somebody else's credential
+    are then the same answer, so this never confirms that another user's
+    account exists.
+    """
+    q = """
+    DELETE FROM credentials
+    WHERE user_id = %s AND entity = %s AND key = %s
+    RETURNING key
+    """
+    return bool(list(query(db_cnf, q, (user_id, entity, key), as_dict=True)))
+
+
+def facebook_credential_named(user_id: str, key: str):
+    """The entity of this user's Facebook credential with this NAME, or None.
+
+    THE SHADOWING HAZARD, which is why this exists.
+
+    `campaign_queries.get_user_info` is what resolves the Facebook token on the
+    optimizer's run path, and it joins `credentials` on `(user_id, key)` ALONE:
+    it selects `credentials_entity` out of the general conf and then never uses
+    it, ordering `created DESC LIMIT 1`. So the newest row with a given NAME
+    wins, whatever its entity.
+
+    That makes a credential of ANY type, created with a name equal to a study's
+    `general.credentials_key`, silently shadow that study's Facebook token --
+    `details->>'access_token'` is NULL on a Typeform row, so `token` comes back
+    None and reconciliation breaks with no error at write time. Since the
+    upsert always inserts a row whose `created` is now, the new row always
+    wins.
+
+    `server/accounts.py` refuses the write rather than letting that happen. The
+    check is Facebook-specific because `get_user_info` is: it is the one
+    resolver that matches on name alone, and it is looking for a Facebook
+    token. Two non-Facebook credentials sharing a name shadow nothing, because
+    everything else that reads this table filters on entity as well
+    (`get_facebook_token`, `list_accounts`).
+
+    THIS IS A ROUTE-LOCAL GUARD, NOT THE FIX. The real fix is for
+    `get_user_info` to filter on `entity = credentials_entity`, which it
+    already selects; that is a change to the run path and belongs in its own
+    change with its own migration story for rows whose entity disagrees with
+    the conf. See `planning/mcp-full-coverage.md` §4.
+    """
+    q = """
+    SELECT entity
+    FROM credentials
+    WHERE user_id = %s
+    AND key = %s
+    AND entity = ANY(%s)
+    ORDER BY created DESC
+    LIMIT 1
+    """
+    rows = list(
+        query(
+            db_cnf,
+            q,
+            (user_id, key, list(FACEBOOK_CREDENTIAL_ENTITIES)),
+            as_dict=True,
+        )
+    )
+    return rows[0]["entity"] if rows else None
+
+
 def user_in_org(user_id: str, org_id: str) -> bool:
     """Membership, as a standalone check.
 

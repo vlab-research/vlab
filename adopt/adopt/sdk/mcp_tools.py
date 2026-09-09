@@ -151,6 +151,15 @@ TOOL_SCOPES: Dict[str, Optional[str]] = {
     "meta_ads": "meta:read",
     "list_api_keys": "auth:read",
     "revoke_api_key": "auth:write",
+    # Connected accounts and key minting (Phase C of
+    # `planning/mcp-full-coverage.md`). All four are `auth`, which is the
+    # resource that is never implicitly granted: a key that can author studies
+    # must not thereby be able to read, replace or delete the researcher's
+    # third-party credentials, nor mint itself a wider key.
+    "list_accounts": "auth:read",
+    "create_account": "auth:write",
+    "delete_account": "auth:write",
+    "create_api_key": "auth:write",
 }
 
 
@@ -1193,6 +1202,221 @@ async def revoke_api_key(key_id: str) -> Dict[str, Any]:
     return {"revoked": key_id, "other_replicas_honour_until_seconds": 30}
 
 
+async def create_api_key(
+    name: str,
+    scopes: Optional[List[str]] = None,
+    expires_in_days: Optional[int] = None,
+) -> Dict[str, Any]:
+    """Mint a new vlab API key. Needs `auth:write`.
+
+    WRITES: a new key exists afterwards and can be used immediately. Revoke it
+    with `revoke_api_key`; there is no edit.
+
+    THE TOKEN IS SHOWN ONCE AND NEVER AGAIN. It comes back as `token` in this
+    response and is not stored anywhere -- the service keeps only its id (the
+    `jti`), which is the whole reason a key is revocable at all. `list_api_keys`
+    shows names, ids, scopes and expiry, never tokens. If you lose it, revoke
+    the key and mint another. Hand it to the human who asked for it and do not
+    write it into a file, a config, or a study.
+
+    ATTENUATING, and this is the point of the whole scheme: a key can only mint
+    a key no more powerful than itself. Two refusals follow from that, both
+    403s:
+
+    * you need `auth:write` to be here at all -- `auth` is never implicitly
+      granted, so a `studies:write` key cannot mint anything;
+    * OMITTING `scopes` IS A REQUEST FOR FULL ACCESS, not for none. A scoped
+      key asking for an unscoped one is refused. Pass the narrowest `scopes`
+      the new key actually needs.
+
+    Scopes are `resource:action` over resources studies, responses, stats,
+    optimize, meta, auth and actions read, write, `*`; `write` implies `read`
+    on the same resource. A sensible authoring key is
+    `["studies:write", "meta:read", "optimize:read"]` -- it can build, check
+    and plan a study and cannot spend money. Add `optimize:write` only when you
+    mean to let it launch ads. An unknown scope is a 400 rather than a silently
+    dead key.
+
+    `expires_in_days` is bounded by the server and defaults to its own TTL.
+    There is no key that never expires; keys minted before 2026-09-04 are the
+    exception and cannot be listed or expired at all.
+
+    Returns `{name, id, token, scopes, expires_at}`. `id` is what
+    `revoke_api_key` takes.
+    """
+    return await backend().create_api_key(name, scopes, expires_in_days)
+
+
+# --------------------------------------------------------------------------
+# Tools: connected accounts
+# --------------------------------------------------------------------------
+
+_ACCOUNT_NOTE = """
+    WHAT AN ACCOUNT IS. A named credential for a third party, owned by the
+    caller's user. The NAME is the whole point: a `data-sources[]` entry names
+    one in `credentials_key`, and a Facebook credential is named the same way in
+    `general.credentials_key`. A study cannot extract responses, or reconcile
+    ads onto Meta, until a credential of the right name and type exists -- so
+    "which credentials_key do I use" is answered by `list_accounts`, and
+    nothing else answers it for a non-Facebook provider.
+
+    An account is addressed by `(auth_type, name)` and nothing else. Types:
+    `typeform`, `fly`, `qualtrics`, `alchemer`, plus `facebook` (and its
+    historical twin `facebook_ad_user`) and `api_key`, which exist and are
+    listed but cannot be created here.
+
+    SECRETS ARE NEVER RETURNED, by any tool here, on any type. There is no way
+    to read a stored credential back; a lost token is re-connected, not
+    recovered.
+
+    THESE ARE THE CALLING KEY'S USER'S ACCOUNTS, and a study resolves its
+    credentials against ITS OWN OWNER (`studies.user_id`), not against whoever
+    is calling. Today that distinction is invisible, because an org is one
+    person's personal workspace. In a shared org it would matter: a
+    `credentials_key` that `list_accounts` shows you, and that you can
+    therefore write into a conf, can be DEAD for a study somebody else owns,
+    and the failure appears at extraction or reconcile time rather than at
+    write time. If a study is not yours, confirm the name with its owner.
+"""
+
+
+async def list_accounts(auth_type: Optional[str] = None) -> Dict[str, Any]:
+    """List the caller's connected accounts, without their secrets. Needs `auth:read`.
+
+    Reads only; writes nothing.
+
+    Returns `{"accounts": [{name, auth_type, created}]}`, sorted by type then
+    name. `api_key` rows also carry `id`, the minted key's id. No other field is
+    ever returned, because every other field of every credential shape IS the
+    secret.
+
+    `auth_type` filters. An unknown one is an empty list, not an error.
+
+    This is `meta_credentials` widened to every provider. `meta_credentials`
+    stays: it is org-addressed, it belongs to the Meta proxy that needs it to
+    disambiguate a token, and it is reachable with `meta:read` where this needs
+    `auth:read` -- an agent that reads a researcher's Meta estate has no
+    business enumerating their Typeform and Alchemer credentials too.
+
+    Vlab API KEYS ARE NOT LISTED HERE even though they live in the same table:
+    `list_api_keys` is that question, with ids, scopes and expiry. The one
+    exception is an `api_key` account row, which is the dashboard's separate
+    bookkeeping record of a key it minted, and deleting one does NOT revoke
+    anything.
+    """
+    return {"accounts": await backend().list_accounts(auth_type)}
+
+
+async def create_account(
+    # `Any`, not `Dict[str, Any]`, and ONLY on this parameter. FastMCP builds
+    # the tool's input schema from these annotations and validates arguments
+    # against it BEFORE the tool body runs -- and its rejection message renders
+    # `input_value='...'`, which for this parameter is the caller's live
+    # third-party secret, echoed into the agent's context by a layer this
+    # module does not control. Widening the annotation moves the type check
+    # inside the tool, where `create_account`'s own parse produces a scrubbed
+    # 422 instead. The JSON schema therefore says only "credentials", with no
+    # type; the docstring below is what states the shape, which is what an
+    # agent reads anyway.
+    #
+    # Deliberately narrow: every other parameter here keeps its real annotation,
+    # because none of them can carry a secret.
+    name: str,
+    auth_type: str,
+    credentials: Any,
+) -> Dict[str, Any]:
+    """Connect a third-party account, or replace one by name. Needs `auth:write`.
+
+    `credentials` is an OBJECT of the provider's fields (the shapes are listed
+    below). Its JSON schema is deliberately untyped so that a mistyped value is
+    reported by this tool, which strips the value out of the error, rather than
+    by the argument validator, which quotes it back.
+
+    WRITES a credentials row. UPSERT: posting a `name` that already exists
+    under the same `auth_type` REPLACES that credential -- there is no separate
+    update, and the old secret is gone. The replace is atomic, so a study
+    naming this credential is never left pointing at nothing.
+
+    THE SECRET PASSES THROUGH THIS CONVERSATION. Whatever you put in
+    `credentials` is a live third-party token: it is in the agent's context, in
+    any transcript or log of this session, and in the request to vlab. Prefer
+    having the human paste it into the dashboard's Accounts page, or run
+    `vlab accounts add --credentials-json` themselves, which reads it from a
+    file and never puts it on a command line. Use this tool when the human has
+    knowingly handed you the secret for exactly this purpose, and do not echo it
+    back afterwards.
+
+    `credentials` must match the provider's shape EXACTLY -- an unknown or
+    misspelled key is a 422, never a silently dropped field, because a
+    credential missing the one key that matters fails much later as an
+    unexplained 401 from the third party:
+
+        typeform   {"key": "..."}
+        fly        {"api_key": "..."}
+        qualtrics  {"api_key": "..."}
+        alchemer   {"api_token": "...", "api_token_secret": "..."}
+
+    DO NOT REUSE A FACEBOOK CREDENTIAL'S NAME. The optimizer resolves a study's
+    Facebook token by NAME ALONE -- it ignores the type, and takes the newest
+    row -- so a `typeform` credential named after an existing Facebook one
+    SHADOWS it, and every study whose `general.credentials_key` is that name
+    stops being able to authenticate to Meta, with no error until the next
+    reconcile. This tool refuses that write with a 409 naming the conflict, so
+    you cannot cause it by accident; pick a different name rather than trying to
+    work around the refusal. `list_accounts` shows which names are taken and by
+    what.
+
+    TWO TYPES ARE REFUSED, both with a 400 that says what to do instead:
+
+    * `facebook` (and its historical twin `facebook_ad_user`) -- the token comes
+      out of Meta's OAuth code exchange, which needs a browser and a human.
+      Connect it on the dashboard's Accounts page; then `list_accounts` and
+      `meta_credentials` will show its name. This is the one gap in the runbook
+      that no key can close.
+    * `api_key` -- that is the dashboard's record of a minted vlab key. Use
+      `create_api_key`, which returns the token once.
+
+    Returns the same non-secret row `list_accounts` returns; the secret is not
+    echoed back, and neither is it echoed back inside a validation error.
+    """
+    return await backend().create_account(name, auth_type, credentials)
+
+
+async def delete_account(auth_type: str, name: str) -> Dict[str, Any]:
+    """Delete one connected account. Needs `auth:write`.
+
+    WRITES, IRREVERSIBLY: the credential is gone and cannot be recovered, only
+    re-connected with the secret again. There is no undo and no trash.
+
+    KNOW WHAT IT BREAKS BEFORE YOU CALL IT. Any study whose `data-sources[]`
+    entry names this credential in `credentials_key` stops being able to
+    extract responses, and any study whose `general.credentials_key` names it
+    stops being able to RECONCILE ONTO META -- the next plan or apply fails to
+    authenticate, and ad delivery is not repaired until a credential of that
+    name exists again. Nothing checks for you: the confs are not consulted, and
+    a credential in use deletes exactly as readily as an unused one.
+
+    Deleting a `facebook` account is allowed -- the dashboard allows it too --
+    and it is the expensive one, because re-creating it needs the OAuth flow in
+    a browser and cannot be done from here at all.
+
+    Deleting an `api_key` account does NOT revoke that API key: the account row
+    is bookkeeping, and revocation is `revoke_api_key` on the key's own id.
+
+    404 -- never 403 -- when you have no such account, so this cannot be used to
+    find out whether another user has one by that name.
+    """
+    await backend().delete_account(auth_type, name)
+    return {"deleted": {"auth_type": auth_type, "name": name}}
+
+
+# The account caveats belong on every accounts tool -- an agent reads one
+# description, not the module -- and repeating them by hand is three chances to
+# let them drift. Same device as `_META_NOTE` above.
+for _fn in (list_accounts, create_account, delete_account):
+    _fn.__doc__ = (_fn.__doc__ or "").rstrip() + "\n" + _ACCOUNT_NOTE
+
+
 # --------------------------------------------------------------------------
 # Registration
 # --------------------------------------------------------------------------
@@ -1226,6 +1450,14 @@ TOOLS: Sequence[Callable[..., Any]] = (
     meta_ads,
     list_api_keys,
     revoke_api_key,
+    # Credentials and key minting. Last because they are the setup step a
+    # researcher does once, not part of the authoring loop above -- except
+    # `list_accounts`, which answers "which credentials_key" and is why they
+    # sit together rather than beside the meta_* readers.
+    create_api_key,
+    list_accounts,
+    create_account,
+    delete_account,
 )
 
 

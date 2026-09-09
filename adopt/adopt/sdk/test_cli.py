@@ -1581,11 +1581,243 @@ def test_keys_revoke(runner, obj):
     assert obj["client"].list_api_keys()["keys"] == []
 
 
-def test_there_is_no_keys_create(runner, obj):
-    """Minting needs a token you already have; an agent cannot mint its own
-    first key. A create command would mostly produce a confusing 403."""
-    res = run(runner, obj, "keys", "--help")
-    assert "create" not in res.output.split("Commands:")[1]
+def test_keys_create_prints_the_token_once_with_a_warning(runner, obj):
+    """The token exists in exactly one place ever: this output. If it is not
+    obvious that it will not be shown again, it will be lost."""
+    from ..server.api_keys import clear_api_key_cache
+
+    clear_api_key_cache()
+
+    res = run(
+        runner,
+        obj,
+        "keys",
+        "create",
+        "agent",
+        "--scope",
+        "studies:write",
+        "--scope",
+        "meta:read",
+        "--expires-in-days",
+        "30",
+    )
+
+    assert res.exit_code == 0, res.output
+    assert "shown once" in res.output
+    assert "studies:write, meta:read" in res.output
+
+    clear_api_key_cache()
+    listed = obj["client"].list_api_keys()["keys"]
+    assert [k["name"] for k in listed] == ["agent"]
+    assert listed[0]["scopes"] == ["studies:write", "meta:read"]
+
+
+def test_keys_create_json_is_parseable_and_carries_no_prose(runner, obj):
+    """`--json` output is redirected to a file; a warning sentence on stdout
+    would end up inside it."""
+    from ..server.api_keys import clear_api_key_cache
+
+    clear_api_key_cache()
+
+    res = run(runner, obj, "keys", "create", "agent", "--json")
+
+    body = json.loads(res.output)
+    assert body["name"] == "agent"
+    assert body["token"]
+
+
+def test_keys_create_with_no_scope_asks_for_an_unrestricted_key(runner, obj):
+    """Not for none. The injected client authenticates as an unrestricted
+    session, so this succeeds here; from a scoped key it is a 403, which is the
+    behaviour the tool and CLI help both spell out."""
+    from ..server.api_keys import clear_api_key_cache
+
+    clear_api_key_cache()
+
+    res = run(runner, obj, "keys", "create", "wide", "--json")
+
+    assert json.loads(res.output)["scopes"] is None
+
+
+# ---------------------------------------------------------------------------
+# accounts
+# ---------------------------------------------------------------------------
+
+
+def _creds_file(runner, payload):
+    """A credentials file in the runner's isolated filesystem."""
+    with open("creds.json", "w", encoding="utf8") as f:
+        json.dump(payload, f)
+    return "creds.json"
+
+
+def test_accounts_add_reads_the_secret_from_a_file_and_lists_it(runner, obj):
+    """The secret never appears on a command line -- there is no flag that
+    takes one -- so a token stays out of the shell history and out of `ps`."""
+    path = _creds_file(runner, {"key": "SECRET-FROM-A-FILE-7c3e"})
+
+    res = run(
+        runner,
+        obj,
+        "accounts",
+        "add",
+        "tf-main",
+        "--type",
+        "typeform",
+        "--credentials-json",
+        path,
+    )
+
+    assert res.exit_code == 0, res.output
+    assert "SECRET-FROM-A-FILE-7c3e" not in res.output
+    assert "credentials_key: tf-main" in res.output
+
+    listed = run(runner, obj, "accounts", "list")
+    assert "tf-main" in listed.output
+    assert "typeform" in listed.output
+    assert "SECRET-FROM-A-FILE-7c3e" not in listed.output
+
+
+def test_accounts_add_reads_stdin_when_the_path_is_a_dash(runner, obj):
+    """So a secret can come out of a password manager through a pipe without
+    ever touching the disk."""
+    res = runner.invoke(
+        cli,
+        ["accounts", "add", "fly-main", "--type", "fly", "--credentials-json", "-"],
+        obj=dict(obj),
+        input=json.dumps({"api_key": "PIPED-SECRET"}),
+        catch_exceptions=False,
+    )
+
+    assert res.exit_code == 0, res.output
+    assert "PIPED-SECRET" not in res.output
+    assert obj["client"].list_accounts()[0]["name"] == "fly-main"
+
+
+def test_accounts_add_says_which_file_is_missing(runner, obj):
+    res = run(
+        runner,
+        obj,
+        "accounts",
+        "add",
+        "x",
+        "--type",
+        "fly",
+        "--credentials-json",
+        "nope.json",
+    )
+
+    assert res.exit_code == 1
+    assert "nope.json" in res.output
+
+
+def test_accounts_add_rejects_a_file_that_is_not_json(runner, obj):
+    with open("creds.json", "w", encoding="utf8") as f:
+        f.write("not json")
+
+    res = run(
+        runner,
+        obj,
+        "accounts",
+        "add",
+        "x",
+        "--type",
+        "fly",
+        "--credentials-json",
+        "creds.json",
+    )
+
+    assert res.exit_code == 1
+    assert "not valid JSON" in res.output
+
+
+def test_accounts_add_rejects_a_json_document_that_is_not_an_object(runner, obj):
+    path = _creds_file(runner, ["key"])
+
+    res = run(
+        runner, obj, "accounts", "add", "x", "--type", "fly", "--credentials-json", path
+    )
+
+    assert res.exit_code == 1
+    assert "object" in res.output
+
+
+def test_accounts_add_surfaces_the_servers_422_rather_than_a_traceback(runner, obj):
+    path = _creds_file(runner, {"keys": "typo"})
+
+    res = run(
+        runner,
+        obj,
+        "accounts",
+        "add",
+        "x",
+        "--type",
+        "typeform",
+        "--credentials-json",
+        path,
+    )
+
+    assert res.exit_code == 1
+    assert "422" in res.output
+
+
+def test_accounts_list_filters_by_type(runner, obj):
+    obj["client"].create_account("tf", "typeform", {"key": "a"})
+    obj["client"].create_account("f", "fly", {"api_key": "b"})
+
+    res = run(runner, obj, "accounts", "list", "--type", "fly")
+
+    assert "1 row(s)" in res.output
+    assert "tf" not in res.output
+
+
+def test_accounts_delete_needs_confirmation_and_then_deletes(runner, obj):
+    obj["client"].create_account("tf", "typeform", {"key": "a"})
+
+    res = run(runner, obj, "accounts", "delete", "typeform", "tf", "--yes")
+
+    assert res.exit_code == 0, res.output
+    assert obj["client"].list_accounts() == []
+
+
+def test_accounts_delete_warns_before_asking(runner, obj):
+    """The prompt has to say what breaks: nothing checks whether a study names
+    this credential, and the failure surfaces at the next reconcile."""
+    obj["client"].create_account("tf", "typeform", {"key": "a"})
+
+    res = runner.invoke(
+        cli,
+        ["accounts", "delete", "typeform", "tf"],
+        obj=dict(obj),
+        input="n\n",
+        catch_exceptions=False,
+    )
+
+    assert res.exit_code == 1
+    assert "credentials_key" in res.output
+    assert len(obj["client"].list_accounts()) == 1
+
+
+def test_accounts_delete_refuses_json_without_yes(runner, obj):
+    """A confirmation prompt goes to stdout, which is what `--json` output is."""
+    res = run(runner, obj, "accounts", "delete", "typeform", "tf", "--json")
+
+    assert res.exit_code == 2
+    assert "--yes" in res.output
+
+
+def test_accounts_delete_of_something_absent_is_a_clean_error(runner, obj):
+    res = run(runner, obj, "accounts", "delete", "typeform", "nope", "--yes")
+
+    assert res.exit_code == 1
+    assert "404" in res.output
+
+
+def test_the_accounts_help_says_facebook_needs_a_browser(runner, obj):
+    res = run(runner, obj, "accounts", "--help")
+
+    assert "OAuth" in res.output
+    assert "browser" in res.output
 
 
 # ---------------------------------------------------------------------------
@@ -1902,3 +2134,73 @@ def test_an_unquoted_date_reaches_the_server_as_the_string_it_will_store(
     assert res.exit_code == 0, res.output
     stored = obj["client"].get_confs(org, slug)["recruitment"]
     assert stored["start_date"] == "2026-06-01T00:00:00"
+
+
+# ---------------------------------------------------------------------------
+# Review fixes on the accounts group
+# ---------------------------------------------------------------------------
+
+
+def test_accounts_add_surfaces_the_shadowing_refusal(runner, obj):
+    """The 409 has to reach the terminal as a sentence, not a traceback -- and
+    it has to say why, or the researcher will just pick `--force`, which does
+    not exist, and then edit the database."""
+    execute(
+        db_conf,
+        "insert into credentials (user_id, entity, key, details) values (%s,%s,%s,%s)",
+        (USER, "facebook", "Facebook", '{"access_token": "tok"}'),
+    )
+    with open("creds.json", "w", encoding="utf8") as f:
+        json.dump({"key": "s"}, f)
+
+    res = run(
+        runner,
+        obj,
+        "accounts",
+        "add",
+        "Facebook",
+        "--type",
+        "typeform",
+        "--credentials-json",
+        "creds.json",
+    )
+
+    assert res.exit_code == 1
+    assert "409" in res.output
+    assert "SHADOW" in res.output
+
+
+def test_accounts_add_does_not_print_the_secret_on_a_validation_failure(runner, obj):
+    """A CLI error goes to the terminal and into any CI log that captures it."""
+    secret = "SECRET-IN-CLI-OUTPUT-3f9d"
+    with open("creds.json", "w", encoding="utf8") as f:
+        json.dump({"api_token": secret}, f)
+
+    res = run(
+        runner,
+        obj,
+        "accounts",
+        "add",
+        "x",
+        "--type",
+        "alchemer",
+        "--credentials-json",
+        "creds.json",
+    )
+
+    assert res.exit_code == 1
+    assert secret not in res.output
+    assert "api_token_secret" in res.output
+
+
+def test_the_accounts_add_help_warns_about_reusing_a_facebook_name(runner, obj):
+    res = run(runner, obj, "accounts", "add", "--help")
+
+    assert "DO NOT REUSE A FACEBOOK CREDENTIAL'S NAME" in res.output
+    assert "NAMES may not contain" in res.output
+
+
+def test_the_accounts_help_says_whose_credentials_these_are(runner, obj):
+    res = run(runner, obj, "accounts", "--help")
+
+    assert "shared org" in res.output

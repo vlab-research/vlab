@@ -893,6 +893,76 @@ class VlabClient:
         """
         self.request("DELETE", f"/users/api-keys/{_seg(key_id)}")
 
+    def create_api_key(
+        self,
+        name: str,
+        scopes: Optional[Sequence[str]] = None,
+        expires_in_days: Optional[int] = None,
+    ) -> Dict[str, Any]:
+        """`POST /users/api-key`. Needs `auth:write`. Returns the token ONCE.
+
+        `{name, id, token, scopes, expires_at}`. The token is not stored
+        anywhere -- this service keeps only its `jti` -- so it cannot be
+        retrieved again; `list_api_keys` shows names and ids and never tokens.
+
+        ATTENUATING. A key may only mint a key no more powerful than itself,
+        and `scopes=None` is a request for FULL ACCESS rather than for none, so
+        a scoped key asking for an unscoped one gets a 403. Omitting `scopes`
+        works only from an unrestricted key (an Auth0 dashboard session, or a
+        key minted with no scopes claim).
+
+        `expires_in_days` is 1..`MAX_API_TOKEN_TTL_DAYS`; omitted, the server's
+        default TTL applies. There is no "never expires".
+        """
+        body: Dict[str, Any] = {"name": name}
+        if scopes is not None:
+            body["scopes"] = list(scopes)
+        if expires_in_days is not None:
+            body["expires_in_days"] = expires_in_days
+        return self._data("POST", "/users/api-key", json=body)
+
+    # -- connected accounts ------------------------------------------------
+
+    def list_accounts(self, auth_type: Optional[str] = None) -> List[Dict[str, Any]]:
+        """`GET /users/accounts` -- `[{name, auth_type, created}]`. `auth:read`.
+
+        Never a secret, on any type. This is where a valid
+        `data-sources[].credentials_key` comes from; `meta_credentials` is the
+        same question asked about Facebook alone, org-addressed.
+        """
+        return self._data("GET", "/users/accounts", params={"auth_type": auth_type})
+
+    def create_account(
+        self, name: str, auth_type: str, credentials: Mapping[str, Any]
+    ) -> Dict[str, Any]:
+        """`POST /users/accounts` -- connect, or REPLACE by name. `auth:write`.
+
+        An upsert: the same `(auth_type, name)` replaces the stored credential
+        in one transaction. Returns the non-secret row, never the secret back.
+
+        `auth_type` is one of typeform, fly, qualtrics, alchemer, and
+        `credentials` must match that provider's shape exactly -- an unknown
+        key is a 422, not a silently dropped field. `facebook` and `api_key`
+        are 400s that say what to do instead.
+        """
+        return self._data(
+            "POST",
+            "/users/accounts",
+            json={
+                "name": name,
+                "auth_type": auth_type,
+                "credentials": dict(credentials),
+            },
+        )
+
+    def delete_account(self, auth_type: str, name: str) -> None:
+        """`DELETE /users/accounts/{auth_type}/{name}`. 204, or 404. `auth:write`.
+
+        404 rather than 403 for an account that is not yours, so this cannot be
+        used to find out whether someone else has one by that name.
+        """
+        self.request("DELETE", f"/users/accounts/{_seg(auth_type)}/{_seg(name)}")
+
 
 def _seg(value: str) -> str:
     """Percent-encode one path segment.
