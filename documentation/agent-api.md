@@ -961,7 +961,7 @@ tool (§6b).
 
 ### 2.8 `/users/accounts` — connected accounts
 
-Since adopt v0.1.91. Three routes, all under `/users/...`, so all classified
+Since adopt v0.1.93. Three routes, all under `/users/...`, so all classified
 `auth:read` / `auth:write` by the method with no new branch in the scope map.
 Design record: `planning/mcp-full-coverage.md` §2 Phase C.
 
@@ -2550,7 +2550,7 @@ client.
 ### 2026-09-08 — connected accounts and key minting over the API
 
 Design record: `planning/mcp-full-coverage.md` §2 Phase C; the contract is
-§2.8; adopt v0.1.91. **Three new endpoints under `/users/accounts`, four new
+§2.8; adopt v0.1.93. **Three new endpoints under `/users/accounts`, four new
 MCP tools, and no behaviour change to anything that existed.**
 
 The gap was narrow and blocking. A `data-sources[]` entry names a credential by
