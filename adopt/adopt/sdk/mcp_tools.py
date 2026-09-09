@@ -1308,9 +1308,29 @@ async def list_accounts(auth_type: Optional[str] = None) -> Dict[str, Any]:
 
 
 async def create_account(
-    name: str, auth_type: str, credentials: Dict[str, Any]
+    # `Any`, not `Dict[str, Any]`, and ONLY on this parameter. FastMCP builds
+    # the tool's input schema from these annotations and validates arguments
+    # against it BEFORE the tool body runs -- and its rejection message renders
+    # `input_value='...'`, which for this parameter is the caller's live
+    # third-party secret, echoed into the agent's context by a layer this
+    # module does not control. Widening the annotation moves the type check
+    # inside the tool, where `create_account`'s own parse produces a scrubbed
+    # 422 instead. The JSON schema therefore says only "credentials", with no
+    # type; the docstring below is what states the shape, which is what an
+    # agent reads anyway.
+    #
+    # Deliberately narrow: every other parameter here keeps its real annotation,
+    # because none of them can carry a secret.
+    name: str,
+    auth_type: str,
+    credentials: Any,
 ) -> Dict[str, Any]:
     """Connect a third-party account, or replace one by name. Needs `auth:write`.
+
+    `credentials` is an OBJECT of the provider's fields (the shapes are listed
+    below). Its JSON schema is deliberately untyped so that a mistyped value is
+    reported by this tool, which strips the value out of the error, rather than
+    by the argument validator, which quotes it back.
 
     WRITES a credentials row. UPSERT: posting a `name` that already exists
     under the same `auth_type` REPLACES that credential -- there is no separate

@@ -225,6 +225,20 @@ class CreateAccountRequest(BaseModel):
                 "an account as /users/accounts/{auth_type}/{name}, and such a "
                 "name could be created and then never deleted"
             )
+        if v in (".", ".."):
+            # The third route to the same hazard, and the one that survives
+            # percent-encoding: `quote(".", safe="")` is `.`, because RFC 3986
+            # lists it unreserved, so there is no encoding a client could use
+            # to smuggle it through. The path stack then NORMALISES the segment
+            # away -- `.` leaves `/users/accounts/typeform`, a 404 here and a
+            # 405 for `..`, which removes the preceding segment too. Neither
+            # ever reaches the delete route, so both are creatable and
+            # permanently undeletable.
+            raise ValueError(
+                "name must not be '.' or '..': a path segment of either is "
+                "normalised away before routing, so such an account could be "
+                "created and then never deleted"
+            )
         if any(ord(c) < 32 or ord(c) == 127 for c in v):
             raise ValueError("name must not contain control characters")
         return v

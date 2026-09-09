@@ -454,7 +454,14 @@ class InProcessBackend:
                 name=name, scopes=scopes, expires_in_days=expires_in_days
             )
         except Exception as e:
-            raise HTTPException(status_code=422, detail=_field_errors(e)) from e
+            # `scrub=True`: nothing here is a third-party secret, but `scopes`
+            # and `name` are echoed on a `missing`-shaped error alongside
+            # whatever else was in the model, and this is the key-minting path.
+            # Cheap consistency with `create_account` beats reasoning about
+            # which field pydantic will quote.
+            raise HTTPException(
+                status_code=422, detail=_field_errors(e, scrub=True)
+            ) from e
 
         body = await create_api_key(
             request,
@@ -512,10 +519,15 @@ class InProcessBackend:
         # by the per-type model in the handler.
         try:
             parsed = CreateAccountRequest(
-                name=name, auth_type=auth_type, credentials=dict(credentials)
+                name=name, auth_type=auth_type, credentials=credentials
             )
         except Exception as e:
-            raise HTTPException(status_code=422, detail=_field_errors(e)) from e
+            # `scrub=True`: the value pydantic would quote back IS the caller's
+            # live third-party token, and a tool error goes straight into an
+            # agent's context window.
+            raise HTTPException(
+                status_code=422, detail=_field_errors(e, scrub=True)
+            ) from e
 
         body = await create_account_endpoint(parsed, self.user)
         return CreateAccountResponse(**body).model_dump(mode="json")["data"]
@@ -527,27 +539,44 @@ class InProcessBackend:
         await delete_account_endpoint(auth_type, name, self.user)
 
 
-def _field_errors(exc: Exception) -> Any:
+def _field_errors(exc: Exception, scrub: bool = False) -> Any:
     """A pydantic `ValidationError` in FastAPI's 422 `detail` shape.
 
     So that a client parsing `detail[i].loc` off the HTTP route can parse it off
     a tool error too. `body` first, matching FastAPI, which prefixes `loc` with
     where the value came from.
 
-    THE SUBMITTED VALUE IS STRIPPED (`accounts.scrub_field_errors`). Every error
-    this produced used to carry pydantic's `input`, and for a `missing` error
-    that is the whole enclosing object -- so `create_account` with a field
-    missing echoed the credential the caller had just sent, into a tool result
-    and therefore into an agent's context. `loc`, `msg` and `type` are what a
-    caller needs to fix the request; the value is what they already have.
+    `scrub` DEFAULTS TO FALSE, AND THAT IS THE POINT OF THE PARAMETER. For
+    `post_conf` -- which is almost every 422 this module raises -- the offending
+    VALUE is the most useful half of the report: an agent told "expected int,
+    got '48 hours'" can fix its conf, where one told only `loc` and `msg` has to
+    go and look. A study conf is the caller's own configuration, so echoing it
+    back reveals nothing they did not send. That was the behaviour before Phase
+    C and it is restored here; scrubbing it for everyone was a regression.
 
-    `str(exc)` is deliberately not the fallback for a `ValidationError` either:
-    pydantic's `__str__` renders `input_value=...`, which is the same leak by
-    another route.
+    The credential call sites (`create_account`, `create_api_key`) pass
+    `scrub=True`, because there the submitted value IS a live third-party
+    secret, a tool error goes straight into an agent's context window, and
+    pydantic's `input` on a `missing` error is the whole enclosing object.
+
+    The `str(exc)` fallback is likewise restored for the unscrubbed path: a
+    non-`ValidationError` reaching here is a defect, and its real message is
+    what makes it reportable. On the scrubbed path it stays suppressed, because
+    pydantic's `__str__` renders `input_value=...` and a defect is not a reason
+    to leak a token.
     """
+    errors = getattr(exc, "errors", None)
+
+    if not scrub:
+        if errors is None:
+            return str(exc)
+        try:
+            return [{**e, "loc": ["body", *e.get("loc", ())]} for e in errors()]
+        except Exception:  # noqa: BLE001 -- never let error reporting raise
+            return str(exc)
+
     from .accounts import scrub_field_errors
 
-    errors = getattr(exc, "errors", None)
     if errors is None:
         return "the request body did not validate"
     return scrub_field_errors(errors(), ("body",))

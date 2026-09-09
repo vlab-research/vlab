@@ -1491,3 +1491,124 @@ def test_the_shadowing_guard_holds_on_this_transport_too(app_client, org):
     assert is_error
     assert "409" in message
     assert "SHADOW" in message
+
+
+# --------------------------------------------------------------------------
+# Where the 422 is raised, and what it is allowed to say
+#
+# Two different layers reject a bad argument on this transport, and only one of
+# them is ours. FastMCP validates `tools/call` arguments against the schema it
+# built from the tool's signature, BEFORE the tool body runs, and its rejection
+# renders `input_value='...'`. For `create_account.credentials` that value is a
+# live third-party token, so that parameter is annotated `Any` and the tool's
+# own scrubbing parse owns the type check.
+# --------------------------------------------------------------------------
+
+
+def test_a_bare_string_credentials_does_not_echo_the_secret(app_client, org):
+    """The argument validator's message is not ours to format, so the fix is to
+    stop it having an opinion about this parameter."""
+    token, _ = generate_api_token(user_id=USER, name="p", scopes=["auth:write"])
+    secret = "SECRET-AS-A-BARE-STRING-7d1e"
+
+    message, is_error = call_tool(
+        app_client,
+        "create_account",
+        {"name": "x", "auth_type": "typeform", "credentials": secret},
+        token,
+    )
+
+    assert is_error
+    assert secret not in message
+    assert "422" in message
+
+
+def test_the_credentials_parameter_is_untyped_in_the_tool_schema():
+    """Pins the mechanism rather than only the symptom: if the annotation goes
+    back to `Dict[str, Any]`, FastMCP starts rejecting a mistyped value itself
+    and quoting it back, and the test above would be the only warning."""
+    schema = {t["name"]: t["schema"] for t in _stdio_tools()}
+    create_account = json.loads(schema["create_account"])
+
+    credentials = create_account["properties"]["credentials"]
+    assert "type" not in credentials, (
+        "create_account.credentials must stay untyped in the tool schema, so "
+        "that a mistyped value is reported by the tool (which strips the "
+        "value) rather than by FastMCP (which quotes it back)"
+    )
+    # And only that one: nothing else here can carry a secret.
+    assert create_account["properties"]["name"]["type"] == "string"
+    assert create_account["properties"]["auth_type"]["type"] == "string"
+
+
+def test_a_conf_422_over_mcp_still_carries_the_offending_value(app_client, org):
+    """THE REGRESSION GUARD. `_field_errors` is shared with `post_conf`, and
+    scrubbing it for everyone stripped the most useful half of a conf error.
+
+    A study conf is the caller's own configuration, so echoing it back reveals
+    nothing they did not send, and the value is what makes the error actionable.
+
+    Asserted on the structured `detail`, not on the rendered message:
+    `VlabHTTPError.detail_lines` has only ever printed `loc: msg`, so the value
+    was never in the sentence and this would pass either way there. `detail` is
+    what a client parses, and `input` is the field that went missing.
+    """
+    from ..sdk.client import UnprocessableError
+
+    backend = ms.InProcessBackend(User(user_id=USER))
+    section = [
+        {
+            "type": "messenger",
+            "name": "main",
+            "initial_shortcode": "abc123",
+            "welcome_message": "hello",
+            "button_text": "Start",
+            "welcom_message": "THE-OFFENDING-VALUE",
+        }
+    ]
+
+    with pytest.raises(UnprocessableError) as e:
+        asyncio.run(backend.post_conf(org, "hpv", "destinations", section))
+
+    error = e.value.detail[0]
+    assert "welcom_message" in error["loc"]
+    assert (
+        error["input"] == "THE-OFFENDING-VALUE"
+    ), "a conf 422 must keep the offending value -- see _field_errors(scrub=)"
+
+
+def test_a_create_account_422_does_not_carry_the_value(app_client, org):
+    """The same helper, the same shape, the opposite decision -- because here
+    the value is a live third-party secret and the error goes into an agent's
+    context window."""
+    from ..sdk.client import UnprocessableError
+
+    backend = ms.InProcessBackend(User(user_id=USER))
+    secret = "SECRET-IN-A-DETAIL-PAYLOAD-8c2f"
+
+    with pytest.raises(UnprocessableError) as e:
+        asyncio.run(
+            backend.create_account(
+                name="x", auth_type="alchemer", credentials={"api_token": secret}
+            )
+        )
+
+    error = e.value.detail[0]
+    assert "api_token_secret" in error["loc"]
+    assert "input" not in error
+    assert secret not in json.dumps(e.value.detail)
+
+
+def test_a_non_pydantic_failure_keeps_its_message_on_the_conf_path(app_client, org):
+    """The other half of the restored behaviour: `str(exc)` is the fallback for
+    a conf error, because a defect reaching there is only reportable if its real
+    message survives."""
+    detail = ms._field_errors(RuntimeError("something specific broke"))
+
+    assert detail == "something specific broke"
+
+    # ...and NOT on the credential path, where pydantic's `__str__` renders
+    # `input_value=` and a defect is no reason to leak a token.
+    assert ms._field_errors(RuntimeError("x"), scrub=True) == (
+        "the request body did not validate"
+    )

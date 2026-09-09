@@ -3,8 +3,12 @@ from typing import Annotated, Any, Optional, Sequence, Dict
 from datetime import datetime
 from environs import Env
 from fastapi import Depends, FastAPI, HTTPException, Response, status, BackgroundTasks
+from fastapi.encoders import jsonable_encoder
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from starlette.requests import Request
 from facebook_business.exceptions import FacebookRequestError
 from pydantic import BaseModel
 import pandas as pd
@@ -47,7 +51,7 @@ from ..study_conf_strict import (
 )
 from ..confs import CONF_TYPE_BY_URL_SEGMENT, dump_conf
 from .auth import AuthError, verify_tokens
-from .accounts import router as accounts_router
+from .accounts import router as accounts_router, scrub_field_errors
 from .api_keys import add_scope_enforcement, router as api_keys_router
 
 # Re-exported for backwards compatibility: these moved to deps.py so that route
@@ -119,6 +123,52 @@ app.include_router(api_keys_router)
 # `api_keys.py` is one: every path is `/users/...`, so it shares the api-key
 # routes' scope classification and none of the org-scoped routing below.
 app.include_router(accounts_router)
+
+
+# The credential routes' 422s must not quote the credential back.
+#
+# `accounts.py` strips the submitted value out of every error IT raises, but a
+# body that fails FastAPI's own parse never reaches the handler: `credentials`
+# sent as a bare string, or an unknown top-level field under `extra="forbid"`,
+# is a `RequestValidationError` raised by the framework, and its default body
+# carries pydantic's `input` -- which for those two cases is the token itself.
+# Only an app-level handler sees those.
+#
+# PATH-SCOPED, AND THAT IS THE WHOLE DESIGN. Scrubbing globally would strip the
+# offending value out of every conf 422 on this service, and there the value is
+# the most useful half of the report: an agent told "expected int, got
+# '48 hours'" at `strata[0].quota` can fix it, where one told only `loc` and
+# `msg` has to go and look. A study conf is also the caller's own configuration,
+# so echoing it reveals nothing they did not send. Credentials are the one body
+# on this service that is a live third-party secret, so they are the one path
+# that gets different treatment -- and every other route keeps FastAPI's default
+# body byte for byte, which is what makes this change safe to reason about.
+#
+# Prefix-matched rather than exact so it covers `/users/accounts/{type}/{name}`
+# too; `/users/api-key` is here because a mint body carries `name` and `scopes`
+# and is the other credential-shaped write.
+_SCRUBBED_422_PREFIXES = ("/users/accounts", "/users/api-key")
+
+
+@app.exception_handler(RequestValidationError)
+async def _scrub_credential_validation_errors(
+    request: Request, exc: RequestValidationError
+):
+    path = request.url.path
+    if not path.startswith(_SCRUBBED_422_PREFIXES):
+        # FastAPI's own handler, reproduced exactly: registering an override
+        # replaces the default for EVERY route, so the untouched paths have to
+        # be answered here identically or this becomes a service-wide change.
+        return JSONResponse(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            content={"detail": jsonable_encoder(exc.errors())},
+        )
+
+    return JSONResponse(
+        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        content={"detail": jsonable_encoder(scrub_field_errors(exc.errors()))},
+    )
+
 
 # The read-only Meta Graph proxy. Mounted BEFORE the conf routes below only
 # because include_router calls happen here; its paths (/{org_id}/meta/...)

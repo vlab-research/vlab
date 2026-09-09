@@ -395,6 +395,50 @@ this branch.
    study resolves credentials against ITS OWNER rather than the caller is now
    in the tool descriptions, the CLI help and §2.8.
 
+#### Second review pass, 2026-09-08
+
+Re-verification confirmed 1, 4, 5, 6 and 7 fixed and found three more.
+
+A. **422s raised BEFORE the handler still echoed the secret.** The scrubbing
+   lived in `accounts.py`, so it only covered errors the handler itself raised;
+   a body FastAPI rejects during its own parse never gets there. Two shapes did
+   that: `credentials` sent as a bare string (`dict_type`), and an unknown
+   top-level field under `extra="forbid"` — and pydantic's `input` for both is
+   the token. Fixed with an app-level `RequestValidationError` handler in
+   `server.py`, **path-scoped** to `/users/accounts` and `/users/api-key`, that
+   reproduces FastAPI's default body byte for byte everywhere else. Registering
+   an override replaces the default for every route, so the untouched half has
+   to be answered identically or this becomes a service-wide change.
+
+   On MCP the leak was one layer higher again: FastMCP validates `tools/call`
+   arguments against the schema built from the tool's signature, before the
+   body runs, and renders `input_value='...'` — a message this repo does not
+   format. `create_account.credentials` is therefore annotated `Any`, which
+   moves the type check inside the tool where the scrubbing parse owns it. A
+   test asserts the parameter stays untyped in the served schema, because
+   restoring `Dict[str, Any]` would silently hand validation back.
+
+B. **`.` and `..` were creatable and undeletable.** The third road to the
+   hazard the name validator already guarded, and the one no encoding closes:
+   both are RFC 3986 unreserved, so `quote(name, safe="")` leaves them alone,
+   and the path stack normalises the whole segment away — `.` leaves
+   `/users/accounts/typeform` (404) and `..` removes the preceding segment too
+   (405). Refused. The round-trip test now states the property over both
+   outcomes: a name is either rejected at create or it deletes.
+
+C. **A regression of my own, and the sharpest lesson here.** `_field_errors` in
+   `mcp_server.py` is shared with `post_conf`, so scrubbing it wholesale
+   stripped `input` and `ctx` from every study-conf 422 over MCP, and replaced
+   a genuine non-pydantic exception message with a fixed sentence. The value is
+   the useful half of a conf error and a conf is the caller's own configuration.
+   The helper now takes `scrub: bool = False` — the default restores the old
+   behaviour, and only `create_account` and `create_api_key` pass `True`.
+
+   The general shape: a security fix applied at a shared helper rather than at
+   the call sites that need it silently degrades every other caller. The
+   discriminator is not "is this a validation error" but "is this value a
+   secret", and only the call site knows.
+
 #### The open decision, unchanged
 
 **C2 sends a third-party secret through an agent's context and stores it.** It

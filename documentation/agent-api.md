@@ -1077,13 +1077,25 @@ authentication until somebody deletes the row. The guard is route-local; the
 underlying resolver is a follow-up (`planning/mcp-full-coverage.md` §4).
 
 **Names** are 1–200 characters and may not contain `/`, `%`, or control
-characters. `/` because the delete route addresses an account as
-`/users/accounts/{auth_type}/{name}` and such a row could be created and then
-never deleted; `%` because `a%2Fb` encodes to `a%252Fb`, which the stack
-decodes twice back into a separator. A **422** carries FastAPI's per-field
-shape with `loc`, `msg` and `type` — and deliberately **not** pydantic's
-`input` or `ctx`, which would echo the credential you just sent back into the
-response body, a log line, and an agent's context window.
+characters, and may not be `.` or `..`. All three rules keep one property:
+a name that can be created can be deleted. `/` because the delete route
+addresses an account as `/users/accounts/{auth_type}/{name}` and such a row
+could never be addressed; `%` because `a%2Fb` encodes to `a%252Fb`, which the
+stack decodes twice back into a separator; `.` and `..` because they are
+unreserved, so no encoding hides them, and the path stack normalises the whole
+segment away before routing.
+
+A **422** on these routes carries FastAPI's per-field shape with `loc`, `msg`
+and `type` — and deliberately **not** pydantic's `input` or `ctx`, which would
+echo the credential you just sent into the response body, a log line, and an
+agent's context window. That stripping is **path-scoped to `/users/accounts`
+and `/users/api-key`**: everywhere else on this service a 422 keeps the
+offending value, because a study conf is your own configuration and "expected a
+valid number, got `48 hours`" is the actionable half of the report. Over MCP the
+same split holds — `create_account` strips, `push_study` does not — and
+`create_account`'s `credentials` argument is deliberately untyped in the tool
+schema so that a mistyped value is reported by the tool rather than by the
+argument validator, which would quote it back.
 
 #### `DELETE /users/accounts/{auth_type}/{name}` — `auth:write`, 204
 

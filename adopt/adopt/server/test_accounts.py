@@ -941,6 +941,11 @@ def test_another_users_facebook_credential_does_not_block_your_name():
         # separator. Verified against this stack, not assumed.
         "a%2Fb",
         "50%",
+        # And the third road, which no encoding can close: `.` and `..` are
+        # RFC 3986 unreserved, so `quote(name, safe="")` leaves them alone, and
+        # the path stack then normalises the segment away before routing.
+        ".",
+        "..",
     ],
 )
 def test_a_name_that_could_not_be_deleted_is_refused(name):
@@ -986,7 +991,25 @@ def test_an_over_long_name_is_refused():
 
 @pytest.mark.parametrize(
     "name",
-    ["main", "a b", "a.b", "a-b_c", "Ünïcøde", "200" + "x" * 197, "a?b", "a#b", "a&b"],
+    [
+        "main",
+        "a b",
+        "a.b",
+        "..leading-dots",
+        "a-b_c",
+        "Ünïcøde",
+        "200" + "x" * 197,
+        "a?b",
+        "a#b",
+        "a&b",
+        # Refused, so the assertion below takes its other branch. Kept in THIS
+        # test rather than only in the refusal test above, so that the property
+        # -- created implies deletable -- is stated over both outcomes in one
+        # place: a name is either rejected at create or it round-trips. Adding
+        # a name here and forgetting the validator fails as a 404 on delete.
+        ".",
+        "..",
+    ],
 )
 def test_every_name_this_route_accepts_is_deletable(name):
     """The property the validator exists to keep: created implies deletable.
@@ -994,12 +1017,20 @@ def test_every_name_this_route_accepts_is_deletable(name):
     `a?b`, `a#b` and `a&b` are here because the client percent-encodes a path
     segment (`client._seg`), so they exercise the encoding rather than the
     validator: each of them would otherwise change what the path means.
+    `..leading-dots` is here because only the WHOLE segment is normalised away,
+    so a name that merely starts with dots must still be accepted.
     """
     created = client.post(
         "/users/accounts",
         headers=_token(),
         json={"name": name, "auth_type": "fly", "credentials": {"api_key": "k"}},
     )
+
+    if created.status_code == 422:
+        # Refused at the door, which is the other way to keep the property.
+        assert _stored() == []
+        return
+
     assert created.status_code == 201, created.text
 
     deleted = client.delete(
@@ -1008,6 +1039,20 @@ def test_every_name_this_route_accepts_is_deletable(name):
 
     assert deleted.status_code == 204, deleted.text
     assert _stored() == []
+
+
+@pytest.mark.parametrize("name", [".", ".."])
+def test_a_dot_segment_name_is_refused_with_the_reason(name):
+    """Pinned separately from the round-trip test above, which would also pass
+    if these were simply rejected for the wrong reason."""
+    res = client.post(
+        "/users/accounts",
+        headers=_token(),
+        json={"name": name, "auth_type": "fly", "credentials": {"api_key": "k"}},
+    )
+
+    assert res.status_code == 422, res.text
+    assert "normalised away" in res.text
 
 
 # --------------------------------------------------------------------------
@@ -1034,3 +1079,105 @@ def test_a_details_blob_that_is_not_an_object_does_not_500_the_listing(details):
         "created": res.json()["data"][0]["created"],
         "id": None,
     }
+
+
+# --------------------------------------------------------------------------
+# 422s raised BEFORE the handler
+#
+# `accounts.py` scrubs every error IT raises, but a body that fails FastAPI's
+# own parse never reaches the handler -- and its default 422 carries pydantic's
+# `input`, which for these two shapes is the credential itself. Only the
+# app-level handler in `server.py` sees them, so these tests drive the REAL app
+# rather than this module's stub, which has no exception handler on it.
+# --------------------------------------------------------------------------
+
+
+@pytest.fixture
+def real_app_client():
+    from .server import app
+
+    return TestClient(app, raise_server_exceptions=False)
+
+
+def test_credentials_sent_as_a_bare_string_does_not_echo_the_secret(real_app_client):
+    """`credentials: "<token>"` is a `dict_type` error raised by FastAPI's body
+    parse, and its default `input` is the whole token."""
+    res = real_app_client.post(
+        "/users/accounts",
+        headers=_token(),
+        json={"name": "x", "auth_type": "typeform", "credentials": SECRET},
+    )
+
+    assert res.status_code == 422, res.text
+    assert SECRET not in res.text
+    # The diagnosis survives.
+    assert "credentials" in res.text
+    assert _stored() == []
+
+
+def test_an_unknown_top_level_field_does_not_echo_its_value(real_app_client):
+    """`extra_forbidden` from `model_config = ConfigDict(extra='forbid')`. The
+    field a caller is most likely to send by mistake is the Go route's
+    `connectedAccount`, whose value is the credential object."""
+    res = real_app_client.post(
+        "/users/accounts",
+        headers=_token(),
+        json={
+            "name": "x",
+            "auth_type": "typeform",
+            "credentials": {"key": "ok"},
+            "connectedAccount": {"credentials": {"key": SECRET}},
+        },
+    )
+
+    assert res.status_code == 422, res.text
+    assert SECRET not in res.text
+    assert "connectedAccount" in res.text
+    assert _stored() == []
+
+
+def test_a_bad_mint_body_is_scrubbed_too(real_app_client):
+    """`/users/api-key` is the other credential-shaped write on this service."""
+    res = real_app_client.post(
+        "/users/api-key",
+        headers=_token(),
+        json={"name": "k", "scopes": SECRET, "unknown": SECRET},
+    )
+
+    assert res.status_code == 422, res.text
+    assert SECRET not in res.text
+
+
+def test_the_scrubbing_handler_is_path_scoped(real_app_client):
+    """THE OTHER HALF, and the reason the handler is not global: registering an
+    override replaces FastAPI's default for EVERY route, so a conf 422 has to
+    come back byte for byte as it did before.
+
+    The value is the useful half of a conf error -- an agent told "expected a
+    valid number, got '48 hours'" can fix it -- and a study conf is the caller's
+    own configuration, so echoing it reveals nothing they did not send.
+    """
+    org_id = str(uuid.uuid4())
+    execute(db_conf, "insert into orgs (id, name) values (%s, %s)", (org_id, org_id))
+    execute(
+        db_conf,
+        "insert into orgs_lookup (org_id, user_id) values (%s, %s)",
+        (org_id, USER),
+    )
+
+    res = real_app_client.post(
+        f"/{org_id}/studies/nope/confs/general",
+        headers=_token(),
+        json={
+            "name": "HPV",
+            "credentials_key": "Facebook",
+            "credentials_entity": "facebook",
+            "ad_account": "123",
+            "opt_window": "48 hours",
+        },
+    )
+
+    assert res.status_code == 422, res.text
+    error = res.json()["detail"][0]
+    assert "input" in error, "conf 422s must keep the offending value"
+    assert error["input"] == "48 hours"
