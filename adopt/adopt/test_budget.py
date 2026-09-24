@@ -6,6 +6,7 @@ import pandas as pd
 import pytest
 
 from .budget import (
+    ad_share,
     add_incentive,
     calc_price,
     estimate_price,
@@ -556,7 +557,15 @@ def test_get_budget_lookup_includes_incentive_in_total_spend(cnf, df):
         efficiency_weight=1.0,
     )
 
-    assert sum(budget.values()) == pytest.approx(50)
+    # 50 is left in total, but only the ad share of it goes to Meta: the
+    # incentives of the new recruits the optimizer expects are paid elsewhere.
+    new_recruits = sum(
+        r["expected_participants"] - r["current_participants"]
+        for r in report.values()
+    )
+    assert new_recruits > 0
+    assert sum(budget.values()) == pytest.approx(50 - new_recruits * incentive)
+    assert {k: r["current_budget"] for k, r in report.items()} == budget
 
 
 def test_get_budget_lookup_works_with_zero_incentive(cnf, df):
@@ -590,6 +599,23 @@ def test_get_budget_lookup_works_with_zero_incentive(cnf, df):
         efficiency_weight=1.0,
     )
     assert sum(budget.values()) == pytest.approx(30)  # 60 - 30 = 30 remaining
+
+
+def test_ad_share_subtracts_incentive_of_new_recruits():
+    budget = {"foo": 100.0, "bar": 50.0}
+    expected = {"foo": 12.0, "bar": 5.0}
+    tot = {"foo": 2, "bar": 3}
+
+    assert ad_share(budget, expected, tot, 0) == budget
+    assert ad_share(budget, expected, tot, 4.0) == {"foo": 60.0, "bar": 42.0}
+
+
+def test_ad_share_never_goes_negative():
+    budget = {"foo": 10.0, "bar": 0.0}
+    expected = {"foo": 5.0, "bar": 1.0}
+    tot = {"foo": 0, "bar": 3}
+
+    assert ad_share(budget, expected, tot, 9.45) == {"foo": 0.0, "bar": 0.0}
 
 
 def test_make_report():

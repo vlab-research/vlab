@@ -898,8 +898,10 @@ GET /{org_id}/studies/{slug}/strata-progress?history=1
 }
 ```
 
-- `current_budget` is the optimizer's allocation for that stratum **over the rest
-  of the recruitment period** — `budget_lookup`, not a daily budget. The ad set's
+- `current_budget` is the ad spend the optimizer allocates to that stratum **over
+  the rest of the recruitment period** — `budget_lookup`, not a daily budget, and
+  without the incentives of the participants it expects to recruit (those are
+  paid outside Meta). The ad set's
   daily budget is this divided by the days left, floored to the cent and zeroed
   if below the study's `min_budget`, so **a non-zero allocation here can still
   mean a paused ad set** (`StudyConf.spend_for_day`, `_divide_among_days_left`

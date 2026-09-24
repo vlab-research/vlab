@@ -855,6 +855,24 @@ def get_stats(
     return spend, respondents, price
 
 
+def ad_share(
+    budget: Dict[str, float],
+    expected: Dict[str, float],
+    tot: Dict[str, int],
+    incentive_per_respondent: float,
+) -> Dict[str, float]:
+    """The part of each stratum's allocation that goes to Meta as ad spend.
+
+    The optimizer prices respondents at ad cost plus incentive, so its
+    allocation also pays the incentives of the new recruits it expects. Those
+    are paid outside Meta, so they come off before the budget reaches the ad set.
+    """
+    return {
+        k: max(0.0, v - max(0.0, expected[k] - tot[k]) * incentive_per_respondent)
+        for k, v in budget.items()
+    }
+
+
 def get_budget_lookup(
     df: Optional[pd.DataFrame],
     strata: Sequence[Union[Stratum, StratumConf]],
@@ -911,6 +929,8 @@ def get_budget_lookup(
     opt_time_ms = (time.perf_counter() - t0) * 1000.0
 
     budget_residual = abs(sum(budget.values()) - to_spend) / max(to_spend, 1.0)
+
+    budget = ad_share(budget, expected, tot, incentive_per_respondent)
 
     logging.info(
         "optimizer_run %s",

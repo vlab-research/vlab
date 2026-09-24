@@ -1001,8 +1001,9 @@ async def strata_progress(org: str, slug: str, history: int = 1) -> Dict[str, An
     going, and what is a respondent costing me" -- the dashboard's
     "Participants per Segment" table, one row per stratum:
 
-    * `current_budget` -- the optimizer's allocation for that stratum over the
-      rest of the recruitment period. NOT a daily budget: the ad set's daily
+    * `current_budget` -- the ad spend the optimizer allocates to that stratum
+      over the rest of the recruitment period, without the incentives of the
+      participants it expects to buy. NOT a daily budget: the ad set's daily
       budget is this divided by the days left, floored to the cent and zeroed if
       below the study's `min_budget`, so a non-zero allocation here can still
       mean a paused ad set.

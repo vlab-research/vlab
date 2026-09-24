@@ -85,8 +85,10 @@ class StratumProgress(BaseModel):
     current_percentage: float = 0.0
     expected_percentage: float = 0.0
     expected_participants: float = 0.0
-    # `budget_lookup`: the optimizer's allocation of the REMAINING optimization
-    # budget across the rest of the recruitment period -- NOT a daily budget.
+    # `budget_lookup`: the ad-spend share of the optimizer's allocation of the
+    # REMAINING optimization budget across the rest of the recruitment period --
+    # NOT a daily budget, and without the incentives of the participants it
+    # expects (`budget.py`, `ad_share`).
     # The ad set's daily budget is `StudyConf.spend_for_day` of this: divided by
     # the days left (0.0 once fewer than one remains), divided by the number of
     # destination arms, floored to the cent, and zeroed below `min_budget`

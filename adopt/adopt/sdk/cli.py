@@ -1332,10 +1332,11 @@ def strata_progress(
 
     \b
     Two traps in the columns:
-    * `current_budget` is the optimizer's allocation for that stratum over the
-      REST OF THE RECRUITMENT PERIOD. The ad set's daily budget is this divided
-      by the days left, floored to the cent and zeroed if below the study's
-      min_budget, so a non-zero allocation here can still mean a paused ad set.
+    * `current_budget` is the ad spend the optimizer allocates to that stratum
+      over the REST OF THE RECRUITMENT PERIOD, incentives excluded. The ad set's
+      daily budget is this divided by the days left, floored to the cent and
+      zeroed if below the study's min_budget, so a non-zero allocation here can
+      still mean a paused ad set.
     * the three `*_percentage` columns are FRACTIONS between 0 and 1, not
       percentages, whatever their names say. The route returns the report's own
       numbers and this prints them; nothing is multiplied on the way.
