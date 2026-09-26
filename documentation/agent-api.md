@@ -1851,13 +1851,21 @@ Type With App Destination"**, which names neither the ad set nor the template.
 `refuse_template_destination_conflicts` catches the disagreement first, at
 config time, with a message that names both.
 
-It can only catch it if the template *states* a destination, which is what its
-`asset_feed_spec` does. `vlab template` therefore emits a one-entry
-`DOF_MESSAGING_DESTINATION` spec on messenger and whatsapp creatives and the
-documented two-entry one on multi — the same shape Ads Manager produces for a
-click-to-messaging ad. **Web and app creatives state no messaging destination
-at all**, so a web template pointed at a Messenger destination is not refused
-by anything; see Known gaps.
+It can only catch it if the template *states* a destination. A multi template
+states it in its two-entry `DOF_MESSAGING_DESTINATION` `asset_feed_spec`. A
+messenger or whatsapp template states it in its own
+`link_data`/`video_data` `.call_to_action.type` (`MESSAGE_PAGE` /
+`WHATSAPP_MESSAGE`). The check reads that when the `asset_feed_spec` names no
+destination, and only for a Messenger or WhatsApp destination.
+
+`vlab template` does **not** put a one-entry `asset_feed_spec` on messenger
+or whatsapp creatives. Meta refuses that shape (code 100, subcode 1885374,
+"An asset feed can have exactly one ad format.", measured 2026-09-08, VIR-51)
+and accepts `object_story_spec` on its own. **Web and app creatives state no
+messaging destination at all**, so a web template pointed at a Messenger
+destination is not refused by anything; neither is a messenger or whatsapp
+template pointed at a multi destination. See Known gaps and
+`planning/template-authoring.md`.
 
 ### The Meta quirks, in one place
 
@@ -2043,21 +2051,27 @@ appsecret_proof provided`).
 
 ### Known gaps
 
-- **Nothing here has been run against live Meta.** Every shape is either lifted
-  from a script that was measured live (`make_template_campaign.py`,
-  `ctwa_probe.py`) or taken from Meta's own documented samples, and every test
-  mocks `FacebookAdsApi.call`. Treat the first live run as an experiment, on a
-  throwaway campaign name.
+- **Only partly verified against live Meta.** `vlab template create` ran
+  against the Virtual Lab account on 2026-09-08 (VIR-51). The messenger and
+  whatsapp shape it builds now (`object_story_spec`, no `asset_feed_spec`) is
+  the one that run measured as accepted. The **multi** `asset_feed_spec` has
+  not been probed since Meta began refusing the one-entry spec, and may be
+  refused the same way. Every test mocks `FacebookAdsApi.call`. Treat a multi
+  template as an experiment, on a throwaway campaign name.
+- **Meta's error text.** A refused create prints Meta's `error_user_msg`
+  (e.g. "An asset feed can have exactly one ad format.") with the code and
+  subcode, and falls back to the generic `message` ("Invalid parameter") only
+  when Meta sent no user message.
 - **`appsecret_proof`** — see above. Unresolved, and only a live call resolves
   it.
 - **A web or app template states no destination, so a mismatch is not caught.**
-  `refuse_template_destination_conflicts` compares the `app_destination` values
-  in the template's `asset_feed_spec` against what the conf's destination
-  means; a web creative has none, so pairing one with a Messenger destination
-  is refused by nothing. It is not silently wrong — the runtime overrides the
-  CTA and the link, so the ad that ships is a correct Messenger ad — but it is
-  not the ad you were looking at in Ads Manager. Messenger, WhatsApp and multi
-  templates *are* checked, in both directions.
+  A web creative has no destination-bearing `asset_feed_spec` and no messaging
+  CTA, so pairing one with a Messenger destination is refused by nothing. It
+  is not silently wrong: the runtime overrides the CTA and the link, so the ad
+  that ships is a correct Messenger ad. But it is not the ad you were looking
+  at in Ads Manager. The same goes for a messenger or whatsapp template pointed
+  at a multi destination. Messenger↔WhatsApp mismatches, and multi templates
+  pointed anywhere else, *are* refused.
 - **Video templates are supported by id only.** `--video-id` references a video
   already on the account; there is no upload, because Meta's video upload is a
   resumable multi-request protocol rather than the single multipart POST an

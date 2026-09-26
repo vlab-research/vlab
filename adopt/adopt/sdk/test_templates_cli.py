@@ -238,6 +238,46 @@ def test_create_applies_the_plan_and_reports_the_ids(runner, spec):
     assert "vlab template delete C1" in result.output
 
 
+def test_create_prints_metas_own_sentence_when_a_creative_is_refused(runner, spec):
+    """VIR-51. The generic "Invalid parameter" is not what the user needs to
+    read; `error_user_msg` is.
+    """
+    from facebook_business.exceptions import FacebookRequestError
+
+    refusal = FacebookRequestError(
+        message="Call was not successful",
+        request_context={},
+        http_status=400,
+        http_headers={},
+        body=json.dumps(
+            {
+                "error": {
+                    "message": "Invalid parameter",
+                    "code": 100,
+                    "error_subcode": 1885374,
+                    "error_user_title": "Invalid Ad Creative Asset Feed Spec",
+                    "error_user_msg": "An asset feed can have exactly one ad format.",
+                }
+            }
+        ),
+    )
+    patcher, _ = _graph(
+        **{
+            "GET campaigns": [{"data": []}],
+            "POST campaigns": [{"id": "C1"}],
+            "POST adsets": [{"id": "A1"}],
+            "POST adcreatives": [refusal],
+        }
+    )
+    with patcher:
+        result = _run(runner, ["template", "create", spec, "--create"])
+
+    assert result.exit_code != 0
+    assert "An asset feed can have exactly one ad format." in result.output
+    assert "code 100, subcode 1885374" in result.output
+    assert "vlab template delete C1" in result.output
+
+
 def test_create_json_carries_the_template_blob_for_a_creatives_conf(runner, spec):
     creative_params = next(
         c["params"]
