@@ -39,6 +39,7 @@ from facebook_business.exceptions import FacebookRequestError
 from ..marketing import (
     _create_creative,
     create_creative,
+    messaging_destinations_stated_by,
     messenger_call_to_action,
     refuse_template_destination_conflicts,
 )
@@ -339,18 +340,6 @@ def test_the_plan_for_a_messenger_campaign_is_byte_stable():
                             "name": "Chat with us",
                             "description": "₦500 in airtime",
                         },
-                    },
-                    "asset_feed_spec": {
-                        "optimization_type": "DOF_MESSAGING_DESTINATION",
-                        "call_to_actions": [
-                            {
-                                "type": "MESSAGE_PAGE",
-                                "value": {
-                                    "app_destination": "MESSENGER",
-                                    "link": "https://fb.com/messenger_doc/",
-                                },
-                            }
-                        ],
                     },
                 },
             },
@@ -713,9 +702,57 @@ def test_a_creative_with_no_page_is_refused():
         )
 
 
-def test_declare_destination_can_be_turned_off():
+@pytest.mark.parametrize("declare_destination", [True, False])
+@pytest.mark.parametrize("kind", [tp.MESSENGER, tp.WHATSAPP])
+def test_a_single_destination_messaging_creative_carries_no_asset_feed_spec(
+    kind, declare_destination
+):
+    """VIR-51. Meta refuses a creative pairing `object_story_spec` with a
+    one-entry DOF_MESSAGING_DESTINATION asset_feed_spec -- 100/1885374, "An
+    asset feed can have exactly one ad format" -- and accepts
+    `object_story_spec` alone. Measured against act_1342820622846299.
+
+    `declare_destination` is accepted either way, so specs still carrying the
+    `declare_destination: false` workaround keep loading.
+    """
     c = tp.build_creative(
-        tp.MESSENGER,
+        kind,
+        name="x",
+        page_id=PAGE,
+        message="m",
+        image_hash="h",
+        declare_destination=declare_destination,
+    )
+    assert set(c) == {"name", "object_story_spec"}
+
+
+@pytest.mark.parametrize("kind", [tp.MESSENGER, tp.WHATSAPP])
+def test_a_single_destination_messaging_creative_states_its_app_in_its_cta(kind):
+    """What replaces the asset_feed_spec as the template's statement of
+    destination, and what `refuse_template_destination_conflicts` reads.
+    """
+    c = tp.build_creative(kind, name="x", page_id=PAGE, message="m", image_hash="h")
+    expected = {tp.MESSENGER: {"MESSENGER"}, tp.WHATSAPP: {"WHATSAPP"}}[kind]
+    assert messaging_destinations_stated_by(c["object_story_spec"]) == expected
+
+
+def test_a_video_messaging_creative_carries_no_asset_feed_spec_either():
+    c = tp.build_creative(
+        tp.WHATSAPP,
+        name="x",
+        page_id=PAGE,
+        message="m",
+        image_hash="thumb",
+        video_id="9",
+        headline="h",
+    )
+    assert "asset_feed_spec" not in c
+    assert messaging_destinations_stated_by(c["object_story_spec"]) == {"WHATSAPP"}
+
+
+def test_declare_destination_can_turn_off_the_multi_spec():
+    c = tp.build_creative(
+        tp.MULTI,
         name="x",
         page_id=PAGE,
         message="m",
@@ -904,20 +941,18 @@ def test_a_built_creative_deploys_through_the_runtime(kind, media):
 def _mismatches():
     """(template kind, destination kind) pairs the runtime must refuse.
 
-    Only pairs where the TEMPLATE ITSELF states a destination -- which is the
-    three messaging kinds, via the `asset_feed_spec` `build_creative` emits.
-    A web or app template states no messaging destination at all, so
-    `refuse_template_destination_conflicts` has nothing to compare and lets
-    every pairing through; that is not an oversight in this module, it is the
-    documented shape of the check (`have` empty means "an ordinary Advantage+
-    or plain image template. Nothing to disagree with"), and it is recorded as
-    a known gap in planning/template-authoring.md.
+    Only pairs where the template states a destination the check reads: a
+    multi template through its `asset_feed_spec`, a messenger or whatsapp
+    template through `call_to_action.type`, which is read only against a
+    Messenger or WhatsApp destination. A web or app template states no
+    messaging destination at all, and a messenger or whatsapp template pointed
+    at a multi destination is not refused (see
+    `test_a_single_destination_template_is_not_refused_for_multi`). Both are
+    recorded as known gaps in planning/template-authoring.md.
     """
     return [
         (tp.MESSENGER, tp.WHATSAPP),
-        (tp.MESSENGER, tp.MULTI),
         (tp.WHATSAPP, tp.MESSENGER),
-        (tp.WHATSAPP, tp.MULTI),
         (tp.MULTI, tp.MESSENGER),
         (tp.MULTI, tp.WHATSAPP),
         (tp.MULTI, tp.WEB),
@@ -941,8 +976,27 @@ def test_a_template_pointed_at_the_wrong_destination_is_refused(
         destination=destination.name,
         template=_template_for(template_kind),
     )
-    with pytest.raises(Exception, match="asset_feed_spec|optimization_type"):
+    with pytest.raises(
+        Exception, match="asset_feed_spec|call_to_action|optimization_type"
+    ):
         refuse_template_destination_conflicts(config, destination)
+
+
+@pytest.mark.parametrize("template_kind", [tp.MESSENGER, tp.WHATSAPP])
+def test_a_single_destination_template_is_not_refused_for_multi(template_kind):
+    """A known gap, pinned so that closing it is a decision. The runtime builds
+    the multi destination array itself, so the ad ships correctly; what is lost
+    is the refusal. The CTA cannot be read against a multi destination, because
+    on a multi ad it is Meta's single-valued fallback and Ads Manager Messenger
+    templates reused for multi studies would start being refused.
+    """
+    destination = DESTINATIONS[tp.MULTI]
+    config = CreativeConf(
+        name="c",
+        destination=destination.name,
+        template=_template_for(template_kind),
+    )
+    refuse_template_destination_conflicts(config, destination)  # must not raise
 
 
 @pytest.mark.parametrize("kind", tp.MESSAGING_KINDS)
@@ -1503,6 +1557,86 @@ def test_a_meta_rejection_is_reported_without_the_whole_request_context():
     assert "sauce" not in message
     # Anything that is not a Meta error keeps its own message.
     assert tp.meta_message(ValueError("connection reset")) == "connection reset"
+
+
+def _creative_rejection(error):
+    return FacebookRequestError(
+        message="Call was not successful",
+        request_context={"params": {"name": "creative:x"}},
+        http_status=400,
+        http_headers={},
+        body=json.dumps({"error": error}),
+    )
+
+
+def test_a_meta_rejection_reports_metas_user_message_over_its_generic_one():
+    """VIR-51. For a refused creative `message` is "Invalid parameter" and the
+    actionable sentence is `error_user_msg`. Recorded body shape.
+    """
+    error = _creative_rejection(
+        {
+            "message": "Invalid parameter",
+            "type": "OAuthException",
+            "code": 100,
+            "error_subcode": 1885374,
+            "is_transient": False,
+            "error_user_title": "Invalid Ad Creative Asset Feed Spec",
+            "error_user_msg": "An asset feed can have exactly one ad format.",
+        }
+    )
+    assert tp.meta_message(error) == (
+        "An asset feed can have exactly one ad format. (code 100, subcode 1885374)"
+    )
+
+
+@pytest.mark.parametrize("user_msg", [None, "", "   "])
+def test_a_meta_rejection_without_a_user_message_falls_back_to_message(user_msg):
+    body = {"message": "Invalid parameter", "code": 100, "error_subcode": 1885374}
+    if user_msg is not None:
+        body["error_user_msg"] = user_msg
+    assert tp.meta_message(_creative_rejection(body)) == (
+        "Invalid parameter (code 100, subcode 1885374)"
+    )
+
+
+def test_a_meta_rejection_whose_body_is_not_json_still_reports():
+    error = FacebookRequestError(
+        message="Call was not successful",
+        request_context={},
+        http_status=502,
+        http_headers={},
+        body="<html>Bad Gateway</html>",
+    )
+    assert tp.meta_message(error) == "Call was not successful"
+
+
+def test_apply_reports_metas_user_message_when_a_create_is_refused(api):
+    """End to end through `apply`: what `vlab template create` prints."""
+    plan = tp.plan_template_campaign(
+        account_id=ACCOUNT, name="Refused", adsets=_adsets(), ads=[_ad()]
+    )
+    refusal = _creative_rejection(
+        {
+            "message": "Invalid parameter",
+            "code": 100,
+            "error_subcode": 1885374,
+            "error_user_msg": "An asset feed can have exactly one ad format.",
+        }
+    )
+    patcher, _ = _graph(
+        **{
+            "GET campaigns": [{"data": []}],
+            "POST campaigns": [{"id": "C1"}],
+            "POST adcreatives": [refusal],
+        }
+    )
+    with patcher:
+        with pytest.raises(tp.TemplateApplyError) as e:
+            tp.apply(plan, api)
+
+    assert "An asset feed can have exactly one ad format." in str(e.value)
+    assert "subcode 1885374" in str(e.value)
+    assert "creative:vlpulse-ng-1" in str(e.value)
 
 
 def test_an_adset_in_another_campaign_is_refused_even_with_a_marked_campaign(api):
