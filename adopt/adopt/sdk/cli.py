@@ -983,11 +983,12 @@ def errors(ctx: click.Context, target: str, as_json: bool) -> None:
     \b
     AN EMPTY LIST IS NOT "HEALTHY", for two separate reasons.
     An error is kept only while it is still being RE-EMITTED -- the latest
-    event per fingerprint, seen in the last 90 minutes (three swoosh crons) --
-    so a problem whose cron stopped running ages out exactly like one that was
-    fixed. And only swoosh, which extracts survey data, writes these events at
-    all: adopt writes none, so no ad-building failure ever appears here. For
-    that, run `vlab plan` and read the error it returns.
+    event per fingerprint, seen within three of its writer's cron periods (3h
+    for swoosh, 12h for the adopt crons) -- so a problem whose cron stopped
+    running ages out exactly like one that was fixed. And only run failures
+    are written: swoosh's extraction problems, and an adopt cron run that
+    failed for the study (a refused ad, a rejected change). Warnings adopt only
+    logs never appear here.
 
     Served even for a study with no data at all, which is when it matters most.
     """

@@ -785,8 +785,9 @@ async def apply_instruction(org: str, slug: str, index: int) -> Dict[str, Any]:
 # What refreshes what, because the descriptions below all have to repeat it:
 # `plan_study` (and the adopt-ads cron, two-hourly) writes the FACEBOOK_ADOPT
 # report and the two time series; the adopt-recruitment-data cron, FOUR-hourly,
-# writes the spend rows `recruitment_stats` sums; swoosh, half-hourly, writes
-# the events `study_errors` derives from. Nothing here refreshes anything.
+# writes the spend rows `recruitment_stats` sums; swoosh (hourly) and the three
+# adopt crons write the events `study_errors` derives from. Nothing here
+# refreshes anything.
 
 
 async def study_errors(org: str, slug: str) -> Dict[str, Any]:
@@ -799,18 +800,24 @@ async def study_errors(org: str, slug: str) -> Dict[str, Any]:
     first_seen, last_seen}], "count": n}`, errors before warnings and newest
     first. Derived from the `study_run_events` log rather than stored as a
     status: the LATEST event per (source, fingerprint), kept only when it is an
-    error or a warning AND was seen in the last 90 MINUTES.
+    error or a warning AND was seen within its source's window -- three of
+    that writer's cron periods: 3 HOURS for `inference`, 12 HOURS for the
+    `optimizer:*` sources.
 
     THAT WINDOW IS WHY AN EMPTY LIST IS NOT "HEALTHY". It is a dead-man's
     switch -- a problem that stops being re-emitted ages out by itself, with
     nobody having closed it -- so `[]` means "nothing is currently
     re-emitting", which also describes a study whose cron stopped running at
-    all. 90 minutes is three times the 30-minute swoosh cron.
+    all.
 
-    AND ONLY ONE WRITER EXISTS. Today only swoosh (survey-data extraction)
-    writes these events. adopt, which builds the ads, writes NONE, so an
-    ad-building failure never appears here whatever went wrong. To see that,
-    run `plan_study` and read its error. `documentation/agent-api.md` §2.3.
+    THE SOURCES. `inference` is swoosh (survey-data extraction).
+    `optimizer:ads`, `optimizer:audience` and `optimizer:recruitment_data` are
+    the adopt crons: a run that failed for this study -- a refused ad, a conf
+    that would not load, a change Meta rejected -- is one `run_error` carrying
+    the reason and remedy, and the next clean run closes it. Only the crons
+    write these; a `plan_study` call reports its failure to you directly.
+    Warnings adopt only logs (e.g. a stratum targeting a variable nothing
+    extracts) do not appear here. `documentation/agent-api.md` §2.3.
 
     Errors are served even when a study has no data at all -- a hard extraction
     failure means no rows exist, which is exactly when this matters.
