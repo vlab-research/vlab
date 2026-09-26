@@ -586,16 +586,25 @@ regression test in `adopt/adopt/server/test_copy_confs.py`.)
 - `GET /{org_id}/optimize/{slug}/errors` — current open errors and warnings for
   the study, derived from `study_run_events`: the newest event per
   `(source, fingerprint)` whose severity is `error` or `warning` and that was
-  seen in the last 90 minutes (`db.py:18`). Errors sort before warnings.
+  seen within its source's recency window: three of that writer's cron
+  periods, so 3 hours for `inference` and 12 hours for `optimizer:*`
+  (`adopt/adopt/run_events.py`). Errors sort before warnings.
   **This is the closest thing to a health check an agent has, and it is worth
   polling after any configuration change.** It degrades to an empty list rather
   than failing if the events table is absent.
-  Its coverage is narrower than the name suggests: `study_run_events` is
-  written only by swoosh, the data-extraction service
-  (`inference/swoosh/events.go:37`, source `"inference"`). **adopt writes no
-  events at all**, so nothing in §4 — the two warnings, a dangling creative
-  name, a failed reconciliation — appears here. An empty error list is not
-  evidence that ad building is healthy.
+  There are two writers. swoosh, the data-extraction service
+  (`inference/swoosh/events.go`, source `"inference"`), writes run failures
+  and per-entity extraction problems. adopt's crons (sources
+  `"optimizer:ads"`, `"optimizer:audience"`, `"optimizer:recruitment_data"`)
+  write one `run_error` per study whose run failed: a guard refusing to build
+  an ad, a conf that will not load, an instruction Meta rejected. The message
+  carries the guard's reason and remedy, and the next clean run closes it.
+  Coverage is still narrower than the name suggests. The §4 **warnings** that
+  adopt only logs (a stratum targeting a variable nothing extracts, a thinned
+  ref with no lookup) do not appear, and a `plan_study` or dashboard-initiated
+  run writes nothing because it returns its error to the caller instead. An
+  empty error list is not evidence that ad building is healthy.
+  `adopt/README.md` "Study run events" has the event table.
 - `GET /{org_id}/optimize/{slug}/current-data` — the inference data rows the
   optimizer is currently reading (`get_current_data`).
 - `GET /{org_id}/studies/{slug}/recruitment-stats` — per-stratum spend, reach,
@@ -1316,9 +1325,10 @@ So:
 > **A `201` means "this section parsed". It does not mean the study works.**
 > You can POST nine perfectly valid sections that name each other incorrectly,
 > receive nine `201`s, and have a study that will never create a single ad —
-> and unless you ask, you will not find out until a cron run hours later, in a
-> log you cannot read. The study-errors endpoint will not tell you: adopt
-> writes no events to it (§2.3).
+> and unless you ask, you will not find out until a cron run hours later. That
+> run's failure does reach the study-errors endpoint as an `optimizer:ads`
+> `run_error` (§2.3), but only after the cron has run, and only if the
+> failure raised rather than being logged as a warning.
 
 **Asking is now one call.** `POST /{org_id}/studies/{slug}/validate` (§2.6)
 runs every check in this section, plus the dangling-name checks below, and
@@ -2216,7 +2226,7 @@ and not one refreshes anything.
 |---|---|---|
 | `recruitment_stats` spend, reach, clicks, impressions | `adopt-recruitment-data` cron → `recruitment_data_events` | **every 4 hours** |
 | `recruitment_stats` respondents; `respondents_over_time`; `cost_over_time` | a plan run → `adopt_reports` (`plan_study`, or the `adopt-ads` cron) | every 2 hours, per study in its window |
-| `study_errors` | swoosh → `study_run_events` | every 30 minutes |
+| `study_errors` | swoosh and the three adopt crons → `study_run_events` | swoosh hourly; adopt-ads every 2 hours (4 outside `toixo-prod`); audience and recruitment-data every 4 hours |
 | `ad_attributions` | written once when an ad is created; healed by a plan run | — |
 | `current_data` | the survey pipeline; read live from the database | — |
 
@@ -2237,9 +2247,9 @@ Three details that reliably mislead a reader:
   so the first is not the running sum of the second. Days on which nothing
   changed are omitted, so the points are not consecutive days.
 - **`study_errors` returning `[]` is never evidence of health.** It lists only
-  what is still being re-emitted, within 90 minutes, and only swoosh writes
-  those events — adopt writes none, so no ad-building failure appears there
-  (§2.3).
+  what is still being re-emitted within its source's window (3 hours for
+  swoosh, 12 hours for adopt). adopt writes only run failures that raised, not
+  the warnings it logs (§2.3).
 
 `current_data` and `respondents_over_time` are both scoped to the study's
 **inference window**: `recruitment.start_date`..`end_date` for a `simple` or
@@ -2383,6 +2393,24 @@ client.
 ---
 
 ## 8. What landed recently
+
+### 2026-09-26 — `study_errors` gets a second writer: adopt's crons (VIR-34)
+
+Until now adopt caught each study's failure in `malaria.run_updates` and only
+logged it, so a guard refusing to build an ad set was readable only with
+`kubectl logs` on the right pod, and only before the pod was garbage-collected.
+Each cron run now writes `run_started` and then `run_ok` or `run_error` per
+study, under the sources `optimizer:ads`, `optimizer:audience` and
+`optimizer:recruitment_data`. The fingerprint `<source>:run` is stable, so a
+refusal repeated every run shows as one open error with an advancing
+`last_seen`. No new endpoint or schema change: the events come through the same
+`GET /{org}/optimize/{slug}/errors`, `vlab errors` and `study_errors`.
+
+The recency window also changed. It was a global 90 minutes, justified by a
+30-minute swoosh cadence that does not exist (swoosh is hourly), and it was
+shorter than adopt-ads' own two-hour period. It is now three periods per source:
+3 hours for `inference` and 12 hours for `optimizer:*`. Details, and the
+warnings that are still log-only, are in `adopt/README.md`, "Study run events".
 
 ### 2026-09-08 — `strata-progress`: the optimizer's per-stratum plan, over an API key
 
