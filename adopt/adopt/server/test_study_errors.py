@@ -77,17 +77,19 @@ def _insert_event(
     message="boom",
     details=None,
     occurred_at=None,
+    source="inference",
 ):
     q = """
     insert into study_run_events
         (study_id, source, run_id, event_type, fingerprint, severity, message, details, occurred_at)
-    values (%s, 'inference', 'run-1', %s, %s, %s, %s, %s, coalesce(%s, now()))
+    values (%s, %s, 'run-1', %s, %s, %s, %s, %s, coalesce(%s, now()))
     """
     execute(
         db_conf,
         q,
         (
             study_id,
+            source,
             event_type,
             fingerprint,
             severity,
@@ -190,9 +192,9 @@ def test_get_errors_ages_out_stale_errors(verify_mock):
     verify_mock.return_value = {"sub": user_id}
     org_id, study_id, headers = _user_and_study_setup()
 
-    # Dead-man's switch: an error not re-emitted within the 90-min recency
-    # window ages out, even with no closing event.
-    stale = datetime.now(timezone.utc) - timedelta(hours=2)
+    # Dead-man's switch: an error not re-emitted within its source's recency
+    # window (3h for hourly swoosh) ages out, even with no closing event.
+    stale = datetime.now(timezone.utc) - timedelta(hours=4)
     _insert_event(
         study_id, "run_error", "inference:run", "error", occurred_at=stale
     )
@@ -273,3 +275,99 @@ def test_get_study_errors_degrades_gracefully_when_table_missing(query_mock):
     )
 
     assert get_study_errors("any-study-id") == []
+
+
+@patch("adopt.server.auth.verify_token")
+def test_get_errors_window_is_per_source(verify_mock):
+    _reset_db()
+    verify_mock.return_value = {"sub": user_id}
+    org_id, study_id, headers = _user_and_study_setup()
+
+    # Five hours old: past swoosh's 3h window, inside adopt-ads' 12h one. An
+    # adopt-ads error must survive the gap between two of its runs, which a
+    # single global window shorter than its period could not.
+    five_hours_ago = datetime.now(timezone.utc) - timedelta(hours=5)
+    _insert_event(
+        study_id, "run_error", "inference:run", "error", occurred_at=five_hours_ago
+    )
+    _insert_event(
+        study_id,
+        "run_error",
+        "optimizer:ads:run",
+        "error",
+        message="Could not work out what to change on Facebook: bad template",
+        occurred_at=five_hours_ago,
+        source="optimizer:ads",
+    )
+
+    res = client.get(f"/{org_id}/optimize/foo-study/errors", headers=headers)
+
+    errors = res.json()["errors"]
+    assert [e["source"] for e in errors] == ["optimizer:ads"]
+    assert "age" not in errors[0]
+
+
+@patch("adopt.server.auth.verify_token")
+def test_get_errors_optimizer_error_ages_out_past_its_window(verify_mock):
+    _reset_db()
+    verify_mock.return_value = {"sub": user_id}
+    org_id, study_id, headers = _user_and_study_setup()
+
+    _insert_event(
+        study_id,
+        "run_error",
+        "optimizer:ads:run",
+        "error",
+        occurred_at=datetime.now(timezone.utc) - timedelta(hours=13),
+        source="optimizer:ads",
+    )
+
+    res = client.get(f"/{org_id}/optimize/foo-study/errors", headers=headers)
+
+    assert res.json() == {"errors": []}
+
+
+@patch("adopt.server.auth.verify_token")
+def test_events_recorded_by_adopt_surface_through_the_endpoint(verify_mock):
+    # The writer and the reader agree on the format: what run_events records is
+    # what the endpoint serves, and a later run_ok closes it.
+    from ..run_events import (
+        SOURCE_OPTIMIZER_ADS,
+        STAGE_PLAN,
+        record_events,
+        run_error,
+        run_ok,
+        run_started,
+    )
+
+    _reset_db()
+    verify_mock.return_value = {"sub": user_id}
+    org_id, study_id, headers = _user_and_study_setup()
+    sid = str(study_id)
+
+    failure = Exception("Creative 'c1' points at destination 'wa'. Rebuild it.")
+    assert record_events(
+        db_conf,
+        [
+            run_started(sid, SOURCE_OPTIMIZER_ADS, "run-a"),
+            run_error(sid, SOURCE_OPTIMIZER_ADS, "run-a", STAGE_PLAN, failure),
+        ],
+    )
+
+    errors = client.get(
+        f"/{org_id}/optimize/foo-study/errors", headers=headers
+    ).json()["errors"]
+    assert len(errors) == 1
+    assert errors[0]["source"] == "optimizer:ads"
+    assert errors[0]["fingerprint"] == "optimizer:ads:run"
+    assert errors[0]["severity"] == "error"
+    assert errors[0]["message"] == (
+        "Could not work out what to change on Facebook: "
+        "Creative 'c1' points at destination 'wa'. Rebuild it."
+    )
+    assert errors[0]["details"] == {"stage": "plan", "exception": "Exception"}
+
+    assert record_events(db_conf, [run_ok(sid, SOURCE_OPTIMIZER_ADS, "run-b")])
+
+    res = client.get(f"/{org_id}/optimize/foo-study/errors", headers=headers)
+    assert res.json() == {"errors": []}

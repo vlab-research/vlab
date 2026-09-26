@@ -112,9 +112,9 @@ func recordExtractionError(pool *pgxpool.Pool, studyID, runID string, e Extracti
 // leaving it permanent, and adopt/scripts/write_path_probe.py is the
 // purpose-built check that compares Meta's ads against the table.
 //
-// Either way it is self-closing: the derivation keeps only events seen in the
-// last 90 minutes, so once the row exists and the next run stops emitting, it
-// ages out on its own.
+// Either way it is self-closing: the derivation keeps only events seen within
+// three swoosh periods (adopt/adopt/run_events.py), so once the row exists and
+// the next run stops emitting, it ages out on its own.
 //
 // Kept as an explicit case rather than folded into the default it now matches,
 // so that a future change to the default cannot silently re-classify this.

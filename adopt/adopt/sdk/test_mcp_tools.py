@@ -792,12 +792,14 @@ def test_plan_study_says_it_reads_meta_and_heals_attributions():
 def test_study_errors_says_why_an_empty_list_is_not_health():
     """The single most misleadable answer this service gives. An agent that
     reads `[]` as "healthy" will report a study as fine when its cron is dead
-    and when adopt has failed to build a single ad."""
+    or when the failure is one adopt only logs."""
     description = tool_descriptions()["study_errors"]
 
-    assert "90 MINUTES" in description
+    assert "EMPTY LIST IS NOT \"HEALTHY\"" in description
+    assert "3 HOURS" in description
+    assert "12 HOURS" in description
     assert "swoosh" in description
-    assert "adopt" in description
+    assert "optimizer:ads" in description
 
 
 def test_current_data_says_it_is_one_row_per_respondent_per_variable():

@@ -858,7 +858,7 @@ def test_respondents_over_time_is_empty_before_any_plan_run(app_client, org):
 
 def test_study_errors_is_empty_for_a_study_with_no_events(app_client, org):
     """`[]` is the answer, not an error -- and it is not evidence of health:
-    only swoosh writes these events, and they age out after 90 minutes."""
+    events age out once their writer stops re-emitting them."""
     writer, _ = generate_api_token(user_id=USER, name="w", scopes=["studies:write"])
     made, _ = call_tool(app_client, "create_study", {"org": org, "name": "HPV"}, writer)
 
