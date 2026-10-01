@@ -1,5 +1,6 @@
 import json
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
@@ -37,27 +38,50 @@ def test_exit_code(levels, code):
     assert core.exit_code([Finding("c", lv, "k", "s") for lv in levels]) == code
 
 
-def test_render_orders_unknown_first_and_handles_empty():
+def test_render_puts_unknown_first_and_collapses_ok():
     md = core.render_markdown([Finding("a", "ok", "a:1", "fine"),
+                               Finding("c", "ok", "c:1", "also fine"),
+                               Finding("d", "decision", "d:1", "choose"),
                                Finding("b", "unknown", "b:1", "odd")])
-    assert md.index("## unknown") < md.index("## ok")
+    assert md.index("## unknown") < md.index("## decision") < md.index("ok: 2")
     assert "- **b** odd `b:1`" in md
+    assert "ok: 2 — a: fine; c: also fine" in md and "## ok" not in md
     assert "No findings." in core.render_markdown([])
 
 
 def test_snapshot_round_trip_and_history_order(tmp_path):
-    for i in range(3):
+    for i in range(4):
         core.save_snapshot(tmp_path, "c", {"i": i}, NOW + timedelta(hours=i))
-    last = core.save_snapshot(tmp_path, "c", {"i": 3}, NOW + timedelta(hours=3))
-    assert core.load_history(tmp_path, "c", 10, before=last.name) == [
+    core.save_snapshot(tmp_path, "c", {"i": "bad"}, NOW + timedelta(hours=2, minutes=30),
+                       failed=True)
+    last = NOW + timedelta(hours=3)
+    assert core.load_history(tmp_path, "c", 10, before=last) == [
         {"i": 2}, {"i": 1}, {"i": 0}]
-    assert core.load_history(tmp_path, "c", 1, before=last.name) == [{"i": 2}]
+    assert core.load_history(tmp_path, "c", 1, before=last) == [{"i": 2}]
 
 
-def test_run_check_passes_earlier_snapshots_only(tmp_path):
+def test_run_check_passes_earlier_snapshots_only_with_read_at(tmp_path):
     core.run_check("c", fake("c"), {}, tmp_path, False, NOW)
     [f] = core.run_check("c", fake("c"), {}, tmp_path, False, NOW + timedelta(hours=1))
-    assert f.evidence["history"] == [{"n": 1}]
+    assert f.evidence["history"] == [{"n": 1, "read_at": NOW.isoformat()}]
+    assert f.evidence["snapshot"]["read_at"] == (NOW + timedelta(hours=1)).isoformat()
+
+
+def test_raising_check_keeps_its_window_for_the_next_run(tmp_path):
+    core.run_check("c", fake("c"), {}, tmp_path, False, NOW)
+    bad = SimpleNamespace(collect=lambda cfg: {"n": 2}, check=lambda c, s, h: boom(c))
+    [f] = core.run_check("c", bad, {}, tmp_path, False, NOW + timedelta(hours=1))
+    assert (f.level, f.key) == ("unknown", "c:check-error")
+    files = sorted(p.name for p in (tmp_path / "data" / "watch" / "c").iterdir())
+    assert files == ["20260930T120000Z.json", "20260930T130000Z.failed.json"]
+    [f] = core.run_check("c", fake("c"), {}, tmp_path, False, NOW + timedelta(hours=2))
+    assert [h["read_at"] for h in f.evidence["history"]] == [NOW.isoformat()]
+
+
+def test_collect_not_returning_a_dict_is_unknown_and_saves_nothing(tmp_path):
+    [f] = core.run_check("c", fake("c", collect=lambda cfg: [1]), {}, tmp_path, False, NOW)
+    assert (f.level, f.key) == ("unknown", "c:collect-error")
+    assert not (tmp_path / "data").exists()
 
 
 def test_raising_check_is_unknown_and_others_still_run(tmp_path):
@@ -90,6 +114,49 @@ def test_select():
     assert core.select(checks, ["b"]) == {"b": 2}
     with pytest.raises(KeyError, match="nope"):
         core.select(checks, ["nope"])
+
+
+@pytest.mark.parametrize("value,expected", [
+    ("2026-09-30T12:00:00Z", NOW),
+    ("2026-09-30 12:00:00+00", NOW),
+    ("2026-09-30T09:00:00-03:00", NOW),
+    ("2026-09-30T12:00:00", NOW),
+    ("2026-09-30T12:00:00.123456789Z", NOW.replace(microsecond=123456)),
+    ("2026-09-30", NOW.replace(hour=0)),
+    (datetime(2026, 9, 30, 12), NOW),
+    (None, None),
+    ("", None),
+])
+def test_utc(value, expected):
+    got = core.utc(value)
+    assert got == expected and (got is None or got.tzinfo == timezone.utc)
+
+
+def test_utc_end_of_day_and_bad_input():
+    assert core.utc("2026-09-30", end_of_day=True) == datetime(2026, 10, 1, tzinfo=timezone.utc)
+    assert core.utc(NOW.date(), end_of_day=True) == datetime(2026, 10, 1, tzinfo=timezone.utc)
+    assert core.utc(NOW.isoformat(), end_of_day=True) == NOW
+    with pytest.raises(ValueError):
+        core.utc("yesterday")
+
+
+def test_settings():
+    defaults = {"a": 1, "b": 2}
+    assert core.settings({"c": {"b": 3, "x": 4}}, "c", defaults) == {"a": 1, "b": 3, "x": 4}
+    assert core.settings({"c": None}, "c", defaults) == defaults
+    assert core.settings({}, "c", defaults) == defaults
+    with pytest.raises(TypeError, match="'c'"):
+        core.settings({"c": [1]}, "c", defaults)
+
+
+def test_load_config_adds_absolute_study_dir(tmp_path, monkeypatch):
+    (tmp_path / "s").mkdir()
+    (tmp_path / "s" / "watch.yaml").write_text("vlab: {org: x}\n")
+    monkeypatch.chdir(tmp_path)
+    assert core.load_config(Path("s")) == {"vlab": {"org": "x"}, "study_dir": tmp_path / "s"}
+    (tmp_path / "s" / "watch.yaml").write_text("study_dir: elsewhere\n")
+    with pytest.raises(ValueError):
+        core.load_config(Path("s"))
 
 
 def test_need():

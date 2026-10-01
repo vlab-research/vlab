@@ -10,11 +10,12 @@ judgment is reported as a `decision` finding, not decided. The plan is
 - **Config**: `<study_dir>/watch.yaml`. Shared keys (`vlab`, `countries`,
   `env_files`) plus one top-level section per check, named after it.
 - **Data**: `<study_dir>/data/watch/`: `<check>/<UTC ts>.json` snapshots,
+  `<check>/<UTC ts>.failed.json` when `check` raised (not read as history),
   `findings-<UTC ts>.json` and `.md` per run, and `watch.log`, one line per run.
   **Snapshots can hold respondent data: never commit `data/`.**
-- **Credentials** come from the environment: `VLAB_API_KEY`, `FLY_API_KEY`,
-  `FACEBOOK_ACCESS_TOKEN` (else read from prod with kubectl), and provider
-  keys from the `.env` files `env_files` names. A missing one raises, naming it.
+- **Credentials** come from the environment: a Fly key (`FLY_API_KEY`) and a
+  vlab key (`VLAB_API_KEY`), no Meta token, plus provider keys from the
+  `.env` files `env_files` names. A missing one raises, naming it.
 - **Exit code**: 1 if any finding is `decision` or `unknown`, else 0.
 - Read-only unless `--act`, which only checks with an `act` honour.
 
