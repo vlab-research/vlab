@@ -30,16 +30,16 @@ The main checkout's venv works with `PYTHONPATH` at this checkout's `adopt/`:
 
 Not `python -m adopt.sdk.cli watch`: as `__main__` it never registers `watch`.
 
-## payments
+## payments and providers
 
-Bail events and dinersclub's `withholding` lines are read over the last
-`window_hours`, at least dean's re-drive interval. Refusals are grouped by
-distinct held respondents over that whole window, so a pattern does not flicker
-between re-drives: many numbers failing one way is the form, pin or account
-(`decision`); a few refused again and again is their line, which only a new
-number fixes (`ok`). A run over `window_hours` after the last good one reports
-the unread stretch as `unknown`. dinersclub (`kubectl logs`, one pod),
-DingConnect and Reloadly are each read in one function until Fly serves them.
+Split by source so one failed read hides nothing else: `payments` reads Fly;
+`providers` reads dinersclub (`kubectl logs`), DingConnect and Reloadly locally.
+Bails and `withholding` lines are read over the last `window_hours`, at least
+dean's re-drive interval; a run over that after the last good one reports the
+unread stretch as `unknown`. Refusals count distinct respondents held on a pay
+form over the whole window, so a pattern does not flicker between re-drives:
+many failing one way is the form, pin or account (`decision`); a few refused
+again and again is their line, which only a new number fixes (`ok`).
 
 ## pace
 
