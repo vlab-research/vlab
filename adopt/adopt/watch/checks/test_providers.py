@@ -4,8 +4,7 @@ from . import providers
 
 NOW = datetime(2026, 9, 30, 12, 0, tzinfo=timezone.utc)
 CFG = {"parts": [{"vlab_slug": "x", "survey_name": "s", "pay": ["pay1"]}],
-       "providers": {"known_codes": ["ProviderError", "PIN_DRIFT"],
-                     "wallets": ["dingconnect", "reloadly"]}}
+       "providers": {"wallets": ["dingconnect", "reloadly"]}}
 LAST_HOUR = [{"read_at": (NOW - timedelta(hours=1)).isoformat()}]
 
 
@@ -54,11 +53,43 @@ def test_refusals_group_distinct_held_users_over_the_window():
     assert r.level == "ok" and r.evidence["per_user"] == {"u1": 3}
 
 
+def refusal(code, users, history=LAST_HOUR, cfg=CFG):
+    snap = {"read_at": NOW.isoformat(), "waiting": [held(u) for u in users],
+            "dinersclub": [line(10, u, code) for u in users], "providers": {}}
+    return {f.key: f for f in providers.check(cfg, snap, history)}[
+        f"providers:refusal:dingconnect:{code}"]
+
+
+def test_form_and_account_codes_are_decisions_from_one_respondent():
+    assert refusal("PIN_DRIFT", ["u1"]).level == "decision"
+    assert refusal("InsufficientBalance", ["u1"]).level == "decision"
+
+
+def test_the_same_lines_refused_again_are_ok():
+    users = ["u1", "u2", "u3", "u4"]
+    earlier = [{"read_at": ago(60), "dinersclub": [line(400, u, "ProviderError") for u in users]}]
+    r = refusal("ProviderError", users, earlier)
+    assert r.level == "ok" and r.evidence["new"] == []
+
+
+def test_new_numbers_refused_alike_are_a_decision():
+    earlier = [{"read_at": ago(60), "dinersclub": [line(400, "u0", "ProviderError"),
+                                                   line(30, "u1", "ProviderError")]}]
+    r = refusal("ProviderError", ["u1", "u2", "u3"], earlier)
+    assert r.level == "decision" and r.evidence["new"] == ["u1", "u2", "u3"]
+
+
+def test_code_categories_extend_the_table():
+    cfg = {**CFG, "providers": {"code_categories": {"SOME_NEW_CODE": "form"}}}
+    assert refusal("SOME_NEW_CODE", ["u1"]).level == "unknown"
+    assert refusal("SOME_NEW_CODE", ["u1"], cfg=cfg).level == "decision"
+
+
 def test_unknown_code_and_new_unparsed_line_are_unknown():
-    lines = [line(10, "u1", "AUTH_ERROR", "reloadly"), f"{ago(10)} withholding in a new format",
+    lines = [line(10, "u1", "SOME_NEW_CODE", "reloadly"), f"{ago(10)} withholding in a new format",
              f"{ago(120)} withholding read last hour", "no timestamp withholding"]
     f = run(waiting=[held("u1")], dinersclub=lines)
-    assert f["providers:refusal:reloadly:AUTH_ERROR"].level == "unknown"
+    assert f["providers:refusal:reloadly:SOME_NEW_CODE"].level == "unknown"
     assert len(f["providers:refusal:unparsed"].evidence["lines"]) == 2
 
 

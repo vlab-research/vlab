@@ -54,8 +54,8 @@ payments:
 providers:
   wallets: []                           # among dingconnect, reloadly
   dinersclub: {namespace: vprod, deployment: gbv-dinersclub}
-  known_codes: [ProviderError, ...]     # dinersclub codes with a known cause (see code)
-  pattern_min_users: 3
+  code_categories: {}                   # {code: form|account|line}, over CODE_CATEGORIES
+  pattern_min_users: 3                  # new numbers on one `line` code that make a pattern
   runway_hours_min: 6
   rate_hours: 24
   window_hours: 6
@@ -127,9 +127,14 @@ study it pays for: the wallet is the money at risk.
 Bails and `withholding` lines are read over the last `window_hours`, at least
 dean's re-drive interval; a run over that after the last good one reports the
 unread stretch as `unknown`. Refusals count distinct respondents held on a pay
-form over the whole window, so a pattern does not flicker between re-drives:
-many failing one way is the form, pin or account (`decision`); a few refused
-again and again is their line, which only a new number fixes (`ok`).
+form over the whole window, so a pattern does not flicker between re-drives, and
+are judged by what the code means (`CODE_CATEGORIES`, from dinersclub's
+`classify.go`): a `form` code (the payment block or pin, e.g. `PIN_DRIFT`) or an
+`account` code (funds, credentials or rate) is a `decision` from one respondent.
+A `line` code (e.g. `ProviderError`) is the numbers it fails on: lines already
+refused before the window, in history, are `ok`, since only a new number fixes
+them; `pattern_min_users` numbers first refused in the window are a `decision`,
+the form, SKU or provider. Any other code is `unknown`.
 
 ## pace
 

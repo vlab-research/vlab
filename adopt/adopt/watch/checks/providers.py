@@ -20,9 +20,18 @@ M = Mapping[str, Any]
 NAME = "providers"
 DEFAULTS = {"pattern_min_users": 3, "runway_hours_min": 6, "rate_hours": 24, "window_hours": 6,
             "wallets": [], "dinersclub": {"namespace": "vprod", "deployment": "gbv-dinersclub"},
-            # dinersclub codes with a known cause; any other is unknown
-            "known_codes": ["AccountNumberInvalid", "ProviderError", "PIN_DRIFT",
-                            "NO_PIN_FOR_OPERATOR", "InsufficientBalance", "RateLimited"]}
+            "code_categories": {}}
+# What each withheld dinersclub code says needs fixing, from dinersclub's
+# classify.go and README; any other code is unknown. Respondent-class codes
+# (AccountNumberInvalid) are sent to the respondent, so never logged as withheld.
+CODE_CATEGORIES = {
+    **dict.fromkeys(["PIN_DRIFT", "NO_PIN_FOR_OPERATOR", "AMOUNT_CURRENCY_MISMATCH",
+                     "IMPOSSIBLE_AMOUNT", "INVALID_PAYMENT_DETAILS", "ParameterInvalid"], "form"),
+    **dict.fromkeys(["InsufficientBalance", "INSUFFICIENT_BALANCE", "AuthenticationFailed",
+                     "AUTH_ERROR", "RateLimited"], "account"),
+    **dict.fromkeys(["ProviderError", "TransientProviderError",
+                     "TRANSACTION_CANNOT_BE_PROCESSED_AT_THE_MOMENT"], "line"),
+}
 DING_API = "https://api.dingconnect.com/api/V1"
 RELOADLY_API = "https://topups.reloadly.com"
 DING_PAGE, DING_MAX_PAGES = 100, 50
@@ -109,20 +118,32 @@ def collect(cfg: M) -> dict:
                           for p in s["wallets"]}}
 
 
+def _parse(line: str) -> tuple:
+    """(time, match) of a dinersclub line; either is None if it does not parse."""
+    stamp, _, rest = line.partition(" ")
+    try:
+        at = utc(stamp)
+    except ValueError:
+        at = None
+    return at, WITHHOLD.search(rest) or UNCLASSIFIED.search(rest)
+
+
+def refused_before(snapshots: Iterable[M], window_from: datetime) -> set:
+    """(provider, code, user) withheld before the window, in earlier snapshots."""
+    return {(m["provider"], m["code"], m["user"])
+            for s in snapshots for at, m in map(_parse, s.get("dinersclub", ()))
+            if at and m and at < window_from}
+
+
 def refusals(lines: Iterable[str], users: set, window_from: datetime, last: Optional[datetime],
-             known: Iterable[str], min_users: int) -> List[Finding]:
-    """One finding per (provider, code), by distinct `users` withheld in the
-    window (see README.md). A line that does not parse is reported by the read
-    that first sees it."""
+             categories: Mapping[str, str], before: set, min_users: int) -> List[Finding]:
+    """One finding per (provider, code) over distinct `users` withheld in the
+    window, judged by the code's category (see README.md). A line that does not
+    parse is reported by the read that first sees it."""
     groups: Dict[tuple, Dict[str, int]] = defaultdict(lambda: defaultdict(int))
     unclassified, unparsed = set(), []
     for line in lines:
-        stamp, _, rest = line.partition(" ")
-        try:
-            at = utc(stamp)
-        except ValueError:
-            at = None
-        m = WITHHOLD.search(rest) or UNCLASSIFIED.search(rest)
+        at, m = _parse(line)
         if at and m:
             key = (m["provider"], m["code"])
             if at >= window_from and m["user"] in users:
@@ -137,16 +158,25 @@ def refusals(lines: Iterable[str], users: set, window_from: datetime, last: Opti
     for (provider, code), per_user in sorted(groups.items()):
         what = (f"{provider} {code}: {len(per_user)} respondent(s) withheld "
                 f"since {window_from:%H:%M}Z")
-        if code not in known:
+        ev = {"provider": provider, "code": code, "per_user": dict(per_user)}
+        category = categories.get(code)
+        if category == "form":
+            level, what = "decision", f"{what}: the form's payment block or pin"
+        elif category == "account":
+            level, what = "decision", f"{what}: the provider account (funds, credentials or rate)"
+        elif category == "line":
+            new = sorted(u for u in per_user if (provider, code, u) not in before)
+            ev["new"] = new
+            if len(new) >= min_users:
+                level, what = "decision", (f"{what}, {len(new)} of them first refused in it: "
+                                           f"new numbers failing alike, so the form, SKU or provider")
+            else:
+                level, what = "ok", f"{what}: the same line(s); only a new number fixes it"
+        else:
             level = "unknown"
             what = ("Error code unclassified by dinersclub. " if (provider, code) in unclassified
                     else "Unknown error code. ") + what
-        elif len(per_user) >= min_users:
-            level, what = "decision", f"{what}: many failing alike, so the form, pin or account"
-        else:
-            level, what = "ok", f"{what}: the line(s); only a new number fixes it"
-        out.append(Finding(NAME, level, f"{NAME}:refusal:{provider}:{code}", what,
-                           {"provider": provider, "code": code, "per_user": dict(per_user)}))
+        out.append(Finding(NAME, level, f"{NAME}:refusal:{provider}:{code}", what, ev))
     return out
 
 
@@ -186,7 +216,8 @@ def check(cfg: M, snapshot: M, history: List[dict]) -> List[Finding]:
         out += gap(NAME, "dinersclub lines", last, window_from)
         out += refusals(snapshot["dinersclub"],
                         {h["userid"] for h in held_on_pay_form(cfg, snapshot["waiting"])},
-                        window_from, last, s["known_codes"], s["pattern_min_users"])
+                        window_from, last, {**CODE_CATEGORIES, **s["code_categories"]},
+                        refused_before(history, window_from), s["pattern_min_users"])
     out += [runway(name, p, PROVIDERS[name][1], s["rate_hours"], s["runway_hours_min"])
             for name, p in snapshot["providers"].items()]
     if "dingconnect" in snapshot["providers"]:
