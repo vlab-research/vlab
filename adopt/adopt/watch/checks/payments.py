@@ -9,9 +9,8 @@ import re
 import subprocess
 from collections import defaultdict
 from datetime import datetime, timedelta, timezone
+from itertools import count
 from typing import Any, Dict, Iterable, List, Mapping, Optional
-
-import requests
 
 from .. import io
 from ..core import Finding, need, settings, utc
@@ -23,7 +22,7 @@ DEFAULTS = {"held_minutes": 30, "responding_minutes": 10, "pattern_min_users": 3
             "runway_hours_min": 6, "rate_hours": 24, "window_hours": 6, "bail_prefix": "",
             "ref_prefixes": [], "known_codes": [], "providers": ["dingconnect", "reloadly"],
             "dinersclub": {"namespace": "vprod", "deployment": "gbv-dinersclub"}}
-BAIL_EVENTS, BAIL_LIMIT = "bails/events", 500
+BAIL_LIMIT = 500
 DING_API = "https://api.dingconnect.com/api/V1"
 RELOADLY_API = "https://topups.reloadly.com"
 DING_PAGE, DING_MAX_PAGES = 100, 50
@@ -31,14 +30,15 @@ WITHHOLD = re.compile(r"withholding (\S+) failure for user (\S+): code=(\S*) ")
 
 
 def _states(survey_name: str, state: str) -> List[dict]:
-    body = io.fly_get(f"surveys/{survey_name}/states", {"state": state, "limit": 10000})
+    body = io.fly_get("surveys", survey_name, "states", params={"state": state, "limit": 10000})
     if int(body["total"]) != len(body["states"]):
-        raise RuntimeError(f"{survey_name} {state}: got {len(body['states'])} of {body['total']} states")
+        raise RuntimeError(f"{survey_name} {state}: got {len(body['states'])} "
+                           f"of {body['total']} states")
     return body["states"]
 
 
 def _bail_events(since: datetime) -> List[dict]:
-    body = io.fly_get(BAIL_EVENTS, {"since": since.isoformat(), "limit": BAIL_LIMIT})
+    body = io.fly_get("bails", "events", params={"since": since.isoformat(), "limit": BAIL_LIMIT})
     # Fly sets `truncated` only when it cuts the page itself; on the user-wide
     # feed Exodus cuts at `limit` first, so a full page may hide more too.
     if body["truncated"] or len(body["items"]) >= BAIL_LIMIT:
@@ -48,63 +48,61 @@ def _bail_events(since: datetime) -> List[dict]:
 
 def _dinersclub_lines(namespace: str, deployment: str, hours: float) -> List[str]:
     """dinersclub's `withholding` lines, each prefixed by kubelet's timestamp."""
-    out = subprocess.run(["kubectl", "logs", "-n", namespace, f"deploy/{deployment}", "--timestamps",
-                          f"--since={int(hours * 60)}m"], capture_output=True, text=True, check=True).stdout
-    return [line for line in out.splitlines() if "withholding" in line]
+    run = subprocess.run(["kubectl", "logs", "-n", namespace, f"deploy/{deployment}",
+                          "--timestamps", f"--since={int(hours * 60)}m"],
+                         capture_output=True, text=True)
+    if run.returncode:
+        raise RuntimeError(f"kubectl logs {deployment}: {run.stderr.strip()[:300]}")
+    return [line for line in run.stdout.splitlines() if "withholding" in line]
+
+
+def _ding(method: str, path: str, **kw: Any) -> dict:
+    body = io.http_json(method, DING_API + path,
+                        headers={"api_key": io.env("DINGCONNECT_API_KEY")}, **kw)
+    if body.get("ResultCode") != 1:
+        raise RuntimeError(f"DingConnect {path}: {body.get('ErrorCodes')}")
+    return body
 
 
 def _dingconnect(since: datetime) -> dict:
-    headers = {"api_key": io.env("DINGCONNECT_API_KEY")}
-    def call(method: str, path: str, **kw: Any) -> dict:
-        r = requests.request(method, DING_API + path, headers=headers, timeout=io.TIMEOUT, **kw)
-        r.raise_for_status()
-        body = r.json()
-        if body.get("ResultCode") != 1:
-            raise RuntimeError(f"DingConnect {path}: {body.get('ErrorCodes')}")
-        return body
-    balance = call("GET", "/GetBalance")
+    balance = _ding("GET", "/GetBalance")
     # Keyed by TransferRef: a transfer made while paging shifts the newest-first
     # list, so the same record can come back on two pages.
     transfers: Dict[str, dict] = {}
     for page in range(DING_MAX_PAGES):
-        body = call("POST", "/ListTransferRecords", json={"Skip": page * DING_PAGE, "Take": DING_PAGE})
-        items = [i.get("TransferRecord", i) for i in body.get("Items") or []]
-        transfers.update({(t.get("TransferId") or {}).get("TransferRef"): {
-            "ref": (t.get("TransferId") or {}).get("DistributorRef", ""),
-            "status": t.get("ProcessingState"),
-            "usd": (t.get("Price") or {}).get("SendValue") or 0,
-            "at": t.get("StartedUtc")} for t in items})
-        if not body.get("ThereAreMoreItems") or (items and utc(items[-1]["StartedUtc"]) < since):
+        body = _ding("POST", "/ListTransferRecords",
+                     json={"Skip": page * DING_PAGE, "Take": DING_PAGE})
+        items = [i.get("TransferRecord", i) for i in body["Items"]]
+        transfers.update({t["TransferId"]["TransferRef"]: {
+            "ref": t["TransferId"].get("DistributorRef") or "", "status": t["ProcessingState"],
+            "usd": t["Price"]["SendValue"], "at": t["StartedUtc"]} for t in items})
+        if not body["ThereAreMoreItems"] or (items and utc(items[-1]["StartedUtc"]) < since):
             break
     else:
         raise RuntimeError(f"DingConnect history since {since} is over {DING_MAX_PAGES} pages")
     return {"balance": balance["Balance"], "currency": balance["CurrencyIso"],
-            "transfers": [t for t in transfers.values() if t["at"] and utc(t["at"]) >= since]}
+            "transfers": [t for t in transfers.values() if utc(t["at"]) >= since]}
 
 
 def _reloadly(since: datetime) -> dict:
     """The wallet is shared with other studies, so all of them count toward the rate."""
-    token = requests.post("https://auth.reloadly.com/oauth/token", timeout=io.TIMEOUT, json={
+    token = io.http_json("POST", "https://auth.reloadly.com/oauth/token", json={
         "client_id": io.env("RELOADLY_ID"), "client_secret": io.env("RELOADLY_SECRET"),
-        "grant_type": "client_credentials", "audience": RELOADLY_API})
-    token.raise_for_status()
-    headers = {"Authorization": "Bearer " + token.json()["access_token"],
+        "grant_type": "client_credentials", "audience": RELOADLY_API})["access_token"]
+    headers = {"Authorization": f"Bearer {token}",
                "Accept": "application/com.reloadly.topups-v1+json"}
-    def get(path: str, params: Any = None) -> dict:
-        r = requests.get(RELOADLY_API + path, headers=headers, params=params, timeout=io.TIMEOUT)
-        r.raise_for_status()
-        return r.json()
-    balance = get("/accounts/balance")
-    end = (datetime.now(timezone.utc) + timedelta(days=1)).strftime("%Y-%m-%d %H:%M:%S")
-    txns, page = [], 1
-    while True:
-        body = get("/topups/reports/transactions", {
-            "size": 200, "page": page, "startDate": since.strftime("%Y-%m-%d %H:%M:%S"), "endDate": end})
-        txns += [{"status": t.get("status"), "usd": t.get("requestedAmount") or 0,
-                  "at": t.get("transactionDate")} for t in body["content"]]
-        if body.get("last", True):
+    balance = io.http_json("GET", RELOADLY_API + "/accounts/balance", headers=headers)
+    fmt = "%Y-%m-%d %H:%M:%S"
+    query = {"size": 200, "startDate": since.strftime(fmt),
+             "endDate": (datetime.now(timezone.utc) + timedelta(days=1)).strftime(fmt)}
+    txns: List[dict] = []
+    for page in count(1):
+        body = io.http_json("GET", RELOADLY_API + "/topups/reports/transactions",
+                            headers=headers, params={**query, "page": page})
+        txns += [{"status": t["status"], "usd": t["requestedAmount"], "at": t["transactionDate"]}
+                 for t in body["content"]]
+        if body["last"]:
             break
-        page += 1
     return {"balance": balance["balance"], "currency": balance["currencyCode"], "transfers": txns}
 
 

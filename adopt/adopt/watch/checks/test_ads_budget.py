@@ -214,7 +214,7 @@ def study(tmp_path):
 def test_collect_pages_tags_countries_and_dates_completes_in_the_account_timezone(monkeypatch, tmp_path):
     client = FakeClient()
     monkeypatch.setattr(ab.io, "vlab_client", lambda: client)
-    monkeypatch.setattr(ab.io, "fly_get", lambda path, params=None: {"summary": [
+    monkeypatch.setattr(ab.io, "fly_get", lambda *path: {"summary": [
         {"current_form": "pay", "count": 5}, {"current_form": "end", "count": 2},
         {"current_form": "q", "count": 99}]})
     monkeypatch.setattr(ab.pace, "completes", lambda cfg, c: ["2026-09-30T02:00:00+00:00"])

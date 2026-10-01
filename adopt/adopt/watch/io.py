@@ -5,6 +5,7 @@ from __future__ import annotations
 import os
 from pathlib import Path
 from typing import Any, Iterable, Optional
+from urllib.parse import quote
 
 import requests
 
@@ -21,12 +22,19 @@ def env(name: str) -> str:
     return value
 
 
-def fly_get(path: str, params: Optional[dict] = None) -> Any:
-    url = os.environ.get("FLY_API_URL", FLY_API_URL).rstrip("/") + "/" + path.lstrip("/")
-    r = requests.get(url, params=params, timeout=TIMEOUT,
-                     headers={"Authorization": f"Bearer {env('FLY_API_KEY')}"})
-    r.raise_for_status()
+def http_json(method: str, url: str, **kw: Any) -> Any:
+    r = requests.request(method, url, timeout=TIMEOUT, **kw)
+    if not r.ok:
+        raise RuntimeError(f"{r.status_code} from {method} {r.url}: {r.text[:300]}")
     return r.json()
+
+
+def fly_get(*path: str, params: Optional[dict] = None) -> Any:
+    """GET Fly's `path` parts, each quoted (survey names hold spaces)."""
+    url = "/".join([os.environ.get("FLY_API_URL", FLY_API_URL).rstrip("/"),
+                    *(quote(p, safe="") for p in path)])
+    return http_json("GET", url, params=params,
+                     headers={"Authorization": f"Bearer {env('FLY_API_KEY')}"})
 
 
 def vlab_client() -> VlabClient:
@@ -35,12 +43,10 @@ def vlab_client() -> VlabClient:
 
 
 def load_env_files(study_dir: Path, paths: Iterable[str]) -> None:
-    """Set KEY=VALUE lines from each file (relative to the study dir) into the
-    environment, never overriding a variable already set."""
+    """KEY=VALUE lines from each file into the environment, never overriding."""
     for rel in paths:
-        with open(Path(study_dir) / rel) as fh:
-            for line in fh:
-                line = line.strip()
-                if line and not line.startswith("#") and "=" in line:
-                    k, v = line.split("=", 1)
-                    os.environ.setdefault(k.strip(), v.strip().strip('"'))
+        for line in (Path(study_dir) / rel).read_text().splitlines():
+            line = line.strip()
+            if line and not line.startswith("#") and "=" in line:
+                k, v = line.split("=", 1)
+                os.environ.setdefault(k.strip(), v.strip().strip('"'))

@@ -23,7 +23,7 @@ GREEN_AGAIN = "GREEN on two reads after a non-GREEN period: a held spend ramp ma
 
 def collect(cfg: dict) -> dict:
     ids = ",".join(str(i) for i in need(cfg, "number_health.phone_number_ids"))
-    body = io.fly_get("whatsapp/health", {"phone_number_id": ids})
+    body = io.fly_get("whatsapp", "health", params={"phone_number_id": ids})
     return {"numbers": {n["phone_number_id"]: n for n in body["numbers"]}}
 
 

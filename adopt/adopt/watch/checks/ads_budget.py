@@ -7,7 +7,6 @@ from __future__ import annotations
 from collections import defaultdict
 from datetime import date, datetime, timedelta
 from typing import Any, Dict, Iterable, List, Mapping, Optional
-from urllib.parse import quote
 from zoneinfo import ZoneInfo
 
 import yaml
@@ -59,7 +58,7 @@ def proposal_lines(proposal: M, lines: Mapping[str, str]) -> Dict[str, float]:
 def _paid(country: M) -> int:
     """Respondents whose current form is a pay, end or apology form."""
     forms = {*country["pay"], country["end"], country["apology"]}
-    summary = io.fly_get(f"surveys/{quote(country['survey_name'], safe='')}/states/summary")
+    summary = io.fly_get("surveys", country["survey_name"], "states", "summary")
     return sum(r["count"] for r in summary["summary"] if r["current_form"] in forms)
 
 

@@ -78,11 +78,11 @@ def test_failed_or_missing_read_is_unknown():
 def test_collect_asks_fly_for_the_configured_numbers(monkeypatch):
     seen = {}
 
-    def fly_get(path, params):
+    def fly_get(*path, params):
         seen.update(path=path, params=params)
         return {"numbers": [snap()["numbers"][PID]]}
 
     monkeypatch.setattr(nh.io, "fly_get", fly_get)
     out = nh.collect(CFG)
-    assert seen == {"path": "whatsapp/health", "params": {"phone_number_id": PID}}
+    assert seen == {"path": ("whatsapp", "health"), "params": {"phone_number_id": PID}}
     assert list(out) == ["numbers"] and out["numbers"][PID]["quality_rating"] == "GREEN"

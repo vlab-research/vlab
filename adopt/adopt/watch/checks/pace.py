@@ -36,14 +36,11 @@ def _iso(t: Optional[datetime]) -> Optional[str]:
 
 
 def _responses(survey: str, ref: str, since: Optional[datetime]) -> Iterator[dict]:
-    params: Dict[str, Any] = {"survey": survey, "question_ref": ref, "pageSize": PAGE}
-    if since:
-        params["since"] = since.isoformat()
-    while True:
-        page = io.fly_get("responses", params)["responses"]
+    params = {"survey": survey, "question_ref": ref, "pageSize": PAGE, "since": _iso(since)}
+    # Paged to an empty page, not a short one, so a server cap on pageSize
+    # cannot end the read early.
+    while page := io.fly_get("responses", params=params)["responses"]:
         yield from page
-        if len(page) < PAGE:
-            return
         params = {**params, "after": page[-1]["token"]}
 
 

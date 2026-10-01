@@ -102,9 +102,9 @@ def test_ref_completed_twice():
 
 def test_collect_reads_bail_events_and_only_listed_providers(monkeypatch):
     calls = []
-    def fly_get(path, params=None):
+    def fly_get(*path, params=None):
         calls.append(path)
-        if path == payments.BAIL_EVENTS:
+        if path == ("bails", "events"):
             assert params["limit"] == 500 and params["since"].endswith("+00:00")
             return {"truncated": False, "items": [{"bail_name": "st-1"}, {"bail_name": "other"}]}
         return {"total": 0, "states": []}
@@ -118,11 +118,11 @@ def test_collect_reads_bail_events_and_only_listed_providers(monkeypatch):
            "payments": {"providers": ["dingconnect"], "bail_prefix": "st-"}}
     snap = payments.collect(cfg)
     assert list(snap["providers"]) == ["dingconnect"]
-    assert snap["bail_events"] == [{"bail_name": "st-1"}] and calls.count(payments.BAIL_EVENTS) == 1
+    assert snap["bail_events"] == [{"bail_name": "st-1"}] and calls.count(("bails", "events")) == 1
 
 
 def test_bail_events_cut_short_raise(monkeypatch):
     for body in ({"truncated": True, "items": []}, {"truncated": False, "items": [{}] * 500}):
-        monkeypatch.setattr(payments.io, "fly_get", lambda path, params, body=body: body)
+        monkeypatch.setattr(payments.io, "fly_get", lambda *path, params, body=body: body)
         with pytest.raises(RuntimeError, match="unread"):
             payments._bail_events(NOW)
