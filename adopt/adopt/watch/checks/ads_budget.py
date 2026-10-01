@@ -156,24 +156,25 @@ def project(country: str, c: M, snap: M, s: M, incentive: float) -> Dict[str, An
     if cpc is None and remaining:
         return out
     arm, cpc = c["arm"], cpc or 0.0
-    per_arm, per_resp = arm.get("budget_per_arm"), arm.get("incentive_per_respondent") or 0
+    missing = [k for k in ("budget_per_arm", "incentive_per_respondent") if arm.get(k) is None]
+    priced = {} if missing else {
+        "budget": arm["budget_per_arm"] * len(arm.get("destinations") or [1]),
+        "needs": round(remaining * (cpc + float(arm["incentive_per_respondent"])), 2)}
     return {**out, "projected_ads": round(ads + remaining * cpc, 2),
             "projected_incentives": round(out["incentives_spent_est"] + remaining * incentive, 2),
-            "arm": {"budget": per_arm and per_arm * len(arm.get("destinations") or [1]),
-                    "spent": round(arm["vlab_spent"], 2),
-                    "needs": round(remaining * (cpc + float(per_resp)), 2)}}
+            "arm": {"spent": round(arm["vlab_spent"], 2), "missing": missing, **priced}}
 
 
 def budget_findings(cfg: M, snap: M, s: M) -> List[Finding]:
     proj = {c: project(c, v, snap, s, float(need(cfg, f"{NAME}.countries.{c}.incentive_usd")))
             for c, v in snap["countries"].items()}
     arms = {c: p["arm"] for c, p in proj.items() if "arm" in p}
-    missing = [f"{c}: the recruitment conf has no budget_per_arm"
-               for c, a in arms.items() if a["budget"] is None]
+    missing = [f"{c}: the recruitment conf has no {k}"
+               for c, a in arms.items() for k in a["missing"]]
     short = [f"{c}: budget_per_arm ${a['budget']:,.0f} is below ${a['spent']:,.0f} spent + "
              f"${a['needs']:,.0f} for the remaining {proj[c]['remaining']}"
              for c, a in arms.items()
-             if a["budget"] is not None and a["budget"] < a["spent"] + a["needs"]]
+             if not a["missing"] and a["budget"] < a["spent"] + a["needs"]]
     level = "unknown" if missing else "decision" if short else "ok"
     out = [Finding(NAME, level, f"{NAME}:budget-per-arm", "; ".join(missing + short)
                    or f"budget_per_arm covers spent + the remaining in {', '.join(arms)}",

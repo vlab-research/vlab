@@ -29,14 +29,15 @@ def adset(adset_id, frequency, country="AR", spend=0.0):
             "reach": 1000, "frequency": frequency, "spend": spend, "country": country}
 
 
-def snap(ad_days=None, adsets=None, ar_completes=500, lines=None, budget_per_arm=10_000):
+def snap(ad_days=None, adsets=None, ar_completes=500, lines=None, budget_per_arm=10_000,
+         incentive=2.0):
     """AR and HN, target 750 each, $500 lifetime ad spend each. Over the last 7
     complete days each spent $70 on ads for 70 completes ($1 per complete)."""
     def country(completes):
         return {"completes": [day(1 + i % 7) for i in range(70)] + ["2026-09-01"] * (completes - 70),
                 "target": 750, "paid": 600,
                 "arm": {"budget_per_arm": budget_per_arm, "destinations": ["WhatsApp"],
-                        "incentive_per_respondent": 2.0, "vlab_spent": 1000.0}}
+                        "incentive_per_respondent": incentive, "vlab_spent": 1000.0}}
 
     return {
         "account": "act_1", "timezone": "Europe/Madrid", "currency": "USD", "today": TODAY.isoformat(),
@@ -103,7 +104,8 @@ def test_budget_per_arm_short_or_missing():
     [f] = [f for f in ab.check(CFG, snap(budget_per_arm=1700), []) if "arm" in f.key]
     assert f.level == "decision" and "AR" in f.summary and "HN" in f.summary
     assert levels(ab.check(CFG, snap(budget_per_arm=1750), []))["ads_budget:budget-per-arm"] == "ok"
-    assert levels(ab.check(CFG, snap(budget_per_arm=None), []))["ads_budget:budget-per-arm"] == "unknown"
+    for missing in (snap(budget_per_arm=None), snap(incentive=None)):
+        assert levels(ab.check(CFG, missing, []))["ads_budget:budget-per-arm"] == "unknown"
 
 
 def test_a_country_past_target_needs_no_cost_per_complete():
