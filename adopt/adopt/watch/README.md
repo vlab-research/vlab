@@ -43,9 +43,13 @@ again and again is their line, which only a new number fixes (`ok`).
 
 ## pace
 
-A complete is a user's first answer to `pace.completion_ref` on a questionnaire
-version created from `count_from` on, read from Fly's filtered response stream
-(vlab's `strata_progress` moves only when a plan runs). Pace is completes in
+A complete is a user whose `pace.completion_ref` variable in vlab's current data
+(the optimizer's view, one row per user per variable) is timestamped from
+`count_from` on. vlab copies Fly's responses hourly (`source-fly` at :10,
+`swoosh` at :30), so counts lag Fly by up to ~80 minutes; `strata_progress`
+lags more, moving only when a plan runs. Current data keeps the answer, not the
+form version, so a user who started a version older than `count_from` and
+answered after it counts too. Pace is completes in
 the last `window_hours`, never under 24: nights are silent, so a shorter window
 extrapolates from silence or a burst.
 

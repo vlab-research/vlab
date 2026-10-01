@@ -4,7 +4,7 @@ conf's `end_date` and the date promised to the client. See README.md."""
 from __future__ import annotations
 
 from datetime import datetime, timedelta
-from typing import Any, Dict, Iterator, List, Mapping, Optional
+from typing import Any, List, Mapping, Optional
 
 from .. import io
 from ..core import LEVELS, Finding, need, settings, utc
@@ -12,7 +12,6 @@ from ..core import LEVELS, Finding, need, settings, utc
 M = Mapping[str, Any]
 NAME = "pace"
 DEFAULTS = {"window_hours": 24, "near_target_days": 1.0, "closing_hours": 24}
-PAGE = 5000
 
 
 def per_country(cfg: M, country: str, key: str, required: bool = False) -> Any:
@@ -28,41 +27,21 @@ def _iso(t: Optional[datetime]) -> Optional[str]:
     return t.isoformat() if t else None
 
 
-def _responses(survey: str, ref: str, since: Optional[datetime]) -> Iterator[dict]:
-    params = {"survey": survey, "question_ref": ref, "pageSize": PAGE, "since": _iso(since)}
-    # Paged to an empty page, not a short one, so a server cap on pageSize
-    # cannot end the read early.
-    while page := io.fly_get("responses", params=params)["responses"]:
-        yield from page
-        params = {**params, "after": page[-1]["token"]}
-
-
-def completes(cfg: M, country: str) -> List[str]:
-    """Each user's first answer to `pace.completion_ref` on a questionnaire
-    version created from `count_from` on, as sorted ISO times."""
-    ref = need(cfg, f"{NAME}.completion_ref")
-    c = need(cfg, f"countries.{country}")
-    since = utc(per_country(cfg, country, "count_from"))
-    forms = {v["id"] for v in io.fly_get("surveys")
-             if v["survey_name"] == c["survey_name"] and v["shortcode"] in c["questionnaire"]
-             and (since is None or utc(v["created"]) >= since)}
-    if not forms:
-        raise RuntimeError(f"No versions of {c['questionnaire']} in {c['survey_name']!r} "
-                           f"created from {_iso(since)}")
-    first: Dict[str, str] = {}
-    for r in _responses(c["survey_name"], ref, since):
-        if r["question_ref"] == ref and r["surveyid"] in forms:
-            first.setdefault(r["userid"], r["timestamp"])
-    return sorted(first.values())
+def completes(rows: List[M], ref: str, since: Optional[datetime]) -> List[str]:
+    """Times of the `ref` rows of vlab's current data at or after `since`,
+    sorted. Current data holds one row per user per variable."""
+    return sorted(r["timestamp"] for r in rows
+                  if r["variable"] == ref and (since is None or utc(r["timestamp"]) >= since))
 
 
 def collect(cfg: M) -> dict:
-    org = need(cfg, "vlab.org")
+    org, ref = need(cfg, "vlab.org"), need(cfg, f"{NAME}.completion_ref")
     vlab = io.vlab_client()
     out = {}
     for country, c in need(cfg, "countries").items():
         rec = vlab.get_confs(org, c["vlab_slug"]).get("recruitment") or {}
-        out[country] = {"completes": completes(cfg, country),
+        since = utc(per_country(cfg, country, "count_from"))
+        out[country] = {"completes": completes(vlab.current_data(org, c["vlab_slug"]), ref, since),
                         "target": per_country(cfg, country, "target", required=True),
                         "start_date": rec.get("start_date"), "end_date": rec.get("end_date"),
                         "client_date": per_country(cfg, country, "client_date")}

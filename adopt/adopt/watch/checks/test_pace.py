@@ -75,27 +75,11 @@ def test_missing_end_date_is_unknown():
     assert keys(s) == ("unknown", ["no-end-date"])
 
 
-def test_completes_counts_each_users_first_answer_on_counted_versions(monkeypatch):
-    surveys = [
-        {"id": "v12", "survey_name": "AR", "shortcode": "ar1", "created": "2026-09-18T15:00:00Z"},
-        {"id": "v11", "survey_name": "AR", "shortcode": "ar1", "created": "2026-09-01T00:00:00Z"},
-        {"id": "x", "survey_name": "AR", "shortcode": "arpay", "created": "2026-09-20T00:00:00Z"}]
-
-    def row(user, t, survey="v12", ref="q15"):
-        return {"question_ref": ref, "surveyid": survey, "userid": user, "timestamp": t,
-                "token": f"T{t}"}
-    pages = [[row("u4", "t0"), row("u1", "t1"), row("u2", "t1", "v11")],
-             [row("u1", "t2"), row("u3", "t3", ref="q1")], []]
-    calls = []
-
-    def fly_get(*path, params=None):
-        calls.append(params)
-        return surveys if path == ("surveys",) else {"responses": pages[len(calls) - 2]}
-
-    monkeypatch.setattr(pace.io, "fly_get", fly_get)
-    cfg = {"pace": {"completion_ref": "q15", "count_from": "2026-09-18T14:35:00Z"},
-           "countries": {"AR": {"survey_name": "AR", "questionnaire": ["ar1"]}}}
-    assert pace.completes(cfg, "AR") == ["t0", "t1"]
-    first = {"survey": "AR", "question_ref": "q15", "pageSize": pace.PAGE,
-             "since": "2026-09-18T14:35:00+00:00"}
-    assert calls[1:] == [first, {**first, "after": "Tt1"}, {**first, "after": "Tt3"}]
+def test_completes_are_the_refs_answered_from_count_from():
+    rows = [{"user_id": "u1", "variable": "q15", "timestamp": "2026-09-20T10:00:00"},
+            {"user_id": "u2", "variable": "q15", "timestamp": "2026-09-18T14:34:59"},
+            {"user_id": "u3", "variable": "q15", "timestamp": "2026-09-18T14:35:00"},
+            {"user_id": "u1", "variable": "Gender", "timestamp": "2026-09-21T00:00:00"}]
+    since = datetime(2026, 9, 18, 14, 35, tzinfo=timezone.utc)
+    assert pace.completes(rows, "q15", since) == ["2026-09-18T14:35:00", "2026-09-20T10:00:00"]
+    assert len(pace.completes(rows, "q15", None)) == 3
