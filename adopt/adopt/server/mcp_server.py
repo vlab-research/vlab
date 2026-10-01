@@ -374,6 +374,38 @@ class InProcessBackend:
             after,
         )
 
+    @_wire_errors
+    async def meta_insights(
+        self,
+        org_id: str,
+        account: Optional[str] = None,
+        campaign: Optional[str] = None,
+        level: str = "campaign",
+        date_preset: Optional[str] = None,
+        since: Optional[str] = None,
+        until: Optional[str] = None,
+        time_increment: str = "all_days",
+        credentials_key: Optional[str] = None,
+        limit: Optional[int] = None,
+        after: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        from .meta import DEFAULT_LIMIT, get_insights
+
+        return await get_insights(
+            org_id,
+            self.user,
+            account,
+            campaign,
+            level,
+            date_preset,
+            since,
+            until,
+            time_increment,
+            credentials_key,
+            limit or DEFAULT_LIMIT,
+            after,
+        )
+
     # -- keys --------------------------------------------------------------
 
     @_wire_errors

@@ -169,6 +169,12 @@ ROUTES = [
         "/meta/ads/99/creative",
         {},
     ),
+    (
+        "insights",
+        "/{org_id}/meta/insights",
+        "/meta/insights",
+        {"account": "1234", "date_preset": "maximum"},
+    ),
 ]
 ROUTE_IDS = [r[0] for r in ROUTES]
 
@@ -434,6 +440,143 @@ def test_credentials_listing_names_the_keys():
     assert res.status_code == 200, res.text
     keys = {c["key"]: c["entity"] for c in res.json()["data"]}
     assert keys == {"Facebook": "facebook", "vlab": "facebook_ad_user"}
+
+
+# --------------------------------------------------------------------------
+# Insights
+# --------------------------------------------------------------------------
+
+_ACCOUNT_TZ = {"timezone_name": "Europe/Madrid", "currency": "USD", "id": "act_1234"}
+
+
+def test_insights_for_an_account_by_day_carry_the_accounts_timezone():
+    org_id, headers = _setup()
+    row = {
+        "campaign_id": "5",
+        "campaign_name": "c",
+        "adset_id": "6",
+        "adset_name": "s",
+        "ad_id": "7",
+        "ad_name": "a",
+        "date_start": "2026-09-29",
+        "date_stop": "2026-09-29",
+        "spend": "1.50",
+        "impressions": "300",
+        "actions": [
+            {
+                "action_type": "onsite_conversion.messaging_conversation_started_7d",
+                "value": "4",
+            }
+        ],
+    }
+    ctx, g = _graph(_ACCOUNT_TZ, _page([row]))
+
+    with ctx:
+        res = client.get(
+            f"/{org_id}/meta/insights",
+            params={
+                "account": "1234",
+                "level": "ad",
+                "since": "2026-09-16",
+                "until": "2026-09-30",
+                "time_increment": "1",
+            },
+            headers=headers,
+        )
+
+    assert res.status_code == 200, res.text
+    body = res.json()
+    assert body["data"] == [row]
+    assert (body["timezone"], body["currency"], body["account_id"]) == (
+        "Europe/Madrid",
+        "USD",
+        "act_1234",
+    )
+    assert body["paging"]["truncated"] is False
+
+    tz, insights = g.calls
+    assert tz["path"] == "act_1234"
+    assert tz["params"]["fields"] == "timezone_name,currency"
+    assert insights["path"] == "act_1234/insights"
+    assert insights["params"]["fields"] == (
+        "campaign_id,campaign_name,adset_id,adset_name,ad_id,ad_name,"
+        "spend,impressions,reach,frequency,ctr,actions"
+    )
+    assert insights["params"]["level"] == "ad"
+    assert insights["params"]["time_increment"] == "1"
+    assert insights["params"]["time_range"] == {
+        "since": "2026-09-16",
+        "until": "2026-09-30",
+    }
+    assert "date_preset" not in insights["params"]
+
+
+def test_insights_for_a_campaign_find_its_accounts_timezone():
+    org_id, headers = _setup()
+    ctx, g = _graph({"account_id": "1234", "id": "23"}, _ACCOUNT_TZ, _page([]))
+
+    with ctx:
+        res = client.get(
+            f"/{org_id}/meta/insights",
+            params={"campaign": "23", "date_preset": "maximum"},
+            headers=headers,
+        )
+
+    assert res.status_code == 200, res.text
+    assert res.json()["timezone"] == "Europe/Madrid"
+    owner, tz, insights = g.calls
+    assert (owner["path"], owner["params"]["fields"]) == ("23", "account_id")
+    assert tz["path"] == "act_1234"
+    assert insights["path"] == "23/insights"
+    assert insights["params"]["fields"] == (
+        "campaign_id,campaign_name,spend,impressions,reach,frequency,ctr,actions"
+    )
+    assert insights["params"]["date_preset"] == "maximum"
+    assert insights["params"]["time_increment"] == "all_days"
+    assert "time_range" not in insights["params"]
+
+
+@pytest.mark.parametrize(
+    "params",
+    [
+        {"date_preset": "maximum"},
+        {"account": "1", "campaign": "2", "date_preset": "maximum"},
+        {"account": "1"},
+        {"account": "1", "date_preset": "maximum", "since": "2026-09-01"},
+        {"account": "1", "since": "2026-09-01"},
+    ],
+    ids=["no-parent", "two-parents", "no-dates", "preset-and-range", "half-range"],
+)
+def test_insights_require_one_parent_and_one_way_of_giving_dates(params):
+    org_id, headers = _setup()
+    ctx, g = _graph()
+
+    with ctx:
+        res = client.get(f"/{org_id}/meta/insights", params=params, headers=headers)
+
+    assert res.status_code == 400
+    assert g.calls == []
+
+
+@pytest.mark.parametrize(
+    "params",
+    [
+        {"account": "1", "since": "30/09/2026", "until": "2026-09-30"},
+        {"account": "1", "date_preset": "maximum", "level": "account"},
+        {"account": "1", "date_preset": "maximum", "time_increment": "7"},
+        {"account": "1", "date_preset": "max&x=1"},
+    ],
+    ids=["bad-date", "bad-level", "bad-increment", "bad-preset"],
+)
+def test_insights_reject_malformed_parameters_before_meta(params):
+    org_id, headers = _setup()
+    ctx, g = _graph()
+
+    with ctx:
+        res = client.get(f"/{org_id}/meta/insights", params=params, headers=headers)
+
+    assert res.status_code == 422
+    assert g.calls == []
 
 
 # --------------------------------------------------------------------------
@@ -737,6 +880,8 @@ def test_malformed_org_id_is_404_not_a_driver_error():
         ("/meta/adsets", {"campaign": "me/adaccounts"}),
         ("/meta/ads", {"campaign": "../../me"}),
         ("/meta/campaigns", {"account": "me"}),
+        ("/meta/insights", {"campaign": "../me", "date_preset": "maximum"}),
+        ("/meta/insights", {"account": "me", "date_preset": "maximum"}),
     ],
 )
 def test_ids_are_validated_before_they_reach_a_url_path(path, params):

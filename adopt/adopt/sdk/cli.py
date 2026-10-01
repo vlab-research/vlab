@@ -1887,6 +1887,9 @@ def mcp_server(ctx: click.Context) -> None:
 # a half-initialised module. See planning/template-authoring.md.
 from . import templates_cli  # noqa: E402,F401  isort:skip
 
+# `vlab watch`, registered the same way. See adopt/watch/README.md.
+from ..watch import cli as watch_cli  # noqa: E402,F401  isort:skip
+
 
 def main() -> None:
     """Console-script entry point (`[tool.poetry.scripts] vlab`)."""
