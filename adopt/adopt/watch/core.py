@@ -4,6 +4,7 @@ load/save/write functions; everything else is pure."""
 from __future__ import annotations
 
 import json
+import re
 import traceback
 from dataclasses import asdict, dataclass, field
 from datetime import date, datetime, timedelta, timezone
@@ -16,6 +17,22 @@ LEVELS = ("ok", "acted", "decision", "unknown")
 ALERTING = ("decision", "unknown")
 HISTORY = 24
 TS = "%Y%m%dT%H%M%SZ"
+
+# Python 3.10's `datetime.fromisoformat` takes only 3 or 6 fractional digits and
+# an offset written +HH:MM; Postgres and Kubernetes write `Z`, `+00` and nanoseconds.
+_ISO_TAIL = re.compile(r"(?:\.(\d+))?(Z|[+-]\d\d(?::?\d\d)?)?$")
+
+
+def _normalise_iso(value: str) -> str:
+    def tail(m: "re.Match[str]") -> str:
+        frac, tz = m.groups()
+        frac = f".{frac[:6].ljust(6, '0')}" if frac else ""
+        if tz == "Z":
+            tz = "+00:00"
+        elif tz:
+            tz = f"{tz[:3]}:{tz[-2:] if len(tz) > 3 else '00'}"
+        return frac + (tz or "")
+    return _ISO_TAIL.sub(tail, value, count=1)
 
 
 @dataclass(frozen=True)
@@ -56,7 +73,8 @@ def utc(value: Any, end_of_day: bool = False) -> Optional[datetime]:
     if value is None or value == "":
         return None
     if isinstance(value, str):
-        value = date.fromisoformat(value) if len(value) == 10 else datetime.fromisoformat(value)
+        value = (date.fromisoformat(value) if len(value) == 10
+                 else datetime.fromisoformat(_normalise_iso(value)))
     if not isinstance(value, datetime):
         value = datetime(value.year, value.month, value.day) + timedelta(days=end_of_day)
     return value.astimezone(timezone.utc) if value.tzinfo else value.replace(tzinfo=timezone.utc)
