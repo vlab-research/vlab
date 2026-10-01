@@ -34,14 +34,19 @@ def completes(rows: List[M], ref: str, since: Optional[datetime]) -> List[str]:
                   if r["variable"] == ref and (since is None or utc(r["timestamp"]) >= since))
 
 
+def country_completes(cfg: M, country: str, vlab: Any) -> List[str]:
+    """One country's completes: its `completion_ref` rows from `count_from`."""
+    org, slug = need(cfg, "vlab.org"), need(cfg, "countries")[country]["vlab_slug"]
+    return completes(vlab.current_data(org, slug), need(cfg, f"{NAME}.completion_ref"),
+                     utc(per_country(cfg, country, "count_from")))
+
+
 def collect(cfg: M) -> dict:
-    org, ref = need(cfg, "vlab.org"), need(cfg, f"{NAME}.completion_ref")
-    vlab = io.vlab_client()
+    org, vlab = need(cfg, "vlab.org"), io.vlab_client()
     out = {}
     for country, c in need(cfg, "countries").items():
         rec = vlab.get_confs(org, c["vlab_slug"]).get("recruitment") or {}
-        since = utc(per_country(cfg, country, "count_from"))
-        out[country] = {"completes": completes(vlab.current_data(org, c["vlab_slug"]), ref, since),
+        out[country] = {"completes": country_completes(cfg, country, vlab),
                         "target": per_country(cfg, country, "target", required=True),
                         "start_date": rec.get("start_date"), "end_date": rec.get("end_date"),
                         "client_date": per_country(cfg, country, "client_date")}

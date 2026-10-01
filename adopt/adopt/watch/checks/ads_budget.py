@@ -100,7 +100,7 @@ def collect(cfg: M) -> dict:
         "currency": lifetime["currency"], "today": today.isoformat(),
         "adsets": lifetime["data"], "ad_days": ad_days["data"],
         "countries": {c: {
-            "completes": pace.completes(cfg, c),
+            "completes": pace.country_completes(cfg, c, client),
             "target": pace.per_country(cfg, c, "target", required=True),
             "paid": _paid(countries[c]),
             "arm": {**{k: confs[c]["recruitment"].get(k) for k in arm_keys},
