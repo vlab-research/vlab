@@ -29,12 +29,19 @@ def http_json(method: str, url: str, **kw: Any) -> Any:
     return r.json()
 
 
-def fly_get(*path: str, params: Optional[dict] = None) -> Any:
-    """GET Fly's `path` parts, each quoted (survey names hold spaces)."""
+def _fly(method: str, path: Iterable[str], **kw: Any) -> Any:
     url = "/".join([os.environ.get("FLY_API_URL", FLY_API_URL).rstrip("/"),
                     *(quote(p, safe="") for p in path)])
-    return http_json("GET", url, params=params,
-                     headers={"Authorization": f"Bearer {env('FLY_API_KEY')}"})
+    return http_json(method, url, headers={"Authorization": f"Bearer {env('FLY_API_KEY')}"}, **kw)
+
+
+def fly_get(*path: str, params: Optional[dict] = None) -> Any:
+    """GET Fly's `path` parts, each quoted (survey names hold spaces)."""
+    return _fly("GET", path, params=params)
+
+
+def fly_post(*path: str, body: Any = None) -> Any:
+    return _fly("POST", path, json=body)
 
 
 def vlab_client() -> VlabClient:

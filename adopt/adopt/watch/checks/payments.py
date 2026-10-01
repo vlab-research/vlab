@@ -14,7 +14,7 @@ from ..core import Finding, need, settings, utc
 M = Mapping[str, Any]
 NAME = "payments"
 DEFAULTS = {"held_minutes": 30, "responding_minutes": 10, "window_hours": 6, "bail_prefix": ""}
-BAIL_LIMIT = 500
+EVENT_FIELDS = ("bail_name", "timestamp", "users_matched", "users_bailed", "error")
 
 
 def states(survey_name: str, state: str, field: str) -> List[dict]:
@@ -30,11 +30,20 @@ def held_on_pay_form(cfg: M, waiting: Iterable[dict]) -> List[dict]:
     return [r for r in waiting if r["current_form"] in pay]
 
 
-def _bail_events(since: datetime) -> List[dict]:
-    body = io.fly_get("bails", "events", params={"since": since.isoformat(), "limit": BAIL_LIMIT})
-    if body["truncated"]:
-        raise RuntimeError(f"Over {BAIL_LIMIT} bail events since {since}: some are unread")
-    return body["items"]
+def _bail_events(prefix: str, since: datetime) -> List[dict]:
+    """Runs of the study's bails at or after `since`. The bail list carries only
+    each bail's last run, without its error, so a bail run since then is read in
+    full."""
+    user = io.fly_post("users")["id"]  # create-or-get: the key's own vlab user
+    out = []
+    for b in io.fly_get("users", user, "bails")["bails"]:
+        last = b.get("last_event")
+        if not b["bail"]["name"].startswith(prefix) or not last or utc(last["timestamp"]) < since:
+            continue
+        events = io.fly_get("users", user, "bails", b["bail"]["id"], "events")["events"]
+        out += [{k: e.get(k) for k in EVENT_FIELDS} for e in events
+                if utc(e["timestamp"]) >= since]
+    return out
 
 
 def collect(cfg: M) -> dict:
@@ -45,7 +54,7 @@ def collect(cfg: M) -> dict:
         waiting += states(c["survey_name"], "WAIT_EXTERNAL_EVENT", "form_start_time")
         responding += states(c["survey_name"], "RESPONDING", "updated")
     return {"waiting": waiting, "responding": responding,
-            "bail_events": _bail_events(now - timedelta(hours=s["window_hours"]))}
+            "bail_events": _bail_events(s["bail_prefix"], now - timedelta(hours=s["window_hours"]))}
 
 
 def gap(name: str, what: str, last: Optional[datetime], window_from: datetime) -> List[Finding]:

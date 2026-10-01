@@ -1,7 +1,5 @@
 from datetime import datetime, timedelta, timezone
 
-import pytest
-
 from . import payments
 
 NOW = datetime(2026, 9, 30, 12, 0, tzinfo=timezone.utc)
@@ -50,13 +48,24 @@ def test_gap_longer_than_the_window_is_unknown():
     assert "payments:gap" not in run() and "payments:gap" not in run([])
 
 
-def test_bail_events_cut_short_raise(monkeypatch):
-    seen = {}
+def test_bail_events_read_only_the_studys_bails_run_in_the_window(monkeypatch):
+    def item(bid, name, minutes):
+        return {"bail": {"id": bid, "name": name},
+                "last_event": minutes and {"timestamp": ago(minutes)}}
+    bails = [item("b1", "st-a", 30), item("b2", "st-b", 600), item("b3", "other", 30),
+             item("b4", "st-c", None)]
+    history = [{"bail_name": "st-a", "timestamp": ago(m), "users_matched": 2, "users_bailed": 2,
+                "definition_snapshot": {}, "execution_results": {"user_ids": ["p"]}}
+               for m in (30, 600)]
+    reads = []
 
-    def fly_get(*path, params):
-        seen.update(params)
-        return {"truncated": True, "items": []}
+    def fly_get(*path, params=None):
+        reads.append(path)
+        return {"bails": bails} if path == ("users", "u1", "bails") else {"events": history}
+    monkeypatch.setattr(payments.io, "fly_post", lambda *path, body=None: {"id": "u1"})
     monkeypatch.setattr(payments.io, "fly_get", fly_get)
-    with pytest.raises(RuntimeError, match="unread"):
-        payments._bail_events(NOW)
-    assert seen == {"since": "2026-09-30T12:00:00+00:00", "limit": 500}
+
+    events = payments._bail_events("st-", NOW - timedelta(hours=6))
+    assert reads == [("users", "u1", "bails"), ("users", "u1", "bails", "b1", "events")]
+    assert events == [{"bail_name": "st-a", "timestamp": ago(30), "users_matched": 2,
+                       "users_bailed": 2, "error": None}]
