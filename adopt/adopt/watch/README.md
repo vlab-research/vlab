@@ -6,7 +6,8 @@ is a `decision` finding. Plan: `projects/watch/PLAN.md`; interface: `__init__.py
     vlab watch <study_dir> [--only a,b] [--act] [--json]
 
 - **Config**: `<study_dir>/watch.yaml`, below. Shared keys (`vlab`, `parts`,
-  `env_files`) plus one optional top-level section per check, named after it.
+  `env_files`, `checks`) plus one optional top-level section per check, named
+  after it.
 - **Data**, in `<study_dir>/data/watch/`: snapshots `<check>/<UTC ts>.json`
   (`.failed.json` if `check` raised: never read as history), and per run
   `findings-<UTC ts>.json` and `.md` and a `watch.log` line. **Snapshots can
@@ -19,13 +20,14 @@ is a `decision` finding. Plan: `projects/watch/PLAN.md`; interface: `__init__.py
 
 A study is one or more **parts**, each a vlab study and the Fly survey it
 recruits to: one part for a simple study, one per country or site for a study
-run as several vlab studies. A feature the config leaves out is skipped (no
-`pay` forms: no held check; no `proposal`: no budget lines); config that is
-present but wrong raises. Required keys are marked; the rest show defaults.
+run as several vlab studies. What a study does not have is skipped (no `pay`
+forms: no held check or refusals; no `proposal`: no budget lines); config that
+is present but wrong raises. Required keys are marked; the rest show defaults.
 
 ```yaml
 vlab: {org: <uuid>}                     # required
 env_files: [../keys/.env]               # KEY=VALUE files, relative to this dir
+checks: [pace, payments, ./mine.py]     # default: every built-in check
 parts:                                  # required, at least one
   - vlab_slug: my-study                 # required
     survey_name: My Study               # required: the Fly survey
@@ -49,23 +51,19 @@ payments:
   held_minutes: 30
   responding_minutes: 10
   window_hours: 6                       # bail lookback, at least dean's re-drive interval
-  bail_prefix: null                     # the study's bails' names start with this
 providers:
   wallets: []                           # among dingconnect, reloadly
-  dinersclub: null                      # {namespace, deployment} to read refusals
-  known_codes: []                       # dinersclub codes understood; others are unknown
-  ref_prefixes: []                      # DingConnect refs checked for double payment
+  dinersclub: {namespace: vprod, deployment: gbv-dinersclub}
+  known_codes: [ProviderError, ...]     # dinersclub codes with a known cause (see code)
   pattern_min_users: 3
   runway_hours_min: 6
   rate_hours: 24
   window_hours: 6
 number_health:
   phone_number_ids: []                  # WhatsApp numbers to read
-  rules: {}                             # rating (GREEN, YELLOW, RED) -> study policy text
-  recovered: ""                         # text for a confirmed return to GREEN
 ads_budget:
   other_campaigns: []                   # prefixes of other studies sharing the ad account
-  proposal: null                        # {path, currency, lines: {ads, incentives}, pooled}
+  proposal: null                        # {path, currency, lines: {ads, incentives}}
   recent_days: 3
   baseline_days: 7
   fade_drop: 0.4
@@ -95,12 +93,19 @@ condition arrives:
   watch locally; to run it unattended, it becomes a section of the vlab study
   conf, so the server can run it and the dashboard can show findings.
 
-## Adding a check
+## Shared checks and a study's own
 
-Write `checks/<name>.py` with `collect`, `check` and optionally `act`, add it
-to `CHECKS` in `checks/__init__.py`, and test `check` in `test_<name>.py`.
-`test_generic.py` runs every check on a bare one-part study: a new check must
-pass it, skipping what that study lacks.
+This package holds only what any vlab/Fly study can use. A rule particular to
+one study (its policy at each WhatsApp rating, a client's sign-off rule) is not
+a config knob here: the study writes its own check, a module with `collect` and
+`check` (see `__init__.py`) in its folder, and lists it in `checks` by path,
+e.g. `checks: [number_health, pace, payments, providers, ads_budget,
+./my_checks.py]`. It runs like a built-in one and can import from `adopt.watch`.
+
+A shared check goes in `checks/<name>.py`, in `CHECKS` in `checks/__init__.py`,
+with `check` tested in `test_<name>.py`. `test_generic.py` runs every built-in
+check on a bare one-part study: a new one must pass it, skipping what that
+study lacks.
 
 ## Running from a checkout
 
@@ -116,6 +121,9 @@ Not `python -m adopt.sdk.cli watch`: as `__main__` it never registers `watch`.
 
 Split by source so one failed read hides nothing else: `payments` reads Fly;
 `providers` reads dinersclub (`kubectl logs`), DingConnect and Reloadly locally.
+The study's bails are those whose destination is a form of one of its surveys.
+Double payments are any DingConnect ref completed twice in the wallet, whichever
+study it pays for: the wallet is the money at risk.
 Bails and `withholding` lines are read over the last `window_hours`, at least
 dean's re-drive interval; a run over that after the last good one reports the
 unread stretch as `unknown`. Refusals count distinct respondents held on a pay

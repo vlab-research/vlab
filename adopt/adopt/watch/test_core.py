@@ -153,3 +153,18 @@ def test_cli_only_writes_report_and_exits_on_findings(tmp_path, monkeypatch):
     assert len(list(out.glob("findings-*.json"))) >= 1
     log = (out / "watch.log").read_text().splitlines()
     assert len(log) == 2 and "checks=a" in log[0] and "decision=1" in log[1]
+
+
+def test_cli_runs_the_checks_watch_yaml_names_including_a_studys_own(tmp_path):
+    from ..sdk.cli import cli
+
+    (tmp_path / "mine.py").write_text(
+        "from adopt.watch.core import Finding\n"
+        "def collect(cfg):\n    return {}\n"
+        "def check(cfg, snapshot, history):\n    return [Finding('mine', 'ok', 'mine:k', 's')]\n")
+    (tmp_path / "watch.yaml").write_text("vlab: {org: x}\nchecks: [./mine.py]\n")
+    r = CliRunner().invoke(cli, ["watch", str(tmp_path), "--json"])
+    assert r.exit_code == 0, r.output
+    assert [f["key"] for f in json.loads(r.output)] == ["mine:k"]
+    (tmp_path / "watch.yaml").write_text("vlab: {org: x}\nchecks: [nope]\n")
+    assert CliRunner().invoke(cli, ["watch", str(tmp_path)]).exit_code == 1

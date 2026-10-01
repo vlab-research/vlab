@@ -1,8 +1,7 @@
 """Payments on Fly, read-only: who the pay forms hold, who is stuck in
-RESPONDING, and whether the study's bails (those named `bail_prefix`...) moved
-everyone they matched. A study with no pay forms or no `bail_prefix` skips that
-part. Paying and bailing belong in Fly's payment sub-bot; the providers are the
-`providers` check. See README.md."""
+RESPONDING, and whether the study's bails (those bound for one of its surveys'
+forms) moved everyone they matched. Paying and bailing belong in Fly's payment
+sub-bot; the providers are the `providers` check. See README.md."""
 
 from __future__ import annotations
 
@@ -14,7 +13,7 @@ from ..core import Finding, parts, settings, utc
 
 M = Mapping[str, Any]
 NAME = "payments"
-DEFAULTS = {"held_minutes": 30, "responding_minutes": 10, "window_hours": 6, "bail_prefix": None}
+DEFAULTS = {"held_minutes": 30, "responding_minutes": 10, "window_hours": 6}
 EVENT_FIELDS = ("bail_name", "timestamp", "users_matched", "users_bailed", "error")
 
 
@@ -43,19 +42,26 @@ def held_on_pay_form(cfg: M, waiting: Iterable[dict]) -> List[dict]:
     return [r for r in waiting if r["current_form"] in pay]
 
 
-def _bail_events(prefix: str, since: datetime) -> List[dict]:
-    """Runs of the study's bails at or after `since`. The bail list carries only
-    each bail's last run, without its error, so a bail run since then is read in
-    full."""
+def destinations(bail: M) -> set:
+    """A bail's destination forms: its own, and a user list's per-user ones."""
+    users = ((bail.get("definition") or {}).get("user_list") or {}).get("users") or []
+    return {bail.get("destination_form"), *(u.get("shortcode") for u in users)}
+
+
+def _bail_events(cfg: M, since: datetime) -> List[dict]:
+    """Runs at or after `since` of the bails with a destination among the
+    study's surveys' forms. The bail list carries only each bail's last run, without its
+    error, so a bail run since then is read in full."""
+    surveys = {p["survey_name"] for p in parts(cfg).values()}
+    forms = {r["shortcode"] for r in io.fly_get("surveys") if r["survey_name"] in surveys}
     user = io.fly_post("users")["id"]  # create-or-get: the key's own vlab user
     out = []
     for b in io.fly_get("users", user, "bails")["bails"]:
         last = b.get("last_event")
-        if not b["bail"]["name"].startswith(prefix) or not last or utc(last["timestamp"]) < since:
-            continue
-        events = io.fly_get("users", user, "bails", b["bail"]["id"], "events")["events"]
-        out += [{k: e.get(k) for k in EVENT_FIELDS} for e in events
-                if utc(e["timestamp"]) >= since]
+        if destinations(b["bail"]) & forms and last and utc(last["timestamp"]) >= since:
+            events = io.fly_get("users", user, "bails", b["bail"]["id"], "events")["events"]
+            out += [{k: e.get(k) for k in EVENT_FIELDS} for e in events
+                    if utc(e["timestamp"]) >= since]
     return out
 
 
@@ -66,7 +72,7 @@ def collect(cfg: M) -> dict:
     return {"waiting": waiting_on_pay(cfg),
             "responding": [r for p in parts(cfg).values()
                            for r in states(p["survey_name"], "RESPONDING", "updated")],
-            "bail_events": _bail_events(s["bail_prefix"], since) if s["bail_prefix"] else []}
+            "bail_events": _bail_events(cfg, since)}
 
 
 def gap(name: str, what: str, last: Optional[datetime], window_from: datetime) -> List[Finding]:
@@ -87,10 +93,9 @@ def stale(name: str, rows: List[dict], field: str, minutes: float, now: datetime
                    f"{len(rows)} {what} over {minutes} min{tail}", {name: rows})
 
 
-def bails(events: Iterable[dict], prefix: str, last: Optional[datetime]) -> List[Finding]:
+def bails(events: Iterable[dict], last: Optional[datetime]) -> List[Finding]:
     """The study's bail runs since the last read that did not bail all they matched."""
-    events = [e for e in events if (e["bail_name"] or "").startswith(prefix)
-              and (last is None or utc(e["timestamp"]) > last)]
+    events = [e for e in events if last is None or utc(e["timestamp"]) > last]
     bad = [Finding(NAME, "decision", f"{NAME}:bail:{e['bail_name']}",
                    f"Bail {e['bail_name']} matched {e['users_matched']}, bailed "
                    f"{e['users_bailed']}" + (f", error {e['error']}" if e["error"] else ""), e)
@@ -108,7 +113,5 @@ def check(cfg: M, snapshot: M, history: List[dict]) -> List[Finding]:
            ] if pay_forms(cfg) else []
     out.append(stale("responding", snapshot["responding"], "updated", s["responding_minutes"],
                      now, "stuck in RESPONDING", "replybot drops their replies"))
-    if s["bail_prefix"]:
-        out += gap(NAME, "Bail events", last, now - timedelta(hours=s["window_hours"]))
-        out += bails(snapshot["bail_events"], s["bail_prefix"], last)
-    return out
+    out += gap(NAME, "Bail events", last, now - timedelta(hours=s["window_hours"]))
+    return out + bails(snapshot["bail_events"], last)

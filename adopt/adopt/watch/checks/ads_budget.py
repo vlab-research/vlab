@@ -27,7 +27,7 @@ DEFAULTS = {
     "max_frequency": 2.0,  # lifetime, ad sets still delivering
     "cost_days": 7,  # ad cost per complete over this many complete days
     "other_campaigns": [],  # name prefixes of other studies sharing the ad account
-    "proposal": None,  # {path, currency, lines, pooled}; without it no line is judged
+    "proposal": None,  # {path, currency, lines}; without it no line is judged
 }
 LINES = ("ads", "incentives")
 
@@ -214,7 +214,7 @@ def budget_findings(cfg: M, snap: M, s: M) -> List[Finding]:
     if total > budget:
         return out + [Finding(NAME, "decision", f"{NAME}:over-total", f"Projected {money(total)}"
                               f" is over the proposal's {money(budget)} ({tally})", ev)]
-    if over and not s["proposal"].get("pooled"):
+    if over:
         return out + [Finding(NAME, "decision", f"{NAME}:over-line:{k}",
                               f"Projected {k} {money(projected[k])} is over its line "
                               f"{money(lines[k])}; the total {money(total)} fits {money(budget)}",

@@ -4,8 +4,7 @@ from . import providers
 
 NOW = datetime(2026, 9, 30, 12, 0, tzinfo=timezone.utc)
 CFG = {"parts": [{"vlab_slug": "x", "survey_name": "s", "pay": ["pay1"]}],
-       "providers": {"known_codes": ["ProviderError", "PIN_DRIFT"], "ref_prefixes": ["st_"],
-                     "dinersclub": {"namespace": "ns", "deployment": "dc"},
+       "providers": {"known_codes": ["ProviderError", "PIN_DRIFT"],
                      "wallets": ["dingconnect", "reloadly"]}}
 LAST_HOUR = [{"read_at": (NOW - timedelta(hours=1)).isoformat()}]
 
@@ -89,7 +88,7 @@ def test_low_runway_counts_only_successful_sends():
 def test_ref_completed_twice():
     def t(ref, status="Complete"):
         return {"ref": ref, "status": status, "amount": 1.0, "at": ago(60)}
-    sends = [t("st_a"), t("st_a"), t("st_b"), t("st_b", "Failed"), t("other"), t("other")]
+    sends = [t("st_a"), t("st_a"), t("st_b"), t("st_b", "Failed"), t(""), t("")]
     d = run(providers={"dingconnect": wallet(sends, 1e6)})["providers:double-completion"]
     assert d.level == "decision" and list(d.evidence["refs"]) == ["st_a"]
     assert d.evidence["extra"] == 1.0

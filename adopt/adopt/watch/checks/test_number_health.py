@@ -1,11 +1,7 @@
-import pytest
-
 from . import number_health as nh
 
 PID = "111"
-RULES = {"YELLOW": "No spend ramp.", "RED": "No spend ramp; no re-asks."}
-CFG = {"number_health": {"phone_number_ids": [int(PID)], "rules": RULES,
-                         "recovered": "A held ramp may go."}}
+CFG = {"number_health": {"phone_number_ids": [int(PID)]}}
 DECREASE = "Your messaging limit will decrease if your quality rating doesn't improve"
 
 
@@ -33,9 +29,9 @@ def test_red_is_unconfirmed_then_a_decision_then_ok_while_unchanged():
     assert (f.level, f.key) == ("ok", "number_health:111") and "not yet confirmed" in f.summary
     f = run(RED, RED)
     assert f.level == "decision"
-    assert "RED/LIMITED" in f.summary and "No spend ramp" in f.summary and "re-asks" in f.summary
+    assert f.summary == "111: RED/LIMITED, confirmed."
     f = run(RED, RED, RED)
-    assert f.level == "ok" and "unchanged" in f.summary and "No spend ramp" in f.summary
+    assert f.level == "ok" and f.summary == "111: RED/LIMITED, unchanged."
 
 
 def test_single_flicker_is_not_reported():
@@ -47,13 +43,13 @@ def test_single_flicker_is_not_reported():
 def test_confirmed_change_to_yellow():
     f = run(snap(), snap(), snap("YELLOW"), snap("YELLOW"))
     assert f.level == "decision"
-    assert "GREEN/AVAILABLE -> YELLOW/AVAILABLE" in f.summary and "No spend ramp" in f.summary
+    assert "GREEN/AVAILABLE -> YELLOW/AVAILABLE" in f.summary
 
 
-def test_green_twice_after_red_lets_a_held_ramp_go():
+def test_green_twice_after_red_is_a_decision():
     assert run(RED, RED, snap()).level == "ok"
     f = run(RED, RED, snap(), snap())
-    assert f.level == "decision" and "A held ramp may go." in f.summary
+    assert f.level == "decision" and "RED/LIMITED -> GREEN/AVAILABLE" in f.summary
 
 
 def test_new_note_text_is_confirmed_and_reported_verbatim():
@@ -74,11 +70,3 @@ def test_unfamiliar_or_unsendable_values_are_unknown():
 def test_failed_or_missing_read_is_unknown():
     assert run(snap(error={"code": 190, "message": "Session expired"})).level == "unknown"
     assert run({"read_at": "t", "numbers": {}}).level == "unknown"
-
-
-def test_rules_are_the_studys_and_a_misspelt_rating_is_loud():
-    bare = {"number_health": {"phone_number_ids": [PID]}}
-    [f] = nh.check(bare, RED, [RED])
-    assert f.summary == "111: RED/LIMITED, confirmed."
-    with pytest.raises(ValueError, match="rules"):
-        nh.check({"number_health": {**CFG["number_health"], "rules": {"Red": "x"}}}, RED, [])

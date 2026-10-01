@@ -1,7 +1,7 @@
 """Payment providers, read-only: what dinersclub refuses and why, whether the
-wallets can keep paying, and refs paid twice. Each is read only when configured
-(`dinersclub`, `wallets`, `ref_prefixes`), locally in one function until Fly or
-dinersclub serves it. See README.md."""
+`wallets` can keep paying, and refs DingConnect paid twice. Refusals are read
+only for a study with pay forms. Each source is read locally in one function
+until Fly or dinersclub serves it. See README.md."""
 
 from __future__ import annotations
 
@@ -13,13 +13,16 @@ from itertools import count
 from typing import Any, Dict, Iterable, List, Mapping, Optional
 
 from .. import io
-from ..core import Finding, need, settings, utc
-from .payments import gap, held_on_pay_form, waiting_on_pay
+from ..core import Finding, settings, utc
+from .payments import gap, held_on_pay_form, pay_forms, waiting_on_pay
 
 M = Mapping[str, Any]
 NAME = "providers"
 DEFAULTS = {"pattern_min_users": 3, "runway_hours_min": 6, "rate_hours": 24, "window_hours": 6,
-            "ref_prefixes": [], "known_codes": [], "wallets": [], "dinersclub": None}
+            "wallets": [], "dinersclub": {"namespace": "vprod", "deployment": "gbv-dinersclub"},
+            # dinersclub codes with a known cause; any other is unknown
+            "known_codes": ["AccountNumberInvalid", "ProviderError", "PIN_DRIFT",
+                            "NO_PIN_FOR_OPERATOR", "InsufficientBalance", "RateLimited"]}
 DING_API = "https://api.dingconnect.com/api/V1"
 RELOADLY_API = "https://topups.reloadly.com"
 DING_PAGE, DING_MAX_PAGES = 100, 50
@@ -99,10 +102,9 @@ PROVIDERS = {"dingconnect": (_dingconnect, "Complete"), "reloadly": (_reloadly, 
 def collect(cfg: M) -> dict:
     s = settings(cfg, NAME, DEFAULTS)
     now = datetime.now(timezone.utc)
-    lines = _dinersclub_lines(need(cfg, f"{NAME}.dinersclub.namespace"),
-                              need(cfg, f"{NAME}.dinersclub.deployment"),
-                              s["window_hours"]) if s["dinersclub"] else []
-    return {"waiting": waiting_on_pay(cfg) if s["dinersclub"] else [], "dinersclub": lines,
+    d, pays = s["dinersclub"], bool(pay_forms(cfg))
+    lines = _dinersclub_lines(d["namespace"], d["deployment"], s["window_hours"]) if pays else []
+    return {"waiting": waiting_on_pay(cfg), "dinersclub": lines,
             "providers": {p: PROVIDERS[p][0](now - timedelta(hours=s["rate_hours"]))
                           for p in s["wallets"]}}
 
@@ -160,11 +162,11 @@ def runway(provider: str, p: M, paid: str, hours: float, min_hours: float) -> Fi
                    f"{provider} balance {p['balance']:.2f} {p['currency']}, {pace}", ev)
 
 
-def double_completions(p: M, prefixes: Iterable[str], hours: float) -> Finding:
-    """Study refs DingConnect completed more than once: it does not dedupe refs."""
+def double_completions(p: M, hours: float) -> Finding:
+    """Refs DingConnect completed more than once: it does not dedupe refs."""
     done: Dict[str, List[dict]] = defaultdict(list)
     for t in p["transfers"]:
-        if t["status"] == PROVIDERS["dingconnect"][1] and t["ref"].startswith(tuple(prefixes)):
+        if t["status"] == PROVIDERS["dingconnect"][1] and t["ref"]:
             done[t["ref"]].append(t)
     doubles = {ref: ts for ref, ts in done.items() if len(ts) > 1}
     extra = sum(t["amount"] for ts in doubles.values() for t in ts[1:])
@@ -180,14 +182,13 @@ def check(cfg: M, snapshot: M, history: List[dict]) -> List[Finding]:
     last = utc(history[0]["read_at"]) if history else None
     window_from = now - timedelta(hours=s["window_hours"])
     out = []
-    if s["dinersclub"]:
+    if pay_forms(cfg):
         out += gap(NAME, "dinersclub lines", last, window_from)
         out += refusals(snapshot["dinersclub"],
                         {h["userid"] for h in held_on_pay_form(cfg, snapshot["waiting"])},
                         window_from, last, s["known_codes"], s["pattern_min_users"])
     out += [runway(name, p, PROVIDERS[name][1], s["rate_hours"], s["runway_hours_min"])
             for name, p in snapshot["providers"].items()]
-    if s["ref_prefixes"] and "dingconnect" in snapshot["providers"]:
-        out.append(double_completions(snapshot["providers"]["dingconnect"],
-                                      s["ref_prefixes"], s["rate_hours"]))
+    if "dingconnect" in snapshot["providers"]:
+        out.append(double_completions(snapshot["providers"]["dingconnect"], s["rate_hours"]))
     return out

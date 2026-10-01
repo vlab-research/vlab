@@ -1,5 +1,5 @@
-"""Every check on a one-part study with no proposal, WhatsApp number, bails or
-dinersclub, in a currency and timezone of its own: what it lacks is skipped."""
+"""Every check on a one-part study with no proposal, WhatsApp number, pay forms
+or wallets, in a currency and timezone of its own: what it lacks is skipped."""
 
 from datetime import datetime, timedelta, timezone
 
@@ -38,8 +38,10 @@ class FakeVlab:
 
 
 def fly_get(*path, params=None):
-    if path[-1] == "states":
-        return {"total": 0, "states": []}
+    reads = {"states": {"total": 0, "states": []}, "bails": {"bails": []},
+             "surveys": [{"survey_name": "Solo", "shortcode": "solo1"}]}
+    if path[-1] in reads:
+        return reads[path[-1]]
     raise AssertionError(f"read Fly {path} for a feature the study does not have")
 
 
@@ -49,6 +51,8 @@ def run(tmp_path, monkeypatch, **extra):
     monkeypatch.setattr(core, "HISTORY", 0)
     monkeypatch.setattr("adopt.watch.io.vlab_client", FakeVlab)
     monkeypatch.setattr("adopt.watch.io.fly_get", fly_get)
+    monkeypatch.setattr("adopt.watch.io.fly_post", lambda *path, body=None: {"id": "u"})
+    monkeypatch.setattr(providers, "_dinersclub_lines", lambda *a: [])
     return {f.key: f for f in core.run(CHECKS, cfg, tmp_path, False, NOW)}
 
 
@@ -56,7 +60,8 @@ def test_a_bare_one_part_study_runs_every_check_and_skips_what_it_lacks(tmp_path
     found = run(tmp_path, monkeypatch)
     assert not [k for k in found if k.endswith("-error")], found
     assert {k: f.level for k, f in found.items()} == {
-        "pace:solo": "ok", "payments:responding": "ok", "ads_budget:budget-per-arm": "ok",
+        "pace:solo": "ok", "payments:responding": "ok", "payments:bails": "ok",
+        "ads_budget:budget-per-arm": "ok",
         "ads_budget:fading": "ok", "ads_budget:frequency": "ok", "ads_budget:yesterday": "ok"}
     arm = found["ads_budget:budget-per-arm"].evidence["solo"]
     assert (arm["spent"], arm["budget"], arm["missing"]) == (200.0, 900, [])
@@ -69,7 +74,7 @@ def test_one_wallet_and_pay_forms_add_just_those_findings(tmp_path, monkeypatch)
                 parts=[{"vlab_slug": "solo", "survey_name": "Solo", "target": 100,
                         "pay": ["pay"]}])
     assert {k for k in found if k.startswith(("payments", "providers"))} == {
-        "payments:held", "payments:responding", "providers:runway:reloadly"}
+        "payments:held", "payments:responding", "payments:bails", "providers:runway:reloadly"}
 
 
 @pytest.mark.parametrize("cfg,error", [

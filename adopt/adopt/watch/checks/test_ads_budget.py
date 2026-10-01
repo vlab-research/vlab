@@ -8,7 +8,7 @@ TODAY = date(2026, 10, 1)
 CONV = "onsite_conversion.messaging_conversation_started_7d"
 CFG = {"parts": [{"name": "AR", "vlab_slug": "ar", "survey_name": "s", "incentive": 2.0},
                  {"name": "HN", "vlab_slug": "hn", "survey_name": "s", "incentive": 8.0}],
-       "ads_budget": {"proposal": {"pooled": False}}}
+       "ads_budget": {}}
 S = ab.settings(CFG, ab.NAME, ab.DEFAULTS)
 
 
@@ -97,14 +97,12 @@ def test_completes_are_dated_in_the_ad_accounts_timezone():
     assert ab.project("AR", s["parts"]["AR"], s, S, 2.0)["ad_cost_per_complete"] == 7.0
 
 
-def test_over_the_total_and_one_line_over_unless_pooled():
+def test_over_the_total_or_one_line_over():
     assert levels(ab.check(CFG, snap(lines={"ads": 1000.0, "incentives": 5000.0}), []))[
         "ads_budget:over-total"] == "decision"
     lines = {"ads": 5000.0, "incentives": 8000.0}
     over = levels(ab.check(CFG, snap(lines=lines), []))
     assert over["ads_budget:over-line:incentives"] == "decision"
-    pooled = {**CFG, "ads_budget": {"proposal": {"pooled": True}}}
-    assert levels(ab.check(pooled, snap(lines=lines), []))["ads_budget:budget"] == "ok"
 
 
 def test_budget_per_arm_short_or_missing():
