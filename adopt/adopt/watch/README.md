@@ -46,3 +46,20 @@ whole window, so a pattern does not flicker between dean's re-drives. A run
 more than `window_hours` after the last good one reports the unread stretch as
 `unknown`. dinersclub, DingConnect and Reloadly are each read in one function
 until Fly serves them.
+
+## pace
+
+A complete is a user's first answer to `pace.completion_ref` on a questionnaire
+version created from `count_from` on, read from Fly's response stream (vlab's
+`strata_progress` only moves when a plan runs). Pace is completes in the last
+`window_hours`, never under 24: nights are silent, so a shorter window
+extrapolates from silence or a burst. `completes()` is shared with ads_budget.
+
+## ads_budget
+
+Projected = spent + remaining x (ad cost per complete over `cost_days` +
+`incentive_usd`), against each proposal line; incentives spent is an estimate
+(respondents on a pay, end or apology form x `incentive_usd`). `budget_per_arm`
+must cover vlab's own spent plus remaining x (ad cost + `incentive_per_respondent`),
+or adopt stops spending short of target. Meta days are the ad account's: completes
+are dated in its timezone, and today, still accruing, is in no window.

@@ -1,37 +1,11 @@
-"""Ad performance and budget against the proposal (study-watch-plan.md §5, §6).
-
-Meta is read through the vlab conf server's `GET /{org}/meta/insights`, so no
-Meta token is needed here. Insights dates are the ad account's days (LAC:
-Europe/Madrid) and the account's today is still accruing, so every day
-comparison stops at yesterday in that timezone.
-
-Budget, per country, in USD:
-- ads spent: Meta lifetime spend (`date_preset=maximum`) on the campaigns whose
-  names start with one of `ads_budget.countries.<c>.campaigns`, which catches
-  arms vlab has since dropped from `destinations`;
-- incentives spent: an ESTIMATE, respondents who reached a pay, end or apology
-  form (Fly's states summary) times `incentive_usd`. Real provider history is
-  the payments check's; this undercounts when prices were higher before;
-- remaining: the `pace` check's target less its completes (its definition of a
-  complete, version filter included), so the two checks agree;
-- projected: spent + remaining x (ad cost per complete over the last
-  `cost_days` days + `incentive_usd`).
-Projections are compared with the proposal's lines (`ads_budget.lines`).
-`budget_per_arm` is compared with what adopt itself counts as spent against it
-(`recruitment_stats` total cost: the current arms' ad spend plus its modelled
-incentives, as of the last plan run) plus what the remaining sample needs at
-the study's `incentive_per_respondent`: when that is short, adopt stops
-spending before the target.
-
-Not collected: the started/completed funnel per day. Fly's API has no cheap
-per-day count of consents; completes per day are in the `pace` snapshot.
-"""
+"""Ad performance and budget against the proposal, per country in USD. Meta
+insights come through the vlab conf server's `GET /{org}/meta/insights`.
+See README.md for the arithmetic."""
 
 from __future__ import annotations
 
 from collections import defaultdict
-from datetime import date, datetime, timedelta, timezone
-from pathlib import Path
+from datetime import date, datetime, timedelta
 from typing import Any, Dict, Iterable, List, Mapping, Optional
 from urllib.parse import quote
 from zoneinfo import ZoneInfo
@@ -39,14 +13,15 @@ from zoneinfo import ZoneInfo
 import yaml
 
 from .. import io
-from ..core import Finding, need
+from ..core import Finding, need, settings, utc
 from . import pace
 
+M = Mapping[str, Any]
 NAME = "ads_budget"
 CONVERSATION = "onsite_conversion.messaging_conversation_started_7d"
 DEFAULTS = {
     "recent_days": 3,  # the window judged for fading creatives
-    "baseline_days": 7,  # the ad set's own previous week it is judged against
+    "baseline_days": 7,  # the ad set's own previous days it is judged against
     "fade_drop": 0.4,  # conversations per 1,000 impressions down this fraction
     "min_impressions": 1000,  # in each window, so a quiet ad set is not judged
     "max_frequency": 2.0,  # lifetime, ad sets still delivering
@@ -55,317 +30,245 @@ DEFAULTS = {
 }
 
 
-def settings(cfg: Mapping[str, Any]) -> Dict[str, Any]:
-    return {**DEFAULTS, **need(cfg, NAME)}
-
-
-# ---- collect ---------------------------------------------------------------
-
-def _num(row: Mapping[str, Any], key: str) -> float:
-    return float(row.get(key) or 0)
-
-
-def shape(row: Mapping[str, Any]) -> Dict[str, Any]:
+def shape(row: M, prefixes: Mapping[str, List[str]]) -> Dict[str, Any]:
     """One Meta insights row as numbers, with conversations pulled out of
-    `actions`. Ids and names are kept as Meta named them."""
-    out = {k: row[k] for k in ("campaign_id", "campaign_name", "adset_id", "adset_name",
-                               "ad_id", "ad_name") if k in row}
-    out.update(
-        date=row.get("date_start"),
-        spend=_num(row, "spend"),
-        impressions=int(_num(row, "impressions")),
-        reach=int(_num(row, "reach")),
-        frequency=_num(row, "frequency"),
-        ctr=_num(row, "ctr"),
-        conversations=int(sum(float(a.get("value") or 0) for a in row.get("actions") or []
-                              if a.get("action_type") == CONVERSATION)),
-    )
-    return out
+    `actions` and the country whose campaign prefix it matches (None if none)."""
+    num = lambda k: float(row.get(k) or 0)
+    name = row.get("campaign_name", "")
+    ids = ("campaign_name", "adset_id", "adset_name", "ad_name")
+    return {**{k: row[k] for k in ids if k in row},
+            "country": next((c for c, ps in prefixes.items()
+                             if any(name.startswith(p) for p in ps)), None),
+            "date": row.get("date_start"), "spend": num("spend"),
+            "impressions": int(num("impressions")), "reach": int(num("reach")),
+            "frequency": num("frequency"),
+            "conversations": int(sum(float(a.get("value") or 0) for a in row.get("actions") or []
+                                     if a.get("action_type") == CONVERSATION))}
 
 
-def country_of(campaign_name: str, prefixes: Mapping[str, List[str]]) -> Optional[str]:
-    for country, names in prefixes.items():
-        if any(campaign_name.startswith(p) for p in names):
-            return country
-    return None
-
-
-def _insights(client: Any, org: str, account: str, key: Optional[str],
-              **query: Any) -> Dict[str, Any]:
-    """Every page of one insights query."""
-    rows: List[dict] = []
-    after = None
-    while True:
-        body = client.meta_insights(org, account=account, credentials_key=key,
-                                    limit=500, after=after, **query)
-        rows += body["data"]
-        if not body["paging"]["truncated"]:
-            return {**body, "data": rows}
-        after = body["paging"]["after"]
-
-
-def _paid(survey_name: str, forms: Iterable[str]) -> int:
-    """Respondents whose current form is one of `forms` (pay, end, apology)."""
-    summary = io.fly_get(f"surveys/{quote(survey_name, safe='')}/states/summary")
-    forms = set(forms)
-    return sum(r["count"] for r in summary["summary"] if r["current_form"] in forms)
-
-
-def proposal_lines(proposal: Mapping[str, Any], lines: Mapping[str, str]) -> Dict[str, float]:
+def proposal_lines(proposal: M, lines: Mapping[str, str]) -> Dict[str, float]:
     """The proposal's totals for the `ads` and `incentives` lines, named by
     their `budget_line_items` description."""
-    if set(lines) != {"ads", "incentives"}:
-        raise KeyError(f"{NAME}.lines must name exactly ads and incentives, not {list(lines)}")
     items = {i["description"]: float(i["total_price"]) for i in proposal["budget_line_items"]}
-    missing = [d for d in lines.values() if d not in items]
-    if missing:
-        raise KeyError(f"Proposal has no budget line {missing}; it has {list(items)}")
+    if set(lines) != {"ads", "incentives"} or not set(lines.values()) <= set(items):
+        raise KeyError(f"{NAME}.lines must map ads and incentives to budget lines in "
+                       f"{list(items)}, not {dict(lines)}")
     return {name: items[desc] for name, desc in lines.items()}
 
 
-def collect(cfg: Mapping[str, Any]) -> dict:
-    s = settings(cfg)
-    org = need(cfg, "vlab.org")
-    countries = need(cfg, "countries")
+def _paid(country: M) -> int:
+    """Respondents whose current form is a pay, end or apology form."""
+    forms = {*country["pay"], country["end"], country["apology"]}
+    summary = io.fly_get(f"surveys/{quote(country['survey_name'], safe='')}/states/summary")
+    return sum(r["count"] for r in summary["summary"] if r["current_form"] in forms)
+
+
+def collect(cfg: M) -> dict:
+    s = settings(cfg, NAME, DEFAULTS)
+    org, countries = need(cfg, "vlab.org"), need(cfg, "countries")
     mine = need(cfg, f"{NAME}.countries")
     prefixes = {c: list(need(cfg, f"{NAME}.countries.{c}.campaigns")) for c in mine}
-    proposal_path = Path(need(cfg, f"{NAME}.proposal")).expanduser()
-    if not proposal_path.is_absolute():
-        raise ValueError(f"{NAME}.proposal must be an absolute or ~ path, not {proposal_path}")
-    lines = proposal_lines(yaml.safe_load(proposal_path.read_text()), need(cfg, f"{NAME}.lines"))
+    path = cfg["study_dir"] / need(cfg, f"{NAME}.proposal")
+    lines = proposal_lines(yaml.safe_load(path.read_text()), need(cfg, f"{NAME}.lines"))
     client = io.vlab_client()
-
     confs = {c: client.get_confs(org, countries[c]["vlab_slug"]) for c in mine}
-    general = next(iter(confs.values()))["general"]
-    account = s.get("ad_account") or general["ad_account"]
-    key = s.get("credentials_key") or general.get("credentials_key")
+    accounts = {c: (v["general"]["ad_account"], v["general"].get("credentials_key"))
+                for c, v in confs.items()}
+    if len(set(accounts.values())) != 1:
+        raise ValueError(f"The countries' studies use different ad accounts: {accounts}")
+    account, key = next(iter(accounts.values()))
 
-    totals = _insights(client, org, account, key, level="campaign", date_preset="maximum")
-    tz = totals["timezone"]
-    if not tz:
+    def insights(**query: Any) -> Dict[str, Any]:
+        rows, after = [], None
+        while True:
+            body = client.meta_insights(org, account=account, credentials_key=key,
+                                        limit=500, after=after, **query)
+            rows += [shape(r, prefixes) for r in body["data"]]
+            if not body["paging"]["truncated"]:
+                return {**body, "data": rows}
+            after = body["paging"]["after"]
+
+    lifetime = insights(level="adset", date_preset="maximum")
+    if not lifetime["timezone"]:
         raise RuntimeError(f"Meta returned no timezone for ad account {account}")
-    today = datetime.now(ZoneInfo(tz)).date()
-    days = max(s["recent_days"] + s["baseline_days"], s["cost_days"])
-    window = {"since": (today - timedelta(days=days)).isoformat(),
-              "until": today.isoformat(), "time_increment": "1"}
-
-    def rows(body: Mapping[str, Any]) -> List[dict]:
-        out = []
-        for r in map(shape, body["data"]):
-            country = country_of(r["campaign_name"], prefixes)
-            if country:
-                out.append({**r, "country": country})
-        return out
-
-    paced = pace.collect(cfg)["countries"]
+    zone = ZoneInfo(lifetime["timezone"])
+    today = datetime.now(zone).date()
+    since = today - timedelta(days=max(s["recent_days"] + s["baseline_days"], s["cost_days"]))
+    ad_days = insights(level="ad", since=since.isoformat(), until=today.isoformat(),
+                       time_increment="1")
+    arm_keys = ("budget_per_arm", "destinations", "incentive_per_respondent")
     return {
-        "read_at": datetime.now(timezone.utc).isoformat(),
-        "account": totals["account_id"],
-        "timezone": tz,
-        "currency": totals["currency"],
-        "today": today.isoformat(),
-        "campaign_totals": rows(totals),
-        "campaign_days": rows(_insights(client, org, account, key, level="campaign", **window)),
-        "ad_days": rows(_insights(client, org, account, key, level="ad", **window)),
-        "adsets": rows(_insights(client, org, account, key, level="adset",
-                                 date_preset="maximum")),
-        "countries": {
-            c: {
-                "completes": [t[:10] for t in paced[c]["completes"]],
-                "target": paced[c]["target"],
-                "paid": _paid(countries[c]["survey_name"],
-                              [*countries[c]["pay"], countries[c]["end"],
-                               countries[c]["apology"]]),
-                "arm": {
-                    **{k: confs[c]["recruitment"].get(k) for k in (
-                        "budget_per_arm", "destinations", "incentive_per_respondent")},
+        "account": lifetime["account_id"], "timezone": lifetime["timezone"],
+        "currency": lifetime["currency"], "today": today.isoformat(),
+        "adsets": lifetime["data"], "ad_days": ad_days["data"],
+        "countries": {c: {
+            # Dated in the ad account's timezone, as Meta's days are.
+            "completes": [utc(t).astimezone(zone).date().isoformat()
+                          for t in pace.completes(cfg, c)],
+            "target": pace.per_country(cfg, c, "target", required=True),
+            "paid": _paid(countries[c]),
+            "arm": {**{k: confs[c]["recruitment"].get(k) for k in arm_keys},
                     "vlab_spent": sum(v["total_cost"] for v in client.recruitment_stats(
-                        org, countries[c]["vlab_slug"]).values()),
-                },
-            }
-            for c in mine
-        },
-        "proposal": {"path": str(proposal_path), "lines": lines},
+                        org, countries[c]["vlab_slug"]).values())},
+        } for c in mine},
+        "proposal": {"path": str(path), "lines": lines},
     }
 
 
-# ---- check (pure) ----------------------------------------------------------
-
-def per_1000(conversations: float, impressions: float) -> Optional[float]:
-    return round(1000 * conversations / impressions, 2) if impressions else None
-
-
-def _days_before(today: date, start: int, n: int) -> List[str]:
-    """`n` days ending `start` days before `today`, oldest first."""
-    return [(today - timedelta(days=start + i)).isoformat() for i in range(n)][::-1]
+def _days(snap: M, skip: int, n: int) -> List[str]:
+    """`n` days ending `skip` days before the snapshot's today, oldest first."""
+    today = date.fromisoformat(snap["today"])
+    return [(today - timedelta(days=skip + i)).isoformat() for i in range(n)][::-1]
 
 
-def _sum(rows: Iterable[Mapping[str, Any]], days: Iterable[str]) -> Dict[str, float]:
-    days = set(days)
-    picked = [r for r in rows if r["date"] in days]
-    return {k: sum(r[k] for r in picked) for k in ("spend", "impressions", "conversations")}
+def _sum(rows: Iterable[M], days: Iterable[str]) -> Dict[str, float]:
+    picked = [r for r in rows if r["date"] in set(days)]
+    return {k: round(sum(r[k] for r in picked), 2)
+            for k in ("spend", "impressions", "conversations")}
 
 
-def project(country: str, c: Mapping[str, Any], snap: Mapping[str, Any],
-            s: Mapping[str, Any]) -> Dict[str, Any]:
+def _rate(t: M) -> Optional[float]:
+    return round(1000 * t["conversations"] / t["impressions"], 2) if t["impressions"] else None
+
+
+def _group(rows: Iterable[M], key: str, mine: bool = True) -> Dict[str, List[M]]:
+    """The rows of the study's own campaigns (`mine=False`: the others), by `key`."""
+    out: Dict[str, List[M]] = defaultdict(list)
+    for r in rows:
+        if bool(r["country"]) == mine:
+            out[r[key]].append(r)
+    return out
+
+
+def project(country: str, c: M, snap: M, s: M, incentive: float) -> Dict[str, Any]:
     """The budget arithmetic for one country, every input in the result."""
-    today = date.fromisoformat(snap["today"])
-    cost_days = _days_before(today, 1, s["cost_days"])
-    incentive = float(need(s, f"countries.{country}.incentive_usd"))
-    mine = [r for r in snap["campaign_totals"] if r["country"] == country]
-    recent = _sum([r for r in snap["campaign_days"] if r["country"] == country], cost_days)
-    recent_completes = sum(d in set(cost_days) for d in c["completes"])
-    ads_spent = sum(r["spend"] for r in mine)
-    if recent_completes:
-        ad_cpc = recent["spend"] / recent_completes
-    elif c["paid"]:
-        ad_cpc = ads_spent / c["paid"]
-    else:
-        ad_cpc = None
+    cost_days = _days(snap, 1, s["cost_days"])
+    recent = sum(d in cost_days for d in c["completes"])
+    spend = _sum([r for r in snap["ad_days"] if r["country"] == country], cost_days)["spend"]
+    cpc = spend / recent if recent else None
     remaining = max(0, c["target"] - len(c["completes"]))
-    out = {
-        "completes": len(c["completes"]), "target": c["target"], "remaining": remaining,
-        "paid": c["paid"], "ads_spent": round(ads_spent, 2),
-        "incentives_spent_est": round(c["paid"] * incentive, 2),
-        "incentive_usd": incentive, "ad_cost_per_complete": ad_cpc and round(ad_cpc, 2),
-        "ad_cost_basis": (f"{cost_days[0]}..{cost_days[-1]}" if recent_completes
-                          else "lifetime spend / paid"),
-    }
-    if ad_cpc is None:
+    ads = round(sum(a["spend"] for a in snap["adsets"] if a["country"] == country), 2)
+    out = {"completes": len(c["completes"]), "target": c["target"], "remaining": remaining,
+           "paid": c["paid"], "ads_spent": ads,
+           "incentives_spent_est": round(c["paid"] * incentive, 2), "incentive_usd": incentive,
+           "ad_cost_per_complete": cpc and round(cpc, 2),
+           "ad_cost_days": f"{cost_days[0]}..{cost_days[-1]}"}
+    if cpc is None and remaining:
         return out
-    out["projected_ads"] = round(ads_spent + remaining * ad_cpc, 2)
-    out["projected_incentives"] = round(out["incentives_spent_est"] + remaining * incentive, 2)
-
-    arm = c["arm"]
-    per_resp = float(arm.get("incentive_per_respondent") or 0)
-    out["arm"] = {
-        "budget": (arm.get("budget_per_arm") or 0) * len(arm.get("destinations") or [1]),
-        "spent": round(arm["vlab_spent"], 2),
-        "needs": round(remaining * (ad_cpc + per_resp), 2),
-    }
-    return out
+    arm, cpc = c["arm"], cpc or 0.0
+    per_arm, per_resp = arm.get("budget_per_arm"), arm.get("incentive_per_respondent") or 0
+    return {**out, "projected_ads": round(ads + remaining * cpc, 2),
+            "projected_incentives": round(out["incentives_spent_est"] + remaining * incentive, 2),
+            "arm": {"budget": per_arm and per_arm * len(arm.get("destinations") or [1]),
+                    "spent": round(arm["vlab_spent"], 2),
+                    "needs": round(remaining * (cpc + float(per_resp)), 2)}}
 
 
-def budget_findings(snap: Mapping[str, Any], s: Mapping[str, Any]) -> List[Finding]:
-    out: List[Finding] = []
+def budget_findings(cfg: M, snap: M, s: M) -> List[Finding]:
+    proj = {c: project(c, v, snap, s, float(need(cfg, f"{NAME}.countries.{c}.incentive_usd")))
+            for c, v in snap["countries"].items()}
+    arms = {c: p["arm"] for c, p in proj.items() if "arm" in p}
+    missing = [f"{c}: the recruitment conf has no budget_per_arm"
+               for c, a in arms.items() if a["budget"] is None]
+    short = [f"{c}: budget_per_arm ${a['budget']:,.0f} is below ${a['spent']:,.0f} spent + "
+             f"${a['needs']:,.0f} for the remaining {proj[c]['remaining']}"
+             for c, a in arms.items()
+             if a["budget"] is not None and a["budget"] < a["spent"] + a["needs"]]
+    level = "unknown" if missing else "decision" if short else "ok"
+    out = [Finding(NAME, level, f"{NAME}:budget-per-arm", "; ".join(missing + short)
+                   or f"budget_per_arm covers spent + the remaining in {', '.join(arms)}",
+                   arms)] if arms else []
+    unpriced = [c for c, p in proj.items() if "arm" not in p]
+    if unpriced:
+        return out + [Finding(NAME, "unknown", f"{NAME}:no-cost-per-complete",
+                              f"{', '.join(unpriced)}: no completes in the last "
+                              f"{s['cost_days']} days to price the remaining by", proj)]
+
     lines = snap["proposal"]["lines"]
-    proj = {c: project(c, v, snap, s) for c, v in snap["countries"].items()}
-
-    for c, p in proj.items():
-        if "projected_ads" not in p:
-            out.append(Finding(NAME, "unknown", f"{NAME}:no-cost-per-complete:{c}",
-                               f"{c}: no completes or paid respondents to price the "
-                               f"remaining {p['remaining']} by", p))
-            continue
-        arm = p["arm"]
-        if arm["budget"] < arm["spent"] + arm["needs"]:
-            out.append(Finding(
-                NAME, "decision", f"{NAME}:budget-per-arm:{c}",
-                f"{c}: budget_per_arm ${arm['budget']:,.0f} is below spent "
-                f"${arm['spent']:,.0f} + ${arm['needs']:,.0f} for the remaining "
-                f"{p['remaining']}", p))
-    if any("projected_ads" not in p for p in proj.values()):
-        return out
-
-    projected = {"ads": sum(p["projected_ads"] for p in proj.values()),
-                 "incentives": sum(p["projected_incentives"] for p in proj.values())}
-    evidence = {"projected": {k: round(v, 2) for k, v in projected.items()},
-                "lines": lines, "countries": proj}
+    projected = {k: round(sum(p[f"projected_{k}"] for p in proj.values()), 2) for k in lines}
+    ev = {"projected": projected, "lines": lines, "countries": proj}
     total, budget = sum(projected.values()), sum(lines.values())
-    over = [k for k in lines if projected.get(k, 0) > lines[k]]
-    tally = ", ".join(f"{k} ${projected.get(k, 0):,.0f}/${lines[k]:,.0f}" for k in lines)
+    tally = ", ".join(f"{k} ${projected[k]:,.0f}/${lines[k]:,.0f}" for k in lines)
+    over = [k for k in lines if projected[k] > lines[k]]
     if total > budget:
-        out.append(Finding(NAME, "decision", f"{NAME}:over-total",
-                           f"Projected ${total:,.0f} is over the proposal's ${budget:,.0f} "
-                           f"({tally})", evidence))
-    elif over and not s["pooled"]:
-        out += [Finding(NAME, "decision", f"{NAME}:over-line:{k}",
-                        f"Projected {k} ${projected[k]:,.0f} is over its line "
-                        f"${lines[k]:,.0f}; the total ${total:,.0f} fits ${budget:,.0f}",
-                        evidence) for k in over]
-    else:
-        out.append(Finding(NAME, "ok", f"{NAME}:budget",
-                           f"Projected ${total:,.0f} of ${budget:,.0f} ({tally})", evidence))
-    return out
+        return out + [Finding(NAME, "decision", f"{NAME}:over-total", f"Projected ${total:,.0f}"
+                              f" is over the proposal's ${budget:,.0f} ({tally})", ev)]
+    if over and not s["pooled"]:
+        return out + [Finding(NAME, "decision", f"{NAME}:over-line:{k}",
+                              f"Projected {k} ${projected[k]:,.0f} is over its line "
+                              f"${lines[k]:,.0f}; the total ${total:,.0f} fits ${budget:,.0f}",
+                              ev) for k in over]
+    return out + [Finding(NAME, "ok", f"{NAME}:budget",
+                          f"Projected ${total:,.0f} of ${budget:,.0f} ({tally})", ev)]
 
 
-def ad_findings(snap: Mapping[str, Any], s: Mapping[str, Any]) -> List[Finding]:
+def over_frequency(snap: M, s: M) -> Dict[str, M]:
+    """Ad sets past `max_frequency` lifetime that delivered in the last `recent_days`."""
+    recent = _days(snap, 1, s["recent_days"])
+    delivering = {r["adset_id"] for r in snap["ad_days"]
+                  if r["date"] in recent and r["impressions"]}
+    return {a["adset_id"]: {k: a[k] for k in ("campaign_name", "adset_name", "frequency", "reach")}
+            for a in snap["adsets"] if a["country"] and a["adset_id"] in delivering
+            and a["frequency"] > s["max_frequency"]}
+
+
+def ad_findings(snap: M, s: M, history: List[dict]) -> List[Finding]:
     """Fading ad sets (conversations per 1,000 impressions in the last
-    `recent_days` against the `baseline_days` before) and ad sets still
-    delivering past `max_frequency` lifetime. Today is never in either window."""
-    today = date.fromisoformat(snap["today"])
-    recent_days = _days_before(today, 1, s["recent_days"])
-    base_days = _days_before(today, 1 + s["recent_days"], s["baseline_days"])
-    by_adset: Dict[str, List[dict]] = defaultdict(list)
-    for r in snap["ad_days"]:
-        by_adset[r["adset_id"]].append(r)
-
-    out: List[Finding] = []
-    delivering = set()
-    for adset_id, rows in by_adset.items():
-        recent, base = _sum(rows, recent_days), _sum(rows, base_days)
-        if recent["impressions"]:
-            delivering.add(adset_id)
-        r_rate, b_rate = _rate(recent), _rate(base)
-        if (min(recent["impressions"], base["impressions"]) < s["min_impressions"]
-                or not b_rate or r_rate >= b_rate * (1 - s["fade_drop"])):
-            continue
-        ads = defaultdict(list)
-        for r in rows:
-            ads[r["ad_name"]].append(r)
-        name = rows[0]["adset_name"]
-        out.append(Finding(
-            NAME, "decision", f"{NAME}:fading:{adset_id}",
-            f"{rows[0]['campaign_name']} / {name}: {r_rate} conversations per 1,000 "
-            f"impressions in the last "
-            f"{s['recent_days']} days against {b_rate} the {s['baseline_days']} before",
-            {"adset": name, "campaign": rows[0]["campaign_name"],
-             "recent": {**recent, "per_1000": r_rate, "days": recent_days},
-             "baseline": {**base, "per_1000": b_rate, "days": base_days},
-             "ads": {ad: {"recent": _rate(_sum(rs, recent_days)),
-                          "baseline": _rate(_sum(rs, base_days))}
-                     for ad, rs in ads.items()}}))
-
-    for a in snap["adsets"]:
-        if a["adset_id"] in delivering and a["frequency"] > s["max_frequency"]:
-            out.append(Finding(
-                NAME, "decision", f"{NAME}:frequency:{a['adset_id']}",
-                f"{a['campaign_name']} / {a['adset_name']}: lifetime frequency "
-                f"{a['frequency']:.2f} "
-                f"(reach {a['reach']:,}), still delivering",
-                {k: a[k] for k in ("adset_name", "campaign_name", "reach", "frequency",
-                                   "impressions")}))
-    return out
+    `recent_days` against the `baseline_days` before) and ad sets newly over
+    `max_frequency`. Today, still accruing, is in neither window."""
+    windows = {"recent": _days(snap, 1, s["recent_days"]),
+               "baseline": _days(snap, 1 + s["recent_days"], s["baseline_days"])}
+    rates = lambda rows: {w: _rate(_sum(rows, days)) for w, days in windows.items()}
+    fading = {}
+    for adset_id, rows in _group(snap["ad_days"], "adset_id").items():
+        quiet = min(_sum(rows, days)["impressions"] for days in windows.values())
+        rate = rates(rows)
+        if (quiet >= s["min_impressions"] and rate["baseline"]
+                and rate["recent"] < rate["baseline"] * (1 - s["fade_drop"])):
+            fading[adset_id] = {
+                "campaign_name": rows[0]["campaign_name"], "adset_name": rows[0]["adset_name"],
+                **rate, "ads": {ad: rates(rs) for ad, rs in _group(rows, "ad_name").items()}}
+    over = over_frequency(snap, s)
+    new = [k for k in over if not any(k in over_frequency(h, s) for h in history)]
+    names = lambda table, keys: "".join(
+        f"; {table[k]['campaign_name']} / {table[k]['adset_name']}" for k in keys)
+    return [Finding(NAME, "decision" if fading else "ok", f"{NAME}:fading",
+                    f"{len(fading)} ad set(s) fading, conversations per 1,000 impressions in "
+                    f"the last {s['recent_days']} days against the {s['baseline_days']} before"
+                    f"{names(fading, fading)}", {"days": windows, "adsets": fading}),
+            Finding(NAME, "decision" if new else "ok", f"{NAME}:frequency",
+                    f"{len(new)} ad set(s) newly past lifetime frequency "
+                    f"{s['max_frequency']:g} and still delivering, {len(over)} in all"
+                    f"{names(over, new)}", {"new": new, "adsets": over})]
 
 
-def _rate(totals: Mapping[str, float]) -> Optional[float]:
-    return per_1000(totals["conversations"], totals["impressions"])
-
-
-def yesterday(snap: Mapping[str, Any]) -> Finding:
+def yesterday(snap: M) -> Finding:
     """Per campaign, the last complete day in the ad account's timezone."""
-    day = (date.fromisoformat(snap["today"]) - timedelta(days=1)).isoformat()
-    rows = [r for r in snap["campaign_days"] if r["date"] == day]
-    table = {r["campaign_name"]: {
-        "spend": r["spend"], "impressions": r["impressions"], "reach": r["reach"],
-        "ctr": r["ctr"], "conversations": r["conversations"],
-        "cost_per_conversation": (round(r["spend"] / r["conversations"], 2)
-                                  if r["conversations"] else None),
-        "per_1000": per_1000(r["conversations"], r["impressions"])} for r in rows}
-    spend = sum(r["spend"] for r in rows)
-    conv = sum(r["conversations"] for r in rows)
-    return Finding(NAME, "ok", f"{NAME}:yesterday",
-                   f"{day} ({snap['timezone']}): ${spend:,.2f} for {conv} conversations "
-                   f"over {len(rows)} campaigns",
+    [day] = _days(snap, 1, 1)
+    table = {}
+    for name, rows in _group(snap["ad_days"], "campaign_name").items():
+        t = _sum(rows, [day])
+        if t["impressions"] or t["spend"]:
+            cost = round(t["spend"] / t["conversations"], 2) if t["conversations"] else None
+            table[name] = {**t, "per_1000": _rate(t), "cost_per_conversation": cost}
+    spend, conv = (sum(t[k] for t in table.values()) for k in ("spend", "conversations"))
+    return Finding(NAME, "ok", f"{NAME}:yesterday", f"{day} ({snap['timezone']}): "
+                   f"${spend:,.2f} for {conv} conversations over {len(table)} campaigns",
                    {"day": day, "campaigns": table})
 
 
-def check(cfg: Mapping[str, Any], snapshot: Mapping[str, Any],
-          history: List[dict]) -> List[Finding]:
-    s = settings(cfg)
+def check(cfg: M, snapshot: M, history: List[dict]) -> List[Finding]:
+    s = settings(cfg, NAME, DEFAULTS)
     if snapshot["currency"] != "USD":
         return [Finding(NAME, "unknown", f"{NAME}:currency",
-                        f"Ad account {snapshot['account']} reports in "
-                        f"{snapshot['currency']}; budgets here are USD",
-                        {"currency": snapshot["currency"]})]
-    return budget_findings(snapshot, s) + ad_findings(snapshot, s) + [yesterday(snapshot)]
+                        f"Ad account {snapshot['account']} reports in {snapshot['currency']}; "
+                        f"budgets here are USD", {"currency": snapshot["currency"]})]
+    others = _group(snapshot["ad_days"], "campaign_name", mine=False)
+    spent = {n: round(sum(r["spend"] for r in rs), 2) for n, rs in others.items()}
+    unmatched = {n: v for n, v in spent.items() if v}
+    out = [Finding(NAME, "unknown", f"{NAME}:unmatched-campaigns",
+                   f"Campaigns matching no country's prefix spent since "
+                   f"{min(r['date'] for r in snapshot['ad_days'])}: {', '.join(unmatched)}",
+                   {"spend": unmatched})] if unmatched else []
+    return (out + budget_findings(cfg, snapshot, s) + ad_findings(snapshot, s, history)
+            + [yesterday(snapshot)])

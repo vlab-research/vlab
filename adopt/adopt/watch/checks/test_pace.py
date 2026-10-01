@@ -72,10 +72,29 @@ def test_missing_end_date_is_unknown():
     assert keys(s) == [("unknown", "no-end-date")]
 
 
-def test_first_completes_counts_each_user_once_on_counted_forms():
+def test_completes_counts_each_users_first_answer_on_counted_versions(monkeypatch):
+    surveys = [{"id": "v12", "survey_name": "AR", "shortcode": "ar1", "created": "2026-09-18T15:00:00Z"},
+               {"id": "v11", "survey_name": "AR", "shortcode": "ar1", "created": "2026-09-01T00:00:00Z"},
+               {"id": "x", "survey_name": "AR", "shortcode": "arpay", "created": "2026-09-20T00:00:00Z"}]
     rows = [{"question_ref": "q15", "surveyid": "v12", "userid": "u1", "timestamp": "t1"},
             {"question_ref": "q15", "surveyid": "v12", "userid": "u1", "timestamp": "t2"},
             {"question_ref": "q15", "surveyid": "v11", "userid": "u2", "timestamp": "t1"},
             {"question_ref": "q1", "surveyid": "v12", "userid": "u3", "timestamp": "t1"},
-            {"question_ref": "q15", "surveyid": "v12", "userid": "u4", "timestamp": "t0"}]
-    assert pace.first_completes(rows, "q15", ["v12"]) == ["t0", "t1"]
+            {"question_ref": "q15", "surveyid": "v12", "userid": "u4", "timestamp": "t0", "token": "T"}]
+    calls = []
+
+    def fly_get(path, params=None):
+        calls.append(params)
+        if path == "surveys":
+            return surveys
+        return {"responses": rows if "after" not in params else rows[:1]}
+
+    monkeypatch.setattr(pace, "PAGE", 5)
+    monkeypatch.setattr(pace.io, "fly_get", fly_get)
+    cfg = {"pace": {"completion_ref": "q15", "count_from": "2026-09-18T14:35:00Z"},
+           "countries": {"AR": {"survey_name": "AR", "questionnaire": ["ar1"]}}}
+    assert pace.completes(cfg, "AR") == ["t0", "t1"]
+    assert calls[1:] == [
+        {"survey": "AR", "question_ref": "q15", "pageSize": 5, "since": "2026-09-18T14:35:00+00:00"},
+        {"survey": "AR", "question_ref": "q15", "pageSize": 5, "since": "2026-09-18T14:35:00+00:00",
+         "after": "T"}]
