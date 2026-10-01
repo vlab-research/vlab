@@ -37,3 +37,12 @@ The main checkout's venv works if `PYTHONPATH` points at this checkout's
 
 `python -m adopt.sdk.cli watch` does not work: run as `__main__`, the CLI
 module is a second copy that the `watch` command never registered on.
+
+## payments
+
+Read-only. Bail events and dinersclub's `withholding` lines are read over the
+last `window_hours`; refusals are grouped by distinct respondents over that
+whole window, so a pattern does not flicker between dean's re-drives. A run
+more than `window_hours` after the last good one reports the unread stretch as
+`unknown`. dinersclub, DingConnect and Reloadly are each read in one function
+until Fly serves them.
