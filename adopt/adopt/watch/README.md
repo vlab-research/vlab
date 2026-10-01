@@ -15,6 +15,24 @@ a `decision` finding. Plan: `projects/watch/PLAN.md`; interface: `__init__.py`.
   keys, from the environment or the `.env` files `env_files` names.
 - **Exit** 1 if any finding is `decision` or `unknown`. Read-only unless `--act`.
 
+## Organisation
+
+The watch lives in vlab because a study is vlab's unit: one study spans vlab
+recruitment, Fly surveys, payment providers and a proposal. Servers own facts,
+the watch owns policy: data that needs a privileged credential or is useful
+beyond one study is an endpoint on the server that owns it (WhatsApp health on
+Fly, Meta insights on the conf server), and checks read it over HTTP with
+`FLY_API_KEY` and `VLAB_API_KEY`. Three stopgaps, each to move when its
+condition arrives:
+
+- `providers` is operator code (kubectl, provider keys) a researcher cannot
+  run; it moves onto Fly's payment sub-bot endpoints when they exist.
+- `io.fly_get`/`fly_post` are a minimal Fly client; if other vlab code needs
+  Fly, make it a client in `adopt/sdk` beside `VlabClient`.
+- `watch.yaml` sits in the study's `projects/` folder while agents run the
+  watch locally; to run it unattended, it becomes a section of the vlab study
+  conf, so the server can run it and the dashboard can show findings.
+
 ## Adding a check
 
 Write `checks/<name>.py` with `collect`, `check` and optionally `act`, add it
