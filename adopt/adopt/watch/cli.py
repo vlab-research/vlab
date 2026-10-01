@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
+import importlib.util
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Optional
+from typing import Any, Dict, List, Optional
 
 import click
 
@@ -12,6 +13,25 @@ from ..sdk.cli import cli
 from . import core
 from .checks import CHECKS
 from .io import load_env_files
+
+
+def load_checks(study_dir: Path, names: List[str]) -> Dict[str, Any]:
+    """Each entry a built-in check's name, or a study's own check module by its
+    path from the study dir, named after the file."""
+    out = {}
+    for n in names:
+        if n.endswith(".py"):
+            path = (Path(study_dir) / n).resolve()
+            spec = importlib.util.spec_from_file_location(f"watch_check_{path.stem}", path)
+            module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(module)
+            out[path.stem] = module
+        elif n in CHECKS:
+            out[n] = CHECKS[n]
+        else:
+            raise click.ClickException(f"watch.yaml checks: no check {n!r} (have: "
+                                       f"{', '.join(CHECKS)}, or a path to a .py file)")
+    return out
 
 
 @cli.command("watch")
@@ -27,12 +47,13 @@ def watch(study_dir: Path, only: Optional[str], act: bool, as_json: bool) -> Non
     """
     cfg = core.load_config(study_dir)
     load_env_files(study_dir, cfg.get("env_files") or [])
-    names = [c.strip() for c in (only or "").split(",") if c.strip()] or list(CHECKS)
-    missing = [c for c in names if c not in CHECKS]
+    available = load_checks(study_dir, cfg.get("checks") or list(CHECKS))
+    names = [c.strip() for c in (only or "").split(",") if c.strip()] or list(available)
+    missing = [c for c in names if c not in available]
     if missing:
         raise click.BadParameter(f"No such check: {', '.join(missing)} "
-                                 f"(have: {', '.join(CHECKS)})", param_hint="--only")
-    checks = {c: CHECKS[c] for c in names}
+                                 f"(have: {', '.join(available)})", param_hint="--only")
+    checks = {c: available[c] for c in names}
     now = datetime.now(timezone.utc)
     findings = core.run(checks, cfg, study_dir, act, now)
     title = f"Watch {study_dir.resolve().name} {now.strftime(core.TS)}"

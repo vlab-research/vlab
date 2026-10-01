@@ -9,14 +9,14 @@ CFG = {"pace": {"completion_ref": "q15"}}
 
 
 def snap(total, last24, end_days=10.0, client=None, target=750, start_days=-20):
-    """A snapshot of one country: `total` completes, `last24` of them in the
+    """A snapshot of one part: `total` completes, `last24` of them in the
     last 24 hours, the rest two days back."""
     times = [NOW - timedelta(hours=1)] * last24 + [NOW - timedelta(days=2)] * (total - last24)
-    country = {"completes": sorted(t.isoformat() for t in times), "target": target,
-               "start_date": (NOW + timedelta(days=start_days)).isoformat(),
-               "end_date": (NOW + timedelta(days=end_days)).isoformat(),
-               "client_date": client}
-    return {"read_at": NOW.isoformat(), "countries": {"AR": country}}
+    part = {"completes": sorted(t.isoformat() for t in times), "target": target,
+            "start_date": (NOW + timedelta(days=start_days)).isoformat(),
+            "end_date": (NOW + timedelta(days=end_days)).isoformat(),
+            "client_date": client}
+    return {"read_at": NOW.isoformat(), "parts": {"AR": part}}
 
 
 def keys(snapshot, cfg=CFG):
@@ -71,7 +71,7 @@ def test_thresholds_are_overridable_but_window_never_under_24h():
 
 def test_missing_end_date_is_unknown():
     s = snap(500, 50)
-    s["countries"]["AR"]["end_date"] = None
+    s["parts"]["AR"]["end_date"] = None
     assert keys(s) == ("unknown", ["no-end-date"])
 
 

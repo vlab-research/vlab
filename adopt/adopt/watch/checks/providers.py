@@ -1,6 +1,7 @@
 """Payment providers, read-only: what dinersclub refuses and why, whether the
-wallets can keep paying, and refs paid twice. Each source is read locally in
-one function until Fly or dinersclub serves it. See README.md."""
+`wallets` can keep paying, and refs DingConnect paid twice. Refusals are read
+only for a study with pay forms. Each source is read locally in one function
+until Fly or dinersclub serves it. See README.md."""
 
 from __future__ import annotations
 
@@ -12,14 +13,16 @@ from itertools import count
 from typing import Any, Dict, Iterable, List, Mapping, Optional
 
 from .. import io
-from ..core import Finding, need, settings, utc
-from .payments import gap, held_on_pay_form, states
+from ..core import Finding, settings, utc
+from .payments import gap, held_on_pay_form, pay_forms, waiting_on_pay
 
 M = Mapping[str, Any]
 NAME = "providers"
 DEFAULTS = {"pattern_min_users": 3, "runway_hours_min": 6, "rate_hours": 24, "window_hours": 6,
-            "ref_prefixes": [], "known_codes": [], "wallets": ["dingconnect", "reloadly"],
-            "dinersclub": {"namespace": "vprod", "deployment": "gbv-dinersclub"}}
+            "wallets": [], "dinersclub": {"namespace": "vprod", "deployment": "gbv-dinersclub"},
+            # dinersclub codes with a known cause; any other is unknown
+            "known_codes": ["AccountNumberInvalid", "ProviderError", "PIN_DRIFT",
+                            "NO_PIN_FOR_OPERATOR", "InsufficientBalance", "RateLimited"]}
 DING_API = "https://api.dingconnect.com/api/V1"
 RELOADLY_API = "https://topups.reloadly.com"
 DING_PAGE, DING_MAX_PAGES = 100, 50
@@ -60,7 +63,7 @@ def _dingconnect(since: datetime) -> dict:
         items = [i.get("TransferRecord", i) for i in body["Items"]]
         transfers.update({t["TransferId"]["TransferRef"]: {
             "ref": t["TransferId"].get("DistributorRef") or "", "status": t["ProcessingState"],
-            "usd": None if t["ProcessingState"] == "Failed" else t["Price"]["SendValue"],
+            "amount": None if t["ProcessingState"] == "Failed" else t["Price"]["SendValue"],
             "at": t["StartedUtc"]} for t in items})
         if not body["ThereAreMoreItems"] or (items and utc(items[-1]["StartedUtc"]) < since):
             break
@@ -85,7 +88,7 @@ def _reloadly(since: datetime) -> dict:
     for page in count(1):
         body = io.http_json("GET", RELOADLY_API + "/topups/reports/transactions",
                             headers=headers, params={**query, "page": page})
-        txns += [{"status": t["status"], "usd": t["requestedAmount"], "at": t["transactionDate"]}
+        txns += [{"status": t["status"], "amount": t["requestedAmount"], "at": t["transactionDate"]}
                  for t in body["content"]]
         if body["last"]:
             break
@@ -99,11 +102,9 @@ PROVIDERS = {"dingconnect": (_dingconnect, "Complete"), "reloadly": (_reloadly, 
 def collect(cfg: M) -> dict:
     s = settings(cfg, NAME, DEFAULTS)
     now = datetime.now(timezone.utc)
-    waiting = [r for c in need(cfg, "countries").values()
-               for r in states(c["survey_name"], "WAIT_EXTERNAL_EVENT", "form_start_time")]
-    d = s["dinersclub"]
-    return {"waiting": waiting,
-            "dinersclub": _dinersclub_lines(d["namespace"], d["deployment"], s["window_hours"]),
+    d, pays = s["dinersclub"], bool(pay_forms(cfg))
+    lines = _dinersclub_lines(d["namespace"], d["deployment"], s["window_hours"]) if pays else []
+    return {"waiting": waiting_on_pay(cfg), "dinersclub": lines,
             "providers": {p: PROVIDERS[p][0](now - timedelta(hours=s["rate_hours"]))
                           for p in s["wallets"]}}
 
@@ -151,7 +152,7 @@ def refusals(lines: Iterable[str], users: set, window_from: datetime, last: Opti
 
 def runway(provider: str, p: M, paid: str, hours: float, min_hours: float) -> Finding:
     """Hours the balance lasts at the last `hours`' rate of successful sends."""
-    spent = sum(t["usd"] for t in p["transfers"] if t["status"] == paid)
+    spent = sum(t["amount"] for t in p["transfers"] if t["status"] == paid)
     rate = spent / hours
     left = p["balance"] / rate if rate else float("inf")
     ev = {"balance": p["balance"], "currency": p["currency"], "spent": round(spent, 2),
@@ -161,18 +162,18 @@ def runway(provider: str, p: M, paid: str, hours: float, min_hours: float) -> Fi
                    f"{provider} balance {p['balance']:.2f} {p['currency']}, {pace}", ev)
 
 
-def double_completions(transfers: Iterable[dict], prefixes: Iterable[str], hours: float) -> Finding:
-    """Study refs DingConnect completed more than once: it does not dedupe refs."""
+def double_completions(p: M, hours: float) -> Finding:
+    """Refs DingConnect completed more than once: it does not dedupe refs."""
     done: Dict[str, List[dict]] = defaultdict(list)
-    for t in transfers:
-        if t["status"] == PROVIDERS["dingconnect"][1] and t["ref"].startswith(tuple(prefixes)):
+    for t in p["transfers"]:
+        if t["status"] == PROVIDERS["dingconnect"][1] and t["ref"]:
             done[t["ref"]].append(t)
     doubles = {ref: ts for ref, ts in done.items() if len(ts) > 1}
-    extra = sum(t["usd"] for ts in doubles.values() for t in ts[1:])
+    extra = sum(t["amount"] for ts in doubles.values() for t in ts[1:])
     return Finding(NAME, "decision" if doubles else "ok", f"{NAME}:double-completion",
                    f"{len(doubles)} ref(s) completed more than once in {hours}h"
-                   + (f", {extra:.2f} USD paid twice" if doubles else ""),
-                   {"refs": doubles, "extra_usd": round(extra, 2)})
+                   + (f", {extra:.2f} {p['currency']} paid twice" if doubles else ""),
+                   {"refs": doubles, "extra": round(extra, 2), "currency": p["currency"]})
 
 
 def check(cfg: M, snapshot: M, history: List[dict]) -> List[Finding]:
@@ -180,13 +181,14 @@ def check(cfg: M, snapshot: M, history: List[dict]) -> List[Finding]:
     now = utc(snapshot["read_at"])
     last = utc(history[0]["read_at"]) if history else None
     window_from = now - timedelta(hours=s["window_hours"])
-    out = gap(NAME, "dinersclub lines", last, window_from)
-    out += refusals(snapshot["dinersclub"],
-                    {h["userid"] for h in held_on_pay_form(cfg, snapshot["waiting"])},
-                    window_from, last, s["known_codes"], s["pattern_min_users"])
+    out = []
+    if pay_forms(cfg):
+        out += gap(NAME, "dinersclub lines", last, window_from)
+        out += refusals(snapshot["dinersclub"],
+                        {h["userid"] for h in held_on_pay_form(cfg, snapshot["waiting"])},
+                        window_from, last, s["known_codes"], s["pattern_min_users"])
     out += [runway(name, p, PROVIDERS[name][1], s["rate_hours"], s["runway_hours_min"])
             for name, p in snapshot["providers"].items()]
     if "dingconnect" in snapshot["providers"]:
-        out.append(double_completions(snapshot["providers"]["dingconnect"]["transfers"],
-                                      s["ref_prefixes"], s["rate_hours"]))
+        out.append(double_completions(snapshot["providers"]["dingconnect"], s["rate_hours"]))
     return out

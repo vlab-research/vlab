@@ -58,6 +58,27 @@ def need(cfg: Mapping[str, Any], dotted: str) -> Any:
     return node
 
 
+def parts(cfg: Mapping[str, Any]) -> Dict[str, Dict[str, Any]]:
+    """The study's parts by name, in order: each one vlab study and the Fly survey
+    it recruits to. `name` defaults to `vlab_slug`; the lists default to []."""
+    out: Dict[str, Dict[str, Any]] = {}
+    for p in need(cfg, "parts") or []:
+        if not isinstance(p, Mapping) or not p.get("vlab_slug") or not p.get("survey_name"):
+            raise KeyError(f"watch.yaml part {p!r:.100} needs vlab_slug and survey_name")
+        lists = {k: p.get(k) or [] for k in ("pay", "after_pay", "campaigns")}
+        for k, v in lists.items():
+            if not isinstance(v, list) or not all(isinstance(f, str) for f in v):
+                raise TypeError(f"watch.yaml part {p['vlab_slug']!r}: {k} must be a list "
+                                f"of names, got {v!r:.100}")
+        name = str(p.get("name") or p["vlab_slug"])
+        if name in out:
+            raise ValueError(f"watch.yaml has two parts named {name!r}")
+        out[name] = {**p, **lists}
+    if not out:
+        raise KeyError("watch.yaml 'parts' is empty")
+    return out
+
+
 def settings(cfg: Mapping[str, Any], name: str, defaults: Mapping[str, Any]) -> Dict[str, Any]:
     """The check's own watch.yaml section over its defaults."""
     section = cfg.get(name) or {}

@@ -19,10 +19,15 @@ A CHECK is a module in `checks/`, listed in `checks.CHECKS`, with:
 
 `cfg` is the whole watch.yaml plus `study_dir` (absolute Path). Each check
 reads its own top-level section, named after the check, with
-`core.settings(cfg, name, DEFAULTS)`, plus the shared keys (`vlab`,
-`countries`); `core.utc` parses timestamps. An exception from collect, check
-or act becomes an `unknown` finding for that check, and the other checks
-still run.
+`core.settings(cfg, name, DEFAULTS)`, plus the shared keys (`vlab`, and
+`parts` through `core.parts`); `core.utc` parses timestamps. What a study does
+not have is skipped; config that is present but wrong raises. An exception from
+collect, check or act becomes an `unknown` finding for that check, and the
+other checks still run.
+
+The checks run are watch.yaml's `checks`, default all of `checks.CHECKS`; an
+entry ending `.py` is a study's own check module, by its path from the study
+dir, named after the file.
 
 Finding levels: ok (nothing to do), acted (code did something), decision
 (needs a person), unknown (not recognised; never dropped). The run exits 1

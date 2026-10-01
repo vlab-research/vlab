@@ -29,9 +29,9 @@ def test_red_is_unconfirmed_then_a_decision_then_ok_while_unchanged():
     assert (f.level, f.key) == ("ok", "number_health:111") and "not yet confirmed" in f.summary
     f = run(RED, RED)
     assert f.level == "decision"
-    assert "RED/LIMITED" in f.summary and "no spend ramp" in f.summary and "re-asks" in f.summary
+    assert f.summary == "111: RED/LIMITED, confirmed."
     f = run(RED, RED, RED)
-    assert f.level == "ok" and "unchanged" in f.summary and "no spend ramp" in f.summary
+    assert f.level == "ok" and f.summary == "111: RED/LIMITED, unchanged."
 
 
 def test_single_flicker_is_not_reported():
@@ -43,13 +43,13 @@ def test_single_flicker_is_not_reported():
 def test_confirmed_change_to_yellow():
     f = run(snap(), snap(), snap("YELLOW"), snap("YELLOW"))
     assert f.level == "decision"
-    assert "GREEN/AVAILABLE -> YELLOW/AVAILABLE" in f.summary and "no spend ramp" in f.summary
+    assert "GREEN/AVAILABLE -> YELLOW/AVAILABLE" in f.summary
 
 
-def test_green_twice_after_red_lets_a_held_ramp_go():
+def test_green_twice_after_red_is_a_decision():
     assert run(RED, RED, snap()).level == "ok"
     f = run(RED, RED, snap(), snap())
-    assert f.level == "decision" and "held spend ramp may go ahead" in f.summary
+    assert f.level == "decision" and "RED/LIMITED -> GREEN/AVAILABLE" in f.summary
 
 
 def test_new_note_text_is_confirmed_and_reported_verbatim():

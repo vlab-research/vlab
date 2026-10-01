@@ -1,25 +1,24 @@
 """Each WhatsApp number's quality rating and sending status, read from Meta
 through Fly. A read can flicker (one UNKNOWN between two REDs), so a change,
-including new note or error text from Meta, counts once two reads agree."""
+including new note or error text from Meta, counts once two reads agree. What
+a study does at each rating is its own policy, not this check's."""
 
 from __future__ import annotations
 
 from typing import List, Optional
 
 from .. import io
-from ..core import Finding, need
+from ..core import Finding, settings
 
 NAME = "number_health"
-RULES = {
-    "GREEN": "",
-    "YELLOW": "LAC rules: no spend ramp while YELLOW.",
-    "RED": "LAC rules: no spend ramp while RED; no re-asks except to someone writing now.",
-}
-GREEN_AGAIN = "GREEN on two reads after a non-GREEN period: a held spend ramp may go ahead."
+RATINGS = ("GREEN", "YELLOW", "RED")
+DEFAULTS = {"phone_number_ids": []}
 
 
 def collect(cfg: dict) -> dict:
-    ids = ",".join(str(i) for i in need(cfg, "number_health.phone_number_ids"))
+    ids = ",".join(str(i) for i in settings(cfg, NAME, DEFAULTS)["phone_number_ids"])
+    if not ids:
+        return {"numbers": {}}
     body = io.fly_get("whatsapp", "health", params={"phone_number_id": ids})
     return {"numbers": {n["phone_number_id"]: n for n in body["numbers"]}}
 
@@ -49,7 +48,7 @@ def label(r: dict) -> str:
 
 def check(cfg: dict, snapshot: dict, history: List[dict]) -> List[Finding]:
     return [_number(str(pid), snapshot, history)
-            for pid in need(cfg, "number_health.phone_number_ids")]
+            for pid in settings(cfg, NAME, DEFAULTS)["phone_number_ids"]]
 
 
 def _number(pid: str, snapshot: dict, history: List[dict]) -> Finding:
@@ -72,12 +71,11 @@ def _number(pid: str, snapshot: dict, history: List[dict]) -> Finding:
     ev["settled_before"] = before
     if after is None:
         return finding("ok", f"read {label(now)}, not yet confirmed by a second read")
-    rule = RULES.get(after["quality_rating"])
-    if rule is None:
+    if after["quality_rating"] not in RATINGS:
         return finding("unknown", f"quality_rating {after['quality_rating']} is not a known rating")
     if after == before:
         flicker = "" if now == after else f" (this read {label(now)}, unconfirmed)"
-        return finding("ok", f"{label(after)}, unchanged{flicker}. {rule}")
+        return finding("ok", f"{label(after)}, unchanged{flicker}.")
     old = before["notes"] if before else []
     ev["notes_added"] = [n for n in after["notes"] if n not in old]
     ev["notes_removed"] = [n for n in old if n not in after["notes"]]
@@ -89,6 +87,4 @@ def _number(pid: str, snapshot: dict, history: List[dict]) -> Finding:
         what = f"{label(before)} -> {label(after)}, confirmed."
     else:
         what = f"{label(after)}, Meta's notes changed (in evidence)."
-    if before and before["quality_rating"] != "GREEN" and after["quality_rating"] == "GREEN":
-        rule = GREEN_AGAIN
-    return finding("decision", f"{what} {rule}")
+    return finding("decision", what)
