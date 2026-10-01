@@ -1,5 +1,7 @@
 from datetime import datetime, timedelta, timezone
 
+import pytest
+
 from . import payments
 
 NOW = datetime(2026, 9, 30, 12, 0, tzinfo=timezone.utc)
@@ -103,7 +105,8 @@ def test_collect_reads_bail_events_and_only_listed_providers(monkeypatch):
     def fly_get(path, params=None):
         calls.append(path)
         if path == payments.BAIL_EVENTS:
-            return {"items": [{"bail_name": "st-1"}, {"bail_name": "other"}]}
+            assert params["limit"] == 500 and params["since"].endswith("+00:00")
+            return {"truncated": False, "items": [{"bail_name": "st-1"}, {"bail_name": "other"}]}
         return {"total": 0, "states": []}
     def unread(since):
         raise AssertionError("reloadly is not listed")
@@ -116,3 +119,10 @@ def test_collect_reads_bail_events_and_only_listed_providers(monkeypatch):
     snap = payments.collect(cfg)
     assert list(snap["providers"]) == ["dingconnect"]
     assert snap["bail_events"] == [{"bail_name": "st-1"}] and calls.count(payments.BAIL_EVENTS) == 1
+
+
+def test_bail_events_cut_short_raise(monkeypatch):
+    for body in ({"truncated": True, "items": []}, {"truncated": False, "items": [{}] * 500}):
+        monkeypatch.setattr(payments.io, "fly_get", lambda path, params, body=body: body)
+        with pytest.raises(RuntimeError, match="unread"):
+            payments._bail_events(NOW)

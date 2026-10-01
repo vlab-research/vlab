@@ -23,7 +23,7 @@ DEFAULTS = {"held_minutes": 30, "responding_minutes": 10, "pattern_min_users": 3
             "runway_hours_min": 6, "rate_hours": 24, "window_hours": 6, "bail_prefix": "",
             "ref_prefixes": [], "known_codes": [], "providers": ["dingconnect", "reloadly"],
             "dinersclub": {"namespace": "vprod", "deployment": "gbv-dinersclub"}}
-BAIL_EVENTS, BAIL_LIMIT = "bails/events", 1000
+BAIL_EVENTS, BAIL_LIMIT = "bails/events", 500
 DING_API = "https://api.dingconnect.com/api/V1"
 RELOADLY_API = "https://topups.reloadly.com"
 DING_PAGE, DING_MAX_PAGES = 100, 50
@@ -38,10 +38,12 @@ def _states(survey_name: str, state: str) -> List[dict]:
 
 
 def _bail_events(since: datetime) -> List[dict]:
-    items = io.fly_get(BAIL_EVENTS, {"since": since.isoformat(), "limit": BAIL_LIMIT})["items"]
-    if len(items) >= BAIL_LIMIT:
-        raise RuntimeError(f"{len(items)} bail events since {since}: more may be unread")
-    return items
+    body = io.fly_get(BAIL_EVENTS, {"since": since.isoformat(), "limit": BAIL_LIMIT})
+    # Fly sets `truncated` only when it cuts the page itself; on the user-wide
+    # feed Exodus cuts at `limit` first, so a full page may hide more too.
+    if body["truncated"] or len(body["items"]) >= BAIL_LIMIT:
+        raise RuntimeError(f"Over {BAIL_LIMIT} bail events since {since}: some are unread")
+    return body["items"]
 
 
 def _dinersclub_lines(namespace: str, deployment: str, hours: float) -> List[str]:
