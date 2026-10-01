@@ -26,6 +26,7 @@ DEFAULTS = {
     "max_frequency": 2.0,  # lifetime, ad sets still delivering
     "cost_days": 7,  # ad cost per complete over this many complete days
     "pooled": False,  # true: only the pass-through total must fit, not each line
+    "other_campaigns": [],  # name prefixes of other studies sharing the ad account
 }
 
 
@@ -100,7 +101,7 @@ def collect(cfg: M) -> dict:
         "currency": lifetime["currency"], "today": today.isoformat(),
         "adsets": lifetime["data"], "ad_days": ad_days["data"],
         "countries": {c: {
-            "completes": pace.completes(cfg, c),
+            "completes": pace.country_completes(cfg, c, client),
             "target": pace.per_country(cfg, c, "target", required=True),
             "paid": _paid(countries[c]),
             "arm": {**{k: confs[c]["recruitment"].get(k) for k in arm_keys},
@@ -265,7 +266,8 @@ def check(cfg: M, snapshot: M, history: List[dict]) -> List[Finding]:
                         f"budgets here are USD", {"currency": snapshot["currency"]})]
     others = _group(snapshot["ad_days"], "campaign_name", mine=False)
     spent = {n: round(sum(r["spend"] for r in rs), 2) for n, rs in others.items()}
-    unmatched = {n: v for n, v in spent.items() if v}
+    unmatched = {n: v for n, v in spent.items()
+                 if v and not n.startswith(tuple(s["other_campaigns"]))}
     out = [Finding(NAME, "unknown", f"{NAME}:unmatched-campaigns",
                    f"Campaigns matching no country's prefix spent since "
                    f"{min(r['date'] for r in snapshot['ad_days'])}: {', '.join(unmatched)}",

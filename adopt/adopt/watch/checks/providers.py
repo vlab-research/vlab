@@ -23,7 +23,11 @@ DEFAULTS = {"pattern_min_users": 3, "runway_hours_min": 6, "rate_hours": 24, "wi
 DING_API = "https://api.dingconnect.com/api/V1"
 RELOADLY_API = "https://topups.reloadly.com"
 DING_PAGE, DING_MAX_PAGES = 100, 50
-WITHHOLD = re.compile(r"withholding (\S+) failure for user (\S+): code=(\S*) ")
+WITHHOLD = re.compile(r"withholding (?P<provider>\S+) failure for user (?P<user>\S+): "
+                      r"code=(?P<code>\S*) ")
+# A code dinersclub's classify.go has no recovery for, withheld as a precondition.
+UNCLASSIFIED = re.compile(r"unclassified (?P<provider>\S+) error code \"(?P<code>[^\"]*)\" "
+                          r"for user (?P<user>\S+) -- withholding")
 
 
 def _dinersclub_lines(namespace: str, deployment: str, hours: float) -> List[str]:
@@ -110,17 +114,20 @@ def refusals(lines: Iterable[str], users: set, window_from: datetime, last: Opti
     window (see README.md). A line that does not parse is reported by the read
     that first sees it."""
     groups: Dict[tuple, Dict[str, int]] = defaultdict(lambda: defaultdict(int))
-    unparsed = []
+    unclassified, unparsed = set(), []
     for line in lines:
         stamp, _, rest = line.partition(" ")
         try:
             at = utc(stamp)
         except ValueError:
             at = None
-        m = WITHHOLD.search(rest)
+        m = WITHHOLD.search(rest) or UNCLASSIFIED.search(rest)
         if at and m:
-            if at >= window_from and m.group(2) in users:
-                groups[(m.group(1), m.group(3))][m.group(2)] += 1
+            key = (m["provider"], m["code"])
+            if at >= window_from and m["user"] in users:
+                groups[key][m["user"]] += 1
+            if m.re is UNCLASSIFIED:
+                unclassified.add(key)
         elif not at or at > (last or window_from):
             unparsed.append(line[:300])
     out = [Finding(NAME, "unknown", f"{NAME}:refusal:unparsed",
@@ -130,7 +137,9 @@ def refusals(lines: Iterable[str], users: set, window_from: datetime, last: Opti
         what = (f"{provider} {code}: {len(per_user)} respondent(s) withheld "
                 f"since {window_from:%H:%M}Z")
         if code not in known:
-            level, what = "unknown", f"Unknown error code. {what}"
+            level = "unknown"
+            what = ("Error code unclassified by dinersclub. " if (provider, code) in unclassified
+                    else "Unknown error code. ") + what
         elif len(per_user) >= min_users:
             level, what = "decision", f"{what}: many failing alike, so the form, pin or account"
         else:
@@ -147,9 +156,9 @@ def runway(provider: str, p: M, paid: str, hours: float, min_hours: float) -> Fi
     left = p["balance"] / rate if rate else float("inf")
     ev = {"balance": p["balance"], "currency": p["currency"], "spent": round(spent, 2),
           "rate_per_hour": round(rate, 2), "runway_hours": round(left, 1)}
+    pace = f"{rate:.2f}/h over {hours}h: {left:.1f}h of runway" if rate else f"no sends in {hours}h"
     return Finding(NAME, "decision" if left < min_hours else "ok", f"{NAME}:runway:{provider}",
-                   f"{provider} balance {p['balance']:.2f} {p['currency']}, "
-                   f"{rate:.2f}/h over {hours}h: {left:.1f}h of runway", ev)
+                   f"{provider} balance {p['balance']:.2f} {p['currency']}, {pace}", ev)
 
 
 def double_completions(transfers: Iterable[dict], prefixes: Iterable[str], hours: float) -> Finding:

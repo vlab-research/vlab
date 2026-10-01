@@ -61,6 +61,18 @@ def test_unknown_code_and_new_unparsed_line_are_unknown():
     assert len(f["providers:refusal:unparsed"].evidence["lines"]) == 2
 
 
+def test_code_dinersclub_has_not_classified_groups_like_any_other():
+    def unclassified(user, provider="dingconnect"):
+        return (f"{ago(10)} 2026/09/30 11:50:00 DinersClub saw an unclassified {provider} error "
+                f'code "ParameterCombinationInvalid" for user {user} -- withholding it as a '
+                f"precondition. Add it to recoveryByCode in classify.go.")
+    f = run(waiting=[held("u1"), held("u2")], dinersclub=[unclassified("u1"), unclassified("u2")])
+    r = f["providers:refusal:dingconnect:ParameterCombinationInvalid"]
+    assert r.level == "unknown" and "unclassified by dinersclub" in r.summary
+    assert r.evidence["per_user"] == {"u1": 1, "u2": 1}
+    assert "providers:refusal:unparsed" not in f
+
+
 def test_low_runway_counts_only_successful_sends():
     sends = [{"ref": f"st_{i}", "status": "Complete", "usd": 12.0, "at": ago(60)}
              for i in range(20)]
@@ -69,6 +81,7 @@ def test_low_runway_counts_only_successful_sends():
     assert f["providers:runway:dingconnect"].evidence["runway_hours"] == 3.0
     assert f["providers:runway:dingconnect"].level == "decision"
     assert f["providers:runway:reloadly"].level == "ok"
+    assert f["providers:runway:reloadly"].summary.endswith("no sends in 24h")
 
 
 def test_ref_completed_twice():

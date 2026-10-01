@@ -134,6 +134,8 @@ def test_another_currency_or_an_unmatched_campaign_that_spent_is_unknown():
                      ad_row(2, campaign="Paused", country=None, spend=0.0)]
     [f] = [f for f in ab.check(CFG, s, []) if f.key == "ads_budget:unmatched-campaigns"]
     assert f.level == "unknown" and f.evidence == {"spend": {"Templates": 3.0}}
+    other = {**CFG, "ads_budget": {**CFG["ads_budget"], "other_campaigns": ["Temp"]}}
+    assert "ads_budget:unmatched-campaigns" not in levels(ab.check(other, s, []))
 
 
 # ---- ads -------------------------------------------------------------------
@@ -178,3 +180,39 @@ def test_frequency_is_a_decision_only_for_ad_sets_newly_over():
     assert (f.level, f.evidence["new"]) == ("decision", ["s2"])
     assert sorted(f.evidence["adsets"]) == ["s1", "s2"]
     assert by_key(ab.ad_findings(now, S, [now]))["frequency"].level == "ok"
+
+
+# ---- collect ---------------------------------------------------------------
+
+class FakeVlab:
+    def get_confs(self, org, slug):
+        return {"general": {"ad_account": "1", "credentials_key": "k"},
+                "recruitment": {"budget_per_arm": 100}}
+
+    def meta_insights(self, org, **query):
+        return {"data": [], "paging": {"truncated": False}, "account_id": "1",
+                "timezone": "UTC", "currency": "USD"}
+
+    def recruitment_stats(self, org, slug):
+        return {"s1": {"total_cost": 5.0}}
+
+    def current_data(self, org, slug):
+        return [{"variable": "done", "timestamp": "2026-09-20T10:00:00Z"},
+                {"variable": "done", "timestamp": "2026-09-01T10:00:00Z"},
+                {"variable": "age", "timestamp": "2026-09-21T10:00:00Z"}]
+
+
+def test_collect_counts_completes_as_pace_does(tmp_path, monkeypatch):
+    (tmp_path / "proposal.yaml").write_text(
+        "budget_line_items:\n- {description: Ads, total_price: 10}\n"
+        "- {description: Inc, total_price: 20}\n")
+    cfg = {"study_dir": tmp_path, "vlab": {"org": "o"},
+           "countries": {"AR": {"vlab_slug": "ar", "survey_name": "s", "pay": ["p"],
+                                "end": "e", "apology": "a"}},
+           "pace": {"completion_ref": "done", "target": 750, "count_from": "2026-09-10"},
+           "ads_budget": {"proposal": "proposal.yaml", "lines": {"ads": "Ads", "incentives": "Inc"},
+                          "countries": {"AR": {"campaigns": ["ar-"]}}}}
+    monkeypatch.setattr(ab.io, "vlab_client", FakeVlab)
+    monkeypatch.setattr(ab.io, "fly_get", lambda *path, params=None: {"summary": []})
+    ar = ab.collect(cfg)["countries"]["AR"]
+    assert (ar["completes"], ar["target"]) == (["2026-09-20T10:00:00Z"], 750)
