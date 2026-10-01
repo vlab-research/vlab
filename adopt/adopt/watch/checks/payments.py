@@ -1,7 +1,6 @@
 """Payments, read-only: who the pay forms hold, what dinersclub refuses and
 why, whether bails moved everyone they matched, and whether the providers can
-keep paying. Paying and bailing belong in Fly's payment sub-bot. See README.md.
-"""
+keep paying. Paying and bailing belong in Fly's payment sub-bot. See README.md."""
 
 from __future__ import annotations
 
@@ -15,9 +14,8 @@ from typing import Any, Dict, Iterable, List, Mapping, Optional
 from .. import io
 from ..core import Finding, need, settings, utc
 
+M = Mapping[str, Any]
 NAME = "payments"
-# window_hours: how far back bail events and dinersclub lines are read.
-# Refusals are grouped over it, so it must cover dean's re-drive interval.
 DEFAULTS = {"held_minutes": 30, "responding_minutes": 10, "pattern_min_users": 3,
             "runway_hours_min": 6, "rate_hours": 24, "window_hours": 6, "bail_prefix": "",
             "ref_prefixes": [], "known_codes": [], "providers": ["dingconnect", "reloadly"],
@@ -29,12 +27,12 @@ DING_PAGE, DING_MAX_PAGES = 100, 50
 WITHHOLD = re.compile(r"withholding (\S+) failure for user (\S+): code=(\S*) ")
 
 
-def _states(survey_name: str, state: str) -> List[dict]:
+def _states(survey_name: str, state: str, field: str) -> List[dict]:
     body = io.fly_get("surveys", survey_name, "states", params={"state": state, "limit": 10000})
     if int(body["total"]) != len(body["states"]):
         raise RuntimeError(f"{survey_name} {state}: got {len(body['states'])} "
                            f"of {body['total']} states")
-    return body["states"]
+    return [{k: r[k] for k in ("userid", "current_form", field)} for r in body["states"]]
 
 
 def _bail_events(since: datetime) -> List[dict]:
@@ -110,43 +108,48 @@ def _reloadly(since: datetime) -> dict:
 PROVIDERS = {"dingconnect": (_dingconnect, "Complete"), "reloadly": (_reloadly, "SUCCESSFUL")}
 
 
-def collect(cfg: Mapping[str, Any]) -> dict:
+def collect(cfg: M) -> dict:
     s = settings(cfg, NAME, DEFAULTS)
     now = datetime.now(timezone.utc)
-    countries = need(cfg, "countries").values()
-    pay = {f for c in countries for f in c["pay"]}
-    held, responding = [], []
-    for c in countries:
-        held += [{"userid": r["userid"], "form": r["current_form"], "form_start_time": r["form_start_time"]}
-                 for r in _states(c["survey_name"], "WAIT_EXTERNAL_EVENT") if r["current_form"] in pay]
-        responding += [{"userid": r["userid"], "form": r["current_form"], "updated": r["updated"]}
-                       for r in _states(c["survey_name"], "RESPONDING")]
-    bails = [e for e in _bail_events(now - timedelta(hours=s["window_hours"]))
-             if (e.get("bail_name") or "").startswith(s["bail_prefix"])]
-    d = {**DEFAULTS["dinersclub"], **s["dinersclub"]}
-    since = now - timedelta(hours=s["rate_hours"])
-    return {"held": held, "responding": responding, "bail_events": bails,
+    waiting, responding = [], []
+    for c in need(cfg, "countries").values():
+        waiting += _states(c["survey_name"], "WAIT_EXTERNAL_EVENT", "form_start_time")
+        responding += _states(c["survey_name"], "RESPONDING", "updated")
+    d = s["dinersclub"]
+    return {"waiting": waiting, "responding": responding,
+            "bail_events": _bail_events(now - timedelta(hours=s["window_hours"])),
             "dinersclub": _dinersclub_lines(d["namespace"], d["deployment"], s["window_hours"]),
-            "providers": {p: PROVIDERS[p][0](since) for p in s["providers"]}}
+            "providers": {p: PROVIDERS[p][0](now - timedelta(hours=s["rate_hours"]))
+                          for p in s["providers"]}}
 
 
-def stale(name: str, rows: List[dict], field: str, minutes: float, now: datetime, what: str,
-          why: str) -> Finding:
+def stale(name: str, rows: List[dict], field: str, minutes: float, now: datetime,
+          what: str, why: str) -> Finding:
     """`rows` whose `field` time is over `minutes` before `now`, oldest first."""
     rows = sorted((r for r in rows if utc(r[field]) < now - timedelta(minutes=minutes)),
                   key=lambda r: utc(r[field]))
+    tail = f", oldest since {rows[0][field]}; {why}" if rows else ""
     return Finding(NAME, "decision" if rows else "ok", f"{NAME}:{name}",
-                   f"{len(rows)} {what} over {minutes} min"
-                   + (f", oldest since {rows[0][field]}; {why}" if rows else ""), {name: rows})
+                   f"{len(rows)} {what} over {minutes} min{tail}", {name: rows})
+
+
+def bails(events: Iterable[dict], prefix: str, last: Optional[datetime]) -> List[Finding]:
+    """The study's bail runs since the last read that did not bail all they matched."""
+    events = [e for e in events if (e["bail_name"] or "").startswith(prefix)
+              and (last is None or utc(e["timestamp"]) > last)]
+    bad = [Finding(NAME, "decision", f"{NAME}:bail:{e['bail_name']}",
+                   f"Bail {e['bail_name']} matched {e['users_matched']}, bailed "
+                   f"{e['users_bailed']}" + (f", error {e['error']}" if e["error"] else ""), e)
+           for e in events if e["users_matched"] != e["users_bailed"] or e["error"]]
+    return bad or [Finding(NAME, "ok", f"{NAME}:bails", f"{len(events)} bail run(s) since "
+                           "the last read, each bailed all it matched")]
 
 
 def refusals(lines: Iterable[str], users: set, window_from: datetime, last: Optional[datetime],
              known: Iterable[str], min_users: int) -> List[Finding]:
     """One finding per (provider, code), by distinct `users` withheld in the
-    window. Many numbers failing the same way is the form, the pin or the
-    account; a few refused again and again is their line, which only a new
-    number fixes. A line that does not parse is reported by the read that first
-    sees it."""
+    window (see README.md). A line that does not parse is reported by the read
+    that first sees it."""
     groups: Dict[tuple, Dict[str, int]] = defaultdict(lambda: defaultdict(int))
     unparsed = []
     for line in lines:
@@ -165,11 +168,12 @@ def refusals(lines: Iterable[str], users: set, window_from: datetime, last: Opti
                    f"{len(unparsed)} dinersclub withholding line(s) did not parse",
                    {"lines": unparsed})] if unparsed else []
     for (provider, code), per_user in sorted(groups.items()):
-        what = f"{provider} {code}: {len(per_user)} respondent(s) withheld since {window_from:%H:%M}Z"
+        what = (f"{provider} {code}: {len(per_user)} respondent(s) withheld "
+                f"since {window_from:%H:%M}Z")
         if code not in known:
             level, what = "unknown", f"Unknown error code. {what}"
         elif len(per_user) >= min_users:
-            level, what = "decision", f"{what}: many numbers failing the same way, so the form, pin or account"
+            level, what = "decision", f"{what}: many failing alike, so the form, pin or account"
         else:
             level, what = "ok", f"{what}: the line(s); only a new number fixes it"
         out.append(Finding(NAME, level, f"{NAME}:refusal:{provider}:{code}", what,
@@ -177,7 +181,7 @@ def refusals(lines: Iterable[str], users: set, window_from: datetime, last: Opti
     return out
 
 
-def runway(provider: str, p: Mapping[str, Any], paid: str, hours: float, min_hours: float) -> Finding:
+def runway(provider: str, p: M, paid: str, hours: float, min_hours: float) -> Finding:
     """Hours the balance lasts at the last `hours`' rate of successful sends."""
     spent = sum(t["usd"] for t in p["transfers"] if t["status"] == paid)
     rate = spent / hours
@@ -203,29 +207,23 @@ def double_completions(transfers: Iterable[dict], prefixes: Iterable[str], hours
                    {"refs": doubles, "extra_usd": round(extra, 2)})
 
 
-def check(cfg: Mapping[str, Any], snapshot: Mapping[str, Any], history: List[dict]) -> List[Finding]:
+def check(cfg: M, snapshot: M, history: List[dict]) -> List[Finding]:
     s = settings(cfg, NAME, DEFAULTS)
     now = utc(snapshot["read_at"])
     last = utc(history[0]["read_at"]) if history else None
     window_from = now - timedelta(hours=s["window_hours"])
-    out = [stale("held", snapshot["held"], "form_start_time", s["held_minutes"], now,
+    pay = {f for c in need(cfg, "countries").values() for f in c["pay"]}
+    held = [r for r in snapshot["waiting"] if r["current_form"] in pay]
+    out = [stale("held", held, "form_start_time", s["held_minutes"], now,
                  "held on a pay form", "the sweep should pay them"),
            stale("responding", snapshot["responding"], "updated", s["responding_minutes"], now,
                  "stuck in RESPONDING", "replybot drops their replies")]
-    if last is None:
-        out.append(Finding(NAME, "ok", f"{NAME}:gap", f"First read: bails and refusals over {s['window_hours']}h"))
-    elif last < window_from:
-        out.append(Finding(NAME, "unknown", f"{NAME}:gap", f"Bail events and dinersclub lines between "
-                           f"{last.isoformat()} and {window_from.isoformat()} were not read"))
-
-    events = [e for e in snapshot["bail_events"] if last is None or utc(e["timestamp"]) > last]
-    bad = [e for e in events if e["users_matched"] != e["users_bailed"] or e["error"]]
-    out += [Finding(NAME, "decision", f"{NAME}:bail:{e['bail_name']}",
-                    f"Bail {e['bail_name']} matched {e['users_matched']}, bailed {e['users_bailed']}"
-                    + (f", error {e['error']}" if e["error"] else ""), e) for e in bad]
-    out += [] if bad else [Finding(NAME, "ok", f"{NAME}:bails",
-                                   f"{len(events)} bail run(s) since the last read, each bailed all it matched")]
-    out += refusals(snapshot["dinersclub"], {h["userid"] for h in snapshot["held"]}, window_from, last,
+    if last and last < window_from:
+        out.append(Finding(NAME, "unknown", f"{NAME}:gap", f"Bail events and dinersclub lines "
+                           f"between {last:%d %b %H:%M} and {window_from:%d %b %H:%M} UTC "
+                           "were not read"))
+    out += bails(snapshot["bail_events"], s["bail_prefix"], last)
+    out += refusals(snapshot["dinersclub"], {h["userid"] for h in held}, window_from, last,
                     s["known_codes"], s["pattern_min_users"])
     out += [runway(name, p, PROVIDERS[name][1], s["rate_hours"], s["runway_hours_min"])
             for name, p in snapshot["providers"].items()]

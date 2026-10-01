@@ -90,8 +90,7 @@ def collect(cfg: M) -> dict:
     lifetime = insights(level="adset", date_preset="maximum")
     if not lifetime["timezone"]:
         raise RuntimeError(f"Meta returned no timezone for ad account {account}")
-    zone = ZoneInfo(lifetime["timezone"])
-    today = datetime.now(zone).date()
+    today = datetime.now(ZoneInfo(lifetime["timezone"])).date()
     since = today - timedelta(days=max(s["recent_days"] + s["baseline_days"], s["cost_days"]))
     ad_days = insights(level="ad", since=since.isoformat(), until=today.isoformat(),
                        time_increment="1")
@@ -101,9 +100,7 @@ def collect(cfg: M) -> dict:
         "currency": lifetime["currency"], "today": today.isoformat(),
         "adsets": lifetime["data"], "ad_days": ad_days["data"],
         "countries": {c: {
-            # Dated in the ad account's timezone, as Meta's days are.
-            "completes": [utc(t).astimezone(zone).date().isoformat()
-                          for t in pace.completes(cfg, c)],
+            "completes": pace.completes(cfg, c),
             "target": pace.per_country(cfg, c, "target", required=True),
             "paid": _paid(countries[c]),
             "arm": {**{k: confs[c]["recruitment"].get(k) for k in arm_keys},
@@ -142,7 +139,10 @@ def _group(rows: Iterable[M], key: str, mine: bool = True) -> Dict[str, List[M]]
 def project(country: str, c: M, snap: M, s: M, incentive: float) -> Dict[str, Any]:
     """The budget arithmetic for one country, every input in the result."""
     cost_days = _days(snap, 1, s["cost_days"])
-    recent = sum(d in cost_days for d in c["completes"])
+    # Dated in the ad account's timezone, as Meta's days are.
+    zone = ZoneInfo(snap["timezone"])
+    days = [utc(t).astimezone(zone).date().isoformat() for t in c["completes"]]
+    recent = sum(d in cost_days for d in days)
     spend = _sum([r for r in snap["ad_days"] if r["country"] == country], cost_days)["spend"]
     cpc = spend / recent if recent else None
     remaining = max(0, c["target"] - len(c["completes"]))

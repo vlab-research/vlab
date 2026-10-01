@@ -1,9 +1,6 @@
-"""number_health: each WhatsApp number's quality rating and sending status,
-read live from Meta through Fly (GET /whatsapp/health).
-
-A read can flicker (one UNKNOWN between two REDs), so a change, including new
-note or error text from Meta, counts only once two consecutive reads agree.
-"""
+"""Each WhatsApp number's quality rating and sending status, read from Meta
+through Fly. A read can flicker (one UNKNOWN between two REDs), so a change,
+including new note or error text from Meta, counts once two reads agree."""
 
 from __future__ import annotations
 
@@ -66,7 +63,8 @@ def _number(pid: str, snapshot: dict, history: List[dict]) -> Finding:
     if now is None:
         return finding("unknown", f"Meta read failed: {number['error']}" if number
                        else "Fly returned no reading for this number")
-    if now["can_send_message"] not in ("AVAILABLE", "LIMITED") or number.get("status") != "CONNECTED":
+    sendable = now["can_send_message"] in ("AVAILABLE", "LIMITED")
+    if not sendable or number.get("status") != "CONNECTED":
         return finding("unknown", f"can_send_message={now['can_send_message']} "
                                   f"status={number.get('status')}: sending may be blocked")
     past = [reading(s["numbers"].get(pid)) for s in history]

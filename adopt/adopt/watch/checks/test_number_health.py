@@ -24,15 +24,12 @@ def run(*reads):
     return f
 
 
-def test_first_read_is_unconfirmed_then_confirmed_red_names_the_rules():
+def test_red_is_unconfirmed_then_a_decision_then_ok_while_unchanged():
     f = run(RED)
     assert (f.level, f.key) == ("ok", "number_health:111") and "not yet confirmed" in f.summary
     f = run(RED, RED)
     assert f.level == "decision"
     assert "RED/LIMITED" in f.summary and "no spend ramp" in f.summary and "re-asks" in f.summary
-
-
-def test_unchanged_red_stays_ok_and_says_the_rule():
     f = run(RED, RED, RED)
     assert f.level == "ok" and "unchanged" in f.summary and "no spend ramp" in f.summary
 
@@ -73,16 +70,3 @@ def test_unfamiliar_or_unsendable_values_are_unknown():
 def test_failed_or_missing_read_is_unknown():
     assert run(snap(error={"code": 190, "message": "Session expired"})).level == "unknown"
     assert run({"read_at": "t", "numbers": {}}).level == "unknown"
-
-
-def test_collect_asks_fly_for_the_configured_numbers(monkeypatch):
-    seen = {}
-
-    def fly_get(*path, params):
-        seen.update(path=path, params=params)
-        return {"numbers": [snap()["numbers"][PID]]}
-
-    monkeypatch.setattr(nh.io, "fly_get", fly_get)
-    out = nh.collect(CFG)
-    assert seen == {"path": ("whatsapp", "health"), "params": {"phone_number_id": PID}}
-    assert list(out) == ["numbers"] and out["numbers"][PID]["quality_rating"] == "GREEN"

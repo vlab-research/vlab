@@ -51,11 +51,8 @@ def test_closing_window():
     assert ("decision", "window-closed") in keys(snap(500, 0, end_days=-1))
 
 
-def test_zero_in_24h_while_recruiting_is_unknown():
+def test_zero_in_24h_is_unknown_only_once_the_window_opens():
     assert keys(snap(500, 0)) == [("unknown", "no-completes")]
-
-
-def test_zero_before_the_window_opens_is_ok():
     assert keys(snap(0, 0, start_days=1)) == [("ok", "on-track")]
 
 

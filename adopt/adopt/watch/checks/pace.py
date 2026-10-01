@@ -15,16 +15,9 @@ DEFAULTS = {"window_hours": 24, "near_target_days": 1.0, "closing_hours": 24}
 PAGE = 5000
 
 
-def _settings(cfg: M) -> Dict[str, Any]:
-    s = settings(cfg, NAME, DEFAULTS)
-    if s["window_hours"] < 24:
-        raise ValueError(f"pace.window_hours is {s['window_hours']}; it must be at least 24")
-    return s
-
-
 def per_country(cfg: M, country: str, key: str, required: bool = False) -> Any:
     """`pace.countries.<country>.<key>`, else `pace.<key>`."""
-    s = _settings(cfg)
+    s = settings(cfg, NAME, DEFAULTS)
     value = ((s.get("countries") or {}).get(country) or {}).get(key, s.get(key))
     if required and value is None:
         raise KeyError(f"watch.yaml has no pace.{key} for {country}")
@@ -125,6 +118,8 @@ def assess(country: str, c: M, now: datetime, s: M) -> List[Finding]:
 
 
 def check(cfg: M, snapshot: M, history: List[dict]) -> List[Finding]:
-    s, now = _settings(cfg), utc(snapshot["read_at"])
+    s, now = settings(cfg, NAME, DEFAULTS), utc(snapshot["read_at"])
+    if s["window_hours"] < 24:
+        raise ValueError(f"pace.window_hours is {s['window_hours']}; it must be at least 24")
     return [f for country, c in snapshot["countries"].items()
             for f in assess(country, c, now, s)]

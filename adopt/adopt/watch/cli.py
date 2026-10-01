@@ -27,11 +27,12 @@ def watch(study_dir: Path, only: Optional[str], act: bool, as_json: bool) -> Non
     """
     cfg = core.load_config(study_dir)
     load_env_files(study_dir, cfg.get("env_files") or [])
-    names = [c.strip() for c in only.split(",") if c.strip()] if only else None
-    try:
-        checks = core.select(CHECKS, names)
-    except KeyError as e:
-        raise click.BadParameter(str(e.args[0]), param_hint="--only")
+    names = [c.strip() for c in (only or "").split(",") if c.strip()] or list(CHECKS)
+    missing = [c for c in names if c not in CHECKS]
+    if missing:
+        raise click.BadParameter(f"No such check: {', '.join(missing)} "
+                                 f"(have: {', '.join(CHECKS)})", param_hint="--only")
+    checks = {c: CHECKS[c] for c in names}
     now = datetime.now(timezone.utc)
     findings = core.run(checks, cfg, study_dir, act, now)
     title = f"Watch {study_dir.resolve().name} {now.strftime(core.TS)}"
