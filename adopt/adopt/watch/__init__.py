@@ -19,8 +19,9 @@ A CHECK is a module in `checks/`, listed in `checks.CHECKS`, with:
 
 `cfg` is the whole watch.yaml plus `study_dir` (absolute Path). Each check
 reads its own top-level section, named after the check, with
-`core.settings(cfg, name, DEFAULTS)`, plus the shared keys (`vlab`,
-`countries`); `core.utc` parses timestamps. An exception from collect, check
+`core.settings(cfg, name, DEFAULTS)`, plus the shared keys (`vlab`, and
+`parts` through `core.parts`); `core.utc` parses timestamps. A feature the
+study's config leaves out is skipped; config that is present but wrong raises. An exception from collect, check
 or act becomes an `unknown` finding for that check, and the other checks
 still run.
 

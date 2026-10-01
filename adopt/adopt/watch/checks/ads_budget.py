@@ -1,4 +1,5 @@
-"""Ad performance and budget against the proposal, per country in USD. Meta
+"""Ad performance and budget per part, in the ad account's currency, against
+vlab's `budget_per_arm` and, when configured, the proposal's lines. Meta
 insights come through the vlab conf server's `GET /{org}/meta/insights`.
 See README.md for the arithmetic."""
 
@@ -12,7 +13,7 @@ from zoneinfo import ZoneInfo
 import yaml
 
 from .. import io
-from ..core import Finding, need, settings, utc
+from ..core import Finding, need, parts, settings, utc
 from . import pace
 
 M = Mapping[str, Any]
@@ -25,19 +26,20 @@ DEFAULTS = {
     "min_impressions": 1000,  # in each window, so a quiet ad set is not judged
     "max_frequency": 2.0,  # lifetime, ad sets still delivering
     "cost_days": 7,  # ad cost per complete over this many complete days
-    "pooled": False,  # true: only the pass-through total must fit, not each line
     "other_campaigns": [],  # name prefixes of other studies sharing the ad account
+    "proposal": None,  # {path, currency, lines, pooled}; without it no line is judged
 }
+LINES = ("ads", "incentives")
 
 
 def shape(row: M, prefixes: Mapping[str, List[str]]) -> Dict[str, Any]:
     """One Meta insights row as numbers, with conversations pulled out of
-    `actions` and the country whose campaign prefix it matches (None if none)."""
+    `actions` and the part whose campaign prefix it matches (None if none)."""
     num = lambda k: float(row.get(k) or 0)
     name = row.get("campaign_name", "")
     ids = ("campaign_name", "adset_id", "adset_name", "ad_name")
     return {**{k: row[k] for k in ids if k in row},
-            "country": next((c for c, ps in prefixes.items()
+            "part": next((c for c, ps in prefixes.items()
                              if any(name.startswith(p) for p in ps)), None),
             "date": row.get("date_start"), "spend": num("spend"),
             "impressions": int(num("impressions")), "reach": int(num("reach")),
@@ -47,35 +49,41 @@ def shape(row: M, prefixes: Mapping[str, List[str]]) -> Dict[str, Any]:
 
 
 def proposal_lines(proposal: M, lines: Mapping[str, str]) -> Dict[str, float]:
-    """The proposal's totals for the `ads` and `incentives` lines, named by
+    """The proposal's totals for the `ads` and/or `incentives` lines, named by
     their `budget_line_items` description."""
     items = {i["description"]: float(i["total_price"]) for i in proposal["budget_line_items"]}
-    if set(lines) != {"ads", "incentives"} or not set(lines.values()) <= set(items):
-        raise KeyError(f"{NAME}.lines must map ads and incentives to budget lines in "
-                       f"{list(items)}, not {dict(lines)}")
+    if not lines or not set(lines) <= set(LINES) or not set(lines.values()) <= set(items):
+        raise KeyError(f"{NAME}.proposal.lines must map ads and/or incentives to budget lines "
+                       f"in {list(items)}, not {dict(lines or {})}")
     return {name: items[desc] for name, desc in lines.items()}
 
 
-def _paid(country: M) -> int:
-    """Respondents whose current form is a pay, end or apology form."""
-    forms = {*country["pay"], country["end"], country["apology"]}
-    summary = io.fly_get("surveys", country["survey_name"], "states", "summary")
-    return sum(r["count"] for r in summary["summary"] if r["current_form"] in forms)
+def _paid(part: M) -> int:
+    """Respondents whose current form is a pay form or one reached after paying."""
+    paid = {*part["pay"], *part["after_pay"]}
+    if not paid:
+        return 0
+    summary = io.fly_get("surveys", part["survey_name"], "states", "summary")
+    return sum(r["count"] for r in summary["summary"] if r["current_form"] in paid)
 
 
 def collect(cfg: M) -> dict:
     s = settings(cfg, NAME, DEFAULTS)
-    org, countries = need(cfg, "vlab.org"), need(cfg, "countries")
-    mine = need(cfg, f"{NAME}.countries")
-    prefixes = {c: list(need(cfg, f"{NAME}.countries.{c}.campaigns")) for c in mine}
-    path = cfg["study_dir"] / need(cfg, f"{NAME}.proposal")
-    lines = proposal_lines(yaml.safe_load(path.read_text()), need(cfg, f"{NAME}.lines"))
-    client = io.vlab_client()
-    confs = {c: client.get_confs(org, countries[c]["vlab_slug"]) for c in mine}
+    org, mine, client = need(cfg, "vlab.org"), parts(cfg), io.vlab_client()
+    proposal = None
+    if s["proposal"]:
+        path = cfg["study_dir"] / need(cfg, f"{NAME}.proposal.path")
+        proposal = {"path": str(path), "currency": need(cfg, f"{NAME}.proposal.currency"),
+                    "lines": proposal_lines(yaml.safe_load(path.read_text()),
+                                            need(cfg, f"{NAME}.proposal.lines"))}
+    confs = {c: client.get_confs(org, p["vlab_slug"]) for c, p in mine.items()}
+    # A part without `campaigns` matches the campaigns vlab names for it.
+    prefixes = {c: p["campaigns"] or [confs[c]["recruitment"]["ad_campaign_name_base"]]
+                for c, p in mine.items()}
     accounts = {c: (v["general"]["ad_account"], v["general"].get("credentials_key"))
                 for c, v in confs.items()}
     if len(set(accounts.values())) != 1:
-        raise ValueError(f"The countries' studies use different ad accounts: {accounts}")
+        raise ValueError(f"The parts' vlab studies use different ad accounts: {accounts}")
     account, key = next(iter(accounts.values()))
 
     def insights(**query: Any) -> Dict[str, Any]:
@@ -100,15 +108,15 @@ def collect(cfg: M) -> dict:
         "account": lifetime["account_id"], "timezone": lifetime["timezone"],
         "currency": lifetime["currency"], "today": today.isoformat(),
         "adsets": lifetime["data"], "ad_days": ad_days["data"],
-        "countries": {c: {
-            "completes": pace.country_completes(cfg, c, client),
-            "target": pace.per_country(cfg, c, "target", required=True),
-            "paid": _paid(countries[c]),
+        "parts": {c: {
+            "completes": pace.part_completes(cfg, c, client),
+            "target": pace.per_part(cfg, c, "target", required=True),
+            "paid": _paid(p),
             "arm": {**{k: confs[c]["recruitment"].get(k) for k in arm_keys},
                     "vlab_spent": sum(v["total_cost"] for v in client.recruitment_stats(
-                        org, countries[c]["vlab_slug"]).values())},
-        } for c in mine},
-        "proposal": {"path": str(path), "lines": lines},
+                        org, p["vlab_slug"]).values())},
+        } for c, p in mine.items()},
+        "proposal": proposal,
     }
 
 
@@ -132,25 +140,25 @@ def _group(rows: Iterable[M], key: str, mine: bool = True) -> Dict[str, List[M]]
     """The rows of the study's own campaigns (`mine=False`: the others), by `key`."""
     out: Dict[str, List[M]] = defaultdict(list)
     for r in rows:
-        if bool(r["country"]) == mine:
+        if bool(r["part"]) == mine:
             out[r[key]].append(r)
     return out
 
 
-def project(country: str, c: M, snap: M, s: M, incentive: float) -> Dict[str, Any]:
-    """The budget arithmetic for one country, every input in the result."""
+def project(name: str, c: M, snap: M, s: M, incentive: float) -> Dict[str, Any]:
+    """The budget arithmetic for one part, every input in the result."""
     cost_days = _days(snap, 1, s["cost_days"])
     # Dated in the ad account's timezone, as Meta's days are.
     zone = ZoneInfo(snap["timezone"])
     days = [utc(t).astimezone(zone).date().isoformat() for t in c["completes"]]
     recent = sum(d in cost_days for d in days)
-    spend = _sum([r for r in snap["ad_days"] if r["country"] == country], cost_days)["spend"]
+    spend = _sum([r for r in snap["ad_days"] if r["part"] == name], cost_days)["spend"]
     cpc = spend / recent if recent else None
     remaining = max(0, c["target"] - len(c["completes"]))
-    ads = round(sum(a["spend"] for a in snap["adsets"] if a["country"] == country), 2)
+    ads = round(sum(a["spend"] for a in snap["adsets"] if a["part"] == name), 2)
     out = {"completes": len(c["completes"]), "target": c["target"], "remaining": remaining,
            "paid": c["paid"], "ads_spent": ads,
-           "incentives_spent_est": round(c["paid"] * incentive, 2), "incentive_usd": incentive,
+           "incentives_spent_est": round(c["paid"] * incentive, 2), "incentive": incentive,
            "ad_cost_per_complete": cpc and round(cpc, 2),
            "ad_cost_days": f"{cost_days[0]}..{cost_days[-1]}"}
     if cpc is None and remaining:
@@ -166,13 +174,19 @@ def project(country: str, c: M, snap: M, s: M, incentive: float) -> Dict[str, An
 
 
 def budget_findings(cfg: M, snap: M, s: M) -> List[Finding]:
-    proj = {c: project(c, v, snap, s, float(need(cfg, f"{NAME}.countries.{c}.incentive_usd")))
-            for c, v in snap["countries"].items()}
+    proposal, cur = snap["proposal"], snap["currency"]
+    money = lambda x: f"{x:,.0f} {cur}"
+    rates = {c: parts(cfg)[c].get("incentive", v["arm"].get("incentive_per_respondent"))
+             for c, v in snap["parts"].items()}
+    if proposal and "incentives" in proposal["lines"] and None in rates.values():
+        raise KeyError(f"no incentive (watch.yaml or vlab) for the proposal's incentives line: "
+                       f"{[c for c, r in rates.items() if r is None]}")
+    proj = {c: project(c, v, snap, s, float(rates[c] or 0)) for c, v in snap["parts"].items()}
     arms = {c: p["arm"] for c, p in proj.items() if "arm" in p}
     missing = [f"{c}: the recruitment conf has no {k}"
                for c, a in arms.items() for k in a["missing"]]
-    short = [f"{c}: budget_per_arm ${a['budget']:,.0f} is below ${a['spent']:,.0f} spent + "
-             f"${a['needs']:,.0f} for the remaining {proj[c]['remaining']}"
+    short = [f"{c}: budget_per_arm {money(a['budget'])} is below {money(a['spent'])} spent + "
+             f"{money(a['needs'])} for the remaining {proj[c]['remaining']}"
              for c, a in arms.items()
              if not a["missing"] and a["budget"] < a["spent"] + a["needs"]]
     level = "unknown" if missing else "decision" if short else "ok"
@@ -184,23 +198,29 @@ def budget_findings(cfg: M, snap: M, s: M) -> List[Finding]:
         return out + [Finding(NAME, "unknown", f"{NAME}:no-cost-per-complete",
                               f"{', '.join(unpriced)}: no completes in the last "
                               f"{s['cost_days']} days to price the remaining by", proj)]
+    if not proposal:
+        return out
+    if proposal["currency"] != cur:
+        return out + [Finding(NAME, "unknown", f"{NAME}:currency",
+                              f"Ad account {snap['account']} reports in {cur}; the proposal "
+                              f"is in {proposal['currency']}", {"currency": cur})]
 
-    lines = snap["proposal"]["lines"]
+    lines = proposal["lines"]
     projected = {k: round(sum(p[f"projected_{k}"] for p in proj.values()), 2) for k in lines}
-    ev = {"projected": projected, "lines": lines, "countries": proj}
+    ev = {"projected": projected, "lines": lines, "parts": proj}
     total, budget = sum(projected.values()), sum(lines.values())
-    tally = ", ".join(f"{k} ${projected[k]:,.0f}/${lines[k]:,.0f}" for k in lines)
+    tally = ", ".join(f"{k} {money(projected[k])}/{money(lines[k])}" for k in lines)
     over = [k for k in lines if projected[k] > lines[k]]
     if total > budget:
-        return out + [Finding(NAME, "decision", f"{NAME}:over-total", f"Projected ${total:,.0f}"
-                              f" is over the proposal's ${budget:,.0f} ({tally})", ev)]
-    if over and not s["pooled"]:
+        return out + [Finding(NAME, "decision", f"{NAME}:over-total", f"Projected {money(total)}"
+                              f" is over the proposal's {money(budget)} ({tally})", ev)]
+    if over and not s["proposal"].get("pooled"):
         return out + [Finding(NAME, "decision", f"{NAME}:over-line:{k}",
-                              f"Projected {k} ${projected[k]:,.0f} is over its line "
-                              f"${lines[k]:,.0f}; the total ${total:,.0f} fits ${budget:,.0f}",
+                              f"Projected {k} {money(projected[k])} is over its line "
+                              f"{money(lines[k])}; the total {money(total)} fits {money(budget)}",
                               ev) for k in over]
     return out + [Finding(NAME, "ok", f"{NAME}:budget",
-                          f"Projected ${total:,.0f} of ${budget:,.0f} ({tally})", ev)]
+                          f"Projected {money(total)} of {money(budget)} ({tally})", ev)]
 
 
 def over_frequency(snap: M, s: M) -> Dict[str, M]:
@@ -209,7 +229,7 @@ def over_frequency(snap: M, s: M) -> Dict[str, M]:
     delivering = {r["adset_id"] for r in snap["ad_days"]
                   if r["date"] in recent and r["impressions"]}
     return {a["adset_id"]: {k: a[k] for k in ("campaign_name", "adset_name", "frequency", "reach")}
-            for a in snap["adsets"] if a["country"] and a["adset_id"] in delivering
+            for a in snap["adsets"] if a["part"] and a["adset_id"] in delivering
             and a["frequency"] > s["max_frequency"]}
 
 
@@ -253,23 +273,19 @@ def yesterday(snap: M) -> Finding:
             cost = round(t["spend"] / t["conversations"], 2) if t["conversations"] else None
             table[name] = {**t, "per_1000": _rate(t), "cost_per_conversation": cost}
     spend, conv = (sum(t[k] for t in table.values()) for k in ("spend", "conversations"))
-    return Finding(NAME, "ok", f"{NAME}:yesterday", f"{day} ({snap['timezone']}): "
-                   f"${spend:,.2f} for {conv} conversations over {len(table)} campaigns",
+    return Finding(NAME, "ok", f"{NAME}:yesterday", f"{day} ({snap['timezone']}): {spend:,.2f} "
+                   f"{snap['currency']} for {conv} conversations over {len(table)} campaigns",
                    {"day": day, "campaigns": table})
 
 
 def check(cfg: M, snapshot: M, history: List[dict]) -> List[Finding]:
     s = settings(cfg, NAME, DEFAULTS)
-    if snapshot["currency"] != "USD":
-        return [Finding(NAME, "unknown", f"{NAME}:currency",
-                        f"Ad account {snapshot['account']} reports in {snapshot['currency']}; "
-                        f"budgets here are USD", {"currency": snapshot["currency"]})]
     others = _group(snapshot["ad_days"], "campaign_name", mine=False)
     spent = {n: round(sum(r["spend"] for r in rs), 2) for n, rs in others.items()}
     unmatched = {n: v for n, v in spent.items()
                  if v and not n.startswith(tuple(s["other_campaigns"]))}
     out = [Finding(NAME, "unknown", f"{NAME}:unmatched-campaigns",
-                   f"Campaigns matching no country's prefix spent since "
+                   f"Campaigns matching no part's prefix spent since "
                    f"{min(r['date'] for r in snapshot['ad_days'])}: {', '.join(unmatched)}",
                    {"spend": unmatched})] if unmatched else []
     return (out + budget_findings(cfg, snapshot, s) + ad_findings(snapshot, s, history)

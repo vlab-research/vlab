@@ -6,8 +6,9 @@ from . import ads_budget as ab
 
 TODAY = date(2026, 10, 1)
 CONV = "onsite_conversion.messaging_conversation_started_7d"
-CFG = {"ads_budget": {"countries": {"AR": {"campaigns": ["ar-"], "incentive_usd": 2.0},
-                                    "HN": {"campaigns": ["hn-"], "incentive_usd": 8.0}}}}
+CFG = {"parts": [{"name": "AR", "vlab_slug": "ar", "survey_name": "s", "incentive": 2.0},
+                 {"name": "HN", "vlab_slug": "hn", "survey_name": "s", "incentive": 8.0}],
+       "ads_budget": {"proposal": {"pooled": False}}}
 S = ab.settings(CFG, ab.NAME, ab.DEFAULTS)
 
 
@@ -17,36 +18,37 @@ def day(n):
 
 
 def ad_row(n, adset="s1", ad="a1", impressions=1000, conversations=10, campaign="ar-wa",
-           country="AR", spend=1.0):
+           part="AR", spend=1.0):
     return {"campaign_name": campaign, "adset_id": adset, "adset_name": f"name-{adset}",
             "ad_name": ad, "date": day(n), "spend": spend, "impressions": impressions,
-            "conversations": conversations, "country": country}
+            "conversations": conversations, "part": part}
 
 
-def adset(adset_id, frequency, country="AR", spend=0.0):
+def adset(adset_id, frequency, part="AR", spend=0.0):
     return {"adset_id": adset_id, "adset_name": f"name-{adset_id}", "campaign_name": "ar-wa",
-            "reach": 1000, "frequency": frequency, "spend": spend, "country": country}
+            "reach": 1000, "frequency": frequency, "spend": spend, "part": part}
 
 
 def snap(ad_days=None, adsets=None, ar_completes=500, lines=None, budget_per_arm=10_000,
          incentive=2.0):
     """AR and HN, target 750 each, $500 lifetime ad spend each. Over the last 7
     complete days each spent $70 on ads for 70 completes ($1 per complete)."""
-    def country(n):
+    def part(n):
         recent = [f"{day(1 + i % 7)}T12:00:00Z" for i in range(70)]
         return {"completes": recent + ["2026-09-01T12:00:00Z"] * (n - 70),
                 "target": 750, "paid": 600,
                 "arm": {"budget_per_arm": budget_per_arm, "destinations": ["WhatsApp"],
                         "incentive_per_respondent": incentive, "vlab_spent": 1000.0}}
 
-    default_days = [ad_row(n, adset=k, campaign=f"{k}-wa", country=k.upper(), spend=10.0)
+    default_days = [ad_row(n, adset=k, campaign=f"{k}-wa", part=k.upper(), spend=10.0)
                     for n in range(1, 8) for k in ("ar", "hn")]
     return {
         "account": "act_1", "timezone": "Europe/Madrid", "currency": "USD",
         "today": TODAY.isoformat(), "ad_days": default_days if ad_days is None else ad_days,
         "adsets": adsets or [adset("ar", 1.0, spend=500.0), adset("hn", 1.0, "HN", spend=500.0)],
-        "countries": {"AR": country(ar_completes), "HN": country(500)},
-        "proposal": {"path": "p.yaml", "lines": lines or {"ads": 5000.0, "incentives": 9600.0}},
+        "parts": {"AR": part(ar_completes), "HN": part(500)},
+        "proposal": {"path": "p.yaml", "currency": "USD",
+                     "lines": lines or {"ads": 5000.0, "incentives": 9600.0}},
     }
 
 
@@ -54,15 +56,15 @@ def levels(findings):
     return {f.key: f.level for f in findings}
 
 
-def test_shape_reads_numbers_conversations_and_country():
+def test_shape_reads_numbers_conversations_and_part():
     row = {"campaign_name": "ar-wa", "date_start": "2026-09-30", "spend": "1.50",
            "impressions": "300", "reach": "250", "frequency": "1.2",
            "actions": [{"action_type": "link_click", "value": "9"},
                        {"action_type": CONV, "value": "4"}]}
     assert ab.shape(row, {"AR": ["ar-"]}) == {
-        "campaign_name": "ar-wa", "country": "AR", "date": "2026-09-30", "spend": 1.5,
+        "campaign_name": "ar-wa", "part": "AR", "date": "2026-09-30", "spend": 1.5,
         "impressions": 300, "reach": 250, "frequency": 1.2, "conversations": 4}
-    assert ab.shape({"campaign_name": "x"}, {"AR": ["ar-"]})["country"] is None
+    assert ab.shape({"campaign_name": "x"}, {"AR": ["ar-"]})["part"] is None
 
 
 def test_proposal_lines_by_description_and_loud_when_missing():
@@ -81,7 +83,7 @@ def test_within_budget_is_ok_with_the_projection():
     keys = ("budget-per-arm", "budget", "fading", "frequency", "yesterday")
     assert levels(findings) == {f"ads_budget:{k}": "ok" for k in keys}
     [budget] = [f for f in findings if f.key == "ads_budget:budget"]
-    ar = budget.evidence["countries"]["AR"]
+    ar = budget.evidence["parts"]["AR"]
     assert (ar["remaining"], ar["ad_cost_per_complete"]) == (250, 1.0)
     assert ar["projected_ads"] == 500 + 250
     assert ar["projected_incentives"] == 600 * 2.0 + 250 * 2.0
@@ -91,8 +93,8 @@ def test_within_budget_is_ok_with_the_projection():
 def test_completes_are_dated_in_the_ad_accounts_timezone():
     # 02:00 UTC today is yesterday in Buenos Aires, so inside the cost days.
     s = {**snap(), "timezone": "America/Argentina/Buenos_Aires"}
-    s["countries"]["AR"]["completes"] = [f"{day(0)}T02:00:00Z"] * 10 + ["2026-09-01"] * 490
-    assert ab.project("AR", s["countries"]["AR"], s, S, 2.0)["ad_cost_per_complete"] == 7.0
+    s["parts"]["AR"]["completes"] = [f"{day(0)}T02:00:00Z"] * 10 + ["2026-09-01"] * 490
+    assert ab.project("AR", s["parts"]["AR"], s, S, 2.0)["ad_cost_per_complete"] == 7.0
 
 
 def test_over_the_total_and_one_line_over_unless_pooled():
@@ -101,7 +103,7 @@ def test_over_the_total_and_one_line_over_unless_pooled():
     lines = {"ads": 5000.0, "incentives": 8000.0}
     over = levels(ab.check(CFG, snap(lines=lines), []))
     assert over["ads_budget:over-line:incentives"] == "decision"
-    pooled = {"ads_budget": {**CFG["ads_budget"], "pooled": True}}
+    pooled = {**CFG, "ads_budget": {"proposal": {"pooled": True}}}
     assert levels(ab.check(pooled, snap(lines=lines), []))["ads_budget:budget"] == "ok"
 
 
@@ -117,21 +119,22 @@ def test_budget_per_arm_short_or_missing():
 
 def test_past_target_needs_no_cost_per_complete_but_others_do():
     s = snap()
-    s["countries"]["AR"]["completes"] = ["2026-09-01"] * 800
+    s["parts"]["AR"]["completes"] = ["2026-09-01"] * 800
     [b] = [f for f in ab.check(CFG, s, []) if f.key == "ads_budget:budget"]
-    assert b.evidence["countries"]["AR"]["projected_ads"] == 500
-    s["countries"]["HN"]["completes"] = ["2026-09-01"] * 500
+    assert b.evidence["parts"]["AR"]["projected_ads"] == 500
+    s["parts"]["HN"]["completes"] = ["2026-09-01"] * 500
     found = levels(ab.check(CFG, s, []))
     assert found["ads_budget:no-cost-per-complete"] == "unknown"
     assert "ads_budget:budget" not in found
 
 
-def test_another_currency_or_an_unmatched_campaign_that_spent_is_unknown():
-    assert levels(ab.check(CFG, {**snap(), "currency": "EUR"}, [])) == {
-        "ads_budget:currency": "unknown"}
+def test_a_proposal_in_another_currency_or_an_unmatched_campaign_that_spent_is_unknown():
+    eur = levels(ab.check(CFG, {**snap(), "currency": "EUR"}, []))
+    assert eur["ads_budget:currency"] == "unknown" and "ads_budget:budget" not in eur
+    assert eur["ads_budget:budget-per-arm"] == "ok"
     s = snap()
-    s["ad_days"] += [ad_row(2, campaign="Templates", country=None, spend=3.0),
-                     ad_row(2, campaign="Paused", country=None, spend=0.0)]
+    s["ad_days"] += [ad_row(2, campaign="Templates", part=None, spend=3.0),
+                     ad_row(2, campaign="Paused", part=None, spend=0.0)]
     [f] = [f for f in ab.check(CFG, s, []) if f.key == "ads_budget:unmatched-campaigns"]
     assert f.level == "unknown" and f.evidence == {"spend": {"Templates": 3.0}}
     other = {**CFG, "ads_budget": {**CFG["ads_budget"], "other_campaigns": ["Temp"]}}
@@ -187,7 +190,7 @@ def test_frequency_is_a_decision_only_for_ad_sets_newly_over():
 class FakeVlab:
     def get_confs(self, org, slug):
         return {"general": {"ad_account": "1", "credentials_key": "k"},
-                "recruitment": {"budget_per_arm": 100}}
+                "recruitment": {"budget_per_arm": 100, "ad_campaign_name_base": f"vlab-{slug}"}}
 
     def meta_insights(self, org, **query):
         return {"data": [], "paging": {"truncated": False}, "account_id": "1",
@@ -207,12 +210,15 @@ def test_collect_counts_completes_as_pace_does(tmp_path, monkeypatch):
         "budget_line_items:\n- {description: Ads, total_price: 10}\n"
         "- {description: Inc, total_price: 20}\n")
     cfg = {"study_dir": tmp_path, "vlab": {"org": "o"},
-           "countries": {"AR": {"vlab_slug": "ar", "survey_name": "s", "pay": ["p"],
-                                "end": "e", "apology": "a"}},
-           "pace": {"completion_ref": "done", "target": 750, "count_from": "2026-09-10"},
-           "ads_budget": {"proposal": "proposal.yaml", "lines": {"ads": "Ads", "incentives": "Inc"},
-                          "countries": {"AR": {"campaigns": ["ar-"]}}}}
+           "parts": [{"name": "AR", "vlab_slug": "ar", "survey_name": "s", "pay": ["p"],
+                      "after_pay": ["e"], "target": 750}],
+           "pace": {"completion_ref": "done", "count_from": "2026-09-10"},
+           "ads_budget": {"proposal": {"path": "proposal.yaml", "currency": "USD",
+                                       "lines": {"ads": "Ads", "incentives": "Inc"}}}}
     monkeypatch.setattr(ab.io, "vlab_client", FakeVlab)
-    monkeypatch.setattr(ab.io, "fly_get", lambda *path, params=None: {"summary": []})
-    ar = ab.collect(cfg)["countries"]["AR"]
-    assert (ar["completes"], ar["target"]) == (["2026-09-20T10:00:00Z"], 750)
+    monkeypatch.setattr(ab.io, "fly_get", lambda *path, params=None: {"summary": [
+        {"current_form": "e", "count": 3}, {"current_form": "q", "count": 9}]})
+    snap = ab.collect(cfg)
+    ar = snap["parts"]["AR"]
+    assert (ar["completes"], ar["target"], ar["paid"]) == (["2026-09-20T10:00:00Z"], 750, 3)
+    assert snap["proposal"]["lines"] == {"ads": 10.0, "incentives": 20.0}

@@ -1,7 +1,8 @@
 """Payments on Fly, read-only: who the pay forms hold, who is stuck in
-RESPONDING, and whether bails moved everyone they matched. Paying and bailing
-belong in Fly's payment sub-bot; the providers are the `providers` check.
-See README.md."""
+RESPONDING, and whether the study's bails (those named `bail_prefix`...) moved
+everyone they matched. A study with no pay forms or no `bail_prefix` skips that
+part. Paying and bailing belong in Fly's payment sub-bot; the providers are the
+`providers` check. See README.md."""
 
 from __future__ import annotations
 
@@ -9,11 +10,11 @@ from datetime import datetime, timedelta, timezone
 from typing import Any, Iterable, List, Mapping, Optional
 
 from .. import io
-from ..core import Finding, need, settings, utc
+from ..core import Finding, parts, settings, utc
 
 M = Mapping[str, Any]
 NAME = "payments"
-DEFAULTS = {"held_minutes": 30, "responding_minutes": 10, "window_hours": 6, "bail_prefix": ""}
+DEFAULTS = {"held_minutes": 30, "responding_minutes": 10, "window_hours": 6, "bail_prefix": None}
 EVENT_FIELDS = ("bail_name", "timestamp", "users_matched", "users_bailed", "error")
 
 
@@ -25,8 +26,20 @@ def states(survey_name: str, state: str, field: str) -> List[dict]:
     return [{k: r[k] for k in ("userid", "current_form", field)} for r in body["states"]]
 
 
+def pay_forms(cfg: M) -> set:
+    return {f for p in parts(cfg).values() for f in p["pay"]}
+
+
+def waiting_on_pay(cfg: M) -> List[dict]:
+    """Respondents in WAIT_EXTERNAL_EVENT, read only if the study has pay forms."""
+    if not pay_forms(cfg):
+        return []
+    return [r for p in parts(cfg).values()
+            for r in states(p["survey_name"], "WAIT_EXTERNAL_EVENT", "form_start_time")]
+
+
 def held_on_pay_form(cfg: M, waiting: Iterable[dict]) -> List[dict]:
-    pay = {f for c in need(cfg, "countries").values() for f in c["pay"]}
+    pay = pay_forms(cfg)
     return [r for r in waiting if r["current_form"] in pay]
 
 
@@ -49,12 +62,11 @@ def _bail_events(prefix: str, since: datetime) -> List[dict]:
 def collect(cfg: M) -> dict:
     s = settings(cfg, NAME, DEFAULTS)
     now = datetime.now(timezone.utc)
-    waiting, responding = [], []
-    for c in need(cfg, "countries").values():
-        waiting += states(c["survey_name"], "WAIT_EXTERNAL_EVENT", "form_start_time")
-        responding += states(c["survey_name"], "RESPONDING", "updated")
-    return {"waiting": waiting, "responding": responding,
-            "bail_events": _bail_events(s["bail_prefix"], now - timedelta(hours=s["window_hours"]))}
+    since = now - timedelta(hours=s["window_hours"])
+    return {"waiting": waiting_on_pay(cfg),
+            "responding": [r for p in parts(cfg).values()
+                           for r in states(p["survey_name"], "RESPONDING", "updated")],
+            "bail_events": _bail_events(s["bail_prefix"], since) if s["bail_prefix"] else []}
 
 
 def gap(name: str, what: str, last: Optional[datetime], window_from: datetime) -> List[Finding]:
@@ -91,11 +103,12 @@ def check(cfg: M, snapshot: M, history: List[dict]) -> List[Finding]:
     s = settings(cfg, NAME, DEFAULTS)
     now = utc(snapshot["read_at"])
     last = utc(history[0]["read_at"]) if history else None
-    held = held_on_pay_form(cfg, snapshot["waiting"])
-    out = [stale("held", held, "form_start_time", s["held_minutes"], now,
-                 "held on a pay form", "the sweep should pay them"),
-           stale("responding", snapshot["responding"], "updated", s["responding_minutes"], now,
-                 "stuck in RESPONDING", "replybot drops their replies")]
-    out += gap(NAME, "Bail events", last, now - timedelta(hours=s["window_hours"]))
-    out += bails(snapshot["bail_events"], s["bail_prefix"], last)
+    out = [stale("held", held_on_pay_form(cfg, snapshot["waiting"]), "form_start_time",
+                 s["held_minutes"], now, "held on a pay form", "payment has not released them")
+           ] if pay_forms(cfg) else []
+    out.append(stale("responding", snapshot["responding"], "updated", s["responding_minutes"],
+                     now, "stuck in RESPONDING", "replybot drops their replies"))
+    if s["bail_prefix"]:
+        out += gap(NAME, "Bail events", last, now - timedelta(hours=s["window_hours"]))
+        out += bails(snapshot["bail_events"], s["bail_prefix"], last)
     return out

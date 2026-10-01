@@ -3,7 +3,7 @@ from datetime import datetime, timedelta, timezone
 from . import payments
 
 NOW = datetime(2026, 9, 30, 12, 0, tzinfo=timezone.utc)
-CFG = {"countries": {"X": {"survey_name": "s", "pay": ["pay1"]}},
+CFG = {"parts": [{"name": "X", "vlab_slug": "x", "survey_name": "s", "pay": ["pay1"]}],
        "payments": {"bail_prefix": "st-"}}
 LAST_HOUR = [{"read_at": (NOW - timedelta(hours=1)).isoformat()}]
 
