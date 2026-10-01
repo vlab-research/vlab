@@ -540,7 +540,7 @@ def test_the_group_is_registered_on_the_real_cli():
     }
 
 
-def test_importing_templates_cli_first_still_registers_the_group():
+def test_importing_templates_cli_first_still_registers_the_group(monkeypatch):
     """Both import orders work, which is the price of the one-line registration.
 
     `cli.py` imports this module at the bottom and this module imports `cli`
@@ -551,10 +551,17 @@ def test_importing_templates_cli_first_still_registers_the_group():
     import importlib
     import sys
 
+    import adopt.sdk
+
+    # monkeypatch puts the original modules back afterwards: the re-import
+    # builds a second `cli` that lacks commands registered by modules it does
+    # not re-import (`vlab watch`), and later tests must not pick that one up.
     for name in [
         n for n in sys.modules if n.endswith(("sdk.cli", "sdk.templates_cli"))
     ]:
-        del sys.modules[name]
+        monkeypatch.delitem(sys.modules, name)
+    monkeypatch.setattr(adopt.sdk, "cli", adopt.sdk.cli)
+    monkeypatch.setattr(adopt.sdk, "templates_cli", adopt.sdk.templates_cli)
 
     templates_cli = importlib.import_module("adopt.sdk.templates_cli")
     reloaded = importlib.import_module("adopt.sdk.cli")
