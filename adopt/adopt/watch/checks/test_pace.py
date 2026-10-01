@@ -20,45 +20,51 @@ def snap(total, last24, end_days=10.0, client=None, target=750, start_days=-20):
 
 
 def keys(snapshot, cfg=CFG):
-    return sorted((f.level, f.key.split(":")[-1]) for f in pace.check(cfg, snapshot, []))
+    """The one finding's level and reasons."""
+    [f] = pace.check(cfg, snapshot, [])
+    assert f.key == "pace:AR"
+    return f.level, f.evidence["reasons"]
 
 
 def test_on_track():
     [f] = pace.check(CFG, snap(500, 50, client="2026-10-14"), [])
-    assert (f.level, f.key) == ("ok", "pace:AR:on-track")
+    assert (f.level, f.key) == ("ok", "pace:AR")
     assert f.evidence["remaining"] == 250 and f.evidence["per_day"] == 50
     assert f.evidence["projected_finish"] == (NOW + timedelta(days=5)).isoformat()
 
 
-def test_behind_end_date_and_client_date():
-    assert keys(snap(500, 20, end_days=10, client="2026-10-12")) == [
-        ("decision", "behind-client-date"), ("decision", "behind-end-date")]
+def test_behind_end_date_and_client_date_is_one_finding_naming_both():
+    [f] = pace.check(CFG, snap(500, 20, end_days=10, client="2026-10-12"), [])
+    assert f.level == "decision"
+    assert f.evidence["reasons"] == ["behind-end-date", "behind-client-date"]
+    assert "after the end date 11 Oct 12:00 UTC and the client date 13 Oct 00:00 UTC" in f.summary
 
 
 def test_client_date_is_the_end_of_that_day():
     # 250 at 50/day finishes 6 Oct 12:00, inside 6 Oct.
-    assert keys(snap(500, 50, client="2026-10-06")) == [("ok", "on-track")]
-    assert keys(snap(500, 50, client="2026-10-05")) == [("decision", "behind-client-date")]
+    assert keys(snap(500, 50, client="2026-10-06")) == ("ok", ["on-track"])
+    assert keys(snap(500, 50, client="2026-10-05")) == ("decision", ["behind-client-date"])
 
 
 def test_near_target_and_reached():
-    assert keys(snap(720, 40)) == [("decision", "near-target")]
-    assert keys(snap(750, 40)) == [("decision", "target-reached")]
+    assert keys(snap(720, 40)) == ("decision", ["near-target"])
+    assert keys(snap(750, 40)) == ("decision", ["target-reached"])
 
 
 def test_closing_window():
-    assert ("decision", "window-closing") in keys(snap(500, 300, end_days=0.5))
-    assert ("decision", "window-closed") in keys(snap(500, 0, end_days=-1))
+    assert keys(snap(500, 300, end_days=0.5)) == (
+        "decision", ["near-target", "window-closing", "behind-end-date"])
+    assert keys(snap(500, 10, end_days=-1)) == ("decision", ["window-closed", "behind-end-date"])
 
 
 def test_zero_in_24h_is_unknown_only_once_the_window_opens():
-    assert keys(snap(500, 0)) == [("unknown", "no-completes")]
-    assert keys(snap(0, 0, start_days=1)) == [("ok", "on-track")]
+    assert keys(snap(500, 0)) == ("unknown", ["no-completes"])
+    assert keys(snap(0, 0, start_days=1)) == ("ok", ["on-track"])
 
 
 def test_thresholds_are_overridable_but_window_never_under_24h():
     cfg = {"pace": {"completion_ref": "q15", "near_target_days": 3}}
-    assert ("decision", "near-target") in keys(snap(650, 40), cfg)
+    assert keys(snap(650, 40), cfg) == ("decision", ["near-target"])
     with pytest.raises(ValueError, match="at least 24"):
         pace.check({"pace": {"window_hours": 6}}, snap(500, 50), [])
 
@@ -66,7 +72,7 @@ def test_thresholds_are_overridable_but_window_never_under_24h():
 def test_missing_end_date_is_unknown():
     s = snap(500, 50)
     s["countries"]["AR"]["end_date"] = None
-    assert keys(s) == [("unknown", "no-end-date")]
+    assert keys(s) == ("unknown", ["no-end-date"])
 
 
 def test_completes_counts_each_users_first_answer_on_counted_versions(monkeypatch):
