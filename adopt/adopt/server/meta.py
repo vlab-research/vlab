@@ -53,7 +53,7 @@ import asyncio
 import logging
 import re
 import uuid
-from typing import Annotated, Any, Dict, List, Optional, Tuple
+from typing import Annotated, Any, Dict, List, Literal, Optional, Tuple
 from urllib.parse import parse_qs, urlparse
 
 from environs import Env
@@ -124,10 +124,13 @@ HANDLER_TIMEOUT_SECONDS = MAX_PAGES * GRAPH_TIMEOUT_SECONDS + 20
 # `fields` is this module's contract and its tests assert the literals.
 from ..meta_fields import (  # noqa: E402,F401  (re-export)
     AD_ACCOUNT_FIELDS,
+    AD_ACCOUNT_TIMEZONE_FIELDS,
     AD_FIELDS,
     ADSET_FIELDS,
     CAMPAIGN_FIELDS,
     CREATIVE_FIELDS,
+    INSIGHTS_FIELDS,
+    INSIGHTS_LEVEL_FIELDS,
 )
 
 
@@ -404,8 +407,11 @@ def paged_get(
     fields: str,
     limit: int,
     after: Optional[str],
+    extra: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
     """Follow Meta's cursors up to `MAX_PAGES`. See the MAX_PAGES comment.
+
+    `extra` is sent on every page alongside `fields` and `limit`.
 
     Meta signals "there is more" with `paging.next`, and hands the resume token
     back as `paging.cursors.after`. `after` is present on the LAST page too, so
@@ -417,7 +423,12 @@ def paged_get(
     has_more = False
 
     while pages < MAX_PAGES:
-        params: Dict[str, Any] = {"fields": fields, "limit": limit, "pretty": 0}
+        params: Dict[str, Any] = {
+            **(extra or {}),
+            "fields": fields,
+            "limit": limit,
+            "pretty": 0,
+        }
         if cursor:
             # NOT `cursor`. The dashboard sends `params['cursor']`
             # (`api.ts:495`), which Graph does not recognise, so its "load
@@ -753,3 +764,84 @@ async def get_ad_creative(
         )
 
     return {"data": creative}
+
+
+_DATE_RE = r"^\d{4}-\d{2}-\d{2}$"
+
+
+@router.get("/{org_id}/meta/insights")
+@async_timeout(HANDLER_TIMEOUT_SECONDS)
+async def get_insights(
+    org_id: str,
+    user: CurrentUser,
+    account: Optional[str] = Query(None, description="Ad account id, act_123 or 123"),
+    campaign: Optional[str] = Query(None, description="Campaign id"),
+    level: Literal["campaign", "adset", "ad"] = "campaign",
+    date_preset: Optional[str] = Query(None, pattern=r"^[a-z0-9_]+$"),
+    since: Optional[str] = Query(None, pattern=_DATE_RE),
+    until: Optional[str] = Query(None, pattern=_DATE_RE),
+    time_increment: Literal["1", "all_days"] = "all_days",
+    credentials_key: Optional[str] = None,
+    limit: LimitQuery = DEFAULT_LIMIT,
+    after: Optional[str] = None,
+    _: RequireMetaRead = None,
+):
+    """`GET /<account|campaign>/insights` -- delivery and cost, read-only.
+
+    No dashboard equivalent; the study watch's `ads_budget` check is the
+    caller. Rows are Meta's own (numbers as strings, conversations inside
+    `actions`), one per object at `level`, per day with `time_increment=1`.
+    Their dates are the AD ACCOUNT's days, so the account's `timezone` and
+    `currency` come back alongside: a reader comparing against UTC counts, or
+    excluding a partial today, needs them. Exactly one of `account` or
+    `campaign`, and exactly one of `date_preset` or `since`+`until`.
+    """
+    if bool(account) == bool(campaign):
+        raise HTTPException(
+            status_code=400,
+            detail="Pass exactly one of ?account=<id> or ?campaign=<id>.",
+        )
+    if bool(date_preset) == bool(since or until) or bool(since) != bool(until):
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "Pass either ?date_preset= or both ?since= and ?until= "
+                "(YYYY-MM-DD)."
+            ),
+        )
+    parent = (
+        normalize_account_id(account) if account else _validate_id(campaign, "campaign")
+    )
+
+    extra: Dict[str, Any] = {"level": level, "time_increment": time_increment}
+    if date_preset:
+        extra["date_preset"] = date_preset
+    else:
+        extra["time_range"] = {"since": since, "until": until}
+
+    def _work():
+        _check_org(user.user_id, org_id)
+        api = _api_for(resolve_credential(user.user_id, credentials_key).token)
+        account_id = parent
+        if campaign:
+            owner = _graph_get(api, (campaign,), {"fields": "account_id", "pretty": 0})
+            account_id = normalize_account_id(str(owner.get("account_id", "")))
+        acct = _graph_get(
+            api, (account_id,), {"fields": AD_ACCOUNT_TIMEZONE_FIELDS, "pretty": 0}
+        )
+        body = paged_get(
+            api,
+            (parent, "insights"),
+            f"{INSIGHTS_LEVEL_FIELDS[level]},{INSIGHTS_FIELDS}",
+            limit,
+            after,
+            extra,
+        )
+        return {
+            **body,
+            "account_id": account_id,
+            "timezone": acct.get("timezone_name"),
+            "currency": acct.get("currency"),
+        }
+
+    return await asyncio.to_thread(_work)

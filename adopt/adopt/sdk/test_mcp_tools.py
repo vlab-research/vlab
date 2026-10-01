@@ -623,6 +623,12 @@ def test_strata_progress_defaults_to_the_latest_report_alone():
             "meta_ads",
             (ORG, None, "2", None, None, None),
         ),
+        (
+            "meta_insights",
+            {"org": ORG, "campaign": "3", "level": "ad", "date_preset": "maximum"},
+            "meta_insights",
+            (ORG, None, "3", "ad", "maximum", None, None, "all_days", None, None, None),
+        ),
     ],
 )
 def test_the_meta_tools_are_the_client_methods(tool, kwargs, method, args):

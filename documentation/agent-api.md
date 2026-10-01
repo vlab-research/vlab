@@ -675,6 +675,24 @@ so a creative blob read here is identical to one read in the browser.
 | `GET /{org}/meta/adsets?campaign=<id>` | `[{id, name, targeting}]`. `targeting` is the whole point. |
 | `GET /{org}/meta/ads?campaign=<id>` *or* `?adset=<id>` | `[{id, name, creative: {…}}]` — the creative arrives **nested**, via field expansion, exactly as the dashboard receives it. Exactly one of the two parameters. |
 | `GET /{org}/meta/ads/{ad_id}/creative` | `{"data": {…creative…}}` — the one blob, when you already have an ad id. `404` if the ad has no readable creative (rather than a `null` you would store). |
+| `GET /{org}/meta/insights?account=<id>` *or* `?campaign=<id>` | Delivery and cost: rows of `spend, impressions, reach, frequency, ctr, actions` plus the ids and names at `level`, as Meta returns them (numbers are strings; conversations started are the action `onsite_conversion.messaging_conversation_started_7d`). See below. |
+
+**Insights.** `level` is `campaign` (default), `adset` or `ad`; give either
+`date_preset` (`maximum`, `last_7d`, …) or both `since` and `until`
+(`YYYY-MM-DD`); `time_increment` is `1` for a row per object per day or
+`all_days` (default) for one row per object. Row dates are the **ad account's**
+days, so the envelope adds the account's `timezone` (e.g. `Europe/Madrid`),
+`currency` and `account_id` beside `data` and `paging`; today in that timezone
+is still accruing. The study watch's `ads_budget` check
+(`adopt/adopt/watch/checks/ads_budget.py`) is the caller this was built for.
+
+```json
+{"data": [{"campaign_id": "…", "campaign_name": "…", "date_start": "2026-09-30", "date_stop": "2026-09-30",
+           "spend": "9.58", "impressions": "5168", "reach": "4211", "frequency": "1.23", "ctr": "3.37",
+           "actions": [{"action_type": "onsite_conversion.messaging_conversation_started_7d", "value": "76"}]}],
+ "paging": {"after": null, "truncated": false, "pages_fetched": 1},
+ "account_id": "act_…", "timezone": "Europe/Madrid", "currency": "USD"}
+```
 
 **Which Facebook credential.** A user can hold more than one, and different
 tokens see different ad accounts, so:
@@ -2201,6 +2219,7 @@ use: `list_orgs` → `list_studies` → `create_study` → `push_study` →
 | `meta_campaigns(org, account, …)` | `vlab meta campaigns` | `meta:read` | no |
 | `meta_adsets(org, campaign, …)` | `vlab meta adsets` | `meta:read` | no |
 | `meta_ads(org, campaign\|adset, …)` | `vlab meta ads` | `meta:read` | no |
+| `meta_insights(org, account\|campaign, level, date_preset\|since+until, time_increment, …)` | — | `meta:read` | no |
 | `list_api_keys()` | `vlab keys list` | `auth:read` | no |
 | `revoke_api_key(key_id)` | `vlab keys revoke` | `auth:write` | yes, irreversibly |
 

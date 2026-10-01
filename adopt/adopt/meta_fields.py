@@ -75,3 +75,19 @@ AD_FIELDS = f"id,name,creative{{{CREATIVE_FIELDS}}}"
 #   object_story_spec   the creative itself. `_create_creative` indexes it
 #                       unconditionally (`config.template["object_story_spec"]`).
 REQUIRED_TEMPLATE_CREATIVE_FIELDS = ["actor_id", "object_story_spec"]
+
+# `GET /{org}/meta/insights`: what the study watch reads to follow ad delivery
+# and cost (`adopt/watch/checks/ads_budget.py`). Conversations started arrive
+# inside `actions`, as `onsite_conversion.messaging_conversation_started_7d`.
+INSIGHTS_FIELDS = "spend,impressions,reach,frequency,ctr,actions"
+
+# The ids and names that say which object an insights row is about, per
+# `level`: a row aggregated at one level has no single id below it.
+INSIGHTS_LEVEL_FIELDS = {
+    "campaign": "campaign_id,campaign_name",
+    "adset": "campaign_id,campaign_name,adset_id,adset_name",
+    "ad": "campaign_id,campaign_name,adset_id,adset_name,ad_id,ad_name",
+}
+
+# Insights dates are the ad account's own days, so a reader needs its timezone.
+AD_ACCOUNT_TIMEZONE_FIELDS = "timezone_name,currency"

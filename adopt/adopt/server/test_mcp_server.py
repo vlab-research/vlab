@@ -448,6 +448,7 @@ ROUTE_BACKED_TOOLS = {
     "meta_campaigns": ("GET", f"/{ORG}/meta/campaigns"),
     "meta_adsets": ("GET", f"/{ORG}/meta/adsets"),
     "meta_ads": ("GET", f"/{ORG}/meta/ads"),
+    "meta_insights": ("GET", f"/{ORG}/meta/insights"),
     "list_api_keys": ("GET", "/users/api-keys"),
     "revoke_api_key": ("DELETE", "/users/api-keys/abc"),
 }

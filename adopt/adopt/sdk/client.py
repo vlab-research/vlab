@@ -862,6 +862,45 @@ class VlabClient:
             },
         )
 
+    def meta_insights(
+        self,
+        org_id: str,
+        account: Optional[str] = None,
+        campaign: Optional[str] = None,
+        level: str = "campaign",
+        date_preset: Optional[str] = None,
+        since: Optional[str] = None,
+        until: Optional[str] = None,
+        time_increment: str = "all_days",
+        credentials_key: Optional[str] = None,
+        limit: Optional[int] = None,
+        after: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """`GET /{org}/meta/insights` -- spend, impressions, reach, frequency,
+        CTR and actions, by `level` (campaign|adset|ad).
+
+        Exactly one of `account` or `campaign`; `date_preset` or
+        `since`+`until`; `time_increment` "1" (daily) or "all_days". Returns
+        the envelope: `data`, `paging`, and the ad account's `timezone` and
+        `currency`, since row dates are the account's own days.
+        """
+        return self.request(
+            "GET",
+            f"/{_seg(org_id)}/meta/insights",
+            params={
+                "account": account,
+                "campaign": campaign,
+                "level": level,
+                "date_preset": date_preset,
+                "since": since,
+                "until": until,
+                "time_increment": time_increment,
+                "credentials_key": credentials_key,
+                "limit": limit,
+                "after": after,
+            },
+        )
+
     def meta_ad_creative(
         self, org_id: str, ad_id: str, credentials_key: Optional[str] = None
     ) -> Dict[str, Any]:

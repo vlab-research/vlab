@@ -149,6 +149,7 @@ TOOL_SCOPES: Dict[str, Optional[str]] = {
     "meta_campaigns": "meta:read",
     "meta_adsets": "meta:read",
     "meta_ads": "meta:read",
+    "meta_insights": "meta:read",
     "list_api_keys": "auth:read",
     "revoke_api_key": "auth:write",
 }
@@ -1150,10 +1151,60 @@ async def meta_ads(
     return await backend().meta_ads(org, campaign, adset, credentials_key, limit, after)
 
 
+async def meta_insights(
+    org: str,
+    account: Optional[str] = None,
+    campaign: Optional[str] = None,
+    level: str = "campaign",
+    date_preset: Optional[str] = None,
+    since: Optional[str] = None,
+    until: Optional[str] = None,
+    time_increment: str = "all_days",
+    credentials_key: Optional[str] = None,
+    limit: Optional[int] = None,
+    after: Optional[str] = None,
+) -> Dict[str, Any]:
+    """Read ad delivery and cost from Meta insights. Needs `meta:read`.
+
+    Reads Meta; writes nothing. Pass EXACTLY ONE of `account` (`act_123` or
+    `123`) or `campaign`, and either `date_preset` (e.g. `maximum`,
+    `last_7d`) or both `since` and `until` (YYYY-MM-DD). `level` is
+    `campaign`, `adset` or `ad`; `time_increment` is `1` for one row per day
+    or `all_days` for one row per object over the whole range.
+
+    Each row has spend, impressions, reach, frequency, ctr and `actions`
+    (conversations started are the action type
+    `onsite_conversion.messaging_conversation_started_7d`), as Meta returns
+    them: numbers arrive as strings. Row dates are the AD ACCOUNT's days, so the
+    response carries the account's `timezone` and `currency`; today in that
+    timezone is still accruing.
+    """
+    return await backend().meta_insights(
+        org,
+        account,
+        campaign,
+        level,
+        date_preset,
+        since,
+        until,
+        time_increment,
+        credentials_key,
+        limit,
+        after,
+    )
+
+
 # The Meta caveats belong on every meta_* tool -- an agent reads one
 # description, not the module -- and repeating them by hand in six docstrings is
 # six chances to let them drift.
-for _fn in (meta_credentials, meta_adaccounts, meta_campaigns, meta_adsets, meta_ads):
+for _fn in (
+    meta_credentials,
+    meta_adaccounts,
+    meta_campaigns,
+    meta_adsets,
+    meta_ads,
+    meta_insights,
+):
     _fn.__doc__ = (_fn.__doc__ or "").rstrip() + "\n" + _META_NOTE
 
 
@@ -1225,6 +1276,7 @@ TOOLS: Sequence[Callable[..., Any]] = (
     meta_campaigns,
     meta_adsets,
     meta_ads,
+    meta_insights,
     list_api_keys,
     revoke_api_key,
 )

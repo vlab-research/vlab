@@ -42,7 +42,7 @@ extract_targeting(adset, properties)                 —  pure
 plan_study(org, slug)                                optimize:read
 apply_instruction(org, slug, index)                  optimize:write
 meta_credentials / meta_adaccounts / meta_campaigns
-  / meta_adsets / meta_ads                           meta:read
+  / meta_adsets / meta_ads / meta_insights           meta:read
 list_api_keys()                                      auth:read
 revoke_api_key(key_id)                               auth:write
 ```
