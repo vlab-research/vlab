@@ -134,6 +134,8 @@ def test_another_currency_or_an_unmatched_campaign_that_spent_is_unknown():
                      ad_row(2, campaign="Paused", country=None, spend=0.0)]
     [f] = [f for f in ab.check(CFG, s, []) if f.key == "ads_budget:unmatched-campaigns"]
     assert f.level == "unknown" and f.evidence == {"spend": {"Templates": 3.0}}
+    other = {**CFG, "ads_budget": {**CFG["ads_budget"], "other_campaigns": ["Temp"]}}
+    assert "ads_budget:unmatched-campaigns" not in levels(ab.check(other, s, []))
 
 
 # ---- ads -------------------------------------------------------------------
