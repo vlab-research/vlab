@@ -61,6 +61,23 @@ const AccountForm: React.FC<Props> = ({
               <InfoBanner message="Please note this will not be functional until Facebook approves the Virtual Lab application." />
             </div>
           )}
+          {selected.authType === 'api_key' && (
+            <div className="mt-3">
+              <InfoBanner
+                message="An API key is also how an AI agent such as Claude Code or Codex connects over MCP."
+                action={
+                  <a
+                    href="https://vlab.digital/docs/agents/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex-none text-sm font-medium text-blue-700 underline"
+                  >
+                    Connecting an Agent
+                  </a>
+                }
+              />
+            </div>
+          )}
           {selected.authType !== 'facebook' && (
             <div className="mt-2.5">
               <label className="block mb-2 text-sm font-medium text-gray-700">
