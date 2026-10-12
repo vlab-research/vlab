@@ -1261,8 +1261,18 @@ command. `FACEBOOK_APP_ID` / `FACEBOOK_APP_SECRET` are optional and enable
 turned on — whether the vlab app has it on is not readable from this repo, so
 a token-only run warns and names the error to expect if it does.
 
-**Not yet run against live Meta.** Every shape is either lifted from a script
-that was measured live (`adopt/scripts/make_template_campaign.py`,
-`adopt/scripts/ctwa_probe.py`) or taken from Meta's documented samples, and
-every test mocks `FacebookAdsApi.call`. Treat the first live run as an
-experiment, on a throwaway campaign name.
+**Messenger and WhatsApp creatives carry no `asset_feed_spec`.** Meta refuses
+a creative that pairs `object_story_spec` with a one-entry
+`DOF_MESSAGING_DESTINATION` spec (code 100, subcode 1885374, "An asset feed
+can have exactly one ad format."; VIR-51). Those templates state their
+destination through `call_to_action.type` instead, and
+`refuse_template_destination_conflicts` reads it there. Only multi emits a
+spec. `planning/template-authoring.md` has the measurements and the trade-off.
+A refused create prints Meta's `error_user_msg` with the code and subcode, not
+the generic "Invalid parameter".
+
+**Only partly verified live.** `template create` ran against the Virtual Lab
+account on 2026-09-08, which is how VIR-51 was found. The messenger and
+whatsapp shape it builds now is the one Meta accepted there. The multi spec
+has not been probed since, and every test mocks `FacebookAdsApi.call`. Treat
+a multi template as an experiment, on a throwaway campaign name.

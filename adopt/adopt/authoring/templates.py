@@ -234,9 +234,16 @@ DESTINATION_TYPE_BY_KIND: Mapping[str, str] = {
     APP: APP_DESTINATION_TYPE,
 }
 
-# The kinds whose creative states a messaging destination, and the single-entry
-# `asset_feed_spec` that states it. See `build_creative`'s `declare_destination`.
+# The kinds whose creative opens a messaging app.
 MESSAGING_KINDS = (MESSENGER, WHATSAPP, MULTI)
+
+# The kinds whose creative carries a `DOF_MESSAGING_DESTINATION`
+# `asset_feed_spec`. Only multi: Meta refuses the one-entry spec on a messenger
+# or whatsapp creative (100/1885374, "An asset feed can have exactly one ad
+# format"), and those two state their destination through
+# `link_data.call_to_action.type` instead. A multi ad's destination array lives
+# in the spec and nowhere else. See planning/template-authoring.md.
+DECLARED_DESTINATION_KINDS = (MULTI,)
 
 
 # ---------------------------------------------------------------------------
@@ -267,50 +274,6 @@ def is_template_campaign(name: Optional[str]) -> bool:
 # ---------------------------------------------------------------------------
 # The creative builder
 # ---------------------------------------------------------------------------
-
-
-def _single_destination_asset_feed_spec(kind: str) -> Dict[str, Any]:
-    """The one-entry sibling of `marketing.multi_destination_asset_feed_spec`.
-
-    A click-to-messaging ad built in Ads Manager already carries a
-    `DOF_MESSAGING_DESTINATION` `asset_feed_spec` naming its one app -- that is
-    stated in `refuse_template_destination_conflicts`, which had to be narrowed
-    in 2026-08 precisely because it was refusing those ordinary templates. So
-    emitting one here is reproducing what the UI produces, not inventing a
-    shape.
-
-    It is what makes a template SAY what it is for. Without it, a Messenger
-    template and a WhatsApp template are indistinguishable to
-    `refuse_template_destination_conflicts` (`have` is empty, so it returns
-    early), and pointing a creative at the wrong one is caught by nothing --
-    the runtime overrides the CTA and the link per destination, so the ad it
-    ships is *correct* but is not the ad the researcher was looking at. With
-    it, the mismatch is refused by name at plan time.
-
-    Structurally identical to the multi spec, one entry instead of two, and the
-    same links: `AdCreativeLinkData` requires `link_data.link` to match its
-    CTA, and these two URLs are Meta's own sample values
-    (`MESSENGER_LINK_FALLBACK`, `WHATSAPP_LINK`).
-    """
-    m = _marketing()
-    if kind == MULTI:
-        return m.multi_destination_asset_feed_spec()
-
-    cta = {
-        MESSENGER: {
-            "type": "MESSAGE_PAGE",
-            "value": {
-                "app_destination": "MESSENGER",
-                "link": m.MESSENGER_LINK_FALLBACK,
-            },
-        },
-        WHATSAPP: {
-            "type": "WHATSAPP_MESSAGE",
-            "value": {"app_destination": "WHATSAPP", "link": m.WHATSAPP_LINK},
-        },
-    }[kind]
-
-    return {"optimization_type": m.MULTI_OPTIMIZATION_TYPE, "call_to_actions": [cta]}
 
 
 def _call_to_action_for(kind: str, link: Optional[str], deeplink: Optional[str]):
@@ -392,13 +355,15 @@ def build_creative(
     | `link_data.link` | **overridden** for web/app; kept for messaging |
     | `page_welcome_message` | **injected**, carrying the ref |
     | `url_tags` | **injected**, carrying the ref |
-    | `asset_feed_spec.optimization_type` / `call_to_actions` | copied for
-      single-destination, **replaced** for multi |
+    | `asset_feed_spec.optimization_type` / `call_to_actions` | multi only,
+      and **replaced** there |
 
     So the copy is the researcher's and the destination is the study conf's,
     which is exactly the split `planning/creative-construction-contract.md`
-    argues for. Building a template that STATES a destination is still worth
-    doing, and that is `declare_destination`.
+    argues for. A template still STATES its destination, so that
+    `marketing.refuse_template_destination_conflicts` can refuse a creative
+    pointed at the wrong one: messenger and whatsapp through
+    `call_to_action.type`, multi through its `asset_feed_spec`.
 
     :param kind: one of `CREATIVE_KINDS`.
     :param name: the creative's name. **A join key, not a label** -- vlab's ad
@@ -409,10 +374,10 @@ def build_creative(
     :param headline: `link_data.name` on an image creative, `video_data.title`
         on a video one. Meta calls it the headline in Ads Manager; the API
         calls it three different things.
-    :param declare_destination: emit the messaging `asset_feed_spec` described
-        in `_single_destination_asset_feed_spec`. Ignored for web and app,
-        which state no messaging destination at all -- an omission with a real
-        consequence, recorded in `planning/template-authoring.md`.
+    :param declare_destination: emit the multi-destination `asset_feed_spec`.
+        Only multi has one (`DECLARED_DESTINATION_KINDS`); on every other kind
+        this is accepted and has no effect, so specs that set it to false keep
+        loading.
     """
     if kind not in CREATIVE_KINDS:
         raise TemplatePlanError(
@@ -520,8 +485,8 @@ def build_creative(
 
     creative: Dict[str, Any] = {"name": name, "object_story_spec": story}
 
-    if declare_destination and kind in MESSAGING_KINDS:
-        creative["asset_feed_spec"] = _single_destination_asset_feed_spec(kind)
+    if declare_destination and kind in DECLARED_DESTINATION_KINDS:
+        creative["asset_feed_spec"] = _marketing().multi_destination_asset_feed_spec()
 
     return creative
 
@@ -1286,6 +1251,30 @@ def _graph_get(api, path: Tuple[str, ...], params=None) -> Dict[str, Any]:
     return api.call("GET", path, params=params or {}).json()
 
 
+def _meta_sentence(e: Exception) -> str:
+    """Meta's `error_user_msg` when the error body has one, else `message`.
+
+    For a rejected creative `message` is only "Invalid parameter"; the sentence
+    that says what is wrong is `error_user_msg`. The SDK lifts no accessor for
+    it, so it is read from `body()`, and any malformed body degrades to
+    `message` rather than raising inside error reporting.
+
+    `message` itself is None when the body is not JSON (a 502 page, say), and
+    then the SDK's own `get_message()` is the only text there is.
+    """
+    get_message = getattr(e, "get_message", None)
+    message = str(
+        e.api_error_message()  # type: ignore[attr-defined]
+        or (get_message() if callable(get_message) else None)
+    )
+    body = e.body() if callable(getattr(e, "body", None)) else None  # type: ignore[attr-defined]
+    error = body.get("error") if isinstance(body, dict) else None
+    user_msg = error.get("error_user_msg") if isinstance(error, dict) else None
+    if isinstance(user_msg, str) and user_msg.strip():
+        return user_msg.strip()
+    return message
+
+
 def meta_message(e: Exception) -> str:
     """A Meta rejection as one readable line, without `str(e)`.
 
@@ -1304,7 +1293,7 @@ def meta_message(e: Exception) -> str:
     if not all(hasattr(e, g) for g in getters):
         return str(e)
     try:
-        bits = [str(e.api_error_message())]  # type: ignore[attr-defined]
+        bits = [_meta_sentence(e)]
         code = e.api_error_code()  # type: ignore[attr-defined]
         subcode = e.api_error_subcode()  # type: ignore[attr-defined]
         if code is not None:

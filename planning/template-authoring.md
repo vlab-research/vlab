@@ -109,28 +109,77 @@ right in Ads Manager and ships something else. `messenger_call_to_action`,
 `MESSENGER_LINK_FALLBACK` and `WHATSAPP_LINK` all come from there. This is §7's
 "one implementation" applied to the one place it would have been easy to skip.
 
-### The one addition: a single-destination `asset_feed_spec`
+### How a template says what it is for
 
-`build_creative` emits a one-entry `DOF_MESSAGING_DESTINATION` spec on
-messenger and whatsapp creatives (and Meta's documented two-entry one on
-multi). That is not an invention — `refuse_template_destination_conflicts`'
-own comment says "a template built in Ads Manager AS a click-to-messaging ad
-already carries a DOF_MESSAGING_DESTINATION spec", and the check had to be
-narrowed in 2026-08 precisely because it was refusing those ordinary templates.
+A template has to **state** its destination. Otherwise a Messenger template
+and a WhatsApp template look the same to
+`refuse_template_destination_conflicts`, and pointing a creative at the wrong
+one is caught by nothing. The ad that ships is not *wrong*: the runtime
+overrides the CTA and the link, so it is correct for the destination the conf
+names. But it is not the ad the researcher was looking at.
+`planning/creative-construction-contract.md` refuses rather than overwrites
+for exactly this reason: quietly shipping a different ad is the failure mode
+this codebase fights everywhere else.
 
-It is there because **it is what makes a template say what it is for.** Without
-it, a Messenger template and a WhatsApp template are indistinguishable to
-`refuse_template_destination_conflicts` (`have` is empty, so it returns early),
-and pointing a creative at the wrong one is caught by nothing. It is not
-silently *wrong* — the runtime overrides the CTA and the link, so the ad that
-ships is correct for the destination the conf names — but it is not the ad the
-researcher was looking at, and the whole reason
-`planning/creative-construction-contract.md` refuses rather than overwrites is
-that quietly shipping a different ad is the failure mode this codebase fights
-everywhere else.
+| kind | where the built template states its destination |
+|---|---|
+| messenger | `link_data` / `video_data` `.call_to_action.type` = `MESSAGE_PAGE` |
+| whatsapp | `link_data` / `video_data` `.call_to_action.type` = `WHATSAPP_MESSAGE` |
+| multi | `asset_feed_spec` (`DOF_MESSAGING_DESTINATION`, two entries) |
+| web, app | nowhere (see Known gaps) |
 
-`declare_destination=False` turns it off, for a caller who wants a template
-that says nothing.
+**Messenger and WhatsApp used to state it in a one-entry `asset_feed_spec`
+too, and Meta no longer accepts that (VIR-51).** `build_creative` emitted
+`{optimization_type: DOF_MESSAGING_DESTINATION, call_to_actions: [one cta]}`
+on messenger and whatsapp creatives, copying what an Ads Manager
+click-to-messaging ad carries. Measured against `act_1342820622846299` on
+2026-09-08:
+
+| creative shape | Meta's answer |
+|---|---|
+| `object_story_spec` + the one-entry spec | 100/1885374 "An asset feed can have exactly one ad format." |
+| … plus `ad_formats: [SINGLE_IMAGE]` | 100/1885373 "Need at least 1 images for ad format SINGLE_IMAGE" |
+| … plus `images` and `link_urls` | 100/1443048 "Object story spec is ill formed" |
+| the LAC pilot's live 2026-09-05 shape (spec with bodies, titles, CTAs, no `ad_formats`) | 100/1885374 |
+| `object_story_spec` alone | **accepted** |
+
+The pilot row shows this is Meta tightening, not a shape vlab got wrong:
+creatives created on 2026-09-05 could not be created three days later.
+
+So `build_creative` emits an `asset_feed_spec` for multi only
+(`templates.DECLARED_DESTINATION_KINDS`). Nothing downstream needed it:
+`marketing.create_creative` rebuilds `object_story_spec` and takes the CTA
+from the destination conf. To keep the safety property,
+`refuse_template_destination_conflicts` reads the template's own
+`call_to_action` (`marketing.messaging_destinations_stated_by`) when the
+`asset_feed_spec` names no destination. `value.app_destination` wins over
+`type` when set, so a "Messenger and Instagram" template (`MESSAGE_PAGE` over
+`INSTAGRAM_DIRECT`) still reads as Instagram.
+
+**The fallback applies only to Messenger and WhatsApp destinations.** It is
+narrower than the `asset_feed_spec` path on purpose:
+
+- On a **multi** ad, `link_data.call_to_action` is Meta's single-valued
+  `MESSAGE_PAGE` fallback that sits beside the real array, not a statement.
+  Reading it would refuse every multi creative, including the ones
+  `build_creative` makes.
+- For **web** and **app**, the runtime replaces the CTA and the link
+  wholesale. Running a web or app study on a messaging-shaped template has
+  always been legal (`test_marketing` drives both from
+  `image_ad_messenger.json`).
+
+**What this changes for live studies.** A WhatsApp study whose template was
+built as click-to-Messenger (or the reverse), with no `asset_feed_spec`,
+deployed before this and is now refused by name at reconcile time. The fix is
+one line: point the creative at a template built for its channel. A read of
+every study in the Virtual Lab org on 2026-09-26 found no such pairing. Each
+messenger and whatsapp creative's template CTA matched its destination. Orgs
+the MCP key cannot see were not checked.
+
+`declare_destination` is still accepted on every kind. It turns the multi
+spec off and does nothing on the other four, so specs that carry
+`declare_destination: false` as the VIR-51 workaround
+(`projects/lac-healthy-diets/templates-single.yaml`) keep loading.
 
 ---
 
@@ -332,8 +381,11 @@ fixed on the branch:
    in the context) and this prints to the user's own terminal, but it buries
    the one sentence Meta said and it inverts a convention `server/meta.py`
    states explicitly. `meta_message` now renders
-   `"<message> (code N, subcode M)"`, and falls back to `str(e)` for anything
-   that is not a Meta error.
+   `"<sentence> (code N, subcode M)"`, and falls back to `str(e)` for anything
+   that is not a Meta error. The sentence is `error_user_msg` when the body
+   has one and `message` otherwise (VIR-51). For a rejected creative, `message`
+   is only "Invalid parameter", and the actionable text, e.g. "An asset feed
+   can have exactly one ad format.", is in `error_user_msg`.
 
 The transferable one is the first: **a guard that lives inside a helper only
 protects the branches that call that helper.** `build_creative` has two
@@ -441,22 +493,41 @@ exists.
 
 ## 7. Known gaps
 
-- **Nothing here has been run against live Meta**, and that is the gap that
-  subsumes several below. Every shape is either lifted from a script measured
-  live or taken from Meta's own documented samples; every test mocks
-  `FacebookAdsApi.call`. The first live run should use a throwaway campaign
-  name on the Virtual Lab account, and should be followed by deleting the
-  campaign with `vlab template delete`.
+- **Only partly verified against live Meta.** `vlab template create` ran
+  against `act_1342820622846299` on 2026-09-08 for the LAC Healthy Diets
+  channel experiment. That run is where VIR-51 came from: messenger and
+  whatsapp creatives, with `declare_destination: false` as the workaround.
+  The spec `build_creative` produces now (object_story_spec only) is the one
+  that run measured as accepted. It has not been re-run live through the
+  fixed code. Every test mocks `FacebookAdsApi.call`.
+- **The multi `asset_feed_spec` has not been probed since Meta tightened.**
+  `marketing.multi_destination_asset_feed_spec` has the same no-`ad_formats`
+  shape as the refused one-entry spec, and may be refused the same way. It
+  cannot just be dropped: a multi ad carries its destination array there and
+  nowhere else, so removing it would change what the ad does. One read-only
+  way to check is to see whether any multi creative has been *created* on the
+  account since 2026-09-08. A real answer needs a write probe on a throwaway
+  template campaign.
+- **The runtime still copies a template's single-destination
+  `asset_feed_spec`.** `marketing._asset_feed_spec` copies a
+  single-destination template's `optimization_type` / `call_to_actions`
+  verbatim. A template carrying the refused shape, such as the LAC pilot
+  creatives from 2026-09-05, would presumably have new ads built from it
+  refused with 100/1885374 as well. Not measured, and not changed here.
 - **A web or app template states no destination, so a mismatch is not
-  refused.** `refuse_template_destination_conflicts` compares the
-  `app_destination` values in a template's `asset_feed_spec` against what the
-  conf's destination means; a web or app creative has none, so `have` is empty
-  and the check returns early by design. Messenger, WhatsApp and multi
-  templates *are* checked, in both directions, and `test_templates.py`
-  parametrises eight mismatched pairs that must be refused. Closing the
-  remaining case would mean inventing an `optimization_type` value for
-  non-messaging creatives, which is guessing at Meta's enum; it is recorded
+  refused.** A web or app creative has no `asset_feed_spec` destination and no
+  messaging CTA, so `have` is empty and the check returns early by design.
+  Closing this would mean inventing an `optimization_type` value for
+  non-messaging creatives, which is guessing at Meta's enum. It is recorded
   instead.
+- **A messenger or whatsapp template pointed at a multi destination is not
+  refused.** This was refused while those templates carried the one-entry
+  `asset_feed_spec`. The CTA fallback is not read against multi (see above),
+  so the pairing now passes. The ad ships correctly, because the runtime builds
+  the multi array itself. `test_a_single_destination_template_is_not_refused_for_multi`
+  pins this, so closing the gap is a decision rather than an accident.
+  Messenger↔WhatsApp and multi→anything are refused, in `test_templates.py`'s
+  mismatch matrix.
 - **Video is by id only.** `--video-id` references a video already on the
   account. There is no upload, because Meta's video upload is a resumable
   multi-request protocol rather than the single multipart POST an image is —

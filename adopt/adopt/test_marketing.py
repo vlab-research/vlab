@@ -31,8 +31,10 @@ from .marketing import (
     make_multi_welcome_message,
     make_ref,
     manage_aud,
+    messaging_destinations_stated_by,
     messenger_call_to_action,
     pair_creatives_with_destinations,
+    refuse_template_destination_conflicts,
     ref_metadata,
     shortcode_ref,
     web_call_to_action,
@@ -369,6 +371,22 @@ def _load_template(filename):
 
     template = AdCreative()
     template.set_data(dat)
+    return template
+
+
+def _whatsapp_template():
+    """`image_ad_messenger.json` as a click-to-WhatsApp template.
+
+    A WhatsApp destination refuses a template whose call_to_action states
+    Messenger, so WhatsApp tests need one that states WhatsApp.
+    """
+    template = _load_template("image_ad_messenger.json")
+    story = template["object_story_spec"]
+    story["link_data"]["call_to_action"] = {
+        "type": "WHATSAPP_MESSAGE",
+        "value": {"app_destination": "WHATSAPP"},
+    }
+    story["link_data"]["link"] = "https://api.whatsapp.com/send"
     return template
 
 
@@ -1196,7 +1214,7 @@ def test_whatsapp_creative_uses_the_whatsapp_cta_and_carries_no_url_tags():
     Setting it would be dead weight that reads like a working carrier.
     """
     dest = _whatsapp_dest()
-    template = _load_template("image_ad_messenger.json")
+    template = _whatsapp_template()
     config = CreativeConf(destination="whatsapp", name="Smiling", template=template)
     study = _whatsapp_study([dest], [config])
     stratum = _stratum_with_md("stratum-1", [config], {"gender": "women"})
@@ -1214,7 +1232,7 @@ def test_whatsapp_creative_uses_the_whatsapp_cta_and_carries_no_url_tags():
 
 def test_whatsapp_creative_prefills_the_form_first_ref():
     dest = _whatsapp_dest()
-    template = _load_template("image_ad_messenger.json")
+    template = _whatsapp_template()
     config = CreativeConf(destination="whatsapp", name="Smiling", template=template)
     study = _whatsapp_study([dest], [config])
     stratum = _stratum_with_md("stratum-1", [config], PRODUCTION_METADATA)
@@ -2712,7 +2730,7 @@ def test_an_encoded_whatsapp_autofill_is_accepted_by_flys_entry_gate():
     config = CreativeConf(
         destination=dest.name,
         name="Smiling",
-        template=_load_template("image_ad_messenger.json"),
+        template=_whatsapp_template(),
     )
     study = _whatsapp_study([dest], [config])
     stratum = _stratum_with_md("stratum-1", [config], PRODUCTION_METADATA)
@@ -2937,6 +2955,146 @@ def test_a_messenger_creative_refuses_a_whatsapp_template():
 
     with pytest.raises(Exception, match="WHATSAPP"):
         create_creative(study, stratum, config, dest)
+
+
+def _cta_template(cta_type, app_destination=None, carrier="link_data", afs=None):
+    """A template stating its destination only through its call_to_action.
+
+    The shape `vlab template` builds for messenger and whatsapp, because Meta
+    refuses the one-entry DOF_MESSAGING_DESTINATION asset_feed_spec (VIR-51).
+    """
+    cta = {"type": cta_type}
+    if app_destination:
+        cta["value"] = {"app_destination": app_destination}
+    template = {
+        "object_story_spec": {
+            "page_id": "page-123",
+            carrier: {"image_hash": "h", "call_to_action": cta},
+        }
+    }
+    if afs is not None:
+        template["asset_feed_spec"] = afs
+    return template
+
+
+@pytest.mark.parametrize(
+    "story,expected",
+    [
+        ({"link_data": {"call_to_action": {"type": "MESSAGE_PAGE"}}}, {"MESSENGER"}),
+        (
+            {"link_data": {"call_to_action": {"type": "WHATSAPP_MESSAGE"}}},
+            {"WHATSAPP"},
+        ),
+        (
+            {"video_data": {"call_to_action": {"type": "WHATSAPP_MESSAGE"}}},
+            {"WHATSAPP"},
+        ),
+        (
+            {
+                "link_data": {
+                    "call_to_action": {
+                        "type": "MESSAGE_PAGE",
+                        "value": {"app_destination": "INSTAGRAM_DIRECT"},
+                    }
+                }
+            },
+            {"INSTAGRAM_DIRECT"},
+        ),
+        ({"link_data": {"call_to_action": {"type": "OPEN_LINK"}}}, set()),
+        ({"link_data": {"call_to_action": {"type": "LEARN_MORE"}}}, set()),
+        ({"link_data": {"image_hash": "h"}}, set()),
+        ({"photo_data": {"call_to_action": {"type": "MESSAGE_PAGE"}}}, set()),
+        ({}, set()),
+    ],
+)
+def test_a_templates_call_to_action_states_its_messaging_destination(story, expected):
+    assert messaging_destinations_stated_by(story) == expected
+
+
+@pytest.mark.parametrize(
+    "dest,cta_type,carrier",
+    [
+        (_messenger_dest("messenger", "mnchweek"), "WHATSAPP_MESSAGE", "link_data"),
+        (_whatsapp_dest(), "MESSAGE_PAGE", "link_data"),
+        (_whatsapp_dest(), "MESSAGE_PAGE", "video_data"),
+    ],
+)
+def test_a_template_without_an_asset_feed_spec_is_refused_by_its_call_to_action(
+    dest, cta_type, carrier
+):
+    """Without this, a Messenger and a WhatsApp template built by `vlab
+    template` are indistinguishable and a mis-pointed creative ships silently.
+    """
+    config = CreativeConf(
+        name="c",
+        destination=dest.name,
+        template=_cta_template(cta_type, carrier=carrier),
+    )
+    with pytest.raises(Exception, match="call_to_action opens"):
+        refuse_template_destination_conflicts(config, dest)
+
+
+def test_an_instagram_template_is_refused_for_messenger_by_its_call_to_action():
+    """`app_destination` wins over `type`: MESSAGE_PAGE over INSTAGRAM_DIRECT is
+    an Instagram ad, which Meta refuses in a MESSENGER ad set (2490279).
+    """
+    dest = _messenger_dest("messenger", "mnchweek")
+    config = CreativeConf(
+        name="c",
+        destination=dest.name,
+        template=_cta_template("MESSAGE_PAGE", app_destination="INSTAGRAM_DIRECT"),
+    )
+    with pytest.raises(Exception, match="INSTAGRAM_DIRECT"):
+        refuse_template_destination_conflicts(config, dest)
+
+
+@pytest.mark.parametrize(
+    "dest,cta_type",
+    [
+        (_messenger_dest("messenger", "mnchweek"), "MESSAGE_PAGE"),
+        (_whatsapp_dest(), "WHATSAPP_MESSAGE"),
+    ],
+)
+def test_a_template_whose_call_to_action_matches_is_not_refused(dest, cta_type):
+    config = CreativeConf(
+        name="c", destination=dest.name, template=_cta_template(cta_type)
+    )
+    refuse_template_destination_conflicts(config, dest)  # must not raise
+
+
+@pytest.mark.parametrize(
+    "dest",
+    [
+        _multi_dest(),
+        _web_dest("web"),
+        _app_dest(),
+    ],
+    ids=["multi", "web", "app"],
+)
+@pytest.mark.parametrize("cta_type", ["MESSAGE_PAGE", "WHATSAPP_MESSAGE"])
+def test_the_call_to_action_is_not_read_for_multi_web_or_app(dest, cta_type):
+    """On a multi ad the CTA is Meta's single-valued fallback, and web and app
+    replace the CTA and link outright, so a messaging-shaped template has
+    always been legal for all three.
+    """
+    config = CreativeConf(
+        name="c", destination=dest.name, template=_cta_template(cta_type)
+    )
+    refuse_template_destination_conflicts(config, dest)  # must not raise
+
+
+def test_a_destination_in_the_asset_feed_spec_takes_precedence_over_the_cta():
+    """The asset_feed_spec is what Meta reads beside the ad set's
+    destination_type, so where it names a destination the CTA is not consulted.
+    """
+    dest = _whatsapp_dest()
+    afs = _ctm_template(destinations=("WHATSAPP",))["asset_feed_spec"]
+    config = CreativeConf(
+        name="c",
+        destination=dest.name,
+        template=_cta_template("MESSAGE_PAGE", afs=afs),
+    )
+    refuse_template_destination_conflicts(config, dest)  # must not raise
 
 
 def test_a_single_destination_creative_keeps_its_templates_destination_array():
