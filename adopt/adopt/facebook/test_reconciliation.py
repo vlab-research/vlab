@@ -1525,3 +1525,42 @@ def test_undeclared_sibling_of_a_declared_drop_still_warns(caplog):
 
     assert "some_new_meta_field" in caplog.text
     assert "show_destination_blurbs" not in caplog.text
+
+
+def _budget_adsets(desired_budget, live_budget, **live_overrides):
+    common = {
+        "name": "s1",
+        "targeting": {"age_min": 18},
+        "status": "ACTIVE",
+        "optimization_goal": "CONVERSATIONS",
+        "end_time": "2026-10-20T02:00:00+0200",
+    }
+    live = _adobject(
+        {**common, "daily_budget": str(live_budget), "id": "srv-1", **live_overrides},
+        AdSet,
+    )
+    desired = _adobject({**common, "daily_budget": desired_budget}, AdSet)
+    return live, desired
+
+
+def test_update_adset_skips_a_budget_change_within_tolerance():
+    live, desired = _budget_adsets(10400, 10000)
+    assert update_adset(live, desired) == []
+
+
+def test_update_adset_writes_a_budget_change_beyond_tolerance():
+    live, desired = _budget_adsets(10600, 10000)
+    [instruction] = update_adset(live, desired)
+    assert instruction.params["daily_budget"] == 10600
+
+
+def test_update_adset_writes_the_desired_budget_when_another_field_changes():
+    live, desired = _budget_adsets(10400, 10000, status="PAUSED")
+    [instruction] = update_adset(live, desired)
+    assert instruction.params["daily_budget"] == 10400
+    assert instruction.params["status"] == "ACTIVE"
+
+
+def test_update_adset_writes_any_budget_onto_a_zero_live_budget():
+    live, desired = _budget_adsets(100, 0)
+    assert len(update_adset(live, desired)) == 1

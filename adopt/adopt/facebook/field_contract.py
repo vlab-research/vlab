@@ -66,6 +66,10 @@ COMPARED_ADSET: Dict[str, str] = {
 #
 # BEGIN DROPPED (managed by adopt-probe)
 DROPPED: Dict[str, str] = {
+    "degrees_of_freedom_spec.creative_features_spec.creative_stickers": (
+        "Sent by adopt, absent from Facebook's response on every Girl Effect ad "
+        "that carries it. Confirmed from production logs 2026-10-12."
+    ),
     "degrees_of_freedom_spec.creative_features_spec.image_animation": (
         "Sent by adopt, absent from Facebook's response. Confirmed live 2026-08-01 "
         "by adopt-probe."
@@ -113,7 +117,19 @@ DROPPED: Dict[str, str] = {
 NORMALIZE: Dict[str, Callable[[Any], Any]] = {
     "daily_budget": lambda v: int(v),
     "end_time": lambda v: _as_instant(v),
+    "targeting.geo_locations.location_types": lambda v: _location_types(v),
 }
+
+
+def _location_types(v: Any) -> Any:
+    """Location types as a set, ignoring the `frequently_in` Facebook adds.
+
+    Facebook stores `['home', 'recent']` and returns
+    `['frequently_in', 'home', 'recent']`, so the two never compare equal.
+    """
+    if not isinstance(v, list):
+        return v
+    return sorted(set(v) - {"frequently_in"})
 
 
 def _as_instant(v: Any) -> Any:

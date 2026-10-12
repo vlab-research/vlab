@@ -1,9 +1,11 @@
+import json
 import logging
 from contextlib import contextmanager
 from contextvars import ContextVar
+from urllib.parse import urlsplit
 
 import backoff
-from facebook_business.api import Cursor
+from facebook_business.api import Cursor, FacebookAdsApi
 from facebook_business.exceptions import FacebookRequestError
 
 # Setup backoff logging
@@ -56,6 +58,59 @@ def fatal_code(e):
     if FAIL_FAST.get():
         return True
     return e.api_error_code() not in RETRYABLE_CODES
+
+
+usage_logger = logging.getLogger("adopt.facebook.usage")
+
+# Meta reports how much of each rate limit a call used in these response
+# headers, on errors as well as successes. X-Business-Use-Case-Usage is the
+# per-ad-account budget whose exhaustion is code 17; its
+# `estimated_time_to_regain_access` is minutes until the throttle lifts.
+USAGE_HEADERS = {
+    "x-business-use-case-usage": "buc",
+    "x-ad-account-usage": "ad_account",
+    "x-app-usage": "app",
+}
+
+
+def _usage_path(path) -> str:
+    # Paging URLs carry the access token in their query string, so only the
+    # path is ever logged.
+    if isinstance(path, (tuple, list)):
+        return "/" + "/".join(str(p) for p in path)
+    return urlsplit(str(path)).path
+
+
+def log_usage(method, path, get_headers, error_code=None) -> None:
+    """One `meta_usage {...}` line per Graph call, for Loki."""
+    try:
+        headers = get_headers()
+        record = {"method": method, "path": _usage_path(path)}
+        if error_code is not None:
+            record["error_code"] = error_code
+        lowered = {k.lower(): v for k, v in (headers or {}).items()}
+        for header, key in USAGE_HEADERS.items():
+            if header in lowered:
+                try:
+                    record[key] = json.loads(lowered[header])
+                except ValueError:
+                    record[key] = lowered[header]
+        usage_logger.info("meta_usage %s", json.dumps(record, separators=(",", ":")))
+    except Exception:  # accounting must never break the call it describes
+        usage_logger.exception("meta_usage: could not log usage")
+
+
+class UsageLoggingApi(FacebookAdsApi):
+    """A FacebookAdsApi that logs Meta's rate-limit usage for every call."""
+
+    def call(self, method, path, *args, **kwargs):
+        try:
+            response = super().call(method, path, *args, **kwargs)
+        except FacebookRequestError as e:
+            log_usage(method, path, lambda: e.http_headers(), e.api_error_code())
+            raise
+        log_usage(method, path, lambda: response.headers())
+        return response
 
 
 @backoff.on_exception(

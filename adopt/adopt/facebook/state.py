@@ -13,7 +13,7 @@ from facebook_business.adobjects.customaudience import CustomAudience
 from facebook_business.api import FacebookAdsApi
 from facebook_business.session import FacebookSession
 
-from .api import call
+from .api import UsageLoggingApi, call
 from .date_range import DateRange
 
 
@@ -214,7 +214,7 @@ def api_for_token(
     for two requests to interleave (plan §13.4). A per-caller handle costs
     nothing and cannot do that.
     """
-    return FacebookAdsApi(FacebookSession(app_id, app_secret, token))
+    return UsageLoggingApi(FacebookSession(app_id, app_secret, token))
 
 
 def get_api(env, token: str) -> FacebookAdsApi:

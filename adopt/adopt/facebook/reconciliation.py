@@ -237,6 +237,22 @@ def _check_destination_type_is_still_reachable(source: AdSet, adset: AdSet) -> N
     )
 
 
+# A budget change smaller than this share of the live budget is not written.
+# The optimizer re-allocates every run, and most of its moves are a few
+# percent; writing each one spends the ad account's shared Meta rate limit
+# (code 17) on changes that do not matter to delivery. The gap cannot grow:
+# every run compares against the optimizer's current target.
+BUDGET_TOLERANCE = 0.05
+
+
+def _budget_within_tolerance(desired, live) -> bool:
+    try:
+        d, s = int(desired), int(live)
+    except (TypeError, ValueError):
+        return False
+    return s > 0 and abs(d - s) <= BUDGET_TOLERANCE * s
+
+
 def update_adset(source: AdSet, adset: AdSet) -> List[Instruction]:
     # Before anything else: a channel change cannot be applied by update, and
     # proceeding produces ads Meta refuses with an error naming nothing useful.
@@ -251,7 +267,12 @@ def update_adset(source: AdSet, adset: AdSet) -> List[Instruction]:
     # never set, so the desired object has to come first. This used to be
     # reversed here, which asked "is everything Facebook returned present in
     # what we want?" — a different question, and the wrong one.
-    if _eq(adset, source, fields):
+    compared = adset.export_all_data()
+    live_budget = _safe_get(source, "daily_budget")
+    if _budget_within_tolerance(compared.get("daily_budget"), live_budget):
+        compared["daily_budget"] = live_budget
+
+    if _eq(compared, source, fields):
         logger.debug(
             f"update_adset: no-op for adset '{_safe_get(adset, 'name')}' "
             f"(id={_safe_get(source, 'id')})"

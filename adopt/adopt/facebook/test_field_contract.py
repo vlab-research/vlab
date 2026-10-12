@@ -56,3 +56,29 @@ def test_committed_block_is_what_adopt_probe_would_write():
 
     assert committed is not None
     assert committed.group(0) == render_dropped_block(field_contract.DROPPED)
+
+
+def test_creative_stickers_is_declared_dropped():
+    # Undeclared, this rewrote both Girl Effect `5D` ads on every two-hourly
+    # run, each rewrite minting a new creative.
+    assert field_contract.is_dropped(
+        ".degrees_of_freedom_spec.creative_features_spec.creative_stickers"
+    )
+
+
+def test_location_types_ignore_the_frequently_in_facebook_adds():
+    from .reconciliation import _eq
+
+    desired = {"targeting": {"geo_locations": {"countries": ["KE"], "location_types": ["home", "recent"]}}}
+    source = {"targeting": {"geo_locations": {"countries": ["KE"], "location_types": ["frequently_in", "home", "recent"]}}}
+
+    assert _eq(desired, source, fields=["targeting"])
+
+
+def test_location_types_still_detect_a_real_change():
+    from .reconciliation import _eq
+
+    desired = {"targeting": {"geo_locations": {"location_types": ["home"]}}}
+    source = {"targeting": {"geo_locations": {"location_types": ["frequently_in", "home", "recent"]}}}
+
+    assert not _eq(desired, source, fields=["targeting"])
