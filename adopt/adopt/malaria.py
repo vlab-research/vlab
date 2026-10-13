@@ -1,4 +1,5 @@
 import logging
+import uuid
 from datetime import datetime, timedelta
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
 
@@ -31,6 +32,19 @@ from .recruitment_data import (
     load_recruitment_data,
 )
 from .responses import get_inference_data
+from .run_events import (
+    SOURCE_OPTIMIZER_ADS,
+    SOURCE_OPTIMIZER_AUDIENCE,
+    SOURCE_OPTIMIZER_RECRUITMENT_DATA,
+    STAGE_EXECUTE,
+    STAGE_HEAL,
+    STAGE_LOAD,
+    STAGE_PLAN,
+    record_events,
+    run_error,
+    run_ok,
+    run_started,
+)
 from .study_conf import (
     CreativeConf,
     FacebookTargeting,
@@ -498,7 +512,7 @@ def calculate_cost_over_time_report(
     )
 
 
-def run_updates(fn: AdoptJob) -> None:
+def run_updates(fn: AdoptJob, source: str) -> None:
     env = Env()
     db_conf = get_db_conf(env)
 
@@ -508,55 +522,85 @@ def run_updates(fn: AdoptJob) -> None:
     logging.info(f"Got {len(studies)} active studies to update")
 
     for s in studies:
-        try:
-            study, state = load_basics(s, db_conf, env)
-            logging.info(f"Updating {study.general.name}")
+        run_id = str(uuid.uuid4())
+        record_events(db_conf, [run_started(s, source, run_id)])
 
-            instructions, report = fn(db_conf, study, state)
+        failure = update_study(s, fn, db_conf, env)
 
-            if instructions is None:
-                continue
+        if failure is None:
+            record_events(db_conf, [run_ok(s, source, run_id)])
+            continue
 
-            logging.info(
-                f"Generated {len(instructions)} instruction(s) for {study.general.name}"
-            )
+        stage, e = failure
+        # Logged before the event write, so the error survives in the pod log
+        # even when the database is what is failing.
+        logging.error(f"Error updating campaign {s} ({stage}). Error: {e}")
+        record_events(db_conf, [run_error(s, source, run_id, stage, e)])
 
-            # The FACEBOOK_ADOPT report is written by the job that produced it
-            # (update_ads_for_campaign), not here, so that every caller of that
-            # function records it and not just this one.
-            made_ads = any(
-                i.node == "ad" and i.action == "create" for i in instructions
-            )
 
-            run_instructions(instructions, state, db_conf)
+def update_study(
+    s: str, fn: AdoptJob, db_conf: DBConf, env: Env
+) -> Optional[Tuple[str, BaseException]]:
+    """Run one job for one study. Returns (stage, exception) if it failed.
 
-            # Heal again if this run made ads. The heal at the top of
-            # update_ads_for_campaign ran before them, so without this their
-            # rows would wait for the next run -- two hours on the ads cron.
-            # Nothing is lost by waiting (swoosh rebuilds a study's
-            # inference_data from scratch each run, so a late row is applied
-            # retroactively), but there is no reason to make a new ad spend for
-            # two hours while the optimizer cannot see who it recruited.
-            #
-            # Conditional, so a steady-state run -- which creates nothing --
-            # pays no extra Graph reads at all.
-            if made_ads:
-                heal_ad_attributions(study, fresh_state(study, env), db_conf)
+    Every failure is caught so one study cannot stop the rest of the run; the
+    stage says which step it failed in, for the study owner reading the event.
+    """
+    stage = STAGE_LOAD
+    try:
+        study, state = load_basics(s, db_conf, env)
+        logging.info(f"Updating {study.general.name}")
 
-        except BaseException as e:
-            logging.error(f"Error updating campaign {s}. Error: {e}")
+        stage = STAGE_PLAN
+        instructions, report = fn(db_conf, study, state)
+
+        if instructions is None:
+            return None
+
+        logging.info(
+            f"Generated {len(instructions)} instruction(s) for {study.general.name}"
+        )
+
+        # The FACEBOOK_ADOPT report is written by the job that produced it
+        # (update_ads_for_campaign), not here, so that every caller of that
+        # function records it and not just this one.
+        made_ads = any(
+            i.node == "ad" and i.action == "create" for i in instructions
+        )
+
+        stage = STAGE_EXECUTE
+        run_instructions(instructions, state, db_conf)
+
+        # Heal again if this run made ads. The heal at the top of
+        # update_ads_for_campaign ran before them, so without this their
+        # rows would wait for the next run -- two hours on the ads cron.
+        # Nothing is lost by waiting (swoosh rebuilds a study's
+        # inference_data from scratch each run, so a late row is applied
+        # retroactively), but there is no reason to make a new ad spend for
+        # two hours while the optimizer cannot see who it recruited.
+        #
+        # Conditional, so a steady-state run -- which creates nothing --
+        # pays no extra Graph reads at all.
+        if made_ads:
+            stage = STAGE_HEAL
+            heal_ad_attributions(study, fresh_state(study, env), db_conf)
+
+        return None
+
+    except BaseException as e:
+        return stage, e
 
 
 def update_audience() -> None:
-    run_updates(update_audience_for_campaign)
+    run_updates(update_audience_for_campaign, SOURCE_OPTIMIZER_AUDIENCE)
 
 
 def update_ads() -> None:
-    run_updates(update_ads_for_campaign)
+    run_updates(update_ads_for_campaign, SOURCE_OPTIMIZER_ADS)
 
 
 def update_recruitment_data() -> None:
-    run_updates(update_recruitment_data_for_campaign)
+    run_updates(update_recruitment_data_for_campaign, SOURCE_OPTIMIZER_RECRUITMENT_DATA)
 
 
 def get_study_conf_for_reports(db_conf: DBConf, study_id: str) -> StudyConf:

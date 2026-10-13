@@ -623,8 +623,9 @@ class VlabClient:
     def study_errors(self, org_id: str, slug: str) -> List[Dict[str, Any]]:
         """`GET /{org}/optimize/{slug}/errors` -- the list, unwrapped.
 
-        swoosh's extraction errors only -- adopt writes no events at all, so an
-        empty list is not evidence that ad building is healthy (§2.3).
+        swoosh's extraction errors and the adopt crons' run failures, each only
+        while it is still being re-emitted -- so an empty list is not evidence
+        of health (§2.3).
 
         This route wraps its payload under `errors`, not `data`, which is the
         one place on this service where `_data` would hand back the envelope

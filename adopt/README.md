@@ -711,6 +711,102 @@ The click-to-WhatsApp sections of `adopt/adopt/test_marketing.py` — which
 assert against a verbatim copy of fly's regex — and
 `adopt/adopt/test_study_conf.py`.
 
+## Study run events
+
+`study_run_events` is the append-only log behind the dashboard's Errors tab,
+the `vlab errors` command and the `study_errors` MCP tool
+(`GET /{org}/optimize/{slug}/errors`). It has two writers: swoosh
+(`inference/swoosh/events.go`, source `inference`) and adopt's crons
+(`adopt/adopt/run_events.py`, VIR-34). The design is
+`planning/study-errors-surfacing.md`; this section is what adopt does.
+
+### What adopt writes
+
+`malaria.run_updates` writes three facts per study per cron run, all sharing
+one `run_id`:
+
+| Situation | `event_type` | `fingerprint` | `severity` | `message` / `details` |
+|---|---|---|---|---|
+| The study's turn begins | `run_started` | `''` | `''` | — |
+| Every step succeeded (including "nothing to do") | `run_ok` | `<source>:run` | `''` | — |
+| Any step raised | `run_error` | `<source>:run` | `error` | `"<stage label>: <reason>"`; `{stage, exception, …}` |
+
+The `source` names the job, not the service:
+
+| Cron | `source` |
+|---|---|
+| `adopt-ads` (`malaria_ads.py`) | `optimizer:ads` |
+| `adopt-audience` (`malaria_audience.py`) | `optimizer:audience` |
+| `adopt-recruitment-data` (`malaria_recruitment.py`) | `optimizer:recruitment_data` |
+
+**Why one source per job rather than one `optimizer` source.** The derivation
+groups by `(source, fingerprint)` and the latest event wins. With one shared
+source, a clean four-hourly recruitment-data run would close a failing ads run
+that is still failing. The ticket proposed `'optimizer'`; the `connector:fly`
+naming in the planning doc is the precedent for `<service>:<job>`. The recency
+window is also per source, and the jobs run on different crons.
+
+**The stage** says which step failed, since a bare exception is sometimes not
+enough on its own: `load` (reading the conf and credentials), `plan` (building
+instructions: this is where the config guards such as
+`refuse_template_destination_conflicts` raise), `execute` (Meta rejected an
+instruction) and `heal` (the post-create `heal_ad_attributions`).
+
+**The fingerprint is `<source>:run`, with nothing volatile in it.** A refusal
+repeated every run is one open error whose `last_seen` advances and whose
+`first_seen` says how long it has been true, not one row per run. The message
+changes if the reason changes; the fingerprint does not, so the next `run_ok`
+closes whatever the latest failure was. Same shape as swoosh's `inference:run`.
+
+**Meta errors are never described with `str()`.** `FacebookRequestError.__str__`
+includes the request params, which can carry the access token, and the message
+is shown to everyone who can open the study. `describe_exception` builds the
+text from Meta's `message`, `error_user_title` and `error_user_msg`, and puts
+code, subcode, type, method and path in `details`. Other exceptions use their
+own text (the guards were written to be read), capped at 4000 characters.
+
+**The write is best-effort and comes after the log line.** The error is
+`logging.error`'d first, exactly as before, and `record_events` never raises: a
+broken database loses the dashboard copy, not the error, and never skips the
+next study.
+
+**Not written:** the warnings adopt logs without raising
+(`warn_on_incomplete_targeting`, `warn_on_thinned_ref_without_mapping`,
+unhealable ads in `heal_ad_attributions`, a failed respondents/cost report).
+They are still log-only. They would need per-entity fingerprints (like swoosh's
+`inference:extraction:*`) and are the natural next step. The dashboard's
+Optimize tab and `plan_study` call `update_ads_for_campaign` directly, not
+`run_updates`, and write nothing: they return the error to their caller.
+
+### The recency window is per source
+
+An error stays open until a later event on the same fingerprint supersedes it,
+or until it is older than its source's window, whichever comes first. The window
+is three of that writer's cron periods (`run_events.recency_window`):
+
+| Source | Period used | Window |
+|---|---|---|
+| `inference` | 1h | 3h |
+| `optimizer:ads` | 4h | 12h |
+| `optimizer:audience` | 4h | 12h |
+| `optimizer:recruitment_data` | 4h | 12h |
+| anything else | — | 90 min |
+
+A single global window cannot work. It was 90 minutes, which is shorter than
+adopt-ads' two-hour period in production, so an error that stayed true would
+disappear for 30 minutes of every cycle. The reader cannot see a deployment's
+schedule, and adopt-ads is two-hourly in `toixo-prod` but four-hourly in
+`toixo-staging` and `curiouslearning`, so **the period is the slowest one any
+committed values file uses**. The cost of that choice is small: a fixed problem
+closes at once on the next `run_ok`, and only a writer that goes silent keeps
+its last error open for longer. `test_every_deployed_cron_fits_its_source_period`
+parses every `devops/values/*.yaml` and fails if a cron is slower than its row
+here. So if you slow a cron, update `SOURCE_PERIODS` in the same change.
+
+The SQL in `server/db.py::get_study_errors` bounds the scan by the widest
+window and returns each row's age by the database clock. `open_errors` applies
+the per-source window in Python.
+
 ## Configuration
 
 Some documentation for configuring a vlab study:
@@ -1029,7 +1125,7 @@ correct for free.
 | `vlab plan <org>/<slug>` | `GET /{org}/optimize/{slug}`, indexed. **Not side-effect free.** |
 | `vlab apply <org>/<slug> <index> [--yes]` | Re-plans, then posts that one instruction. |
 | `vlab copy-from <org>/<slug> <source_slug>` | `POST .../copy-from`. Appends every section but `general` from the source. TARGET first, SOURCE last — reversing them overwrites the study you meant to copy from. |
-| `vlab errors <org>/<slug>` | Open errors and warnings. Only swoosh writes these, and they age out after 90 minutes: an empty table is not "healthy". |
+| `vlab errors <org>/<slug>` | Open errors and warnings from swoosh and the adopt crons. Each ages out once its writer stops re-emitting it (3h for swoosh, 12h for adopt), so an empty table is not "healthy". See "Study run events". |
 | `vlab current-data <org>/<slug>` | The rows the optimizer sees — one per respondent *per variable*, inside the inference window. |
 | `vlab ad-attributions <org>/<slug> [--csv PATH]` | The frozen ad → stratum mapping. `--csv` fetches the server's own rendering (`-` for stdout). |
 | `vlab stats <org>/<slug>` | Recruitment statistics per stratum. 404 until a plan run has written a report. Not live: spend comes from a four-hourly cron, and `cpm` here is impressions/spend, not cost per mille. |

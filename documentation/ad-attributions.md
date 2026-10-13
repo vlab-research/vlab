@@ -313,7 +313,7 @@ path, but so a miss can be lined up against fly's recruitment-health signals.
 **Unmapped is self-healing.** Because swoosh recomputes the whole study every
 run, inserting a missing mapping row retroactively fixes every prior run's
 attribution. The counter is a current-state measure, not a cumulative one, and
-the dashboard's 90-minute recency window ages the stale error out without anyone
+the dashboard's recency window (3 hours for swoosh) ages the stale error out without anyone
 closing it.
 
 A key that is missing from a row that *was* found is deliberately not counted as

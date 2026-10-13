@@ -802,8 +802,8 @@ func countUnmappedEvents(t *testing.T, pool *pgxpool.Pool, study string) int {
 // swoosh recomputes a study's whole history on every run, so inserting a
 // missing mapping row retroactively fixes every prior run's attribution. The
 // counter is a current-state measure, not a cumulative one: the run after the
-// fix emits no unmapped error at all, and the dashboard's 90-minute recency
-// window then ages the old one out without anyone closing it.
+// fix emits no unmapped error at all, and the dashboard's recency window then
+// ages the old one out without anyone closing it.
 func TestSwooshStudy_UnmappedTokenIsSelfHealing(t *testing.T) {
 	pool := TestPool()
 	defer pool.Close()
