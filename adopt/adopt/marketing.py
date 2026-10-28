@@ -608,6 +608,35 @@ def messaging_destinations_of(asset_feed_spec: Dict[str, Any]) -> set:
     } - {None}
 
 
+# The call_to_action types that name one messaging app: the pairing
+# `messenger_call_to_action` and `whatsapp_call_to_action` build, read backwards.
+CTA_TYPE_APP_DESTINATIONS: Dict[str, str] = {
+    "MESSAGE_PAGE": "MESSENGER",
+    "WHATSAPP_MESSAGE": "WHATSAPP",
+}
+
+
+def messaging_destinations_stated_by(object_story_spec: Dict[str, Any]) -> set:
+    """The app destinations a template's own call_to_action opens.
+
+    The counterpart of `messaging_destinations_of` for a template with no
+    destination-bearing asset_feed_spec, which is every messenger and whatsapp
+    template `authoring.templates` builds. Reads `link_data` or `video_data`
+    (a template has one of the two). `value.app_destination` wins over `type`
+    where set, because an Ads Manager "Messenger and Instagram" template
+    carries MESSAGE_PAGE over an INSTAGRAM_DIRECT app_destination.
+
+    Empty for OPEN_LINK, INSTALL_MOBILE_APP, LEARN_MORE, or no CTA at all.
+    """
+    story = object_story_spec or {}
+    out = set()
+    for carrier in ("link_data", "video_data"):
+        cta = (story.get(carrier) or {}).get("call_to_action") or {}
+        app = (cta.get("value") or {}).get("app_destination")
+        out.add(app or CTA_TYPE_APP_DESTINATIONS.get(str(cta.get("type"))))
+    return out - {None}
+
+
 def messaging_destinations_for(destination: DestinationConf) -> set:
     """The app destinations a study conf's destination means the ad should open.
 
@@ -634,7 +663,7 @@ def messaging_destinations_for(destination: DestinationConf) -> set:
 def refuse_template_destination_conflicts(
     config: CreativeConf, destination: DestinationConf
 ) -> None:
-    """Refuse a template whose asset_feed_spec means a different destination.
+    """Refuse a template that means a different destination than the conf.
 
     A messaging ad states its destination in three places -- the ad set's
     destination_type, link_data.call_to_action, and
@@ -656,13 +685,29 @@ def refuse_template_destination_conflicts(
     template did not mean something else. See
     planning/creative-construction-contract.md ss1 for why the
     template-authoritative alternative was rejected.
+
+    The asset_feed_spec is read first; only when it names no destination is
+    the template's call_to_action read, and only for a Messenger or WhatsApp
+    conf (see `messaging_destinations_stated_by`).
     """
     template_afs = config.template.get(AdCreative.Field.asset_feed_spec) or {}
-    if not template_afs:
-        return
 
     wanted = messaging_destinations_for(destination)
     have = messaging_destinations_of(template_afs)
+    stated_in = "asset_feed_spec"
+
+    # A template with no destination in its asset_feed_spec may still state one
+    # in its call_to_action. Read only for a single-destination messaging conf:
+    # on a multi ad that CTA is Meta's single-valued MESSAGE_PAGE fallback, not
+    # a statement, and a web or app ad replaces the CTA and link wholesale, so
+    # a messaging-shaped template has always been legal there.
+    if not have and isinstance(
+        destination, (FlyMessengerDestination, FlyWhatsAppDestination)
+    ):
+        have = messaging_destinations_stated_by(
+            config.template.get(AdCreative.Field.object_story_spec) or {}
+        )
+        stated_in = "call_to_action"
 
     # `have` empty means the template declares no destination at all -- an
     # ordinary Advantage+ or plain image template. Nothing to disagree with.
@@ -671,7 +716,7 @@ def refuse_template_destination_conflicts(
         raise Exception(
             f"Creative '{config.name}' points at destination "
             f"'{config.destination}', which opens {opens}, but its template "
-            f"ad's asset_feed_spec opens {sorted(have)}. Meta routes the ad "
+            f"ad's {stated_in} opens {sorted(have)}. Meta routes the ad "
             "set by a single destination_type and refuses any ad whose "
             "call_to_actions disagree with it, naming neither the template "
             "nor this creative. Rebuild the template ad in Ads Manager to "
