@@ -133,6 +133,38 @@ def test_get_collection_days_gets_up_to_now_for_ongoing_study_from_yesterday():
     ]
 
 
+def test_get_collection_days_handles_windows_longer_than_recursion_limit():
+    start = datetime(2024, 1, 1, 3)
+    end = datetime(2026, 11, 10, 23)
+    now = datetime(2026, 11, 6, 5)
+
+    res = get_collection_days(start, end, now)
+
+    # 2024-01-01 through 2026-11-06 inclusive
+    assert len(res) == (now.date() - start.date()).days + 1 == 1041
+    assert res[0] == _cp(start, day_end(start), False)
+    assert res[1] == _cp(datetime(2024, 1, 2), day_end(datetime(2024, 1, 2)), False)
+    assert res[-2] == _cp(
+        datetime(2026, 11, 5), day_end(datetime(2026, 11, 5)), False
+    )
+    assert res[-1] == _cp(day_start(now), now, True)
+
+
+def test_get_collection_days_handles_long_windows_in_the_past():
+    start = datetime(2024, 1, 1, 3)
+    end = datetime(2026, 11, 10, 23)
+    now = datetime(2027, 1, 1, 5)
+
+    res = get_collection_days(start, end, now)
+
+    assert len(res) == (end.date() - start.date()).days + 1 == 1045
+    assert res[0] == _cp(start, day_end(start), False)
+    assert res[-1] == _cp(
+        datetime(2026, 11, 10), day_end(datetime(2026, 11, 10)), False
+    )
+    assert not any(p.temp for p in res)
+
+
 def create_study(name, user_id="foo@email"):
     q = """
     INSERT INTO users(id) VALUES (%s) RETURNING id
