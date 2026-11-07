@@ -97,11 +97,8 @@ def get_collection_days(
     if start > until:
         raise Exception(f"nonsensical time range: {start} to {until}")
 
-    # A loop, not recursion: one period per day would exceed Python's
-    # recursion limit on recruitment windows longer than ~1,000 days.
     periods = []
     while start <= until:
-        # a period starting today is temp data up to now, and is the last one
         if start.date() == now.date():
             periods.append(CollectionPeriod(start, now, True))
             break

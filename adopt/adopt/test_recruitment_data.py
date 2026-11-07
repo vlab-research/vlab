@@ -140,7 +140,6 @@ def test_get_collection_days_handles_windows_longer_than_recursion_limit():
 
     res = get_collection_days(start, end, now)
 
-    # 2024-01-01 through 2026-11-06 inclusive
     assert len(res) == (now.date() - start.date()).days + 1 == 1041
     assert res[0] == _cp(start, day_end(start), False)
     assert res[1] == _cp(datetime(2024, 1, 2), day_end(datetime(2024, 1, 2)), False)
