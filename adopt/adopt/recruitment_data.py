@@ -97,18 +97,16 @@ def get_collection_days(
     if start > until:
         raise Exception(f"nonsensical time range: {start} to {until}")
 
-    # if start is today, just get today as temp data
-    if start.date() == now.date():
-        return [CollectionPeriod(start, now, True)]
+    periods = []
+    while start <= until:
+        if start.date() == now.date():
+            periods.append(CollectionPeriod(start, now, True))
+            break
 
-    # in all other cases, the first day is final
-    first = [CollectionPeriod(start, day_end(start), False)]
-    start = day_start(start) + timedelta(days=1)
+        periods.append(CollectionPeriod(start, day_end(start), False))
+        start = day_start(start) + timedelta(days=1)
 
-    if start > until:
-        return first
-
-    return first + get_collection_days(start, until, now)
+    return periods
 
 
 # Wrapper for mocking
